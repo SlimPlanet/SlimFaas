@@ -80,4 +80,6 @@ public class MockKubernetesService : IKubernetesService
     {
         return Task.FromResult(_deploymentInformations);
     }
+
+    public Task CreateJobAsync( string kubeNamespace, string name, CreateJob createJob) => throw new NotImplementedException();
 }

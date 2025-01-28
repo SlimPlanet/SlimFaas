@@ -116,15 +116,28 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
-  build_fibonacci:
+  build_fibonacci_api:
     needs: tags
     uses: ./.github/workflows/Docker.yml
     with:
-      image_name: "axaguildev/fibonacci"
+      image_name: "axaguildev/fibonacci-api"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
       image_context: "./src/Fibonacci"
       image_file: "./src/Fibonacci/Dockerfile"
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+  build_fibonacci_batch:
+    needs: tags
+    uses: ./.github/workflows/Docker.yml
+    with:
+      image_name: "axaguildev/fibonacci-batch"
+      image_version: "${{ needs.tags.outputs.new_version }}"
+      image_build_args: ""
+      image_context: "./src/FibonacciBatch"
+      image_file: "./src/FibonacciBatch/Dockerfile"
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}

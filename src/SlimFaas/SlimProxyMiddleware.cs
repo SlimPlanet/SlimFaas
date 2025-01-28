@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Net;
+using System.Text.Json.Serialization;
 using MemoryPack;
 using SlimData;
 using SlimFaas.Database;
@@ -13,6 +14,7 @@ public enum FunctionType
     Wake,
     Status,
     Publish,
+    Job,
     NotAFunction
 }
 
@@ -45,6 +47,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string WakeFunction = "/wake-function";
     private const string Function = "/function";
     private const string PublishEvent = "/publish-event";
+    private const string Job = "/job";
 
     private readonly int[] _slimFaasPorts = EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasPorts,
         EnvironmentVariables.SlimFaasPortsDefault);
@@ -58,7 +61,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         slimFaasSubscribeEventsDefault);
 
     public async Task InvokeAsync(HttpContext context,
-        HistoryHttpMemoryService historyHttpService, ISendClient sendClient, IReplicasService replicasService)
+        HistoryHttpMemoryService historyHttpService, ISendClient sendClient, IReplicasService replicasService, IJobService? jobService=null)
     {
 
         if (!HostPort.IsSamePort(context.Request.Host.Port, _slimFaasPorts))
@@ -88,6 +91,30 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             case FunctionType.NotAFunction:
                 await next(context);
                 return;
+            case  FunctionType.Job:
+
+                if (jobService == null)
+                {
+                    return;
+                }
+                if (contextRequest.Method != HttpMethods.Post)
+                {
+                    contextResponse.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+                    return;
+                }
+
+                CreateJob? createJob = await contextRequest.ReadFromJsonAsync(CreateJobSerializerContext.Default.CreateJob);
+                if (createJob == null)
+                {
+                    contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                    return;
+                }
+
+
+
+                await jobService.CreateJobAsync(functionName, createJob);
+                contextResponse.StatusCode = 204;
+                return;
             case FunctionType.Wake:
                 BuildWakeResponse(replicasService, wakeUpFunction, functionName, contextResponse);
                 return;
@@ -111,7 +138,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
     }
 
-    private static Boolean MessageComeFromNamespaceInternal(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, DeploymentInformation currentFunction)
+    private static bool MessageComeFromNamespaceInternal(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, DeploymentInformation? currentFunction=null)
     {
         IList<string> podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false).Select(p => p.Ip).ToList();
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
@@ -541,6 +568,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             StatusFunction => FunctionType.Status,
             WakeFunction => FunctionType.Wake,
             PublishEvent => FunctionType.Publish,
+            Job => FunctionType.Job,
             _ => FunctionType.NotAFunction
         };
         return new FunctionInfo(functionPath, functionName, functionType);
@@ -568,6 +596,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         else if (path.StartsWithSegments(PublishEvent))
         {
             functionBeginPath = $"{PublishEvent}";
+        }
+        else if (path.StartsWithSegments(Job))
+        {
+            functionBeginPath = $"{Job}";
         }
 
         return functionBeginPath;
