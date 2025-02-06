@@ -85,6 +85,8 @@ serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemo
     serviceProviderStarter.GetService<HistoryHttpMemoryService>()!);
 serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
     serviceProviderStarter.GetService<IKubernetesService>()!);
+serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
+
 serviceCollectionSlimFaas.AddCors();
 
 string publicEndPoint = string.Empty;

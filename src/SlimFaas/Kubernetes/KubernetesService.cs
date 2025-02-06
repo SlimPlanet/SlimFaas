@@ -64,6 +64,7 @@ public enum PodType
     StatefulSet
 }
 
+
 public record ReplicaRequest(string Deployment, string Namespace, int Replicas, PodType PodType);
 
 public record SlimFaasDeploymentInformation(int Replicas, IList<PodInformation> Pods);
@@ -97,6 +98,20 @@ public record DeploymentInformation(string Deployment,
     );
 
 public record PodInformation(string Name, bool? Started, bool? Ready, string Ip, string DeploymentName);
+
+public record CreateJob(
+    string Image,
+    List<string> Args,
+    int BackoffLimit = 4,
+    string RestartPolicy = "Never",
+    CreateJobResources? Resources = null,
+    Dictionary<string, string>? Environments = null);
+
+public record CreateJobResources(Dictionary<string,string> Requests, Dictionary<string,string> Limits);
+
+[JsonSerializable(typeof(CreateJob))]
+[JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+public partial class CreateJobSerializerContext : JsonSerializerContext;
 
 [ExcludeFromCodeCoverage]
 public class KubernetesService : IKubernetesService
@@ -471,6 +486,108 @@ public class KubernetesService : IKubernetesService
         }
         return result;
     }
+
+
+
+    public async Task CreateJobAsync( string kubeNamespace, string name, CreateJob createJob)
+    {
+        var client = _client;
+        var fullName = name + "-job-" + Guid.NewGuid();
+
+        var requests = new Dictionary<string, ResourceQuantity>
+        {
+            { "cpu", new ResourceQuantity("100m") }, { "memory", new ResourceQuantity("512Mi") }
+        };
+        if( createJob.Resources?.Requests != null )
+        {
+            requests = createJob.Resources.Requests.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
+        }
+        var limits = requests;
+        if(createJob.Resources?.Limits != null)
+        {
+            limits = createJob.Resources.Limits.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
+        }
+
+        var job = new V1Job
+        {
+            ApiVersion = "batch/v1",
+            Kind = "Job",
+            Metadata = new V1ObjectMeta
+            {
+                Name =  fullName,
+                NamespaceProperty = kubeNamespace
+            },
+            Spec = new V1JobSpec
+            {
+                Template = new V1PodTemplateSpec
+                {
+                    Metadata = new V1ObjectMeta
+                    {
+                        Labels = new Dictionary<string, string> { { "job-name", fullName } }
+                    },
+                    Spec = new V1PodSpec
+                    {
+                        Containers = new List<V1Container>
+                        {
+                            new()
+                            {
+                                Name = name,
+                                Image = createJob.Image,
+                                Args = createJob.Args,
+                                Env = new List<V1EnvVar>(createJob.Environments?.Select(e => new V1EnvVar(e.Key, e.Value)) ?? new List<V1EnvVar>()),
+                            }
+                        },
+                        RestartPolicy = createJob.RestartPolicy,
+                        Resources = new V1ResourceRequirements()
+                        {
+                            Requests = requests,
+                            Limits = limits
+                        }
+                    }
+                },
+                BackoffLimit = createJob.BackoffLimit
+            }
+        };
+
+        var jobResponse = await client.CreateNamespacedJobAsync(job, kubeNamespace);
+
+        Console.WriteLine($"Job created with name: {jobResponse.Metadata.Name}");
+    }
+
+    public record JobStatus(string JobName, bool IsCompleted, bool IsFailed, bool IsRunning);
+
+    public async Task ListJobsAsync(string kubeNamespace)
+    {
+        var jobStatus = new List<JobStatus>();
+        var client = _client;
+        var jobList = await client.ListNamespacedJobAsync(kubeNamespace);
+        foreach (V1Job v1Job in jobList)
+        {
+            jobStatus.Add(new JobStatus(v1Job.Metadata.Name, v1Job.Status.Succeeded.HasValue && v1Job.Status.Succeeded.Value > 0, v1Job.Status.Failed.HasValue && v1Job.Status.Failed.Value > 0, v1Job.Status.Active.HasValue && v1Job.Status.Active.Value > 0));
+        }
+    }
+
+    /*public void JobStatus(string jobName)
+    {
+        var client = _client;
+
+
+        var jobStatus = client.ReadNamespacedJobStatus(jobName, "default");
+
+        if (jobStatus.Status.Succeeded.HasValue && jobStatus.Status.Succeeded.Value > 0)
+        {
+            Console.WriteLine($"Job {jobName} has completed successfully.");
+        }
+        else if (jobStatus.Status.Failed.HasValue && jobStatus.Status.Failed.Value > 0)
+        {
+            Console.WriteLine($"Job {jobName} has failed.");
+        }
+        else
+        {
+            Console.WriteLine($"Job {jobName} is still running.");
+        }
+    }*/
+
 
 
 }

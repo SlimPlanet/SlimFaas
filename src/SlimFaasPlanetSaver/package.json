@@ -8,54 +8,51 @@
   "types": "./src/index.d.ts",
   "description": "Pure vanilla javascript which call SlimFaas API to convert infrastructures resilience to an UX resilience and help to save the planet",
   "files": [
-        "src/SlimFaasPlanetSaver.js",
-        "src/SlimFaasPlanetSaver.d.ts",
-        "src/index.js",
-        "src/index.d.ts",
-        "README.md",
-        "package.json",
-        "package-lock.json"
-    ],
+    "src/SlimFaasPlanetSaver.js",
+    "src/SlimFaasPlanetSaver.d.ts",
+    "src/index.js",
+    "src/index.d.ts",
+    "README.md",
+    "package.json",
+    "package-lock.json"
+  ],
   "keywords": [
-        "Faas",
-        "SlimFaas",
-        "Function As A Service",
-        "vanilla",
-        "GreenIT"
-    ],
+    "Faas",
+    "SlimFaas",
+    "Function As A Service",
+    "vanilla",
+    "GreenIT"
+  ],
   "repository": {
-        "type": "git",
-        "url": "https://github.com/AxaFrance/slimfaas.git"
-    },
+    "type": "git",
+    "url": "https://github.com/AxaFrance/slimfaas.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
-  "dependencies": {
-
-  },
   "devDependencies": {
+    "@chromatic-com/storybook": "3.2.2",
+    "@eslint/js": "^9.19.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.19.0",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "eslint-plugin-storybook": "0.11.1",
+    "globals": "^15.14.0",
+    "prop-types": "15.8.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "@chromatic-com/storybook": "3.2.2",
-    "@eslint/js": "^9.15.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
-    "eslint": "^9.15.0",
-    "eslint-plugin-react": "^7.37.2",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.14",
-    "eslint-plugin-storybook": "0.11.1",
-    "globals": "^15.12.0",
-    "prop-types": "15.8.1",
-    "vite": "^6.0.1"
+    "vite": "^6.1.0"
   },
-    "license": "MIT",
-    "publishConfig": {
-        "access": "public",
-        "registry": "https://registry.npmjs.org/"
-    }
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  }
 }
