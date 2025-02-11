@@ -1,7 +1,10 @@
-﻿FROM node:20-slim AS base
+﻿FROM node:22-alpine3.20 AS base
+
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+
+RUN npm install -g pnpm
+
 COPY . /app
 WORKDIR /app
 
@@ -15,5 +18,7 @@ RUN pnpm run build
 FROM base
 COPY --from=prod-deps /app/node_modules /app/node_modules
 COPY --from=build /app/dist /app/dist
+
 EXPOSE 8000
+
 CMD [ "pnpm", "start" ]
