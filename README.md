@@ -476,3 +476,17 @@ Why .NET?
 3. Aggregate all swaggers from functions in one exposed by SlimFaas
 4. New pod to "Wake up" from External Source (example: Kafka, etc.) using https://cloudevents.io/ as standard https://github.com/cloudevents/sdk-csharp
 5. Continue Optimization
+
+
+
+## We are a Cloud Native Computing Foundation sandbox project.
+
+<img src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg" />
+
+### SlimFaas Slack Channel
+
+Join us on Slack:
+https://cloud-native.slack.com/archives/C08CRC77VDE
+
+### Trademark Guidelines
+The Linux Foundation® (TLF) has registered trademarks and uses trademarks. For a list of TLF trademarks, see [Trademark Usage](https://www.linuxfoundation.org/legal/trademark-usage).
