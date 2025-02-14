@@ -1,7 +1,7 @@
 ﻿import React, { useState, useEffect, useRef } from 'react';
 import SlimFaasPlanetSaver from "./SlimFaasPlanetSaver.js";
 
-const PlanetSaver = ({ children, baseUrl, fetch }) => {
+const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000 }) => {
     const [isFirstStart, setIsFirstStart] = useState(true);
     const environmentStarterRef = useRef(null);
 
@@ -27,7 +27,8 @@ const PlanetSaver = ({ children, baseUrl, fetch }) => {
             overlayErrorMessage: 'An error occurred when starting environment. Please contact an administrator.',
             overlaySecondaryMessage: 'Startup should be fast, but if no machines are available it can take several minutes.',
             overlayLoadingIcon: '🌍',
-            overlayErrorSecondaryMessage: 'If the error persists, please contact an administrator.'
+            overlayErrorSecondaryMessage: 'If the error persists, please contact an administrator.',
+            noActivityTimeout
         });
 
         environmentStarterRef.current = instance;

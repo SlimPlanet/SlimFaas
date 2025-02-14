@@ -7,7 +7,7 @@ import mockFetch from './mockFetch.js'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-     <PlanetSaver baseUrl="https://slimfaas/" fetch={mockFetch}>
+     <PlanetSaver baseUrl="https://slimfaas/" fetch={mockFetch(true)} noActivityTimeout={20000}>
         <App />
      </PlanetSaver>
   </StrictMode>,

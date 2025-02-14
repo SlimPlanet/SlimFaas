@@ -18,6 +18,7 @@ export default class SlimFaasPlanetSaver {
         this.overlaySecondaryMessage = options.overlaySecondaryMessage || 'Startup should be fast, but if no machines are available it can take several minutes.';
         this.overlayErrorSecondaryMessage = options.overlayErrorSecondaryMessage || 'If the error persists, please contact an administrator.';
         this.overlayLoadingIcon = options.overlayLoadingIcon || '🌍';
+        this.noActivityTimeout = options.noActivityTimeout || 60000;
         this.fetch = options.fetch || fetch;
         this.intervalId = null;
         this.isDocumentVisible = !document.hidden;
@@ -85,7 +86,7 @@ export default class SlimFaasPlanetSaver {
             this.updateCallback(data);
 
             const now = Date.now();
-            const mouseMovedRecently = now - this.lastMouseMoveTime <= 60000; // 1 minute
+            const mouseMovedRecently = now - this.lastMouseMoveTime <= this.noActivityTimeout; // 1 minute
 
             if (!allReady && this.isDocumentVisible && !mouseMovedRecently) {
                 this.updateOverlayMessage(this.overlayNoActivityMessage, 'waiting-action');
@@ -95,6 +96,7 @@ export default class SlimFaasPlanetSaver {
             }
         } catch (error) {
             const errorMessage = error.message;
+            this.setReadyState(this.isReady);
             this.updateOverlayMessage(this.overlayErrorMessage, 'error', this.overlayErrorSecondaryMessage);
             this.errorCallback(errorMessage);
             console.error('Error fetching slimfaas data:', errorMessage);

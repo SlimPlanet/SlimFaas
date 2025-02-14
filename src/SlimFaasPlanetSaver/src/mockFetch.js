@@ -49,12 +49,14 @@ document.addEventListener("visibilitychange", () => {
 // Start the initial toggle logic
 setTimeout(toggleStatusFunctionsBody, 8000);
 // Mock fetch function
-function mockFetch(url, options = {}) {
+const mockFetch = (isError=true, errorProbability=20) => (url, options = {}) => {
     return new Promise((resolve, reject) => {
-        // Lancer une exception aléatoirement 1 fois sur 20
-        if (Math.floor(Math.random() * 20) === 0) {
-            reject(new Error("Exception aléatoire"));
-            return;
+        if(isError) {
+            // Lancer une exception aléatoirement 1 fois sur 20
+            if (Math.floor(Math.random() * errorProbability) === 0) {
+                reject(new Error("Exception aléatoire"));
+                return;
+            }
         }
 
         // Route: /status-functions

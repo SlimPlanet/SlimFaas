@@ -9,6 +9,7 @@
     private overlaySecondaryMessage: string;
     private overlayErrorSecondaryMessage: string;
     private overlayLoadingIcon: string;
+    private noActivityTimeout: number;
     private fetch: typeof fetch;
     private intervalId: number | null;
     private isDocumentVisible: boolean;
@@ -33,6 +34,7 @@
     overlayErrorSecondaryMessage?: string,
     overlayLoadingIcon?: string,
     fetch?: typeof fetch
+    noActivityTimeout?: number
 });
 
 initialize(): void;
