@@ -1,0 +1,31 @@
+﻿@import 'navbar';
+
+.layout {
+    &__navbar {
+        background-color: #333;
+        padding: 1rem;
+    }
+
+    &__content {
+        padding: 2rem;
+    }
+}
+
+.navbar {
+    &__list {
+        list-style: none;
+        display: flex;
+        gap: 1rem;
+    }
+
+    &__item {
+        a {
+            color: white;
+            text-decoration: none;
+
+            &:hover {
+                text-decoration: underline;
+            }
+        }
+    }
+}
