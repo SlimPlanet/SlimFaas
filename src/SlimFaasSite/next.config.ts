@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig = {
     output: 'export',
-    basePath: '/slimfaas-site',
+    basePath: '/SlimFaas',
     images: {
         unoptimized: true,
     },
