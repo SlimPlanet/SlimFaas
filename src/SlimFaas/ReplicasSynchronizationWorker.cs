@@ -22,14 +22,7 @@ public class ReplicasSynchronizationWorker(IReplicasService replicasService,
                 await Task.Delay(_delay, stoppingToken);
 
                 await replicasService.SyncDeploymentsAsync(_namespace);
-                var jobs = await jobService.SyncJobsAsync();
-                foreach (Job job in jobs)
-                {
-                   if(job.Status != JobStatus.Running)
-                   {
-                       await jobService.DeleteJobAsync(job.Name);
-                   }
-                }
+                await jobService.SyncJobsAsync();
             }
             catch (Exception e)
             {

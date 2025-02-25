@@ -523,6 +523,7 @@ public class KubernetesService : IKubernetesService
             },
             Spec = new V1JobSpec
             {
+                TtlSecondsAfterFinished = 300,
                 Template = new V1PodTemplateSpec
                 {
                     Metadata = new V1ObjectMeta

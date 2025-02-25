@@ -1,15 +1,14 @@
 ﻿using System.Collections;
 using SlimFaas.Kubernetes;
+using System.Threading;
 
 namespace SlimFaas;
 
 public interface IJobService
 {
-   Task CreateJobAsync(string name, CreateJob createJob);
-   Task<IList<Job>> SyncJobsAsync();
-   Task DeleteJobAsync(string jobName);
-
-
+    Task CreateJobAsync(string name, CreateJob createJob);
+    Task<IList<Job>> SyncJobsAsync();
+    IList<Job> Jobs { get; }
 }
 
 public class JobService(IKubernetesService kubernetesService) : IJobService
@@ -22,29 +21,14 @@ public class JobService(IKubernetesService kubernetesService) : IJobService
         await kubernetesService.CreateJobAsync(_namespace, name, createJob);
     }
 
-    private readonly object Lock = new();
-
     private IList<Job> _jobs = new List<Job>();
 
-    public IList<Job> Jobs
-    {
-        get
-        {
-            lock (Lock)
-            {
-                return new List<Job>(_jobs.ToArray());
-            }
-        }
-    }
+    public IList<Job> Jobs => new List<Job>(Volatile.Read(ref _jobs).ToArray());
 
     public async Task<IList<Job>> SyncJobsAsync()
     {
-        return await kubernetesService.ListJobsAsync(_namespace);
+        var jobs = await kubernetesService.ListJobsAsync(_namespace);
+        Interlocked.Exchange(ref _jobs, jobs);
+        return jobs;
     }
-
-    public async Task DeleteJobAsync(string name)
-    {
-        await kubernetesService.DeleteJobAsync(_namespace, name);
-    }
-
 }
