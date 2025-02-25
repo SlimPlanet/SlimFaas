@@ -8,7 +8,6 @@ namespace SlimFaas;
 public interface IReplicasService
 {
     DeploymentsInformations Deployments { get; }
-    Task SyncDeploymentsFromSlimData(DeploymentsInformations deploymentsInformations);
     Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace);
     Task CheckScaleAsync(string kubeNamespace);
 }
@@ -37,14 +36,6 @@ public class ReplicasService(IKubernetesService kubernetesService,
                     new SlimFaasDeploymentInformation(_deployments?.SlimFaas?.Replicas ?? 1,
                         _deployments?.SlimFaas?.Pods ?? new List<PodInformation>()), new List<PodInformation>());
             }
-        }
-    }
-
-    public async Task SyncDeploymentsFromSlimData(DeploymentsInformations deploymentsInformations)
-    {
-        lock (Lock)
-        {
-            _deployments = deploymentsInformations;
         }
     }
 

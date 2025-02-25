@@ -81,5 +81,17 @@ public class MockKubernetesService : IKubernetesService
         return Task.FromResult(_deploymentInformations);
     }
 
-    public Task CreateJobAsync( string kubeNamespace, string name, CreateJob createJob) => throw new NotImplementedException();
+    public Task CreateJobAsync( string kubeNamespace, string name, CreateJob createJob)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task<IList<Job>> ListJobsAsync(string ns) {
+        return Task.FromResult<IList<Job>>(new List<Job>());
+    }
+
+    public Task DeleteJobAsync(string kubeNamespace, string name)
+    {
+        return Task.CompletedTask;
+    }
 }

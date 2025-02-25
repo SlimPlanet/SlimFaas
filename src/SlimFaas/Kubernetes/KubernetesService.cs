@@ -1,5 +1,4 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -9,6 +8,14 @@ using k8s.Autorest;
 using k8s.Models;
 
 namespace SlimFaas.Kubernetes;
+
+public enum JobStatus
+{
+    Running,
+    Finished,
+    Failed
+}
+public record Job(string Name, JobStatus Status, string Ip = "");
 
 public class ScheduleConfig
 {
@@ -551,20 +558,55 @@ public class KubernetesService : IKubernetesService
         Console.WriteLine($"Job created with name: {jobResponse.Metadata.Name}");
     }
 
-    public record JobStatus(string JobName, bool IsCompleted, bool IsFailed, bool IsRunning);
 
-    public async Task ListJobsAsync(string kubeNamespace)
+
+
+    public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
     {
-        var jobStatus = new List<JobStatus>();
+        var jobStatus = new List<Job>();
         var client = _client;
         var jobList = await client.ListNamespacedJobAsync(kubeNamespace);
         foreach (V1Job v1Job in jobList)
         {
-            jobStatus.Add(new JobStatus(v1Job.Metadata.Name, v1Job.Status.Succeeded.HasValue && v1Job.Status.Succeeded.Value > 0, v1Job.Status.Failed.HasValue && v1Job.Status.Failed.Value > 0, v1Job.Status.Active.HasValue && v1Job.Status.Active.Value > 0));
+            var pods = await _client.ListNamespacedPodAsync(
+                kubeNamespace,
+                labelSelector: $"job-name={v1Job.Metadata.Name}"
+            );
+
+            // On peut, par exemple, ne prendre que le premier Pod
+            // (ou accumuler les IPs si le Job en gère plusieurs)
+            var firstPod = pods.Items.FirstOrDefault();
+
+            // Récupération de la PodIP (peut être null si le Pod n'est plus en cours d'exécution)
+            var ip = firstPod?.Status?.PodIP;
+
+
+            JobStatus status = JobStatus.Running;
+            if (v1Job.Status.Succeeded is > 0)
+            {
+                status = JobStatus.Finished;
+            }
+            else if (v1Job.Status.Failed is > 0)
+            {
+                status = JobStatus.Failed;
+            }
+
+            jobStatus.Add(new Job(v1Job.Metadata.Name,
+                status,
+                Ip: ip ?? string.Empty
+                ));
         }
+
+        return jobStatus;
     }
 
-    /*public void JobStatus(string jobName)
+    public async Task DeleteJobAsync(string kubeNamespace, string name)
+    {
+        var client = _client;
+        await client.DeleteNamespacedJobAsync(name, kubeNamespace);
+    }
+
+    /*public void Job(string jobName)
     {
         var client = _client;
 
