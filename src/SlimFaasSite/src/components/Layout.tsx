@@ -10,13 +10,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => (
         <nav className="layout__navbar">
             <ul className="navbar__list">
                 <li className="navbar__item">
-                    <Link href={`${process.env.NEXT_PUBLIC_BASE_PATH}/`}>Home</Link>
+                    <Link href={`/`}>Home</Link>
                 </li>
                 <li className="navbar__item">
-                    <Link href={`${process.env.NEXT_PUBLIC_BASE_PATH}/about`}>About</Link>
+                    <Link href={`/about`}>About</Link>
                 </li>
                 <li className="navbar__item">
-                    <Link href={`${process.env.NEXT_PUBLIC_BASE_PATH}/contact`}>Contact</Link>
+                    <Link href={`/contact`}>Contact</Link>
                 </li>
             </ul>
         </nav>
