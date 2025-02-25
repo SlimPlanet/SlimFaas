@@ -1,4 +1,4 @@
-# SlimFaas : The slimest and simplest Function As A Service [![Continuous Integration](https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml/badge.svg)](https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml) [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=alert_status)](https://sonarcloud.io/dashboard?id=SlimPlanet_SlimFaas) [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=reliability_rating) [![Security](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=security_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=security_rating) [![Code Corevage](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=coverage)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=Coverage)
+# SlimFaas : The slimmest and simplest Function As A Service [![Continuous Integration](https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml/badge.svg)](https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml) [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=alert_status)](https://sonarcloud.io/dashboard?id=SlimPlanet_SlimFaas) [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=reliability_rating) [![Security](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=security_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=security_rating) [![Code Corevage](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=coverage)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=Coverage)
 [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas.svg?label=docker+pull+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver&label=latest+version+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 
@@ -487,6 +487,20 @@ Why .NET?
 4. New pod to "Wake up" from External Source (example: Kafka, etc.) using https://cloudevents.io/ as standard https://github.com/cloudevents/sdk-csharp
 5. Continue Optimization
 
+## We are a Cloud Native Computing Foundation sandbox project.
+https://landscape.cncf.io
+
+<img src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg" />
+
+### SlimFaas Slack Channel
+
+Join us on Slack:
+https://cloud-native.slack.com/archives/C08CRC77VDE
+
+### Trademark Guidelines
+The Linux Foundation® (TLF) has registered trademarks and uses trademarks. For a list of TLF trademarks, see [Trademark Usage](https://www.linuxfoundation.org/legal/trademark-usage).
+
 ## Code of Conduct
 
 SlimFaas project has adopted the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md)
+
