@@ -187,9 +187,10 @@ public class ProxyMiddlewareTests
             .ReturnsAsync(responseMessage);
 
         Mock<IJobService> jobServiceMock = new();
-        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(),
-                It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>()))
-            .ReturnsAsync(responseMessage);
+        jobServiceMock
+            .Setup(k => k.SyncJobsAsync())
+            .ReturnsAsync(new List<Job>());
+        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
 
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
