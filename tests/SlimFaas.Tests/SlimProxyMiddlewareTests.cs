@@ -127,6 +127,11 @@ public class ProxyMiddlewareTests
         var sendClientMock = new SendClientMock();
         Mock<IJobService> jobServiceMock = new();
 
+        jobServiceMock
+            .Setup(k => k.SyncJobsAsync())
+            .ReturnsAsync(new List<Job>());
+        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
+
         System.Environment.SetEnvironmentVariable(EnvironmentVariables.SlimFaasSubscribeEvents,
             "reload=>http://localhost:5002,toto=>http://localhost:5002");
 
