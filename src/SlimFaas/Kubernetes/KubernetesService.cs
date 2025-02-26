@@ -541,14 +541,14 @@ public class KubernetesService : IKubernetesService
                                 Image = createJob.Image,
                                 Args = createJob.Args,
                                 Env = new List<V1EnvVar>(createJob.Environments?.Select(e => new V1EnvVar(e.Key, e.Value)) ?? new List<V1EnvVar>()),
+                                Resources = new V1ResourceRequirements()
+                                {
+                                    Requests = requests,
+                                    Limits = limits
+                                }
                             }
                         },
-                        RestartPolicy = createJob.RestartPolicy,
-                        Resources = new V1ResourceRequirements()
-                        {
-                            Requests = requests,
-                            Limits = limits
-                        }
+                        RestartPolicy = createJob.RestartPolicy
                     }
                 },
                 BackoffLimit = createJob.BackoffLimit
@@ -574,7 +574,6 @@ public class KubernetesService : IKubernetesService
             );
 
             IList<string> ips = pods.Items.Select(p => p.Status.PodIP).ToList();
-
 
             JobStatus status = v1Job.Status.Active > 0 ? JobStatus.Running : JobStatus.Pending;
             if (v1Job.Status.Succeeded is > 0)
