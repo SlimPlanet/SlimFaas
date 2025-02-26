@@ -11,11 +11,12 @@ namespace SlimFaas.Kubernetes;
 
 public enum JobStatus
 {
+    Pending,
     Running,
-    Finished,
+    Succeded,
     Failed
 }
-public record Job(string Name, JobStatus Status, string Ip = "");
+public record Job(string Name, JobStatus Status, IList<string> Ips);
 
 public class ScheduleConfig
 {
@@ -560,8 +561,6 @@ public class KubernetesService : IKubernetesService
     }
 
 
-
-
     public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
     {
         var jobStatus = new List<Job>();
@@ -574,18 +573,13 @@ public class KubernetesService : IKubernetesService
                 labelSelector: $"job-name={v1Job.Metadata.Name}"
             );
 
-            // On peut, par exemple, ne prendre que le premier Pod
-            // (ou accumuler les IPs si le Job en gère plusieurs)
-            var firstPod = pods.Items.FirstOrDefault();
-
-            // Récupération de la PodIP (peut être null si le Pod n'est plus en cours d'exécution)
-            var ip = firstPod?.Status?.PodIP;
+            IList<string> ips = pods.Items.Select(p => p.Status.PodIP).ToList();
 
 
-            JobStatus status = JobStatus.Running;
+            JobStatus status = v1Job.Status.Active > 0 ? JobStatus.Running : JobStatus.Pending;
             if (v1Job.Status.Succeeded is > 0)
             {
-                status = JobStatus.Finished;
+                status = JobStatus.Succeded;
             }
             else if (v1Job.Status.Failed is > 0)
             {
@@ -594,7 +588,7 @@ public class KubernetesService : IKubernetesService
 
             jobStatus.Add(new Job(v1Job.Metadata.Name,
                 status,
-                Ip: ip ?? string.Empty
+                Ips: ips
                 ));
         }
 
@@ -606,27 +600,6 @@ public class KubernetesService : IKubernetesService
         var client = _client;
         await client.DeleteNamespacedJobAsync(name, kubeNamespace);
     }
-
-    /*public void Job(string jobName)
-    {
-        var client = _client;
-
-
-        var jobStatus = client.ReadNamespacedJobStatus(jobName, "default");
-
-        if (jobStatus.Status.Succeeded.HasValue && jobStatus.Status.Succeeded.Value > 0)
-        {
-            Console.WriteLine($"Job {jobName} has completed successfully.");
-        }
-        else if (jobStatus.Status.Failed.HasValue && jobStatus.Status.Failed.Value > 0)
-        {
-            Console.WriteLine($"Job {jobName} has failed.");
-        }
-        else
-        {
-            Console.WriteLine($"Job {jobName} is still running.");
-        }
-    }*/
 
 
 
