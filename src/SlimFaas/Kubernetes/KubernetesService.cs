@@ -129,6 +129,7 @@ public partial record SlimfaasJob(
     string Image,
     List<string> ImagesWhitelist,
     CreateJobResources? Resources = null,
+    List<string>? DependsOn = null,
     IList<EnvVarInput>? Environments = null,
     int BackoffLimit = 1,
     FunctionVisibility Visibility = FunctionVisibility.Private,

@@ -8,9 +8,10 @@ namespace SlimFaas;
 
 public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
     JobConfiguration jobConfiguration, ILogger<SlimJobsWorker> logger,
-        IServiceProvider serviceProvider,
+    HistoryHttpMemoryService historyHttpService,
         ISlimDataStatus slimDataStatus,
         IMasterService masterService,
+    IReplicasService replicasService,
         int delay = EnvironmentVariables.SlimJobsWorkerDelayMillisecondsDefault)
     : BackgroundService
 {
@@ -35,17 +36,30 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
             if (masterService.IsMaster)
             {
                 var jobsDictionary = new Dictionary<string, List<Job>>();
+                var configurations = jobConfiguration.Configuration.Configurations;
+                foreach (var data in configurations)
+                {
+                    jobsDictionary.Add(data.Key, new List<Job>());
+                }
+
                 foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey)))
                 {
                     var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
                     string jobConfigurationName = jobNameSplits[0];
+                    if( configurations.TryGetValue(jobConfigurationName, out SlimfaasJob? configuration))
+                    {
+                        if(configuration?.DependsOn != null)
+                        {
+                            foreach(var dependOn in configuration.DependsOn)
+                            {
+                                historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
+                            }
+                        }
+
+                    }
                     if (jobsDictionary.ContainsKey(jobConfigurationName))
                     {
                         jobsDictionary[jobConfigurationName].Add(job);
-                    }
-                    else
-                    {
-                        jobsDictionary.Add(jobConfigurationName, [job]);
                     }
                 }
 
@@ -53,12 +67,35 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                 {
                     var jobList = jobsKeyPairValue.Value;
                     var jobName = jobsKeyPairValue.Key;
-                    var numberElementToDequeue = jobConfiguration.Configuration.Configurations[jobsKeyPairValue.Key].NumberParallelRequest - jobList.Count;
+                    var numberElementToDequeue = configurations[jobsKeyPairValue.Key].NumberParallelRequest - jobList.Count;
                     if (numberElementToDequeue > 0)
                     {
+                        var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available }, int.MaxValue);
+                        if (count > 0)
+                        {
+                            var depenOn = configurations[jobsKeyPairValue.Key].DependsOn;
+                            if (depenOn != null)
+                            {
+                                foreach (var dependOn in depenOn)
+                                {
+                                    historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
+                                }
+                                foreach (var dependOn in depenOn)
+                                {
+                                    var function = replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == dependOn);
+                                    if(function is { Replicas: <= 0 })
+                                    {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
                         var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
                         if(elements == null) continue;
 
+                        var listCallBack = new ListQueueItemStatus();
+                        listCallBack.Items = new List<QueueItemStatus>();
                         foreach (QueueData element in elements)
                         {
                             CreateJob? createJob = MemoryPackSerializer.Deserialize<CreateJob>(element.Data);
@@ -67,11 +104,21 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                                 continue;
                             }
 
-                            await jobService.CreateJobAsync(jobName, createJob);
+                            try
+                            {
+                                await jobService.CreateJobAsync(jobName, createJob);
+                                listCallBack.Items.Add(new QueueItemStatus(element.Id, 200));
+                            } catch (Exception e)
+                            {
+                                listCallBack.Items.Add(new QueueItemStatus(element.Id, 500));
+                                logger.LogError(e, "Error in SlimJobsWorker");
+                            }
                         }
-
+                        if(listCallBack.Items.Count > 0)
+                        {
+                            await jobQueue.ListCallbackAsync(jobName, listCallBack);
+                        }
                     }
-
                 }
             }
         }
