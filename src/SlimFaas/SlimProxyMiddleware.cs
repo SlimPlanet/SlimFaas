@@ -94,10 +94,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 return;
             case  FunctionType.Job:
 
-                if (jobService == null)
-                {
-                    return;
-                }
                 if (contextRequest.Method != HttpMethods.Post)
                 {
                     contextResponse.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
@@ -118,6 +114,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 }
 
                 await jobService.CreateJobAsync(functionName, createJob);
+
                 contextResponse.StatusCode = 204;
                 return;
             case FunctionType.Wake:

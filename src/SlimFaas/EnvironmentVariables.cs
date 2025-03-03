@@ -5,6 +5,8 @@ public static class EnvironmentVariables
     public const string SlimFaasAllowUnsecureSSL = "SLIMFAAS_ALLOW_UNSECURE_SSL";
     public const bool SlimFaasAllowUnsecureSSLDefault = false;
 
+    public const string SlimFaasJobsConfiguration = "SLIMFAAS_JOBS_CONFIGURATION";
+
     public const string SlimFaasSubscribeEvents = "SLIMFAAS_SUBSCRIBE_EVENTS";
     public const string SlimFaasSubscribeEventsDefault = "";
 
@@ -16,6 +18,9 @@ public static class EnvironmentVariables
 
     public const string SlimWorkerDelayMilliseconds = "SLIM_WORKER_DELAY_MILLISECONDS";
     public const int SlimWorkerDelayMillisecondsDefault = 50;
+
+    public const string SlimJobsWorkerDelayMilliseconds = "SLIM_JOBS_WORKER_DELAY_MILLISECONDS";
+    public const int SlimJobsWorkerDelayMillisecondsDefault = 1000;
 
     public const string SlimFaasPorts = "SLIMFAAS_PORTS";
     public const string BaseSlimDataUrl = "BASE_SLIMDATA_URL";

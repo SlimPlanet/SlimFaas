@@ -6,6 +6,7 @@ using System.Text.Json.Serialization;
 using k8s;
 using k8s.Autorest;
 using k8s.Models;
+using MemoryPack;
 
 namespace SlimFaas.Kubernetes;
 
@@ -107,15 +108,112 @@ public record DeploymentInformation(string Deployment,
 
 public record PodInformation(string Name, bool? Started, bool? Ready, string Ip, string DeploymentName);
 
-public record CreateJob(
+[MemoryPackable]
+public partial record CreateJob(
     string Image,
     List<string> Args,
-    int BackoffLimit = 4,
+    int BackoffLimit = 1,
+    int TtlSecondsAfterFinished= 60,
     string RestartPolicy = "Never",
     CreateJobResources? Resources = null,
-    Dictionary<string, string>? Environments = null);
+    IList<EnvVarInput>? Environments = null,
+    string ConfigurationName = "Default");
 
-public record CreateJobResources(Dictionary<string,string> Requests, Dictionary<string,string> Limits);
+
+[MemoryPackable]
+public partial record SlimfaasJobConfiguration(IDictionary<string, SlimfaasJob> Configurations);
+
+
+[MemoryPackable]
+public partial record SlimfaasJob(
+    string Image,
+    List<string> ImagesWhitelist,
+    CreateJobResources? Resources = null,
+    IList<EnvVarInput>? Environments = null,
+    int BackoffLimit = 1,
+    FunctionVisibility Visibility = FunctionVisibility.Private,
+    int NumberParallelRequest = 1,
+    int TtlSecondsAfterFinished= 60,
+    string RestartPolicy = "Never");
+
+[MemoryPackable]
+public partial record EnvVarInput(
+    string Name,
+    string Value,
+    SecretRef SecretRef,
+    ConfigMapRef ConfigMapRef,
+    FieldRef FieldRef,
+    ResourceFieldRef ResourceFieldRef)
+{
+    public string Name { get; set; } = Name;
+
+    public string Value { get; set; } = Value;
+
+    public SecretRef SecretRef { get; set; } = SecretRef;
+
+    public ConfigMapRef ConfigMapRef { get; set; } = ConfigMapRef;
+
+    public FieldRef FieldRef { get; set; } = FieldRef;
+
+    public ResourceFieldRef ResourceFieldRef { get; set; } = ResourceFieldRef;
+}
+
+[MemoryPackable]
+public partial record SecretRef(string Name, string Key)
+{
+    public string Name { get; set; } = Name;
+    public string Key { get; set; } = Key;
+}
+
+[MemoryPackable]
+public partial record ConfigMapRef(string Name, string Key)
+{
+    public string Name { get; set; } = Name;
+    public string Key { get; set; } = Key;
+}
+
+[MemoryPackable]
+public partial record FieldRef(string FieldPath)
+{
+    public string FieldPath { get; set; } = FieldPath;
+}
+
+[MemoryPackable]
+public partial record ResourceFieldRef(string ContainerName, string Resource, CustomResourceQuantity  Divisor)
+{
+    public string ContainerName { get; set; } = ContainerName;
+    public string Resource { get; set; } = Resource;
+    public CustomResourceQuantity  Divisor { get; set; } = Divisor;
+}
+
+[MemoryPackable]
+public partial record CustomResourceQuantity(decimal value, string unit)
+{
+    // Représente la valeur numérique de la quantité.
+    public decimal Value { get; set; } = value;
+
+    // Représente l'unité (ex. "m", "Mi", "Gi", etc.).
+    public string Unit { get; set; } = unit;
+
+    public override string ToString()
+    {
+        return $"{Value}{Unit}";
+    }
+
+    // Méthode de conversion vers le type ResourceQuantity de la librairie Kubernetes.
+    public ResourceQuantity ToKubernetesResourceQuantity()
+    {
+        return new ResourceQuantity(this.ToString());
+    }
+}
+
+[MemoryPackable]
+public partial record CreateJobResources(Dictionary<string,string> Requests, Dictionary<string,string> Limits);
+
+
+[JsonSerializable(typeof(SlimfaasJobConfiguration))]
+[JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+public partial class SlimfaasJobConfigurationSerializerContext : JsonSerializerContext;
 
 [JsonSerializable(typeof(CreateJob))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -493,11 +591,12 @@ public class KubernetesService : IKubernetesService
     }
 
 
-
+    public const string SlimfaasJobKey = "-slimfaas-job-";
     public async Task CreateJobAsync( string kubeNamespace, string name, CreateJob createJob)
     {
         var client = _client;
-        var fullName = name + "-job-" + Guid.NewGuid();
+
+        var fullName = $"{name}{SlimfaasJobKey}{Guid.NewGuid()}";
 
         var requests = new Dictionary<string, ResourceQuantity>
         {
@@ -513,6 +612,63 @@ public class KubernetesService : IKubernetesService
             limits = createJob.Resources.Limits.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
         }
 
+        var envVars = createJob.Environments?.Select(e =>
+        {
+            if (e.SecretRef != null)
+            {
+                return new V1EnvVar(
+                    name: e.Name,
+                    valueFrom: new V1EnvVarSource
+                    {
+                        SecretKeyRef = new V1SecretKeySelector(
+                            name: e.SecretRef.Name,
+                            key: e.SecretRef.Key)
+                    }
+                );
+            }
+            else if (e.ConfigMapRef != null)
+            {
+                return new V1EnvVar(
+                    name: e.Name,
+                    valueFrom: new V1EnvVarSource
+                    {
+                        ConfigMapKeyRef = new V1ConfigMapKeySelector(
+                            name: e.ConfigMapRef.Name,
+                            key: e.ConfigMapRef.Key)
+                    }
+                );
+            }
+            else if (e.FieldRef != null)
+            {
+                return new V1EnvVar(
+                    name: e.Name,
+                    valueFrom: new V1EnvVarSource
+                    {
+                        FieldRef = new V1ObjectFieldSelector(
+                            fieldPath: e.FieldRef.FieldPath)
+                    }
+                );
+            }
+            else if (e.ResourceFieldRef != null)
+            {
+                return new V1EnvVar(
+                    name: e.Name,
+                    valueFrom: new V1EnvVarSource
+                    {
+                        ResourceFieldRef = new V1ResourceFieldSelector(
+                            containerName: e.ResourceFieldRef.ContainerName,
+                            resource: e.ResourceFieldRef.Resource,
+                            divisor: e.ResourceFieldRef.Divisor.ToKubernetesResourceQuantity()
+                        )
+                    }
+                );
+            }
+            else
+            {
+                return new V1EnvVar(name: e.Name, value: e.Value);
+            }
+        }).ToList();
+
         var job = new V1Job
         {
             ApiVersion = "batch/v1",
@@ -524,7 +680,7 @@ public class KubernetesService : IKubernetesService
             },
             Spec = new V1JobSpec
             {
-                TtlSecondsAfterFinished = 300,
+                TtlSecondsAfterFinished = createJob.TtlSecondsAfterFinished,
                 Template = new V1PodTemplateSpec
                 {
                     Metadata = new V1ObjectMeta
@@ -540,7 +696,7 @@ public class KubernetesService : IKubernetesService
                                 Name = name,
                                 Image = createJob.Image,
                                 Args = createJob.Args,
-                                Env = new List<V1EnvVar>(createJob.Environments?.Select(e => new V1EnvVar(e.Key, e.Value)) ?? new List<V1EnvVar>()),
+                                Env = envVars,
                                 Resources = new V1ResourceRequirements()
                                 {
                                     Requests = requests,

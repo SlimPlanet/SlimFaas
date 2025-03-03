@@ -3,7 +3,6 @@
 namespace SlimFaas;
 
 public class ReplicasSynchronizationWorker(IReplicasService replicasService,
-    IJobService jobService,
         ILogger<ReplicasSynchronizationWorker> logger,
         int delay = EnvironmentVariables.ReplicasSynchronizationWorkerDelayMillisecondsDefault)
     : BackgroundService
@@ -22,7 +21,7 @@ public class ReplicasSynchronizationWorker(IReplicasService replicasService,
                 await Task.Delay(_delay, stoppingToken);
 
                 await replicasService.SyncDeploymentsAsync(_namespace);
-                await jobService.SyncJobsAsync();
+
             }
             catch (Exception e)
             {

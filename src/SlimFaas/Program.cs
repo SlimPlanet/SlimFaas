@@ -68,7 +68,8 @@ IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasS
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
 IServiceCollection serviceCollectionSlimFaas = builder.Services;
-serviceCollectionSlimFaas.AddHostedService<SlimWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<ScaleReplicasWorker>();
 serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
@@ -157,6 +158,7 @@ var allowUnsecureSSL = EnvironmentVariables.ReadBoolean(EnvironmentVariables.Sli
 serviceCollectionSlimFaas.AddHostedService<SlimDataSynchronizationWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
+serviceCollectionSlimFaas.AddSingleton<JobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
     .SetHandlerLifetime(TimeSpan.FromMinutes(5))
     .ConfigureHttpClient(client =>
