@@ -341,7 +341,7 @@ public class ProxyMiddlewareTests
             })
             .StartAsync();
 
-        HttpResponseMessage response = await host.GetTestClient().PostAsync($"http://localhost:5000{path}",  JsonContent.Create(new CreateJob("youhou", new List<string>())) );
+        HttpResponseMessage response = await host.GetTestClient().PostAsync($"http://localhost:5000{path}",  JsonContent.Create(new CreateJob(new List<string>(),"youhou")));
         HistoryHttpMemoryService historyHttpMemoryService =
             host.Services.GetRequiredService<HistoryHttpMemoryService>();
 
