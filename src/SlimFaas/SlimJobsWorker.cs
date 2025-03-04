@@ -71,6 +71,11 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                     var numberElementToDequeue = configurations[jobsKeyPairValue.Key].NumberParallelJob - jobList.Count;
                     if (numberElementToDequeue > 0)
                     {
+                        var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available }, int.MaxValue);
+                        if (count == 0)
+                        {
+                            continue;
+                        }
                         bool requiredToWait = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
                         if (requiredToWait)
                         {
@@ -78,7 +83,7 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                         }
 
                         var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
-                        if(elements == null) continue;
+                        if(elements == null || elements.Count == 0 ) continue;
 
                         var listCallBack = new ListQueueItemStatus();
                         listCallBack.Items = new List<QueueItemStatus>();

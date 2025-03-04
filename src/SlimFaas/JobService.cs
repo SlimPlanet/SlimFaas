@@ -55,8 +55,9 @@ public class JobService(IKubernetesService kubernetesService, JobConfiguration j
             environments.Add(env);
         }
 
-        CreateJob newCreateJob = new(image,
+        CreateJob newCreateJob = new(
             createJob.Args,
+            image,
             TtlSecondsAfterFinished: conf.TtlSecondsAfterFinished,
             Resources: JobResourceValidator.ValidateResources(conf.Resources,  createJob.Resources),
             Environments: environments,

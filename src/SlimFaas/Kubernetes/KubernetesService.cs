@@ -110,8 +110,9 @@ public record PodInformation(string Name, bool? Started, bool? Ready, string Ip,
 
 [MemoryPackable]
 public partial record CreateJob(
-    string Image,
+
     List<string> Args,
+    string Image = "",
     int BackoffLimit = 1,
     int TtlSecondsAfterFinished= 60,
     string RestartPolicy = "Never",
