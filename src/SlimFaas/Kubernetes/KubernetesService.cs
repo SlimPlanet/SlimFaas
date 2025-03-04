@@ -272,7 +272,7 @@ public class KubernetesService : IKubernetesService
                         httpRequest.Content = httpContent;
                         if ( client.Credentials != null )
                         {
-                            await client.Credentials.ProcessHttpRequestAsync( httpRequest, CancellationToken.None );
+                            await client.Credentials.ProcessHttpRequestAsync( httpRequest, CancellationToken.None);
                         }
                         var response = await client.HttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead );
                         if(response.StatusCode != HttpStatusCode.OK)
@@ -555,7 +555,7 @@ public class KubernetesService : IKubernetesService
         foreach (V1Pod? item in v1PodList.Items)
         {
             string? podIp = item.Status.PodIP;
-            if (string.IsNullOrEmpty(podIp))
+            if (podIp == null || string.IsNullOrEmpty(podIp))
             {
                 continue;
             }
@@ -713,7 +713,7 @@ public class KubernetesService : IKubernetesService
                 labelSelector: $"job-name={v1Job.Metadata.Name}"
             );
 
-            IList<string> ips = pods.Items.Select(p => p.Status.PodIP).ToList();
+            IList<string> ips = pods.Items.Where(p => p.Status.PodIP != null).Select(p => p.Status.PodIP).ToList();
 
             JobStatus status = v1Job.Status.Active > 0 ? JobStatus.Running : JobStatus.Pending;
             if (v1Job.Status.Succeeded is > 0)
