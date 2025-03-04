@@ -10,9 +10,10 @@ public interface IJobService
     Task CreateJobAsync(string name, CreateJob createJob);
     Task<IList<Job>> SyncJobsAsync();
     IList<Job> Jobs { get; }
+    Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal);
 }
 
-public record EnqueueJobResult(string errorKey);
+public record EnqueueJobResult(string ErrorKey, int Code=400);
 
 public class JobService(IKubernetesService kubernetesService, JobConfiguration jobConfiguration, IJobQueue jobQueue) : IJobService
 {
@@ -24,15 +25,20 @@ public class JobService(IKubernetesService kubernetesService, JobConfiguration j
         await kubernetesService.CreateJobAsync(_namespace, name, createJob);
     }
 
-    public async Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob)
+    public async Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
         if (!jobConfiguration.Configuration.Configurations.ContainsKey(name))
         {
             return new EnqueueJobResult("Configuration_not_found");
         }
-
         var conf = configuration[name];
+        if (!isMessageComeFromNamespaceInternal && conf.Visibility == FunctionVisibility.Private)
+        {
+            return new EnqueueJobResult("Visibility private", 400);
+        }
+
+
         if (createJob.Image != string.Empty && !conf.ImagesWhitelist.Contains(createJob.Image))
         {
             return new EnqueueJobResult("Image_not_allowed");
@@ -56,7 +62,7 @@ public class JobService(IKubernetesService kubernetesService, JobConfiguration j
         CreateJob newCreateJob = new(image,
             createJob.Args,
             TtlSecondsAfterFinished: conf.TtlSecondsAfterFinished,
-            Resources: conf.Resources,
+            Resources: JobResourceValidator.ValidateResources(conf.Resources,  createJob.Resources),
             Environments: environments,
             ConfigurationName: name
             );
@@ -64,7 +70,7 @@ public class JobService(IKubernetesService kubernetesService, JobConfiguration j
         var createJobSerialized = MemoryPackSerializer.Serialize(newCreateJob);
         await jobQueue.EnqueueAsync(name, createJobSerialized);
 
-        return new EnqueueJobResult(string.Empty);
+        return new EnqueueJobResult(string.Empty, 204);
     }
 
     private IList<Job> _jobs = new List<Job>();

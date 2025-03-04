@@ -320,7 +320,9 @@ public class ProxyMiddlewareTests
     {
         Mock<IWakeUpFunction> wakeUpFunctionMock = new();
         Mock<IJobService> jobServiceMock = new();
-        jobServiceMock.Setup(k => k.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>() )).Returns(Task.CompletedTask);
+        jobServiceMock.Setup(k => k.EnqueueJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<bool>()))
+            .ReturnsAsync(new EnqueueJobResult(""));
+        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {

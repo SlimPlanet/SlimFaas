@@ -71,6 +71,7 @@ IServiceCollection serviceCollectionSlimFaas = builder.Services;
 serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<ScaleReplicasWorker>();
+
 serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
@@ -87,6 +88,8 @@ serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemo
 serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
     serviceProviderStarter.GetService<IKubernetesService>()!);
 serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
+serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
+serviceCollectionSlimFaas.AddSingleton<JobConfiguration, JobConfiguration>();
 
 serviceCollectionSlimFaas.AddCors();
 
@@ -158,7 +161,6 @@ var allowUnsecureSSL = EnvironmentVariables.ReadBoolean(EnvironmentVariables.Sli
 serviceCollectionSlimFaas.AddHostedService<SlimDataSynchronizationWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
-serviceCollectionSlimFaas.AddSingleton<JobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
     .SetHandlerLifetime(TimeSpan.FromMinutes(5))
     .ConfigureHttpClient(client =>

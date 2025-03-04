@@ -133,7 +133,7 @@ public partial record SlimfaasJob(
     IList<EnvVarInput>? Environments = null,
     int BackoffLimit = 1,
     FunctionVisibility Visibility = FunctionVisibility.Private,
-    int NumberParallelRequest = 1,
+    int NumberParallelJob = 1,
     int TtlSecondsAfterFinished= 60,
     string RestartPolicy = "Never");
 
@@ -180,33 +180,14 @@ public partial record FieldRef(string FieldPath)
 }
 
 [MemoryPackable]
-public partial record ResourceFieldRef(string ContainerName, string Resource, CustomResourceQuantity  Divisor)
+public partial record ResourceFieldRef(string ContainerName, string Resource, string  Divisor)
 {
     public string ContainerName { get; set; } = ContainerName;
     public string Resource { get; set; } = Resource;
-    public CustomResourceQuantity  Divisor { get; set; } = Divisor;
+    public string  Divisor { get; set; } = Divisor;
 }
 
-[MemoryPackable]
-public partial record CustomResourceQuantity(decimal value, string unit)
-{
-    // Représente la valeur numérique de la quantité.
-    public decimal Value { get; set; } = value;
 
-    // Représente l'unité (ex. "m", "Mi", "Gi", etc.).
-    public string Unit { get; set; } = unit;
-
-    public override string ToString()
-    {
-        return $"{Value}{Unit}";
-    }
-
-    // Méthode de conversion vers le type ResourceQuantity de la librairie Kubernetes.
-    public ResourceQuantity ToKubernetesResourceQuantity()
-    {
-        return new ResourceQuantity(this.ToString());
-    }
-}
 
 [MemoryPackable]
 public partial record CreateJobResources(Dictionary<string,string> Requests, Dictionary<string,string> Limits);
@@ -603,14 +584,15 @@ public class KubernetesService : IKubernetesService
         {
             { "cpu", new ResourceQuantity("100m") }, { "memory", new ResourceQuantity("512Mi") }
         };
-        if( createJob.Resources?.Requests != null )
+        CreateJobResources? createJobResources = createJob.Resources;
+        if( createJobResources?.Requests != null )
         {
-            requests = createJob.Resources.Requests.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
+            requests = createJobResources.Requests.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
         }
         var limits = requests;
-        if(createJob.Resources?.Limits != null)
+        if(createJobResources?.Limits != null)
         {
-            limits = createJob.Resources.Limits.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
+            limits = createJobResources.Limits.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
         }
 
         var envVars = createJob.Environments?.Select(e =>
@@ -659,7 +641,7 @@ public class KubernetesService : IKubernetesService
                         ResourceFieldRef = new V1ResourceFieldSelector(
                             containerName: e.ResourceFieldRef.ContainerName,
                             resource: e.ResourceFieldRef.Resource,
-                            divisor: e.ResourceFieldRef.Divisor.ToKubernetesResourceQuantity()
+                            divisor: new ResourceQuantity(e.ResourceFieldRef.Divisor)
                         )
                     }
                 );

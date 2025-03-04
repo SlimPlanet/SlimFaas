@@ -113,7 +113,13 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                         CreateJobSerializerContext.Default.CreateJob));
                 }
 
-                await jobService.CreateJobAsync(functionName, createJob);
+                bool isMessageComeFromNamespaceInternal = MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
+                var result = await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
+                if (result.Code >= 400)
+                {
+                    contextResponse.StatusCode = result.Code;
+                    logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}", contextResponse.StatusCode, result.ErrorKey);
+                }
 
                 contextResponse.StatusCode = 204;
                 return;

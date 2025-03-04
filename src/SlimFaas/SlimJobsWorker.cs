@@ -67,29 +67,10 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                 {
                     var jobList = jobsKeyPairValue.Value;
                     var jobName = jobsKeyPairValue.Key;
-                    var numberElementToDequeue = configurations[jobsKeyPairValue.Key].NumberParallelRequest - jobList.Count;
+                    var numberElementToDequeue = configurations[jobsKeyPairValue.Key].NumberParallelJob - jobList.Count;
                     if (numberElementToDequeue > 0)
                     {
-                        var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available }, int.MaxValue);
-                        if (count > 0)
-                        {
-                            var depenOn = configurations[jobsKeyPairValue.Key].DependsOn;
-                            if (depenOn != null)
-                            {
-                                foreach (var dependOn in depenOn)
-                                {
-                                    historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
-                                }
-                                foreach (var dependOn in depenOn)
-                                {
-                                    var function = replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == dependOn);
-                                    if(function is { Replicas: <= 0 })
-                                    {
-                                        break;
-                                    }
-                                }
-                            }
-                        }
+                        bool requiredToWait = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
 
                         var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
                         if(elements == null) continue;
@@ -128,4 +109,29 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
         }
     }
 
+    private async Task<bool> ShouldWaitDependencies(string jobName, IDictionary<string, SlimfaasJob> configurations, KeyValuePair<string, List<Job>> jobsKeyPairValue)
+    {
+        var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available }, int.MaxValue);
+        if (count > 0)
+        {
+            var dependsOn = configurations[jobsKeyPairValue.Key].DependsOn;
+            if (dependsOn != null)
+            {
+                foreach (var dependOn in dependsOn)
+                {
+                    historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
+                }
+                foreach (var dependOn in dependsOn)
+                {
+                    var function = replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == dependOn);
+                    if(function is { Replicas: <= 0 })
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
 }
