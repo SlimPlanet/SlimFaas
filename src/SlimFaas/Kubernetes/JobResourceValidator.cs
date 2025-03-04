@@ -1,5 +1,6 @@
-﻿using SlimFaas.Kubernetes;
+﻿using System.Globalization;
 
+namespace SlimFaas.Kubernetes;
 
 public class JobResourceValidator
 {
@@ -49,19 +50,19 @@ public class JobResourceValidator
     {
         if (value.EndsWith("m"))
         {
-            return double.Parse(value.TrimEnd('m')) / 1000.0; // Convert milliCPU to CPU
+            return double.Parse(value.TrimEnd('m'), CultureInfo.InvariantCulture) / 1000.0; // Convert milliCPU to CPU
         }
         else if (value.EndsWith("Mi"))
         {
-            return double.Parse(value.TrimEnd('M', 'i')); // Memory in MiB
+            return double.Parse(value.TrimEnd('M', 'i'), CultureInfo.InvariantCulture); // Memory in MiB
         }
         else if (value.EndsWith("Gi"))
         {
-            return double.Parse(value.TrimEnd('G', 'i')) * 1024; // Convert GiB to MiB
+            return double.Parse(value.TrimEnd('G', 'i'), CultureInfo.InvariantCulture) * 1024; // Convert GiB to MiB
         }
         else
         {
-            return double.Parse(value); // Assume plain values are CPU or raw MiB
+            return double.Parse(value, CultureInfo.InvariantCulture); // Assume plain values are CPU or raw MiB
         }
     }
 }
