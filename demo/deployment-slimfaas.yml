@@ -111,7 +111,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:pr-81-893
+          image: axaguildev/slimfaas:0.35.10-pr.81997
           livenessProbe:
             httpGet:
               path: /health
@@ -147,6 +147,9 @@ spec:
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
             #  value: "500"
+            - name: SLIMFAAS_JOBS_CONFIGURATION
+              value: |
+                {"Image":"axaguildev/fibonacci-batch:0.35.10-pr.81997","ImagesWhitelist":[],"Resources":{"Requests":{"cpu":"400m","memory":"400Mi"},"Limits":{"cpu":"400m","memory":"400Mi"}},"DependsOn":[],"Environments":[],"BackoffLimit":1,"Visibility":"Private","NumberParallelJob":1,"TtlSecondsAfterFinished":60,"RestartPolicy":"Never"}
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database

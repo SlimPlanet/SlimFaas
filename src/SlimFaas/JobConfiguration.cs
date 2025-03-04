@@ -9,7 +9,7 @@ public class JobConfiguration
     public SlimfaasJobConfiguration Configuration { get; }
 
 
-    public JobConfiguration(ILogger<JobConfiguration> logger)
+    public JobConfiguration()
     {
         SlimfaasJobConfiguration? slimfaasJobConfiguration = null;
         Dictionary<string, string> resources = new();
@@ -28,7 +28,7 @@ public class JobConfiguration
         }
         catch (Exception ex)
         {
-            logger.LogError(ex.Message);
+            Console.WriteLine("Error parsing SlimFaas job configuration: " + ex.Message);
         }
         slimfaasJobConfiguration ??= new SlimfaasJobConfiguration(new Dictionary<string, SlimfaasJob>());
 

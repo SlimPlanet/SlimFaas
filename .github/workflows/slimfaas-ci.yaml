@@ -282,6 +282,7 @@ jobs:
 
   change_log:
     runs-on: ubuntu-latest
+    if: needs.tags.outputs.tag == 'release'
     needs: [ tags,  build_slimfaas_planet_saver, build_slimfaas ]
     steps:
       - uses: actions/checkout@v4
@@ -289,7 +290,6 @@ jobs:
           token: ${{ secrets.GIT_TOKEN }}
           fetch-depth: 0
       - name: Commit and push
-        if: needs.tags.outputs.tag == 'release'
         run: |
           git config --global user.name "GitHub"
           git config --global user.email "github-action@bot.com"
