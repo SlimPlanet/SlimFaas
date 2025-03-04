@@ -112,7 +112,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     logger.LogDebug("Create job details {CreateJob} ", JsonSerializer.Serialize(createJob,
                         CreateJobSerializerContext.Default.CreateJob));
                 }
-
                 bool isMessageComeFromNamespaceInternal = MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
                 var result = await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
                 if (result.Code >= 400)
@@ -150,8 +149,8 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     {
         List<string> podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false).Select(p => p.Ip).ToList();
         podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip));
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        var remoteIp = context.Connection.RemoteIpAddress?.ToString();
+        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
+        var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
         logger.LogDebug("ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
         if(logger.IsEnabled(LogLevel.Debug))
         {
@@ -173,6 +172,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
     private static bool IsInternalIp(string? ipAddress, IList<string> podIps)
     {
+        if (ipAddress == null)
+        {
+            return false;
+        }
 
         if (string.IsNullOrEmpty(ipAddress))
         {
@@ -181,6 +184,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         foreach (string podIp in podIps)
         {
+            if (string.IsNullOrEmpty(podIp))
+            {
+                continue;
+            }
             if (ipAddress.Contains(podIp))
             {
                 return true;
