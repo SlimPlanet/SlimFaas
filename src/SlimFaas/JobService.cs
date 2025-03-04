@@ -28,16 +28,12 @@ public class JobService(IKubernetesService kubernetesService, JobConfiguration j
     public async Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
-        if (!jobConfiguration.Configuration.Configurations.ContainsKey(name))
-        {
-            return new EnqueueJobResult("Configuration_not_found");
-        }
+        name = configuration.ContainsKey(name) ? name : "Default";
         var conf = configuration[name];
-        if (!isMessageComeFromNamespaceInternal && conf.Visibility == FunctionVisibility.Private)
+        if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
             return new EnqueueJobResult("Visibility private", 400);
         }
-
 
         if (createJob.Image != string.Empty && !conf.ImagesWhitelist.Contains(createJob.Image))
         {

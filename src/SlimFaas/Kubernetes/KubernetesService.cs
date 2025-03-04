@@ -121,7 +121,7 @@ public partial record CreateJob(
 
 
 [MemoryPackable]
-public partial record SlimfaasJobConfiguration(IDictionary<string, SlimfaasJob> Configurations);
+public partial record SlimfaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations);
 
 
 [MemoryPackable]
@@ -132,7 +132,7 @@ public partial record SlimfaasJob(
     List<string>? DependsOn = null,
     IList<EnvVarInput>? Environments = null,
     int BackoffLimit = 1,
-    FunctionVisibility Visibility = FunctionVisibility.Private,
+    string Visibility = nameof(FunctionVisibility.Private),
     int NumberParallelJob = 1,
     int TtlSecondsAfterFinished= 60,
     string RestartPolicy = "Never");

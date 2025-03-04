@@ -46,9 +46,10 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                 {
                     var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
                     string jobConfigurationName = jobNameSplits[0];
+
                     if( configurations.TryGetValue(jobConfigurationName, out SlimfaasJob? configuration))
                     {
-                        if(configuration?.DependsOn != null)
+                        if(configuration.DependsOn != null)
                         {
                             foreach(var dependOn in configuration.DependsOn)
                             {
@@ -71,6 +72,10 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                     if (numberElementToDequeue > 0)
                     {
                         bool requiredToWait = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
+                        if (requiredToWait)
+                        {
+                            continue;
+                        }
 
                         var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
                         if(elements == null) continue;

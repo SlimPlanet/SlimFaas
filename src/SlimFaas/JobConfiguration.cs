@@ -30,7 +30,11 @@ public class JobConfiguration
         {
             Console.WriteLine("Error parsing SlimFaas job configuration: " + ex.Message);
         }
-        slimfaasJobConfiguration ??= new SlimfaasJobConfiguration(new Dictionary<string, SlimfaasJob>());
+
+        if (slimfaasJobConfiguration is null or { Configurations: null })
+        {
+            slimfaasJobConfiguration = new SlimfaasJobConfiguration(new Dictionary<string, SlimfaasJob>());
+        }
 
         if (!slimfaasJobConfiguration.Configurations.ContainsKey("Default"))
         {
