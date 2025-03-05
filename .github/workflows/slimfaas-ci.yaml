@@ -92,11 +92,11 @@ jobs:
         run: |
           dotnet test --collect "Code Coverage;Format=cobertura" --verbosity normal
       - name: ReportGenerator
-        uses: danielpalme/ReportGenerator-GitHub-Action@5.2.0
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
         with:
           reports: './**/TestResults/**/*.cobertura.xml'
           targetdir: 'coveragereport'
-          reporttypes: 'HtmlInline;MarkdownSummaryGithub'
+          reporttypes: 'MarkdownSummaryGithub'
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -111,11 +111,10 @@ jobs:
       - name: pnpm run coverage
         run: pnpm run coverage
         working-directory: ./src/SlimFaasPlanetSaver
-      - name: Upload coverage report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: CoverageReport # Artifact name
-          path: coveragereport # Directory containing files to upload
+
+      - name: Publish coverage in build summary # Only applicable if 'MarkdownSummaryGithub' or one of the other Markdown report types is generated
+        run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY # Adjust path and filename if necessary
+        shell: bash
   tags:
     needs: [unit_tests]
     runs-on: ubuntu-latest
