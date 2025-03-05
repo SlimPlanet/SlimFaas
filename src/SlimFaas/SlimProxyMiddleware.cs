@@ -147,7 +147,17 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
     private static bool MessageComeFromNamespaceInternal(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, IJobService jobService, DeploymentInformation? currentFunction=null)
     {
-        List<string> podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false).Select(p => p.Ip).ToList();
+        List<string> podIps;
+
+        if (currentFunction != null)
+        {
+            podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false).Select(p => p.Ip).ToList();
+        }
+        else
+        {
+            podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Select(p => p.Ip).ToList();
+        }
+
         podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip).Where(ip => ip != null));
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
         var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";

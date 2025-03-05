@@ -3,7 +3,12 @@ using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
 
-public class JobConfiguration
+public interface IJobConfiguration
+{
+    SlimfaasJobConfiguration Configuration { get; }
+}
+
+public class JobConfiguration : IJobConfiguration
 {
 
     public SlimfaasJobConfiguration Configuration { get; }

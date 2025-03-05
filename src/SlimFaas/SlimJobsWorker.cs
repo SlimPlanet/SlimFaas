@@ -7,7 +7,7 @@ namespace SlimFaas;
 
 
 public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
-    JobConfiguration jobConfiguration, ILogger<SlimJobsWorker> logger,
+    IJobConfiguration jobConfiguration, ILogger<SlimJobsWorker> logger,
     HistoryHttpMemoryService historyHttpService,
         ISlimDataStatus slimDataStatus,
         IMasterService masterService,

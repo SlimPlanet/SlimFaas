@@ -89,7 +89,7 @@ serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
     serviceProviderStarter.GetService<IKubernetesService>()!);
 serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
-serviceCollectionSlimFaas.AddSingleton<JobConfiguration, JobConfiguration>();
+serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 
 serviceCollectionSlimFaas.AddCors();
 

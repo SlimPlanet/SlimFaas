@@ -15,7 +15,7 @@ public interface IJobService
 
 public record EnqueueJobResult(string ErrorKey, int Code=400);
 
-public class JobService(IKubernetesService kubernetesService, JobConfiguration jobConfiguration, IJobQueue jobQueue) : IJobService
+public class JobService(IKubernetesService kubernetesService, IJobConfiguration jobConfiguration, IJobQueue jobQueue) : IJobService
 {
     private readonly string _namespace = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
                                          EnvironmentVariables.NamespaceDefault;
