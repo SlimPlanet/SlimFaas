@@ -305,6 +305,16 @@ spec:
             #      "requestJournal:expiration":"00:01:00",
             #      "heartbeatThreshold":"0.5",
             #   }
+            # name : SLIMFAAS_JOB_CONFIGURATION
+            # value : | # represent SlimFaas internal configuration, more documentation here:
+            #    {
+            #          "DefaultNumberParallelRequest": 1, # Timeout in seconds
+            #          "DefaultVisibility": "Private", # Retry pattern in seconds
+            #          "AllowDynamicJob": false,
+            #          "Jobs": {
+            #              "daisy" : { "NumberParallelRequest": 1, "Visibility": "Public" }
+            #          }
+            #    }
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database

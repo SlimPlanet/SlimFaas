@@ -7,8 +7,8 @@ namespace SlimFaas;
 
 internal record struct RequestToWait(Task<HttpResponseMessage> Task, CustomRequest CustomRequest, string Id);
 
-public class SlimWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasService,
-        HistoryHttpMemoryService historyHttpService, ILogger<SlimWorker> logger,
+public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasService,
+        HistoryHttpMemoryService historyHttpService, ILogger<SlimQueuesWorker> logger,
         IServiceProvider serviceProvider,
         ISlimDataStatus slimDataStatus,
         IMasterService masterService,

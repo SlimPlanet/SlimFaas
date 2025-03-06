@@ -1,4 +1,5 @@
 ﻿using System.Net;
+using System.Net.Http.Json;
 using DotNext.Collections.Generic;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -124,6 +125,12 @@ public class ProxyMiddlewareTests
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         responseMessage.StatusCode = HttpStatusCode.OK;
         var sendClientMock = new SendClientMock();
+        Mock<IJobService> jobServiceMock = new();
+
+        jobServiceMock
+            .Setup(k => k.SyncJobsAsync())
+            .ReturnsAsync(new List<Job>());
+        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
 
         System.Environment.SetEnvironmentVariable(EnvironmentVariables.SlimFaasSubscribeEvents,
             "reload=>http://localhost:5002,toto=>http://localhost:5002");
@@ -140,6 +147,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
+                        services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -178,6 +186,12 @@ public class ProxyMiddlewareTests
                 It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>()))
             .ReturnsAsync(responseMessage);
 
+        Mock<IJobService> jobServiceMock = new();
+        jobServiceMock
+            .Setup(k => k.SyncJobsAsync())
+            .ReturnsAsync(new List<Job>());
+        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
+
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -190,6 +204,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
+                        services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -206,6 +221,7 @@ public class ProxyMiddlewareTests
     public async Task CallFunctionInAsyncSyncModeAndReturnOk(string path, HttpStatusCode expected)
     {
         Mock<IWakeUpFunction> wakeUpFunctionMock = new();
+        Mock<IJobService> jobServiceMock = new();
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -218,6 +234,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
+                        services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -235,6 +252,7 @@ public class ProxyMiddlewareTests
         int numberFireAndForgetWakeUpAsyncCall)
     {
         Mock<IWakeUpFunction> wakeUpFunctionMock = new();
+        Mock<IJobService> jobServiceMock = new();
         wakeUpFunctionMock.Setup(k => k.FireAndForgetWakeUpAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -248,6 +266,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
+                        services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -269,6 +288,7 @@ public class ProxyMiddlewareTests
         string expectedBody)
     {
         Mock<IWakeUpFunction> wakeUpFunctionMock = new();
+        Mock<IJobService> jobServiceMock = new();
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -281,6 +301,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
+                        services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -289,6 +310,42 @@ public class ProxyMiddlewareTests
         HttpResponseMessage response = await host.GetTestClient().GetAsync($"http://localhost:5000{path}");
         string body = await response.Content.ReadAsStringAsync();
         Assert.Equal(expectedBody, body);
+        Assert.Equal(expectedHttpStatusCode, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData("/job/daisy", HttpStatusCode.NoContent, 1)]
+    public async Task RunJobAndReturnOk(string path, HttpStatusCode expectedHttpStatusCode,
+        int numberFireJob)
+    {
+        Mock<IWakeUpFunction> wakeUpFunctionMock = new();
+        Mock<IJobService> jobServiceMock = new();
+        jobServiceMock.Setup(k => k.EnqueueJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<bool>()))
+            .ReturnsAsync(new EnqueueJobResult(""));
+        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
+                        services.AddSingleton<ISendClient, SendClientMock>();
+                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
+                        services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
+                        services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
+                    })
+                    .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
+            })
+            .StartAsync();
+
+        HttpResponseMessage response = await host.GetTestClient().PostAsync($"http://localhost:5000{path}",  JsonContent.Create(new CreateJob(new List<string>(),"youhou")));
+        HistoryHttpMemoryService historyHttpMemoryService =
+            host.Services.GetRequiredService<HistoryHttpMemoryService>();
+
+        jobServiceMock.Verify(k => k.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>()), Times.AtMost(numberFireJob));
         Assert.Equal(expectedHttpStatusCode, response.StatusCode);
     }
 }
