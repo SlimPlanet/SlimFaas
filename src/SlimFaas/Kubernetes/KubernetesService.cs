@@ -142,22 +142,22 @@ public partial record SlimfaasJob(
 public partial record EnvVarInput(
     string Name,
     string Value,
-    SecretRef SecretRef,
-    ConfigMapRef ConfigMapRef,
-    FieldRef FieldRef,
-    ResourceFieldRef ResourceFieldRef)
+    SecretRef? SecretRef=null,
+    ConfigMapRef? ConfigMapRef=null,
+    FieldRef? FieldRef=null,
+    ResourceFieldRef? ResourceFieldRef=null)
 {
     public string Name { get; set; } = Name;
 
     public string Value { get; set; } = Value;
 
-    public SecretRef SecretRef { get; set; } = SecretRef;
+    public SecretRef? SecretRef { get; set; } = SecretRef;
 
-    public ConfigMapRef ConfigMapRef { get; set; } = ConfigMapRef;
+    public ConfigMapRef? ConfigMapRef { get; set; } = ConfigMapRef;
 
-    public FieldRef FieldRef { get; set; } = FieldRef;
+    public FieldRef? FieldRef { get; set; } = FieldRef;
 
-    public ResourceFieldRef ResourceFieldRef { get; set; } = ResourceFieldRef;
+    public ResourceFieldRef? ResourceFieldRef { get; set; } = ResourceFieldRef;
 }
 
 [MemoryPackable]
