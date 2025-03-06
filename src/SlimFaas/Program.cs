@@ -68,8 +68,10 @@ IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasS
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
 IServiceCollection serviceCollectionSlimFaas = builder.Services;
-serviceCollectionSlimFaas.AddHostedService<SlimWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<ScaleReplicasWorker>();
+
 serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
@@ -85,6 +87,10 @@ serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemo
     serviceProviderStarter.GetService<HistoryHttpMemoryService>()!);
 serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
     serviceProviderStarter.GetService<IKubernetesService>()!);
+serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
+serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
+serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
+
 serviceCollectionSlimFaas.AddCors();
 
 string publicEndPoint = string.Empty;
