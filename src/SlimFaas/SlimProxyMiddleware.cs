@@ -158,7 +158,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Select(p => p.Ip).ToList();
         }
 
-        podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip).Where(ip => ip != null));
+        podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip));
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
         var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
         logger.LogDebug("ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
@@ -194,7 +194,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         foreach (string podIp in podIps)
         {
-            if (podIp == null || string.IsNullOrEmpty(podIp))
+            if (string.IsNullOrEmpty(podIp))
             {
                 continue;
             }

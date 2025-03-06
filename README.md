@@ -7,16 +7,17 @@
 Why use SlimFaas?
 - Scale
   - to 0 after a period of inactivity (work with deployment and statefulset)
-  - from 0 to n at start
+  - from 0 to n at start (HTTP trigger)
   - from n to n+m : compatible with HPA (Horizontal Auto Scaler) and Keda + Prometheus via /metrics routes (SlimFaas integrated autonomous Scale Up coming soon)
 - Synchronous HTTP calls
 - Asynchronous HTTP calls
   - Allows you to limit the number of parallel HTTP requests for each underlying function
 - Retry Pattern configurable
-- Private and Public functions
+- Run job from HTTP calls
+- Private and Public functions and jobs
   - Private functions can be accessed only by internal namespace http call from pods
 - Synchronous Publish/Subscribe internal events via HTTP calls to every replicas via HTTP without any use of specific drivers/libraries (**Couple your application with SlimFaas**)
-- Mind Changer: REST API that show the status of your functions and allow to wake up your infrastructure (**Couple your application with Slimfaas**)
+- **Mind Changer**: REST API that show the status of your functions and allow to wake up your infrastructure (**Couple your application with Slimfaas**)
   - Very useful to inform end users that your infrastructure is starting
 - Plug and Play: just deploy a standard pod
   - No impact on your current kubernetes manifests: just add an annotation to the pod you want to auto-scale
