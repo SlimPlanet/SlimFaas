@@ -8,7 +8,7 @@ using System;
 using System.Linq;
 using MemoryPack; // pour vérifier éventuellement la sérialisation si besoin
 
-namespace YourNamespace.Tests
+namespace SlimFaas.Tests
 {
     public class JobServiceTests
     {
@@ -150,6 +150,13 @@ namespace YourNamespace.Tests
             );
         }
 
+        private bool ValidateSerializedJob(byte[] bytes, string expectedImage)
+        {
+            var jobDeserialized = MemoryPackSerializer.Deserialize<CreateJob>(bytes);
+            return jobDeserialized != null && jobDeserialized.Image == expectedImage;
+        }
+
+
         [Fact]
         public async Task EnqueueJobAsync_ShouldFallbackToConfiguredImage_IfCreateJobImageIsEmpty()
         {
@@ -167,16 +174,24 @@ namespace YourNamespace.Tests
             Assert.Equal(204, result.Code);
 
             // On peut vérifier le contenu de l’enqueue pour voir si la sérialisation a bien l'image fallback "public-image"
-            /*_jobQueueMock.Verify(x => x.EnqueueAsync(
+            _jobQueueMock.Verify(x => x.EnqueueAsync(
                 jobName,
-                It.Is<byte[]>(bytes =>
-                {
-                    // Pour vérifier qu'on a bien l'image "public-image" dans la sérialisation
-                    var jobDeserialized = MemoryPackSerializer.Deserialize<CreateJob>(bytes);
-                    return jobDeserialized != null && jobDeserialized.Image == "public-image";
-                })
-            ), Times.Once);*/
+                It.Is<byte[]>(bytes => ValidateSerializedJob(bytes, "public-image"))
+            ), Times.Once);
         }
+
+        private bool ValidateSerializedEnvironments(byte[] bytes)
+        {
+            var jobDeserialized = MemoryPackSerializer.Deserialize<CreateJob>(bytes);
+            if (jobDeserialized?.Environments == null) return false;
+
+            var envDict = jobDeserialized.Environments.ToDictionary(e => e.Name, e => e.Value);
+
+            return envDict.TryGetValue("ENV_EXISTING", out var existingValue) && existingValue == "ExistingValue"
+                                                                              && envDict.TryGetValue("ENV_NEW", out var newValue) && newValue == "NewValue"
+                                                                              && envDict.TryGetValue("ENV_COMMON", out var commonValue) && commonValue == "OverriddenValue";
+        }
+
 
         [Fact]
         public async Task EnqueueJobAsync_ShouldMergeEnvironmentsCorrectly()
@@ -217,20 +232,10 @@ namespace YourNamespace.Tests
             Assert.Equal(204, result.Code);
 
             // Vérifie qu'on a ENV_EXISTING, ENV_NEW et ENV_COMMON (avec la nouvelle valeur)
-            /*_jobQueueMock.Verify(x => x.EnqueueAsync(
+            _jobQueueMock.Verify(x => x.EnqueueAsync(
                 jobName,
-                It.Is<byte[]>(bytes =>
-                {
-                    var jobDeserialized = MemoryPackSerializer.Deserialize<CreateJob>(bytes);
-                    if (jobDeserialized.Environments == null) return false;
-
-                    var envDict = jobDeserialized.Environments.ToDictionary(e => e.Name, e => e.Value);
-
-                    return envDict["ENV_EXISTING"] == "ExistingValue"
-                        && envDict["ENV_NEW"] == "NewValue"
-                        && envDict["ENV_COMMON"] == "OverriddenValue";
-                })
-            ), Times.Once);*/
+                It.Is<byte[]>(bytes => ValidateSerializedEnvironments(bytes))
+            ), Times.Once);
         }
 
         #endregion

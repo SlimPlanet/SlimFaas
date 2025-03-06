@@ -14,7 +14,7 @@ public class JobConfiguration : IJobConfiguration
     public SlimfaasJobConfiguration Configuration { get; }
 
 
-    public JobConfiguration()
+    public JobConfiguration(string? json = null)
     {
         SlimfaasJobConfiguration? slimfaasJobConfiguration = null;
         Dictionary<string, string> resources = new();
@@ -24,7 +24,7 @@ public class JobConfiguration : IJobConfiguration
         SlimfaasJob defaultSlimfaasJob = new("", new List<string>(), createJobResources);
         try
         {
-            string? json = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasJobsConfiguration);
+            json ??= Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasJobsConfiguration);
 
             if (!string.IsNullOrEmpty(json))
             {
