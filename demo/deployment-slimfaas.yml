@@ -45,6 +45,9 @@ rules:
   - apiGroups: ["apps"]
     resources: ["deployments/scale", "statefulsets/scale"]
     verbs: ["get", "update", "patch"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -69,7 +72,6 @@ rules:
   - apiGroups: [""]
     resources: ["endpoints"]
     verbs: ["get", "list", "watch"]
-
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -91,7 +93,7 @@ metadata:
   name: slimfaas
   namespace: slimfaas-demo
 spec:
-  replicas: 3
+  replicas: 1
   podManagementPolicy: Parallel
   serviceName: slimfaas
   selector:
@@ -109,7 +111,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:latest
+          image: axaguildev/slimfaas:0.35.10-pr.811002
           livenessProbe:
             httpGet:
               path: /health
@@ -137,14 +139,41 @@ spec:
               value: "1"
             - name: Logging__LogLevel__SlimFaas
               value: "Debug"
-            #- name: SLIMDATA_CONFIGURATION
-            #  value: |
-            #      {"coldStart":"true"}
+            - name: SLIMDATA_CONFIGURATION
+              value: |
+                  {"coldStart":"true"}
             #- name: SLIMDATA_CONFIGURATION
             #  value: |
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
             #  value: "500"
+            #- name: SLIMFAAS_JOBS_CONFIGURATION
+            #  value: |
+            #    {
+            #      "Configurations": {
+            #        "fibonacci": {
+            #          "Image": "axaguildev/fibonacci-batch:0.35.10-pr.811002",
+            #          "ImagesWhitelist": [],
+            #          "Resources": {
+            #            "Requests": {
+            #              "cpu": "400m",
+            #              "memory": "400Mi"
+            #            },
+            #            "Limits": {
+            #              "cpu": "400m",
+            #              "memory": "400Mi"
+            #            }
+            #          },
+            #          "DependsOn": ["smartguide-api-data"],
+            #          "Environments": [],
+            #          "BackoffLimit": 1,
+            #          "Visibility": "Public",
+            #          "NumberParallelJob": 6,
+            #          "TtlSecondsAfterFinished": 30,
+            #          "RestartPolicy": "Never"
+            #        }
+            #      }
+            #    }
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database

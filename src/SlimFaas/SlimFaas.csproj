@@ -29,10 +29,10 @@
 
 
   <ItemGroup>
-    <PackageReference Include="KubernetesClient.Aot" Version="15.0.1" />
-    <PackageReference Include="MemoryPack" Version="1.21.3" />
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="9.0.0" />
-    <PackageReference Include="NodaTime" Version="3.2.0" />
+    <PackageReference Include="KubernetesClient.Aot" Version="16.0.2" />
+    <PackageReference Include="MemoryPack" Version="1.21.4" />
+    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="9.0.2" />
+    <PackageReference Include="NodaTime" Version="3.2.1" />
     <PackageReference Include="prometheus-net" Version="8.2.1" />
     <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
   </ItemGroup>

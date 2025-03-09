@@ -13,7 +13,8 @@
                 "SLIMFAAS_PORT": "5002",
                 "SLIMDATA_DIRECTORY": "C:\\Demo4",
                 "BASE_SLIMDATA_URL": "http://localhost:3262/",
-                "SLIMDATA_CONFIGURATION": "{\"coldStart\":\"true\"}"
+                "SLIMDATA_CONFIGURATION": "{\"coldStart\":\"true\"}",
+                "SLIMFAAS_JOBS_CONFIGURATION": "{\"Configurations\":{\"fibonacci\":{\"Image\":\"axaguildev/fibonacci-batch:0.35.10-pr.81997\",\"ImagesWhitelist\":[],\"Resources\":{\"Requests\":{\"cpu\":\"400m\",\"memory\":\"400Mi\"},\"Limits\":{\"cpu\":\"400m\",\"memory\":\"400Mi\"}},\"DependsOn\":[],\"Environments\":[],\"BackoffLimit\":1,\"Visibility\":\"Public\",\"NumberParallelJob\":1,\"TtlSecondsAfterFinished\":60,\"RestartPolicy\":\"Never\"}}}"
             }
         },
         "http_2": {
