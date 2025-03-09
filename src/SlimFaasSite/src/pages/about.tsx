@@ -1,7 +1,7 @@
 ﻿import React from 'react';
 import Layout from '../components/Layout';
-import { GetStaticPaths, GetStaticProps } from 'next';
-import { fetchMarkdownFile, fetchMarkdownFilesList, MarkdownData } from '../lib/github';
+import { GetStaticProps } from 'next';
+import { fetchMarkdownFile, MarkdownData } from '../lib/github';
 
 interface DocPageProps {
     contentHtml: string;
