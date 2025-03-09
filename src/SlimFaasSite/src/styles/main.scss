@@ -1,9 +1,11 @@
-﻿@import 'navbar';
-
+﻿
 .layout {
     &__navbar {
-        background-color: #333;
+        background-color: blue; /* Bleu pur */
         padding: 1rem;
+        display: flex;
+        align-items: center; /* Alignement vertical */
+        gap: 1rem; /* Espacement entre le logo et le menu */
     }
 
     &__content {
@@ -12,19 +14,31 @@
 }
 
 .navbar {
+    &__logo {
+        width: 64px;
+        height: 64px;
+    }
+
     &__list {
         list-style: none;
         display: flex;
         gap: 1rem;
+        margin: 0;
+        padding: 0;
     }
 
     &__item {
         a {
             color: white;
             text-decoration: none;
+            font-size: 1.4rem; /* Taille de texte plus grande */
+            padding: 0.8rem 1.2rem; /* Augmenter la zone cliquable */
+            border-radius: 8px; /* Coins arrondis */
+            transition: background-color 0.3s ease, transform 0.2s ease; /* Animation douce */
 
             &:hover {
-                text-decoration: underline;
+                background-color: rgba(255, 255, 255, 0.2); /* Fond bleu clair au survol */
+                transform: scale(1.05); /* Effet d'agrandissement léger */
             }
         }
     }
