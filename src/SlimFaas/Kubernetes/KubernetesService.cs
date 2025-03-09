@@ -327,8 +327,7 @@ public class KubernetesService : IKubernetesService
         catch (HttpOperationException e)
         {
             _logger.LogError(e, "Error while listing kubernetes functions");
-            return new DeploymentsInformations(new List<DeploymentInformation>(),
-                new SlimFaasDeploymentInformation(1, new List<PodInformation>()), new List<PodInformation>());
+            return previousDeployments;
         }
     }
 

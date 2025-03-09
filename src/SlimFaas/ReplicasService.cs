@@ -30,7 +30,7 @@ public class ReplicasService(
     // Lecture sans verrou puisque _deployments est remplacé atomiquement.
     public DeploymentsInformations Deployments =>
         // On retourne ici une copie si nécessaire pour éviter que le consommateur ne modifie la collection.
-        new DeploymentsInformations(
+        new(
             _deployments.Functions.ToArray(),
             new SlimFaasDeploymentInformation(_deployments.SlimFaas?.Replicas ?? 1,
                                                _deployments.SlimFaas?.Pods ?? new List<PodInformation>()),

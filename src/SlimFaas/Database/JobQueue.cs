@@ -8,7 +8,7 @@ public class JobQueue(IDatabaseService databaseService) : IJobQueue
 
     public async Task EnqueueAsync(string key, byte[] data)
     {
-        RetryInformation retryInformation = new(new List<int>(), 300, new List<int>());
+        RetryInformation retryInformation = new([2,4,8,16,32], 120, [500,502,503]);
         await databaseService.ListLeftPushAsync($"{KeyPrefix}{key}", data, retryInformation);
     }
 
