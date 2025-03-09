@@ -12,7 +12,7 @@ jobs:
       issues: write  # for wow-actions/welcome to comment on issues
       pull-requests: write  # wow-actions/welcome to comment on PR
     # Do not run on bots and maintainers
-    if: ${{ !contains(fromJson('["dependabot[bot]", "dependabot-preview[bot]", "allcontributors[bot]"]'), github.actor) 
+    if: ${{ !contains(fromJson('["dependabot[bot]", "dependabot-preview[bot]", "allcontributors[bot]"]'), github.actor) }}
     runs-on: ubuntu-latest
     steps:
       - uses: wow-actions/welcome@v1.3.1
@@ -21,34 +21,34 @@ jobs:
 
           FIRST_ISSUE: |
             👋 @{{ author }}
-            
+
              Welcome to the SlimPlanet Community! ❤️
-             
+
              We are thrilled to have you with us.
 
              Thanks for opening your first issue here! Be sure to follow the issue template!
-          
+
           FIRST_PR_REACTIONS: '+1, hooray, rocket, heart'
-          
+
           FIRST_PR: |
             👋 @{{ author }}
 
             Welcome to the SlimPlanet Community! ❤️
-            
+
             Thanks for opening this pull request! Please follow the [contributing guidelines](https://github.com/SlimPlanet/SlimFaas/blob/main/CONTRIBUTING.md).
 
           FIRST_PR_MERGED: |
             🎉 @{{ author }}
 
             Welcome to the SlimPlanet Community! ❤️
-            
-            Congrats on merging your first pull request! 
+
+            Congrats on merging your first pull request!
 
             Kudos and please keep going, we need you 🌍
 
           STAR_MESSAGE: |
 
             📢 If you like SlimFaas, please ⭐ star ⭐ our repo to support it!
-            
+
             🙏 It really helps the project to gain momentum and credibility.
-                      
+
