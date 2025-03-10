@@ -19,6 +19,11 @@ export const getStaticProps: GetStaticProps<DocPageProps> = async () => {
         },
     };
 };
+
+const formatMetadata = (metadata: Record<string, unknown>):string  => {
+    // @ts-ignore
+    return metadata.title || "Documentation"
+}
 const About =  ({ contentHtml, metadata }: DocPageProps) => (
     <Layout>
         <h1>About Us</h1>
@@ -28,7 +33,7 @@ const About =  ({ contentHtml, metadata }: DocPageProps) => (
             with a streamlined experience for deploying and managing serverless functions.
         </p>
         <div style={{ maxWidth: "800px", margin: "auto", padding: "2rem" }}>
-            <h1>{metadata.title || "Documentation"}</h1>
+            <h1>{formatMetadata(metadata)}</h1>
             <div dangerouslySetInnerHTML={{ __html: contentHtml }} />
         </div>
     </Layout>
