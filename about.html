@@ -1,1 +1,532 @@
-<!DOCTYPE html><html><head><meta charSet="utf-8" data-next-head=""/><meta name="viewport" content="width=device-width" data-next-head=""/><link rel="preload" href="/SlimFaas/_next/static/css/4cf13794ac82366c.css" as="style"/><link rel="stylesheet" href="/SlimFaas/_next/static/css/4cf13794ac82366c.css" data-n-g=""/><noscript data-n-css=""></noscript><script defer="" noModule="" src="/SlimFaas/_next/static/chunks/polyfills-42372ed130431b0a.js"></script><script src="/SlimFaas/_next/static/chunks/webpack-9f210e339d65408d.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/framework-4447c10056014a1e.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/main-7e03ef997e43522e.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/pages/_app-0f645db2bf48a08e.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/970-ad812118eff02dd7.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/pages/about-3ae36482551e582a.js" defer=""></script><script src="/SlimFaas/_next/static/7id_u1mYGW9LoCtOAp8kh/_buildManifest.js" defer=""></script><script src="/SlimFaas/_next/static/7id_u1mYGW9LoCtOAp8kh/_ssgManifest.js" defer=""></script></head><body><div id="__next"><div class="layout"><nav class="layout__navbar"><img alt="Logo" loading="lazy" width="64" height="64" decoding="async" data-nimg="1" style="color:transparent" src="./SlimFaas/slimfaas-white.svg"/><ul class="navbar__list"><li class="navbar__item"><a href="/SlimFaas">Home</a></li><li class="navbar__item"><a href="/SlimFaas/about">About</a></li><li class="navbar__item"><a href="/SlimFaas/contact">Contact</a></li></ul></nav><main class="layout__content"><h1>About Us</h1><p>Welcome to SlimFaas! SlimFaas is a lightweight serverless framework designed for simplicity, scalability, and high performance. We are committed to providing developers with a streamlined experience for deploying and managing serverless functions.</p></main></div></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{}},"page":"/about","query":{},"buildId":"7id_u1mYGW9LoCtOAp8kh","assetPrefix":"/SlimFaas","nextExport":true,"autoExport":true,"isFallback":false,"scriptLoader":[]}</script></body></html>
+<!DOCTYPE html><html><head><meta charSet="utf-8" data-next-head=""/><meta name="viewport" content="width=device-width" data-next-head=""/><link rel="preload" href="/SlimFaas/_next/static/css/4cf13794ac82366c.css" as="style"/><link rel="stylesheet" href="/SlimFaas/_next/static/css/4cf13794ac82366c.css" data-n-g=""/><noscript data-n-css=""></noscript><script defer="" noModule="" src="/SlimFaas/_next/static/chunks/polyfills-42372ed130431b0a.js"></script><script src="/SlimFaas/_next/static/chunks/webpack-9f210e339d65408d.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/framework-4447c10056014a1e.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/main-7e03ef997e43522e.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/pages/_app-0f645db2bf48a08e.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/970-ad812118eff02dd7.js" defer=""></script><script src="/SlimFaas/_next/static/chunks/pages/about-42b010d67abce545.js" defer=""></script><script src="/SlimFaas/_next/static/zfrc0CMmbX0pfPCvRlm5T/_buildManifest.js" defer=""></script><script src="/SlimFaas/_next/static/zfrc0CMmbX0pfPCvRlm5T/_ssgManifest.js" defer=""></script></head><body><div id="__next"><div class="layout"><nav class="layout__navbar"><img alt="Logo" loading="lazy" width="64" height="64" decoding="async" data-nimg="1" style="color:transparent" src="./SlimFaas/slimfaas-white.svg"/><ul class="navbar__list"><li class="navbar__item"><a href="/SlimFaas">Home</a></li><li class="navbar__item"><a href="/SlimFaas/about">About</a></li><li class="navbar__item"><a href="/SlimFaas/contact">Contact</a></li></ul></nav><main class="layout__content"><h1>About Us</h1><p>Welcome to SlimFaas! SlimFaas is a lightweight serverless framework designed for simplicity, scalability, and high performance. We are committed to providing developers with a streamlined experience for deploying and managing serverless functions.</p><div style="max-width:800px;margin:auto;padding:2rem"><h1>Documentation</h1><div><h1>SlimFaas : The slimmest and simplest Function As A Service <a href="https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml"><img src="https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml/badge.svg" alt="Continuous Integration"></a> <a href="https://sonarcloud.io/dashboard?id=SlimPlanet_SlimFaas"><img src="https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&#x26;metric=alert_status" alt="Quality Gate"></a> <a href="https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&#x26;metric=reliability_rating"><img src="https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&#x26;metric=reliability_rating" alt="Reliability"></a> <a href="https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&#x26;metric=security_rating"><img src="https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&#x26;metric=security_rating" alt="Security"></a> <a href="https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&#x26;metric=Coverage"><img src="https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&#x26;metric=coverage" alt="Code Corevage"></a></h1>
+<p><a href="https://hub.docker.com/r/axaguildev/slimfaas/builds"><img src="https://img.shields.io/docker/pulls/axaguildev/slimfaas.svg?label=docker+pull+slimfaas" alt="Docker SlimFaas"></a> <a href="https://hub.docker.com/r/axaguildev/slimfaas/builds"><img src="https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas" alt="Docker Image Size"></a>
+<a href="https://hub.docker.com/r/axaguildev/slimfaas/builds"><img src="https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver&#x26;label=latest+version+slimfaas" alt="Docker Image Version"></a></p>
+<p><img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png" alt="SlimFaas.png"></p>
+<p>Why use SlimFaas?</p>
+<ul>
+<li>Scale
+<ul>
+<li>to 0 after a period of inactivity (work with deployment and statefulset)</li>
+<li>from 0 to n at start (HTTP trigger)</li>
+<li>from n to n+m : compatible with HPA (Horizontal Auto Scaler) and Keda + Prometheus via /metrics routes (SlimFaas integrated autonomous Scale Up coming soon)</li>
+</ul>
+</li>
+<li>Synchronous HTTP calls</li>
+<li>Asynchronous HTTP calls
+<ul>
+<li>Allows you to limit the number of parallel HTTP requests for each underlying function</li>
+</ul>
+</li>
+<li>Retry Pattern configurable</li>
+<li>Run job from HTTP calls</li>
+<li>Private and Public functions and jobs
+<ul>
+<li>Private functions can be accessed only by internal namespace http call from pods</li>
+</ul>
+</li>
+<li>Synchronous Publish/Subscribe internal events via HTTP calls to every replicas via HTTP without any use of specific drivers/libraries (<strong>Couple your application with SlimFaas</strong>)</li>
+<li><strong>Mind Changer</strong>: REST API that show the status of your functions and allow to wake up your infrastructure (<strong>Couple your application with Slimfaas</strong>)
+<ul>
+<li>Very useful to inform end users that your infrastructure is starting</li>
+</ul>
+</li>
+<li>Plug and Play: just deploy a standard pod
+<ul>
+<li>No impact on your current kubernetes manifests: just add an annotation to the pod you want to auto-scale</li>
+</ul>
+</li>
+<li>Very <strong>Slim</strong> and very <strong>Fast</strong></li>
+</ul>
+<p><img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png" alt="slim-faas-ram-cpu.png"></p>
+<h2>Getting Started with Kubernetes</h2>
+<p>To test SlimFaas on your local machine by using kubernetes with Docker Desktop, please use these commands:</p>
+<pre><code class="language-bash">git clone https://github.com/AxaFrance/slimfaas.git
+cd slimfaas
+cd demo
+# Create slimfaas service account and pods
+kubectl apply -f deployment-slimfaas.yml
+# Expose SlimFaaS service as NodePort or Ingress
+kubectl apply -f slimfaas-nodeport.yml
+# or
+# kubectl apply -f slimfaas-ingress.yml
+# Install three instances of fibonacci functions
+# fibonacci1, fibonacci2 and fibonacci3
+kubectl apply -f deployment-functions.yml
+# Install MySql
+kubectl apply -f deployment-mysql.yml
+# to run Single Page webapp demo (optional) on http://localhost:8000
+docker run -d -p 8000:8000 --rm axaguildev/fibonacci-webapp:latest
+kubectl port-forward svc/slimfaas-nodeport 30021:5000 -n slimfaas-demo
+</code></pre>
+<p>Now, you can access your pod via SlimFaas proxy:</p>
+<p>Synchronous way:</p>
+<ul>
+<li>http://localhost:30021/function/fibonacci1/hello/guillaume => HTTP 200 (OK)</li>
+<li>http://localhost:30021/function/fibonacci2/hello/elodie => HTTP 200 (OK)</li>
+<li>http://localhost:30021/function/fibonacci3/hello/julie => HTTP 200 (OK)</li>
+<li>http://localhost:30021/function/fibonacci4/hello/julie => HTTP 404 (Not Found)</li>
+</ul>
+<p>Asynchronous way:</p>
+<ul>
+<li>http://localhost:30021/async-function/fibonacci1/hello/guillaume => HTTP 202 (Accepted)</li>
+<li>http://localhost:30021/async-function/fibonacci2/hello/elodie => HTTP 202 (Accepted)</li>
+<li>http://localhost:30021/async-function/fibonacci3/hello/julie => HTTP 202 (Accepted)</li>
+<li>http://localhost:30021/async-function/fibonacci3/hello/julie => HTTP 404 (Not Found)</li>
+</ul>
+<p>Just wake up function:</p>
+<ul>
+<li>http://localhost:30021/wake-function/fibonacci1 => HTTP 204 (OK - No Content)</li>
+<li>http://localhost:30021/wake-function/fibonacci2 => HTTP 204 (OK - No Content)</li>
+<li>http://localhost:30021/wake-function/fibonacci3 => HTTP 204 (OK - No Content)</li>
+<li>http://localhost:30021/wake-function/fibonacci4 => HTTP 204 (OK - No Content)</li>
+</ul>
+<p>List all function status:</p>
+<ul>
+<li>http://localhost:30021/status-functions => [{"NumberReady":1,"numberRequested":1,PodType":"Deployment","Visibility":"Public","Name":"fibonacci1"},
+{"NumberReady":1,"numberRequested":1,PodType":"Deployment","Visibility":"Public","Name":"fibonacci2"},
+{"NumberReady":1,"numberRequested":1,PodType":"Deployment","Visibility":"Public","Name":"fibonacci3"},
+{"NumberReady":2,"numberRequested":2,PodType":"Deployment","Visibility":"Private","Name":"fibonacci4"}]</li>
+</ul>
+<p>Send event to every function replicas (which deployment subscribe to the event name) in synchronous way:</p>
+<ul>
+<li>HTTP POST http://localhost:30021/publish-event/my-event-name {"data":"my-data"} => HTTP 204 (No Content)</li>
+</ul>
+<p>Single Page WebApp demo:</p>
+<ul>
+<li>http://localhost:8000</li>
+</ul>
+<p>Enjoy slimfaas!!!!</p>
+<h2>Getting Started with docker-compose</h2>
+<p>To test slimfaas on your local machine by using kubernetes with Docker Desktop, please use these commands:</p>
+<pre><code class="language-bash">git clone https://github.com/AxaFrance/slimfaas.git
+cd slimfaas
+docker-compose up
+</code></pre>
+<p>Now, you can access your pod via SlimFaas proxy:</p>
+<ul>
+<li>http://localhost:5020/function/fibonacci/hello/guillaume</li>
+</ul>
+<p>Enjoy slimfaas!!!!</p>
+<h2>Getting Started with @axa-fr/slimfaas-planet-saver</h2>
+<p><a href="./src/SlimFaasPlanetSaver#README.md"><code>@axa-fr/slimfaas-planet-saver readme.md</code></a> : A vanilla JavaScript library to start and monitor replicas from javascript frontend.</p>
+<p><img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimfaasPlanetSaver.gif" alt="SlimFaasPlanetSaver.gif"></p>
+<h2>How it works</h2>
+<p>SlimFaas act as an HTTP proxy with 2 modes:</p>
+<h3>Synchronous HTTP call</h3>
+<ul>
+<li>Synchronous http://slimfaas/function/myfunction = > HTTP response function</li>
+</ul>
+<p><img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/sync_http_call.PNG" alt="sync_http_call.PNG"></p>
+<h3>Asynchronous HTTP call</h3>
+<ul>
+<li>Asynchronous http://slimfaas/async-function/myfunction => HTTP 201
+<ul>
+<li>Tail using SlimData database included in SlimFaas pod</li>
+</ul>
+</li>
+</ul>
+<p><img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/async_http_call.PNG" alt="async_http_call.PNG"></p>
+<h3>Wake HTTP call</h3>
+<ul>
+<li>Wake http://slimfaas/wake-function/myfunction => HTTP 200
+<ul>
+<li>Wake up a function</li>
+</ul>
+</li>
+</ul>
+<h3>Synchronous Publish HTTP call (events) to every replicas</h3>
+<p>To publish the message to every replicas in "Ready" state of the function</p>
+<ul>
+<li>HTTP POST http://slimfaas/publish-event/my-event-name {"data":"my-event-data"}</li>
+</ul>
+<p><img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/publish_sync_call.png" alt="publish_sync_call.png"></p>
+<h2>How to install</h2>
+<ol>
+<li>Add SlimFaas StatefulSet to your kubernetes cluster</li>
+<li>Add SlimFaas annotations to your pods</li>
+<li>Have fun!</li>
+</ol>
+<p>sample-deployment.yaml</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibonacci1
+  namespace: slimfaas-demo
+spec:
+  selector:
+    matchLabels:
+      app: fibonacci1
+  template:
+    metadata:
+      labels:
+        app: fibonacci1
+      annotations:
+        # Just add SlimFaas annotation to your pods and that's it !
+        SlimFaas/Function: "true"
+        SlimFaas/ReplicasMin: "0"
+        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/DependsOn: "mysql,fibonacci2" # comma separated list of deployment or statefulset names
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+        SlimFaas/NumberParallelRequest : "10"
+        SlimFaas/Schedule: |
+            {"TimeZoneID":"Europe/Paris","Default":{"WakeUp":["07:00"],"ScaleDownTimeout":[{"Time":"07:00","Value":3600},{"Time":"21:00","Value":60}]}}
+        SlimFaas/SubscribeEvents: "Public:my-event-name1,Private:my-event-name2,my-event-name3" # comma separated list of event names
+        SlimFaas/DefaultVisibility: "Public" # Public or Private (private can be accessed only by internal namespace https call from pods)
+        SlimFaas/UrlsPathStartWithVisibility: "Private:/mypath/subPath,Private:/mysecondpath" # Public or Private (private can be accessed only by internal namespace https call from pods)
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: fibonacci1
+          image: docker.io/axaguildev/fibonacci:latest
+          livenessProbe:
+              httpGet:
+                  path: /health
+                  port: 5000
+              initialDelaySeconds: 5
+              periodSeconds: 5
+              timeoutSeconds: 5
+          resources:
+            limits:
+              memory: "96Mi"
+              cpu: "50m"
+            requests:
+              memory: "96Mi"
+              cpu: "10m"
+          ports:
+            - containerPort: 50004
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: fibonacci1
+    namespace: slimfaas-demo
+spec:
+    selector:
+        app: fibonacci1
+    ports:
+        - port: 5000
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: slimfaas
+  namespace: slimfaas-demo
+spec:
+  replicas: 3
+  podManagementPolicy: Parallel
+  serviceName: slimfaas
+  selector:
+    matchLabels:
+      app: slimfaas
+  template:
+    metadata:
+      labels:
+        app: slimfaas
+    spec:
+      volumes:
+        - name: slimfaas-volume
+          emptyDir:
+            sizeLimit: 10Mi
+      serviceAccountName: admin # Use a service account with admin role
+      containers:
+        - name: slimfaas
+          image: docker.io/axaguildev/slimfaas:latest
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 8
+            terminationGracePeriodSeconds: 30
+          env:
+            - name: BASE_FUNCTION_URL
+              value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
+            - name: BASE_FUNCTION_POD_URL # require for publish route
+              value: "http://{pod_ip}:5000"
+            - name: BASE_SLIMDATA_URL
+              value: "http://{pod_name}.slimfaas.{namespace}.svc.cluster.local:3262/"  # Don't expose this port, it can also be like "http://{pod_ip}:3262/" but if you can use DNS it's better
+            - name: SLIMFAAS_PORTS
+              value: "5000" # can be like "5000,6000,7000" if you want to expose more ports
+            - name: NAMESPACE
+              value: "default"
+            - name: SLIMDATA_DIRECTORY
+              value: "/database"
+            # If you want to send event to an url which is not a SlimFaas function, you can use this env variable
+            # use comma to separate event name and url, use => to separate event name and destination url.
+            # urls are separated by ;
+            #- name: SLIMFAAS_SUBSCRIBE_EVENTS
+            #  value: "my-event-name1=>http://localhost:5002;http://localhost:5003,my-event-name2=>http://localhost:5002"
+            # If you want to use just one pod for testing purpose, you can use this env variable
+            #- name: SLIMDATA_CONFIGURATION
+            #  value: |
+            #      {"coldStart":"true"}
+            # If you are not on kubernetes for example docker-compose, you can use this env variable, but you will lose auto-scale
+            #- name: MOCK_KUBERNETES_FUNCTIONS
+            #  value: "{"Functions":[{"Name":"fibonacci","NumberParallelRequest":1}],"Slimfaas":[{"Name":"slimfaas-1"}]}"
+
+             # Configure CORS allowed Origins, default is *, you can use a comma separated list example: http://localhost:3000,http://localhost:3001
+            #- name: SLIMFAAS_CORS_ALLOW_ORIGIN
+            # Optional, longer is the delay, less CPU and RAM is used
+            #- name : HISTORY_SYNCHRONISATION_WORKER_DELAY_MILLISECONDS
+            #  value : "500" # default equivalent to 0,5 seconds
+            # Optional, longer is the delay, less CPU and RAM is used
+            #- name : REPLICAS_SYNCHRONISATION_WORKER_DELAY_MILLISECONDS
+            #  value : "2000" # default equivalent to 2 seconds
+            # Optional, longer is the delay, less CPU and RAM is used
+            #- name : SLIM_WORKER_DELAY_MILLISECONDS
+            #  value : "50" # default equivalent to 50 milliseconds
+            # Optional, longer is the delay, less CPU and RAM is used
+            #- name : SCALE_REPLICAS_WORKER_DELAY_MILLISECONDS
+            #  value : "1000" # default equivalent to 1 seconds
+            # Optional
+            # name : TIME_MAXIMUM_WAIT_FOR_AT_LEAST_ONE_POD_STARTED_FOR_SYNC_FUNCTION
+            # value : "10000" # default equivalent to 10 seconds
+            # Optional
+            # name : POD_SCALED_UP_BY_DEFAULT_WHEN_INFRASTRUCTURE_HAS_NEVER_CALLED
+            # value : "false" # default equivalent to false
+            # Optional
+            # name : SLIMFAAS_ALLOW_UNSECURE_SSL
+            # value : "false" # default equivalent to false
+            # Optional
+            # name: HEALTH_WORKER_DELAY_MILLISECONDS
+            # value: "1000" # default equivalent to 1 seconds
+            # Optional
+            # name: HEALTH_WORKER_DELAY_TO_EXIT_SECONDS
+            # value: "60" # default equivalent to 10 seconds
+
+            # name : SLIMDATA_CONFIGURATION # represent SlimData internal configuration, more documentation here: https://dotnet.github.io/dotNext/features/cluster/raft.html
+            # value : | #default values
+            #    {
+            #      "partitioning":"false",
+            #      "lowerElectionTimeout":"150",
+            #      "upperElectionTimeout":"300",
+            #      "requestTimeout":"00:00:00.3000000",
+            #      "rpcTimeout":"00:00:00.1500000",
+            #      "coldStart":"false",
+            #      "requestJournal:memoryLimit":"5",
+            #      "requestJournal:expiration":"00:01:00",
+            #      "heartbeatThreshold":"0.5",
+            #   }
+            # name : SLIMFAAS_JOB_CONFIGURATION
+            # value : | # represent SlimFaas internal configuration, more documentation here:
+            #    {
+            #          "DefaultNumberParallelRequest": 1, # Timeout in seconds
+            #          "DefaultVisibility": "Private", # Retry pattern in seconds
+            #          "AllowDynamicJob": false,
+            #          "Jobs": {
+            #              "daisy" : { "NumberParallelRequest": 1, "Visibility": "Public" }
+            #          }
+            #    }
+          volumeMounts:
+            - name: slimfaas-volume
+              mountPath: /database
+          resources:
+            limits:
+              memory: "76Mi"
+              cpu: "400m"
+            requests:
+              memory: "76Mi"
+              cpu: "250m"
+          ports:
+            - containerPort: 5000
+            - containerPort: 3262
+  # You can use this section to define a persistent volume claim
+  #volumeClaimTemplates:
+  #- metadata:
+  #    name: slimfaas-volume
+  #  spec:
+  #    accessModes: [ "ReadWriteOnce" ]
+  #    storageClassName: managed-csi # or any other storage class available in your cluster
+  #    volumeMode: Filesystem
+  #    resources:
+  #      requests:
+  #        storage: 10Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: slimfaas
+    namespace: slimfaas-demo
+spec:
+    selector:
+        app: slimfaas
+    ports:
+        - name: "http"
+          port: 80
+          targetPort: 5000
+        - name: "slimdata"
+          port: 3262
+          targetPort: 3262
+</code></pre>
+<blockquote>
+<p>[!WARNING]
+Yours <strong>service name</strong> must be the same as the SlimFaas <strong>Deployment/StatefulSet name</strong></p>
+</blockquote>
+<h3>SlimFaas Annotations with defaults values</h3>
+<ul>
+<li><strong>SlimFaas/Function</strong>: "true"
+<ul>
+<li>Activate SlimFaas on this pod, so your pod will be auto-scaled</li>
+</ul>
+</li>
+<li><strong>SlimFaas/ReplicasMin</strong>: "0"
+<ul>
+<li>Scale down to this value after a period of inactivity</li>
+</ul>
+</li>
+<li><strong>SlimFaas/ReplicasAtStart</strong>: "1"
+<ul>
+<li>Scale up to this value at start</li>
+</ul>
+</li>
+<li><strong>SlimFaas/TimeoutSecondBeforeSetReplicasMin</strong>: "300"
+<ul>
+<li>Scale down to SlimFaas/ReplicasMin after this period of inactivity in seconds</li>
+</ul>
+</li>
+<li><strong>SlimFaas/NumberParallelRequest</strong> : "10"
+<ul>
+<li>Limit the number of parallel HTTP requests for each underlying function</li>
+</ul>
+</li>
+<li><strong>SlimFaas/DependsOn</strong> : ""
+<ul>
+<li>Comma separated list of deployment names or statefulset names</li>
+<li>Pods will be scaled up only if all pods in this list are in ready state with the minimum number of replicas superior or equal to ReplicasAtStart</li>
+<li>This property is useful if you want to scale up your pods only if your database is ready for example</li>
+</ul>
+</li>
+<li><strong>SlimFaas/SubscribeEvents</strong> : ""
+<ul>
+<li>Comma separated list of event names to license the function to receive events. example: "Public:my-event-name1,Private:my-event-name2,my-event-name3"</li>
+<li>"Public:" or "Private:" are prefix that set the event visibility, if not set, "SlimFaas/DefaultVisibility" is used</li>
+</ul>
+</li>
+<li><strong>SlimFaas/DefaultVisibility</strong> : "Public"
+<ul>
+<li>Public or Private (private can be accessed only by internal namespace https call from pods)</li>
+</ul>
+</li>
+<li><strong>SlimFaas/PathsStartWithVisibility</strong> : ""
+<ul>
+<li>Comma separated list of path prefixed by the default visibility. example: "Private:/mypath/subpath,Public:/mypath2"</li>
+<li>"Public:" or "Private:" are prefix that set the path visibility, if not set, "SlimFaas/DefaultVisibility" is used</li>
+</ul>
+</li>
+<li><strong>SlimFaas/ExcludeDeploymentsFromVisibilityPrivate</strong> : ""
+<ul>
+<li>Comma separated list of deployment names or statefulset names</li>
+<li>Message from that pods will be considered as public. It is useful if you want to exclude some pods from the private visibility, for example for a backend for frontend.</li>
+</ul>
+</li>
+<li><strong>SlimFaas/Configuration</strong> : json configuration default values displayed below
+<ul>
+<li>Allows you to define a configuration for your functions. For example, you can define a timeout for HTTP calls, a retry pattern for timeouts and HTTP status codes.</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-bash">{
+    "DefaultSync":{
+        "HttpTimeout": 120, # Timeout in seconds
+        "TimeoutRetries": [2,4,8] # Retry pattern in seconds
+        "HttpStatusRetries": [500,502,503] # Retry only for 500,502,503 HTTP status codes
+    }
+    "DefaultAsync":{
+        "HttpTimeout": 120, # Timeout in seconds
+        "TimeoutRetries": [2,4,8] # Retry pattern in seconds
+        "HttpStatusRetries": [500,502,503] # Retry only for 500,502,503 HTTP status codes
+    },
+    "DefaultPublish":{
+        "HttpTimeout": 120, # Timeout in seconds
+        "TimeoutRetries": [2,4,8] # Retry pattern in seconds
+        "HttpStatusRetries": [500,502,503] # Retry only for 500,502,503 HTTP status codes
+    }
+}
+</code></pre>
+<ul>
+<li><strong>SlimFaas/Schedule</strong> : json configuration
+<ul>
+<li>Allows you to define a schedule for your functions. If you want to wake up your infrastructure at 07:00 or for example scale down after 60 seconds of inactivity after 07:00 and scale down after 10 seconds of inactivity after 21:00. Time zones are defined as IANA time zones. The full list is available <a href="https://nodatime.org/TimeZones">here</a></li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-bash">{
+  "TimeZoneID":"Europe/Paris", # Time Zone ID can be found here: https://nodatime.org/TimeZones
+  "Default":{
+    "WakeUp":["07:00"], # Wake up your infrastructure at 07:00
+    "ScaleDownTimeout":[
+              {"Time":"07:00","Value":20}, # Scale down after 20 seconds of inactivity after 07:00
+              {"Time":"21:00","Value":10} # Scale down after 10 seconds of inactivity after 21:00
+            ]
+  }
+}
+</code></pre>
+<h2>Why SlimFaas?</h2>
+<p>We used <strong>OpenFaas</strong> for a long time and we love it.
+But we encountered many OpenFaas issues:</p>
+<ul>
+<li>Kubernetes scripts are tightly coupled to OpenFaas syntax</li>
+<li>OpenFaas pro is too expensive for our projects</li>
+<li>OpenFaas needs to be installed on a dedicated namespace and configuration was intricate</li>
+<li>OpenFaas monitoring was not compatible with our monitoring solution</li>
+<li>It requires to configure well NATS for managing fail-over</li>
+<li>Queue configuration is not easy</li>
+<li>The aggressive removing of old images from docker.io by OpenFaas team in April 2023 got us some production issues</li>
+</ul>
+<p>We would like to use <strong>Knative</strong> but:</p>
+<ul>
+<li>We cannot use it because of some internal constraints and security issues.</li>
+</ul>
+<p>So we decided to create <strong>SlimFaas</strong> to have a quick and simple replacement proxy solution that can expose Prometheus metrics.
+Now we have a solution not <strong>coupled</strong> to anything. <strong>SlimFaas</strong> is <strong>simple</strong>, <strong>light</strong>, <strong>fast</strong> and <strong>plug and play</strong>!</p>
+<h2>How it works ?</h2>
+<p>Instead of creating many pods, SlimFaas use internally many workers in the same pod:</p>
+<ul>
+<li><strong>SlimWorker</strong>: Manage asynchronous HTTP requests calls to underlying functions</li>
+<li><strong>SlimDataSynchronizationWorker</strong>: Allow to make possible scale up and down SlimData Raft nodes</li>
+<li><strong>HistorySynchronisationWorker</strong>: Manage history of HTTP requests between the pod and kubernetes</li>
+<li><strong>ReplicasSynchronizationWorker</strong>: Manage replicas synchronization between the pod and kubernetes</li>
+<li><strong>ReplicasScaleWorker</strong>: If master, then scale up and down kubernetes pods</li>
+</ul>
+<p><strong>SlimData</strong> is a simple redis like database included inside SlimFaas executable. It is based on <strong>Raft</strong> (https://raft.github.io/) algorithm offered by awesome dotNext library (https://github.com/dotnet/dotNext).
+By default, <strong>SlimData</strong> use a second HTTP port 3262 to expose its API. Don't expose it and keep it internal.</p>
+<p>SlimFaas requires at least 3 nodes in production. 2 nodes are required to keep the database in a consistent state.</p>
+<p><img src="https://github.com/AxaFrance/slimfaas/blob/main/documentation/slimdata.png" alt="slimdata.PNG"></p>
+<p>If you want to use just one pod for testing purpose, you can use this env variable:</p>
+<ul>
+<li>SLIMDATA_CONFIGURATION: '{"coldStart":"true"}'</li>
+</ul>
+<p>This will allow to start a pod alone as a leader.
+SlimFaas can to scale up and down by using classic Horizontal Pod Autoscaler (HPA).</p>
+<h3>Build with .NET</h3>
+<p>Why .NET?</p>
+<ul>
+<li>.NET is always getting faster and faster : https://www.techempower.com/benchmarks/#section=data-r22</li>
+<li>ASP.NET Core allow to resolve complex use cases with few lines of codes</li>
+<li>.NET is always getting smaller and smaller: https://twitter.com/MStrehovsky/status/1660806238979117056?t=WPrZwi7WrIWi4tjoDUXEgg&#x26;s=19</li>
+</ul>
+<h2>Videos</h2>
+<ul>
+<li>French : https://www.youtube.com/watch?v=Lvd6FCuCZPI</li>
+<li>English: https://youtu.be/hxRfvJhWW1w?si=4LuPgHVsuEVhlhpF</li>
+</ul>
+<h2>What Next?</h2>
+<ol start="0">
+<li>Retry pattern fully controllable with dead letter queue</li>
+<li>Scale up dynamically from SlimFaas in Async Mode</li>
+<li>Scale up dynamically from SlimFaas in Sync Mode (Copy KEDA syntax)</li>
+<li>Aggregate all swaggers from functions in one exposed by SlimFaas</li>
+<li>New pod to "Wake up" from External Source (example: Kafka, etc.) using https://cloudevents.io/ as standard https://github.com/cloudevents/sdk-csharp</li>
+<li>Continue Optimization</li>
+</ol>
+<h2>We are a Cloud Native Computing Foundation sandbox project.</h2>
+<p>https://landscape.cncf.io</p>
+<h3>SlimFaas Slack Channel</h3>
+<p>Join us on Slack:
+https://cloud-native.slack.com/archives/C08CRC77VDE</p>
+<h3>Trademark Guidelines</h3>
+<p>The Linux Foundation® (TLF) has registered trademarks and uses trademarks. For a list of TLF trademarks, see <a href="https://www.linuxfoundation.org/legal/trademark-usage">Trademark Usage</a>.</p>
+<h2>Code of Conduct</h2>
+<p>SlimFaas project has adopted the <a href="https://github.com/cncf/foundation/blob/main/code-of-conduct.md">CNCF Code of Conduct</a></p>
+</div></div></main></div></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"contentHtml":"\u003ch1\u003eSlimFaas : The slimmest and simplest Function As A Service \u003ca href=\"https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml\"\u003e\u003cimg src=\"https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml/badge.svg\" alt=\"Continuous Integration\"\u003e\u003c/a\u003e \u003ca href=\"https://sonarcloud.io/dashboard?id=SlimPlanet_SlimFaas\"\u003e\u003cimg src=\"https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas\u0026#x26;metric=alert_status\" alt=\"Quality Gate\"\u003e\u003c/a\u003e \u003ca href=\"https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas\u0026#x26;metric=reliability_rating\"\u003e\u003cimg src=\"https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas\u0026#x26;metric=reliability_rating\" alt=\"Reliability\"\u003e\u003c/a\u003e \u003ca href=\"https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas\u0026#x26;metric=security_rating\"\u003e\u003cimg src=\"https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas\u0026#x26;metric=security_rating\" alt=\"Security\"\u003e\u003c/a\u003e \u003ca href=\"https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas\u0026#x26;metric=Coverage\"\u003e\u003cimg src=\"https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas\u0026#x26;metric=coverage\" alt=\"Code Corevage\"\u003e\u003c/a\u003e\u003c/h1\u003e\n\u003cp\u003e\u003ca href=\"https://hub.docker.com/r/axaguildev/slimfaas/builds\"\u003e\u003cimg src=\"https://img.shields.io/docker/pulls/axaguildev/slimfaas.svg?label=docker+pull+slimfaas\" alt=\"Docker SlimFaas\"\u003e\u003c/a\u003e \u003ca href=\"https://hub.docker.com/r/axaguildev/slimfaas/builds\"\u003e\u003cimg src=\"https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas\" alt=\"Docker Image Size\"\u003e\u003c/a\u003e\n\u003ca href=\"https://hub.docker.com/r/axaguildev/slimfaas/builds\"\u003e\u003cimg src=\"https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver\u0026#x26;label=latest+version+slimfaas\" alt=\"Docker Image Version\"\u003e\u003c/a\u003e\u003c/p\u003e\n\u003cp\u003e\u003cimg src=\"https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png\" alt=\"SlimFaas.png\"\u003e\u003c/p\u003e\n\u003cp\u003eWhy use SlimFaas?\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eScale\n\u003cul\u003e\n\u003cli\u003eto 0 after a period of inactivity (work with deployment and statefulset)\u003c/li\u003e\n\u003cli\u003efrom 0 to n at start (HTTP trigger)\u003c/li\u003e\n\u003cli\u003efrom n to n+m : compatible with HPA (Horizontal Auto Scaler) and Keda + Prometheus via /metrics routes (SlimFaas integrated autonomous Scale Up coming soon)\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003eSynchronous HTTP calls\u003c/li\u003e\n\u003cli\u003eAsynchronous HTTP calls\n\u003cul\u003e\n\u003cli\u003eAllows you to limit the number of parallel HTTP requests for each underlying function\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003eRetry Pattern configurable\u003c/li\u003e\n\u003cli\u003eRun job from HTTP calls\u003c/li\u003e\n\u003cli\u003ePrivate and Public functions and jobs\n\u003cul\u003e\n\u003cli\u003ePrivate functions can be accessed only by internal namespace http call from pods\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003eSynchronous Publish/Subscribe internal events via HTTP calls to every replicas via HTTP without any use of specific drivers/libraries (\u003cstrong\u003eCouple your application with SlimFaas\u003c/strong\u003e)\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eMind Changer\u003c/strong\u003e: REST API that show the status of your functions and allow to wake up your infrastructure (\u003cstrong\u003eCouple your application with Slimfaas\u003c/strong\u003e)\n\u003cul\u003e\n\u003cli\u003eVery useful to inform end users that your infrastructure is starting\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003ePlug and Play: just deploy a standard pod\n\u003cul\u003e\n\u003cli\u003eNo impact on your current kubernetes manifests: just add an annotation to the pod you want to auto-scale\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003eVery \u003cstrong\u003eSlim\u003c/strong\u003e and very \u003cstrong\u003eFast\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e\u003cimg src=\"https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png\" alt=\"slim-faas-ram-cpu.png\"\u003e\u003c/p\u003e\n\u003ch2\u003eGetting Started with Kubernetes\u003c/h2\u003e\n\u003cp\u003eTo test SlimFaas on your local machine by using kubernetes with Docker Desktop, please use these commands:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash\"\u003egit clone https://github.com/AxaFrance/slimfaas.git\ncd slimfaas\ncd demo\n# Create slimfaas service account and pods\nkubectl apply -f deployment-slimfaas.yml\n# Expose SlimFaaS service as NodePort or Ingress\nkubectl apply -f slimfaas-nodeport.yml\n# or\n# kubectl apply -f slimfaas-ingress.yml\n# Install three instances of fibonacci functions\n# fibonacci1, fibonacci2 and fibonacci3\nkubectl apply -f deployment-functions.yml\n# Install MySql\nkubectl apply -f deployment-mysql.yml\n# to run Single Page webapp demo (optional) on http://localhost:8000\ndocker run -d -p 8000:8000 --rm axaguildev/fibonacci-webapp:latest\nkubectl port-forward svc/slimfaas-nodeport 30021:5000 -n slimfaas-demo\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eNow, you can access your pod via SlimFaas proxy:\u003c/p\u003e\n\u003cp\u003eSynchronous way:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ehttp://localhost:30021/function/fibonacci1/hello/guillaume =\u003e HTTP 200 (OK)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/function/fibonacci2/hello/elodie =\u003e HTTP 200 (OK)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/function/fibonacci3/hello/julie =\u003e HTTP 200 (OK)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/function/fibonacci4/hello/julie =\u003e HTTP 404 (Not Found)\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eAsynchronous way:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ehttp://localhost:30021/async-function/fibonacci1/hello/guillaume =\u003e HTTP 202 (Accepted)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/async-function/fibonacci2/hello/elodie =\u003e HTTP 202 (Accepted)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/async-function/fibonacci3/hello/julie =\u003e HTTP 202 (Accepted)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/async-function/fibonacci3/hello/julie =\u003e HTTP 404 (Not Found)\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eJust wake up function:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ehttp://localhost:30021/wake-function/fibonacci1 =\u003e HTTP 204 (OK - No Content)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/wake-function/fibonacci2 =\u003e HTTP 204 (OK - No Content)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/wake-function/fibonacci3 =\u003e HTTP 204 (OK - No Content)\u003c/li\u003e\n\u003cli\u003ehttp://localhost:30021/wake-function/fibonacci4 =\u003e HTTP 204 (OK - No Content)\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eList all function status:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ehttp://localhost:30021/status-functions =\u003e [{\"NumberReady\":1,\"numberRequested\":1,PodType\":\"Deployment\",\"Visibility\":\"Public\",\"Name\":\"fibonacci1\"},\n{\"NumberReady\":1,\"numberRequested\":1,PodType\":\"Deployment\",\"Visibility\":\"Public\",\"Name\":\"fibonacci2\"},\n{\"NumberReady\":1,\"numberRequested\":1,PodType\":\"Deployment\",\"Visibility\":\"Public\",\"Name\":\"fibonacci3\"},\n{\"NumberReady\":2,\"numberRequested\":2,PodType\":\"Deployment\",\"Visibility\":\"Private\",\"Name\":\"fibonacci4\"}]\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eSend event to every function replicas (which deployment subscribe to the event name) in synchronous way:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eHTTP POST http://localhost:30021/publish-event/my-event-name {\"data\":\"my-data\"} =\u003e HTTP 204 (No Content)\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eSingle Page WebApp demo:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ehttp://localhost:8000\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eEnjoy slimfaas!!!!\u003c/p\u003e\n\u003ch2\u003eGetting Started with docker-compose\u003c/h2\u003e\n\u003cp\u003eTo test slimfaas on your local machine by using kubernetes with Docker Desktop, please use these commands:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash\"\u003egit clone https://github.com/AxaFrance/slimfaas.git\ncd slimfaas\ndocker-compose up\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eNow, you can access your pod via SlimFaas proxy:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ehttp://localhost:5020/function/fibonacci/hello/guillaume\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eEnjoy slimfaas!!!!\u003c/p\u003e\n\u003ch2\u003eGetting Started with @axa-fr/slimfaas-planet-saver\u003c/h2\u003e\n\u003cp\u003e\u003ca href=\"./src/SlimFaasPlanetSaver#README.md\"\u003e\u003ccode\u003e@axa-fr/slimfaas-planet-saver readme.md\u003c/code\u003e\u003c/a\u003e : A vanilla JavaScript library to start and monitor replicas from javascript frontend.\u003c/p\u003e\n\u003cp\u003e\u003cimg src=\"https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimfaasPlanetSaver.gif\" alt=\"SlimFaasPlanetSaver.gif\"\u003e\u003c/p\u003e\n\u003ch2\u003eHow it works\u003c/h2\u003e\n\u003cp\u003eSlimFaas act as an HTTP proxy with 2 modes:\u003c/p\u003e\n\u003ch3\u003eSynchronous HTTP call\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003eSynchronous http://slimfaas/function/myfunction = \u003e HTTP response function\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e\u003cimg src=\"https://github.com/AxaFrance/SlimFaas/blob/main/documentation/sync_http_call.PNG\" alt=\"sync_http_call.PNG\"\u003e\u003c/p\u003e\n\u003ch3\u003eAsynchronous HTTP call\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003eAsynchronous http://slimfaas/async-function/myfunction =\u003e HTTP 201\n\u003cul\u003e\n\u003cli\u003eTail using SlimData database included in SlimFaas pod\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e\u003cimg src=\"https://github.com/AxaFrance/SlimFaas/blob/main/documentation/async_http_call.PNG\" alt=\"async_http_call.PNG\"\u003e\u003c/p\u003e\n\u003ch3\u003eWake HTTP call\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003eWake http://slimfaas/wake-function/myfunction =\u003e HTTP 200\n\u003cul\u003e\n\u003cli\u003eWake up a function\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eSynchronous Publish HTTP call (events) to every replicas\u003c/h3\u003e\n\u003cp\u003eTo publish the message to every replicas in \"Ready\" state of the function\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eHTTP POST http://slimfaas/publish-event/my-event-name {\"data\":\"my-event-data\"}\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e\u003cimg src=\"https://github.com/AxaFrance/SlimFaas/blob/main/documentation/publish_sync_call.png\" alt=\"publish_sync_call.png\"\u003e\u003c/p\u003e\n\u003ch2\u003eHow to install\u003c/h2\u003e\n\u003col\u003e\n\u003cli\u003eAdd SlimFaas StatefulSet to your kubernetes cluster\u003c/li\u003e\n\u003cli\u003eAdd SlimFaas annotations to your pods\u003c/li\u003e\n\u003cli\u003eHave fun!\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp\u003esample-deployment.yaml\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml\"\u003eapiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: fibonacci1\n  namespace: slimfaas-demo\nspec:\n  selector:\n    matchLabels:\n      app: fibonacci1\n  template:\n    metadata:\n      labels:\n        app: fibonacci1\n      annotations:\n        # Just add SlimFaas annotation to your pods and that's it !\n        SlimFaas/Function: \"true\"\n        SlimFaas/ReplicasMin: \"0\"\n        SlimFaas/ReplicasAtStart: \"1\"\n        SlimFaas/DependsOn: \"mysql,fibonacci2\" # comma separated list of deployment or statefulset names\n        SlimFaas/TimeoutSecondBeforeSetReplicasMin: \"300\"\n        SlimFaas/NumberParallelRequest : \"10\"\n        SlimFaas/Schedule: |\n            {\"TimeZoneID\":\"Europe/Paris\",\"Default\":{\"WakeUp\":[\"07:00\"],\"ScaleDownTimeout\":[{\"Time\":\"07:00\",\"Value\":3600},{\"Time\":\"21:00\",\"Value\":60}]}}\n        SlimFaas/SubscribeEvents: \"Public:my-event-name1,Private:my-event-name2,my-event-name3\" # comma separated list of event names\n        SlimFaas/DefaultVisibility: \"Public\" # Public or Private (private can be accessed only by internal namespace https call from pods)\n        SlimFaas/UrlsPathStartWithVisibility: \"Private:/mypath/subPath,Private:/mysecondpath\" # Public or Private (private can be accessed only by internal namespace https call from pods)\n    spec:\n      serviceAccountName: default\n      containers:\n        - name: fibonacci1\n          image: docker.io/axaguildev/fibonacci:latest\n          livenessProbe:\n              httpGet:\n                  path: /health\n                  port: 5000\n              initialDelaySeconds: 5\n              periodSeconds: 5\n              timeoutSeconds: 5\n          resources:\n            limits:\n              memory: \"96Mi\"\n              cpu: \"50m\"\n            requests:\n              memory: \"96Mi\"\n              cpu: \"10m\"\n          ports:\n            - containerPort: 50004\n---\napiVersion: v1\nkind: Service\nmetadata:\n    name: fibonacci1\n    namespace: slimfaas-demo\nspec:\n    selector:\n        app: fibonacci1\n    ports:\n        - port: 5000\n---\napiVersion: apps/v1\nkind: StatefulSet\nmetadata:\n  name: slimfaas\n  namespace: slimfaas-demo\nspec:\n  replicas: 3\n  podManagementPolicy: Parallel\n  serviceName: slimfaas\n  selector:\n    matchLabels:\n      app: slimfaas\n  template:\n    metadata:\n      labels:\n        app: slimfaas\n    spec:\n      volumes:\n        - name: slimfaas-volume\n          emptyDir:\n            sizeLimit: 10Mi\n      serviceAccountName: admin # Use a service account with admin role\n      containers:\n        - name: slimfaas\n          image: docker.io/axaguildev/slimfaas:latest\n          livenessProbe:\n            httpGet:\n              path: /health\n              port: 5000\n            initialDelaySeconds: 3\n            periodSeconds: 10\n            timeoutSeconds: 8\n            terminationGracePeriodSeconds: 30\n          env:\n            - name: BASE_FUNCTION_URL\n              value: \"http://{function_name}.{namespace}.svc.cluster.local:5000\"\n            - name: BASE_FUNCTION_POD_URL # require for publish route\n              value: \"http://{pod_ip}:5000\"\n            - name: BASE_SLIMDATA_URL\n              value: \"http://{pod_name}.slimfaas.{namespace}.svc.cluster.local:3262/\"  # Don't expose this port, it can also be like \"http://{pod_ip}:3262/\" but if you can use DNS it's better\n            - name: SLIMFAAS_PORTS\n              value: \"5000\" # can be like \"5000,6000,7000\" if you want to expose more ports\n            - name: NAMESPACE\n              value: \"default\"\n            - name: SLIMDATA_DIRECTORY\n              value: \"/database\"\n            # If you want to send event to an url which is not a SlimFaas function, you can use this env variable\n            # use comma to separate event name and url, use =\u003e to separate event name and destination url.\n            # urls are separated by ;\n            #- name: SLIMFAAS_SUBSCRIBE_EVENTS\n            #  value: \"my-event-name1=\u003ehttp://localhost:5002;http://localhost:5003,my-event-name2=\u003ehttp://localhost:5002\"\n            # If you want to use just one pod for testing purpose, you can use this env variable\n            #- name: SLIMDATA_CONFIGURATION\n            #  value: |\n            #      {\"coldStart\":\"true\"}\n            # If you are not on kubernetes for example docker-compose, you can use this env variable, but you will lose auto-scale\n            #- name: MOCK_KUBERNETES_FUNCTIONS\n            #  value: \"{\"Functions\":[{\"Name\":\"fibonacci\",\"NumberParallelRequest\":1}],\"Slimfaas\":[{\"Name\":\"slimfaas-1\"}]}\"\n\n             # Configure CORS allowed Origins, default is *, you can use a comma separated list example: http://localhost:3000,http://localhost:3001\n            #- name: SLIMFAAS_CORS_ALLOW_ORIGIN\n            # Optional, longer is the delay, less CPU and RAM is used\n            #- name : HISTORY_SYNCHRONISATION_WORKER_DELAY_MILLISECONDS\n            #  value : \"500\" # default equivalent to 0,5 seconds\n            # Optional, longer is the delay, less CPU and RAM is used\n            #- name : REPLICAS_SYNCHRONISATION_WORKER_DELAY_MILLISECONDS\n            #  value : \"2000\" # default equivalent to 2 seconds\n            # Optional, longer is the delay, less CPU and RAM is used\n            #- name : SLIM_WORKER_DELAY_MILLISECONDS\n            #  value : \"50\" # default equivalent to 50 milliseconds\n            # Optional, longer is the delay, less CPU and RAM is used\n            #- name : SCALE_REPLICAS_WORKER_DELAY_MILLISECONDS\n            #  value : \"1000\" # default equivalent to 1 seconds\n            # Optional\n            # name : TIME_MAXIMUM_WAIT_FOR_AT_LEAST_ONE_POD_STARTED_FOR_SYNC_FUNCTION\n            # value : \"10000\" # default equivalent to 10 seconds\n            # Optional\n            # name : POD_SCALED_UP_BY_DEFAULT_WHEN_INFRASTRUCTURE_HAS_NEVER_CALLED\n            # value : \"false\" # default equivalent to false\n            # Optional\n            # name : SLIMFAAS_ALLOW_UNSECURE_SSL\n            # value : \"false\" # default equivalent to false\n            # Optional\n            # name: HEALTH_WORKER_DELAY_MILLISECONDS\n            # value: \"1000\" # default equivalent to 1 seconds\n            # Optional\n            # name: HEALTH_WORKER_DELAY_TO_EXIT_SECONDS\n            # value: \"60\" # default equivalent to 10 seconds\n\n            # name : SLIMDATA_CONFIGURATION # represent SlimData internal configuration, more documentation here: https://dotnet.github.io/dotNext/features/cluster/raft.html\n            # value : | #default values\n            #    {\n            #      \"partitioning\":\"false\",\n            #      \"lowerElectionTimeout\":\"150\",\n            #      \"upperElectionTimeout\":\"300\",\n            #      \"requestTimeout\":\"00:00:00.3000000\",\n            #      \"rpcTimeout\":\"00:00:00.1500000\",\n            #      \"coldStart\":\"false\",\n            #      \"requestJournal:memoryLimit\":\"5\",\n            #      \"requestJournal:expiration\":\"00:01:00\",\n            #      \"heartbeatThreshold\":\"0.5\",\n            #   }\n            # name : SLIMFAAS_JOB_CONFIGURATION\n            # value : | # represent SlimFaas internal configuration, more documentation here:\n            #    {\n            #          \"DefaultNumberParallelRequest\": 1, # Timeout in seconds\n            #          \"DefaultVisibility\": \"Private\", # Retry pattern in seconds\n            #          \"AllowDynamicJob\": false,\n            #          \"Jobs\": {\n            #              \"daisy\" : { \"NumberParallelRequest\": 1, \"Visibility\": \"Public\" }\n            #          }\n            #    }\n          volumeMounts:\n            - name: slimfaas-volume\n              mountPath: /database\n          resources:\n            limits:\n              memory: \"76Mi\"\n              cpu: \"400m\"\n            requests:\n              memory: \"76Mi\"\n              cpu: \"250m\"\n          ports:\n            - containerPort: 5000\n            - containerPort: 3262\n  # You can use this section to define a persistent volume claim\n  #volumeClaimTemplates:\n  #- metadata:\n  #    name: slimfaas-volume\n  #  spec:\n  #    accessModes: [ \"ReadWriteOnce\" ]\n  #    storageClassName: managed-csi # or any other storage class available in your cluster\n  #    volumeMode: Filesystem\n  #    resources:\n  #      requests:\n  #        storage: 10Mi\n---\napiVersion: v1\nkind: Service\nmetadata:\n    name: slimfaas\n    namespace: slimfaas-demo\nspec:\n    selector:\n        app: slimfaas\n    ports:\n        - name: \"http\"\n          port: 80\n          targetPort: 5000\n        - name: \"slimdata\"\n          port: 3262\n          targetPort: 3262\n\u003c/code\u003e\u003c/pre\u003e\n\u003cblockquote\u003e\n\u003cp\u003e[!WARNING]\nYours \u003cstrong\u003eservice name\u003c/strong\u003e must be the same as the SlimFaas \u003cstrong\u003eDeployment/StatefulSet name\u003c/strong\u003e\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003ch3\u003eSlimFaas Annotations with defaults values\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/Function\u003c/strong\u003e: \"true\"\n\u003cul\u003e\n\u003cli\u003eActivate SlimFaas on this pod, so your pod will be auto-scaled\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/ReplicasMin\u003c/strong\u003e: \"0\"\n\u003cul\u003e\n\u003cli\u003eScale down to this value after a period of inactivity\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/ReplicasAtStart\u003c/strong\u003e: \"1\"\n\u003cul\u003e\n\u003cli\u003eScale up to this value at start\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/TimeoutSecondBeforeSetReplicasMin\u003c/strong\u003e: \"300\"\n\u003cul\u003e\n\u003cli\u003eScale down to SlimFaas/ReplicasMin after this period of inactivity in seconds\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/NumberParallelRequest\u003c/strong\u003e : \"10\"\n\u003cul\u003e\n\u003cli\u003eLimit the number of parallel HTTP requests for each underlying function\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/DependsOn\u003c/strong\u003e : \"\"\n\u003cul\u003e\n\u003cli\u003eComma separated list of deployment names or statefulset names\u003c/li\u003e\n\u003cli\u003ePods will be scaled up only if all pods in this list are in ready state with the minimum number of replicas superior or equal to ReplicasAtStart\u003c/li\u003e\n\u003cli\u003eThis property is useful if you want to scale up your pods only if your database is ready for example\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/SubscribeEvents\u003c/strong\u003e : \"\"\n\u003cul\u003e\n\u003cli\u003eComma separated list of event names to license the function to receive events. example: \"Public:my-event-name1,Private:my-event-name2,my-event-name3\"\u003c/li\u003e\n\u003cli\u003e\"Public:\" or \"Private:\" are prefix that set the event visibility, if not set, \"SlimFaas/DefaultVisibility\" is used\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/DefaultVisibility\u003c/strong\u003e : \"Public\"\n\u003cul\u003e\n\u003cli\u003ePublic or Private (private can be accessed only by internal namespace https call from pods)\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/PathsStartWithVisibility\u003c/strong\u003e : \"\"\n\u003cul\u003e\n\u003cli\u003eComma separated list of path prefixed by the default visibility. example: \"Private:/mypath/subpath,Public:/mypath2\"\u003c/li\u003e\n\u003cli\u003e\"Public:\" or \"Private:\" are prefix that set the path visibility, if not set, \"SlimFaas/DefaultVisibility\" is used\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/ExcludeDeploymentsFromVisibilityPrivate\u003c/strong\u003e : \"\"\n\u003cul\u003e\n\u003cli\u003eComma separated list of deployment names or statefulset names\u003c/li\u003e\n\u003cli\u003eMessage from that pods will be considered as public. It is useful if you want to exclude some pods from the private visibility, for example for a backend for frontend.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/Configuration\u003c/strong\u003e : json configuration default values displayed below\n\u003cul\u003e\n\u003cli\u003eAllows you to define a configuration for your functions. For example, you can define a timeout for HTTP calls, a retry pattern for timeouts and HTTP status codes.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash\"\u003e{\n    \"DefaultSync\":{\n        \"HttpTimeout\": 120, # Timeout in seconds\n        \"TimeoutRetries\": [2,4,8] # Retry pattern in seconds\n        \"HttpStatusRetries\": [500,502,503] # Retry only for 500,502,503 HTTP status codes\n    }\n    \"DefaultAsync\":{\n        \"HttpTimeout\": 120, # Timeout in seconds\n        \"TimeoutRetries\": [2,4,8] # Retry pattern in seconds\n        \"HttpStatusRetries\": [500,502,503] # Retry only for 500,502,503 HTTP status codes\n    },\n    \"DefaultPublish\":{\n        \"HttpTimeout\": 120, # Timeout in seconds\n        \"TimeoutRetries\": [2,4,8] # Retry pattern in seconds\n        \"HttpStatusRetries\": [500,502,503] # Retry only for 500,502,503 HTTP status codes\n    }\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eSlimFaas/Schedule\u003c/strong\u003e : json configuration\n\u003cul\u003e\n\u003cli\u003eAllows you to define a schedule for your functions. If you want to wake up your infrastructure at 07:00 or for example scale down after 60 seconds of inactivity after 07:00 and scale down after 10 seconds of inactivity after 21:00. Time zones are defined as IANA time zones. The full list is available \u003ca href=\"https://nodatime.org/TimeZones\"\u003ehere\u003c/a\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash\"\u003e{\n  \"TimeZoneID\":\"Europe/Paris\", # Time Zone ID can be found here: https://nodatime.org/TimeZones\n  \"Default\":{\n    \"WakeUp\":[\"07:00\"], # Wake up your infrastructure at 07:00\n    \"ScaleDownTimeout\":[\n              {\"Time\":\"07:00\",\"Value\":20}, # Scale down after 20 seconds of inactivity after 07:00\n              {\"Time\":\"21:00\",\"Value\":10} # Scale down after 10 seconds of inactivity after 21:00\n            ]\n  }\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003ch2\u003eWhy SlimFaas?\u003c/h2\u003e\n\u003cp\u003eWe used \u003cstrong\u003eOpenFaas\u003c/strong\u003e for a long time and we love it.\nBut we encountered many OpenFaas issues:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eKubernetes scripts are tightly coupled to OpenFaas syntax\u003c/li\u003e\n\u003cli\u003eOpenFaas pro is too expensive for our projects\u003c/li\u003e\n\u003cli\u003eOpenFaas needs to be installed on a dedicated namespace and configuration was intricate\u003c/li\u003e\n\u003cli\u003eOpenFaas monitoring was not compatible with our monitoring solution\u003c/li\u003e\n\u003cli\u003eIt requires to configure well NATS for managing fail-over\u003c/li\u003e\n\u003cli\u003eQueue configuration is not easy\u003c/li\u003e\n\u003cli\u003eThe aggressive removing of old images from docker.io by OpenFaas team in April 2023 got us some production issues\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eWe would like to use \u003cstrong\u003eKnative\u003c/strong\u003e but:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eWe cannot use it because of some internal constraints and security issues.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eSo we decided to create \u003cstrong\u003eSlimFaas\u003c/strong\u003e to have a quick and simple replacement proxy solution that can expose Prometheus metrics.\nNow we have a solution not \u003cstrong\u003ecoupled\u003c/strong\u003e to anything. \u003cstrong\u003eSlimFaas\u003c/strong\u003e is \u003cstrong\u003esimple\u003c/strong\u003e, \u003cstrong\u003elight\u003c/strong\u003e, \u003cstrong\u003efast\u003c/strong\u003e and \u003cstrong\u003eplug and play\u003c/strong\u003e!\u003c/p\u003e\n\u003ch2\u003eHow it works ?\u003c/h2\u003e\n\u003cp\u003eInstead of creating many pods, SlimFaas use internally many workers in the same pod:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eSlimWorker\u003c/strong\u003e: Manage asynchronous HTTP requests calls to underlying functions\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eSlimDataSynchronizationWorker\u003c/strong\u003e: Allow to make possible scale up and down SlimData Raft nodes\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eHistorySynchronisationWorker\u003c/strong\u003e: Manage history of HTTP requests between the pod and kubernetes\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eReplicasSynchronizationWorker\u003c/strong\u003e: Manage replicas synchronization between the pod and kubernetes\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eReplicasScaleWorker\u003c/strong\u003e: If master, then scale up and down kubernetes pods\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e\u003cstrong\u003eSlimData\u003c/strong\u003e is a simple redis like database included inside SlimFaas executable. It is based on \u003cstrong\u003eRaft\u003c/strong\u003e (https://raft.github.io/) algorithm offered by awesome dotNext library (https://github.com/dotnet/dotNext).\nBy default, \u003cstrong\u003eSlimData\u003c/strong\u003e use a second HTTP port 3262 to expose its API. Don't expose it and keep it internal.\u003c/p\u003e\n\u003cp\u003eSlimFaas requires at least 3 nodes in production. 2 nodes are required to keep the database in a consistent state.\u003c/p\u003e\n\u003cp\u003e\u003cimg src=\"https://github.com/AxaFrance/slimfaas/blob/main/documentation/slimdata.png\" alt=\"slimdata.PNG\"\u003e\u003c/p\u003e\n\u003cp\u003eIf you want to use just one pod for testing purpose, you can use this env variable:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eSLIMDATA_CONFIGURATION: '{\"coldStart\":\"true\"}'\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eThis will allow to start a pod alone as a leader.\nSlimFaas can to scale up and down by using classic Horizontal Pod Autoscaler (HPA).\u003c/p\u003e\n\u003ch3\u003eBuild with .NET\u003c/h3\u003e\n\u003cp\u003eWhy .NET?\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e.NET is always getting faster and faster : https://www.techempower.com/benchmarks/#section=data-r22\u003c/li\u003e\n\u003cli\u003eASP.NET Core allow to resolve complex use cases with few lines of codes\u003c/li\u003e\n\u003cli\u003e.NET is always getting smaller and smaller: https://twitter.com/MStrehovsky/status/1660806238979117056?t=WPrZwi7WrIWi4tjoDUXEgg\u0026#x26;s=19\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch2\u003eVideos\u003c/h2\u003e\n\u003cul\u003e\n\u003cli\u003eFrench : https://www.youtube.com/watch?v=Lvd6FCuCZPI\u003c/li\u003e\n\u003cli\u003eEnglish: https://youtu.be/hxRfvJhWW1w?si=4LuPgHVsuEVhlhpF\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch2\u003eWhat Next?\u003c/h2\u003e\n\u003col start=\"0\"\u003e\n\u003cli\u003eRetry pattern fully controllable with dead letter queue\u003c/li\u003e\n\u003cli\u003eScale up dynamically from SlimFaas in Async Mode\u003c/li\u003e\n\u003cli\u003eScale up dynamically from SlimFaas in Sync Mode (Copy KEDA syntax)\u003c/li\u003e\n\u003cli\u003eAggregate all swaggers from functions in one exposed by SlimFaas\u003c/li\u003e\n\u003cli\u003eNew pod to \"Wake up\" from External Source (example: Kafka, etc.) using https://cloudevents.io/ as standard https://github.com/cloudevents/sdk-csharp\u003c/li\u003e\n\u003cli\u003eContinue Optimization\u003c/li\u003e\n\u003c/ol\u003e\n\u003ch2\u003eWe are a Cloud Native Computing Foundation sandbox project.\u003c/h2\u003e\n\u003cp\u003ehttps://landscape.cncf.io\u003c/p\u003e\n\u003ch3\u003eSlimFaas Slack Channel\u003c/h3\u003e\n\u003cp\u003eJoin us on Slack:\nhttps://cloud-native.slack.com/archives/C08CRC77VDE\u003c/p\u003e\n\u003ch3\u003eTrademark Guidelines\u003c/h3\u003e\n\u003cp\u003eThe Linux Foundation® (TLF) has registered trademarks and uses trademarks. For a list of TLF trademarks, see \u003ca href=\"https://www.linuxfoundation.org/legal/trademark-usage\"\u003eTrademark Usage\u003c/a\u003e.\u003c/p\u003e\n\u003ch2\u003eCode of Conduct\u003c/h2\u003e\n\u003cp\u003eSlimFaas project has adopted the \u003ca href=\"https://github.com/cncf/foundation/blob/main/code-of-conduct.md\"\u003eCNCF Code of Conduct\u003c/a\u003e\u003c/p\u003e\n","metadata":{}},"__N_SSG":true},"page":"/about","query":{},"buildId":"zfrc0CMmbX0pfPCvRlm5T","assetPrefix":"/SlimFaas","isFallback":false,"gsp":true,"scriptLoader":[]}</script></body></html>
