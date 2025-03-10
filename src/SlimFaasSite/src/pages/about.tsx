@@ -1,11 +1,11 @@
 ﻿import React from 'react';
 import Layout from '../components/Layout';
 import { GetStaticProps } from 'next';
-import { fetchMarkdownFile, MarkdownData } from '../lib/github';
+import { fetchMarkdownFile, MarkdownData, MarkdownMetadata } from '../lib/github';
 
 interface DocPageProps {
     contentHtml: string;
-    metadata: Record<string, unknown>;
+    metadata: MarkdownMetadata;
 }
 
 
@@ -20,9 +20,8 @@ export const getStaticProps: GetStaticProps<DocPageProps> = async () => {
     };
 };
 
-const formatMetadata = (metadata: Record<string, unknown>):string  => {
-    // @ts-ignore
-    return metadata.title || "Documentation"
+const formatMetadata = (metadata: MarkdownMetadata):string  => {
+    return metadata?.title || "Documentation"
 }
 const About =  ({ contentHtml, metadata }: DocPageProps) => (
     <Layout>

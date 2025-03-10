@@ -7,9 +7,14 @@ const GITHUB_REPO = 'SlimPlanet/SlimFaas/'; // Remplace avec ton repo
 const GITHUB_BRANCH = 'main'; // Remplace si ton branch est différent
 const GITHUB_RAW_URL = `https://raw.githubusercontent.com/${GITHUB_REPO}/${GITHUB_BRANCH}`;
 
+export interface MarkdownMetadata {
+    title?: string;
+    [key: string]: unknown; // Permet d'ajouter d'autres métadonnées
+}
+
 export interface MarkdownData {
     contentHtml: string;
-    metadata: Record<string, unknown>;
+    metadata: MarkdownMetadata;
 }
 
 /**
