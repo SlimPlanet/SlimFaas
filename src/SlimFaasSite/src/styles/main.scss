@@ -4,8 +4,8 @@
         background-color: blue; /* Bleu pur */
         padding: 1rem;
         display: flex;
-        align-items: center; /* Alignement vertical */
-        gap: 1rem; /* Espacement entre le logo et le menu */
+        align-items: center;
+        justify-content: space-between; /* Séparer le menu et le lien GitHub */
     }
 
     &__content {
@@ -14,9 +14,10 @@
 }
 
 .navbar {
-    &__logo {
-        width: 64px;
-        height: 64px;
+    &__left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
     }
 
     &__list {
@@ -27,19 +28,36 @@
         padding: 0;
     }
 
-    &__item {
-        a {
-            color: white;
-            text-decoration: none;
-            font-size: 1.4rem; /* Taille de texte plus grande */
-            padding: 0.8rem 1.2rem; /* Augmenter la zone cliquable */
-            border-radius: 8px; /* Coins arrondis */
-            transition: background-color 0.3s ease, transform 0.2s ease; /* Animation douce */
+    &__item a {
+        color: white;
+        text-decoration: none;
+        font-size: 1.2rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 8px;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
 
-            &:hover {
-                background-color: rgba(255, 255, 255, 0.2); /* Fond bleu clair au survol */
-                transform: scale(1.05); /* Effet d'agrandissement léger */
-            }
-        }
+    &__item a:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        transform: scale(1.05);
+    }
+
+    &__github {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: background-color 0.3s ease;
+    }
+
+    &__github:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    &__github svg {
+        width: 32px;
+        height: 32px;
+        fill: white;
     }
 }
