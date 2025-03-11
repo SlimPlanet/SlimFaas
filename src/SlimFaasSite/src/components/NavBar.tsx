@@ -31,10 +31,22 @@ const Navbar: React.FC = () => {
                         <Link href="/">Home</Link>
                     </li>
                     <li className="navbar__item">
-                        <Link href="/about">About</Link>
+                        <Link href="/about">Functions</Link>
                     </li>
                     <li className="navbar__item">
-                        <Link href="/contact">Contact</Link>
+                        <Link href="/about">Events</Link>
+                    </li>
+                    <li className="navbar__item">
+                        <Link href="/contact">Jobs</Link>
+                    </li>
+                    <li className="navbar__item">
+                        <Link href="/contact">PlanetSaver</Link>
+                    </li>
+                    <li className="navbar__item">
+                        <Link href="/contact">How to install</Link>
+                    </li>
+                    <li className="navbar__item">
+                        <Link href="/contact">How it works</Link>
                     </li>
                 </ul>
             </div>
