@@ -136,6 +136,9 @@
 @media (max-width: 768px) {
     .navbar__toggle { display: block; }
 
+
+}
+@media (max-width: 768px) {
     .navbar__list {
         position: absolute;
         top: 100%;
@@ -153,8 +156,33 @@
     }
 
     .navbar__list.active {
-        max-height: 300px;
+        max-height: 500px; /* Ajuste selon le nombre d'éléments */
         opacity: 1;
         padding: 1rem;
     }
+
+    /* Les liens prennent toute la largeur */
+    .navbar__item {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .navbar__item a {
+        display: block;
+        width: 90%; /* Ajustable */
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.2);
+        padding: 1rem;
+        border-radius: 8px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .navbar__item a:hover {
+        background-color: rgba(255, 255, 255, 0.4);
+        transform: scale(1.05);
+    }
 }
+

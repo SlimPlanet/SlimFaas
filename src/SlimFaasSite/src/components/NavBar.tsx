@@ -9,7 +9,7 @@ const Navbar: React.FC = () => {
         <nav className="layout__navbar">
             <div className="navbar__left">
                 {/* Logo */}
-                <Link href="/SlimFaas">
+                <Link href="/">
                     <Image className="navbar__logo" src="/SlimFaas/slimfaas-white.svg"  alt="Logo" loading="lazy" width={64} height={64}   decoding="async"
                            data-nimg="1"  />
                 </Link>
