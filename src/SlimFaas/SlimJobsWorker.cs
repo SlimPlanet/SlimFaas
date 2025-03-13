@@ -33,6 +33,7 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
         {
             await Task.Delay(_delay, stoppingToken);
             var jobs = await jobService.SyncJobsAsync();
+            jobs = jobs.Where(j => j.Status != JobStatus.ImagePullBackOff).ToList();
             if (masterService.IsMaster)
             {
                 var jobsDictionary = new Dictionary<string, List<Job>>();
@@ -56,7 +57,6 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                                 historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
                             }
                         }
-
                     }
                     if (jobsDictionary.ContainsKey(jobConfigurationName))
                     {
@@ -69,46 +69,48 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                     var jobList = jobsKeyPairValue.Value;
                     var jobName = jobsKeyPairValue.Key;
                     var numberElementToDequeue = configurations[jobsKeyPairValue.Key].NumberParallelJob - jobList.Count;
-                    if (numberElementToDequeue > 0)
+                    if (numberElementToDequeue <= 0)
                     {
-                        var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available }, int.MaxValue);
-                        if (count == 0)
+                        continue;
+                    }
+
+                    var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available }, int.MaxValue);
+                    if (count == 0)
+                    {
+                        continue;
+                    }
+                    bool requiredToWait = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
+                    if (requiredToWait)
+                    {
+                        continue;
+                    }
+
+                    var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
+                    if(elements == null || elements.Count == 0 ) continue;
+
+                    var listCallBack = new ListQueueItemStatus();
+                    listCallBack.Items = new List<QueueItemStatus>();
+                    foreach (QueueData element in elements)
+                    {
+                        CreateJob? createJob = MemoryPackSerializer.Deserialize<CreateJob>(element.Data);
+                        if (createJob == null)
                         {
                             continue;
                         }
-                        bool requiredToWait = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
-                        if (requiredToWait)
-                        {
-                            continue;
-                        }
 
-                        var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
-                        if(elements == null || elements.Count == 0 ) continue;
-
-                        var listCallBack = new ListQueueItemStatus();
-                        listCallBack.Items = new List<QueueItemStatus>();
-                        foreach (QueueData element in elements)
+                        try
                         {
-                            CreateJob? createJob = MemoryPackSerializer.Deserialize<CreateJob>(element.Data);
-                            if (createJob == null)
-                            {
-                                continue;
-                            }
-
-                            try
-                            {
-                                await jobService.CreateJobAsync(jobName, createJob);
-                                listCallBack.Items.Add(new QueueItemStatus(element.Id, 200));
-                            } catch (Exception e)
-                            {
-                                listCallBack.Items.Add(new QueueItemStatus(element.Id, 500));
-                                logger.LogError(e, "Error in SlimJobsWorker");
-                            }
-                        }
-                        if(listCallBack.Items.Count > 0)
+                            await jobService.CreateJobAsync(jobName, createJob);
+                            listCallBack.Items.Add(new QueueItemStatus(element.Id, 200));
+                        } catch (Exception e)
                         {
-                            await jobQueue.ListCallbackAsync(jobName, listCallBack);
+                            listCallBack.Items.Add(new QueueItemStatus(element.Id, 500));
+                            logger.LogError(e, "Error in SlimJobsWorker");
                         }
+                    }
+                    if(listCallBack.Items.Count > 0)
+                    {
+                        await jobQueue.ListCallbackAsync(jobName, listCallBack);
                     }
                 }
             }
