@@ -15,7 +15,8 @@ public enum JobStatus
     Pending,
     Running,
     Succeded,
-    Failed
+    Failed,
+    ImagePullBackOff
 }
 public record Job(string Name, JobStatus Status, IList<string> Ips);
 
@@ -722,6 +723,23 @@ public class KubernetesService : IKubernetesService
             else if (v1Job.Status.Failed is > 0)
             {
                 status = JobStatus.Failed;
+            }
+
+            // Vérifier si un des pods est en PullBackOff ou ErrImagePull
+            foreach (var pod in pods.Items)
+            {
+                if (pod.Status.ContainerStatuses == null)
+                {
+                    continue;
+                }
+
+                foreach (var containerStatus in pod.Status.ContainerStatuses)
+                {
+                    if (containerStatus.State.Waiting is { Reason: "ImagePullBackOff" or "ErrImagePull" })
+                    {
+                        status = JobStatus.ImagePullBackOff;
+                    }
+                }
             }
 
             jobStatus.Add(new Job(v1Job.Metadata.Name,
