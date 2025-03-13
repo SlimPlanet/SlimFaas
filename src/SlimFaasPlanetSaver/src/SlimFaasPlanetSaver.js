@@ -19,6 +19,7 @@ export default class SlimFaasPlanetSaver {
         this.overlayErrorSecondaryMessage = options.overlayErrorSecondaryMessage || 'If the error persists, please contact an administrator.';
         this.overlayLoadingIcon = options.overlayLoadingIcon || '🌍';
         this.noActivityTimeout = options.noActivityTimeout || 60000;
+        this.wakeUpTimeout = options.wakeUpTimeout || 60000;
         this.fetch = options.fetch || fetch;
         this.intervalId = null;
         this.isDocumentVisible = !document.hidden;
@@ -28,6 +29,7 @@ export default class SlimFaasPlanetSaver {
         this.isReady = false;
         this.id = id++;
         this.cleanned = false;
+        this.lastWakeUpTime = null;
     }
 
     initialize() {
@@ -51,9 +53,12 @@ export default class SlimFaasPlanetSaver {
         this.isDocumentVisible = !document.hidden;
     }
 
-    async wakeUpPods(data) {
+    async wakeUpPods(data, lastWakeUpTime) {
+        const currentTime = Date.now();
+        let isWakeUpCallMade = false;
+        const shouldFilter = lastWakeUpTime && (currentTime - lastWakeUpTime) <= this.wakeUpTimeout;
         const wakePromises = data
-            .filter((item) => item.NumberReady === 0)
+            .filter((item) => item.NumberReady === 0 || !shouldFilter)
             .map(async (item) => {
                 const response = await this.fetch(`${this.baseUrl}/wake-function/${item.Name}`, {
                     method: 'POST',
@@ -61,6 +66,7 @@ export default class SlimFaasPlanetSaver {
                 if (response.status >= 400) {
                     throw new Error(`HTTP Error! status: ${response.status} for function ${item.Name}`);
                 }
+                isWakeUpCallMade = true
                 return response;
             });
 
@@ -70,6 +76,7 @@ export default class SlimFaasPlanetSaver {
             console.error("Error waking up pods:", error);
             throw error;
         }
+        return isWakeUpCallMade;
     }
 
     async fetchStatus() {
@@ -90,9 +97,19 @@ export default class SlimFaasPlanetSaver {
 
             if (!allReady && this.isDocumentVisible && !mouseMovedRecently) {
                 this.updateOverlayMessage(this.overlayNoActivityMessage, 'waiting-action');
-            } else if (!this.isDocumentVisible || mouseMovedRecently) {
-                this.updateOverlayMessage(this.overlayStartingMessage, 'waiting');
-                await this.wakeUpPods(data);
+            } else if (mouseMovedRecently && this.isDocumentVisible) {
+                if(!allReady) {
+                    this.updateOverlayMessage(this.overlayStartingMessage, 'waiting');
+                }
+                if(!this.lastWakeUpTime) {
+                    this.lastWakeUpTime = Date.now();
+                }
+                const isWakeUpCallMade = await this.wakeUpPods(data, this.lastWakeUpTime);
+                if(isWakeUpCallMade) {
+                    this.lastWakeUpTime = Date.now();
+                }
+            } else if(!this.isDocumentVisible && !allReady) {
+                this.updateOverlayMessage(this.overlayNoActivityMessage, 'waiting');
             }
         } catch (error) {
             const errorMessage = error.message;
