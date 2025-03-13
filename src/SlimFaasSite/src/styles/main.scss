@@ -97,6 +97,7 @@
             max-height: 300px; /* Ajuste selon le nombre d'éléments */
             opacity: 1;
             padding: 1rem;
+            overflow-y: scroll;
         }
     }
 }
