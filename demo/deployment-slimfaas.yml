@@ -144,7 +144,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.35.13
+          image: axaguildev/slimfaas:0.36.0-pr.1021042
           livenessProbe:
             httpGet:
               path: /health
@@ -172,19 +172,19 @@ spec:
               value: "1"
             - name: Logging__LogLevel__SlimFaas
               value: "Debug"
-            - name: SLIMDATA_CONFIGURATION
-              value: |
-                  {"coldStart":"true"}
+            #- name: SLIMDATA_CONFIGURATION
+            #  value: |
+            #      {"coldStart":"true"}
             #- name: SLIMDATA_CONFIGURATION
             #  value: |
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
             #  value: "500"
-            #- name: SLIMFAAS_JOBS_CONFIGURATION
-            #  valueFrom:
-            #    configMapKeyRef:
-            #      name: slimfaas-config
-            #      key: SLIMFAAS_JOBS_CONFIGURATION
+            - name: SLIMFAAS_JOBS_CONFIGURATION
+              valueFrom:
+                configMapKeyRef:
+                  name: slimfaas-config
+                  key: SLIMFAAS_JOBS_CONFIGURATION
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database

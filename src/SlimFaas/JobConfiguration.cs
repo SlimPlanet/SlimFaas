@@ -31,7 +31,8 @@ public class JobConfiguration : IJobConfiguration
             }
             if (!string.IsNullOrEmpty(json))
             {
-
+                Console.WriteLine("JobConfiguration: ");
+                Console.WriteLine(json);
                 slimfaasJobConfiguration = JsonSerializer.Deserialize(json, SlimfaasJobConfigurationSerializerContext.Default.SlimfaasJobConfiguration);
             }
         }
