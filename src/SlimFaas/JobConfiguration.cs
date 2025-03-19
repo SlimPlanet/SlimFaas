@@ -25,9 +25,13 @@ public class JobConfiguration : IJobConfiguration
         try
         {
             json ??= Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasJobsConfiguration);
-
+            if(!string.IsNullOrEmpty(json))
+            {
+                json = JsonMinifier.MinifyJson(json);
+            }
             if (!string.IsNullOrEmpty(json))
             {
+
                 slimfaasJobConfiguration = JsonSerializer.Deserialize(json, SlimfaasJobConfigurationSerializerContext.Default.SlimfaasJobConfiguration);
             }
         }

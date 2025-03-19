@@ -444,7 +444,12 @@ public class KubernetesService : IKubernetesService
         {
             if (annotations.TryGetValue(Schedule, out string? annotation) && !string.IsNullOrEmpty(annotation.Trim()))
             {
-               return JsonSerializer.Deserialize(annotation, ScheduleConfigSerializerContext.Default.ScheduleConfig);
+                annotation = JsonMinifier.MinifyJson(annotation);
+                if (!string.IsNullOrEmpty(annotation))
+                {
+                    return JsonSerializer.Deserialize(annotation,
+                        ScheduleConfigSerializerContext.Default.ScheduleConfig);
+                }
             }
         }
         catch (Exception e)

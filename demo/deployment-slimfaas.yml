@@ -87,6 +87,39 @@ roleRef:
   name: endpoints-viewer
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slimfaas-config
+  namespace: slimfaas-demo
+data:
+  SLIMFAAS_JOBS_CONFIGURATION: |
+    {
+      "Configurations": {
+        "fibonacci": {
+          "Image": "axaguildev/fibonacci-batch:0.35.13",
+          "ImagesWhitelist": [],
+          "Resources": {
+            "Requests": {
+              "cpu": "400m",
+              "memory": "400Mi"
+            },
+            "Limits": {
+              "cpu": "400m",
+              "memory": "400Mi"
+            }
+          },
+          "DependsOn": ["fibonacci1"],
+          "Environments": [],
+          "BackoffLimit": 1,
+          "Visibility": "Public",
+          "NumberParallelJob": 2,
+          "TtlSecondsAfterFinished": 30,
+          "RestartPolicy": "Never"
+        }
+      }
+    }
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -111,7 +144,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.35.10-pr.811002
+          image: axaguildev/slimfaas:0.35.13
           livenessProbe:
             httpGet:
               path: /health
@@ -147,33 +180,11 @@ spec:
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
             #  value: "500"
-            #- name: SLIMFAAS_JOBS_CONFIGURATION
-            #  value: |
-            #    {
-            #      "Configurations": {
-            #        "fibonacci": {
-            #          "Image": "axaguildev/fibonacci-batch:0.35.10-pr.811002",
-            #          "ImagesWhitelist": [],
-            #          "Resources": {
-            #            "Requests": {
-            #              "cpu": "400m",
-            #              "memory": "400Mi"
-            #            },
-            #            "Limits": {
-            #              "cpu": "400m",
-            #              "memory": "400Mi"
-            #            }
-            #          },
-            #          "DependsOn": ["smartguide-api-data"],
-            #          "Environments": [],
-            #          "BackoffLimit": 1,
-            #          "Visibility": "Public",
-            #          "NumberParallelJob": 6,
-            #          "TtlSecondsAfterFinished": 30,
-            #          "RestartPolicy": "Never"
-            #        }
-            #      }
-            #    }
+            - name: SLIMFAAS_JOBS_CONFIGURATION
+              valueFrom:
+                configMapKeyRef:
+                  name: slimfaas-config
+                  key: SLIMFAAS_JOBS_CONFIGURATION
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database
