@@ -126,7 +126,7 @@ metadata:
   name: slimfaas
   namespace: slimfaas-demo
 spec:
-  replicas: 1
+  replicas: 3
   podManagementPolicy: Parallel
   serviceName: slimfaas
   selector:
@@ -180,11 +180,11 @@ spec:
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
             #  value: "500"
-            - name: SLIMFAAS_JOBS_CONFIGURATION
-              valueFrom:
-                configMapKeyRef:
-                  name: slimfaas-config
-                  key: SLIMFAAS_JOBS_CONFIGURATION
+            #- name: SLIMFAAS_JOBS_CONFIGURATION
+            #  valueFrom:
+            #    configMapKeyRef:
+            #      name: slimfaas-config
+            #      key: SLIMFAAS_JOBS_CONFIGURATION
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database
