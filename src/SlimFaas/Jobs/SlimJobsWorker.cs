@@ -32,93 +32,100 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
         try
         {
             await Task.Delay(_delay, stoppingToken);
-            if (masterService.IsMaster)
+            if (!masterService.IsMaster)
             {
-                var jobs = await jobService.SyncJobsAsync();
+                return;
+            }
 
-                var failedJobs = jobs.Where(j => j.Status == JobStatus.Succeeded).ToList();
-                foreach (var failedJob in failedJobs)
+            var jobs = await jobService.SyncJobsAsync();
+
+            var failedJobs = jobs.Where(j => j.Status == JobStatus.Succeeded).ToList();
+            foreach (var failedJob in failedJobs)
+            {
+                await jobService.DeleteJobAsync(failedJob.Name);
+            }
+
+            jobs = jobs.Where(j => j.Status == JobStatus.Pending && j.Status == JobStatus.Running).ToList();
+            var jobsDictionary = new Dictionary<string, List<Job>>();
+            var configurations = jobConfiguration.Configuration.Configurations;
+            foreach (var data in configurations)
+            {
+                jobsDictionary.Add(data.Key, new List<Job>());
+            }
+
+            foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey)))
+            {
+                var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
+                string jobConfigurationName = jobNameSplits[0];
+
+                if (configurations.TryGetValue(jobConfigurationName, out SlimfaasJob? configuration))
                 {
-                    await jobService.DeleteJobAsync(failedJob.Name);
-                }
-
-                jobs = jobs.Where(j => j.Status == JobStatus.Pending && j.Status == JobStatus.Running).ToList();
-                var jobsDictionary = new Dictionary<string, List<Job>>();
-                var configurations = jobConfiguration.Configuration.Configurations;
-                foreach (var data in configurations)
-                {
-                    jobsDictionary.Add(data.Key, new List<Job>());
-                }
-
-                foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey)))
-                {
-                    var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
-                    string jobConfigurationName = jobNameSplits[0];
-
-                    if( configurations.TryGetValue(jobConfigurationName, out SlimfaasJob? configuration))
+                    if (configuration.DependsOn != null)
                     {
-                        if(configuration.DependsOn != null)
+                        foreach (var dependOn in configuration.DependsOn)
                         {
-                            foreach(var dependOn in configuration.DependsOn)
-                            {
-                                historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
-                            }
+                            historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
                         }
                     }
-                    if (jobsDictionary.ContainsKey(jobConfigurationName))
-                    {
-                        jobsDictionary[jobConfigurationName].Add(job);
-                    }
                 }
 
-                foreach (var jobsKeyPairValue in jobsDictionary)
+                if (jobsDictionary.ContainsKey(jobConfigurationName))
                 {
-                    var jobList = jobsKeyPairValue.Value;
-                    var jobName = jobsKeyPairValue.Key;
-                    var numberElementToDequeue = configurations[jobsKeyPairValue.Key].NumberParallelJob - jobList.Count;
-                    if (numberElementToDequeue <= 0)
+                    jobsDictionary[jobConfigurationName].Add(job);
+                }
+            }
+
+            foreach (var jobsKeyPairValue in jobsDictionary)
+            {
+                var jobList = jobsKeyPairValue.Value;
+                var jobName = jobsKeyPairValue.Key;
+                var numberElementToDequeue = configurations[jobsKeyPairValue.Key].NumberParallelJob - jobList.Count;
+                if (numberElementToDequeue <= 0)
+                {
+                    continue;
+                }
+
+                var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available },
+                    int.MaxValue);
+                if (count == 0)
+                {
+                    continue;
+                }
+
+                bool requiredToWait = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
+                if (requiredToWait)
+                {
+                    continue;
+                }
+
+                var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
+                if (elements == null || elements.Count == 0) continue;
+
+                var listCallBack = new ListQueueItemStatus();
+                listCallBack.Items = new List<QueueItemStatus>();
+                foreach (QueueData element in elements)
+                {
+                    CreateJob? createJob = MemoryPackSerializer.Deserialize<CreateJob>(element.Data);
+                    if (createJob == null)
                     {
                         continue;
                     }
 
-                    var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available }, int.MaxValue);
-                    if (count == 0)
+                    try
                     {
-                        continue;
+                        await jobService.CreateJobAsync(jobName, createJob);
+                        listCallBack.Items.Add(new QueueItemStatus(element.Id, 200));
                     }
-                    bool requiredToWait = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
-                    if (requiredToWait)
+                    catch (Exception e)
                     {
-                        continue;
+                        listCallBack.Items.Add(new QueueItemStatus(element.Id, 500));
+                        logger.LogError(e, "Error in SlimJobsWorker");
                     }
+                }
 
-                    var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
-                    if(elements == null || elements.Count == 0 ) continue;
-
-                    var listCallBack = new ListQueueItemStatus();
-                    listCallBack.Items = new List<QueueItemStatus>();
-                    foreach (QueueData element in elements)
-                    {
-                        CreateJob? createJob = MemoryPackSerializer.Deserialize<CreateJob>(element.Data);
-                        if (createJob == null)
-                        {
-                            continue;
-                        }
-
-                        try
-                        {
-                            await jobService.CreateJobAsync(jobName, createJob);
-                            listCallBack.Items.Add(new QueueItemStatus(element.Id, 200));
-                        } catch (Exception e)
-                        {
-                            listCallBack.Items.Add(new QueueItemStatus(element.Id, 500));
-                            logger.LogError(e, "Error in SlimJobsWorker");
-                        }
-                    }
-                    if(listCallBack.Items.Count > 0)
-                    {
-                        await jobQueue.ListCallbackAsync(jobName, listCallBack);
-                    }
+                if (listCallBack.Items.Count > 0)
+                {
+                    await jobQueue.ListCallbackAsync(jobName, listCallBack);
                 }
             }
         }

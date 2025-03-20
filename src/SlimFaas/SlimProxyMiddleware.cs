@@ -377,7 +377,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         {
             foreach (var pod in function.Pods)
             {
-                if (pod.Ready is not true || pod.Ports == null || pod.Ports.Count == 0)
+                if (pod.Ready is not true || !function.EndpointReady)
                 {
                     continue;
                 }

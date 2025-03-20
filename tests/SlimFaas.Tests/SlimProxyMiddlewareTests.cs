@@ -61,7 +61,8 @@ internal class MemoryReplicas2ReplicasService : IReplicasService
                         new("fibonacci-1", true, true, "0", "fibonacci", new List<int>() { 8080 }),
                         new("fibonacci-2", true, true, "0", "fibonacci", new List<int>() { 8080 }),
                         new("fibonacci-3", false, false, "0", "fibonacci")
-                    })
+                    },
+                EndpointReady: true )
             }, new SlimFaasDeploymentInformation(1, new List<PodInformation>()), new List<PodInformation>());
 
     public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => throw new NotImplementedException();
@@ -116,8 +117,8 @@ public class ProxyMiddlewareTests
 
     [Theory]
     [InlineData("/publish-event/toto/hello", HttpStatusCode.NoContent, "http://localhost:5002/hello" )]
-   // [InlineData("/publish-event/reload/hello", HttpStatusCode.NoContent, "http://fibonacci-2.fibonacci:8080//hello,http://fibonacci-1.fibonacci:8080//hello,http://localhost:5002/hello" )]
-   // [InlineData("/publish-event/reloadnoprefix/hello", HttpStatusCode.NoContent,  "http://fibonacci-2.fibonacci:8080//hello,http://fibonacci-1.fibonacci:8080//hello")]
+    [InlineData("/publish-event/reload/hello", HttpStatusCode.NoContent, "http://fibonacci-2.fibonacci:8080//hello,http://fibonacci-1.fibonacci:8080//hello,http://localhost:5002/hello" )]
+    [InlineData("/publish-event/reloadnoprefix/hello", HttpStatusCode.NoContent,  "http://fibonacci-2.fibonacci:8080//hello,http://fibonacci-1.fibonacci:8080//hello")]
     [InlineData("/publish-event/wrong/download", HttpStatusCode.NotFound, null)]
     [InlineData("/publish-event/reloadprivate/hello", HttpStatusCode.NotFound, null)]
     public async Task CallPublishInSyncModeAndReturnOk(string path, HttpStatusCode expected, string? times)
@@ -132,7 +133,7 @@ public class ProxyMiddlewareTests
             .Setup(k => k.SyncJobsAsync())
             .ReturnsAsync(new List<Job>());
         jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
-        Environment.SetEnvironmentVariable(EnvironmentVariables.BaseFunctionPodUrlDefault, "http://{pod_name}.{function_name}:8080/");
+        Environment.SetEnvironmentVariable(EnvironmentVariables.BaseFunctionPodUrl, "http://{pod_name}.{function_name}:8080/");
         Environment.SetEnvironmentVariable(EnvironmentVariables.SlimFaasSubscribeEvents,
             "reload=>http://localhost:5002,toto=>http://localhost:5002");
         using IHost host = await new HostBuilder()
