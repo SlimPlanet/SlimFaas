@@ -130,7 +130,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 BuildStatusResponse(replicasService, functionName, contextResponse);
                 return;
             case FunctionType.Sync:
-                await BuildSyncResponseAsync(context, historyHttpService, sendClient, replicasService, jobService, functionName,
+                await BuildSyncResponseAsync(logger, context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
                 return;
             case FunctionType.Publish:
@@ -440,12 +440,13 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
     }
 
-    private async Task BuildSyncResponseAsync(HttpContext context, HistoryHttpMemoryService historyHttpService,
+    private async Task BuildSyncResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, HistoryHttpMemoryService historyHttpService,
         ISendClient sendClient, IReplicasService replicasService, IJobService jobService, string functionName, string functionPath)
     {
         DeploymentInformation? function = SearchFunction(replicasService, functionName);
         if (function == null)
         {
+            logger.LogDebug("{FunctionName} not found 404", functionName);
             context.Response.StatusCode = 404;
             return;
         }
@@ -454,6 +455,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
         {
+            logger.LogDebug("{FunctionName} not found 404 because is private 404", functionName);
             context.Response.StatusCode = 404;
             return;
         }
@@ -499,6 +501,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 continue;
             }
             bool? isAnyContainerStarted = function.Pods.Any(p => p.Ready.HasValue && p.Ready.Value);
+            logger.LogDebug("WaitForAnyPodStartedAsync {FunctionName} {IsAnyContainerStarted} {EndpointReady}", functionName,isAnyContainerStarted, function.EndpointReady);
             bool isReady = isAnyContainerStarted.Value && function.EndpointReady;
             if (!isReady && !context.RequestAborted.IsCancellationRequested)
             {
