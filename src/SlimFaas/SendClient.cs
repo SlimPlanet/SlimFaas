@@ -152,7 +152,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         return new HttpMethod(method);
     }
 
-    private static string ComputeTargetUrl(string functionUrl, string customRequestFunctionName,
+    private static async Task<string> ComputeTargetUrl(string functionUrl, string customRequestFunctionName,
         string customRequestPath,
         string customRequestQuery, string namespaceSlimFaas, Proxy? proxy = null)
     {
@@ -160,6 +160,19 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         {
            var ip = proxy.GetNextIP();
            var ports = proxy.GetPorts();
+           var count = 400;
+           while((ports == null || string.IsNullOrEmpty(ip))  && count > 0)
+           {
+               ip = proxy.GetNextIP();
+               ports = proxy.GetPorts();
+               count--;
+               await Task.Delay(10);
+           }
+
+           if(ports == null || string.IsNullOrEmpty(ip))
+           {
+               throw new Exception("Not port or IP avalaible");
+           }
 
            string url = functionUrl.Replace("{pod_ip}", ip) + customRequestPath + customRequestQuery;
            if (ports is { Count: > 0 })
