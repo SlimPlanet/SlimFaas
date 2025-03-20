@@ -162,13 +162,13 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         {
            var ip = proxy.GetNextIP();
            var ports = proxy.GetPorts();
-           var count = 400;
+           var count = 300;
            while((ports == null || ports.Count == 0 || string.IsNullOrEmpty(ip))  && count > 0)
            {
                ip = proxy.GetNextIP();
                ports = proxy.GetPorts();
                count--;
-               await Task.Delay(10);
+               await Task.Delay(100);
            }
 
            if(ports == null || string.IsNullOrEmpty(ip) || ports.Count == 0)
