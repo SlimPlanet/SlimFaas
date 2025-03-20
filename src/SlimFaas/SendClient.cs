@@ -28,8 +28,9 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             string customRequestFunctionName = customRequest.FunctionName;
             string customRequestPath = customRequest.Path;
             string customRequestQuery = customRequest.Query;
-            string targetUrl =
-                ComputeTargetUrl(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas);
+            var promise =
+                ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas);
+            string targetUrl = promise.Result;
             logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
 
 
@@ -64,7 +65,8 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             httpClient.Timeout = TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout);
             HttpResponseMessage responseMessage = await  Retry.DoRequestAsync(() =>
                 {
-                    string targetUrl = ComputeTargetUrl(baseUrl ?? _baseFunctionUrl, functionName, functionPath, functionQuery, _namespaceSlimFaas, proxy);
+                    var promise = ComputeTargetUrlAsync(baseUrl ?? _baseFunctionUrl, functionName, functionPath, functionQuery, _namespaceSlimFaas, proxy);
+                    string targetUrl = promise.Result;
                     logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
                     HttpRequestMessage targetRequestMessage = CreateTargetMessage(context, new Uri(targetUrl));
                     return httpClient.SendAsync(targetRequestMessage,
@@ -152,7 +154,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         return new HttpMethod(method);
     }
 
-    private static async Task<string> ComputeTargetUrl(string functionUrl, string customRequestFunctionName,
+    private static async Task<string> ComputeTargetUrlAsync(string functionUrl, string customRequestFunctionName,
         string customRequestPath,
         string customRequestQuery, string namespaceSlimFaas, Proxy? proxy = null)
     {
@@ -161,7 +163,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
            var ip = proxy.GetNextIP();
            var ports = proxy.GetPorts();
            var count = 400;
-           while((ports == null || string.IsNullOrEmpty(ip))  && count > 0)
+           while((ports == null || ports.Count == 0 || string.IsNullOrEmpty(ip))  && count > 0)
            {
                ip = proxy.GetNextIP();
                ports = proxy.GetPorts();
@@ -169,9 +171,9 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
                await Task.Delay(10);
            }
 
-           if(ports == null || string.IsNullOrEmpty(ip))
+           if(ports == null || string.IsNullOrEmpty(ip) || ports.Count == 0)
            {
-               throw new Exception("Not port or IP avalaible");
+               throw new Exception("Not port or IP available");
            }
 
            string url = functionUrl.Replace("{pod_ip}", ip) + customRequestPath + customRequestQuery;
