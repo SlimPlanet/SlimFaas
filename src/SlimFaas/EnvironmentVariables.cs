@@ -24,7 +24,7 @@ public static class EnvironmentVariables
 
     public const string SlimFaasPorts = "SLIMFAAS_PORTS";
     public const string BaseSlimDataUrl = "BASE_SLIMDATA_URL";
-    public const string BaseSlimDataUrlDefault = "http://{pod_name}.slimfaas.default.svc.cluster.local:3262/";
+    public const string BaseSlimDataUrlDefault = "http://{pod_ip}:3262/";
 
 
     public const int SlimProxyMiddlewareTimeoutWaitWakeSyncFunctionMilliSecondsDefault = 30000;
@@ -60,10 +60,10 @@ public static class EnvironmentVariables
     public const bool PodScaledUpByDefaultWhenInfrastructureHasNeverCalledDefault = false;
 
     public const string BaseFunctionUrl = "BASE_FUNCTION_URL";
-    public const string BaseFunctionUrlDefault = "http://{function_name}:8080/";
+    public const string BaseFunctionUrlDefault = "http://{pod_ip}:{pod_port}/";
 
     public const string BaseFunctionPodUrl = "BASE_FUNCTION_POD_URL";
-    public const string BaseFunctionPodUrlDefault = "http://{pod_name}.{function_name}:8080/";
+    public const string BaseFunctionPodUrlDefault = "http://{pod_ip}:{pod_port}/";
 
     public const string Namespace = "NAMESPACE";
     public const string NamespaceDefault = "default";

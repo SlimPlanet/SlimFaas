@@ -87,7 +87,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         (string functionPath, string functionName, FunctionType functionType) = GetFunctionInfo(logger, contextRequest);
 
-
         switch (functionType)
         {
             case FunctionType.NotAFunction:
@@ -152,11 +151,18 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         if (currentFunction != null)
         {
-            podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false).Select(p => p.Ip).ToList();
+            podIps = replicasService.Deployments.Functions.Select(p => p.Pods)
+                .SelectMany(p => p)
+                .Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false)
+                .Select(p => p.Ip)
+                .ToList();
         }
         else
         {
-            podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Select(p => p.Ip).ToList();
+            podIps = replicasService.Deployments.Functions.Select(p => p.Pods)
+                .SelectMany(p => p)
+                .Select(p => p.Ip)
+                .ToList();
         }
 
         podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip));
@@ -371,7 +377,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         {
             foreach (var pod in function.Pods)
             {
-                if (pod.Ready is not true)
+                if (pod.Ready is not true || pod.Ports == null || pod.Ports.Count == 0)
                 {
                     continue;
                 }
@@ -501,8 +507,13 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 continue;
             }
             bool? isAnyContainerStarted = function.Pods.Any(p => p.Ready.HasValue && p.Ready.Value);
-            logger.LogDebug("WaitForAnyPodStartedAsync {FunctionName} {IsAnyContainerStarted} {EndpointReady}", functionName,isAnyContainerStarted, function.EndpointReady);
-            bool isReady = isAnyContainerStarted.Value && function.EndpointReady;
+            var readyPodsIps = function?.Pods
+                .Where(pod => pod.Ready == true)
+                .Select(pod => pod.Ports)
+                .FirstOrDefault();
+            var portReady = readyPodsIps != null && readyPodsIps.Count > 0;
+            logger.LogDebug("WaitForAnyPodStartedAsync {FunctionName} IsAnyContainerStarted: {IsAnyContainerStarted}, EndpointReady:{EndpointReady}, PortReady: {PortReady}", functionName, isAnyContainerStarted, function?.EndpointReady, portReady);
+            bool isReady = isAnyContainerStarted.Value && function?.EndpointReady == true && portReady;
             if (!isReady && !context.RequestAborted.IsCancellationRequested)
             {
                 numberLoop--;
@@ -513,7 +524,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     lastSetTicks = DateTime.UtcNow.Ticks;
                     historyHttpService.SetTickLastCall(functionName, lastSetTicks);
                 }
-
                 continue;
             }
 

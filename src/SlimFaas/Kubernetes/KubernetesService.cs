@@ -14,7 +14,7 @@ public enum JobStatus
 {
     Pending,
     Running,
-    Succeded,
+    Succeeded,
     Failed,
     ImagePullBackOff
 }
@@ -730,7 +730,7 @@ public class KubernetesService : IKubernetesService
             JobStatus status = v1Job.Status.Active > 0 ? JobStatus.Running : JobStatus.Pending;
             if (v1Job.Status.Succeeded is > 0)
             {
-                status = JobStatus.Succeded;
+                status = JobStatus.Succeeded;
             }
             else if (v1Job.Status.Failed is > 0)
             {
@@ -768,7 +768,5 @@ public class KubernetesService : IKubernetesService
         var client = _client;
         await client.DeleteNamespacedJobAsync(name, kubeNamespace);
     }
-
-
 
 }

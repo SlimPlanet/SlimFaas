@@ -6,6 +6,7 @@ namespace SlimFaas.Jobs;
 public interface IJobService
 {
     Task CreateJobAsync(string name, CreateJob createJob);
+    Task DeleteJobAsync(string name);
     Task<IList<Job>> SyncJobsAsync();
     IList<Job> Jobs { get; }
     Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal);
@@ -21,6 +22,11 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
     public async Task CreateJobAsync(string name, CreateJob createJob)
     {
         await kubernetesService.CreateJobAsync(_namespace, name, createJob);
+    }
+
+    public async Task DeleteJobAsync(string name)
+    {
+        await kubernetesService.DeleteJobAsync(_namespace, name);
     }
 
     public async Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal)

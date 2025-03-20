@@ -114,7 +114,7 @@ data:
           "BackoffLimit": 1,
           "Visibility": "Public",
           "NumberParallelJob": 2,
-          "TtlSecondsAfterFinished": 10,
+          "TtlSecondsAfterFinished": 36000,
           "RestartPolicy": "Never"
         }
       }
@@ -144,7 +144,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.36.0-pr.1021048
+          image: axaguildev/slimfaas:0.36.0-pr.1021049
           livenessProbe:
             httpGet:
               path: /health
@@ -158,7 +158,7 @@ spec:
               #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
               value: "http://{pod_ip}:{pod_port}"
             - name: BASE_FUNCTION_POD_URL # require for publish route
-              value: "http://{pod_ip}:5000"
+              value: "http://{pod_ip}:{pod_port}"
             - name: BASE_SLIMDATA_URL
               value: "http://{pod_ip}:3262/"
             - name: NAMESPACE
