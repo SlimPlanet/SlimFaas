@@ -2,6 +2,7 @@
 using Moq;
 using SlimFaas.Database;
 using SlimData;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests;

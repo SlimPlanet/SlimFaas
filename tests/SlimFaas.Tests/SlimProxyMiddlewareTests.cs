@@ -12,6 +12,7 @@ using SlimFaas.Kubernetes;
 using MemoryPack;
 using SlimData;
 using SlimFaas.Database;
+using SlimFaas.Jobs;
 
 namespace SlimFaas.Tests;
 
@@ -100,7 +101,7 @@ internal class SendClientMock : ISendClient
     }
 
     public Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName,
-        string functionPath, string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null)
+        string functionPath, string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy proxy = null)
     {
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         responseMessage.StatusCode = HttpStatusCode.OK;

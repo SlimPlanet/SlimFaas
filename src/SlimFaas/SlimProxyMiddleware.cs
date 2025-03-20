@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using MemoryPack;
 using SlimData;
 using SlimFaas.Database;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
@@ -460,7 +461,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
         Task<HttpResponseMessage> responseMessagePromise = sendClient.SendHttpRequestSync(context, functionName,
-            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync);
+            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync, null, new Proxy(function));
 
         long lastSetTicks = DateTime.UtcNow.Ticks;
         historyHttpService.SetTickLastCall(functionName, lastSetTicks);

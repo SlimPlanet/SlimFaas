@@ -1,7 +1,7 @@
 ﻿using System.Text.Json;
 using SlimFaas.Kubernetes;
 
-namespace SlimFaas;
+namespace SlimFaas.Jobs;
 
 public interface IJobConfiguration
 {

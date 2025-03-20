@@ -1,9 +1,7 @@
-﻿using System.Collections;
+﻿using MemoryPack;
 using SlimFaas.Kubernetes;
-using System.Threading;
-using MemoryPack;
 
-namespace SlimFaas;
+namespace SlimFaas.Jobs;
 
 public interface IJobService
 {

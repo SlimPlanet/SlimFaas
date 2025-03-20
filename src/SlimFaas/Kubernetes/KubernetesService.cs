@@ -107,7 +107,7 @@ public record DeploymentInformation(string Deployment,
     bool EndpointReady = false
     );
 
-public record PodInformation(string Name, bool? Started, bool? Ready, string Ip, string DeploymentName);
+public record PodInformation(string Name, bool? Started, bool? Ready, string Ip, string DeploymentName, IList<int>? Ports = null);
 
 [MemoryPackable]
 public partial record CreateJob(
@@ -308,7 +308,7 @@ public class KubernetesService : IKubernetesService
 
             await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask);
             V1DeploymentList? deploymentList = deploymentListTask.Result;
-            IEnumerable<PodInformation> podList = await MapPodInformations(podListTask.Result);
+            IEnumerable<PodInformation> podList = MapPodInformations(podListTask.Result);
             V1StatefulSetList? statefulSetList = statefulSetListTask.Result;
 
             SlimFaasDeploymentInformation? slimFaasDeploymentInformation = statefulSetList.Items
@@ -554,7 +554,7 @@ public class KubernetesService : IKubernetesService
         }
     }
 
-    private static async Task<IEnumerable<PodInformation>> MapPodInformations(V1PodList v1PodList)
+    private static IEnumerable<PodInformation> MapPodInformations(V1PodList v1PodList)
     {
         var result = new List<PodInformation>();
         foreach (V1Pod? item in v1PodList.Items)
@@ -572,7 +572,14 @@ public class KubernetesService : IKubernetesService
             string? podName = item.Metadata.Name;
             string deploymentName = item.Metadata.OwnerReferences[0].Name;
 
-            PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp, deploymentName);
+            var ports = item.Spec?.Containers
+                .Where(c => c.Ports != null)
+                .SelectMany(c => c.Ports)
+                .Where(p => p.ContainerPort > 0)
+                .Select(p => p.ContainerPort)
+                .ToList() ?? new List<int>();
+
+            PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp, deploymentName, Ports: ports);
             result.Add(podInformation);
         }
         return result;

@@ -6,6 +6,7 @@ using Prometheus;
 using SlimData;
 using SlimFaas;
 using SlimFaas.Database;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 

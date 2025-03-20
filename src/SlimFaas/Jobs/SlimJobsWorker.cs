@@ -3,7 +3,7 @@ using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 
-namespace SlimFaas;
+namespace SlimFaas.Jobs;
 
 
 public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,

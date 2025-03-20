@@ -114,7 +114,7 @@ data:
           "BackoffLimit": 1,
           "Visibility": "Public",
           "NumberParallelJob": 2,
-          "TtlSecondsAfterFinished": 30,
+          "TtlSecondsAfterFinished": 10,
           "RestartPolicy": "Never"
         }
       }
@@ -144,7 +144,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.36.0-pr.1021042
+          image: axaguildev/slimfaas:0.36.0-pr.1021043
           livenessProbe:
             httpGet:
               path: /health
@@ -155,7 +155,8 @@ spec:
             terminationGracePeriodSeconds: 30
           env:
             - name: BASE_FUNCTION_URL
-              value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
+              #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
+              value: "http://{pod_ip}:{pod_port}"
             - name: BASE_FUNCTION_POD_URL # require for publish route
               value: "http://{pod_ip}:5000"
             - name: BASE_SLIMDATA_URL
@@ -170,8 +171,8 @@ spec:
               value: "03200000"
             - name: DOTNET_gcServer
               value: "1"
-            - name: Logging__LogLevel__SlimFaas
-              value: "Debug"
+            #- name: Logging__LogLevel__SlimFaas
+            #  value: "Debug"
             #- name: SLIMDATA_CONFIGURATION
             #  value: |
             #      {"coldStart":"true"}
@@ -190,10 +191,10 @@ spec:
               mountPath: /database
           resources:
             limits:
-              memory: "60Mi"
+              memory: "120Mi"
               cpu: "400m"
             requests:
-              memory: "60Mi"
+              memory: "120Mi"
               cpu: "200m"
           ports:
             - containerPort: 5000
