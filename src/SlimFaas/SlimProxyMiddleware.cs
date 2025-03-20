@@ -507,13 +507,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 continue;
             }
             bool? isAnyContainerStarted = function.Pods.Any(p => p.Ready.HasValue && p.Ready.Value);
-            var readyPodsIps = function?.Pods
-                .Where(pod => pod.Ready == true)
-                .Select(pod => pod.Ports)
-                .FirstOrDefault();
-            var portReady = readyPodsIps != null && readyPodsIps.Count > 0;
-            logger.LogDebug("WaitForAnyPodStartedAsync {FunctionName} IsAnyContainerStarted: {IsAnyContainerStarted}, EndpointReady:{EndpointReady}, PortReady: {PortReady}", functionName, isAnyContainerStarted, function?.EndpointReady, portReady);
-            bool isReady = isAnyContainerStarted.Value && function?.EndpointReady == true && portReady;
+            bool isReady = isAnyContainerStarted.Value && function?.EndpointReady == true;
             if (!isReady && !context.RequestAborted.IsCancellationRequested)
             {
                 numberLoop--;

@@ -466,7 +466,13 @@ public class KubernetesService : IKubernetesService
         {
             if (annotations.TryGetValue(Configuration, out string? annotation) && !string.IsNullOrEmpty(annotation.Trim()))
             {
-                return JsonSerializer.Deserialize(annotation, SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration) ?? new SlimFaasConfiguration();
+                annotation = JsonMinifier.MinifyJson(annotation);
+                if (!string.IsNullOrEmpty(annotation))
+                {
+                    return JsonSerializer.Deserialize(annotation,
+                               SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration) ??
+                           new SlimFaasConfiguration();
+                }
             }
         }
         catch (Exception e)

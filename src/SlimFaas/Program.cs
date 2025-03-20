@@ -15,16 +15,20 @@ using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 string slimDataDirectory = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimDataDirectory) ??
                            EnvironmentVariables.GetTemporaryDirectory();
 
-string slimDataConfigurationString =  Environment.GetEnvironmentVariable(EnvironmentVariables.SlimDataConfiguration) ?? "";
+string? slimDataConfigurationString =  Environment.GetEnvironmentVariable(EnvironmentVariables.SlimDataConfiguration) ?? "";
 DictionnaryString slimDataConfiguration= new();
 
 if (!string.IsNullOrEmpty(slimDataConfigurationString))
 {
-    var dictionnaryDeserialize = JsonSerializer.Deserialize(slimDataConfigurationString,
-        DictionnaryStringSerializerContext.Default.DictionnaryString);
-    if (dictionnaryDeserialize != null)
+    slimDataConfigurationString = JsonMinifier.MinifyJson(slimDataConfigurationString);
+    if (!string.IsNullOrEmpty(slimDataConfigurationString))
     {
-        slimDataConfiguration = dictionnaryDeserialize;
+        var dictionnaryDeserialize = JsonSerializer.Deserialize(slimDataConfigurationString,
+            DictionnaryStringSerializerContext.Default.DictionnaryString);
+        if (dictionnaryDeserialize != null)
+        {
+            slimDataConfiguration = dictionnaryDeserialize;
+        }
     }
 }
 
