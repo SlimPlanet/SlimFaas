@@ -28,14 +28,14 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             string customRequestFunctionName = customRequest.FunctionName;
             string customRequestPath = customRequest.Path;
             string customRequestQuery = customRequest.Query;
-            var promise =
-                ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy);
-            string targetUrl = promise.Result;
-            logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
 
             httpClient.Timeout = TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout);
             return await Retry.DoRequestAsync(() =>
                     {
+                        var promise =
+                            ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy);
+                        string targetUrl = promise.Result;
+                        logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
                         HttpRequestMessage targetRequestMessage = CreateTargetMessage(customRequest, new Uri(targetUrl));
                         return httpClient.SendAsync(targetRequestMessage,
                             HttpCompletionOption.ResponseHeadersRead,
