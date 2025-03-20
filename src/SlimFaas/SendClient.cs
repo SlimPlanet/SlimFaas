@@ -5,7 +5,7 @@ namespace SlimFaas;
 
 public interface ISendClient
 {
-    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null);
+    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
         string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy? proxy = null);
@@ -20,7 +20,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ?? EnvironmentVariables.NamespaceDefault;
 
     public async Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null)
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null)
     {
         try
         {
@@ -29,7 +29,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             string customRequestPath = customRequest.Path;
             string customRequestQuery = customRequest.Query;
             var promise =
-                ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas);
+                ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy);
             string targetUrl = promise.Result;
             logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
 
