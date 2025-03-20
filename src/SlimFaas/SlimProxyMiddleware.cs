@@ -461,7 +461,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
         Task<HttpResponseMessage> responseMessagePromise = sendClient.SendHttpRequestSync(context, functionName,
-            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync, null, new Proxy(function));
+            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync, null, new Proxy(replicasService, functionName));
 
         long lastSetTicks = DateTime.UtcNow.Ticks;
         historyHttpService.SetTickLastCall(functionName, lastSetTicks);

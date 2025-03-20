@@ -5,21 +5,30 @@ namespace SlimFaas
 {
     public class Proxy
     {
-        private readonly DeploymentInformation _deploymentInformation;
+        private readonly IReplicasService _replicasService;
+        private readonly string _functionName;
 
         // Key: Nom du déploiement, Value: Dernière IP utilisée pour ce déploiement
         public static ConcurrentDictionary<string, string> IpAddresses = new();
 
-        public Proxy(DeploymentInformation deploymentInformation)
+        public Proxy(IReplicasService replicasService, string functionName)
         {
-            _deploymentInformation = deploymentInformation;
+            _replicasService = replicasService;
+            _functionName = functionName;
         }
         private readonly Random _random = new Random();
 
+        private static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
+        {
+            DeploymentInformation? function =
+                replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
+            return function;
+        }
 
         public IList<int>? GetPorts()
         {
-            var readyPodsIps = _deploymentInformation.Pods
+            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            var readyPodsIps = deploymentInformation?.Pods
                 .Where(pod => pod.Ready == true)
                 .Select(pod => pod.Ports)
                 .FirstOrDefault();
@@ -29,7 +38,13 @@ namespace SlimFaas
 
         public string GetNextIP()
         {
-            var deploymentInformation = _deploymentInformation;
+            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+
+            if (deploymentInformation == null)
+            {
+                return "";
+            }
+
             // On récupère toutes les IP des pods qui sont en état "Ready"
             var readyPodsIps = deploymentInformation.Pods
                 .Where(pod => pod.Ready == true)
