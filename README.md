@@ -169,6 +169,7 @@ spec:
             {"TimeZoneID":"Europe/Paris","Default":{"WakeUp":["07:00"],"ScaleDownTimeout":[{"Time":"07:00","Value":3600},{"Time":"21:00","Value":60}]}}
         SlimFaas/SubscribeEvents: "Public:my-event-name1,Private:my-event-name2,my-event-name3" # comma separated list of event names
         SlimFaas/DefaultVisibility: "Public" # Public or Private (private can be accessed only by internal namespace https call from pods)
+        SlimFaas/DefaultTrusted: "Trustes" # Public or Private (private can be accessed only by internal namespace https call from pods)
         SlimFaas/UrlsPathStartWithVisibility: "Private:/mypath/subPath,Private:/mysecondpath" # Public or Private (private can be accessed only by internal namespace https call from pods)
     spec:
       serviceAccountName: default
@@ -237,18 +238,19 @@ spec:
             timeoutSeconds: 8
             terminationGracePeriodSeconds: 30
           env:
-            - name: BASE_FUNCTION_URL
-              value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
-            - name: BASE_FUNCTION_POD_URL # require for publish route
-              value: "http://{pod_ip}:{pod_port}"
-            - name: BASE_SLIMDATA_URL
-              value: "http://{pod_name}.slimfaas.{namespace}.svc.cluster.local:3262/"  # Don't expose this port, it can also be like "http://{pod_ip}:3262/" but if you can use DNS it's better
-            - name: SLIMFAAS_PORTS
-              value: "5000" # can be like "5000,6000,7000" if you want to expose more ports
-            - name: NAMESPACE
-              value: "default"
-            - name: SLIMDATA_DIRECTORY
-              value: "/database"
+             - name: SLIMFAAS_PORTS
+               value: "5000" # can be like "5000,6000,7000" if you want to expose more ports
+             - name: NAMESPACE
+               value: "default"
+             - name: SLIMDATA_DIRECTORY
+               value: "/database"
+            #- name: BASE_FUNCTION_URL
+            #  value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
+            #  value: "http://{pod_id}:{pod_port}"
+            #- name: BASE_FUNCTION_POD_URL # require for publish route
+            #  value: "http://{pod_ip}:{pod_port}"
+            #- name: BASE_SLIMDATA_URL
+            #  value: "http://{pod_name}.slimfaas.{namespace}.svc.cluster.local:3262/"  # Don't expose this port, it can also be like "http://{pod_ip}:3262/" but if you can use DNS it's better
             # If you want to send event to an url which is not a SlimFaas function, you can use this env variable
             # use comma to separate event name and url, use => to separate event name and destination url.
             # urls are separated by ;
