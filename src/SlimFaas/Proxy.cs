@@ -16,7 +16,7 @@ namespace SlimFaas
             _replicasService = replicasService;
             _functionName = functionName;
         }
-        private readonly Random _random = new Random();
+        private readonly Random _random = new();
 
         private static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
         {
