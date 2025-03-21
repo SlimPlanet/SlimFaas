@@ -271,30 +271,32 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             }
             foreach (string deploymentInformationSubscribeEvent in deploymentInformation.SubscribeEvents)
             {
-                var splits = deploymentInformationSubscribeEvent.Split(":");
-                if (splits.Length == 1 && splits[0] == eventName)
+                var splitsEvents = deploymentInformationSubscribeEvent.Split(",");
+                foreach (string deploymentEvent in splitsEvents)
                 {
-                    if (deploymentInformation.Visibility == FunctionVisibility.Public ||
-                        MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, deploymentInformation))
+                    var splitsVisibility = deploymentEvent.Split(":");
+                    if (splitsVisibility.Length == 1 && splitsVisibility[0] == eventName)
                     {
-                        result.Add(deploymentInformation);
+                        if (deploymentInformation.Visibility == FunctionVisibility.Public ||
+                            MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, deploymentInformation))
+                        {
+                            result.Add(deploymentInformation);
+                        }
+                    }
+                    else if (splitsVisibility.Length == 2 && splitsVisibility[1] == eventName)
+                    {
+                        var visibility = splitsVisibility[0];
+                        var visibilityEnum = Enum.Parse<FunctionVisibility>(visibility, true);
+                        if(visibilityEnum == FunctionVisibility.Private && MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, deploymentInformation))
+                        {
+                            result.Add(deploymentInformation);
+                        } else if(visibilityEnum == FunctionVisibility.Public)
+                        {
+                            result.Add(deploymentInformation);
+                        }
                     }
                 }
-                else if (splits.Length == 2 && splits[1] == eventName)
-                {
-                    var visibility = splits[0];
-                    var visibilityEnum = Enum.Parse<FunctionVisibility>(visibility, true);
-                    if(visibilityEnum == FunctionVisibility.Private && MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, deploymentInformation))
-                    {
-                        result.Add(deploymentInformation);
-                    } else if(visibilityEnum == FunctionVisibility.Public)
-                    {
-                        result.Add(deploymentInformation);
-                    }
-                }
-
             }
-
         }
         return result;
     }
