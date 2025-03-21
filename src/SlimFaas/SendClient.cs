@@ -63,7 +63,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         }
     }
 
-    public async Task<HttpResponseMessage> SendHttpRequestSync(HttpContext context,
+    public async Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext,
         string functionName,
         string functionPath,
         string functionQuery,
@@ -76,16 +76,15 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}", functionName, functionPath ,functionQuery);
             using var localCancellationToken = new CancellationTokenSource(
                 TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout));
-            CancellationToken finalToken;
-            var cancellationToken = context.RequestAborted;
+            var cancellationToken = httpContext.RequestAborted;
             using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(localCancellationToken.Token, cancellationToken);
-            finalToken = linkedTokenSource.Token;
+            CancellationToken finalToken = linkedTokenSource.Token;
             HttpResponseMessage responseMessage = await  Retry.DoRequestAsync(() =>
                 {
                     var promise = ComputeTargetUrlAsync(baseUrl ?? _baseFunctionUrl, functionName, functionPath, functionQuery, _namespaceSlimFaas, proxy);
                     string targetUrl = promise.Result;
                     logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
-                    HttpRequestMessage targetRequestMessage = CreateTargetMessage(context, new Uri(targetUrl));
+                    HttpRequestMessage targetRequestMessage = CreateTargetMessage(httpContext, new Uri(targetUrl));
                     return httpClient.SendAsync(targetRequestMessage,
                         HttpCompletionOption.ResponseHeadersRead, finalToken);
                 },

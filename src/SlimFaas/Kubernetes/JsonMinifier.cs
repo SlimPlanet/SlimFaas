@@ -1,5 +1,7 @@
 ﻿using System.Text;
 
+namespace SlimFaas.Kubernetes;
+
 public static class JsonMinifier
 {
     public static string? MinifyJson(string? input)

@@ -68,6 +68,12 @@ public enum FunctionVisibility
     Private
 }
 
+public enum FunctionTrust
+{
+    Trusted,
+    Untrusted
+}
+
 public enum PodType
 {
     Deployment,
@@ -106,7 +112,8 @@ public record DeploymentInformation(string Deployment,
     FunctionVisibility Visibility = FunctionVisibility.Public,
     IList<PathVisibility>? PathsStartWithVisibility = null,
     string ResourceVersion = "",
-    bool EndpointReady = false
+    bool EndpointReady = false,
+    FunctionTrust Trust = FunctionTrust.Trusted
     );
 
 public record PodInformation(string Name, bool? Started, bool? Ready, string Ip, string DeploymentName, IList<int>? Ports = null);
@@ -223,6 +230,7 @@ public class KubernetesService : IKubernetesService
 
     private const string TimeoutSecondBeforeSetReplicasMin = "SlimFaas/TimeoutSecondBeforeSetReplicasMin";
     private const string NumberParallelRequest = "SlimFaas/NumberParallelRequest";
+    private const string DefaultTrust = "SlimFaas/DefaultTrust";
 
     private const string SlimfaasDeploymentName = "slimfaas";
     private readonly ILogger<KubernetesService> _logger;
@@ -389,7 +397,10 @@ public class KubernetesService : IKubernetesService
                             : FunctionVisibility.Public,
                         GetPathsStartWithVisibility(annotations, name, logger),
                         resourceVersion,
-                        EndpointReady: endpointReady
+                        EndpointReady: endpointReady,
+                        Trust: annotations.TryGetValue(DefaultTrust, out string? trust)
+                            ? Enum.Parse<FunctionTrust>(trust)
+                            : FunctionTrust.Trusted
                     );
                     deploymentInformationList.Add(deploymentInformation);
                 }
@@ -617,7 +628,10 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
                             : FunctionVisibility.Public,
                         GetPathsStartWithVisibility(annotations, name, logger),
                         resourceVersion,
-                        EndpointReady: endpointReady);
+                        EndpointReady: endpointReady,
+                        Trust: annotations.TryGetValue(DefaultTrust, out string? trust)
+                            ? Enum.Parse<FunctionTrust>(trust)
+                            : FunctionTrust.Trusted);
 
                     deploymentInformationList.Add(deploymentInformation);
                 }

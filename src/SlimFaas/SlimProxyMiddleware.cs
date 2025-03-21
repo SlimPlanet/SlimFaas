@@ -149,11 +149,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     {
         List<string> podIps;
 
-        podIps = replicasService.Deployments.Functions.Select(p => p.Pods)
+        podIps = replicasService.Deployments.Functions.Where(f => f.Trust == FunctionTrust.Trusted).Select(p => p.Pods)
             .SelectMany(p => p)
             .Select(p => p.Ip)
             .ToList();
-
 
         podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip));
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
