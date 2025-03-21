@@ -3,7 +3,12 @@ using SlimFaas.Kubernetes;
 
 namespace SlimFaas
 {
-    public class Proxy
+    public interface IProxy
+    {
+        string GetNextIP();
+        IList<int>? GetPorts();
+    }
+    public class Proxy : IProxy
     {
         private readonly IReplicasService _replicasService;
         private readonly string _functionName;

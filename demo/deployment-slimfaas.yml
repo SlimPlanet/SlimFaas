@@ -171,8 +171,8 @@ spec:
               value: "03200000"
             - name: DOTNET_gcServer
               value: "1"
-            - name: Logging__LogLevel__SlimFaas
-              value: "Debug"
+            #- name: Logging__LogLevel__SlimFaas
+            #  value: "Debug"
             - name: SLIMDATA_CONFIGURATION
               value: |
                   {"coldStart":"true"}
@@ -191,8 +191,8 @@ spec:
               mountPath: /database
           resources:
             limits:
-              memory: "120Mi"
-              cpu: "400m"
+              memory: "400Mi"
+              cpu: "1000m"
             requests:
               memory: "120Mi"
               cpu: "200m"

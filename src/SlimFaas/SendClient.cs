@@ -171,15 +171,15 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         return new HttpMethod(method);
     }
 
-    private static async Task<string> ComputeTargetUrlAsync(string functionUrl, string customRequestFunctionName,
+    public static async Task<string> ComputeTargetUrlAsync(string functionUrl, string customRequestFunctionName,
         string customRequestPath,
-        string customRequestQuery, string namespaceSlimFaas, Proxy? proxy = null)
+        string customRequestQuery, string namespaceSlimFaas, IProxy? proxy = null)
     {
         if (functionUrl.Contains("{pod_ip}") && proxy != null)
         {
            var ip = proxy.GetNextIP();
            var ports = proxy.GetPorts();
-           var count = 300;
+           var count = 10;
            while((ports == null || ports.Count == 0 || string.IsNullOrEmpty(ip))  && count > 0)
            {
                ip = proxy.GetNextIP();
