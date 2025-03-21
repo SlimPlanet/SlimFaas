@@ -44,16 +44,16 @@ internal class MemoryReplicas2ReplicasService : IReplicasService
             {
                 new(Replicas: 2,
                     Deployment: "fibonacci",
-                    SubscribeEvents: new List<string>() {
-                        "Public:reload",
-                        "Private:reloadprivate",
-                        "reloadnoprefix"
+                    SubscribeEvents: new List<SubscribeEvent>() {
+                        new SubscribeEvent("reload", FunctionVisibility.Public),
+                        new SubscribeEvent("reloadprivate", FunctionVisibility.Private),
+                        new SubscribeEvent("reloadnoprefix", FunctionVisibility.Public),
                     },
-                    PathsStartWithVisibility: new List<string>()
+                    PathsStartWithVisibility: new List<PathVisibility>()
                     {
-                        "Public:/compute",
-                        "Private:/private",
-                        "/noprefix",
+                        new PathVisibility("/compute", FunctionVisibility.Public),
+                        new PathVisibility("/private", FunctionVisibility.Private),
+                        new PathVisibility("/noprefix", FunctionVisibility.Public)
                     },
                     Namespace: "default",
                     Configuration: new SlimFaasConfiguration(),

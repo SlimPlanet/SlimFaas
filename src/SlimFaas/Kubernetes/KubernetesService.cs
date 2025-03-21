@@ -74,6 +74,9 @@ public enum PodType
     StatefulSet
 }
 
+public record SubscribeEvent(string Name, FunctionVisibility Visibility);
+public record PathVisibility(string Path, FunctionVisibility Visibility);
+
 
 public record ReplicaRequest(string Deployment, string Namespace, int Replicas, PodType PodType);
 
@@ -99,10 +102,9 @@ public record DeploymentInformation(string Deployment,
     PodType PodType = PodType.Deployment,
     IList<string>? DependsOn = null,
     ScheduleConfig? Schedule = null,
-    IList<string>? SubscribeEvents = null,
+    IList<SubscribeEvent>? SubscribeEvents = null,
     FunctionVisibility Visibility = FunctionVisibility.Public,
-    IList<string>? PathsStartWithVisibility = null,
-    IList<string>? ExcludeDeploymentsFromVisibilityPrivate = null,
+    IList<PathVisibility>? PathsStartWithVisibility = null,
     string ResourceVersion = "",
     bool EndpointReady = false
     );
@@ -215,7 +217,6 @@ public class KubernetesService : IKubernetesService
     private const string SubscribeEvents = "SlimFaas/SubscribeEvents";
     private const string DefaultVisibility = "SlimFaas/DefaultVisibility";
     private const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
-    private const string ExcludeDeploymentsFromVisibilityPrivate = "SlimFaas/ExcludeDeploymentsFromVisibilityPrivate";
 
     private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
         "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
@@ -356,7 +357,8 @@ public class KubernetesService : IKubernetesService
                 if (previousDeployment != null && previousDeployment.ResourceVersion ==  resourceVersion)
                 {
                     deploymentInformationList.Add(previousDeployment);
-                } else {
+                } else
+                {
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
@@ -381,16 +383,11 @@ public class KubernetesService : IKubernetesService
                             ? value.Split(',').ToList()
                             : new List<string>(),
                         scheduleConfig,
-                        annotations.TryGetValue(SubscribeEvents, out string? valueSubscribeEvents)
-                            ? valueSubscribeEvents.Split(',').ToList()
-                            : new List<string>(),
+                        GetSubscribeEvents(annotations, logger),
                         annotations.TryGetValue(DefaultVisibility, out string? visibility)
                             ? Enum.Parse<FunctionVisibility>(visibility)
                             : FunctionVisibility.Public,
-                        annotations.TryGetValue(PathsStartWithVisibility, out string? valueUrlsStartWithVisibility)
-                            ? valueUrlsStartWithVisibility.Split(',').ToList()
-                            : new List<string>(),
-                        annotations.TryGetValue(ExcludeDeploymentsFromVisibilityPrivate, out string? valueExcludeDeploymentsFromVisibilityPrivate) ? valueExcludeDeploymentsFromVisibilityPrivate.Split(',').ToList() : new List<string>(),
+                        GetPathsStartWithVisibility(annotations, name, logger),
                         resourceVersion,
                         EndpointReady: endpointReady
                     );
@@ -402,6 +399,61 @@ public class KubernetesService : IKubernetesService
                 logger.LogError(e, "Error while adding deployment {Deployment}", deploymentListItem.Metadata.Name);
             }
         }
+    }
+
+    private static IList<PathVisibility> GetPathsStartWithVisibility(
+        IDictionary<string, string> annotations,
+        string name,
+        ILogger<KubernetesService> logger)
+    {
+
+        // 1) Check if the annotation exists and is not empty
+        if (!annotations.TryGetValue(PathsStartWithVisibility, out var rawValue) || string.IsNullOrWhiteSpace(rawValue))
+        {
+            return Array.Empty<PathVisibility>();
+        }
+
+        // 2) Split by commas to get individual tokens
+        var paths = rawValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(token =>
+            {
+                // 3) Look for a possible prefix like "Public:" or "Private:"
+                var parts = token.Split(':', 2, StringSplitOptions.RemoveEmptyEntries);
+
+                // Default visibility is Public
+                FunctionVisibility visibility = FunctionVisibility.Public;
+                string path;
+
+                if (parts.Length == 2)
+                {
+                    var prefix = parts[0].Trim();
+                    path = parts[1].Trim();
+
+                    if (prefix.Equals("Private", StringComparison.OrdinalIgnoreCase))
+                    {
+                        visibility = FunctionVisibility.Private;
+                    }
+                    else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogWarning(
+                            "Unknown prefix '{prefix}' for path '{path}'. The default (Public) visibility will be used.",
+                            prefix,
+                            path
+                        );
+                    }
+                }
+                else
+                {
+                    // No prefix => use the entire token as the path, defaulting to Public
+                    path = token.Trim();
+                }
+
+                return new PathVisibility(path, visibility);
+            })
+            .ToList();
+
+        return paths;
     }
 
     private static async Task<bool> GetEndpointReady(ILogger<KubernetesService> logger, string kubeNamespace, k8s.Kubernetes client,
@@ -438,6 +490,59 @@ public class KubernetesService : IKubernetesService
         return false;
     }
 
+private static IList<SubscribeEvent> GetSubscribeEvents(
+    IDictionary<string, string> annotations,
+    ILogger<KubernetesService> logger)
+{
+
+    // 1) Vérifier si l’annotation existe et n’est pas vide
+    if (!annotations.TryGetValue(SubscribeEvents, out var rawValue) || string.IsNullOrWhiteSpace(rawValue))
+    {
+        return Array.Empty<SubscribeEvent>();
+    }
+
+    // 2) Extraire les événements
+    var events = rawValue
+        .Split(',', StringSplitOptions.RemoveEmptyEntries)
+        .Select(token =>
+        {
+            // On recherche un éventuel préfixe de type "Public:" ou "Private:"
+            var parts = token.Split(':', 2, StringSplitOptions.RemoveEmptyEntries);
+
+            // On considère par défaut la visibilité comme Public
+            FunctionVisibility visibility = FunctionVisibility.Public;
+            string eventName;
+
+            if (parts.Length == 2)
+            {
+                var prefix = parts[0].Trim();
+                eventName = parts[1].Trim();
+
+                if (prefix.Equals("Private", StringComparison.OrdinalIgnoreCase))
+                {
+                    visibility = FunctionVisibility.Private;
+                }
+                else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
+                {
+                    logger.LogWarning(
+                        "Unknown prefix '{prefix}' for event '{eventName}'. The default (Public) visibility will be used.",
+                        prefix,
+                        eventName
+                    );
+                }
+            }
+            else
+            {
+                // Pas de préfixe => eventName = token complet, visibilité par défaut Public
+                eventName = token.Trim();
+            }
+
+            return new SubscribeEvent(eventName, visibility);
+        })
+        .ToList();
+
+    return events;
+}
     private static ScheduleConfig? GetScheduleConfig(IDictionary<string, string> annotations, string name, ILogger<KubernetesService> logger)
     {
         try
@@ -534,19 +639,11 @@ public class KubernetesService : IKubernetesService
                             ? value.Split(',').ToList()
                             : new List<string>(),
                         scheduleConfig,
-                        annotations.TryGetValue(SubscribeEvents, out string? valueSubscribeEvents)
-                            ? valueSubscribeEvents.Split(',').ToList()
-                            : new List<string>(),
+                        GetSubscribeEvents(annotations,logger),
                         annotations.TryGetValue(DefaultVisibility, out string? visibility)
                             ? Enum.Parse<FunctionVisibility>(visibility)
                             : FunctionVisibility.Public,
-                        annotations.TryGetValue(PathsStartWithVisibility, out string? valueUrlsStartWithVisibility)
-                            ? valueUrlsStartWithVisibility.Split(',').ToList()
-                            : new List<string>(),
-                        annotations.TryGetValue(ExcludeDeploymentsFromVisibilityPrivate,
-                            out string? valueExcludeDeploymentsFromVisibilityPrivate)
-                            ? valueExcludeDeploymentsFromVisibilityPrivate.Split(',').ToList()
-                            : new List<string>(),
+                        GetPathsStartWithVisibility(annotations, name, logger),
                         resourceVersion,
                         EndpointReady: endpointReady);
 

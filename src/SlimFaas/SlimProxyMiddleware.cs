@@ -149,21 +149,11 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     {
         List<string> podIps;
 
-        if (currentFunction != null)
-        {
-            podIps = replicasService.Deployments.Functions.Select(p => p.Pods)
-                .SelectMany(p => p)
-                .Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false)
-                .Select(p => p.Ip)
-                .ToList();
-        }
-        else
-        {
-            podIps = replicasService.Deployments.Functions.Select(p => p.Pods)
-                .SelectMany(p => p)
-                .Select(p => p.Ip)
-                .ToList();
-        }
+        podIps = replicasService.Deployments.Functions.Select(p => p.Pods)
+            .SelectMany(p => p)
+            .Select(p => p.Ip)
+            .ToList();
+
 
         podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip));
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
@@ -265,37 +255,23 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         var result = new List<DeploymentInformation>();
         foreach (DeploymentInformation deploymentInformation in replicasService.Deployments.Functions)
         {
-            if(deploymentInformation.SubscribeEvents == null)
+            var subscribeEvent = deploymentInformation.SubscribeEvents?.FirstOrDefault(se => se.Name == eventName);
+            if (subscribeEvent == null)
             {
                 continue;
             }
-            foreach (string deploymentInformationSubscribeEvent in deploymentInformation.SubscribeEvents)
+
+            if (subscribeEvent.Visibility == FunctionVisibility.Public)
             {
-                var splitsEvents = deploymentInformationSubscribeEvent.Split(",");
-                foreach (string deploymentEvent in splitsEvents)
-                {
-                    var splitsVisibility = deploymentEvent.Split(":");
-                    if (splitsVisibility.Length == 1 && splitsVisibility[0] == eventName)
-                    {
-                        if (deploymentInformation.Visibility == FunctionVisibility.Public ||
-                            MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, deploymentInformation))
-                        {
-                            result.Add(deploymentInformation);
-                        }
-                    }
-                    else if (splitsVisibility.Length == 2 && splitsVisibility[1] == eventName)
-                    {
-                        var visibility = splitsVisibility[0];
-                        var visibilityEnum = Enum.Parse<FunctionVisibility>(visibility, true);
-                        if(visibilityEnum == FunctionVisibility.Private && MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, deploymentInformation))
-                        {
-                            result.Add(deploymentInformation);
-                        } else if(visibilityEnum == FunctionVisibility.Public)
-                        {
-                            result.Add(deploymentInformation);
-                        }
-                    }
-                }
+                result.Add(deploymentInformation);
+                continue;
+            }
+
+            bool internalMessage = MessageComeFromNamespaceInternal(logger, context, replicasService, jobService,
+                deploymentInformation);
+            if (internalMessage)
+            {
+                result.Add(deploymentInformation);
             }
         }
         return result;
@@ -310,20 +286,18 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
     private static FunctionVisibility GetFunctionVisibility(ILogger<SlimProxyMiddleware> logger, DeploymentInformation function, string path)
     {
-        if (function.PathsStartWithVisibility?.Count > 0)
+        if (!(function.PathsStartWithVisibility?.Count > 0))
         {
-            foreach (string pathStartWith in function.PathsStartWithVisibility)
-            {
-                var splits = pathStartWith.Split(":");
-                if (splits.Length == 2 && path.ToLowerInvariant().StartsWith(splits[1].ToLowerInvariant()))
-                {
-                    var visibility = splits[0];
-                    var visibilityEnum = Enum.Parse<FunctionVisibility>(visibility, true);
-                    return visibilityEnum;
-                }
+            return function.Visibility;
+        }
 
-                logger.LogWarning("PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:", pathStartWith);
+        foreach (var pathStartWith in function.PathsStartWithVisibility)
+        {
+            if (path.ToLowerInvariant().StartsWith(pathStartWith.Path))
+            {
+                return pathStartWith.Visibility;
             }
+            logger.LogWarning("PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:", pathStartWith);
         }
         return function.Visibility;
     }
