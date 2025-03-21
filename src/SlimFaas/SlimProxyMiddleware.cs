@@ -263,6 +263,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             logger.LogDebug("Deployment {DeploymentInformation} SubscribeEvent {SubscribeEvent} {SubscribeEventVisibility}", deploymentInformation.Deployment, subscribeEvent.Name, subscribeEvent.Visibility.ToString());
             if (subscribeEvent.Visibility == FunctionVisibility.Public)
             {
+                logger.LogDebug("Deployment ADDED FOR {DeploymentInformation} SubscribeEvent {SubscribeEvent} {SubscribeEventVisibility}", deploymentInformation.Deployment, subscribeEvent.Name, subscribeEvent.Visibility.ToString());
                 result.Add(deploymentInformation);
                 continue;
             }
@@ -351,8 +352,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         var queryString = context.Request.QueryString.ToUriComponent();
         foreach (DeploymentInformation function in functions)
         {
+            logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
             foreach (var pod in function.Pods)
             {
+                logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}", pod.Ready, function.EndpointReady, pod.Ip);
                 if (pod.Ready is not true || !function.EndpointReady)
                 {
                     continue;
