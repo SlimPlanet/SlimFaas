@@ -2,7 +2,7 @@
 [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas.svg?label=docker+pull+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver&label=latest+version+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 
-![SlimFaas.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png)
+![SlimFaas.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true)
 
 Why use SlimFaas?
 - Scale
@@ -23,7 +23,7 @@ Why use SlimFaas?
   - No impact on your current kubernetes manifests: just add an annotation to the pod you want to auto-scale
 - Very **Slim** and very **Fast**
 
-![slim-faas-ram-cpu.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png)
+![slim-faas-ram-cpu.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true)
 
 ## Getting Started with Kubernetes
 
@@ -96,7 +96,7 @@ docker-compose up
 
 Now, you can access your pod via SlimFaas proxy:
 
-- http://localhost:5020/function/fibonacci/hello/guillaume
+- http://slimfaas/function/fibonacci/hello/guillaume
 
 Enjoy slimfaas!!!!
 
@@ -104,7 +104,7 @@ Enjoy slimfaas!!!!
 
 [`@axa-fr/slimfaas-planet-saver readme.md`](./src/SlimFaasPlanetSaver#README.md) : A vanilla JavaScript library to start and monitor replicas from javascript frontend.
 
-![SlimFaasPlanetSaver.gif](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimfaasPlanetSaver.gif)
+![SlimFaasPlanetSaver.gif](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimfaasPlanetSaver.gif?raw=true)
 
 ## How it works
 
@@ -458,7 +458,7 @@ By default, **SlimData** use a second HTTP port 3262 to expose its API. Don't ex
 
 SlimFaas requires at least 3 nodes in production. 2 nodes are required to keep the database in a consistent state.
 
-![slimdata.PNG](https://github.com/AxaFrance/slimfaas/blob/main/documentation/slimdata.png)
+![slimdata.PNG](https://github.com/AxaFrance/slimfaas/blob/main/documentation/slimdata.png?raw=true)
 
 If you want to use just one pod for testing purpose, you can use this env variable:
 - SLIMDATA_CONFIGURATION: '{"coldStart":"true"}'
