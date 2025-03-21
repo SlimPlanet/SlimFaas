@@ -260,7 +260,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             {
                 continue;
             }
-
+            logger.LogDebug("Deployment {DeploymentInformation} SubscribeEvent {SubscribeEvent} {SubscribeEventVisibility}", deploymentInformation.Deployment, subscribeEvent.Name, subscribeEvent.Visibility.ToString());
             if (subscribeEvent.Visibility == FunctionVisibility.Public)
             {
                 result.Add(deploymentInformation);
