@@ -352,7 +352,7 @@ public class KubernetesService : IKubernetesService
                 ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
                 SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
                 var previousDeployment = previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
-                bool endpointReady = await GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
+                bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
                 var resourceVersion = $"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}";
                 if (previousDeployment != null && previousDeployment.ResourceVersion ==  resourceVersion)
                 {
@@ -456,38 +456,10 @@ public class KubernetesService : IKubernetesService
         return paths;
     }
 
-    private static async Task<bool> GetEndpointReady(ILogger<KubernetesService> logger, string kubeNamespace, k8s.Kubernetes client,
+    private static bool GetEndpointReady(ILogger<KubernetesService> logger, string kubeNamespace, k8s.Kubernetes client,
         DeploymentInformation? previousDeployment, string name, List<PodInformation> pods)
     {
-        try
-        {
-            if (pods.Count == 0)
-            {
-                return false;
-            }
-
-            if (previousDeployment is not { EndpointReady: false } || pods.Count != 1)
-            {
-                return previousDeployment is { EndpointReady: true };
-            }
-
-            var endpoints = await client.CoreV1.ReadNamespacedEndpointsAsync(name, kubeNamespace);
-            if (endpoints is not { Subsets: not null })
-            {
-                return previousDeployment is { EndpointReady: true };
-            }
-
-            var readyAddresses = endpoints.Subsets
-                .Where(s => s.Addresses != null)
-                .SelectMany(s => s.Addresses)
-                .ToList();
-            return readyAddresses.Count > 0;
-        }
-        catch (Exception e)
-        {
-            logger.LogDebug("Error while getting endpoint ready {Name} : {Exception}", name, e.ToString());
-        }
-        return false;
+        return pods.Count != 0 && pods.Any(p => p.Ports?.Count > 0);
     }
 
 private static IList<SubscribeEvent> GetSubscribeEvents(
@@ -607,7 +579,7 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
                 ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
                 SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
                 var previousDeployment = previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
-                bool endpointReady = await GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
+                bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
                 var resourceVersion = $"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}";
                 if (previousDeployment != null && previousDeployment.ResourceVersion ==  resourceVersion)
                 {
