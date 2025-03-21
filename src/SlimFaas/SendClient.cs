@@ -28,7 +28,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             string customRequestFunctionName = customRequest.FunctionName;
             string customRequestPath = customRequest.Path;
             string customRequestQuery = customRequest.Query;
-
+            logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}", customRequestFunctionName, customRequestPath ,customRequestQuery);
             httpClient.Timeout = TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout);
             return await Retry.DoRequestAsync(() =>
                     {
@@ -61,7 +61,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
     {
         try
         {
-            logger.LogDebug("Start sending sync request to {functionName}{functionPath}{functionQuery}", functionName, functionPath ,functionQuery);
+            logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}", functionName, functionPath ,functionQuery);
             httpClient.Timeout = TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout);
             HttpResponseMessage responseMessage = await  Retry.DoRequestAsync(() =>
                 {

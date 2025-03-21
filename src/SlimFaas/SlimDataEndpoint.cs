@@ -13,7 +13,6 @@ public class SlimDataEndpoint
         {
             baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_name}", podInformation.Name);
             baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_ip}", podInformation.Ip);
-            baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_port}", podInformation.Ip);
             var ports = podInformation.Ports;
             if (ports != null)
             {
