@@ -44,6 +44,7 @@ bool slimDataAllowColdStart =
 ServiceCollection serviceCollectionStarter = new();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
+serviceCollectionStarter.AddSingleton<SlimFaasPorts, SlimFaasPorts>();
 
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json")
@@ -72,7 +73,7 @@ serviceCollectionStarter.AddLogging(loggingBuilder =>
 
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
-
+var slimfaasPorts = serviceProviderStarter.GetService<SlimFaasPorts>();
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
@@ -91,6 +92,8 @@ serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
+serviceCollectionSlimFaas.AddSingleton<SlimFaasPorts>(sp =>
+    (SlimFaasPorts)serviceProviderStarter.GetService<SlimFaasPorts>()!);
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpDatabaseService>();
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>(sp =>
     serviceProviderStarter.GetService<HistoryHttpMemoryService>()!);
@@ -99,6 +102,7 @@ serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
 serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
+
 
 serviceCollectionSlimFaas.AddCors();
 
@@ -221,9 +225,6 @@ if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 }
 
 Startup startup = new(builder.Configuration);
-int[] slimFaasLitensAdditionalPorts =
-    EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasListenAdditionalPorts, EnvironmentVariables.SlimFaasListenAdditionalPortsDefault);
-
 // Node start as master if it is alone in the cluster
 string coldStart = replicasService != null && replicasService.Deployments.SlimFaas.Pods.Count == 1 ? "true" : "false";
 
@@ -266,17 +267,11 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
     serverOptions.ListenAnyIP(uri.Port);
-    var ports = replicasService?.Deployments.SlimFaas.Pods.FirstOrDefault()?.Ports;
-    if(ports == null)
+    if (slimfaasPorts == null)
     {
-        Console.WriteLine($"Slimfaas no ports found");
         return;
     }
-
-    var mergedPorts = new List<int>(ports);
-    mergedPorts.AddRange(slimFaasLitensAdditionalPorts);
-    mergedPorts = mergedPorts.Where(p => p != uri.Port).ToList();
-    foreach (int slimFaasPort in mergedPorts)
+    foreach (int slimFaasPort in slimfaasPorts.Ports)
     {
         Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
         serverOptions.ListenAnyIP(slimFaasPort, listenOptions =>
@@ -312,7 +307,12 @@ app.UseCors(builder =>
 app.UseMiddleware<SlimProxyMiddleware>();
 app.Use(async (context, next) =>
 {
-    if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasLitensAdditionalPorts))
+    if (slimfaasPorts == null)
+    {
+        await next.Invoke();
+        return;
+    }
+    if (!HostPort.IsSamePort(context.Request.Host.Port, slimfaasPorts.Ports.ToArray()))
     {
         await next.Invoke();
         return;

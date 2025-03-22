@@ -38,7 +38,7 @@ public partial class ListFunctionStatusSerializerContext : JsonSerializerContext
 }
 
 public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQueue, IWakeUpFunction wakeUpFunction,
-    ILogger<SlimProxyMiddleware> logger,
+    ILogger<SlimProxyMiddleware> logger, SlimFaasPorts slimFaasPorts ,
     int timeoutWaitWakeSyncFunctionMilliSecond =
         EnvironmentVariables.SlimProxyMiddlewareTimeoutWaitWakeSyncFunctionMilliSecondsDefault,
     string slimFaasSubscribeEventsDefault = EnvironmentVariables.SlimFaasSubscribeEventsDefault)
@@ -51,12 +51,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string PublishEvent = "/publish-event";
     private const string Job = "/job";
 
-    private readonly int[] _slimFaasLitensAdditionalPorts = EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasListenAdditionalPorts,
-        EnvironmentVariables.SlimFaasListenAdditionalPortsDefault);
-
-    private readonly int _slimDataUrlPort = int.Parse((Environment.GetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl) ??
-    EnvironmentVariables.BaseSlimDataUrlDefault).Split(":")[2]);
-
     private readonly int _timeoutMaximumWaitWakeSyncFunctionMilliSecond = EnvironmentVariables.ReadInteger(logger,
         EnvironmentVariables.TimeMaximumWaitForAtLeastOnePodStartedForSyncFunction,
         timeoutWaitWakeSyncFunctionMilliSecond);
@@ -68,19 +62,8 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     public async Task InvokeAsync(HttpContext context,
         HistoryHttpMemoryService historyHttpService, ISendClient sendClient, IReplicasService replicasService, IJobService jobService)
     {
-        var ports = replicasService.Deployments.SlimFaas.Pods.FirstOrDefault()?.Ports;
 
-        if(ports == null)
-        {
-            Console.WriteLine($"Slimfaas no ports found");
-            await next(context);
-            return;
-        }
-        var mergedPorts = new List<int>(ports);
-        mergedPorts.AddRange(_slimFaasLitensAdditionalPorts);
-        var slimfaasPort = mergedPorts.Where(p => p != _slimDataUrlPort).ToArray();
-
-        if (!HostPort.IsSamePort(context.Request.Host.Port, slimfaasPort))
+        if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts.Ports.ToArray()))
         {
             await next(context);
             return;
