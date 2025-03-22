@@ -93,7 +93,7 @@ serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasPorts, SlimFaasPorts>(sp =>
-    (SlimFaasPorts)serviceProviderStarter.GetService<SlimFaasPorts>()!);
+    (SlimFaasPorts)serviceProviderStarter.GetService<ISlimFaasPorts>()!);
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpDatabaseService>();
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>(sp =>
     serviceProviderStarter.GetService<HistoryHttpMemoryService>()!);
