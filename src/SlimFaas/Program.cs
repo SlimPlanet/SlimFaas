@@ -12,6 +12,9 @@ using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 
 #pragma warning disable CA2252
 
+var namespace_ = Namespace.GetNamespace();
+Console.WriteLine($"Starting in namespace {namespace_}");
+
 string slimDataDirectory = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimDataDirectory) ??
                            EnvironmentVariables.GetTemporaryDirectory();
 
@@ -101,9 +104,7 @@ serviceCollectionSlimFaas.AddCors();
 string publicEndPoint = string.Empty;
 string podDataDirectoryPersistantStorage = string.Empty;
 
-string namespace_ = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
-                    EnvironmentVariables.NamespaceDefault;
-Console.WriteLine($"Starting in namespace {namespace_}");
+
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? EnvironmentVariables.HostnameDefault;
