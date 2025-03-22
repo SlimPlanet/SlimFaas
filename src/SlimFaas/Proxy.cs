@@ -14,7 +14,7 @@ namespace SlimFaas
         private readonly string _functionName;
 
         // Key: Nom du déploiement, Value: Dernière IP utilisée pour ce déploiement
-        public static readonly ConcurrentDictionary<string, string> IpAddresses = new();
+        private static readonly ConcurrentDictionary<string, string> IpAddresses = new();
 
         public Proxy(IReplicasService replicasService, string functionName)
         {
