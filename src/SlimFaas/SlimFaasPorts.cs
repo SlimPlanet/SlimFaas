@@ -1,6 +1,11 @@
 ﻿namespace SlimFaas;
 
-public class SlimFaasPorts
+public interface ISlimFaasPorts
+{
+    IList<int> Ports { get; }
+}
+
+public class SlimFaasPorts : ISlimFaasPorts
 {
     public IList<int> Ports { get; }
 

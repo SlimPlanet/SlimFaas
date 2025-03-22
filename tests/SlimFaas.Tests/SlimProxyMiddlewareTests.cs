@@ -112,6 +112,14 @@ internal class SendClientMock : ISendClient
     }
 }
 
+internal class SlimFaasPortsMock : ISlimFaasPorts
+{
+    public IList<int> Ports
+    {
+        get { return new List<int> { 5000, 9002 }; }
+    }
+}
+
 public class ProxyMiddlewareTests
 {
 
@@ -146,6 +154,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, ISendClient>(sc => sendClientMock);
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -203,6 +212,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -233,6 +243,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -265,6 +276,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -300,6 +312,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -334,6 +347,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);

@@ -44,7 +44,7 @@ bool slimDataAllowColdStart =
 ServiceCollection serviceCollectionStarter = new();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
-serviceCollectionStarter.AddSingleton<SlimFaasPorts, SlimFaasPorts>();
+serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
 
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json")
@@ -92,7 +92,7 @@ serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
-serviceCollectionSlimFaas.AddSingleton<SlimFaasPorts>(sp =>
+serviceCollectionSlimFaas.AddSingleton<ISlimFaasPorts, SlimFaasPorts>(sp =>
     (SlimFaasPorts)serviceProviderStarter.GetService<SlimFaasPorts>()!);
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpDatabaseService>();
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>(sp =>
