@@ -5,10 +5,10 @@ namespace SlimFaas;
 
 public interface ISendClient
 {
-    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null);
+    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
-        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null);
+        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy? proxy = null);
 }
 
 public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISendClient
@@ -20,7 +20,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ?? EnvironmentVariables.NamespaceDefault;
 
     public async Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null)
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null)
     {
         try
         {
@@ -28,18 +28,30 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             string customRequestFunctionName = customRequest.FunctionName;
             string customRequestPath = customRequest.Path;
             string customRequestQuery = customRequest.Query;
-            string targetUrl =
-                ComputeTargetUrl(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas);
-            logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
+            logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}", customRequestFunctionName, customRequestPath ,customRequestQuery);
 
-
-            httpClient.Timeout = TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout);
+            using var localCancellationToken = new CancellationTokenSource(
+                TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout));
+            CancellationToken finalToken;
+            if (cancellationToken is not null)
+            {
+                using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(localCancellationToken.Token, cancellationToken.Token);
+                finalToken = linkedTokenSource.Token;
+            }
+            else
+            {
+                finalToken = localCancellationToken.Token;
+            }
             return await Retry.DoRequestAsync(() =>
                     {
+                        var promise =
+                            ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy);
+                        string targetUrl = promise.Result;
+                        logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
                         HttpRequestMessage targetRequestMessage = CreateTargetMessage(customRequest, new Uri(targetUrl));
                         return httpClient.SendAsync(targetRequestMessage,
                             HttpCompletionOption.ResponseHeadersRead,
-                            cancellationToken?.Token ?? CancellationToken.None);
+                            finalToken);
                     },
                     logger, slimFaasDefaultConfiguration.TimeoutRetries, slimFaasDefaultConfiguration.HttpStatusRetries)
                 .ConfigureAwait(false);
@@ -51,19 +63,30 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         }
     }
 
-    public async Task<HttpResponseMessage> SendHttpRequestSync(HttpContext context, string functionName,
-        string functionPath, string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null)
+    public async Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext,
+        string functionName,
+        string functionPath,
+        string functionQuery,
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration,
+        string? baseUrl = null,
+        Proxy? proxy = null)
     {
         try
         {
-            string targetUrl = ComputeTargetUrl(baseUrl ?? _baseFunctionUrl, functionName, functionPath, functionQuery, _namespaceSlimFaas);
-            logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
-            httpClient.Timeout = TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout);
+            logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}", functionName, functionPath ,functionQuery);
+            using var localCancellationToken = new CancellationTokenSource(
+                TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout));
+            var cancellationToken = httpContext.RequestAborted;
+            using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(localCancellationToken.Token, cancellationToken);
+            CancellationToken finalToken = linkedTokenSource.Token;
             HttpResponseMessage responseMessage = await  Retry.DoRequestAsync(() =>
                 {
-                    HttpRequestMessage targetRequestMessage = CreateTargetMessage(context, new Uri(targetUrl));
+                    var promise = ComputeTargetUrlAsync(baseUrl ?? _baseFunctionUrl, functionName, functionPath, functionQuery, _namespaceSlimFaas, proxy);
+                    string targetUrl = promise.Result;
+                    logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
+                    HttpRequestMessage targetRequestMessage = CreateTargetMessage(httpContext, new Uri(targetUrl));
                     return httpClient.SendAsync(targetRequestMessage,
-                        HttpCompletionOption.ResponseHeadersRead, context.RequestAborted);
+                        HttpCompletionOption.ResponseHeadersRead, finalToken);
                 },
                 logger, slimFaasDefaultConfiguration.TimeoutRetries, slimFaasDefaultConfiguration.HttpStatusRetries).ConfigureAwait(false);
             return responseMessage;
@@ -147,13 +170,48 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         return new HttpMethod(method);
     }
 
-    private static string ComputeTargetUrl(string functionUrl, string customRequestFunctionName,
+    public static async Task<string> ComputeTargetUrlAsync(string functionUrl, string customRequestFunctionName,
         string customRequestPath,
-        string customRequestQuery, string namespaceSlimFaas )
+        string customRequestQuery, string namespaceSlimFaas, IProxy? proxy = null)
     {
-        string url = functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas) + customRequestPath +
-                     customRequestQuery;
-        return url;
+        if (functionUrl.Contains("{pod_ip}") && proxy != null)
+        {
+           var ip = proxy.GetNextIP();
+           var ports = proxy.GetPorts();
+           var count = 10;
+           while((ports == null || ports.Count == 0 || string.IsNullOrEmpty(ip))  && count > 0)
+           {
+               ip = proxy.GetNextIP();
+               ports = proxy.GetPorts();
+               count--;
+               await Task.Delay(100);
+           }
+
+           if(ports == null || string.IsNullOrEmpty(ip) || ports.Count == 0)
+           {
+               throw new Exception("Not port or IP available");
+           }
+
+           string url = functionUrl.Replace("{pod_ip}", ip) + customRequestPath + customRequestQuery;
+           if (ports is { Count: > 0 })
+           {
+               url = url.Replace("{pod_port}", ports[0].ToString());
+               foreach (int port in ports)
+               {
+                   var index = ports.IndexOf(port);
+                   url = url.Replace($"{{pod_port_{index}}}", port.ToString());
+               }
+           }
+           else
+           {
+               Console.WriteLine("No ports available");
+           }
+
+           return url;
+        }
+
+        return functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas) + customRequestPath +
+               customRequestQuery;
     }
 
     private HttpRequestMessage CreateTargetMessage(HttpContext context, Uri targetUri)

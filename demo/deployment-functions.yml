@@ -15,7 +15,7 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "5"
-        SlimFaas/NumberParallelRequest : "1"
+        SlimFaas/NumberParallelRequest : "2"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false

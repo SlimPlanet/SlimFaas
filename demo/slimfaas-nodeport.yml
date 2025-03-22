@@ -12,3 +12,20 @@ spec:
       port: 5000
       nodePort: 30021
   externalTrafficPolicy: Local  # Preserve source IP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fibonacci1-nodeport
+  namespace: slimfaas-demo
+spec:
+  type: NodePort
+  selector:
+    app: fibonacci1
+  ports:
+    - name: "http"
+      port: 5000
+      nodePort: 30022
+  externalTrafficPolicy: Local  # Preserve source IP
+
+

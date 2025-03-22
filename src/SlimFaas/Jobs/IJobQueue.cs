@@ -1,6 +1,6 @@
 ﻿using SlimData;
 
-namespace SlimFaas;
+namespace SlimFaas.Jobs;
 
 public interface IJobQueue
 {

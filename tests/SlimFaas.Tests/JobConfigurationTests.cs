@@ -1,4 +1,6 @@
-﻿namespace SlimFaas.Tests;
+﻿using SlimFaas.Jobs;
+
+namespace SlimFaas.Tests;
 
 public class JobConfigurationTests
 {
