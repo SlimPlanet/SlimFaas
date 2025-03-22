@@ -166,7 +166,7 @@ spec:
             #- name: SLIMDATA_DIRECTORY
             #  value: "/database"
             #- name: SLIMFAAS_LISTEN_ADDITIONAL_PORTS
-            #  value: "30021"
+            #  value: "30021,6000"
             - name: Logging__LogLevel__SlimFaas
               value: "Debug"
             - name: SLIMDATA_CONFIGURATION

@@ -273,9 +273,10 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
         return;
     }
 
-    var portsAll = new List<int>(ports);
-    portsAll.AddRange(slimFaasLitensAdditionalPorts);
-    foreach (int slimFaasPort in ports.Where(p => p != uri.Port))
+    var mergedPorts = new List<int>(ports);
+    mergedPorts.AddRange(slimFaasLitensAdditionalPorts);
+    mergedPorts = mergedPorts.Where(p => p != uri.Port).ToList();
+    foreach (int slimFaasPort in mergedPorts)
     {
         Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
         serverOptions.ListenAnyIP(slimFaasPort, listenOptions =>

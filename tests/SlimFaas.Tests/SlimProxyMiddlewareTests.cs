@@ -23,8 +23,8 @@ internal class MemoryReplicasService : IReplicasService
             new List<DeploymentInformation>
             {
                 new(Replicas: 0, Deployment: "fibonacci", Namespace: "default",
-                    Pods: new List<PodInformation> { new("", true, true, "", "") }, Configuration: new SlimFaasConfiguration())
-            }, new SlimFaasDeploymentInformation(1, new List<PodInformation>()), new List<PodInformation>());
+                    Pods: new List<PodInformation> { new("", true, true, "", "", new List<int>() { 5000 }) }, Configuration: new SlimFaasConfiguration())
+            }, new SlimFaasDeploymentInformation(1, new List<PodInformation> { new("", true, true, "", "", new List<int>() { 5000 }) }), new List<PodInformation>());
 
     public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => throw new NotImplementedException();
 
@@ -63,7 +63,7 @@ internal class MemoryReplicas2ReplicasService : IReplicasService
                         new("fibonacci-3", false, false, "0", "fibonacci")
                     },
                 EndpointReady: true )
-            }, new SlimFaasDeploymentInformation(1, new List<PodInformation>()), new List<PodInformation>());
+            }, new SlimFaasDeploymentInformation(1, new List<PodInformation> { new("", true, true, "", "", new List<int>() { 5000 }) }), new List<PodInformation>());
 
     public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => throw new NotImplementedException();
 

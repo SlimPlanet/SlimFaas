@@ -24,7 +24,7 @@ public static class EnvironmentVariables
 
     public const string SlimFaasListenAdditionalPorts = "SLIMFAAS_LISTEN_ADDITIONAL_PORTS";
     public const string BaseSlimDataUrl = "BASE_SLIMDATA_URL";
-    public const string BaseSlimDataUrlDefault = "http://{pod_ip}:3262/";
+    public const string BaseSlimDataUrlDefault = "http://{pod_ip}:3262";
 
 
     public const int SlimProxyMiddlewareTimeoutWaitWakeSyncFunctionMilliSecondsDefault = 30000;
