@@ -365,8 +365,12 @@ public class KubernetesService : IKubernetesService
                 if (previousDeployment != null && previousDeployment.ResourceVersion ==  resourceVersion)
                 {
                     deploymentInformationList.Add(previousDeployment);
-                } else
+                }
+                else
                 {
+                    var funcVisibility = annotations.TryGetValue(DefaultVisibility, out string? visibility)
+                        ? Enum.Parse<FunctionVisibility>(visibility)
+                        : FunctionVisibility.Public;
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
@@ -391,10 +395,8 @@ public class KubernetesService : IKubernetesService
                             ? value.Split(',').ToList()
                             : new List<string>(),
                         scheduleConfig,
-                        GetSubscribeEvents(annotations, logger),
-                        annotations.TryGetValue(DefaultVisibility, out string? visibility)
-                            ? Enum.Parse<FunctionVisibility>(visibility)
-                            : FunctionVisibility.Public,
+                        GetSubscribeEvents(annotations, logger, funcVisibility),
+                        funcVisibility,
                         GetPathsStartWithVisibility(annotations, name, logger),
                         resourceVersion,
                         EndpointReady: endpointReady,
@@ -475,7 +477,7 @@ public class KubernetesService : IKubernetesService
 
 private static IList<SubscribeEvent> GetSubscribeEvents(
     IDictionary<string, string> annotations,
-    ILogger<KubernetesService> logger)
+    ILogger<KubernetesService> logger, FunctionVisibility defaultVisibility = FunctionVisibility.Public)
 {
 
     // 1) Vérifier si l’annotation existe et n’est pas vide
@@ -493,7 +495,7 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
             var parts = token.Split(':', 2, StringSplitOptions.RemoveEmptyEntries);
 
             // On considère par défaut la visibilité comme Public
-            FunctionVisibility visibility = FunctionVisibility.Public;
+            FunctionVisibility visibility = defaultVisibility;
             string eventName;
 
             if (parts.Length == 2)
@@ -598,6 +600,9 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
                 }
                 else
                 {
+                    var funcVisibility = annotations.TryGetValue(DefaultVisibility, out string? visibility)
+                        ? Enum.Parse<FunctionVisibility>(visibility)
+                        : FunctionVisibility.Public;
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
@@ -622,10 +627,8 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
                             ? value.Split(',').ToList()
                             : new List<string>(),
                         scheduleConfig,
-                        GetSubscribeEvents(annotations,logger),
-                        annotations.TryGetValue(DefaultVisibility, out string? visibility)
-                            ? Enum.Parse<FunctionVisibility>(visibility)
-                            : FunctionVisibility.Public,
+                        GetSubscribeEvents(annotations,logger, funcVisibility),
+                        funcVisibility,
                         GetPathsStartWithVisibility(annotations, name, logger),
                         resourceVersion,
                         EndpointReady: endpointReady,

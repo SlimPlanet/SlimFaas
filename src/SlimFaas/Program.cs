@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using DotNext.Collections.Generic;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Prometheus;
@@ -213,7 +214,6 @@ serviceCollectionSlimFaas.AddHttpClient<ISendClient, SendClient>()
 
         return httpClientHandler;
     });
-    //.AddPolicyHandler(GetRetryPolicy());
 
 if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 {
@@ -221,8 +221,8 @@ if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 }
 
 Startup startup = new(builder.Configuration);
-int[] slimFaasPorts =
-    EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasPorts, EnvironmentVariables.SlimFaasPortsDefault);
+int[] slimFaasLitensAdditionalPorts =
+    EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasListenAdditionalPorts, EnvironmentVariables.SlimFaasListenAdditionalPortsDefault);
 
 // Node start as master if it is alone in the cluster
 string coldStart = replicasService != null && replicasService.Deployments.SlimFaas.Pods.Count == 1 ? "true" : "false";
@@ -266,7 +266,16 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
     serverOptions.ListenAnyIP(uri.Port);
-    foreach (int slimFaasPort in slimFaasPorts)
+    var ports = replicasService?.Deployments.SlimFaas.Pods.FirstOrDefault()?.Ports;
+    if(ports == null)
+    {
+        Console.WriteLine($"Slimfaas no ports found");
+        return;
+    }
+
+    var portsAll = new List<int>(ports);
+    portsAll.AddRange(slimFaasLitensAdditionalPorts);
+    foreach (int slimFaasPort in ports.Where(p => p != uri.Port))
     {
         Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
         serverOptions.ListenAnyIP(slimFaasPort, listenOptions =>
@@ -302,7 +311,7 @@ app.UseCors(builder =>
 app.UseMiddleware<SlimProxyMiddleware>();
 app.Use(async (context, next) =>
 {
-    if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts))
+    if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasLitensAdditionalPorts))
     {
         await next.Invoke();
         return;

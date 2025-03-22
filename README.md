@@ -169,7 +169,7 @@ spec:
             {"TimeZoneID":"Europe/Paris","Default":{"WakeUp":["07:00"],"ScaleDownTimeout":[{"Time":"07:00","Value":3600},{"Time":"21:00","Value":60}]}}
         SlimFaas/SubscribeEvents: "Public:my-event-name1,Private:my-event-name2,my-event-name3" # comma separated list of event names
         SlimFaas/DefaultVisibility: "Public" # Public or Private (private can be accessed only by internal namespace https call from pods)
-        SlimFaas/DefaultTrusted: "Trustes" # Public or Private (private can be accessed only by internal namespace https call from pods)
+        SlimFaas/DefaultTrusted: "Trusted" # Trusted or Untrusted (message from Untrusted pods will be considered as untrusted and won't be able to access Private actions)
         SlimFaas/UrlsPathStartWithVisibility: "Private:/mypath/subPath,Private:/mysecondpath" # Public or Private (private can be accessed only by internal namespace https call from pods)
     spec:
       serviceAccountName: default
@@ -237,13 +237,13 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 8
             terminationGracePeriodSeconds: 30
-          env:
-             - name: SLIMFAAS_PORTS
-               value: "5000" # can be like "5000,6000,7000" if you want to expose more ports
-             - name: NAMESPACE
-               value: "default"
-             - name: SLIMDATA_DIRECTORY
-               value: "/database"
+          #env:
+            #- name: SLIMFAAS_PORTS
+            #  value: "5000" # can be like "5000,6000,7000" if you want to expose more ports
+            #- name: SLIMDATA_DIRECTORY
+            #   value: "/database"
+            #- name: NAMESPACE
+            #   value: "default"
             #- name: BASE_FUNCTION_URL
             #  value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
             #  value: "http://{pod_id}:{pod_port}"
@@ -263,7 +263,6 @@ spec:
             # If you are not on kubernetes for example docker-compose, you can use this env variable, but you will lose auto-scale
             #- name: MOCK_KUBERNETES_FUNCTIONS
             #  value: "{"Functions":[{"Name":"fibonacci","NumberParallelRequest":1}],"Slimfaas":[{"Name":"slimfaas-1"}]}"
-
             # Configure CORS allowed Origins, default is *, you can use a comma separated list example: http://localhost:3000,http://localhost:3001
             #- name: SLIMFAAS_CORS_ALLOW_ORIGIN
             # Optional, longer is the delay, less CPU and RAM is used

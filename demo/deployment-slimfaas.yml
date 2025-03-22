@@ -97,7 +97,7 @@ data:
     {
       "Configurations": {
         "fibonacci": {
-          "Image": "axaguildev/fibonacci-batch:0.35.13",
+          "Image": "axaguildev/fibonacci-batch:latest",
           "ImagesWhitelist": [],
           "Resources": {
             "Requests": {
@@ -144,7 +144,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.36.0-pr.1021062
+          image: axaguildev/slimfaas:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -154,25 +154,21 @@ spec:
             timeoutSeconds: 8
             terminationGracePeriodSeconds: 30
           env:
-            - name: BASE_FUNCTION_URL
+            #- name: BASE_FUNCTION_URL
               #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
-              value: "http://{pod_ip}:{pod_port}"
-            - name: BASE_FUNCTION_POD_URL # require for publish route
-              value: "http://{pod_ip}:{pod_port}"
-            - name: BASE_SLIMDATA_URL
-              value: "http://{pod_ip}:3262/"
-            - name: NAMESPACE
-              value: "slimfaas-demo"
-            - name: SLIMDATA_DIRECTORY
-              value: "/database"
-            - name: SLIMFAAS_PORTS
-              value: "5000,30021"
-            - name: DOTNET_GCHeapHardLimit
-              value: "03200000"
-            - name: DOTNET_gcServer
-              value: "1"
-            #- name: Logging__LogLevel__SlimFaas
-            #  value: "Debug"
+            #  value: "http://{pod_ip}:{pod_port}"
+            #- name: BASE_FUNCTION_POD_URL # require for publish route
+            #  value: "http://{pod_ip}:{pod_port}"
+            #- name: BASE_SLIMDATA_URL
+            #  value: "http://{pod_ip}:3262/"
+            #- name: NAMESPACE
+            #  value: "slimfaas-demo"
+            #- name: SLIMDATA_DIRECTORY
+            #  value: "/database"
+            #- name: SLIMFAAS_LISTEN_ADDITIONAL_PORTS
+            #  value: "30021"
+            - name: Logging__LogLevel__SlimFaas
+              value: "Debug"
             - name: SLIMDATA_CONFIGURATION
               value: |
                   {"coldStart":"true"}
@@ -191,11 +187,11 @@ spec:
               mountPath: /database
           resources:
             limits:
-              memory: "400Mi"
-              cpu: "1000m"
+              memory: "76Mi"
+              cpu: "400m"
             requests:
-              memory: "120Mi"
-              cpu: "200m"
+              memory: "76Mi"
+              cpu: "250m"
           ports:
             - containerPort: 5000
               name: slimfaas
