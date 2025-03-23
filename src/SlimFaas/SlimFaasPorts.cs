@@ -31,5 +31,9 @@ public class SlimFaasPorts : ISlimFaasPorts
         var mergedPorts = new List<int>(ports);
         mergedPorts.AddRange(slimFaasLitensAdditionalPorts);
         Ports = mergedPorts.Where(p => p != slimDataUrlPort).ToList();
+        foreach (int port in Ports)
+        {
+            Console.WriteLine($"SlimFaasPorts: {port}");
+        }
     }
 }

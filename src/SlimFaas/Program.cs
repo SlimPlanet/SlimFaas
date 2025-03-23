@@ -73,7 +73,7 @@ serviceCollectionStarter.AddLogging(loggingBuilder =>
 
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
-var slimfaasPorts = serviceProviderStarter.GetService<SlimFaasPorts>();
+
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
@@ -266,7 +266,7 @@ builder.Host
     .JoinCluster();
 
 Uri uri = new(publicEndPoint);
-
+var slimfaasPorts = serviceProviderStarter.GetService<SlimFaasPorts>();
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
