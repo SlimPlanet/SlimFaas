@@ -47,7 +47,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                 foreach (var endpoint in cluster.Members.Select(r => r.EndPoint.ToString()))
                 {
                     if (replicasService.Deployments.SlimFaas.Pods.ToList().Exists(slimFaasPod =>
-                            SlimDataEndpoint.Get(slimFaasPod) == endpoint))
+                            SlimFaasPorts.RemoveLastPathSegment(SlimDataEndpoint.Get(slimFaasPod)) == SlimFaasPorts.RemoveLastPathSegment(endpoint)))
                     {
                         continue;
                     }
