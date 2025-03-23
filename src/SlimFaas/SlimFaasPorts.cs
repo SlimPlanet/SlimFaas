@@ -11,8 +11,13 @@ public class SlimFaasPorts : ISlimFaasPorts
 
     public SlimFaasPorts(IReplicasService replicasService)
     {
-        int slimDataUrlPort = int.Parse((Environment.GetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl) ??
-                                        EnvironmentVariables.BaseSlimDataUrlDefault).Split(":")[2]);
+        string slimDataUrl = (Environment.GetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl) ??
+                              EnvironmentVariables.BaseSlimDataUrlDefault);
+        if(slimDataUrl.EndsWith("/"))
+        {
+            slimDataUrl = slimDataUrl.Substring(0, slimDataUrl.Length - 1);
+        }
+        int slimDataUrlPort = int.Parse(slimDataUrl.Split(":")[2]);
         var slimFaasLitensAdditionalPorts = EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasListenAdditionalPorts,
         EnvironmentVariables.SlimFaasListenAdditionalPortsDefault);
         var ports = replicasService.Deployments.SlimFaas.Pods.FirstOrDefault()?.Ports;
