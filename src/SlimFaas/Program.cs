@@ -262,15 +262,18 @@ builder.Host
     .JoinCluster();
 
 Uri uri = new(publicEndPoint);
-var slimfaasPorts = serviceProviderStarter.GetService<SlimFaasPorts>();
+
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
     serverOptions.ListenAnyIP(uri.Port);
+    var slimfaasPorts = serviceProviderStarter.GetService<SlimFaasPorts>();
     if (slimfaasPorts == null)
     {
+        Console.WriteLine("No Slimfaas ports");
         return;
     }
+    Console.WriteLine("Initilazing Slimfaas ports");
     foreach (int slimFaasPort in slimfaasPorts.Ports)
     {
         Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
@@ -307,6 +310,7 @@ app.UseCors(builder =>
 app.UseMiddleware<SlimProxyMiddleware>();
 app.Use(async (context, next) =>
 {
+    var slimfaasPorts = serviceProviderStarter.GetService<SlimFaasPorts>();
     if (slimfaasPorts == null)
     {
         await next.Invoke();
