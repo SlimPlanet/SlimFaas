@@ -6,7 +6,8 @@ using SlimFaas;
 using SlimFaas.Kubernetes;
 using System;
 using System.Linq;
-using MemoryPack; // pour vérifier éventuellement la sérialisation si besoin
+using MemoryPack;
+using SlimFaas.Jobs; // pour vérifier éventuellement la sérialisation si besoin
 
 namespace SlimFaas.Tests
 {

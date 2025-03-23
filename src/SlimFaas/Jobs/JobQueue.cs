@@ -1,6 +1,6 @@
 ﻿using SlimData;
 
-namespace SlimFaas.Database;
+namespace SlimFaas.Jobs;
 
 public class JobQueue(IDatabaseService databaseService) : IJobQueue
 {

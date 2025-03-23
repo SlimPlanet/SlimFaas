@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using MemoryPack;
 using SlimData;
 using SlimFaas.Database;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
@@ -37,7 +38,7 @@ public partial class ListFunctionStatusSerializerContext : JsonSerializerContext
 }
 
 public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQueue, IWakeUpFunction wakeUpFunction,
-    ILogger<SlimProxyMiddleware> logger,
+    ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts ,
     int timeoutWaitWakeSyncFunctionMilliSecond =
         EnvironmentVariables.SlimProxyMiddlewareTimeoutWaitWakeSyncFunctionMilliSecondsDefault,
     string slimFaasSubscribeEventsDefault = EnvironmentVariables.SlimFaasSubscribeEventsDefault)
@@ -49,9 +50,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string Function = "/function";
     private const string PublishEvent = "/publish-event";
     private const string Job = "/job";
-
-    private readonly int[] _slimFaasPorts = EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasPorts,
-        EnvironmentVariables.SlimFaasPortsDefault);
 
     private readonly int _timeoutMaximumWaitWakeSyncFunctionMilliSecond = EnvironmentVariables.ReadInteger(logger,
         EnvironmentVariables.TimeMaximumWaitForAtLeastOnePodStartedForSyncFunction,
@@ -65,7 +63,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         HistoryHttpMemoryService historyHttpService, ISendClient sendClient, IReplicasService replicasService, IJobService jobService)
     {
 
-        if (!HostPort.IsSamePort(context.Request.Host.Port, _slimFaasPorts))
+        if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts.Ports.ToArray()))
         {
             await next(context);
             return;
@@ -85,7 +83,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
 
         (string functionPath, string functionName, FunctionType functionType) = GetFunctionInfo(logger, contextRequest);
-
 
         switch (functionType)
         {
@@ -129,7 +126,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 BuildStatusResponse(replicasService, functionName, contextResponse);
                 return;
             case FunctionType.Sync:
-                await BuildSyncResponseAsync(context, historyHttpService, sendClient, replicasService, jobService, functionName,
+                await BuildSyncResponseAsync(logger, context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
                 return;
             case FunctionType.Publish:
@@ -149,14 +146,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     {
         List<string> podIps;
 
-        if (currentFunction != null)
-        {
-            podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false).Select(p => p.Ip).ToList();
-        }
-        else
-        {
-            podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Select(p => p.Ip).ToList();
-        }
+        podIps = replicasService.Deployments.Functions.Where(f => f.Trust == FunctionTrust.Trusted).Select(p => p.Pods)
+            .SelectMany(p => p)
+            .Select(p => p.Ip)
+            .ToList();
 
         podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip));
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
@@ -258,36 +251,25 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         var result = new List<DeploymentInformation>();
         foreach (DeploymentInformation deploymentInformation in replicasService.Deployments.Functions)
         {
-            if(deploymentInformation.SubscribeEvents == null)
+            var subscribeEvent = deploymentInformation.SubscribeEvents?.FirstOrDefault(se => se.Name == eventName);
+            if (subscribeEvent == null)
             {
                 continue;
             }
-            foreach (string deploymentInformationSubscribeEvent in deploymentInformation.SubscribeEvents)
+            logger.LogDebug("Deployment {DeploymentInformation} SubscribeEvent {SubscribeEvent} {SubscribeEventVisibility}", deploymentInformation.Deployment, subscribeEvent.Name, subscribeEvent.Visibility.ToString());
+            if (subscribeEvent.Visibility == FunctionVisibility.Public)
             {
-                var splits = deploymentInformationSubscribeEvent.Split(":");
-                if (splits.Length == 1 && splits[0] == eventName)
-                {
-                    if (deploymentInformation.Visibility == FunctionVisibility.Public ||
-                        MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, deploymentInformation))
-                    {
-                        result.Add(deploymentInformation);
-                    }
-                }
-                else if (splits.Length == 2 && splits[1] == eventName)
-                {
-                    var visibility = splits[0];
-                    var visibilityEnum = Enum.Parse<FunctionVisibility>(visibility, true);
-                    if(visibilityEnum == FunctionVisibility.Private && MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, deploymentInformation))
-                    {
-                        result.Add(deploymentInformation);
-                    } else if(visibilityEnum == FunctionVisibility.Public)
-                    {
-                        result.Add(deploymentInformation);
-                    }
-                }
-
+                logger.LogDebug("Deployment ADDED FOR {DeploymentInformation} SubscribeEvent {SubscribeEvent} {SubscribeEventVisibility}", deploymentInformation.Deployment, subscribeEvent.Name, subscribeEvent.Visibility.ToString());
+                result.Add(deploymentInformation);
+                continue;
             }
 
+            bool internalMessage = MessageComeFromNamespaceInternal(logger, context, replicasService, jobService,
+                deploymentInformation);
+            if (internalMessage)
+            {
+                result.Add(deploymentInformation);
+            }
         }
         return result;
     }
@@ -301,20 +283,18 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
     private static FunctionVisibility GetFunctionVisibility(ILogger<SlimProxyMiddleware> logger, DeploymentInformation function, string path)
     {
-        if (function.PathsStartWithVisibility?.Count > 0)
+        if (!(function.PathsStartWithVisibility?.Count > 0))
         {
-            foreach (string pathStartWith in function.PathsStartWithVisibility)
-            {
-                var splits = pathStartWith.Split(":");
-                if (splits.Length == 2 && path.ToLowerInvariant().StartsWith(splits[1].ToLowerInvariant()))
-                {
-                    var visibility = splits[0];
-                    var visibilityEnum = Enum.Parse<FunctionVisibility>(visibility, true);
-                    return visibilityEnum;
-                }
+            return function.Visibility;
+        }
 
-                logger.LogWarning("PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:", pathStartWith);
+        foreach (var pathStartWith in function.PathsStartWithVisibility)
+        {
+            if (path.ToLowerInvariant().StartsWith(pathStartWith.Path))
+            {
+                return pathStartWith.Visibility;
             }
+            logger.LogWarning("PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:", pathStartWith);
         }
         return function.Visibility;
     }
@@ -368,9 +348,11 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         var queryString = context.Request.QueryString.ToUriComponent();
         foreach (DeploymentInformation function in functions)
         {
+            logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
             foreach (var pod in function.Pods)
             {
-                if (pod.Ready is not true)
+                logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}", pod.Ready, function.EndpointReady, pod.Ip);
+                if (pod.Ready is not true || !function.EndpointReady)
                 {
                     continue;
                 }
@@ -439,12 +421,13 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
     }
 
-    private async Task BuildSyncResponseAsync(HttpContext context, HistoryHttpMemoryService historyHttpService,
+    private async Task BuildSyncResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, HistoryHttpMemoryService historyHttpService,
         ISendClient sendClient, IReplicasService replicasService, IJobService jobService, string functionName, string functionPath)
     {
         DeploymentInformation? function = SearchFunction(replicasService, functionName);
         if (function == null)
         {
+            logger.LogDebug("{FunctionName} not found 404", functionName);
             context.Response.StatusCode = 404;
             return;
         }
@@ -453,6 +436,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
         {
+            logger.LogDebug("{FunctionName} not found 404 because is private 404", functionName);
             context.Response.StatusCode = 404;
             return;
         }
@@ -460,7 +444,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
         Task<HttpResponseMessage> responseMessagePromise = sendClient.SendHttpRequestSync(context, functionName,
-            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync);
+            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync, null, new Proxy(replicasService, functionName));
 
         long lastSetTicks = DateTime.UtcNow.Ticks;
         historyHttpService.SetTickLastCall(functionName, lastSetTicks);
@@ -498,7 +482,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 continue;
             }
             bool? isAnyContainerStarted = function.Pods.Any(p => p.Ready.HasValue && p.Ready.Value);
-            bool isReady = isAnyContainerStarted.Value && function.EndpointReady;
+            bool isReady = isAnyContainerStarted.Value && function?.EndpointReady == true;
             if (!isReady && !context.RequestAborted.IsCancellationRequested)
             {
                 numberLoop--;
@@ -509,7 +493,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     lastSetTicks = DateTime.UtcNow.Ticks;
                     historyHttpService.SetTickLastCall(functionName, lastSetTicks);
                 }
-
                 continue;
             }
 

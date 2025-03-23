@@ -87,6 +87,39 @@ roleRef:
   name: endpoints-viewer
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slimfaas-config
+  namespace: slimfaas-demo
+data:
+  SLIMFAAS_JOBS_CONFIGURATION: |
+    {
+      "Configurations": {
+        "fibonacci": {
+          "Image": "axaguildev/fibonacci-batch:latest",
+          "ImagesWhitelist": [],
+          "Resources": {
+            "Requests": {
+              "cpu": "400m",
+              "memory": "400Mi"
+            },
+            "Limits": {
+              "cpu": "400m",
+              "memory": "400Mi"
+            }
+          },
+          "DependsOn": ["fibonacci1"],
+          "Environments": [],
+          "BackoffLimit": 1,
+          "Visibility": "Public",
+          "NumberParallelJob": 2,
+          "TtlSecondsAfterFinished": 36000,
+          "RestartPolicy": "Never"
+        }
+      }
+    }
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -111,7 +144,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.35.10-pr.811002
+          image: axaguildev/slimfaas:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -121,22 +154,19 @@ spec:
             timeoutSeconds: 8
             terminationGracePeriodSeconds: 30
           env:
-            - name: BASE_FUNCTION_URL
-              value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
-            - name: BASE_FUNCTION_POD_URL # require for publish route
-              value: "http://{pod_ip}:5000"
-            - name: BASE_SLIMDATA_URL
-              value: "http://{pod_ip}:3262/"
-            - name: NAMESPACE
-              value: "slimfaas-demo"
-            - name: SLIMDATA_DIRECTORY
-              value: "/database"
-            - name: SLIMFAAS_PORTS
-              value: "5000,30021"
-            - name: DOTNET_GCHeapHardLimit
-              value: "03200000"
-            - name: DOTNET_gcServer
-              value: "1"
+            #- name: BASE_FUNCTION_URL
+              #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
+            #  value: "http://{pod_ip}:{pod_port}"
+            #- name: BASE_FUNCTION_POD_URL # require for publish route
+            #  value: "http://{pod_ip}:{pod_port}"
+            #- name: BASE_SLIMDATA_URL
+            #  value: "http://{pod_ip}:3262/"
+            #- name: NAMESPACE
+            #  value: "slimfaas-demo"
+            #- name: SLIMDATA_DIRECTORY
+            #  value: "/database"
+            - name: SLIMFAAS_LISTEN_ADDITIONAL_PORTS
+              value: "30021"
             - name: Logging__LogLevel__SlimFaas
               value: "Debug"
             - name: SLIMDATA_CONFIGURATION
@@ -147,43 +177,21 @@ spec:
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
             #  value: "500"
-            #- name: SLIMFAAS_JOBS_CONFIGURATION
-            #  value: |
-            #    {
-            #      "Configurations": {
-            #        "fibonacci": {
-            #          "Image": "axaguildev/fibonacci-batch:0.35.10-pr.811002",
-            #          "ImagesWhitelist": [],
-            #          "Resources": {
-            #            "Requests": {
-            #              "cpu": "400m",
-            #              "memory": "400Mi"
-            #            },
-            #            "Limits": {
-            #              "cpu": "400m",
-            #              "memory": "400Mi"
-            #            }
-            #          },
-            #          "DependsOn": ["smartguide-api-data"],
-            #          "Environments": [],
-            #          "BackoffLimit": 1,
-            #          "Visibility": "Public",
-            #          "NumberParallelJob": 6,
-            #          "TtlSecondsAfterFinished": 30,
-            #          "RestartPolicy": "Never"
-            #        }
-            #      }
-            #    }
+            - name: SLIMFAAS_JOBS_CONFIGURATION
+              valueFrom:
+                configMapKeyRef:
+                  name: slimfaas-config
+                  key: SLIMFAAS_JOBS_CONFIGURATION
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database
           resources:
             limits:
-              memory: "60Mi"
+              memory: "76Mi"
               cpu: "400m"
             requests:
-              memory: "60Mi"
-              cpu: "200m"
+              memory: "76Mi"
+              cpu: "250m"
           ports:
             - containerPort: 5000
               name: slimfaas

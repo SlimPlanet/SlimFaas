@@ -1,29 +1,38 @@
 using System.Net;
 using System.Text.Json;
+using DotNext.Collections.Generic;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Prometheus;
 using SlimData;
 using SlimFaas;
 using SlimFaas.Database;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 
 #pragma warning disable CA2252
 
+var namespace_ = Namespace.GetNamespace();
+Console.WriteLine($"Starting in namespace {namespace_}");
+
 string slimDataDirectory = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimDataDirectory) ??
                            EnvironmentVariables.GetTemporaryDirectory();
 
-string slimDataConfigurationString =  Environment.GetEnvironmentVariable(EnvironmentVariables.SlimDataConfiguration) ?? "";
+string? slimDataConfigurationString =  Environment.GetEnvironmentVariable(EnvironmentVariables.SlimDataConfiguration) ?? "";
 DictionnaryString slimDataConfiguration= new();
 
 if (!string.IsNullOrEmpty(slimDataConfigurationString))
 {
-    var dictionnaryDeserialize = JsonSerializer.Deserialize(slimDataConfigurationString,
-        DictionnaryStringSerializerContext.Default.DictionnaryString);
-    if (dictionnaryDeserialize != null)
+    slimDataConfigurationString = JsonMinifier.MinifyJson(slimDataConfigurationString);
+    if (!string.IsNullOrEmpty(slimDataConfigurationString))
     {
-        slimDataConfiguration = dictionnaryDeserialize;
+        var dictionnaryDeserialize = JsonSerializer.Deserialize(slimDataConfigurationString,
+            DictionnaryStringSerializerContext.Default.DictionnaryString);
+        if (dictionnaryDeserialize != null)
+        {
+            slimDataConfiguration = dictionnaryDeserialize;
+        }
     }
 }
 
@@ -35,6 +44,7 @@ bool slimDataAllowColdStart =
 ServiceCollection serviceCollectionStarter = new();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
+serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
 
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json")
@@ -82,6 +92,8 @@ serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
+serviceCollectionSlimFaas.AddSingleton<ISlimFaasPorts, SlimFaasPorts>(sp =>
+    (SlimFaasPorts)serviceProviderStarter.GetService<ISlimFaasPorts>()!);
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpDatabaseService>();
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>(sp =>
     serviceProviderStarter.GetService<HistoryHttpMemoryService>()!);
@@ -91,14 +103,13 @@ serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 
+
 serviceCollectionSlimFaas.AddCors();
 
 string publicEndPoint = string.Empty;
 string podDataDirectoryPersistantStorage = string.Empty;
 
-string namespace_ = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
-                    EnvironmentVariables.NamespaceDefault;
-Console.WriteLine($"Starting in namespace {namespace_}");
+
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? EnvironmentVariables.HostnameDefault;
@@ -207,7 +218,6 @@ serviceCollectionSlimFaas.AddHttpClient<ISendClient, SendClient>()
 
         return httpClientHandler;
     });
-    //.AddPolicyHandler(GetRetryPolicy());
 
 if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 {
@@ -215,9 +225,6 @@ if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 }
 
 Startup startup = new(builder.Configuration);
-int[] slimFaasPorts =
-    EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasPorts, EnvironmentVariables.SlimFaasPortsDefault);
-
 // Node start as master if it is alone in the cluster
 string coldStart = replicasService != null && replicasService.Deployments.SlimFaas.Pods.Count == 1 ? "true" : "false";
 
@@ -255,12 +262,19 @@ builder.Host
     .JoinCluster();
 
 Uri uri = new(publicEndPoint);
-
+var slimfaasPorts = serviceProviderStarter.GetService<ISlimFaasPorts>();
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
     serverOptions.ListenAnyIP(uri.Port);
-    foreach (int slimFaasPort in slimFaasPorts)
+
+    if (slimfaasPorts == null)
+    {
+        Console.WriteLine("No Slimfaas ports");
+        return;
+    }
+    Console.WriteLine("Initilazing Slimfaas ports");
+    foreach (int slimFaasPort in slimfaasPorts.Ports)
     {
         Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
         serverOptions.ListenAnyIP(slimFaasPort, listenOptions =>
@@ -296,7 +310,12 @@ app.UseCors(builder =>
 app.UseMiddleware<SlimProxyMiddleware>();
 app.Use(async (context, next) =>
 {
-    if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts))
+    if (slimfaasPorts == null)
+    {
+        await next.Invoke();
+        return;
+    }
+    if (!HostPort.IsSamePort(context.Request.Host.Port, slimfaasPorts.Ports.ToArray()))
     {
         await next.Invoke();
         return;

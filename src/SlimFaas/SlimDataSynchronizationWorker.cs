@@ -5,6 +5,8 @@ using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
 
+
+
 public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRaftCluster cluster,
         ILogger<SlimDataSynchronizationWorker> logger, ISlimDataStatus slimDataStatus,
         int delay = EnvironmentVariables.ReplicasSynchronizationWorkerDelayMillisecondsDefault)
@@ -33,7 +35,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                              p.Started == true))
                 {
                     string url = SlimDataEndpoint.Get(slimFaasPod);
-                    if (cluster.Members.ToList().Exists(m => m.EndPoint.ToString() == url))
+                    if (cluster.Members.ToList().Exists(m => SlimFaasPorts.RemoveLastPathSegment(m.EndPoint.ToString()) == SlimFaasPorts.RemoveLastPathSegment(url)))
                     {
                         continue;
                     }
@@ -45,7 +47,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                 foreach (var endpoint in cluster.Members.Select(r => r.EndPoint.ToString()))
                 {
                     if (replicasService.Deployments.SlimFaas.Pods.ToList().Exists(slimFaasPod =>
-                            SlimDataEndpoint.Get(slimFaasPod) == endpoint))
+                            SlimFaasPorts.RemoveLastPathSegment(SlimDataEndpoint.Get(slimFaasPod)) == SlimFaasPorts.RemoveLastPathSegment(endpoint)))
                     {
                         continue;
                     }

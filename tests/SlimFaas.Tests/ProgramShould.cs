@@ -7,7 +7,7 @@ public class ProgramShould
     [Fact]
     public async Task TestRootEndpoint()
     {
-        Environment.SetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl, "http://localhost:3262/");
+        Environment.SetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl, "http://localhost:3262");
         Environment.SetEnvironmentVariable(EnvironmentVariables.SlimDataConfiguration, "{\"coldStart\":\"true\"}");
         Environment.SetEnvironmentVariable(EnvironmentVariables.MockKubernetesFunctions,
             "{\"Functions\":[{\"Name\":\"fibonacci1\",\"NumberParallelRequest\":1},{\"Name\":\"fibonacci2\",\"NumberParallelRequest\":1}],\"Slimfaas\":[{\"Name\":\"slimfaas-1\"}]}");

@@ -32,7 +32,7 @@ public class SendClientShould
         }));
 
         var mockLogger = new Mock<ILogger<SendClient>>();
-
+        Environment.SetEnvironmentVariable("BASE_FUNCTION_URL", "http://{function_name}:8080/");
         SendClient sendClient = new(httpClient, mockLogger.Object);
         CustomRequest customRequest =
             new CustomRequest(new List<CustomHeader> { new() { Key = "key", Values = new[] { "value1" } } },
@@ -67,6 +67,7 @@ public class SendClientShould
             sendedRequest = request;
             return await Task.FromResult(responseMessage);
         }));
+        Environment.SetEnvironmentVariable("BASE_FUNCTION_URL", "http://{function_name}:8080/");
         var mockLogger = new Mock<ILogger<SendClient>>();
         SendClient sendClient = new SendClient(httpClient, mockLogger.Object);
 
