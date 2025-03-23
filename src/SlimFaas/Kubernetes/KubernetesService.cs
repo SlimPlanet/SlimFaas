@@ -447,6 +447,10 @@ public class KubernetesService : IKubernetesService
                     {
                         visibility = FunctionVisibility.Private;
                     }
+                    if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
+                    {
+                        visibility = FunctionVisibility.Public;
+                    }
                     else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                     {
                         logger.LogWarning(
@@ -506,6 +510,10 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
                 if (prefix.Equals("Private", StringComparison.OrdinalIgnoreCase))
                 {
                     visibility = FunctionVisibility.Private;
+                }
+                if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
+                {
+                    visibility = FunctionVisibility.Public;
                 }
                 else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                 {
