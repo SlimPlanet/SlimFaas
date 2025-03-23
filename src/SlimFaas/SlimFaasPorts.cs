@@ -36,4 +36,17 @@ public class SlimFaasPorts : ISlimFaasPorts
             Console.WriteLine($"SlimFaasPorts: {port}");
         }
     }
+    public static string RemoveLastPathSegment(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return "";
+        }
+        if (url.EndsWith('/'))
+        {
+            url = url.Substring(0, url.Length - 1);
+        }
+
+        return url;
+    }
 }

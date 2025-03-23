@@ -151,10 +151,6 @@ if (replicasService?.Deployments.SlimFaas.Pods != null)
                  .Where(p => !string.IsNullOrEmpty(p.Ip) && p.Started == true).ToList())
     {
         string slimDataEndpoint = SlimDataEndpoint.Get(podInformation);
-        if(!slimDataEndpoint.EndsWith("/"))
-        {
-            slimDataEndpoint = $"{slimDataEndpoint}/";
-        }
         Console.WriteLine($"Adding node  {slimDataEndpoint}");
         Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
     }
