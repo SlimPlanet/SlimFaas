@@ -32,14 +32,13 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
         try
         {
             await Task.Delay(_delay, stoppingToken);
+
+            var jobs = await jobService.SyncJobsAsync();
+
             if (!masterService.IsMaster)
             {
                 return;
             }
-
-            var jobs = await jobService.SyncJobsAsync();
-
-
             jobs = jobs.Where(j => j.Status != JobStatus.ImagePullBackOff).ToList();
             var jobsDictionary = new Dictionary<string, List<Job>>();
             var configurations = jobConfiguration.Configuration.Configurations;
