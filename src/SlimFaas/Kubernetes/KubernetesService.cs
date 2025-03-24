@@ -18,11 +18,12 @@ public enum JobStatus
     Failed,
     ImagePullBackOff
 }
+
 public record Job(string Name, JobStatus Status, IList<string> Ips);
 
 public class ScheduleConfig
 {
-    public string TimeZoneID  { get; set; } = "GB";
+    public string TimeZoneID { get; set; } = "GB";
     public DefaultSchedule? Default { get; set; } = new();
 }
 
@@ -42,17 +43,16 @@ public record ScaleDownTimeout
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class ScheduleConfigSerializerContext : JsonSerializerContext;
 
-public record SlimFaasConfiguration {
-
+public record SlimFaasConfiguration
+{
     public SlimFaasDefaultConfiguration DefaultSync { get; init; } = new();
 
     public SlimFaasDefaultConfiguration DefaultAsync { get; init; } = new();
     public SlimFaasDefaultConfiguration DefaultPublish { get; init; } = new();
-
 }
 
-public record SlimFaasDefaultConfiguration {
-
+public record SlimFaasDefaultConfiguration
+{
     public int HttpTimeout { get; init; } = 120;
     public List<int> TimeoutRetries { get; init; } = [2, 4, 8];
     public List<int> HttpStatusRetries { get; init; } = [500, 502, 503];
@@ -81,21 +81,24 @@ public enum PodType
 }
 
 public record SubscribeEvent(string Name, FunctionVisibility Visibility);
-public record PathVisibility(string Path, FunctionVisibility Visibility);
 
+public record PathVisibility(string Path, FunctionVisibility Visibility);
 
 public record ReplicaRequest(string Deployment, string Namespace, int Replicas, PodType PodType);
 
 public record SlimFaasDeploymentInformation(int Replicas, IList<PodInformation> Pods);
 
-public record DeploymentsInformations(IList<DeploymentInformation> Functions,
-    SlimFaasDeploymentInformation SlimFaas, IEnumerable<PodInformation> Pods);
+public record DeploymentsInformations(
+    IList<DeploymentInformation> Functions,
+    SlimFaasDeploymentInformation SlimFaas,
+    IEnumerable<PodInformation> Pods);
 
 [JsonSerializable(typeof(DeploymentsInformations))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class DeploymentsInformationsSerializerContext : JsonSerializerContext;
 
-public record DeploymentInformation(string Deployment,
+public record DeploymentInformation(
+    string Deployment,
     string Namespace,
     IList<PodInformation> Pods,
     SlimFaasConfiguration Configuration,
@@ -114,26 +117,29 @@ public record DeploymentInformation(string Deployment,
     string ResourceVersion = "",
     bool EndpointReady = false,
     FunctionTrust Trust = FunctionTrust.Trusted
-    );
+);
 
-public record PodInformation(string Name, bool? Started, bool? Ready, string Ip, string DeploymentName, IList<int>? Ports = null);
+public record PodInformation(
+    string Name,
+    bool? Started,
+    bool? Ready,
+    string Ip,
+    string DeploymentName,
+    IList<int>? Ports = null);
 
 [MemoryPackable]
 public partial record CreateJob(
-
     List<string> Args,
     string Image = "",
     int BackoffLimit = 1,
-    int TtlSecondsAfterFinished= 60,
+    int TtlSecondsAfterFinished = 60,
     string RestartPolicy = "Never",
     CreateJobResources? Resources = null,
     IList<EnvVarInput>? Environments = null,
     string ConfigurationName = "Default");
 
-
 [MemoryPackable]
 public partial record SlimfaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations);
-
 
 [MemoryPackable]
 public partial record SlimfaasJob(
@@ -145,17 +151,17 @@ public partial record SlimfaasJob(
     int BackoffLimit = 1,
     string Visibility = nameof(FunctionVisibility.Private),
     int NumberParallelJob = 1,
-    int TtlSecondsAfterFinished= 60,
+    int TtlSecondsAfterFinished = 60,
     string RestartPolicy = "Never");
 
 [MemoryPackable]
 public partial record EnvVarInput(
     string Name,
     string Value,
-    SecretRef? SecretRef=null,
-    ConfigMapRef? ConfigMapRef=null,
-    FieldRef? FieldRef=null,
-    ResourceFieldRef? ResourceFieldRef=null)
+    SecretRef? SecretRef = null,
+    ConfigMapRef? ConfigMapRef = null,
+    FieldRef? FieldRef = null,
+    ResourceFieldRef? ResourceFieldRef = null)
 {
     public string Name { get; set; } = Name;
 
@@ -191,18 +197,15 @@ public partial record FieldRef(string FieldPath)
 }
 
 [MemoryPackable]
-public partial record ResourceFieldRef(string ContainerName, string Resource, string  Divisor)
+public partial record ResourceFieldRef(string ContainerName, string Resource, string Divisor)
 {
     public string ContainerName { get; set; } = ContainerName;
     public string Resource { get; set; } = Resource;
-    public string  Divisor { get; set; } = Divisor;
+    public string Divisor { get; set; } = Divisor;
 }
 
-
-
 [MemoryPackable]
-public partial record CreateJobResources(Dictionary<string,string> Requests, Dictionary<string,string> Limits);
-
+public partial record CreateJobResources(Dictionary<string, string> Requests, Dictionary<string, string> Limits);
 
 [JsonSerializable(typeof(SlimfaasJobConfiguration))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
@@ -233,8 +236,11 @@ public class KubernetesService : IKubernetesService
     private const string DefaultTrust = "SlimFaas/DefaultTrust";
 
     private const string SlimfaasDeploymentName = "slimfaas";
-    private readonly ILogger<KubernetesService> _logger;
+
+
+    public const string SlimfaasJobKey = "-slimfaas-job-";
     private readonly k8s.Kubernetes _client;
+    private readonly ILogger<KubernetesService> _logger;
 
     public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
     {
@@ -251,44 +257,52 @@ public class KubernetesService : IKubernetesService
     {
         try
         {
-            var client = _client;
+            k8s.Kubernetes client = _client;
             string patchString = $"{{\"spec\": {{\"replicas\": {request.Replicas}}}}}";
-            var httpContent = new StringContent(patchString, Encoding.UTF8, "application/merge-patch+json");
+            StringContent httpContent = new(patchString, Encoding.UTF8, "application/merge-patch+json");
             // we need to get the base uri, as it's not set on the HttpClient
             switch (request.PodType)
             {
                 case PodType.Deployment:
                     {
-                        var url = string.Concat(client.BaseUri, $"apis/apps/v1/namespaces/{request.Namespace}/deployments/{request.Deployment}/scale" );
+                        string url = string.Concat(client.BaseUri,
+                            $"apis/apps/v1/namespaces/{request.Namespace}/deployments/{request.Deployment}/scale");
                         HttpRequestMessage httpRequest = new(HttpMethod.Patch,
                             new Uri(url));
                         httpRequest.Content = httpContent;
-                        if ( client.Credentials != null )
+                        if (client.Credentials != null)
                         {
-                            await client.Credentials.ProcessHttpRequestAsync( httpRequest, CancellationToken.None );
+                            await client.Credentials.ProcessHttpRequestAsync(httpRequest, CancellationToken.None);
                         }
-                        var response = await client.HttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
-                        if(response.StatusCode != HttpStatusCode.OK)
+
+                        HttpResponseMessage response =
+                            await client.HttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
+                        if (response.StatusCode != HttpStatusCode.OK)
                         {
                             throw new HttpOperationException("Error while scaling deployment");
                         }
+
                         break;
                     }
                 case PodType.StatefulSet:
                     {
-                        var url = string.Concat(client.BaseUri, $"apis/apps/v1/namespaces/{request.Namespace}/statefulsets/{request.Deployment}/scale" );
+                        string url = string.Concat(client.BaseUri,
+                            $"apis/apps/v1/namespaces/{request.Namespace}/statefulsets/{request.Deployment}/scale");
                         HttpRequestMessage httpRequest = new(HttpMethod.Patch,
                             new Uri(url));
                         httpRequest.Content = httpContent;
-                        if ( client.Credentials != null )
+                        if (client.Credentials != null)
                         {
-                            await client.Credentials.ProcessHttpRequestAsync( httpRequest, CancellationToken.None);
+                            await client.Credentials.ProcessHttpRequestAsync(httpRequest, CancellationToken.None);
                         }
-                        var response = await client.HttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead );
-                        if(response.StatusCode != HttpStatusCode.OK)
+
+                        HttpResponseMessage response =
+                            await client.HttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
+                        if (response.StatusCode != HttpStatusCode.OK)
                         {
                             throw new HttpOperationException("Error while scaling deployment");
                         }
+
                         break;
                     }
                 default:
@@ -300,15 +314,17 @@ public class KubernetesService : IKubernetesService
             _logger.LogError(e, "Error while scaling kubernetes deployment {RequestDeployment}", request.Deployment);
             return request;
         }
+
         return request;
     }
 
 
-    public async Task<DeploymentsInformations> ListFunctionsAsync(string kubeNamespace, DeploymentsInformations previousDeployments)
+    public async Task<DeploymentsInformations> ListFunctionsAsync(string kubeNamespace,
+        DeploymentsInformations previousDeployments)
     {
         try
         {
-            var client = _client;
+            k8s.Kubernetes client = _client;
             IList<DeploymentInformation>? deploymentInformationList = new List<DeploymentInformation>();
 
             Task<V1DeploymentList>? deploymentListTask = client.ListNamespacedDeploymentAsync(kubeNamespace);
@@ -317,7 +333,7 @@ public class KubernetesService : IKubernetesService
 
             await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask);
             V1DeploymentList? deploymentList = deploymentListTask.Result;
-            IEnumerable<PodInformation> podList = MapPodInformations(podListTask.Result);
+            IEnumerable<PodInformation> podList = MapPodInformations(podListTask.Result, _logger);
             V1StatefulSetList? statefulSetList = statefulSetListTask.Result;
 
             SlimFaasDeploymentInformation? slimFaasDeploymentInformation = statefulSetList.Items
@@ -328,11 +344,14 @@ public class KubernetesService : IKubernetesService
                 .FirstOrDefault();
 
             IEnumerable<PodInformation> podInformations = podList.ToArray();
-            await AddDeployments(kubeNamespace, deploymentList, podInformations, deploymentInformationList, _logger, client, previousDeployments.Functions);
-            await AddStatefulSets(kubeNamespace, statefulSetList, podInformations, deploymentInformationList, _logger, client, previousDeployments.Functions);
+            await AddDeployments(kubeNamespace, deploymentList, podInformations, deploymentInformationList, _logger,
+                client, previousDeployments.Functions);
+            await AddStatefulSets(kubeNamespace, statefulSetList, podInformations, deploymentInformationList, _logger,
+                client, previousDeployments.Functions);
 
             return new DeploymentsInformations(deploymentInformationList,
-                slimFaasDeploymentInformation ?? new SlimFaasDeploymentInformation(1, new List<PodInformation>()), podInformations);
+                slimFaasDeploymentInformation ?? new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
+                podInformations);
         }
         catch (HttpOperationException e)
         {
@@ -341,36 +360,220 @@ public class KubernetesService : IKubernetesService
         }
     }
 
-    private static async Task AddDeployments(string kubeNamespace, V1DeploymentList deploymentList, IEnumerable<PodInformation> podList,
-        IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger, k8s.Kubernetes client , IList<DeploymentInformation> previousDeploymentInformationList)
+    public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob createJob)
+    {
+        k8s.Kubernetes client = _client;
+
+        string fullName = $"{name}{SlimfaasJobKey}{Guid.NewGuid()}";
+
+        Dictionary<string, ResourceQuantity> requests = new()
+        {
+            { "cpu", new ResourceQuantity("100m") }, { "memory", new ResourceQuantity("512Mi") }
+        };
+        CreateJobResources? createJobResources = createJob.Resources;
+        if (createJobResources?.Requests != null)
+        {
+            requests = createJobResources.Requests.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
+        }
+
+        Dictionary<string, ResourceQuantity> limits = requests;
+        if (createJobResources?.Limits != null)
+        {
+            limits = createJobResources.Limits.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
+        }
+
+        List<V1EnvVar>? envVars = createJob.Environments?.Select(e =>
+        {
+            if (e.SecretRef != null)
+            {
+                return new V1EnvVar(
+                    e.Name,
+                    valueFrom: new V1EnvVarSource
+                    {
+                        SecretKeyRef = new V1SecretKeySelector(
+                            name: e.SecretRef.Name,
+                            key: e.SecretRef.Key)
+                    }
+                );
+            }
+
+            if (e.ConfigMapRef != null)
+            {
+                return new V1EnvVar(
+                    e.Name,
+                    valueFrom: new V1EnvVarSource
+                    {
+                        ConfigMapKeyRef = new V1ConfigMapKeySelector(
+                            name: e.ConfigMapRef.Name,
+                            key: e.ConfigMapRef.Key)
+                    }
+                );
+            }
+
+            if (e.FieldRef != null)
+            {
+                return new V1EnvVar(
+                    e.Name,
+                    valueFrom: new V1EnvVarSource
+                    {
+                        FieldRef = new V1ObjectFieldSelector(
+                            e.FieldRef.FieldPath)
+                    }
+                );
+            }
+
+            if (e.ResourceFieldRef != null)
+            {
+                return new V1EnvVar(
+                    e.Name,
+                    valueFrom: new V1EnvVarSource
+                    {
+                        ResourceFieldRef = new V1ResourceFieldSelector(
+                            containerName: e.ResourceFieldRef.ContainerName,
+                            resource: e.ResourceFieldRef.Resource,
+                            divisor: new ResourceQuantity(e.ResourceFieldRef.Divisor)
+                        )
+                    }
+                );
+            }
+
+            return new V1EnvVar(e.Name, e.Value);
+        }).ToList();
+
+        V1Job job = new()
+        {
+            ApiVersion = "batch/v1",
+            Kind = "Job",
+            Metadata = new V1ObjectMeta { Name = fullName, NamespaceProperty = kubeNamespace },
+            Spec = new V1JobSpec
+            {
+                TtlSecondsAfterFinished = createJob.TtlSecondsAfterFinished,
+                Template = new V1PodTemplateSpec
+                {
+                    Metadata =
+                        new V1ObjectMeta
+                        {
+                            Labels = new Dictionary<string, string> { { "job-name", fullName } }
+                        },
+                    Spec = new V1PodSpec
+                    {
+                        Containers = new List<V1Container>
+                        {
+                            new()
+                            {
+                                Name = name,
+                                Image = createJob.Image,
+                                Args = createJob.Args,
+                                Env = envVars,
+                                Resources = new V1ResourceRequirements
+                                {
+                                    Requests = requests, Limits = limits
+                                }
+                            }
+                        },
+                        RestartPolicy = createJob.RestartPolicy
+                    }
+                },
+                BackoffLimit = createJob.BackoffLimit
+            }
+        };
+
+        V1Job? jobResponse = await client.CreateNamespacedJobAsync(job, kubeNamespace);
+
+        Console.WriteLine($"Job created with name: {jobResponse.Metadata.Name}");
+    }
+
+
+    public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
+    {
+        List<Job> jobStatus = new();
+        k8s.Kubernetes client = _client;
+        V1JobList? jobList = await client.ListNamespacedJobAsync(kubeNamespace);
+        foreach (V1Job v1Job in jobList)
+        {
+            V1PodList? pods = await _client.ListNamespacedPodAsync(
+                kubeNamespace,
+                labelSelector: $"job-name={v1Job.Metadata.Name}"
+            );
+
+            IList<string> ips = pods.Items.Where(p => p.Status.PodIP != null).Select(p => p.Status.PodIP).ToList();
+
+            JobStatus status = v1Job.Status.Active > 0 ? JobStatus.Running : JobStatus.Pending;
+            if (v1Job.Status.Succeeded is > 0)
+            {
+                status = JobStatus.Succeeded;
+            }
+            else if (v1Job.Status.Failed is > 0)
+            {
+                status = JobStatus.Failed;
+            }
+
+            // Vérifier si un des pods est en PullBackOff ou ErrImagePull
+            foreach (V1Pod? pod in pods.Items)
+            {
+                if (pod.Status.ContainerStatuses == null)
+                {
+                    continue;
+                }
+
+                foreach (V1ContainerStatus? containerStatus in pod.Status.ContainerStatuses)
+                {
+                    if (containerStatus.State.Waiting is { Reason: "ImagePullBackOff" or "ErrImagePull" })
+                    {
+                        status = JobStatus.ImagePullBackOff;
+                    }
+                }
+            }
+
+            jobStatus.Add(new Job(v1Job.Metadata.Name,
+                status,
+                ips
+            ));
+        }
+
+        return jobStatus;
+    }
+
+    public async Task DeleteJobAsync(string kubeNamespace, string name)
+    {
+        k8s.Kubernetes client = _client;
+        await client.DeleteNamespacedJobAsync(name, kubeNamespace);
+    }
+
+    private static async Task AddDeployments(string kubeNamespace, V1DeploymentList deploymentList,
+        IEnumerable<PodInformation> podList,
+        IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger,
+        k8s.Kubernetes client, IList<DeploymentInformation> previousDeploymentInformationList)
     {
         foreach (V1Deployment? deploymentListItem in deploymentList.Items)
         {
             try
             {
-                var annotations = deploymentListItem.Spec.Template?.Metadata?.Annotations;
+                IDictionary<string, string>? annotations = deploymentListItem.Spec.Template?.Metadata?.Annotations;
                 if (annotations == null || !annotations.ContainsKey(Function) ||
                     annotations[Function].ToLower() != "true")
                 {
                     continue;
                 }
 
-                var name = deploymentListItem.Metadata.Name;
-                var pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
+                string? name = deploymentListItem.Metadata.Name;
+                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
                 ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
                 SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
-                var previousDeployment = previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
+                DeploymentInformation? previousDeployment =
+                    previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
-                var resourceVersion = $"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}";
-                if (previousDeployment != null && previousDeployment.ResourceVersion ==  resourceVersion)
+                string resourceVersion = $"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}";
+                if (previousDeployment != null && previousDeployment.ResourceVersion == resourceVersion)
                 {
                     deploymentInformationList.Add(previousDeployment);
                 }
                 else
                 {
-                    var funcVisibility = annotations.TryGetValue(DefaultVisibility, out string? visibility)
-                        ? Enum.Parse<FunctionVisibility>(visibility)
-                        : FunctionVisibility.Public;
+                    FunctionVisibility funcVisibility =
+                        annotations.TryGetValue(DefaultVisibility, out string? visibility)
+                            ? Enum.Parse<FunctionVisibility>(visibility)
+                            : FunctionVisibility.Public;
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
@@ -399,8 +602,8 @@ public class KubernetesService : IKubernetesService
                         funcVisibility,
                         GetPathsStartWithVisibility(annotations, name, logger),
                         resourceVersion,
-                        EndpointReady: endpointReady,
-                        Trust: annotations.TryGetValue(DefaultTrust, out string? trust)
+                        endpointReady,
+                        annotations.TryGetValue(DefaultTrust, out string? trust)
                             ? Enum.Parse<FunctionTrust>(trust)
                             : FunctionTrust.Trusted
                     );
@@ -419,20 +622,20 @@ public class KubernetesService : IKubernetesService
         string name,
         ILogger<KubernetesService> logger)
     {
-
         // 1) Check if the annotation exists and is not empty
-        if (!annotations.TryGetValue(PathsStartWithVisibility, out var rawValue) || string.IsNullOrWhiteSpace(rawValue))
+        if (!annotations.TryGetValue(PathsStartWithVisibility, out string? rawValue) ||
+            string.IsNullOrWhiteSpace(rawValue))
         {
             return Array.Empty<PathVisibility>();
         }
 
         // 2) Split by commas to get individual tokens
-        var paths = rawValue
+        List<PathVisibility> paths = rawValue
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(token =>
             {
                 // 3) Look for a possible prefix like "Public:" or "Private:"
-                var parts = token.Split(':', 2, StringSplitOptions.RemoveEmptyEntries);
+                string[] parts = token.Split(':', 2, StringSplitOptions.RemoveEmptyEntries);
 
                 // Default visibility is Public
                 FunctionVisibility visibility = FunctionVisibility.Public;
@@ -440,13 +643,14 @@ public class KubernetesService : IKubernetesService
 
                 if (parts.Length == 2)
                 {
-                    var prefix = parts[0].Trim();
+                    string prefix = parts[0].Trim();
                     path = parts[1].Trim();
 
                     if (prefix.Equals("Private", StringComparison.OrdinalIgnoreCase))
                     {
                         visibility = FunctionVisibility.Private;
                     }
+
                     if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                     {
                         visibility = FunctionVisibility.Public;
@@ -474,69 +678,69 @@ public class KubernetesService : IKubernetesService
     }
 
     private static bool GetEndpointReady(ILogger<KubernetesService> logger, string kubeNamespace, k8s.Kubernetes client,
-        DeploymentInformation? previousDeployment, string name, List<PodInformation> pods)
+        DeploymentInformation? previousDeployment, string name, List<PodInformation> pods) =>
+        pods.Count != 0 && pods.Any(p => p.Ports?.Count > 0);
+
+    private static IList<SubscribeEvent> GetSubscribeEvents(
+        IDictionary<string, string> annotations,
+        ILogger<KubernetesService> logger, FunctionVisibility defaultVisibility = FunctionVisibility.Public)
     {
-        return pods.Count != 0 && pods.Any(p => p.Ports?.Count > 0);
-    }
-
-private static IList<SubscribeEvent> GetSubscribeEvents(
-    IDictionary<string, string> annotations,
-    ILogger<KubernetesService> logger, FunctionVisibility defaultVisibility = FunctionVisibility.Public)
-{
-
-    // 1) Vérifier si l’annotation existe et n’est pas vide
-    if (!annotations.TryGetValue(SubscribeEvents, out var rawValue) || string.IsNullOrWhiteSpace(rawValue))
-    {
-        return Array.Empty<SubscribeEvent>();
-    }
-
-    // 2) Extraire les événements
-    var events = rawValue
-        .Split(',', StringSplitOptions.RemoveEmptyEntries)
-        .Select(token =>
+        // 1) Vérifier si l’annotation existe et n’est pas vide
+        if (!annotations.TryGetValue(SubscribeEvents, out string? rawValue) || string.IsNullOrWhiteSpace(rawValue))
         {
-            // On recherche un éventuel préfixe de type "Public:" ou "Private:"
-            var parts = token.Split(':', 2, StringSplitOptions.RemoveEmptyEntries);
+            return Array.Empty<SubscribeEvent>();
+        }
 
-            // On considère par défaut la visibilité comme Public
-            FunctionVisibility visibility = defaultVisibility;
-            string eventName;
-
-            if (parts.Length == 2)
+        // 2) Extraire les événements
+        List<SubscribeEvent> events = rawValue
+            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+            .Select(token =>
             {
-                var prefix = parts[0].Trim();
-                eventName = parts[1].Trim();
+                // On recherche un éventuel préfixe de type "Public:" ou "Private:"
+                string[] parts = token.Split(':', 2, StringSplitOptions.RemoveEmptyEntries);
 
-                if (prefix.Equals("Private", StringComparison.OrdinalIgnoreCase))
-                {
-                    visibility = FunctionVisibility.Private;
-                }
-                if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
-                {
-                    visibility = FunctionVisibility.Public;
-                }
-                else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
-                {
-                    logger.LogWarning(
-                        "Unknown prefix '{prefix}' for event '{eventName}'. The default (Public) visibility will be used.",
-                        prefix,
-                        eventName
-                    );
-                }
-            }
-            else
-            {
-                // Pas de préfixe => eventName = token complet, visibilité par défaut Public
-                eventName = token.Trim();
-            }
+                // On considère par défaut la visibilité comme Public
+                FunctionVisibility visibility = defaultVisibility;
+                string eventName;
 
-            return new SubscribeEvent(eventName, visibility);
-        })
-        .ToList();
+                if (parts.Length == 2)
+                {
+                    string prefix = parts[0].Trim();
+                    eventName = parts[1].Trim();
 
-    return events;
-}
-    private static ScheduleConfig? GetScheduleConfig(IDictionary<string, string> annotations, string name, ILogger<KubernetesService> logger)
+                    if (prefix.Equals("Private", StringComparison.OrdinalIgnoreCase))
+                    {
+                        visibility = FunctionVisibility.Private;
+                    }
+
+                    if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
+                    {
+                        visibility = FunctionVisibility.Public;
+                    }
+                    else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
+                    {
+                        logger.LogWarning(
+                            "Unknown prefix '{prefix}' for event '{eventName}'. The default (Public) visibility will be used.",
+                            prefix,
+                            eventName
+                        );
+                    }
+                }
+                else
+                {
+                    // Pas de préfixe => eventName = token complet, visibilité par défaut Public
+                    eventName = token.Trim();
+                }
+
+                return new SubscribeEvent(eventName, visibility);
+            })
+            .ToList();
+
+        return events;
+    }
+
+    private static ScheduleConfig? GetScheduleConfig(IDictionary<string, string> annotations, string name,
+        ILogger<KubernetesService> logger)
     {
         try
         {
@@ -552,17 +756,19 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
         }
         catch (Exception e)
         {
-            logger.LogError( e, "name: {Name}\\n annotations[Schedule]: {Annotation}", name, annotations[Schedule]);
+            logger.LogError(e, "name: {Name}\\n annotations[Schedule]: {Annotation}", name, annotations[Schedule]);
         }
 
         return new ScheduleConfig();
     }
 
-    private static SlimFaasConfiguration GetConfiguration(IDictionary<string, string> annotations, string name, ILogger<KubernetesService> logger)
+    private static SlimFaasConfiguration GetConfiguration(IDictionary<string, string> annotations, string name,
+        ILogger<KubernetesService> logger)
     {
         try
         {
-            if (annotations.TryGetValue(Configuration, out string? annotation) && !string.IsNullOrEmpty(annotation.Trim()))
+            if (annotations.TryGetValue(Configuration, out string? annotation) &&
+                !string.IsNullOrEmpty(annotation.Trim()))
             {
                 annotation = JsonMinifier.MinifyJson(annotation);
                 if (!string.IsNullOrEmpty(annotation))
@@ -575,14 +781,17 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
         }
         catch (Exception e)
         {
-            logger.LogError( e, "name: {Name}\\n annotations[Configuration]: {Configuration}", name, annotations[Configuration]);
+            logger.LogError(e, "name: {Name}\\n annotations[Configuration]: {Configuration}", name,
+                annotations[Configuration]);
         }
 
         return new SlimFaasConfiguration();
     }
 
-    private static async Task AddStatefulSets(string kubeNamespace, V1StatefulSetList deploymentList, IEnumerable<PodInformation> podList,
-        IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger, k8s.Kubernetes client , IList<DeploymentInformation> previousDeploymentInformationList)
+    private static async Task AddStatefulSets(string kubeNamespace, V1StatefulSetList deploymentList,
+        IEnumerable<PodInformation> podList,
+        IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger,
+        k8s.Kubernetes client, IList<DeploymentInformation> previousDeploymentInformationList)
     {
         foreach (V1StatefulSet? deploymentListItem in deploymentList.Items)
         {
@@ -595,22 +804,24 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
                     continue;
                 }
 
-                var name = deploymentListItem.Metadata.Name;
-                var pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
+                string? name = deploymentListItem.Metadata.Name;
+                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
                 ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
                 SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
-                var previousDeployment = previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
+                DeploymentInformation? previousDeployment =
+                    previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
-                var resourceVersion = $"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}";
-                if (previousDeployment != null && previousDeployment.ResourceVersion ==  resourceVersion)
+                string resourceVersion = $"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}";
+                if (previousDeployment != null && previousDeployment.ResourceVersion == resourceVersion)
                 {
                     deploymentInformationList.Add(previousDeployment);
                 }
                 else
                 {
-                    var funcVisibility = annotations.TryGetValue(DefaultVisibility, out string? visibility)
-                        ? Enum.Parse<FunctionVisibility>(visibility)
-                        : FunctionVisibility.Public;
+                    FunctionVisibility funcVisibility =
+                        annotations.TryGetValue(DefaultVisibility, out string? visibility)
+                            ? Enum.Parse<FunctionVisibility>(visibility)
+                            : FunctionVisibility.Public;
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
@@ -635,12 +846,12 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
                             ? value.Split(',').ToList()
                             : new List<string>(),
                         scheduleConfig,
-                        GetSubscribeEvents(annotations,logger, funcVisibility),
+                        GetSubscribeEvents(annotations, logger, funcVisibility),
                         funcVisibility,
                         GetPathsStartWithVisibility(annotations, name, logger),
                         resourceVersion,
-                        EndpointReady: endpointReady,
-                        Trust: annotations.TryGetValue(DefaultTrust, out string? trust)
+                        endpointReady,
+                        annotations.TryGetValue(DefaultTrust, out string? trust)
                             ? Enum.Parse<FunctionTrust>(trust)
                             : FunctionTrust.Trusted);
 
@@ -654,219 +865,55 @@ private static IList<SubscribeEvent> GetSubscribeEvents(
         }
     }
 
-    private static IEnumerable<PodInformation> MapPodInformations(V1PodList v1PodList)
+    private static IEnumerable<PodInformation> MapPodInformations(V1PodList v1PodList,
+        ILogger<KubernetesService> logger)
     {
-        var result = new List<PodInformation>();
+        List<PodInformation> result = new();
+
         foreach (V1Pod? item in v1PodList.Items)
         {
-            string? podIp = item.Status.PodIP;
-            if (podIp == null || string.IsNullOrEmpty(podIp))
+            try
             {
-                continue;
-            }
-
-            V1ContainerStatus? containerStatus = item.Status.ContainerStatuses.FirstOrDefault();
-            bool started = containerStatus?.Started ?? false;
-            bool containerReady = item.Status.Conditions.FirstOrDefault(c => c.Type == "ContainersReady")?.Status == "True";
-            bool podReady = item.Status.Conditions.FirstOrDefault(c => c.Type == "Ready")?.Status == "True";
-            string? podName = item.Metadata.Name;
-            string deploymentName = item.Metadata.OwnerReferences[0].Name;
-
-            var ports = item.Spec?.Containers
-                .Where(c => c.Ports != null)
-                .SelectMany(c => c.Ports)
-                .Where(p => p.ContainerPort > 0)
-                .Select(p => p.ContainerPort)
-                .ToList() ?? new List<int>();
-
-            PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp, deploymentName, Ports: ports);
-            result.Add(podInformation);
-        }
-        return result;
-    }
-
-
-    public const string SlimfaasJobKey = "-slimfaas-job-";
-    public async Task CreateJobAsync( string kubeNamespace, string name, CreateJob createJob)
-    {
-        var client = _client;
-
-        var fullName = $"{name}{SlimfaasJobKey}{Guid.NewGuid()}";
-
-        var requests = new Dictionary<string, ResourceQuantity>
-        {
-            { "cpu", new ResourceQuantity("100m") }, { "memory", new ResourceQuantity("512Mi") }
-        };
-        CreateJobResources? createJobResources = createJob.Resources;
-        if( createJobResources?.Requests != null )
-        {
-            requests = createJobResources.Requests.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
-        }
-        var limits = requests;
-        if(createJobResources?.Limits != null)
-        {
-            limits = createJobResources.Limits.ToDictionary(r => r.Key, r => new ResourceQuantity(r.Value));
-        }
-
-        var envVars = createJob.Environments?.Select(e =>
-        {
-            if (e.SecretRef != null)
-            {
-                return new V1EnvVar(
-                    name: e.Name,
-                    valueFrom: new V1EnvVarSource
-                    {
-                        SecretKeyRef = new V1SecretKeySelector(
-                            name: e.SecretRef.Name,
-                            key: e.SecretRef.Key)
-                    }
-                );
-            }
-            else if (e.ConfigMapRef != null)
-            {
-                return new V1EnvVar(
-                    name: e.Name,
-                    valueFrom: new V1EnvVarSource
-                    {
-                        ConfigMapKeyRef = new V1ConfigMapKeySelector(
-                            name: e.ConfigMapRef.Name,
-                            key: e.ConfigMapRef.Key)
-                    }
-                );
-            }
-            else if (e.FieldRef != null)
-            {
-                return new V1EnvVar(
-                    name: e.Name,
-                    valueFrom: new V1EnvVarSource
-                    {
-                        FieldRef = new V1ObjectFieldSelector(
-                            fieldPath: e.FieldRef.FieldPath)
-                    }
-                );
-            }
-            else if (e.ResourceFieldRef != null)
-            {
-                return new V1EnvVar(
-                    name: e.Name,
-                    valueFrom: new V1EnvVarSource
-                    {
-                        ResourceFieldRef = new V1ResourceFieldSelector(
-                            containerName: e.ResourceFieldRef.ContainerName,
-                            resource: e.ResourceFieldRef.Resource,
-                            divisor: new ResourceQuantity(e.ResourceFieldRef.Divisor)
-                        )
-                    }
-                );
-            }
-            else
-            {
-                return new V1EnvVar(name: e.Name, value: e.Value);
-            }
-        }).ToList();
-
-        var job = new V1Job
-        {
-            ApiVersion = "batch/v1",
-            Kind = "Job",
-            Metadata = new V1ObjectMeta
-            {
-                Name =  fullName,
-                NamespaceProperty = kubeNamespace
-            },
-            Spec = new V1JobSpec
-            {
-                TtlSecondsAfterFinished = createJob.TtlSecondsAfterFinished,
-                Template = new V1PodTemplateSpec
-                {
-                    Metadata = new V1ObjectMeta
-                    {
-                        Labels = new Dictionary<string, string> { { "job-name", fullName } }
-                    },
-                    Spec = new V1PodSpec
-                    {
-                        Containers = new List<V1Container>
-                        {
-                            new()
-                            {
-                                Name = name,
-                                Image = createJob.Image,
-                                Args = createJob.Args,
-                                Env = envVars,
-                                Resources = new V1ResourceRequirements()
-                                {
-                                    Requests = requests,
-                                    Limits = limits
-                                }
-                            }
-                        },
-                        RestartPolicy = createJob.RestartPolicy
-                    }
-                },
-                BackoffLimit = createJob.BackoffLimit
-            }
-        };
-
-        var jobResponse = await client.CreateNamespacedJobAsync(job, kubeNamespace);
-
-        Console.WriteLine($"Job created with name: {jobResponse.Metadata.Name}");
-    }
-
-
-    public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
-    {
-        var jobStatus = new List<Job>();
-        var client = _client;
-        var jobList = await client.ListNamespacedJobAsync(kubeNamespace);
-        foreach (V1Job v1Job in jobList)
-        {
-            var pods = await _client.ListNamespacedPodAsync(
-                kubeNamespace,
-                labelSelector: $"job-name={v1Job.Metadata.Name}"
-            );
-
-            IList<string> ips = pods.Items.Where(p => p.Status.PodIP != null).Select(p => p.Status.PodIP).ToList();
-
-            JobStatus status = v1Job.Status.Active > 0 ? JobStatus.Running : JobStatus.Pending;
-            if (v1Job.Status.Succeeded is > 0)
-            {
-                status = JobStatus.Succeeded;
-            }
-            else if (v1Job.Status.Failed is > 0)
-            {
-                status = JobStatus.Failed;
-            }
-
-            // Vérifier si un des pods est en PullBackOff ou ErrImagePull
-            foreach (var pod in pods.Items)
-            {
-                if (pod.Status.ContainerStatuses == null)
+                string? podIp = item.Status?.PodIP;
+                if (podIp == null || string.IsNullOrEmpty(podIp))
                 {
                     continue;
                 }
 
-                foreach (var containerStatus in pod.Status.ContainerStatuses)
+                // Vérification de l'existence d'un OwnerReference
+                if (item.Metadata.OwnerReferences == null || item.Metadata.OwnerReferences.Count == 0)
                 {
-                    if (containerStatus.State.Waiting is { Reason: "ImagePullBackOff" or "ErrImagePull" })
-                    {
-                        status = JobStatus.ImagePullBackOff;
-                    }
+                    logger.LogWarning("No OwnerReference found for pod {PodName}", item.Metadata.Name);
+                    continue;
                 }
-            }
 
-            jobStatus.Add(new Job(v1Job.Metadata.Name,
-                status,
-                Ips: ips
-                ));
+                V1ContainerStatus? containerStatus = item.Status?.ContainerStatuses.FirstOrDefault();
+                bool started = containerStatus?.Started ?? false;
+                bool containerReady =
+                    item.Status?.Conditions.FirstOrDefault(c => c.Type == "ContainersReady")?.Status ==
+                    "True";
+                bool podReady = item.Status?.Conditions.FirstOrDefault(c => c.Type == "Ready")?.Status == "True";
+                string? podName = item.Metadata.Name;
+                string deploymentName = item.Metadata.OwnerReferences[0].Name;
+
+                List<int> ports = item.Spec?.Containers
+                    .Where(c => c.Ports != null)
+                    .SelectMany(c => c.Ports)
+                    .Where(p => p.ContainerPort > 0)
+                    .Select(p => p.ContainerPort)
+                    .ToList() ?? new List<int>();
+
+                PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp,
+                    deploymentName, ports);
+                result.Add(podInformation);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError("Error while mapping pod informations: {Error}", ex.Message);
+            }
         }
 
-        return jobStatus;
-    }
 
-    public async Task DeleteJobAsync(string kubeNamespace, string name)
-    {
-        var client = _client;
-        await client.DeleteNamespacedJobAsync(name, kubeNamespace);
+        return result;
     }
-
 }
