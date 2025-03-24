@@ -39,13 +39,8 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
 
             var jobs = await jobService.SyncJobsAsync();
 
-            var failedJobs = jobs.Where(j => j.Status == JobStatus.Succeeded).ToList();
-            foreach (var failedJob in failedJobs)
-            {
-                await jobService.DeleteJobAsync(failedJob.Name);
-            }
 
-            jobs = jobs.Where(j => j.Status == JobStatus.Pending && j.Status == JobStatus.Running).ToList();
+            jobs = jobs.Where(j => j.Status != JobStatus.ImagePullBackOff).ToList();
             var jobsDictionary = new Dictionary<string, List<Job>>();
             var configurations = jobConfiguration.Configuration.Configurations;
             foreach (var data in configurations)

@@ -163,6 +163,15 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             }
         }
 
+        if(logger.IsEnabled(LogLevel.Debug))
+        {
+            var jobips = jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip);
+            foreach (var podIp in jobips)
+            {
+                logger.LogDebug("Job PodIp: {PodIp}", podIp);
+            }
+        }
+
         if (IsInternalIp(forwardedFor, podIps) || IsInternalIp(remoteIp, podIps))
         {
             logger.LogDebug("Request come from internal namespace ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);

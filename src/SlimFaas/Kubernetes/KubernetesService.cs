@@ -880,10 +880,11 @@ public class KubernetesService : IKubernetesService
                     continue;
                 }
 
-                // Vérification de l'existence d'un OwnerReference
+
                 if (item.Metadata.OwnerReferences == null || item.Metadata.OwnerReferences.Count == 0)
                 {
-                    logger.LogWarning("No OwnerReference found for pod {PodName}", item.Metadata.Name);
+                    // c'est un job
+                    // logger.LogWarning("No OwnerReference found for pod {PodName}", item.Metadata.Name);
                     continue;
                 }
 
