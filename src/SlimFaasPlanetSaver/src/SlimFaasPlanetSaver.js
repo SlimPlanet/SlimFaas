@@ -97,8 +97,8 @@ export default class SlimFaasPlanetSaver {
 
             if (!allReady && this.isDocumentVisible && !mouseMovedRecently) {
                 this.updateOverlayMessage(this.overlayNoActivityMessage, 'waiting-action');
-            } else if (mouseMovedRecently && this.isDocumentVisible) {
-                if(!allReady) {
+            } else if (mouseMovedRecently) {
+                if(!allReady  && this.isDocumentVisible) {
                     this.updateOverlayMessage(this.overlayStartingMessage, 'waiting');
                 }
                 if(!this.lastWakeUpTime) {
