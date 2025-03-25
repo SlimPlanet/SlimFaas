@@ -39,7 +39,20 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
             {
                 return;
             }
-            jobs = jobs.Where(j => j.Status != JobStatus.ImagePullBackOff).ToList();
+            var failedJobs = jobs.Where(j => j.Status == JobStatus.Succeeded).ToList();
+            foreach (var failedJob in failedJobs)
+            {
+                try {
+                    logger.LogInformation("Delete job {JobName}", failedJob.Name);
+                    await jobService.DeleteJobAsync(failedJob.Name);
+                }
+                catch (Exception e)
+                {
+                    logger.LogError(e, "Error in SlimJobsWorker to delete job {JobName}", failedJob.Name);
+                }
+            }
+
+            jobs = jobs.Where(j => j.Status == JobStatus.Pending && j.Status == JobStatus.Running).ToList();
             var jobsDictionary = new Dictionary<string, List<Job>>();
             var configurations = jobConfiguration.Configuration.Configurations;
             foreach (var data in configurations)
@@ -49,6 +62,7 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
 
             foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey)))
             {
+                logger.LogInformation("Job {JobName} is running", job.Name);
                 var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
                 string jobConfigurationName = jobNameSplits[0];
 

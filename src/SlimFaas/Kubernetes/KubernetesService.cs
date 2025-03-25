@@ -451,10 +451,7 @@ public class KubernetesService : IKubernetesService
                 Template = new V1PodTemplateSpec
                 {
                     Metadata =
-                        new V1ObjectMeta
-                        {
-                            Labels = new Dictionary<string, string> { { "job-name", fullName } }
-                        },
+                        new V1ObjectMeta { Labels = new Dictionary<string, string> { { "job-name", fullName } } },
                     Spec = new V1PodSpec
                     {
                         Containers = new List<V1Container>
@@ -465,10 +462,7 @@ public class KubernetesService : IKubernetesService
                                 Image = createJob.Image,
                                 Args = createJob.Args,
                                 Env = envVars,
-                                Resources = new V1ResourceRequirements
-                                {
-                                    Requests = requests, Limits = limits
-                                }
+                                Resources = new V1ResourceRequirements { Requests = requests, Limits = limits }
                             }
                         },
                         RestartPolicy = createJob.RestartPolicy
@@ -486,52 +480,84 @@ public class KubernetesService : IKubernetesService
 
     public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
     {
-        List<Job> jobStatus = new();
-        k8s.Kubernetes client = _client;
-        V1JobList? jobList = await client.ListNamespacedJobAsync(kubeNamespace);
-        foreach (V1Job v1Job in jobList)
+        List<Job> result = new();
+
+        try
         {
-            V1PodList? pods = await _client.ListNamespacedPodAsync(
-                kubeNamespace,
-                labelSelector: $"job-name={v1Job.Metadata.Name}"
-            );
+            V1JobList jobList = await _client.ListNamespacedJobAsync(kubeNamespace);
 
-            IList<string> ips = pods.Items.Where(p => p.Status.PodIP != null).Select(p => p.Status.PodIP).ToList();
+            foreach (V1Job v1Job in jobList.Items)
+            {
+                V1JobStatus? jobStatus = v1Job.Status;
+                JobStatus status = JobStatus.Pending;
 
-            JobStatus status = v1Job.Status.Active > 0 ? JobStatus.Running : JobStatus.Pending;
-            if (v1Job.Status.Succeeded is > 0)
-            {
-                status = JobStatus.Succeeded;
-            }
-            else if (v1Job.Status.Failed is > 0)
-            {
-                status = JobStatus.Failed;
-            }
-
-            // Vérifier si un des pods est en PullBackOff ou ErrImagePull
-            foreach (V1Pod? pod in pods.Items)
-            {
-                if (pod.Status.ContainerStatuses == null)
+                if (jobStatus != null)
                 {
-                    continue;
-                }
-
-                foreach (V1ContainerStatus? containerStatus in pod.Status.ContainerStatuses)
-                {
-                    if (containerStatus.State.Waiting is { Reason: "ImagePullBackOff" or "ErrImagePull" })
+                    if (jobStatus.Failed.HasValue && jobStatus.Failed.Value > 0)
                     {
-                        status = JobStatus.ImagePullBackOff;
+                        status = JobStatus.Failed;
+                    }
+                    else if (jobStatus.Succeeded.HasValue && jobStatus.Succeeded.Value > 0)
+                    {
+                        status = JobStatus.Succeeded;
+                    }
+                    else if (jobStatus.Active.HasValue && jobStatus.Active.Value > 0)
+                    {
+                        status = JobStatus.Running;
                     }
                 }
-            }
 
-            jobStatus.Add(new Job(v1Job.Metadata.Name,
-                status,
-                ips
-            ));
+                string jobName = v1Job.Metadata.Name;
+                V1PodList pods = await _client.ListNamespacedPodAsync(
+                    kubeNamespace,
+                    labelSelector: $"job-name={jobName}"
+                );
+
+
+                IList<string> podIPs = pods.Items
+                    .Where(p => p.Status.PodIP != null)
+                    .Select(p => p.Status.PodIP)
+                    .ToList();
+
+                bool foundPullError = false;
+                foreach (V1Pod pod in pods.Items)
+                {
+                    if (pod.Status?.ContainerStatuses == null)
+                    {
+                        continue;
+                    }
+
+                    foreach (V1ContainerStatus containerStatus in pod.Status.ContainerStatuses)
+                    {
+                        V1ContainerStateWaiting? waitingState = containerStatus.State?.Waiting;
+                        if (waitingState?.Reason is "ImagePullBackOff" or "ErrImagePull" or "CrashLoopBackOff")
+                        {
+                            status = JobStatus.ImagePullBackOff;
+                            foundPullError = true;
+                            break;
+                        }
+                    }
+
+                    if (foundPullError)
+                    {
+                        break;
+                    }
+                }
+
+                result.Add(new Job(
+                    jobName,
+                    status,
+                    podIPs
+                ));
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error while listing jobs: {Error}", ex.Message);
+            throw;
         }
 
-        return jobStatus;
+        return result;
     }
 
     public async Task DeleteJobAsync(string kubeNamespace, string name)
