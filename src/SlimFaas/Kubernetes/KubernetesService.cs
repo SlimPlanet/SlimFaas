@@ -125,7 +125,8 @@ public record PodInformation(
     bool? Ready,
     string Ip,
     string DeploymentName,
-    IList<int>? Ports = null);
+    IList<int>? Ports = null,
+    string ResourceVersion = "");
 
 [MemoryPackable]
 public partial record CreateJob(
@@ -563,7 +564,13 @@ public class KubernetesService : IKubernetesService
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
-                string resourceVersion = $"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}";
+                StringBuilder resourceVersionBuilder = new StringBuilder($"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}");
+                foreach (PodInformation pod in pods)
+                {
+                    resourceVersionBuilder.Append($"-{pod.ResourceVersion}");
+                }
+
+                var resourceVersion = resourceVersionBuilder.ToString();
                 if (previousDeployment != null && previousDeployment.ResourceVersion == resourceVersion)
                 {
                     deploymentInformationList.Add(previousDeployment);
@@ -880,7 +887,6 @@ public class KubernetesService : IKubernetesService
                     continue;
                 }
 
-
                 if (item.Metadata.OwnerReferences == null || item.Metadata.OwnerReferences.Count == 0)
                 {
                     // c'est un job
@@ -896,7 +902,7 @@ public class KubernetesService : IKubernetesService
                 bool podReady = item.Status?.Conditions.FirstOrDefault(c => c.Type == "Ready")?.Status == "True";
                 string? podName = item.Metadata.Name;
                 string deploymentName = item.Metadata.OwnerReferences[0].Name;
-
+                var resourceVersion = item.Metadata.ResourceVersion;
                 List<int> ports = item.Spec?.Containers
                     .Where(c => c.Ports != null)
                     .SelectMany(c => c.Ports)
@@ -905,7 +911,7 @@ public class KubernetesService : IKubernetesService
                     .ToList() ?? new List<int>();
 
                 PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp,
-                    deploymentName, ports);
+                    deploymentName, ports, resourceVersion);
                 result.Add(podInformation);
             }
             catch (Exception ex)

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.36.5
+
+- [d22752a](https://github.com/SlimPlanet/SlimFaas/commit/d22752a52854227561d5a9248105bad55c168a12) - fix(slimfaas): ghost ip (#104) (release), 2025-03-27 by *Guillaume Chervet*
+
+
 ## v0.36.4
 
 - [3db6fcc](https://github.com/SlimPlanet/SlimFaas/commit/3db6fcc148e06a83d01fdff5f6365249302b03d8) - fix(ci): auto changelog url (release), 2025-03-24 by *Guillaume Chervet*
@@ -299,10 +304,5 @@
 ## v0.24.9
 
 - [4584b19](https://github.com/SlimPlanet/SlimFaas/commit/4584b19ec79ce7195282cdfeec892114c831df4e) - refactor(demo): sonar kube yml, 2024-08-28 by *Guillaume Chervet*
-
-
-## v0.24.8
-
-- [6de6ebd](https://github.com/SlimPlanet/SlimFaas/commit/6de6ebd87df558a2600e1c107dba6110e72ecc69) - chore(build): sonar exclusion, 2024-08-28 by *Guillaume Chervet*
 
 
