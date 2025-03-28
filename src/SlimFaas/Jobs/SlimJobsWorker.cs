@@ -34,7 +34,13 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
             await Task.Delay(_delay, stoppingToken);
 
             var jobs = await jobService.SyncJobsAsync();
-
+            Console.WriteLine("-------------------------------------------------------------------");
+            Console.WriteLine("Jobs count {Count}", jobs.Count);
+            foreach (Job job in jobs)
+            {
+                Console.WriteLine("Job {JobName} is {JobStatus}", job.Name, job.Status);
+            }
+            Console.WriteLine("-------------------------------------------------------------------");
             if (!masterService.IsMaster)
             {
                 return;
