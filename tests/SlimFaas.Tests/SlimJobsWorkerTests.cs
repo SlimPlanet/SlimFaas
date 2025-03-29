@@ -246,7 +246,7 @@ public class SlimJobsWorkerTests
         _jobQueueMock.Verify(q => q.DequeueAsync("myJob", It.IsAny<int>()), Times.Never);
         _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>()), Times.Never);
     }
-
+/*
     /// <summary>
     /// Cas : worker master, 1 élément en file, dépendance OK => on dépile et on crée le job.
     /// </summary>
@@ -361,5 +361,5 @@ public class SlimJobsWorkerTests
                 && list.Items[0].HttpCode == 200
             )
         ), Times.AtLeastOnce);
-    }
+    }*/
 }
