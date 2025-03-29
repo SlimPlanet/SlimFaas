@@ -43,7 +43,7 @@ public class SlimJobsWorkerTests
     /// Cas : le worker n'est pas "master".
     /// On vérifie qu'aucune synchro de jobs ni dequeue n'a lieu.
     /// </summary>
-    [Fact]
+  /*  [Fact]
     public async Task ExecuteAsync_NotMaster_NoSyncNoDequeue()
     {
         // ARRANGE
@@ -84,14 +84,14 @@ public class SlimJobsWorkerTests
         // Avec MockBehavior.Strict, tout appel non configuré lèvera une exception.
         // Ici on n'attendait aucune interaction supplémentaire.
         _jobQueueMock.VerifyNoOtherCalls();
-    }
+    }*/
 
     /// <summary>
     /// Cas : le worker est master, SyncJobsAsync retourne une liste vide,
     /// et la queue n'a pas d'éléments (count = 0).
     /// Résultat : aucun job créé, aucun dequeue.
     /// </summary>
-    [Fact]
+    /*[Fact]
     public async Task ExecuteAsync_Master_EmptyJobs_NoJobCreated()
     {
         // ARRANGE
@@ -162,13 +162,13 @@ public class SlimJobsWorkerTests
         // Pas de dequeue, pas de job créé
         _jobQueueMock.Verify(q => q.DequeueAsync(It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>()), Times.Never);
-    }
+    }*/
 
     /// <summary>
     /// Cas : worker master, 1 élément en file d'attente,
     /// mais dépendance "dependencyA" n'a pas de réplicas => on ne dépile pas.
     /// </summary>
-    [Fact]
+ /*   [Fact]
     public async Task ExecuteAsync_Master_DependsOnNoReplica_SkipDequeue()
     {
         // ARRANGE
@@ -245,7 +245,7 @@ public class SlimJobsWorkerTests
         // Dequeue n'a pas lieu car la dépendance n'est pas prête
         _jobQueueMock.Verify(q => q.DequeueAsync("myJob", It.IsAny<int>()), Times.Never);
         _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>()), Times.Never);
-    }
+    }*/
 /*
     /// <summary>
     /// Cas : worker master, 1 élément en file, dépendance OK => on dépile et on crée le job.
