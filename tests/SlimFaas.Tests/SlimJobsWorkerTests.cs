@@ -289,7 +289,7 @@ public class SlimJobsWorkerTests
         var deployments = new DeploymentsInformations(
             Functions: new List<DeploymentInformation>
             {
-                new DeploymentInformation(
+                new(
                     Deployment: "dependencyA",
                     Namespace: "default",
                     Pods: new List<PodInformation>(),
