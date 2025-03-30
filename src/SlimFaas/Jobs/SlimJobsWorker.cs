@@ -35,10 +35,10 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
 
             var jobs = await jobService.SyncJobsAsync();
             Console.WriteLine("-------------------------------------------------------------------");
-            Console.WriteLine("Jobs count {Count}", jobs.Count);
+            Console.WriteLine($"Jobs count {jobs.Count}");
             foreach (Job job in jobs)
             {
-                Console.WriteLine("Job {JobName} is {JobStatus}", job.Name, job.Status);
+                Console.WriteLine($"Job {job.Name} is {job.Status.ToString()}");
             }
             Console.WriteLine("-------------------------------------------------------------------");
             if (!masterService.IsMaster)
