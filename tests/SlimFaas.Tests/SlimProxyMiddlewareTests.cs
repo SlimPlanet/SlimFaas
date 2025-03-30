@@ -12,6 +12,7 @@ using SlimFaas.Kubernetes;
 using MemoryPack;
 using SlimData;
 using SlimFaas.Database;
+using SlimFaas.Jobs;
 
 namespace SlimFaas.Tests;
 
@@ -22,8 +23,8 @@ internal class MemoryReplicasService : IReplicasService
             new List<DeploymentInformation>
             {
                 new(Replicas: 0, Deployment: "fibonacci", Namespace: "default",
-                    Pods: new List<PodInformation> { new("", true, true, "", "") }, Configuration: new SlimFaasConfiguration())
-            }, new SlimFaasDeploymentInformation(1, new List<PodInformation>()), new List<PodInformation>());
+                    Pods: new List<PodInformation> { new("", true, true, "", "", new List<int>() { 5000 }) }, Configuration: new SlimFaasConfiguration())
+            }, new SlimFaasDeploymentInformation(1, new List<PodInformation> { new("", true, true, "", "", new List<int>() { 5000 }) }), new List<PodInformation>());
 
     public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => throw new NotImplementedException();
 
@@ -43,25 +44,26 @@ internal class MemoryReplicas2ReplicasService : IReplicasService
             {
                 new(Replicas: 2,
                     Deployment: "fibonacci",
-                    SubscribeEvents: new List<string>() {
-                        "Public:reload",
-                        "Private:reloadprivate",
-                        "reloadnoprefix"
+                    SubscribeEvents: new List<SubscribeEvent>() {
+                        new SubscribeEvent("reload", FunctionVisibility.Public),
+                        new SubscribeEvent("reloadprivate", FunctionVisibility.Private),
+                        new SubscribeEvent("reloadnoprefix", FunctionVisibility.Public),
                     },
-                    PathsStartWithVisibility: new List<string>()
+                    PathsStartWithVisibility: new List<PathVisibility>()
                     {
-                        "Public:/compute",
-                        "Private:/private",
-                        "/noprefix",
+                        new PathVisibility("/compute", FunctionVisibility.Public),
+                        new PathVisibility("/private", FunctionVisibility.Private),
+                        new PathVisibility("/noprefix", FunctionVisibility.Public)
                     },
                     Namespace: "default",
                     Configuration: new SlimFaasConfiguration(),
                     Pods: new List<PodInformation> {
-                        new("fibonacci-1", true, true, "0", "fibonacci"),
-                        new("fibonacci-2", true, true, "0", "fibonacci"),
+                        new("fibonacci-1", true, true, "0", "fibonacci", new List<int>() { 8080 }),
+                        new("fibonacci-2", true, true, "0", "fibonacci", new List<int>() { 8080 }),
                         new("fibonacci-3", false, false, "0", "fibonacci")
-                    })
-            }, new SlimFaasDeploymentInformation(1, new List<PodInformation>()), new List<PodInformation>());
+                    },
+                EndpointReady: true )
+            }, new SlimFaasDeploymentInformation(1, new List<PodInformation> { new("", true, true, "", "", new List<int>() { 5000 }) }), new List<PodInformation>());
 
     public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => throw new NotImplementedException();
 
@@ -90,7 +92,7 @@ internal record SendData(string FunctionName, string Path, string BaseUrl);
 internal class SendClientMock : ISendClient
 {
     public IList<SendData> SendDatas = new List<SendData>();
-    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null)
+    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy proxy=null)
     {
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         responseMessage.StatusCode = HttpStatusCode.OK;
@@ -100,13 +102,21 @@ internal class SendClientMock : ISendClient
     }
 
     public Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName,
-        string functionPath, string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null)
+        string functionPath, string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy proxy = null)
     {
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         responseMessage.StatusCode = HttpStatusCode.OK;
         Task.Delay(100).Wait();
         SendDatas.Add(new(functionName, functionPath, baseUrl));
         return Task.FromResult(responseMessage);
+    }
+}
+
+internal class SlimFaasPortsMock : ISlimFaasPorts
+{
+    public IList<int> Ports
+    {
+        get { return new List<int> { 5000, 9002 }; }
     }
 }
 
@@ -131,10 +141,9 @@ public class ProxyMiddlewareTests
             .Setup(k => k.SyncJobsAsync())
             .ReturnsAsync(new List<Job>());
         jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
-
-        System.Environment.SetEnvironmentVariable(EnvironmentVariables.SlimFaasSubscribeEvents,
+        Environment.SetEnvironmentVariable(EnvironmentVariables.BaseFunctionPodUrl, "http://{pod_name}.{function_name}:8080/");
+        Environment.SetEnvironmentVariable(EnvironmentVariables.SlimFaasSubscribeEvents,
             "reload=>http://localhost:5002,toto=>http://localhost:5002");
-
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
             {
@@ -145,6 +154,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, ISendClient>(sc => sendClientMock);
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -183,7 +193,7 @@ public class ProxyMiddlewareTests
         responseMessage.StatusCode = HttpStatusCode.OK;
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
         sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(),
-                It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>()))
+                It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>()))
             .ReturnsAsync(responseMessage);
 
         Mock<IJobService> jobServiceMock = new();
@@ -202,6 +212,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -232,6 +243,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -264,6 +276,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -299,6 +312,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
@@ -333,6 +347,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
                         services.AddSingleton<ISendClient, SendClientMock>();
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);

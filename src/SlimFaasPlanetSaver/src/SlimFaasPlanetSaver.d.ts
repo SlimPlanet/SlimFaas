@@ -10,6 +10,7 @@
     private overlayErrorSecondaryMessage: string;
     private overlayLoadingIcon: string;
     private noActivityTimeout: number;
+    private wakeUpTimeout: number;
     private fetch: typeof fetch;
     private intervalId: number | null;
     private isDocumentVisible: boolean;
@@ -35,6 +36,7 @@
     overlayLoadingIcon?: string,
     fetch?: typeof fetch
     noActivityTimeout?: number
+    wakeUpTimeout?: number
 });
 
 initialize(): void;

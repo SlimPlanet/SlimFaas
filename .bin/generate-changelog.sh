@@ -2,7 +2,7 @@
 
 num_tags=60
 excluded_author="GitHub"
-project_url="https://github.com/AxaFrance/oidc-client/commit"
+project_url="https://github.com/SlimPlanet/SlimFaas/commit"
 
 # Get all tag names in reverse order
 tags=(`git tag -l --sort=-creatordate | head -$num_tags`)
@@ -24,7 +24,7 @@ previous=${tags[$i+1]}
 
 # Write header for current tag
 echo "## $current" >> $outfile
-echo "## $current" 
+echo "## $current"
 echo "" >> $outfile
 
 # Get commit hashes: between current and previous tag

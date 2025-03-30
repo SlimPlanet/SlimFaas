@@ -27,7 +27,7 @@ public class HistorySynchronizationWorker(IReplicasService replicasService,
                 {
                     long ticksInDatabase = await historyHttpDatabaseService.GetTicksLastCallAsync(function.Deployment);
                     long ticksMemory = historyHttpMemoryService.GetTicksLastCall(function.Deployment);
-
+                    bool isDatabaseTicksUpdated = false;
                     var nowTicks = DateTime.UtcNow.Ticks;
                     if (ticksInDatabase > nowTicks)
                     {
@@ -35,6 +35,7 @@ public class HistorySynchronizationWorker(IReplicasService replicasService,
                             "HistorySynchronizationWorker: ticksInDatabase is superior to now ticks {TimeSpan} for {Function}",
                             TimeSpan.FromTicks(ticksInDatabase - nowTicks), function.Deployment);
                         ticksInDatabase = nowTicks;
+                        isDatabaseTicksUpdated = true;
                     }
                     if (ticksMemory > nowTicks)
                     {
@@ -44,7 +45,7 @@ public class HistorySynchronizationWorker(IReplicasService replicasService,
                         ticksMemory = nowTicks;
                     }
 
-                    if (ticksInDatabase > ticksMemory)
+                    if (ticksInDatabase > ticksMemory || isDatabaseTicksUpdated)
                     {
                         logger.LogDebug("HistorySynchronizationWorker: Synchronizing history for {Function} to {Ticks} from Database", function.Deployment, ticksInDatabase);
                         historyHttpMemoryService.SetTickLastCall(function.Deployment, ticksInDatabase);

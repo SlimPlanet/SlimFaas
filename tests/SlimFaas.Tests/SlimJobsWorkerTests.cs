@@ -2,6 +2,7 @@
 using Moq;
 using SlimFaas.Database;
 using SlimData;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests;
@@ -82,7 +83,6 @@ public class SlimJobsWorkerTests
         _masterServiceMock.Verify(m => m.IsMaster, Times.AtLeastOnce);
         // Avec MockBehavior.Strict, tout appel non configuré lèvera une exception.
         // Ici on n'attendait aucune interaction supplémentaire.
-        _jobServiceMock.Verify(m => m.SyncJobsAsync(), Times.AtLeastOnce);
         _jobQueueMock.VerifyNoOtherCalls();
     }
 

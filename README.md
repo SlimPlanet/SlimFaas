@@ -2,7 +2,7 @@
 [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas.svg?label=docker+pull+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver&label=latest+version+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 
-![SlimFaas.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png)
+![SlimFaas.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true)
 
 Why use SlimFaas?
 - Scale
@@ -23,7 +23,7 @@ Why use SlimFaas?
   - No impact on your current kubernetes manifests: just add an annotation to the pod you want to auto-scale
 - Very **Slim** and very **Fast**
 
-![slim-faas-ram-cpu.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png)
+![slim-faas-ram-cpu.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true)
 
 ## Getting Started with Kubernetes
 
@@ -46,7 +46,6 @@ kubectl apply -f deployment-functions.yml
 kubectl apply -f deployment-mysql.yml
 # to run Single Page webapp demo (optional) on http://localhost:8000
 docker run -d -p 8000:8000 --rm axaguildev/fibonacci-webapp:latest
-kubectl port-forward svc/slimfaas-nodeport 30021:5000 -n slimfaas-demo
 ```
 
 Now, you can access your pod via SlimFaas proxy:
@@ -97,7 +96,7 @@ docker-compose up
 
 Now, you can access your pod via SlimFaas proxy:
 
-- http://localhost:5020/function/fibonacci/hello/guillaume
+- http://slimfaas/function/fibonacci/hello/guillaume
 
 Enjoy slimfaas!!!!
 
@@ -105,7 +104,7 @@ Enjoy slimfaas!!!!
 
 [`@axa-fr/slimfaas-planet-saver readme.md`](./src/SlimFaasPlanetSaver#README.md) : A vanilla JavaScript library to start and monitor replicas from javascript frontend.
 
-![SlimFaasPlanetSaver.gif](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimfaasPlanetSaver.gif)
+![SlimFaasPlanetSaver.gif](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimfaasPlanetSaver.gif?raw=true)
 
 ## How it works
 
@@ -170,6 +169,7 @@ spec:
             {"TimeZoneID":"Europe/Paris","Default":{"WakeUp":["07:00"],"ScaleDownTimeout":[{"Time":"07:00","Value":3600},{"Time":"21:00","Value":60}]}}
         SlimFaas/SubscribeEvents: "Public:my-event-name1,Private:my-event-name2,my-event-name3" # comma separated list of event names
         SlimFaas/DefaultVisibility: "Public" # Public or Private (private can be accessed only by internal namespace https call from pods)
+        SlimFaas/DefaultTrusted: "Trusted" # Trusted or Untrusted (message from Untrusted pods will be considered as untrusted and won't be able to access Private actions)
         SlimFaas/UrlsPathStartWithVisibility: "Private:/mypath/subPath,Private:/mysecondpath" # Public or Private (private can be accessed only by internal namespace https call from pods)
     spec:
       serviceAccountName: default
@@ -237,19 +237,20 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 8
             terminationGracePeriodSeconds: 30
-          env:
-            - name: BASE_FUNCTION_URL
-              value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
-            - name: BASE_FUNCTION_POD_URL # require for publish route
-              value: "http://{pod_ip}:5000"
-            - name: BASE_SLIMDATA_URL
-              value: "http://{pod_name}.slimfaas.{namespace}.svc.cluster.local:3262/"  # Don't expose this port, it can also be like "http://{pod_ip}:3262/" but if you can use DNS it's better
-            - name: SLIMFAAS_PORTS
-              value: "5000" # can be like "5000,6000,7000" if you want to expose more ports
-            - name: NAMESPACE
-              value: "default"
-            - name: SLIMDATA_DIRECTORY
-              value: "/database"
+          #env:
+            #- name: SLIMFAAS_PORTS
+            #  value: "5000" # can be like "5000,6000,7000" if you want to expose more ports
+            #- name: SLIMDATA_DIRECTORY
+            #   value: "/database"
+            #- name: NAMESPACE
+            #   value: "default"
+            #- name: BASE_FUNCTION_URL
+            #  value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
+            #  value: "http://{pod_id}:{pod_port}"
+            #- name: BASE_FUNCTION_POD_URL # require for publish route
+            #  value: "http://{pod_ip}:{pod_port}"
+            #- name: BASE_SLIMDATA_URL
+            #  value: "http://{pod_name}.slimfaas.{namespace}.svc.cluster.local:3262/"  # Don't expose this port, it can also be like "http://{pod_ip}:3262/" but if you can use DNS it's better
             # If you want to send event to an url which is not a SlimFaas function, you can use this env variable
             # use comma to separate event name and url, use => to separate event name and destination url.
             # urls are separated by ;
@@ -262,8 +263,7 @@ spec:
             # If you are not on kubernetes for example docker-compose, you can use this env variable, but you will lose auto-scale
             #- name: MOCK_KUBERNETES_FUNCTIONS
             #  value: "{"Functions":[{"Name":"fibonacci","NumberParallelRequest":1}],"Slimfaas":[{"Name":"slimfaas-1"}]}"
-
-             # Configure CORS allowed Origins, default is *, you can use a comma separated list example: http://localhost:3000,http://localhost:3001
+            # Configure CORS allowed Origins, default is *, you can use a comma separated list example: http://localhost:3000,http://localhost:3001
             #- name: SLIMFAAS_CORS_ALLOW_ORIGIN
             # Optional, longer is the delay, less CPU and RAM is used
             #- name : HISTORY_SYNCHRONISATION_WORKER_DELAY_MILLISECONDS
@@ -459,7 +459,7 @@ By default, **SlimData** use a second HTTP port 3262 to expose its API. Don't ex
 
 SlimFaas requires at least 3 nodes in production. 2 nodes are required to keep the database in a consistent state.
 
-![slimdata.PNG](https://github.com/AxaFrance/slimfaas/blob/main/documentation/slimdata.png)
+![slimdata.PNG](https://github.com/AxaFrance/slimfaas/blob/main/documentation/slimdata.png?raw=true)
 
 If you want to use just one pod for testing purpose, you can use this env variable:
 - SLIMDATA_CONFIGURATION: '{"coldStart":"true"}'
