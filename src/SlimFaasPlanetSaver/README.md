@@ -4,7 +4,7 @@
 
 ![SlimFaas.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png)
 
-A Vanilla JS project to save the planet. SlimFaas (https://github.com/SlimPlanet/slimfaas) is the slimest and simplest Function As A Service on Kubernetes.
+A Vanilla JS project to save the planet. SlimFaas (https://github.com/SlimPlanet/slimfaas) is the slimmest and simplest Function As A Service on Kubernetes.
 It works as a proxy that you can be deployed in your namespace.
 
 SlimFaas API can give to the frontend information about the infrastructure state. **It is a mind changer !**
