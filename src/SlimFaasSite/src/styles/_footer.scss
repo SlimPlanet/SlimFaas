@@ -1,0 +1,67 @@
+.footer {
+    padding: 2rem;
+    background-color: #0000ff;
+    font-family: sans-serif;
+
+    &__container {
+        max-width: 1200px;
+        margin: 0 auto;
+        text-align: center;
+    }
+
+    &__origin {
+        margin-bottom: 1rem;
+        font-size: 1rem;
+        color: #ffffff;
+    }
+
+    &__cncf {
+        margin: 2rem 0;
+
+        &-text {
+            font-size: 1rem;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        &-logo {
+            /* Example styling; adjust as needed */
+            max-width: 150px;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+
+        }
+    }
+
+    &__kubecon {
+        margin-bottom: 2rem;
+        color: #ffffff;
+        &-link {
+            text-decoration: underline;
+            color: #ffedbf;
+            &:hover {
+                text-decoration: none;
+            }
+        }
+    }
+
+    &__trademark {
+        font-size: 0.875rem;
+        margin-bottom: 1rem;
+        color: #fff9dd;
+
+        &-link {
+            text-decoration: underline;
+            color: #fff0b7;
+            &:hover {
+                text-decoration: none;
+            }
+        }
+    }
+
+    &__copyright {
+        font-size: 0.875rem;
+        color: #fff2ba;
+    }
+}
