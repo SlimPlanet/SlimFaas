@@ -10,7 +10,6 @@ type LayoutProps = {
 const Layout: React.FC<LayoutProps> = ({ children }) => (
     <div className="layout">
        <NavBar />
-
         <main className="layout__content">{children}</main>
         <Footer/>
     </div>

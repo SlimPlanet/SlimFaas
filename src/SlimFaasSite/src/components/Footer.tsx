@@ -13,7 +13,7 @@
                         We are a Cloud Native Computing Foundation sandbox project.
                     </p>
                     <img
-                        src="https://camo.githubusercontent.com/59d5ee1dc4a1d4559e5395065ce1352a883641a9331ec567566a28fee1b5efff/68747470733a2f2f7777772e636e63662e696f2f77702d636f6e74656e742f75706c6f6164732f323032322f30372f636e63662d737461636b65642d636f6c6f722d62672e737667"
+                        src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg"
                         alt="CNCF Logo"
                         className="footer__cncf-logo"
                     />

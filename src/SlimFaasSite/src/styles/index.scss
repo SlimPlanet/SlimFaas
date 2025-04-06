@@ -12,5 +12,9 @@
             margin: 0 auto;      // Centrage horizontal
             max-width: 100%;
         }
+        a > img {
+            display: inline-block;
+            margin: auto;
+        }
     }
 }
