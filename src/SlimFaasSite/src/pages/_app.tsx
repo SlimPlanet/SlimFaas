@@ -8,7 +8,7 @@ import type { AppProps } from 'next/app';
 export default function App({ Component, pageProps }: AppProps) {
     return<>
         <Head>
-            <link rel="icon"  type="image/svg+xml" href="/SlimFaas/slimfaas.svg" />
+            <link rel="icon"  type="image/svg+xml" href="/slimfaas.svg" />
             <title>SlimFaas : The slimmest and simplest Function As A Service</title>
         </Head>
         <Component {...pageProps} />

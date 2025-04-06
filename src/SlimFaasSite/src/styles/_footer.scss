@@ -39,7 +39,7 @@
         color: #ffffff;
         &-link {
             text-decoration: underline;
-            color: #ffedbf;
+            color: #fff6e5;
             &:hover {
                 text-decoration: none;
             }
@@ -49,11 +49,11 @@
     &__trademark {
         font-size: 0.875rem;
         margin-bottom: 1rem;
-        color: #fff9dd;
+        color: #fffdee;
 
         &-link {
             text-decoration: underline;
-            color: #fff0b7;
+            color: #fffbeb;
             &:hover {
                 text-decoration: none;
             }
@@ -62,6 +62,6 @@
 
     &__copyright {
         font-size: 0.875rem;
-        color: #fff2ba;
+        color: #fffae3;
     }
 }
