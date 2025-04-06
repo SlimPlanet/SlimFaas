@@ -1,0 +1,20 @@
+
+
+
+.layout {
+    &__content {
+        padding: 2rem;
+        overflow-x: scroll;
+        padding-left: 8%;
+        padding-right: 8%;
+        img {
+            display: block;      // L'image se comporte comme un bloc
+            margin: 0 auto;      // Centrage horizontal
+            max-width: 100%;
+        }
+        a > img {
+            display: inline-block;
+            margin: auto;
+        }
+    }
+}
