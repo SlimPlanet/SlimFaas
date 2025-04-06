@@ -195,6 +195,20 @@ spec:
             - containerPort: 5000    # SlimFaas main port
             - containerPort: 3262    # SlimData port
           # ...
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: slimfaas
+    namespace: slimfaas-demo
+spec:
+    selector:
+        app: slimfaas
+    ports:
+        - name: "http"
+          port: 5000
+        - name: "slimdata"
+          port: 3262
 ```
 Example annotation for a function Deployment:
 ```yaml

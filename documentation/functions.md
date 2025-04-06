@@ -184,3 +184,34 @@ An array of objects containing:
 - **21:00**: Reduce the inactivity timeout to 10 seconds, allowing a quicker scale-down in the evening/off-peak period.
 
 This scheduling feature helps you maintain availability during predictable high-demand periods while efficiently saving resources during low-demand times.
+
+
+## 9. Key Annotations for Functions
+
+Before you start calling functions, ensure you add the necessary annotations to your Kubernetes Deployments or StatefulSets:
+
+- **`SlimFaas/Function: "true"`**
+  Activates SlimFaas auto-scaling and routing for this pod. Without this annotation, SlimFaas will ignore the pod.
+
+- **`SlimFaas/ReplicasMin: "0"`**
+  The minimum number of replicas to maintain for the function. Setting `0` allows the function to scale down to zero after inactivity.
+
+- **`SlimFaas/ReplicasAtStart: "1"`**
+  The number of replicas to initially wake up to when traffic arrives or when manually woken. Typically set to `1`.
+
+- **`SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"`**
+  The number of **inactivity seconds** after which the function will scale down to `ReplicasMin`. (Default is often `300` seconds.)
+
+- **`SlimFaas/NumberParallelRequest: "10"`**
+  The maximum number of concurrent requests allowed for each replica. Additional requests will queue until a slot frees up.
+
+```yaml
+# Example snippet from a Deployment
+metadata:
+    annotations:
+        SlimFaas/Function: "true"
+        SlimFaas/ReplicasMin: "0"
+        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+        SlimFaas/NumberParallelRequest: "10"
+```
