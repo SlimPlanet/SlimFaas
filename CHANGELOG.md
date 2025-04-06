@@ -1,5 +1,39 @@
 # Changelog
 
+## v0.36.13
+
+- [24340d8](https://github.com/SlimPlanet/SlimFaas/commit/24340d83c65821ad22a5b55215674ec3c533c4e7) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
+
+
+## v0.36.12
+
+
+
+## v0.36.11
+
+- [e859d77](https://github.com/SlimPlanet/SlimFaas/commit/e859d770f496601e14122215b4120626c8ba75eb) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
+
+
+## v0.36.10
+
+- [11c25ff](https://github.com/SlimPlanet/SlimFaas/commit/11c25ff29d582be12e21c150c34254151dbbcfbf) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
+
+
+## v0.36.9
+
+- [ed379b1](https://github.com/SlimPlanet/SlimFaas/commit/ed379b11e46a251f84e67c24150630c9972fc02c) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
+
+
+## v0.36.8
+
+- [6d515ca](https://github.com/SlimPlanet/SlimFaas/commit/6d515cac24c8c0e8a6ef740118ef47d4b8ea7022) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
+
+
+## v0.36.7
+
+- [31ad8e4](https://github.com/SlimPlanet/SlimFaas/commit/31ad8e44fa1b9cae86896523cf33a4f620b946c0) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
+
+
 ## v0.36.6
 
 - [fa6e33a](https://github.com/SlimPlanet/SlimFaas/commit/fa6e33ab3c69446ef8fc0ea4e994ad43902a3bf4) - fix(slimfaas): temp patch waiting to find source of ticks problem (release), 2025-03-28 by *Guillaume Chervet*
@@ -269,40 +303,5 @@
 ## v0.24.17
 
 - [2fe7cbf](https://github.com/SlimPlanet/SlimFaas/commit/2fe7cbf80c8134008b53f289dd1cd4ccfc3c869c) - doc(demo): update demo and readme, 2024-10-08 by *Guillaume Chervet*
-
-
-## v0.24.16
-
-- [648c32e](https://github.com/SlimPlanet/SlimFaas/commit/648c32efc8f4232b7644806abf0bc148e87d9077) - fix(demo): update demo for cloudnord, 2024-10-07 by *Guillaume Chervet*
-
-
-## v0.24.15
-
-- [2781786](https://github.com/SlimPlanet/SlimFaas/commit/2781786dddce6cc839c3cf13c356b4ee9c6bd767) - refactor(all): update dependencies, 2024-09-13 by *Guillaume Chervet*
-
-
-## v0.24.14
-
-- [cc938fb](https://github.com/SlimPlanet/SlimFaas/commit/cc938fba0222b0ffa608641b6fdb50b8ceb62e68) - fix(slimfaas): healthworker start event if sync not ready, 2024-09-06 by *Guillaume Chervet*
-
-
-## v0.24.13
-
-- [8f13eab](https://github.com/SlimPlanet/SlimFaas/commit/8f13eab04880de83098a29500d3d4d322692f535) - fix(slimdata): one semaphore per key, 2024-09-04 by *Guillaume Chervet*
-
-
-## v0.24.12
-
-- [6871ee0](https://github.com/SlimPlanet/SlimFaas/commit/6871ee0e1af3223dfb2c126a9f7cba095f0c99db) - fix(slimdata): ListRightPopCommand does not synchronize data (#76), 2024-09-04 by *Guillaume Chervet*
-
-
-## v0.24.11
-
-- [922bc28](https://github.com/SlimPlanet/SlimFaas/commit/922bc28da004ac838cd68e4892b2ca1da40b8d20) - fix(demo): sonar security, 2024-08-30 by *Guillaume Chervet*
-
-
-## v0.24.10
-
-- [d250c3e](https://github.com/SlimPlanet/SlimFaas/commit/d250c3e9aaaf69d62e6ecd98d61fb1d745c5a6bb) - refactor(slimfaas): Update global.json, 2024-08-28 by *Guillaume Chervet*
 
 
