@@ -34,6 +34,7 @@ git clone https://github.com/AxaFrance/slimfaas.git
 cd slimfaas
 cd demo
 # Create slimfaas service account and pods
+kubectl apply -f service-account-slimfaas.yml
 kubectl apply -f deployment-slimfaas.yml
 # Expose SlimFaaS service as NodePort or Ingress
 kubectl apply -f slimfaas-nodeport.yml
