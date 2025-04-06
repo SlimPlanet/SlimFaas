@@ -282,6 +282,7 @@ jobs:
 
   deploy_website:
     runs-on: ubuntu-latest
+    if: needs.tags.outputs.tag == 'release'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
