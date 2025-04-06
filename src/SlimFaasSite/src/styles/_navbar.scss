@@ -1,0 +1,184 @@
+.layout {
+    &__navbar {
+        background-color: blue;
+        padding: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        position: relative;
+    }
+}
+
+.navbar {
+    &__left {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    &__list {
+        list-style: none;
+        display: flex;
+        gap: 1rem;
+        margin: 0;
+        padding: 0;
+    }
+
+    &__item a {
+        color: white;
+        text-decoration: none;
+        font-size: 1.2rem;
+        padding: 0.8rem 1.2rem;
+        border-radius: 8px;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    &__item a:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+        transform: scale(1.05);
+    }
+
+    &__github {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        border-radius: 8px;
+        transition: background-color 0.3s ease;
+    }
+
+    &__github:hover {
+        background-color: rgba(255, 255, 255, 0.2);
+    }
+
+    &__github svg {
+        width: 32px;
+        height: 32px;
+        fill: white;
+    }
+
+    /* Menu Mobile */
+    &__toggle {
+        display: none;
+        font-size: 2rem;
+        background: none;
+        border: none;
+        color: white;
+        cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+        &__toggle {
+            display: block;
+        }
+
+        &__list {
+            display: flex;
+            flex-direction: column;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background-color: blue;
+            padding: 0;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            max-height: 0;
+            opacity: 0;
+            transition: max-height 0.5s ease-out, opacity 0.5s ease-out;
+        }
+
+        &__list.active {
+            max-height: 300px; /* Ajuste selon le nombre d'éléments */
+            opacity: 1;
+            padding: 1rem;
+            overflow-y: scroll;
+        }
+    }
+}
+
+/* Bouton Burger */
+.navbar__toggle {
+    display: none;
+    width: 40px;
+    height: 30px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    position: relative;
+    z-index: 1000;
+}
+
+.navbar__toggle span {
+    display: block;
+    width: 100%;
+    height: 4px;
+    background: white;
+    position: absolute;
+    transition: all 0.3s ease-in-out;
+    border-radius: 2px;
+}
+
+/* Position initiale */
+.navbar__toggle span:nth-child(1) { top: 0; }
+.navbar__toggle span:nth-child(2) { top: 50%; transform: translateY(-50%); }
+.navbar__toggle span:nth-child(3) { bottom: 0; }
+
+/* Animation en croix */
+.navbar__toggle.active span:nth-child(1) { top: 50%; transform: rotate(45deg); }
+.navbar__toggle.active span:nth-child(2) { opacity: 0; }
+.navbar__toggle.active span:nth-child(3) { bottom: 50%; transform: rotate(-45deg); }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .navbar__toggle { display: block; }
+
+
+}
+@media (max-width: 768px) {
+    .navbar__list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        width: 100%;
+        background-color: blue;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        padding: 0;
+        max-height: 0;
+        opacity: 0;
+        overflow: hidden;
+        transition: max-height 0.5s ease-out, opacity 0.5s ease-out;
+    }
+
+    .navbar__list.active {
+        max-height: 500px; /* Ajuste selon le nombre d'éléments */
+        opacity: 1;
+        padding: 1rem;
+    }
+
+    /* Les liens prennent toute la largeur */
+    .navbar__item {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    .navbar__item a {
+        display: block;
+        width: 90%; /* Ajustable */
+        text-align: center;
+        background-color: rgba(255, 255, 255, 0.2);
+        padding: 1rem;
+        border-radius: 8px;
+        font-size: 1.2rem;
+        font-weight: bold;
+        transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+
+    .navbar__item a:hover {
+        background-color: rgba(255, 255, 255, 0.4);
+        transform: scale(1.05);
+    }
+}
