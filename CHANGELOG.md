@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.36.16
+
+- [d379c79](https://github.com/SlimPlanet/SlimFaas/commit/d379c796f139d9c4c82497079e7f555da0885dab) - fix(website): adapt css + image path to custom domain (release), 2025-04-07 by *Guillaume Chervet*
+
+
+## v0.36.15
+
+- [33d775d](https://github.com/SlimPlanet/SlimFaas/commit/33d775d7eecf8091c17dfec274b35ee0c5a0e1d7) - fix(website): adapt css + image path to custom domain (release), 2025-04-07 by *Guillaume Chervet*
+
+
 ## v0.36.14
 
 - [825ed3f](https://github.com/SlimPlanet/SlimFaas/commit/825ed3f7f86821d94929df3bdb463b2c99cbfc4c) - doc(readme.md): update readme (release), 2025-04-07 by *Guillaume Chervet*
@@ -293,15 +303,5 @@
 ## v0.25.0
 
 - [ec0a1e0](https://github.com/SlimPlanet/SlimFaas/commit/ec0a1e06acb19b50f0b13d0ee49e5e6b024ca0e2) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
-
-
-## v0.24.19
-
-- [cdd18f6](https://github.com/SlimPlanet/SlimFaas/commit/cdd18f671b81587e57650859c3796d974c107c6e) - refactor(slimdata): update dotnet cluster => Fixed graceful shutdown of Raft TCP listener, 2024-10-15 by *Guillaume Chervet*
-
-
-## v0.24.18
-
-- [4e5e779](https://github.com/SlimPlanet/SlimFaas/commit/4e5e77912dbd1761b59b16842142985c9e930e83) - fix(slimfaas): async call setlastticks missing, 2024-10-09 by *Guillaume Chervet*
 
 
