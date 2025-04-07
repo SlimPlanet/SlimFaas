@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.36.18
+
+- [b518ca5](https://github.com/SlimPlanet/SlimFaas/commit/b518ca564d03fdd5ed80b1fe2c865ad107cc308b) - fix(website): try repair path (release), 2025-04-07 by *Guillaume Chervet*
+
+
+## v0.36.17
+
+- [5cc5b42](https://github.com/SlimPlanet/SlimFaas/commit/5cc5b42f474c802ae4abf27354e445637614f5e6) - fix(website): test to set correct path (release), 2025-04-07 by *Guillaume Chervet*
+
+
+## v0.36.16
+
+- [d379c79](https://github.com/SlimPlanet/SlimFaas/commit/d379c796f139d9c4c82497079e7f555da0885dab) - fix(website): adapt css + image path to custom domain (release), 2025-04-07 by *Guillaume Chervet*
+
+
+## v0.36.15
+
+- [33d775d](https://github.com/SlimPlanet/SlimFaas/commit/33d775d7eecf8091c17dfec274b35ee0c5a0e1d7) - fix(website): adapt css + image path to custom domain (release), 2025-04-07 by *Guillaume Chervet*
+
+
 ## v0.36.14
 
 - [825ed3f](https://github.com/SlimPlanet/SlimFaas/commit/825ed3f7f86821d94929df3bdb463b2c99cbfc4c) - doc(readme.md): update readme (release), 2025-04-07 by *Guillaume Chervet*
@@ -283,25 +303,5 @@
 ## v0.27.0
 
 - [96d616d](https://github.com/SlimPlanet/SlimFaas/commit/96d616d00fc8a43dc013f1c76605ba54782585d0) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
-
-
-## v0.26.0
-
-- [05f6e64](https://github.com/SlimPlanet/SlimFaas/commit/05f6e642beef92d330c4647d9ee47b9d36150d3e) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
-
-
-## v0.25.0
-
-- [ec0a1e0](https://github.com/SlimPlanet/SlimFaas/commit/ec0a1e06acb19b50f0b13d0ee49e5e6b024ca0e2) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
-
-
-## v0.24.19
-
-- [cdd18f6](https://github.com/SlimPlanet/SlimFaas/commit/cdd18f671b81587e57650859c3796d974c107c6e) - refactor(slimdata): update dotnet cluster => Fixed graceful shutdown of Raft TCP listener, 2024-10-15 by *Guillaume Chervet*
-
-
-## v0.24.18
-
-- [4e5e779](https://github.com/SlimPlanet/SlimFaas/commit/4e5e77912dbd1761b59b16842142985c9e930e83) - fix(slimfaas): async call setlastticks missing, 2024-10-09 by *Guillaume Chervet*
 
 

@@ -5,7 +5,7 @@
 
 <div align="center">
   <h1>
-    <a href="https://slimplanet.github.io/SlimFaas/jobs">Go to SlimFaas website</a>
+    <a href="https://slimplanet.github.io/SlimFaas">Go to SlimFaas website</a>
   </h1>
 </div>
 
