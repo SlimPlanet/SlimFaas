@@ -1,13 +1,5 @@
-
-<div align="center">
-  <img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" alt="SlimFaas" />
-</div>
-
-<div align="center">
-  <h1>
-    <a href="https://slimplanet.github.io/SlimFaas/jobs">Go to SlimFaas website</a>
-  </h1>
-</div>
+﻿
+![SlimFaas.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true)
 
 # SlimFaas: The Slimmest and Simplest Function-as-a-Service [![Continuous Integration](https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml/badge.svg)](https://github.com/SlimPlanet/SlimFaas/actions/workflows/slimfaas-ci.yaml) [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=alert_status)](https://sonarcloud.io/dashboard?id=SlimPlanet_SlimFaas) [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=reliability_rating) [![Security](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=security_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=security_rating) [![Code Coverage](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=coverage)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=Coverage) [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas.svg?label=docker+pull+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver&label=latest+version+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 
@@ -47,10 +39,7 @@ functions with minimal overhead.
 - **Slim & Fast**
     - Written in .NET with a focus on performance and minimal resource usage.
 
-<div align="center">
-  <img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true" alt="SlimFaas CPU RAM" />
-</div>
-
+![slim-faas-ram-cpu.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true)
 
 ## Ready to Get Started?
 
@@ -72,10 +61,7 @@ We hope SlimFaas helps you streamline serverless development!
 - **CNCF Project**
   SlimFaas is proud to be part of the [Cloud Native Computing Foundation (CNCF) landscape](https://landscape.cncf.io).
 
-  <div align="center">
-    <img alt="CNCF logo" src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg" width="200"/>
-</div>
-
+  <img alt="CNCF logo" src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg" width="200"/>
 
 - **Slack Channel**
   Join our channel on the [CNCF Slack](https://cloud-native.slack.com/archives/C08CRC77VDE) to connect with other SlimFaas users.
