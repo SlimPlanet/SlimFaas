@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { remark } from 'remark';
+import gfm from 'remark-gfm'
 import html from 'remark-html';
 import matter from 'gray-matter';
 
@@ -33,7 +34,7 @@ export async function fetchMarkdownFile(filename: string): Promise<MarkdownData>
         const { content, data } = matter(fileContent);
 
         // Conversion Markdown -> HTML
-        const processedContent = await remark().use(html).process(content);
+        const processedContent = await remark().use(gfm).use(html).process(content);
         const contentHtml = processedContent.toString();
 
         return { contentHtml, metadata: data };

@@ -24,7 +24,7 @@ metadata:
 ## 2. Publishing an Event
    Use the following HTTP route to publish an event:
 
-- **Endpoint**: `POST http://<slimfaas>/publish-event/<eventName>`
+- **Endpoint**: `POST http://<slimfaas>/publish-event/<eventName>/<path>`
 
 - **Body** (any JSON payload):
 ```json
@@ -40,7 +40,7 @@ metadata:
 ```bash
 curl -X POST -H "Content-Type: application/json" \
      -d '{"data":"hello"}' \
-     http://localhost:30021/publish-event/my-event-name
+     http://localhost:30021/publish-event/my-event-name/hello
 
 ```
-All function replicas that have subscribed to `my-event-name` will receive a POST request at their base URL (e.g., `http://<pod_ip>:<pod_port>/publish-event`), and can handle it as needed.
+All function replicas that have subscribed to `my-event-name` will receive a POST request at their /hello URL (e.g., `http://<pod_ip>:<pod_port>/hello`), and can handle it as needed.

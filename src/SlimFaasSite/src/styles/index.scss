@@ -5,8 +5,12 @@
     &__content {
         padding: 2rem;
         overflow-x: auto;
-        padding-left: 8%;
-        padding-right: 8%;
+        padding-left: 20%;
+        padding-right: 20%;
+        @media screen and (max-width: 768px) {
+            padding-left: 4%;
+            padding-right: 4%;
+        }
         img {
             display: block;      // L'image se comporte comme un bloc
             margin: 0 auto;      // Centrage horizontal
@@ -21,6 +25,16 @@
 
 .layout {
     &__content {
+
+        code {
+            background-color: #f3f4f6;
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.95em;
+            color: #d63384;
+        }
+
         blockquote {
             margin: 0 0 1rem;
             background-color: #696969;
@@ -42,6 +56,10 @@
             overflow-x: auto;
             font-family: "Fira Code", Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
             margin: 1em 0;
+        }
+
+        .hljs-regexp{
+            color: #d17f66; /* orange */
         }
 
         /* === YAML === */
@@ -128,5 +146,72 @@
         pre code.language-bash .hljs-keyword {
             color: #c678dd; /* violet */
         }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            font-size: 1rem;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+
+            thead {
+                background-color: #f5f7fa;
+
+                th {
+                    text-align: left;
+                    padding: 1rem;
+                    font-weight: 600;
+                    border-bottom: 2px solid #e0e6ed;
+                }
+            }
+
+            tbody {
+                tr {
+                    border-bottom: 1px solid #eaecef;
+
+                    &:nth-child(even) {
+                        background-color: #f9fbfd;
+                    }
+
+                    td {
+                        padding: 0.75rem 1rem;
+                        vertical-align: top;
+                        line-height: 1.5;
+                    }
+                }
+            }
+
+            @media screen and (max-width: 768px) {
+                thead {
+                    display: none;
+                }
+
+                tr {
+                    display: block;
+                    margin-bottom: 1rem;
+                }
+
+                td {
+                    display: block;
+                    text-align: right;
+                    padding-left: 50%;
+                    position: relative;
+
+                    &::before {
+                        content: attr(data-label);
+                        position: absolute;
+                        left: 1rem;
+                        width: 45%;
+                        padding-right: 1rem;
+                        white-space: nowrap;
+                        text-align: left;
+                        font-weight: bold;
+                        color: #6c757d;
+                    }
+                }
+            }
+        }
+
     }
 }
