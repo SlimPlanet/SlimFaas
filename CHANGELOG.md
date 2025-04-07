@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.36.14
+
+- [825ed3f](https://github.com/SlimPlanet/SlimFaas/commit/825ed3f7f86821d94929df3bdb463b2c99cbfc4c) - doc(readme.md): update readme (release), 2025-04-07 by *Guillaume Chervet*
+
+
 ## v0.36.13
 
 - [24340d8](https://github.com/SlimPlanet/SlimFaas/commit/24340d83c65821ad22a5b55215674ec3c533c4e7) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
@@ -298,10 +303,5 @@
 ## v0.24.18
 
 - [4e5e779](https://github.com/SlimPlanet/SlimFaas/commit/4e5e77912dbd1761b59b16842142985c9e930e83) - fix(slimfaas): async call setlastticks missing, 2024-10-09 by *Guillaume Chervet*
-
-
-## v0.24.17
-
-- [2fe7cbf](https://github.com/SlimPlanet/SlimFaas/commit/2fe7cbf80c8134008b53f289dd1cd4ccfc3c869c) - doc(demo): update demo and readme, 2024-10-08 by *Guillaume Chervet*
 
 
