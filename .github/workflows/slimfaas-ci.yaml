@@ -10,6 +10,7 @@ on:
 env:
   PNPM_VERSION: 10.3.0
   NODE_VERSION: 18
+  NEXT_PUBLIC_DEPLOY_ENV: "GH_PAGES"
 
 permissions:
   id-token: write
