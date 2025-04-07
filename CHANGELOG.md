@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.36.19
+
+- [3ac2319](https://github.com/SlimPlanet/SlimFaas/commit/3ac2319a15490dce06c68c7fbda57d002ae8dd79) - fix(PlanetSaver): wake up more easily (release) (#105), 2025-04-07 by *Guillaume Chervet*
+
+
 ## v0.36.18
 
 - [b518ca5](https://github.com/SlimPlanet/SlimFaas/commit/b518ca564d03fdd5ed80b1fe2c865ad107cc308b) - fix(website): try repair path (release), 2025-04-07 by *Guillaume Chervet*
@@ -298,10 +303,5 @@
 ## v0.28.0
 
 - [77fb57b](https://github.com/SlimPlanet/SlimFaas/commit/77fb57b33c3fafb737965370bd65d7bd84674c35) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
-
-
-## v0.27.0
-
-- [96d616d](https://github.com/SlimPlanet/SlimFaas/commit/96d616d00fc8a43dc013f1c76605ba54782585d0) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
 
 
