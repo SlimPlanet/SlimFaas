@@ -1,9 +1,6 @@
 ﻿import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import getConfig from "next/config";
-
-const { basePath } = getConfig();
 
 const Navbar: React.FC = () => {
     const [isOpen, setIsOpen] = useState(false);
@@ -13,7 +10,7 @@ const Navbar: React.FC = () => {
             <div className="navbar__left">
                 {/* Logo */}
                 <Link href="/">
-                    <Image className="navbar__logo" src={`${basePath}/slimfaas-white.svg`}  alt="Logo" loading="lazy" width={64} height={64} decoding="async"
+                    <Image className="navbar__logo" src={`https://github.com/cncf/artwork/blob/main/projects/slimfaas/icon/white/slimfaas-icon-white.svg?raw=true`}  alt="Logo" loading="lazy" width={64} height={64} decoding="async"
                            data-nimg="1"  />
                 </Link>
 
