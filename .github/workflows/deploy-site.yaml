@@ -42,9 +42,14 @@ jobs:
         run: pnpm build
         working-directory: ./src/SlimFaasSite
 
+      - name: Add CNAME file
+        run: echo 'slimfaas.dev' > out/CNAME
+        working-directory: ./src/SlimFaasSite
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./src/SlimFaasSite/out
+          cname: slimfaas.dev
 
