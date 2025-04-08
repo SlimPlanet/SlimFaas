@@ -5,8 +5,12 @@
     &__content {
         padding: 2rem;
         overflow-x: auto;
-        padding-left: 8%;
-        padding-right: 8%;
+        padding-left: 20%;
+        padding-right: 20%;
+        @media screen and (max-width: 768px) {
+            padding-left: 4%;
+            padding-right: 4%;
+        }
         img {
             display: block;      // L'image se comporte comme un bloc
             margin: 0 auto;      // Centrage horizontal
@@ -52,6 +56,10 @@
             overflow-x: auto;
             font-family: "Fira Code", Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
             margin: 1em 0;
+        }
+
+        .hljs-regexp{
+            color: #d17f66; /* orange */
         }
 
         /* === YAML === */
