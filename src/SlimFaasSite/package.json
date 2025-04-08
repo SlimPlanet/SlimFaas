@@ -20,6 +20,7 @@
     "react-dom": "^19.0.0",
     "react-svg": "^16.3.0",
     "remark": "^15.0.1",
+    "remark-gfm": "^4.0.1",
     "remark-html": "^16.0.1",
     "sass": "^1.85.1"
   },
