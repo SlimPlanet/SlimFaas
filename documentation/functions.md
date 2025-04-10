@@ -81,7 +81,7 @@ metadata:
     annotations:
         SlimFaas/DefaultVisibility: "Private"
         # or define paths:
-        SlimFaas/UrlsPathStartWithVisibility: "Private:/mypath,Public:/otherpath"
+        SlimFaas/PathsStartWithVisibility: "Private:/mypath,Public:/otherpath"
         SlimFaas/DefaultTrusted: "Trusted"
 ```
 This helps you control which services can call certain endpoints.
