@@ -4,7 +4,7 @@
     return tempUrl;
 }
 
-let id =1;
+let id = 1;
 
 export default class SlimFaasPlanetSaver {
     constructor(baseUrl, options = {}) {
@@ -21,6 +21,11 @@ export default class SlimFaasPlanetSaver {
         this.noActivityTimeout = options.noActivityTimeout || 60000;
         this.wakeUpTimeout = options.wakeUpTimeout || 60000;
         this.fetch = options.fetch || fetch;
+
+        // Ajout de la configuration de comportement
+        // Les valeurs possibles sont "WakeUp+BockUI", "WakeUp", "None"
+        this.behavior = options.behavior || {};
+
         this.intervalId = null;
         this.isDocumentVisible = !document.hidden;
         this.overlayElement = null;
@@ -30,6 +35,14 @@ export default class SlimFaasPlanetSaver {
         this.id = id++;
         this.cleanned = false;
         this.lastWakeUpTime = null;
+    }
+
+    /**
+     * Retourne le comportement à appliquer pour une fonction donnée
+     * S'il n'est pas renseigné, renvoie "WakeUp+BockUI" par défaut
+     */
+    getBehavior(name) {
+        return this.behavior[name] || 'WakeUp+BockUI';
     }
 
     initialize() {
@@ -43,8 +56,8 @@ export default class SlimFaasPlanetSaver {
 
         this.createOverlay();
         this.injectStyles();
-
     }
+
     handleMouseMove() {
         this.lastMouseMoveTime = Date.now();
     }
@@ -53,11 +66,21 @@ export default class SlimFaasPlanetSaver {
         this.isDocumentVisible = !document.hidden;
     }
 
+    /**
+     * Appelle le wake-up sur les fonctions dont le comportement n'est pas "None"
+     * et qui ne sont pas prêtes (NumberReady === 0), sauf si on a déjà fait
+     * un wake-up trop récemment (selon wakeUpTimeout).
+     */
     async wakeUpPods(data, lastWakeUpTime) {
         const currentTime = Date.now();
         let isWakeUpCallMade = false;
+
+        // On évite de rappeler trop souvent la même fonction
         const shouldFilter = lastWakeUpTime && (currentTime - lastWakeUpTime) <= this.wakeUpTimeout;
+
+        // On ne fait un wake-up que pour les fonctions dont le comportement est "WakeUp" ou "WakeUp+BockUI"
         const wakePromises = data
+            .filter((item) => this.getBehavior(item.Name) !== 'None')
             .filter((item) => item.NumberReady === 0 || !shouldFilter)
             .map(async (item) => {
                 const response = await this.fetch(`${this.baseUrl}/wake-function/${item.Name}`, {
@@ -66,7 +89,7 @@ export default class SlimFaasPlanetSaver {
                 if (response.status >= 400) {
                     throw new Error(`HTTP Error! status: ${response.status} for function ${item.Name}`);
                 }
-                isWakeUpCallMade = true
+                isWakeUpCallMade = true;
                 return response;
             });
 
@@ -79,6 +102,9 @@ export default class SlimFaasPlanetSaver {
         return isWakeUpCallMade;
     }
 
+    /**
+     * Récupère le status de chaque fonction et met à jour l'UI et l'overlay
+     */
     async fetchStatus() {
         try {
             const response = await this.fetch(`${this.baseUrl}/status-functions`);
@@ -87,38 +113,48 @@ export default class SlimFaasPlanetSaver {
             }
             const data = await response.json();
 
-            const allReady = data.every((item) => item.NumberReady >= 1);
-            this.setReadyState(allReady);
+            // On ne considère comme bloquantes que les fonctions dont le comportement est "WakeUp+BockUI"
+            const blockingItems = data.filter((item) => this.getBehavior(item.Name) === 'WakeUp+BockUI');
+            const allBlockingReady = blockingItems.every((item) => item.NumberReady >= 1);
 
+            // Si toutes les fonctions "bloquantes" sont prêtes, on estime que c'est "ready".
+            this.setReadyState(allBlockingReady);
+
+            // Callback pour l'extérieur
             this.updateCallback(data);
 
+            // On vérifie l'activité de la souris pour "réveiller" (wakeUp) les fonctions
             const now = Date.now();
-            const mouseMovedRecently = now - this.lastMouseMoveTime <= this.noActivityTimeout; // 1 minute
+            const mouseMovedRecently = now - this.lastMouseMoveTime <= this.noActivityTimeout;
 
-            if (!allReady && this.isDocumentVisible && !mouseMovedRecently) {
+            if (!allBlockingReady && this.isDocumentVisible && !mouseMovedRecently) {
+                // Pas de mouvement de souris, document visible => message "no activity"
                 this.updateOverlayMessage(this.overlayNoActivityMessage, 'waiting-action');
             } else if (mouseMovedRecently) {
-                if(!allReady  && this.isDocumentVisible) {
+                // Il y a une activité de souris
+                if (!allBlockingReady && this.isDocumentVisible) {
                     this.updateOverlayMessage(this.overlayStartingMessage, 'waiting');
                 }
-                if(!this.lastWakeUpTime) {
+                if (!this.lastWakeUpTime) {
                     this.lastWakeUpTime = Date.now();
                 }
                 const isWakeUpCallMade = await this.wakeUpPods(data, this.lastWakeUpTime);
-                if(isWakeUpCallMade) {
+                if (isWakeUpCallMade) {
                     this.lastWakeUpTime = Date.now();
                 }
-            } else if(!this.isDocumentVisible && !allReady) {
+            } else if (!this.isDocumentVisible && !allBlockingReady) {
+                // Document caché, pas prêt => message "no activity"
                 this.updateOverlayMessage(this.overlayNoActivityMessage, 'waiting');
             }
         } catch (error) {
             const errorMessage = error.message;
+            // On garde l'état précédent de readiness en cas d'erreur
             this.setReadyState(this.isReady);
             this.updateOverlayMessage(this.overlayErrorMessage, 'error', this.overlayErrorSecondaryMessage);
             this.errorCallback(errorMessage);
             console.error('Error fetching slimfaas data:', errorMessage);
         } finally {
-            if(this.intervalId)  {
+            if (this.intervalId) {
                 this.intervalId = setTimeout(() => {
                     this.fetchStatus();
                 }, this.interval);
@@ -126,6 +162,9 @@ export default class SlimFaasPlanetSaver {
         }
     }
 
+    /**
+     * Met à jour l'état ready. Si ready = true => on cache l'overlay
+     */
     setReadyState(isReady) {
         this.isReady = isReady;
         if (isReady) {
@@ -135,16 +174,20 @@ export default class SlimFaasPlanetSaver {
         }
     }
 
+    /**
+     * Lance le polling régulier
+     */
     startPolling() {
         if (this.intervalId || !this.baseUrl || this.cleanned) return;
-
         this.fetchStatus();
-
         this.intervalId = setTimeout(() => {
             this.fetchStatus();
         }, this.interval);
     }
 
+    /**
+     * Arrête le polling
+     */
     stopPolling() {
         if (this.intervalId) {
             clearTimeout(this.intervalId);
@@ -152,6 +195,9 @@ export default class SlimFaasPlanetSaver {
         }
     }
 
+    /**
+     * Injecte dans le DOM le style pour l'overlay
+     */
     injectStyles() {
         const cssString = `
             .slimfaas-environment-overlay {
@@ -222,48 +268,57 @@ export default class SlimFaasPlanetSaver {
         document.head.appendChild(this.styleElement);
     }
 
+    /**
+     * Crée dans le DOM l'overlay en lui-même (sans l'ajouter encore)
+     */
     createOverlay() {
         this.overlayElement = document.createElement('div');
         this.overlayElement.className = 'slimfaas-environment-overlay';
         this.overlayElement.id = `slimfaas-environment-overlay-${this.id}`;
 
-        // Créer l'élément icône
+        // Élément icône
         this.iconElement = document.createElement('div');
         this.iconElement.className = 'slimfaas-environment-overlay__icon';
         this.iconElement.innerText = this.overlayLoadingIcon;
 
-        // Créer l'élément du message principal
+        // Message principal
         this.spanElement = document.createElement('span');
         this.spanElement.className = 'slimfaas-environment-overlay__main-message';
         this.spanElement.innerHTML = `${this.overlayStartingMessage}`;
 
-        // Créer l'élément du message secondaire
+        // Message secondaire
         this.secondarySpanElement = document.createElement('span');
         this.secondarySpanElement.className = 'slimfaas-environment-overlay__secondary-message';
         this.secondarySpanElement.innerText = this.overlaySecondaryMessage;
 
-        // Ajouter les éléments à l'overlay
+        // Ajout à l'overlay
         this.overlayElement.appendChild(this.iconElement);
         this.overlayElement.appendChild(this.spanElement);
         this.overlayElement.appendChild(this.secondarySpanElement);
-
-        // Ne pas ajouter l'overlay au DOM ici
-        // document.body.appendChild(this.overlayElement);
     }
 
+    /**
+     * Affiche l'overlay dans la page si nécessaire
+     */
     showOverlay() {
-        if(this.cleanned) return;
+        if (this.cleanned) return;
         if (this.overlayElement && !document.body.contains(this.overlayElement)) {
             document.body.appendChild(this.overlayElement);
         }
     }
 
+    /**
+     * Cache l'overlay
+     */
     hideOverlay() {
         if (this.overlayElement && document.body.contains(this.overlayElement)) {
             document.body.removeChild(this.overlayElement);
         }
     }
 
+    /**
+     * Met à jour le message affiché dans l'overlay
+     */
     updateOverlayMessage(newMessage, status = 'waiting', secondaryMessage = null) {
         if (this.spanElement) {
             this.spanElement.innerHTML = `${newMessage}`;
@@ -283,6 +338,9 @@ export default class SlimFaasPlanetSaver {
         }
     }
 
+    /**
+     * Nettoie le composant : retire listeners, styles et overlay
+     */
     cleanup() {
         this.cleanned = true;
         this.stopPolling();

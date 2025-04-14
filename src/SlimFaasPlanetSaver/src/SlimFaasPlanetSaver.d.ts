@@ -1,56 +1,37 @@
-﻿declare class SlimFaasPlanetSaver {
-    private baseUrl: string;
-    private updateCallback: (data: any) => void;
-    private errorCallback: (error: any) => void;
-    private interval: number;
-    private overlayStartingMessage: string;
-    private overlayNoActivityMessage: string;
-    private overlayErrorMessage: string;
-    private overlaySecondaryMessage: string;
-    private overlayErrorSecondaryMessage: string;
-    private overlayLoadingIcon: string;
-    private noActivityTimeout: number;
-    private wakeUpTimeout: number;
-    private fetch: typeof fetch;
-    private intervalId: number | null;
-    private isDocumentVisible: boolean;
-    private overlayElement: HTMLElement | null;
-    private spanElement: HTMLElement | null;
-    private styleElement: HTMLElement | null;
-    private isReady: boolean;
-    private id: number;
-    private cleanned: boolean;
-    private lastMouseMoveTime: number;
-    private handleMouseMove: () => void;
-    private handleVisibilityChange: () => void;
+﻿export type BehaviorValue = 'WakeUp+BockUI' | 'WakeUp' | 'None';
 
-    constructor(baseUrl: string, options?: {
-    updateCallback?: (data: any) => void,
-    errorCallback?: (error: any) => void,
-    interval?: number,
-    overlayStartingMessage?: string,
-    overlayNoActivityMessage?: string,
-    overlayErrorMessage?: string,
-    overlaySecondaryMessage?: string,
-    overlayErrorSecondaryMessage?: string,
-    overlayLoadingIcon?: string,
-    fetch?: typeof fetch
-    noActivityTimeout?: number
-    wakeUpTimeout?: number
-});
-
-initialize(): void;
-wakeUpPods(data: Array<{ Name: string, NumberReady: number }>): Promise<void>;
-fetchStatus(): Promise<void>;
-setReadyState(isReady: boolean): void;
-startPolling(): void;
-stopPolling(): void;
-injectStyles(): void;
-createOverlay(): void;
-showOverlay(): void;
-hideOverlay(): void;
-updateOverlayMessage(newMessage: string, status?: 'waiting' | 'waiting-action' | 'error', secondaryMessage?: string | null): void;
-cleanup(): void;
+export interface BehaviorMap {
+    [functionName: string]: BehaviorValue;
 }
 
-export default SlimFaasPlanetSaver;
+export interface SlimFaasPlanetSaverOptions {
+    updateCallback?: (data: any[]) => void;
+    errorCallback?: (errorMessage: string) => void;
+    interval?: number;
+    overlayStartingMessage?: string;
+    overlayNoActivityMessage?: string;
+    overlayErrorMessage?: string;
+    overlaySecondaryMessage?: string;
+    overlayErrorSecondaryMessage?: string;
+    overlayLoadingIcon?: string;
+    noActivityTimeout?: number;
+    wakeUpTimeout?: number;
+    fetch?: typeof fetch;
+    behavior?: BehaviorMap;
+}
+
+export default class SlimFaasPlanetSaver {
+    constructor(baseUrl: string, options?: SlimFaasPlanetSaverOptions);
+    initialize(): void;
+    startPolling(): void;
+    stopPolling(): void;
+    protected fetchStatus(): Promise<void>;
+    protected wakeUpPods(data: any[], lastWakeUpTime: number | null): Promise<boolean>;
+    protected setReadyState(isReady: boolean): void;
+    protected createOverlay(): void;
+    protected injectStyles(): void;
+    protected showOverlay(): void;
+    protected hideOverlay(): void;
+    protected updateOverlayMessage(newMessage: string, status?: string, secondaryMessage?: string | null): void;
+    cleanup(): void;
+}
