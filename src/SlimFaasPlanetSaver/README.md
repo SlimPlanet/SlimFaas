@@ -91,6 +91,20 @@ export default PlanetSaver;
 
 ```
 
+### Usage:
+
+```jsx
+const behavior: {
+    "api-speech-to-text": "WakeUp",
+    "heavy-pdf-service": "WakeUp+BockUI",
+    "deprecated-service": "None"
+}
+
+<PlanetSaver baseUrl="http://slimfaas.mycompany.com" fetch={window.fetch} behavior={behavior}>
+  <App />
+</PlanetSaver>
+```
+
 ---
 
 ## Run the demo

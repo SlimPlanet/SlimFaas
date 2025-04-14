@@ -134,12 +134,17 @@ const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavi
 export default PlanetSaver;
 
 ```
----
 
-## Usage:
+### Usage:
 
 ```jsx
-<PlanetSaver baseUrl="http://slimfaas.mycompany.com" fetch={window.fetch}>
+const behavior: {
+    "api-speech-to-text": "WakeUp",
+    "heavy-pdf-service": "WakeUp+BockUI",
+    "deprecated-service": "None"
+}
+
+<PlanetSaver baseUrl="http://slimfaas.mycompany.com" fetch={window.fetch} behavior={behavior}>
   <App />
 </PlanetSaver>
 ```
