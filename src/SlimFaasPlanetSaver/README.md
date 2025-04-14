@@ -25,9 +25,9 @@ npm install @axa-fr/slimfaas-planet-saver
 Example usage with react :
 ```javascript
 import React, { useState, useEffect, useRef } from 'react';
-import { SlimFaasPlanetSaver } from "@axa-fr/slimfaas-planet-saver";
+import { SlimFaasPlanetSaver } from '@axa-fr/slimfaas-planet-saver';
 
-const PlanetSaver = ({ children, baseUrl, fetch }) => {
+const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavior={} }) => {
     const [isFirstStart, setIsFirstStart] = useState(true);
     const environmentStarterRef = useRef(null);
 
@@ -39,9 +39,18 @@ const PlanetSaver = ({ children, baseUrl, fetch }) => {
         const instance = new SlimFaasPlanetSaver(baseUrl, {
             interval: 2000,
             fetch,
+            behavior,
             updateCallback: (data) => {
-                const allReady = data.every((item) => item.NumberReady >= 1);
-                if (allReady && isFirstStart) {
+                // Filter only the items that block the UI (WakeUp+BockUI)
+                const blockingItems = data.filter(
+                    (item) => instance.getBehavior(item.Name) === 'WakeUp+BockUI'
+                );
+
+                // If all blocking items are ready, set isFirstStart to false
+                const allBlockingReady = blockingItems.every(
+                    (item) => item.NumberReady >= 1
+                );
+                if (allBlockingReady && isFirstStart) {
                     setIsFirstStart(false);
                 }
             },
@@ -54,13 +63,7 @@ const PlanetSaver = ({ children, baseUrl, fetch }) => {
             overlaySecondaryMessage: 'Startup should be fast, but if no machines are available it can take several minutes.',
             overlayLoadingIcon: '🌍',
             overlayErrorSecondaryMessage: 'If the error persists, please contact an administrator.',
-            noActivityTimeout: 60_000,
-            wakeUpTimeout: 60_000,
-            // If you have multiple functions and need to specify different behaviors:
-            // behavior: {
-            //   'api-speech-to-text': 'WakeUp',
-            //   'some-other-function': 'None'
-            // }
+            noActivityTimeout
         });
 
         environmentStarterRef.current = instance;
@@ -83,6 +86,7 @@ const PlanetSaver = ({ children, baseUrl, fetch }) => {
 };
 
 export default PlanetSaver;
+
 
 
 ```

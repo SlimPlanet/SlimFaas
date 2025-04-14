@@ -71,62 +71,68 @@ Below is a simplified code snippet showing how you might wrap your React app in 
 
 ```javascript
 import React, { useState, useEffect, useRef } from 'react';
-import { SlimFaasPlanetSaver } from "@axa-fr/slimfaas-planet-saver";
+import { SlimFaasPlanetSaver } from '@axa-fr/slimfaas-planet-saver';
 
-const PlanetSaver = ({ children, baseUrl, fetch }) => {
-  const [isFirstStart, setIsFirstStart] = useState(true);
-  const environmentStarterRef = useRef(null);
+const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavior={} }) => {
+    const [isFirstStart, setIsFirstStart] = useState(true);
+    const environmentStarterRef = useRef(null);
 
-  useEffect(() => {
-    if (!baseUrl) return;
-    if (environmentStarterRef.current) return;
+    useEffect(() => {
+        if (!baseUrl) return;
 
-    const instance = new SlimFaasPlanetSaver(baseUrl, {
-      interval: 2000,
-      fetch,
-      updateCallback: (data) => {
-        const allReady = data.every((item) => item.NumberReady >= 1);
-        if (allReady && isFirstStart) {
-          setIsFirstStart(false);
-        }
-      },
-      errorCallback: (error) => {
-        console.error('Error detected :', error);
-      },
-      overlayStartingMessage: '🌳 Starting the environment.... 🌳',
-      overlayNoActivityMessage: 'Waiting for activity to start environment...',
-      overlayErrorMessage: 'An error occurred when starting the environment. Please contact an administrator.',
-      overlaySecondaryMessage: 'Startup should be fast, but if no machines are available it can take several minutes.',
-      overlayLoadingIcon: '🌍',
-      overlayErrorSecondaryMessage: 'If the error persists, please contact an administrator.',
-      noActivityTimeout: 60_000,
-      wakeUpTimeout: 60_000,
-      // If you have multiple functions and need to specify different behaviors:
-      // behavior: {
-      //   'api-speech-to-text': 'WakeUp',
-      //   'some-other-function': 'None'
-      // }
-    });
+        if (environmentStarterRef.current) return;
 
-    environmentStarterRef.current = instance;
-    instance.initialize();
-    instance.startPolling();
+        const instance = new SlimFaasPlanetSaver(baseUrl, {
+            interval: 2000,
+            fetch,
+            behavior,
+            updateCallback: (data) => {
+                // Filter only the items that block the UI (WakeUp+BockUI)
+                const blockingItems = data.filter(
+                    (item) => instance.getBehavior(item.Name) === 'WakeUp+BockUI'
+                );
 
-    return () => {
-      instance.cleanup();
-      environmentStarterRef.current = null;
-    };
-  }, [baseUrl, fetch, isFirstStart]);
+                // If all blocking items are ready, set isFirstStart to false
+                const allBlockingReady = blockingItems.every(
+                    (item) => item.NumberReady >= 1
+                );
+                if (allBlockingReady && isFirstStart) {
+                    setIsFirstStart(false);
+                }
+            },
+            errorCallback: (error) => {
+                console.error('Error detected :', error);
+            },
+            overlayStartingMessage: '🌳 Starting the environment.... 🌳',
+            overlayNoActivityMessage: 'Waiting activity to start environment...',
+            overlayErrorMessage: 'An error occurred when starting environment. Please contact an administrator.',
+            overlaySecondaryMessage: 'Startup should be fast, but if no machines are available it can take several minutes.',
+            overlayLoadingIcon: '🌍',
+            overlayErrorSecondaryMessage: 'If the error persists, please contact an administrator.',
+            noActivityTimeout
+        });
 
-  // Until the environment is confirmed ready, don't render children
-  if (isFirstStart) {
-    return null;
-  }
+        environmentStarterRef.current = instance;
 
-  return <>{children}</>;
+        // Initialiser les effets de bord
+        instance.initialize();
+        instance.startPolling();
+
+        return () => {
+            instance.cleanup();
+            environmentStarterRef.current = null;
+        };
+    }, [baseUrl]);
+
+    if (isFirstStart) {
+        return null;
+    }
+
+    return <>{children}</>;
 };
 
 export default PlanetSaver;
+
 ```
 ---
 
