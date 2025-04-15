@@ -116,7 +116,7 @@
 
         pre code.language-js .hljs-function .hljs-title,
         pre code.language-javascript .hljs-function .hljs-title {
-            color: #61afef; /* bleu clair */
+            color: #a2d3ff; /* bleu clair */
         }
 
         pre code.language-js .hljs-comment,
@@ -145,6 +145,10 @@
 
         pre code.language-bash .hljs-keyword {
             color: #c678dd; /* violet */
+        }
+
+        pre code.language-jsx .hljs-string{
+            color: #afbeff;
         }
 
         table {
