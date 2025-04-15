@@ -30,6 +30,7 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
         {
             try
             {
+
                 using var scope = serviceScopeFactory.CreateScope();
                 var serviceProvider = scope.ServiceProvider;
                 var replicasService = serviceProvider.GetRequiredService<IReplicasService>();
@@ -37,10 +38,20 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
                 DeploymentInformation? function = SearchFunction(replicasService, functionName);
                 if (function != null)
                 {
+                    historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+                    logger.LogInformation("1: Waking up function {FunctionName} {SetTickLastCall}", functionName, DateTime.UtcNow.Ticks);
+                    await Task.Delay(1000);
+                    function = SearchFunction(replicasService, functionName);
+                    if (function == null)
+                    {
+                        logger.LogWarning("Function {FunctionName} not found after delay", functionName);
+                        return;
+                    }
                     var numberPods = function.Pods.Count(p => p.Ready.HasValue && p.Ready.Value);
                     while (numberPods == 0)
                     {
                         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+                        logger.LogInformation("2: Waking up function {FunctionName} {SetTickLastCall}", functionName, DateTime.UtcNow.Ticks);
                         function = SearchFunction(replicasService, functionName);
                         if (function != null)
                         {

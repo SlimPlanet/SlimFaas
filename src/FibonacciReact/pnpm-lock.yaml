@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@axa-fr/slimfaas-planet-saver':
+        specifier: ^0.36.20
+        version: 0.36.20
       react:
         specifier: ^19.0.0
         version: 19.0.0
@@ -48,6 +51,9 @@ packages:
   '@ampproject/remapping@2.3.0':
     resolution: {integrity: sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw==}
     engines: {node: '>=6.0.0'}
+
+  '@axa-fr/slimfaas-planet-saver@0.36.20':
+    resolution: {integrity: sha512-1icBH7r7wRv58HaF+jZfSVY5mV8M/zl7vAlZRwQVs6rQmGikZRM+8S7mq+ZbZxJ6ECoR50PSI4/xG2dtZUKNKA==}
 
   '@babel/code-frame@7.26.2':
     resolution: {integrity: sha512-RJlIHRueQgwWitWgF8OdFYGZX328Ax5BCemNGlqHfplnRT9ESi8JkFlvaVYbS+UubVY6dpv87Fs2u5M29iNFVQ==}
@@ -1621,6 +1627,8 @@ snapshots:
     dependencies:
       '@jridgewell/gen-mapping': 0.3.8
       '@jridgewell/trace-mapping': 0.3.25
+
+  '@axa-fr/slimfaas-planet-saver@0.36.20': {}
 
   '@babel/code-frame@7.26.2':
     dependencies:

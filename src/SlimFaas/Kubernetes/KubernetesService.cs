@@ -657,8 +657,7 @@ public class KubernetesService : IKubernetesService
                     {
                         visibility = FunctionVisibility.Private;
                     }
-
-                    if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
+                    else if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                     {
                         visibility = FunctionVisibility.Public;
                     }
@@ -719,8 +718,7 @@ public class KubernetesService : IKubernetesService
                     {
                         visibility = FunctionVisibility.Private;
                     }
-
-                    if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
+                    else if (prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                     {
                         visibility = FunctionVisibility.Public;
                     }

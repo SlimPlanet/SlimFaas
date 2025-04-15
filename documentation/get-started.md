@@ -194,6 +194,10 @@ spec:
           ports:
             - containerPort: 5000    # SlimFaas main port
             - containerPort: 3262    # SlimData port
+          #env:
+          #  - name: SLIMDATA_CONFIGURATION # To start slimfaas with only 1 replica
+          #    value: |
+          #        {"coldStart":"true"}
           # ...
 ---
 apiVersion: v1
