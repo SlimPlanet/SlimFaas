@@ -14,7 +14,7 @@ spec:
         app: fibonacci1
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "5"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
         SlimFaas/NumberParallelRequest : "2"
     spec:
       serviceAccountName: default
@@ -69,7 +69,7 @@ spec:
         app: fibonacci2
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "5"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
         SlimFaas/DependsOn: "fibonacci1,mysql"
     spec:
       serviceAccountName: default

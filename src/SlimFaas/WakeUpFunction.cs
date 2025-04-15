@@ -37,10 +37,16 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
                 DeploymentInformation? function = SearchFunction(replicasService, functionName);
                 if (function != null)
                 {
+                    historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+                    await Task.Delay(1000);
+                    function = SearchFunction(replicasService, functionName);
+                    if (function == null)
+                    {
+                        return;
+                    }
                     var numberPods = function.Pods.Count(p => p.Ready.HasValue && p.Ready.Value);
                     while (numberPods == 0)
                     {
-                        historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
                         function = SearchFunction(replicasService, functionName);
                         if (function != null)
                         {
