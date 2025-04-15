@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.36.21
+
+- [4af6f52](https://github.com/SlimPlanet/SlimFaas/commit/4af6f52b66f495aa82fdd553eceb67994dd8b818) - fix(slimfaas): wake up + enhance demo (#109) (release), 2025-04-15 by *Guillaume Chervet*
+
+
 ## v0.36.20
 
 - [8e632a7](https://github.com/SlimPlanet/SlimFaas/commit/8e632a7dee6148188c151d152fad2719011a8b04) - feature(planetsaver): add behavior to configure exceptions (#108) (release), 2025-04-15 by *Guillaume Chervet*
@@ -300,10 +305,5 @@
 ## v0.30.0
 
 - [1bbbdad](https://github.com/SlimPlanet/SlimFaas/commit/1bbbdad02e74ed2d0d44743f36766da821632e7d) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
-
-
-## v0.29.0
-
-- [a43108f](https://github.com/SlimPlanet/SlimFaas/commit/a43108f8f46436a895e09320ffec38d2fb8eb99e) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
 
 
