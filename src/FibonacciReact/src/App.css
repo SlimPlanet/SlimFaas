@@ -25,6 +25,27 @@ body {
     z-index: 10;
 }
 
+/* On place la navigation en position absolue, en haut à droite du header */
+.header-nav {
+    position: absolute;
+    top: 0.5rem;    /* Ajuste selon ta préférence */
+    right: 1rem;    /* Ajuste selon ta préférence */
+}
+
+/* Style du lien dans le header (exemple, ajuster à ta convenance) */
+.header-nav a {
+    text-decoration: none;
+    color: #1b3faa;
+    font-weight: bold;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.header-nav a:hover {
+    background-color: #eee; /* Petit effet au survol */
+}
+
 .logo {
     width: 40px;
     height: 40px;
