@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.36.20
+
+- [8e632a7](https://github.com/SlimPlanet/SlimFaas/commit/8e632a7dee6148188c151d152fad2719011a8b04) - feature(planetsaver): add behavior to configure exceptions (#108) (release), 2025-04-15 by *Guillaume Chervet*
+- [b4720ac](https://github.com/SlimPlanet/SlimFaas/commit/b4720ac917d6500abce2c83d4859c4df4cc61b51) - fix(docs): Updating correct annotation for private function path (#107), 2025-04-11 by *FaresAhmedAXA*
+- [79f9f69](https://github.com/SlimPlanet/SlimFaas/commit/79f9f69c430012c93a8f04c094780c3f65e43e6d) - fix(website): repair logo path, 2025-04-07 by *Guillaume Chervet*
+
+
 ## v0.36.19
 
 - [3ac2319](https://github.com/SlimPlanet/SlimFaas/commit/3ac2319a15490dce06c68c7fbda57d002ae8dd79) - fix(PlanetSaver): wake up more easily (release) (#105), 2025-04-07 by *Guillaume Chervet*
@@ -298,10 +305,5 @@
 ## v0.29.0
 
 - [a43108f](https://github.com/SlimPlanet/SlimFaas/commit/a43108f8f46436a895e09320ffec38d2fb8eb99e) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
-
-
-## v0.28.0
-
-- [77fb57b](https://github.com/SlimPlanet/SlimFaas/commit/77fb57b33c3fafb737965370bd65d7bd84674c35) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
 
 
