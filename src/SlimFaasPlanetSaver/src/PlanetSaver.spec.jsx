@@ -82,7 +82,7 @@ describe('PlanetSaver Component', () => {
     //
     it('Should skip blocking UI if function has behavior=None', async () => {
         // Suppose we only switch fibonacci2 to 'None'; the rest remain default
-        // (i.e., 'WakeUp+BockUI' if not specified).
+        // (i.e., 'WakeUp+BlockUI' if not specified).
         // We'll configure our environment so that fibonacci1 is ready, but fibonacci2 is NOT.
         setAlternateStatusFunctionsBody([
             { NumberReady: 1, numberRequested: 1, PodType: 'Deployment', Visibility: 'Public', Name: 'fibonacci1' },

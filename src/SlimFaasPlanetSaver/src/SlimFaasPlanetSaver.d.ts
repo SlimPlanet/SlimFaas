@@ -1,4 +1,4 @@
-﻿export type BehaviorValue = 'WakeUp+BockUI' | 'WakeUp' | 'None';
+﻿export type BehaviorValue = 'WakeUp+BlockUI' | 'WakeUp' | 'None';
 
 export interface BehaviorMap {
     [functionName: string]: BehaviorValue;

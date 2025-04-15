@@ -15,9 +15,9 @@ const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavi
             fetch,
             behavior,
             updateCallback: (data) => {
-                // Filter only the items that block the UI (WakeUp+BockUI)
+                // Filter only the items that block the UI (WakeUp+BlockUI)
                 const blockingItems = data.filter(
-                    (item) => instance.getBehavior(item.Name) === 'WakeUp+BockUI'
+                    (item) => instance.getBehavior(item.Name) === 'WakeUp+BlockUI'
                 );
 
                 // If all blocking items are ready, set isFirstStart to false

@@ -23,7 +23,7 @@ export default class SlimFaasPlanetSaver {
         this.fetch = options.fetch || fetch;
 
         // Ajout de la configuration de comportement
-        // Les valeurs possibles sont "WakeUp+BockUI", "WakeUp", "None"
+        // Les valeurs possibles sont "WakeUp+BlockUI", "WakeUp", "None"
         this.behavior = options.behavior || {};
 
         this.intervalId = null;
@@ -39,10 +39,10 @@ export default class SlimFaasPlanetSaver {
 
     /**
      * Retourne le comportement à appliquer pour une fonction donnée
-     * S'il n'est pas renseigné, renvoie "WakeUp+BockUI" par défaut
+     * S'il n'est pas renseigné, renvoie "WakeUp+BlockUI" par défaut
      */
     getBehavior(name) {
-        return this.behavior[name] || 'WakeUp+BockUI';
+        return this.behavior[name] || 'WakeUp+BlockUI';
     }
 
     initialize() {
@@ -78,7 +78,7 @@ export default class SlimFaasPlanetSaver {
         // On évite de rappeler trop souvent la même fonction
         const shouldFilter = lastWakeUpTime && (currentTime - lastWakeUpTime) <= this.wakeUpTimeout;
 
-        // On ne fait un wake-up que pour les fonctions dont le comportement est "WakeUp" ou "WakeUp+BockUI"
+        // On ne fait un wake-up que pour les fonctions dont le comportement est "WakeUp" ou "WakeUp+BlockUI"
         const wakePromises = data
             .filter((item) => this.getBehavior(item.Name) !== 'None')
             .filter((item) => item.NumberReady === 0 || !shouldFilter)
@@ -113,8 +113,8 @@ export default class SlimFaasPlanetSaver {
             }
             const data = await response.json();
 
-            // On ne considère comme bloquantes que les fonctions dont le comportement est "WakeUp+BockUI"
-            const blockingItems = data.filter((item) => this.getBehavior(item.Name) === 'WakeUp+BockUI');
+            // On ne considère comme bloquantes que les fonctions dont le comportement est "WakeUp+BlockUI"
+            const blockingItems = data.filter((item) => this.getBehavior(item.Name) === 'WakeUp+BlockUI');
             const allBlockingReady = blockingItems.every((item) => item.NumberReady >= 1);
 
             // Si toutes les fonctions "bloquantes" sont prêtes, on estime que c'est "ready".
