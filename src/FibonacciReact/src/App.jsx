@@ -161,6 +161,20 @@ function Main({ url }) {
             <header className="header-bar">
                 <img src={slimFaasLogoUrl} alt="SlimFaas Logo" className="logo" />
                 <h1 className="header-title">SlimFaas Demo</h1>
+                <nav className="header-nav">
+                    <a
+                        href="#"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            // Construit la nouvelle URL sans conserver d'autres params
+                            const baseUrl = window.location.origin + window.location.pathname;
+                            // Redirige l'utilisateur vers baseUrl + "?planetsaver=true"
+                            window.location.href = `${baseUrl}?planetsaver=true`;
+                        }}
+                    >
+                        Planet Saver
+                    </a>
+                </nav>
             </header>
 
             {/* Zone principale : cartes de déploiement + boutons "events" */}

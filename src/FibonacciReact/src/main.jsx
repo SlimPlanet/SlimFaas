@@ -15,15 +15,19 @@ const newFetch = (url, options) => {
     return fetch(url, newOptions);
 }
 
+const searchParams = new URLSearchParams(window.location.search);
+const isPlanetSaver = searchParams.get("planetsaver") === "true";
+
 ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-      <PlanetSaver baseUrl="http://localhost:30021"
-                   fetch={newFetch}
-                   noActivityTimeout={10000}
-                   interval={2000}
-                   wakeUpTimeout={1000}
-                   behavior={{ 'fibonacci4': 'None' }}>
-            <Main url="http://localhost:30021" />
-      </PlanetSaver>
-  </React.StrictMode>,
+    <React.StrictMode>
+        {isPlanetSaver ? <PlanetSaver baseUrl="http://localhost:30021"
+                     fetch={newFetch}
+                     noActivityTimeout={10000}
+                     interval={2000}
+                     wakeUpTimeout={1000}
+                     behavior={{'fibonacci4': 'None'}}>
+            <Main url="http://localhost:30021"/>
+        </PlanetSaver> : <Main url="http://localhost:30021" />}
+    </React.StrictMode>,
 )
+
