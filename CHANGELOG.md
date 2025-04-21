@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.36.22
+
+- [59a9fc7](https://github.com/SlimPlanet/SlimFaas/commit/59a9fc71219c54ce916493d6e9c7d0711725734a) - doc(all): update demo and badges (#110) (release), 2025-04-21 by *Guillaume Chervet*
+- [2b1ed8a](https://github.com/SlimPlanet/SlimFaas/commit/2b1ed8a4ab34452b138204f5447169b278297700) - doc: Update README.md add FOSSA badges, 2025-04-19 by *Guillaume Chervet*
+
+
 ## v0.36.21
 
 - [4af6f52](https://github.com/SlimPlanet/SlimFaas/commit/4af6f52b66f495aa82fdd553eceb67994dd8b818) - fix(slimfaas): wake up + enhance demo (#109) (release), 2025-04-15 by *Guillaume Chervet*
@@ -300,10 +306,5 @@
 ## v0.30.1
 
 - [8b2191d](https://github.com/SlimPlanet/SlimFaas/commit/8b2191d605dff5f905e68e388aa5225d776ddf04) - fix(SlimFaasPlanetSaver): enhance behavior, 2024-11-29 by *Guillaume Chervet*
-
-
-## v0.30.0
-
-- [1bbbdad](https://github.com/SlimPlanet/SlimFaas/commit/1bbbdad02e74ed2d0d44743f36766da821632e7d) - feat(SlimFaasPlanetSaver): add npm component, 2024-11-29 by *Guillaume Chervet*
 
 
