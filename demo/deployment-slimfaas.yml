@@ -32,7 +32,7 @@ data:
           "BackoffLimit": 1,
           "Visibility": "Public",
           "NumberParallelJob": 2,
-          "TtlSecondsAfterFinished": 36000,
+          "TtlSecondsAfterFinished": 2,
           "RestartPolicy": "Never"
         }
       }
@@ -44,8 +44,13 @@ metadata:
   name: slimfaas
   namespace: slimfaas-demo
 spec:
-  replicas: 3
   podManagementPolicy: Parallel
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  replicas: 3
   serviceName: slimfaas
   selector:
     matchLabels:
