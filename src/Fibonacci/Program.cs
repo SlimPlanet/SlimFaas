@@ -28,11 +28,6 @@ app.UseCors(builder => builder
 
 app.MapGet("/health", () => "OK");
 
-app.MapGet("/error", async () =>
-{
-    await Task.Delay(100);
-    throw new Exception("Error");
-});
 
 app.MapGet("/hello/{name}", ([FromServices] ILogger<Fibonacci> logger, string name) =>
 {
@@ -46,6 +41,7 @@ app.MapGet("/download", ([FromServices] ILogger<Fibonacci> logger) =>
     string path = Path.Combine(Directory.GetCurrentDirectory(), "dog.png");
     return Results.File(path, "image/png");
 });
+
 
 app.MapPost("/fibonacci", (
     [FromServices] ILogger<Fibonacci> logger,
@@ -149,6 +145,11 @@ app.MapPost("/fibonacci-recursive", async (
     return Results.BadRequest(new FibonacciRecursiveOutput());
 });
 
+app.MapGet("/error", async () =>
+{
+    await Task.Delay(100);
+    throw new Exception("Error");
+});
 
 
 app.Run();

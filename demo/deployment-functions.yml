@@ -123,7 +123,7 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
-        SlimFaas/SubscribeEvents : "Public:fibo-public,Private:fibo-private"
+        SlimFaas/SubscribeEvents : "fibo-public"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
@@ -177,11 +177,11 @@ spec:
         app: fibonacci4
       annotations:
         SlimFaas/Function: "true"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
+        SlimFaas/DefaultVisibility: "Private"
         SlimFaas/ReplicasMin: "0"
         SlimFaas/ReplicasAtStart: "2"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
-        SlimFaas/DefaultVisibility : "Private"
-        SlimFaas/SubscribeEvents : "Public:fibo-public,Private:fibo-private"
+        SlimFaas/SubscribeEvents : "Public:fibo-public"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false

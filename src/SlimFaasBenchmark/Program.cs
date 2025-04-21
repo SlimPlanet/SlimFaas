@@ -10,7 +10,8 @@ using var httpClient = new HttpClient
 var scenario = Scenario.Create("hello_scenario", async context =>
     {
         // On envoie une requête GET vers /hello/John
-        var response = await httpClient.GetAsync("http://localhost:30021/function/fibonacci1/hello/John");
+       // var response = await httpClient.GetAsync("http://localhost:30021/function/fibonacci1/hello/John");
+        var response = await httpClient.GetAsync("http://localhost:30022/hello/John");
 
         // On détermine OK/Fail en fonction du code HTTP
         return response.IsSuccessStatusCode ? Response.Ok() : Response.Fail();
