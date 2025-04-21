@@ -282,8 +282,7 @@ jobs:
 
   deploy_website:
     runs-on: ubuntu-latest
-    if: needs.tags.outputs.tag == 'release'
-    needs: [ tags ]
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
