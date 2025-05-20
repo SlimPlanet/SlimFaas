@@ -23,6 +23,8 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
     private ISupplier<SlimDataPayload> SimplePersistentState =>
         serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
 
+    public Task DeleteAsync(string key) => throw new NotImplementedException();
+
     public async Task<byte[]?> GetAsync(string key)
     {
         return await Retry.DoAsync(() => DoGetAsync(key), logger,  _retryInterval);

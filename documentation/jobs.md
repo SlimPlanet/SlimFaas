@@ -256,3 +256,19 @@ curl -X POST http://<slimfaas>/job/fibonacci/run-something
 - **Control** concurrency, environment variables, resources, TTL, dependencies, and more through your config.
 
 Use **SlimFaas Jobs** to handle asynchronous, on-demand, or batched workloads with minimal operational overhead. Enjoy automating your tasks!
+
+---
+
+```bash
+curl -X GET http://<slimfaas>/job-schedules/DailyJobs
+[{"Id":"0","Name":"fibonacci","Time":"01:00","Arguments":[]}]
+
+curl -X POST http://<slimfaas>/job-schedules/DailyJobs
+{"Id":"0","Name":"fibonacci","Time":"01:00","Arguments":[]}
+
+curl -X GET http://<slimfaas>/job-schedules/PeriodicJobs
+[{"Id":"0","Name":"fibonacci","TimeSpanSeconds":"3600","Arguments":[]}]
+
+curl -X POST http://<slimfaas>/job-schedules/PeriodicJobs
+{"Id":"0","Name":"fibonacci","TimeSpanSeconds":"3600","Arguments":[]}
+```

@@ -13,6 +13,7 @@ public enum CountType
 
 public interface IDatabaseService
 {
+    Task DeleteAsync(string key);
     Task<byte[]?> GetAsync(string key);
     Task SetAsync(string key,  byte[] value);
     Task HashSetAsync(string key, IDictionary<string, string> values);

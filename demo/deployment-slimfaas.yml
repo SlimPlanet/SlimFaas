@@ -35,10 +35,17 @@ data:
           "TtlSecondsAfterFinished": 36000,
           "RestartPolicy": "Never"
         }
+      },
+    "Schedules":
+      {
+        "TimeZoneID": "Europe/Paris",
+        "DailyJobs": [{"Id":"0","Name":"fibonacci","Time":"01:00","Arguments":[]}],
+        "PeriodicJobs": [{"Id":"0","Name":"fibonacci","TimeSpanSeconds":"3600","Arguments":[]}]
       }
     }
 ---
 apiVersion: apps/v1
+
 kind: StatefulSet
 metadata:
   name: slimfaas

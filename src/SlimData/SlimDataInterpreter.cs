@@ -147,6 +147,18 @@ public class SlimDataInterpreter : CommandInterpreter
         keyValues[valueCommand.Key] = valueCommand.Value;
         return default;
     }
+    
+    [CommandHandler]
+    public ValueTask DeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, CancellationToken token)
+    {
+        return DoDeleteKeyValueAsync(valueCommand, SlimDataState.KeyValues);
+    }
+    
+    internal static ValueTask DoDeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, Dictionary<string, ReadOnlyMemory<byte>> keyValues)
+    {
+        keyValues.Remove(valueCommand.Key);
+        return default;
+    }
 
     [CommandHandler(IsSnapshotHandler = true)]
     public ValueTask HandleSnapshotAsync(LogSnapshotCommand command, CancellationToken token)
@@ -183,6 +195,7 @@ public class SlimDataInterpreter : CommandInterpreter
         ValueTask ListLeftPushHandler(ListLeftPushCommand command, CancellationToken token) => DoListLeftPushAsync(command, state.Queues);
         ValueTask AddHashSetHandler(AddHashSetCommand command, CancellationToken token) => DoAddHashSetAsync(command, state.Hashsets);
         ValueTask AddKeyValueHandler(AddKeyValueCommand command, CancellationToken token) => DoAddKeyValueAsync(command, state.KeyValues);
+        ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand command, CancellationToken token) => DoDeleteKeyValueAsync(command, state.KeyValues);
         ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand command, CancellationToken token) => DoListCallbackAsync(command, state.Queues);
         ValueTask SnapshotHandler(LogSnapshotCommand command, CancellationToken token) => DoHandleSnapshotAsync(command, state.KeyValues, state.Hashsets, state.Queues);
 
@@ -191,6 +204,7 @@ public class SlimDataInterpreter : CommandInterpreter
             .Add(ListLeftPushCommand.Id, (Func<ListLeftPushCommand, CancellationToken, ValueTask>)ListLeftPushHandler)
             .Add(AddHashSetCommand.Id, (Func<AddHashSetCommand, CancellationToken, ValueTask>)AddHashSetHandler)
             .Add(AddKeyValueCommand.Id, (Func<AddKeyValueCommand, CancellationToken, ValueTask>)AddKeyValueHandler)
+            .Add(DeleteKeyValueCommand.Id, (Func<DeleteKeyValueCommand, CancellationToken, ValueTask>)DeleteKeyValueHandler)
             .Add(ListCallbackCommand.Id, (Func<ListCallbackCommand, CancellationToken, ValueTask>)ListSetQueueItemStatusAsync)
             .Add(LogSnapshotCommand.Id, (Func<LogSnapshotCommand, CancellationToken, ValueTask>)SnapshotHandler, true)
             .Build();
