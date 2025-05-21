@@ -140,7 +140,7 @@ In SLIMFAAS_JOBS_CONFIGURATION, you have one or more job entries under "Configur
   "Configurations": {
     "fibonacci": {
       "Image": "axaguildev/fibonacci-batch:latest",
-      "ImagesWhitelist": [],
+      "ImagesWhitelist": ["axaguildev/fibonacci-batch:*"],
       "Resources": {
         "Requests": {
           "cpu": "400m",
@@ -185,22 +185,56 @@ In SLIMFAAS_JOBS_CONFIGURATION, you have one or more job entries under "Configur
 To **trigger** a job, you simply make an HTTP request to the **job endpoint**:
 
 ```bash
-POST http://<slimfaas>/job/<jobName>/<path>
+POST http://<slimfaas>/job/<jobName>
 ```
 
 - `<jobName>` corresponds to the name defined in `"Configurations"` (e.g., `"fibonacci"` in the example).
 
 - `<path>` can be any arbitrary suffix you want to pass along; SlimFaas ignores it or can forward it as part of the environment or request parameters to the job container.
 
-**Example:**
+**Example 1:**
 
 ```bash
-curl -X POST http://localhost:30021/job/fibonacci/run-something
+curl -X POST http://localhost:30021/job/fibonacci
+{
+      "Args": ["42", "43"]
+}
 ```
 
 - SlimFaas checks if the job is configured and, if so, spawns a Kubernetes Job resource in `slimfaas-demo` (or whichever namespace you deployed SlimFaas to).
+- SlimFaas use the default "image" configured and use default parameters configured in `ConfigMap`
 - If the job is **Public**, you can call it from anywhere.
 - If the job is **Private**, SlimFaas verifies that the request originates from trusted pods or is internal to the cluster.
+
+**Example 2:**
+
+```bash
+curl -X POST http://localhost:30021/job/fibonacci
+{
+      "Image": "axaguildev/fibonacci-batch:1.0.1" # Allowed by image ImagesWhitelist
+      "Args": ["42", "43"],
+      "Resources": { # override default Resources configured but cannot be superior
+        "Requests": {
+          "cpu": "200m",
+          "memory": "200Mi"
+        },
+        "Limits": {
+          "cpu": "200m",
+          "memory": "200Mi"
+        }
+      },
+      "Environments": [], # override and merge with default Environments configured
+      "BackoffLimit": 1,
+      "TtlSecondsAfterFinished": 100,
+      "RestartPolicy": "Never"
+}
+```
+
+- SlimFaas merge parameters with the default configured value in `ConfigMap`
+- SlimFaas checks if the job is configured and, if so, spawns a Kubernetes Job resource in `slimfaas-demo` (or whichever namespace you deployed SlimFaas to).
+- If the job is **Public**, you can call it from anywhere.
+- If the job is **Private**, SlimFaas verifies that the request originates from trusted pods or is internal to the cluster.
+
 
 ---
 
@@ -241,7 +275,7 @@ By default, completed Jobs and Pods remain in your cluster unless you specify a 
 4. **Trigger** the job with an HTTP call:
 
 ```bash
-curl -X POST http://<slimfaas>/job/fibonacci/run-something
+curl -X POST http://<slimfaas>/job/fibonacci
 ```
 5. **Monitor** your cluster (e.g., `kubectl get jobs -n slimfaas-demo`) to see the job pods starting, running, and completing.
 6. **Observe** your logs or other debugging info to verify success/failure.
@@ -252,7 +286,7 @@ curl -X POST http://<slimfaas>/job/fibonacci/run-something
 
 - **Jobs** in SlimFaas are powered by Kubernetes Jobs under the hood.
 - They are defined via a JSON config (placed in a `ConfigMap` or other source) and referenced by `SLIMFAAS_JOBS_CONFIGURATION`.
-- **Trigger** them by calling `http://<slimfaas>/job/<jobName>/<path>`.
+- **Trigger** them by calling `http://<slimfaas>/job/<jobName>`.
 - **Control** concurrency, environment variables, resources, TTL, dependencies, and more through your config.
 
 Use **SlimFaas Jobs** to handle asynchronous, on-demand, or batched workloads with minimal operational overhead. Enjoy automating your tasks!
