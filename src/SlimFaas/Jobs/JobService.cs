@@ -1,4 +1,5 @@
-﻿using MemoryPack;
+﻿using System.Text.RegularExpressions;
+using MemoryPack;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Jobs;
@@ -29,6 +30,30 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
         await kubernetesService.DeleteJobAsync(_namespace, name);
     }
 
+    public static string ConvertPatternToRegex(string pattern)
+    {
+        return "^" + Regex.Escape(pattern)
+                       .Replace("\\*", ".*")  // '*' devient '.*'
+                       .Replace(":", "\\:")    // Échapper les deux-points
+                   + "$";
+    }
+
+    private static bool IsPatternMatch(string pattern, string target)
+    {
+        string regexPattern = ConvertPatternToRegex(pattern);
+        return Regex.IsMatch(target, regexPattern);
+    }
+
+    private bool IsImageAllowed(IList<string> imagesWhiteList, string image)
+    {
+        if (imagesWhiteList.Any(imageWhiteList => IsPatternMatch(imageWhiteList, image)))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     public async Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
@@ -39,14 +64,14 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
             return new EnqueueJobResult("Visibility private", 400);
         }
 
-        if (createJob.Image != string.Empty && !conf.ImagesWhitelist.Contains(createJob.Image))
+        if (createJob.Image != string.Empty && !IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
         {
             return new EnqueueJobResult("Image_not_allowed");
         }
         var image = createJob.Image != string.Empty ? createJob.Image : conf.Image;
 
         var environments = new List<EnvVarInput>();
-        foreach (var env in conf.Environments?.ToList() ?? new List<EnvVarInput>())
+        foreach (var env in conf.Environments?.ToList() ?? [])
         {
             if((createJob.Environments ?? new List<EnvVarInput>()).All(e => e.Name != env.Name))
             {
