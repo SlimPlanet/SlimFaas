@@ -365,7 +365,7 @@ public class KubernetesService : IKubernetesService
     {
         k8s.Kubernetes client = _client;
 
-        string fullName = $"{name}{SlimfaasJobKey}{Guid.NewGuid()}";
+        string fullName = $"{name}{SlimfaasJobKey}{TinyGuid.NewTinyGuid()}";
 
         Dictionary<string, ResourceQuantity> requests = new()
         {

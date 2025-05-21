@@ -44,7 +44,7 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
         return Regex.IsMatch(target, regexPattern);
     }
 
-    private bool IsImageAllowed(IList<string> imagesWhiteList, string image)
+    private static bool IsImageAllowed(IList<string> imagesWhiteList, string image)
     {
         if (imagesWhiteList.Any(imageWhiteList => IsPatternMatch(imageWhiteList, image)))
         {
