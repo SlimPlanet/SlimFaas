@@ -19,7 +19,7 @@ public enum JobStatus
     ImagePullBackOff
 }
 
-public record Job(string Name, JobStatus Status, IList<string> Ips);
+public record Job(string Name, JobStatus Status, IList<string> Ips, IList<string> DependsOn);
 
 public class ScheduleConfig
 {
@@ -46,7 +46,6 @@ public partial class ScheduleConfigSerializerContext : JsonSerializerContext;
 public record SlimFaasConfiguration
 {
     public SlimFaasDefaultConfiguration DefaultSync { get; init; } = new();
-
     public SlimFaasDefaultConfiguration DefaultAsync { get; init; } = new();
     public SlimFaasDefaultConfiguration DefaultPublish { get; init; } = new();
 }
@@ -137,6 +136,7 @@ public partial record CreateJob(
     string RestartPolicy = "Never",
     CreateJobResources? Resources = null,
     IList<EnvVarInput>? Environments = null,
+    List<string>? DependsOn = null,
     string ConfigurationName = "Default");
 
 [MemoryPackable]
@@ -441,11 +441,21 @@ public class KubernetesService : IKubernetesService
             return new V1EnvVar(e.Name, e.Value);
         }).ToList();
 
+        var annotations = new Dictionary<string, string>();
+        if(createJob.DependsOn != null)
+        {
+            annotations.Add(DependsOn, string.Join(",", createJob.DependsOn));
+        }
+
         V1Job job = new()
         {
             ApiVersion = "batch/v1",
             Kind = "Job",
-            Metadata = new V1ObjectMeta { Name = fullName, NamespaceProperty = kubeNamespace },
+            Metadata = new V1ObjectMeta {
+                Name = fullName,
+                NamespaceProperty = kubeNamespace,
+                Annotations = annotations
+            },
             Spec = new V1JobSpec
             {
                 TtlSecondsAfterFinished = createJob.TtlSecondsAfterFinished,
@@ -494,7 +504,7 @@ public class KubernetesService : IKubernetesService
         {
             V1PodList? pods = await _client.ListNamespacedPodAsync(
                 kubeNamespace,
-                labelSelector: $"job-name={v1Job.Metadata.Name}"
+                labelSelector: $"job-name={v1Job.Metadata?.Name ?? ""}"
             );
 
             IList<string> ips = pods.Items.Where(p => p.Status.PodIP != null).Select(p => p.Status.PodIP).ToList();
@@ -526,9 +536,20 @@ public class KubernetesService : IKubernetesService
                 }
             }
 
-            jobStatus.Add(new Job(v1Job.Metadata.Name,
+            List<string> dependsOn = new();
+            if (v1Job.Metadata?.Annotations != null && v1Job.Metadata?.Annotations.ContainsKey(DependsOn) == true)
+            {
+                var split = v1Job.Metadata?.Annotations[DependsOn].Split(",");
+                if (split != null)
+                {
+                    dependsOn.AddRange(split);
+                }
+            }
+
+            jobStatus.Add(new Job(v1Job.Metadata?.Name ?? "",
                 status,
-                ips
+                ips,
+                dependsOn
             ));
         }
 

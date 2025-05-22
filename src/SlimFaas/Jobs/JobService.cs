@@ -84,14 +84,16 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
             environments.Add(env);
         }
 
+        List<string>? dependsOn = createJob.DependsOn ?? conf.DependsOn;
+
         CreateJob newCreateJob = new(
             createJob.Args,
             image,
             TtlSecondsAfterFinished: conf.TtlSecondsAfterFinished,
             Resources: JobResourceValidator.ValidateResources(conf.Resources,  createJob.Resources),
             Environments: environments,
-            ConfigurationName: name
-            );
+            ConfigurationName: name,
+            DependsOn: dependsOn);
 
         var createJobSerialized = MemoryPackSerializer.Serialize(newCreateJob);
         await jobQueue.EnqueueAsync(name, createJobSerialized);
