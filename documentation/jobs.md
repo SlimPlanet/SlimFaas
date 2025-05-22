@@ -213,6 +213,7 @@ curl -X POST http://localhost:30021/job/fibonacci
 {
       "Image": "axaguildev/fibonacci-batch:1.0.1" # Allowed by image ImagesWhitelist
       "Args": ["42", "43"],
+      "DependsOn": ["fibonacci2"], # override default DependsOn configured
       "Resources": { # override default Resources configured but cannot be superior
         "Requests": {
           "cpu": "200m",
