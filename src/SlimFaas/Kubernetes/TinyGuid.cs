@@ -5,7 +5,7 @@ namespace SlimFaas.Kubernetes;
 public static class TinyGuid
 {
     private const string Alphabet =
-        "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"; // base 62
+        "0123456789abcdefghijklmnopqrstuvwxyz"; // base 62
 
     /// <summary>
     /// Génère un identifiant court et (statistiquement) unique.
