@@ -41,7 +41,17 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
     private static bool IsPatternMatch(string pattern, string target)
     {
         string regexPattern = ConvertPatternToRegex(pattern);
-        return Regex.IsMatch(target, regexPattern);
+        TimeSpan timeout = TimeSpan.FromSeconds(2);
+
+        try
+        {
+            return Regex.IsMatch(target, regexPattern, RegexOptions.None, timeout);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            Console.WriteLine($"Error: regex job pattern {pattern} generate a timeout");
+            return false;
+        }
     }
 
     private static bool IsImageAllowed(IList<string> imagesWhiteList, string image)
