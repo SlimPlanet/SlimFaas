@@ -19,7 +19,7 @@ public class SlimFaasQueue(IDatabaseService databaseService) : ISlimFaasQueue
 
     public async Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus) => await databaseService.ListCallbackAsync($"{KeyPrefix}{key}", queueItemStatus);
 
-    public async Task<long> CountElementAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) => await databaseService.ListCountElementAsync($"{KeyPrefix}{key}", countTypes, maximum);
+    public async Task<long> CountElementAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) => (await databaseService.ListCountElementAsync($"{KeyPrefix}{key}", countTypes, maximum)).Count;
 
 
 }

@@ -124,7 +124,7 @@ public class SlimJobsWorkerTests
         // QueueCount => 0
         _jobQueueMock
             .Setup(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(0);
+            .ReturnsAsync(new List<QueueData>());
 
         // On simulera des déploiements vides
         var emptyDeployments = new DeploymentsInformations(
@@ -201,7 +201,7 @@ public class SlimJobsWorkerTests
         // CountElement => 1 élément dispo
         _jobQueueMock
             .Setup(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(1);
+            .ReturnsAsync(new List<QueueData>(){ new("1", [byte.MinValue]) });
 
         // "dependencyA" à 0 réplicas => skip
         var deployments = new DeploymentsInformations(
@@ -280,16 +280,20 @@ public class SlimJobsWorkerTests
             .Setup(s => s.SyncJobsAsync())
             .ReturnsAsync(new List<Job>());
 
+        // Simule un dequeue qui retourne un seul élément
+        var createJobObj = new CreateJob(new List<string>() {"arg1", "arg2"}, DependsOn: ["dependencyA"]);
+        var dataBytes = MemoryPack.MemoryPackSerializer.Serialize(createJobObj);
+
         // 1 élément dispo dans la queue
         _jobQueueMock
             .Setup(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(1);
+            .ReturnsAsync(new List<QueueData>(){ new("fakeId", dataBytes), new("fakeId", dataBytes) });
 
         // "dependencyA" a 1 réplique => c'est prêt
         var deployments = new DeploymentsInformations(
             Functions: new List<DeploymentInformation>
             {
-                new DeploymentInformation(
+                new(
                     Deployment: "dependencyA",
                     Namespace: "default",
                     Pods: new List<PodInformation>(),
@@ -298,15 +302,11 @@ public class SlimJobsWorkerTests
                 )
             },
             SlimFaas: new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
-            Pods: Array.Empty<PodInformation>()
+            Pods: []
         );
         _replicasServiceMock
             .Setup(r => r.Deployments)
             .Returns(deployments);
-
-        // Simule un dequeue qui retourne un seul élément
-        var createJobObj = new CreateJob(new List<string>() {"arg1", "arg2"});
-        var dataBytes = MemoryPack.MemoryPackSerializer.Serialize(createJobObj);
 
         var queueDataList = new List<QueueData>
         {

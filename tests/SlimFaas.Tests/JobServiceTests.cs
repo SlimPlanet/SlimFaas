@@ -32,7 +32,7 @@ namespace SlimFaas.Tests
                         "Default",
                         new SlimfaasJob(
                             Image: "default-image",
-                            ImagesWhitelist: new List<string>{ "default-image" },
+                            ImagesWhitelist: new List<string>{ "default-image", "pattern-image:*" },
                             Resources: new CreateJobResources(
                                 new Dictionary<string,string>{{ "cpu", "100m" }},
                                 new Dictionary<string,string>{{ "cpu", "200m" }}
@@ -70,9 +70,11 @@ namespace SlimFaas.Tests
             // Arrange
             var jobName = "TestJob";
             var createJob = new CreateJob(new List<string> { "arg1", "arg2" },"some-image");
+            var createJobPattern = new CreateJob(new List<string> { "arg1", "arg2" },"pattern-image:latest");
 
             // Act
             await _jobService.CreateJobAsync(jobName, createJob);
+            await _jobService.CreateJobAsync(jobName, createJobPattern);
 
             // Assert
             _kubernetesServiceMock
@@ -81,6 +83,13 @@ namespace SlimFaas.Tests
                     jobName,
                     createJob),
                 Times.Once);
+
+            _kubernetesServiceMock
+                .Verify(x => x.CreateJobAsync(
+                        It.IsAny<string>(), // le namespace
+                        jobName,
+                        createJobPattern),
+                    Times.Once);
         }
 
         #endregion
