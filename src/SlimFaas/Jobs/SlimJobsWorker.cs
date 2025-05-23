@@ -79,7 +79,7 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                     continue;
                 }
 
-                var numberJobReady = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
+                var numberJobReady = await ShouldWaitDependencies(jobName);
                 if (numberJobReady<=0)
                 {
                     continue;
@@ -122,7 +122,7 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
         }
     }
 
-    private async Task<int> ShouldWaitDependencies(string jobName, IDictionary<string, SlimfaasJob> configurations, KeyValuePair<string, List<Job>> jobsKeyPairValue)
+    private async Task<int> ShouldWaitDependencies(string jobName)
     {
         var numberPodReady = 0;
         var countElement = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available });

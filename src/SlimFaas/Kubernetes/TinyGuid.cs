@@ -1,5 +1,7 @@
 ﻿using System.Security.Cryptography;
 
+namespace SlimFaas.Kubernetes;
+
 public static class TinyGuid
 {
     private const string Alphabet =

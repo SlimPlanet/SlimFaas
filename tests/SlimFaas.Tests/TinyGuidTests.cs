@@ -1,9 +1,11 @@
-﻿namespace SlimFaas.Tests;
+﻿using SlimFaas.Kubernetes;
+
+namespace SlimFaas.Tests;
 
 public class TinyGuidTests
 {
     [Fact]
-    public async Task TiniyGuidShould()
+    public void TinyGuidShould()
     {
         var guid5 = TinyGuid.NewTinyGuid(5);
         Assert.Equal(5, guid5.Length);

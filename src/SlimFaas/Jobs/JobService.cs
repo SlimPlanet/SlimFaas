@@ -30,7 +30,7 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
         await kubernetesService.DeleteJobAsync(_namespace, name);
     }
 
-    public static string ConvertPatternToRegex(string pattern)
+    private static string ConvertPatternToRegex(string pattern)
     {
         return "^" + Regex.Escape(pattern)
                        .Replace("\\*", ".*")  // '*' devient '.*'
@@ -80,19 +80,11 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
         }
         var image = createJob.Image != string.Empty ? createJob.Image : conf.Image;
 
-        var environments = new List<EnvVarInput>();
-        foreach (var env in conf.Environments?.ToList() ?? [])
-        {
-            if((createJob.Environments ?? new List<EnvVarInput>()).All(e => e.Name != env.Name))
-            {
-                environments.Add(env);
-            }
-        }
-
-        foreach (var env in createJob.Environments ?? new List<EnvVarInput>())
-        {
-            environments.Add(env);
-        }
+        var environments = (conf.Environments?.ToList() ?? [])
+            .Where(env => (createJob.Environments ?? new List<EnvVarInput>())
+            .All(e => e.Name != env.Name))
+            .ToList();
+        environments.AddRange(createJob.Environments ?? new List<EnvVarInput>());
 
         List<string>? dependsOn = createJob.DependsOn ?? conf.DependsOn;
 

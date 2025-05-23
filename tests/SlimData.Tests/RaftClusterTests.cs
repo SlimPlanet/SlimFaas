@@ -255,7 +255,7 @@ public class RaftClusterTests
         {
             CountType.Available
         });
-        Assert.Equal(1, listLength.Count);
+        Assert.Single(listLength);
 
         IList<QueueData>? listRightPop = await databaseServiceSlave.ListRightPopAsync("listKey1");
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(listRightPop.First().Data));
