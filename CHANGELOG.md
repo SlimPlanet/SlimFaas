@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.36.23
+
+- [47b1dab](https://github.com/SlimPlanet/SlimFaas/commit/47b1dab1a9b91a2700acae4c343d5ca70b4f394c) - feature(job): add images whitelist pattern (#111) (release), 2025-05-27 by *Guillaume Chervet*
+
+
 ## v0.36.22
 
 - [59a9fc7](https://github.com/SlimPlanet/SlimFaas/commit/59a9fc71219c54ce916493d6e9c7d0711725734a) - doc(all): update demo and badges (#110) (release), 2025-04-21 by *Guillaume Chervet*
@@ -301,10 +306,5 @@
 ## v0.30.2
 
 - [de2fd4f](https://github.com/SlimPlanet/SlimFaas/commit/de2fd4f5a6da2309ebbdd054efb86e80e90ba9ac) - fix(SlimFaasPlanetSaver): test auto version upgrade, 2024-11-30 by *Guillaume Chervet*
-
-
-## v0.30.1
-
-- [8b2191d](https://github.com/SlimPlanet/SlimFaas/commit/8b2191d605dff5f905e68e388aa5225d776ddf04) - fix(SlimFaasPlanetSaver): enhance behavior, 2024-11-29 by *Guillaume Chervet*
 
 
