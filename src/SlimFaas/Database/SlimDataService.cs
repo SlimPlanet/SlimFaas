@@ -1,6 +1,7 @@
 ﻿using System.Data;
 using System.Net;
 using DotNext;
+using DotNext.Collections.Generic;
 using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
 using SlimData;
@@ -174,49 +175,56 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         }
     }
 
-    public Task<long> ListCountElementAsync(string key, IList<CountType> countTypes, int maximum = Int32.MaxValue)
+    public Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes, int maximum = Int32.MaxValue)
     {
-
         return Retry.DoAsync(() => DoListCountElementAsync(key, countTypes, maximum), logger, _retryInterval);
     }
 
-    private async Task<long> DoListCountElementAsync(string key, IList<CountType> countTypes, int maximum)
+    private async Task<IList<QueueData>> DoListCountElementAsync(string key, IList<CountType> countTypes, int maximum)
     {
         await GetAndWaitForLeader();
         await MasterWaitForleaseToken();
 
         SlimDataPayload data = SimplePersistentState.Invoke();
+        var result = new List<QueueElement>();
 
-        if (data.Queues.TryGetValue(key, out List<QueueElement>? value))
+        if (!data.Queues.TryGetValue(key, out List<QueueElement>? value))
         {
-            var nowTicks = DateTime.UtcNow.Ticks;
-            if (countTypes.Count == 0)
-            {
-                return 0L;
-            }
-
-            var availableElements = new List<QueueElement>();
-            if (countTypes.Contains(CountType.Available))
-            {
-                availableElements = value.GetQueueAvailableElement(nowTicks, maximum);
-            }
-
-            var runningElements = new List<QueueElement>();
-            if (countTypes.Contains(CountType.Running))
-            {
-                runningElements = value.GetQueueRunningElement(nowTicks);
-            }
-
-            var runningWaitingForRetryElements = new List<QueueElement>();
-
-            if (countTypes.Contains(CountType.WaitingForRetry))
-            {
-                runningWaitingForRetryElements = value.GetQueueWaitingForRetryElement(nowTicks);
-            }
-            return availableElements.Count + runningElements.Count + runningWaitingForRetryElements.Count;
+            return new List<QueueData>(0);
         }
 
-        return 0L;
+        var nowTicks = DateTime.UtcNow.Ticks;
+        if (countTypes.Count == 0)
+        {
+            return new List<QueueData>(0);
+        }
+
+        var availableElements = new List<QueueElement>();
+        if (countTypes.Contains(CountType.Available))
+        {
+            availableElements = value.GetQueueAvailableElement(nowTicks, maximum);
+        }
+
+        var runningElements = new List<QueueElement>();
+        if (countTypes.Contains(CountType.Running))
+        {
+            runningElements = value.GetQueueRunningElement(nowTicks);
+        }
+
+        var runningWaitingForRetryElements = new List<QueueElement>();
+
+        if (countTypes.Contains(CountType.WaitingForRetry))
+        {
+            runningWaitingForRetryElements = value.GetQueueWaitingForRetryElement(nowTicks);
+        }
+
+        result.AddRange(availableElements);
+        result.AddRange(runningElements);
+        result.AddRange(runningWaitingForRetryElements);
+
+        var finalResult = new List<QueueData>(result.Count);
+        finalResult.AddRange(result.Select(queueElement => new QueueData(queueElement.Id, queueElement.Value.ToArray())));
+        return finalResult;
     }
 
     public async Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus)
