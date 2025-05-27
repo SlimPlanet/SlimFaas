@@ -52,15 +52,9 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                 var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
                 string jobConfigurationName = jobNameSplits[0];
 
-                if (configurations.TryGetValue(jobConfigurationName, out SlimfaasJob? configuration))
+                foreach (var dependOn in job.DependsOn)
                 {
-                    if (configuration.DependsOn != null)
-                    {
-                        foreach (var dependOn in configuration.DependsOn)
-                        {
-                            historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
-                        }
-                    }
+                    historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
                 }
 
                 if (jobsDictionary.ContainsKey(jobConfigurationName))
@@ -79,20 +73,19 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                     continue;
                 }
 
-                var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available },
-                    int.MaxValue);
-                if (count == 0)
+                var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available });
+                if (count.Count == 0)
                 {
                     continue;
                 }
 
-                bool requiredToWait = await ShouldWaitDependencies(jobName, configurations, jobsKeyPairValue);
-                if (requiredToWait)
+                var numberJobReady = await ShouldWaitDependencies(jobName);
+                if (numberJobReady<=0)
                 {
                     continue;
                 }
 
-                var elements = await jobQueue.DequeueAsync(jobName, numberElementToDequeue);
+                var elements = await jobQueue.DequeueAsync(jobName, Math.Min(numberJobReady, numberElementToDequeue));
                 if (elements == null || elements.Count == 0) continue;
 
                 var listCallBack = new ListQueueItemStatus();
@@ -129,29 +122,34 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
         }
     }
 
-    private async Task<bool> ShouldWaitDependencies(string jobName, IDictionary<string, SlimfaasJob> configurations, KeyValuePair<string, List<Job>> jobsKeyPairValue)
+    private async Task<int> ShouldWaitDependencies(string jobName)
     {
-        var count = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available }, int.MaxValue);
-        if (count > 0)
+        var numberPodReady = 0;
+        var countElement = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available });
+        if (countElement.Count > 0)
         {
-            var dependsOn = configurations[jobsKeyPairValue.Key].DependsOn;
-            if (dependsOn != null)
+            var reversedJobElement = countElement.Reverse().ToList();
+            foreach (var jobElement in reversedJobElement)
             {
-                foreach (var dependOn in dependsOn)
+                CreateJob? createJob = MemoryPackSerializer.Deserialize<CreateJob>(jobElement.Data);
+                numberPodReady += 1;
+                if (createJob?.DependsOn != null)
                 {
-                    historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
-                }
-                foreach (var dependOn in dependsOn)
-                {
-                    var function = replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == dependOn);
-                    if(function is { Replicas: <= 0 })
+                    foreach (var dependOn in createJob.DependsOn)
                     {
-                        return true;
+                        historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
+
+                        var function =
+                            replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == dependOn);
+                        if (function is { Replicas: <= 0 })
+                        {
+                            numberPodReady = 0;
+                        }
                     }
                 }
             }
         }
 
-        return false;
+        return numberPodReady;
     }
 }
