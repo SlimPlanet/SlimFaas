@@ -1,7 +1,10 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using MemoryPack;
 using SlimData;
 using SlimFaas.Database;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
@@ -13,6 +16,7 @@ public enum FunctionType
     Wake,
     Status,
     Publish,
+    Job,
     NotAFunction
 }
 
@@ -34,7 +38,7 @@ public partial class ListFunctionStatusSerializerContext : JsonSerializerContext
 }
 
 public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQueue, IWakeUpFunction wakeUpFunction,
-    ILogger<SlimProxyMiddleware> logger,
+    ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts ,
     int timeoutWaitWakeSyncFunctionMilliSecond =
         EnvironmentVariables.SlimProxyMiddlewareTimeoutWaitWakeSyncFunctionMilliSecondsDefault,
     string slimFaasSubscribeEventsDefault = EnvironmentVariables.SlimFaasSubscribeEventsDefault)
@@ -45,9 +49,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string WakeFunction = "/wake-function";
     private const string Function = "/function";
     private const string PublishEvent = "/publish-event";
-
-    private readonly int[] _slimFaasPorts = EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasPorts,
-        EnvironmentVariables.SlimFaasPortsDefault);
+    private const string Job = "/job";
 
     private readonly int _timeoutMaximumWaitWakeSyncFunctionMilliSecond = EnvironmentVariables.ReadInteger(logger,
         EnvironmentVariables.TimeMaximumWaitForAtLeastOnePodStartedForSyncFunction,
@@ -58,10 +60,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         slimFaasSubscribeEventsDefault);
 
     public async Task InvokeAsync(HttpContext context,
-        HistoryHttpMemoryService historyHttpService, ISendClient sendClient, IReplicasService replicasService)
+        HistoryHttpMemoryService historyHttpService, ISendClient sendClient, IReplicasService replicasService, IJobService jobService)
     {
 
-        if (!HostPort.IsSamePort(context.Request.Host.Port, _slimFaasPorts))
+        if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts.Ports.ToArray()))
         {
             await next(context);
             return;
@@ -82,11 +84,40 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         (string functionPath, string functionName, FunctionType functionType) = GetFunctionInfo(logger, contextRequest);
 
-
         switch (functionType)
         {
             case FunctionType.NotAFunction:
                 await next(context);
+                return;
+            case  FunctionType.Job:
+
+                if (contextRequest.Method != HttpMethods.Post)
+                {
+                    contextResponse.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+                    return;
+                }
+
+                CreateJob? createJob = await contextRequest.ReadFromJsonAsync(CreateJobSerializerContext.Default.CreateJob);
+                if (createJob == null)
+                {
+                    contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                    return;
+                }
+                logger.LogInformation("Create job {JobName} with {CreateJob}", functionName, createJob);
+                if(logger.IsEnabled(LogLevel.Debug))
+                {
+                    logger.LogDebug("Create job details {CreateJob} ", JsonSerializer.Serialize(createJob,
+                        CreateJobSerializerContext.Default.CreateJob));
+                }
+                bool isMessageComeFromNamespaceInternal = MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
+                var result = await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
+                if (result.Code >= 400)
+                {
+                    contextResponse.StatusCode = result.Code;
+                    logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}", contextResponse.StatusCode, result.ErrorKey);
+                }
+
+                contextResponse.StatusCode = 204;
                 return;
             case FunctionType.Wake:
                 BuildWakeResponse(replicasService, wakeUpFunction, functionName, contextResponse);
@@ -95,27 +126,34 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 BuildStatusResponse(replicasService, functionName, contextResponse);
                 return;
             case FunctionType.Sync:
-                await BuildSyncResponseAsync(context, historyHttpService, sendClient, replicasService, functionName,
+                await BuildSyncResponseAsync(logger, context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
                 return;
             case FunctionType.Publish:
-                await BuildPublishResponseAsync(context, historyHttpService, sendClient, replicasService, functionName,
+                await BuildPublishResponseAsync(context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
                 return;
             case FunctionType.Async:
             default:
                 {
-                    await BuildAsyncResponseAsync(logger, context, replicasService, functionName, functionPath);
+                    await BuildAsyncResponseAsync(logger, context, replicasService, jobService, functionName, functionPath);
                     break;
                 }
         }
     }
 
-    private static Boolean MessageComeFromNamespaceInternal(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, DeploymentInformation currentFunction)
+    private static bool MessageComeFromNamespaceInternal(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, IJobService jobService, DeploymentInformation? currentFunction=null)
     {
-        IList<string> podIps = replicasService.Deployments.Functions.Select(p => p.Pods).SelectMany(p => p).Where(p => currentFunction?.ExcludeDeploymentsFromVisibilityPrivate?.Contains(p.DeploymentName) == false).Select(p => p.Ip).ToList();
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        var remoteIp = context.Connection.RemoteIpAddress?.ToString();
+        List<string> podIps;
+
+        podIps = replicasService.Deployments.Functions.Where(f => f.Trust == FunctionTrust.Trusted).Select(p => p.Pods)
+            .SelectMany(p => p)
+            .Select(p => p.Ip)
+            .ToList();
+
+        podIps.AddRange(jobService.Jobs.Select(job => job.Ips).SelectMany(ip => ip));
+        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
+        var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
         logger.LogDebug("ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
         if(logger.IsEnabled(LogLevel.Debug))
         {
@@ -137,6 +175,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
     private static bool IsInternalIp(string? ipAddress, IList<string> podIps)
     {
+        if (ipAddress == null)
+        {
+            return false;
+        }
 
         if (string.IsNullOrEmpty(ipAddress))
         {
@@ -145,6 +187,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         foreach (string podIp in podIps)
         {
+            if (string.IsNullOrEmpty(podIp))
+            {
+                continue;
+            }
             if (ipAddress.Contains(podIp))
             {
                 return true;
@@ -199,42 +245,31 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
     }
 
-    private static List<DeploymentInformation> SearchFunctions(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, string eventName)
+    private static List<DeploymentInformation> SearchFunctions(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, IJobService jobService, string eventName)
     {
         // example: "Public:my-event-name1,Private:my-event-name2,my-event-name3"
         var result = new List<DeploymentInformation>();
         foreach (DeploymentInformation deploymentInformation in replicasService.Deployments.Functions)
         {
-            if(deploymentInformation.SubscribeEvents == null)
+            var subscribeEvent = deploymentInformation.SubscribeEvents?.FirstOrDefault(se => se.Name == eventName);
+            if (subscribeEvent == null)
             {
                 continue;
             }
-            foreach (string deploymentInformationSubscribeEvent in deploymentInformation.SubscribeEvents)
+            logger.LogDebug("Deployment {DeploymentInformation} SubscribeEvent {SubscribeEvent} {SubscribeEventVisibility}", deploymentInformation.Deployment, subscribeEvent.Name, subscribeEvent.Visibility.ToString());
+            if (subscribeEvent.Visibility == FunctionVisibility.Public)
             {
-                var splits = deploymentInformationSubscribeEvent.Split(":");
-                if (splits.Length == 1 && splits[0] == eventName)
-                {
-                    if (deploymentInformation.Visibility == FunctionVisibility.Public ||
-                        MessageComeFromNamespaceInternal(logger, context, replicasService, deploymentInformation))
-                    {
-                        result.Add(deploymentInformation);
-                    }
-                }
-                else if (splits.Length == 2 && splits[1] == eventName)
-                {
-                    var visibility = splits[0];
-                    var visibilityEnum = Enum.Parse<FunctionVisibility>(visibility, true);
-                    if(visibilityEnum == FunctionVisibility.Private && MessageComeFromNamespaceInternal(logger, context, replicasService, deploymentInformation))
-                    {
-                        result.Add(deploymentInformation);
-                    } else if(visibilityEnum == FunctionVisibility.Public)
-                    {
-                        result.Add(deploymentInformation);
-                    }
-                }
-
+                logger.LogDebug("Deployment ADDED FOR {DeploymentInformation} SubscribeEvent {SubscribeEvent} {SubscribeEventVisibility}", deploymentInformation.Deployment, subscribeEvent.Name, subscribeEvent.Visibility.ToString());
+                result.Add(deploymentInformation);
+                continue;
             }
 
+            bool internalMessage = MessageComeFromNamespaceInternal(logger, context, replicasService, jobService,
+                deploymentInformation);
+            if (internalMessage)
+            {
+                result.Add(deploymentInformation);
+            }
         }
         return result;
     }
@@ -248,25 +283,23 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
     private static FunctionVisibility GetFunctionVisibility(ILogger<SlimProxyMiddleware> logger, DeploymentInformation function, string path)
     {
-        if (function.PathsStartWithVisibility?.Count > 0)
+        if (!(function.PathsStartWithVisibility?.Count > 0))
         {
-            foreach (string pathStartWith in function.PathsStartWithVisibility)
-            {
-                var splits = pathStartWith.Split(":");
-                if (splits.Length == 2 && path.ToLowerInvariant().StartsWith(splits[1].ToLowerInvariant()))
-                {
-                    var visibility = splits[0];
-                    var visibilityEnum = Enum.Parse<FunctionVisibility>(visibility, true);
-                    return visibilityEnum;
-                }
+            return function.Visibility;
+        }
 
-                logger.LogWarning("PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:", pathStartWith);
+        foreach (var pathStartWith in function.PathsStartWithVisibility)
+        {
+            if (path.ToLowerInvariant().StartsWith(pathStartWith.Path))
+            {
+                return pathStartWith.Visibility;
             }
+            logger.LogWarning("PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:", pathStartWith);
         }
         return function.Visibility;
     }
 
-    private async Task BuildAsyncResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, string functionName,
+    private async Task BuildAsyncResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, IJobService jobService, string functionName,
         string functionPath)
     {
         DeploymentInformation? function = SearchFunction(replicasService, functionName);
@@ -278,7 +311,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         var visibility = GetFunctionVisibility(logger, function, functionPath);
 
-        if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, function))
+        if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
         {
             context.Response.StatusCode = 404;
             return;
@@ -294,10 +327,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     }
 
     private async Task BuildPublishResponseAsync(HttpContext context, HistoryHttpMemoryService historyHttpService,
-        ISendClient sendClient, IReplicasService replicasService, string eventName, string functionPath)
+        ISendClient sendClient, IReplicasService replicasService, IJobService jobService, string eventName, string functionPath)
     {
         logger.LogDebug("Receiving event: {EventName}", eventName);
-        var functions = SearchFunctions(logger, context, replicasService, eventName);
+        var functions = SearchFunctions(logger, context, replicasService, jobService, eventName);
         var slimFaasSubscribeEvents = _slimFaasSubscribeEvents.Where(s => s.Key == eventName);
         if (functions.Count <= 0 && !slimFaasSubscribeEvents.Any())
         {
@@ -315,9 +348,11 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         var queryString = context.Request.QueryString.ToUriComponent();
         foreach (DeploymentInformation function in functions)
         {
+            logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
             foreach (var pod in function.Pods)
             {
-                if (pod.Ready is not true)
+                logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}", pod.Ready, function.EndpointReady, pod.Ip);
+                if (pod.Ready is not true || !function.EndpointReady)
                 {
                     continue;
                 }
@@ -386,20 +421,22 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
     }
 
-    private async Task BuildSyncResponseAsync(HttpContext context, HistoryHttpMemoryService historyHttpService,
-        ISendClient sendClient, IReplicasService replicasService, string functionName, string functionPath)
+    private async Task BuildSyncResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, HistoryHttpMemoryService historyHttpService,
+        ISendClient sendClient, IReplicasService replicasService, IJobService jobService, string functionName, string functionPath)
     {
         DeploymentInformation? function = SearchFunction(replicasService, functionName);
         if (function == null)
         {
+            logger.LogDebug("{FunctionName} not found 404", functionName);
             context.Response.StatusCode = 404;
             return;
         }
 
         var visibility = GetFunctionVisibility(logger, function, functionPath);
 
-        if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, function))
+        if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
         {
+            logger.LogDebug("{FunctionName} not found 404 because is private 404", functionName);
             context.Response.StatusCode = 404;
             return;
         }
@@ -407,7 +444,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
         Task<HttpResponseMessage> responseMessagePromise = sendClient.SendHttpRequestSync(context, functionName,
-            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync);
+            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync, null, new Proxy(replicasService, functionName));
 
         long lastSetTicks = DateTime.UtcNow.Ticks;
         historyHttpService.SetTickLastCall(functionName, lastSetTicks);
@@ -445,7 +482,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 continue;
             }
             bool? isAnyContainerStarted = function.Pods.Any(p => p.Ready.HasValue && p.Ready.Value);
-            bool isReady = isAnyContainerStarted.Value && function.EndpointReady;
+            bool isReady = isAnyContainerStarted.Value && function?.EndpointReady == true;
             if (!isReady && !context.RequestAborted.IsCancellationRequested)
             {
                 numberLoop--;
@@ -456,7 +493,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     lastSetTicks = DateTime.UtcNow.Ticks;
                     historyHttpService.SetTickLastCall(functionName, lastSetTicks);
                 }
-
                 continue;
             }
 
@@ -541,6 +577,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             StatusFunction => FunctionType.Status,
             WakeFunction => FunctionType.Wake,
             PublishEvent => FunctionType.Publish,
+            Job => FunctionType.Job,
             _ => FunctionType.NotAFunction
         };
         return new FunctionInfo(functionPath, functionName, functionType);
@@ -568,6 +605,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         else if (path.StartsWithSegments(PublishEvent))
         {
             functionBeginPath = $"{PublishEvent}";
+        }
+        else if (path.StartsWithSegments(Job))
+        {
+            functionBeginPath = $"{Job}";
         }
 
         return functionBeginPath;

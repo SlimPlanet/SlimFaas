@@ -6,84 +6,37 @@ metadata:
     name: slimfaas
 ---
 apiVersion: v1
-kind: ServiceAccount
+kind: ConfigMap
 metadata:
-  name: slimfaas
+  name: slimfaas-config
   namespace: slimfaas-demo
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: namespace-lister
-rules:
-  - apiGroups: [""]
-    resources: ["namespaces", "pods"]
-    verbs: ["list"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: slimfaas-namespace-lister
-subjects:
-  - kind: ServiceAccount
-    name: slimfaas
-    namespace: slimfaas-demo
-roleRef:
-  kind: ClusterRole
-  name: namespace-lister
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: deployment-statefulset-manager
-  namespace: slimfaas-demo
-rules:
-  - apiGroups: ["apps"]
-    resources: ["deployments", "statefulsets"]
-    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-  - apiGroups: ["apps"]
-    resources: ["deployments/scale", "statefulsets/scale"]
-    verbs: ["get", "update", "patch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: slimfaas-deployment-statefulset-manager
-  namespace: slimfaas-demo
-subjects:
-  - kind: ServiceAccount
-    name: slimfaas
-    namespace: slimfaas-demo
-roleRef:
-  kind: Role
-  name: deployment-statefulset-manager
-  apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: endpoints-viewer
-  namespace: slimfaas-demo
-rules:
-  - apiGroups: [""]
-    resources: ["endpoints"]
-    verbs: ["get", "list", "watch"]
-
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: slimfaas-endpoints-viewer
-  namespace: slimfaas-demo
-subjects:
-  - kind: ServiceAccount
-    name: slimfaas
-    namespace: slimfaas-demo
-roleRef:
-  kind: Role
-  name: endpoints-viewer
-  apiGroup: rbac.authorization.k8s.io
+data:
+  SLIMFAAS_JOBS_CONFIGURATION: |
+    {
+      "Configurations": {
+        "fibonacci": {
+          "Image": "axaguildev/fibonacci-batch:latest",
+          "ImagesWhitelist": [],
+          "Resources": {
+            "Requests": {
+              "cpu": "400m",
+              "memory": "400Mi"
+            },
+            "Limits": {
+              "cpu": "400m",
+              "memory": "400Mi"
+            }
+          },
+          "DependsOn": ["fibonacci1"],
+          "Environments": [],
+          "BackoffLimit": 1,
+          "Visibility": "Public",
+          "NumberParallelJob": 2,
+          "TtlSecondsAfterFinished": 2,
+          "RestartPolicy": "Never"
+        }
+      }
+    }
 ---
 apiVersion: apps/v1
 kind: StatefulSet
@@ -91,8 +44,8 @@ metadata:
   name: slimfaas
   namespace: slimfaas-demo
 spec:
-  replicas: 3
   podManagementPolicy: Parallel
+  replicas: 3
   serviceName: slimfaas
   selector:
     matchLabels:
@@ -119,22 +72,19 @@ spec:
             timeoutSeconds: 8
             terminationGracePeriodSeconds: 30
           env:
-            - name: BASE_FUNCTION_URL
-              value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
-            - name: BASE_FUNCTION_POD_URL # require for publish route
-              value: "http://{pod_ip}:5000"
-            - name: BASE_SLIMDATA_URL
-              value: "http://{pod_ip}:3262/"
-            - name: NAMESPACE
-              value: "slimfaas-demo"
-            - name: SLIMDATA_DIRECTORY
-              value: "/database"
-            - name: SLIMFAAS_PORTS
-              value: "5000,30021"
-            - name: DOTNET_GCHeapHardLimit
-              value: "03200000"
-            - name: DOTNET_gcServer
-              value: "1"
+            #- name: BASE_FUNCTION_URL
+              #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
+            #  value: "http://{pod_ip}:{pod_port}"
+            #- name: BASE_FUNCTION_POD_URL # require for publish route
+            #  value: "http://{pod_ip}:{pod_port}"
+            #- name: BASE_SLIMDATA_URL
+            #  value: "http://{pod_ip}:3262/"
+            #- name: NAMESPACE
+            #  value: "slimfaas-demo"
+            #- name: SLIMDATA_DIRECTORY
+            #  value: "/database"
+            - name: SLIMFAAS_LISTEN_ADDITIONAL_PORTS
+              value: "30021"
             - name: Logging__LogLevel__SlimFaas
               value: "Debug"
             #- name: SLIMDATA_CONFIGURATION
@@ -145,16 +95,21 @@ spec:
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
             #  value: "500"
+            - name: SLIMFAAS_JOBS_CONFIGURATION
+              valueFrom:
+                configMapKeyRef:
+                  name: slimfaas-config
+                  key: SLIMFAAS_JOBS_CONFIGURATION
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database
           resources:
             limits:
-              memory: "60Mi"
+              memory: "76Mi"
               cpu: "400m"
             requests:
-              memory: "60Mi"
-              cpu: "200m"
+              memory: "76Mi"
+              cpu: "250m"
           ports:
             - containerPort: 5000
               name: slimfaas

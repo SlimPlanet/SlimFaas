@@ -7,8 +7,8 @@ namespace SlimFaas;
 
 internal record struct RequestToWait(Task<HttpResponseMessage> Task, CustomRequest CustomRequest, string Id);
 
-public class SlimWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasService,
-        HistoryHttpMemoryService historyHttpService, ILogger<SlimWorker> logger,
+public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasService,
+        HistoryHttpMemoryService historyHttpService, ILogger<SlimQueuesWorker> logger,
         IServiceProvider serviceProvider,
         ISlimDataStatus slimDataStatus,
         IMasterService masterService,
@@ -36,6 +36,10 @@ public class SlimWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasS
         try
         {
             await Task.Delay(_delay, stoppingToken);
+            if (!masterService.IsMaster)
+            {
+                return;
+            }
             DeploymentsInformations deployments = replicasService.Deployments;
             IList<DeploymentInformation> functions = deployments.Functions;
             SlimFaasDeploymentInformation slimFaas = deployments.SlimFaas;
@@ -107,7 +111,7 @@ public class SlimWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasS
                 HttpStatusRetries = []
             };
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
-                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration);
+                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, new Proxy(replicasService, functionDeployment));
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id));
         }
     }
@@ -118,8 +122,8 @@ public class SlimWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasS
         int numberProcessingTasks,
         int numberLimitProcessingTasks)
     {
-        if (masterService.IsMaster)
-        {
+       // if (masterService.IsMaster)
+       // {
             int counterLimit = functionReplicas == 0 ? 10 : 40;
             long queueLength = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
             {
@@ -141,7 +145,7 @@ public class SlimWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasS
             {
                 return 0;
             }
-        }
+      //  }
 
         return await slimFaasQueue.CountElementAsync(functionDeployment,  new List<CountType>() { CountType.Available }, numberLimitProcessingTasks);
     }
@@ -152,7 +156,9 @@ public class SlimWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasS
         int numberLimitProcessingTasks;
         int numberReplicas = slimFaas.Replicas;
 
-        if (function.NumberParallelRequest < numberReplicas || numberReplicas == 0)
+        return function.NumberParallelRequest;
+
+        /*if (function.NumberParallelRequest < numberReplicas || numberReplicas == 0)
         {
             numberLimitProcessingTasks = masterService.IsMaster ? function.NumberParallelRequest : 0;
         }
@@ -165,8 +171,7 @@ public class SlimWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasS
             }
         }
 
-        return numberLimitProcessingTasks;
-    }
+        return numberLimitProcessingTasks;*/ }
 
     private async Task<int> ManageProcessingTasksAsync(ISlimFaasQueue slimFaasQueue,
         Dictionary<string, IList<RequestToWait>> processingTasks,

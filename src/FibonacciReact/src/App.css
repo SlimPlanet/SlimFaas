@@ -1,66 +1,223 @@
-#root {
-  margin: 0 auto;
+/* Reset */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
 }
 
-.main {
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #f0f2f5;
+    color: #333;
+    line-height: 1.5;
+}
+
+/* Barre d'en-tête */
+.header-bar {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    background-color: #ffffff;
+    padding: 0.5rem 1rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 10;
+}
+
+/* On place la navigation en position absolue, en haut à droite du header */
+.header-nav {
     position: absolute;
-  margin-top: 5rem;
+    top: 0.5rem;    /* Ajuste selon ta préférence */
+    right: 1rem;    /* Ajuste selon ta préférence */
 }
 
-.logo{
+/* Style du lien dans le header (exemple, ajuster à ta convenance) */
+.header-nav a {
+    text-decoration: none;
+    color: #1b3faa;
+    font-weight: bold;
+    padding: 0.4rem 0.6rem;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.header-nav a:hover {
+    background-color: #eee; /* Petit effet au survol */
+}
+
+.logo {
     width: 40px;
     height: 40px;
-    margin: 0.5rem;
-    float: left;
+    margin-right: 1rem;
 }
 
-.title{
-    width: 100%;
-    font-size: 1.2rem;
-    padding-top: 0;
-    padding-bottom: 0;
-    position: fixed;
-    background-color: rgba(255, 255, 255, 0.96);
-    z-index: 10;
-    word-wrap: break-word;
-    margin: 0 40px 0 0;
-    top: 0;
-    color: #3131ab;
+.header-title {
+    font-size: 1.4rem;
+    color: #1b3faa;
 }
 
-button{
-    padding: 0.1rem;
-    margin: 0.1rem;
+/* Main container */
+.main {
+    margin-top: 70px; /* Laisser la place pour la barre d'en-tête */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 1rem;
 }
 
-.deployment {
-  color: #ffffff;
-  display: inline-block;
-    background-color: #14147e;
-    margin: 0.2rem;
-    padding: 0.2rem;
-    text-align: center;
+/* Cartes de déploiement */
+.deployment-card {
+    background-color: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    padding: 1rem;
     width: 320px;
+    max-width: 100%;
+    text-align: left;
 }
 
-.environment_not_started{
-    background-color: #7e0000;
+.deployment-card h2 {
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.environment_ready{
-    background-color: #2e9400;
+.actions {
+    margin: 0.5rem 0;
+}
+
+.actions button {
+    margin: 0.2rem;
+    padding: 0.4rem 0.8rem;
+    cursor: pointer;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    transition: background-color 0.2s ease;
+}
+
+.actions button:hover {
+    background-color: #e2e6ea;
+}
+
+/* Statuts des environnements */
+.environment {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+}
+
+.environment_not_started {
+    background-color: #dc3545; /* rouge */
+}
+
+.environment_ready {
+    background-color: #28a745; /* vert */
 }
 
 .environment_loading {
-    background-color: #945400;
+    background-color: #ffc107; /* jaune */
 }
 
-.buttons {
-    color: #ffffff;
-    display: inline-block;
-    background-color: #757575;
-    margin: 0.2rem;
-    padding: 0.2rem;
-    text-align: center;
+/* Carte pour les boutons "Events" */
+.buttons-card {
+    background-color: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.07);
+    padding: 1rem;
     width: 320px;
+    max-width: 100%;
+    text-align: left;
+}
+
+.buttons-card h2 {
+    margin-bottom: 0.5rem;
+}
+
+.buttons-card .actions button {
+    margin: 0.2rem;
+    padding: 0.4rem 0.8rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+    transition: background-color 0.2s ease;
+}
+
+.buttons-card .actions button:hover {
+    background-color: #e2e6ea;
+}
+
+/* Overlay pour la dernière requête + timer */
+.overlay-requests {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    min-height: 60px;
+    background-color: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 1rem;
+    font-size: 1.4rem;
+    z-index: 8;
+    box-sizing: border-box;
+}
+
+/* Bouton Close */
+.overlay-close {
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 1.4rem;
+    cursor: pointer;
+}
+
+.overlay-close:hover {
+    opacity: 0.7;
+}
+
+.overlay-content {
+    margin-top: 1.8rem; /* Pour laisser la place du bouton Close en haut à droite */
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.overlay-line {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.overlay-status {
+    opacity: 0.7;
+}
+
+.overlay-response {
+    margin-left: 1rem;
+    word-break: break-all;
+}
+
+/* Loader circulaire */
+.loader {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    animation: spin 1s linear infinite;
+    margin-right: 0.5rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }

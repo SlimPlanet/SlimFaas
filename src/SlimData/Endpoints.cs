@@ -185,14 +185,15 @@ public class Endpoints
         });
     }
     
-    public static async Task ListLeftPushCommand(SlimPersistentState provider, string key, byte[] value,
+    public static async Task<string> ListLeftPushCommand(SlimPersistentState provider, string key, byte[] value,
         IRaftCluster cluster, CancellationTokenSource source)
     {
-        ListLeftPushInput input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
-        RetryInformation retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
+        var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
+        var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
+        var id = Guid.NewGuid().ToString();
         var logEntry =
             provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
-                    Identifier = Guid.NewGuid().ToString(), 
+                    Identifier = id, 
                     Value = input.Value, 
                     NowTicks = DateTime.UtcNow.Ticks,
                     Retries = retryInformation.Retries,
@@ -201,6 +202,7 @@ public class Endpoints
                 },
                 cluster.Term);
         await cluster.ReplicateAsync(logEntry, source.Token);
+        return id;
     }
     
     public static Task ListCallbackAsync(HttpContext context)

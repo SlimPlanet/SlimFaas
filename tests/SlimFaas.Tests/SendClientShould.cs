@@ -32,7 +32,7 @@ public class SendClientShould
         }));
 
         var mockLogger = new Mock<ILogger<SendClient>>();
-
+        Environment.SetEnvironmentVariable("BASE_FUNCTION_URL", "http://{function_name}:8080/");
         SendClient sendClient = new(httpClient, mockLogger.Object);
         CustomRequest customRequest =
             new CustomRequest(new List<CustomHeader> { new() { Key = "key", Values = new[] { "value1" } } },
@@ -58,19 +58,20 @@ public class SendClientShould
     public async Task CallFunctionSync(string httpMethod)
     {
         HttpRequestMessage? sendedRequest = null;
-        HttpClient httpClient = new HttpClient(new HttpMessageHandlerStub(async (request, cancellationToken) =>
+        HttpClient httpClient = new(new HttpMessageHandlerStub(async (request, cancellationToken) =>
         {
-            HttpResponseMessage responseMessage = new HttpResponseMessage(HttpStatusCode.OK)
+            HttpResponseMessage responseMessage = new(HttpStatusCode.OK)
             {
                 Content = new StringContent("This is a reply")
             };
             sendedRequest = request;
             return await Task.FromResult(responseMessage);
         }));
+        Environment.SetEnvironmentVariable("BASE_FUNCTION_URL", "http://{function_name}:8080/");
         var mockLogger = new Mock<ILogger<SendClient>>();
-        SendClient sendClient = new SendClient(httpClient, mockLogger.Object);
+        SendClient sendClient = new(httpClient, mockLogger.Object);
 
-        DefaultHttpContext httpContext = new DefaultHttpContext();
+        DefaultHttpContext httpContext = new();
         HttpRequest httpContextRequest = httpContext.Request;
         string authorization = "bearer value1";
         httpContextRequest.Headers.Add("Authorization", authorization);

@@ -15,13 +15,13 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "5"
-        SlimFaas/NumberParallelRequest : "1"
+        SlimFaas/NumberParallelRequest : "2"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
       containers:
         - name: fibonacci1
-          image: axaguildev/fibonacci:latest
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -76,7 +76,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci2
-          image: axaguildev/fibonacci:latest
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -123,13 +123,13 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
-        SlimFaas/SubscribeEvents : "Public:fibo-public,Private:fibo-private"
+        SlimFaas/SubscribeEvents : "fibo-public"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
       containers:
         - name: fibonacci3
-          image: axaguildev/fibonacci:latest
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -177,17 +177,17 @@ spec:
         app: fibonacci4
       annotations:
         SlimFaas/Function: "true"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
+        SlimFaas/DefaultVisibility: "Private"
         SlimFaas/ReplicasMin: "0"
         SlimFaas/ReplicasAtStart: "2"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
-        SlimFaas/DefaultVisibility : "Private"
-        SlimFaas/SubscribeEvents : "Public:fibo-public,Private:fibo-private"
+        SlimFaas/SubscribeEvents : "Public:fibo-public"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
       containers:
         - name: fibonacci4
-          image: axaguildev/fibonacci:latest
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health

@@ -19,7 +19,7 @@ public class SlimWorkerShould
         responseMessage.StatusCode = HttpStatusCode.OK;
 
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
-        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>()))
+        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>()))
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
@@ -63,7 +63,7 @@ public class SlimWorkerShould
                     ReplicasStartAsSoonAsOneFunctionRetrieveARequest: true, Pods: new List<PodInformation>(), EndpointReady: false)
             }, Pods: new List<PodInformation>()));
         HistoryHttpMemoryService historyHttpService = new HistoryHttpMemoryService();
-        Mock<ILogger<SlimWorker>> logger = new Mock<ILogger<SlimWorker>>();
+        Mock<ILogger<SlimQueuesWorker>> logger = new Mock<ILogger<SlimQueuesWorker>>();
 
         SlimFaasQueue slimFaasQueue = new SlimFaasQueue(new DatabaseMockService());
         CustomRequest customRequest =
@@ -85,7 +85,7 @@ public class SlimWorkerShould
         var jsonCustomNoReplicas = MemoryPackSerializer.Serialize(customRequestReplicas);
         await slimFaasQueue.EnqueueAsync("no-replicas", jsonCustomNoReplicas, retryInformation);
 
-        SlimWorker service = new SlimWorker(slimFaasQueue,
+        SlimQueuesWorker service = new SlimQueuesWorker(slimFaasQueue,
             replicasService.Object,
             historyHttpService,
             logger.Object,
@@ -98,7 +98,7 @@ public class SlimWorkerShould
         await Task.Delay(3000);
 
         Assert.True(task.IsCompleted);
-        sendClientMock.Verify(v => v.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>()),
+        sendClientMock.Verify(v => v.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>()),
             Times.Once());
     }
 
@@ -109,7 +109,7 @@ public class SlimWorkerShould
         Mock<IReplicasService> replicasService = new Mock<IReplicasService>();
         replicasService.Setup(rs => rs.Deployments).Throws(new Exception());
         HistoryHttpMemoryService historyHttpService = new HistoryHttpMemoryService();
-        Mock<ILogger<SlimWorker>> logger = new Mock<ILogger<SlimWorker>>();
+        Mock<ILogger<SlimQueuesWorker>> logger = new Mock<ILogger<SlimQueuesWorker>>();
         SlimFaasQueue redisQueue = new SlimFaasQueue(new DatabaseMockService());
         Mock<ISlimDataStatus> slimDataStatus = new Mock<ISlimDataStatus>();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);
@@ -117,7 +117,7 @@ public class SlimWorkerShould
         Mock<IMasterService> masterService = new Mock<IMasterService>();
         masterService.Setup(s => s.IsMaster).Returns(true);
 
-        SlimWorker service = new SlimWorker(redisQueue,
+        SlimQueuesWorker service = new SlimQueuesWorker(redisQueue,
             replicasService.Object,
             historyHttpService,
             logger.Object,

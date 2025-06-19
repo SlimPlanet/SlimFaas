@@ -13,6 +13,20 @@ public class SlimDataEndpoint
         {
             baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_name}", podInformation.Name);
             baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_ip}", podInformation.Ip);
+            var ports = podInformation.Ports;
+            if (ports != null)
+            {
+                if (ports.Count > 0)
+                {
+                    baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_port}", ports[0].ToString());
+                }
+                foreach (int port in ports)
+                {
+                    var index = ports.IndexOf(port);
+                    baseSlimDataUrl = baseSlimDataUrl.Replace($"{{pod_port_{index}}}", port.ToString());
+                }
+            }
+
             baseSlimDataUrl = baseSlimDataUrl.Replace("{namespace}", namespaceSlimFaas);
             baseSlimDataUrl = baseSlimDataUrl.Replace("{function_name}", podInformation.DeploymentName);
         }
