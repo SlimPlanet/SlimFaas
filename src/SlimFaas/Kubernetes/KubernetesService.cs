@@ -12,14 +12,21 @@ namespace SlimFaas.Kubernetes;
 
 public enum JobStatus
 {
-    Pending,
-    Running,
-    Succeeded,
-    Failed,
-    ImagePullBackOff
+    Pending = 0,
+    Running = 1,
+    Succeeded = 2,
+    Failed = 3,
+    ImagePullBackOff = 4,
 }
 
-public record Job(string Name, JobStatus Status, IList<string> Ips, IList<string> DependsOn);
+public record Job(
+    string Name,
+    JobStatus Status,
+    IList<string> Ips,
+    IList<string> DependsOn,
+    string ElementId,
+    long InQueueTimestamp,
+    long StartTimestamp);
 
 public class ScheduleConfig
 {
@@ -238,6 +245,11 @@ public class KubernetesService : IKubernetesService
 
     private const string SlimfaasDeploymentName = "slimfaas";
 
+    private const string SlimfaasJobName = "slimfaas-job-name";
+    private const string SlimfaasJobElementId = "slimfaas-job-element-id";
+    private const string SlimfaasInQueueTimestamp = "slimfaas-in-queue-timestamp";
+    private const string SlimfaasJobStartTimestamp = "slimfaas-job-start-timestamp";
+
 
     public const string SlimfaasJobKey = "-slimfaas-job-";
     private readonly k8s.Kubernetes _client;
@@ -361,11 +373,9 @@ public class KubernetesService : IKubernetesService
         }
     }
 
-    public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob createJob)
+    public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob createJob, string elementId, string jobFullName, long inQueueTimestamp)
     {
         k8s.Kubernetes client = _client;
-
-        string fullName = $"{name}{SlimfaasJobKey}{TinyGuid.NewTinyGuid()}";
 
         Dictionary<string, ResourceQuantity> requests = new()
         {
@@ -452,7 +462,7 @@ public class KubernetesService : IKubernetesService
             ApiVersion = "batch/v1",
             Kind = "Job",
             Metadata = new V1ObjectMeta {
-                Name = fullName,
+                Name = jobFullName,
                 NamespaceProperty = kubeNamespace,
                 Annotations = annotations
             },
@@ -464,7 +474,13 @@ public class KubernetesService : IKubernetesService
                     Metadata =
                         new V1ObjectMeta
                         {
-                            Labels = new Dictionary<string, string> { { "job-name", fullName } }
+                            Labels = new Dictionary<string, string>
+                            {
+                                { SlimfaasJobName, jobFullName },
+                                { SlimfaasJobElementId, elementId },
+                                { SlimfaasInQueueTimestamp, inQueueTimestamp.ToString() },
+                                { SlimfaasJobStartTimestamp, DateTime.UtcNow.Ticks.ToString() }
+                            }
                         },
                     Spec = new V1PodSpec
                     {
@@ -504,7 +520,7 @@ public class KubernetesService : IKubernetesService
         {
             V1PodList? pods = await _client.ListNamespacedPodAsync(
                 kubeNamespace,
-                labelSelector: $"job-name={v1Job.Metadata?.Name ?? ""}"
+                labelSelector: $"slimfaas-job-name={v1Job.Metadata?.Name ?? ""}"
             );
 
             IList<string> ips = pods.Items.Where(p => p.Status.PodIP != null).Select(p => p.Status.PodIP).ToList();
@@ -549,17 +565,48 @@ public class KubernetesService : IKubernetesService
             jobStatus.Add(new Job(v1Job.Metadata?.Name ?? "",
                 status,
                 ips,
-                dependsOn
+                dependsOn,
+                v1Job.Labels().TryGetValue(SlimfaasJobElementId, out var jobElementId) ? jobElementId : "",
+                v1Job.Labels().TryGetValue(SlimfaasInQueueTimestamp, out var jobInQueueTimestamp) ? long.Parse(jobInQueueTimestamp) : 0,
+
+            v1Job.Labels().TryGetValue(SlimfaasJobStartTimestamp, out var jobStartTimestamp) ? long.Parse(jobStartTimestamp) : 0
             ));
         }
 
         return jobStatus;
     }
 
-    public async Task DeleteJobAsync(string kubeNamespace, string name)
+    public async Task DeleteJobAsync(string kubeNamespace, string jobName)
     {
         k8s.Kubernetes client = _client;
-        await client.DeleteNamespacedJobAsync(name, kubeNamespace);
+
+        string url = string.Concat(
+            client.BaseUri,
+            $"apis/batch/v1/namespaces/{kubeNamespace}/jobs/{jobName}?propagationPolicy=Foreground");
+
+        HttpRequestMessage httpRequest = new(HttpMethod.Delete, new Uri(url));
+
+        // 2. (body facultatif) : DeleteOptions
+        //    Utile si vous voulez, par ex., gracePeriodSeconds = 0
+        // var body = """
+        //            {"kind":"DeleteOptions","apiVersion":"v1",
+        //             "propagationPolicy":"Foreground","gracePeriodSeconds":0}
+        //            """;
+        // httpRequest.Content = new StringContent(body, Encoding.UTF8, "application/json");
+
+        if (client.Credentials is not null)
+            await client.Credentials.ProcessHttpRequestAsync(httpRequest, CancellationToken.None);
+
+        HttpResponseMessage response = await client.HttpClient.SendAsync(
+            httpRequest, HttpCompletionOption.ResponseHeadersRead);
+
+        if (response.StatusCode is not (HttpStatusCode.OK
+            or HttpStatusCode.Accepted
+            or HttpStatusCode.NoContent))
+        {
+            throw new HttpOperationException(
+                $"Erreur pendant la suppression du Job {jobName} : {(int)response.StatusCode} {response.ReasonPhrase}");
+        }
     }
 
     private static async Task AddDeployments(string kubeNamespace, V1DeploymentList deploymentList,
@@ -685,7 +732,7 @@ public class KubernetesService : IKubernetesService
                     else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                     {
                         logger.LogWarning(
-                            "Unknown prefix '{prefix}' for path '{path}'. The default (Public) visibility will be used.",
+                            "Unknown prefix '{Prefix}' for path '{Path}'. The default (Public) visibility will be used.",
                             prefix,
                             path
                         );
@@ -746,7 +793,7 @@ public class KubernetesService : IKubernetesService
                     else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                     {
                         logger.LogWarning(
-                            "Unknown prefix '{prefix}' for event '{eventName}'. The default (Public) visibility will be used.",
+                            "Unknown prefix '{Prefix}' for event '{EventName}'. The default (Public) visibility will be used.",
                             prefix,
                             eventName
                         );

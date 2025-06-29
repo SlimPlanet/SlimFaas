@@ -58,7 +58,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.FromResult<IDictionary<string, string>>(new Dictionary<string, string>());
     }
 
-    public Task ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
+    public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
         List<QueueData> list;
         if (queue.ContainsKey(key))
@@ -71,8 +71,9 @@ public class DatabaseMockService : IDatabaseService
             queue.TryAdd(key, list);
         }
 
-        list.Add(new QueueData(Guid.NewGuid().ToString(), field));
-        return Task.CompletedTask;
+        var elementId = Guid.NewGuid().ToString();
+        list.Add(new QueueData(elementId, field));
+        return Task.FromResult(elementId);
     }
 
     public Task<IList<QueueData>?> ListRightPopAsync(string key, int count = 1)

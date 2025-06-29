@@ -39,7 +39,8 @@ public class HistorySynchronizationWorkerShould
         HistorySynchronizationWorker service = new(replicasService,
             historyHttpMemoryService, historyHttpRedisService, logger.Object, slimDataStatus.Object, 100);
 
-        Task task = service.StartAsync(CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        Task task = service.StartAsync(cts.Token);
         await Task.Delay(500);
         long ticksFirstCallAsync = historyHttpMemoryService.GetTicksLastCall("fibonacci1");
         Assert.Equal(firstTicks, ticksFirstCallAsync);
@@ -50,7 +51,9 @@ public class HistorySynchronizationWorkerShould
         long ticksSecondCallAsync = await historyHttpRedisService.GetTicksLastCallAsync("fibonacci1");
         Assert.Equal(secondTicks, ticksSecondCallAsync);
 
-        Assert.True(task.IsCompleted);
+        await cts.CancelAsync();
+        await task;
+        Assert.True(task.IsCompletedSuccessfully);
     }
 
     [Fact]
@@ -68,7 +71,8 @@ public class HistorySynchronizationWorkerShould
         HistorySynchronizationWorker service = new HistorySynchronizationWorker(replicasService.Object,
             historyHttpMemoryService, historyHttpRedisService, logger.Object, slimDataStatus.Object, 10);
 
-        Task task = service.StartAsync(CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        Task task = service.StartAsync(cts.Token);
         await Task.Delay(100);
 
         logger.Verify(l => l.Log(
@@ -77,6 +81,8 @@ public class HistorySynchronizationWorkerShould
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
             (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()), Times.AtLeastOnce);
-        Assert.True(task.IsCompleted);
+        await cts.CancelAsync();
+        await task;
+        Assert.True(task.IsCompletedSuccessfully);
     }
 }

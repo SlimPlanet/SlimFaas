@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.36.24
+
+- [bc7bafc](https://github.com/SlimPlanet/SlimFaas/commit/bc7bafce7eebbcf55e7e11c5734aacc802e121c7) - feature(slimfaas): delete job (#129) (release), 2025-07-18 by *Guillaume Chervet*
+- [282ffb8](https://github.com/SlimPlanet/SlimFaas/commit/282ffb8bad7a919c8d1428beef63ca9bad824559) - doc: add meeting calendar (#113), 2025-06-26 by *Guillaume Chervet*
+- [f088c8f](https://github.com/SlimPlanet/SlimFaas/commit/f088c8fcb0711a00fa12d9a15401f4787c9b1acf) - doc: copy apache-2.0 LICENCE from Keda (#112), 2025-06-24 by *Guillaume Chervet*
+- [7f3b59b](https://github.com/SlimPlanet/SlimFaas/commit/7f3b59b1829c6da7e602305638ee8ece19c0e4e1) - doc: add GOVERNANCE.md file, 2025-06-19 by *Antoine BLANCKE*
+- [346f588](https://github.com/SlimPlanet/SlimFaas/commit/346f5884dc7a9220685498c5f583398af7ddc452) - Merge branch 'main' into doc/gouverance.md, 2025-06-19 by *Guillaume Chervet*
+- [b9245ab](https://github.com/SlimPlanet/SlimFaas/commit/b9245ab4e3c91b2f7dd56a7c8e84b5c5cc0f28fb) - doc: add gouvernance.md, 2025-02-25 by *Guillaume Chervet*
+
+
 ## v0.36.23
 
 - [47b1dab](https://github.com/SlimPlanet/SlimFaas/commit/47b1dab1a9b91a2700acae4c343d5ca70b4f394c) - feature(job): add images whitelist pattern (#111) (release), 2025-05-27 by *Guillaume Chervet*
@@ -301,10 +311,5 @@
 ## v0.30.3
 
 - [415f590](https://github.com/SlimPlanet/SlimFaas/commit/415f5909da9f43315bed3a289f7dfbf66e9a66bd) - chore(SlimFaasPlanetSaver): fix publish versionning, 2024-11-30 by *Guillaume Chervet*
-
-
-## v0.30.2
-
-- [de2fd4f](https://github.com/SlimPlanet/SlimFaas/commit/de2fd4f5a6da2309ebbdd054efb86e80e90ba9ac) - fix(SlimFaasPlanetSaver): test auto version upgrade, 2024-11-30 by *Guillaume Chervet*
 
 

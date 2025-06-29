@@ -1,6 +1,5 @@
 using System.Net;
 using System.Text.Json;
-using DotNext.Collections.Generic;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Prometheus;

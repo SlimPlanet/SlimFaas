@@ -69,26 +69,29 @@ namespace SlimFaas.Tests
         {
             // Arrange
             var jobName = "TestJob";
-            var createJob = new CreateJob(new List<string> { "arg1", "arg2" },"some-image");
-            var createJobPattern = new CreateJob(new List<string> { "arg1", "arg2" },"pattern-image:latest");
+            var createJob = new CreateJob(["arg1", "arg2"],"some-image");
+            var createJobPattern = new CreateJob(["arg1", "arg2"],"pattern-image:latest");
+            var elementId = "1";
 
             // Act
-            await _jobService.CreateJobAsync(jobName, createJob);
-            await _jobService.CreateJobAsync(jobName, createJobPattern);
+            await _jobService.CreateJobAsync(jobName, createJob, elementId, $"{jobName}1", 1);
+            await _jobService.CreateJobAsync(jobName, createJobPattern, elementId, $"{jobName}2", 2);
 
             // Assert
             _kubernetesServiceMock
                 .Verify(x => x.CreateJobAsync(
                     It.IsAny<string>(), // le namespace
                     jobName,
-                    createJob),
+                    createJob,
+                    elementId, jobName+"1", 1),
                 Times.Once);
 
             _kubernetesServiceMock
                 .Verify(x => x.CreateJobAsync(
                         It.IsAny<string>(), // le namespace
                         jobName,
-                        createJobPattern),
+                        createJobPattern,
+                        elementId, jobName+"2", 2),
                     Times.Once);
         }
 
@@ -109,7 +112,7 @@ namespace SlimFaas.Tests
             var result = await _jobService.EnqueueJobAsync(jobName, createJob, isMessageComeFromNamespaceInternal);
 
             // Assert
-            Assert.Equal("Visibility private", result.ErrorKey);
+            Assert.Equal("Visibility_private", result.ErrorKey);
             Assert.Equal(400, result.Code);
 
             // EnqueueAsync ne doit pas être appelé dans ce scénario
@@ -150,7 +153,7 @@ namespace SlimFaas.Tests
 
             // Assert
             Assert.True(string.IsNullOrEmpty(result.ErrorKey), "Aucune erreur ne doit remonter.");
-            Assert.Equal(204, result.Code);
+            Assert.Equal(202, result.Code);
 
             // Vérifie que EnqueueAsync est bien appelé
             _jobQueueMock.Verify(x => x.EnqueueAsync(
@@ -162,8 +165,8 @@ namespace SlimFaas.Tests
 
         private bool ValidateSerializedJob(byte[] bytes, string expectedImage)
         {
-            var jobDeserialized = MemoryPackSerializer.Deserialize<CreateJob>(bytes);
-            return jobDeserialized != null && jobDeserialized.Image == expectedImage;
+            var jobDeserialized = MemoryPackSerializer.Deserialize<JobInQueue>(bytes);
+            return jobDeserialized != null && jobDeserialized.CreateJob.Image == expectedImage;
         }
 
 
@@ -181,7 +184,7 @@ namespace SlimFaas.Tests
 
             // Assert
             Assert.True(string.IsNullOrEmpty(result.ErrorKey));
-            Assert.Equal(204, result.Code);
+            Assert.Equal(202, result.Code);
 
             // On peut vérifier le contenu de l’enqueue pour voir si la sérialisation a bien l'image fallback "public-image"
             _jobQueueMock.Verify(x => x.EnqueueAsync(
@@ -192,10 +195,10 @@ namespace SlimFaas.Tests
 
         private bool ValidateSerializedEnvironments(byte[] bytes)
         {
-            var jobDeserialized = MemoryPackSerializer.Deserialize<CreateJob>(bytes);
-            if (jobDeserialized?.Environments == null) return false;
+            var jobDeserialized = MemoryPackSerializer.Deserialize<JobInQueue>(bytes);
+            if (jobDeserialized?.CreateJob.Environments == null) return false;
 
-            var envDict = jobDeserialized.Environments.ToDictionary(e => e.Name, e => e.Value);
+            var envDict = jobDeserialized.CreateJob.Environments.ToDictionary(e => e.Name, e => e.Value);
 
             return envDict.TryGetValue("ENV_EXISTING", out var existingValue) && existingValue == "ExistingValue"
                                                                               && envDict.TryGetValue("ENV_NEW", out var newValue) && newValue == "NewValue"
@@ -239,7 +242,7 @@ namespace SlimFaas.Tests
 
             // Assert
             Assert.True(string.IsNullOrEmpty(result.ErrorKey));
-            Assert.Equal(204, result.Code);
+            Assert.Equal(202, result.Code);
 
             // Vérifie qu'on a ENV_EXISTING, ENV_NEW et ENV_COMMON (avec la nouvelle valeur)
             _jobQueueMock.Verify(x => x.EnqueueAsync(
