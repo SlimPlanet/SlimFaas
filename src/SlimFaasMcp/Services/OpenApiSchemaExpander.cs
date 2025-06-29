@@ -1,0 +1,133 @@
+﻿using System.Text.Json;
+
+namespace SlimFaasMcp.Services;
+
+public class OpenApiSchemaExpander
+{
+    private readonly JsonElement _root;
+    private readonly Dictionary<string, object> _refCache = new();
+
+    public OpenApiSchemaExpander(JsonElement root)
+    {
+        _root = root;
+    }
+
+    public object ExpandSchema(JsonElement schema)
+    {
+        // Handle $ref
+        if (schema.TryGetProperty("$ref", out var refProp))
+        {
+            var refPath = refProp.GetString();
+            if (_refCache.TryGetValue(refPath, out var cached))
+                return cached;
+
+            var resolved = ResolveRef(refPath);
+            var result = ExpandSchema(resolved);
+            _refCache[refPath] = result; // avoid infinite loop
+            return result;
+        }
+
+        var type = schema.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : null;
+
+        // Enum
+        if (schema.TryGetProperty("enum", out var enumProp))
+        {
+            return new Dictionary<string, object>
+            {
+                ["type"] = type,
+                ["enum"] = enumProp.EnumerateArray().Select(e => e.GetString()).ToArray(),
+                ["description"] = schema.TryGetProperty("description", out var desc) ? desc.GetString() : null
+            };
+        }
+
+        // Object with properties
+        if (type == "object")
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["type"] = "object"
+            };
+            if (schema.TryGetProperty("description", out var desc))
+                dict["description"] = desc.GetString();
+
+            if (schema.TryGetProperty("properties", out var props))
+            {
+                var properties = new Dictionary<string, object>();
+                foreach (var prop in props.EnumerateObject())
+                {
+                    properties[prop.Name] = ExpandSchema(prop.Value);
+                }
+                dict["properties"] = properties;
+            }
+
+            if (schema.TryGetProperty("required", out var reqArr))
+            {
+                dict["required"] = reqArr.EnumerateArray().Select(x => x.GetString()).ToArray();
+            }
+            return dict;
+        }
+
+        // Array
+        if (type == "array" && schema.TryGetProperty("items", out var items))
+        {
+            var dict = new Dictionary<string, object>
+            {
+                ["type"] = "array",
+                ["items"] = ExpandSchema(items)
+            };
+            if (schema.TryGetProperty("description", out var desc))
+                dict["description"] = desc.GetString();
+            return dict;
+        }
+
+        // Primitive type
+        var resultDict = new Dictionary<string, object>();
+        if (type != null)
+            resultDict["type"] = type;
+        if (schema.TryGetProperty("format", out var format))
+            resultDict["format"] = format.GetString();
+        if (schema.TryGetProperty("description", out var desc2))
+            resultDict["description"] = desc2.GetString();
+
+        // Other constraints (minimum, maximum, pattern, etc.)
+        foreach (var prop in schema.EnumerateObject())
+        {
+            if (resultDict.ContainsKey(prop.Name))
+                continue;
+            switch (prop.Value.ValueKind)
+            {
+                case JsonValueKind.String:
+                    resultDict[prop.Name] = prop.Value.GetString();
+                    break;
+                case JsonValueKind.Number:
+                    resultDict[prop.Name] = prop.Value.GetRawText();
+                    break;
+                case JsonValueKind.True:
+                case JsonValueKind.False:
+                    resultDict[prop.Name] = prop.Value.GetBoolean();
+                    break;
+                case JsonValueKind.Array:
+                    resultDict[prop.Name] = prop.Value.EnumerateArray().Select(v => v.ToString()).ToArray();
+                    break;
+                case JsonValueKind.Object:
+                    // Not expanding unknown objects here, but you could
+                    break;
+            }
+        }
+
+        return resultDict;
+    }
+
+    private JsonElement ResolveRef(string refPath)
+    {
+        // #/components/schemas/xxx
+        if (!refPath.StartsWith("#/"))
+            throw new Exception($"Only local refs supported, got {refPath}");
+        var path = refPath.Substring(2).Split('/');
+
+        JsonElement current = _root;
+        foreach (var part in path)
+            current = current.GetProperty(part);
+        return current;
+    }
+}
