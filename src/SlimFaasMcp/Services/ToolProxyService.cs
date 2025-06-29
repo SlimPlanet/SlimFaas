@@ -2,6 +2,7 @@
 using System.Text.Json;
 using SlimFaasMcp.Models;
 using YamlDotNet.Serialization;
+using Endpoint = SlimFaasMcp.Models.Endpoint;
 
 namespace SlimFaasMcp.Services;
 
@@ -13,6 +14,16 @@ public class ToolProxyService
     public ToolProxyService(SwaggerService swaggerService)
     {
         _swaggerService = swaggerService;
+    }
+
+    private static string GetContentType(Endpoint endpoint)
+    {
+        var contentType = "application/json"; // valeur par défaut
+
+        // Recherche du vrai content-type
+        if (endpoint.Parameters.Any(p => p.In == "formData"))
+            contentType = "multipart/form-data";
+        return contentType;
     }
 
     public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl)
@@ -28,7 +39,8 @@ public class ToolProxyService
             Endpoint = new McpTool.EndpointInfo
             {
                 Url = e.Url,
-                Method = e.Verb
+                Method = e.Verb,
+                ContentType = GetContentType(e)
             }
         }).ToList();
     }

@@ -6,7 +6,7 @@
     <style>
         body { font-family: sans-serif; margin: 2em; }
         .tool { margin-bottom: 2em; border: 1px solid #ccc; padding: 1em; }
-        input, textarea { width: 100%; margin-top: 4px; }
+        .file-input { display: block; margin: 6px 0; }
     </style>
 </head>
 <body>
@@ -16,10 +16,13 @@
 <hr>
 <div id="tools"></div>
 <script>
+    let loadedTools = [];
+
     async function loadTools() {
         const url = document.getElementById("swaggerUrl").value;
         const toolsRes = await fetch(`/tools?url=${encodeURIComponent(url)}`);
         const tools = await toolsRes.json();
+        loadedTools = tools;
         const container = document.getElementById("tools");
         container.innerHTML = "";
         for (const tool of tools) {
@@ -28,24 +31,82 @@
             el.innerHTML = `<h4>${tool.name}</h4>
                 <div><b>${tool.description}</b></div>
                 <div><pre>${JSON.stringify(tool.inputSchema, null, 2)}</pre></div>
-                <div><textarea id="input_${tool.name}" rows=4 placeholder='JSON input'></textarea></div>
+                <div id="inputForm_${tool.name}"></div>
                 <button onclick="runTool('${tool.name}')">Run</button>
                 <div id="output_${tool.name}" style="background: #eee; margin-top:1em;"></div>
+                <div style="font-size: small; margin-top:6px;"><b>Content-Type:</b> ${tool.endpoint.contentType || "application/json"}</div>
                 `;
             container.appendChild(el);
+            buildToolForm(tool);
         }
     }
+
+    function buildToolForm(tool) {
+        const formDiv = document.getElementById(`inputForm_${tool.name}`);
+        formDiv.innerHTML = "";
+
+        const contentType = tool.endpoint.contentType || "application/json";
+        const props = tool.inputSchema?.properties || {};
+
+        if (contentType === "multipart/form-data") {
+            // Build a form for multipart
+            for (const [key, val] of Object.entries(props)) {
+                // Show file input for binary, else text input
+                if (val.format === "binary") {
+                    formDiv.innerHTML += `<label>${key} (file): <input class="file-input" type="file" id="${tool.name}_input_${key}"></label><br>`;
+                } else {
+                    formDiv.innerHTML += `<label>${key}: <input class="file-input" type="text" id="${tool.name}_input_${key}"></label><br>`;
+                }
+            }
+        } else {
+            // Show textarea JSON input
+            formDiv.innerHTML += `<textarea id="${tool.name}_input_json" rows=4 placeholder='JSON input'></textarea>`;
+        }
+    }
+
     async function runTool(name) {
+        const tool = loadedTools.find(t => t.name === name);
         const url = document.getElementById("swaggerUrl").value;
-        const input = document.getElementById("input_" + name).value;
+        const contentType = tool.endpoint.contentType || "application/json";
+        let body, headers = {};
+
+        if (contentType === "multipart/form-data") {
+            body = new FormData();
+            const props = tool.inputSchema.properties || {};
+            for (const [key, val] of Object.entries(props)) {
+                if (val.format === "binary") {
+                    const fileInput = document.getElementById(`${tool.name}_input_${key}`);
+                    if (fileInput.files.length > 0) {
+                        body.append(key, fileInput.files[0]);
+                    }
+                } else {
+                    const txtInput = document.getElementById(`${tool.name}_input_${key}`);
+                    if (txtInput.value) {
+                        body.append(key, txtInput.value);
+                    }
+                }
+            }
+            // Do NOT set Content-Type, browser does it
+        } else {
+            // application/json
+            headers["Content-Type"] = "application/json";
+            body = document.getElementById(`${tool.name}_input_json`).value || "{}";
+        }
+
         try {
             const res = await fetch(`/tools/${name}?url=${encodeURIComponent(url)}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: input || "{}"
+                headers,
+                body
             });
-            const data = await res.json();
-            document.getElementById("output_" + name).innerText = JSON.stringify(data, null, 2);
+            let data;
+            const text = await res.text();
+            try {
+                data = JSON.parse(text);
+            } catch {
+                data = text;
+            }
+            document.getElementById("output_" + name).innerText = typeof data === "string" ? data : JSON.stringify(data, null, 2);
         } catch (e) {
             document.getElementById("output_" + name).innerText = e.message;
         }
