@@ -19,7 +19,7 @@ public class SwaggerService
         var root = swagger.RootElement;
         var paths = root.GetProperty("paths");
         var endpoints = new List<Endpoint>();
-
+        var expander = new OpenApiSchemaExpander(swagger.RootElement);
         foreach (var path in paths.EnumerateObject())
         {
             var url = path.Name;
@@ -47,7 +47,8 @@ public class SwaggerService
                                 param.TryGetProperty("schema", out var sch) &&
                                 sch.TryGetProperty("type", out var typ)
                                     ? typ.GetString()
-                                    : "string"
+                                    : "string",
+
                         });
                     }
                 }
@@ -60,6 +61,8 @@ public class SwaggerService
 
                         if (content.TryGetProperty("application/json", out var appJson))
                         {
+
+
                             if (appJson.TryGetProperty("schema", out var schema))
                             {
                                 parameters.Add(new Parameter
@@ -70,7 +73,7 @@ public class SwaggerService
                                     Description = "Request body",
                                     SchemaType =
                                         schema.TryGetProperty("type", out var t) ? t.GetString() : "object",
-                                    Schema = schema.ToString()
+                                    Schema = expander.ExpandSchema(schema)
                                 });
                             }
 
@@ -96,7 +99,8 @@ public class SwaggerService
                                         Description =
                                             p.TryGetProperty("description", out var d) ? d.GetString() : "",
                                         SchemaType = p.TryGetProperty("type", out var t) ? t.GetString() : "string",
-                                        Format = p.TryGetProperty("format", out var f) ? f.GetString() : null
+                                        Format = p.TryGetProperty("format", out var f) ? f.GetString() : null,
+                                        Schema = expander.ExpandSchema(schema)
                                     });
                                 }
                             }

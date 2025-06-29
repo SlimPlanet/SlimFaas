@@ -20,5 +20,5 @@ public class Parameter
     public string SchemaType { get; set; }
 
     public string? Format { get; set; }
-    public string? Schema { get; set; }
+    public object Schema { get; set; }
 }

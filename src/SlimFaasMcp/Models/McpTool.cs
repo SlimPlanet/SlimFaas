@@ -17,14 +17,26 @@ public class McpTool
 
     public static object GenerateInputSchema(List<Parameter> parameters)
     {
-        var props = parameters.ToDictionary(
-            p => p.Name,
-            p => new
+        var props = new Dictionary<string, object>();
+
+        foreach (var p in parameters)
+        {
+            // Si p.Schema est renseigné (schéma détaillé expandu)
+            if (p.Schema != null)
             {
-                type = p.SchemaType ?? "string",
-                description = p.Description ?? ""
+                // Injecte tout le schéma détaillé (déjà bien formatté par ExpandSchema)
+                props[p.Name] = p.Schema;
             }
-        );
+            else
+            {
+                // Schéma simple (type + description)
+                props[p.Name] = new
+                {
+                    type = p.SchemaType ?? "string",
+                    description = p.Description ?? ""
+                };
+            }
+        }
 
         var required = parameters.Where(p => p.Required).Select(p => p.Name).ToArray();
 
@@ -35,4 +47,5 @@ public class McpTool
             required
         };
     }
+
 }
