@@ -1,11 +1,8 @@
-﻿using System.Collections.Generic;
+﻿namespace SlimFaasMcp.Models;
 
-namespace Models
+public class SlimFaasManifest
 {
-    public class SlimFaasManifest
-    {
-        public string Name { get; set; }
-        public string Description { get; set; }
-        public List<McpTool> Tools { get; set; }
-    }
+    public string Name { get; set; }
+    public string Description { get; set; }
+    public List<McpTool> Tools { get; set; }
 }

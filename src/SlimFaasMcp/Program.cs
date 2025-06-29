@@ -1,9 +1,11 @@
+using SlimFaasMcp.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 
-builder.Services.AddSingleton<Services.SwaggerService>();
-builder.Services.AddSingleton<Services.ToolProxyService>();
+builder.Services.AddSingleton<SwaggerService>();
+builder.Services.AddSingleton<ToolProxyService>();
 
 var app = builder.Build();
 
