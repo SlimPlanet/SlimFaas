@@ -1,0 +1,55 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>MCP Swagger Proxy UI</title>
+    <style>
+        body { font-family: sans-serif; margin: 2em; }
+        .tool { margin-bottom: 2em; border: 1px solid #ccc; padding: 1em; }
+        input, textarea { width: 100%; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<h2>MCP Swagger Proxy Web UI</h2>
+<label>Swagger URL: <input id="swaggerUrl" type="text" value="https://petstore3.swagger.io/api/v3/openapi.json" style="width: 60%;" /></label>
+<button onclick="loadTools()">Load Tools</button>
+<hr>
+<div id="tools"></div>
+<script>
+    async function loadTools() {
+        const url = document.getElementById("swaggerUrl").value;
+        const toolsRes = await fetch(`/tools?url=${encodeURIComponent(url)}`);
+        const tools = await toolsRes.json();
+        const container = document.getElementById("tools");
+        container.innerHTML = "";
+        for (const tool of tools) {
+            const el = document.createElement("div");
+            el.className = "tool";
+            el.innerHTML = `<h4>${tool.name}</h4>
+                <div><b>${tool.description}</b></div>
+                <div><pre>${JSON.stringify(tool.inputSchema, null, 2)}</pre></div>
+                <div><textarea id="input_${tool.name}" rows=4 placeholder='JSON input'></textarea></div>
+                <button onclick="runTool('${tool.name}')">Run</button>
+                <div id="output_${tool.name}" style="background: #eee; margin-top:1em;"></div>
+                `;
+            container.appendChild(el);
+        }
+    }
+    async function runTool(name) {
+        const url = document.getElementById("swaggerUrl").value;
+        const input = document.getElementById("input_" + name).value;
+        try {
+            const res = await fetch(`/tools/${name}?url=${encodeURIComponent(url)}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: input || "{}"
+            });
+            const data = await res.json();
+            document.getElementById("output_" + name).innerText = JSON.stringify(data, null, 2);
+        } catch (e) {
+            document.getElementById("output_" + name).innerText = e.message;
+        }
+    }
+</script>
+</body>
+</html>
