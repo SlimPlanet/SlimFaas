@@ -82,7 +82,7 @@ Here are some public Swagger/OpenAPI URLs you can use (**no authentication req
 ## 🚧 Known Limitations
 
 - OpenAPI v2/v3 and YAML/JSON support is basic; for complex specs, adapt as needed
-- No authentication, advanced headers, or multipart bodies handled by default (contributions welcome)
+- No authentication, advanced headers handled by default (contributions welcome)
 - Consider [NSwag](https://github.com/RicoSuter/NSwag) for advanced spec parsing
 
 ---

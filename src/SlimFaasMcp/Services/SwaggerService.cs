@@ -61,8 +61,6 @@ public class SwaggerService
 
                         if (content.TryGetProperty("application/json", out var appJson))
                         {
-
-
                             if (appJson.TryGetProperty("schema", out var schema))
                             {
                                 parameters.Add(new Parameter

@@ -11,7 +11,13 @@
 </head>
 <body>
 <h2>MCP Swagger Proxy Web UI</h2>
-<label>Swagger URL: <input id="swaggerUrl" type="text" value="https://petstore3.swagger.io/api/v3/openapi.json" style="width: 60%;" /></label>
+<label>Swagger URL:
+    <input id="swaggerUrl" type="text" value="https://petstore3.swagger.io/api/v3/openapi.json" style="width: 50%;" />
+</label>
+<br>
+<label>Base URL override:
+    <input id="baseUrl" type="text" placeholder="(optional, e.g. https://petstore3.swagger.io/api/v3)" style="width: 50%;" />
+</label>
 <button onclick="loadTools()">Load Tools</button>
 <hr>
 <div id="tools"></div>
@@ -20,7 +26,10 @@
 
     async function loadTools() {
         const url = document.getElementById("swaggerUrl").value;
-        const toolsRes = await fetch(`/tools?url=${encodeURIComponent(url)}`);
+        const baseUrl = document.getElementById("baseUrl").value;
+        let endpoint = `/tools?url=${encodeURIComponent(url)}`;
+        if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
+        const toolsRes = await fetch(endpoint);
         const tools = await toolsRes.json();
         loadedTools = tools;
         const container = document.getElementById("tools");
@@ -67,6 +76,9 @@
     async function runTool(name) {
         const tool = loadedTools.find(t => t.name === name);
         const url = document.getElementById("swaggerUrl").value;
+        const baseUrl = document.getElementById("baseUrl").value;
+        let endpoint = `/tools/${name}?url=${encodeURIComponent(url)}`;
+        if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
         const contentType = tool.endpoint.contentType || "application/json";
         let body, headers = {};
 
@@ -94,10 +106,10 @@
         }
 
         try {
-            const res = await fetch(`/tools/${name}?url=${encodeURIComponent(url)}`, {
+            const res = await fetch(endpoint, {
                 method: "POST",
                 headers,
-                body
+                body: JSON.stringify(JSON.parse(body))
             });
             let data;
             const text = await res.text();

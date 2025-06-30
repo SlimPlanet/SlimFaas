@@ -15,9 +15,9 @@ public class ManifestController : ControllerBase
     }
 
     [HttpGet("/manifest.yaml")]
-    public async Task<IActionResult> GetManifest([FromQuery] string url)
+    public async Task<IActionResult> GetManifest([FromQuery] string url, [FromQuery] string? base_url = null)
     {
-        var yaml = await _toolProxyService.GenerateManifestYamlAsync(url);
+        var yaml = await _toolProxyService.GenerateManifestYamlAsync(url, base_url);
         return Content(yaml, "application/x-yaml");
     }
 }
