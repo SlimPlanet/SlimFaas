@@ -22,12 +22,6 @@ Each endpoint from the source API is exposed as a "tool" with on-the-fly YAML ma
 
 1. **Clone this repository** or copy the provided code
 
-2. **Add the YAML dependency** (YamlDotNet):
-
-    ```sh
-    dotnet add package YamlDotNet
-    ```
-
 3. **Run the API:**
 
     ```sh
@@ -100,12 +94,6 @@ Pull requests welcome for:
 - Auth/header management
 - UI/UX improvements
 - More manifest options, etc.
-
----
-
-## 👨‍💻 Author
-
-Guillaume Chervet ([SlimFaas](https://github.com/slimfaas/slimfaas) creator)
 
 ---
 
