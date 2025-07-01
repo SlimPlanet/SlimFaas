@@ -11,5 +11,5 @@
       <PackageReference Include="YamlDotNet" Version="16.3.0" />
       <PackageReference Include="Namotion.Reflection" Version="3.4.2" />
     </ItemGroup>
-
+  
 </Project>

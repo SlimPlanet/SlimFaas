@@ -27,7 +27,7 @@
     async function loadTools() {
         const url = document.getElementById("swaggerUrl").value;
         const baseUrl = document.getElementById("baseUrl").value;
-        let endpoint = `/tools?url=${encodeURIComponent(url)}`;
+        let endpoint = `/tools?openapi_url=${encodeURIComponent(url)}`;
         if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
         const toolsRes = await fetch(endpoint);
         const tools = await toolsRes.json();
