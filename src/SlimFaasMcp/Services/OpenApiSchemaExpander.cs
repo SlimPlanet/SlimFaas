@@ -100,7 +100,13 @@ public class OpenApiSchemaExpander
                     resultDict[prop.Name] = prop.Value.GetString();
                     break;
                 case JsonValueKind.Number:
-                    resultDict[prop.Name] = prop.Value.GetRawText();
+                    if (prop.Value.TryGetInt32(out var i))
+                        resultDict[prop.Name] = i;               // entier
+                    else if (prop.Value.TryGetInt64(out var l))
+                        resultDict[prop.Name] = l;               // long
+                    else
+                        resultDict[prop.Name] = prop.Value.GetDouble(); // double / décimal
+
                     break;
                 case JsonValueKind.True:
                 case JsonValueKind.False:
