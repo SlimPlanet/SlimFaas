@@ -77,7 +77,7 @@
         const tool = loadedTools.find(t => t.name === name);
         const url = document.getElementById("swaggerUrl").value;
         const baseUrl = document.getElementById("baseUrl").value;
-        let endpoint = `/tools/${name}?url=${encodeURIComponent(url)}`;
+        let endpoint = `/tools/${name}?openapi_url=${encodeURIComponent(url)}`;
         if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
         const contentType = tool.endpoint.contentType || "application/json";
         let body, headers = {};

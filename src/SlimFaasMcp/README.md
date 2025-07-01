@@ -11,6 +11,7 @@ Each endpoint from the source API is exposed as a "tool" with on-the-fly YAML ma
 - **Parses and exposes** all endpoints (GET, POST, PUT, DELETE, etc.)
 - **No static code generation**: everything is live, built from the Swagger URL
 - **Key Endpoints**:
+    - `JSON RPC POST /mcp?openapi_url=<swagger_url>&base_url=<base_url>`: Model context Protocol Endpoint
     - `GET /tools?url=<swagger_url>`: List all available MCP Tools
     - `POST /tools/{toolName}?url=<swagger_url>`: Execute a proxied call to the actual API endpoint
     - `GET /manifest.yaml?url=<swagger_url>`: Generate a SlimFaas-compatible MCP YAML manifest
@@ -56,11 +57,14 @@ Here are some public Swagger/OpenAPI URLs you can use (**no authentication req
 
 ## 📖 Main API Endpoints
 
-- `GET /tools?url=<swagger_url>`
+- `JSON RPC POST /mcp?openapi_url=<swagger_url>&base_url=<base_url>`
+    - Model context Protocol Endpoint
+
+- `GET /tools?openapi_url=<swagger_url>&base_url=<base_url>`
     - List all dynamically generated MCP tools for the provided Swagger
-- `POST /tools/{toolName}?url=<swagger_url>`
+- `POST /tools/{toolName}?openapi_url=<swagger_url>&base_url=<base_url>`
     - Execute a proxied call to the specified tool, sending parameters as JSON body
-- `GET /manifest.yaml?url=<swagger_url>`
+- `GET /manifest.yaml?openapi_url=<swagger_url>&base_url=<base_url>`
     - Generate a valid SlimFaas MCP YAML manifest for all exposed tools
 - `GET /index.html`
     - Access the minimalist web UI for testing
@@ -83,7 +87,6 @@ Here are some public Swagger/OpenAPI URLs you can use (**no authentication req
 
 - OpenAPI v2/v3 and YAML/JSON support is basic; for complex specs, adapt as needed
 - No authentication, advanced headers handled by default (contributions welcome)
-- Consider [NSwag](https://github.com/RicoSuter/NSwag) for advanced spec parsing
 
 ---
 
