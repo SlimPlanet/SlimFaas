@@ -1,4 +1,4 @@
-﻿# MCP Swagger Proxy for SlimFaas
+﻿# SlimFaas-MCP: proxify your API to MCP dynamically
 
 This project is a **runtime MCP proxy** that dynamically generates SlimFaas-compatible MCP Tools from any remote Swagger (OpenAPI v2/v3) document.
 Each endpoint from the source API is exposed as a "tool" with on-the-fly YAML manifest generation and real-time proxy execution.
@@ -19,24 +19,23 @@ Each endpoint from the source API is exposed as a "tool" with on-the-fly YAML ma
 
 ---
 
-## 📦 Installation & Quick Start
+## 📦 Quick Start
 
-1. **Clone this repository** or copy the provided code
+1 **Run the SlimFaas-MPC API:**
 
-3. **Run the API:**
+```sh
+docker run --rm -p 8080:8080 axaguildev/slimfaas-mcp:0.36.24-pr.1141179
 
-    ```sh
-    dotnet run
-    ```
+```
 
-   The API will listen on `http://localhost:5000` by default.
+The API will listen on `http://localhost:8080` by default.
 
 ---
 
 ## 🖥️ Web UI for Tool Testing
 
 Go to:
-http://localhost:5000/index.html
+http://localhost:8080/index.html
 - Enter a Swagger URL (see the list below)
 - Load, explore, and call MCP Tools directly from your browser
 

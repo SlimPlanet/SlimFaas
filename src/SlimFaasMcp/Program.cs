@@ -23,7 +23,6 @@ app.MapGet("/mcp", () =>
  * 2. Endpoint MCP JSON-RPC 2.0  (POST /mcp)
  * --------------------------------------------------------------------- */
 app.MapPost("/mcp", async (HttpRequest req,
-                           SwaggerService swaggerSvc,
                            ToolProxyService proxySvc) =>
 {
     using var doc = await JsonDocument.ParseAsync(req.Body);
