@@ -1,17 +1,37 @@
 ﻿using System.Text.Json;
+using Microsoft.Extensions.Caching.Memory;
 using SlimFaasMcp.Models;
 using Endpoint = SlimFaasMcp.Models.Endpoint;
 
 namespace SlimFaasMcp.Services;
 
-public class SwaggerService
+public class SwaggerService(HttpClient httpClient, IMemoryCache memoryCache)
 {
-    private readonly HttpClient _httpClient = new();
+    private static readonly TimeSpan SlidingExpiration = TimeSpan.FromMinutes(20);
+
 
     public async Task<JsonDocument> GetSwaggerAsync(string swaggerUrl)
     {
-        var swaggerStr = await _httpClient.GetStringAsync(swaggerUrl);
-        return JsonDocument.Parse(swaggerStr);
+        // Cache key
+        var cacheKey = $"swagger::{swaggerUrl}";
+
+        // Try get from cache
+        if (memoryCache.TryGetValue<JsonDocument>(cacheKey, out var cachedSwagger))
+        {
+            return cachedSwagger;
+        }
+
+        // Otherwise fetch and cache
+        var swaggerStr = await httpClient.GetStringAsync(swaggerUrl);
+        var swaggerJson = JsonDocument.Parse(swaggerStr);
+
+        // Cache with sliding expiration
+        memoryCache.Set(cacheKey, swaggerJson, new MemoryCacheEntryOptions
+        {
+            SlidingExpiration = SlidingExpiration
+        });
+
+        return swaggerJson;
     }
 
     public IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger)

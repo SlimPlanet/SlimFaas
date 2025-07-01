@@ -2,15 +2,9 @@
 
 namespace SlimFaasMcp.Services;
 
-public class OpenApiSchemaExpander
+public class OpenApiSchemaExpander(JsonElement root)
 {
-    private readonly JsonElement _root;
     private readonly Dictionary<string, object> _refCache = new();
-
-    public OpenApiSchemaExpander(JsonElement root)
-    {
-        _root = root;
-    }
 
     public object ExpandSchema(JsonElement schema)
     {
@@ -131,7 +125,7 @@ public class OpenApiSchemaExpander
             throw new Exception($"Only local refs supported, got {refPath}");
         var path = refPath.Substring(2).Split('/');
 
-        JsonElement current = _root;
+        JsonElement current = root;
         foreach (var part in path)
             current = current.GetProperty(part);
         return current;

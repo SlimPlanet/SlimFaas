@@ -5,10 +5,11 @@ using SlimFaasMcp.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-
+builder.Services.AddHttpClient();
 builder.Services.AddSingleton<SwaggerService>();
 builder.Services.AddSingleton<ToolProxyService>();
 builder.Services.AddSingleton<ToolProxyService>();
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 
@@ -22,16 +23,16 @@ app.MapGet("/mcp", () =>
 /* -------------------------------------------------------------------------
  * 2. Endpoint MCP JSON-RPC 2.0  (POST /mcp)
  * --------------------------------------------------------------------- */
-app.MapPost("/mcp", async (HttpRequest req,
-                           ToolProxyService proxySvc) =>
+app.MapPost("/mcp", async (HttpRequest httpRequest,
+                           ToolProxyService toolProxyService) =>
 {
-    using var doc = await JsonDocument.ParseAsync(req.Body);
+    using var doc = await JsonDocument.ParseAsync(httpRequest.Body);
     var root = doc.RootElement;
 
     /* 1️⃣  Lis les query-string ---------------------- */
-    var qs          = req.Query;
-    var openapiUrl       = qs.TryGetValue("openapi_url", out var qurl)      ? qurl.ToString()      : "";
-    var baseUrl      = qs.TryGetValue("base_url", out var qbase)? qbase.ToString()     : "";
+    var queryString          = httpRequest.Query;
+    var openapiUrl       = queryString.TryGetValue("openapi_url", out var qurl)      ? qurl.ToString()      : "";
+    var baseUrl      = queryString.TryGetValue("base_url", out var qbase)? qbase.ToString()     : "";
 
     /* --- champs JSON-RPC de base -------------------------------------- */
     string jsonrpc = root.GetProperty("jsonrpc").GetString() ?? "2.0";
@@ -75,7 +76,7 @@ app.MapPost("/mcp", async (HttpRequest req,
         {
 
             // Récupère les tools dynamiques via votre service proxy
-            var tools = await proxySvc.GetToolsAsync(openapiUrl, baseUrl);
+            var tools = await toolProxyService.GetToolsAsync(openapiUrl, baseUrl);
 
             var toolsArr = new JsonArray();
             foreach (var t in tools)
@@ -108,7 +109,7 @@ app.MapPost("/mcp", async (HttpRequest req,
             var    args     = p.GetProperty("arguments");
 
             /* ---- tool dynamique proxifié --------------------------- */
-            var dynResult = await proxySvc.ExecuteToolAsync(
+            var dynResult = await toolProxyService.ExecuteToolAsync(
                                 openapiUrl,
                                 toolName,
                                 JsonSerializer.Deserialize<object>(args.GetRawText())!,

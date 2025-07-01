@@ -7,18 +7,8 @@ using Endpoint = SlimFaasMcp.Models.Endpoint;
 namespace SlimFaasMcp.Services;
 
 
-public class ToolProxyService
+public class ToolProxyService(SwaggerService swaggerService, HttpClient httpClient)
 {
-    private readonly SwaggerService _swaggerService;
-    private readonly HttpClient _httpClient = new HttpClient();
-
-    public ToolProxyService(SwaggerService swaggerService)
-    {
-        _swaggerService = swaggerService;
-    }
-
-
-
     private static string CombineBaseUrl(string? baseUrl, string endpointUrl)
     {
         if (string.IsNullOrWhiteSpace(baseUrl))
@@ -40,8 +30,8 @@ public class ToolProxyService
 
     public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl)
     {
-        var swagger = await _swaggerService.GetSwaggerAsync(swaggerUrl);
-        var endpoints = _swaggerService.ParseEndpoints(swagger);
+        var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl);
+        var endpoints = swaggerService.ParseEndpoints(swagger);
 
         return endpoints.Select(e => new McpTool
         {
@@ -85,8 +75,8 @@ public class ToolProxyService
 
 public async Task<object> ExecuteToolAsync(string swaggerUrl, string toolName, object input, string? baseUrl = null)
 {
-    var swagger = await _swaggerService.GetSwaggerAsync(swaggerUrl);
-    var endpoints = _swaggerService.ParseEndpoints(swagger);
+    var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl);
+    var endpoints = swaggerService.ParseEndpoints(swagger);
     var endpoint = endpoints.FirstOrDefault(e => e.Name == toolName);
 
     if (endpoint == null)
@@ -115,7 +105,7 @@ public async Task<object> ExecuteToolAsync(string swaggerUrl, string toolName, o
     HttpResponseMessage resp;
     if (endpoint.Verb == "GET")
     {
-        resp = await _httpClient.GetAsync(fullUrl);
+        resp = await httpClient.GetAsync(fullUrl);
     }
     else
     {
@@ -144,7 +134,7 @@ public async Task<object> ExecuteToolAsync(string swaggerUrl, string toolName, o
             body = new StringContent(json, Encoding.UTF8, "application/json");
         }
 
-        resp = await _httpClient.SendAsync(new HttpRequestMessage(
+        resp = await httpClient.SendAsync(new HttpRequestMessage(
             new HttpMethod(endpoint.Verb), fullUrl)
         {
             Content = body
