@@ -26,8 +26,9 @@ app.MapGet("/mcp", () =>
 app.MapPost("/mcp", async (HttpRequest httpRequest,
                            ToolProxyService toolProxyService) =>
 {
-    using var doc = await JsonDocument.ParseAsync(httpRequest.Body);
-    var root = doc.RootElement;
+    var authHeader = httpRequest.Headers["Authorization"].FirstOrDefault();
+    using var jsonDocument = await JsonDocument.ParseAsync(httpRequest.Body);
+    var root = jsonDocument.RootElement;
 
     /* 1️⃣  Lis les query-string ---------------------- */
     var queryString          = httpRequest.Query;
@@ -39,11 +40,11 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
     bool   hasId   = root.TryGetProperty("id", out var idElem);
     string method  = root.GetProperty("method").GetString() ?? string.Empty;
 
-    var resp = new JsonObject { ["jsonrpc"] = jsonrpc };
+    var response = new JsonObject { ["jsonrpc"] = jsonrpc };
     if (hasId)
     {
         // Convertit le JsonElement (nombre, chaîne, etc.) en JsonNode
-        resp["id"] = JsonNode.Parse(idElem.GetRawText())!;
+        response["id"] = JsonNode.Parse(idElem.GetRawText())!;
     }
 
     switch (method)
@@ -52,7 +53,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
          * 1. initialize
          * ------------------------------------------------------------- */
         case "initialize":
-            resp["result"] = new JsonObject
+            response["result"] = new JsonObject
             {
                 ["protocolVersion"] = "2025-06-18",     // la date de version MCP que vous supportez
                 ["capabilities"]    = new JsonObject    // objet vide(s) pour chaque feature
@@ -74,9 +75,8 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
          * ------------------------------------------------------------- */
         case "tools/list":
         {
-
             // Récupère les tools dynamiques via votre service proxy
-            var tools = await toolProxyService.GetToolsAsync(openapiUrl, baseUrl);
+            var tools = await toolProxyService.GetToolsAsync(openapiUrl, baseUrl, authHeader);
 
             var toolsArr = new JsonArray();
             foreach (var t in tools)
@@ -90,7 +90,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                 });
             }
 
-            resp["result"] = new JsonObject { ["tools"] = toolsArr };
+            response["result"] = new JsonObject { ["tools"] = toolsArr };
             break;
         }
 
@@ -102,26 +102,27 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
         {
             if (!root.TryGetProperty("params", out var p))
             {
-                resp["error"] = new JsonObject { ["code"] = -32602, ["message"] = "Missing params" };
+                response["error"] = new JsonObject { ["code"] = -32602, ["message"] = "Missing params" };
                 break;
             }
             string toolName = p.GetProperty("name").GetString() ?? string.Empty;
             var    args     = p.GetProperty("arguments");
 
             /* ---- tool dynamique proxifié --------------------------- */
-            var dynResult = await toolProxyService.ExecuteToolAsync(
+            var result = await toolProxyService.ExecuteToolAsync(
                                 openapiUrl,
                                 toolName,
                                 JsonSerializer.Deserialize<object>(args.GetRawText())!,
-                                baseUrl);
-            resp["result"] = new JsonObject
+                                baseUrl,
+                                authHeader);
+            response["result"] = new JsonObject
             {
                 ["content"] = new JsonArray
                 {
                     new JsonObject
                     {
                         ["type"] = "text",
-                        ["text"] = JsonNode.Parse(JsonSerializer.Serialize(dynResult))
+                        ["text"] = JsonNode.Parse(JsonSerializer.Serialize(result))
                     }
                 }
             };
@@ -132,7 +133,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
          * méthode inconnue
          * --------------------------------------------------------- */
         default:
-            resp["error"] = new JsonObject
+            response["error"] = new JsonObject
             {
                 ["code"]    = -32601,
                 ["message"] = "Method not found"
@@ -140,7 +141,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
             break;
     }
 
-    return Results.Json(resp);
+    return Results.Json(response);
 });
 
 app.MapControllers();

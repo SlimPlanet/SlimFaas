@@ -17,7 +17,8 @@ public class ToolsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetTools([FromQuery] string openapi_url, [FromQuery] string? base_url = null)
     {
-        var tools = await _toolProxyService.GetToolsAsync(openapi_url, base_url);
+        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+        var tools = await _toolProxyService.GetToolsAsync(openapi_url, base_url, authHeader);
         return Ok(tools);
     }
 

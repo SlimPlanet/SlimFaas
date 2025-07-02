@@ -10,7 +10,8 @@ public class ManifestController(ToolProxyService toolProxyService) : ControllerB
     [HttpGet("/manifest.yaml")]
     public async Task<IActionResult> GetManifest([FromQuery] string openapi_url, [FromQuery] string? base_url = null)
     {
-        var yaml = await toolProxyService.GenerateManifestYamlAsync(openapi_url, base_url);
+        var authHeader = Request.Headers["Authorization"].FirstOrDefault();
+        var yaml = await toolProxyService.GenerateManifestYamlAsync(openapi_url, base_url, authHeader);
         return Content(yaml, "application/x-yaml");
     }
 }

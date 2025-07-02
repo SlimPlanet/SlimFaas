@@ -28,7 +28,7 @@ public class ToolProxyService(SwaggerService swaggerService, HttpClient httpClie
         return contentType;
     }
 
-    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl)
+    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader)
     {
         var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl);
         var endpoints = swaggerService.ParseEndpoints(swagger);
@@ -73,9 +73,9 @@ public class ToolProxyService(SwaggerService swaggerService, HttpClient httpClie
         return null; // Pas trouvé
     }
 
-public async Task<object> ExecuteToolAsync(string swaggerUrl, string toolName, object input, string? baseUrl = null)
+public async Task<object> ExecuteToolAsync(string swaggerUrl, string toolName, object input, string? baseUrl = null, string? authHeader=null)
 {
-    var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl);
+    var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, authHeader);
     var endpoints = swaggerService.ParseEndpoints(swagger);
     var endpoint = endpoints.FirstOrDefault(e => e.Name == toolName);
 
@@ -134,11 +134,19 @@ public async Task<object> ExecuteToolAsync(string swaggerUrl, string toolName, o
             body = new StringContent(json, Encoding.UTF8, "application/json");
         }
 
-        resp = await httpClient.SendAsync(new HttpRequestMessage(
+        var request = new HttpRequestMessage(
             new HttpMethod(endpoint.Verb), fullUrl)
         {
             Content = body
-        });
+        };
+
+        // ✅ Injection du header Authorization si présent
+        if (!string.IsNullOrEmpty(authHeader))
+        {
+            request.Headers.Authorization = System.Net.Http.Headers.AuthenticationHeaderValue.Parse(authHeader);
+        }
+
+        resp = await httpClient.SendAsync(request);
     }
 
     var resultStr = await resp.Content.ReadAsStringAsync();
@@ -153,9 +161,9 @@ public async Task<object> ExecuteToolAsync(string swaggerUrl, string toolName, o
 }
 
 
-    public async Task<string> GenerateManifestYamlAsync(string swaggerUrl, string base_url)
+    public async Task<string> GenerateManifestYamlAsync(string swaggerUrl, string base_url, string? authHeader)
     {
-        var tools = await GetToolsAsync(swaggerUrl, base_url);
+        var tools = await GetToolsAsync(swaggerUrl, base_url, authHeader);
         var manifest = new SlimFaasManifest
         {
             Name = "mcp-swagger-proxy",

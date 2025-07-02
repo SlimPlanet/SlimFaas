@@ -10,7 +10,7 @@ public class SwaggerService(HttpClient httpClient, IMemoryCache memoryCache)
     private static readonly TimeSpan SlidingExpiration = TimeSpan.FromMinutes(20);
 
 
-    public async Task<JsonDocument> GetSwaggerAsync(string swaggerUrl)
+    public async Task<JsonDocument> GetSwaggerAsync(string swaggerUrl, string? authHeader=null)
     {
         // Cache key
         var cacheKey = $"swagger::{swaggerUrl}";

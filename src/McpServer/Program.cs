@@ -14,28 +14,30 @@ app.MapGet("/mcp", () =>
 /* ---------------------------------------------------------------------------
  *  Endpoint unique JSON-RPC 2.0 : POST /mcp
  * -------------------------------------------------------------------------*/
-app.MapPost("/mcp", async (HttpRequest req, ToolRegistry registry) =>
+app.MapPost("/mcp", async (HttpRequest httpRequest, ToolRegistry registry) =>
 {
-    using var doc = await JsonDocument.ParseAsync(req.Body);
-    var root = doc.RootElement;
+    // 🔐 Extraction du header Authorization
+    var authHeader = httpRequest.Headers["Authorization"].FirstOrDefault();
+    using var jsonDocument = await JsonDocument.ParseAsync(httpRequest.Body);
+    var root = jsonDocument.RootElement;
 
     /* --- champs JSON-RPC de base ---------------------------------------- */
     string jsonrpc = root.GetProperty("jsonrpc").GetString() ?? "2.0";
     bool hasId    = root.TryGetProperty("id", out var idElem);
     string method = root.GetProperty("method").GetString() ?? string.Empty;
 
-    var resp = new JsonObject { ["jsonrpc"] = jsonrpc };
+    var response = new JsonObject { ["jsonrpc"] = jsonrpc };
     if (hasId)
     {
         // Convertit le JsonElement (nombre, chaîne, etc.) en JsonNode
-        resp["id"] = JsonNode.Parse(idElem.GetRawText())!;
+        response["id"] = JsonNode.Parse(idElem.GetRawText())!;
     }
 
     switch (method)
     {
         /* -------- 1. initialize ----------------------------------------- */
         case "initialize":
-            resp["result"] = new JsonObject
+            response["result"] = new JsonObject
             {
                 ["protocolVersion"] = "2025-06-18",     // la date de version MCP que vous supportez
                 ["capabilities"]    = new JsonObject    // objet vide(s) pour chaque feature
@@ -63,14 +65,14 @@ app.MapPost("/mcp", async (HttpRequest req, ToolRegistry registry) =>
                     ["inputSchema"] = JsonNode.Parse(t.InputSchema.GetRawText())
                 });
             }
-            resp["result"] = new JsonObject { ["tools"] = toolsArr };
+            response["result"] = new JsonObject { ["tools"] = toolsArr };
             break;
 
         /* -------- 3. tools/call ----------------------------------------- */
         case "tools/call":
             if (!root.TryGetProperty("params", out var p))
             {
-                resp["error"] = new JsonObject { ["code"] = -32602, ["message"] = "Missing params" };
+                response["error"] = new JsonObject { ["code"] = -32602, ["message"] = "Missing params" };
                 break;
             }
             string toolName = p.GetProperty("name").GetString() ?? string.Empty;
@@ -83,7 +85,7 @@ app.MapPost("/mcp", async (HttpRequest req, ToolRegistry registry) =>
                     double b = args.GetProperty("b").GetDouble();
                     double sum = registry.Add(a, b);
 
-                    resp["result"] = new JsonObject
+                    response["result"] = new JsonObject
                     {
                         ["content"] = new JsonArray
                         {
@@ -97,7 +99,7 @@ app.MapPost("/mcp", async (HttpRequest req, ToolRegistry registry) =>
                     break;
 
                 default:
-                    resp["error"] = new JsonObject
+                    response["error"] = new JsonObject
                     {
                         ["code"]    = -32602,
                         ["message"] = $"Unknown tool: {toolName}"
@@ -108,7 +110,7 @@ app.MapPost("/mcp", async (HttpRequest req, ToolRegistry registry) =>
 
         /* -------- méthode inconnue -------------------------------------- */
         default:
-            resp["error"] = new JsonObject
+            response["error"] = new JsonObject
             {
                 ["code"]    = -32601,
                 ["message"] = "Method not found"
@@ -116,7 +118,7 @@ app.MapPost("/mcp", async (HttpRequest req, ToolRegistry registry) =>
             break;
     }
 
-    return Results.Json(resp);
+    return Results.Json(response);
 });
 
 app.Run();
