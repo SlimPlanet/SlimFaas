@@ -14,6 +14,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FibonacciBatch", "src\Fibon
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasBenchmark", "src\SlimFaasBenchmark\SlimFaasBenchmark.csproj", "{3A154D28-5099-43F9-B03F-394A6749DCA3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasMcp", "src\SlimFaasMcp\SlimFaasMcp.csproj", "{B8A5E8F0-1234-4567-8901-23456789ABCD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -48,5 +50,9 @@ Global
 		{3A154D28-5099-43F9-B03F-394A6749DCA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3A154D28-5099-43F9-B03F-394A6749DCA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3A154D28-5099-43F9-B03F-394A6749DCA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B8A5E8F0-1234-4567-8901-23456789ABCD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8A5E8F0-1234-4567-8901-23456789ABCD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8A5E8F0-1234-4567-8901-23456789ABCD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8A5E8F0-1234-4567-8901-23456789ABCD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
