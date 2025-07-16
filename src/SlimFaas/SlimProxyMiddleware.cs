@@ -88,57 +88,94 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         {
             case FunctionType.NotAFunction:
                 await next(context);
-                return;
+                break;
             case  FunctionType.Job:
-
-                if (contextRequest.Method != HttpMethods.Post)
-                {
-                    contextResponse.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-                    return;
-                }
-
-                CreateJob? createJob = await contextRequest.ReadFromJsonAsync(CreateJobSerializerContext.Default.CreateJob);
-                if (createJob == null)
-                {
-                    contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
-                    return;
-                }
-                logger.LogInformation("Create job {JobName} with {CreateJob}", functionName, createJob);
-                if(logger.IsEnabled(LogLevel.Debug))
-                {
-                    logger.LogDebug("Create job details {CreateJob} ", JsonSerializer.Serialize(createJob,
-                        CreateJobSerializerContext.Default.CreateJob));
-                }
-                bool isMessageComeFromNamespaceInternal = MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
-                var result = await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
-                if (result.Code >= 400)
-                {
-                    contextResponse.StatusCode = result.Code;
-                    logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}", contextResponse.StatusCode, result.ErrorKey);
-                }
-
-                contextResponse.StatusCode = 204;
-                return;
+                await BuildJobResponse(context, replicasService, jobService, contextRequest, contextResponse, functionName, functionPath);
+                break;
             case FunctionType.Wake:
                 BuildWakeResponse(replicasService, wakeUpFunction, functionName, contextResponse);
-                return;
+                break;
             case FunctionType.Status:
                 BuildStatusResponse(replicasService, functionName, contextResponse);
-                return;
+                break;
             case FunctionType.Sync:
                 await BuildSyncResponseAsync(logger, context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
-                return;
+                break;
             case FunctionType.Publish:
                 await BuildPublishResponseAsync(context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
-                return;
+                break;
+
             case FunctionType.Async:
             default:
                 {
                     await BuildAsyncResponseAsync(logger, context, replicasService, jobService, functionName, functionPath);
                     break;
                 }
+        }
+    }
+
+    private async Task BuildJobResponse(HttpContext context, IReplicasService replicasService, IJobService jobService,
+        HttpRequest contextRequest, HttpResponse contextResponse, string functionName, string functionPath)
+    {
+        if (contextRequest.Method == HttpMethods.Put || contextRequest.Method == HttpMethods.Patch)
+        {
+            contextResponse.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            return;
+        }
+
+        if (contextRequest.Method == HttpMethods.Post)
+        {
+            CreateJob? createJob =
+                await contextRequest.ReadFromJsonAsync(CreateJobSerializerContext.Default.CreateJob);
+            if (createJob == null)
+            {
+                contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
+            }
+
+            logger.LogInformation("Create job {JobName} with {CreateJob}", functionName, createJob);
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("Create job details {CreateJob} ", JsonSerializer.Serialize(createJob,
+                    CreateJobSerializerContext.Default.CreateJob));
+            }
+
+            bool isMessageComeFromNamespaceInternal =
+                MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
+            var result =
+                await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
+            if (result.Code >= 400)
+            {
+                contextResponse.StatusCode = result.Code;
+                logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}",
+                    contextResponse.StatusCode, result.ErrorKey);
+                return;
+            }
+            contextResponse.StatusCode = 202;
+            await contextResponse.WriteAsJsonAsync(new EnqueueJobResultSuccess(result.ElementId),
+                EnqueueJobResultSuccessSerializerContext.Default.EnqueueJobResultSuccess);
+
+            return;
+        }
+        if (contextRequest.Method == HttpMethods.Get)
+        {
+            var jobs = await jobService.ListJobAsync(functionName);
+            contextResponse.StatusCode = 200;
+            await contextResponse.WriteAsJsonAsync(jobs,
+                JobListResultSerializerContext.Default.ListJobListResult);
+            return;
+        }
+        if (contextRequest.Method == HttpMethods.Delete)
+        {
+            string elementId = functionPath.Replace("/", "");
+            bool isMessageComeFromNamespaceInternal =
+                MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
+            logger.LogInformation("Delete job {JobName} with {Id}", functionName, elementId);
+            bool isSuccess = await jobService.DeleteJobAsync(functionName, elementId, isMessageComeFromNamespaceInternal);
+            contextResponse.StatusCode = isSuccess ? 200 : 404;
+            return;
         }
     }
 

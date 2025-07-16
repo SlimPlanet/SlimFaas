@@ -5,7 +5,10 @@ using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests;
 
+[CollectionDefinition("ScaleWorker", DisableParallelization = true)]
+public class ScaleWorkerCollection { }
 
+[Collection("ScaleWorker")]
 public class  ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
 {
     public IEnumerator<object[]> GetEnumerator()
@@ -77,13 +80,16 @@ public class ReplicasScaleWorkerShould
         await replicasService.SyncDeploymentsAsync("default");
 
         ScaleReplicasWorker service = new(replicasService, masterService.Object, logger.Object, 100);
-        Task task = service.StartAsync(CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        Task task = service.StartAsync(cts.Token);
         await Task.Delay(3000);
 
         kubernetesService.Verify(v => v.ScaleAsync(scaleRequestFibonacci2), scaleUpTimes);
         kubernetesService.Verify(v => v.ScaleAsync(scaleRequestFibonacci1), scaleDownTimes);
 
-        Assert.True(task.IsCompleted);
+        await cts.CancelAsync();
+        await task;
+        Assert.True(task.IsCompletedSuccessfully);
     }
 
     [Fact]
@@ -99,7 +105,8 @@ public class ReplicasScaleWorkerShould
         historyHttpService.SetTickLastCall("fibonacci2", DateTime.UtcNow.Ticks);
 
         ScaleReplicasWorker service = new(replicaService.Object, masterService.Object, logger.Object, 10);
-        Task task = service.StartAsync(CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        Task task = service.StartAsync(cts.Token);
         await Task.Delay(100);
 
         logger.Verify(l => l.Log(
@@ -109,7 +116,9 @@ public class ReplicasScaleWorkerShould
             It.IsAny<Exception>(),
             (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()), Times.AtLeastOnce);
 
-        Assert.True(task.IsCompleted);
+        await cts.CancelAsync();
+        await task;
+        Assert.True(task.IsCompletedSuccessfully);
     }
 
 

@@ -53,11 +53,14 @@ public class MetricsWorkerShould
         await slimFaasQueue.EnqueueAsync("fibonacci1", jsonCustomRequest, retryInformation);
         var dynamicGaugeService = new DynamicGaugeService();
         MetricsWorker service = new(replicasService, slimFaasQueue, dynamicGaugeService, raftCluster.Object, logger.Object, 100);
-        Task task = service.StartAsync(CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        Task task = service.StartAsync(cts.Token);
         await Task.Delay(3000);
 
 
-        //Assert.True(task.IsCompleted);
+        await cts.CancelAsync();
+        await task;
+        Assert.True(task.IsCompletedSuccessfully);
     }
 
 }

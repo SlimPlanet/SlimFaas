@@ -92,12 +92,14 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object);
-
-        Task task = service.StartAsync(CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        Task task = service.StartAsync(cts.Token);
 
         await Task.Delay(3000);
 
-        Assert.True(task.IsCompleted);
+        await cts.CancelAsync();
+        await task;
+        Assert.True(task.IsCompletedSuccessfully);
         sendClientMock.Verify(v => v.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>()),
             Times.Once());
     }
@@ -124,8 +126,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object);
-
-        Task task = service.StartAsync(CancellationToken.None);
+        using var cts = new CancellationTokenSource();
+        Task task = service.StartAsync(cts.Token);
 
         await Task.Delay(100);
         logger.Verify(l => l.Log(
@@ -135,6 +137,8 @@ public class SlimWorkerShould
             It.IsAny<Exception>(),
             (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()), Times.AtLeastOnce);
 
-        Assert.True(task.IsCompleted);
+        await cts.CancelAsync();
+        await task;
+        Assert.True(task.IsCompletedSuccessfully);
     }
 }

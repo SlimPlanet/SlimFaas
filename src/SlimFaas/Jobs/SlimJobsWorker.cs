@@ -92,15 +92,16 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
                 listCallBack.Items = new List<QueueItemStatus>();
                 foreach (QueueData element in elements)
                 {
-                    CreateJob? createJob = MemoryPackSerializer.Deserialize<CreateJob>(element.Data);
-                    if (createJob == null)
+                    JobInQueue? jobInQueue = MemoryPackSerializer.Deserialize<JobInQueue>(element.Data);
+
+                    if (jobInQueue == null)
                     {
                         continue;
                     }
-
+                    CreateJob createJob = jobInQueue.CreateJob;
                     try
                     {
-                        await jobService.CreateJobAsync(jobName, createJob);
+                        await jobService.CreateJobAsync(jobName, createJob, element.Id, jobInQueue.JobFullName, jobInQueue.InQueueTimestamp);
                         listCallBack.Items.Add(new QueueItemStatus(element.Id, 200));
                     }
                     catch (Exception e)
@@ -131,7 +132,8 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
             var reversedJobElement = countElement.Reverse().ToList();
             foreach (var jobElement in reversedJobElement)
             {
-                CreateJob? createJob = MemoryPackSerializer.Deserialize<CreateJob>(jobElement.Data);
+                JobInQueue? jobInQueue = MemoryPackSerializer.Deserialize<JobInQueue>(jobElement.Data);
+                CreateJob? createJob = jobInQueue?.CreateJob;
                 numberPodReady += 1;
                 if (createJob?.DependsOn != null)
                 {

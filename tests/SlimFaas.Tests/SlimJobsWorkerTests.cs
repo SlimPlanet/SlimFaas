@@ -161,7 +161,7 @@ public class SlimJobsWorkerTests
         _jobQueueMock.Verify(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()), Times.AtLeastOnce);
         // Pas de dequeue, pas de job créé
         _jobQueueMock.Verify(q => q.DequeueAsync(It.IsAny<string>(), It.IsAny<int>()), Times.Never);
-        _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>()), Times.Never);
+        _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
     }
 
     /// <summary>
@@ -244,7 +244,7 @@ public class SlimJobsWorkerTests
         // ASSERT
         // Dequeue n'a pas lieu car la dépendance n'est pas prête
         _jobQueueMock.Verify(q => q.DequeueAsync("myJob", It.IsAny<int>()), Times.Never);
-        _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>()), Times.Never);
+        _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
     }
 
     /// <summary>
@@ -282,7 +282,8 @@ public class SlimJobsWorkerTests
 
         // Simule un dequeue qui retourne un seul élément
         var createJobObj = new CreateJob(new List<string>() {"arg1", "arg2"}, DependsOn: ["dependencyA"]);
-        var dataBytes = MemoryPack.MemoryPackSerializer.Serialize(createJobObj);
+        JobInQueue createJobInQueue = new(createJobObj, "myJob1", 1);
+        var dataBytes = MemoryPack.MemoryPackSerializer.Serialize(createJobInQueue);
 
         // 1 élément dispo dans la queue
         _jobQueueMock
@@ -324,7 +325,7 @@ public class SlimJobsWorkerTests
 
         // On s'attend à ce que CreateJobAsync soit appelé
         _jobServiceMock
-            .Setup(s => s.CreateJobAsync("myJob", It.IsAny<CreateJob>()))
+            .Setup(s => s.CreateJobAsync("myJob", It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()))
             .Returns(Task.CompletedTask);
 
         var worker = new SlimJobsWorker(
@@ -350,7 +351,7 @@ public class SlimJobsWorkerTests
         // ASSERT
         // numberParallelJob = 2 => on devrait tenter de dépiler 2 messages
         _jobQueueMock.Verify(q => q.DequeueAsync("myJob", 2), Times.AtLeastOnce);
-        _jobServiceMock.Verify(s => s.CreateJobAsync("myJob", It.IsAny<CreateJob>()), Times.AtLeastOnce);
+        _jobServiceMock.Verify(s => s.CreateJobAsync("myJob", It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.AtLeastOnce);
 
         // Contrôle du callback 200
         _jobQueueMock.Verify(q => q.ListCallbackAsync(

@@ -150,11 +150,11 @@ public class ReplicasService(
 
     record TimeToScaleDownTimeout(int Hours, int Minutes, int Value, DateTime DateTime);
 
-    private static DateTime CreateDateTime(DateTime dateTime, int hours, int minutes, string timeZoneID)
+    private static DateTime CreateDateTime(DateTime dateTime, int hours, int minutes, string timeZoneId)
     {
         TzdbDateTimeZoneSource source = TzdbDateTimeZoneSource.Default;
         LocalDateTime local = new(dateTime.Year, dateTime.Month, dateTime.Day, hours, minutes);
-        DateTimeZone dateTimeZone = source.ForId(timeZoneID);
+        DateTimeZone dateTimeZone = source.ForId(timeZoneId);
         ZonedDateTime zonedDateTime = local.InZoneLeniently(dateTimeZone);
         return zonedDateTime.ToDateTimeUtc();
     }
