@@ -15,7 +15,7 @@ public class JobServiceAdditionalTests
     private readonly JobService _svc;
 
     // ---------- petits alias/mocks utilitaires ----------
-    private static readonly string Ns = "unit‑tests";
+    private static readonly string Ns = "unit-tests";
 
     private static Job FakeJob(string name, string id, JobStatus status = JobStatus.Running) =>
         new(name, status,  new List<string>(), new List<string>(), id, 0, 0);
