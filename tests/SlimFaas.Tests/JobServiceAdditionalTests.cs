@@ -59,7 +59,7 @@ public class JobServiceAdditionalTests
     public async Task SyncJobsAsync_updates_cache_and_returns_list()
     {
         // Arrange
-        var expected = new List<Job> { FakeJob("job‑a", "1"), FakeJob("job‑b", "2") };
+        var expected = new List<Job> { FakeJob("job-a", "1"), FakeJob("job-b", "2") };
         _kube.Setup(k => k.ListJobsAsync(Ns)).ReturnsAsync(expected);
 
         // Act
