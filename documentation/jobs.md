@@ -7,7 +7,7 @@ database migrations, or any operation that doesn’t fit into a standard, contin
 
 ## 1. Why Use Jobs?
 
-* **Short‑lived or periodic tasks**: Perform a specialized computation once and then shut down.
+* **Short-lived or periodic tasks**: Perform a specialized computation once and then shut down.
 * **Separate scaling**: Jobs can have different concurrency than standard functions.
 * **Dependency handling**: Automatically wait for certain deployments to be ready before launching.
 * **Cost optimization**: Jobs run on demand and scale to zero when finished.
