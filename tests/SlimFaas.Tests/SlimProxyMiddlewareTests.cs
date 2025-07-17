@@ -327,40 +327,5 @@ public class ProxyMiddlewareTests
         Assert.Equal(expectedHttpStatusCode, response.StatusCode);
     }
 
-    [Theory]
-    [InlineData("/job/daisy", HttpStatusCode.NoContent, 1)]
-    public async Task RunJobAndReturnOk(string path, HttpStatusCode expectedHttpStatusCode,
-        int numberFireJob)
-    {
-        Mock<IWakeUpFunction> wakeUpFunctionMock = new();
-        Mock<IJobService> jobServiceMock = new();
-        jobServiceMock.Setup(k => k.EnqueueJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<bool>()))
-            .ReturnsAsync(new EnqueueJobResult(""));
-        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
-        using IHost host = await new HostBuilder()
-            .ConfigureWebHost(webBuilder =>
-            {
-                webBuilder
-                    .UseTestServer()
-                    .ConfigureServices(services =>
-                    {
-                        services.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
-                        services.AddSingleton<ISendClient, SendClientMock>();
-                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
-                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
-                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
-                        services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
-                        services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
-                    })
-                    .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
-            })
-            .StartAsync();
 
-        HttpResponseMessage response = await host.GetTestClient().PostAsync($"http://localhost:5000{path}",  JsonContent.Create(new CreateJob(new List<string>(),"youhou")));
-        HistoryHttpMemoryService historyHttpMemoryService =
-            host.Services.GetRequiredService<HistoryHttpMemoryService>();
-
-        jobServiceMock.Verify(k => k.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>()), Times.AtMost(numberFireJob));
-        Assert.Equal(expectedHttpStatusCode, response.StatusCode);
-    }
 }

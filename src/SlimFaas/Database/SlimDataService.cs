@@ -111,12 +111,12 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
             : new Dictionary<string, string>();
     }
 
-    public async Task ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
+    public async Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
-        await Retry.DoAsync(() =>DoListLeftPushAsync(key, field, retryInformation), logger, _retryInterval);
+        return await Retry.DoAsync(() =>DoListLeftPushAsync(key, field, retryInformation), logger, _retryInterval);
     }
 
-    private async Task DoListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
+    private async Task<string> DoListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
         EndPoint endpoint = await GetAndWaitForLeader();
         ListLeftPushInput listLeftPushInput = new(field, MemoryPackSerializer.Serialize(retryInformation));
@@ -124,7 +124,8 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         if (!cluster.LeadershipToken.IsCancellationRequested)
         {
             var simplePersistentState = serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.ListLeftPushCommand(simplePersistentState, key, serialize, cluster, new CancellationTokenSource());
+            var elementId = await Endpoints.ListLeftPushCommand(simplePersistentState, key, serialize, cluster, new CancellationTokenSource());
+            return elementId;
         }
         else
         {
@@ -132,10 +133,17 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
             request.Content = new ByteArrayContent(serialize);
             using var httpClient = httpClientFactory.CreateClient(HttpClientName);
             HttpResponseMessage response = await httpClient.SendAsync(request);
+
             if ((int)response.StatusCode >= 500)
             {
                 throw new DataException("Error in calling SlimData HTTP Service");
             }
+            var elementId = await response.Content.ReadAsStringAsync();
+            if (string.IsNullOrEmpty(elementId))
+            {
+                throw new DataException("Received null or empty response from SlimData HTTP Service");
+            }
+            return elementId;
         }
     }
 

@@ -165,9 +165,10 @@ public class Endpoints
     }
 
 
-    public static Task ListLeftPushAsync(HttpContext context)
+    public static async Task ListLeftPushAsync(HttpContext context)
     {
-        return DoAsync(context, async (cluster, provider, source) =>
+
+        var task = DoAsync(context, async (cluster, provider, source) =>
         {
             context.Request.Query.TryGetValue("key", out var key);
             if (string.IsNullOrEmpty(key))
@@ -181,8 +182,11 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
-            await ListLeftPushCommand(provider, key, value, cluster, source);
+            string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
+            context.Response.StatusCode = StatusCodes.Status201Created;
+            await context.Response.WriteAsync(elementId, context.RequestAborted);
         });
+        await task;
     }
     
     public static async Task<string> ListLeftPushCommand(SlimPersistentState provider, string key, byte[] value,
