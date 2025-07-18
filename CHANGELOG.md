@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.37.0
+
+- [dfe6f23](https://github.com/SlimPlanet/SlimFaas/commit/dfe6f230519a5e265646c58d0ffd884594e8fced) - feat(slimfaas-mcp): proxyfy openapi to mcp (#114) (release), 2025-07-18 by *Guillaume Chervet*
+
+
 ## v0.36.24
 
 - [bc7bafc](https://github.com/SlimPlanet/SlimFaas/commit/bc7bafce7eebbcf55e7e11c5734aacc802e121c7) - feature(slimfaas): delete job (#129) (release), 2025-07-18 by *Guillaume Chervet*
@@ -306,10 +311,5 @@
 ## v0.30.4
 
 - [22ce5a0](https://github.com/SlimPlanet/SlimFaas/commit/22ce5a028d8972b1d31fa6b222ee5ddc23071f3e) - chore(SlimFaasPlanetServer): version to publish, 2024-11-30 by *Guillaume Chervet*
-
-
-## v0.30.3
-
-- [415f590](https://github.com/SlimPlanet/SlimFaas/commit/415f5909da9f43315bed3a289f7dfbf66e9a66bd) - chore(SlimFaasPlanetSaver): fix publish versionning, 2024-11-30 by *Guillaume Chervet*
 
 
