@@ -6,10 +6,10 @@ public class JobQueue(IDatabaseService databaseService) : IJobQueue
 {
     private const string KeyPrefix = "Job:";
 
-    public async Task EnqueueAsync(string key, byte[] data)
+    public async Task<string> EnqueueAsync(string key, byte[] data)
     {
         RetryInformation retryInformation = new([2,4,8,16,32], 120, [500,502,503]);
-        await databaseService.ListLeftPushAsync($"{KeyPrefix}{key}", data, retryInformation);
+        return await databaseService.ListLeftPushAsync($"{KeyPrefix}{key}", data, retryInformation);
     }
 
     public async Task<IList<QueueData>?> DequeueAsync(string key, int count = 1)

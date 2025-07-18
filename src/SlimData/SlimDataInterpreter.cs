@@ -42,7 +42,7 @@ public class QueueHttpTryElement(long startTimeStamp=0, long endTimeStamp=0, int
 #pragma warning restore CA2252
 public class SlimDataInterpreter : CommandInterpreter
 {
-
+    public const int DeleteFromQueueCode = 1000;
     public SlimDataState SlimDataState = new(new Dictionary<string, Dictionary<string, string>>(), new Dictionary<string, ReadOnlyMemory<byte>>(), new Dictionary<string, List<QueueElement>>());
 
     [CommandHandler]
@@ -51,7 +51,6 @@ public class SlimDataInterpreter : CommandInterpreter
         return DoListRightPopAsync(addHashSetCommand, SlimDataState.Queues);
     }
     
-
     internal static ValueTask DoListRightPopAsync(ListRightPopCommand addHashSetCommand, Dictionary<string, List<QueueElement>> queues)
     {
         if (queues.TryGetValue(addHashSetCommand.Key, out var queue))
@@ -112,13 +111,21 @@ public class SlimDataInterpreter : CommandInterpreter
         {
             return default;
         }
-        var retryQueueElement = queueElement.RetryQueueElements[^1];
-        retryQueueElement.EndTimeStamp = listCallbackCommand.NowTicks;
-        retryQueueElement.HttpCode = listCallbackCommand.HttpCode;
 
-        if (queueElement.IsFinished(listCallbackCommand.NowTicks))
+        if (listCallbackCommand.HttpCode == DeleteFromQueueCode)
         {
             value.Remove(queueElement);
+        }
+        else
+        {
+            var retryQueueElement = queueElement.RetryQueueElements[^1];
+            retryQueueElement.EndTimeStamp = listCallbackCommand.NowTicks;
+            retryQueueElement.HttpCode = listCallbackCommand.HttpCode;
+
+            if (queueElement.IsFinished(listCallbackCommand.NowTicks))
+            {
+                value.Remove(queueElement);
+            }
         }
        
         return default;
