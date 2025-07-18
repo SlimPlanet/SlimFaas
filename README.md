@@ -16,6 +16,8 @@ SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform f
 It’s designed to be **fast**, **simple**, and **extremely slim**—making it easy to deploy and manage serverless
 functions with minimal overhead.
 
+> **Looking for MCP integration?** Check out **[SlimFaas MCP](https://slimfaas.dev/mcp)** -the companion runtime that converts *any* OpenAPI definition into MCP‑ready tools on the fly.
+
 ## Why Use SlimFaas?
 
 - **Scale**
@@ -60,8 +62,9 @@ Check out:
 - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
 - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
 - [Jobs](https://github.com/SlimPlanet/blob/main/SlimFaas/documentation/jobs.md) – Learn how to define and run one-off jobs.
-- [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
 - [How It Works](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/how-it-works.md) – Dive into SlimFaas’s architecture and design.
+- [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
+- [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP‑ready tools on the fly.
 
 We hope SlimFaas helps you streamline serverless development!
 
