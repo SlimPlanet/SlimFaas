@@ -1,8 +1,19 @@
 ﻿using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace SlimFaasMcp.Models;
+
+
+[JsonSourceGenerationOptions(
+    PropertyNameCaseInsensitive = true,
+    GenerationMode = JsonSourceGenerationMode.Metadata | JsonSourceGenerationMode.Serialization
+)]
+[JsonSerializable(typeof(McpPrompt))]
+[JsonSerializable(typeof(List<McpPrompt.McpToolOverride>))]
+internal partial class LocalJsonContext : JsonSerializerContext { }
+
 
 public class McpPrompt
 {
@@ -16,11 +27,6 @@ public class McpPrompt
         public JsonNode? InputSchema { get; set; }
     }
 
-    private static JsonSerializerOptions s_options = new()
-    {
-        PropertyNameCaseInsensitive = true      // ✅ casse indifférente
-    };
-
     public static McpPrompt? ParseMcpPrompt(string? mcpPromptB64)
     {
         if (string.IsNullOrEmpty(mcpPromptB64))
@@ -28,11 +34,7 @@ public class McpPrompt
         try
         {
             var jsonStr = Encoding.UTF8.GetString(Convert.FromBase64String(mcpPromptB64));
-
-            // Place le resolver généré AOT en tête de chaîne
-            s_options.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
-
-            return JsonSerializer.Deserialize<McpPrompt>(jsonStr, s_options);
+            return JsonSerializer.Deserialize(jsonStr, LocalJsonContext.Default.McpPrompt);
         }
         catch
         {

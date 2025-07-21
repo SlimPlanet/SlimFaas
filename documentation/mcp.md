@@ -18,13 +18,13 @@ Grab the latest binaries on the **[GitHub Releases](https://github.com/SlimPlane
 
 ---
 
-This project is a **runtime MCP proxy** that dynamically generates SlimFaas‑compatible MCP tools from any remote Swagger (OpenAPI v2/v3) document. Every endpoint in the source API is exposed as a *tool*, complete with an on‑the‑fly YAML manifest and a real‑time reverse proxy to the underlying API.
+This project is a **runtime MCP proxy** that dynamically generates SlimFaas‑compatible MCP tools from any remote Swagger (OpenAPI v3) document. Every endpoint in the source API is exposed as a *tool*, complete with an on‑the‑fly YAML manifest and a real‑time reverse proxy to the underlying API.
 
 ---
 
 ## 🚀 Features
 
-* **Dynamic download** of any remote Swagger (OpenAPI v2 or v3) document at runtime.
+* **Dynamic download** of any remote Swagger (OpenAPI v3) document at runtime.
 * **Parses & exposes** every endpoint (GET, POST, PUT, DELETE, …) as an MCP tool.
 * **Documentation overriding** through the `mcp_prompt` mechanism (Base‑64‑encoded JSON/YAML).
 * **No static code generation**—everything is live, built from the Swagger URL.
