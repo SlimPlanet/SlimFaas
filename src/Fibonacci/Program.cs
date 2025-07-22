@@ -162,6 +162,7 @@ app.MapPost("/compute", async ([FromServices] RequestCounter counter) =>
         Console.WriteLine($"InProgress: {counter.InProgress}");
         Console.WriteLine($"State: {counter.State}");
         Console.WriteLine($"Completed: {counter.Completed}");
+        Console.WriteLine($"Total: {counter.Completed+counter.InProgress}");
         await Task.Delay(100);
 
         return Results.Ok(new
