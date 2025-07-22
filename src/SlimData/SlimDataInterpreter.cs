@@ -67,6 +67,7 @@ public class SlimDataInterpreter : CommandInterpreter
             var queueFinishedElements = queue.GetQueueFinishedElement(nowTicks);
             foreach (var queueFinishedElement in queueFinishedElements)
             {
+                NumberRemovedQueue++;
                 queue.Remove(queueFinishedElement);
             }
             
@@ -81,6 +82,9 @@ public class SlimDataInterpreter : CommandInterpreter
         return default;
     }
 
+    public static int NumberAddQueue = 0;
+    public static int NumberRemovedQueue = 0;
+
     [CommandHandler]
     public ValueTask ListLeftPushAsync(ListLeftPushCommand addHashSetCommand, CancellationToken token)
     {
@@ -89,6 +93,7 @@ public class SlimDataInterpreter : CommandInterpreter
     
     internal static ValueTask DoListLeftPushAsync(ListLeftPushCommand listLeftPushCommand, Dictionary<string, List<QueueElement>> queues)
     {
+        NumberAddQueue++;
         if (queues.TryGetValue(listLeftPushCommand.Key, out List<QueueElement>? value))
             value.Add(new QueueElement(listLeftPushCommand.Value, listLeftPushCommand.Identifier, listLeftPushCommand.NowTicks, listLeftPushCommand.RetryTimeout, listLeftPushCommand.Retries,new List<QueueHttpTryElement>(), listLeftPushCommand.HttpStatusCodesWorthRetrying));
         else
@@ -114,6 +119,7 @@ public class SlimDataInterpreter : CommandInterpreter
 
         if (listCallbackCommand.HttpCode == DeleteFromQueueCode)
         {
+            NumberRemovedQueue++;
             value.Remove(queueElement);
         }
         else
@@ -124,9 +130,13 @@ public class SlimDataInterpreter : CommandInterpreter
 
             if (queueElement.IsFinished(listCallbackCommand.NowTicks))
             {
+                NumberRemovedQueue++;
                 value.Remove(queueElement);
             }
         }
+        
+        Console.WriteLine("=============================================== NumberAddQueue " +  NumberAddQueue);
+        Console.WriteLine("=============================================== NumberRemovedQueue " +  NumberRemovedQueue);
        
         return default;
     }
@@ -158,6 +168,7 @@ public class SlimDataInterpreter : CommandInterpreter
     [CommandHandler(IsSnapshotHandler = true)]
     public ValueTask HandleSnapshotAsync(LogSnapshotCommand command, CancellationToken token)
     {
+        Console.WriteLine("HandleSnapshotAsync ===========================");
         DoHandleSnapshotAsync(command, SlimDataState.KeyValues, SlimDataState.Hashsets, SlimDataState.Queues);
         return default;
     }
@@ -170,9 +181,16 @@ public class SlimDataInterpreter : CommandInterpreter
             keyValues[keyValue.Key] = keyValue.Value;
         }
         
-        queues.Clear();
+        Console.WriteLine("DoHandleSnapshotAsync Queues ================");
         foreach (var queue in command.queues)
         {
+            Console.WriteLine("Queues Keys " + queue.Key + " Values : " + queue.Value.Count );
+        }
+        queues.Clear();
+        Console.WriteLine("=============================== DoHandleSnapshotAsync Queues ================");
+        foreach (var queue in command.queues)
+        {
+            Console.WriteLine("Queues Keys " + queue.Key + " Values : " + queue.Value.Count );
             queues[queue.Key] = queue.Value;
         }
         
