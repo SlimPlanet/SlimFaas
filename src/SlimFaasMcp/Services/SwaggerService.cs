@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
 using SlimFaasMcp.Models;
 using Endpoint = SlimFaasMcp.Models.Endpoint;
@@ -76,8 +76,29 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 // Params in path/query
                 if (operation.TryGetProperty("parameters", out var parametersArray))
                 {
-                    foreach (var param in parametersArray.EnumerateArray())
+                    foreach (var param0 in parametersArray.EnumerateArray())
                     {
+                        var param = param0;
+                        // Résolution $ref
+                        if (param.TryGetProperty("$ref", out var refProp))
+                        {
+                            var refPath = refProp.GetString();
+                            if (refPath != null && refPath.StartsWith("#/parameters/"))
+                            {
+                                var paramName = refPath.Substring("#/parameters/".Length);
+                                if (swagger.RootElement.TryGetProperty("parameters", out var globalParams) &&
+                                    globalParams.TryGetProperty(paramName, out var resolvedParam))
+                                {
+                                    param = resolvedParam;
+                                }
+                                else
+                                {
+                                    // $ref non résolu
+                                    continue;
+                                }
+                            }
+                        }
+
                         parameters.Add(new Parameter
                         {
                             Name = param.GetProperty("name").GetString(),
