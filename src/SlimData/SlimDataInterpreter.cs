@@ -185,6 +185,26 @@ public class SlimDataInterpreter : CommandInterpreter
         foreach (var queue in command.queues)
         {
             Console.WriteLine("Queues Keys " + queue.Key + " Values : " + queue.Value.Count );
+            foreach (var queueElement in queue.Value)
+            {
+                Console.WriteLine("HttpStatusRetries Count " + queueElement.HttpStatusRetries.Count);
+                foreach (var queueElementHttpStatusRetry in queueElement.HttpStatusRetries)
+                {
+                    Console.WriteLine("HHttpStatusRetries " + queueElementHttpStatusRetry);
+                }
+
+                foreach (var queueElementRetryQueueElement in queueElement.RetryQueueElements)
+                {
+                    Console.WriteLine("queueElementRetryQueueElement.StartTimeStamp" + TimeSpan.FromTicks(DateTime.UtcNow.Ticks -queueElementRetryQueueElement.StartTimeStamp).TotalSeconds);
+                    Console.WriteLine("queueElementRetryQueueElement.EndTimeStamp" + TimeSpan.FromTicks(DateTime.UtcNow.Ticks -queueElementRetryQueueElement.EndTimeStamp).TotalSeconds);
+                    Console.WriteLine("queueElementRetryQueueElement.HttpCode" + queueElementRetryQueueElement.HttpCode);
+                }
+                Console.WriteLine("HttpTimeout " + queueElement.HttpTimeout);
+                Console.WriteLine("queueElement.Id " + queueElement.Id);
+                Console.WriteLine("InsertTimeStamp " + queueElement.InsertTimeStamp);
+                Console.WriteLine("TimeSpan " + TimeSpan.FromTicks(DateTime.UtcNow.Ticks - queueElement.InsertTimeStamp).TotalSeconds);
+                Console.WriteLine("queueElement.TimeoutRetries.Count " + queueElement.TimeoutRetries.Count);
+            }
         }
         queues.Clear();
         Console.WriteLine("=============================== DoHandleSnapshotAsync Queues ================");
