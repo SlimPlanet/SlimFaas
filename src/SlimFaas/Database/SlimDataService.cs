@@ -239,7 +239,7 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
                 {
                     var queue = data.Queues[key];
                     Console.WriteLine("SlimFaas Queues Keys " + key + " Values : " + queue.Count );
-                    /*foreach (var queueElement in queue)
+                    foreach (var queueElement in queue)
                     {
                         Console.WriteLine("-------->>>> ");
                         foreach (var queueElementRetryQueueElement in queueElement.RetryQueueElements)
@@ -255,7 +255,7 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
                         Console.WriteLine("InsertTimeStamp " + queueElement.InsertTimeStamp);
                         Console.WriteLine("TimeSpan " + TimeSpan.FromTicks(DateTime.UtcNow.Ticks - queueElement.InsertTimeStamp).TotalSeconds);
                         Console.WriteLine("-------- ");
-                    }*/
+                    }
                 }
             }
 
