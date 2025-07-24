@@ -232,7 +232,7 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
 
         //if (result.Count == 0)
         {
-            if (data.Queues.ContainsKey(key))
+            if (data.Queues.ContainsKey(key) && data.Queues[key].Count > 0 && result.Count == 0)
             {
 
                 //foreach (var queue in command.queues)
