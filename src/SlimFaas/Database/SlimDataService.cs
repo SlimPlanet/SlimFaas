@@ -205,6 +205,8 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
             return new List<QueueData>(0);
         }
 
+
+
         var availableElements = new List<QueueElement>();
         if (countTypes.Contains(CountType.Available))
         {
@@ -227,6 +229,12 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         result.AddRange(availableElements);
         result.AddRange(runningElements);
         result.AddRange(runningWaitingForRetryElements);
+
+        if (result.Count == 0)
+        {
+            if(data.Queues.ContainsKey(key))
+                Console.WriteLine(">>>>>>>>>>> SlimDataPayload:" + data.Queues[key].Count);
+        }
 
         var finalResult = new List<QueueData>(result.Count);
         finalResult.AddRange(result.Select(queueElement => new QueueData(queueElement.Id, queueElement.Value.ToArray())));

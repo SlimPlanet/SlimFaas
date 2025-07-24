@@ -187,10 +187,10 @@ public class SlimDataInterpreter : CommandInterpreter
             Console.WriteLine("Queues Keys " + queue.Key + " Values : " + queue.Value.Count );
             foreach (var queueElement in queue.Value)
             {
-                Console.WriteLine("HttpStatusRetries Count " + queueElement.HttpStatusRetries.Count);
-                foreach (var queueElementHttpStatusRetry in queueElement.HttpStatusRetries)
+                //Console.WriteLine("HttpStatusRetries Count " + queueElement.HttpStatusRetries.Count);
+                //foreach (var queueElementHttpStatusRetry in queueElement.HttpStatusRetries)
                 {
-                    Console.WriteLine("HHttpStatusRetries " + queueElementHttpStatusRetry);
+                //    Console.WriteLine("HHttpStatusRetries " + queueElementHttpStatusRetry);
                 }
 
                 foreach (var queueElementRetryQueueElement in queueElement.RetryQueueElements)
@@ -203,7 +203,7 @@ public class SlimDataInterpreter : CommandInterpreter
                 Console.WriteLine("queueElement.Id " + queueElement.Id);
                 Console.WriteLine("InsertTimeStamp " + queueElement.InsertTimeStamp);
                 Console.WriteLine("TimeSpan " + TimeSpan.FromTicks(DateTime.UtcNow.Ticks - queueElement.InsertTimeStamp).TotalSeconds);
-                Console.WriteLine("queueElement.TimeoutRetries.Count " + queueElement.TimeoutRetries.Count);
+                //Console.WriteLine("queueElement.TimeoutRetries.Count " + queueElement.TimeoutRetries.Count);
             }
         }
         queues.Clear();
