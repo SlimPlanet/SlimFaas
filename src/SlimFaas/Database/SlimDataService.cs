@@ -230,16 +230,16 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         result.AddRange(runningElements);
         result.AddRange(runningWaitingForRetryElements);
 
-        if (result.Count == 0)
+        //if (result.Count == 0)
         {
             if (data.Queues.ContainsKey(key))
             {
-                Console.WriteLine(">>>>>>>>>>> SlimDataPayload:" + data.Queues[key].Count);
+
                 //foreach (var queue in command.queues)
                 {
                     var queue = data.Queues[key];
-                    Console.WriteLine("Queues Keys " + key + " Values : " + queue.Count );
-                    foreach (var queueElement in queue)
+                    Console.WriteLine("SlimFaas Queues Keys " + key + " Values : " + queue.Count );
+                    /*foreach (var queueElement in queue)
                     {
                         Console.WriteLine("-------->>>> ");
                         foreach (var queueElementRetryQueueElement in queueElement.RetryQueueElements)
@@ -255,7 +255,7 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
                         Console.WriteLine("InsertTimeStamp " + queueElement.InsertTimeStamp);
                         Console.WriteLine("TimeSpan " + TimeSpan.FromTicks(DateTime.UtcNow.Ticks - queueElement.InsertTimeStamp).TotalSeconds);
                         Console.WriteLine("-------- ");
-                    }
+                    }*/
                 }
             }
 
