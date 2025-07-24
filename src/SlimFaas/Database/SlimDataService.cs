@@ -232,8 +232,33 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
 
         if (result.Count == 0)
         {
-            if(data.Queues.ContainsKey(key))
+            if (data.Queues.ContainsKey(key))
+            {
                 Console.WriteLine(">>>>>>>>>>> SlimDataPayload:" + data.Queues[key].Count);
+                //foreach (var queue in command.queues)
+                {
+                    var queue = data.Queues[key];
+                    Console.WriteLine("Queues Keys " + key + " Values : " + queue.Count );
+                    foreach (var queueElement in queue)
+                    {
+                        Console.WriteLine("-------->>>> ");
+                        foreach (var queueElementRetryQueueElement in queueElement.RetryQueueElements)
+                        {
+                            Console.WriteLine("queueElementRetryQueueElement.StartTimeStamp " + queueElementRetryQueueElement.StartTimeStamp);
+                            Console.WriteLine("queueElementRetryQueueElement.StartTimeSpan " + TimeSpan.FromTicks(DateTime.UtcNow.Ticks -queueElementRetryQueueElement.StartTimeStamp).TotalSeconds);
+                            Console.WriteLine("queueElementRetryQueueElement.EndTimeStamp " + queueElementRetryQueueElement.EndTimeStamp);
+                            Console.WriteLine("queueElementRetryQueueElement.EndTimeSpan " + TimeSpan.FromTicks(DateTime.UtcNow.Ticks - queueElementRetryQueueElement.EndTimeStamp).TotalSeconds);
+                            Console.WriteLine("queueElementRetryQueueElement.HttpCode " + queueElementRetryQueueElement.HttpCode);
+                        }
+                        Console.WriteLine("HttpTimeout " + queueElement.HttpTimeout);
+                        Console.WriteLine("queueElement.Id " + queueElement.Id);
+                        Console.WriteLine("InsertTimeStamp " + queueElement.InsertTimeStamp);
+                        Console.WriteLine("TimeSpan " + TimeSpan.FromTicks(DateTime.UtcNow.Ticks - queueElement.InsertTimeStamp).TotalSeconds);
+                        Console.WriteLine("-------- ");
+                    }
+                }
+            }
+
         }
 
         var finalResult = new List<QueueData>(result.Count);
