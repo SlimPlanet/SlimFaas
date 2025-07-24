@@ -75,7 +75,7 @@ The API listens on **[http://localhost:8080](http://localhost:8080)** by default
 
 1. Browse to **[http://localhost:8080/index.html](http://localhost:8080/index.html)**.
 2. Use the public PetStore Swagger URL: `https://petstore3.swagger.io/api/v3/openapi.json`.
-3. Click **Load Tools**.
+3. Click **Load Tools**. Displayed informations are exactly the same as an MCP Client will see.
 4. For any generated tool:
 
     * Provide a JSON payload.
