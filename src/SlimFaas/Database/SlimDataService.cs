@@ -14,6 +14,7 @@ namespace SlimFaas.Database;
 
 
 
+
 public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvider serviceProvider, IRaftCluster cluster, ILogger<SlimDataService> logger)
     : IDatabaseService
 {
@@ -204,9 +205,6 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         {
             return new List<QueueData>(0);
         }
-
-
-
         var availableElements = new List<QueueElement>();
         if (countTypes.Contains(CountType.Available))
         {
@@ -230,7 +228,7 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         result.AddRange(runningElements);
         result.AddRange(runningWaitingForRetryElements);
 
-        //if (result.Count == 0)
+        /*//if (result.Count == 0)
         {
             if (data.Queues.ContainsKey(key) && data.Queues[key].Count > 0 && result.Count == 0)
             {
@@ -259,7 +257,7 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
                 }
             }
 
-        }
+        }*/
 
         var finalResult = new List<QueueData>(result.Count);
         finalResult.AddRange(result.Select(queueElement => new QueueData(queueElement.Id, queueElement.Value.ToArray())));
