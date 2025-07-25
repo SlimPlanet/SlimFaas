@@ -3,7 +3,7 @@ using SlimData;
 
 namespace SlimFaas.Queue;
 
-public class TempQueueElementRetryQueueElement
+public record TempQueueElementRetryQueueElement
 {
     public long StartTimeStamp { get; set; }
     public double StartTimeSpan { get; set; }
@@ -12,7 +12,7 @@ public class TempQueueElementRetryQueueElement
     public int HttpCode { get; set; }
 }
 
-public class TempQueueElement
+public record TempQueueElement
 {
     public string Id { get; set; } = "";
     public long InsertTimeStamp { get; set; }
@@ -23,7 +23,7 @@ public class TempQueueElement
         new List<TempQueueElementRetryQueueElement>();
 }
 
-public class SlimFaasQueuesData
+public record SlimFaasQueuesData
 {
     public List<TempQueueElement> Queues { get; set; } = new List<TempQueueElement>();
 
@@ -36,7 +36,6 @@ public class SlimFaasQueuesData
         var newQueueList = new List<TempQueueElement>();
         foreach (var kvp in data)
         {
-
                 var newQueueElement = new TempQueueElement
                 {
                     Id = kvp.Id,
@@ -53,7 +52,6 @@ public class SlimFaasQueuesData
                     }).ToList()
                 };
                 newQueueList.Add(newQueueElement);
-
 
         }
         result.Queues = newQueueList;

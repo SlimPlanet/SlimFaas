@@ -21,7 +21,7 @@ public enum FunctionType
     Publish,
     Job,
     NotAFunction,
-    Queue
+    AsyncQueue
 }
 
 public record FunctionStatus(int NumberReady,
@@ -49,7 +49,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
 {
     private const string AsyncFunction = "/async-function";
-    private const string Queue = "/queue";
+    private const string AsyncFunctionQueue = "/async-function-queue";
     private const string StatusFunction = "/status-function";
     private const string WakeFunction = "/wake-function";
     private const string Function = "/function";
@@ -100,7 +100,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             case FunctionType.NotAFunction:
                 await next(context);
                 break;
-            case FunctionType.Queue:
+            case FunctionType.AsyncQueue:
                 if (contextRequest.Method == HttpMethods.Get)
                 {
                     ISupplier<SlimDataPayload> simplePersistentState = serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
@@ -647,7 +647,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             WakeFunction => FunctionType.Wake,
             PublishEvent => FunctionType.Publish,
             Job => FunctionType.Job,
-            Queue => FunctionType.Queue,
+            AsyncFunctionQueue => FunctionType.AsyncQueue,
             _ => FunctionType.NotAFunction
         };
         return new FunctionInfo(functionPath, functionName, functionType);
@@ -680,9 +680,9 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         {
             functionBeginPath = $"{Job}";
         }
-        else if (path.StartsWithSegments(Queue))
+        else if (path.StartsWithSegments(AsyncFunctionQueue))
         {
-            functionBeginPath = $"{Queue}";
+            functionBeginPath = $"{AsyncFunctionQueue}";
         }
 
         return functionBeginPath;
