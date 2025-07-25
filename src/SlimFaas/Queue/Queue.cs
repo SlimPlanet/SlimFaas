@@ -34,7 +34,7 @@ public record SlimFaasQueuesData
             Queues =  new List<TempQueueElement>()
         };
         var newQueueList = new List<TempQueueElement>();
-        foreach (var kvp in data)
+        foreach (var kvp in data.OrderBy(k => k.InsertTimeStamp))
         {
                 var newQueueElement = new TempQueueElement
                 {
