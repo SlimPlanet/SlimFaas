@@ -33,10 +33,10 @@ public class SlimFaasQueuesData
         {
             Queues =  new List<TempQueueElement>()
         };
-
+        var newQueueList = new List<TempQueueElement>();
         foreach (var kvp in data)
         {
-            var newQueueList = new List<TempQueueElement>();
+
                 var newQueueElement = new TempQueueElement
                 {
                     Id = kvp.Id,
@@ -54,9 +54,9 @@ public class SlimFaasQueuesData
                 };
                 newQueueList.Add(newQueueElement);
 
-            result.Queues = newQueueList;
-        }
 
+        }
+        result.Queues = newQueueList;
         return result;
     }
 }
