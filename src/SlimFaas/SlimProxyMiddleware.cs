@@ -108,7 +108,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     SlimDataPayload data = simplePersistentState.Invoke();
                     var result = new List<QueueElement>();
 
-                    if (data.Queues.TryGetValue(functionName, out List<QueueElement>? value))
+                    if (data.Queues.TryGetValue($"Queue:{functionName}", out List<QueueElement>? value))
                     {
                          var queue = SlimFaasQueuesData.MapToNewModel(value);
 
