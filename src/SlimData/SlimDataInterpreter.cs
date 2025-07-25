@@ -128,6 +128,8 @@ public class SlimDataInterpreter : CommandInterpreter
             }
         }
 
+        Console.WriteLine($"==========> Queue Count {listCallbackCommand.Key}: {value.Count}");
+
         return default;
     }
 
