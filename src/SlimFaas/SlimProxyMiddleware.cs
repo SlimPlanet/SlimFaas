@@ -115,6 +115,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                          contextResponse.StatusCode = (int)HttpStatusCode.OK;
                          await contextResponse.WriteAsJsonAsync(queue,
                              SlimFaasQueuesDataSerializerContext.Default.SlimFaasQueuesData);
+                         return;
                     }
 
                     contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
