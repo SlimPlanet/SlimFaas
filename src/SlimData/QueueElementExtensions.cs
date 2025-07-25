@@ -29,13 +29,13 @@ public static class QueueElementExtensions
         
         var retryQueueElement = element.RetryQueueElements[^1];
         var retryTimeout = retries[count - 1];
-        if(element.IsTimeout(nowTicks) && retryQueueElement.StartTimeStamp + TimeSpan.FromSeconds(retryTimeout).Ticks <= nowTicks)
+        if(element.IsTimeout(nowTicks) && TimeSpan.FromSeconds(retryTimeout).Ticks + element.HttpTimeout > nowTicks - retryQueueElement.StartTimeStamp)
         {
             return true;
         }
 
         if (retryQueueElement.EndTimeStamp != 0 &&
-            (retryQueueElement.EndTimeStamp + TimeSpan.FromSeconds(retryTimeout).Ticks > nowTicks))
+            ( TimeSpan.FromSeconds(retryTimeout).Ticks > nowTicks - retryQueueElement.EndTimeStamp))
         {
             return true;
         }
