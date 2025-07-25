@@ -47,7 +47,7 @@ public record SlimFaasQueuesData
                         StartTimeStamp = rqe.StartTimeStamp,
                         StartTimeSpan = TimeSpan.FromTicks(DateTime.UtcNow.Ticks -rqe.StartTimeStamp).TotalSeconds,
                         EndTimeStamp = rqe.EndTimeStamp,
-                        EndTimeSpan = TimeSpan.FromTicks(DateTime.UtcNow.Ticks -rqe.EndTimeStamp).TotalSeconds,
+                        EndTimeSpan =  rqe.EndTimeStamp == 0 ? 0 : TimeSpan.FromTicks(DateTime.UtcNow.Ticks -rqe.EndTimeStamp).TotalSeconds,
                         HttpCode = rqe.HttpCode
                     }).ToList()
                 };
