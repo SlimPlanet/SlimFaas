@@ -681,6 +681,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         {
             functionBeginPath = $"{Job}";
         }
+        else if (path.StartsWithSegments(Queue))
+        {
+            functionBeginPath = $"{Queue}";
+        }
 
         return functionBeginPath;
     }
