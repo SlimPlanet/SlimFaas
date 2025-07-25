@@ -648,6 +648,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             WakeFunction => FunctionType.Wake,
             PublishEvent => FunctionType.Publish,
             Job => FunctionType.Job,
+            Queue => FunctionType.Queue,
             _ => FunctionType.NotAFunction
         };
         return new FunctionInfo(functionPath, functionName, functionType);
