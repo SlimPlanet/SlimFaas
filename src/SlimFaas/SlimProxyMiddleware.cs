@@ -104,9 +104,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 if (contextRequest.Method == HttpMethods.Get)
                 {
                     ISupplier<SlimDataPayload> simplePersistentState = serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
-
                     SlimDataPayload data = simplePersistentState.Invoke();
-                    var result = new List<QueueElement>();
 
                     if (data.Queues.TryGetValue($"Queue:{functionName}", out List<QueueElement>? value))
                     {
