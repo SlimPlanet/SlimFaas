@@ -70,11 +70,11 @@ public class MinimalApiTests : IClassFixture<MinimalApiTests.TestAppFactory>
             }
         ];
 
-        public Task<List<McpTool>> GetToolsAsync(string s1,string? s2,string? s3,string? s4)
+        public Task<List<McpTool>> GetToolsAsync(string s1,string? s2,string? s3,string? s4, string contract = "openapi")
             => Task.FromResult(_tools);
 
         public Task<string> ExecuteToolAsync(string s1,string s2,
-                                             System.Text.Json.JsonElement e,string? s3,string? s4)
+                                             System.Text.Json.JsonElement e,string? s3,string? s4, string contract = "openapi")
             => Task.FromResult(@"{""status"":""ok""}");
     }
 }

@@ -8,19 +8,22 @@ namespace SlimFaasMcp.Services;
 
 public interface IToolProxyService
 {
-    Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64);
+    Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64, string contract = "openapi");
 
     Task<string> ExecuteToolAsync(
         string swaggerUrl,
         string toolName,
         JsonElement input,              // ← plus "object"
         string? baseUrl = null,
-        string? authHeader = null);
+        string? authHeader = null,
+        string contract = "openapi");
 
 }
 
-public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory httpClientFactory) : IToolProxyService
+public class ToolProxyService([FromKeyedServices("openapi")] IRemoteSchemaService swaggerService, [FromKeyedServices("graphql")]IRemoteSchemaService graphqlService, IHttpClientFactory httpClientFactory) : IToolProxyService
 {
+
+    private IRemoteSchemaService Select(string contract) => contract == "graphql" ? graphqlService : swaggerService;
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
     private static string CombineBaseUrl(string? baseUrl, string endpointUrl)
     {
@@ -41,10 +44,11 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         return contentType;
     }
 
-    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64)
+    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64, string contract = "openapi")
     {
-        var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, authHeader);
-        var endpoints = swaggerService.ParseEndpoints(swagger);
+        var svc = Select(contract);
+        var schema = await svc.GetSchemaAsync(swaggerUrl, baseUrl, authHeader);
+        var endpoints = svc.ParseEndpoints(schema);
 
         var tools = endpoints.Select(e => new McpTool
         {
@@ -142,18 +146,19 @@ public async Task<string> ExecuteToolAsync(
         string toolName,
         JsonElement input,              // ← plus "object"
         string? baseUrl = null,
-        string? authHeader = null)
+        string? authHeader = null, string contract = "openapi")
 {
-    var swagger   = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, authHeader);
-    var endpoints = swaggerService.ParseEndpoints(swagger);
+    var svc = Select(contract);
+    var schema = await svc.GetSchemaAsync(swaggerUrl, baseUrl, authHeader);
+    var endpoints = svc.ParseEndpoints(schema);
     var endpoint  = endpoints.FirstOrDefault(e => e.Name == toolName);
 
     if (endpoint is null)
         return "{\"error\":\"Tool not found\"}";
 
-    baseUrl ??= ExtractBaseUrl(swagger)
-                ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
-    baseUrl = baseUrl.TrimEnd('/');
+    //baseUrl ??= ExtractBaseUrl(swagger)
+     //           ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
+    baseUrl = baseUrl?.TrimEnd('/');
 
     // input → dictionnaire JSON
     var inputDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(

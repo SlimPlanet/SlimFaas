@@ -16,6 +16,14 @@
     <input id="swaggerUrl" type="text" value="https://petstore3.swagger.io/api/v3/openapi.json" style="width: 50%;" />
 </label>
 <br>
+<!-- sous le champ Swagger URL -->
+<label>Contract type:
+    <select id="contractType">
+        <option value="openapi">OpenAPI</option>
+        <option value="graphql">GraphQL</option>
+    </select>
+</label>
+<br>
 <label>Base URL override:
     <input id="baseUrl" type="text" placeholder="(optional, e.g. https://petstore3.swagger.io/api/v3)" style="width: 50%;" />
 </label><br>
@@ -45,6 +53,11 @@
     let mergedTools = [];     // tools après merge YAML
     let mcpPromptJson = null;
     let currentB64 = "";
+
+    function getContractQuery() {
+        const c = document.getElementById("contractType").value;
+        return c !== "openapi" ? `&contract=${c}` : "";
+    }
 
     function updateShareUrl(b64) {
         currentB64 = b64 || currentB64;         // mémorise
@@ -90,6 +103,7 @@
         const b64 = document.getElementById("mcpPromptbase64input").value?.trim();
         let endpoint = `/tools?openapi_url=${encodeURIComponent(url)}`;
         if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
+        endpoint +=  getContractQuery();
         const toolsRes = await fetch(endpoint);
         const tools = await toolsRes.json();
         loadedTools = tools;
@@ -174,6 +188,7 @@
         let endpoint = `/tools/${name}?openapi_url=${encodeURIComponent(url)}`;
         if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
         endpoint += getMcpPromptQuery();
+        endpoint += getContractQuery();
         const contentType = tool.endpoint.contentType || "application/json";
         let body, headers = {};
 

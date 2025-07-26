@@ -10,7 +10,8 @@ namespace SlimFaasMcp.Tests.Services;
 
 public class ToolProxyServiceMoreTests
 {
-    private readonly Mock<ISwaggerService> _swaggerMock = new();
+    private readonly Mock<IRemoteSchemaService> _swaggerMock = new();
+    private readonly Mock<IRemoteSchemaService> _graphQLMock = new();
     private readonly Mock<IHttpClientFactory> _factoryMock = new();
     private readonly TestHandler _handler = new();
     private readonly ToolProxyService _sut;
@@ -21,13 +22,13 @@ public class ToolProxyServiceMoreTests
         _factoryMock.Setup(f => f.CreateClient("InsecureHttpClient"))
                     .Returns(client);
 
-        _sut = new ToolProxyService(_swaggerMock.Object, _factoryMock.Object);
+        _sut = new ToolProxyService(_swaggerMock.Object, _graphQLMock.Object ,_factoryMock.Object);
     }
 
     private void SetupSwaggerAndEndpoints(IEnumerable<Endpoint> endpoints)
     {
         var dummyDoc = JsonDocument.Parse("{}");
-        _swaggerMock.Setup(s => s.GetSwaggerAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()))
+        _swaggerMock.Setup(s => s.GetSchemaAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()))
                     .ReturnsAsync(dummyDoc);
         _swaggerMock.Setup(s => s.ParseEndpoints(dummyDoc))
                     .Returns(endpoints);

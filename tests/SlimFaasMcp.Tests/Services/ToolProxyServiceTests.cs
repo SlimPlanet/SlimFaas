@@ -38,7 +38,8 @@ public class ToolProxyServiceTests
 
         var factory = new FakeHttpClientFactory(stub);
         var swagger = new SwaggerService(factory, new MemoryCache(new MemoryCacheOptions()));
-        return (new ToolProxyService(swagger, factory), stub);
+        var graphQl = new GraphQlService(factory, new MemoryCache(new MemoryCacheOptions()));
+        return (new ToolProxyService(swagger, graphQl, factory), stub);
     }
 
     [Fact]
