@@ -70,6 +70,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                     continue;
                 }
 
+                Console.WriteLine("numberProcessingTasks " + numberProcessingTasks);
+                Console.WriteLine("numberLimitProcessingTasks " + numberLimitProcessingTasks);
                 if (numberProcessingTasks >= numberLimitProcessingTasks)
                 {
                     continue;
@@ -156,8 +158,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
     private static int ComputeNumberLimitProcessingTasks(IMasterService masterService, SlimFaasDeploymentInformation slimFaas,
         DeploymentInformation function)
     {
-        int numberLimitProcessingTasks;
-        int numberReplicas = slimFaas.Replicas;
+       // int numberLimitProcessingTasks;
+       // int numberReplicas = slimFaas.Replicas;
 
         return function.NumberParallelRequest;
 
@@ -174,7 +176,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
             }
         }
 
-        return numberLimitProcessingTasks;*/ }
+        return numberLimitProcessingTasks;*/
+    }
 
     private async Task<int> ManageProcessingTasksAsync(ISlimFaasQueue slimFaasQueue,
         Dictionary<string, IList<RequestToWait>> processingTasks,
