@@ -70,6 +70,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                     continue;
                 }
 
+                Console.WriteLine("queueLength " + queueLength);
                 Console.WriteLine("numberProcessingTasks " + numberProcessingTasks);
                 Console.WriteLine("numberLimitProcessingTasks " + numberLimitProcessingTasks);
                 if (numberProcessingTasks >= numberLimitProcessingTasks)
