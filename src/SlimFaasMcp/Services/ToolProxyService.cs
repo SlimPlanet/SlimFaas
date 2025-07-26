@@ -165,6 +165,25 @@ public async Task<string> ExecuteToolAsync(
                         input.GetRawText(),
                         AppJsonContext.Default.DictionaryStringJsonElement)!;
 
+    if (contract == "graphql")
+    {
+        // Variables du body → dictionnaire
+        var varsDict = inputDict as IReadOnlyDictionary<string, JsonElement>;
+
+        // Génère dynamiquement la requête complète
+        var queryStr = GraphQLQueryBuilder.BuildQuery(toolName, varsDict, schema);
+
+        // Construit le payload JSON (query + variables)
+        var payload = new JsonObject {
+            ["query"]     = queryStr,
+            ["variables"] = JsonSerializer.SerializeToNode(varsDict, AppJsonContext.Default.DictionaryStringJsonElement)!
+        };
+        var response = await _httpClient.PostAsync(
+            baseUrl,
+            new StringContent(payload.ToJsonString(AppJsonContext.Default.Options), Encoding.UTF8, "application/json"));
+        return await response.Content.ReadAsStringAsync();
+    }
+
     // Path params
     var callUrl = endpoint.Url;
     foreach (var parameter in endpoint.Parameters.Where(p => p.In == "path"))
@@ -208,6 +227,5 @@ public async Task<string> ExecuteToolAsync(
 
     return await resp.Content.ReadAsStringAsync(); // on renvoie **toujours** un string JSON
 }
-
 
 }
