@@ -94,6 +94,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
     {
         string functionDeployment = function.Deployment;
         var jsons = await slimFaasQueue.DequeueAsync(functionDeployment, numberLimitProcessingTasks);
+
+        Console.WriteLine($"Number numberProcessingTasks dequeued : {jsons?.Count}");
         if (jsons == null)
         {
             return;
@@ -191,7 +193,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         var queueItemStatusList = new List<QueueItemStatus>();
         listQueueItemStatus.Items = queueItemStatusList;
         List<RequestToWait> httpResponseMessagesToDelete = new();
-        foreach (RequestToWait processing in processingTasks[functionDeployment])
+        IList<RequestToWait> requestToWaits = processingTasks[functionDeployment];
+        foreach (RequestToWait processing in requestToWaits)
         {
             try
             {
@@ -221,7 +224,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
 
         foreach (RequestToWait httpResponseMessage in httpResponseMessagesToDelete)
         {
-            processingTasks[functionDeployment].Remove(httpResponseMessage);
+            requestToWaits.Remove(httpResponseMessage);
         }
 
         if (listQueueItemStatus.Items.Count > 0)
@@ -229,7 +232,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
             await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
         }
 
-        int numberProcessingTasks = processingTasks[functionDeployment].Count;
+        int numberProcessingTasks = requestToWaits.Count;
         return numberProcessingTasks;
     }
 }
