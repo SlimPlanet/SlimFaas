@@ -51,11 +51,11 @@ public class SlimDataInterpreter : CommandInterpreter
         return DoListRightPopAsync(addHashSetCommand, SlimDataState.Queues);
     }
     
-    internal static ValueTask DoListRightPopAsync(ListRightPopCommand addHashSetCommand, Dictionary<string, List<QueueElement>> queues)
+    internal static ValueTask DoListRightPopAsync(ListRightPopCommand listRightPopCommand, Dictionary<string, List<QueueElement>> queues)
     {
-        if (queues.TryGetValue(addHashSetCommand.Key, out var queue))
+        if (queues.TryGetValue(listRightPopCommand.Key, out var queue))
         {
-            var nowTicks =addHashSetCommand.NowTicks;
+            var nowTicks =listRightPopCommand.NowTicks;
             var queueTimeoutElements = queue.GetQueueTimeoutElement(nowTicks);
             foreach (var queueTimeoutElement in queueTimeoutElements)
             {
@@ -70,12 +70,12 @@ public class SlimDataInterpreter : CommandInterpreter
                 queue.Remove(queueFinishedElement);
             }
             
-            var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, addHashSetCommand.Count);
+            var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
             foreach (var queueAvailableElement in queueAvailableElements)
             {
                 queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks));
             }
-            Console.WriteLine($"SlimData: {addHashSetCommand.Key} {queue.Count}");
+            Console.WriteLine($"SlimData: {listRightPopCommand.Key} {queue.Count}");
         }
         
         return default;

@@ -78,7 +78,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                     continue;
                 }
 
-                await SendHttpRequestToFunction(processingTasks, numberLimitProcessingTasks,
+                await SendHttpRequestToFunction(processingTasks, numberLimitProcessingTasks - numberProcessingTasks,
                     function);
             }
         }
