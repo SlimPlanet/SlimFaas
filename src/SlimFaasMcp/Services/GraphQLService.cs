@@ -9,6 +9,7 @@ using Endpoint = SlimFaasMcp.Models.Endpoint;
 
 namespace SlimFaasMcp.Services;
 
+
 public class GraphQlService(IHttpClientFactory factory, IMemoryCache cache) : IRemoteSchemaService
 {
     private readonly HttpClient _http = factory.CreateClient("InsecureHttpClient");
@@ -21,15 +22,21 @@ query Introspection {
     types {
       kind
       name
-      description                # ← ajouté
+      description
       fields(includeDeprecated: true) {
         name
-        description              # ← ajouté
-        args  {
+        description
+        args {
           name
+          description
           type { kind name ofType { kind name ofType { kind name } } }
         }
         type  { kind name ofType { kind name ofType { kind name } } }
+      }
+      inputFields {                       # ← ajouté
+        name
+        description
+        type { kind name ofType { kind name ofType { kind name } } }
       }
     }
   }
@@ -67,6 +74,88 @@ query Introspection {
         return doc;
     }
 
+/* helper commun — mettez‑le en début de classe */
+private static JsonElement Unwrap(JsonElement node)
+{
+    while (node.ValueKind == JsonValueKind.Object &&
+           node.TryGetProperty("kind", out var k) &&
+           (k.GetString() is "NON_NULL" or "LIST") &&
+           node.TryGetProperty("ofType", out var inner) &&
+           inner.ValueKind == JsonValueKind.Object)
+    {
+        node = inner;
+    }
+    return node;
+}
+
+private static string MapScalar(string? gql) => gql switch
+{
+    "Int"     => "integer",
+    "Float"   => "number",
+    "Boolean" => "boolean",
+    "ID"      => "string",
+    "String"  => "string",
+    _         => "string"
+};
+
+/* ---- nouvelle fonction récursive : construit 1 Parameter (et ses enfants) */
+private static Parameter BuildParameter(string name,
+                                        JsonElement typeElem,
+                                        bool nonNull,
+                                        string? description,
+                                        IReadOnlyDictionary<string, JsonElement> typesByName)
+{
+    var unwrapped = Unwrap(typeElem);
+    string kind   = unwrapped.GetProperty("kind").GetString()!;
+    string? gqlName = unwrapped.TryGetProperty("name", out var tn) ? tn.GetString() : null;
+
+    var param = new Parameter
+    {
+        Name        = name,
+        Required    = nonNull,
+        Description = description,
+        SchemaType  = kind switch
+        {
+            "SCALAR" => MapScalar(gqlName),
+            "ENUM"   => "string",
+            "LIST"   => "array",
+            "INPUT_OBJECT" => "object",
+            _        => "object"
+        }
+    };
+
+    // DESCENTE RÉCURSIVE
+    if (kind == "INPUT_OBJECT" && gqlName != null && typesByName.TryGetValue(gqlName, out var def) &&
+        def.TryGetProperty("inputFields", out var inFields) && inFields.ValueKind == JsonValueKind.Array)
+    {
+        foreach (var fld in inFields.EnumerateArray())
+        {
+            var fldName = fld.GetProperty("name").GetString()!;
+            var fldType = fld.GetProperty("type");
+            bool fldNonNull = fldType.GetProperty("kind").GetString() == "NON_NULL";
+            string? fldDesc = fld.TryGetProperty("description", out var fd) ? fd.GetString() : null;
+
+            param.Children.Add(
+                BuildParameter(fldName, fldType, fldNonNull, fldDesc, typesByName));
+        }
+    }
+    else if (kind == "LIST")                     // LIST<…INPUT_OBJECT…>
+    {
+        // on regarde le type de l’élément
+        var elemType = Unwrap(typeElem.GetProperty("ofType"));
+        if (elemType.GetProperty("kind").GetString() == "INPUT_OBJECT" && elemType.TryGetProperty("name", out var en))
+        {
+            string? elemName = en.GetString();
+            if (elemName != null && typesByName.TryGetValue(elemName, out var inObj))
+            {
+                param.Children.AddRange(
+                    BuildParameter("[]", elemType, false, null, typesByName).Children);
+            }
+        }
+    }
+
+    return param;
+}
 
    public IEnumerable<Endpoint> ParseEndpoints(JsonDocument schema)
 {
@@ -106,18 +195,20 @@ query Introspection {
 
             string? desc = field.TryGetProperty("description", out var d) ? d.GetString() : null;
 
+            /* ---------- remplace ENTIEREMENT le calcul de `parameters` ------ */
             var parameters =
                 field.TryGetProperty("args", out var argsArr) && argsArr.ValueKind == JsonValueKind.Array
                     ? argsArr.EnumerateArray()
-                             .Where(a => a.TryGetProperty("name", out _))
-                             .Select(a => new Parameter
-                             {
-                                 Name        = a.GetProperty("name").GetString()!,
-                                 In          = "body",
-                                 Required    = true,
-                                 Description = a.TryGetProperty("description", out var ad) ? ad.GetString() : string.Empty,
-                                 SchemaType  = "string"
-                             }).ToList()
+                        .Select(a =>
+                        {
+                            string argName = a.GetProperty("name").GetString()!;
+                            var    argType = a.GetProperty("type");
+                            bool   nonNull = argType.GetProperty("kind").GetString() == "NON_NULL";
+                            string? argDesc = a.TryGetProperty("description", out var ad) ? ad.GetString() : null;
+
+                            return BuildParameter(argName, argType, nonNull, argDesc, typesByName);
+                        })
+                        .ToList()
                     : new List<Parameter>();
 
             yield return new Endpoint
