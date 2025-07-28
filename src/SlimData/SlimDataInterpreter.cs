@@ -170,6 +170,7 @@ public class SlimDataInterpreter : CommandInterpreter
     
     internal static ValueTask DoHandleSnapshotAsync(LogSnapshotCommand command, Dictionary<string, ReadOnlyMemory<byte>> keyValues, Dictionary<string, Dictionary<string, string>> hashsets, Dictionary<string, List<QueueElement>>  queues)
     {
+        Console.WriteLine("Begin Handle SnapShot");
         keyValues.Clear();
         foreach (var keyValue in command.keysValues)
         {
@@ -187,6 +188,7 @@ public class SlimDataInterpreter : CommandInterpreter
         {
             hashsets[hashset.Key] = hashset.Value;
         }
+        Console.WriteLine("End Handle SnapShot");
         return default;
     }   
     
