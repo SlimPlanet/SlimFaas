@@ -99,7 +99,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
 
         Console.WriteLine($"Number numberProcessingTasks dequeued : {jsons?.Count}");
         numberDequedSended = numberDequedSended + jsons?.Count ?? 0;
-        Console.WriteLine($"Number numberDequedSended dequeued : {jsons?.Count}");
+        Console.WriteLine($"Number numberDequedSended dequeued : {numberDequedSended}");
         if (jsons == null)
         {
             return;
