@@ -25,11 +25,14 @@ public record TempQueueElement
 
 public record SlimFaasQueuesData
 {
-    public List<TempQueueElement> Queues { get; set; } = new List<TempQueueElement>();
 
     public int NumberAvailable { get; set; }
     public int NumberRunning { get; set; }
     public int NumberWaitingForRetry { get; set; }
+
+
+    public List<TempQueueElement> Queues { get; set; } = new List<TempQueueElement>();
+
 
     public static SlimFaasQueuesData MapToNewModel(List<QueueElement> data)
     {
@@ -38,9 +41,9 @@ public record SlimFaasQueuesData
             Queues =  new List<TempQueueElement>()
         };
         var ticks = DateTime.UtcNow.Ticks;
-        result.NumberAvailable = data.GetQueueRunningElement(ticks).Count;
+        result.NumberAvailable = data.GetQueueAvailableElement(ticks, 10000).Count;
         result.NumberRunning = data.GetQueueRunningElement(ticks).Count;
-        result.NumberWaitingForRetry = data.GetQueueRunningElement(ticks).Count;
+        result.NumberWaitingForRetry = data.GetQueueWaitingForRetryElement(ticks).Count;
         var newQueueList = new List<TempQueueElement>();
         foreach (var kvp in data.OrderBy(k => k.InsertTimeStamp))
         {
