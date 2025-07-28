@@ -48,7 +48,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                 string functionDeployment = function.Deployment;
                 setTickLastCallCounterDictionary.TryAdd(functionDeployment, 0);
                 int numberProcessingTasks = await ManageProcessingTasksAsync(slimFaasQueue, processingTasks, functionDeployment);
-                int numberLimitProcessingTasks = ComputeNumberLimitProcessingTasks(masterService, slimFaas, function);
+                int numberLimitProcessingTasks = function.NumberParallelRequest;
                 setTickLastCallCounterDictionary[functionDeployment]++;
                 int functionReplicas = function.Replicas;
                 long queueLength = await UpdateTickLastCallIfRequestStillInProgress(
@@ -133,8 +133,6 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         int numberProcessingTasks,
         int numberLimitProcessingTasks)
     {
-       // if (masterService.IsMaster)
-       // {
             int counterLimit = functionReplicas == 0 ? 10 : 40;
             long queueLength = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
             {
@@ -156,33 +154,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
             {
                 return 0;
             }
-      //  }
 
         return await slimFaasQueue.CountElementAsync(functionDeployment,  new List<CountType>() { CountType.Available }, numberLimitProcessingTasks);
-    }
-
-    private static int ComputeNumberLimitProcessingTasks(IMasterService masterService, SlimFaasDeploymentInformation slimFaas,
-        DeploymentInformation function)
-    {
-       // int numberLimitProcessingTasks;
-       // int numberReplicas = slimFaas.Replicas;
-
-        return function.NumberParallelRequest;
-
-        /*if (function.NumberParallelRequest < numberReplicas || numberReplicas == 0)
-        {
-            numberLimitProcessingTasks = masterService.IsMaster ? function.NumberParallelRequest : 0;
-        }
-        else
-        {
-            numberLimitProcessingTasks = function.NumberParallelRequest / slimFaas.Replicas;
-            if(masterService.IsMaster)
-            {
-                numberLimitProcessingTasks = function.NumberParallelRequest - numberLimitProcessingTasks * (numberReplicas - 1);
-            }
-        }
-
-        return numberLimitProcessingTasks;*/
     }
 
     private async Task<int> ManageProcessingTasksAsync(ISlimFaasQueue slimFaasQueue,

@@ -27,12 +27,20 @@ public record SlimFaasQueuesData
 {
     public List<TempQueueElement> Queues { get; set; } = new List<TempQueueElement>();
 
+    public int NumberAvailable { get; set; }
+    public int NumberRunning { get; set; }
+    public int NumberWaitingForRetry { get; set; }
+
     public static SlimFaasQueuesData MapToNewModel(List<QueueElement> data)
     {
         var result = new SlimFaasQueuesData
         {
             Queues =  new List<TempQueueElement>()
         };
+        var ticks = DateTime.UtcNow.Ticks;
+        result.NumberAvailable = data.GetQueueRunningElement(ticks).Count;
+        result.NumberRunning = data.GetQueueRunningElement(ticks).Count;
+        result.NumberWaitingForRetry = data.GetQueueRunningElement(ticks).Count;
         var newQueueList = new List<TempQueueElement>();
         foreach (var kvp in data.OrderBy(k => k.InsertTimeStamp))
         {
