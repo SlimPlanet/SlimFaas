@@ -89,6 +89,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
     }
 
     private static int numberRequestSended = 0;
+    private static int numberDequedSended = 0;
     private async Task SendHttpRequestToFunction(Dictionary<string, IList<RequestToWait>> processingTasks,
         int numberLimitProcessingTasks,
         DeploymentInformation function)
@@ -97,6 +98,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         var jsons = await slimFaasQueue.DequeueAsync(functionDeployment, numberLimitProcessingTasks);
 
         Console.WriteLine($"Number numberProcessingTasks dequeued : {jsons?.Count}");
+        numberDequedSended = numberDequedSended + jsons?.Count ?? 0;
+        Console.WriteLine($"Number numberDequedSended dequeued : {jsons?.Count}");
         if (jsons == null)
         {
             return;
