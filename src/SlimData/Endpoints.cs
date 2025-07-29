@@ -1,5 +1,6 @@
 ﻿using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using MemoryPack;
 using SlimData.Commands;
 
@@ -193,25 +194,11 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
-            if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
-            {
-                await semaphoreSlim.WaitAsync();
-            }
-            else
-            {
-                SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
-                await SemaphoreSlims[key].WaitAsync();
-            }
-            try
-            {
+
                 string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
                 context.Response.StatusCode = StatusCodes.Status201Created;
                 await context.Response.WriteAsync(elementId, context.RequestAborted);
-            }
-            finally
-            {
-                SemaphoreSlims[key].Release();
-            }
+
         });
         await task;
     }
@@ -222,17 +209,37 @@ public class Endpoints
         var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
         var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
         var id = Guid.NewGuid().ToString();
-        var logEntry =
-            provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
-                    Identifier = id, 
-                    Value = input.Value, 
-                    NowTicks = DateTime.UtcNow.Ticks,
-                    Retries = retryInformation.Retries,
-                    RetryTimeout = retryInformation.RetryTimeoutSeconds,
-                    HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
-                },
-                cluster.Term);
-        await cluster.ReplicateAsync(logEntry, source.Token);
+        if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
+        {
+            await semaphoreSlim.WaitAsync();
+        }
+        else
+        {
+            SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
+            await SemaphoreSlims[key].WaitAsync();
+        }
+
+        LogEntry<ListLeftPushCommand>? logEntry;
+        try
+        {
+            logEntry =
+                provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
+                        Identifier = id, 
+                        Value = input.Value, 
+                        NowTicks = DateTime.UtcNow.Ticks,
+                        Retries = retryInformation.Retries,
+                        RetryTimeout = retryInformation.RetryTimeoutSeconds,
+                        HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
+                    },
+                    cluster.Term);
+        }
+        finally
+        {
+            SemaphoreSlims[key].Release();
+        }
+
+        await cluster.ReplicateAsync(logEntry.Value, source.Token);
+
         return id;
     }
     
@@ -263,19 +270,35 @@ public class Endpoints
         {
             return;
         }
-
-        foreach (var queueItemStatus in list.Items)
+        if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
         {
-            var logEntry =
-                provider.Interpreter.CreateLogEntry(new ListCallbackCommand
-                    {
-                        Identifier = queueItemStatus.Id,
-                        Key = key,
-                        HttpCode = queueItemStatus.HttpCode,
-                        NowTicks = DateTime.UtcNow.Ticks
-                    },
-                    cluster.Term);
-            await cluster.ReplicateAsync(logEntry, source.Token);
+            await semaphoreSlim.WaitAsync();
+        }
+        else
+        {
+            SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
+            await SemaphoreSlims[key].WaitAsync();
+        }
+        
+        try
+        {
+            foreach (var queueItemStatus in list.Items)
+            {
+                var logEntry =
+                    provider.Interpreter.CreateLogEntry(new ListCallbackCommand
+                        {
+                            Identifier = queueItemStatus.Id,
+                            Key = key,
+                            HttpCode = queueItemStatus.HttpCode,
+                            NowTicks = DateTime.UtcNow.Ticks
+                        },
+                        cluster.Term);
+                await cluster.ReplicateAsync(logEntry, source.Token);
+            }
+        }
+        finally
+        {
+            SemaphoreSlims[key].Release();
         }
     }
 
