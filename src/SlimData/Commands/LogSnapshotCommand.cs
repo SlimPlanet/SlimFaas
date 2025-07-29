@@ -165,7 +165,6 @@ public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte
                         retries.Add(await reader.ReadLittleEndianAsync<Int32>(token));
                     }
                     
-                    
                     var countRetryQueueElements = await reader.ReadLittleEndianAsync<Int32>(token);
                     var retryQueueElements = new List<QueueHttpTryElement>(countRetryQueueElements);
                     while (countRetryQueueElements-- > 0)

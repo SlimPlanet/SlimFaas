@@ -264,10 +264,16 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
 
     private async Task MasterWaitForleaseToken()
     {
+        var tryCount = 100;
         while (cluster.TryGetLeaseToken(out var leaseToken) && leaseToken.IsCancellationRequested)
         {
-            Console.WriteLine("Master node is waiting for lease token");
+            Console.WriteLine($"Master node is waiting for lease token {tryCount}");
             await Task.Delay(10);
+            tryCount--;
+            if (tryCount < 0)
+            {
+                throw new Exception("Master node cannot have lease token");
+            }
         }
     }
 

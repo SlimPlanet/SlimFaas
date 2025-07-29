@@ -1,4 +1,5 @@
-﻿using DotNext.Net.Cluster.Consensus.Raft.Commands;
+﻿using System.Collections.Concurrent;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using SlimData.Commands;
 
 namespace SlimData;

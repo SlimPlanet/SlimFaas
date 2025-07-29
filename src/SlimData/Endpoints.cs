@@ -134,11 +134,7 @@ public class Endpoints
         }
         try
         {
-            while (cluster.TryGetLeaseToken(out var leaseToken) && leaseToken.IsCancellationRequested)
-            {
-                Console.WriteLine("Master node is waiting for lease token");
-                await Task.Delay(10);
-            }
+            await MasterWaitForleaseToken(cluster);
             var nowTicks = DateTime.UtcNow.Ticks;
             var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
             if (queues.TryGetValue(key, out var queue))
@@ -164,6 +160,21 @@ public class Endpoints
         
     }
 
+    private static async Task MasterWaitForleaseToken(IRaftCluster cluster)
+    {
+        var tryCount = 100;
+        while (cluster.TryGetLeaseToken(out var leaseToken) && leaseToken.IsCancellationRequested)
+        {
+            Console.WriteLine($"Master node is waiting for lease token {tryCount}");
+            await Task.Delay(10);
+            tryCount--;
+            if (tryCount < 0)
+            {
+                throw new Exception("Master node cannot have lease token");
+            }
+        }
+    }
+
 
     public static async Task ListLeftPushAsync(HttpContext context)
     {
@@ -182,9 +193,25 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
-            string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
-            context.Response.StatusCode = StatusCodes.Status201Created;
-            await context.Response.WriteAsync(elementId, context.RequestAborted);
+            if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
+            {
+                await semaphoreSlim.WaitAsync();
+            }
+            else
+            {
+                SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
+                await SemaphoreSlims[key].WaitAsync();
+            }
+            try
+            {
+                string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
+                context.Response.StatusCode = StatusCodes.Status201Created;
+                await context.Response.WriteAsync(elementId, context.RequestAborted);
+            }
+            finally
+            {
+                SemaphoreSlims[key].Release();
+            }
         });
         await task;
     }
