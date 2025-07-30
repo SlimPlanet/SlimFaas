@@ -74,8 +74,8 @@ public class SlimDataInterpreter : CommandInterpreter
             var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
             foreach (var queueAvailableElement in queueAvailableElements)
             {
-                //queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks));
-                queue.Remove(queueAvailableElement);
+                queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks, nowTicks, 200));
+                //queue.Remove(queueAvailableElement);
             }
             
             var listCallbackCommand = listRightPopCommand;
@@ -143,7 +143,7 @@ public class SlimDataInterpreter : CommandInterpreter
                 value.Remove(queueElement);
             }
         }*/
-        value.Remove(queueElement);
+        //value.Remove(queueElement);
 
         return default;
     }
