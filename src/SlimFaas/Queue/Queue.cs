@@ -10,6 +10,7 @@ public record TempQueueElementRetryQueueElement
     public long EndTimeStamp { get; set; }
     public double EndTimeSpan { get; set; }
     public int HttpCode { get; set; }
+    public string IdTransaction { get; set; } = "";
 }
 
 public record TempQueueElement
@@ -31,6 +32,8 @@ public record SlimFaasQueuesData
     public int NumberWaitingForRetry { get; set; }
     public int NumberFinished { get; set; }
 
+    public int Total {get;set;}
+
 
     public List<TempQueueElement> Queues { get; set; } = new List<TempQueueElement>();
 
@@ -46,6 +49,9 @@ public record SlimFaasQueuesData
         result.NumberRunning = data.GetQueueRunningElement(ticks).Count;
         result.NumberWaitingForRetry = data.GetQueueWaitingForRetryElement(ticks).Count;
         result.NumberFinished = data.GetQueueFinishedElement(ticks).Count;
+
+        result.Total = result.NumberAvailable + result.NumberRunning + result.NumberWaitingForRetry +
+                       result.NumberFinished;
         var newQueueList = new List<TempQueueElement>();
         foreach (var kvp in data.OrderBy(k => k.InsertTimeStamp))
         {
@@ -61,7 +67,8 @@ public record SlimFaasQueuesData
                         StartTimeSpan = TimeSpan.FromTicks(DateTime.UtcNow.Ticks -rqe.StartTimeStamp).TotalSeconds,
                         EndTimeStamp = rqe.EndTimeStamp,
                         EndTimeSpan =  rqe.EndTimeStamp == 0 ? 0 : TimeSpan.FromTicks(DateTime.UtcNow.Ticks -rqe.EndTimeStamp).TotalSeconds,
-                        HttpCode = rqe.HttpCode
+                        HttpCode = rqe.HttpCode,
+                        IdTransaction = rqe.IdTransaction
                     }).ToList()
                 };
                 newQueueList.Add(newQueueElement);

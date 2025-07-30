@@ -141,7 +141,8 @@ public class Endpoints
                 provider.Interpreter.CreateLogEntry(
                     new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId},
                     cluster.Term);
-            await cluster.ReplicateAsync(logEntry, source.Token);
+            bool success = await cluster.ReplicateAsync(logEntry, source.Token);
+            Console.WriteLine($" cluster.ReplicateAsync( {success}");
             
             await MasterWaitForleaseToken(cluster);
             var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
