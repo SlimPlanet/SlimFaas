@@ -114,16 +114,17 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
 
     public async Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
-        return await Retry.DoAsync(() =>DoListLeftPushAsync(key, field, retryInformation), logger, _retryInterval);
-    }
-    private static int Count = 0;
-    private async Task<string> DoListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
-    {
         lock (this)
         {
             Count++;
             Console.WriteLine($"DoListLeftPush : {Count}");
         }
+        return await Retry.DoAsync(() =>DoListLeftPushAsync(key, field, retryInformation), logger, _retryInterval);
+    }
+    private static int Count = 0;
+    private static int CountDepop = 0;
+    private async Task<string> DoListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
+    {
         EndPoint endpoint = await GetAndWaitForLeader();
         ListLeftPushInput listLeftPushInput = new(field, MemoryPackSerializer.Serialize(retryInformation));
         byte[] serialize = MemoryPackSerializer.Serialize(listLeftPushInput);
@@ -155,7 +156,19 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
 
     public async Task<IList<QueueData>?> ListRightPopAsync(string key, int count = 1)
     {
-        return await Retry.DoAsync(() => DoListRightPopAsync(key, count), logger, _retryInterval);
+        var result =  await Retry.DoAsync(() => DoListRightPopAsync(key, count), logger, _retryInterval);
+
+        lock (this)
+        {
+            if (result != null)
+            {
+                CountDepop = CountDepop + result.Count;
+            }
+
+            Console.WriteLine($"ListRightPopAsync : {CountDepop}");
+        }
+
+        return result;
     }
 
     private async Task<IList<QueueData>?> DoListRightPopAsync(string key, int count = 1)
