@@ -29,6 +29,7 @@ public record SlimFaasQueuesData
     public int NumberAvailable { get; set; }
     public int NumberRunning { get; set; }
     public int NumberWaitingForRetry { get; set; }
+    public int NumberFinished { get; set; }
 
 
     public List<TempQueueElement> Queues { get; set; } = new List<TempQueueElement>();
@@ -44,6 +45,7 @@ public record SlimFaasQueuesData
         result.NumberAvailable = data.GetQueueAvailableElement(ticks, 10000).Count;
         result.NumberRunning = data.GetQueueRunningElement(ticks).Count;
         result.NumberWaitingForRetry = data.GetQueueWaitingForRetryElement(ticks).Count;
+        result.NumberFinished = data.GetQueueFinishedElement(ticks).Count;
         var newQueueList = new List<TempQueueElement>();
         foreach (var kvp in data.OrderBy(k => k.InsertTimeStamp))
         {

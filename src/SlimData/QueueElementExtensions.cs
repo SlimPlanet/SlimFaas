@@ -139,7 +139,7 @@ public static class QueueElementExtensions
         return availableElements;
     }
     
-    public static IList<QueueElement> GetQueueFinishedElement(this IList<QueueElement?> element, long nowTicks)
+    public static List<QueueElement> GetQueueFinishedElement(this List<QueueElement> element, long nowTicks)
     {
         var queueFinishedElements = new List<QueueElement>();
         foreach (var queueElement in element)
