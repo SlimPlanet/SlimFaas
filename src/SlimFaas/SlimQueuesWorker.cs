@@ -29,6 +29,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         }
     }
 
+    public static List<string> ids = new List<string>();
+
     private async Task DoOneCycle(CancellationToken stoppingToken,
         Dictionary<string, int> setTickLastCallCounterDictionary,
         Dictionary<string, IList<RequestToWait>> processingTasks)
@@ -191,7 +193,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                     continue;
                 }
 
-                HttpResponseMessage httpResponseMessage = processing.Task.Result;
+                HttpResponseMessage httpResponseMessage = await processing.Task;
                 var statusCode = (int)httpResponseMessage.StatusCode;
                 logger.LogDebug(
                     "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",

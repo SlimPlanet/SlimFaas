@@ -119,8 +119,11 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
     private static int Count = 0;
     private async Task<string> DoListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
-        Count++;
-        Console.WriteLine($"DoListLeftPush : {Count}");
+        lock (this)
+        {
+            Count++;
+            Console.WriteLine($"DoListLeftPush : {Count}");
+        }
         EndPoint endpoint = await GetAndWaitForLeader();
         ListLeftPushInput listLeftPushInput = new(field, MemoryPackSerializer.Serialize(retryInformation));
         byte[] serialize = MemoryPackSerializer.Serialize(listLeftPushInput);
