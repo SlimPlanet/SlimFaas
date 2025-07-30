@@ -135,23 +135,29 @@ public class Endpoints
         }
         try
         {
-            await MasterWaitForleaseToken(cluster);
+            var transactionId = Guid.NewGuid().ToString();
             var nowTicks = DateTime.UtcNow.Ticks;
+            var logEntry =
+                provider.Interpreter.CreateLogEntry(
+                    new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId},
+                    cluster.Term);
+            await cluster.ReplicateAsync(logEntry, source.Token);
+            
+            await MasterWaitForleaseToken(cluster);
             var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
             if (queues.TryGetValue(key, out var queue))
             {
-                var queueElements = queue.GetQueueAvailableElement(nowTicks, count);
+                var queueElements = queue.GetQueueRunningElement(nowTicks).Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
+                if (!queueElements.Any())
+                {
+                    Console.WriteLine("aaaaaaaaa list  is empty");
+                }
+                
                 foreach (var queueElement in queueElements)
                 {
                     Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
                     values.Items.Add(new QueueData(queueElement.Id ,queueElement.Value.ToArray()));
                 }
-                
-                var logEntry =
-                    provider.Interpreter.CreateLogEntry(
-                        new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks },
-                        cluster.Term);
-                await cluster.ReplicateAsync(logEntry, source.Token);
             }
         }
         finally
