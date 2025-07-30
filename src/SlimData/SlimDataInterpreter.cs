@@ -57,7 +57,7 @@ public class SlimDataInterpreter : CommandInterpreter
         if (queues.TryGetValue(listRightPopCommand.Key, out var queue))
         {
             var nowTicks =listRightPopCommand.NowTicks;
-            var queueTimeoutElements = queue.GetQueueTimeoutElement(nowTicks);
+            /*var queueTimeoutElements = queue.GetQueueTimeoutElement(nowTicks);
             foreach (var queueTimeoutElement in queueTimeoutElements)
             {
                 var retryQueueElement = queueTimeoutElement.RetryQueueElements[^1];
@@ -69,12 +69,13 @@ public class SlimDataInterpreter : CommandInterpreter
             foreach (var queueFinishedElement in queueFinishedElements)
             {
                 queue.Remove(queueFinishedElement);
-            }
+            }*/
             
             var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
             foreach (var queueAvailableElement in queueAvailableElements)
             {
-                queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks));
+                //queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks));
+                queue.Remove(queueAvailableElement);
             }
             
             var listCallbackCommand = listRightPopCommand;
@@ -83,7 +84,7 @@ public class SlimDataInterpreter : CommandInterpreter
             {
                 Console.WriteLine($"==========> Queue Count {listCallbackCommand.Key}: {value.Count}");
                 Console.WriteLine(
-                    $"==========> Queue Count IsFinished {listCallbackCommand.Key}: {value.GetQueueFinishedElement(listCallbackCommand.NowTicks)}");
+                    $"==========> Queue Count IsFinished {listCallbackCommand.Key}: {value.GetQueueFinishedElement(listCallbackCommand.NowTicks).Count}");
                 Console.WriteLine(
                     $"==========> Queue Count IsWaitingForRetry {listCallbackCommand.Key}: {value.GetQueueWaitingForRetryElement(listCallbackCommand.NowTicks).Count}");
                 Console.WriteLine(
