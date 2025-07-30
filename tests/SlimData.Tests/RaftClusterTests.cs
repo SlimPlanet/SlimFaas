@@ -175,7 +175,7 @@ public class RaftClusterTests
         return tempDirectory;
     }
 
-   /* [Fact(Timeout = 20000)]
+    [Fact(Timeout = 20000)]
     public static async Task MessageExchange()
     {
         Dictionary<string, string> config1 = new()
@@ -282,5 +282,5 @@ public class RaftClusterTests
         await host1.StopAsync();
         await host2.StopAsync();
         await host3.StopAsync();
-    }*/
+    }
 }

@@ -76,7 +76,7 @@ public class SlimDataInterpreter : CommandInterpreter
             foreach (var queueAvailableElement in queueAvailableElements)
             {
                 Console.WriteLine("bbbbbbbbb :Retrieve Id : " + queueAvailableElement.Id);
-                queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks, listRightPopCommand.IdTransaction, nowTicks, 200));
+                queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks, listRightPopCommand.IdTransaction));
                 //queue.Remove(queueAvailableElement);
             }
             
@@ -130,7 +130,7 @@ public class SlimDataInterpreter : CommandInterpreter
             return default;
         }
 
-       /* if (listCallbackCommand.HttpCode == DeleteFromQueueCode)
+        if (listCallbackCommand.HttpCode == DeleteFromQueueCode)
         {
             value.Remove(queueElement);
         }
@@ -140,12 +140,11 @@ public class SlimDataInterpreter : CommandInterpreter
             retryQueueElement.EndTimeStamp = listCallbackCommand.NowTicks;
             retryQueueElement.HttpCode = listCallbackCommand.HttpCode;
 
-            if (queueElement.IsFinished(listCallbackCommand.NowTicks))
+            /*if (queueElement.IsFinished(listCallbackCommand.NowTicks))
             {
                 value.Remove(queueElement);
-            }
-        }*/
-        //value.Remove(queueElement);
+            }*/
+        }
 
         return default;
     }
