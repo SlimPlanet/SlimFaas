@@ -76,7 +76,21 @@ public class SlimDataInterpreter : CommandInterpreter
             {
                 queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks));
             }
-            Console.WriteLine($"SlimData: {listRightPopCommand.Key} {queue.Count}");
+            
+            var listCallbackCommand = listRightPopCommand;
+            var value = queue;
+            if (value.GetQueueRunningElement(listCallbackCommand.NowTicks).Count > 30)
+            {
+                Console.WriteLine($"==========> Queue Count {listCallbackCommand.Key}: {value.Count}");
+                Console.WriteLine(
+                    $"==========> Queue Count IsFinished {listCallbackCommand.Key}: {value.GetQueueFinishedElement(listCallbackCommand.NowTicks)}");
+                Console.WriteLine(
+                    $"==========> Queue Count IsWaitingForRetry {listCallbackCommand.Key}: {value.GetQueueWaitingForRetryElement(listCallbackCommand.NowTicks).Count}");
+                Console.WriteLine(
+                    $"==========> Queue Count IsRunning {listCallbackCommand.Key}: {value.GetQueueRunningElement(listCallbackCommand.NowTicks).Count}");
+                Console.WriteLine(
+                    $"==========> Queue Count IsAvailable {listCallbackCommand.Key}: {value.GetQueueAvailableElement(listCallbackCommand.NowTicks, 9999).Count}");
+            }
         }
         
         return default;
@@ -128,12 +142,6 @@ public class SlimDataInterpreter : CommandInterpreter
                 value.Remove(queueElement);
             }
         }
-
-        Console.WriteLine($"==========> Queue Count {listCallbackCommand.Key}: {value.Count}");
-        Console.WriteLine($"==========> Queue Count IsFinished {listCallbackCommand.Key}: {value.GetQueueFinishedElement(listCallbackCommand.NowTicks)}");
-        Console.WriteLine($"==========> Queue Count IsWaitingForRetry {listCallbackCommand.Key}: {value.GetQueueWaitingForRetryElement(listCallbackCommand.NowTicks).Count}");
-        Console.WriteLine($"==========> Queue Count IsRunning {listCallbackCommand.Key}: {value.GetQueueRunningElement(listCallbackCommand.NowTicks).Count}");
-        Console.WriteLine($"==========> Queue Count IsAvailable {listCallbackCommand.Key}: {value.GetQueueAvailableElement(listCallbackCommand.NowTicks, 9999).Count}");
 
         return default;
     }

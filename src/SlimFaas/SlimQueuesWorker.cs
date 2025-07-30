@@ -48,11 +48,10 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                 string functionDeployment = function.Deployment;
                 setTickLastCallCounterDictionary.TryAdd(functionDeployment, 0);
                 int numberProcessingTasks = await ManageProcessingTasksAsync(slimFaasQueue, processingTasks, functionDeployment);
-                int numberLimitProcessingTasks = function.NumberParallelRequest;
+                int numberLimitProcessingTasks = function.NumberParallelRequest - numberProcessingTasks;
                 setTickLastCallCounterDictionary[functionDeployment]++;
                 int functionReplicas = function.Replicas;
                 long queueLength = await UpdateTickLastCallIfRequestStillInProgress(
-                    masterService,
                     functionReplicas,
                     setTickLastCallCounterDictionary,
                     functionDeployment,
@@ -70,15 +69,15 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                     continue;
                 }
 
-                Console.WriteLine("queueLength " + queueLength);
-                Console.WriteLine("numberProcessingTasks " + numberProcessingTasks);
-                Console.WriteLine("numberLimitProcessingTasks " + numberLimitProcessingTasks);
-                if (numberProcessingTasks >= numberLimitProcessingTasks)
+                //Console.WriteLine("queueLength " + queueLength);
+                //Console.WriteLine("numberProcessingTasks " + numberProcessingTasks);
+                //Console.WriteLine("numberLimitProcessingTasks " + numberLimitProcessingTasks);
+                if (numberProcessingTasks >= function.NumberParallelRequest)
                 {
                     continue;
                 }
 
-                await SendHttpRequestToFunction(processingTasks, numberLimitProcessingTasks - numberProcessingTasks,
+                await SendHttpRequestToFunction(processingTasks, numberLimitProcessingTasks,
                     function);
             }
         }
@@ -127,7 +126,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         }
     }
 
-    private async Task<long> UpdateTickLastCallIfRequestStillInProgress(IMasterService masterService, int? functionReplicas,
+    private async Task<long> UpdateTickLastCallIfRequestStillInProgress(int? functionReplicas,
         Dictionary<string, int> setTickLastCallCounterDictionnary,
         string functionDeployment,
         int numberProcessingTasks,
@@ -150,12 +149,23 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                 }
             }
 
+            long queueLength2 = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
+            {
+                CountType.Running,
+            } );
+
+            if (numberProcessingTasks < queueLength2)
+            {
+                Console.WriteLine(
+                    $"------------>  Il y a plus de tache dans la BDD que en cours en mémoire {numberProcessingTasks} < {queueLength2}");
+            }
+
             if (queueLength == 0)
             {
                 return 0;
             }
 
-        return await slimFaasQueue.CountElementAsync(functionDeployment,  new List<CountType>() { CountType.Available }, numberLimitProcessingTasks);
+            return await slimFaasQueue.CountElementAsync(functionDeployment,  new List<CountType>() { CountType.Available }, numberLimitProcessingTasks);
     }
 
     private async Task<int> ManageProcessingTasksAsync(ISlimFaasQueue slimFaasQueue,
@@ -199,14 +209,14 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
             }
         }
 
-        foreach (RequestToWait httpResponseMessage in httpResponseMessagesToDelete)
-        {
-            requestToWaits.Remove(httpResponseMessage);
-        }
-
         if (listQueueItemStatus.Items.Count > 0)
         {
             await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
+        }
+
+        foreach (RequestToWait httpResponseMessage in httpResponseMessagesToDelete)
+        {
+            requestToWaits.Remove(httpResponseMessage);
         }
 
         int numberProcessingTasks = requestToWaits.Count;
