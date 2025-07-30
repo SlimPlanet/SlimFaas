@@ -107,6 +107,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         }
         foreach (var requestJson in jsons)
         {
+            Console.WriteLine("ccccccccc => requestJson id " +requestJson.Id);
             CustomRequest customRequest = MemoryPackSerializer.Deserialize<CustomRequest>(requestJson.Data);
 
             logger.LogDebug("{CustomRequestMethod}: {CustomRequestPath}{CustomRequestQuery} Sending",
@@ -151,7 +152,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                 }
             }
 
-            long queueLength2 = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
+            /*long queueLength2 = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
             {
                 CountType.Running,
             } );
@@ -160,7 +161,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
             {
                 Console.WriteLine(
                     $"------------>  Il y a plus de tache dans la BDD que en cours en mémoire {numberProcessingTasks} < {queueLength2}");
-            }
+            }*/
 
             if (queueLength == 0)
             {
@@ -211,28 +212,34 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
             }
         }
 
-        long queueLength2 =
+        if (listQueueItemStatus.Items.Count > 0)
+        {
+            foreach (var requestJson in listQueueItemStatus.Items)
+            {
+                Console.WriteLine("ddddddddddd => requestJson id " +requestJson.Id);
+            }
+            await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
+        }
+
+        foreach (RequestToWait httpResponseMessage in httpResponseMessagesToDelete)
+        {
+            requestToWaits.Remove(httpResponseMessage);
+        }
+
+       /* long queueLength2 =
             await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>() { CountType.Running, });
         if (requestToWaits.Count > 0 || queueLength2 > 0)
         {
 
             Console.WriteLine("pppppppppppp > Running Before ListCallbackAsync : queueLength2:" + queueLength2 + " + requestToWaits:" +
                               requestToWaits.Count);
-            if (listQueueItemStatus.Items.Count > 0)
-            {
-                await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
-            }
-
-            foreach (RequestToWait httpResponseMessage in httpResponseMessagesToDelete)
-            {
-                requestToWaits.Remove(httpResponseMessage);
-            }
 
             queueLength2 =
                 await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>() { CountType.Running, });
             Console.WriteLine("pppppppppppp > Running After ListCallbackAsync : queueLength2;" + queueLength2 + " + requestToWaits:" +
                               requestToWaits.Count);
-        }
+        }*/
+
 
         int numberProcessingTasks = requestToWaits.Count;
         return numberProcessingTasks;

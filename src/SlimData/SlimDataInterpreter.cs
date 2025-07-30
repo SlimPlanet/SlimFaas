@@ -74,6 +74,7 @@ public class SlimDataInterpreter : CommandInterpreter
             var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
             foreach (var queueAvailableElement in queueAvailableElements)
             {
+                Console.WriteLine("bbbbbbbbb :Retrieve Id : " + queueAvailableElement.Id);
                 queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks, nowTicks, 200));
                 //queue.Remove(queueAvailableElement);
             }

@@ -143,6 +143,7 @@ public class Endpoints
                 var queueElements = queue.GetQueueAvailableElement(nowTicks, count);
                 foreach (var queueElement in queueElements)
                 {
+                    Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
                     values.Items.Add(new QueueData(queueElement.Id ,queueElement.Value.ToArray()));
                 }
                 
@@ -202,7 +203,8 @@ public class Endpoints
         });
         await task;
     }
-    
+
+    public static IList<string> ids = new List<string>();
     public static async Task<string> ListLeftPushCommand(SlimPersistentState provider, string key, byte[] value,
         IRaftCluster cluster, CancellationTokenSource source)
     {
@@ -222,6 +224,10 @@ public class Endpoints
         LogEntry<ListLeftPushCommand>? logEntry;
         try
         {
+            if (ids.Contains(id))
+            {
+                ids.Add(id);
+            }
             logEntry =
                 provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
                         Identifier = id, 
