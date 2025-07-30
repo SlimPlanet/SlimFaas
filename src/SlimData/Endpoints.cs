@@ -142,24 +142,31 @@ public class Endpoints
                     new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId},
                     cluster.Term);
             bool success = await cluster.ReplicateAsync(logEntry, source.Token);
-            Console.WriteLine($" cluster.ReplicateAsync( {success}");
+            Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
             
             await MasterWaitForleaseToken(cluster);
-            var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
-            if (queues.TryGetValue(key, out var queue))
+            int numbertry = 20;
+            while (values.Items.Count > 0 || numbertry <0)
             {
-                var queueElements = queue.GetQueueRunningElement(nowTicks).Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
-                if (!queueElements.Any())
+                numbertry--;
+                var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
+                if (queues.TryGetValue(key, out var queue))
                 {
-                    Console.WriteLine("aaaaaaaaa list  is empty");
-                }
+                    var queueElements = queue.GetQueueRunningElement(nowTicks).Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
+                    if (!queueElements.Any())
+                    {
+                        await Task.Delay(20, source.Token);
+                        Console.WriteLine("aaaaaaaaa list  is empty" + transactionId +" " + numbertry);
+                    }
                 
-                foreach (var queueElement in queueElements)
-                {
-                    Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
-                    values.Items.Add(new QueueData(queueElement.Id ,queueElement.Value.ToArray()));
+                    foreach (var queueElement in queueElements)
+                    {
+                        Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
+                        values.Items.Add(new QueueData(queueElement.Id ,queueElement.Value.ToArray()));
+                    }
                 }
             }
+            
         }
         finally
         {
