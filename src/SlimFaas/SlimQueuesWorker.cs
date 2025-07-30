@@ -209,6 +209,11 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
             }
         }
 
+        long queueLength2 = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
+        {
+            CountType.Running,
+        } );
+        Console.WriteLine("pppppppppppp > Running Before ListCallbackAsync : " + queueLength2 + " + " + requestToWaits.Count);
         if (listQueueItemStatus.Items.Count > 0)
         {
             await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
@@ -218,6 +223,11 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         {
             requestToWaits.Remove(httpResponseMessage);
         }
+        queueLength2 = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
+        {
+            CountType.Running,
+        } );
+        Console.WriteLine("pppppppppppp > Running After ListCallbackAsync : " + queueLength2 + " + " + requestToWaits.Count);
 
         int numberProcessingTasks = requestToWaits.Count;
         return numberProcessingTasks;
