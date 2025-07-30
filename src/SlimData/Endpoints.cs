@@ -146,7 +146,7 @@ public class Endpoints
             
             await MasterWaitForleaseToken(cluster);
             int numbertry = 20;
-            while (values.Items.Count > 0 || numbertry <0)
+            while (values.Items.Count <= 0 || numbertry <0)
             {
                 numbertry--;
                 var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
