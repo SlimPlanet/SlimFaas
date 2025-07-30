@@ -214,7 +214,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         if (requestToWaits.Count > 0 || queueLength2 > 0)
         {
 
-            Console.WriteLine("pppppppppppp > Running Before ListCallbackAsync : " + queueLength2 + " + " +
+            Console.WriteLine("pppppppppppp > Running Before ListCallbackAsync : queueLength2:" + queueLength2 + " + requestToWaits:" +
                               requestToWaits.Count);
             if (listQueueItemStatus.Items.Count > 0)
             {
@@ -228,7 +228,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
 
             queueLength2 =
                 await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>() { CountType.Running, });
-            Console.WriteLine("pppppppppppp > Running After ListCallbackAsync : " + queueLength2 + " + " +
+            Console.WriteLine("pppppppppppp > Running After ListCallbackAsync : queueLength2;" + queueLength2 + " + requestToWaits:" +
                               requestToWaits.Count);
         }
 

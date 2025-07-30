@@ -127,7 +127,7 @@ public class SlimDataInterpreter : CommandInterpreter
             return default;
         }
 
-        if (listCallbackCommand.HttpCode == DeleteFromQueueCode)
+       /* if (listCallbackCommand.HttpCode == DeleteFromQueueCode)
         {
             value.Remove(queueElement);
         }
@@ -141,7 +141,8 @@ public class SlimDataInterpreter : CommandInterpreter
             {
                 value.Remove(queueElement);
             }
-        }
+        }*/
+        value.Remove(queueElement);
 
         return default;
     }
