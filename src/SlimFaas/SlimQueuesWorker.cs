@@ -209,25 +209,28 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
             }
         }
 
-        long queueLength2 = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
+        long queueLength2 =
+            await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>() { CountType.Running, });
+        if (requestToWaits.Count > 0 || queueLength2 > 0)
         {
-            CountType.Running,
-        } );
-        Console.WriteLine("pppppppppppp > Running Before ListCallbackAsync : " + queueLength2 + " + " + requestToWaits.Count);
-        if (listQueueItemStatus.Items.Count > 0)
-        {
-            await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
-        }
 
-        foreach (RequestToWait httpResponseMessage in httpResponseMessagesToDelete)
-        {
-            requestToWaits.Remove(httpResponseMessage);
+            Console.WriteLine("pppppppppppp > Running Before ListCallbackAsync : " + queueLength2 + " + " +
+                              requestToWaits.Count);
+            if (listQueueItemStatus.Items.Count > 0)
+            {
+                await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
+            }
+
+            foreach (RequestToWait httpResponseMessage in httpResponseMessagesToDelete)
+            {
+                requestToWaits.Remove(httpResponseMessage);
+            }
+
+            queueLength2 =
+                await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>() { CountType.Running, });
+            Console.WriteLine("pppppppppppp > Running After ListCallbackAsync : " + queueLength2 + " + " +
+                              requestToWaits.Count);
         }
-        queueLength2 = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
-        {
-            CountType.Running,
-        } );
-        Console.WriteLine("pppppppppppp > Running After ListCallbackAsync : " + queueLength2 + " + " + requestToWaits.Count);
 
         int numberProcessingTasks = requestToWaits.Count;
         return numberProcessingTasks;
