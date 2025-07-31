@@ -155,7 +155,7 @@ public class Endpoints
                     var queueElements = queue.GetQueueRunningElement(nowTicks).Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
                     if (!queueElements.Any())
                     {
-                        await Task.Delay(2, source.Token);
+                        await Task.Delay(10, source.Token);
                         Console.WriteLine("aaaaaaaaa list  is empty" + transactionId +" " + numberTry);
                     }
                 
@@ -209,16 +209,14 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
-
-                string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
-                context.Response.StatusCode = StatusCodes.Status201Created;
-                await context.Response.WriteAsync(elementId, context.RequestAborted);
+            string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
+            context.Response.StatusCode = StatusCodes.Status201Created;
+            await context.Response.WriteAsync(elementId, context.RequestAborted);
 
         });
         await task;
     }
-
-    public static IList<string> ids = new List<string>();
+    
     public static async Task<string> ListLeftPushCommand(SlimPersistentState provider, string key, byte[] value,
         IRaftCluster cluster, CancellationTokenSource source)
     {
@@ -237,11 +235,7 @@ public class Endpoints
 
         LogEntry<ListLeftPushCommand>? logEntry;
         /*try
-        {
-            if (ids.Contains(id))
-            {
-                ids.Add(id);
-            }*/
+        {*/
             logEntry =
                 provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
                         Identifier = id, 

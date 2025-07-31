@@ -29,8 +29,6 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         }
     }
 
-    public static List<string> ids = new List<string>();
-
     private async Task DoOneCycle(CancellationToken stoppingToken,
         Dictionary<string, int> setTickLastCallCounterDictionary,
         Dictionary<string, IList<RequestToWait>> processingTasks)
