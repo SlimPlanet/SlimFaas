@@ -143,6 +143,7 @@ public class Endpoints
                     cluster.Term);
             bool success = await cluster.ReplicateAsync(logEntry, source.Token);
             Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
+            await Task.Delay(2, source.Token);
             
             
             int numberTry = 10;

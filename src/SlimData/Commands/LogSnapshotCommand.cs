@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Collections.Immutable;
+using System.Text;
 using DotNext.IO;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
@@ -186,7 +187,7 @@ public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte
                         httpStatusCodesWorthRetrying.Add(await reader.ReadLittleEndianAsync<Int32>(token));
                     }
                     
-                    queue.Add(new QueueElement(value.Memory, id.ToString(), insertTimeStamp, timeout, retries, retryQueueElements, httpStatusCodesWorthRetrying));
+                    queue.Add(new QueueElement(value.Memory, id.ToString(), insertTimeStamp, timeout, retries.ToImmutableList(), retryQueueElements.ToImmutableList(), httpStatusCodesWorthRetrying.ToImmutableList()));
                 }
 
                 queues.Add(key.ToString(), queue);

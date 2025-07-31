@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Immutable;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DotNext;
@@ -106,7 +107,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     ISupplier<SlimDataPayload> simplePersistentState = serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
                     SlimDataPayload data = simplePersistentState.Invoke();
 
-                    if (data.Queues.TryGetValue($"Queue:{functionName}", out List<QueueElement>? value))
+                    if (data.Queues.TryGetValue($"Queue:{functionName}", out ImmutableList<QueueElement>? value))
                     {
                          var queue = SlimFaasQueuesData.MapToNewModel(value);
 

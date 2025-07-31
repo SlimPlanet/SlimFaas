@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using SlimData;
 
 namespace SlimFaas.Queue;
@@ -38,7 +39,7 @@ public record SlimFaasQueuesData
     public List<TempQueueElement> Queues { get; set; } = new List<TempQueueElement>();
 
 
-    public static SlimFaasQueuesData MapToNewModel(List<QueueElement> data)
+    public static SlimFaasQueuesData MapToNewModel(ImmutableList<QueueElement> data)
     {
         var result = new SlimFaasQueuesData
         {

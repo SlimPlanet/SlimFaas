@@ -1,4 +1,5 @@
-﻿using System.Data;
+﻿using System.Collections.Immutable;
+using System.Data;
 using System.Net;
 using DotNext;
 using DotNext.Collections.Generic;
@@ -107,8 +108,8 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         await MasterWaitForleaseToken();
 
         SlimDataPayload data = SimplePersistentState.Invoke();
-        return data.Hashsets.TryGetValue(key, out Dictionary<string, string>? value)
-            ? (IDictionary<string, string>)value
+        return data.Hashsets.TryGetValue(key, out ImmutableDictionary<string, string>? value)
+            ? value
             : new Dictionary<string, string>();
     }
 
@@ -119,7 +120,7 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
             Count++;
             Console.WriteLine($"DoListLeftPush : {Count}");
         }
-        return await Retry.DoAsync(() =>DoListLeftPushAsync(key, field, retryInformation), logger, _retryInterval);
+        return await Retry.DoAsync(() => DoListLeftPushAsync(key, field, retryInformation), logger, _retryInterval);
     }
     private static int Count = 0;
     private static int CountDepop = 0;
@@ -213,7 +214,7 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         SlimDataPayload data = SimplePersistentState.Invoke();
         var result = new List<QueueElement>();
 
-        if (!data.Queues.TryGetValue(key, out List<QueueElement>? value))
+        if (!data.Queues.TryGetValue(key, out ImmutableList<QueueElement>? value))
         {
             return new List<QueueData>(0);
         }
@@ -226,20 +227,20 @@ public class SlimDataService(IHttpClientFactory httpClientFactory, IServiceProvi
         var availableElements = new List<QueueElement>();
         if (countTypes.Contains(CountType.Available))
         {
-            availableElements = value.GetQueueAvailableElement(nowTicks, maximum);
+            availableElements = value.GetQueueAvailableElement(nowTicks, maximum).ToList();
         }
 
         var runningElements = new List<QueueElement>();
         if (countTypes.Contains(CountType.Running))
         {
-            runningElements = value.GetQueueRunningElement(nowTicks);
+            runningElements = value.GetQueueRunningElement(nowTicks).ToList();
         }
 
         var runningWaitingForRetryElements = new List<QueueElement>();
 
         if (countTypes.Contains(CountType.WaitingForRetry))
         {
-            runningWaitingForRetryElements = value.GetQueueWaitingForRetryElement(nowTicks);
+            runningWaitingForRetryElements = value.GetQueueWaitingForRetryElement(nowTicks).ToList();
         }
 
         result.AddRange(availableElements);
