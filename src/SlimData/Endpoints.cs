@@ -144,9 +144,9 @@ public class Endpoints
             bool success = await cluster.ReplicateAsync(logEntry, source.Token);
             Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
             
-           // await MasterWaitForleaseToken(cluster);
+            await MasterWaitForleaseToken(cluster);
             int numberTry = 10;
-            while (values.Items.Count <= 0 || numberTry <0)
+            while (values.Items.Count <= 0 && numberTry > 0)
             {
                 numberTry--;
                 var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
