@@ -82,11 +82,17 @@ public class SlimDataInterpreter : CommandInterpreter
                 queueList.Remove(queueFinishedElement);
             }
             
-            var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
-            foreach (var queueAvailableElement in queueAvailableElements)
+            var isIdTransactionAlreadyExist = queue.Any(q => q.RetryQueueElements[^1].IdTransaction == listRightPopCommand.IdTransaction);
+            if (!isIdTransactionAlreadyExist)
             {
-                Console.WriteLine("bbbbbbbbb :Retrieve Id : " + queueAvailableElement.Id);
-                queueAvailableElement.RetryQueueElements = queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks, listRightPopCommand.IdTransaction));
+                var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
+                foreach (var queueAvailableElement in queueAvailableElements)
+                {
+                    Console.WriteLine("bbbbbbbbb :Retrieve Id : " + queueAvailableElement.Id);
+                    queueAvailableElement.RetryQueueElements =
+                        queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks,
+                            listRightPopCommand.IdTransaction));
+                }
             }
 
             slimDataState.Queues = queues.SetItem(listRightPopCommand.Key, ImmutableList.CreateRange(queueList));
@@ -115,8 +121,11 @@ public class SlimDataInterpreter : CommandInterpreter
         );
         if (queues.TryGetValue(listLeftPushCommand.Key, out ImmutableList<QueueElement>? value))
         {
-            var newValue = value.Add(queueElement);
-            queues = queues.SetItem(listLeftPushCommand.Key, newValue);
+            if (value.All(q => q.Id != listLeftPushCommand.Identifier))
+            {
+                var newValue = value.Add(queueElement);
+                queues = queues.SetItem(listLeftPushCommand.Key, newValue);
+            }
         }
         else
         {

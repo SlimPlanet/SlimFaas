@@ -103,85 +103,68 @@ public class Endpoints
             var form = await context.Request.ReadFormAsync(source.Token);
 
             var (key, value) = GetKeyValue(form);
+            context.Request.Query.TryGetValue("transactionId", out var transactionId);
 
-            if (string.IsNullOrEmpty(key) || !int.TryParse(value, out var count))
+            if (string.IsNullOrEmpty(key) || !int.TryParse(value, out var count) || string.IsNullOrEmpty(transactionId))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("GetKeyValue key is empty or value is not a number", context.RequestAborted);
+                await context.Response.WriteAsync("GetKeyValue key or transactionId is empty or value is not a number", context.RequestAborted);
                 return;
             }
             
-            var values = await ListRightPopCommand(provider, key, count, cluster, source);
+            var values = await ListRightPopCommand(provider, key, transactionId, count, cluster, source);
             var bin = MemoryPackSerializer.Serialize(values);
             await context.Response.Body.WriteAsync(bin, context.RequestAborted);
         });
     }
     
     private static readonly IDictionary<string,SemaphoreSlim> SemaphoreSlims = new Dictionary<string, SemaphoreSlim>();
-    public static async Task<ListItems> ListRightPopCommand(SlimPersistentState provider, string key, int count, IRaftCluster cluster,
+    public static async Task<ListItems> ListRightPopCommand(SlimPersistentState provider, string key, string transactionId, int count, IRaftCluster cluster,
         CancellationTokenSource source)
     {
         var values = new ListItems();
         values.Items = new List<QueueData>();
-
-        /*if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
+        
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var logEntry =
+            provider.Interpreter.CreateLogEntry(
+                new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId},
+                cluster.Term);
+        bool success = await cluster.ReplicateAsync(logEntry, source.Token);
+        Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
+        //await Task.Delay(2, source.Token);
+        var supplier = (ISupplier<SlimDataPayload>)provider;
+        int numberTry = 10;
+        while (values.Items.Count <= 0 && numberTry > 0)
         {
-            await semaphoreSlim.WaitAsync();
-        }
-        else
-        {
-            SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
-            await SemaphoreSlims[key].WaitAsync();
-        }
-        try
-        {*/
-            var transactionId = Guid.NewGuid().ToString();
-            var nowTicks = DateTime.UtcNow.Ticks;
-            var logEntry =
-                provider.Interpreter.CreateLogEntry(
-                    new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId},
-                    cluster.Term);
-            bool success = await cluster.ReplicateAsync(logEntry, source.Token);
-            Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
-            await Task.Delay(2, source.Token);
-            
-            
-            int numberTry = 10;
-            while (values.Items.Count <= 0 && numberTry > 0)
+            numberTry--;
+            try
             {
-                numberTry--;
-                try
+                await MasterWaitForleaseToken(cluster);
+                var queues = supplier.Invoke().Queues;
+                if (queues.TryGetValue(key, out var queue))
                 {
-                    await MasterWaitForleaseToken(cluster);
-                    var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
-                    if (queues.TryGetValue(key, out var queue))
+                    var queueElements = queue.GetQueueRunningElement(nowTicks)
+                        .Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
+                    if (queueElements.Count == 0)
                     {
-                        var queueElements = queue.GetQueueRunningElement(nowTicks)
-                            .Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
-                        if (!queueElements.Any())
-                        {
-                            await Task.Delay(10, source.Token);
-                            Console.WriteLine("aaaaaaaaa list  is empty" + transactionId + " " + numberTry);
-                        }
+                        await Task.Delay(4, source.Token);
+                        Console.WriteLine("aaaaaaaaa list  is empty" + transactionId + " " + numberTry);
+                    }
 
-                        foreach (var queueElement in queueElements)
-                        {
-                            Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
-                            values.Items.Add(new QueueData(queueElement.Id, queueElement.Value.ToArray()));
-                        }
+                    foreach (var queueElement in queueElements)
+                    {
+                        Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
+                        values.Items.Add(new QueueData(queueElement.Id, queueElement.Value.ToArray()));
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine("Unexpected error {0}", ex);
-                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Unexpected error {0}", ex);
+            }
+        }
             
-       /* }
-        finally
-        {
-            SemaphoreSlims[key].Release();
-        }*/
         return values;
         
     }
