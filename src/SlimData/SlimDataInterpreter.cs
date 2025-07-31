@@ -123,27 +123,31 @@ public class SlimDataInterpreter : CommandInterpreter
     internal static ValueTask DoListCallbackAsync(ListCallbackCommand listCallbackCommand, Dictionary<string, List<QueueElement>> queues)
     {
         if (!queues.TryGetValue(listCallbackCommand.Key, out List<QueueElement>? value)) return default;
-        
-        var queueElement = value.FirstOrDefault(x => x.Id == listCallbackCommand.Identifier);
-        if (queueElement == null)
-        {
-            return default;
-        }
 
-        if (listCallbackCommand.HttpCode == DeleteFromQueueCode)
+        foreach (var callbackElement in listCallbackCommand.CallbackElements)
         {
-            value.Remove(queueElement);
-        }
-        else
-        {
-            var retryQueueElement = queueElement.RetryQueueElements[^1];
-            retryQueueElement.EndTimeStamp = listCallbackCommand.NowTicks;
-            retryQueueElement.HttpCode = listCallbackCommand.HttpCode;
+            var queueElement = value.FirstOrDefault(x => x.Id == callbackElement.Identifier);
+            if (queueElement == null)
+            {
+                continue;
+            }
 
-            /*if (queueElement.IsFinished(listCallbackCommand.NowTicks))
+            if (callbackElement.HttpCode == DeleteFromQueueCode)
             {
                 value.Remove(queueElement);
-            }*/
+            }
+            else
+            {
+                var retryQueueElement = queueElement.RetryQueueElements[^1];
+                retryQueueElement.EndTimeStamp = listCallbackCommand.NowTicks;
+                retryQueueElement.HttpCode = callbackElement.HttpCode;
+
+                /*if (queueElement.IsFinished(listCallbackCommand.NowTicks))
+                {
+                    value.Remove(queueElement);
+                }*/
+            }
+            
         }
 
         return default;

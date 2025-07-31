@@ -124,7 +124,7 @@ public class Endpoints
         var values = new ListItems();
         values.Items = new List<QueueData>();
 
-        if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
+        /*if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
         {
             await semaphoreSlim.WaitAsync();
         }
@@ -134,7 +134,7 @@ public class Endpoints
             await SemaphoreSlims[key].WaitAsync();
         }
         try
-        {
+        {*/
             var transactionId = Guid.NewGuid().ToString();
             var nowTicks = DateTime.UtcNow.Ticks;
             var logEntry =
@@ -144,19 +144,19 @@ public class Endpoints
             bool success = await cluster.ReplicateAsync(logEntry, source.Token);
             Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
             
-            await MasterWaitForleaseToken(cluster);
-            int numbertry = 20;
-            while (values.Items.Count <= 0 || numbertry <0)
+           // await MasterWaitForleaseToken(cluster);
+            int numberTry = 10;
+            while (values.Items.Count <= 0 || numberTry <0)
             {
-                numbertry--;
+                numberTry--;
                 var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
                 if (queues.TryGetValue(key, out var queue))
                 {
                     var queueElements = queue.GetQueueRunningElement(nowTicks).Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
                     if (!queueElements.Any())
                     {
-                        await Task.Delay(20, source.Token);
-                        Console.WriteLine("aaaaaaaaa list  is empty" + transactionId +" " + numbertry);
+                        await Task.Delay(2, source.Token);
+                        Console.WriteLine("aaaaaaaaa list  is empty" + transactionId +" " + numberTry);
                     }
                 
                     foreach (var queueElement in queueElements)
@@ -167,11 +167,11 @@ public class Endpoints
                 }
             }
             
-        }
+       /* }
         finally
         {
             SemaphoreSlims[key].Release();
-        }
+        }*/
         return values;
         
     }
@@ -225,7 +225,7 @@ public class Endpoints
         var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
         var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
         var id = Guid.NewGuid().ToString();
-        if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
+        /*if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
         {
             await semaphoreSlim.WaitAsync();
         }
@@ -233,15 +233,15 @@ public class Endpoints
         {
             SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
             await SemaphoreSlims[key].WaitAsync();
-        }
+        }*/
 
         LogEntry<ListLeftPushCommand>? logEntry;
-        try
+        /*try
         {
             if (ids.Contains(id))
             {
                 ids.Add(id);
-            }
+            }*/
             logEntry =
                 provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
                         Identifier = id, 
@@ -252,11 +252,11 @@ public class Endpoints
                         HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
                     },
                     cluster.Term);
-        }
+       /* }
         finally
         {
             SemaphoreSlims[key].Release();
-        }
+        }*/
 
         await cluster.ReplicateAsync(logEntry.Value, source.Token);
 
@@ -290,7 +290,7 @@ public class Endpoints
         {
             return;
         }
-        if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
+       /* if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
         {
             await semaphoreSlim.WaitAsync();
         }
@@ -301,25 +301,27 @@ public class Endpoints
         }
         
         try
-        {
+        {*/
+            var nowTicks = DateTime.UtcNow.Ticks;
+            List<CallbackElement> callbackElements = new List<CallbackElement>(list.Items.Count);
             foreach (var queueItemStatus in list.Items)
             {
-                var logEntry =
-                    provider.Interpreter.CreateLogEntry(new ListCallbackCommand
-                        {
-                            Identifier = queueItemStatus.Id,
-                            Key = key,
-                            HttpCode = queueItemStatus.HttpCode,
-                            NowTicks = DateTime.UtcNow.Ticks
-                        },
-                        cluster.Term);
-                await cluster.ReplicateAsync(logEntry, source.Token);
+                callbackElements.Add(new CallbackElement(queueItemStatus.Id, queueItemStatus.HttpCode));
             }
-        }
+            var logEntry =
+                provider.Interpreter.CreateLogEntry(new ListCallbackCommand
+                    {
+                        Key = key,
+                        NowTicks = nowTicks,
+                        CallbackElements = callbackElements
+                    },
+                    cluster.Term);
+            await cluster.ReplicateAsync(logEntry, source.Token);
+       /* }
         finally
         {
             SemaphoreSlims[key].Release();
-        }
+        }*/
     }
 
     private static (string key, string value) GetKeyValue(IFormCollection form)
