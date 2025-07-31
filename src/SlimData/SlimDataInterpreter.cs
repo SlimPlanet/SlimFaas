@@ -77,23 +77,7 @@ public class SlimDataInterpreter : CommandInterpreter
             {
                 Console.WriteLine("bbbbbbbbb :Retrieve Id : " + queueAvailableElement.Id);
                 queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks, listRightPopCommand.IdTransaction));
-                //queue.Remove(queueAvailableElement);
             }
-            
-           /* var listCallbackCommand = listRightPopCommand;
-            var value = queue;
-            if (value.GetQueueRunningElement(listCallbackCommand.NowTicks).Count > 30)
-            {
-                Console.WriteLine($"==========> Queue Count {listCallbackCommand.Key}: {value.Count}");
-                Console.WriteLine(
-                    $"==========> Queue Count IsFinished {listCallbackCommand.Key}: {value.GetQueueFinishedElement(listCallbackCommand.NowTicks).Count}");
-                Console.WriteLine(
-                    $"==========> Queue Count IsWaitingForRetry {listCallbackCommand.Key}: {value.GetQueueWaitingForRetryElement(listCallbackCommand.NowTicks).Count}");
-                Console.WriteLine(
-                    $"==========> Queue Count IsRunning {listCallbackCommand.Key}: {value.GetQueueRunningElement(listCallbackCommand.NowTicks).Count}");
-                Console.WriteLine(
-                    $"==========> Queue Count IsAvailable {listCallbackCommand.Key}: {value.GetQueueAvailableElement(listCallbackCommand.NowTicks, 9999).Count}");
-            }*/
         }
         
         return default;

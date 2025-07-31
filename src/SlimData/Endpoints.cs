@@ -144,26 +144,35 @@ public class Endpoints
             bool success = await cluster.ReplicateAsync(logEntry, source.Token);
             Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
             
-            await MasterWaitForleaseToken(cluster);
+            
             int numberTry = 10;
             while (values.Items.Count <= 0 && numberTry > 0)
             {
                 numberTry--;
-                var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
-                if (queues.TryGetValue(key, out var queue))
+                try
                 {
-                    var queueElements = queue.GetQueueRunningElement(nowTicks).Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
-                    if (!queueElements.Any())
+                    await MasterWaitForleaseToken(cluster);
+                    var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
+                    if (queues.TryGetValue(key, out var queue))
                     {
-                        await Task.Delay(10, source.Token);
-                        Console.WriteLine("aaaaaaaaa list  is empty" + transactionId +" " + numberTry);
+                        var queueElements = queue.GetQueueRunningElement(nowTicks)
+                            .Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
+                        if (!queueElements.Any())
+                        {
+                            await Task.Delay(10, source.Token);
+                            Console.WriteLine("aaaaaaaaa list  is empty" + transactionId + " " + numberTry);
+                        }
+
+                        foreach (var queueElement in queueElements)
+                        {
+                            Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
+                            values.Items.Add(new QueueData(queueElement.Id, queueElement.Value.ToArray()));
+                        }
                     }
-                
-                    foreach (var queueElement in queueElements)
-                    {
-                        Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
-                        values.Items.Add(new QueueData(queueElement.Id ,queueElement.Value.ToArray()));
-                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine("Unexpected error {0}", ex);
                 }
             }
             
