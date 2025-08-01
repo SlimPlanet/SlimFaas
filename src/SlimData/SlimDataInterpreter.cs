@@ -83,6 +83,7 @@ public class SlimDataInterpreter : CommandInterpreter
             }
             
             var isIdTransactionAlreadyExist = queue.Any(q => q.RetryQueueElements[^1].IdTransaction == listRightPopCommand.IdTransaction);
+            Console.WriteLine("bbbbbbbbb :isIdTransactionAlreadyExist Id : " + isIdTransactionAlreadyExist + " idTransaction " + listRightPopCommand.IdTransaction) ;
             if (!isIdTransactionAlreadyExist)
             {
                 var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);

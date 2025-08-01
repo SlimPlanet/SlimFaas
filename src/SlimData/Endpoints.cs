@@ -132,7 +132,7 @@ public class Endpoints
                 cluster.Term);
         bool success = await cluster.ReplicateAsync(logEntry, source.Token);
         Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
-        //await Task.Delay(2, source.Token);
+        await Task.Delay(2, source.Token);
         var supplier = (ISupplier<SlimDataPayload>)provider;
         int numberTry = 10;
         while (values.Items.Count <= 0 && numberTry > 0)
@@ -140,7 +140,8 @@ public class Endpoints
             numberTry--;
             try
             {
-                await MasterWaitForleaseToken(cluster);
+                Console.WriteLine("aaaaaaaaa list " + transactionId);
+               // await MasterWaitForleaseToken(cluster);
                 var queues = supplier.Invoke().Queues;
                 if (queues.TryGetValue(key, out var queue))
                 {
