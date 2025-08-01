@@ -81,9 +81,9 @@ public class SlimDataInterpreter : CommandInterpreter
             {
                 queueList.Remove(queueFinishedElement);
             }
-            
-            var isIdTransactionAlreadyExist = queue.Any(q => q.RetryQueueElements[^1].IdTransaction == listRightPopCommand.IdTransaction);
-            Console.WriteLine("bbbbbbbbb :isIdTransactionAlreadyExist Id : " + isIdTransactionAlreadyExist + " idTransaction " + listRightPopCommand.IdTransaction) ;
+            Console.WriteLine("bbbbbbbbb idTransaction " + listRightPopCommand.IdTransaction);
+            var isIdTransactionAlreadyExist = queue.Any(q => q.RetryQueueElements.Count > 0 && q.RetryQueueElements[^1].IdTransaction == listRightPopCommand.IdTransaction);
+            Console.WriteLine("bbbbbbbbb :isIdTransactionAlreadyExist Id : " + isIdTransactionAlreadyExist);
             if (!isIdTransactionAlreadyExist)
             {
                 var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
@@ -159,7 +159,7 @@ public class SlimDataInterpreter : CommandInterpreter
             {
                 value = value.Remove(queueElement);
             }
-            else
+            else if(queueElement.RetryQueueElements.Count > 0)
             {
                 var retryQueueElement = queueElement.RetryQueueElements[^1];
                 retryQueueElement.EndTimeStamp = listCallbackCommand.NowTicks;
