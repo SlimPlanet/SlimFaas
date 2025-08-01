@@ -45,7 +45,7 @@ metadata:
   namespace: slimfaas-demo
 spec:
   podManagementPolicy: Parallel
-  replicas: 1
+  replicas: 3
   serviceName: slimfaas
   selector:
     matchLabels:
@@ -63,7 +63,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.38.0-pr.1301309
+          image: axaguildev/slimfaas:0.38.0-pr.1301310
           livenessProbe:
             httpGet:
               path: /health
@@ -88,9 +88,9 @@ spec:
               value: "30021"
             - name: Logging__LogLevel__SlimFaas
               value: "Information"
-            - name: SLIMDATA_CONFIGURATION
-              value: |
-                  {"coldStart":"true"}
+            #- name: SLIMDATA_CONFIGURATION
+            #  value: |
+            #      {"coldStart":"true"}
             #- name: SLIMDATA_CONFIGURATION
             #  value: |
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}

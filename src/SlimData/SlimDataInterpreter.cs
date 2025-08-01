@@ -81,15 +81,12 @@ public class SlimDataInterpreter : CommandInterpreter
             {
                 queueList.Remove(queueFinishedElement);
             }
-            Console.WriteLine("bbbbbbbbb idTransaction " + listRightPopCommand.IdTransaction);
             var isIdTransactionAlreadyExist = queue.Any(q => q.RetryQueueElements.Count > 0 && q.RetryQueueElements[^1].IdTransaction == listRightPopCommand.IdTransaction);
-            Console.WriteLine("bbbbbbbbb :isIdTransactionAlreadyExist Id : " + isIdTransactionAlreadyExist);
             if (!isIdTransactionAlreadyExist)
             {
                 var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
                 foreach (var queueAvailableElement in queueAvailableElements)
                 {
-                    Console.WriteLine("bbbbbbbbb :Retrieve Id : " + queueAvailableElement.Id);
                     queueAvailableElement.RetryQueueElements =
                         queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks,
                             listRightPopCommand.IdTransaction));
@@ -212,8 +209,6 @@ public class SlimDataInterpreter : CommandInterpreter
     
     internal static ValueTask DoHandleSnapshotAsync(LogSnapshotCommand command, SlimDataState slimDataState)
     {
-        
-        Console.WriteLine("Begin Handle SnapShot");
         slimDataState.KeyValues = command.keysValues.ToImmutableDictionary();
         
         var queues = ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty;
@@ -230,7 +225,6 @@ public class SlimDataInterpreter : CommandInterpreter
         }
         slimDataState.Hashsets = hashsets;
         
-        Console.WriteLine("End Handle SnapShot");
         return default;
     }   
     

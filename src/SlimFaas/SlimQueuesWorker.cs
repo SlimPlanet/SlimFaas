@@ -68,9 +68,6 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                     continue;
                 }
 
-                //Console.WriteLine("queueLength " + queueLength);
-                //Console.WriteLine("numberProcessingTasks " + numberProcessingTasks);
-                //Console.WriteLine("numberLimitProcessingTasks " + numberLimitProcessingTasks);
                 if (numberProcessingTasks >= function.NumberParallelRequest)
                 {
                     continue;
@@ -95,16 +92,13 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         string functionDeployment = function.Deployment;
         var jsons = await slimFaasQueue.DequeueAsync(functionDeployment, numberLimitProcessingTasks);
 
-        Console.WriteLine($"Number numberProcessingTasks dequeued : {jsons?.Count}");
         numberDequedSended = numberDequedSended + jsons?.Count ?? 0;
-        Console.WriteLine($"Number numberDequedSended dequeued : {numberDequedSended}");
         if (jsons == null)
         {
             return;
         }
         foreach (var requestJson in jsons)
         {
-            Console.WriteLine("ccccccccc => requestJson id " +requestJson.Id);
             CustomRequest customRequest = MemoryPackSerializer.Deserialize<CustomRequest>(requestJson.Data);
 
             logger.LogDebug("{CustomRequestMethod}: {CustomRequestPath}{CustomRequestQuery} Sending",
@@ -119,7 +113,6 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                 HttpStatusRetries = []
             };
             numberRequestSended++;
-            Console.WriteLine("==========> NumberRequestSended :"+ numberRequestSended);
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
                 .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, new Proxy(replicasService, functionDeployment));
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id));
@@ -200,10 +193,6 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
 
         if (listQueueItemStatus.Items.Count > 0)
         {
-            foreach (var requestJson in listQueueItemStatus.Items)
-            {
-                Console.WriteLine("ddddddddddd => requestJson id " +requestJson.Id);
-            }
             await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
         }
 

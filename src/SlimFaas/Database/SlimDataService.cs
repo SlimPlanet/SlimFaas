@@ -17,8 +17,6 @@ public class SlimDataService(
     : IDatabaseService
 {
     public const string HttpClientName = "SlimDataHttpClient";
-    private static int Count;
-    private static int CountDepop;
     private readonly IList<int> _retryInterval = new List<int> { 1, 1, 1 };
     private readonly TimeSpan _timeMaxToWaitForLeader = TimeSpan.FromMilliseconds(3000);
 
@@ -39,31 +37,12 @@ public class SlimDataService(
 
     public async Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
-        lock (this)
-        {
-            Count++;
-            Console.WriteLine($"DoListLeftPush : {Count}");
-        }
-
         return await Retry.DoAsync(() => DoListLeftPushAsync(key, field, retryInformation), logger, _retryInterval);
     }
 
     public async Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1)
     {
-        IList<QueueData>? result =
-            await Retry.DoAsync(() => DoListRightPopAsync(key, transactionId, count), logger, _retryInterval);
-
-        lock (this)
-        {
-            if (result != null)
-            {
-                CountDepop = CountDepop + result.Count;
-            }
-
-            Console.WriteLine($"ListRightPopAsync : {CountDepop}");
-        }
-
-        return result;
+        return await Retry.DoAsync(() => DoListRightPopAsync(key, transactionId, count), logger, _retryInterval);
     }
 
     public Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes,
@@ -213,7 +192,6 @@ public class SlimDataService(
     private async Task<IList<QueueData>> DoListCountElementAsync(string key, IList<CountType> countTypes, int maximum)
     {
         await GetAndWaitForLeader();
-        //await MasterWaitForleaseToken();
 
         SlimDataPayload data = SimplePersistentState.Invoke();
         List<QueueElement> result = new();

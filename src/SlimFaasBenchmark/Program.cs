@@ -16,7 +16,7 @@ var scenario = Scenario.Create("hello_scenario", async context =>
     .WithLoadSimulations(
         // 333 req/s durant 5 minutes (≈ 100 000 requêtes)
         Simulation.Inject(
-            rate: 333,
+            rate: 33,
             interval: TimeSpan.FromSeconds(1),
             during: TimeSpan.FromMinutes(5))
     );

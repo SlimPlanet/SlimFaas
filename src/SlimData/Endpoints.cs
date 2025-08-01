@@ -139,8 +139,6 @@ public class Endpoints
             numberTry--;
             try
             {
-                Console.WriteLine("aaaaaaaaa list " + transactionId);
-               // await MasterWaitForleaseToken(cluster);
                 var queues = supplier.Invoke().Queues;
                 if (queues.TryGetValue(key, out var queue))
                 {
@@ -149,12 +147,10 @@ public class Endpoints
                     if (queueElements.Count == 0)
                     {
                         await Task.Delay(4, source.Token);
-                        Console.WriteLine("aaaaaaaaa list  is empty" + transactionId + " " + numberTry);
                     }
 
                     foreach (var queueElement in queueElements)
                     {
-                        Console.WriteLine("aaaaaaaaa :Retrieve Id : " + queueElement.Id);
                         values.Items.Add(new QueueData(queueElement.Id, queueElement.Value.ToArray()));
                     }
                 }
@@ -168,23 +164,7 @@ public class Endpoints
         return values;
         
     }
-
-    private static async Task MasterWaitForleaseToken(IRaftCluster cluster)
-    {
-        var tryCount = 100;
-        while (cluster.TryGetLeaseToken(out var leaseToken) && leaseToken.IsCancellationRequested)
-        {
-            Console.WriteLine($"Master node is waiting for lease token {tryCount}");
-            await Task.Delay(10);
-            tryCount--;
-            if (tryCount < 0)
-            {
-                throw new Exception("Master node cannot have lease token");
-            }
-        }
-    }
-
-
+    
     public static async Task ListLeftPushAsync(HttpContext context)
     {
 
@@ -216,7 +196,6 @@ public class Endpoints
         var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
         var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
         var id = Guid.NewGuid().ToString();
-        Console.WriteLine("ListLeftPushCommand :" + id);
 
         LogEntry<ListLeftPushCommand>? logEntry =
                 provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
