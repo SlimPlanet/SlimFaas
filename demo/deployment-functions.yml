@@ -14,7 +14,7 @@ spec:
         app: fibonacci1
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "50000"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "5"
         SlimFaas/NumberParallelRequest : "2"
     spec:
       serviceAccountName: default

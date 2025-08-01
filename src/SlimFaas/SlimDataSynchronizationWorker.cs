@@ -43,6 +43,8 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
 
                     Console.WriteLine($"SlimDataSynchronizationWorker: SlimFaas pod {slimFaasPod.Name} has to be added in the cluster");
                     await ((IRaftHttpCluster)cluster).AddMemberAsync(new Uri(url), stoppingToken);
+
+                    // Add only one at once to let a synchronization time
                     isWaitForNextRound = true;
                     break;
                 }
@@ -65,6 +67,8 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                         $"SlimDataSynchronizationWorker: SlimFaas pod {endpoint} need to be remove from the cluster");
                     await ((IRaftHttpCluster)cluster).RemoveMemberAsync(
                         new Uri(endpoint ?? string.Empty), stoppingToken);
+                    // Remove only one at once to let a synchronization time
+                    break;
                 }
             }
             catch (Exception e)
