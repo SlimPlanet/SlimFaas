@@ -213,7 +213,7 @@ public class SlimDataService(
     private async Task<IList<QueueData>> DoListCountElementAsync(string key, IList<CountType> countTypes, int maximum)
     {
         await GetAndWaitForLeader();
-        await MasterWaitForleaseToken();
+        //await MasterWaitForleaseToken();
 
         SlimDataPayload data = SimplePersistentState.Invoke();
         List<QueueElement> result = new();

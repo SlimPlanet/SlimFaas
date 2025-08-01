@@ -140,7 +140,7 @@ public class Endpoints
             try
             {
                 Console.WriteLine("aaaaaaaaa list " + transactionId);
-                await MasterWaitForleaseToken(cluster);
+               // await MasterWaitForleaseToken(cluster);
                 var queues = supplier.Invoke().Queues;
                 if (queues.TryGetValue(key, out var queue))
                 {
