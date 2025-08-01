@@ -31,6 +31,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                     continue;
                 }
 
+                bool isWaitForNextRound = false;
                 foreach (PodInformation slimFaasPod in replicasService.Deployments.SlimFaas.Pods.Where(p =>
                              p.Started == true))
                 {
@@ -42,17 +43,26 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
 
                     Console.WriteLine($"SlimDataSynchronizationWorker: SlimFaas pod {slimFaasPod.Name} has to be added in the cluster");
                     await ((IRaftHttpCluster)cluster).AddMemberAsync(new Uri(url), stoppingToken);
+                    isWaitForNextRound = true;
+                    break;
+                }
+
+                if (isWaitForNextRound)
+                {
+                    continue;
                 }
 
                 foreach (var endpoint in cluster.Members.Select(r => r.EndPoint.ToString()))
                 {
                     if (replicasService.Deployments.SlimFaas.Pods.ToList().Exists(slimFaasPod =>
-                            SlimFaasPorts.RemoveLastPathSegment(SlimDataEndpoint.Get(slimFaasPod)) == SlimFaasPorts.RemoveLastPathSegment(endpoint)))
+                            SlimFaasPorts.RemoveLastPathSegment(SlimDataEndpoint.Get(slimFaasPod)) ==
+                            SlimFaasPorts.RemoveLastPathSegment(endpoint)))
                     {
                         continue;
                     }
 
-                    Console.WriteLine($"SlimDataSynchronizationWorker: SlimFaas pod {endpoint} need to be remove from the cluster");
+                    Console.WriteLine(
+                        $"SlimDataSynchronizationWorker: SlimFaas pod {endpoint} need to be remove from the cluster");
                     await ((IRaftHttpCluster)cluster).RemoveMemberAsync(
                         new Uri(endpoint ?? string.Empty), stoppingToken);
                 }
