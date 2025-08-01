@@ -70,7 +70,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 var verb = verbObj.Name.ToUpper();
                 var operation = verbObj.Value;
 
-                var summary = operation.TryGetProperty("summary", out var s) ? s.GetString() : verb + " " + url;
+                string summary = Summary(operation, verb, url);
                 var parameters = new List<Parameter>();
                 string contentType = "application/json"; // default
 
@@ -205,5 +205,25 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
 
         return endpoints;
+    }
+
+    private static string Summary(JsonElement operation, string verb, string url)
+    {
+        var summaryTxt = operation.TryGetProperty("summary", out var s)
+            ? s.GetString()
+            : "";
+        var descrTxt   = operation.TryGetProperty("description", out var d)
+            ? d.GetString()
+            : "";
+
+// On colle, en filtrant les vides
+        var combined   = string.Join(" — ",
+            new[] { summaryTxt, descrTxt }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+
+        var summary = string.IsNullOrWhiteSpace(combined)
+            ? $"{verb} {url}"        // secours
+            : combined;
+        return summary;
     }
 }
