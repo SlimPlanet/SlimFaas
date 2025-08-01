@@ -4,16 +4,12 @@ using NBomber.Http;
 // Pour le scope using var
 using var httpClient = new HttpClient
 {
-    BaseAddress = new Uri("http://localhost:30022") // Adaptez à votre URL
+    BaseAddress = new Uri("http://localhost:30021")
 };
 
 var scenario = Scenario.Create("hello_scenario", async context =>
     {
-        // On envoie une requête GET vers /hello/John
-       // var response = await httpClient.GetAsync("http://localhost:30021/function/fibonacci1/hello/John");
-        var response = await httpClient.GetAsync("http://localhost:30022/hello/John");
-
-        // On détermine OK/Fail en fonction du code HTTP
+       var response = await httpClient.PostAsync("http://localhost:30021/async-function/fibonacci1/compute", new StringContent(""));
         return response.IsSuccessStatusCode ? Response.Ok() : Response.Fail();
     })
     .WithoutWarmUp()

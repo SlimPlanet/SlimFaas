@@ -1,8 +1,11 @@
-﻿using System.Net;
+﻿using System.Collections.Immutable;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DotNext;
 using MemoryPack;
 using SlimData;
+using SlimData.Commands;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -17,7 +20,8 @@ public enum FunctionType
     Status,
     Publish,
     Job,
-    NotAFunction
+    NotAFunction,
+    AsyncQueue
 }
 
 public record FunctionStatus(int NumberReady,
@@ -45,6 +49,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
 {
     private const string AsyncFunction = "/async-function";
+    private const string AsyncFunctionQueue = "/async-function-queue";
     private const string StatusFunction = "/status-function";
     private const string WakeFunction = "/wake-function";
     private const string Function = "/function";
@@ -59,8 +64,14 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         EnvironmentVariables.SlimFaasSubscribeEvents,
         slimFaasSubscribeEventsDefault);
 
+
+
     public async Task InvokeAsync(HttpContext context,
-        HistoryHttpMemoryService historyHttpService, ISendClient sendClient, IReplicasService replicasService, IJobService jobService)
+        HistoryHttpMemoryService historyHttpService,
+        ISendClient sendClient,
+        IReplicasService replicasService,
+        IJobService jobService,
+        IServiceProvider serviceProvider)
     {
 
         if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts.Ports.ToArray()))
@@ -89,7 +100,28 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             case FunctionType.NotAFunction:
                 await next(context);
                 break;
-            case  FunctionType.Job:
+            case FunctionType.AsyncQueue:
+               /* if (contextRequest.Method == HttpMethods.Get)
+                {
+                    ISupplier<SlimDataPayload> simplePersistentState = serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
+                    SlimDataPayload data = simplePersistentState.Invoke();
+
+                    if (data.Queues.TryGetValue($"Queue:{functionName}", out ImmutableList<QueueElement>? value))
+                    {
+                         var queue = SlimFaasQueuesData.MapToNewModel(value);
+
+                         contextResponse.StatusCode = (int)HttpStatusCode.OK;
+                         await contextResponse.WriteAsJsonAsync(queue,
+                             SlimFaasQueuesDataSerializerContext.Default.SlimFaasQueuesData);
+                         return;
+                    }
+
+                    contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                    return;
+                }*/
+               contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                break;
+            case FunctionType.Job:
                 await BuildJobResponse(context, replicasService, jobService, contextRequest, contextResponse, functionName, functionPath);
                 break;
             case FunctionType.Wake:
@@ -615,6 +647,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             WakeFunction => FunctionType.Wake,
             PublishEvent => FunctionType.Publish,
             Job => FunctionType.Job,
+            AsyncFunctionQueue => FunctionType.AsyncQueue,
             _ => FunctionType.NotAFunction
         };
         return new FunctionInfo(functionPath, functionName, functionType);
@@ -646,6 +679,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         else if (path.StartsWithSegments(Job))
         {
             functionBeginPath = $"{Job}";
+        }
+        else if (path.StartsWithSegments(AsyncFunctionQueue))
+        {
+            functionBeginPath = $"{AsyncFunctionQueue}";
         }
 
         return functionBeginPath;

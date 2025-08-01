@@ -26,6 +26,7 @@ public static class Retry
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, "SlimData Service DoAsync");
                 exceptions.Add(ex);
             }
         }
@@ -48,7 +49,7 @@ public static class Retry
                 if (attempt >= 0)
                 {
                     var delay = delays[attempt];
-                    logger.LogWarning("Try {Attempt} : wait numnber {Delay} second", attempt, delay);
+                    logger.LogWarning("Try {Attempt} : wait number {Delay} second", attempt, delay);
                     await Task.Delay(delay * 1000);
                 }
                 await action();
@@ -56,6 +57,7 @@ public static class Retry
             }
             catch (Exception ex)
             {
+                logger.LogError(ex, "SlimData Service DoAsync");
                 exceptions.Add(ex);
             }
         }

@@ -17,7 +17,7 @@ public static class EnvironmentVariables
     public const long SlimFaasMaxRequestBodySizeDefault = 524288000;
 
     public const string SlimWorkerDelayMilliseconds = "SLIM_WORKER_DELAY_MILLISECONDS";
-    public const int SlimWorkerDelayMillisecondsDefault = 50;
+    public const int SlimWorkerDelayMillisecondsDefault = 10;
 
     public const string SlimJobsWorkerDelayMilliseconds = "SLIM_JOBS_WORKER_DELAY_MILLISECONDS";
     public const int SlimJobsWorkerDelayMillisecondsDefault = 1000;

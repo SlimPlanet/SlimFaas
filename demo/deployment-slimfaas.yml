@@ -59,6 +59,7 @@ spec:
         - name: slimfaas-volume
           emptyDir:
             sizeLimit: 10Mi
+
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
@@ -86,7 +87,7 @@ spec:
             - name: SLIMFAAS_LISTEN_ADDITIONAL_PORTS
               value: "30021"
             - name: Logging__LogLevel__SlimFaas
-              value: "Debug"
+              value: "Information"
             #- name: SLIMDATA_CONFIGURATION
             #  value: |
             #      {"coldStart":"true"}

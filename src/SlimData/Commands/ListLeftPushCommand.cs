@@ -25,7 +25,7 @@ public struct ListLeftPushCommand : ISerializable<ListLeftPushCommand>
     long? IDataTransferObject.Length => Encoding.UTF8.GetByteCount(Key)  + Value.Length + Encoding.UTF8.GetByteCount(Identifier) + sizeof(long) + sizeof(int) + Retries.Count * sizeof(int) + sizeof(int) + sizeof(int) + HttpStatusCodesWorthRetrying.Count * sizeof(int);
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
-        where TWriter : notnull, IAsyncBinaryWriter
+        where TWriter : IAsyncBinaryWriter
     {
         var command = this;
         await writer.EncodeAsync(command.Key.AsMemory(), new EncodingContext(Encoding.UTF8, false),

@@ -1,9 +1,14 @@
-﻿namespace SlimData.Commands;
+﻿using System.Collections.Immutable;
+
+namespace SlimData.Commands;
+
 
 public struct SlimDataPayload
 {
-    public IDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; }
+    public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; }
     
-    public Dictionary<string, List<QueueElement>> Queues { get; set; }
-    public IDictionary<string, Dictionary<string, string>> Hashsets { get; set; }
+    public ImmutableDictionary<string, ImmutableList<QueueElement>> Queues { get; set; }
+    public ImmutableDictionary<string, ImmutableDictionary<string, string>> Hashsets { get; set; }
+    
 }
+

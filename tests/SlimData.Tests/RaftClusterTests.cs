@@ -257,7 +257,7 @@ public class RaftClusterTests
         });
         Assert.Single(listLength);
 
-        IList<QueueData>? listRightPop = await databaseServiceSlave.ListRightPopAsync("listKey1");
+        IList<QueueData>? listRightPop = await databaseServiceSlave.ListRightPopAsync("listKey1", Guid.NewGuid().ToString());
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(listRightPop.First().Data));
 
         ListQueueItemStatus queueItemStatus = new()

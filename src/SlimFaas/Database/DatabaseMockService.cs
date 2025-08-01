@@ -76,7 +76,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.FromResult(elementId);
     }
 
-    public Task<IList<QueueData>?> ListRightPopAsync(string key, int count = 1)
+    public Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1)
     {
         if (!queue.ContainsKey(key))
         {
