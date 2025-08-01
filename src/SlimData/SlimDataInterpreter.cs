@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable; // Ajouté pour les collections immuables
+﻿using System.Collections.Immutable;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using SlimData.Commands;
 

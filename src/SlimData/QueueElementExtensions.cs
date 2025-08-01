@@ -79,7 +79,7 @@ public static class QueueElementExtensions
     
     public static ImmutableList<QueueElement> GetQueueTimeoutElement(this ImmutableList<QueueElement> elements, long nowTicks)
     {
-        var timeoutElements = ImmutableList.CreateBuilder<QueueElement>(); // Utilisation d'un builder pour créer une liste immuable
+        var timeoutElements = ImmutableList.CreateBuilder<QueueElement>();
         foreach (var queueElement in elements)
         {
             if (queueElement.IsTimeout(nowTicks))
@@ -87,7 +87,7 @@ public static class QueueElementExtensions
                 timeoutElements.Add(queueElement);
             }
         }
-        return timeoutElements.ToImmutable(); // Conversion en ImmutableList
+        return timeoutElements.ToImmutable();
     }
     
     public static ImmutableList<QueueElement> GetQueueRunningElement(this ImmutableList<QueueElement> elements, long nowTicks)
@@ -100,7 +100,7 @@ public static class QueueElementExtensions
                 runningElements.Add(queueElement);
             }
         }
-        return runningElements.ToImmutable(); // Conversion en ImmutableList
+        return runningElements.ToImmutable();
     }
     
     public static ImmutableList<QueueElement> GetQueueWaitingForRetryElement(this ImmutableList<QueueElement> elements, long nowTicks)
@@ -113,7 +113,7 @@ public static class QueueElementExtensions
                 waitingForRetry.Add(queueElement);
             }
         }
-        return waitingForRetry.ToImmutable(); // Conversion en ImmutableList
+        return waitingForRetry.ToImmutable();
     }
     
     public static ImmutableList<QueueElement> GetQueueAvailableElement(this ImmutableList<QueueElement> elements, long nowTicks, int maximum)
@@ -129,12 +129,12 @@ public static class QueueElementExtensions
         {
             if (currentCount == maximum)
             {
-                return availableElements.ToImmutable(); // Conversion en ImmutableList
+                return availableElements.ToImmutable();
             }
             availableElements.Add(queueElement);
             currentCount++;
         }
-        return availableElements.ToImmutable(); // Conversion en ImmutableList
+        return availableElements.ToImmutable();
     }
     
     public static ImmutableList<QueueElement> GetQueueFinishedElement(this ImmutableList<QueueElement> elements, long nowTicks)
@@ -147,6 +147,6 @@ public static class QueueElementExtensions
                 queueFinishedElements.Add(queueElement);
             }
         }
-        return queueFinishedElements.ToImmutable(); // Conversion en ImmutableList
+        return queueFinishedElements.ToImmutable(); 
     }
 }
