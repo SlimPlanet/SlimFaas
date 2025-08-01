@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.37.2
+
+- [3a54e98](https://github.com/SlimPlanet/SlimFaas/commit/3a54e9827aa29cd5029bdf4afd2261ce6aa85f9e) - fix(queue): message lost (#130) (release), 2025-08-01 by *Guillaume Chervet*
+
+
+## 0.37.1
+
+
+
 ## v0.37.1
 
 - [6990149](https://github.com/SlimPlanet/SlimFaas/commit/6990149cea1a6e07247f302aaef91abf722b448d) - doc(slimfaas-mcp): Update mcp.md (release), 2025-07-24 by *Guillaume Chervet*
@@ -301,15 +310,5 @@
 ## v0.31.0
 
 - [f3f39dc](https://github.com/SlimPlanet/SlimFaas/commit/f3f39dcf5ce28e56d70e05184c4cb77636fe40e8) - feat(all): setup net 9 (#78), 2024-12-03 by *Guillaume Chervet*
-
-
-## v0.30.7
-
-- [0deb056](https://github.com/SlimPlanet/SlimFaas/commit/0deb0566a800fd0a675a80f6f4699537aae16ccb) - fix(SlimFaasPlanetSaver) : better cleanning, 2024-12-02 by *Guillaume Chervet*
-
-
-## v0.30.6
-
-- [649d7f9](https://github.com/SlimPlanet/SlimFaas/commit/649d7f9aa4382686ee72f23670c975aba760dcce) - fix(SlimFaasPlanetSaver): better UI, 2024-12-01 by *Guillaume Chervet*
 
 
