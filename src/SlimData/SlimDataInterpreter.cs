@@ -120,7 +120,7 @@ public class SlimDataInterpreter : CommandInterpreter
             ImmutableList<QueueHttpTryElement>.Empty,
             listLeftPushCommand.HttpStatusCodesWorthRetrying.ToImmutableList()
         );
-        if (queues.TryGetValue(listLeftPushCommand.Key, out ImmutableList<QueueElement>? value))
+        if (queues.TryGetValue(listLeftPushCommand.Key, out var value))
         {
             if (value.All(q => q.Id != listLeftPushCommand.Identifier))
             {

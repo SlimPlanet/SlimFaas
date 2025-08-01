@@ -118,7 +118,6 @@ public class Endpoints
         });
     }
     
-    private static readonly IDictionary<string,SemaphoreSlim> SemaphoreSlims = new Dictionary<string, SemaphoreSlim>();
     public static async Task<ListItems> ListRightPopCommand(SlimPersistentState provider, string key, string transactionId, int count, IRaftCluster cluster,
         CancellationTokenSource source)
     {
@@ -141,7 +140,7 @@ public class Endpoints
             try
             {
                 Console.WriteLine("aaaaaaaaa list " + transactionId);
-               // await MasterWaitForleaseToken(cluster);
+                await MasterWaitForleaseToken(cluster);
                 var queues = supplier.Invoke().Queues;
                 if (queues.TryGetValue(key, out var queue))
                 {
@@ -217,20 +216,9 @@ public class Endpoints
         var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
         var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
         var id = Guid.NewGuid().ToString();
-        /*if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
-        {
-            await semaphoreSlim.WaitAsync();
-        }
-        else
-        {
-            SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
-            await SemaphoreSlims[key].WaitAsync();
-        }*/
+        Console.WriteLine("ListLeftPushCommand :" + id);
 
-        LogEntry<ListLeftPushCommand>? logEntry;
-        /*try
-        {*/
-            logEntry =
+        LogEntry<ListLeftPushCommand>? logEntry =
                 provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
                         Identifier = id, 
                         Value = input.Value, 
@@ -240,11 +228,6 @@ public class Endpoints
                         HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
                     },
                     cluster.Term);
-       /* }
-        finally
-        {
-            SemaphoreSlims[key].Release();
-        }*/
 
         await cluster.ReplicateAsync(logEntry.Value, source.Token);
 
@@ -278,38 +261,21 @@ public class Endpoints
         {
             return;
         }
-       /* if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
+        var nowTicks = DateTime.UtcNow.Ticks;
+        List<CallbackElement> callbackElements = new List<CallbackElement>(list.Items.Count);
+        foreach (var queueItemStatus in list.Items)
         {
-            await semaphoreSlim.WaitAsync();
+            callbackElements.Add(new CallbackElement(queueItemStatus.Id, queueItemStatus.HttpCode));
         }
-        else
-        {
-            SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
-            await SemaphoreSlims[key].WaitAsync();
-        }
-        
-        try
-        {*/
-            var nowTicks = DateTime.UtcNow.Ticks;
-            List<CallbackElement> callbackElements = new List<CallbackElement>(list.Items.Count);
-            foreach (var queueItemStatus in list.Items)
-            {
-                callbackElements.Add(new CallbackElement(queueItemStatus.Id, queueItemStatus.HttpCode));
-            }
-            var logEntry =
-                provider.Interpreter.CreateLogEntry(new ListCallbackCommand
-                    {
-                        Key = key,
-                        NowTicks = nowTicks,
-                        CallbackElements = callbackElements
-                    },
-                    cluster.Term);
-            await cluster.ReplicateAsync(logEntry, source.Token);
-       /* }
-        finally
-        {
-            SemaphoreSlims[key].Release();
-        }*/
+        var logEntry =
+            provider.Interpreter.CreateLogEntry(new ListCallbackCommand
+                {
+                    Key = key,
+                    NowTicks = nowTicks,
+                    CallbackElements = callbackElements
+                },
+                cluster.Term);
+        await cluster.ReplicateAsync(logEntry, source.Token);
     }
 
     private static (string key, string value) GetKeyValue(IFormCollection form)
