@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+﻿/*using System.Collections.Immutable;
 using System.Text.Json.Serialization;
 using SlimData;
 
@@ -85,3 +85,4 @@ public record SlimFaasQueuesData
 [JsonSerializable(typeof(TempQueueElementRetryQueueElement))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class SlimFaasQueuesDataSerializerContext : JsonSerializerContext;
+*/

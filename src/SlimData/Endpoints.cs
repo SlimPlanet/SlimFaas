@@ -129,8 +129,7 @@ public class Endpoints
             provider.Interpreter.CreateLogEntry(
                 new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId},
                 cluster.Term);
-        bool success = await cluster.ReplicateAsync(logEntry, source.Token);
-        Console.WriteLine($" cluster.ReplicateAsync( {success} " + transactionId);
+        await cluster.ReplicateAsync(logEntry, source.Token);
         await Task.Delay(2, source.Token);
         var supplier = (ISupplier<SlimDataPayload>)provider;
         int numberTry = 10;

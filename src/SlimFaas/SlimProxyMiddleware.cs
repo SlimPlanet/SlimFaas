@@ -9,7 +9,6 @@ using SlimData.Commands;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
-using SlimFaas.Queue;
 
 namespace SlimFaas;
 
@@ -102,7 +101,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 await next(context);
                 break;
             case FunctionType.AsyncQueue:
-                if (contextRequest.Method == HttpMethods.Get)
+               /* if (contextRequest.Method == HttpMethods.Get)
                 {
                     ISupplier<SlimDataPayload> simplePersistentState = serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
                     SlimDataPayload data = simplePersistentState.Invoke();
@@ -119,8 +118,8 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
                     contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return;
-                }
-
+                }*/
+               contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                 break;
             case FunctionType.Job:
                 await BuildJobResponse(context, replicasService, jobService, contextRequest, contextResponse, functionName, functionPath);

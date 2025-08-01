@@ -15,13 +15,13 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "50000"
-        SlimFaas/NumberParallelRequest : "30"
+        SlimFaas/NumberParallelRequest : "2"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
       containers:
         - name: fibonacci1
-          image: axaguildev/fibonacci-api:0.38.0-pr.1301256
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
