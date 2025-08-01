@@ -7,6 +7,8 @@ public class McpTool
     public string? Name { get; set; }
     public string? Description { get; set; }
     public JsonNode InputSchema  { get; set; } = new JsonObject();
+
+    public JsonNode OutputSchema { get; set; } = new JsonObject();
     public EndpointInfo? Endpoint { get; set; }
 
     public class EndpointInfo
@@ -16,6 +18,10 @@ public class McpTool
 
         public string? ContentType { get; set; }
     }
+
+    // helper basique (optionnel) pour générer un schéma de sortie « sans introspection »
+    public static JsonNode GenerateOutputSchema(object? schema) =>
+        SchemaHelpers.ToJsonNode(schema);
 
     public static JsonNode GenerateInputSchema(List<Parameter> parameters)
     {

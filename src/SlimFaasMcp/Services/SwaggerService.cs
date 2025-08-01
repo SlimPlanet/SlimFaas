@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using SlimFaasMcp.Models;
 using Endpoint = SlimFaasMcp.Models.Endpoint;
@@ -166,6 +167,27 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     }
                 }
 
+                // juste après avoir créé 'parameters' :
+                JsonNode? responseSchema = null;
+
+                // OpenAPI v3 – on cherche le 200 (ou default) en JSON
+                if (operation.TryGetProperty("responses", out var responses))
+                {
+                    JsonElement resp;
+                    if      (responses.TryGetProperty("200",     out resp) ||
+                             responses.TryGetProperty("default", out resp))
+                    {
+                        if (resp.TryGetProperty("content", out var content) &&
+                            content.TryGetProperty("application/json", out var appJson) &&
+                            appJson.TryGetProperty("schema", out var schema))
+                        {
+                            responseSchema = SchemaHelpers.ToJsonNode(
+                                new OpenApiSchemaExpander(swagger.RootElement)
+                                    .ExpandSchema(schema));
+                        }
+                    }
+                }
+
 
                 endpoints.Add(new Endpoint
                 {
@@ -174,7 +196,9 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     Verb = verb,
                     Summary = summary,
                     Parameters = parameters,
-                    ContentType = contentType
+                    ContentType = contentType,
+                    ResponseSchema = responseSchema
+
                 });
             }
         }

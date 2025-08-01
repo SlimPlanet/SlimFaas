@@ -79,7 +79,9 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                     ["title"]       = t.Description,
                     ["description"] = t.Description,
                     ["inputSchema"] = JsonNode.Parse(
-                        JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode))
+                        JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode)),
+                    ["outputSchema"] = JsonNode.Parse(JsonSerializer
+                        .Serialize(t.OutputSchema, AppJsonContext.Default.JsonNode))
                 }).ToArray())
             };
             break;

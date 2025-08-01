@@ -112,7 +112,8 @@
                 tools: tools.map(t => ({
                     name: t.name,
                     description: t.description,
-                    inputSchema: t.inputSchema
+                    inputSchema: t.inputSchema,
+                    outputSchema: t.outputSchema
                 }))
             };
             yaml = window.jsyaml.dump(mcpObj);
@@ -130,9 +131,12 @@
         for (const tool of tools) {
             const el = document.createElement("div");
             el.className = "tool";
-            el.innerHTML = `<h4>${tool.name}</h4>
+            el.innerHTML = `<h3>${tool.name}</h3>
                 <div><b>${tool.description}</b></div>
+                <h4>Input schema</h4>
                 <div><pre>${window.jsyaml.dump(tool.inputSchema)}</pre></div>
+                <h4>Output schema</h4>
+                <div><pre>${window.jsyaml.dump(tool.outputSchema)}</pre></div>
                 <div id="inputForm_${tool.name}"></div>
                 <button onclick="runTool('${tool.name}')">Run</button>
                 <div id="output_${tool.name}" style="background: #eee; margin-top:1em;"></div>
@@ -372,8 +376,13 @@
                     ${tool.description}
                 </b>
             </div>
+             <h4>Input schema</h4>
             <div>
                 <pre style="${schemaBg}">${window.jsyaml.dump(tool.inputSchema)}</pre>
+            </div>
+             <h4>Output schema</h4>
+            <div>
+                <pre style="${schemaBg}">${window.jsyaml.dump(tool.outputSchema)}</pre>
             </div>
             ${tool.isDisabled ? '<i>Tool désactivé</i>' : `
                 <div id="inputForm_${tool.name}"></div>

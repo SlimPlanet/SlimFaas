@@ -25,6 +25,8 @@ public class McpPrompt
         public string? Name { get; set; }
         public string? Description { get; set; }
         public JsonNode? InputSchema { get; set; }
+
+        public JsonNode? OutputSchema { get; set; }
     }
 
     public static McpPrompt? ParseMcpPrompt(string? mcpPromptB64)
