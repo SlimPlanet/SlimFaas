@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.37.1
+
+- [6990149](https://github.com/SlimPlanet/SlimFaas/commit/6990149cea1a6e07247f302aaef91abf722b448d) - doc(slimfaas-mcp): Update mcp.md (release), 2025-07-24 by *Guillaume Chervet*
+- [512e80c](https://github.com/SlimPlanet/SlimFaas/commit/512e80c6ae68c1341eeb5566b4a17f17a1a824c2) - refactor(mcp): clean up (#131), 2025-07-22 by *Guillaume Chervet*
+
+
+## 0.37.0
+
+
+
 ## v0.37.0
 
 - [dfe6f23](https://github.com/SlimPlanet/SlimFaas/commit/dfe6f230519a5e265646c58d0ffd884594e8fced) - feat(slimfaas-mcp): proxyfy openapi to mcp (#114) (release), 2025-07-18 by *Guillaume Chervet*
@@ -301,15 +311,5 @@
 ## v0.30.6
 
 - [649d7f9](https://github.com/SlimPlanet/SlimFaas/commit/649d7f9aa4382686ee72f23670c975aba760dcce) - fix(SlimFaasPlanetSaver): better UI, 2024-12-01 by *Guillaume Chervet*
-
-
-## v0.30.5
-
-- [3178440](https://github.com/SlimPlanet/SlimFaas/commit/317844008937f9f598fad17998a75464447bc668) - fix(SlimFaasPlanetSaver): better default message, 2024-12-01 by *Guillaume Chervet*
-
-
-## v0.30.4
-
-- [22ce5a0](https://github.com/SlimPlanet/SlimFaas/commit/22ce5a028d8972b1d31fa6b222ee5ddc23071f3e) - chore(SlimFaasPlanetServer): version to publish, 2024-11-30 by *Guillaume Chervet*
 
 
