@@ -12,27 +12,29 @@ public interface ISwaggerService
     IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger);
 }
 
-public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache memoryCache) : ISwaggerService
+// Implémente aussi IRemoteSchemaService pour l'injection clé
+public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache memoryCache)
+    : ISwaggerService
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
 
     private static readonly TimeSpan s_slidingExpiration = TimeSpan.FromMinutes(20);
 
-    public async Task<JsonDocument> GetSwaggerAsync(string swaggerUrl, string? baseUrl = null, string? authHeader = null)
+    /* =====================================================================
+     * 1. Télécharge + met en cache le document OpenAPI
+     * =================================================================== */
+    public async Task<JsonDocument> GetSwaggerAsync(
+        string swaggerUrl,
+        string? baseUrl   = null,
+        string? authHeader = null)
     {
-        // Cache key
         var cacheKey = $"swagger::{swaggerUrl}";
+        if (memoryCache.TryGetValue<JsonDocument>(cacheKey, out var cached) && cached is not null)
+            return cached;
 
-        // Try get from cache
-        if (memoryCache.TryGetValue<JsonDocument>(cacheKey, out var cachedSwagger) && cachedSwagger != null)
-        {
-            return cachedSwagger;
-        }
-
-        // Préparation de la requête HTTP
         using var request = new HttpRequestMessage(HttpMethod.Get, swaggerUrl);
 
-        // Si le swaggerUrl commence par baseUrl et qu'on a un authHeader, injecter l'en-tête Authorization
+        // Injection éventuelle du bearer si même origine et header présent
         if (!string.IsNullOrEmpty(baseUrl) &&
             swaggerUrl.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase) &&
             !string.IsNullOrEmpty(authHeader))
@@ -40,190 +42,223 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
             request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authHeader);
         }
 
-        // Envoi de la requête
         using var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();
         var swaggerStr = await response.Content.ReadAsStringAsync();
 
-        // Parsing JSON
-        var swaggerJson = JsonDocument.Parse(swaggerStr);
-
-        // Mise en cache avec expiration glissante
-        memoryCache.Set(cacheKey, swaggerJson, new MemoryCacheEntryOptions
-        {
-            SlidingExpiration = s_slidingExpiration
-        });
-
-        return swaggerJson;
+        var doc = JsonDocument.Parse(swaggerStr);
+        memoryCache.Set(cacheKey, doc, new MemoryCacheEntryOptions { SlidingExpiration = s_slidingExpiration });
+        return doc;
     }
+
+    /* =====================================================================
+     * 2. Parse le JSON et fabrique une liste d'Endpoint (tools)
+     * =================================================================== */
     public IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger)
     {
-        var root = swagger.RootElement;
-        var paths = root.GetProperty("paths");
+        var root     = swagger.RootElement;
+        var paths    = root.GetProperty("paths");
         var endpoints = new List<Endpoint>();
-        var expander = new OpenApiSchemaExpander(swagger.RootElement);
+        var expander  = new OpenApiSchemaExpander(root);
+
         foreach (var path in paths.EnumerateObject())
         {
             var url = path.Name;
             foreach (var verbObj in path.Value.EnumerateObject())
             {
-                var verb = verbObj.Name.ToUpper();
+                var verb      = verbObj.Name.ToUpperInvariant();
                 var operation = verbObj.Value;
 
                 string summary = Summary(operation, verb, url);
-                var parameters = new List<Parameter>();
-                string contentType = "application/json"; // default
 
-                // Params in path/query
+                var parameters  = new List<Parameter>();
+                string contentType = "application/json"; // valeur par défaut
+
+                /* ---------------------------------------------------------
+                 * (A) Parameters "in": path | query | header
+                 * ------------------------------------------------------- */
                 if (operation.TryGetProperty("parameters", out var parametersArray))
                 {
                     foreach (var param0 in parametersArray.EnumerateArray())
                     {
                         var param = param0;
-                        // Résolution $ref
+
+                        // Résolution $ref (paramètres globaux)
                         if (param.TryGetProperty("$ref", out var refProp))
                         {
                             var refPath = refProp.GetString();
-                            if (refPath != null && refPath.StartsWith("#/parameters/"))
+                            if (refPath is not null && refPath.StartsWith("#/parameters/"))
                             {
                                 var paramName = refPath.Substring("#/parameters/".Length);
-                                if (swagger.RootElement.TryGetProperty("parameters", out var globalParams) &&
-                                    globalParams.TryGetProperty(paramName, out var resolvedParam))
+                                if (root.TryGetProperty("parameters", out var globalParams) &&
+                                    globalParams.TryGetProperty(paramName, out var resolved))
                                 {
-                                    param = resolvedParam;
+                                    param = resolved;
                                 }
                                 else
                                 {
-                                    // $ref non résolu
-                                    continue;
+                                    continue; // ref non résolu
                                 }
                             }
                         }
 
+                        /* --- enum values --------------------------------*/
+                        JsonElement? enumArr = null;
+                        if (param.TryGetProperty("enum", out var eArr))
+                            enumArr = eArr;
+                        else if (param.TryGetProperty("schema", out var sch0) && sch0.TryGetProperty("enum", out var e2))
+                            enumArr = e2;
+
+                        var descr = param.TryGetProperty("description", out var d)
+                                   ? d.GetString()
+                                   : "";
+                        descr = AppendEnumValues(descr, enumArr);
+
                         parameters.Add(new Parameter
                         {
-                            Name = param.GetProperty("name").GetString(),
-                            In = param.GetProperty("in").GetString(),
-                            Required = param.TryGetProperty("required", out var req) && req.GetBoolean(),
-                            Description = param.TryGetProperty("description", out var d) ? d.GetString() : "",
-                            SchemaType =
-                                param.TryGetProperty("schema", out var sch) &&
-                                sch.TryGetProperty("type", out var typ)
-                                    ? typ.GetString()
-                                    : "string",
-
+                            Name        = param.GetProperty("name").GetString(),
+                            In          = param.GetProperty("in").GetString(),
+                            Required    = param.TryGetProperty("required", out var req) && req.GetBoolean(),
+                            Description = descr,
+                            SchemaType  = param.TryGetProperty("schema", out var sch) &&
+                                          sch.TryGetProperty("type", out var typ)
+                                               ? typ.GetString()
+                                               : "string",
                         });
                     }
                 }
 
-                // Body (OpenAPI v3)
-                if (operation.TryGetProperty("requestBody", out var body))
+                /* ---------------------------------------------------------
+                 * (B) requestBody (v3) – JSON ou multipart
+                 * ------------------------------------------------------- */
+                if (operation.TryGetProperty("requestBody", out var body) &&
+                    body.TryGetProperty("content", out var content))
                 {
-                    if (body.TryGetProperty("content", out var content))
+                    /* ----- JSON body ----------------------------------- */
+                    if (content.TryGetProperty("application/json", out var appJson) &&
+                        appJson.TryGetProperty("schema", out var schema))
                     {
-                        if (content.TryGetProperty("application/json", out var appJson))
+                        parameters.Add(new Parameter
                         {
-                            if (appJson.TryGetProperty("schema", out var schema))
-                            {
-                                parameters.Add(new Parameter
-                                {
-                                    Name = "body",
-                                    In = "body",
-                                    Required = true,
-                                    Description = "Request body",
-                                    SchemaType =
-                                        schema.TryGetProperty("type", out var t) ? t.GetString() : "object",
-                                    Schema = expander.ExpandSchema(schema)
-                                });
-                            }
-                        }
+                            Name        = "body",
+                            In          = "body",
+                            Required    = true,
+                            Description = "Request body",
+                            SchemaType  = schema.TryGetProperty("type", out var t) ? t.GetString() : "object",
+                            Schema      = expander.ExpandSchema(schema)
+                        });
+                    }
 
-                        // Multipart body
-                        if (content.TryGetProperty("multipart/form-data", out var multipart))
+                    /* ----- multipart/form-data ------------------------- */
+                    if (content.TryGetProperty("multipart/form-data", out var multipart) &&
+                        multipart.TryGetProperty("schema", out var mpSchema) &&
+                        mpSchema.TryGetProperty("properties", out var props))
+                    {
+                        var requiredFields = mpSchema.TryGetProperty("required", out var reqArr)
+                                             ? reqArr.EnumerateArray().Select(x => x.GetString()).ToHashSet()!
+                                             : new HashSet<string>();
+
+                        foreach (var prop in props.EnumerateObject())
                         {
-                            if (multipart.TryGetProperty("schema", out var schema) &&
-                                schema.TryGetProperty("properties", out var props))
+                            var p = prop.Value;
+
+                            JsonElement? enumArr = null;
+                            if (p.TryGetProperty("enum", out var eArr))
+                                enumArr = eArr;
+
+                            var descr = p.TryGetProperty("description", out var d)
+                                     ? d.GetString()
+                                     : "";
+                            descr = AppendEnumValues(descr, enumArr);
+
+                            parameters.Add(new Parameter
                             {
-                                var requiredFields = schema.TryGetProperty("required", out var reqArr)
-                                    ? reqArr.EnumerateArray().Select(x => x.GetString()).ToHashSet()!
-                                    : new HashSet<string>();
-                                foreach (var prop in props.EnumerateObject())
-                                {
-                                    var p = prop.Value;
-                                    parameters.Add(new Models.Parameter
-                                    {
-                                        Name = prop.Name,
-                                        In = "formData",
-                                        Required = requiredFields.Contains(prop.Name),
-                                        Description =
-                                            p.TryGetProperty("description", out var d) ? d.GetString() : "",
-                                        SchemaType = p.TryGetProperty("type", out var t) ? t.GetString() : "string",
-                                        Format = p.TryGetProperty("format", out var f) ? f.GetString() : null,
-                                        Schema = expander.ExpandSchema(schema)
-                                    });
-                                }
-                            }
+                                Name        = prop.Name,
+                                In          = "formData",
+                                Required    = requiredFields.Contains(prop.Name),
+                                Description = descr,
+                                SchemaType  = p.TryGetProperty("type", out var t) ? t.GetString() : "string",
+                                Format      = p.TryGetProperty("format", out var f) ? f.GetString() : null,
+                                Schema      = expander.ExpandSchema(mpSchema)
+                            });
                         }
                     }
                 }
 
-                // juste après avoir créé 'parameters' :
+                /* ---------------------------------------------------------
+                 * (C) Output schema (réponse 200 ou default)
+                 * ------------------------------------------------------- */
                 JsonNode? responseSchema = null;
-
-                // OpenAPI v3 – on cherche le 200 (ou default) en JSON
                 if (operation.TryGetProperty("responses", out var responses))
                 {
                     JsonElement resp;
-                    if      (responses.TryGetProperty("200",     out resp) ||
-                             responses.TryGetProperty("default", out resp))
+                    if (responses.TryGetProperty("200", out resp) ||
+                        responses.TryGetProperty("default", out resp))
                     {
-                        if (resp.TryGetProperty("content", out var content) &&
-                            content.TryGetProperty("application/json", out var appJson) &&
-                            appJson.TryGetProperty("schema", out var schema))
+                        if (resp.TryGetProperty("content", out var respContent) &&
+                            respContent.TryGetProperty("application/json", out var respJson) &&
+                            respJson.TryGetProperty("schema", out var respSchema))
                         {
                             responseSchema = SchemaHelpers.ToJsonNode(
-                                new OpenApiSchemaExpander(swagger.RootElement)
-                                    .ExpandSchema(schema));
+                                new OpenApiSchemaExpander(root).ExpandSchema(respSchema));
                         }
                     }
                 }
 
-
+                /* ---------------------------------------------------------
+                 * (D) Ajout à la liste finale
+                 * ------------------------------------------------------- */
                 endpoints.Add(new Endpoint
                 {
-                    Name = verb.ToLower() + url.Replace("/", "_").Replace("{", "").Replace("}", ""),
-                    Url = url,
-                    Verb = verb,
-                    Summary = summary,
-                    Parameters = parameters,
-                    ContentType = contentType,
+                    Name           = verb.ToLowerInvariant() + url.Replace("/", "_").Replace("{", "").Replace("}", ""),
+                    Url            = url,
+                    Verb           = verb,
+                    Summary        = summary,
+                    Parameters     = parameters,
+                    ContentType    = contentType,
                     ResponseSchema = responseSchema
-
                 });
             }
         }
 
-
         return endpoints;
     }
 
+    /* =====================================================================
+     * Helpers internes
+     * =================================================================== */
+
+    /// <summary>
+    /// Concatène summary + description (s’il existe) pour une lecture humaine.
+    /// </summary>
     private static string Summary(JsonElement operation, string verb, string url)
     {
-        var summaryTxt = operation.TryGetProperty("summary", out var s)
-            ? s.GetString()
-            : "";
-        var descrTxt   = operation.TryGetProperty("description", out var d)
-            ? d.GetString()
-            : "";
+        var summaryTxt = operation.TryGetProperty("summary", out var s) ? s.GetString() : "";
+        var descrTxt   = operation.TryGetProperty("description", out var d) ? d.GetString() : "";
 
-// On colle, en filtrant les vides
-        var combined   = string.Join(" — ",
-            new[] { summaryTxt, descrTxt }
-                .Where(x => !string.IsNullOrWhiteSpace(x)));
+        var combined = string.Join(" — ", new[] { summaryTxt, descrTxt }
+                                         .Where(x => !string.IsNullOrWhiteSpace(x)));
 
-        var summary = string.IsNullOrWhiteSpace(combined)
-            ? $"{verb} {url}"        // secours
-            : combined;
-        return summary;
+        return string.IsNullOrWhiteSpace(combined) ? $"{verb} {url}" : combined;
+    }
+
+    /// <summary>
+    /// Ajoute "(valeurs : a, b, c)" à la description si l’énumération est présente.
+    /// </summary>
+    private static string AppendEnumValues(string? description, JsonElement? enumArray)
+    {
+        if (enumArray is null || enumArray.Value.ValueKind != JsonValueKind.Array)
+            return description ?? "";
+
+        var values = enumArray.Value.EnumerateArray()
+                                   .Select(e => e.GetString())
+                                   .Where(v => !string.IsNullOrWhiteSpace(v))
+                                   .ToArray();
+
+        if (values.Length == 0)
+            return description ?? "";
+
+        var prefix = string.IsNullOrWhiteSpace(description) ? "" : description.TrimEnd() + " ";
+        return $"{prefix}({string.Join(", ", values)})";
     }
 }
