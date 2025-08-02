@@ -51,6 +51,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             Name = e.Name,
             Description = e.Summary,
             InputSchema = McpTool.GenerateInputSchema(e.Parameters),
+            OutputSchema = e.ResponseSchema ?? new JsonObject(),
             Endpoint = new McpTool.EndpointInfo
             {
                 Url = CombineBaseUrl(baseUrl, e.Url),
@@ -92,6 +93,11 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                         {
                             tool.InputSchema = ov.InputSchema!;
                         }
+
+                        if (ov.OutputSchema is not null)
+                        {
+                            tool.OutputSchema = ov.OutputSchema;
+                        }
                     }
                     else
                     {
@@ -101,6 +107,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                             Name = ov.Name,
                             Description = ov.Description ?? "",
                             InputSchema = inputSchema ?? new JsonObject() ,
+                            OutputSchema = ov.OutputSchema ?? new JsonObject(),
                             Endpoint = new McpTool.EndpointInfo { Url = "", Method = "", ContentType = "application/json" }
                         });
                     }

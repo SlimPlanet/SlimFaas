@@ -89,7 +89,7 @@ public class OpenApiSchemaExpanderTests
         Assert.Equal("string", result["type"]);
         var enumValues = Assert.IsType<string[]>(result["enum"]);
         Assert.Equal(new[] { "available", "pending", "sold" }, enumValues);
-        Assert.Equal("pet status", result["description"]);
+        Assert.Equal("pet status (available, pending, sold)", result["description"]);
     }
 
     [Fact]

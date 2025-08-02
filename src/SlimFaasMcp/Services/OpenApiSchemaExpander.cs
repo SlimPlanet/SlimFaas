@@ -30,11 +30,28 @@ public class OpenApiSchemaExpander(JsonElement root)
         // Enum
         if (schema.TryGetProperty("enum", out var enumProp))
         {
+            var values = enumProp.EnumerateArray()
+                .Select(e => e.GetString())
+                .Where(v => !string.IsNullOrEmpty(v))
+                .ToArray();
+
+            var baseDesc = schema.TryGetProperty("description", out var desc)
+                ? desc.GetString()
+                : null;
+
+            var fullDesc = (baseDesc?.Trim() ?? "")
+                           + (values.Length > 0
+                               ? (baseDesc is { Length: >0 } ? " " : "")
+                                 + $"({string.Join(", ", values)})"
+                               : "");
+
             return new Dictionary<string, object>
             {
-                ["type"] = type,
-                ["enum"] = enumProp.EnumerateArray().Select(e => e.GetString()).ToArray(),
-                ["description"] = (schema.TryGetProperty("description", out var desc) ? desc.GetString() : null) ?? "No description provided"
+                ["type"]        = type,
+                ["enum"]        = values,
+                ["description"] = string.IsNullOrWhiteSpace(fullDesc)
+                    ? "Aucune description fournie"
+                    : fullDesc
             };
         }
 

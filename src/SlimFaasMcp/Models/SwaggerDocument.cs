@@ -1,4 +1,6 @@
-﻿namespace SlimFaasMcp.Models;
+﻿using System.Text.Json.Nodes;
+
+namespace SlimFaasMcp.Models;
 
 public class Endpoint
 {
@@ -9,6 +11,9 @@ public class Endpoint
     public List<Parameter>? Parameters { get; set; }
 
     public string? ContentType { get; set; }
+
+    public JsonNode? ResponseSchema { get; set; }
+
 }
 
 public class Parameter
