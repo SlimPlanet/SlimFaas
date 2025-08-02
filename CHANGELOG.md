@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.38.0
+
+- [74ef84a](https://github.com/SlimPlanet/SlimFaas/commit/74ef84a037f6f75736af79f7c714a14ce487fce8) - feat(mcp): mcp output (#138) (release), 2025-08-02 by *Guillaume Chervet*
+
+
+## 0.37.2
+
+
+
 ## v0.37.2
 
 - [3a54e98](https://github.com/SlimPlanet/SlimFaas/commit/3a54e9827aa29cd5029bdf4afd2261ce6aa85f9e) - fix(queue): message lost (#130) (release), 2025-08-01 by *Guillaume Chervet*
@@ -300,15 +309,5 @@
 ## v0.32.1
 
 - [d8a885f](https://github.com/SlimPlanet/SlimFaas/commit/d8a885f6fabd4c078262a6b7631e374fb0164e09) - fix(SLimFaasPlanetSaver): documentation, 2024-12-10 by *Guillaume Chervet*
-
-
-## v0.32.0
-
-- [2953743](https://github.com/SlimPlanet/SlimFaas/commit/2953743324e36efec2aabb40a448514401c34d62) - feat(SlimFaasPlanetSaver): add manual TypeScript File Definition, 2024-12-10 by *Guillaume Chervet*
-
-
-## v0.31.0
-
-- [f3f39dc](https://github.com/SlimPlanet/SlimFaas/commit/f3f39dcf5ce28e56d70e05184c4cb77636fe40e8) - feat(all): setup net 9 (#78), 2024-12-03 by *Guillaume Chervet*
 
 
