@@ -16,6 +16,10 @@ builder.Services.AddHttpClient("InsecureHttpClient")
                     });
 
 builder.Services.AddSingleton<ISwaggerService, SwaggerService>();
+builder.Services.AddSingleton<SwaggerService>();
+builder.Services.AddSingleton<GraphQlService>();
+builder.Services.AddKeyedSingleton<IRemoteSchemaService, SwaggerService>("openapi");
+builder.Services.AddKeyedSingleton<IRemoteSchemaService, GraphQlService>("graphql");
 builder.Services.AddSingleton<IToolProxyService, ToolProxyService>();
 builder.Services.AddMemoryCache();
 
@@ -40,11 +44,13 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
     using var jsonDocument = await JsonDocument.ParseAsync(httpRequest.Body);
     var root = jsonDocument.RootElement;
 
+
     // --- query-string --------------------------------------------------
     var qs            = httpRequest.Query;
     var openapiUrl    = qs.TryGetValue("openapi_url", out var qurl)   ? qurl.ToString()   : "";
     var baseUrl       = qs.TryGetValue("base_url", out var qb)       ? qb.ToString()     : "";
     var mcpPromptB64  = qs.TryGetValue("mcp_prompt", out var qp)     ? qp.ToString()     : null;
+    var contract  = qs.TryGetValue("contract", out var c)     ? c.ToString()     : "openapi";
 
     // --- champs JSON-RPC ----------------------------------------------
     JsonNode response = new JsonObject {
@@ -71,7 +77,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
         case "tools/list":
         {
             var tools = await toolProxyService.GetToolsAsync(
-                openapiUrl, baseUrl, authHeader, mcpPromptB64);
+                openapiUrl, baseUrl, authHeader, mcpPromptB64, contract);
 
             response["result"] = new JsonObject {
                 ["tools"] = new JsonArray(tools.Select(t => new JsonObject {
@@ -99,7 +105,8 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                                 p.GetProperty("name").GetString()!,
                                 p.GetProperty("arguments"),
                                 baseUrl,
-                                authHeader);
+                                authHeader,
+                                contract);
 
             // Tout est déjà string → aucun YAML, aucune réflexion
             response["result"] = new JsonObject {
@@ -135,25 +142,27 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
         string openapi_url,
         [FromQuery] string? base_url,
         [FromQuery] string? mcp_prompt,
+        [FromQuery] string? contract,
         HttpRequest req,
-        IToolProxyService proxy)
+        IToolProxyService proxy
+        )
         => TypedResults.Ok(await proxy.GetToolsAsync(
                 openapi_url, base_url,
                 req.Headers.Authorization.FirstOrDefault(),
-                mcp_prompt)));
+                mcp_prompt, contract ?? "openapi")));
 
 grp.MapPost("/{toolName}", async Task<Ok<string>> (
         string toolName,
         string openapi_url,
         [FromBody] JsonElement arguments,
         [FromQuery] string? base_url,
-        [FromQuery] string? mcp_prompt,
+        [FromQuery] string? contract,
         HttpRequest req,
         IToolProxyService proxy)
         => TypedResults.Ok(await proxy.ExecuteToolAsync(
                 openapi_url, toolName, arguments,
                 base_url,
-                req.Headers.Authorization.FirstOrDefault())));
+                req.Headers.Authorization.FirstOrDefault(), contract  ?? "openapi")));
 
 app.MapGet("/health", () => Results.Text("OK"));
 

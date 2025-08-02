@@ -8,19 +8,22 @@ namespace SlimFaasMcp.Services;
 
 public interface IToolProxyService
 {
-    Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64);
+    Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64, string contract = "openapi");
 
     Task<string> ExecuteToolAsync(
         string swaggerUrl,
         string toolName,
         JsonElement input,              // ← plus "object"
         string? baseUrl = null,
-        string? authHeader = null);
+        string? authHeader = null,
+        string contract = "openapi");
 
 }
 
-public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory httpClientFactory) : IToolProxyService
+public class ToolProxyService([FromKeyedServices("openapi")] IRemoteSchemaService swaggerService, [FromKeyedServices("graphql")]IRemoteSchemaService graphqlService, IHttpClientFactory httpClientFactory) : IToolProxyService
 {
+
+    private IRemoteSchemaService Select(string contract) => contract == "graphql" ? graphqlService : swaggerService;
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
     private static string CombineBaseUrl(string? baseUrl, string endpointUrl)
     {
@@ -41,10 +44,11 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         return contentType;
     }
 
-    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64)
+    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64, string contract = "openapi")
     {
-        var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, authHeader);
-        var endpoints = swaggerService.ParseEndpoints(swagger);
+        var svc = Select(contract);
+        var schema = await svc.GetSchemaAsync(swaggerUrl, baseUrl, authHeader);
+        var endpoints = svc.ParseEndpoints(schema);
 
         var tools = endpoints.Select(e => new McpTool
         {
@@ -142,23 +146,43 @@ public async Task<string> ExecuteToolAsync(
         string toolName,
         JsonElement input,              // ← plus "object"
         string? baseUrl = null,
-        string? authHeader = null)
+        string? authHeader = null, string contract = "openapi")
 {
-    var swagger   = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, authHeader);
-    var endpoints = swaggerService.ParseEndpoints(swagger);
+    var svc = Select(contract);
+    var schema = await svc.GetSchemaAsync(swaggerUrl, baseUrl, authHeader);
+    var endpoints = svc.ParseEndpoints(schema);
     var endpoint  = endpoints.FirstOrDefault(e => e.Name == toolName);
 
     if (endpoint is null)
         return "{\"error\":\"Tool not found\"}";
 
-    baseUrl ??= ExtractBaseUrl(swagger)
-                ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
-    baseUrl = baseUrl.TrimEnd('/');
+    //baseUrl ??= ExtractBaseUrl(swagger)
+     //           ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
+    baseUrl = baseUrl?.TrimEnd('/');
 
     // input → dictionnaire JSON
     var inputDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
                         input.GetRawText(),
                         AppJsonContext.Default.DictionaryStringJsonElement)!;
+
+    if (contract == "graphql")
+    {
+        // Variables du body → dictionnaire
+        var varsDict = inputDict as IReadOnlyDictionary<string, JsonElement>;
+
+        // Génère dynamiquement la requête complète
+        var queryStr = GraphQLQueryBuilder.BuildQuery(toolName, varsDict, schema);
+
+        // Construit le payload JSON (query + variables)
+        var payload = new JsonObject {
+            ["query"]     = queryStr,
+            ["variables"] = JsonSerializer.SerializeToNode(varsDict, AppJsonContext.Default.DictionaryStringJsonElement)!
+        };
+        var response = await _httpClient.PostAsync(
+            baseUrl,
+            new StringContent(payload.ToJsonString(AppJsonContext.Default.Options), Encoding.UTF8, "application/json"));
+        return await response.Content.ReadAsStringAsync();
+    }
 
     // Path params
     var callUrl = endpoint.Url;
@@ -203,6 +227,5 @@ public async Task<string> ExecuteToolAsync(
 
     return await resp.Content.ReadAsStringAsync(); // on renvoie **toujours** un string JSON
 }
-
 
 }

@@ -11,7 +11,7 @@ public interface ISwaggerService
     IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger);
 }
 
-public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache memoryCache) : ISwaggerService
+public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache memoryCache) : ISwaggerService, IRemoteSchemaService
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
 
@@ -55,6 +55,9 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
         return swaggerJson;
     }
+
+    public Task<JsonDocument> GetSchemaAsync(string url, string? baseUrl = null, string? authHeader = null) => GetSwaggerAsync(url, baseUrl, authHeader);
+
     public IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger)
     {
         var root = swagger.RootElement;
@@ -145,6 +148,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                             {
                                 var requiredFields = schema.TryGetProperty("required", out var reqArr)
                                     ? reqArr.EnumerateArray().Select(x => x.GetString()).ToHashSet()!
+
                                     : new HashSet<string>();
                                 foreach (var prop in props.EnumerateObject())
                                 {
