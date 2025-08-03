@@ -39,7 +39,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
     /* ---------- utilitaire qui fabrique le challenge OAuth ---------- */
     static IResult Challenge(HttpRequest req, string oauthB64)
     {
-        var metaUrl = $"https://{req.Host}/.well-known/oauth-protected-resource?oauth={oauthB64}";
+        var metaUrl = $"https://{req.Host}/{oauthB64}/.well-known/oauth-protected-resource";
 
         // On écrit directement l’en-tête
         req.HttpContext.Response.Headers["WWW-Authenticate"] =
@@ -175,8 +175,8 @@ grp.MapPost("/{toolName}", async Task<Ok<string>> (
                 req.Headers.Authorization.FirstOrDefault())));
 
 
-app.MapGet("/.well-known/oauth-protected-resource",
-    ([FromQuery] string? oauth,
+app.MapGet("/{oauth?}/.well-known/oauth-protected-resource",
+    (string? oauth,
         HttpRequest req) =>
     {
 
