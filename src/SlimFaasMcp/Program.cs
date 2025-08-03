@@ -36,6 +36,19 @@ app.MapGet("/mcp", () => Results.StatusCode(StatusCodes.Status405MethodNotAllowe
 app.MapPost("/mcp", async (HttpRequest httpRequest,
                            IToolProxyService toolProxyService) =>
 {
+    /* ---------- utilitaire qui fabrique le challenge OAuth ---------- */
+    static IResult Challenge(HttpRequest req, string oauthB64)
+    {
+        var metaUrl = $"https://{req.Host}/.well-known/oauth-protected-resource?oauth={oauthB64}";
+
+        // On écrit directement l’en-tête
+        req.HttpContext.Response.Headers["WWW-Authenticate"] =
+            $"Bearer resource_metadata=\"{metaUrl}\"";
+
+        // Puis on renvoie simplement le code 401
+        return Results.StatusCode(StatusCodes.Status401Unauthorized);
+    }
+
     var authHeader = httpRequest.Headers["Authorization"].FirstOrDefault();
     using var jsonDocument = await JsonDocument.ParseAsync(httpRequest.Body);
     var root = jsonDocument.RootElement;
@@ -45,6 +58,10 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
     var openapiUrl    = qs.TryGetValue("openapi_url", out var qurl)   ? qurl.ToString()   : "";
     var baseUrl       = qs.TryGetValue("base_url", out var qb)       ? qb.ToString()     : "";
     var mcpPromptB64  = qs.TryGetValue("mcp_prompt", out var qp)     ? qp.ToString()     : null;
+    var oauthB64    = qs.TryGetValue("oauth", out var qOauth) ? qOauth.ToString() : null;
+
+    if (!string.IsNullOrEmpty(oauthB64) && string.IsNullOrWhiteSpace(authHeader))
+        return Challenge(httpRequest, oauthB64);
 
     // --- champs JSON-RPC ----------------------------------------------
     JsonNode response = new JsonObject {
@@ -61,7 +78,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                 ["protocolVersion"] = "2025-06-18",
                 ["capabilities"]    = new JsonObject { ["tools"] = new JsonObject() },
                 ["serverInfo"]      = new JsonObject {
-                    ["name"]    = ".NET MCP Demo",
+                    ["name"]    = "SlimFaas MCP",
                     ["version"] = "0.1.0"
                 }
             };
@@ -156,6 +173,32 @@ grp.MapPost("/{toolName}", async Task<Ok<string>> (
                 openapi_url, toolName, arguments,
                 base_url,
                 req.Headers.Authorization.FirstOrDefault())));
+
+
+app.MapGet("/.well-known/oauth-protected-resource",
+    ([FromQuery] string? oauth,
+        HttpRequest req) =>
+    {
+
+        if (string.IsNullOrWhiteSpace(oauth))
+            return Results.NotFound();
+
+        try
+        {
+            var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(oauth));
+            var meta = System.Text.Json.JsonSerializer.Deserialize(
+                           json,
+                           AppJsonContext.Default.OAuthProtectedResourceMetadata)
+                       ?? throw new Exception("JSON vide");
+
+            return Results.Json(meta, AppJsonContext.Default.OAuthProtectedResourceMetadata);
+        }
+        catch (Exception ex)
+        {
+            return Results.BadRequest($"Paramètre oauth invalide : {ex.Message}");
+        }
+    });
+
 
 app.MapGet("/health", () => Results.Text("OK"));
 
