@@ -49,10 +49,25 @@
     <span id="shareUrl" style="font-family:monospace;"></span>
 </div>
 <button onclick="applyMcpPrompt()">Appliquer le MCP Prompt</button>
+
+<hr>
+<label>Access token :
+    <input id="accessToken"
+           type="text"
+           placeholder="(optional Bearer token)"
+           style="width:50%;" />
+</label><br>
+
 <hr>
 <div id="tools"></div>
 
 <script>
+
+    function getBearerHeader() {
+        const token = document.getElementById("accessToken").value.trim();
+        return token ? { "Authorization": `Bearer ${token}` } : {};
+    }
+
     /* -------------------------------------------------------------
        Helpers de validation base64
     ------------------------------------------------------------- */
@@ -250,7 +265,7 @@
 
         const contentType = tool.endpoint.contentType || "application/json";
         let body;
-        const headers = {};
+        let headers = getBearerHeader();
 
         if (contentType === "multipart/form-data") {
             body = new FormData();
