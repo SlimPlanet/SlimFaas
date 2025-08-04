@@ -8,6 +8,7 @@ IServiceCollection serviceCollection = builder.Services;
 serviceCollection.AddSingleton<Fibonacci, Fibonacci>();
 serviceCollection.AddCors();
 serviceCollection.AddHttpClient();
+serviceCollection.AddSingleton<RequestCounter>();
 
 serviceCollection.Configure<JsonOptions>(options =>
 {
@@ -152,7 +153,52 @@ app.MapGet("/error", async () =>
 });
 
 
+app.MapPost("/compute", async ([FromServices] RequestCounter counter) =>
+{
+    counter.Begin();
+
+    try
+    {
+        Console.WriteLine($"InProgress: {counter.InProgress}");
+        Console.WriteLine($"State: {counter.State}");
+        Console.WriteLine($"Completed: {counter.Completed}");
+        Console.WriteLine($"Total: {counter.Completed+counter.InProgress}");
+        await Task.Delay(100);
+
+        return Results.Ok(new
+        {
+            state            = counter.State,
+            runningRequests  = counter.InProgress,
+            finishedRequests = counter.Completed
+        });
+    }
+    finally
+    {
+        counter.End();
+    }
+});
+
+
+
 app.Run();
+
+internal class RequestCounter
+{
+    private int _inProgress   = 0;
+    private int _completed    = 0;
+
+    public void Begin() => Interlocked.Increment(ref _inProgress);
+
+    public void End()
+    {
+        Interlocked.Decrement(ref _inProgress);
+        Interlocked.Increment(ref _completed);
+    }
+
+    public int  InProgress => _inProgress;
+    public int  Completed  => _completed;
+    public string State    => _inProgress > 0 ? "processing" : "idle";
+}
 
 internal class Fibonacci
 {

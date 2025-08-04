@@ -1,8 +1,11 @@
-﻿using System.Net;
+﻿using System.Collections.Immutable;
+using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using DotNext;
 using MemoryPack;
 using SlimData;
+using SlimData.Commands;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -17,7 +20,8 @@ public enum FunctionType
     Status,
     Publish,
     Job,
-    NotAFunction
+    NotAFunction,
+    AsyncQueue
 }
 
 public record FunctionStatus(int NumberReady,
@@ -45,6 +49,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
 {
     private const string AsyncFunction = "/async-function";
+    private const string AsyncFunctionQueue = "/async-function-queue";
     private const string StatusFunction = "/status-function";
     private const string WakeFunction = "/wake-function";
     private const string Function = "/function";
@@ -59,8 +64,14 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         EnvironmentVariables.SlimFaasSubscribeEvents,
         slimFaasSubscribeEventsDefault);
 
+
+
     public async Task InvokeAsync(HttpContext context,
-        HistoryHttpMemoryService historyHttpService, ISendClient sendClient, IReplicasService replicasService, IJobService jobService)
+        HistoryHttpMemoryService historyHttpService,
+        ISendClient sendClient,
+        IReplicasService replicasService,
+        IJobService jobService,
+        IServiceProvider serviceProvider)
     {
 
         if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts.Ports.ToArray()))
@@ -88,57 +99,115 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         {
             case FunctionType.NotAFunction:
                 await next(context);
-                return;
-            case  FunctionType.Job:
-
-                if (contextRequest.Method != HttpMethods.Post)
+                break;
+            case FunctionType.AsyncQueue:
+               /* if (contextRequest.Method == HttpMethods.Get)
                 {
-                    contextResponse.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
-                    return;
-                }
+                    ISupplier<SlimDataPayload> simplePersistentState = serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
+                    SlimDataPayload data = simplePersistentState.Invoke();
 
-                CreateJob? createJob = await contextRequest.ReadFromJsonAsync(CreateJobSerializerContext.Default.CreateJob);
-                if (createJob == null)
-                {
+                    if (data.Queues.TryGetValue($"Queue:{functionName}", out ImmutableList<QueueElement>? value))
+                    {
+                         var queue = SlimFaasQueuesData.MapToNewModel(value);
+
+                         contextResponse.StatusCode = (int)HttpStatusCode.OK;
+                         await contextResponse.WriteAsJsonAsync(queue,
+                             SlimFaasQueuesDataSerializerContext.Default.SlimFaasQueuesData);
+                         return;
+                    }
+
                     contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                     return;
-                }
-                logger.LogInformation("Create job {JobName} with {CreateJob}", functionName, createJob);
-                if(logger.IsEnabled(LogLevel.Debug))
-                {
-                    logger.LogDebug("Create job details {CreateJob} ", JsonSerializer.Serialize(createJob,
-                        CreateJobSerializerContext.Default.CreateJob));
-                }
-                bool isMessageComeFromNamespaceInternal = MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
-                var result = await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
-                if (result.Code >= 400)
-                {
-                    contextResponse.StatusCode = result.Code;
-                    logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}", contextResponse.StatusCode, result.ErrorKey);
-                }
-
-                contextResponse.StatusCode = 204;
-                return;
+                }*/
+               contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                break;
+            case FunctionType.Job:
+                await BuildJobResponse(context, replicasService, jobService, contextRequest, contextResponse, functionName, functionPath);
+                break;
             case FunctionType.Wake:
                 BuildWakeResponse(replicasService, wakeUpFunction, functionName, contextResponse);
-                return;
+                break;
             case FunctionType.Status:
                 BuildStatusResponse(replicasService, functionName, contextResponse);
-                return;
+                break;
             case FunctionType.Sync:
                 await BuildSyncResponseAsync(logger, context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
-                return;
+                break;
             case FunctionType.Publish:
                 await BuildPublishResponseAsync(context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
-                return;
+                break;
+
             case FunctionType.Async:
             default:
                 {
                     await BuildAsyncResponseAsync(logger, context, replicasService, jobService, functionName, functionPath);
                     break;
                 }
+        }
+    }
+
+    private async Task BuildJobResponse(HttpContext context, IReplicasService replicasService, IJobService jobService,
+        HttpRequest contextRequest, HttpResponse contextResponse, string functionName, string functionPath)
+    {
+        if (contextRequest.Method == HttpMethods.Put || contextRequest.Method == HttpMethods.Patch)
+        {
+            contextResponse.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            return;
+        }
+
+        if (contextRequest.Method == HttpMethods.Post)
+        {
+            CreateJob? createJob =
+                await contextRequest.ReadFromJsonAsync(CreateJobSerializerContext.Default.CreateJob);
+            if (createJob == null)
+            {
+                contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
+            }
+
+            logger.LogInformation("Create job {JobName} with {CreateJob}", functionName, createJob);
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("Create job details {CreateJob} ", JsonSerializer.Serialize(createJob,
+                    CreateJobSerializerContext.Default.CreateJob));
+            }
+
+            bool isMessageComeFromNamespaceInternal =
+                MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
+            var result =
+                await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
+            if (result.Code >= 400)
+            {
+                contextResponse.StatusCode = result.Code;
+                logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}",
+                    contextResponse.StatusCode, result.ErrorKey);
+                return;
+            }
+            contextResponse.StatusCode = 202;
+            await contextResponse.WriteAsJsonAsync(new EnqueueJobResultSuccess(result.ElementId),
+                EnqueueJobResultSuccessSerializerContext.Default.EnqueueJobResultSuccess);
+
+            return;
+        }
+        if (contextRequest.Method == HttpMethods.Get)
+        {
+            var jobs = await jobService.ListJobAsync(functionName);
+            contextResponse.StatusCode = 200;
+            await contextResponse.WriteAsJsonAsync(jobs,
+                JobListResultSerializerContext.Default.ListJobListResult);
+            return;
+        }
+        if (contextRequest.Method == HttpMethods.Delete)
+        {
+            string elementId = functionPath.Replace("/", "");
+            bool isMessageComeFromNamespaceInternal =
+                MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
+            logger.LogInformation("Delete job {JobName} with {Id}", functionName, elementId);
+            bool isSuccess = await jobService.DeleteJobAsync(functionName, elementId, isMessageComeFromNamespaceInternal);
+            contextResponse.StatusCode = isSuccess ? 200 : 404;
+            return;
         }
     }
 
@@ -578,6 +647,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             WakeFunction => FunctionType.Wake,
             PublishEvent => FunctionType.Publish,
             Job => FunctionType.Job,
+            AsyncFunctionQueue => FunctionType.AsyncQueue,
             _ => FunctionType.NotAFunction
         };
         return new FunctionInfo(functionPath, functionName, functionType);
@@ -609,6 +679,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         else if (path.StartsWithSegments(Job))
         {
             functionBeginPath = $"{Job}";
+        }
+        else if (path.StartsWithSegments(AsyncFunctionQueue))
+        {
+            functionBeginPath = $"{AsyncFunctionQueue}";
         }
 
         return functionBeginPath;

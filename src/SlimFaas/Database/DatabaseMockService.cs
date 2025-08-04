@@ -10,6 +10,8 @@ public class DatabaseMockService : IDatabaseService
     private readonly ConcurrentDictionary<string, byte[]> keys = new();
     private readonly ConcurrentDictionary<string, List<QueueData>> queue = new();
 
+    public Task DeleteAsync(string key) => throw new NotImplementedException();
+
     public Task<byte[]?> GetAsync(string key)
     {
         if (keys.TryGetValue(key, out byte[]? value))
@@ -58,7 +60,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.FromResult<IDictionary<string, string>>(new Dictionary<string, string>());
     }
 
-    public Task ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
+    public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
         List<QueueData> list;
         if (queue.ContainsKey(key))
@@ -71,11 +73,12 @@ public class DatabaseMockService : IDatabaseService
             queue.TryAdd(key, list);
         }
 
-        list.Add(new QueueData(Guid.NewGuid().ToString(), field));
-        return Task.CompletedTask;
+        var elementId = Guid.NewGuid().ToString();
+        list.Add(new QueueData(elementId, field));
+        return Task.FromResult(elementId);
     }
 
-    public Task<IList<QueueData>?> ListRightPopAsync(string key, int count = 1)
+    public Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1)
     {
         if (!queue.ContainsKey(key))
         {

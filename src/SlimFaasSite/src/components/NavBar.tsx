@@ -43,10 +43,13 @@ const Navbar: React.FC = () => {
                         <Link href="/jobs">Jobs</Link>
                     </li>
                     <li className="navbar__item">
+                        <Link href="/how-it-works">How it works</Link>
+                    </li>
+                    <li className="navbar__item">
                         <Link href="/planet-saver">PlanetSaver</Link>
                     </li>
                     <li className="navbar__item">
-                        <Link href="/how-it-works">How it works</Link>
+                        <Link href="/mcp">MCP</Link>
                     </li>
                 </ul>
             </div>

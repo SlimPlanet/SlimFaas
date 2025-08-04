@@ -8,6 +8,8 @@ SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform f
 It’s designed to be **fast**, **simple**, and **extremely slim**—making it easy to deploy and manage serverless
 functions with minimal overhead.
 
+> **Looking for MCP integration?** Check out **[SlimFaas MCP](https://slimfaas.dev/mcp)** -the companion runtime that converts *any* OpenAPI definition into MCP‑ready tools on the fly.
+
 ## Why Use SlimFaas?
 
 - **Scale**
@@ -49,8 +51,9 @@ Check out:
 - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
 - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
 - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
-- [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
 - [How It Works](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/how-it-works.md) – Dive into SlimFaas’s architecture and design.
+- [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
+- [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP‑ready tools on the fly.
 
 We hope SlimFaas helps you streamline serverless development!
 
@@ -62,6 +65,10 @@ We hope SlimFaas helps you streamline serverless development!
   SlimFaas is proud to be part of the [Cloud Native Computing Foundation (CNCF) landscape](https://landscape.cncf.io).
 
   <img alt="CNCF logo" src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg" width="200"/>
+
+- **Community Meeting**
+  Join us through our [Community Meeting Calendar](https://calendar.google.com/calendar/embed?src=be1dd72d18650490580a7d5d96a45a6eebe0fc4c9fe8adce630754cbb6121cca%40group.calendar.google.com&ctz=Europe%2FParis)
+    - [ICS file](https://calendar.google.com/calendar/ical/be1dd72d18650490580a7d5d96a45a6eebe0fc4c9fe8adce630754cbb6121cca%40group.calendar.google.com/public/basic.ics)
 
 - **Slack Channel**
   Join our channel on the [CNCF Slack](https://cloud-native.slack.com/archives/C08CRC77VDE) to connect with other SlimFaas users.

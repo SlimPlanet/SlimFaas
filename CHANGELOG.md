@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.38.0
+
+- [74ef84a](https://github.com/SlimPlanet/SlimFaas/commit/74ef84a037f6f75736af79f7c714a14ce487fce8) - feat(mcp): mcp output (#138) (release), 2025-08-02 by *Guillaume Chervet*
+
+
+## 0.37.2
+
+
+
+## v0.37.2
+
+- [3a54e98](https://github.com/SlimPlanet/SlimFaas/commit/3a54e9827aa29cd5029bdf4afd2261ce6aa85f9e) - fix(queue): message lost (#130) (release), 2025-08-01 by *Guillaume Chervet*
+
+
+## 0.37.1
+
+
+
+## v0.37.1
+
+- [6990149](https://github.com/SlimPlanet/SlimFaas/commit/6990149cea1a6e07247f302aaef91abf722b448d) - doc(slimfaas-mcp): Update mcp.md (release), 2025-07-24 by *Guillaume Chervet*
+- [512e80c](https://github.com/SlimPlanet/SlimFaas/commit/512e80c6ae68c1341eeb5566b4a17f17a1a824c2) - refactor(mcp): clean up (#131), 2025-07-22 by *Guillaume Chervet*
+
+
+## 0.37.0
+
+
+
+## v0.37.0
+
+- [dfe6f23](https://github.com/SlimPlanet/SlimFaas/commit/dfe6f230519a5e265646c58d0ffd884594e8fced) - feat(slimfaas-mcp): proxyfy openapi to mcp (#114) (release), 2025-07-18 by *Guillaume Chervet*
+
+
+## v0.36.24
+
+- [bc7bafc](https://github.com/SlimPlanet/SlimFaas/commit/bc7bafce7eebbcf55e7e11c5734aacc802e121c7) - feature(slimfaas): delete job (#129) (release), 2025-07-18 by *Guillaume Chervet*
+- [282ffb8](https://github.com/SlimPlanet/SlimFaas/commit/282ffb8bad7a919c8d1428beef63ca9bad824559) - doc: add meeting calendar (#113), 2025-06-26 by *Guillaume Chervet*
+- [f088c8f](https://github.com/SlimPlanet/SlimFaas/commit/f088c8fcb0711a00fa12d9a15401f4787c9b1acf) - doc: copy apache-2.0 LICENCE from Keda (#112), 2025-06-24 by *Guillaume Chervet*
+- [7f3b59b](https://github.com/SlimPlanet/SlimFaas/commit/7f3b59b1829c6da7e602305638ee8ece19c0e4e1) - doc: add GOVERNANCE.md file, 2025-06-19 by *Antoine BLANCKE*
+- [346f588](https://github.com/SlimPlanet/SlimFaas/commit/346f5884dc7a9220685498c5f583398af7ddc452) - Merge branch 'main' into doc/gouverance.md, 2025-06-19 by *Guillaume Chervet*
+- [b9245ab](https://github.com/SlimPlanet/SlimFaas/commit/b9245ab4e3c91b2f7dd56a7c8e84b5c5cc0f28fb) - doc: add gouvernance.md, 2025-02-25 by *Guillaume Chervet*
+
+
 ## v0.36.23
 
 - [47b1dab](https://github.com/SlimPlanet/SlimFaas/commit/47b1dab1a9b91a2700acae4c343d5ca70b4f394c) - feature(job): add images whitelist pattern (#111) (release), 2025-05-27 by *Guillaume Chervet*
@@ -266,45 +309,5 @@
 ## v0.32.1
 
 - [d8a885f](https://github.com/SlimPlanet/SlimFaas/commit/d8a885f6fabd4c078262a6b7631e374fb0164e09) - fix(SLimFaasPlanetSaver): documentation, 2024-12-10 by *Guillaume Chervet*
-
-
-## v0.32.0
-
-- [2953743](https://github.com/SlimPlanet/SlimFaas/commit/2953743324e36efec2aabb40a448514401c34d62) - feat(SlimFaasPlanetSaver): add manual TypeScript File Definition, 2024-12-10 by *Guillaume Chervet*
-
-
-## v0.31.0
-
-- [f3f39dc](https://github.com/SlimPlanet/SlimFaas/commit/f3f39dcf5ce28e56d70e05184c4cb77636fe40e8) - feat(all): setup net 9 (#78), 2024-12-03 by *Guillaume Chervet*
-
-
-## v0.30.7
-
-- [0deb056](https://github.com/SlimPlanet/SlimFaas/commit/0deb0566a800fd0a675a80f6f4699537aae16ccb) - fix(SlimFaasPlanetSaver) : better cleanning, 2024-12-02 by *Guillaume Chervet*
-
-
-## v0.30.6
-
-- [649d7f9](https://github.com/SlimPlanet/SlimFaas/commit/649d7f9aa4382686ee72f23670c975aba760dcce) - fix(SlimFaasPlanetSaver): better UI, 2024-12-01 by *Guillaume Chervet*
-
-
-## v0.30.5
-
-- [3178440](https://github.com/SlimPlanet/SlimFaas/commit/317844008937f9f598fad17998a75464447bc668) - fix(SlimFaasPlanetSaver): better default message, 2024-12-01 by *Guillaume Chervet*
-
-
-## v0.30.4
-
-- [22ce5a0](https://github.com/SlimPlanet/SlimFaas/commit/22ce5a028d8972b1d31fa6b222ee5ddc23071f3e) - chore(SlimFaasPlanetServer): version to publish, 2024-11-30 by *Guillaume Chervet*
-
-
-## v0.30.3
-
-- [415f590](https://github.com/SlimPlanet/SlimFaas/commit/415f5909da9f43315bed3a289f7dfbf66e9a66bd) - chore(SlimFaasPlanetSaver): fix publish versionning, 2024-11-30 by *Guillaume Chervet*
-
-
-## v0.30.2
-
-- [de2fd4f](https://github.com/SlimPlanet/SlimFaas/commit/de2fd4f5a6da2309ebbdd054efb86e80e90ba9ac) - fix(SlimFaasPlanetSaver): test auto version upgrade, 2024-11-30 by *Guillaume Chervet*
 
 

@@ -1,4 +1,5 @@
-﻿using DotNext;
+﻿using System.Collections.Immutable;
+using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
@@ -10,9 +11,10 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
 {
     public const string LogLocation = "logLocation";
 
-    private readonly SlimDataState _state = new(new Dictionary<string, Dictionary<string, string>>(), 
-        new Dictionary<string, ReadOnlyMemory<byte>>(), 
-        new Dictionary<string, List<QueueElement>>()
+    private readonly SlimDataState _state = new(
+        ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty,
+        ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+        ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
         );
     public CommandInterpreter Interpreter { get; }
 
@@ -65,10 +67,11 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
 
     private sealed class SimpleSnapshotBuilder : IncrementalSnapshotBuilder
     {
-        private readonly SlimDataState _state = new(new Dictionary<string, Dictionary<string, string>>(), 
-            new Dictionary<string, ReadOnlyMemory<byte>>(), 
-            new Dictionary<string, List<QueueElement>>()
-            );   
+        private readonly SlimDataState _state =  new(
+            ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty,
+            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+            ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
+            );
         private readonly CommandInterpreter _interpreter;
 
         public SimpleSnapshotBuilder(in SnapshotBuilderContext context)
@@ -84,11 +87,23 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
 
         public override async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         {
-            var keysValues = _state.KeyValues;
+            var keysValues = new Dictionary<string, ReadOnlyMemory<byte>>(_state.KeyValues.ToDictionary(kv => kv.Key, kv => kv.Value));
             var queues =  _state.Queues;
+            var newQueues = new Dictionary<string, List<QueueElement>>();
             var hashsets = _state.Hashsets;
+            var newHashsets = new Dictionary<string, Dictionary<string, string>>();
             
-            LogSnapshotCommand command = new(keysValues, hashsets, queues);
+            foreach (var hashset in hashsets)
+            {
+                newHashsets[hashset.Key] = hashset.Value.ToDictionary(kv => kv.Key, kv => kv.Value);
+            }
+            
+            foreach (var queue in queues)
+            {
+                newQueues[queue.Key] = queue.Value.ToList();
+            }
+            
+            LogSnapshotCommand command = new(keysValues, newHashsets, newQueues);
             await command.WriteToAsync(writer, token).ConfigureAwait(false);
         }
     }

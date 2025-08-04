@@ -1,62 +1,72 @@
-﻿using DotNext.Net.Cluster.Consensus.Raft.Commands;
+﻿using System.Collections.Immutable;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using SlimData.Commands;
 
 namespace SlimData;
 
-
-
-public record SlimDataState(
-    Dictionary<string, Dictionary<string, string>> Hashsets,
-    Dictionary<string, ReadOnlyMemory<byte>> KeyValues,
-    Dictionary<string, List<QueueElement>> Queues);
+public class SlimDataState(
+    ImmutableDictionary<string, ImmutableDictionary<string, string>> Hashsets,
+    ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues,
+    ImmutableDictionary<string, ImmutableList<QueueElement>> Queues)
+{
+    public ImmutableDictionary<string, ImmutableDictionary<string, string>> Hashsets { get; set; } = Hashsets;
+    public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; } = KeyValues;
+    public ImmutableDictionary<string, ImmutableList<QueueElement>> Queues { get; set; } = Queues;
+}
 
 public class QueueElement(
     ReadOnlyMemory<byte> value,
     string id,
     long insertTimeStamp,
     int httpTimeout,
-    List<int> timeoutRetries,
-    IList<QueueHttpTryElement> retryQueueElements,
-    List<int> httpStatusRetries
-    )
+    ImmutableList<int> timeoutRetries,
+    ImmutableList<QueueHttpTryElement> retryQueueElements,
+    ImmutableList<int> httpStatusRetries
+)
 {
     public ReadOnlyMemory<byte> Value { get; } = value;
     public string Id { get; } = id;
     public long InsertTimeStamp { get; } = insertTimeStamp;
     
-    public List<int> TimeoutRetries { get; } = timeoutRetries;
+    public ImmutableList<int> TimeoutRetries { get; } = timeoutRetries;
 
     public int HttpTimeout { get; } = httpTimeout;
-    public IList<QueueHttpTryElement> RetryQueueElements { get; } = retryQueueElements;
+    public ImmutableList<QueueHttpTryElement> RetryQueueElements { get; set; } = retryQueueElements;
     
-    public List<int> HttpStatusRetries { get; } = httpStatusRetries;
+    public ImmutableList<int> HttpStatusRetries { get; } = httpStatusRetries;
 }
 
-public class QueueHttpTryElement(long startTimeStamp=0, long endTimeStamp=0, int httpCode=0)
+public class QueueHttpTryElement(long startTimeStamp = 0, string idTransaction = "", long endTimeStamp = 0, int httpCode = 0)
 {
     public long StartTimeStamp { get; set; } = startTimeStamp;
-    public long EndTimeStamp { get;set; } = endTimeStamp;
-    public int HttpCode { get;set; } = httpCode;
+    public long EndTimeStamp { get; set; } = endTimeStamp;
+    public int HttpCode { get; set; } = httpCode;
+    public string IdTransaction { get; set; } = idTransaction;
 }
 
 #pragma warning restore CA2252
 public class SlimDataInterpreter : CommandInterpreter
 {
+    public const int DeleteFromQueueCode = 1000;
 
-    public SlimDataState SlimDataState = new(new Dictionary<string, Dictionary<string, string>>(), new Dictionary<string, ReadOnlyMemory<byte>>(), new Dictionary<string, List<QueueElement>>());
+    public SlimDataState SlimDataState = new(
+        ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty,
+        ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+        ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
+    );
 
     [CommandHandler]
     public ValueTask ListRightPopAsync(ListRightPopCommand addHashSetCommand, CancellationToken token)
     {
-        return DoListRightPopAsync(addHashSetCommand, SlimDataState.Queues);
+        return DoListRightPopAsync(addHashSetCommand, SlimDataState);
     }
     
-
-    internal static ValueTask DoListRightPopAsync(ListRightPopCommand addHashSetCommand, Dictionary<string, List<QueueElement>> queues)
+    internal static ValueTask DoListRightPopAsync(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
     {
-        if (queues.TryGetValue(addHashSetCommand.Key, out var queue))
+        var queues = slimDataState.Queues;
+        if (queues.TryGetValue(listRightPopCommand.Key, out var queue))
         {
-            var nowTicks =addHashSetCommand.NowTicks;
+            var nowTicks = listRightPopCommand.NowTicks;
             var queueTimeoutElements = queue.GetQueueTimeoutElement(nowTicks);
             foreach (var queueTimeoutElement in queueTimeoutElements)
             {
@@ -64,19 +74,26 @@ public class SlimDataInterpreter : CommandInterpreter
                 retryQueueElement.EndTimeStamp = nowTicks;
                 retryQueueElement.HttpCode = 504;
             }
-            
+
+            var queueList = queue.ToList();
             var queueFinishedElements = queue.GetQueueFinishedElement(nowTicks);
             foreach (var queueFinishedElement in queueFinishedElements)
             {
-                queue.Remove(queueFinishedElement);
+                queueList.Remove(queueFinishedElement);
             }
-            
-            var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, addHashSetCommand.Count);
-            foreach (var queueAvailableElement in queueAvailableElements)
+            var isIdTransactionAlreadyExist = queue.Any(q => q.RetryQueueElements.Count > 0 && q.RetryQueueElements[^1].IdTransaction == listRightPopCommand.IdTransaction);
+            if (!isIdTransactionAlreadyExist)
             {
-                queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks));
+                var queueAvailableElements = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
+                foreach (var queueAvailableElement in queueAvailableElements)
+                {
+                    queueAvailableElement.RetryQueueElements =
+                        queueAvailableElement.RetryQueueElements.Add(new QueueHttpTryElement(nowTicks,
+                            listRightPopCommand.IdTransaction));
+                }
             }
 
+            slimDataState.Queues = queues.SetItem(listRightPopCommand.Key, ImmutableList.CreateRange(queueList));
         }
         
         return default;
@@ -85,119 +102,158 @@ public class SlimDataInterpreter : CommandInterpreter
     [CommandHandler]
     public ValueTask ListLeftPushAsync(ListLeftPushCommand addHashSetCommand, CancellationToken token)
     {
-        return DoListLeftPushAsync(addHashSetCommand, SlimDataState.Queues);
+        return DoListLeftPushAsync(addHashSetCommand, SlimDataState);
     }
     
-    internal static ValueTask DoListLeftPushAsync(ListLeftPushCommand listLeftPushCommand, Dictionary<string, List<QueueElement>> queues)
+    internal static ValueTask DoListLeftPushAsync(ListLeftPushCommand listLeftPushCommand, SlimDataState slimDataState)
     {
-        if (queues.TryGetValue(listLeftPushCommand.Key, out List<QueueElement>? value))
-            value.Add(new QueueElement(listLeftPushCommand.Value, listLeftPushCommand.Identifier, listLeftPushCommand.NowTicks, listLeftPushCommand.RetryTimeout, listLeftPushCommand.Retries,new List<QueueHttpTryElement>(), listLeftPushCommand.HttpStatusCodesWorthRetrying));
+        var queues = slimDataState.Queues;
+        var queueElement = new QueueElement(
+            listLeftPushCommand.Value,
+            listLeftPushCommand.Identifier,
+            listLeftPushCommand.NowTicks,
+            listLeftPushCommand.RetryTimeout,
+            listLeftPushCommand.Retries.ToImmutableList(),
+            ImmutableList<QueueHttpTryElement>.Empty,
+            listLeftPushCommand.HttpStatusCodesWorthRetrying.ToImmutableList()
+        );
+        if (queues.TryGetValue(listLeftPushCommand.Key, out var value))
+        {
+            if (value.All(q => q.Id != listLeftPushCommand.Identifier))
+            {
+                var newValue = value.Add(queueElement);
+                queues = queues.SetItem(listLeftPushCommand.Key, newValue);
+            }
+        }
         else
-            queues.Add(listLeftPushCommand.Key, new List<QueueElement>() {new(listLeftPushCommand.Value,listLeftPushCommand.Identifier, listLeftPushCommand.NowTicks, listLeftPushCommand.RetryTimeout, listLeftPushCommand.Retries,new List<QueueHttpTryElement>(), listLeftPushCommand.HttpStatusCodesWorthRetrying)});
+        {
+            var newValue = ImmutableList<QueueElement>.Empty.Add(queueElement);
+            queues = queues.Add(listLeftPushCommand.Key, newValue);
+        }
+
+        slimDataState.Queues = queues;
+
         return default;
     }
     
     [CommandHandler]
     public ValueTask ListCallbackAsync(ListCallbackCommand addHashSetCommand, CancellationToken token)
     {
-        return DoListCallbackAsync(addHashSetCommand, SlimDataState.Queues);
+        return DoListCallbackAsync(addHashSetCommand, SlimDataState);
     }
     
-    internal static ValueTask DoListCallbackAsync(ListCallbackCommand listCallbackCommand, Dictionary<string, List<QueueElement>> queues)
+    internal static ValueTask DoListCallbackAsync(ListCallbackCommand listCallbackCommand, SlimDataState slimDataState)
     {
-        if (!queues.TryGetValue(listCallbackCommand.Key, out List<QueueElement>? value)) return default;
-        
-        var queueElement = value.FirstOrDefault(x => x.Id == listCallbackCommand.Identifier);
-        if (queueElement == null)
-        {
-            return default;
-        }
-        var retryQueueElement = queueElement.RetryQueueElements[^1];
-        retryQueueElement.EndTimeStamp = listCallbackCommand.NowTicks;
-        retryQueueElement.HttpCode = listCallbackCommand.HttpCode;
+        var queues = slimDataState.Queues;
+        if (!queues.TryGetValue(listCallbackCommand.Key, out var value)) return default;
 
-        if (queueElement.IsFinished(listCallbackCommand.NowTicks))
+        foreach (var callbackElement in listCallbackCommand.CallbackElements)
         {
-            value.Remove(queueElement);
+            var queueElement = value.FirstOrDefault(x => x.Id == callbackElement.Identifier);
+            if (queueElement == null) continue;
+
+            if (callbackElement.HttpCode == DeleteFromQueueCode)
+            {
+                value = value.Remove(queueElement);
+            }
+            else if(queueElement.RetryQueueElements.Count > 0)
+            {
+                var retryQueueElement = queueElement.RetryQueueElements[^1];
+                retryQueueElement.EndTimeStamp = listCallbackCommand.NowTicks;
+                retryQueueElement.HttpCode = callbackElement.HttpCode;
+
+                if (queueElement.IsFinished(listCallbackCommand.NowTicks))
+                {
+                    value = value.Remove(queueElement);
+                }
+            }
         }
-       
+        
+        slimDataState.Queues = queues.SetItem(listCallbackCommand.Key, value);
+
         return default;
     }
 
     [CommandHandler]
     public ValueTask AddHashSetAsync(AddHashSetCommand addHashSetCommand, CancellationToken token)
     {
-        return DoAddHashSetAsync(addHashSetCommand, SlimDataState.Hashsets);
+        return DoAddHashSetAsync(addHashSetCommand, SlimDataState);
     }
     
-    internal static ValueTask DoAddHashSetAsync(AddHashSetCommand addHashSetCommand, Dictionary<string, Dictionary<string, string>> hashsets)
+    internal static ValueTask DoAddHashSetAsync(AddHashSetCommand addHashSetCommand, SlimDataState slimDataState)
     {
-        hashsets[addHashSetCommand.Key] = addHashSetCommand.Value;
+        var hashsets = slimDataState.Hashsets;
+        slimDataState.Hashsets = hashsets.SetItem(addHashSetCommand.Key, addHashSetCommand.Value.ToImmutableDictionary());
         return default;
     }
 
     [CommandHandler]
     public ValueTask AddKeyValueAsync(AddKeyValueCommand valueCommand, CancellationToken token)
     {
-        return DoAddKeyValueAsync(valueCommand, SlimDataState.KeyValues);
+        return DoAddKeyValueAsync(valueCommand, SlimDataState);
     }
     
-    internal static ValueTask DoAddKeyValueAsync(AddKeyValueCommand valueCommand, Dictionary<string, ReadOnlyMemory<byte>> keyValues)
+    internal static ValueTask DoAddKeyValueAsync(AddKeyValueCommand valueCommand, SlimDataState slimDataState)
     {
-        keyValues[valueCommand.Key] = valueCommand.Value;
+        var keyValues = slimDataState.KeyValues;
+        slimDataState.KeyValues = keyValues.SetItem(valueCommand.Key, valueCommand.Value);
         return default;
     }
     
     [CommandHandler]
     public ValueTask DeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, CancellationToken token)
     {
-        return DoDeleteKeyValueAsync(valueCommand, SlimDataState.KeyValues);
+        return DoDeleteKeyValueAsync(valueCommand, SlimDataState);
     }
     
-    internal static ValueTask DoDeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, Dictionary<string, ReadOnlyMemory<byte>> keyValues)
+    internal static ValueTask DoDeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, SlimDataState slimDataState)
     {
-        keyValues.Remove(valueCommand.Key);
+        var keyValues = slimDataState.KeyValues;
+        if (keyValues.ContainsKey(valueCommand.Key))
+        {
+            slimDataState.KeyValues = keyValues.Remove(valueCommand.Key);
+        }
+
         return default;
     }
 
     [CommandHandler(IsSnapshotHandler = true)]
     public ValueTask HandleSnapshotAsync(LogSnapshotCommand command, CancellationToken token)
     {
-        DoHandleSnapshotAsync(command, SlimDataState.KeyValues, SlimDataState.Hashsets, SlimDataState.Queues);
+        DoHandleSnapshotAsync(command, SlimDataState);
         return default;
     }
     
-    internal static ValueTask DoHandleSnapshotAsync(LogSnapshotCommand command, Dictionary<string, ReadOnlyMemory<byte>> keyValues, Dictionary<string, Dictionary<string, string>> hashsets, Dictionary<string, List<QueueElement>>  queues)
+    internal static ValueTask DoHandleSnapshotAsync(LogSnapshotCommand command, SlimDataState slimDataState)
     {
-        keyValues.Clear();
-        foreach (var keyValue in command.keysValues)
-        {
-            keyValues[keyValue.Key] = keyValue.Value;
-        }
+        slimDataState.KeyValues = command.keysValues.ToImmutableDictionary();
         
-        queues.Clear();
+        var queues = ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty;
         foreach (var queue in command.queues)
         {
-            queues[queue.Key] = queue.Value;
+            queues = queues.SetItem(queue.Key, queue.Value.ToImmutableList());
         }
+        slimDataState.Queues = queues;
         
-        hashsets.Clear();
+        var hashsets = ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty;
         foreach (var hashset in command.hashsets)
         {
-            hashsets[hashset.Key] = hashset.Value;
+            hashsets = hashsets.SetItem(hashset.Key, hashset.Value.ToImmutableDictionary());
         }
+        slimDataState.Hashsets = hashsets;
+        
         return default;
     }   
     
     public static CommandInterpreter InitInterpreter(SlimDataState state)   
     {
-        ValueTask ListRightPopHandler(ListRightPopCommand command, CancellationToken token) => DoListRightPopAsync(command, state.Queues);
-        ValueTask ListLeftPushHandler(ListLeftPushCommand command, CancellationToken token) => DoListLeftPushAsync(command, state.Queues);
-        ValueTask AddHashSetHandler(AddHashSetCommand command, CancellationToken token) => DoAddHashSetAsync(command, state.Hashsets);
-        ValueTask AddKeyValueHandler(AddKeyValueCommand command, CancellationToken token) => DoAddKeyValueAsync(command, state.KeyValues);
-        ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand command, CancellationToken token) => DoDeleteKeyValueAsync(command, state.KeyValues);
-        ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand command, CancellationToken token) => DoListCallbackAsync(command, state.Queues);
-        ValueTask SnapshotHandler(LogSnapshotCommand command, CancellationToken token) => DoHandleSnapshotAsync(command, state.KeyValues, state.Hashsets, state.Queues);
+        ValueTask ListRightPopHandler(ListRightPopCommand command, CancellationToken token) => DoListRightPopAsync(command, state);
+        ValueTask ListLeftPushHandler(ListLeftPushCommand command, CancellationToken token) => DoListLeftPushAsync(command, state);
+        ValueTask AddHashSetHandler(AddHashSetCommand command, CancellationToken token) => DoAddHashSetAsync(command, state);
+        ValueTask AddKeyValueHandler(AddKeyValueCommand command, CancellationToken token) => DoAddKeyValueAsync(command, state);
+        ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand command, CancellationToken token) => DoDeleteKeyValueAsync(command, state);
+        ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand command, CancellationToken token) => DoListCallbackAsync(command, state);
+        ValueTask SnapshotHandler(LogSnapshotCommand command, CancellationToken token) => DoHandleSnapshotAsync(command, state);
 
         var interpreter = new Builder()
             .Add(ListRightPopCommand.Id, (Func<ListRightPopCommand, CancellationToken, ValueTask>)ListRightPopHandler)
@@ -211,6 +267,4 @@ public class SlimDataInterpreter : CommandInterpreter
 
         return interpreter;
     }
-    
-    
 }

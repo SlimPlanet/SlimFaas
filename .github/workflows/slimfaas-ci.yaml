@@ -219,6 +219,21 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
+  build_fibonacci_mcp:
+    needs: tags
+    if: github.event.pull_request.head.repo.fork == false
+    uses: ./.github/workflows/Docker.yml
+    with:
+      image_name: "axaguildev/slimfaas-mcp"
+      image_version: "${{ needs.tags.outputs.new_version }}"
+      image_build_args: ""
+      image_context: "./src/SlimFaasMcp"
+      image_file: "./src/SlimFaasMcp/Dockerfile"
+      platforms: "linux/amd64,linux/arm64"
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
   build_fibonacci_batch:
     needs: tags
     if: github.event.pull_request.head.repo.fork == false
@@ -246,6 +261,107 @@ jobs:
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+  build_slimfaas_mcp_aot:
+    needs: tags
+    if: github.event.pull_request.head.repo.fork == false
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest    # Linux → linux-x64
+            rid: linux-x64
+            zip: SlimFaasMcp-linux-x64.zip
+          - os: windows-latest   # Windows → win-x64
+            rid: win-x64
+            zip: SlimFaasMcp-win-x64.zip
+          - os: macos-latest     # macOS (Intel) → osx-x64
+            rid: osx-x64
+            zip: SlimFaasMcp-osx-x64.zip
+          - os: macos-14 # pour Apple Silicon
+            rid: osx-arm64
+            zip: SlimFaasMcp-osx-arm64.zip
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v3
+        with:
+          global-json-file: global.json
+
+      - name: Publish SlimFaasMcp (${{
+          matrix.rid }})
+        run: |
+          dotnet publish ./src/SlimFaasMcp/SlimFaasMcp.csproj \
+            -c Release -r ${{ matrix.rid }} \
+            -o ./publish \
+            -p:PublishAot=true \
+            -p:PublishTrimmed=true \
+            -p:SelfContained=true \
+            -p:InvariantGlobalization=true
+        shell: bash
+
+      # ── Création du ZIP, spécifique à l’OS ─────────────────────────────
+      - name: Zip artifact (Linux & macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cd publish
+          zip -r ../${{ matrix.zip }} .
+        shell: bash
+
+      - name: Zip artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Compress-Archive -Path publish\* -DestinationPath ${{ matrix.zip }}
+        shell: powershell
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.zip }}
+          path: ${{ matrix.zip }}
+          if-no-files-found: error
+
+  publish_slimfaas_mcp_release:
+    needs: [tags, build_slimfaas_mcp_aot, change_log]
+    # Exécute‑le uniquement pour un tag "release"
+    if: needs.tags.outputs.tag == 'release'
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Récupère le dépôt pour avoir le changelog / README si besoin
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 2) Télécharge les trois artifacts créés par le job précédent
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: SlimFaasMcp-*.zip          # attrape les 3 zip
+          merge-multiple: true                # tous dans le dossier courant
+
+      # 3) Crée ou met à jour la GitHub Release et attache les ZIP
+      - name: Create GitHub Release & upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.tags.outputs.new_version }}   # ex. 1.2.3
+          name: "SlimFaas MCP ${{ needs.tags.outputs.new_version }}"
+          body: |
+            **SlimFaasMcp** build natif AOT pour les 3 plateformes :
+
+            * linux-x64
+            * windows-x64
+            * macOS (x64)
+
+            _Généré automatiquement depuis le workflow CI._
+          draft: false
+          prerelease: false
+          files: |
+            SlimFaasMcp-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # token auto‑fourni
+
 
   build_slimfaas_planet_saver:
     needs: tags
@@ -314,7 +430,7 @@ jobs:
   change_log:
     runs-on: ubuntu-latest
     if: needs.tags.outputs.tag == 'release'
-    needs: [ tags,  build_slimfaas_planet_saver, build_slimfaas, deploy_website ]
+    needs: [ tags,  build_slimfaas_planet_saver, build_slimfaas, deploy_website, build_fibonacci_mcp ]
     steps:
       - uses: actions/checkout@v4
         with:

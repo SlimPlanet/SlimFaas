@@ -1,4 +1,4 @@
-﻿FROM --platform=$BUILDPLATFORM  alpine:3.20 AS base
+﻿FROM --platform=$BUILDPLATFORM  alpine:3.22 AS base
 RUN apk update && apk upgrade
 RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
@@ -9,7 +9,7 @@ USER appuser
 EXPOSE 80
 EXPOSE 443
 
-FROM --platform=$BUILDPLATFORM  mcr.microsoft.com/dotnet/sdk:9.0-alpine3.20 AS build
+FROM --platform=$BUILDPLATFORM  mcr.microsoft.com/dotnet/sdk:9.0-alpine3.22 AS build
 RUN apk update && apk upgrade
 RUN apk add --no-cache clang build-base zlib-dev
 WORKDIR /src
@@ -17,7 +17,7 @@ WORKDIR /src
 FROM --platform=$BUILDPLATFORM  build AS publish
 COPY . .
 ARG RUNTIME_ID=x64
-RUN dotnet publish "./src/SlimFaas/SlimFaas.csproj" -c Release -a $RUNTIME_ID  -o /app/publish
+RUN dotnet publish "./src/SlimFaas/SlimFaas.csproj" -c Release -a "$RUNTIME_ID"  -o /app/publish
 RUN ls -la /app/publish
 RUN rm /app/publish/*.pdb
 RUN rm /app/publish/*.dbg

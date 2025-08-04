@@ -13,7 +13,7 @@ public class SlimFaasQueue(IDatabaseService databaseService) : ISlimFaasQueue
 
     public async Task<IList<QueueData>?> DequeueAsync(string key, int count = 1)
     {
-        var data = await databaseService.ListRightPopAsync($"{KeyPrefix}{key}", count);
+        var data = await databaseService.ListRightPopAsync($"{KeyPrefix}{key}", Guid.NewGuid().ToString(), count);
         return data;
     }
 

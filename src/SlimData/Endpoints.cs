@@ -1,5 +1,6 @@
 ﻿using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using MemoryPack;
 using SlimData.Commands;
 
@@ -102,72 +103,71 @@ public class Endpoints
             var form = await context.Request.ReadFormAsync(source.Token);
 
             var (key, value) = GetKeyValue(form);
+            context.Request.Query.TryGetValue("transactionId", out var transactionId);
 
-            if (string.IsNullOrEmpty(key) || !int.TryParse(value, out var count))
+            if (string.IsNullOrEmpty(key) || !int.TryParse(value, out var count) || string.IsNullOrEmpty(transactionId))
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("GetKeyValue key is empty or value is not a number", context.RequestAborted);
+                await context.Response.WriteAsync("GetKeyValue key or transactionId is empty or value is not a number", context.RequestAborted);
                 return;
             }
             
-            var values = await ListRightPopCommand(provider, key, count, cluster, source);
+            var values = await ListRightPopCommand(provider, key, transactionId, count, cluster, source);
             var bin = MemoryPackSerializer.Serialize(values);
             await context.Response.Body.WriteAsync(bin, context.RequestAborted);
         });
     }
     
-    private static readonly IDictionary<string,SemaphoreSlim> SemaphoreSlims = new Dictionary<string, SemaphoreSlim>();
-    public static async Task<ListItems> ListRightPopCommand(SlimPersistentState provider, string key, int count, IRaftCluster cluster,
+    public static async Task<ListItems> ListRightPopCommand(SlimPersistentState provider, string key, string transactionId, int count, IRaftCluster cluster,
         CancellationTokenSource source)
     {
         var values = new ListItems();
         values.Items = new List<QueueData>();
-
-        if(SemaphoreSlims.TryGetValue(key, out var semaphoreSlim))
+        
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var logEntry =
+            provider.Interpreter.CreateLogEntry(
+                new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId},
+                cluster.Term);
+        await cluster.ReplicateAsync(logEntry, source.Token);
+        await Task.Delay(2, source.Token);
+        var supplier = (ISupplier<SlimDataPayload>)provider;
+        int numberTry = 10;
+        while (values.Items.Count <= 0 && numberTry > 0)
         {
-            await semaphoreSlim.WaitAsync();
-        }
-        else
-        {
-            SemaphoreSlims[key] = new SemaphoreSlim(1, 1);
-            await SemaphoreSlims[key].WaitAsync();
-        }
-        try
-        {
-            while (cluster.TryGetLeaseToken(out var leaseToken) && leaseToken.IsCancellationRequested)
+            numberTry--;
+            try
             {
-                Console.WriteLine("Master node is waiting for lease token");
-                await Task.Delay(10);
-            }
-            var nowTicks = DateTime.UtcNow.Ticks;
-            var queues = ((ISupplier<SlimDataPayload>)provider).Invoke().Queues;
-            if (queues.TryGetValue(key, out var queue))
-            {
-                var queueElements = queue.GetQueueAvailableElement(nowTicks, count);
-                foreach (var queueElement in queueElements)
+                var queues = supplier.Invoke().Queues;
+                if (queues.TryGetValue(key, out var queue))
                 {
-                    values.Items.Add(new QueueData(queueElement.Id ,queueElement.Value.ToArray()));
+                    var queueElements = queue.GetQueueRunningElement(nowTicks)
+                        .Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
+                    if (queueElements.Count == 0)
+                    {
+                        await Task.Delay(4, source.Token);
+                    }
+
+                    foreach (var queueElement in queueElements)
+                    {
+                        values.Items.Add(new QueueData(queueElement.Id, queueElement.Value.ToArray()));
+                    }
                 }
-                
-                var logEntry =
-                    provider.Interpreter.CreateLogEntry(
-                        new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks },
-                        cluster.Term);
-                await cluster.ReplicateAsync(logEntry, source.Token);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Unexpected error {0}", ex);
             }
         }
-        finally
-        {
-            SemaphoreSlims[key].Release();
-        }
+            
         return values;
         
     }
-
-
-    public static Task ListLeftPushAsync(HttpContext context)
+    
+    public static async Task ListLeftPushAsync(HttpContext context)
     {
-        return DoAsync(context, async (cluster, provider, source) =>
+
+        var task = DoAsync(context, async (cluster, provider, source) =>
         {
             context.Request.Query.TryGetValue("key", out var key);
             if (string.IsNullOrEmpty(key))
@@ -181,8 +181,12 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
-            await ListLeftPushCommand(provider, key, value, cluster, source);
+            string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
+            context.Response.StatusCode = StatusCodes.Status201Created;
+            await context.Response.WriteAsync(elementId, context.RequestAborted);
+
         });
+        await task;
     }
     
     public static async Task<string> ListLeftPushCommand(SlimPersistentState provider, string key, byte[] value,
@@ -191,17 +195,20 @@ public class Endpoints
         var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
         var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
         var id = Guid.NewGuid().ToString();
-        var logEntry =
-            provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
-                    Identifier = id, 
-                    Value = input.Value, 
-                    NowTicks = DateTime.UtcNow.Ticks,
-                    Retries = retryInformation.Retries,
-                    RetryTimeout = retryInformation.RetryTimeoutSeconds,
-                    HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
-                },
-                cluster.Term);
-        await cluster.ReplicateAsync(logEntry, source.Token);
+
+        LogEntry<ListLeftPushCommand>? logEntry =
+                provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
+                        Identifier = id, 
+                        Value = input.Value, 
+                        NowTicks = DateTime.UtcNow.Ticks,
+                        Retries = retryInformation.Retries,
+                        RetryTimeout = retryInformation.RetryTimeoutSeconds,
+                        HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
+                    },
+                    cluster.Term);
+
+        await cluster.ReplicateAsync(logEntry.Value, source.Token);
+
         return id;
     }
     
@@ -232,20 +239,21 @@ public class Endpoints
         {
             return;
         }
-
+        var nowTicks = DateTime.UtcNow.Ticks;
+        List<CallbackElement> callbackElements = new List<CallbackElement>(list.Items.Count);
         foreach (var queueItemStatus in list.Items)
         {
-            var logEntry =
-                provider.Interpreter.CreateLogEntry(new ListCallbackCommand
-                    {
-                        Identifier = queueItemStatus.Id,
-                        Key = key,
-                        HttpCode = queueItemStatus.HttpCode,
-                        NowTicks = DateTime.UtcNow.Ticks
-                    },
-                    cluster.Term);
-            await cluster.ReplicateAsync(logEntry, source.Token);
+            callbackElements.Add(new CallbackElement(queueItemStatus.Id, queueItemStatus.HttpCode));
         }
+        var logEntry =
+            provider.Interpreter.CreateLogEntry(new ListCallbackCommand
+                {
+                    Key = key,
+                    NowTicks = nowTicks,
+                    CallbackElements = callbackElements
+                },
+                cluster.Term);
+        await cluster.ReplicateAsync(logEntry, source.Token);
     }
 
     private static (string key, string value) GetKeyValue(IFormCollection form)
