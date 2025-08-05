@@ -48,6 +48,12 @@
     <b>URL MCP :</b>
     <span id="shareUrl" style="font-family:monospace;"></span>
 </div>
+<!-- NOUVEAU : URL pour la métadonnée OAuth -->
+<div id="oauthShareUrlContainer"
+     style="margin-top:4px;max-width:100%;word-break:break-word;">
+    <b>URL OAuth MCP :</b>
+    <span id="oauthShareUrl" style="font-family:monospace;"></span>
+</div>
 <button onclick="applyMcpPrompt()">Appliquer le MCP Prompt</button>
 
 <hr>
@@ -134,6 +140,16 @@
             span.style.color = "green";
             span.title = "";
         }
+
+
+        /* ---- URL OAuth metadata (.well-known) ------------------------ */
+        const pathMeta = oauthB64
+            ? `/${oauthB64}/.well-known/oauth-protected-resource`
+            : "/.well-known/oauth-protected-resource";
+        const metaUrl  = `${originPath}${pathMeta}`;
+
+        /* ---- Affichage (OAuth metadata) ------------------------------ */
+        document.getElementById("oauthShareUrl").textContent = metaUrl;
     }
 
     ["swaggerUrl", "baseUrl"].forEach(id => {
@@ -200,8 +216,9 @@
         if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
         const oauthB64 = encodeOAuthMeta();
         if (oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
+        let headers = getBearerHeader();
 
-        const toolsRes = await fetch(endpoint);
+        const toolsRes = await fetch(endpoint, { method: "GET", headers });
         const tools    = await toolsRes.json();
         loadedTools    = tools;
 
