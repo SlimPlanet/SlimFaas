@@ -15,14 +15,15 @@ namespace SlimFaas.Tests;
 public class JobEndpointsTests
 {
     #region Infrastructure commune
+
     private static async Task<(IHost host,
             Mock<IJobService> jobServiceMock,
             Mock<IWakeUpFunction> wakeUpFunctionMock)>
         BuildHostAsync(Action<Mock<IJobService>> setupJobService)
     {
-        var wakeUpFunctionMock = new Mock<IWakeUpFunction>();
-        var jobServiceMock     = new Mock<IJobService>();
-        setupJobService(jobServiceMock);                    // spécifique à chaque test
+        Mock<IWakeUpFunction> wakeUpFunctionMock = new();
+        Mock<IJobService> jobServiceMock = new();
+        setupJobService(jobServiceMock); // spécifique à chaque test
 
         IHost host = await new HostBuilder()
             .ConfigureWebHost(builder =>
@@ -44,9 +45,11 @@ public class JobEndpointsTests
 
         return (host, jobServiceMock, wakeUpFunctionMock);
     }
+
     #endregion
 
     #region POST /job/{name}
+
     [Theory]
     [InlineData("/job/daisy", HttpStatusCode.Accepted, 1, "{\"Id\":\"1\"}")]
     [InlineData("/job/daisy", HttpStatusCode.BadRequest, 1, "")]
@@ -68,7 +71,7 @@ public class JobEndpointsTests
 
         HttpResponseMessage resp = await host.GetTestClient()
             .PostAsync($"http://localhost:5000{path}",
-                JsonContent.Create(new CreateJob(new(), "youhou")));
+                JsonContent.Create(new CreateJob(new List<string>(), "youhou")));
 
         Assert.Equal(expectedStatus, resp.StatusCode);
         Assert.Equal(expectedBody, await resp.Content.ReadAsStringAsync());
@@ -77,18 +80,20 @@ public class JobEndpointsTests
                 It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()),
             Times.AtMost(expectedCreateCalls));
     }
+
     #endregion
 
     #region GET /job/{name}
+
     [Theory]
     [InlineData("/job/daisy",
         "[{\"Name\":\"1\",\"Status\":\"daisy-slimfaas-job-12772\",\"Id\":\"queued\",\"PositionInQueue\":1,\"InQueueTimestamp\":0,\"StartTimestamp\":0},{\"Name\":\"2\",\"Status\":\"daisy-slimfaas-job-12732\",\"Id\":\"running\",\"PositionInQueue\":-1,\"InQueueTimestamp\":0,\"StartTimestamp\":0}]")]
     public async Task ListJobs_Returns_queue_snapshot(string path, string expectedJson)
     {
-        var expected = new List<JobListResult>
+        List<JobListResult> expected = new()
         {
-            new("1", "daisy-slimfaas-job-12772",  "queued",  1),
-            new("2", "daisy-slimfaas-job-12732",  "running", -1)
+            new JobListResult("1", "daisy-slimfaas-job-12772", "queued", 1),
+            new JobListResult("2", "daisy-slimfaas-job-12732", "running")
         };
 
         (IHost host, Mock<IJobService> jobSvc, _) = await BuildHostAsync(jobServiceMock =>
@@ -101,15 +106,17 @@ public class JobEndpointsTests
             .GetAsync($"http://localhost:5000{path}");
 
         Assert.Equal(HttpStatusCode.OK, resp.StatusCode);
-        var json = await resp.Content.ReadAsStringAsync();
+        string json = await resp.Content.ReadAsStringAsync();
         Assert.Equal(expectedJson, json);
         jobSvc.Verify(s => s.ListJobAsync("daisy"), Times.Once);
     }
+
     #endregion
 
     #region DELETE /job/{id}
+
     [Theory]
-    [InlineData("/job/daisy/1",  true,  HttpStatusCode.OK)]
+    [InlineData("/job/daisy/1", true, HttpStatusCode.OK)]
     [InlineData("/job/daisy/999", false, HttpStatusCode.NotFound)]
     public async Task DeleteJob_Returns_expected_status(string path,
         bool deleteSucceeded,
@@ -130,5 +137,6 @@ public class JobEndpointsTests
         Assert.Equal(expectedStatus, resp.StatusCode);
         jobSvc.Verify(s => s.DeleteJobAsync("daisy", jobId, false), Times.Once);
     }
+
     #endregion
 }

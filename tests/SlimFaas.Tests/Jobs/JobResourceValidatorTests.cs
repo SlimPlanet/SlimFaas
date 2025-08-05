@@ -2,27 +2,24 @@
 
 namespace SlimFaas.Tests;
 
-using System.Collections.Generic;
-using Xunit;
-
 public class JobResourceValidatorTests
 {
     [Fact]
     public void ValidateResources_ShouldUseRequestedValues_WhenWithinLimits()
     {
         // Arrange
-        var defaultConfig = new CreateJobResources(
+        CreateJobResources defaultConfig = new(
             new Dictionary<string, string> { { "cpu", "500m" }, { "memory", "1Gi" } },
             new Dictionary<string, string> { { "cpu", "1000m" }, { "memory", "2Gi" } }
         );
 
-        var requestedConfig = new CreateJobResources(
+        CreateJobResources requestedConfig = new(
             new Dictionary<string, string> { { "cpu", "400m" }, { "memory", "512Mi" } },
             new Dictionary<string, string> { { "cpu", "800m" }, { "memory", "1.5Gi" } }
         );
 
         // Act
-        var validatedConfig = JobResourceValidator.ValidateResources(defaultConfig, requestedConfig);
+        CreateJobResources validatedConfig = JobResourceValidator.ValidateResources(defaultConfig, requestedConfig);
 
         // Assert
         Assert.Equal("400m", validatedConfig.Requests["cpu"]);
@@ -35,18 +32,18 @@ public class JobResourceValidatorTests
     public void ValidateResources_ShouldUseDefaultValues_WhenRequestedValuesExceedLimits()
     {
         // Arrange
-        var defaultConfig = new CreateJobResources(
+        CreateJobResources defaultConfig = new(
             new Dictionary<string, string> { { "cpu", "500m" }, { "memory", "1Gi" } },
             new Dictionary<string, string> { { "cpu", "1000m" }, { "memory", "2Gi" } }
         );
 
-        var requestedConfig = new CreateJobResources(
+        CreateJobResources requestedConfig = new(
             new Dictionary<string, string> { { "cpu", "600m" }, { "memory", "2Gi" } },
             new Dictionary<string, string> { { "cpu", "1500m" }, { "memory", "3Gi" } }
         );
 
         // Act
-        var validatedConfig = JobResourceValidator.ValidateResources(defaultConfig, requestedConfig);
+        CreateJobResources validatedConfig = JobResourceValidator.ValidateResources(defaultConfig, requestedConfig);
 
         // Assert
         Assert.Equal("500m", validatedConfig.Requests["cpu"]); // Dépassement -> valeur par défaut
@@ -59,18 +56,18 @@ public class JobResourceValidatorTests
     public void ValidateResources_ShouldUseDefaultValues_WhenKeyIsMissingInRequestedConfig()
     {
         // Arrange
-        var defaultConfig = new CreateJobResources(
+        CreateJobResources defaultConfig = new(
             new Dictionary<string, string> { { "cpu", "500m" }, { "memory", "1Gi" } },
             new Dictionary<string, string> { { "cpu", "1000m" }, { "memory", "2Gi" } }
         );
 
-        var requestedConfig = new CreateJobResources(
+        CreateJobResources requestedConfig = new(
             new Dictionary<string, string>(), // Aucune valeur demandée
             new Dictionary<string, string> { { "cpu", "800m" } } // Seul CPU est spécifié
         );
 
         // Act
-        var validatedConfig = JobResourceValidator.ValidateResources(defaultConfig, requestedConfig);
+        CreateJobResources validatedConfig = JobResourceValidator.ValidateResources(defaultConfig, requestedConfig);
 
         // Assert
         Assert.Equal("500m", validatedConfig.Requests["cpu"]); // Valeur par défaut car absente
@@ -83,18 +80,18 @@ public class JobResourceValidatorTests
     public void ValidateResources_ShouldHandleMixedUnitsCorrectly()
     {
         // Arrange
-        var defaultConfig = new CreateJobResources(
+        CreateJobResources defaultConfig = new(
             new Dictionary<string, string> { { "cpu", "1000m" }, { "memory", "2Gi" } },
             new Dictionary<string, string> { { "cpu", "2000m" }, { "memory", "4Gi" } }
         );
 
-        var requestedConfig = new CreateJobResources(
+        CreateJobResources requestedConfig = new(
             new Dictionary<string, string> { { "cpu", "1" }, { "memory", "2048Mi" } },
             new Dictionary<string, string> { { "cpu", "2500m" }, { "memory", "5Gi" } }
         );
 
         // Act
-        var validatedConfig = JobResourceValidator.ValidateResources(defaultConfig, requestedConfig);
+        CreateJobResources validatedConfig = JobResourceValidator.ValidateResources(defaultConfig, requestedConfig);
 
         // Assert
         Assert.Equal("1", validatedConfig.Requests["cpu"]); // 1 = 1000m, donc accepté

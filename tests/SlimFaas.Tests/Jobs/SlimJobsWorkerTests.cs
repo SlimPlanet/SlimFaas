@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using MemoryPack;
+using Microsoft.Extensions.Logging;
 using Moq;
-using SlimFaas.Database;
 using SlimData;
+using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
@@ -9,16 +10,15 @@ namespace SlimFaas.Tests;
 
 public class SlimJobsWorkerTests
 {
-    private readonly Mock<IJobQueue> _jobQueueMock;
-    private readonly Mock<IJobService> _jobServiceMock;
-    private readonly Mock<IJobConfiguration> _jobConfigurationMock;
-    private readonly Mock<ILogger<SlimJobsWorker>> _loggerMock;
-    private readonly Mock<ISlimDataStatus> _slimDataStatusMock;
-    private readonly Mock<IMasterService> _masterServiceMock;
-    private readonly Mock<IReplicasService> _replicasServiceMock;
-
     // Comme vous l'aviez déjà dans votre code
     private readonly HistoryHttpMemoryService _historyHttpMemoryService;
+    private readonly Mock<IJobConfiguration> _jobConfigurationMock;
+    private readonly Mock<IJobQueue> _jobQueueMock;
+    private readonly Mock<IJobService> _jobServiceMock;
+    private readonly Mock<ILogger<SlimJobsWorker>> _loggerMock;
+    private readonly Mock<IMasterService> _masterServiceMock;
+    private readonly Mock<IReplicasService> _replicasServiceMock;
+    private readonly Mock<ISlimDataStatus> _slimDataStatusMock;
 
     public SlimJobsWorkerTests()
     {
@@ -40,8 +40,8 @@ public class SlimJobsWorkerTests
     }
 
     /// <summary>
-    /// Cas : le worker n'est pas "master".
-    /// On vérifie qu'aucune synchro de jobs ni dequeue n'a lieu.
+    ///     Cas : le worker n'est pas "master".
+    ///     On vérifie qu'aucune synchro de jobs ni dequeue n'a lieu.
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_NotMaster_NoSyncNoDequeue()
@@ -50,7 +50,7 @@ public class SlimJobsWorkerTests
         _masterServiceMock.Setup(m => m.IsMaster).Returns(false);
 
         // On mocke une configuration vide pour éviter toute exception
-        var fakeSlimfaasJobConfig = new SlimfaasJobConfiguration(new Dictionary<string, SlimfaasJob>());
+        SlimfaasJobConfiguration fakeSlimfaasJobConfig = new(new Dictionary<string, SlimfaasJob>());
         _jobConfigurationMock
             .Setup(c => c.Configuration)
             .Returns(fakeSlimfaasJobConfig);
@@ -58,7 +58,7 @@ public class SlimJobsWorkerTests
             .Setup(s => s.SyncJobsAsync())
             .ReturnsAsync(new List<Job>());
 
-        var worker = new SlimJobsWorker(
+        SlimJobsWorker worker = new(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
             _jobConfigurationMock.Object,
@@ -67,10 +67,10 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            delay: 10
+            10
         );
 
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         // On annule vite le cycle principal du BackgroundService
         cts.CancelAfter(200);
 
@@ -87,9 +87,9 @@ public class SlimJobsWorkerTests
     }
 
     /// <summary>
-    /// Cas : le worker est master, SyncJobsAsync retourne une liste vide,
-    /// et la queue n'a pas d'éléments (count = 0).
-    /// Résultat : aucun job créé, aucun dequeue.
+    ///     Cas : le worker est master, SyncJobsAsync retourne une liste vide,
+    ///     et la queue n'a pas d'éléments (count = 0).
+    ///     Résultat : aucun job créé, aucun dequeue.
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_Master_EmptyJobs_NoJobCreated()
@@ -98,14 +98,13 @@ public class SlimJobsWorkerTests
         _masterServiceMock.Setup(m => m.IsMaster).Returns(true);
 
         // Configuration simple : 1 job "myJob"
-        var fakeSlimfaasJobConfig = new SlimfaasJobConfiguration(
+        SlimfaasJobConfiguration fakeSlimfaasJobConfig = new(
             new Dictionary<string, SlimfaasJob>
             {
                 {
-                    "myJob",
-                    new SlimfaasJob(
-                        Image: "myImage",
-                        ImagesWhitelist: new List<string> { "myImage" },
+                    "myJob", new SlimfaasJob(
+                        "myImage",
+                        new List<string> { "myImage" },
                         NumberParallelJob: 2
                     )
                 }
@@ -127,16 +126,16 @@ public class SlimJobsWorkerTests
             .ReturnsAsync(new List<QueueData>());
 
         // On simulera des déploiements vides
-        var emptyDeployments = new DeploymentsInformations(
-            Functions: new List<DeploymentInformation>(),
-            SlimFaas: new SlimFaasDeploymentInformation(0, new List<PodInformation>()),
-            Pods: Array.Empty<PodInformation>()
+        DeploymentsInformations emptyDeployments = new(
+            new List<DeploymentInformation>(),
+            new SlimFaasDeploymentInformation(0, new List<PodInformation>()),
+            Array.Empty<PodInformation>()
         );
         _replicasServiceMock
             .Setup(r => r.Deployments)
             .Returns(emptyDeployments);
 
-        var worker = new SlimJobsWorker(
+        SlimJobsWorker worker = new(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
             _jobConfigurationMock.Object,
@@ -145,10 +144,10 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            delay: 10
+            10
         );
 
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         cts.CancelAfter(200);
 
         // ACT
@@ -158,15 +157,18 @@ public class SlimJobsWorkerTests
 
         // ASSERT
         _jobServiceMock.Verify(s => s.SyncJobsAsync(), Times.AtLeastOnce);
-        _jobQueueMock.Verify(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()), Times.AtLeastOnce);
+        _jobQueueMock.Verify(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()),
+            Times.AtLeastOnce);
         // Pas de dequeue, pas de job créé
         _jobQueueMock.Verify(q => q.DequeueAsync(It.IsAny<string>(), It.IsAny<int>()), Times.Never);
-        _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _jobServiceMock.Verify(
+            s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<long>()), Times.Never);
     }
 
     /// <summary>
-    /// Cas : worker master, 1 élément en file d'attente,
-    /// mais dépendance "dependencyA" n'a pas de réplicas => on ne dépile pas.
+    ///     Cas : worker master, 1 élément en file d'attente,
+    ///     mais dépendance "dependencyA" n'a pas de réplicas => on ne dépile pas.
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_Master_DependsOnNoReplica_SkipDequeue()
@@ -174,14 +176,13 @@ public class SlimJobsWorkerTests
         // ARRANGE
         _masterServiceMock.Setup(m => m.IsMaster).Returns(true);
 
-        var fakeSlimfaasJobConfig = new SlimfaasJobConfiguration(
+        SlimfaasJobConfiguration fakeSlimfaasJobConfig = new(
             new Dictionary<string, SlimfaasJob>
             {
                 {
-                    "myJob",
-                    new SlimfaasJob(
-                        Image: "myImage",
-                        ImagesWhitelist: new List<string> { "myImage" },
+                    "myJob", new SlimfaasJob(
+                        "myImage",
+                        new List<string> { "myImage" },
                         NumberParallelJob: 2,
                         DependsOn: new List<string> { "dependencyA" }
                     )
@@ -201,28 +202,28 @@ public class SlimJobsWorkerTests
         // CountElement => 1 élément dispo
         _jobQueueMock
             .Setup(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(new List<QueueData>(){ new("1", [byte.MinValue]) });
+            .ReturnsAsync(new List<QueueData> { new("1", [byte.MinValue]) });
 
         // "dependencyA" à 0 réplicas => skip
-        var deployments = new DeploymentsInformations(
-            Functions: new List<DeploymentInformation>
+        DeploymentsInformations deployments = new(
+            new List<DeploymentInformation>
             {
-                new DeploymentInformation(
-                    Deployment: "dependencyA",
-                    Namespace: "default",
-                    Pods: new List<PodInformation>(),
-                    Configuration: new SlimFaasConfiguration(),
-                    Replicas: 0
+                new(
+                    "dependencyA",
+                    "default",
+                    new List<PodInformation>(),
+                    new SlimFaasConfiguration(),
+                    0
                 )
             },
-            SlimFaas: new SlimFaasDeploymentInformation(0, new List<PodInformation>()),
-            Pods: Array.Empty<PodInformation>()
+            new SlimFaasDeploymentInformation(0, new List<PodInformation>()),
+            Array.Empty<PodInformation>()
         );
         _replicasServiceMock
             .Setup(r => r.Deployments)
             .Returns(deployments);
 
-        var worker = new SlimJobsWorker(
+        SlimJobsWorker worker = new(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
             _jobConfigurationMock.Object,
@@ -231,10 +232,10 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            delay: 10
+            10
         );
 
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         cts.CancelAfter(200);
 
         // ACT
@@ -244,11 +245,13 @@ public class SlimJobsWorkerTests
         // ASSERT
         // Dequeue n'a pas lieu car la dépendance n'est pas prête
         _jobQueueMock.Verify(q => q.DequeueAsync("myJob", It.IsAny<int>()), Times.Never);
-        _jobServiceMock.Verify(s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.Never);
+        _jobServiceMock.Verify(
+            s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<long>()), Times.Never);
     }
 
     /// <summary>
-    /// Cas : worker master, 1 élément en file, dépendance OK => on dépile et on crée le job.
+    ///     Cas : worker master, 1 élément en file, dépendance OK => on dépile et on crée le job.
     /// </summary>
     [Fact]
     public async Task ExecuteAsync_Master_OneMessageAndReplicaOk_JobCreated()
@@ -257,14 +260,13 @@ public class SlimJobsWorkerTests
         _masterServiceMock.Setup(m => m.IsMaster).Returns(true);
 
         // 1 job "myJob", dépendant de "dependencyA"
-        var fakeSlimfaasJobConfig = new SlimfaasJobConfiguration(
+        SlimfaasJobConfiguration fakeSlimfaasJobConfig = new(
             new Dictionary<string, SlimfaasJob>
             {
                 {
-                    "myJob",
-                    new SlimfaasJob(
-                        Image: "myImage",
-                        ImagesWhitelist: new List<string> { "myImage" },
+                    "myJob", new SlimfaasJob(
+                        "myImage",
+                        new List<string> { "myImage" },
                         NumberParallelJob: 2,
                         DependsOn: new List<string> { "dependencyA" }
                     )
@@ -281,38 +283,35 @@ public class SlimJobsWorkerTests
             .ReturnsAsync(new List<Job>());
 
         // Simule un dequeue qui retourne un seul élément
-        var createJobObj = new CreateJob(new List<string>() {"arg1", "arg2"}, DependsOn: ["dependencyA"]);
+        CreateJob createJobObj = new(new List<string> { "arg1", "arg2" }, DependsOn: ["dependencyA"]);
         JobInQueue createJobInQueue = new(createJobObj, "myJob1", 1);
-        var dataBytes = MemoryPack.MemoryPackSerializer.Serialize(createJobInQueue);
+        byte[] dataBytes = MemoryPackSerializer.Serialize(createJobInQueue);
 
         // 1 élément dispo dans la queue
         _jobQueueMock
             .Setup(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(new List<QueueData>(){ new("fakeId", dataBytes), new("fakeId", dataBytes) });
+            .ReturnsAsync(new List<QueueData> { new("fakeId", dataBytes), new("fakeId", dataBytes) });
 
         // "dependencyA" a 1 réplique => c'est prêt
-        var deployments = new DeploymentsInformations(
-            Functions: new List<DeploymentInformation>
+        DeploymentsInformations deployments = new(
+            new List<DeploymentInformation>
             {
                 new(
-                    Deployment: "dependencyA",
-                    Namespace: "default",
-                    Pods: new List<PodInformation>(),
-                    Configuration: new SlimFaasConfiguration(),
-                    Replicas: 1
+                    "dependencyA",
+                    "default",
+                    new List<PodInformation>(),
+                    new SlimFaasConfiguration(),
+                    1
                 )
             },
-            SlimFaas: new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
-            Pods: []
+            new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
+            []
         );
         _replicasServiceMock
             .Setup(r => r.Deployments)
             .Returns(deployments);
 
-        var queueDataList = new List<QueueData>
-        {
-            new("fakeId", dataBytes)
-        };
+        List<QueueData> queueDataList = new() { new QueueData("fakeId", dataBytes) };
 
         _jobQueueMock
             .Setup(q => q.DequeueAsync("myJob", It.IsAny<int>()))
@@ -325,10 +324,11 @@ public class SlimJobsWorkerTests
 
         // On s'attend à ce que CreateJobAsync soit appelé
         _jobServiceMock
-            .Setup(s => s.CreateJobAsync("myJob", It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()))
+            .Setup(s => s.CreateJobAsync("myJob", It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<long>()))
             .Returns(Task.CompletedTask);
 
-        var worker = new SlimJobsWorker(
+        SlimJobsWorker worker = new(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
             _jobConfigurationMock.Object,
@@ -337,10 +337,10 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            delay: 10
+            10
         );
 
-        using var cts = new CancellationTokenSource();
+        using CancellationTokenSource cts = new();
         cts.CancelAfter(200);
 
         // ACT
@@ -351,7 +351,9 @@ public class SlimJobsWorkerTests
         // ASSERT
         // numberParallelJob = 2 => on devrait tenter de dépiler 2 messages
         _jobQueueMock.Verify(q => q.DequeueAsync("myJob", 2), Times.AtLeastOnce);
-        _jobServiceMock.Verify(s => s.CreateJobAsync("myJob", It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<long>()), Times.AtLeastOnce);
+        _jobServiceMock.Verify(
+            s => s.CreateJobAsync("myJob", It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<long>()), Times.AtLeastOnce);
 
         // Contrôle du callback 200
         _jobQueueMock.Verify(q => q.ListCallbackAsync(

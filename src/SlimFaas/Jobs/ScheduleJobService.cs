@@ -8,6 +8,8 @@ public record CreateScheduleJobResult(string ErrorKey, string ElementId, int Cod
 
 public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseService databaseService)
 {
+
+    public const string ScheduleJob = "ScheduleJob:";
     async Task<CreateScheduleJobResult> CreateScheduleJob(string name, ScheduleCreateJob createJob, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
@@ -27,7 +29,7 @@ public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseSer
         byte[] memory = MemoryPackSerializer.Serialize(createJob);
         var dictionary = new Dictionary<string, byte[]>();
         dictionary.Add(idSchedule, memory);
-        await databaseService.HashSetAsync(name.ToLower(), dictionary);
+        await databaseService.HashSetAsync($"{ScheduleJob}{name}", dictionary);
         return new CreateScheduleJobResult(string.Empty, idSchedule, 200);
     }
 
