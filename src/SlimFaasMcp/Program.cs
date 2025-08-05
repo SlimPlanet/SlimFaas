@@ -49,7 +49,8 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
         return Results.StatusCode(StatusCodes.Status401Unauthorized);
     }
 
-    var authHeader = httpRequest.Headers["Authorization"].FirstOrDefault();
+    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
+
     using var jsonDocument = await JsonDocument.ParseAsync(httpRequest.Body);
     var root = jsonDocument.RootElement;
 
@@ -88,7 +89,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
         case "tools/list":
         {
             var tools = await toolProxyService.GetToolsAsync(
-                openapiUrl, baseUrl, authHeader, mcpPromptB64);
+                openapiUrl, baseUrl, additionalHeaders, mcpPromptB64);
 
             response["result"] = new JsonObject {
                 ["tools"] = new JsonArray(tools.Select(t => new JsonObject {
@@ -118,7 +119,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                                 p.GetProperty("name").GetString()!,
                                 p.GetProperty("arguments"),
                                 baseUrl,
-                                authHeader);
+                                additionalHeaders);
 
             // Tout est déjà string → aucun YAML, aucune réflexion
             response["result"] = new JsonObject {
@@ -154,12 +155,18 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
         string openapi_url,
         [FromQuery] string? base_url,
         [FromQuery] string? mcp_prompt,
-        HttpRequest req,
+        HttpRequest httpRequest,
         IToolProxyService proxy)
-        => TypedResults.Ok(await proxy.GetToolsAsync(
-                openapi_url, base_url,
-                req.Headers.Authorization.FirstOrDefault(),
-                mcp_prompt)));
+        =>
+{
+    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
+
+
+    return TypedResults.Ok(await proxy.GetToolsAsync(
+        openapi_url, base_url,
+        additionalHeaders,
+        mcp_prompt));
+});
 
 grp.MapPost("/{toolName}", async Task<Ok<string>> (
         string toolName,
@@ -167,12 +174,17 @@ grp.MapPost("/{toolName}", async Task<Ok<string>> (
         [FromBody] JsonElement arguments,
         [FromQuery] string? base_url,
         [FromQuery] string? mcp_prompt,
-        HttpRequest req,
+        HttpRequest httpRequest,
         IToolProxyService proxy)
-        => TypedResults.Ok(await proxy.ExecuteToolAsync(
-                openapi_url, toolName, arguments,
-                base_url,
-                req.Headers.Authorization.FirstOrDefault())));
+        =>
+{
+    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
+
+    return TypedResults.Ok(await proxy.ExecuteToolAsync(
+        openapi_url, toolName, arguments,
+        base_url,
+        additionalHeaders));
+});
 
 
 app.MapGet("/{oauth?}/.well-known/oauth-protected-resource",
@@ -203,5 +215,18 @@ app.MapGet("/{oauth?}/.well-known/oauth-protected-resource",
 app.MapGet("/health", () => Results.Text("OK"));
 
 await app.RunAsync();
+
+IDictionary<string, string> AuthHeader(HttpRequest httpRequest1, out string? s)
+{
+    s = httpRequest1.Headers["Authorization"].FirstOrDefault();
+    var dpopHeader = httpRequest1.Headers["Dpop"].FirstOrDefault();
+
+    IDictionary<string, string> dictionary = new Dictionary<string, string>();
+    if (!string.IsNullOrWhiteSpace(s))
+        dictionary["Authorization"] = s;
+    if (!string.IsNullOrWhiteSpace(dpopHeader))
+        dictionary["Dpop"] = dpopHeader;
+    return dictionary;
+}
 
 public partial class Program { }

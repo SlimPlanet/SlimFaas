@@ -27,7 +27,7 @@ public class ToolProxyServiceMoreTests
     private void SetupSwaggerAndEndpoints(IEnumerable<Endpoint> endpoints)
     {
         var dummyDoc = JsonDocument.Parse("{}");
-        _swaggerMock.Setup(s => s.GetSwaggerAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<string?>()))
+        _swaggerMock.Setup(s => s.GetSwaggerAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IDictionary<string, string>?>()))
                     .ReturnsAsync(dummyDoc);
         _swaggerMock.Setup(s => s.ParseEndpoints(dummyDoc))
                     .Returns(endpoints);

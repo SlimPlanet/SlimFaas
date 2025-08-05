@@ -8,7 +8,7 @@ namespace SlimFaasMcp.Services;
 
 public interface ISwaggerService
 {
-    Task<JsonDocument> GetSwaggerAsync(string swaggerUrl, string? baseUrl = null, string? authHeader = null);
+    Task<JsonDocument> GetSwaggerAsync(string swaggerUrl, string? baseUrl = null, IDictionary<string, string>? additionalHeaders = null);
     IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger);
 }
 
@@ -26,7 +26,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
     public async Task<JsonDocument> GetSwaggerAsync(
         string swaggerUrl,
         string? baseUrl   = null,
-        string? authHeader = null)
+        IDictionary<string, string>? additionalHeaders = null)
     {
         var cacheKey = $"swagger::{swaggerUrl}";
         if (memoryCache.TryGetValue<JsonDocument>(cacheKey, out var cached) && cached is not null)
@@ -36,10 +36,13 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
         // Injection éventuelle du bearer si même origine et header présent
         if (!string.IsNullOrEmpty(baseUrl) &&
-            swaggerUrl.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase) &&
-            !string.IsNullOrEmpty(authHeader))
+            swaggerUrl.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase) && additionalHeaders != null)
         {
-            request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authHeader);
+
+            foreach (KeyValuePair<string, string> additionalHeader in additionalHeaders)
+            {
+                request.Headers.Add(additionalHeader.Key, additionalHeader.Value);
+            }
         }
 
         using var response = await _httpClient.SendAsync(request);
