@@ -127,7 +127,13 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 await BuildJobResponse(context, replicasService, jobService, contextRequest, contextResponse, functionName, functionPath);
                 break;
             case FunctionType.JobSchedules:
-                await BuildJobSchedulesResponse(context, replicasService, jobService, contextRequest, contextResponse, functionName, functionPath);
+                IScheduleJobService? scheduleJobService = serviceProvider.GetService<IScheduleJobService>();
+                if (scheduleJobService != null)
+                {
+                    await BuildJobSchedulesResponse(context, replicasService, scheduleJobService, contextRequest,
+                        contextResponse, functionName, functionPath);
+                }
+
                 break;
             case FunctionType.Wake:
                 BuildWakeResponse(replicasService, wakeUpFunction, functionName, contextResponse);
@@ -153,7 +159,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
     }
 
-    private async Task BuildJobSchedulesResponse(HttpContext context, IReplicasService replicasService, IJobService jobService, HttpRequest contextRequest, HttpResponse contextResponse, string functionName, string functionPath)
+    private async Task BuildJobSchedulesResponse(HttpContext context, IReplicasService replicasService, IScheduleJobService scheduleJobService, HttpRequest contextRequest, HttpResponse contextResponse, string functionName, string functionPath)
     {
         if (contextRequest.Method == HttpMethods.Put || contextRequest.Method == HttpMethods.Patch)
         {
@@ -226,23 +232,23 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
             var result =
                 await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
-            if (result.Code >= 400)
+            if (!result.IsSuccess)
             {
-                contextResponse.StatusCode = result.Code;
+                contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                 logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}",
-                    contextResponse.StatusCode, result.ErrorKey);
+                    contextResponse.StatusCode, result.Error?.Key);
                 return;
             }
-            contextResponse.StatusCode = 202;
-            await contextResponse.WriteAsJsonAsync(new EnqueueJobResultSuccess(result.ElementId),
-                EnqueueJobResultSuccessSerializerContext.Default.EnqueueJobResultSuccess);
+            contextResponse.StatusCode = (int)HttpStatusCode.Accepted;
+            await contextResponse.WriteAsJsonAsync(new EnqueueJobResult(result.Data?.Id ?? ""),
+                EnqueueJobResultSerializerContext.Default.EnqueueJobResult);
 
             return;
         }
         if (contextRequest.Method == HttpMethods.Get)
         {
             var jobs = await jobService.ListJobAsync(functionName);
-            contextResponse.StatusCode = 200;
+            contextResponse.StatusCode = (int)HttpStatusCode.OK;
             await contextResponse.WriteAsJsonAsync(jobs,
                 JobListResultSerializerContext.Default.ListJobListResult);
             return;

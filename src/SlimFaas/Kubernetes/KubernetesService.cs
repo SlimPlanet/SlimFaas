@@ -158,7 +158,7 @@ public partial record ScheduleCreateJob(
     List<string>? DependsOn = null);
 
 [MemoryPackable]
-public partial record SlimfaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations);
+public partial record SlimFaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations);
 
 [MemoryPackable]
 public partial record SlimfaasJob(
@@ -226,7 +226,7 @@ public partial record ResourceFieldRef(string ContainerName, string Resource, st
 [MemoryPackable]
 public partial record CreateJobResources(Dictionary<string, string> Requests, Dictionary<string, string> Limits);
 
-[JsonSerializable(typeof(SlimfaasJobConfiguration))]
+[JsonSerializable(typeof(SlimFaasJobConfiguration))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class SlimfaasJobConfigurationSerializerContext : JsonSerializerContext;
 

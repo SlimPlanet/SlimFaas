@@ -22,7 +22,7 @@ public class JobServiceTests
 
         // Configuration par défaut pour le mock du jobConfiguration
         _jobConfigurationMock.Setup(x => x.Configuration)
-            .Returns(new SlimfaasJobConfiguration(new Dictionary<string, SlimfaasJob>
+            .Returns(new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>
             {
                 {
                     "Default", new SlimfaasJob(
@@ -103,12 +103,11 @@ public class JobServiceTests
         bool isMessageComeFromNamespaceInternal = false;
 
         // Act
-        EnqueueJobResult result =
+        var result =
             await _jobService.EnqueueJobAsync(jobName, createJob, isMessageComeFromNamespaceInternal);
 
         // Assert
-        Assert.Equal("Visibility_private", result.ErrorKey);
-        Assert.Equal(400, result.Code);
+        Assert.Equal("visibility_private", result.Error?.Key);
 
         // EnqueueAsync ne doit pas être appelé dans ce scénario
         _jobQueueMock.Verify(x => x.EnqueueAsync(It.IsAny<string>(), It.IsAny<byte[]>()), Times.Never);
@@ -124,12 +123,11 @@ public class JobServiceTests
         bool isMessageComeFromNamespaceInternal = true; // même si c'est private, on s'en fiche, c'est un job public
 
         // Act
-        EnqueueJobResult result =
+        var result =
             await _jobService.EnqueueJobAsync(jobName, createJob, isMessageComeFromNamespaceInternal);
 
         // Assert
-        Assert.Equal("Image_not_allowed", result.ErrorKey);
-        Assert.Equal(400, result.Code);
+        Assert.Equal("image_not_allowed", result.Error?.Key);
 
         // EnqueueAsync ne doit pas être appelé
         _jobQueueMock.Verify(x => x.EnqueueAsync(It.IsAny<string>(), It.IsAny<byte[]>()), Times.Never);
@@ -145,12 +143,11 @@ public class JobServiceTests
         bool isMessageComeFromNamespaceInternal = true;
 
         // Act
-        EnqueueJobResult result =
+        var result =
             await _jobService.EnqueueJobAsync(jobName, createJob, isMessageComeFromNamespaceInternal);
 
         // Assert
-        Assert.True(string.IsNullOrEmpty(result.ErrorKey), "Aucune erreur ne doit remonter.");
-        Assert.Equal(202, result.Code);
+        Assert.True(result.IsSuccess, "Aucune erreur ne doit remonter.");
 
         // Vérifie que EnqueueAsync est bien appelé
         _jobQueueMock.Verify(x => x.EnqueueAsync(
@@ -177,7 +174,7 @@ public class JobServiceTests
         bool isMessageComeFromNamespaceInternal = true;
 
         // Act
-        EnqueueJobResult result =
+        var result =
             await _jobService.EnqueueJobAsync(jobName, createJob, isMessageComeFromNamespaceInternal);
 
         // Assert
@@ -228,7 +225,7 @@ public class JobServiceTests
 
         // On met à jour la configuration en dur
         _jobConfigurationMock.Setup(x => x.Configuration)
-            .Returns(new SlimfaasJobConfiguration(new Dictionary<string, SlimfaasJob>
+            .Returns(new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>
             {
                 { "MyPublicJob", newConfig }
             }));

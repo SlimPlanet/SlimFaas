@@ -78,6 +78,7 @@ WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
 IServiceCollection serviceCollectionSlimFaas = builder.Services;
 serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimScheduleJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<ScaleReplicasWorker>();
 
@@ -101,6 +102,8 @@ serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
 serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
+serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
+
 
 
 serviceCollectionSlimFaas.AddCors();

@@ -26,7 +26,7 @@ public class JobServiceAdditionalTests
         _conf = new Mock<IJobConfiguration>();
 
         _conf.Setup(x => x.Configuration)
-            .Returns(new SlimfaasJobConfiguration(new Dictionary<string, SlimfaasJob>
+            .Returns(new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>
             {
                 {
                     "Public", new SlimfaasJob("img",

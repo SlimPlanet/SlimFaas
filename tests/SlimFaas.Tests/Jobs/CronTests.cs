@@ -55,7 +55,7 @@ public class CronUtilsTests
 
         var result = Cron.GetLatestJobExecutionTimestamp(cron, currentTs);
 
-        Assert.Equal(expectedTs, result);
+        Assert.Equal(expectedTs, result.Data);
     }
 
     [Theory]
@@ -68,7 +68,9 @@ public class CronUtilsTests
     public void GetLatestJobExecutionTimestamp_InvalidCron_Throws(string cron)
     {
         var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-        Assert.ThrowsAny<Exception>(() => Cron.GetLatestJobExecutionTimestamp(cron, ts));
+
+        Assert.False(Cron.GetLatestJobExecutionTimestamp(cron, ts).IsSuccess);
+
     }
 }
 

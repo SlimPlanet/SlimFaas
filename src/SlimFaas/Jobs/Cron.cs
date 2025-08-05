@@ -1,22 +1,19 @@
-﻿
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
+﻿using System.Globalization;
 
 
 namespace SlimFaas.Jobs;
 
 public static class Cron
 {
-    public static long GetLatestJobExecutionTimestamp(string cronDefinition, long currentTimestamp)
+    public static ResultWithError<long> GetLatestJobExecutionTimestamp(string cronDefinition, long currentTimestamp)
     {
+
         if (string.IsNullOrWhiteSpace(cronDefinition))
-            throw new ArgumentException("Cron definition must not be empty.", nameof(cronDefinition));
+            return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must not be empty"));
 
         var parts = cronDefinition.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 5)
-            throw new ArgumentException("Cron definition must have exactly 5 fields.", nameof(cronDefinition));
+            return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
 
         var minuteSet      = ParseCronField(parts[0], 0, 59);
         var hourSet        = ParseCronField(parts[1], 0, 23);
@@ -58,10 +55,11 @@ public static class Cron
             if (!minuteSet.Contains(candidate.Minute))
                 continue;
 
-            // Trouvé!
-            return new DateTimeOffset(candidate, TimeSpan.Zero).ToUnixTimeSeconds();
+            return new ResultWithError<long>(new DateTimeOffset(candidate, TimeSpan.Zero).ToUnixTimeSeconds());
         }
-        throw new InvalidOperationException("No previous cron occurrence found in the past year.");
+
+        return new ResultWithError<long>(0,
+            new ErrorResult("cron_definition", "No previous cron occurrence found in the past year."));
     }
 
     // Parse un champ cron (ex: "5", "1-5", "*/15", "1,2,3")

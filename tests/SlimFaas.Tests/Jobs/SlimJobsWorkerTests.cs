@@ -50,10 +50,10 @@ public class SlimJobsWorkerTests
         _masterServiceMock.Setup(m => m.IsMaster).Returns(false);
 
         // On mocke une configuration vide pour éviter toute exception
-        SlimfaasJobConfiguration fakeSlimfaasJobConfig = new(new Dictionary<string, SlimfaasJob>());
+        SlimFaasJobConfiguration fakeSlimFaasJobConfig = new(new Dictionary<string, SlimfaasJob>());
         _jobConfigurationMock
             .Setup(c => c.Configuration)
-            .Returns(fakeSlimfaasJobConfig);
+            .Returns(fakeSlimFaasJobConfig);
         _jobServiceMock
             .Setup(s => s.SyncJobsAsync())
             .ReturnsAsync(new List<Job>());
@@ -98,7 +98,7 @@ public class SlimJobsWorkerTests
         _masterServiceMock.Setup(m => m.IsMaster).Returns(true);
 
         // Configuration simple : 1 job "myJob"
-        SlimfaasJobConfiguration fakeSlimfaasJobConfig = new(
+        SlimFaasJobConfiguration fakeSlimFaasJobConfig = new(
             new Dictionary<string, SlimfaasJob>
             {
                 {
@@ -113,7 +113,7 @@ public class SlimJobsWorkerTests
 
         _jobConfigurationMock
             .Setup(c => c.Configuration)
-            .Returns(fakeSlimfaasJobConfig);
+            .Returns(fakeSlimFaasJobConfig);
 
         // SyncJobsAsync renvoie 0 jobs
         _jobServiceMock
@@ -176,7 +176,7 @@ public class SlimJobsWorkerTests
         // ARRANGE
         _masterServiceMock.Setup(m => m.IsMaster).Returns(true);
 
-        SlimfaasJobConfiguration fakeSlimfaasJobConfig = new(
+        SlimFaasJobConfiguration fakeSlimFaasJobConfig = new(
             new Dictionary<string, SlimfaasJob>
             {
                 {
@@ -192,7 +192,7 @@ public class SlimJobsWorkerTests
 
         _jobConfigurationMock
             .Setup(c => c.Configuration)
-            .Returns(fakeSlimfaasJobConfig);
+            .Returns(fakeSlimFaasJobConfig);
 
         // 0 jobs en cours
         _jobServiceMock
@@ -260,7 +260,7 @@ public class SlimJobsWorkerTests
         _masterServiceMock.Setup(m => m.IsMaster).Returns(true);
 
         // 1 job "myJob", dépendant de "dependencyA"
-        SlimfaasJobConfiguration fakeSlimfaasJobConfig = new(
+        SlimFaasJobConfiguration fakeSlimFaasJobConfig = new(
             new Dictionary<string, SlimfaasJob>
             {
                 {
@@ -275,7 +275,7 @@ public class SlimJobsWorkerTests
         );
         _jobConfigurationMock
             .Setup(c => c.Configuration)
-            .Returns(fakeSlimfaasJobConfig);
+            .Returns(fakeSlimFaasJobConfig);
 
         // Pas de jobs en cours
         _jobServiceMock

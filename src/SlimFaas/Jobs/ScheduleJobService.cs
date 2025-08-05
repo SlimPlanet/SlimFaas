@@ -4,25 +4,38 @@ using SlimFaas.Kubernetes;
 namespace SlimFaas.Jobs;
 
 
-public record CreateScheduleJobResult(string ErrorKey, string ElementId, int Code = 400);
+public record CreateScheduleJobResult(string Id);
 
-public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseService databaseService)
+public interface IScheduleJobService
+{
+    public Task<ResultWithError<CreateScheduleJobResult>> CreateScheduleJobAsync(string name, ScheduleCreateJob createJob,
+        bool isMessageComeFromNamespaceInternal);
+}
+
+public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseService databaseService) : IScheduleJobService
 {
 
     public const string ScheduleJob = "ScheduleJob:";
-    async Task<CreateScheduleJobResult> CreateScheduleJob(string name, ScheduleCreateJob createJob, bool isMessageComeFromNamespaceInternal)
+    public async Task<ResultWithError<CreateScheduleJobResult>> CreateScheduleJobAsync(string name, ScheduleCreateJob createJob, bool isMessageComeFromNamespaceInternal)
     {
+        var timeStamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
+        var result = Cron.GetLatestJobExecutionTimestamp(createJob.Schedule, timeStamp);
+        if (!result.IsSuccess)
+        {
+            return new ResultWithError<CreateScheduleJobResult>(null , result.Error);
+        }
+
         var configuration = jobConfiguration.Configuration.Configurations;
         name = configuration.ContainsKey(name) ? name : JobService.Default;
         var conf = configuration[name];
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
-            return new CreateScheduleJobResult("Visibility_private", string.Empty, 400);
+            return new ResultWithError<CreateScheduleJobResult>(null , new ErrorResult("visibility_private"));
         }
 
         if (createJob.Image != string.Empty && !JobService.IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
         {
-            return new CreateScheduleJobResult("Image_not_allowed", string.Empty);
+            return new ResultWithError<CreateScheduleJobResult>(null , new ErrorResult("image_not_allowed"));
         }
 
         var idSchedule = Guid.NewGuid().ToString();
@@ -30,7 +43,7 @@ public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseSer
         var dictionary = new Dictionary<string, byte[]>();
         dictionary.Add(idSchedule, memory);
         await databaseService.HashSetAsync($"{ScheduleJob}{name}", dictionary);
-        return new CreateScheduleJobResult(string.Empty, idSchedule, 200);
+        return new ResultWithError<CreateScheduleJobResult>(new CreateScheduleJobResult(idSchedule));
     }
 
 }
