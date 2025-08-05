@@ -247,12 +247,12 @@ public class RaftClusterTests
         Assert.Null(await databaseServiceSlave.GetAsync("key1"));
 
         await databaseServiceSlave.HashSetAsync("hashsetKey1",
-            new Dictionary<string, string> { { "field1", "value1" }, { "field2", "value2" } });
+            new Dictionary<string, byte[]> { { "field1",MemoryPackSerializer.Serialize("value1") }, { "field2", MemoryPackSerializer.Serialize("value2") } });
         await GetLocalClusterView(host1).ForceReplicationAsync();
-        IDictionary<string, string> hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+        IDictionary<string, byte[]> hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
 
-        Assert.Equal("value1", hashGet["field1"]);
-        Assert.Equal("value2", hashGet["field2"]);
+        Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(hashGet["field1"]));
+        Assert.Equal("value2", MemoryPackSerializer.Deserialize<string>(hashGet["field2"]));
 
        await databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value1"), new RetryInformation([], 30, []));
        await GetLocalClusterView(host1).ForceReplicationAsync();

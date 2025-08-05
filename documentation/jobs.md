@@ -344,15 +344,37 @@ Use **SlimFaas Jobs** to handle asynchronous, on‑demand, or batched workloads 
 ---
 
 ```bash
-curl -X GET http://<slimfaas>/job-schedules/DailyJobs
-[{"Id":"0","Name":"fibonacci","Time":"01:00","Arguments":[]}]
+# Endpoint private only
+curl -X POST http://<slimfaas>/job-schedules/fibonacci
+{"Schedule":"0 0 * * *","Arguments":[]} # Run once a day at midnight
 
-curl -X POST http://<slimfaas>/job-schedules/DailyJobs
-{"Id":"0","Name":"fibonacci","Time":"01:00","Arguments":[]}
+curl -X POST http://<slimfaas>/job-schedules/fibonacci
+{"Schedule":"0 0 * * 0","Arguments":[]} # Run once a week at midnight on Sunday morning
 
-curl -X GET http://<slimfaas>/job-schedules/PeriodicJobs
-[{"Id":"0","Name":"fibonacci","TimeSpanSeconds":"3600","Arguments":[]}]
+# with override
+curl -X POST http://localhost:30021/job-schedules/fibonacci
+{
+  "Name":"fibonacci",
+  "Schedule":"0 0 * * *"
+  "Image": "axaguildev/fibonacci-batch:1.0.1",         # Must match ImagesWhitelist
+  "Args": ["42", "43"],
+  "DependsOn": ["fibonacci2"],                          # Overrides default
+  "Resources": {                                         # Cannot exceed configured limits
+    "Requests": { "cpu": "200m", "memory": "200Mi" },
+    "Limits":   { "cpu": "200m", "memory": "200Mi" }
+  },
+  "Environments": [],  # Override and merge with default Environments configured
+  "BackoffLimit": 1,
+  "TtlSecondsAfterFinished": 100,
+  "RestartPolicy": "Never"
+}
 
-curl -X POST http://<slimfaas>/job-schedules/PeriodicJobs
-{"Id":"0","Name":"fibonacci","TimeSpanSeconds":"3600","Arguments":[]}
+curl -X GET http://<slimfaas>/job-schedules/fibonacci
+[
+  {"Id":"0","Name":"fibonacci","Schedule":"0 0 * * *","Arguments":[]},
+  {"Id":"1","Name":"fibonacci","Schedule":"0 0 * * 0","Arguments":[]}
+]
+
+curl -X DELETE http://<slimfaas>/job-schedules/fibonacci/0
+
 ```

@@ -143,8 +143,19 @@ public partial record CreateJob(
     string RestartPolicy = "Never",
     CreateJobResources? Resources = null,
     IList<EnvVarInput>? Environments = null,
-    List<string>? DependsOn = null,
-    string ConfigurationName = "Default");
+    List<string>? DependsOn = null);
+
+[MemoryPackable]
+public partial record ScheduleCreateJob(
+    string Schedule,
+    List<string> Args,
+    string Image = "",
+    int BackoffLimit = 1,
+    int TtlSecondsAfterFinished = 60,
+    string RestartPolicy = "Never",
+    CreateJobResources? Resources = null,
+    IList<EnvVarInput>? Environments = null,
+    List<string>? DependsOn = null);
 
 [MemoryPackable]
 public partial record SlimfaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations);
@@ -222,6 +233,10 @@ public partial class SlimfaasJobConfigurationSerializerContext : JsonSerializerC
 [JsonSerializable(typeof(CreateJob))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class CreateJobSerializerContext : JsonSerializerContext;
+
+[JsonSerializable(typeof(ScheduleCreateJob))]
+[JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+public partial class ScheduleCreateJobSerializerContext : JsonSerializerContext;
 
 [ExcludeFromCodeCoverage]
 public class KubernetesService : IKubernetesService

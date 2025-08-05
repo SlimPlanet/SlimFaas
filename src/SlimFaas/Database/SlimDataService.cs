@@ -8,6 +8,7 @@ using SlimData;
 using SlimData.Commands;
 
 namespace SlimFaas.Database;
+
 #pragma warning disable CA2252
 public class SlimDataService(
     IHttpClientFactory httpClientFactory,
@@ -31,10 +32,10 @@ public class SlimDataService(
     public async Task SetAsync(string key, byte[] value) =>
         await Retry.DoAsync(() => DoSetAsync(key, value), logger, _retryInterval);
 
-    public async Task HashSetAsync(string key, IDictionary<string, string> values) =>
+    public async Task HashSetAsync(string key, IDictionary<string, byte[]> values) =>
         await Retry.DoAsync(() => DoHashSetAsync(key, values), logger, _retryInterval);
 
-    public async Task<IDictionary<string, string>> HashGetAllAsync(string key) =>
+    public async Task<IDictionary<string, byte[]>> HashGetAllAsync(string key) =>
         await Retry.DoAsync(() => DoHashGetAllAsync(key), logger, _retryInterval);
 
     public async Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
@@ -86,27 +87,26 @@ public class SlimDataService(
         }
     }
 
-    private async Task DoHashSetAsync(string key, IDictionary<string, string> values)
+    private async Task DoHashSetAsync(string key, IDictionary<string, byte[]> values)
     {
         EndPoint endpoint = await GetAndWaitForLeader();
+
+        HashsetSet hashset = new(key, values);
+        byte[] serialize = MemoryPackSerializer.Serialize(hashset);
         if (!cluster.LeadershipToken.IsCancellationRequested)
         {
             SlimPersistentState simplePersistentState = serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.AddHashSetCommand(simplePersistentState, key, new Dictionary<string, string>(values),
+            await Endpoints.AddHashSetCommand(simplePersistentState, key, new Dictionary<string, byte[]>(values),
                 cluster, new CancellationTokenSource());
         }
         else
         {
-            MultipartFormDataContent multipart = new();
-            multipart.Add(new StringContent(key), "______key_____");
-            foreach (KeyValuePair<string, string> value in values)
-            {
-                multipart.Add(new StringContent(value.Value), value.Key);
-            }
-
+            using HttpRequestMessage request = new(HttpMethod.Post,
+                new Uri($"{endpoint}SlimData/AddHashset"));
+            request.Content = new ByteArrayContent(serialize);
             using HttpClient httpClient = httpClientFactory.CreateClient(HttpClientName);
-            using HttpResponseMessage response =
-                await httpClient.PostAsync(new Uri($"{endpoint}SlimData/AddHashset"), multipart);
+
+            using HttpResponseMessage response = await httpClient.SendAsync(request);
             if ((int)response.StatusCode >= 500)
             {
                 throw new DataException("Error in calling SlimData HTTP Service");
@@ -114,15 +114,24 @@ public class SlimDataService(
         }
     }
 
-    private async Task<IDictionary<string, string>> DoHashGetAllAsync(string key)
+    private async Task<IDictionary<string, byte[]>> DoHashGetAllAsync(string key)
     {
         await GetAndWaitForLeader();
         await MasterWaitForleaseToken();
 
         SlimDataPayload data = SimplePersistentState.Invoke();
-        return data.Hashsets.TryGetValue(key, out ImmutableDictionary<string, string>? value)
+
+        var dictionary = data.Hashsets.TryGetValue(key, out ImmutableDictionary<string, ReadOnlyMemory<byte>>? value)
             ? value
-            : new Dictionary<string, string>();
+            : ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
+
+        Dictionary<string, byte[]> result = new(dictionary.Count);
+        foreach (KeyValuePair<string, ReadOnlyMemory<byte>> readOnlyMemory in dictionary)
+        {
+            result.Add(readOnlyMemory.Key, readOnlyMemory.Value.ToArray());
+        }
+
+        return result;
     }
 
     private async Task<string> DoListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
@@ -143,7 +152,7 @@ public class SlimDataService(
                 new Uri($"{endpoint}SlimData/ListLeftPush?key={key}"));
             request.Content = new ByteArrayContent(serialize);
             using HttpClient httpClient = httpClientFactory.CreateClient(HttpClientName);
-            HttpResponseMessage response = await httpClient.SendAsync(request);
+            using HttpResponseMessage response = await httpClient.SendAsync(request);
 
             if ((int)response.StatusCode >= 500)
             {

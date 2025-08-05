@@ -5,11 +5,11 @@ using SlimData.Commands;
 namespace SlimData;
 
 public class SlimDataState(
-    ImmutableDictionary<string, ImmutableDictionary<string, string>> Hashsets,
+    ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets,
     ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues,
     ImmutableDictionary<string, ImmutableList<QueueElement>> Queues)
 {
-    public ImmutableDictionary<string, ImmutableDictionary<string, string>> Hashsets { get; set; } = Hashsets;
+    public ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets { get; set; } = Hashsets;
     public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; } = KeyValues;
     public ImmutableDictionary<string, ImmutableList<QueueElement>> Queues { get; set; } = Queues;
 }
@@ -50,7 +50,7 @@ public class SlimDataInterpreter : CommandInterpreter
     public const int DeleteFromQueueCode = 1000;
 
     public SlimDataState SlimDataState = new(
-        ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty,
+        ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
         ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
     );
@@ -183,7 +183,23 @@ public class SlimDataInterpreter : CommandInterpreter
     internal static ValueTask DoAddHashSetAsync(AddHashSetCommand addHashSetCommand, SlimDataState slimDataState)
     {
         var hashsets = slimDataState.Hashsets;
-        slimDataState.Hashsets = hashsets.SetItem(addHashSetCommand.Key, addHashSetCommand.Value.ToImmutableDictionary());
+
+        var key = addHashSetCommand.Key;
+        var newValueses = addHashSetCommand.Value;
+        if (slimDataState.Hashsets.TryGetValue(key, out var hashset))
+        {
+            var dictionary = hashset.ToDictionary(keyValuePair => keyValuePair.Key, keyValuePair => keyValuePair.Value);
+            foreach (var newValues in newValueses)
+            {
+                dictionary[newValues.Key] = newValues.Value;
+            }
+            slimDataState.Hashsets = hashsets.SetItem(key, dictionary.ToImmutableDictionary());
+        }
+        else
+        {
+            slimDataState.Hashsets = hashsets.SetItem(key, newValueses.ToImmutableDictionary());
+        }
+        
         return default;
     }
 
@@ -235,7 +251,7 @@ public class SlimDataInterpreter : CommandInterpreter
         }
         slimDataState.Queues = queues;
         
-        var hashsets = ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty;
+        var hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
         foreach (var hashset in command.hashsets)
         {
             hashsets = hashsets.SetItem(hashset.Key, hashset.Value.ToImmutableDictionary());

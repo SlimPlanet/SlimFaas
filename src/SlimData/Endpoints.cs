@@ -21,6 +21,12 @@ public partial record ListQueueItemStatus
     public List<QueueItemStatus>? Items { get; set; }
 }
 
+
+[MemoryPackable]
+public partial record struct HashsetSet(string Key, IDictionary<string, byte[]> Values);
+
+
+
 public class Endpoints
 {
     public delegate Task RespondDelegate(IRaftCluster cluster, SlimPersistentState provider,
@@ -66,33 +72,26 @@ public class Endpoints
     {
         return DoAsync(context, async (cluster, provider, source) =>
         {
-            var form = await context.Request.ReadFormAsync(source.Token);
-
-            var key = string.Empty;
-            var dictionary = new Dictionary<string, string>();
-            foreach (var formData in form)
-                if (formData.Key == "______key_____")
-                    key = formData.Value.ToString();
-                else
-                    dictionary[formData.Key] = formData.Value.ToString();
-
-            if (string.IsNullOrEmpty(key))
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("GetKeyValue ______key_____ is empty", context.RequestAborted);
-                return;
-            }
-
-            await AddHashSetCommand(provider, key, dictionary, cluster, source);
+            var inputStream = context.Request.Body;
+            await using var memoryStream = new MemoryStream();
+            await inputStream.CopyToAsync(memoryStream, source.Token);
+            var value = memoryStream.ToArray();
+            var hashsetSet =  MemoryPackSerializer.Deserialize<HashsetSet>(value);
+            await AddHashSetCommand(provider, hashsetSet.Key, hashsetSet.Values, cluster, source);
         });
     }
 
-    public static async Task AddHashSetCommand(SlimPersistentState provider, string key, Dictionary<string, string> dictionary,
+    public static async Task AddHashSetCommand(SlimPersistentState provider, string key, IDictionary<string, byte[]> dictionary,
         IRaftCluster cluster, CancellationTokenSource source)
     {
+        var value = new Dictionary<string, ReadOnlyMemory<byte>>(dictionary.Count);
+        foreach (var keyValue in dictionary)
+        {
+            value.Add(keyValue.Key, keyValue.Value);
+        }
         var logEntry =
             provider.Interpreter.CreateLogEntry(
-                new AddHashSetCommand { Key = key, Value = dictionary }, cluster.Term);
+                new AddHashSetCommand { Key = key, Value = value }, cluster.Term);
         await cluster.ReplicateAsync(logEntry, source.Token);
     }
 

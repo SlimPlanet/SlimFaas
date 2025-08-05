@@ -10,7 +10,7 @@ public struct AddHashSetCommand : ISerializable<AddHashSetCommand>
     public const int Id = 1;
 
     public string Key { get; set; }
-    public Dictionary<string, string> Value { get; set; }
+    public Dictionary<string, ReadOnlyMemory<byte>> Value { get; set; }
 
     long? IDataTransferObject.Length // optional implementation, may return null
     {
@@ -20,7 +20,7 @@ public struct AddHashSetCommand : ISerializable<AddHashSetCommand>
             long result = Encoding.UTF8.GetByteCount(Key);
             result += sizeof(int); // 4 bytes for count
             foreach (var keyValuePair in Value)
-                result += Encoding.UTF8.GetByteCount(keyValuePair.Key) + Encoding.UTF8.GetByteCount(keyValuePair.Value);
+                result += Encoding.UTF8.GetByteCount(keyValuePair.Key) + keyValuePair.Value.Length;
             return result;
         }
     }
@@ -39,7 +39,7 @@ public struct AddHashSetCommand : ISerializable<AddHashSetCommand>
         foreach (var (key, value) in Value)
         {
             await writer.EncodeAsync(key.AsMemory(), context, LengthFormat.LittleEndian, token).ConfigureAwait(false);
-            await writer.EncodeAsync(value.AsMemory(), context, LengthFormat.LittleEndian, token).ConfigureAwait(false);
+            await writer.WriteAsync(value, LengthFormat.Compressed, token).ConfigureAwait(false);
         }
     }
 
@@ -50,14 +50,14 @@ public struct AddHashSetCommand : ISerializable<AddHashSetCommand>
     {
         var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token:token).ConfigureAwait(false);
         var count = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-        var keysValues = new Dictionary<string, string>(count);
+        var keysValues = new Dictionary<string, ReadOnlyMemory<byte>>(count);
         // deserialize entries
         var context = new DecodingContext(Encoding.UTF8, true);
         while (count-- > 0)
         {
             var key_ = await reader.DecodeAsync( context, LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
-            var value = await reader.DecodeAsync( context, LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
-            keysValues.Add(key_.ToString(), value.ToString());
+            using var value = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
+            keysValues.Add(key_.ToString(), value.Memory.ToArray());
         }
 
         return new AddHashSetCommand

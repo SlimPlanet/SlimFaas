@@ -5,7 +5,7 @@ namespace SlimFaas;
 
 public class DatabaseMockService : IDatabaseService
 {
-    private readonly ConcurrentDictionary<string, IDictionary<string, string>> hashSet = new();
+    private readonly ConcurrentDictionary<string, IDictionary<string, byte[]>> hashSet = new();
 
     private readonly ConcurrentDictionary<string, byte[]> keys = new();
     private readonly ConcurrentDictionary<string, List<QueueData>> queue = new();
@@ -36,7 +36,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.CompletedTask;
     }
 
-    public Task HashSetAsync(string key, IDictionary<string, string> values)
+    public Task HashSetAsync(string key, IDictionary<string, byte[]> values)
     {
         if (hashSet.ContainsKey(key))
         {
@@ -50,14 +50,14 @@ public class DatabaseMockService : IDatabaseService
         return Task.CompletedTask;
     }
 
-    public Task<IDictionary<string, string>> HashGetAllAsync(string key)
+    public Task<IDictionary<string, byte[]>> HashGetAllAsync(string key)
     {
         if (hashSet.ContainsKey(key))
         {
             return Task.FromResult(hashSet[key]);
         }
 
-        return Task.FromResult<IDictionary<string, string>>(new Dictionary<string, string>());
+        return Task.FromResult<IDictionary<string, byte[]>>(new Dictionary<string, byte[]>());
     }
 
     public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)

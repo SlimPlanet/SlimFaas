@@ -13,7 +13,6 @@ public interface IJobService
     Task<IList<Job>> SyncJobsAsync();
     IList<Job> Jobs { get; }
     Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal);
-
     Task<IList<JobListResult>> ListJobAsync(string jobName);
 }
 
@@ -45,7 +44,7 @@ public partial class JobListResultSerializerContext : JsonSerializerContext;
 
 public class JobService(IKubernetesService kubernetesService, IJobConfiguration jobConfiguration, IJobQueue jobQueue) : IJobService
 {
-    private const string Default = "Default";
+    public const string Default = "Default";
 
     private readonly string _namespace = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
                                          EnvironmentVariables.NamespaceDefault;
@@ -79,7 +78,7 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
         }
     }
 
-    private static bool IsImageAllowed(IList<string> imagesWhiteList, string image)
+    public static bool IsImageAllowed(IList<string> imagesWhiteList, string image)
     {
         if (imagesWhiteList.Any(imageWhiteList => IsPatternMatch(imageWhiteList, image)))
         {
@@ -119,7 +118,6 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
             TtlSecondsAfterFinished: conf.TtlSecondsAfterFinished,
             Resources: JobResourceValidator.ValidateResources(conf.Resources,  createJob.Resources),
             Environments: environments,
-            ConfigurationName: name,
             DependsOn: dependsOn);
 
         string fullName = $"{name}{KubernetesService.SlimfaasJobKey}{TinyGuid.NewTinyGuid()}";

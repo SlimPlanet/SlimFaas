@@ -20,6 +20,7 @@ public enum FunctionType
     Status,
     Publish,
     Job,
+    JobSchedules,
     NotAFunction,
     AsyncQueue
 }
@@ -55,6 +56,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string Function = "/function";
     private const string PublishEvent = "/publish-event";
     private const string Job = "/job";
+    private const string JobSchedules = "/job-schedules";
 
     private readonly int _timeoutMaximumWaitWakeSyncFunctionMilliSecond = EnvironmentVariables.ReadInteger(logger,
         EnvironmentVariables.TimeMaximumWaitForAtLeastOnePodStartedForSyncFunction,
@@ -124,6 +126,9 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             case FunctionType.Job:
                 await BuildJobResponse(context, replicasService, jobService, contextRequest, contextResponse, functionName, functionPath);
                 break;
+            case FunctionType.JobSchedules:
+                await BuildJobSchedulesResponse(context, replicasService, jobService, contextRequest, contextResponse, functionName, functionPath);
+                break;
             case FunctionType.Wake:
                 BuildWakeResponse(replicasService, wakeUpFunction, functionName, contextResponse);
                 break;
@@ -145,6 +150,49 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     await BuildAsyncResponseAsync(logger, context, replicasService, jobService, functionName, functionPath);
                     break;
                 }
+        }
+    }
+
+    private async Task BuildJobSchedulesResponse(HttpContext context, IReplicasService replicasService, IJobService jobService, HttpRequest contextRequest, HttpResponse contextResponse, string functionName, string functionPath)
+    {
+        if (contextRequest.Method == HttpMethods.Put || contextRequest.Method == HttpMethods.Patch)
+        {
+            contextResponse.StatusCode = (int)HttpStatusCode.MethodNotAllowed;
+            return;
+        }
+        if (contextRequest.Method == HttpMethods.Post)
+        {
+            ScheduleCreateJob? scheduleCreateJob =
+                await contextRequest.ReadFromJsonAsync(ScheduleCreateJobSerializerContext.Default.ScheduleCreateJob);
+            if (scheduleCreateJob == null)
+            {
+                contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+                return;
+            }
+
+            logger.LogInformation("Create job {JobName} with {ScheduleCreateJob}", functionName, scheduleCreateJob);
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug("Create job details {ScheduleCreateJob} ", JsonSerializer.Serialize(scheduleCreateJob,
+                    ScheduleCreateJobSerializerContext.Default.ScheduleCreateJob));
+            }
+
+            bool isMessageComeFromNamespaceInternal =
+                MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
+           /* var result =
+                await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
+            if (result.Code >= 400)
+            {
+                contextResponse.StatusCode = result.Code;
+                logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}",
+                    contextResponse.StatusCode, result.ErrorKey);
+                return;
+            }*/
+            contextResponse.StatusCode = 202;
+           // await contextResponse.WriteAsJsonAsync(new EnqueueJobResultSuccess(result.ElementId),
+             //   EnqueueJobResultSuccessSerializerContext.Default.EnqueueJobResultSuccess);
+
+            return;
         }
     }
 
@@ -647,6 +695,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             WakeFunction => FunctionType.Wake,
             PublishEvent => FunctionType.Publish,
             Job => FunctionType.Job,
+            JobSchedules => FunctionType.JobSchedules,
             AsyncFunctionQueue => FunctionType.AsyncQueue,
             _ => FunctionType.NotAFunction
         };
@@ -679,6 +728,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         else if (path.StartsWithSegments(Job))
         {
             functionBeginPath = $"{Job}";
+        }
+        else if (path.StartsWithSegments(JobSchedules))
+        {
+            functionBeginPath = $"{JobSchedules}";
         }
         else if (path.StartsWithSegments(AsyncFunctionQueue))
         {
