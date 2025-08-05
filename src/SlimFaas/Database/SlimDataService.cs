@@ -114,6 +114,32 @@ public class SlimDataService(
         }
     }
 
+    public async Task DeleteHashSetAsync(string key, string dictionaryKey = "") =>
+        await Retry.DoAsync(() => DoDeleteHashSetAsync(key, dictionaryKey), logger, _retryInterval);
+
+    private async Task DoDeleteHashSetAsync(string key, string dictionaryKey = "")
+    {
+        EndPoint endpoint = await GetAndWaitForLeader();
+
+        if (!cluster.LeadershipToken.IsCancellationRequested)
+        {
+            SlimPersistentState simplePersistentState = serviceProvider.GetRequiredService<SlimPersistentState>();
+            await Endpoints.DeleteHashSetCommand(simplePersistentState, key, dictionaryKey,
+                cluster, new CancellationTokenSource());
+        }
+        else
+        {
+            using HttpRequestMessage request = new(HttpMethod.Post,
+                new Uri($"{endpoint}SlimData/DeleteHashset?key={key}&dictionaryKey={dictionaryKey}"));
+            using HttpClient httpClient = httpClientFactory.CreateClient(HttpClientName);
+            using HttpResponseMessage response = await httpClient.SendAsync(request);
+            if ((int)response.StatusCode >= 500)
+            {
+                throw new DataException("Error in calling SlimData HTTP Service");
+            }
+        }
+    }
+
     private async Task<IDictionary<string, byte[]>> DoHashGetAllAsync(string key)
     {
         await GetAndWaitForLeader();

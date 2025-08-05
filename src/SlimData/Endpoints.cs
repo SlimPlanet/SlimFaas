@@ -94,6 +94,38 @@ public class Endpoints
                 new AddHashSetCommand { Key = key, Value = value }, cluster.Term);
         await cluster.ReplicateAsync(logEntry, source.Token);
     }
+    
+    public static async Task DeleteHashSetAsync(HttpContext context)
+    {
+
+        var task = DoAsync(context, async (cluster, provider, source) =>
+        {
+            context.Request.Query.TryGetValue("key", out var key);
+            if (string.IsNullOrEmpty(key))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("not data found", context.RequestAborted);
+                return;
+            }
+            context.Request.Query.TryGetValue("dictionaryKey", out var dictionaryKey);
+            await DeleteHashSetCommand(provider, key.ToString(), dictionaryKey.ToString(), cluster, source);
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+        });
+        await task;
+    }
+    
+    public static async Task DeleteHashSetCommand(SlimPersistentState provider, string key, string dictionaryKey,
+        IRaftCluster cluster, CancellationTokenSource source)
+    {
+
+        LogEntry<DeleteHashSetCommand>? logEntry =
+                provider.Interpreter.CreateLogEntry(new DeleteHashSetCommand { Key = key, 
+                      DictionaryKey = dictionaryKey
+                    },
+                    cluster.Term);
+
+        await cluster.ReplicateAsync(logEntry.Value, source.Token);
+    }
 
     public static Task ListRightPopAsync(HttpContext context)
     {
@@ -160,7 +192,6 @@ public class Endpoints
         }
             
         return values;
-        
     }
     
     public static async Task ListLeftPushAsync(HttpContext context)

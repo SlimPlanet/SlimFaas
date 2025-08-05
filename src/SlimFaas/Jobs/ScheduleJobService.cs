@@ -24,11 +24,10 @@ public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseSer
         }
 
         var idSchedule = Guid.NewGuid().ToString();
-
         byte[] memory = MemoryPackSerializer.Serialize(createJob);
         var dictionary = new Dictionary<string, byte[]>();
         dictionary.Add(idSchedule, memory);
-        await databaseService.HashSetAsync(name, dictionary);
+        await databaseService.HashSetAsync(name.ToLower(), dictionary);
         return new CreateScheduleJobResult(string.Empty, idSchedule, 200);
     }
 

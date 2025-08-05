@@ -232,6 +232,39 @@ public class SlimDataInterpreter : CommandInterpreter
 
         return default;
     }
+    
+    [CommandHandler]
+    public ValueTask DeleteHashSetAsync(DeleteHashSetCommand valueCommand, CancellationToken token)
+    {
+        return DoDeleteHashSetAsync(valueCommand, SlimDataState);
+    }
+    
+    internal static ValueTask DoDeleteHashSetAsync(DeleteHashSetCommand deleteHashSetCommand, SlimDataState slimDataState)
+    {
+        var value = deleteHashSetCommand.Key;   
+        if (!string.IsNullOrEmpty(value) || !slimDataState.Hashsets.ContainsKey(value))
+        {
+            return default;
+        }
+
+        var dictionaryKey = deleteHashSetCommand.DictionaryKey;
+        if (!string.IsNullOrEmpty(dictionaryKey))
+        {
+            slimDataState.Hashsets = slimDataState.Hashsets.Remove(value);
+        }
+        else
+        {
+            var dictionary = slimDataState.Hashsets[value];
+            if (dictionary.ContainsKey(dictionaryKey))
+            {
+                slimDataState.Hashsets = slimDataState.Hashsets.SetItem(value,
+                    dictionary.Remove(dictionaryKey));
+            }
+        }
+
+        return default;
+    }
+
 
     [CommandHandler(IsSnapshotHandler = true)]
     public ValueTask HandleSnapshotAsync(LogSnapshotCommand command, CancellationToken token)
@@ -266,6 +299,7 @@ public class SlimDataInterpreter : CommandInterpreter
         ValueTask ListRightPopHandler(ListRightPopCommand command, CancellationToken token) => DoListRightPopAsync(command, state);
         ValueTask ListLeftPushHandler(ListLeftPushCommand command, CancellationToken token) => DoListLeftPushAsync(command, state);
         ValueTask AddHashSetHandler(AddHashSetCommand command, CancellationToken token) => DoAddHashSetAsync(command, state);
+        ValueTask DeleteHashSetHandler(DeleteHashSetCommand command, CancellationToken token) => DoDeleteHashSetAsync(command, state);
         ValueTask AddKeyValueHandler(AddKeyValueCommand command, CancellationToken token) => DoAddKeyValueAsync(command, state);
         ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand command, CancellationToken token) => DoDeleteKeyValueAsync(command, state);
         ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand command, CancellationToken token) => DoListCallbackAsync(command, state);
@@ -275,6 +309,7 @@ public class SlimDataInterpreter : CommandInterpreter
             .Add(ListRightPopCommand.Id, (Func<ListRightPopCommand, CancellationToken, ValueTask>)ListRightPopHandler)
             .Add(ListLeftPushCommand.Id, (Func<ListLeftPushCommand, CancellationToken, ValueTask>)ListLeftPushHandler)
             .Add(AddHashSetCommand.Id, (Func<AddHashSetCommand, CancellationToken, ValueTask>)AddHashSetHandler)
+            .Add(DeleteHashSetCommand.Id, (Func<DeleteHashSetCommand, CancellationToken, ValueTask>)DeleteHashSetHandler)
             .Add(AddKeyValueCommand.Id, (Func<AddKeyValueCommand, CancellationToken, ValueTask>)AddKeyValueHandler)
             .Add(DeleteKeyValueCommand.Id, (Func<DeleteKeyValueCommand, CancellationToken, ValueTask>)DeleteKeyValueHandler)
             .Add(ListCallbackCommand.Id, (Func<ListCallbackCommand, CancellationToken, ValueTask>)ListSetQueueItemStatusAsync)

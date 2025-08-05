@@ -17,6 +17,7 @@ public interface IDatabaseService
     Task<byte[]?> GetAsync(string key);
     Task SetAsync(string key,  byte[] value);
     Task HashSetAsync(string key, IDictionary<string, byte[]> values);
+    Task DeleteHashSetAsync(string key, string dictionaryKey = "");
     Task<IDictionary<string, byte[]>> HashGetAllAsync(string key);
     Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation);
     Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1);
