@@ -6,6 +6,8 @@ Adopt the **Model‑Context‑Protocol (MCP)** at scale—without rewriting a si
 * **Live documentation & prompting overrides** – enrich or replace endpoint descriptions and schemas in flight via the `mcp_prompt` parameter.
 * **Tiny & native** – single self‑contained binary > 15MB for Linux, macOS and Windows, plus multi‑arch Docker images (x64 & ARM).
 * **Flexible** – hot‑swap docs whenever you need—no rebuild, no downtime.
+* **Security** - Implement RFC 9728 for client dynamic discovery. Works with all Oauth flow: PKCE, mTLS, DPoP…
+  * https://datatracker.ietf.org/doc/rfc9728/
 
 Grab the latest binaries on the **[GitHub Releases](https://github.com/SlimPlanet/SlimFaas/releases)** page:
 
@@ -32,9 +34,10 @@ This project is a **runtime MCP proxy** that dynamically generates SlimFaas‑co
 
     * `POST /mcp` (JSON‑RPC 2.0)
 
-        * Query – `openapi_url`, `base_url`, `mcp_prompt`
+        * Query – `openapi_url`, `base_url`, `mcp_prompt`, `oauth`
     * `GET  /tools` – list all generated MCP tools
     * `POST /tools/{toolName}` – execute a proxied call to the API
+    * `GET /{oauth}/.well-known/oauth-protected-resource` – for client dynamic authorization server discovery (RFC 9728)
 * **Minimal Web UI** served at `/index.html` for interactive testing.
 
 ---
@@ -63,10 +66,11 @@ The API listens on **[http://localhost:8080](http://localhost:8080)** by default
 ## 📖 Main API endpoints
 
 | Method & path            | Description                                                          |
-| ------------------------ | -------------------------------------------------------------------- |
+|--------------------------|----------------------------------------------------------------------|
 | `POST /mcp`              | MCP JSON‑RPC 2.0 endpoint (`openapi_url`, `base_url`, `mcp_prompt`). |
 | `GET /tools`             | Returns the list of MCP tools generated from the provided Swagger.   |
 | `POST /tools/{toolName}` | Executes the specified tool. Body = JSON arguments.                  |
+| `GET /{oauth}/.well-known/oauth-protected-resource`  | Authorization server configuration in JSON format                    |
 | `GET /index.html`        | Minimalist web UI.                                                   |
 
 ---
