@@ -10,6 +10,7 @@ public interface IJobConfiguration
 
 public class JobConfiguration : IJobConfiguration
 {
+    public const string Default = "Default";
 
     public SlimFaasJobConfiguration Configuration { get; }
 
@@ -46,18 +47,15 @@ public class JobConfiguration : IJobConfiguration
             slimfaasJobConfiguration = new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>());
         }
 
-        if (!slimfaasJobConfiguration.Configurations.ContainsKey("Default"))
+        if (!slimfaasJobConfiguration.Configurations.TryAdd(Default, defaultSlimfaasJob))
         {
-            slimfaasJobConfiguration.Configurations.Add("Default", defaultSlimfaasJob);
-        }
-        else
-        {
-            if (slimfaasJobConfiguration.Configurations["Default"].Resources == null)
+            if (slimfaasJobConfiguration.Configurations[Default].Resources == null)
             {
-                var actualResources = slimfaasJobConfiguration.Configurations["Default"];
-                slimfaasJobConfiguration.Configurations["Default"] = actualResources with { Resources = createJobResources };
+                var actualResources = slimfaasJobConfiguration.Configurations[Default];
+                slimfaasJobConfiguration.Configurations[Default] = actualResources with { Resources = createJobResources };
             }
         }
+
         Configuration = slimfaasJobConfiguration;
     }
 }

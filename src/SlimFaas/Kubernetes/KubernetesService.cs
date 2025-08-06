@@ -160,7 +160,7 @@ public partial record ScheduleCreateJob(
 
 
 [MemoryPackable]
-public partial record SlimFaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations);
+public partial record SlimFaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations, Dictionary<string, IList<ScheduleCreateJob>>? Schedules=null);
 
 [MemoryPackable]
 public partial record SlimfaasJob(
@@ -174,6 +174,8 @@ public partial record SlimfaasJob(
     int NumberParallelJob = 1,
     int TtlSecondsAfterFinished = 60,
     string RestartPolicy = "Never");
+
+
 
 [MemoryPackable]
 public partial record EnvVarInput(

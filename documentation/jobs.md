@@ -354,7 +354,6 @@ curl -X POST http://<slimfaas>/job-schedules/fibonacci
 # with override
 curl -X POST http://localhost:30021/job-schedules/fibonacci
 {
-  "Name":"fibonacci",
   "Schedule":"0 0 * * *"
   "Image": "axaguildev/fibonacci-batch:1.0.1",         # Must match ImagesWhitelist
   "Args": ["42", "43"],

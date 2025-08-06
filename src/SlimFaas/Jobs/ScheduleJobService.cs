@@ -57,7 +57,7 @@ public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseSer
         }
 
         var configuration = jobConfiguration.Configuration.Configurations;
-        name = configuration.ContainsKey(name) ? name : JobService.Default;
+        name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
         var conf = configuration[name];
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
@@ -110,7 +110,7 @@ public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseSer
     public async Task<ResultWithError<string>> DeleteScheduleJobAsync(string name, string id, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
-        name = configuration.ContainsKey(name) ? name : JobService.Default;
+        name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
         var conf = configuration[name];
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {

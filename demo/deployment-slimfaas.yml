@@ -36,11 +36,12 @@ data:
           "RestartPolicy": "Never"
         }
       },
-    "Schedules":
-      {
-        "TimeZoneID": "Europe/Paris",
-        "DailyJobs": [{"Id":"0","Name":"fibonacci","Time":"01:00","Arguments":[]}],
-        "PeriodicJobs": [{"Id":"0","Name":"fibonacci","TimeSpanSeconds":"3600","Arguments":[]}]
+    "Schedules": {
+      "fibonacci": [
+        {
+          "Schedule":"0 0 * * *"
+          "Args": ["42", "43"]
+        }]
       }
     }
 ---

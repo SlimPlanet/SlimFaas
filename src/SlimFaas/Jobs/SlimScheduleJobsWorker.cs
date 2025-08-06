@@ -46,39 +46,22 @@ public class SlimScheduleJobsWorker( IJobService jobService,
                    {
                        continue;
                    }
-                   var executionKey = $"{ScheduleJobService.ScheduleJob}{keyValue.Key}:{id}";
-                   var timeStamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
-                   var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(id);
-                   if (lastestExecutionTimeStampFromDatabaseBytes == null)
-                   {
-                       await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(timeStamp));
-                       continue;
-                   }
-                   var lastestExecutionTimeStampFromDatabase = MemoryPackSerializer.Deserialize<long>(lastestExecutionTimeStampFromDatabaseBytes);
-                   var cronSchedule = scheduleConfiguration.Schedule;
-                   var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
-
-                   bool runJob = latestExecutionTimeStamp > lastestExecutionTimeStampFromDatabase;
-                   if (!runJob)
-                   {
-                       continue;
-                   }
-
-                   var result = await jobService.EnqueueJobAsync(keyValue.Key,
-                       new CreateJob(scheduleConfiguration.Args,
-                           scheduleConfiguration.Image,
-                           scheduleConfiguration.BackoffLimit,
-                           scheduleConfiguration.TtlSecondsAfterFinished,
-                           scheduleConfiguration.RestartPolicy,
-                           scheduleConfiguration.Resources,
-                           scheduleConfiguration.Environments,
-                           scheduleConfiguration.DependsOn), true);
-
-                   if (result.IsSuccess)
-                   {
-                       await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(latestExecutionTimeStamp));
-                   }
+                   await EnqueueJobIfNeeded(keyValue.Key, id, scheduleConfiguration);
                }
+            }
+
+            if (jobConfiguration.Configuration.Schedules == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<string, IList<ScheduleCreateJob>> configurationSchedule in jobConfiguration.Configuration.Schedules)
+            {
+                foreach (ScheduleCreateJob scheduleCreateJob in configurationSchedule.Value)
+                {
+                    var id = IdGenerator.GetId32Hex(MemoryPackSerializer.Serialize(scheduleCreateJob));
+                    await EnqueueJobIfNeeded(configurationSchedule.Key, id, scheduleCreateJob);
+                }
             }
         }
         catch (Exception e)
@@ -87,4 +70,46 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         }
     }
 
+    private async Task EnqueueJobIfNeeded(string configurationName, string id, ScheduleCreateJob scheduleConfiguration)
+    {
+        var executionKey = $"{ScheduleJobService.ScheduleJob}{configurationName}:{id}";
+        var timeStamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
+        var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(id);
+        if (lastestExecutionTimeStampFromDatabaseBytes == null)
+        {
+            await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(timeStamp));
+            return;
+        }
+        var lastestExecutionTimeStampFromDatabase = MemoryPackSerializer.Deserialize<long>(lastestExecutionTimeStampFromDatabaseBytes);
+        var cronSchedule = scheduleConfiguration.Schedule;
+        var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
+
+        bool runJob = latestExecutionTimeStamp > lastestExecutionTimeStampFromDatabase;
+        if (!runJob)
+        {
+            return;
+        }
+
+        var result = await jobService.EnqueueJobAsync(configurationName,
+            new CreateJob(scheduleConfiguration.Args,
+                scheduleConfiguration.Image,
+                scheduleConfiguration.BackoffLimit,
+                scheduleConfiguration.TtlSecondsAfterFinished,
+                scheduleConfiguration.RestartPolicy,
+                scheduleConfiguration.Resources,
+                scheduleConfiguration.Environments,
+                scheduleConfiguration.DependsOn), true);
+
+        if (result.IsSuccess)
+        {
+            await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(latestExecutionTimeStamp));
+            logger.LogInformation("Enqueued job for schedule {ScheduleId} in configuration {ConfigurationName}",
+                id, configurationName);
+        }
+        else
+        {
+            logger.LogError("Failed to enqueue job for schedule {ScheduleId} in configuration {ConfigurationName}: {Error}",
+                id, configurationName, result.Error?.Key);
+        }
+    }
 }

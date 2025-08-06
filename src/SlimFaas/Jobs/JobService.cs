@@ -43,7 +43,6 @@ public partial class JobListResultSerializerContext : JsonSerializerContext;
 
 public class JobService(IKubernetesService kubernetesService, IJobConfiguration jobConfiguration, IJobQueue jobQueue) : IJobService
 {
-    public const string Default = "Default";
 
     private readonly string _namespace = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
                                          EnvironmentVariables.NamespaceDefault;
@@ -90,7 +89,7 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
     public async Task<ResultWithError<EnqueueJobResult>> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
-        name = configuration.ContainsKey(name) ? name : Default;
+        name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
         var conf = configuration[name];
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
@@ -164,7 +163,7 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
     public async Task<bool> DeleteJobAsync(string name, string elementId, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
-        name = configuration.ContainsKey(name) ? name : Default;
+        name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
         var conf = configuration[name];
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
