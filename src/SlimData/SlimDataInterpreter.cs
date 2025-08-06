@@ -5,11 +5,11 @@ using SlimData.Commands;
 namespace SlimData;
 
 public class SlimDataState(
-    ImmutableDictionary<string, ImmutableDictionary<string, string>> Hashsets,
+    ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets,
     ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues,
     ImmutableDictionary<string, ImmutableList<QueueElement>> Queues)
 {
-    public ImmutableDictionary<string, ImmutableDictionary<string, string>> Hashsets { get; set; } = Hashsets;
+    public ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets { get; set; } = Hashsets;
     public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; } = KeyValues;
     public ImmutableDictionary<string, ImmutableList<QueueElement>> Queues { get; set; } = Queues;
 }
@@ -50,7 +50,7 @@ public class SlimDataInterpreter : CommandInterpreter
     public const int DeleteFromQueueCode = 1000;
 
     public SlimDataState SlimDataState = new(
-        ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty,
+        ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
         ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
     );
@@ -183,7 +183,23 @@ public class SlimDataInterpreter : CommandInterpreter
     internal static ValueTask DoAddHashSetAsync(AddHashSetCommand addHashSetCommand, SlimDataState slimDataState)
     {
         var hashsets = slimDataState.Hashsets;
-        slimDataState.Hashsets = hashsets.SetItem(addHashSetCommand.Key, addHashSetCommand.Value.ToImmutableDictionary());
+
+        var key = addHashSetCommand.Key;
+        var newValueses = addHashSetCommand.Value;
+        if (slimDataState.Hashsets.TryGetValue(key, out var hashset))
+        {
+            var dictionary = hashset.ToDictionary(keyValuePair => keyValuePair.Key, keyValuePair => keyValuePair.Value);
+            foreach (var newValues in newValueses)
+            {
+                dictionary[newValues.Key] = newValues.Value;
+            }
+            slimDataState.Hashsets = hashsets.SetItem(key, dictionary.ToImmutableDictionary());
+        }
+        else
+        {
+            slimDataState.Hashsets = hashsets.SetItem(key, newValueses.ToImmutableDictionary());
+        }
+        
         return default;
     }
 
@@ -199,6 +215,56 @@ public class SlimDataInterpreter : CommandInterpreter
         slimDataState.KeyValues = keyValues.SetItem(valueCommand.Key, valueCommand.Value);
         return default;
     }
+    
+    [CommandHandler]
+    public ValueTask DeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, CancellationToken token)
+    {
+        return DoDeleteKeyValueAsync(valueCommand, SlimDataState);
+    }
+    
+    internal static ValueTask DoDeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, SlimDataState slimDataState)
+    {
+        var keyValues = slimDataState.KeyValues;
+        if (keyValues.ContainsKey(valueCommand.Key))
+        {
+            slimDataState.KeyValues = keyValues.Remove(valueCommand.Key);
+        }
+
+        return default;
+    }
+    
+    [CommandHandler]
+    public ValueTask DeleteHashSetAsync(DeleteHashSetCommand valueCommand, CancellationToken token)
+    {
+        return DoDeleteHashSetAsync(valueCommand, SlimDataState);
+    }
+    
+    internal static ValueTask DoDeleteHashSetAsync(DeleteHashSetCommand deleteHashSetCommand, SlimDataState slimDataState)
+    {
+        var value = deleteHashSetCommand.Key;   
+        if (string.IsNullOrEmpty(value) || !slimDataState.Hashsets.ContainsKey(value))
+        {
+            return default;
+        }
+
+        var dictionaryKey = deleteHashSetCommand.DictionaryKey;
+        if (string.IsNullOrEmpty(dictionaryKey))
+        {
+            slimDataState.Hashsets = slimDataState.Hashsets.Remove(value);
+        }
+        else
+        {
+            var dictionary = slimDataState.Hashsets[value];
+            if (dictionary.ContainsKey(dictionaryKey))
+            {
+                slimDataState.Hashsets = slimDataState.Hashsets.SetItem(value,
+                    dictionary.Remove(dictionaryKey));
+            }
+        }
+
+        return default;
+    }
+
 
     [CommandHandler(IsSnapshotHandler = true)]
     public ValueTask HandleSnapshotAsync(LogSnapshotCommand command, CancellationToken token)
@@ -218,7 +284,7 @@ public class SlimDataInterpreter : CommandInterpreter
         }
         slimDataState.Queues = queues;
         
-        var hashsets = ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty;
+        var hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
         foreach (var hashset in command.hashsets)
         {
             hashsets = hashsets.SetItem(hashset.Key, hashset.Value.ToImmutableDictionary());
@@ -233,7 +299,9 @@ public class SlimDataInterpreter : CommandInterpreter
         ValueTask ListRightPopHandler(ListRightPopCommand command, CancellationToken token) => DoListRightPopAsync(command, state);
         ValueTask ListLeftPushHandler(ListLeftPushCommand command, CancellationToken token) => DoListLeftPushAsync(command, state);
         ValueTask AddHashSetHandler(AddHashSetCommand command, CancellationToken token) => DoAddHashSetAsync(command, state);
+        ValueTask DeleteHashSetHandler(DeleteHashSetCommand command, CancellationToken token) => DoDeleteHashSetAsync(command, state);
         ValueTask AddKeyValueHandler(AddKeyValueCommand command, CancellationToken token) => DoAddKeyValueAsync(command, state);
+        ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand command, CancellationToken token) => DoDeleteKeyValueAsync(command, state);
         ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand command, CancellationToken token) => DoListCallbackAsync(command, state);
         ValueTask SnapshotHandler(LogSnapshotCommand command, CancellationToken token) => DoHandleSnapshotAsync(command, state);
 
@@ -241,7 +309,9 @@ public class SlimDataInterpreter : CommandInterpreter
             .Add(ListRightPopCommand.Id, (Func<ListRightPopCommand, CancellationToken, ValueTask>)ListRightPopHandler)
             .Add(ListLeftPushCommand.Id, (Func<ListLeftPushCommand, CancellationToken, ValueTask>)ListLeftPushHandler)
             .Add(AddHashSetCommand.Id, (Func<AddHashSetCommand, CancellationToken, ValueTask>)AddHashSetHandler)
+            .Add(DeleteHashSetCommand.Id, (Func<DeleteHashSetCommand, CancellationToken, ValueTask>)DeleteHashSetHandler)
             .Add(AddKeyValueCommand.Id, (Func<AddKeyValueCommand, CancellationToken, ValueTask>)AddKeyValueHandler)
+            .Add(DeleteKeyValueCommand.Id, (Func<DeleteKeyValueCommand, CancellationToken, ValueTask>)DeleteKeyValueHandler)
             .Add(ListCallbackCommand.Id, (Func<ListCallbackCommand, CancellationToken, ValueTask>)ListSetQueueItemStatusAsync)
             .Add(LogSnapshotCommand.Id, (Func<LogSnapshotCommand, CancellationToken, ValueTask>)SnapshotHandler, true)
             .Build();

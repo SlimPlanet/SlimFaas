@@ -39,6 +39,18 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
             {
                 return;
             }
+            await DoJobOneCycle(jobs);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Global error in slimFaas jobs worker");
+        }
+    }
+
+    private async Task DoJobOneCycle(IList<Job> jobs)
+    {
+        try
+        {
             jobs = jobs.Where(j => j.Status != JobStatus.ImagePullBackOff).ToList();
             var jobsDictionary = new Dictionary<string, List<Job>>();
             var configurations = jobConfiguration.Configuration.Configurations;
@@ -119,7 +131,7 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Global Error in SlimFaas Worker");
+            logger.LogError(e, "Job worker error");
         }
     }
 

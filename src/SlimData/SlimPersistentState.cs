@@ -12,7 +12,7 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
     public const string LogLocation = "logLocation";
 
     private readonly SlimDataState _state = new(
-        ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty,
+        ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
         ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
         );
@@ -68,7 +68,7 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
     private sealed class SimpleSnapshotBuilder : IncrementalSnapshotBuilder
     {
         private readonly SlimDataState _state =  new(
-            ImmutableDictionary<string, ImmutableDictionary<string, string>>.Empty,
+            ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
             ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
             ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
             );
@@ -91,7 +91,7 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
             var queues =  _state.Queues;
             var newQueues = new Dictionary<string, List<QueueElement>>();
             var hashsets = _state.Hashsets;
-            var newHashsets = new Dictionary<string, Dictionary<string, string>>();
+            var newHashsets = new Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>>();
             
             foreach (var hashset in hashsets)
             {

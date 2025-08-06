@@ -35,10 +35,18 @@ data:
           "TtlSecondsAfterFinished": 2,
           "RestartPolicy": "Never"
         }
+      },
+    "Schedules": {
+      "fibonacci": [
+        {
+            "Schedule": "0 0 * * *",
+            "Args": ["42", "43"]
+        }]
       }
     }
 ---
 apiVersion: apps/v1
+
 kind: StatefulSet
 metadata:
   name: slimfaas
