@@ -17,10 +17,10 @@
 </label>
 <br>
 <label>Base URL override:
-    <input id="baseUrl" type="text" placeholder="(optional, e.g. https://petstore3.swagger.io/api/v3)" style="width: 50%;" />
+    <input id="baseUrl" type="text" placeholder="(optional, e.g. https://petstore3.swagger.io/api/v3)" value="https://petstore3.swagger.io/api/v3" style="width: 50%;" />
 </label><br>
 <label>MCP Prompt base 64:
-    <input id="mcpPromptbase64input" type="text" placeholder="(optional, e.g. https://petstore3.swagger.io/api/v3)" style="width: 50%;" />
+    <input id="mcpPromptbase64input" type="text" placeholder="(optional)" style="width: 50%;" />
 </label>
 <button onclick="loadTools()">Load Tools</button>
 <hr>
@@ -28,226 +28,153 @@
 <textarea id="mcpPrompt" rows="10" style="width:80%;" placeholder="Colle ici ton MCP Prompt YAML"></textarea>
 <div style="margin-top: 6px;">
     <b>Base64 encodé :</b>
-    <textarea readonly="true" id="mcpPromptBase64" style="font-family:monospace; background:#eef; padding:2px 8px;"></textarea>
+    <textarea readonly id="mcpPromptBase64" style="font-family:monospace;background:#eef;padding:2px 8px;"></textarea>
+</div>
+<hr>
+<h3>🔒 OAuth 2.0 Protected Resource Metadata</h3>
+<textarea id="oauthMeta" rows="10" style="width:80%;">
+{
+  "resource": "https://api.example.com/v1/",
+  "authorization_servers": ["https://auth.example.com"],
+  "scopes_supported": ["read:data", "write:data"]
+}
+</textarea>
+<div style="margin-top:6px;">
+    <b>Base64 encodé :</b>
+    <textarea id="oauthMetaBase64" readonly style="font-family:monospace;background:#eef;padding:2px 8px;"></textarea>
 </div>
 <!-- URL de partage MCP -->
 <div id="shareUrlContainer" style="margin-top:8px;max-width: 100%;word-break: break-word;">
     <b>URL MCP :</b>
     <span id="shareUrl" style="font-family:monospace;"></span>
 </div>
+<!-- NOUVEAU : URL pour la métadonnée OAuth -->
+<div id="oauthShareUrlContainer"
+     style="margin-top:4px;max-width:100%;word-break:break-word;">
+    <b>URL OAuth MCP :</b>
+    <span id="oauthShareUrl" style="font-family:monospace;"></span>
+</div>
 <button onclick="applyMcpPrompt()">Appliquer le MCP Prompt</button>
+
+<hr>
+<label>Access token :
+    <input id="accessToken"
+           type="text"
+           placeholder="(optional Bearer token)"
+           style="width:50%;" />
+</label><br>
 
 <hr>
 <div id="tools"></div>
 
 <script>
-    let loadedTools = [];     // tools d'origine de l'API
-    let mergedTools = [];     // tools après merge YAML
+
+    function getBearerHeader() {
+        const token = document.getElementById("accessToken").value.trim();
+        return token ? { "Authorization": `Bearer ${token}` } : {};
+    }
+
+    /* -------------------------------------------------------------
+       Helpers de validation base64
+    ------------------------------------------------------------- */
+    function isBase64(str) {
+        return /^[A-Za-z0-9+/]+={0,2}$/.test(str || "");
+    }
+
+    /* -------------------------------------------------------------
+       Globals (peu nombreuses)
+    ------------------------------------------------------------- */
+    let loadedTools  = [];  // tools d'origine de l'API
+    let mergedTools  = [];  // tools après merge YAML
     let mcpPromptJson = null;
-    let currentB64 = "";
 
-    function updateShareUrl(b64) {
-        currentB64 = b64 || currentB64;         // mémorise
+    /* -------------------------------------------------------------
+       Encodage / affichage du JSON OAuth -> base64
+    ------------------------------------------------------------- */
+    function encodeOAuthMeta() {
+        const txt = document.getElementById("oauthMeta").value.trim();
+        if (!txt) {
+            document.getElementById("oauthMetaBase64").textContent = "";
+            return "";
+        }
+        try {
+            const b64 = btoa(unescape(encodeURIComponent(txt)));
+            document.getElementById("oauthMetaBase64").textContent = b64;
+            return b64;
+        } catch(e) {
+            document.getElementById("oauthMetaBase64").textContent = `# Erreur : ${e.message}`;
+            return "";
+        }
+    }
 
-        const swagger = document.getElementById("swaggerUrl").value.trim();
-        const base    = document.getElementById("baseUrl").value.trim();
+    document.getElementById("oauthMeta").addEventListener("input", () => {
+        encodeOAuthMeta();
+        updateShareUrl();  // rafraîchit l'URL de partage
+    });
 
-        // URL de base : page courante sans trailing “/”
+    /* -------------------------------------------------------------
+       Construction dynamique de l'URL /mcp?...
+       - n'inclut un query-param QUE si sa valeur est base64 valide non vide
+    ------------------------------------------------------------- */
+    function updateShareUrl() {
+        const swagger   = document.getElementById("swaggerUrl").value.trim();
+        const base      = document.getElementById("baseUrl").value.trim();
+        const oauthB64  = document.getElementById("oauthMetaBase64").textContent.trim();
+        const mcpB64    = document.getElementById("mcpPromptBase64").textContent.trim();
+
         const originPath = window.location.origin +
             window.location.pathname.replace(/\/$/, "");
 
         let url = `${originPath}/mcp?openapi_url=${encodeURIComponent(swagger)}`;
         if (base) url += `&base_url=${encodeURIComponent(base)}`;
-        if (currentB64) url += `&mcp_prompt=${encodeURIComponent(currentB64)}`;
+        if (isBase64(mcpB64))   url += `&mcp_prompt=${encodeURIComponent(mcpB64)}`;
+        if (isBase64(oauthB64)) url += `&oauth=${encodeURIComponent(oauthB64)}`;
 
-        // Affichage + couleur
+        // Affichage + feedback longueur
         const span = document.getElementById("shareUrl");
         span.textContent = url;
-
         if (url.length > 8000) {
             span.style.color = "red";
-            span.title = `⚠️ ${url.length} caractères – URL trop longue (max 8000)`;
+            span.title = `⚠️ ${url.length} caractères – URL trop longue (max 8000)`;
         } else {
             span.style.color = "green";
             span.title = "";
         }
+
+
+        /* ---- URL OAuth metadata (.well-known) ------------------------ */
+        const pathMeta = oauthB64
+            ? `/${oauthB64}/.well-known/oauth-protected-resource`
+            : "/.well-known/oauth-protected-resource";
+        const metaUrl  = `${originPath}${pathMeta}`;
+
+        /* ---- Affichage (OAuth metadata) ------------------------------ */
+        document.getElementById("oauthShareUrl").textContent = metaUrl;
     }
 
     ["swaggerUrl", "baseUrl"].forEach(id => {
-        document.getElementById(id).addEventListener("input",
-            () => updateShareUrl()   // réutilise currentB64
-        );
+        document.getElementById(id).addEventListener("input", () => updateShareUrl());
     });
 
-    function getMcpPromptQuery() {
-        const res = getMcpPromptBase64();
-        return res?.b64 ? `&mcp_prompt=${encodeURIComponent(res.b64)}` : "";
-    }
-
-    async function loadTools() {
-        const url = document.getElementById("swaggerUrl").value;
-        const baseUrl = document.getElementById("baseUrl").value;
-        const b64 = document.getElementById("mcpPromptbase64input").value?.trim();
-        let endpoint = `/tools?openapi_url=${encodeURIComponent(url)}`;
-        if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
-        const toolsRes = await fetch(endpoint);
-        const tools = await toolsRes.json();
-        loadedTools = tools;
-
-        let yaml = "";
-
-        // 🟢 1. Si base64 MCP Prompt présent, decode + JSON -> YAML
-        if (b64) {
-            try {
-                const jsonStr = decodeURIComponent(escape(window.atob(b64)));
-                const obj = JSON.parse(jsonStr);
-                yaml = window.jsyaml.dump(obj);
-            } catch (e) {
-                yaml = "# Erreur décodage base64 : " + e.message;
-            }
-        } else {
-            // 🟢 2. Sinon, YAML par défaut = tous les tools
-            const mcpObj = {
-                activeTools: tools.map(t => t.name),
-                tools: tools.map(t => ({
-                    name: t.name,
-                    description: t.description,
-                    inputSchema: t.inputSchema,
-                    outputSchema: t.outputSchema
-                }))
-            };
-            yaml = window.jsyaml.dump(mcpObj);
-        }
-
-        // 🟢 3. Injection dans textarea YAML
-        document.getElementById("mcpPrompt").value = yaml;
-        getMcpPromptBase64(); // update champ readonly base64
-
-
-        renderTools();
-        getMcpPromptBase64();
-        const container = document.getElementById("tools");
-        container.innerHTML = "";
-        for (const tool of tools) {
-            const el = document.createElement("div");
-            el.className = "tool";
-            el.innerHTML = `<h3>${tool.name}</h3>
-                <div><b>${tool.description}</b></div>
-                <h4>Input schema</h4>
-                <div><pre>${window.jsyaml.dump(tool.inputSchema)}</pre></div>
-                <h4>Output schema</h4>
-                <div><pre>${window.jsyaml.dump(tool.outputSchema)}</pre></div>
-                <div id="inputForm_${tool.name}"></div>
-                <button onclick="runTool('${tool.name}')">Run</button>
-                <div id="output_${tool.name}" style="background: #eee; margin-top:1em;"></div>
-                <div style="font-size: small; margin-top:6px;"><b>Content-Type:</b> ${tool.endpoint.contentType || "application/json"}</div>
-                `;
-            container.appendChild(el);
-            buildToolForm(tool);
-        }
-
-    }
-
-    function buildToolForm(tool) {
-        const formDiv = document.getElementById(`inputForm_${tool.name}`);
-        formDiv.innerHTML = "";
-
-        const contentType = tool.endpoint.contentType || "application/json";
-        const props = tool.inputSchema?.properties || {};
-
-        if (contentType === "multipart/form-data") {
-            // Build a form for multipart
-            for (const [key, val] of Object.entries(props)) {
-                // Show file input for binary, else text input
-                if (val.format === "binary") {
-                    formDiv.innerHTML += `<label>${key} (file): <input class="file-input" type="file" id="${tool.name}_input_${key}"></label><br>`;
-                } else {
-                    formDiv.innerHTML += `<label>${key}: <input class="file-input" type="text" id="${tool.name}_input_${key}"></label><br>`;
-                }
-            }
-        } else {
-            // Show textarea JSON input
-            formDiv.innerHTML += `<textarea id="${tool.name}_input_json" rows=4 placeholder='JSON input'></textarea>`;
-        }
-    }
-
-    async function runTool(name) {
-        const tool = loadedTools.find(t => t.name === name);
-        const url = document.getElementById("swaggerUrl").value;
-        const baseUrl = document.getElementById("baseUrl").value;
-        let endpoint = `/tools/${name}?openapi_url=${encodeURIComponent(url)}`;
-        if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
-        endpoint += getMcpPromptQuery();
-        const contentType = tool.endpoint.contentType || "application/json";
-        let body, headers = {};
-
-        if (contentType === "multipart/form-data") {
-            body = new FormData();
-            const props = tool.inputSchema.properties || {};
-            for (const [key, val] of Object.entries(props)) {
-                if (val.format === "binary") {
-                    const fileInput = document.getElementById(`${tool.name}_input_${key}`);
-                    if (fileInput.files.length > 0) {
-                        body.append(key, fileInput.files[0]);
-                    }
-                } else {
-                    const txtInput = document.getElementById(`${tool.name}_input_${key}`);
-                    if (txtInput.value) {
-                        body.append(key, txtInput.value);
-                    }
-                }
-            }
-            // Do NOT set Content-Type, browser does it
-        } else {
-            // application/json
-            headers["Content-Type"] = "application/json";
-            body = document.getElementById(`${tool.name}_input_json`).value || "{}";
-        }
-
-        try {
-            const res = await fetch(endpoint, {
-                method: "POST",
-                headers,
-                body: JSON.stringify(JSON.parse(body))
-            });
-            let data;
-            const text = await res.text();
-            try {
-                data = JSON.parse(text);
-            } catch {
-                data = text;
-            }
-            document.getElementById("output_" + name).innerText = typeof data === "string" ? data : JSON.stringify(data, null, 2);
-        } catch (e) {
-            document.getElementById("output_" + name).innerText = e.message;
-        }
-    }
-    /* 🔧  fabrique {activeTools?, tools?} — seulement si nécessaire */
+    /* -------------------------------------------------------------
+       Convertit le diff MCP Prompt -> { yaml, b64 } et met à jour UI
+    ------------------------------------------------------------- */
     function buildMinimalMcpPrompt({ loadedTools, uiTools }) {
-        const prompt = {};
-        const origMap = new Map(loadedTools.map(t => [t.name, t]));
+        const prompt      = {};
+        const origMap     = new Map(loadedTools.map(t => [t.name, t]));
+        const activeTools = uiTools.filter(t => !t.isDisabled).map(t => t.name);
+        if (activeTools.length !== loadedTools.length) prompt.activeTools = activeTools;
 
-        /* activeTools : uniquement si au moins un tool est désactivé */
-        const activeNow  = uiTools.filter(t => !t.isDisabled).map(t => t.name);
-        if (activeNow.length !== loadedTools.length) {
-            prompt.activeTools = activeNow;
-        }
-
-        /* tools : ajouts et/ou modifications */
         const modified = [];
         for (const t of uiTools) {
             const orig = origMap.get(t.name);
-            if (!orig) {                           // 🆕 tool ajouté
-                modified.push({
-                    name: t.name,
-                    description: t.description,
-                    inputSchema: t.inputSchema
-                });
+            if (!orig) {
+                modified.push({ name: t.name, description: t.description, inputSchema: t.inputSchema });
                 continue;
             }
             const descChanged   = t.description !== orig.description;
             const schemaChanged = JSON.stringify(t.inputSchema) !== JSON.stringify(orig.inputSchema);
-            if (descChanged || schemaChanged) {    // ✅ tool modifié
+            if (descChanged || schemaChanged) {
                 const delta = { name: t.name };
                 if (descChanged)   delta.description = t.description;
                 if (schemaChanged) delta.inputSchema = t.inputSchema;
@@ -255,56 +182,187 @@
             }
         }
         if (modified.length) prompt.tools = modified;
-
-        return prompt;           // {} si aucune différence
+        return prompt; // {} si aucune différence
     }
 
-    /* 🔧  {yaml, b64} à partir d’un objet JS */
     function toYamlBase64(obj) {
         const yaml = window.jsyaml.dump(obj);
         const b64  = btoa(unescape(encodeURIComponent(JSON.stringify(obj))));
         return { yaml, b64 };
     }
 
-    /* ---------------------------------------------------------------------------
-     * 3. (facultatif) Remplacement de ta fonction existante
-     * ------------------------------------------------------------------------- */
-
     function getMcpPromptBase64() {
-        /* calcule uniquement le diff -> base64 ; NE MODIFIE PAS le textarea */
         const promptObj = buildMinimalMcpPrompt({
             loadedTools,
             uiTools: mergedTools.length ? mergedTools : loadedTools
         });
-
-        const { b64 } = toYamlBase64(promptObj);
+        const { yaml, b64 } = toYamlBase64(promptObj);
         document.getElementById("mcpPromptBase64").textContent = b64;
-        updateShareUrl(b64);
-        return { json: promptObj, b64 };
+        updateShareUrl();
+        return { yaml, b64 };
     }
 
     document.getElementById("mcpPrompt").addEventListener("input", getMcpPromptBase64);
 
+    /* -------------------------------------------------------------
+       Chargement initial des tools depuis l'OpenAPI
+    ------------------------------------------------------------- */
+    async function loadTools() {
+        const swaggerUrl = document.getElementById("swaggerUrl").value.trim();
+        const baseUrl    = document.getElementById("baseUrl").value.trim();
+        const b64Prompt  = document.getElementById("mcpPromptbase64input").value.trim();
 
+        let endpoint = `/tools?openapi_url=${encodeURIComponent(swaggerUrl)}`;
+        if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
+        const oauthB64 = encodeOAuthMeta();
+        if (oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
+        let headers = getBearerHeader();
+
+        const toolsRes = await fetch(endpoint, { method: "GET", headers });
+        const tools    = await toolsRes.json();
+        loadedTools    = tools;
+
+        // Préparation YAML initial
+        let yaml;
+        if (b64Prompt) {
+            try {
+                const jsonStr = decodeURIComponent(escape(window.atob(b64Prompt)));
+                yaml = window.jsyaml.dump(JSON.parse(jsonStr));
+            } catch (e) {
+                yaml = `# Erreur décodage base64 : ${e.message}`;
+            }
+        } else {
+            yaml = window.jsyaml.dump({
+                activeTools: tools.map(t => t.name),
+                tools: tools.map(t => ({
+                    name: t.name,
+                    description: t.description,
+                    inputSchema: t.inputSchema,
+                    outputSchema: t.outputSchema
+                }))
+            });
+        }
+        document.getElementById("mcpPrompt").value = yaml;
+        getMcpPromptBase64();
+        renderTools();
+    }
+
+    /* -------------------------------------------------------------
+       UI : construction des formulaires / affichage tools
+    ------------------------------------------------------------- */
+    function buildToolForm(tool) {
+        const formDiv = document.getElementById(`inputForm_${tool.name}`);
+        formDiv.innerHTML = "";
+        const contentType = tool.endpoint.contentType || "application/json";
+        const props       = tool.inputSchema?.properties || {};
+
+        if (contentType === "multipart/form-data") {
+            for (const [key, val] of Object.entries(props)) {
+                if (val.format === "binary") {
+                    formDiv.innerHTML += `<label>${key} (file): <input class="file-input" type="file" id="${tool.name}_input_${key}"></label><br>`;
+                } else {
+                    formDiv.innerHTML += `<label>${key}: <input class="file-input" type="text" id="${tool.name}_input_${key}"></label><br>`;
+                }
+            }
+        } else {
+            formDiv.innerHTML += `<textarea id="${tool.name}_input_json" rows="4" placeholder='JSON input'></textarea>`;
+        }
+    }
+
+    async function runTool(name) {
+        const tool     = loadedTools.find(t => t.name === name);
+        const swagger  = document.getElementById("swaggerUrl").value.trim();
+        const baseUrl  = document.getElementById("baseUrl").value.trim();
+        let endpoint   = `/tools/${name}?openapi_url=${encodeURIComponent(swagger)}`;
+        if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
+        const { b64 }  = getMcpPromptBase64();
+        if (b64) endpoint += `&mcp_prompt=${encodeURIComponent(b64)}`;
+        const oauthB64 = document.getElementById("oauthMetaBase64").textContent.trim();
+        if (isBase64(oauthB64)) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
+
+        const contentType = tool.endpoint.contentType || "application/json";
+        let body;
+        let headers = getBearerHeader();
+
+        if (contentType === "multipart/form-data") {
+            body = new FormData();
+            const props = tool.inputSchema.properties || {};
+            for (const [key, val] of Object.entries(props)) {
+                if (val.format === "binary") {
+                    const fileInput = document.getElementById(`${tool.name}_input_${key}`);
+                    if (fileInput.files.length) body.append(key, fileInput.files[0]);
+                } else {
+                    const txtInput = document.getElementById(`${tool.name}_input_${key}`);
+                    if (txtInput.value) body.append(key, txtInput.value);
+                }
+            }
+        } else {
+            headers["Content-Type"] = "application/json";
+            const txt = document.getElementById(`${tool.name}_input_json`).value || "{}";
+            body = JSON.stringify(JSON.parse(txt));
+        }
+
+        try {
+            const res  = await fetch(endpoint, { method: "POST", headers, body });
+            const text = await res.text();
+            let data;
+            try { data = JSON.parse(text); } catch { data = text; }
+            document.getElementById("output_" + name).innerText = typeof data === "string" ? data : JSON.stringify(data, null, 2);
+        } catch (e) {
+            document.getElementById("output_" + name).innerText = e.message;
+        }
+    }
+
+    function renderTools(isMerge = false) {
+        const container = document.getElementById("tools");
+        container.innerHTML = "";
+        const tools = isMerge ? mergedTools : loadedTools;
+        for (const tool of tools) {
+            let bg = "white", label = "";
+            if (tool.isAdded)      { bg = "#d2ffd2"; label = "🆕 Tool ajouté"; }
+            else if (tool.isDisabled) { bg = "#ffd6d6"; label = "⛔ Tool désactivé"; }
+            else if (tool.isOverridden) { bg = "#f4fff0"; label = "✅ Tool surchargé"; }
+
+            const descStyle   = tool.isDescriptionOverridden ? "color:green;font-weight:bold;" : "";
+            const schemaStyle = tool.isInputSchemaOverridden ? "background:#c2ffcf;" : "";
+
+            container.innerHTML += `
+<div class="tool" style="background:${bg};">
+  <h4>${tool.name} ${label ? `<span style="font-size:0.8em;color:#333;margin-left:8px;">${label}</span>` : ""}</h4>
+  <div><b style="${descStyle}">${tool.description}</b></div>
+  <h4>Input schema</h4>
+  <pre style="${schemaStyle}">${window.jsyaml.dump(tool.inputSchema)}</pre>
+  <h4>Output schema</h4>
+  <pre style="${schemaStyle}">${window.jsyaml.dump(tool.outputSchema)}</pre>
+  ${tool.isDisabled ? '<i>Tool désactivé</i>' : `
+    <div id="inputForm_${tool.name}"></div>
+    <button onclick="runTool('${tool.name}')">Run</button>
+    <div id="output_${tool.name}" style="background:#eee;margin-top:1em;"></div>
+  `}
+  <div style="font-size:small;margin-top:6px;"><b>Content-Type:</b> ${tool.endpoint?.contentType || "application/json"}</div>
+</div>`;
+            if (!tool.isDisabled) buildToolForm(tool);
+        }
+    }
+
+    /* -------------------------------------------------------------
+       Fusion YAML -> mergedTools puis mise à jour UI + b64
+    ------------------------------------------------------------- */
     function applyMcpPrompt() {
-        /* 1️⃣  On récupère le YAML que l’utilisateur vient d’éditer */
         const yamlStr = document.getElementById("mcpPrompt").value;
         let prompt;
         try {
             prompt = window.jsyaml.load(yamlStr) || {};
         } catch (e) {
             alert("Erreur YAML : " + e.message);
-            return;                     // on stoppe si le YAML est invalide
+            return;
         }
         mcpPromptJson = prompt;
 
         const activeSet = prompt.activeTools ? new Set(prompt.activeTools) : null;
-
-        /* 2️⃣  Fusion tools d’origine + YAML */
         mergedTools = [];
         const originMap = new Map(loadedTools.map(t => [t.name, t]));
 
-        // a) tools d’origine (avec éventuelles surcharges / désactivations)
         for (const orig of loadedTools) {
             const override = (prompt.tools || []).find(t => t.name === orig.name);
             const active   = activeSet ? activeSet.has(orig.name) : true;
@@ -320,7 +378,6 @@
             });
         }
 
-        // b) nouveaux tools ajoutés par YAML
         if (prompt.tools) {
             for (const t of prompt.tools) {
                 if (!originMap.has(t.name)) {
@@ -339,62 +396,13 @@
             }
         }
 
-        /* 3️⃣  On ré‑affiche la liste et … */
         renderTools(true);
-
-        /* 4️⃣  … on recalcule le diff ➜ met à jour le champ base64 */
         getMcpPromptBase64();
     }
 
-
-    function renderTools(isMerge = false) {
-        const container = document.getElementById("tools");
-        container.innerHTML = "";
-        const tools = isMerge ? mergedTools : loadedTools;
-        for (const tool of tools) {
-            // Détermine couleur et label
-            let bg = "white", label = "";
-            if (tool.isAdded) {
-                bg = "#d2ffd2"; // vert pour ajout
-                label = "🆕 Tool ajouté";
-            } else if (tool.isDisabled) {
-                bg = "#ffd6d6"; // rouge désactivé
-                label = "⛔ Tool désactivé";
-            } else if (tool.isOverridden) {
-                bg = "#f4fff0";
-                label = "✅ Tool surchargé";
-            }
-            // Badge pour surcharges spécifiques
-            let descColor = tool.isDescriptionOverridden ? "color:green; font-weight:bold;" : "";
-            let schemaBg = tool.isInputSchemaOverridden ? "background:#c2ffcf;" : "";
-
-            container.innerHTML += `
-        <div class="tool" style="background:${bg}; margin-bottom:2em;">
-            <h4>${tool.name} ${label ? `<span style="font-size:0.8em;color:#333;margin-left:8px;">${label}</span>` : ""}</h4>
-            <div>
-                <b style="${descColor}">
-                    ${tool.description}
-                </b>
-            </div>
-             <h4>Input schema</h4>
-            <div>
-                <pre style="${schemaBg}">${window.jsyaml.dump(tool.inputSchema)}</pre>
-            </div>
-             <h4>Output schema</h4>
-            <div>
-                <pre style="${schemaBg}">${window.jsyaml.dump(tool.outputSchema)}</pre>
-            </div>
-            ${tool.isDisabled ? '<i>Tool désactivé</i>' : `
-                <div id="inputForm_${tool.name}"></div>
-                <button onclick="runTool('${tool.name}')">Run</button>
-                <div id="output_${tool.name}" style="background: #eee; margin-top:1em;"></div>
-            `}
-            <div style="font-size: small; margin-top:6px;"><b>Content-Type:</b> ${tool.endpoint?.contentType || "application/json"}</div>
-        </div>
-        `;
-            if (!tool.isDisabled) buildToolForm(tool);
-        }
-    }
+    // Initial calcul des encodages + URL
+    encodeOAuthMeta();
+    updateShareUrl();
 </script>
 </body>
 </html>

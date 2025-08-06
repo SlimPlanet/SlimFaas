@@ -8,14 +8,14 @@ namespace SlimFaasMcp.Services;
 
 public interface IToolProxyService
 {
-    Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64);
+    Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, IDictionary<string,string> additionalHeaders, string? mcpPromptB64);
 
     Task<string> ExecuteToolAsync(
         string swaggerUrl,
         string toolName,
         JsonElement input,              // ← plus "object"
         string? baseUrl = null,
-        string? authHeader = null);
+        IDictionary<string,string>? additionalHeaders= null);
 
 }
 
@@ -41,9 +41,9 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         return contentType;
     }
 
-    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, string? authHeader, string? mcpPromptB64)
+    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, IDictionary<string,string>? additionalHeaders, string? mcpPromptB64)
     {
-        var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, authHeader);
+        var swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, additionalHeaders);
         var endpoints = swaggerService.ParseEndpoints(swagger);
 
         var tools = endpoints.Select(e => new McpTool
@@ -149,9 +149,9 @@ public async Task<string> ExecuteToolAsync(
         string toolName,
         JsonElement input,              // ← plus "object"
         string? baseUrl = null,
-        string? authHeader = null)
+        IDictionary<string,string>? additionalHeaders = null)
 {
-    var swagger   = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, authHeader);
+    var swagger   = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, additionalHeaders);
     var endpoints = swaggerService.ParseEndpoints(swagger);
     var endpoint  = endpoints.FirstOrDefault(e => e.Name == toolName);
 
@@ -202,8 +202,14 @@ public async Task<string> ExecuteToolAsync(
         var reqMsg = new HttpRequestMessage(new HttpMethod(endpoint.Verb ?? "GET"), fullUrl)
                      { Content = body };
 
-        if (!string.IsNullOrEmpty(authHeader))
-            reqMsg.Headers.Authorization = System.Net.Http.Headers.AuthenticationHeaderValue.Parse(authHeader);
+        if (additionalHeaders != null)
+        {
+            foreach (var header in additionalHeaders)
+            {
+                reqMsg.Headers.Add(header.Key, header.Value);
+            }
+        }
+
 
         resp = await _httpClient.SendAsync(reqMsg);
     }

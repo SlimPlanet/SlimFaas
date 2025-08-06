@@ -61,7 +61,7 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
             new() { Name = "getPets", Description = "Get all pets", InputSchema = new JsonObject() }
         };
         _toolProxyMock.Setup(p => p.GetToolsAsync(It.IsAny<string>(), It.IsAny<string?>(),
-                                                  It.IsAny<string?>(), It.IsAny<string?>()))
+                                                  It.IsAny<IDictionary<string,string>>(), It.IsAny<string?>()))
                       .ReturnsAsync(tools);
 
         var rpc = JsonSerializer.Deserialize<JsonNode>("""{"jsonrpc":"2.0","id":2,"method":"tools/list"}""")!;
@@ -97,7 +97,7 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
                                                      "getPets",
                                                      It.IsAny<JsonElement>(),
                                                      It.IsAny<string?>(),
-                                                     It.IsAny<string?>()))
+                                                     It.IsAny<IDictionary<string,string>?>()))
                       .ReturnsAsync("""{ "pets": [] }""");
 
         var rpc = JsonSerializer.Deserialize<JsonNode>("""{"jsonrpc":"2.0","id":"abc","method":"tools/call","params":{"name":"getPets","arguments":{}}}""")!;
