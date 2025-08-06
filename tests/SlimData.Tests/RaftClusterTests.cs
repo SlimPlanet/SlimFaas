@@ -241,21 +241,38 @@ public class RaftClusterTests
         await GetLocalClusterView(host1).ForceReplicationAsync();
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceSlave.GetAsync("key1")));
 
-        await databaseServiceSlave.HashSetAsync("hashsetKey1",
-            new Dictionary<string, string> { { "field1", "value1" }, { "field2", "value2" } });
-        await GetLocalClusterView(host1).ForceReplicationAsync();
-        IDictionary<string, string> hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+        //await databaseServiceSlave.DeleteAsync("key1");
+        //Assert.Null(await databaseServiceMaster.GetAsync("key1"));
+        //await GetLocalClusterView(host1).ForceReplicationAsync();
+        //Assert.Null(await databaseServiceSlave.GetAsync("key1"));
 
-        Assert.Equal("value1", hashGet["field1"]);
-        Assert.Equal("value2", hashGet["field2"]);
+        await databaseServiceSlave.HashSetAsync("hashsetKey1",
+            new Dictionary<string, byte[]> { { "field1",MemoryPackSerializer.Serialize("value1") }, { "field2", MemoryPackSerializer.Serialize("value2") } });
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        IDictionary<string, byte[]> hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+
+        Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(hashGet["field1"]));
+        Assert.Equal("value2", MemoryPackSerializer.Deserialize<string>(hashGet["field2"]));
+
+        await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1", "field1");
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+        Assert.Single(hashGet);
+
+        await databaseServiceSlave.HashSetAsync("hashsetKey1",
+            new Dictionary<string, byte[]> { { "field3",MemoryPackSerializer.Serialize("value3") } });
+        await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1");
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+        Assert.Empty(hashGet);
 
        await databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value1"), new RetryInformation([], 30, []));
        await GetLocalClusterView(host1).ForceReplicationAsync();
-        var listLength = await databaseServiceSlave.ListCountElementAsync("listKey1" , new List<CountType>()
-        {
-            CountType.Available
-        });
-        Assert.Single(listLength);
+       var listLength = await databaseServiceSlave.ListCountElementAsync("listKey1" , new List<CountType>()
+       {
+           CountType.Available
+       });
+       Assert.Single(listLength);
 
         IList<QueueData>? listRightPop = await databaseServiceSlave.ListRightPopAsync("listKey1", Guid.NewGuid().ToString());
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(listRightPop.First().Data));

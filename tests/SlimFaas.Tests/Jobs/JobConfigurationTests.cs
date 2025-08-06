@@ -1,4 +1,5 @@
 ﻿using SlimFaas.Jobs;
+using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests;
 
@@ -8,7 +9,7 @@ public class JobConfigurationTests
     public void Constructeur_SansJson_DoitUtiliserValeursParDefaut()
     {
         // Arrange & Act
-        var jobConfiguration = new JobConfiguration();
+        JobConfiguration jobConfiguration = new();
 
         // Assert
         Assert.NotNull(jobConfiguration.Configuration);
@@ -17,7 +18,7 @@ public class JobConfigurationTests
         // Vérifie que la clé "Default" existe
         Assert.True(jobConfiguration.Configuration.Configurations.ContainsKey("Default"));
 
-        var defaultJob = jobConfiguration.Configuration.Configurations["Default"];
+        SlimfaasJob defaultJob = jobConfiguration.Configuration.Configurations["Default"];
         Assert.NotNull(defaultJob);
         Assert.NotNull(defaultJob.Resources);
 
@@ -36,7 +37,7 @@ public class JobConfigurationTests
         string jsonInvalide = "{ \"Configurations\": { \"MaFunction\": }"; // Manque des objets
 
         // Act
-        var jobConfiguration = new JobConfiguration(jsonInvalide);
+        JobConfiguration jobConfiguration = new(jsonInvalide);
 
         // Assert
         // Doit retomber sur la config par défaut
@@ -64,7 +65,7 @@ public class JobConfigurationTests
             }";
 
         // Act
-        var jobConfiguration = new JobConfiguration(jsonValideSansDefault);
+        JobConfiguration jobConfiguration = new(jsonValideSansDefault);
 
         // Assert
         // On doit retrouver la clé "MaFunction" ET la clé "Default"
@@ -99,7 +100,7 @@ public class JobConfigurationTests
             }";
 
         // Act
-        var jobConfiguration = new JobConfiguration(jsonValide);
+        JobConfiguration jobConfiguration = new(jsonValide);
 
         // Assert
         Assert.NotNull(jobConfiguration.Configuration);
@@ -107,7 +108,7 @@ public class JobConfigurationTests
         Assert.True(jobConfiguration.Configuration.Configurations.ContainsKey("AutreFunction"));
 
         // Vérifie la configuration Default
-        var defaultJob = jobConfiguration.Configuration.Configurations["Default"];
+        SlimfaasJob defaultJob = jobConfiguration.Configuration.Configurations["Default"];
         Assert.Equal("500m", defaultJob.Resources.Limits["cpu"]);
         Assert.Equal("512Mi", defaultJob.Resources.Limits["memory"]);
         Assert.Equal("200m", defaultJob.Resources.Requests["cpu"]);
@@ -130,12 +131,12 @@ public class JobConfigurationTests
             }";
 
         // Act
-        var jobConfiguration = new JobConfiguration(jsonAvecDefaultSansRessources);
+        JobConfiguration jobConfiguration = new(jsonAvecDefaultSansRessources);
 
         // Assert
         // On vérifie que la clé "Default" existe et que les ressources sont remplies par défaut
         Assert.True(jobConfiguration.Configuration.Configurations.ContainsKey("Default"));
-        var defaultJob = jobConfiguration.Configuration.Configurations["Default"];
+        SlimfaasJob defaultJob = jobConfiguration.Configuration.Configurations["Default"];
         Assert.NotNull(defaultJob.Resources);
         Assert.Equal("100m", defaultJob.Resources.Limits["cpu"]);
         Assert.Equal("100Mi", defaultJob.Resources.Limits["memory"]);

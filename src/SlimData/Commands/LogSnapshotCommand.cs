@@ -7,13 +7,13 @@ using DotNext.Text;
 namespace SlimData.Commands;
 
 public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte>> keysValues,
-        Dictionary<string, Dictionary<string, string>> hashsets, Dictionary<string, List<QueueElement>> queues)
+        Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>> hashsets, Dictionary<string, List<QueueElement>> queues)
     : ISerializable<LogSnapshotCommand>
 {
     public const int Id = 5;
 
     public readonly Dictionary<string, ReadOnlyMemory<byte>> keysValues = keysValues;
-    public readonly Dictionary<string, Dictionary<string, string>> hashsets = hashsets;
+    public readonly Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>> hashsets = hashsets;
     public readonly Dictionary<string, List<QueueElement>> queues = queues;
 
 
@@ -58,7 +58,7 @@ public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte
                 result += sizeof(Int32); // 4 bytes for hashset count
                 foreach (var keyValuePair in hashset.Value)
                     result += Encoding.UTF8.GetByteCount(keyValuePair.Key) +
-                              Encoding.UTF8.GetByteCount(keyValuePair.Value);
+                              keyValuePair.Value.Length;
             }
             return result;
         }
@@ -123,7 +123,7 @@ public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte
                 foreach (var (key, value) in hashset.Value)
                 {
                     await writer.EncodeAsync(key.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
-                    await writer.EncodeAsync(value.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
+                    await writer.WriteAsync(value, LengthFormat.Compressed, token).ConfigureAwait(false);
                 }
             }
     }
@@ -194,21 +194,20 @@ public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte
             }
 
             var countHashsets = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-            var hashsets = new Dictionary<string, Dictionary<string, string>>(countHashsets);
+            var hashsets = new Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>>(countHashsets);
             // deserialize entries
             while (countHashsets-- > 0)
             {
                 var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
                     .ConfigureAwait(false);
                 var countHashset = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-                var hashset = new Dictionary<string, string>(countHashset);
+                var hashset = new Dictionary<string, ReadOnlyMemory<byte>>(countHashset);
                 while (countHashset-- > 0)
                 {
                     var keyHashset = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
                         .ConfigureAwait(false);
-                    var valueHashset = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
-                        .ConfigureAwait(false);
-                    hashset.Add(keyHashset.ToString(), valueHashset.ToString());
+                    using var value = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
+                    hashset.Add(keyHashset.ToString(), value.Memory.ToArray());
                 }
 
                 hashsets.Add(key.ToString(), hashset);

@@ -12,21 +12,19 @@ public interface IJobService
     Task<bool> DeleteJobAsync(string name, string elementId, bool isMessageComeFromNamespaceInternal);
     Task<IList<Job>> SyncJobsAsync();
     IList<Job> Jobs { get; }
-    Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal);
-
+    Task<ResultWithError<EnqueueJobResult>> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal);
     Task<IList<JobListResult>> ListJobAsync(string jobName);
 }
 
 [MemoryPackable]
 public partial record JobInQueue(CreateJob CreateJob, string JobFullName, long InQueueTimestamp);
 
-public record EnqueueJobResult(string ErrorKey, string ElementId, int Code=400);
 
-public record EnqueueJobResultSuccess(string Id);
+public record EnqueueJobResult(string Id);
 
-[JsonSerializable(typeof(EnqueueJobResultSuccess))]
+[JsonSerializable(typeof(EnqueueJobResult))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-public partial class EnqueueJobResultSuccessSerializerContext : JsonSerializerContext;
+public partial class EnqueueJobResultSerializerContext : JsonSerializerContext;
 
 public enum JobStatusResult
 {
@@ -45,7 +43,6 @@ public partial class JobListResultSerializerContext : JsonSerializerContext;
 
 public class JobService(IKubernetesService kubernetesService, IJobConfiguration jobConfiguration, IJobQueue jobQueue) : IJobService
 {
-    private const string Default = "Default";
 
     private readonly string _namespace = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
                                          EnvironmentVariables.NamespaceDefault;
@@ -79,7 +76,7 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
         }
     }
 
-    private static bool IsImageAllowed(IList<string> imagesWhiteList, string image)
+    public static bool IsImageAllowed(IList<string> imagesWhiteList, string image)
     {
         if (imagesWhiteList.Any(imageWhiteList => IsPatternMatch(imageWhiteList, image)))
         {
@@ -89,19 +86,19 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
         return false;
     }
 
-    public async Task<EnqueueJobResult> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal)
+    public async Task<ResultWithError<EnqueueJobResult>> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
-        name = configuration.ContainsKey(name) ? name : Default;
+        name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
         var conf = configuration[name];
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {
-            return new EnqueueJobResult("Visibility_private", string.Empty, 400);
+            return new ResultWithError<EnqueueJobResult>(null , new ErrorResult("visibility_private"));
         }
 
         if (createJob.Image != string.Empty && !IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
         {
-            return new EnqueueJobResult("Image_not_allowed", string.Empty);
+            return new ResultWithError<EnqueueJobResult>(null , new ErrorResult("image_not_allowed"));
         }
         var image = createJob.Image != string.Empty ? createJob.Image : conf.Image;
 
@@ -119,7 +116,6 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
             TtlSecondsAfterFinished: conf.TtlSecondsAfterFinished,
             Resources: JobResourceValidator.ValidateResources(conf.Resources,  createJob.Resources),
             Environments: environments,
-            ConfigurationName: name,
             DependsOn: dependsOn);
 
         string fullName = $"{name}{KubernetesService.SlimfaasJobKey}{TinyGuid.NewTinyGuid()}";
@@ -127,7 +123,7 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
         var createJobSerialized = MemoryPackSerializer.Serialize(createJobInQueue);
         var elementId = await jobQueue.EnqueueAsync(name, createJobSerialized);
 
-        return new EnqueueJobResult(string.Empty, elementId, 202);
+        return new ResultWithError<EnqueueJobResult>(new EnqueueJobResult(elementId));
     }
 
     private IList<Job> _jobs = new List<Job>();
@@ -167,7 +163,7 @@ public class JobService(IKubernetesService kubernetesService, IJobConfiguration 
     public async Task<bool> DeleteJobAsync(string name, string elementId, bool isMessageComeFromNamespaceInternal)
     {
         var configuration = jobConfiguration.Configuration.Configurations;
-        name = configuration.ContainsKey(name) ? name : Default;
+        name = configuration.ContainsKey(name) ? name : JobConfiguration.Default;
         var conf = configuration[name];
         if (!isMessageComeFromNamespaceInternal && conf.Visibility == nameof(FunctionVisibility.Private))
         {

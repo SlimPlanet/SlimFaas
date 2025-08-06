@@ -19,6 +19,7 @@ public class Startup(IConfiguration configuration)
     {
         const string LeaderResource = "/SlimData/leader";
         const string AddHashSetResource = "/SlimData/AddHashset";
+        const string DeleteHashSetResource = "/SlimData/DeleteHashset";
         const string ListRightPopResource = "/SlimData/ListRightPop";
         const string ListLeftPushResource = "/SlimData/ListLeftPush";
         const string AddKeyValueResource = "/SlimData/AddKeyValue";
@@ -42,6 +43,7 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapPost(ListLeftPushResource,  Endpoints.ListLeftPushAsync);
                 endpoints.MapPost(ListRightPopResource,  Endpoints.ListRightPopAsync);
                 endpoints.MapPost(AddHashSetResource,  Endpoints.AddHashSetAsync);
+                endpoints.MapPost(DeleteHashSetResource,  Endpoints.DeleteHashSetAsync);
                 endpoints.MapPost(AddKeyValueResource,  Endpoints.AddKeyValueAsync);
                 endpoints.MapPost(ListSetQueueItemStatus,  Endpoints.ListCallbackAsync);
             });
