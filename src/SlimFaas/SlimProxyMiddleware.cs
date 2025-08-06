@@ -130,7 +130,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 IScheduleJobService? scheduleJobService = serviceProvider.GetService<IScheduleJobService>();
                 if (scheduleJobService != null)
                 {
-                    await BuildJobSchedulesResponse(context, replicasService, scheduleJobService, contextRequest,
+                    await BuildJobSchedulesResponse(context, replicasService, scheduleJobService, jobService, contextRequest,
                         contextResponse, functionName, functionPath);
                 }
 
@@ -159,7 +159,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
     }
 
-    private async Task BuildJobSchedulesResponse(HttpContext context, IReplicasService replicasService, IScheduleJobService scheduleJobService, HttpRequest contextRequest, HttpResponse contextResponse, string functionName, string functionPath)
+    private async Task BuildJobSchedulesResponse(HttpContext context, IReplicasService replicasService, IScheduleJobService scheduleJobService, IJobService jobService, HttpRequest contextRequest, HttpResponse contextResponse, string functionName, string functionPath)
     {
         if (contextRequest.Method == HttpMethods.Put || contextRequest.Method == HttpMethods.Patch)
         {

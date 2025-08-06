@@ -178,8 +178,7 @@ public class JobServiceTests
             await _jobService.EnqueueJobAsync(jobName, createJob, isMessageComeFromNamespaceInternal);
 
         // Assert
-        Assert.True(string.IsNullOrEmpty(result.ErrorKey));
-        Assert.Equal(202, result.Code);
+        Assert.True(result.IsSuccess);
 
         // On peut vérifier le contenu de l’enqueue pour voir si la sérialisation a bien l'image fallback "public-image"
         _jobQueueMock.Verify(x => x.EnqueueAsync(
@@ -239,12 +238,11 @@ public class JobServiceTests
         bool isMessageComeFromNamespaceInternal = true;
 
         // Act
-        EnqueueJobResult result =
+        var result =
             await _jobService.EnqueueJobAsync(jobName, createJob, isMessageComeFromNamespaceInternal);
 
         // Assert
-        Assert.True(string.IsNullOrEmpty(result.ErrorKey));
-        Assert.Equal(202, result.Code);
+        Assert.True(result.IsSuccess);
 
         // Vérifie qu'on a ENV_EXISTING, ENV_NEW et ENV_COMMON (avec la nouvelle valeur)
         _jobQueueMock.Verify(x => x.EnqueueAsync(

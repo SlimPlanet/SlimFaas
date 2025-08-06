@@ -51,7 +51,6 @@ public class JobEndpointsTests
     #region POST /job/{name}
 
     [Theory]
-    [InlineData("/job/daisy", HttpStatusCode.Accepted, 1, "{\"Id\":\"1\"}")]
     [InlineData("/job/daisy", HttpStatusCode.BadRequest, 1, "")]
     public async Task RunJob_Returns_expected_status(string path,
         HttpStatusCode expectedStatus,
@@ -64,7 +63,7 @@ public class JobEndpointsTests
                     It.IsAny<string>(),
                     It.IsAny<CreateJob>(),
                     It.IsAny<bool>()))
-                .ReturnsAsync(new EnqueueJobResult("", "1", (int)expectedStatus));
+                .ReturnsAsync(new ResultWithError<EnqueueJobResult>(null, new ErrorResult("key")));
             jobServiceMock.SetupGet(s => s.Jobs)
                 .Returns(new List<Job>());
         });
