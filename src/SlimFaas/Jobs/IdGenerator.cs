@@ -1,5 +1,7 @@
 ﻿using System.IO.Hashing;
 
+namespace SlimFaas.Jobs;
+
 public static class IdGenerator
 {
     /// <summary>

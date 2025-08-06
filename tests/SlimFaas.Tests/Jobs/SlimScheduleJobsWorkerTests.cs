@@ -118,4 +118,107 @@ public class SlimScheduleJobsWorkerTests
         _jobSvc.Verify(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true), Times.Once);
         _db.Verify(d => d.SetAsync("ScheduleJob:func:sid", It.IsAny<byte[]>()), Times.AtLeastOnce);
     }
+
+     // -------------------------------------------------------------------------
+    // 1) Premier passage : Schedule dans la config → SetAsync seulement
+    // -------------------------------------------------------------------------
+    [Fact(DisplayName = "Config schedule – 1er passage : juste SetAsync, pas d'enqueue")]
+    public async Task DoOneCycle_ConfigSchedule_FirstRun_Should_SetTimestampOnly()
+    {
+        // Arrange ----------------------------------------------------------------
+        _master.SetupGet(m => m.IsMaster).Returns(true);
+
+        // --- dictionnaire des jobs ---------------------------------------------
+        var jobsDict = new Dictionary<string, SlimfaasJob>
+        {
+            ["func"] = new SlimfaasJob(
+                Image: "allowed:latest",
+                ImagesWhitelist: new() { "allowed:latest" },
+                Visibility: nameof(FunctionVisibility.Public))
+        };
+
+        // --- dictionnaire des schedules ----------------------------------------
+        const string cron = "*/5 * * * *";
+        var schedule = new ScheduleCreateJob(cron, new List<string>{ "arg" });
+
+        var schedulesDict = new Dictionary<string, IList<ScheduleCreateJob>>
+        {
+            ["func"] = new List<ScheduleCreateJob> { schedule }
+        };
+
+        // ➜ nouvel objet configuration intégrant le schedule
+        var faasConfig = new SlimFaasJobConfiguration(jobsDict, schedulesDict);
+        _config.SetupGet(c => c.Configuration).Returns(faasConfig);
+
+        // Pas de timestamp encore stocké
+        _db.Setup(d => d.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync((byte[]?)null);
+
+        _db.Setup(d => d.HashGetAllAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, byte[]>());
+        // Act -----------------------------------------------------------------
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+
+        // Assert --------------------------------------------------------------
+        // ➜ le worker initialise le timestamp mais n'appelle PAS EnqueueJobAsync
+        _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>()), Times.Once);
+        _jobSvc.Verify(s => s.EnqueueJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), true), Times.Never);
+    }
+
+
+    // -------------------------------------------------------------------------
+    // 2) Horloge avancée : le job est “en retard” → Enqueue + mise à jour TS
+    // -------------------------------------------------------------------------
+    [Fact(DisplayName = "Config schedule – retard : Enqueue + mise à jour timestamp")]
+    public async Task DoOneCycle_ConfigSchedule_Late_Should_Enqueue_And_UpdateTimestamp()
+    {
+        // Arrange ----------------------------------------------------------------
+        _master.SetupGet(m => m.IsMaster).Returns(true);
+
+        // --- dictionnaire des jobs ---------------------------------------------
+        var jobsDict = new Dictionary<string, SlimfaasJob>
+        {
+            ["func"] = new SlimfaasJob(
+                Image: "allowed:latest",
+                ImagesWhitelist: new() { "allowed:latest" },
+                Visibility: nameof(FunctionVisibility.Public))
+        };
+
+        // --- dictionnaire des schedules ----------------------------------------
+        const string cron = "*/5 * * * *";
+        var schedule = new ScheduleCreateJob(cron, new List<string>{ "arg" });
+
+        var schedulesDict = new Dictionary<string, IList<ScheduleCreateJob>>
+        {
+            ["func"] = new List<ScheduleCreateJob> { schedule }
+        };
+
+        // ➜ nouvel objet configuration intégrant le schedule
+        var faasConfig = new SlimFaasJobConfiguration(jobsDict, schedulesDict);
+        _config.SetupGet(c => c.Configuration).Returns(faasConfig);
+
+        // Timestamp ancien (0) => runJob = true
+        _db.Setup(d => d.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync(MemoryPackSerializer.Serialize(0L));
+        // Dictionnaire Redis (première boucle) : vide
+        _db.Setup(d => d.HashGetAllAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, byte[]>());
+
+        _jobSvc.Setup(s => s.EnqueueJobAsync("func",
+                                             It.IsAny<CreateJob>(),
+                                             true))
+               .ReturnsAsync(new ResultWithError<EnqueueJobResult>(
+                   new EnqueueJobResult("job-id")));
+
+        // Act -----------------------------------------------------------------
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+
+        // Assert --------------------------------------------------------------
+        _jobSvc.Verify(s => s.EnqueueJobAsync("func",
+                                              It.IsAny<CreateJob>(),
+                                              true), Times.Once);
+
+        _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>()),
+                   Times.AtLeastOnce);   // mise à jour du nouveau timestamp
+    }
 }
