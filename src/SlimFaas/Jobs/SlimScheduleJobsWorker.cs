@@ -76,7 +76,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         var timeStamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
         logger.LogInformation("Checking schedule job {ScheduleId} in configuration {ConfigurationName} at timestamp {TimeStamp}",
             id, configurationName, timeStamp);
-        var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(id);
+        var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(executionKey);
         logger.LogInformation("Last execution timestamp for schedule job {ScheduleId} in configuration {ConfigurationName} is {LastExecutionTimeStamp}",
             id, configurationName, lastestExecutionTimeStampFromDatabaseBytes);
         if (lastestExecutionTimeStampFromDatabaseBytes == null)
