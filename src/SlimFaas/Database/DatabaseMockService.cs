@@ -11,7 +11,7 @@ public class DatabaseMockService : IDatabaseService
 
     public Task DeleteAsync(string key) => throw new NotImplementedException();
     
-    Task IDatabaseService.DeleteHashSetAsync(string key, string dictionaryKey = "")
+    Task IDatabaseService.HashSetDeleteAsync(string key, string dictionaryKey = "")
     {
         return Task.FromResult("");
     }

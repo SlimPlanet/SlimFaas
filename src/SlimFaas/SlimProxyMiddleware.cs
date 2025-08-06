@@ -185,20 +185,53 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
             bool isMessageComeFromNamespaceInternal =
                 MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
-           /* var result =
-                await jobService.EnqueueJobAsync(functionName, createJob, isMessageComeFromNamespaceInternal);
-            if (result.Code >= 400)
+            var result =
+                await scheduleJobService.CreateScheduleJobAsync(functionName, scheduleCreateJob, isMessageComeFromNamespaceInternal);
+            if (!result.IsSuccess)
             {
-                contextResponse.StatusCode = result.Code;
+                contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
                 logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}",
-                    contextResponse.StatusCode, result.ErrorKey);
+                    contextResponse.StatusCode, result.Error?.Key ?? "");
                 return;
-            }*/
+            }
+            if(result.Data == null){
+                contextResponse.StatusCode = (int)HttpStatusCode.InternalServerError;
+                return;
+            }
             contextResponse.StatusCode = 202;
-           // await contextResponse.WriteAsJsonAsync(new EnqueueJobResultSuccess(result.ElementId),
-             //   EnqueueJobResultSuccessSerializerContext.Default.EnqueueJobResultSuccess);
-
+            await contextResponse.WriteAsJsonAsync(result.Data,
+                CreateScheduleJobResultSerializerContext.Default.CreateScheduleJobResult);
             return;
+        }
+        if (contextRequest.Method == HttpMethods.Get)
+        {
+            var jobs = await scheduleJobService.ListScheduleJobAsync(functionName);
+            contextResponse.StatusCode = (int)HttpStatusCode.OK;
+            await contextResponse.WriteAsJsonAsync(jobs,
+                ListScheduleJobSerializerContext.Default.ListScheduleJob);
+            return;
+        }
+
+        if (contextRequest.Method == HttpMethods.Delete)
+        {
+            // example: /job-schedules/my-job-name/1234567890
+            string elementId = functionPath.Replace("/", "");
+            bool isMessageComeFromNamespaceInternal =
+                MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
+            logger.LogInformation("Delete job schedule {JobName} with {Id}", functionName, elementId);
+            var result = await scheduleJobService.DeleteScheduleJobAsync(functionName, elementId, isMessageComeFromNamespaceInternal);
+            if (result.IsSuccess)
+            {
+                contextResponse.StatusCode = (int)HttpStatusCode.OK;
+            }
+            else if(result.Error?.Key == ScheduleJobService.NotFound)
+            {
+                contextResponse.StatusCode = (int)HttpStatusCode.NotFound;
+            }
+            else
+            {
+                contextResponse.StatusCode = (int)HttpStatusCode.BadRequest;
+            }
         }
     }
 

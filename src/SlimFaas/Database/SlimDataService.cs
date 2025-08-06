@@ -114,10 +114,10 @@ public class SlimDataService(
         }
     }
 
-    public async Task DeleteHashSetAsync(string key, string dictionaryKey = "") =>
-        await Retry.DoAsync(() => DoDeleteHashSetAsync(key, dictionaryKey), logger, _retryInterval);
+    public async Task HashSetDeleteAsync(string key, string dictionaryKey = "") =>
+        await Retry.DoAsync(() => DoHashSetDeleteAsync(key, dictionaryKey), logger, _retryInterval);
 
-    private async Task DoDeleteHashSetAsync(string key, string dictionaryKey = "")
+    private async Task DoHashSetDeleteAsync(string key, string dictionaryKey = "")
     {
         EndPoint endpoint = await GetAndWaitForLeader();
 

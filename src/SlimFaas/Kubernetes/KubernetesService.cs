@@ -157,6 +157,8 @@ public partial record ScheduleCreateJob(
     IList<EnvVarInput>? Environments = null,
     List<string>? DependsOn = null);
 
+
+
 [MemoryPackable]
 public partial record SlimFaasJobConfiguration(Dictionary<string, SlimfaasJob> Configurations);
 
