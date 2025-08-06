@@ -74,7 +74,11 @@ public class SlimScheduleJobsWorker( IJobService jobService,
     {
         var executionKey = $"{ScheduleJobService.ScheduleJob}{configurationName}:{id}";
         var timeStamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
+        logger.LogInformation("Checking schedule job {ScheduleId} in configuration {ConfigurationName} at timestamp {TimeStamp}",
+            id, configurationName, timeStamp);
         var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(id);
+        logger.LogInformation("Last execution timestamp for schedule job {ScheduleId} in configuration {ConfigurationName} is {LastExecutionTimeStamp}",
+            id, configurationName, lastestExecutionTimeStampFromDatabaseBytes);
         if (lastestExecutionTimeStampFromDatabaseBytes == null)
         {
             await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(timeStamp));
@@ -85,6 +89,8 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
 
         bool runJob = latestExecutionTimeStamp > lastestExecutionTimeStampFromDatabase;
+        logger.LogInformation("Should run job for schedule {ScheduleId} in configuration {ConfigurationName}: {RunJob} at timestamp {LatestExecutionTimeStamp} (lastest: {lastestExecutionTimeStampFromDatabase})",
+            id, configurationName, runJob, latestExecutionTimeStamp, lastestExecutionTimeStampFromDatabase);
         if (!runJob)
         {
             return;

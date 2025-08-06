@@ -12,8 +12,6 @@ public record CreateScheduleJobResult(string Id);
 public partial class CreateScheduleJobResultSerializerContext : JsonSerializerContext;
 
 
-
-
 [MemoryPackable]
 public partial record ListScheduleJob(
     string Id,
@@ -29,6 +27,7 @@ public partial record ListScheduleJob(
 
 [JsonSerializable(typeof(ListScheduleJob))]
 [JsonSerializable(typeof(IList<ListScheduleJob>))]
+[JsonSerializable(typeof(List<ListScheduleJob>))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class ListScheduleJobSerializerContext : JsonSerializerContext;
 

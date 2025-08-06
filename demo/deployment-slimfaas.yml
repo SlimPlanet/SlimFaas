@@ -39,8 +39,8 @@ data:
     "Schedules": {
       "fibonacci": [
         {
-          "Schedule":"0 0 * * *"
-          "Args": ["42", "43"]
+            "Schedule": "*/1 * * * *",
+            "Args": ["42", "43"]
         }]
       }
     }
@@ -71,7 +71,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:latest
+          image: axaguildev/slimfaas:0.39.0-pr.1401331
           livenessProbe:
             httpGet:
               path: /health
