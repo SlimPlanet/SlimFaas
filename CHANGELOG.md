@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.38.1
+
+- [af16a83](https://github.com/SlimPlanet/SlimFaas/commit/af16a83171e973698034a4d8696b0642a6546108) - feature(mcp): add oauth rfc9728 (#139) (release), 2025-08-06 by *Guillaume Chervet*
+- [0f19915](https://github.com/SlimPlanet/SlimFaas/commit/0f19915237e682b170c911fdd566bc32f2af78b5) - feature(slimfaas): jobs cron schedule (#140) (release), 2025-08-06 by *Guillaume Chervet*
+
+
+## 0.38.0
+
+
+
 ## v0.38.0
 
 - [74ef84a](https://github.com/SlimPlanet/SlimFaas/commit/74ef84a037f6f75736af79f7c714a14ce487fce8) - feat(mcp): mcp output (#138) (release), 2025-08-02 by *Guillaume Chervet*
@@ -299,15 +309,5 @@
 ## v0.32.3
 
 - [f9716ef](https://github.com/SlimPlanet/SlimFaas/commit/f9716efbdbd4e5700de4ed62d59f9fb6e181cc20) - fix(SLimFaasPlanetSaver): documentation, 2024-12-10 by *Guillaume Chervet*
-
-
-## v0.32.2
-
-- [5d4e978](https://github.com/SlimPlanet/SlimFaas/commit/5d4e97822ab1be650a74e3d6f2490fa0a872495f) - fix(SLimFaasPlanetSaver): documentation, 2024-12-10 by *Guillaume Chervet*
-
-
-## v0.32.1
-
-- [d8a885f](https://github.com/SlimPlanet/SlimFaas/commit/d8a885f6fabd4c078262a6b7631e374fb0164e09) - fix(SLimFaasPlanetSaver): documentation, 2024-12-10 by *Guillaume Chervet*
 
 
