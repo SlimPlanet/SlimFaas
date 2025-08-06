@@ -254,13 +254,22 @@ public class RaftClusterTests
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(hashGet["field1"]));
         Assert.Equal("value2", MemoryPackSerializer.Deserialize<string>(hashGet["field2"]));
 
+        await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1", "field1");
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+        Assert.Single(hashGet);
+        await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1");
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+        Assert.Empty(hashGet);
+
        await databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value1"), new RetryInformation([], 30, []));
        await GetLocalClusterView(host1).ForceReplicationAsync();
-        var listLength = await databaseServiceSlave.ListCountElementAsync("listKey1" , new List<CountType>()
-        {
-            CountType.Available
-        });
-        Assert.Single(listLength);
+       var listLength = await databaseServiceSlave.ListCountElementAsync("listKey1" , new List<CountType>()
+       {
+           CountType.Available
+       });
+       Assert.Single(listLength);
 
         IList<QueueData>? listRightPop = await databaseServiceSlave.ListRightPopAsync("listKey1", Guid.NewGuid().ToString());
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(listRightPop.First().Data));

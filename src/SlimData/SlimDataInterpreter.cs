@@ -242,13 +242,13 @@ public class SlimDataInterpreter : CommandInterpreter
     internal static ValueTask DoDeleteHashSetAsync(DeleteHashSetCommand deleteHashSetCommand, SlimDataState slimDataState)
     {
         var value = deleteHashSetCommand.Key;   
-        if (!string.IsNullOrEmpty(value) || !slimDataState.Hashsets.ContainsKey(value))
+        if (string.IsNullOrEmpty(value) || !slimDataState.Hashsets.ContainsKey(value))
         {
             return default;
         }
 
         var dictionaryKey = deleteHashSetCommand.DictionaryKey;
-        if (!string.IsNullOrEmpty(dictionaryKey))
+        if (string.IsNullOrEmpty(dictionaryKey))
         {
             slimDataState.Hashsets = slimDataState.Hashsets.Remove(value);
         }
