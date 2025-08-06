@@ -1,7 +1,6 @@
 # SlimFaas Jobs
 
-SlimFaas can run **one‑off or batch jobs** triggered by HTTP calls. This is useful for tasks like data processing,
-database migrations, or any operation that doesn’t fit into a standard, continuously running service.
+SlimFaas can run **one‑off, batch, and scheduled (cron)** jobs triggered by HTTP calls or by a recurring schedule. This is useful for tasks like data processing, database migrations, nightly aggregation runs, or any operation that doesn’t fit into a standard, continuously‑running service.
 
 ---
 
@@ -62,7 +61,20 @@ data:
           "TtlSecondsAfterFinished": 36000,
           "RestartPolicy": "Never"
         }
-      }
+      },
+      "Schedules": {
+          "fibonacci": [
+            {
+              "Schedule": "0 0 * * *",  # every day at midnight
+              "Args": ["42"]
+            },
+            {
+              "Schedule": "0 0 * * 0",  # every Sunday at midnight
+              "Args": ["42"],
+              "DependsOn": ["fibonacci2"],
+            }
+          ]
+        }
     }
 ---
 apiVersion: apps/v1
@@ -286,94 +298,91 @@ Use the `Visibility` field in the job configuration:
 
 ---
 
-## 5. Concurrency and Scaling
 
-* `NumberParallelJob` controls how many pods the Kubernetes Job can spawn at once.
-* **BackoffLimit** controls how many times the Job retries in total.
-* SlimFaas internally manages job creation and concurrency, respecting your `DependsOn` conditions to ensure prerequisites are ready.
+### 5 **Managing Cron Schedules**
+
+SlimFaas ships with a companion API to create, list, and delete cron schedules at runtime.
+The routes live under `/job‑schedules` and are **Private by default** (cluster‑internal) unless the corresponding job is explicitly marked `Public`.
+
+| **Verb & Path**                        | **Description**                                 |
+| -------------------------------------- | ----------------------------------------------- |
+| `POST /job-schedules/<jobName>`        | Add a new cron schedule for `<jobName>`.        |
+| `GET  /job-schedules/<jobName>`        | List every schedule configured for `<jobName>`. |
+| `DELETE /job-schedules/<jobName>/{id}` | Delete schedule *Id* from `<jobName>`.          |
+
+Request body for **`POST`**
+
+```json
+{
+  "Schedule": "0 0 * * *",           // cron expression (required)
+  "Args": ["42", "43"],             // optional
+  "Image": "axaguildev/fibonacci-batch:1.0.1",  // optional — must be in ImagesWhitelist
+  "DependsOn": ["fibonacci2"],
+  "Resources": {                       // optional overrides
+    "Requests": {"cpu": "200m", "memory": "200Mi"},
+    "Limits":   {"cpu": "200m", "memory": "200Mi"}
+  },
+  "Environments": [],
+  "BackoffLimit": 1,
+  "TtlSecondsAfterFinished": 100,
+  "RestartPolicy": "Never"
+}
+```
+
+Only `Schedule` is mandatory. Any additional keys follow the same override/merge rules as a one‑off job trigger.
+
+**Examples**
+
+```bash
+# Run Fibonacci once a day at midnight
+curl -X POST http://<slimfaas>/job-schedules/fibonacci \
+     -d '{"Schedule":"0 0 * * *","Args":["42"]}'
+
+# Add a weekly run on Sundays at 00:00
+curl -X POST http://<slimfaas>/job-schedules/fibonacci \
+     -d '{"Schedule":"0 0 * * 0","Args":["42"]}'
+
+# List configured schedules
+curl -X GET  http://<slimfaas>/job-schedules/fibonacci
+[
+  {"Id":"0","Name":"fibonacci","Schedule":"0 0 * * *","Args":["42"]},
+  {"Id":"1","Name":"fibonacci","Schedule":"0 0 * * 0","Args":["42"]}
+]
+
+# Delete the first schedule (Id 0)
+curl -X DELETE http://<slimfaas>/job-schedules/fibonacci/0
+```
+
+> **Behaviour**
+> At the scheduled time, SlimFaas triggers the job exactly as if you had called `POST /job/<jobName>` with the provided overrides. Dependency checks, visibility rules, and concurrency limits all apply identically.
 
 ---
 
-## 6. Cleaning Up
+## 6. Visibility: Public vs. Private
 
-By default, completed Jobs and Pods remain in your cluster unless you specify a `TtlSecondsAfterFinished`. Setting this to a non‑zero value (e.g., `36000`) instructs Kubernetes to **garbage‑collect** those resources after the specified number of seconds.
+As with functions, you can mark jobs **and their schedules** as **Public** or **Private**.
 
-The `DELETE /job/<jobName>/{id}` endpoint (see **§3.3**) lets you proactively clean up a specific job’s resources and logs once it has finished.
+* **Public** — job triggers (manual *or* scheduled) can originate from outside the cluster.
+* **Private** — only trusted pods or in‑cluster callers may trigger or create schedules.
+
+Set the `Visibility` field inside `Configurations`.
 
 ---
 
-## 7. Example Workflow
+## 7. Concurrency and Scaling
 
-1. **Deploy SlimFaas** with a `ConfigMap` containing `SLIMFAAS_JOBS_CONFIGURATION`.
-2. **Confirm** the environment variable is loaded in your SlimFaas `StatefulSet` or `Deployment`.
-3. **Check** that your dependencies (like `fibonacci1`) are annotated and running if you used `DependsOn`.
-4. **Trigger** the job with an HTTP call:
-
-```bash
-curl -X POST http://<slimfaas>/job/fibonacci
-```
-
-5. **List** jobs in the `daisy` queue to view their current status:
-
-```bash
-curl -X GET http://<slimfaas>/job/daisy
-```
-
-6. **Delete** finished jobs to reclaim resources:
-
-```bash
-curl -X DELETE http://<slimfaas>/job/daisy/2
-```
-
-7. **Monitor** your cluster (e.g., `kubectl get jobs -n slimfaas-demo`) to see job pods starting, running, and completing.
-8. **Observe** your logs or other debugging info to verify success/failure.
+* `NumberParallelJob` controls simultaneous pods in a single job execution.
+* **BackoffLimit** controls total retries.
+* SlimFaas manages creation, dependency checks, and honouring cron schedules without exceeding your limits.
 
 ---
 
 ## 8. Summary
 
-* **Jobs** in SlimFaas are powered by Kubernetes Jobs under the hood.
-* They are defined via a JSON config (placed in a `ConfigMap` or other source) and referenced by `SLIMFAAS_JOBS_CONFIGURATION`.
-* **Trigger** a job: `POST /job/<jobName>`.
-* **List** jobs: `GET /job/<queueName>`.
-* **Delete** a finished job: `DELETE /job/<jobName>/{id}` (jobs still in queue cannot be deleted yet).
-* Control concurrency, environment variables, resources, TTL, dependencies, and more through your config.
+* **One‑off & batch jobs** — `POST /job/<jobName>`.
+* **Cron (scheduled) jobs** — attach them inside `SLIMFAAS_JOBS_CONFIGURATION > Schedules` **or** manage at runtime via `/job‑schedules` endpoints.
+* **List** jobs: `GET /job/<queueName>`; **list** schedules: `GET /job‑schedules/<jobName>`.
+* **Delete** a (running, waiting, finished) job: `DELETE /job/<jobName>/{id}`; **delete** a schedule: `DELETE /job‑schedules/<jobName>/{id}`.
+* Visibility, overrides, resource limits, dependency checks, retries, and TTL behave **identically** for manual and scheduled executions.
 
-Use **SlimFaas Jobs** to handle asynchronous, on‑demand, or batched workloads with minimal operational overhead. Enjoy automating your tasks!
-
----
-
-```bash
-# Endpoint private only
-curl -X POST http://<slimfaas>/job-schedules/fibonacci
-{"Schedule":"0 0 * * *","Arguments":[]} # Run once a day at midnight
-
-curl -X POST http://<slimfaas>/job-schedules/fibonacci
-{"Schedule":"0 0 * * 0","Arguments":[]} # Run once a week at midnight on Sunday morning
-
-# with override
-curl -X POST http://localhost:30021/job-schedules/fibonacci
-{
-  "Schedule":"0 0 * * *"
-  "Image": "axaguildev/fibonacci-batch:1.0.1",         # Must match ImagesWhitelist
-  "Args": ["42", "43"],
-  "DependsOn": ["fibonacci2"],                          # Overrides default
-  "Resources": {                                         # Cannot exceed configured limits
-    "Requests": { "cpu": "200m", "memory": "200Mi" },
-    "Limits":   { "cpu": "200m", "memory": "200Mi" }
-  },
-  "Environments": [],  # Override and merge with default Environments configured
-  "BackoffLimit": 1,
-  "TtlSecondsAfterFinished": 100,
-  "RestartPolicy": "Never"
-}
-
-curl -X GET http://<slimfaas>/job-schedules/fibonacci
-[
-  {"Id":"0","Name":"fibonacci","Schedule":"0 0 * * *","Arguments":[]},
-  {"Id":"1","Name":"fibonacci","Schedule":"0 0 * * 0","Arguments":[]}
-]
-
-curl -X DELETE http://<slimfaas>/job-schedules/fibonacci/0
-
-```
+Use **SlimFaas Jobs & Cron Schedules** to handle asynchronous, on‑demand, or recurring workloads with minimal operational overhead. Happy automating! 🚀
