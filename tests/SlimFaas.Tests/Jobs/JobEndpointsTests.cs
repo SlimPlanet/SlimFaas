@@ -10,7 +10,7 @@ using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
-namespace SlimFaas.Tests;
+namespace SlimFaas.Tests.Jobs;
 
 public class JobEndpointsTests
 {

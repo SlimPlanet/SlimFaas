@@ -25,7 +25,6 @@ public partial record ListScheduleJob(
     IList<EnvVarInput>? Environments = null,
     List<string>? DependsOn = null);
 
-[JsonSerializable(typeof(ListScheduleJob))]
 [JsonSerializable(typeof(IList<ListScheduleJob>))]
 [JsonSerializable(typeof(List<ListScheduleJob>))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

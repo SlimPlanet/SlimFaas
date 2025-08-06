@@ -1,5 +1,4 @@
 ﻿using MemoryPack;
-using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 
@@ -77,14 +76,14 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         logger.LogInformation("Checking schedule job {ScheduleId} in configuration {ConfigurationName} at timestamp {TimeStamp}",
             id, configurationName, timeStamp);
         var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(executionKey);
-        logger.LogInformation("Last execution timestamp for schedule job {ScheduleId} in configuration {ConfigurationName} is {LastExecutionTimeStamp}",
-            id, configurationName, lastestExecutionTimeStampFromDatabaseBytes);
         if (lastestExecutionTimeStampFromDatabaseBytes == null)
         {
             await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(timeStamp));
             return;
         }
         var lastestExecutionTimeStampFromDatabase = MemoryPackSerializer.Deserialize<long>(lastestExecutionTimeStampFromDatabaseBytes);
+        logger.LogInformation("Last execution timestamp for schedule job {ScheduleId} in configuration {ConfigurationName} is {LastExecutionTimeStamp}",
+            id, configurationName, lastestExecutionTimeStampFromDatabase);
         var cronSchedule = scheduleConfiguration.Schedule;
         var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
 

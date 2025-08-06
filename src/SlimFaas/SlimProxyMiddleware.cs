@@ -208,7 +208,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             var jobs = await scheduleJobService.ListScheduleJobAsync(functionName);
             contextResponse.StatusCode = (int)HttpStatusCode.OK;
             await contextResponse.WriteAsJsonAsync(jobs,
-                ListScheduleJobSerializerContext.Default.ListScheduleJob);
+                ListScheduleJobSerializerContext.Default.IListListScheduleJob);
             return;
         }
 
