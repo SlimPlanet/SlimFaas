@@ -222,7 +222,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             var result = await scheduleJobService.DeleteScheduleJobAsync(functionName, elementId, isMessageComeFromNamespaceInternal);
             if (result.IsSuccess)
             {
-                contextResponse.StatusCode = (int)HttpStatusCode.OK;
+                contextResponse.StatusCode = (int)HttpStatusCode.NoContent;
             }
             else if(result.Error?.Key == ScheduleJobService.NotFound)
             {

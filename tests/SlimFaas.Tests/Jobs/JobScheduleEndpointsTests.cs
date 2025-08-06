@@ -153,8 +153,8 @@ public class JobScheduleEndpointsTests
 
     #region DELETE /job-schedules/{name}/{id} ----------------------------------------------------
 
-    [Theory(DisplayName = "DELETE /job-schedules/{name}/{id} – succès 200 / not-found 404")]
-    [InlineData("/job-schedules/daisy/sid", true,  HttpStatusCode.OK )]
+    [Theory(DisplayName = "DELETE /job-schedules/{name}/{id} – succès 204 / not-found 404")]
+    [InlineData("/job-schedules/daisy/sid", true,  HttpStatusCode.NoContent )]
     [InlineData("/job-schedules/daisy/missing", false, HttpStatusCode.NotFound )]
     public async Task DeleteSchedule_Returns_Expected_Status(string path,
         bool deleteSucceeded,
