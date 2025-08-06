@@ -258,6 +258,9 @@ public class RaftClusterTests
         await GetLocalClusterView(host1).ForceReplicationAsync();
         hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
         Assert.Single(hashGet);
+
+        await databaseServiceSlave.HashSetAsync("hashsetKey1",
+            new Dictionary<string, byte[]> { { "field3",MemoryPackSerializer.Serialize("value3") } });
         await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1");
         await GetLocalClusterView(host1).ForceReplicationAsync();
         hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");

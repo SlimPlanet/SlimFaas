@@ -73,7 +73,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
     {
         var executionKey = $"{ScheduleJobService.ScheduleJob}{configurationName}:{id}";
         var timeStamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
-        logger.LogInformation("Checking schedule job {ScheduleId} in configuration {ConfigurationName} at timestamp {TimeStamp}",
+        logger.LogDebug("Checking schedule job {ScheduleId} in configuration {ConfigurationName} at timestamp {TimeStamp}",
             id, configurationName, timeStamp);
         var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(executionKey);
         if (lastestExecutionTimeStampFromDatabaseBytes == null)
@@ -82,13 +82,13 @@ public class SlimScheduleJobsWorker( IJobService jobService,
             return;
         }
         var lastestExecutionTimeStampFromDatabase = MemoryPackSerializer.Deserialize<long>(lastestExecutionTimeStampFromDatabaseBytes);
-        logger.LogInformation("Last execution timestamp for schedule job {ScheduleId} in configuration {ConfigurationName} is {LastExecutionTimeStamp}",
+        logger.LogDebug("Last execution timestamp for schedule job {ScheduleId} in configuration {ConfigurationName} is {LastExecutionTimeStamp}",
             id, configurationName, lastestExecutionTimeStampFromDatabase);
         var cronSchedule = scheduleConfiguration.Schedule;
         var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
 
         bool runJob = latestExecutionTimeStamp > lastestExecutionTimeStampFromDatabase;
-        logger.LogInformation("Should run job for schedule {ScheduleId} in configuration {ConfigurationName}: {RunJob} at timestamp {LatestExecutionTimeStamp} (lastest: {lastestExecutionTimeStampFromDatabase})",
+        logger.LogDebug("Should run job for schedule {ScheduleId} in configuration {ConfigurationName}: {RunJob} at timestamp {LatestExecutionTimeStamp} (lastest: {lastestExecutionTimeStampFromDatabase})",
             id, configurationName, runJob, latestExecutionTimeStamp, lastestExecutionTimeStampFromDatabase);
         if (!runJob)
         {
