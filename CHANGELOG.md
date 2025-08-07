@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.38.4
+
+- [c1c7305](https://github.com/SlimPlanet/SlimFaas/commit/c1c73059ed654c19e31a77ee209255c9b2809c0b) - fix(slimfaas): schedule http code and adopters logo link (#142) (release), 2025-08-07 by *Guillaume Chervet*
+
+
+## 0.38.3
+
+
+
 ## v0.38.3
 
 - [1bf9b55](https://github.com/SlimPlanet/SlimFaas/commit/1bf9b55b8033e8eda8a5375d4c7c3b8dcce61da0) - feature(readme): add adopters (release) (#141), 2025-08-07 by *Guillaume Chervet*
@@ -297,15 +306,5 @@
 ## v0.34.3
 
 - [eaed9fb](https://github.com/SlimPlanet/SlimFaas/commit/eaed9fb5298d8bdf7fd3bdbf62255ac1dae7a9b3) - fix(slimfaas): metrics deployment name does not match regex '^[a-zA-Z_][a-zA-Z0-9_]*$, 2025-01-14 by *Guillaume Chervet*
-
-
-## v0.34.2
-
-- [557b02b](https://github.com/SlimPlanet/SlimFaas/commit/557b02bc585635229d92f746876004611a0bb640) - fix(slimfaas): queue lock (#80), 2025-01-14 by *Guillaume Chervet*
-
-
-## v0.34.1
-
-- [a286bbf](https://github.com/SlimPlanet/SlimFaas/commit/a286bbf7aabed4a472c4a89a94ee1482d9b2f988) - doc: Update README.md, 2025-01-05 by *Guillaume Chervet*
 
 
