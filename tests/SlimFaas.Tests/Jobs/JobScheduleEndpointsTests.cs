@@ -78,7 +78,7 @@ public class JobScheduleEndpointsTests
             .PostAsync("http://localhost:5000/job-schedules/daisy",
                        JsonContent.Create(body));
 
-        Assert.Equal(HttpStatusCode.Accepted, resp.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
         Assert.Equal("{\"Id\":\"new-id\"}", await resp.Content.ReadAsStringAsync());
 
         schedSvc.Verify(s => s.CreateScheduleJobAsync("daisy",
