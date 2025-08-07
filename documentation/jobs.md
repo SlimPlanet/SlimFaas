@@ -1,15 +1,19 @@
 # SlimFaas Jobs
 
-SlimFaas can run **one‑off, batch, and scheduled (cron)** jobs triggered by HTTP calls or by a recurring schedule. This is useful for tasks like data processing, database migrations, nightly aggregation runs, or any operation that doesn’t fit into a standard, continuously‑running service.
+
+SlimFaas lets you run **one‑off, batch, and scheduled (cron) jobs** either on‑demand via simple HTTP calls or automatically on a cron‑like cadence. Each job definition includes guard‑rails: cap concurrency with `NumberParallelJob`, enforce per‑pod CPU & memory limits, and decide whether the endpoint is **Public** (external) or **Private** (in‑cluster). You get a powerful REST API while keeping your cluster safe from resource spikes.
 
 ---
 
 ## 1. Why Use Jobs?
 
-* **Short-lived or periodic tasks**: Perform a specialized computation once and then shut down.
-* **Separate scaling**: Jobs can have different concurrency than standard functions.
-* **Dependency handling**: Automatically wait for certain deployments to be ready before launching.
-* **Cost optimization**: Jobs run on demand and scale to zero when finished.
+* **Short‑lived or periodic tasks** — perform a specialised computation once or on a fixed cadence and then shut down.
+* **Separate scaling** — jobs can have different concurrency settings from standard functions.
+* **Infrastructure safety** — cap concurrent pods with `NumberParallelJob` and enforce per‑pod CPU/memory limits to protect your cluster.
+* **Secure yet open API** — trigger jobs & schedules through REST, choosing **Public** visibility for external access or **Private** for in‑cluster only.
+* **Dependency handling** — automatically wait for required deployments before launching.
+* **Cost optimisation** — jobs and its dependencies run on‑demand and scale to zero when finished.
+* **Built‑in scheduling** — declare cron schedules next to the job definition or create them on the fly with the API.
 
 ---
 
@@ -146,7 +150,7 @@ spec:
 
 ### Explanation of Each Configuration Field
 
-In `SLIMFAAS_JOBS_CONFIGURATION`, you have one or more job entries under `"Configurations"`:
+In `SLIMFAAS_JOBS_CONFIGURATION`environment variable, you define jobs under the `"Configurations"` key and their schedules under the `"Schedules"` key. Here’s a breakdown of the configuration structure:
 
 ```json
 {
@@ -172,9 +176,20 @@ In `SLIMFAAS_JOBS_CONFIGURATION`, you have one or more job entries under `"Confi
       "TtlSecondsAfterFinished": 36000,
       "RestartPolicy": "Never"
     }
+  },
+  "Schedules": {
+      "fibonacci": [
+          { "Schedule": "0 0 * * *", "Args": ["43"] },  # every day at midnight
+          { "Schedule": "0 0 * * 0", "Args": ["43"] }   # every Sunday at midnight
+      ]
   }
 }
 ```
+
+#### Configurations
+
+You can define multiple jobs definition under the `"Configurations"` key. Each job has a unique name (e.g., `"fibonacci"`).
+> **Warning**: These definitions are protections about actions you can do via API calls, such as triggering a job or creating a schedule. For example, we cannot ask for more resources than the ones defined in the job configuration. The same for the number of parallel jobs, the image used, etc.
 
 | **Field**                   | **Description**                                                                                                                                                                      |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -189,7 +204,45 @@ In `SLIMFAAS_JOBS_CONFIGURATION`, you have one or more job entries under `"Confi
 | **TtlSecondsAfterFinished** | Time to keep the job resources around after completion (in seconds). For example, `36000` keeps them for 10 hours, after which Kubernetes cleans them up.                            |
 | **RestartPolicy**           | The policy for restarting containers in a pod. Common values: `Never` (don’t restart), `OnFailure` (restart on failure).                                                             |
 
+
+#### Schedules
+
+You can also define **cron schedules** for jobs under the `"Schedules"` key. Each schedule entry contains:
+
+```json
+{
+  "Schedules": {
+    "fibonacci": [
+      {
+        "Schedule": "0 0 * * *",  # Every day at midnight
+        "Args": ["42"]
+      },
+      {
+        "Schedule": "0 0 * * 0",  # Every Sunday at midnight
+        "Args": ["42"],
+        "DependsOn": ["fibonacci2"]
+      }
+    ]
+  }
+}
+```
+| **Field**     | **Description**                                                                                                                                                                            |
+| -------------- |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Schedule**   | A standard 5‑field cron expression (`m h dom mon dow`). See the [Kubernetes CronJob documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) for full details. |
+| **Args**       | Arguments to pass to the job when it runs. Override default args defined in the job configuration.                                                                                         |
+| **DependsOn**  | Optional list of dependencies that must be ready before the scheduled job runs. Override default dependencies defined in the job configuration.                                            |
+| **Resources**   | Optional overrides for resource requests/limits, merging with the job configuration defaults.                                                                                              |
+| **Environments** | Optional environment variables to inject into the job container, merging with the job configuration defaults.                                                                              |
+| **BackoffLimit** | Optional override for the number of retries allowed if the job fails. Defaults to the job configuration value.                                                                             |
+| **TtlSecondsAfterFinished** | Optional override for how long to keep job resources after completion. Defaults to the job configuration value.                                                                            |
+| **RestartPolicy** | Optional override for the restart policy of the job pods. Defaults to the job configuration value.                                                                                         |
+
+### Default configuration values
+
+If you trigger a job whose name does not exist in `SLIMFAAS_JOBS_CONFIGURATION`, SlimFaas falls back to a built‑in entry called `Default`. It ships with conservative resource requests/limits (`cpu: 100m`, `memory: 100Mi`), no dependencies, and the same visibility/retry defaults. You can customise these defaults by adding or overriding the `"Default"` key in your configuration map.
+
 ---
+
 
 ## 3. Invoking **and Managing** Jobs
 
@@ -299,7 +352,7 @@ Use the `Visibility` field in the job configuration:
 ---
 
 
-### 5 **Managing Cron Schedules**
+## 5 Managing Cron Schedules
 
 SlimFaas ships with a companion API to create, list, and delete cron schedules at runtime.
 The routes live under `/job‑schedules` and are **Private by default** (cluster‑internal) unless the corresponding job is explicitly marked `Public`.
