@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.38.2
+
+- [e9acdaf](https://github.com/SlimPlanet/SlimFaas/commit/e9acdafbafcdc988b59e0eb983afac589ce068ef) - doc: slimfaas job enhance documentation (release), 2025-08-07 by *Guillaume Chervet*
+
+
+## 0.38.1
+
+
+
 ## v0.38.1
 
 - [af16a83](https://github.com/SlimPlanet/SlimFaas/commit/af16a83171e973698034a4d8696b0642a6546108) - feature(mcp): add oauth rfc9728 (#139) (release), 2025-08-06 by *Guillaume Chervet*
@@ -299,15 +308,5 @@
 ## v0.33.1
 
 - [f1f05f3](https://github.com/SlimPlanet/SlimFaas/commit/f1f05f31599b6eef0183ba141dac1e336b84a3dd) - fix(slimfaas): metrics (#79), 2025-01-02 by *Guillaume Chervet*
-
-
-## v0.33.0
-
-- [fda13cd](https://github.com/SlimPlanet/SlimFaas/commit/fda13cd0f708e96b0299dd4e8988659575ade2ad) - feat(all): retry and clean queue system (#77), 2024-12-31 by *Guillaume Chervet*
-
-
-## v0.32.3
-
-- [f9716ef](https://github.com/SlimPlanet/SlimFaas/commit/f9716efbdbd4e5700de4ed62d59f9fb6e181cc20) - fix(SLimFaasPlanetSaver): documentation, 2024-12-10 by *Guillaume Chervet*
 
 
