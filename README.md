@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" alt="SlimFaas" />
+  <img src="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" alt="SlimFaas" />
 </div>
 
 <div align="center">
@@ -50,7 +50,7 @@ functions with minimal overhead.
     - Written in .NET with a focus on performance and minimal resource usage.
 
 <div align="center">
-  <img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true" alt="SlimFaas CPU RAM" />
+  <img src="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true" alt="SlimFaas CPU RAM" />
 </div>
 
 
@@ -96,7 +96,9 @@ Enjoy SlimFaas!
 
 List of organizations using this project in production or at stages of testing.
 
-![AXA.png](./documentation/adopters_logo/AXA.png)
+<div align="center">
+  <img src="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/adopters_logo/AXA.png?raw=true" alt="AXA" />
+</div>
 
 ---
 Add your logo via a pull request:

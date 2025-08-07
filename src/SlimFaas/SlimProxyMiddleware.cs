@@ -198,7 +198,8 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 contextResponse.StatusCode = (int)HttpStatusCode.InternalServerError;
                 return;
             }
-            contextResponse.StatusCode = 202;
+
+            contextResponse.StatusCode = (int)HttpStatusCode.Created;
             await contextResponse.WriteAsJsonAsync(result.Data,
                 CreateScheduleJobResultSerializerContext.Default.CreateScheduleJobResult);
             return;
