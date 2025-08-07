@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.38.3
+
+- [1bf9b55](https://github.com/SlimPlanet/SlimFaas/commit/1bf9b55b8033e8eda8a5375d4c7c3b8dcce61da0) - feature(readme): add adopters (release) (#141), 2025-08-07 by *Guillaume Chervet*
+
+
+## 0.38.2
+
+
+
 ## v0.38.2
 
 - [e9acdaf](https://github.com/SlimPlanet/SlimFaas/commit/e9acdafbafcdc988b59e0eb983afac589ce068ef) - doc: slimfaas job enhance documentation (release), 2025-08-07 by *Guillaume Chervet*
@@ -298,15 +307,5 @@
 ## v0.34.1
 
 - [a286bbf](https://github.com/SlimPlanet/SlimFaas/commit/a286bbf7aabed4a472c4a89a94ee1482d9b2f988) - doc: Update README.md, 2025-01-05 by *Guillaume Chervet*
-
-
-## v0.34.0
-
-- [e158bd4](https://github.com/SlimPlanet/SlimFaas/commit/e158bd44fce152bec25e94bcbc68a63cbe75baa8) - feat(slimfaas): add queue metrics, 2025-01-03 by *Guillaume Chervet*
-
-
-## v0.33.1
-
-- [f1f05f3](https://github.com/SlimPlanet/SlimFaas/commit/f1f05f31599b6eef0183ba141dac1e336b84a3dd) - fix(slimfaas): metrics (#79), 2025-01-02 by *Guillaume Chervet*
 
 
