@@ -22,6 +22,10 @@ on:
         required: false
         type: string
         default: linux/amd64
+      push:
+        required: false
+        type: boolean
+        default: true
     secrets:
       DOCKER_USERNAME:
         required: true
@@ -61,8 +65,22 @@ jobs:
       with:
         images: ${{ inputs.image_name }}
 
+    - name: Build image (no push)
+      if: inputs.push != true
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ inputs.image_context }}
+        file: ${{ inputs.image_file }}
+        build-args: ${{ inputs.image_build_args }}
+        push: false
+        platforms: ${{ inputs.platforms }}
+        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
+        cache-from: type=local,src=/tmp/.buildx-cache
+        cache-to: type=local,dest=/tmp/.buildx-cache
+
     - name: Build and push Docker image
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' && inputs.push == true
       uses: docker/build-push-action@v5
       with:
         context: ${{ inputs.image_context }}
@@ -76,7 +94,7 @@ jobs:
         cache-to: type=local,dest=/tmp/.buildx-cache
 
     - name: Build and push Docker image
-      if: github.ref != 'refs/heads/main'
+      if: github.ref != 'refs/heads/main' && inputs.push == true
       uses: docker/build-push-action@v5
       with:
         context: ${{ inputs.image_context }}

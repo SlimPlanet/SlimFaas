@@ -1,0 +1,36 @@
+﻿name: Reusable Site Build
+
+on:
+  workflow_call:
+    inputs:
+      node_version:
+        required: false
+        type: string
+        default: "18"
+      pnpm_version:
+        required: false
+        type: string
+        default: "10.3.0"
+      working_directory:
+        required: false
+        type: string
+        default: "src/SlimFaasSite"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ inputs.pnpm_version }}
+          run_install: false
+      - name: pnpm install
+        working-directory: ${{ inputs.working_directory }}
+        run: pnpm install --frozen-lockfile
+      - name: pnpm build
+        working-directory: ${{ inputs.working_directory }}
+        run: pnpm build

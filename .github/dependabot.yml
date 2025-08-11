@@ -1,0 +1,79 @@
+﻿version: 2
+
+updates:
+  # ───────────────────────────── pnpm (JavaScript/TypeScript) ─────────────────
+  # SlimFaasPlanetSaver (tests + publie sur npm)
+  - package-ecosystem: npm
+    directory: "/src/SlimFaasPlanetSaver"
+    schedule: { interval: weekly, day: monday, time: "07:00", timezone: "Europe/Paris" }
+    open-pull-requests-limit: 10
+    commit-message: { prefix: "deps(pnpm:planet-saver)", include: scope }
+    groups:
+      minor-and-patch: { update-types: ["minor","patch"] }
+
+  # SlimFaasSite (site vitrine déployé via Pages)
+  - package-ecosystem: npm
+    directory: "/src/SlimFaasSite"
+    schedule: { interval: weekly, day: monday, time: "07:05", timezone: "Europe/Paris" }
+    open-pull-requests-limit: 10
+    commit-message: { prefix: "deps(pnpm:site)", include: scope }
+    groups:
+      minor-and-patch: { update-types: ["minor","patch"] }
+
+  # FibonacciReact — SlimFaas demo
+  - package-ecosystem: npm
+    directory: "/src/FibonacciReact"
+    schedule: { interval: weekly, day: monday, time: "07:10", timezone: "Europe/Paris" }
+    open-pull-requests-limit: 5
+    commit-message: { prefix: "deps(pnpm:site-demo-fibonacci-react)", include: scope }
+    groups:
+      minor-and-patch: { update-types: ["minor","patch"] }
+    # ignore:
+    #   - dependency-name: "*"
+    #     update-types: ["version-update:semver-major"]
+
+  # ─────────────────────────────────── NuGet (.NET 9) ─────────────────────────
+  - package-ecosystem: nuget
+    directory: "/"   # scanne tous les .csproj/.props/.targets
+    schedule: { interval: weekly, day: monday, time: "07:20", timezone: "Europe/Paris" }
+    open-pull-requests-limit: 10
+    commit-message: { prefix: "deps(nuget)", include: scope }
+    groups:
+      minor-and-patch: { update-types: ["minor","patch"] }
+
+  # ─────────────────────────────── Docker (base images) ───────────────────────
+  # Racine
+  - package-ecosystem: docker
+    directory: "/"
+    schedule: { interval: weekly, day: monday, time: "07:30", timezone: "Europe/Paris" }
+    open-pull-requests-limit: 10
+    commit-message: { prefix: "deps(docker:slimfaas)", include: scope }
+    groups:
+      minor-and-patch: { update-types: ["minor","patch"] }
+
+  # Dockerfiles par service
+  - package-ecosystem: docker
+    directory: "/src/SlimFaasMcp"
+    schedule: { interval: weekly, day: monday, time: "07:31", timezone: "Europe/Paris" }
+    commit-message: { prefix: "deps(docker:slimfaas-mcp)", include: scope }
+  - package-ecosystem: docker
+    directory: "/src/Fibonacci"
+    schedule: { interval: weekly, day: monday, time: "07:32", timezone: "Europe/Paris" }
+    commit-message: { prefix: "deps(docker:fibonacci-api)", include: scope }
+  - package-ecosystem: docker
+    directory: "/src/FibonacciBatch"
+    schedule: { interval: weekly, day: monday, time: "07:33", timezone: "Europe/Paris" }
+    commit-message: { prefix: "deps(docker:fibonacci-batch)", include: scope }
+  - package-ecosystem: docker
+    directory: "/src/FibonacciReact"
+    schedule: { interval: weekly, day: monday, time: "07:34", timezone: "Europe/Paris" }
+    commit-message: { prefix: "deps(docker:fibonacci-webapp)", include: scope }
+
+  # ───────────────────────────── GitHub Actions (CI) ──────────────────────────
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule: { interval: weekly, day: monday, time: "07:40", timezone: "Europe/Paris" }
+    open-pull-requests-limit: 10
+    commit-message: { prefix: "deps(actions)", include: scope }
+    groups:
+      minor-and-patch: { update-types: ["minor","patch"] }

@@ -1,0 +1,99 @@
+﻿name: Dependabot Secure CI
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+env:
+  PNPM_VERSION: 10.3.0
+  NODE_VERSION: 18
+
+jobs:
+  sonarcloud:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Checkout le contenu exact de la PR (pas la merge-branch)
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: actions/setup-java@v3
+        with:
+          java-version: 17
+          distribution: 'zulu'
+
+      - uses: actions/setup-dotnet@v3
+        with:
+          global-json-file: global.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+          run_install: false
+
+      - name: pnpm ci (PlanetSaver)
+        run: pnpm i --frozen-lockfile
+        working-directory: ./src/SlimFaasPlanetSaver
+
+      - name: pnpm run coverage (PlanetSaver)
+        run: pnpm run coverage
+        working-directory: ./src/SlimFaasPlanetSaver
+
+      - name: SonarCloud
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN:  ${{ secrets.SONAR_TOKEN }}
+        shell: powershell
+        run: |
+          dotnet tool install --global dotnet-coverage
+          dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
+          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+
+  # Exemple de job PR pour builder les images sans push
+  build_docker_images:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - name: slimfaas
+            context: "."
+            file: "./Dockerfile"
+            platforms: "linux/amd64,linux/arm64"
+          - name: fibonacci-api
+            context: "./src/Fibonacci"
+            file: "./src/Fibonacci/Dockerfile"
+          - name: slimfaas-mcp
+            context: "./src/SlimFaasMcp"
+            file: "./src/SlimFaasMcp/Dockerfile"
+            platforms: "linux/amd64,linux/arm64"
+          - name: fibonacci-batch
+            context: "./src/FibonacciBatch"
+            file: "./src/FibonacciBatch/Dockerfile"
+          - name: fibonacci-webapp
+            context: "./src/FibonacciReact"
+            file: "./src/FibonacciReact/Dockerfile"
+    steps:
+      - name: Call reusable Docker build (no push)
+        uses: ./.github/workflows/Docker.yml
+        with:
+          image_name: axaguildev/${{ matrix.name }}
+          image_version: pr-${{ github.event.number }}.${{ github.run_number }}
+          image_build_args: ""
+          image_context: ${{ matrix.context }}
+          image_file: ${{ matrix.file }}
+          platforms: ${{ matrix.platforms || 'linux/amd64' }}
+          push: false
+
+  site_build:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/SiteBuild.yml
