@@ -1,6 +1,6 @@
 
 <div align="center">
-  <img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" alt="SlimFaas" />
+  <img src="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" alt="SlimFaas" />
 </div>
 
 <div align="center">
@@ -50,7 +50,7 @@ functions with minimal overhead.
     - Written in .NET with a focus on performance and minimal resource usage.
 
 <div align="center">
-  <img src="https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true" alt="SlimFaas CPU RAM" />
+  <img src="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true" alt="SlimFaas CPU RAM" />
 </div>
 
 
@@ -90,3 +90,17 @@ We hope SlimFaas helps you streamline serverless development!
   SlimFaas follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
 Enjoy SlimFaas!
+
+
+## Adopters
+
+List of organizations using this project in production or at stages of testing.
+
+<div align="center">
+  <img src="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/adopters_logo/AXA.png?raw=true" alt="AXA" />
+</div>
+
+---
+Add your logo via a pull request:
+- Logo must be at PNG format, `100 px width, and 100 px height`.
+- Add your logo to the `documentation/adopters` folder.

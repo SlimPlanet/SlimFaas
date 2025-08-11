@@ -1,5 +1,32 @@
 # Changelog
 
+## v0.38.4
+
+- [c1c7305](https://github.com/SlimPlanet/SlimFaas/commit/c1c73059ed654c19e31a77ee209255c9b2809c0b) - fix(slimfaas): schedule http code and adopters logo link (#142) (release), 2025-08-07 by *Guillaume Chervet*
+
+
+## 0.38.3
+
+
+
+## v0.38.3
+
+- [1bf9b55](https://github.com/SlimPlanet/SlimFaas/commit/1bf9b55b8033e8eda8a5375d4c7c3b8dcce61da0) - feature(readme): add adopters (release) (#141), 2025-08-07 by *Guillaume Chervet*
+
+
+## 0.38.2
+
+
+
+## v0.38.2
+
+- [e9acdaf](https://github.com/SlimPlanet/SlimFaas/commit/e9acdafbafcdc988b59e0eb983afac589ce068ef) - doc: slimfaas job enhance documentation (release), 2025-08-07 by *Guillaume Chervet*
+
+
+## 0.38.1
+
+
+
 ## v0.38.1
 
 - [af16a83](https://github.com/SlimPlanet/SlimFaas/commit/af16a83171e973698034a4d8696b0642a6546108) - feature(mcp): add oauth rfc9728 (#139) (release), 2025-08-06 by *Guillaume Chervet*
@@ -279,35 +306,5 @@
 ## v0.34.3
 
 - [eaed9fb](https://github.com/SlimPlanet/SlimFaas/commit/eaed9fb5298d8bdf7fd3bdbf62255ac1dae7a9b3) - fix(slimfaas): metrics deployment name does not match regex '^[a-zA-Z_][a-zA-Z0-9_]*$, 2025-01-14 by *Guillaume Chervet*
-
-
-## v0.34.2
-
-- [557b02b](https://github.com/SlimPlanet/SlimFaas/commit/557b02bc585635229d92f746876004611a0bb640) - fix(slimfaas): queue lock (#80), 2025-01-14 by *Guillaume Chervet*
-
-
-## v0.34.1
-
-- [a286bbf](https://github.com/SlimPlanet/SlimFaas/commit/a286bbf7aabed4a472c4a89a94ee1482d9b2f988) - doc: Update README.md, 2025-01-05 by *Guillaume Chervet*
-
-
-## v0.34.0
-
-- [e158bd4](https://github.com/SlimPlanet/SlimFaas/commit/e158bd44fce152bec25e94bcbc68a63cbe75baa8) - feat(slimfaas): add queue metrics, 2025-01-03 by *Guillaume Chervet*
-
-
-## v0.33.1
-
-- [f1f05f3](https://github.com/SlimPlanet/SlimFaas/commit/f1f05f31599b6eef0183ba141dac1e336b84a3dd) - fix(slimfaas): metrics (#79), 2025-01-02 by *Guillaume Chervet*
-
-
-## v0.33.0
-
-- [fda13cd](https://github.com/SlimPlanet/SlimFaas/commit/fda13cd0f708e96b0299dd4e8988659575ade2ad) - feat(all): retry and clean queue system (#77), 2024-12-31 by *Guillaume Chervet*
-
-
-## v0.32.3
-
-- [f9716ef](https://github.com/SlimPlanet/SlimFaas/commit/f9716efbdbd4e5700de4ed62d59f9fb6e181cc20) - fix(SLimFaasPlanetSaver): documentation, 2024-12-10 by *Guillaume Chervet*
 
 

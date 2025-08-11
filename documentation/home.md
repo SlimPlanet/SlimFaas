@@ -77,3 +77,14 @@ We hope SlimFaas helps you streamline serverless development!
   SlimFaas follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
 Enjoy SlimFaas!
+
+## Adopters
+
+List of organizations using this project in production or at stages of testing.
+
+![AXA.png](https://github.com/AxaFrance/SlimFaas/blob/main//documentation/adopters_logo/AXA.png?raw=true)
+
+---
+Add your logo via a pull request:
+- Logo must be at PNG format, `100 px width, and 100 px height`.
+- Add your logo to the `documentation/adopters` folder.
