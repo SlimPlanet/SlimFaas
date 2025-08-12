@@ -89,9 +89,12 @@ public class Endpoints
         {
             value.Add(keyValue.Key, keyValue.Value);
         }
-        var logEntry =
-            provider.Interpreter.CreateLogEntry(
-                new AddHashSetCommand { Key = key, Value = value }, cluster.Term);
+
+        var logEntry = new LogEntry<AddHashSetCommand>()
+        {
+            Term = cluster.Term,
+            Command = new() { Key = key, Value = value },
+        };
         await cluster.ReplicateAsync(logEntry, source.Token);
     }
     
@@ -118,13 +121,13 @@ public class Endpoints
         IRaftCluster cluster, CancellationTokenSource source)
     {
 
-        LogEntry<DeleteHashSetCommand>? logEntry =
-                provider.Interpreter.CreateLogEntry(new DeleteHashSetCommand { Key = key, 
-                      DictionaryKey = dictionaryKey
-                    },
-                    cluster.Term);
+        var logEntry = new LogEntry<DeleteHashSetCommand>()
+        {
+            Term = cluster.Term,
+            Command = new() { Key = key, DictionaryKey = dictionaryKey }
+        };
 
-        await cluster.ReplicateAsync(logEntry.Value, source.Token);
+        await cluster.ReplicateAsync(logEntry, source.Token);
     }
 
     public static Task ListRightPopAsync(HttpContext context)
@@ -156,10 +159,11 @@ public class Endpoints
         values.Items = new List<QueueData>();
         
         var nowTicks = DateTime.UtcNow.Ticks;
-        var logEntry =
-            provider.Interpreter.CreateLogEntry(
-                new ListRightPopCommand { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId},
-                cluster.Term);
+        var logEntry = new LogEntry<ListRightPopCommand>()
+        {
+            Term = cluster.Term,
+            Command = new() { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId },
+        };
         await cluster.ReplicateAsync(logEntry, source.Token);
         await Task.Delay(2, source.Token);
         var supplier = (ISupplier<SlimDataPayload>)provider;
@@ -226,18 +230,22 @@ public class Endpoints
         var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
         var id = Guid.NewGuid().ToString();
 
-        LogEntry<ListLeftPushCommand>? logEntry =
-                provider.Interpreter.CreateLogEntry(new ListLeftPushCommand { Key = key, 
-                        Identifier = id, 
-                        Value = input.Value, 
-                        NowTicks = DateTime.UtcNow.Ticks,
-                        Retries = retryInformation.Retries,
-                        RetryTimeout = retryInformation.RetryTimeoutSeconds,
-                        HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
-                    },
-                    cluster.Term);
+        var logEntry = new LogEntry<ListLeftPushCommand>()
+        {
+            Term = cluster.Term,
+            Command = new()
+            {
+                Key = key,
+                Identifier = id,
+                Value = input.Value,
+                NowTicks = DateTime.UtcNow.Ticks,
+                Retries = retryInformation.Retries,
+                RetryTimeout = retryInformation.RetryTimeoutSeconds,
+                HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
+            },
+        };
 
-        await cluster.ReplicateAsync(logEntry.Value, source.Token);
+        await cluster.ReplicateAsync(logEntry, source.Token);
 
         return id;
     }
@@ -275,14 +283,18 @@ public class Endpoints
         {
             callbackElements.Add(new CallbackElement(queueItemStatus.Id, queueItemStatus.HttpCode));
         }
-        var logEntry =
-            provider.Interpreter.CreateLogEntry(new ListCallbackCommand
-                {
-                    Key = key,
-                    NowTicks = nowTicks,
-                    CallbackElements = callbackElements
-                },
-                cluster.Term);
+
+        var logEntry = new LogEntry<ListCallbackCommand>()
+        {
+            Term = cluster.Term,
+            Command = new()
+            {
+                Key = key,
+                NowTicks = nowTicks,
+                CallbackElements = callbackElements
+            },
+        };
+        
         await cluster.ReplicateAsync(logEntry, source.Token);
     }
 
@@ -323,9 +335,12 @@ public class Endpoints
     public static async Task AddKeyValueCommand(SlimPersistentState provider, string key, byte[] value,
         IRaftCluster cluster, CancellationTokenSource source)
     {
-        var logEntry =
-            provider.Interpreter.CreateLogEntry(new AddKeyValueCommand { Key = key, Value = value },
-                cluster.Term);
+        var logEntry = new LogEntry<AddKeyValueCommand>()
+        {
+            Term = cluster.Term,
+            Command = new() { Key = key, Value = value },
+        };
+        
         await cluster.ReplicateAsync(logEntry, source.Token);
     }
 }

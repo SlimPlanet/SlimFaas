@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Text;
 using DotNext.IO;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
@@ -8,9 +9,13 @@ namespace SlimData.Commands;
 
 public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte>> keysValues,
         Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>> hashsets, Dictionary<string, List<QueueElement>> queues)
-    : ISerializable<LogSnapshotCommand>
+    : ICommand<LogSnapshotCommand>
 {
     public const int Id = 5;
+    
+    static int ICommand<LogSnapshotCommand>.Id => Id;
+
+    static bool ICommand<LogSnapshotCommand>.IsSnapshot => true;
 
     public readonly Dictionary<string, ReadOnlyMemory<byte>> keysValues = keysValues;
     public readonly Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>> hashsets = hashsets;

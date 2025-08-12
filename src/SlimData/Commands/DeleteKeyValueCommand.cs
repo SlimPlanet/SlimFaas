@@ -1,13 +1,16 @@
 ﻿using System.Text;
 using DotNext.IO;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct DeleteKeyValueCommand : ISerializable<DeleteKeyValueCommand>
+public struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
 {
     public const int Id = 3;
+    
+    static int ICommand<DeleteKeyValueCommand>.Id => Id;
 
     public string Key { get; set; }
     

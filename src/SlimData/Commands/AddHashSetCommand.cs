@@ -1,13 +1,16 @@
 ﻿using System.Text;
 using DotNext.IO;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct AddHashSetCommand : ISerializable<AddHashSetCommand>
+public struct AddHashSetCommand : ICommand<AddHashSetCommand>
 {
     public const int Id = 1;
+
+    static int ICommand<AddHashSetCommand>.Id => Id;
 
     public string Key { get; set; }
     public Dictionary<string, ReadOnlyMemory<byte>> Value { get; set; }
