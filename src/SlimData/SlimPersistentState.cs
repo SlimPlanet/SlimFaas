@@ -2,7 +2,6 @@
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
-using DotNext.Runtime.Serialization;
 using SlimData.Commands;
 
 namespace SlimData;
@@ -28,10 +27,6 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
         : this(configuration[LogLocation])
     {
     }
-    
-    public LogEntry<TCommand> CreateLogEntry<TCommand>(TCommand command)
-        where TCommand : struct, ISerializable<TCommand>
-        => Interpreter.CreateLogEntry(command, Term);
 
     public SlimDataState SlimDataState
     {

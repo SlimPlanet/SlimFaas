@@ -1,13 +1,16 @@
 ﻿using System.Text;
 using DotNext.IO;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct DeleteHashSetCommand : ISerializable<DeleteHashSetCommand>
+public struct DeleteHashSetCommand : ICommand<DeleteHashSetCommand>
 {
     public const int Id = 17;
+    
+    static int  ICommand<DeleteHashSetCommand>.Id => Id;
 
     public string Key { get; set; }
     public string DictionaryKey { get; set; }

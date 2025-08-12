@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using DotNext.IO;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
@@ -7,9 +8,12 @@ namespace SlimData.Commands;
 
 public record CallbackElement(string Identifier, int HttpCode);
 
-public struct ListCallbackCommand() : ISerializable<ListCallbackCommand>
+public struct ListCallbackCommand() : ICommand<ListCallbackCommand>
 {
     public const int Id = 15;
+    
+    static int  ICommand<ListCallbackCommand>.Id => Id;
+    
     public string Key { get; set; }
     
     public long NowTicks { get; set; }

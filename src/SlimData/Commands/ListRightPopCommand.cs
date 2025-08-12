@@ -1,13 +1,16 @@
 ﻿using System.Text;
 using DotNext.IO;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct ListRightPopCommand : ISerializable<ListRightPopCommand>
+public struct ListRightPopCommand : ICommand<ListRightPopCommand>
 {
     public const int Id = 4;
+
+    static int ICommand<ListRightPopCommand>.Id => Id;
 
     public string Key { get; set; }
     public int Count { get; set; }

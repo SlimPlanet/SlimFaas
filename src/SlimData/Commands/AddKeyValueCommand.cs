@@ -1,13 +1,16 @@
 ﻿using System.Text;
 using DotNext.IO;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct AddKeyValueCommand : ISerializable<AddKeyValueCommand>
+public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
 {
     public const int Id = 2;
+    
+    static int ICommand<AddKeyValueCommand>.Id => Id;
 
     public string Key { get; set; }
     public ReadOnlyMemory<byte> Value { get; set; }

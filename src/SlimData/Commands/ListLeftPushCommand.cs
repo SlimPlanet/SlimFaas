@@ -1,13 +1,16 @@
 ﻿using System.Text;
 using DotNext.IO;
+using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct ListLeftPushCommand : ISerializable<ListLeftPushCommand>
+public struct ListLeftPushCommand : ICommand<ListLeftPushCommand>
 {
     public const int Id = 13;
+
+    static int ICommand<ListLeftPushCommand>.Id => Id;
 
     public string Key { get; set; }
     
