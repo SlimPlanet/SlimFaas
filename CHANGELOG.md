@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.38.5
+
+- [d3b49e5](https://github.com/SlimPlanet/SlimFaas/commit/d3b49e55a43a8201eb16a6f4deb24918e9b4d6e5) - refactor(SlimData): Migration to a new command handler API (#145) (release), 2025-08-12 by *Roman Sakno*
+- [431763e](https://github.com/SlimPlanet/SlimFaas/commit/431763e530d568f7b4c2eb43b0d1a635390e0558) - ci(dependabot): add dependabot-secure-ci.yml (#144), 2025-08-11 by *Guillaume Chervet*
+
+
+## 0.38.4
+
+
+
 ## v0.38.4
 
 - [c1c7305](https://github.com/SlimPlanet/SlimFaas/commit/c1c73059ed654c19e31a77ee209255c9b2809c0b) - fix(slimfaas): schedule http code and adopters logo link (#142) (release), 2025-08-07 by *Guillaume Chervet*
@@ -296,15 +306,5 @@
 - [71d241a](https://github.com/SlimPlanet/SlimFaas/commit/71d241a34ef22eda3f4b073112ac09c61ec3ca8e) - update maintainers list (#86), 2025-02-11 by *Guillaume Chervet*
 - [413a87f](https://github.com/SlimPlanet/SlimFaas/commit/413a87f8e68a49a0d8409dd130eed0514c44b77c) - fix(ci): update to actions/upload-artifact@v4, 2025-02-10 by *Guillaume Chervet*
 - [0ee30f7](https://github.com/SlimPlanet/SlimFaas/commit/0ee30f740ac6774d334e4c65f81c9f374ec49815) - doc: update LICENCE.md to apache v2 (#82), 2025-01-29 by *Guillaume Chervet*
-
-
-## v0.34.4
-
-- [83500bf](https://github.com/SlimPlanet/SlimFaas/commit/83500bfae65b59a284d551cd9800dc7eaa969c8f) - fix(slimfaas): log kubernetes, 2025-01-14 by *Guillaume Chervet*
-
-
-## v0.34.3
-
-- [eaed9fb](https://github.com/SlimPlanet/SlimFaas/commit/eaed9fb5298d8bdf7fd3bdbf62255ac1dae7a9b3) - fix(slimfaas): metrics deployment name does not match regex '^[a-zA-Z_][a-zA-Z0-9_]*$, 2025-01-14 by *Guillaume Chervet*
 
 
