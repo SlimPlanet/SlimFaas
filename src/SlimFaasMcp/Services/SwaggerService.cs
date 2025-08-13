@@ -12,17 +12,12 @@ public interface ISwaggerService
     IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger);
 }
 
-// Implémente aussi IRemoteSchemaService pour l'injection clé
 public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache memoryCache)
     : ISwaggerService
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
-
     private static readonly TimeSpan s_slidingExpiration = TimeSpan.FromMinutes(20);
 
-    /* =====================================================================
-     * 1. Télécharge + met en cache le document OpenAPI
-     * =================================================================== */
     public async Task<JsonDocument> GetSwaggerAsync(
         string swaggerUrl,
         string? baseUrl   = null,
@@ -34,15 +29,11 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
         using var request = new HttpRequestMessage(HttpMethod.Get, swaggerUrl);
 
-        // Injection éventuelle du bearer si même origine et header présent
         if (!string.IsNullOrEmpty(baseUrl) &&
             swaggerUrl.StartsWith(baseUrl, StringComparison.OrdinalIgnoreCase) && additionalHeaders != null)
         {
-
-            foreach (KeyValuePair<string, string> additionalHeader in additionalHeaders)
-            {
-                request.Headers.Add(additionalHeader.Key, additionalHeader.Value);
-            }
+            foreach (var h in additionalHeaders)
+                request.Headers.Add(h.Key, h.Value);
         }
 
         using var response = await _httpClient.SendAsync(request);
@@ -54,13 +45,10 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         return doc;
     }
 
-    /* =====================================================================
-     * 2. Parse le JSON et fabrique une liste d'Endpoint (tools)
-     * =================================================================== */
     public IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger)
     {
-        var root     = swagger.RootElement;
-        var paths    = root.GetProperty("paths");
+        var root      = swagger.RootElement;
+        var paths     = root.GetProperty("paths");
         var endpoints = new List<Endpoint>();
         var expander  = new OpenApiSchemaExpander(root);
 
@@ -75,37 +63,15 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 string summary = Summary(operation, verb, url);
 
                 var parameters  = new List<Parameter>();
-                string contentType = "application/json"; // valeur par défaut
+                string contentType = "application/json"; // défaut
 
-                /* ---------------------------------------------------------
-                 * (A) Parameters "in": path | query | header
-                 * ------------------------------------------------------- */
+                // (A) parameters (path/query/header)
                 if (operation.TryGetProperty("parameters", out var parametersArray))
                 {
                     foreach (var param0 in parametersArray.EnumerateArray())
                     {
-                        var param = param0;
+                        var param = ResolveParamRefIfAny(root, param0);
 
-                        // Résolution $ref (paramètres globaux)
-                        if (param.TryGetProperty("$ref", out var refProp))
-                        {
-                            var refPath = refProp.GetString();
-                            if (refPath is not null && refPath.StartsWith("#/parameters/"))
-                            {
-                                var paramName = refPath.Substring("#/parameters/".Length);
-                                if (root.TryGetProperty("parameters", out var globalParams) &&
-                                    globalParams.TryGetProperty(paramName, out var resolved))
-                                {
-                                    param = resolved;
-                                }
-                                else
-                                {
-                                    continue; // ref non résolu
-                                }
-                            }
-                        }
-
-                        /* --- enum values --------------------------------*/
                         JsonElement? enumArr = null;
                         if (param.TryGetProperty("enum", out var eArr))
                             enumArr = eArr;
@@ -131,13 +97,14 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     }
                 }
 
-                /* ---------------------------------------------------------
-                 * (B) requestBody (v3) – JSON ou multipart
-                 * ------------------------------------------------------- */
+                // (B) requestBody (v3)
                 if (operation.TryGetProperty("requestBody", out var body) &&
                     body.TryGetProperty("content", out var content))
                 {
-                    /* ----- JSON body ----------------------------------- */
+                    // Liste des CT dispo
+                    var available = content.EnumerateObject().Select(o => o.Name).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                    // --- JSON ---
                     if (content.TryGetProperty("application/json", out var appJson) &&
                         appJson.TryGetProperty("schema", out var schema))
                     {
@@ -150,47 +117,88 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                             SchemaType  = schema.TryGetProperty("type", out var t) ? t.GetString() : "object",
                             Schema      = expander.ExpandSchema(schema)
                         });
+                        contentType = "application/json";
                     }
 
-                    /* ----- multipart/form-data ------------------------- */
-                    if (content.TryGetProperty("multipart/form-data", out var multipart) &&
-                        multipart.TryGetProperty("schema", out var mpSchema) &&
-                        mpSchema.TryGetProperty("properties", out var props))
+                    // --- OCTET-STREAM ---
+                    if (content.TryGetProperty("application/octet-stream", out var _))
                     {
-                        var requiredFields = mpSchema.TryGetProperty("required", out var reqArr)
-                                             ? reqArr.EnumerateArray().Select(x => x.GetString()).ToHashSet()!
-                                             : new HashSet<string>();
-
-                        foreach (var prop in props.EnumerateObject())
+                        parameters.Add(new Parameter
                         {
-                            var p = prop.Value;
+                            Name        = "body",
+                            In          = "body",
+                            Required    = true,
+                            Description = "Binary body",
+                            SchemaType  = "string",
+                            Format      = "binary",
+                            Schema      = null
+                        });
+                        // On ne fige pas encore contentType ici; on décide après, cf. préférence multipart
+                    }
 
-                            JsonElement? enumArr = null;
-                            if (p.TryGetProperty("enum", out var eArr))
-                                enumArr = eArr;
-
-                            var descr = p.TryGetProperty("description", out var d)
-                                     ? d.GetString()
-                                     : "";
-                            descr = AppendEnumValues(descr, enumArr);
-
-                            parameters.Add(new Parameter
+                    // --- MULTIPART ---
+                    var hasMultipart = content.TryGetProperty("multipart/form-data", out var multipart);
+                    if (hasMultipart)
+                    {
+                        contentType = "multipart/form-data"; // ✅ priorité au multipart
+                        if (multipart.TryGetProperty("schema", out var mpSchema))
+                        {
+                            // Si on peut lire les propriétés -> on fabrique les params
+                            if (mpSchema.TryGetProperty("properties", out var props))
                             {
-                                Name        = prop.Name,
-                                In          = "formData",
-                                Required    = requiredFields.Contains(prop.Name),
-                                Description = descr,
-                                SchemaType  = p.TryGetProperty("type", out var t) ? t.GetString() : "string",
-                                Format      = p.TryGetProperty("format", out var f) ? f.GetString() : null,
-                                Schema      = expander.ExpandSchema(mpSchema)
-                            });
+                                var requiredFields = mpSchema.TryGetProperty("required", out var reqArr)
+                                                     ? reqArr.EnumerateArray().Select(x => x.GetString()).ToHashSet()!
+                                                     : new HashSet<string>();
+
+                                foreach (var prop in props.EnumerateObject())
+                                {
+                                    var p = prop.Value;
+
+                                    JsonElement? enumArr = null;
+                                    if (p.TryGetProperty("enum", out var eArr))
+                                        enumArr = eArr;
+
+                                    var descr = p.TryGetProperty("description", out var d)
+                                             ? d.GetString()
+                                             : "";
+                                    descr = AppendEnumValues(descr, enumArr);
+
+                                    parameters.Add(new Parameter
+                                    {
+                                        Name        = prop.Name,
+                                        In          = "formData",
+                                        Required    = requiredFields.Contains(prop.Name),
+                                        Description = descr,
+                                        SchemaType  = p.TryGetProperty("type", out var t) ? t.GetString() : "string",
+                                        Format      = p.TryGetProperty("format", out var f) ? f.GetString() : null,
+                                        Schema      = expander.ExpandSchema(mpSchema)
+                                    });
+                                }
+                            }
+                            else
+                            {
+                                // ✅ multipart sans properties lisibles : on synthétise un champ fichier par défaut
+                                parameters.Add(new Parameter
+                                {
+                                    Name        = "file",
+                                    In          = "formData",
+                                    Required    = true,
+                                    Description = "Binary file",
+                                    SchemaType  = "string",
+                                    Format      = "binary",
+                                    Schema      = null
+                                });
+                            }
                         }
+                    }
+                    else if (available.Contains("application/octet-stream") && !available.Contains("application/json"))
+                    {
+                        // Si uniquement octet-stream (cas de ton screenshot), fige le CT à octet-stream
+                        contentType = "application/octet-stream";
                     }
                 }
 
-                /* ---------------------------------------------------------
-                 * (C) Output schema (réponse 200 ou default)
-                 * ------------------------------------------------------- */
+                // (C) Output schema
                 JsonNode? responseSchema = null;
                 if (operation.TryGetProperty("responses", out var responses))
                 {
@@ -208,9 +216,6 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     }
                 }
 
-                /* ---------------------------------------------------------
-                 * (D) Ajout à la liste finale
-                 * ------------------------------------------------------- */
                 endpoints.Add(new Endpoint
                 {
                     Name           = verb.ToLowerInvariant() + url.Replace("/", "_").Replace("{", "").Replace("}", ""),
@@ -227,27 +232,30 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         return endpoints;
     }
 
-    /* =====================================================================
-     * Helpers internes
-     * =================================================================== */
+    private static JsonElement ResolveParamRefIfAny(JsonElement root, JsonElement param)
+    {
+        if (param.TryGetProperty("$ref", out var refProp))
+        {
+            var refPath = refProp.GetString();
+            if (refPath is not null && refPath.StartsWith("#/parameters/"))
+            {
+                var name = refPath.Substring("#/parameters/".Length);
+                if (root.TryGetProperty("parameters", out var globals) &&
+                    globals.TryGetProperty(name, out var resolved))
+                    return resolved;
+            }
+        }
+        return param;
+    }
 
-    /// <summary>
-    /// Concatène summary + description (s’il existe) pour une lecture humaine.
-    /// </summary>
     private static string Summary(JsonElement operation, string verb, string url)
     {
         var summaryTxt = operation.TryGetProperty("summary", out var s) ? s.GetString() : "";
         var descrTxt   = operation.TryGetProperty("description", out var d) ? d.GetString() : "";
-
-        var combined = string.Join(" — ", new[] { summaryTxt, descrTxt }
-                                         .Where(x => !string.IsNullOrWhiteSpace(x)));
-
+        var combined = string.Join(" — ", new[] { summaryTxt, descrTxt }.Where(x => !string.IsNullOrWhiteSpace(x)));
         return string.IsNullOrWhiteSpace(combined) ? $"{verb} {url}" : combined;
     }
 
-    /// <summary>
-    /// Ajoute "(valeurs : a, b, c)" à la description si l’énumération est présente.
-    /// </summary>
     private static string AppendEnumValues(string? description, JsonElement? enumArray)
     {
         if (enumArray is null || enumArray.Value.ValueKind != JsonValueKind.Array)
@@ -258,8 +266,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                                    .Where(v => !string.IsNullOrWhiteSpace(v))
                                    .ToArray();
 
-        if (values.Length == 0)
-            return description ?? "";
+        if (values.Length == 0) return description ?? "";
 
         var prefix = string.IsNullOrWhiteSpace(description) ? "" : description.TrimEnd() + " ";
         return $"{prefix}({string.Join(", ", values)})";

@@ -43,12 +43,10 @@
     <b>Base64 encodé :</b>
     <textarea id="oauthMetaBase64" readonly style="font-family:monospace;background:#eef;padding:2px 8px;"></textarea>
 </div>
-<!-- URL de partage MCP -->
 <div id="shareUrlContainer" style="margin-top:8px;max-width: 100%;word-break: break-word;">
     <b>URL MCP :</b>
     <span id="shareUrl" style="font-family:monospace;"></span>
 </div>
-<!-- NOUVEAU : URL pour la métadonnée OAuth -->
 <div id="oauthShareUrlContainer"
      style="margin-top:4px;max-width:100%;word-break:break-word;">
     <b>URL OAuth MCP :</b>
@@ -68,29 +66,19 @@
 <div id="tools"></div>
 
 <script>
-
     function getBearerHeader() {
         const token = document.getElementById("accessToken").value.trim();
         return token ? { "Authorization": `Bearer ${token}` } : {};
     }
 
-    /* -------------------------------------------------------------
-       Helpers de validation base64
-    ------------------------------------------------------------- */
     function isBase64(str) {
         return /^[A-Za-z0-9+/]+={0,2}$/.test(str || "");
     }
 
-    /* -------------------------------------------------------------
-       Globals (peu nombreuses)
-    ------------------------------------------------------------- */
-    let loadedTools  = [];  // tools d'origine de l'API
-    let mergedTools  = [];  // tools après merge YAML
+    let loadedTools  = [];
+    let mergedTools  = [];
     let mcpPromptJson = null;
 
-    /* -------------------------------------------------------------
-       Encodage / affichage du JSON OAuth -> base64
-    ------------------------------------------------------------- */
     function encodeOAuthMeta() {
         const txt = document.getElementById("oauthMeta").value.trim();
         if (!txt) {
@@ -109,13 +97,9 @@
 
     document.getElementById("oauthMeta").addEventListener("input", () => {
         encodeOAuthMeta();
-        updateShareUrl();  // rafraîchit l'URL de partage
+        updateShareUrl();
     });
 
-    /* -------------------------------------------------------------
-       Construction dynamique de l'URL /mcp?...
-       - n'inclut un query-param QUE si sa valeur est base64 valide non vide
-    ------------------------------------------------------------- */
     function updateShareUrl() {
         const swagger   = document.getElementById("swaggerUrl").value.trim();
         const base      = document.getElementById("baseUrl").value.trim();
@@ -127,10 +111,9 @@
 
         let url = `${originPath}/mcp?openapi_url=${encodeURIComponent(swagger)}`;
         if (base) url += `&base_url=${encodeURIComponent(base)}`;
-        if (isBase64(mcpB64))   url += `&mcp_prompt=${encodeURIComponent(mcpB64)}`;
-        if (isBase64(oauthB64)) url += `&oauth=${encodeURIComponent(oauthB64)}`;
+        if (isBase64(mcpB64) && mcpB64)   url += `&mcp_prompt=${encodeURIComponent(mcpB64)}`;
+        if (isBase64(oauthB64) && oauthB64) url += `&oauth=${encodeURIComponent(oauthB64)}`;
 
-        // Affichage + feedback longueur
         const span = document.getElementById("shareUrl");
         span.textContent = url;
         if (url.length > 8000) {
@@ -141,14 +124,10 @@
             span.title = "";
         }
 
-
-        /* ---- URL OAuth metadata (.well-known) ------------------------ */
         const pathMeta = oauthB64
             ? `/${oauthB64}/.well-known/oauth-protected-resource`
             : "/.well-known/oauth-protected-resource";
         const metaUrl  = `${originPath}${pathMeta}`;
-
-        /* ---- Affichage (OAuth metadata) ------------------------------ */
         document.getElementById("oauthShareUrl").textContent = metaUrl;
     }
 
@@ -156,9 +135,6 @@
         document.getElementById(id).addEventListener("input", () => updateShareUrl());
     });
 
-    /* -------------------------------------------------------------
-       Convertit le diff MCP Prompt -> { yaml, b64 } et met à jour UI
-    ------------------------------------------------------------- */
     function buildMinimalMcpPrompt({ loadedTools, uiTools }) {
         const prompt      = {};
         const origMap     = new Map(loadedTools.map(t => [t.name, t]));
@@ -182,7 +158,7 @@
             }
         }
         if (modified.length) prompt.tools = modified;
-        return prompt; // {} si aucune différence
+        return prompt;
     }
 
     function toYamlBase64(obj) {
@@ -204,9 +180,6 @@
 
     document.getElementById("mcpPrompt").addEventListener("input", getMcpPromptBase64);
 
-    /* -------------------------------------------------------------
-       Chargement initial des tools depuis l'OpenAPI
-    ------------------------------------------------------------- */
     async function loadTools() {
         const swaggerUrl = document.getElementById("swaggerUrl").value.trim();
         const baseUrl    = document.getElementById("baseUrl").value.trim();
@@ -222,7 +195,6 @@
         const tools    = await toolsRes.json();
         loadedTools    = tools;
 
-        // Préparation YAML initial
         let yaml;
         if (b64Prompt) {
             try {
@@ -247,18 +219,20 @@
         renderTools();
     }
 
-    /* -------------------------------------------------------------
-       UI : construction des formulaires / affichage tools
-    ------------------------------------------------------------- */
+    function needsFile(val) {
+        return (val && (val.format === "binary"
+            || (val.properties && val.properties.data && val.properties.data.contentEncoding === "base64")));
+    }
+
     function buildToolForm(tool) {
         const formDiv = document.getElementById(`inputForm_${tool.name}`);
         formDiv.innerHTML = "";
-        const contentType = tool.endpoint.contentType || "application/json";
+        const contentType = tool.endpoint?.contentType || "application/json";
         const props       = tool.inputSchema?.properties || {};
 
-        if (contentType === "multipart/form-data") {
+        if (contentType === "multipart/form-data" || contentType === "application/octet-stream") {
             for (const [key, val] of Object.entries(props)) {
-                if (val.format === "binary") {
+                if (needsFile(val)) {
                     formDiv.innerHTML += `<label>${key} (file): <input class="file-input" type="file" id="${tool.name}_input_${key}"></label><br>`;
                 } else {
                     formDiv.innerHTML += `<label>${key}: <input class="file-input" type="text" id="${tool.name}_input_${key}"></label><br>`;
@@ -267,6 +241,19 @@
         } else {
             formDiv.innerHTML += `<textarea id="${tool.name}_input_json" rows="4" placeholder='JSON input'></textarea>`;
         }
+    }
+
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const s = String(reader.result || "");
+                const idx = s.indexOf("base64,");
+                resolve(idx >= 0 ? s.substring(idx + 7) : s);
+            };
+            reader.onerror = e => reject(e);
+            reader.readAsDataURL(file);
+        });
     }
 
     async function runTool(name) {
@@ -278,24 +265,35 @@
         const { b64 }  = getMcpPromptBase64();
         if (b64) endpoint += `&mcp_prompt=${encodeURIComponent(b64)}`;
         const oauthB64 = document.getElementById("oauthMetaBase64").textContent.trim();
-        if (isBase64(oauthB64)) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
+        if (isBase64(oauthB64) && oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
 
-        const contentType = tool.endpoint.contentType || "application/json";
+        const contentType = tool.endpoint?.contentType || "application/json";
         let body;
         let headers = getBearerHeader();
 
-        if (contentType === "multipart/form-data") {
-            body = new FormData();
+        if (contentType === "multipart/form-data" || contentType === "application/octet-stream") {
+            // ✅ Envoie JSON MCP avec binaires en base64
             const props = tool.inputSchema.properties || {};
+            const args = {};
             for (const [key, val] of Object.entries(props)) {
-                if (val.format === "binary") {
+                if (needsFile(val)) {
                     const fileInput = document.getElementById(`${tool.name}_input_${key}`);
-                    if (fileInput.files.length) body.append(key, fileInput.files[0]);
+                    if (fileInput.files.length) {
+                        const file = fileInput.files[0];
+                        const base64 = await readFileAsBase64(file);
+                        args[key] = {
+                            data: base64,
+                            filename: file.name,
+                            mimeType: file.type || "application/octet-stream"
+                        };
+                    }
                 } else {
                     const txtInput = document.getElementById(`${tool.name}_input_${key}`);
-                    if (txtInput.value) body.append(key, txtInput.value);
+                    if (txtInput.value) args[key] = txtInput.value;
                 }
             }
+            headers["Content-Type"] = "application/json";
+            body = JSON.stringify(args);
         } else {
             headers["Content-Type"] = "application/json";
             const txt = document.getElementById(`${tool.name}_input_json`).value || "{}";
@@ -345,9 +343,6 @@
         }
     }
 
-    /* -------------------------------------------------------------
-       Fusion YAML -> mergedTools puis mise à jour UI + b64
-    ------------------------------------------------------------- */
     function applyMcpPrompt() {
         const yamlStr = document.getElementById("mcpPrompt").value;
         let prompt;
@@ -400,7 +395,6 @@
         getMcpPromptBase64();
     }
 
-    // Initial calcul des encodages + URL
     encodeOAuthMeta();
     updateShareUrl();
 </script>

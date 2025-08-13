@@ -12,4 +12,14 @@
         <PublishAot>true</PublishAot>
     </PropertyGroup>
 
+  <Target Name="RemoveDebugArtifactsFromPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <_DebugArtifacts Include="$(PublishDir)**\*.pdb" />
+      <_DebugArtifacts Include="$(PublishDir)**\*.dbg" />
+      <_DebugArtifacts Include="$(PublishDir)**\*.dSYM\**\*" />
+    </ItemGroup>
+    <Delete Files="@(_DebugArtifacts)" />
+    <RemoveDir Directories="$(PublishDir)**\*.dSYM" />
+  </Target>
+
 </Project>

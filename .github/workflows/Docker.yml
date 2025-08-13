@@ -26,6 +26,14 @@ on:
         required: false
         type: boolean
         default: true
+      readme_url:
+        description: "URL brute (raw) du README.md"
+        required: true
+        type: string
+      image_description:
+        description: "Courte description de l'image (opencontainers)"
+        required: true
+        type: string
     secrets:
       DOCKER_USERNAME:
         required: true
@@ -74,7 +82,10 @@ jobs:
         build-args: ${{ inputs.image_build_args }}
         push: false
         platforms: ${{ inputs.platforms }}
-        labels: ${{ steps.meta.outputs.labels }}
+        labels: |
+          ${{ steps.meta.outputs.labels }}
+          io.artifacthub.package.readme-url=${{ inputs.readme_url }}
+          org.opencontainers.image.description=${{ inputs.image_description }}
         tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache
@@ -88,7 +99,10 @@ jobs:
         build-args: ${{ inputs.image_build_args }}
         push: true
         tags: ${{ inputs.image_name }}:${{ inputs.image_version }},${{ inputs.image_name }}:latest
-        labels: ${{ steps.meta.outputs.labels }}
+        labels: |
+          ${{ steps.meta.outputs.labels }}
+          io.artifacthub.package.readme-url=${{ inputs.readme_url }}
+          org.opencontainers.image.description=${{ inputs.image_description }}
         platforms: ${{ inputs.platforms }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache
@@ -102,7 +116,10 @@ jobs:
         build-args: ${{ inputs.image_build_args }}
         push: true
         tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
-        labels: ${{ steps.meta.outputs.labels }}
+        labels: |
+          ${{ steps.meta.outputs.labels }}
+          io.artifacthub.package.readme-url=${{ inputs.readme_url }}
+          org.opencontainers.image.description=${{ inputs.image_description }}
         platforms: ${{ inputs.platforms }}
         cache-from: type=local,src=/tmp/.buildx-cache
         cache-to: type=local,dest=/tmp/.buildx-cache
