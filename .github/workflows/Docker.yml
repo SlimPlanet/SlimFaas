@@ -26,14 +26,32 @@ on:
         required: false
         type: boolean
         default: true
+      # --- Tous optionnels ---
       readme_url:
         description: "URL brute (raw) du README.md"
-        required: true
+        required: false
         type: string
+        default: ""
       image_description:
         description: "Courte description de l'image (opencontainers)"
-        required: true
+        required: false
         type: string
+        default: ""
+      license:
+        description: "Licence du projet"
+        required: false
+        type: string
+        default: ""
+      keywords:
+        description: "Mots-clés séparés par des virgules"
+        required: false
+        type: string
+        default: ""
+      logo_url:
+        description: "URL du logo (PNG ou SVG)"
+        required: false
+        type: string
+        default: ""
     secrets:
       DOCKER_USERNAME:
         required: true
@@ -45,81 +63,102 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}
-        password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    - name: Cache Docker layers
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-    - name: Extract metadata (tags, labels) for Docker
-      id: meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ inputs.image_name }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Build image (no push)
-      if: inputs.push != true
-      uses: docker/build-push-action@v5
-      with:
-        context: ${{ inputs.image_context }}
-        file: ${{ inputs.image_file }}
-        build-args: ${{ inputs.image_build_args }}
-        push: false
-        platforms: ${{ inputs.platforms }}
-        labels: |
-          ${{ steps.meta.outputs.labels }}
-          io.artifacthub.package.readme-url=${{ inputs.readme_url }}
-          org.opencontainers.image.description=${{ inputs.image_description }}
-        tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
-        cache-from: type=local,src=/tmp/.buildx-cache
-        cache-to: type=local,dest=/tmp/.buildx-cache
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-    - name: Build and push Docker image
-      if: github.ref == 'refs/heads/main' && inputs.push == true
-      uses: docker/build-push-action@v5
-      with:
-        context: ${{ inputs.image_context }}
-        file : ${{ inputs.image_file }}
-        build-args: ${{ inputs.image_build_args }}
-        push: true
-        tags: ${{ inputs.image_name }}:${{ inputs.image_version }},${{ inputs.image_name }}:latest
-        labels: |
-          ${{ steps.meta.outputs.labels }}
-          io.artifacthub.package.readme-url=${{ inputs.readme_url }}
-          org.opencontainers.image.description=${{ inputs.image_description }}
-        platforms: ${{ inputs.platforms }}
-        cache-from: type=local,src=/tmp/.buildx-cache
-        cache-to: type=local,dest=/tmp/.buildx-cache
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ inputs.image_name }}
 
-    - name: Build and push Docker image
-      if: github.ref != 'refs/heads/main' && inputs.push == true
-      uses: docker/build-push-action@v5
-      with:
-        context: ${{ inputs.image_context }}
-        file : ${{ inputs.image_file }}
-        build-args: ${{ inputs.image_build_args }}
-        push: true
-        tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
-        labels: |
-          ${{ steps.meta.outputs.labels }}
-          io.artifacthub.package.readme-url=${{ inputs.readme_url }}
-          org.opencontainers.image.description=${{ inputs.image_description }}
-        platforms: ${{ inputs.platforms }}
-        cache-from: type=local,src=/tmp/.buildx-cache
-        cache-to: type=local,dest=/tmp/.buildx-cache
+      - name: Compose optional labels
+        run: |
+          {
+            echo 'EXTRA_LABELS<<EOF'
+            if [ -n "${{ inputs.readme_url }}" ]; then
+              echo "io.artifacthub.package.readme-url=${{ inputs.readme_url }}"
+            fi
+            if [ -n "${{ inputs.license }}" ]; then
+              echo "io.artifacthub.package.license=${{ inputs.license }}"
+            fi
+            if [ -n "${{ inputs.keywords }}" ]; then
+              echo "io.artifacthub.package.keywords=${{ inputs.keywords }}"
+            fi
+            if [ -n "${{ inputs.logo_url }}" ]; then
+              echo "io.artifacthub.package.logo-url=${{ inputs.logo_url }}"
+            fi
+            if [ -n "${{ inputs.image_description }}" ]; then
+              echo "org.opencontainers.image.description=${{ inputs.image_description }}"
+            fi
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+      - name: Build image (no push)
+        if: inputs.push != true
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.image_context }}
+          file: ${{ inputs.image_file }}
+          build-args: ${{ inputs.image_build_args }}
+          push: false
+          platforms: ${{ inputs.platforms }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            ${{ env.EXTRA_LABELS }}
+          tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Build and push Docker image (main -> latest + version)
+        if: github.ref == 'refs/heads/main' && inputs.push == true
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.image_context }}
+          file: ${{ inputs.image_file }}
+          build-args: ${{ inputs.image_build_args }}
+          push: true
+          tags: ${{ inputs.image_name }}:${{ inputs.image_version }},${{ inputs.image_name }}:latest
+          platforms: ${{ inputs.platforms }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            ${{ env.EXTRA_LABELS }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
+
+      - name: Build and push Docker image (branches ≠ main -> version)
+        if: github.ref != 'refs/heads/main' && inputs.push == true
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.image_context }}
+          file: ${{ inputs.image_file }}
+          build-args: ${{ inputs.image_build_args }}
+          push: true
+          tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
+          platforms: ${{ inputs.platforms }}
+          labels: |
+            ${{ steps.meta.outputs.labels }}
+            ${{ env.EXTRA_LABELS }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache
