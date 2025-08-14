@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.38.7
+
+- [235e8b3](https://github.com/SlimPlanet/SlimFaas/commit/235e8b32d171a40bebb4efbc7ab0e32f9299916e) - fix(ci): docker image slimfaas logo info (release), 2025-08-14 by *Guillaume Chervet*
+- [4eb7f3a](https://github.com/SlimPlanet/SlimFaas/commit/4eb7f3a696c7784afe82a702acf1ccda2050d8f1) - Create scorecard.yml, 2025-08-14 by *Guillaume Chervet*
+
+
+## 0.38.6
+
+
+
 ## v0.38.6
 
 - [9809e70](https://github.com/SlimPlanet/SlimFaas/commit/9809e7017c82ef8c7b58adbb78ebf46b1d811ebf) - feature(mcp): manage file octet stream (release) (#146), 2025-08-14 by *Guillaume Chervet*
@@ -290,17 +300,5 @@
 ## v0.35.1
 
 - [a7b5250](https://github.com/SlimPlanet/SlimFaas/commit/a7b5250bc4951028c37e91c1a0e6ea2f96c84c20) - fix(PlanetSaver): sonar issue (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.0
-
-- [88c68bf](https://github.com/SlimPlanet/SlimFaas/commit/88c68bf0b65aeb7b6779bef3dcb936c471692c39) - fix(PlanetSaver): exclude "coverage" directory (release), 2025-02-16 by *Guillaume Chervet*
-- [15d0232](https://github.com/SlimPlanet/SlimFaas/commit/15d023249dbaa0af6b7edd14777e4924e7c4af6f) - refactor(PlanetSaver): add test (#89), 2025-02-16 by *Guillaume Chervet*
-- [dab4224](https://github.com/SlimPlanet/SlimFaas/commit/dab4224eca70d970d54b0a20a49960e161ea5671) - feat(ci): auto changelog (#88), 2025-02-13 by *Guillaume Chervet*
-
-
-## v0.34.7
-
-- [859044f](https://github.com/SlimPlanet/SlimFaas/commit/859044f77500b0684aaecc4402c341729ceecc8a) - fix(demo): update libraries, 2025-02-13 by *Guillaume Chervet*
 
 
