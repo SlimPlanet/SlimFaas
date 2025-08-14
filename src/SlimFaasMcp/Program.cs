@@ -94,7 +94,6 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
             response["result"] = new JsonObject {
                 ["tools"] = new JsonArray(tools.Select(t => new JsonObject {
                     ["name"]        = t.Name,
-                    ["title"]       = t.Description,
                     ["description"] = t.Description,
                     ["inputSchema"] = JsonNode.Parse(
                         JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode)),

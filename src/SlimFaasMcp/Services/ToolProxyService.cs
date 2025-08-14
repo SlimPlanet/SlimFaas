@@ -165,190 +165,161 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         throw new ArgumentException($"Binary field '{fallbackName}' has invalid JSON type");
     }
 
-    public async Task<string> ExecuteToolAsync(
-        string swaggerUrl,
-        string toolName,
-        JsonElement input,
-        string? baseUrl = null,
-        IDictionary<string,string>? additionalHeaders = null)
+public async Task<string> ExecuteToolAsync(
+    string swaggerUrl,
+    string toolName,
+    JsonElement input,
+    string? baseUrl = null,
+    IDictionary<string,string>? additionalHeaders = null)
+{
+    var swagger   = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, additionalHeaders);
+    var endpoints = swaggerService.ParseEndpoints(swagger);
+    var endpoint  = endpoints.FirstOrDefault(e => e.Name == toolName);
+
+    if (endpoint is null)
+        return "{\"error\":\"Tool not found\"}";
+
+    baseUrl ??= ExtractBaseUrl(swagger)
+                ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
+    baseUrl = baseUrl.TrimEnd('/');
+
+    var inputDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
+                        input.GetRawText(),
+                        AppJsonContext.Default.DictionaryStringJsonElement)!;
+
+    // ----- Path params
+    var callUrl = endpoint.Url;
+    foreach (var parameter in endpoint.Parameters.Where(p => p.In == "path"))
+        callUrl = callUrl?.Replace($"{{{parameter.Name}}}",
+                                  parameter.Name != null && inputDict.TryGetValue(parameter.Name, out var v) ? v.ToString() : "");
+
+    if (callUrl != null && !callUrl.StartsWith('/')) callUrl = "/" + callUrl;
+    var fullUrl = baseUrl + callUrl;
+
+    // ----- Query params (uniquement ceux déclarés comme query)
+    var queryParams = endpoint.Parameters
+        .Where(p => p is { In: "query", Name: not null } && inputDict.ContainsKey(p.Name))
+        .Select(p => $"{p.Name}={Uri.EscapeDataString(inputDict[p.Name].ValueKind == JsonValueKind.String ? inputDict[p.Name].GetString()! : inputDict[p.Name].GetRawText())}");
+    if (queryParams.Any()) fullUrl += "?" + string.Join('&', queryParams);
+
+    // ----- Choix du corps
+    var declaredContentType = endpoint.ContentType;
+    var hasFormParams = endpoint.Parameters.Any(p =>
+        string.Equals(p.In, "formData", StringComparison.OrdinalIgnoreCase));
+    var hasBinaryBody = endpoint.Parameters.Any(p =>
+        string.Equals(p.In, "body", StringComparison.OrdinalIgnoreCase) &&
+        string.Equals(p.Format, "binary", StringComparison.OrdinalIgnoreCase));
+
+    var isDeclaredMultipart = !string.IsNullOrWhiteSpace(declaredContentType) &&
+                              declaredContentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase);
+    var isDeclaredOctet     = !string.IsNullOrWhiteSpace(declaredContentType) &&
+                              declaredContentType.StartsWith("application/octet-stream", StringComparison.OrdinalIgnoreCase);
+
+    // ✅ Règle stricte :
+    // - Si le spec déclare multipart OU il y a des formData -> multipart
+    // - SINON si le spec déclare octet-stream (ou body binaire sans formData) -> octet-stream
+    // - Sinon -> JSON
+    var treatAsMultipart = isDeclaredMultipart || hasFormParams;
+    var treatAsOctet     = !treatAsMultipart && (isDeclaredOctet || (hasBinaryBody && !hasFormParams));
+
+    // ----- Construire la requête HTTP
+    HttpResponseMessage resp;
+
+    var httpMethod = new HttpMethod(endpoint.Verb ?? "GET");
+    if (string.Equals(endpoint.Verb, "GET", StringComparison.OrdinalIgnoreCase))
     {
-        var swagger   = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, additionalHeaders);
-        var endpoints = swaggerService.ParseEndpoints(swagger);
-        var endpoint  = endpoints.FirstOrDefault(e => e.Name == toolName);
+        var reqGet = new HttpRequestMessage(HttpMethod.Get, fullUrl);
+        // (optionnel) Accept JSON
+        reqGet.Headers.Accept.ParseAdd("application/json");
+        if (additionalHeaders != null)
+            foreach (var header in additionalHeaders)
+                reqGet.Headers.Add(header.Key, header.Value);
 
-        if (endpoint is null)
-            return "{\"error\":\"Tool not found\"}";
+        resp = await _httpClient.SendAsync(reqGet);
+        return await resp.Content.ReadAsStringAsync();
+    }
 
-        baseUrl ??= ExtractBaseUrl(swagger)
-                    ?? throw new ArgumentException("No baseUrl provided or found in Swagger");
-        baseUrl = baseUrl.TrimEnd('/');
+    HttpRequestMessage reqMsg;
 
-        var inputDict = JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(
-                            input.GetRawText(),
-                            AppJsonContext.Default.DictionaryStringJsonElement)!;
+    if (treatAsMultipart)
+    {
+        var mp = new MultipartFormDataContent();
 
-        // Path params
-        var callUrl = endpoint.Url;
-        foreach (var parameter in endpoint.Parameters.Where(p => p.In == "path"))
-            callUrl = callUrl?.Replace($"{{{parameter.Name}}}",
-                                      parameter.Name != null && inputDict.TryGetValue(parameter.Name, out var v) ? v.ToString() : "");
-
-        if (callUrl != null && !callUrl.StartsWith('/')) callUrl = "/" + callUrl;
-        var fullUrl = baseUrl + callUrl;
-
-        // Query params
-        var queryParams = endpoint.Parameters
-            .Where(parameter => parameter is { In: "query", Name: not null } && inputDict.ContainsKey(parameter.Name))
-            .Select(parameter => $"{parameter.Name}={Uri.EscapeDataString(TryGetString(inputDict[parameter.Name]) ?? "")}");
-        if (queryParams.Any()) fullUrl += "?" + string.Join('&', queryParams);
-
-        // Détermination robuste du type de corps
-        var declaredContentType = string.IsNullOrWhiteSpace(endpoint.ContentType) ? GetContentType(endpoint) : endpoint.ContentType;
-
-        var isDeclaredMultipart = declaredContentType != null &&
-                                  declaredContentType.StartsWith("multipart/form-data", StringComparison.OrdinalIgnoreCase);
-        var isDeclaredOctet     = declaredContentType != null &&
-                                  declaredContentType.StartsWith("application/octet-stream", StringComparison.OrdinalIgnoreCase);
-
-        var hasFormParams = endpoint.Parameters.Any(p => string.Equals(p.In, "formData", StringComparison.OrdinalIgnoreCase));
-        var hasBinaryBody = endpoint.Parameters.Any(p =>
-            string.Equals(p.In, "body", StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(p.Format, "binary", StringComparison.OrdinalIgnoreCase));
-
-        // Heuristiques de fallback :
-        var looksLikeBinaryObject = inputDict.Any(kv =>
-            kv.Value.ValueKind == JsonValueKind.Object &&
-            kv.Value.TryGetProperty("data", out var d) &&
-            d.ValueKind == JsonValueKind.String);
-
-        var hasOtherTextFields = inputDict.Any(kv =>
-            kv.Key is not "body" and not "file" &&
-            (kv.Value.ValueKind == JsonValueKind.String || kv.Value.ValueKind == JsonValueKind.Number || kv.Value.ValueKind == JsonValueKind.True || kv.Value.ValueKind == JsonValueKind.False));
-
-        // ✅ Décision finale
-        var treatAsMultipart =
-            isDeclaredMultipart
-            || hasFormParams
-            || (isDeclaredOctet && (hasOtherTextFields || (endpoint.Url?.Contains("upload", StringComparison.OrdinalIgnoreCase) ?? false)));
-
-        var treatAsOctet =
-            !treatAsMultipart && (isDeclaredOctet || hasBinaryBody);
-
-        HttpResponseMessage resp;
-
-        if (string.Equals(endpoint.Verb, "GET", StringComparison.OrdinalIgnoreCase))
+        if (hasFormParams)
         {
-            var reqGet = new HttpRequestMessage(HttpMethod.Get, fullUrl);
-            if (additionalHeaders != null)
-                foreach (var header in additionalHeaders)
-                    reqGet.Headers.Add(header.Key, header.Value);
-
-            resp = await _httpClient.SendAsync(reqGet);
-            return await resp.Content.ReadAsStringAsync();
-        }
-
-        HttpRequestMessage reqMsg;
-
-        if (treatAsMultipart)
-        {
-            // Construit un multipart form-data réel
-            var mp = new MultipartFormDataContent();
-
-            if (hasFormParams)
+            // Utilise la déclaration des formData
+            foreach (var p in endpoint.Parameters.Where(x => string.Equals(x.In, "formData", StringComparison.OrdinalIgnoreCase)))
             {
-                // On s'appuie sur les params déclarés
-                foreach (var p in endpoint.Parameters.Where(x => string.Equals(x.In, "formData", StringComparison.OrdinalIgnoreCase)))
-                {
-                    if (string.IsNullOrEmpty(p.Name)) continue;
-                    if (!inputDict.TryGetValue(p.Name, out var val)) continue;
+                if (string.IsNullOrEmpty(p.Name)) continue;
+                if (!inputDict.TryGetValue(p.Name, out var val)) continue;
 
-                    if (string.Equals(p.Format, "binary", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var (bytes, fileName, mimeType) = ExtractBinary(val, p.Name!);
-                        var byteContent = new ByteArrayContent(bytes);
-                        byteContent.Headers.ContentType = new MediaTypeHeaderValue(mimeType ?? "application/octet-stream");
-                        mp.Add(byteContent, p.Name!, string.IsNullOrWhiteSpace(fileName) ? p.Name : fileName);
-                    }
-                    else
-                    {
-                        mp.Add(new StringContent(TryGetString(val) ?? ""), p.Name!);
-                    }
+                if (string.Equals(p.Format, "binary", StringComparison.OrdinalIgnoreCase))
+                {
+                    var (bytes, fileName, mimeType) = ExtractBinary(val, p.Name!);
+                    var byteContent = new ByteArrayContent(bytes);
+                    byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mimeType ?? "application/octet-stream");
+                    mp.Add(byteContent, p.Name!, string.IsNullOrWhiteSpace(fileName) ? p.Name : fileName);
+                }
+                else
+                {
+                    mp.Add(new StringContent(val.ValueKind == JsonValueKind.String ? val.GetString()! : val.GetRawText()), p.Name!);
                 }
             }
-            else
-            {
-                // ✅ Fallback : pas de params formData déclarés (cas "octet-stream" dans le spec)
-                // - binaire: "file" puis "body"
-                // - texte: autres clés
-                if (inputDict.TryGetValue("file", out var vfile))
-                {
-                    var (bytes, fileName, mimeType) = ExtractBinary(vfile, "file");
-                    var byteContent = new ByteArrayContent(bytes);
-                    byteContent.Headers.ContentType = new MediaTypeHeaderValue(mimeType ?? "application/octet-stream");
-                    mp.Add(byteContent, "file", string.IsNullOrWhiteSpace(fileName) ? "file" : fileName);
-                }
-                else if (inputDict.TryGetValue("body", out var vbody) && looksLikeBinaryObject)
-                {
-                    var (bytes, fileName, mimeType) = ExtractBinary(vbody, "file");
-                    var byteContent = new ByteArrayContent(bytes);
-                    byteContent.Headers.ContentType = new MediaTypeHeaderValue(mimeType ?? "application/octet-stream");
-                    mp.Add(byteContent, "file", string.IsNullOrWhiteSpace(fileName) ? "file" : fileName);
-                }
-
-                foreach (var kv in inputDict)
-                {
-                    if (kv.Key is "file" or "body") continue; // déjà traité au-dessus
-                    var valStr = TryGetString(kv.Value);
-                    if (valStr is not null)
-                        mp.Add(new StringContent(valStr), kv.Key);
-                }
-            }
-
-            reqMsg = new HttpRequestMessage(new HttpMethod(endpoint.Verb ?? "POST"), fullUrl)
-            {
-                Content = mp
-            };
-        }
-        else if (treatAsOctet)
-        {
-            // Corps binaire pur
-            if (!inputDict.TryGetValue("body", out var valBody))
-                return "{\"error\":\"Missing 'body' for binary request\"}";
-
-            var (bytes, _, mimeType) = ExtractBinary(valBody, "body");
-            var content = new ByteArrayContent(bytes);
-            content.Headers.ContentType = new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(mimeType) ? "application/octet-stream" : mimeType);
-
-            reqMsg = new HttpRequestMessage(new HttpMethod(endpoint.Verb ?? "POST"), fullUrl)
-            {
-                Content = content
-            };
         }
         else
         {
-            // Corps JSON
-            StringContent? body = null;
-
-            if (endpoint.Parameters.Any(p => p.In == "body"))
+            // Pas de formData déclarés -> (rare) on tomberait ici uniquement si isDeclaredMultipart==true
+            // On ne devine rien : on mappe seulement un éventuel champ "file"
+            if (inputDict.TryGetValue("file", out var vfile))
             {
-                var payload = (inputDict.Count == 1 && inputDict.ContainsKey("body"))
-                                ? inputDict["body"].GetRawText()
-                                : JsonSerializer.Serialize(inputDict, AppJsonContext.Default.DictionaryStringJsonElement);
-
-                body = new StringContent(payload, Encoding.UTF8, "application/json");
+                var (bytes, fileName, mimeType) = ExtractBinary(vfile, "file");
+                var byteContent = new ByteArrayContent(bytes);
+                byteContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(mimeType ?? "application/octet-stream");
+                mp.Add(byteContent, "file", string.IsNullOrWhiteSpace(fileName) ? "file" : fileName);
             }
-
-            reqMsg = new HttpRequestMessage(new HttpMethod(endpoint.Verb ?? "POST"), fullUrl)
-            {
-                Content = body
-            };
         }
 
-        if (additionalHeaders != null)
-            foreach (var header in additionalHeaders)
-                reqMsg.Headers.Add(header.Key, header.Value);
-
-        resp = await _httpClient.SendAsync(reqMsg);
-        return await resp.Content.ReadAsStringAsync();
+        reqMsg = new HttpRequestMessage(httpMethod, fullUrl) { Content = mp };
     }
+    else if (treatAsOctet)
+    {
+        // ✅ OCTET-STREAM: on doit envoyer les octets bruts exactement comme l'exemple Swagger
+        //   Requis: le JSON MCP contient "body": { data: <base64>, filename?, mimeType? }
+        if (!inputDict.TryGetValue("body", out var valBody))
+            return "{\"error\":\"Missing 'body' for binary request\"}";
+
+        var (bytes, _, mimeType) = ExtractBinary(valBody, "body");
+        var content = new ByteArrayContent(bytes);
+        content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(
+             "application/octet-stream");
+
+        reqMsg = new HttpRequestMessage(httpMethod, fullUrl) { Content = content };
+    }
+    else
+    {
+        // JSON
+        StringContent? body = null;
+
+        if (endpoint.Parameters.Any(p => p.In == "body"))
+        {
+            var payload = (inputDict.Count == 1 && inputDict.ContainsKey("body"))
+                            ? inputDict["body"].GetRawText()
+                            : JsonSerializer.Serialize(inputDict, AppJsonContext.Default.DictionaryStringJsonElement);
+
+            body = new StringContent(payload, Encoding.UTF8, "application/json");
+        }
+
+        reqMsg = new HttpRequestMessage(httpMethod, fullUrl) { Content = body };
+    }
+
+    // Headers communs
+    reqMsg.Headers.Accept.ParseAdd("application/json");
+    if (additionalHeaders != null)
+        foreach (var header in additionalHeaders)
+            reqMsg.Headers.Add(header.Key, header.Value);
+
+    resp = await _httpClient.SendAsync(reqMsg);
+    return await resp.Content.ReadAsStringAsync();
+}
+
 }
