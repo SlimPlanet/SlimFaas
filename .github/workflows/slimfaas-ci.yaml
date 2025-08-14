@@ -205,7 +205,7 @@ jobs:
       image_description: "SlimFaas: fast FaaS + jobs/cron, scalable amd simple."
       license: "Apache-2.0"
       keywords: "slimfaas,faas,proxy,serverless,queue,publish/subscribe,jobs,cron,kubernetes"
-      logo_url: https://raw.githubusercontent.com/${{ github.repository }}/main/docs/logo.png
+      logo_url: https://raw.githubusercontent.com/${{ github.repository }}/main/documentation/SlimFaas.png
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
@@ -240,7 +240,6 @@ jobs:
       license: "Apache-2.0"
       keywords: "mcp,slimfaas,openapi,proxy,oauth,oidc,tools"
       logo_url: https://raw.githubusercontent.com/${{ github.repository }}/main/documentation/SlimFaas.png
-
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
