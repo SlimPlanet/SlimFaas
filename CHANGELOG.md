@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.38.6
+
+- [9809e70](https://github.com/SlimPlanet/SlimFaas/commit/9809e7017c82ef8c7b58adbb78ebf46b1d811ebf) - feature(mcp): manage file octet stream (release) (#146), 2025-08-14 by *Guillaume Chervet*
+
+
+## 0.38.5
+
+
+
 ## v0.38.5
 
 - [d3b49e5](https://github.com/SlimPlanet/SlimFaas/commit/d3b49e55a43a8201eb16a6f4deb24918e9b4d6e5) - refactor(SlimData): Migration to a new command handler API (#145) (release), 2025-08-12 by *Roman Sakno*
@@ -293,18 +302,5 @@
 ## v0.34.7
 
 - [859044f](https://github.com/SlimPlanet/SlimFaas/commit/859044f77500b0684aaecc4402c341729ceecc8a) - fix(demo): update libraries, 2025-02-13 by *Guillaume Chervet*
-
-
-## v0.34.6
-
-- [58b823d](https://github.com/SlimPlanet/SlimFaas/commit/58b823d3e644cdc7540e4aa39da8c2601a1afecb) - doc: adopt cncf code of conduct (#84), 2025-02-13 by *Guillaume Chervet*
-
-
-## v0.34.5
-
-- [de92bec](https://github.com/SlimPlanet/SlimFaas/commit/de92becbf868ebf59c08bf2dd8de4ded1e7b91f1) - fix(sonar): update sonar settings (#87), 2025-02-12 by *Guillaume Chervet*
-- [71d241a](https://github.com/SlimPlanet/SlimFaas/commit/71d241a34ef22eda3f4b073112ac09c61ec3ca8e) - update maintainers list (#86), 2025-02-11 by *Guillaume Chervet*
-- [413a87f](https://github.com/SlimPlanet/SlimFaas/commit/413a87f8e68a49a0d8409dd130eed0514c44b77c) - fix(ci): update to actions/upload-artifact@v4, 2025-02-10 by *Guillaume Chervet*
-- [0ee30f7](https://github.com/SlimPlanet/SlimFaas/commit/0ee30f740ac6774d334e4c65f81c9f374ec49815) - doc: update LICENCE.md to apache v2 (#82), 2025-01-29 by *Guillaume Chervet*
 
 
