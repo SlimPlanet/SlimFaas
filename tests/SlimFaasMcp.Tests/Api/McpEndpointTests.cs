@@ -93,12 +93,13 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task ToolsCall_HappyPath_WrapsProxyResponse()
     {
+        ProxyCallResult proxyCallResult = new() { Text = """{ "pets": [] }""" };
         _toolProxyMock.Setup(p => p.ExecuteToolAsync(It.IsAny<string>(),
                                                      "getPets",
                                                      It.IsAny<JsonElement>(),
                                                      It.IsAny<string?>(),
                                                      It.IsAny<IDictionary<string,string>?>()))
-                      .ReturnsAsync("""{ "pets": [] }""");
+                      .ReturnsAsync(proxyCallResult);
 
         var rpc = JsonSerializer.Deserialize<JsonNode>("""{"jsonrpc":"2.0","id":"abc","method":"tools/call","params":{"name":"getPets","arguments":{}}}""")!;
 

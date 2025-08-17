@@ -94,7 +94,7 @@ public class ToolProxyServiceMoreTests
 
         var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPet", input, "https://api.example");
 
-        Assert.Equal("{ \"ok\": true }", result);
+        Assert.Equal("{ \"ok\": true }", result.Text);
         Assert.Equal("https://api.example/pets/42?type=cat", _handler.LastRequest?.RequestUri!.ToString());
         Assert.Equal(HttpMethod.Get, _handler.LastRequest?.Method);
     }
@@ -126,7 +126,7 @@ public class ToolProxyServiceMoreTests
 
         var result = await _sut.ExecuteToolAsync("https://swagger.example", "createPet", input, "https://api.example");
 
-        Assert.Equal("{ \"id\": 1 }", result);
+        Assert.Equal("{ \"id\": 1 }", result.Text);
         Assert.Equal(HttpMethod.Post, _handler.LastRequest?.Method);
         var body = await _handler.LastRequest!.Content!.ReadAsStringAsync();
         Assert.Equal("{\"name\":\"Milo\"}", body);
@@ -140,7 +140,7 @@ public class ToolProxyServiceMoreTests
 
         var res = await _sut.ExecuteToolAsync("https://swagger.example", "unknown", input, "https://api.example");
 
-        Assert.Contains("Tool not found", res);
+        Assert.Contains("Tool not found", res.Text);
     }
 
     private class TestHandler : HttpMessageHandler

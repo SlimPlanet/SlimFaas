@@ -75,63 +75,56 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
     {
         /* 1. initialize ------------------------------------------------ */
         case "initialize":
-            response["result"] = new JsonObject {
+            response["result"] = new JsonObject
+            {
                 ["protocolVersion"] = "2025-06-18",
-                ["capabilities"]    = new JsonObject { ["tools"] = new JsonObject() },
-                ["serverInfo"]      = new JsonObject {
-                    ["name"]    = "SlimFaas MCP",
-                    ["version"] = "0.1.0"
-                }
+                ["capabilities"] = new JsonObject { ["tools"] = new JsonObject() },
+                ["serverInfo"] = new JsonObject { ["name"] = "SlimFaas MCP", ["version"] = "0.1.0" }
             };
             break;
 
         /* 2. tools/list ------------------------------------------------ */
         case "tools/list":
-        {
-            var tools = await toolProxyService.GetToolsAsync(
-                openapiUrl, baseUrl, additionalHeaders, mcpPromptB64);
-
-            response["result"] = new JsonObject {
-                ["tools"] = new JsonArray(tools.Select(t => new JsonObject {
-                    ["name"]        = t.Name,
-                    ["description"] = t.Description,
-                    ["inputSchema"] = JsonNode.Parse(
-                        JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode)),
-                    ["outputSchema"] = JsonNode.Parse(JsonSerializer
-                        .Serialize(t.OutputSchema, AppJsonContext.Default.JsonNode))
-                }).ToArray())
-            };
-            break;
-        }
-
-        /* 3. tools/call ------------------------------------------------ */
-        case "tools/call":
-        {
-            if (!root.TryGetProperty("params", out var p))
             {
-                response["error"] = new JsonObject { ["code"] = -32602, ["message"] = "Missing params" };
+                var tools = await toolProxyService.GetToolsAsync(
+                    openapiUrl, baseUrl, additionalHeaders, mcpPromptB64);
+
+                response["result"] = new JsonObject
+                {
+                    ["tools"] = new JsonArray(tools.Select(t => new JsonObject
+                    {
+                        ["name"] = t.Name,
+                        ["description"] = t.Description,
+                        ["inputSchema"] = JsonNode.Parse(
+                            JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode)),
+                        ["outputSchema"] = JsonNode.Parse(JsonSerializer
+                            .Serialize(t.OutputSchema, AppJsonContext.Default.JsonNode))
+                    }).ToArray())
+                };
                 break;
             }
 
-            var resultStr = await toolProxyService.ExecuteToolAsync(
-                                openapiUrl,
-                                p.GetProperty("name").GetString()!,
-                                p.GetProperty("arguments"),
-                                baseUrl,
-                                additionalHeaders);
-
-            // Tout est déjà string → aucun YAML, aucune réflexion
-            response["result"] = new JsonObject {
-                ["content"] = new JsonArray {
-                    new JsonObject {
-                        ["type"] = "text",
-                        ["text"] = $"```json\n{resultStr}\n```"
-                    }
+        /* 3. tools/call ------------------------------------------------ */
+        case "tools/call":
+            {
+                if (!root.TryGetProperty("params", out var p))
+                {
+                    response["error"] = new JsonObject { ["code"] = -32602, ["message"] = "Missing params" };
+                    break;
                 }
-            };
-            break;
-        }
 
+                var callResult = await toolProxyService.ExecuteToolAsync(
+                    openapiUrl,
+                    p.GetProperty("name").GetString()!,
+                    p.GetProperty("arguments"),
+                    baseUrl,
+                    additionalHeaders);
+
+                var contentArr = McpContentBuilder.Build(callResult);
+
+                response["result"] = new JsonObject { ["content"] = contentArr };
+                break;
+            }
         default:
             response["error"] = new JsonObject {
                 ["code"] = -32601,
@@ -167,7 +160,7 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
         mcp_prompt));
 });
 
-grp.MapPost("/{toolName}", async Task<Ok<string>> (
+grp.MapPost("/{toolName}", async Task<IResult> (
         string toolName,
         string openapi_url,
         [FromBody] JsonElement arguments,
@@ -175,15 +168,21 @@ grp.MapPost("/{toolName}", async Task<Ok<string>> (
         [FromQuery] string? mcp_prompt,
         HttpRequest httpRequest,
         IToolProxyService proxy)
-        =>
+    =>
 {
     IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
 
-    return TypedResults.Ok(await proxy.ExecuteToolAsync(
+    var r = await proxy.ExecuteToolAsync(
         openapi_url, toolName, arguments,
         base_url,
-        additionalHeaders));
+        additionalHeaders);
+
+    // ⚖️ Retourne exactement le même objet que "result" de tools/call : { "content": [...] }
+    var contentArr = SlimFaasMcp.Services.McpContentBuilder.Build(r);
+    var resultObj  = new JsonObject { ["content"] = contentArr };
+    return Results.Json(resultObj, AppJsonContext.Default.JsonNode);
 });
+
 
 
 app.MapGet("/{oauth?}/.well-known/oauth-protected-resource",
