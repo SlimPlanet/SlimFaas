@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.39.0
+
+- [09f684b](https://github.com/SlimPlanet/SlimFaas/commit/09f684b61dec0ef7b45ef867beb2f8972d33924c) - feat(mcp): api to client base 64 (release) (#148), 2025-08-17 by *Guillaume Chervet*
+- [9ea579e](https://github.com/SlimPlanet/SlimFaas/commit/9ea579ecd71f418ff752bb65b70760fa72752687) - doc: add badge OpenSSF Best Practices, 2025-08-15 by *Guillaume Chervet*
+- [0adb0b5](https://github.com/SlimPlanet/SlimFaas/commit/0adb0b5b21309ff4429faa56a9aeaf3acfe6061e) - doc: add scorecard badge, 2025-08-15 by *Guillaume Chervet*
+
+
+## 0.38.7
+
+
+
 ## v0.38.7
 
 - [235e8b3](https://github.com/SlimPlanet/SlimFaas/commit/235e8b32d171a40bebb4efbc7ab0e32f9299916e) - fix(ci): docker image slimfaas logo info (release), 2025-08-14 by *Guillaume Chervet*
@@ -290,15 +301,5 @@
 ## v0.35.3
 
 - [272b2ac](https://github.com/SlimPlanet/SlimFaas/commit/272b2ac52e21402b9a317f02b7b06966a7640cdc) - fix(ci): autochangelog was not working (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.2
-
-- [64295e6](https://github.com/SlimPlanet/SlimFaas/commit/64295e64a8dee2ddc69e512926a9b736fdd56ea8) - fix(ci): wrong version computed (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.1
-
-- [a7b5250](https://github.com/SlimPlanet/SlimFaas/commit/a7b5250bc4951028c37e91c1a0e6ea2f96c84c20) - fix(PlanetSaver): sonar issue (release), 2025-02-16 by *Guillaume Chervet*
 
 
