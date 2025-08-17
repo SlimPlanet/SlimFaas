@@ -41,7 +41,7 @@ public class MinimalApiTests : IClassFixture<MinimalApiTests.TestAppFactory>
         Assert.Equal(HttpStatusCode.OK, res.StatusCode);
 
         var body = await res.Content.ReadAsStringAsync();
-        Assert.Equal(@"""{\""status\"":\""ok\""}""", body);
+        Assert.Equal(@"{""content"":[{""type"":""text"",""text"":""{\u0022status\u0022:\u0022ok\u0022}""}]}", body);
     }
 
     // ------------------------------------------------------------------
@@ -61,7 +61,7 @@ public class MinimalApiTests : IClassFixture<MinimalApiTests.TestAppFactory>
     {
         private static readonly List<McpTool> _tools =
         [
-            new McpTool
+            new()
             {
                 Name = "dummy",
                 Description = "stub",
@@ -73,8 +73,11 @@ public class MinimalApiTests : IClassFixture<MinimalApiTests.TestAppFactory>
         public Task<List<McpTool>> GetToolsAsync(string s1,string? s2,IDictionary<string,string> s3,string? s4)
             => Task.FromResult(_tools);
 
-        public Task<string> ExecuteToolAsync(string s1,string s2,
+        public Task<ProxyCallResult> ExecuteToolAsync(string s1,string s2,
                                              System.Text.Json.JsonElement e,string? s3,IDictionary<string,string>? s4)
-            => Task.FromResult(@"{""status"":""ok""}");
+        {
+            ProxyCallResult proxyCallResult = new() { Text = @"{""status"":""ok""}" };
+            return Task.FromResult(proxyCallResult);
+        }
     }
 }

@@ -65,7 +65,7 @@ public class ToolProxyServiceTests
             argsDoc.RootElement,
             "https://api.example.com", null);
 
-        Assert.Equal("""{ "pets": [] }""", json);
+        Assert.Equal("""{ "pets": [] }""", json.Text);
         Assert.Equal(2, stub.CallCount); // 1 appel swagger + 1 appel endpoint
     }
 }
