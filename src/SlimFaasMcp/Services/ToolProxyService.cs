@@ -339,14 +339,20 @@ private static async Task<ProxyCallResult> ToProxyCallResult(HttpResponseMessage
     var disp      = resp.Content.Headers.ContentDisposition;
     var fileName  = disp?.FileNameStar ?? disp?.FileName;
 
-    // Heuristique "binaire"
+    bool isJson = mediaType is not null &&
+                  (mediaType == "application/json" || mediaType.EndsWith("+json"));
+    bool isText = mediaType is not null && mediaType.StartsWith("text/");
+
+    // Heuristique "binaire" explicite + fallback générique
     bool looksBinary =
         (mediaType is not null && (
             mediaType.StartsWith("application/octet-stream")
             || mediaType.StartsWith("image/")
+            || mediaType.StartsWith("audio/")   // ✅ explicite audio
+            || mediaType.StartsWith("video/")   // ✅ explicite video
             || mediaType.StartsWith("application/pdf")
             || mediaType.StartsWith("application/zip")
-            || (!mediaType.StartsWith("text/") && !mediaType.EndsWith("+json") && mediaType != "application/json")
+            || (!isText && !isJson)             // tout le reste non-texte/non-json
         ))
         || fileName is not null; // attachment
 
@@ -356,7 +362,7 @@ private static async Task<ProxyCallResult> ToProxyCallResult(HttpResponseMessage
         return new ProxyCallResult
         {
             IsBinary = true,
-            MimeType = mediaType ?? "application/octet-stream",
+            MimeType = string.IsNullOrWhiteSpace(mediaType) ? "application/octet-stream" : mediaType,
             FileName = fileName,
             Bytes    = bytes
         };
@@ -371,6 +377,7 @@ private static async Task<ProxyCallResult> ToProxyCallResult(HttpResponseMessage
         Text     = text
     };
 }
+
 
 
 }
