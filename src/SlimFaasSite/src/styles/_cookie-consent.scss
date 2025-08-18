@@ -1,0 +1,47 @@
+﻿/* BEM styles for the cookie banner */
+
+.cookie-consent {
+    &__backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 1rem;
+    }
+
+    &__card {
+        max-width: 640px;
+        width: 100%;
+        border-radius: 12px;
+        background: #fff;
+        padding: 1.25rem 1.25rem 1rem;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    }
+
+    &__text { margin: .5rem 0 1rem; color: #444; }
+    &__row { margin: .5rem 0; }
+    &__label { cursor: pointer; }
+
+    &__actions {
+        margin-top: 1rem;
+        display: flex;
+        gap: .5rem;
+        justify-content: flex-end;
+    }
+}
+
+/* Generic buttons following BEM-ish modifiers */
+.btn {
+    border: none;
+    padding: .6rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &--primary { background: #0000ff; color: #fff; }
+    &--secondary { background: #eaeaea; color: #111; }
+    &--ghost { background: transparent; color: #111; border: 1px solid #ddd; }
+}

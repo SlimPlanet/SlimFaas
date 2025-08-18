@@ -1,5 +1,6 @@
 ﻿
-@import './_footer.scss';
+@use './_footer.scss';
 
-@import "./_navbar.scss";
-@import "./index.scss";
+@use "./_navbar.scss";
+@use "./index.scss";
+@use "./_cookie-consent.scss";
