@@ -23,7 +23,7 @@ export default function App({ Component, pageProps }: AppProps) {
             <meta name="twitter:title" content="SlimFaas : The slimmest and simplest Function As A Service" />
             <meta name="twitter:description" content="Deploy functions effortlessly with SlimFaas, the ultra-light FaaS platform." />
             <meta name="twitter:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" />
-<meta name="google-site-verification" content="xNhzS-RDYiAc7stQdDH4cnjtqssYzMf5bj5XsCwcgmM" />
+            <meta name="google-site-verification" content="xNhzS-RDYiAc7stQdDH4cnjtqssYzMf5bj5XsCwcgmM" />
         </Head>
         <Component {...pageProps} />
     </>;
