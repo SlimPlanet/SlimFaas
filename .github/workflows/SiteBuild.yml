@@ -10,7 +10,7 @@ on:
       pnpm_version:
         required: false
         type: string
-        default: "10.3.0"
+        default: "10.14.0"
       working_directory:
         required: false
         type: string

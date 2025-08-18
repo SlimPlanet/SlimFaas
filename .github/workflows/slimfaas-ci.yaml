@@ -8,7 +8,7 @@ on:
     types: [opened, synchronize, reopened]
 
 env:
-  PNPM_VERSION: 10.3.0
+  PNPM_VERSION: 10.14.0
   NODE_VERSION: 18
 
 permissions:
