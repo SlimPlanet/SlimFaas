@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.39.1
+
+- [c3c8660](https://github.com/SlimPlanet/SlimFaas/commit/c3c866003befad56a27d3932ebf9e50348d736d2) - google webmaster tool (release), 2025-08-18 by *Guillaume Chervet*
+- [7ee56c6](https://github.com/SlimPlanet/SlimFaas/commit/7ee56c6abc2e25776d1e5728cabbac1f8983618a) - google webmastertool, 2025-08-18 by *Guillaume Chervet*
+
+
+## 0.39.0
+
+
+
 ## v0.39.0
 
 - [09f684b](https://github.com/SlimPlanet/SlimFaas/commit/09f684b61dec0ef7b45ef867beb2f8972d33924c) - feat(mcp): api to client base 64 (release) (#148), 2025-08-17 by *Guillaume Chervet*
@@ -291,15 +301,5 @@
 ## v0.35.5
 
 - [00ab81a](https://github.com/SlimPlanet/SlimFaas/commit/00ab81abaef85e67cefe138ea3f3389fecaa4a4a) - fix(ci): generate autochangelog (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.4
-
-- [b80ed49](https://github.com/SlimPlanet/SlimFaas/commit/b80ed49f56f9e69075406de061590abba59618cf) - fix(ci): publish changelog (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.3
-
-- [272b2ac](https://github.com/SlimPlanet/SlimFaas/commit/272b2ac52e21402b9a317f02b7b06966a7640cdc) - fix(ci): autochangelog was not working (release), 2025-02-16 by *Guillaume Chervet*
 
 
