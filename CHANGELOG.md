@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.39.5
+
+- [e2f0f69](https://github.com/SlimPlanet/SlimFaas/commit/e2f0f69512c5fb4300de376377ec29ab95a38d53) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
+
+
+## v0.39.4
+
+- [47e16ab](https://github.com/SlimPlanet/SlimFaas/commit/47e16abfc0a684bd08736cfc27990e48cec4933f) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
+
+
+## v0.39.3
+
+- [3c11c58](https://github.com/SlimPlanet/SlimFaas/commit/3c11c58e324a9e0c7b6a638b2815e5fc2b580498) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
+
+
+## v0.39.2
+
+- [18931a9](https://github.com/SlimPlanet/SlimFaas/commit/18931a9cbe5fcd5c19627a2313b3d6f766a18252) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
+- [427d653](https://github.com/SlimPlanet/SlimFaas/commit/427d653072dc986d5d349d208b9012501db3d751) - google analitycs header, 2025-08-18 by *Guillaume Chervet*
+
+
+## 0.39.1
+
+
+
 ## v0.39.1
 
 - [c3c8660](https://github.com/SlimPlanet/SlimFaas/commit/c3c866003befad56a27d3932ebf9e50348d736d2) - google webmaster tool (release), 2025-08-18 by *Guillaume Chervet*
@@ -276,30 +301,5 @@
 - [f0c6314](https://github.com/SlimPlanet/SlimFaas/commit/f0c6314142868c7cf097b809f8c9f793858ce3ee) - ci: Welcome new users (#95), 2025-02-26 by *Sebastien DEGODEZ*
 - [c03948c](https://github.com/SlimPlanet/SlimFaas/commit/c03948c90bbbad8c62382d748004102a67400644) - doc: typo in slimfaas-planet-saver README.md, 2025-02-21 by *Guillaume Chervet*
 - [7c2f9c1](https://github.com/SlimPlanet/SlimFaas/commit/7c2f9c1902ad1cb466e5271d0758ce4e8bb1615f) - doc: trademark lf footer  (#92), 2025-02-21 by *Guillaume Chervet*
-
-
-## v0.35.9
-
-- [c514233](https://github.com/SlimPlanet/SlimFaas/commit/c5142335172fa936e17c3d0cb31065741878d196) - refactor(PlanetSaver): add test (#89) (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.8
-
-- [2dfe2a7](https://github.com/SlimPlanet/SlimFaas/commit/2dfe2a71c807018625350a0b1f3c1fa268ecc4c1) - fix(ci): generate changelog (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.7
-
-- [2580d58](https://github.com/SlimPlanet/SlimFaas/commit/2580d58a45ceff0dd55d2944af21535307b739ad) - fix(ci): generate changelog (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.6
-
-- [d3473a8](https://github.com/SlimPlanet/SlimFaas/commit/d3473a81f16a0b6b7deba6341ba546a8cba7b1c2) - fix(ci): autochangelog (release), 2025-02-16 by *Guillaume Chervet*
-
-
-## v0.35.5
-
-- [00ab81a](https://github.com/SlimPlanet/SlimFaas/commit/00ab81abaef85e67cefe138ea3f3389fecaa4a4a) - fix(ci): generate autochangelog (release), 2025-02-16 by *Guillaume Chervet*
 
 
