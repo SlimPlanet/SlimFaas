@@ -61,6 +61,10 @@
            placeholder="(optional Bearer token)"
            style="width:50%;" />
 </label><br>
+<label style="display:block;margin-top:8px;">
+    <input id="structuredContentCheckbox" type="checkbox">
+    Activer <code>structured_content</code> (inclure <code>structuredContent</code> dans la réponse)
+</label>
 
 <hr>
 <div id="tools"></div>
@@ -70,7 +74,10 @@
         const token = document.getElementById("accessToken").value.trim();
         return token ? { "Authorization": `Bearer ${token}` } : {};
     }
-
+    function isStructuredContentEnabled() {
+        const el = document.getElementById("structuredContentCheckbox");
+        return !!(el && el.checked);
+    }
     function isBase64(str) {
         return /^[A-Za-z0-9+/]+={0,2}$/.test(str || "");
     }
@@ -105,6 +112,7 @@
         const base      = document.getElementById("baseUrl").value.trim();
         const oauthB64  = document.getElementById("oauthMetaBase64").textContent.trim();
         const mcpB64    = document.getElementById("mcpPromptBase64").textContent.trim();
+        const structured = isStructuredContentEnabled();
 
         const originPath = window.location.origin +
             window.location.pathname.replace(/\/$/, "");
@@ -113,6 +121,7 @@
         if (base) url += `&base_url=${encodeURIComponent(base)}`;
         if (isBase64(mcpB64) && mcpB64)   url += `&mcp_prompt=${encodeURIComponent(mcpB64)}`;
         if (isBase64(oauthB64) && oauthB64) url += `&oauth=${encodeURIComponent(oauthB64)}`;
+        if (structured)         url += `&structured_content=true`;
 
         const span = document.getElementById("shareUrl");
         span.textContent = url;
@@ -266,6 +275,7 @@
         if (b64) endpoint += `&mcp_prompt=${encodeURIComponent(b64)}`;
         const oauthB64 = document.getElementById("oauthMetaBase64").textContent.trim();
         if (isBase64(oauthB64) && oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
+        if (isStructuredContentEnabled()) endpoint += `&structured_content=true`;
 
         const contentType = tool.endpoint?.contentType || "application/json";
         let body;
@@ -394,6 +404,18 @@
         renderTools(true);
         getMcpPromptBase64();
     }
+
+    // Synchronise la checkbox avec l'URL si quelqu'un colle ?structured_content=true
+    (function initStructuredContentFromUrl() {
+        const cb = document.getElementById("structuredContentCheckbox");
+        const params = new URLSearchParams(window.location.search);
+        const enabled = params.get("structured_content") === "true";
+        if (cb) cb.checked = enabled;
+    })();
+
+    // Recalcule l'URL de partage quand on (dé)coche
+    document.getElementById("structuredContentCheckbox")
+        .addEventListener("change", updateShareUrl);
 
     encodeOAuthMeta();
     updateShareUrl();
