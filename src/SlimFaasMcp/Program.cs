@@ -189,9 +189,6 @@ grp.MapPost("/{toolName}", async Task<IResult> (
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
 
-
-    // ⚖️ Retourne exactement le même objet que "result" de tools/call : { "content": [...] }
-    var contentArr = SlimFaasMcp.Services.McpContentBuilder.Build(r);
     var resultObj = SlimFaasMcp.Services.McpContentBuilder.BuildResult(r, structuredContentEnabled);
     return Results.Json(resultObj, AppJsonContext.Default.JsonNode);
 });
