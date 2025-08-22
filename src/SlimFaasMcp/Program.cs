@@ -60,6 +60,10 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
     var baseUrl       = qs.TryGetValue("base_url", out var qb)       ? qb.ToString()     : "";
     var mcpPromptB64  = qs.TryGetValue("mcp_prompt", out var qp)     ? qp.ToString()     : null;
     var oauthB64    = qs.TryGetValue("oauth", out var qOauth) ? qOauth.ToString() : null;
+    var structuredContentEnabled =
+        qs.TryGetValue("structured_content", out var qsc)
+        && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
 
     if (!string.IsNullOrEmpty(oauthB64) && string.IsNullOrWhiteSpace(authHeader))
         return Challenge(httpRequest, oauthB64);
@@ -120,9 +124,11 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                     baseUrl,
                     additionalHeaders);
 
-                var contentArr = McpContentBuilder.Build(callResult);
+                // ✅ RESULT MCP (content[] + structuredContent si activé via query)
+                var resultObj = McpContentBuilder.BuildResult(callResult, structuredContentEnabled);
 
-                response["result"] = new JsonObject { ["content"] = contentArr };
+                response["result"] = resultObj;
+
                 break;
             }
         default:
@@ -172,14 +178,21 @@ grp.MapPost("/{toolName}", async Task<IResult> (
 {
     IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
 
+
     var r = await proxy.ExecuteToolAsync(
         openapi_url, toolName, arguments,
         base_url,
         additionalHeaders);
 
+    var qs = httpRequest.Query;
+    var structuredContentEnabled =
+        qs.TryGetValue("structured_content", out var qsc)
+        && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+
     // ⚖️ Retourne exactement le même objet que "result" de tools/call : { "content": [...] }
     var contentArr = SlimFaasMcp.Services.McpContentBuilder.Build(r);
-    var resultObj  = new JsonObject { ["content"] = contentArr };
+    var resultObj = SlimFaasMcp.Services.McpContentBuilder.BuildResult(r, structuredContentEnabled);
     return Results.Json(resultObj, AppJsonContext.Default.JsonNode);
 });
 
