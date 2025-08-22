@@ -1,9 +1,9 @@
-﻿using SlimFaasMcp.Models;
+﻿using System.Text.Json.Nodes;
+using SlimFaasMcp.Models;
 using SlimFaasMcp.Services;
-using System.Text.Json.Nodes;
 using Xunit;
 
-namespace SlimFaasMcp.Tests;
+namespace SlimFaasMcp.Tests.Services;
 
 public class McpStructuredContentFlagTests
 {
