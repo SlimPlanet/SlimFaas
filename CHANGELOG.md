@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.40.1
+
+- [ac47420](https://github.com/SlimPlanet/SlimFaas/commit/ac474209396d1351996bf8af26ff8b633b36d6d4) - fix(website): broken table markdown (release), 2025-08-24 by *Guillaume Chervet*
+
+
+## 0.40.0
+
+
+
 ## v0.40.0
 
 - [1e054c9](https://github.com/SlimPlanet/SlimFaas/commit/1e054c9803a443c86905e32e71492b278e52b7ef) - feat(website): table scroll-x (release) (#150), 2025-08-24 by *Guillaume Chervet*
@@ -284,15 +293,5 @@
 
 - [b9767d9](https://github.com/SlimPlanet/SlimFaas/commit/b9767d9c7549c3c8de488056130ec4ea7da9de88) - fix(slimfaas): private job not working when 3 replicas (release), 2025-03-24 by *Guillaume Chervet*
 - [a1bad43](https://github.com/SlimPlanet/SlimFaas/commit/a1bad43364905329138b293caa23c9d2235b224a) - fix(slimfaas): add more logs, 2025-03-24 by *Guillaume Chervet*
-
-
-## v0.36.1
-
-- [6bcb6d7](https://github.com/SlimPlanet/SlimFaas/commit/6bcb6d745a46d6390b141bc8bb3ef6b487f69e34) - fix(slimfaas): mapping pods crash when no owner reference (release), 2025-03-24 by *Guillaume Chervet*
-
-
-## v0.36.0
-
-- [438320b](https://github.com/SlimPlanet/SlimFaas/commit/438320bfc6408f9365205bfc4749cdf6b6112040) - feat(SlimFaas): More plug and play (release) (#102), 2025-03-23 by *Guillaume Chervet*
 
 
