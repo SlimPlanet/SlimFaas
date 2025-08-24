@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.40.0
+
+- [1e054c9](https://github.com/SlimPlanet/SlimFaas/commit/1e054c9803a443c86905e32e71492b278e52b7ef) - feat(website): table scroll-x (release) (#150), 2025-08-24 by *Guillaume Chervet*
+
+
+## 0.39.6
+
+
+
 ## v0.39.6
 
 - [e5005cc](https://github.com/SlimPlanet/SlimFaas/commit/e5005cc70be42fa1a369d531722ea9725a3190a1) - feature(mcp): add structured content (#149) (release), 2025-08-22 by *Guillaume Chervet*
@@ -285,15 +294,5 @@
 ## v0.36.0
 
 - [438320b](https://github.com/SlimPlanet/SlimFaas/commit/438320bfc6408f9365205bfc4749cdf6b6112040) - feat(SlimFaas): More plug and play (release) (#102), 2025-03-23 by *Guillaume Chervet*
-
-
-## v0.35.13
-
-- [166f2ef](https://github.com/SlimPlanet/SlimFaas/commit/166f2ef4e5fd48725094bdae0a9b3a71710c6d0d) - fix(PlanetSaver): prevent pods scale to 0 while working (release) (#101), 2025-03-13 by *Guillaume Chervet*
-
-
-## v0.35.12
-
-- [9353e70](https://github.com/SlimPlanet/SlimFaas/commit/9353e706cda6ede85f8496602fe3626dbde5abfd) - fix(slimfaas): job image pullback off block the queue (release) (#100), 2025-03-13 by *Guillaume Chervet*
 
 
