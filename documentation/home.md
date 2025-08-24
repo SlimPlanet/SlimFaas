@@ -23,7 +23,7 @@ functions with minimal overhead.
     - Async mode lets you limit the number of parallel requests and configure retry patterns.
 
 - **Jobs**
-    - Run one-off jobs via HTTP calls, with configurable concurrency and visibility (public/private).
+    - Run one‑off, batch, and scheduled (cron) jobs via HTTP calls, with configurable concurrency and visibility (public/private).
 
 - **Private/Public Functions and Jobs**
     - Keep internal functions private, accessible only from within the cluster or via trusted pods.

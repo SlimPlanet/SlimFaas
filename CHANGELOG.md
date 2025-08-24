@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.39.6
+
+- [e5005cc](https://github.com/SlimPlanet/SlimFaas/commit/e5005cc70be42fa1a369d531722ea9725a3190a1) - feature(mcp): add structured content (#149) (release), 2025-08-22 by *Guillaume Chervet*
+
+
+## 0.39.5
+
+
+
 ## v0.39.5
 
 - [e2f0f69](https://github.com/SlimPlanet/SlimFaas/commit/e2f0f69512c5fb4300de376377ec29ab95a38d53) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
@@ -286,20 +295,5 @@
 ## v0.35.12
 
 - [9353e70](https://github.com/SlimPlanet/SlimFaas/commit/9353e706cda6ede85f8496602fe3626dbde5abfd) - fix(slimfaas): job image pullback off block the queue (release) (#100), 2025-03-13 by *Guillaume Chervet*
-
-
-## v0.35.11
-
-- [2a55d6b](https://github.com/SlimPlanet/SlimFaas/commit/2a55d6b5874f0244f2fb0bf59d2cf12984de02e7) - fix(slimfaas): crash when kubernetes api server restart (#99) (release), 2025-03-09 by *Guillaume Chervet*
-
-
-## v0.35.10
-
-- [de45fdc](https://github.com/SlimPlanet/SlimFaas/commit/de45fdc1349c6b8abad0bca9ae87a4d9757fcb2d) - doc: update readme with job basic (release), 2025-03-06 by *Guillaume Chervet*
-- [2ca4058](https://github.com/SlimPlanet/SlimFaas/commit/2ca4058767d87d7d914f9d3a9df6fd96d11ad1bd) - feature(slimfaas): add job route  (#97), 2025-03-06 by *Guillaume Chervet*
-- [2832b6a](https://github.com/SlimPlanet/SlimFaas/commit/2832b6a3eb4a6e15bb22217e5bc44095bfc40a8a) - fix: update welcome (#96), 2025-02-27 by *Sebastien DEGODEZ*
-- [f0c6314](https://github.com/SlimPlanet/SlimFaas/commit/f0c6314142868c7cf097b809f8c9f793858ce3ee) - ci: Welcome new users (#95), 2025-02-26 by *Sebastien DEGODEZ*
-- [c03948c](https://github.com/SlimPlanet/SlimFaas/commit/c03948c90bbbad8c62382d748004102a67400644) - doc: typo in slimfaas-planet-saver README.md, 2025-02-21 by *Guillaume Chervet*
-- [7c2f9c1](https://github.com/SlimPlanet/SlimFaas/commit/7c2f9c1902ad1cb466e5271d0758ce4e8bb1615f) - doc: trademark lf footer  (#92), 2025-02-21 by *Guillaume Chervet*
 
 
