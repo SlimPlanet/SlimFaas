@@ -12,7 +12,7 @@ Adopt the **Model‑Context‑Protocol (MCP)** at scale—without rewriting a si
 Grab the latest binaries on the **[GitHub Releases](https://github.com/SlimPlanet/SlimFaas/releases)** page:
 
 | OS / Arch   | File                      |
-| ----------- | ------------------------- |
+| --------[mcp.md](mcp.md)--- | ------------------------- |
 | Linux x64   | `SlimFaasMcp-linux-x64`   |
 | macOS ARM64 | `SlimFaasMcp-osx-arm64`   |
 | macOS x64   | `SlimFaasMcp-osx-x64`     |
@@ -62,10 +62,14 @@ This project is a **runtime MCP proxy** that dynamically generates SlimFaas‑co
 
 #### 1) `oauth` (base64)
 
-**Raw JSON (minified):**
+**Raw JSON:**
 
-```json
-{"resource":"https://api.example.com/v1/","authorization_servers":["https://auth.example.com"],"scopes_supported":["read:data","write:data"]}
+```
+{
+    "resource":"https://api.example.com/v1/",
+    "authorization_servers":["https://auth.example.com"],
+    "scopes_supported":["read:data","write:data"]
+}
 ```
 
 **Base64 (UTF-8):**
@@ -80,10 +84,25 @@ eyJyZXNvdXJjZSI6Imh0dHBzOi8vYXBpLmV4YW1wbGUuY29tL3YxLyIsImF1dGhvcml6YXRpb25fc2Vy
 
 #### 2) `mcp_prompt` (base64)
 
-**Raw JSON (minified) — example override:**
+**Raw JSON — example override:**
 
-```json
-{"activeTools":["getPets","post_pet_petId_uploadImage"],"tools":[{"name":"post_pet_petId_uploadImage","description":"Uploads an image","inputSchema":{"type":"object","properties":{"petId":{"type":"integer"},"body":{"type":"string","format":"binary"}},"required":["petId","body"]}}]}
+```
+{
+    "activeTools":["getPets","post_pet_petId_uploadImage"],
+    "tools":[
+        {
+            "name":"post_pet_petId_uploadImage",
+            "description":"Uploads an image",
+            "inputSchema":{
+                "type":"object",
+                "properties":{
+                    "petId":{"type":"integer"},
+                    "body":{"type":"string","format":"binary"}},
+                "required":["petId","body"]
+            }
+        }
+    ]
+}
 ```
 
 **Base64 (UTF-8):**

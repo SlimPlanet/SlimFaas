@@ -182,3 +182,12 @@
         transform: scale(1.05);
     }
 }
+
+
+@media (max-width: 1200px) and (min-width: 769px) {
+    .navbar__item a {
+        font-size: 1.1rem;
+        padding: 0.3rem 0.3rem;
+    }
+}
+

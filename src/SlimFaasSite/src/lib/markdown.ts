@@ -15,6 +15,17 @@ export async function renderMarkdownWithHighlight(rawHtml: string): Promise<stri
         $(element).addClass('hljs');
     });
 
+
+    // ⬇️ Wrap tables for horizontal scrolling only when needed
+    $('table').each((_, el) => {
+        const $table = $(el);
+        if (!$table.parent().hasClass('table-scroll')) {
+            $table.wrap(
+                '<div class="table-scroll" role="region" aria-label="Scrollable table" tabindex="0"></div>'
+            );
+        }
+    });
+
     // 4. Renvoyer le HTML final
     return $.html();
 }
