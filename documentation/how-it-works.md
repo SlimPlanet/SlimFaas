@@ -72,7 +72,7 @@ It handles scaling, routing, and state management.
 ## 4. Build & Technology Stack
 
 SlimFaas is developed in **.NET**, chosen for its:
-- High performance in web APIs.
+- High performance in web APIs. SlimFaas is compile in Ahead Of Time (AOT) mode which produce a **native** application.
 - Excellent concurrency model.
 - Constant improvements in speed and memory usage.
 - Compact container images.

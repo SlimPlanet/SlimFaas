@@ -12,7 +12,7 @@ Adopt the **Model‑Context‑Protocol (MCP)** at scale—without rewriting a si
 Grab the latest binaries on the **[GitHub Releases](https://github.com/SlimPlanet/SlimFaas/releases)** page:
 
 | OS / Arch   | File                      |
-| --------[mcp.md](mcp.md)--- | ------------------------- |
+| ----------- | ------------------------- |
 | Linux x64   | `SlimFaasMcp-linux-x64`   |
 | macOS ARM64 | `SlimFaasMcp-osx-arm64`   |
 | macOS x64   | `SlimFaasMcp-osx-x64`     |
