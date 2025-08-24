@@ -219,3 +219,24 @@
 
     }
 }
+
+
+/* Scroll only the overflowing table, not the whole page */
+.table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+    margin: 2rem 0;
+}
+
+/* Let table grow to its content inside the scroll area */
+.table-scroll > table {
+    width: max-content;  /* expand to fit content if wider than container */
+    min-width: 100%;     /* but use full width when content is narrow */
+}
+
+/* Optional: prevent super-long tokens from blowing up layout */
+.table-scroll td,
+.table-scroll th {
+    word-break: break-word;  /* or `overflow-wrap: anywhere;` if you prefer */
+}
