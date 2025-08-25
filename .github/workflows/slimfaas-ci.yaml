@@ -309,7 +309,9 @@ jobs:
             -p:PublishAot=true \
             -p:PublishTrimmed=true \
             -p:SelfContained=true \
-            -p:InvariantGlobalization=true
+            -p:InvariantGlobalization=true \
+            -p:DebugType=none \
+            -p:DebugSymbols=false
         shell: bash
 
       # ── Création du ZIP, spécifique à l’OS ─────────────────────────────
@@ -358,13 +360,13 @@ jobs:
           tag_name: ${{ needs.tags.outputs.new_version }}   # ex. 1.2.3
           name: "SlimFaas MCP ${{ needs.tags.outputs.new_version }}"
           body: |
-            **SlimFaasMcp** build natif AOT pour les 3 plateformes :
+            **SlimFaasMcp** build native AOT for 4 platforms :
 
             * linux-x64
             * windows-x64
-            * macOS (x64)
+            * macOS (x64)
+            * macOS (arm64)
 
-            _Généré automatiquement depuis le workflow CI._
           draft: false
           prerelease: false
           files: |

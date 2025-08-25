@@ -17,15 +17,13 @@ WORKDIR /src
 FROM --platform=$BUILDPLATFORM  build AS publish
 COPY . .
 ARG RUNTIME_ID=x64
-RUN dotnet publish "./src/SlimFaas/SlimFaas.csproj" -c Release -a "$RUNTIME_ID"  -o /app/publish
-RUN ls -la /app/publish
-RUN rm /app/publish/*.pdb
-RUN rm /app/publish/*.dbg
+RUN dotnet publish "./src/SlimFaas/SlimFaas.csproj" -c Release -a "$RUNTIME_ID"  -o /app/publish \
+     -p:DebugType=none \
+     -p:DebugSymbols=false
 
 FROM --platform=$BUILDPLATFORM  base AS final
 WORKDIR /app
 COPY --chown=appuser --from=publish /app/publish .
-RUN ls -la
 ENTRYPOINT ["./SlimFaas"]
 
 
