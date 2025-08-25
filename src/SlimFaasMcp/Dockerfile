@@ -20,13 +20,10 @@ ARG RUNTIME_ID=x64
 RUN dotnet publish "./SlimFaasMcp.csproj" -c Release -a "$RUNTIME_ID"  -o /app/ \
          -p:DebugType=none \
          -p:DebugSymbols=false
-RUN ls -la /app/publish
-RUN rm /app/publish/*.dbg
 
 FROM --platform=$BUILDPLATFORM  base AS final
 WORKDIR /app
 COPY --chown=appuser --from=publish /app/publish .
-RUN ls -la
 ENTRYPOINT ["./SlimFaasMcp"]
 
 
