@@ -17,7 +17,7 @@ WORKDIR /src
 FROM --platform=$BUILDPLATFORM  build AS publish
 COPY . .
 ARG RUNTIME_ID=x64
-RUN dotnet publish "./SlimFaasMcp.csproj" -c Release -a "$RUNTIME_ID"  -o /app/ \
+RUN dotnet publish "./SlimFaasMcp.csproj" -c Release -a "$RUNTIME_ID"  -o /app/publish \
          -p:DebugType=none \
          -p:DebugSymbols=false
 
