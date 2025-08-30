@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.40.3
+
+- [b987d06](https://github.com/SlimPlanet/SlimFaas/commit/b987d06e842342434d5638b9738695c24dcc7444) - build(deps): bump next from 15.1.7 to 15.2.4 in /src/SlimFaasSite (#155), 2025-08-28 by *dependabot[bot]*
+
+
+## 0.40.2
+
+
+
+## v0.40.2
+
+- [920801e](https://github.com/SlimPlanet/SlimFaas/commit/920801e0e7255f689c06bafc4f72c492c8c54064) - fix(all): remove debug symbols (release) (#151), 2025-08-25 by *Guillaume Chervet*
+
+
+## 0.40.1
+
+
+
 ## v0.40.1
 
 - [ac47420](https://github.com/SlimPlanet/SlimFaas/commit/ac474209396d1351996bf8af26ff8b633b36d6d4) - fix(website): broken table markdown (release), 2025-08-24 by *Guillaume Chervet*
@@ -272,26 +290,5 @@
 ## v0.36.6
 
 - [fa6e33a](https://github.com/SlimPlanet/SlimFaas/commit/fa6e33ab3c69446ef8fc0ea4e994ad43902a3bf4) - fix(slimfaas): temp patch waiting to find source of ticks problem (release), 2025-03-28 by *Guillaume Chervet*
-
-
-## v0.36.5
-
-- [d22752a](https://github.com/SlimPlanet/SlimFaas/commit/d22752a52854227561d5a9248105bad55c168a12) - fix(slimfaas): ghost ip (#104) (release), 2025-03-27 by *Guillaume Chervet*
-
-
-## v0.36.4
-
-- [3db6fcc](https://github.com/SlimPlanet/SlimFaas/commit/3db6fcc148e06a83d01fdff5f6365249302b03d8) - fix(ci): auto changelog url (release), 2025-03-24 by *Guillaume Chervet*
-
-
-## v0.36.3
-
-- [d82c469](https://github.com/SlimPlanet/SlimFaas/commit/d82c469ffb9d0f00ed71a678d3b8422c7d5a3718) - fix(ci): auto changelog url (release), 2025-03-24 by *Guillaume Chervet*
-
-
-## v0.36.2
-
-- [b9767d9](https://github.com/SlimPlanet/SlimFaas/commit/b9767d9c7549c3c8de488056130ec4ea7da9de88) - fix(slimfaas): private job not working when 3 replicas (release), 2025-03-24 by *Guillaume Chervet*
-- [a1bad43](https://github.com/SlimPlanet/SlimFaas/commit/a1bad43364905329138b293caa23c9d2235b224a) - fix(slimfaas): add more logs, 2025-03-24 by *Guillaume Chervet*
 
 
