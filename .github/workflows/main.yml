@@ -1,4 +1,4 @@
-﻿name: Docker Images CI
+﻿name: SlimFaas main CI
 
 on:
   push:
