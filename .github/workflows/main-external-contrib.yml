@@ -11,56 +11,48 @@ env:
   NODE_VERSION: 18
 
 jobs:
-  sonarcloud:
-    if: github.actor == 'dependabot[bot]'
-    runs-on: windows-latest
+  unit_tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork == true || github.actor == 'dependabot[bot]')
     steps:
       - uses: actions/checkout@v4
         with:
-          # Checkout le contenu exact de la PR (pas la merge-branch)
-          ref: ${{ github.event.pull_request.head.sha }}
-
-      - uses: actions/setup-java@v3
-        with:
-          java-version: 17
-          distribution: 'zulu'
-
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
       - uses: actions/setup-dotnet@v3
         with:
           global-json-file: global.json
-
+      - name: Run unit tests
+        run: |
+          dotnet test --collect "Code Coverage;Format=cobertura" --verbosity normal
+      - name: ReportGenerator
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+        with:
+          reports: './**/TestResults/**/*.cobertura.xml'
+          targetdir: 'coveragereport'
+          reporttypes: 'MarkdownSummaryGithub'
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
       - uses: pnpm/action-setup@v2
+        name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
           run_install: false
-
-      - name: pnpm ci (PlanetSaver)
+      - name: pnpm ci
         run: pnpm i --frozen-lockfile
         working-directory: ./src/SlimFaasPlanetSaver
-
-      - name: pnpm run coverage (PlanetSaver)
+      - name: pnpm run coverage
         run: pnpm run coverage
         working-directory: ./src/SlimFaasPlanetSaver
 
-      - name: SonarCloud
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN:  ${{ secrets.SONAR_TOKEN }}
-        shell: powershell
-        run: |
-          dotnet tool install --global dotnet-coverage
-          dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+      - name: Publish coverage in build summary # Only applicable if 'MarkdownSummaryGithub' or one of the other Markdown report types is generated
+        run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY # Adjust path and filename if necessary
+        shell: bash
 
   # Exemple de job PR pour builder les images sans push
   build_docker_images:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork == true || github.actor == 'dependabot[bot]')
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -95,5 +87,5 @@ jobs:
           push: false
 
   site_build:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && (github.event.pull_request.head.repo.fork == true || github.actor == 'dependabot[bot]')
     uses: ./.github/workflows/SiteBuild.yml
