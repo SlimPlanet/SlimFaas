@@ -95,14 +95,23 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
 
                 response["result"] = new JsonObject
                 {
-                    ["tools"] = new JsonArray(tools.Select(t => new JsonObject
+                    ["tools"] = new JsonArray(tools.Select(t =>
                     {
-                        ["name"] = t.Name,
-                        ["description"] = t.Description,
-                        ["inputSchema"] = JsonNode.Parse(
-                            JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode)),
-                        ["outputSchema"] = JsonNode.Parse(JsonSerializer
-                            .Serialize(t.OutputSchema, AppJsonContext.Default.JsonNode))
+                        var node = new JsonObject
+                        {
+                            ["name"]        = t.Name,
+                            ["description"] = t.Description,
+                            ["inputSchema"] = JsonNode.Parse(
+                                JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode))!
+                        };
+
+                        if (structuredContentEnabled)
+                        {
+                            node["outputSchema"] = JsonNode.Parse(
+                                JsonSerializer.Serialize(t.OutputSchema, AppJsonContext.Default.JsonNode))!;
+                        }
+
+                        return node;
                     }).ToArray())
                 };
                 break;
@@ -159,11 +168,22 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
 {
     IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
 
-
-    return TypedResults.Ok(await proxy.GetToolsAsync(
+    var tools = await proxy.GetToolsAsync(
         openapi_url, base_url,
         additionalHeaders,
-        mcp_prompt));
+        mcp_prompt);
+
+    var qs = httpRequest.Query;
+    var structuredContentEnabled =
+        qs.TryGetValue("structured_content", out var qsc)
+        && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+
+    if (!structuredContentEnabled)
+    {
+        foreach (var t in tools) t.OutputSchema = new JsonObject();
+    }
+
+    return TypedResults.Ok(tools);
 });
 
 grp.MapPost("/{toolName}", async Task<IResult> (
@@ -178,7 +198,6 @@ grp.MapPost("/{toolName}", async Task<IResult> (
 {
     IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
 
-
     var r = await proxy.ExecuteToolAsync(
         openapi_url, toolName, arguments,
         base_url,
@@ -189,7 +208,7 @@ grp.MapPost("/{toolName}", async Task<IResult> (
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
 
-    var resultObj = SlimFaasMcp.Services.McpContentBuilder.BuildResult(r, structuredContentEnabled);
+    var resultObj = McpContentBuilder.BuildResult(r, structuredContentEnabled);
     return Results.Json(resultObj, AppJsonContext.Default.JsonNode);
 });
 
