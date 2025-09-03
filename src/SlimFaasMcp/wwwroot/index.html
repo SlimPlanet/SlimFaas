@@ -198,6 +198,7 @@
         if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
         const oauthB64 = encodeOAuthMeta();
         if (oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
+        if (isStructuredContentEnabled()) endpoint += `&structured_content=true`;
         let headers = getBearerHeader();
 
         const toolsRes = await fetch(endpoint, { method: "GET", headers });
@@ -334,14 +335,20 @@
             const descStyle   = tool.isDescriptionOverridden ? "color:green;font-weight:bold;" : "";
             const schemaStyle = tool.isInputSchemaOverridden ? "background:#c2ffcf;" : "";
 
+            const scEnabled = isStructuredContentEnabled();
+            const outputSchemaBlock = scEnabled
+                ? `<h4>Output schema</h4>
+     <pre>${window.jsyaml.dump(tool.outputSchema)}</pre>`
+                : `<h4>Output schema</h4>
+     <pre>(hidden — enable structured_content)</pre>`;
+
             container.innerHTML += `
 <div class="tool" style="background:${bg};">
   <h4>${tool.name} ${label ? `<span style="font-size:0.8em;color:#333;margin-left:8px;">${label}</span>` : ""}</h4>
   <div><b style="${descStyle}">${tool.description}</b></div>
   <h4>Input schema</h4>
   <pre style="${schemaStyle}">${window.jsyaml.dump(tool.inputSchema)}</pre>
-  <h4>Output schema</h4>
-  <pre style="${schemaStyle}">${window.jsyaml.dump(tool.outputSchema)}</pre>
+  ${outputSchemaBlock}
   ${tool.isDisabled ? '<i>Tool désactivé</i>' : `
     <div id="inputForm_${tool.name}"></div>
     <button onclick="runTool('${tool.name}')">Run</button>
