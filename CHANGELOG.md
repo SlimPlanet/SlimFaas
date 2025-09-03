@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.41.0
+
+- [2346abf](https://github.com/SlimPlanet/SlimFaas/commit/2346abf5e3711858d0731197f9e0fc5deddf9e70) - fix(slimfaas-mcp): output schema only when structured output (#159) (release), 2025-09-03 by *Guillaume Chervet*
+- [6616837](https://github.com/SlimPlanet/SlimFaas/commit/66168376d614c1be9de9b6f327b230680c853ebf) - feat(ci): better external build (#157), 2025-08-30 by *Guillaume Chervet*
+
+
+## 0.40.3
+
+
+
 ## v0.40.3
 
 - [b987d06](https://github.com/SlimPlanet/SlimFaas/commit/b987d06e842342434d5638b9738695c24dcc7444) - build(deps): bump next from 15.1.7 to 15.2.4 in /src/SlimFaasSite (#155), 2025-08-28 by *dependabot[bot]*
@@ -280,15 +290,5 @@
 ## v0.36.8
 
 - [6d515ca](https://github.com/SlimPlanet/SlimFaas/commit/6d515cac24c8c0e8a6ef740118ef47d4b8ea7022) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
-
-
-## v0.36.7
-
-- [31ad8e4](https://github.com/SlimPlanet/SlimFaas/commit/31ad8e44fa1b9cae86896523cf33a4f620b946c0) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
-
-
-## v0.36.6
-
-- [fa6e33a](https://github.com/SlimPlanet/SlimFaas/commit/fa6e33ab3c69446ef8fc0ea4e994ad43902a3bf4) - fix(slimfaas): temp patch waiting to find source of ticks problem (release), 2025-03-28 by *Guillaume Chervet*
 
 
