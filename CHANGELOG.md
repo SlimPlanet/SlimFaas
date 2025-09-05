@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.41.1
+
+- [c9dbb70](https://github.com/SlimPlanet/SlimFaas/commit/c9dbb70c6340c4b645372d1043bb69910ba52219) - fix(planet-saver): too many timer (#160) (release), 2025-09-05 by *Guillaume Chervet*
+
+
+## 0.41.0
+
+
+
 ## v0.41.0
 
 - [2346abf](https://github.com/SlimPlanet/SlimFaas/commit/2346abf5e3711858d0731197f9e0fc5deddf9e70) - fix(slimfaas-mcp): output schema only when structured output (#159) (release), 2025-09-03 by *Guillaume Chervet*
@@ -280,15 +289,5 @@
 ## v0.36.10
 
 - [11c25ff](https://github.com/SlimPlanet/SlimFaas/commit/11c25ff29d582be12e21c150c34254151dbbcfbf) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
-
-
-## v0.36.9
-
-- [ed379b1](https://github.com/SlimPlanet/SlimFaas/commit/ed379b11e46a251f84e67c24150630c9972fc02c) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
-
-
-## v0.36.8
-
-- [6d515ca](https://github.com/SlimPlanet/SlimFaas/commit/6d515cac24c8c0e8a6ef740118ef47d4b8ea7022) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
 
 
