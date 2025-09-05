@@ -3,7 +3,7 @@ import SlimFaasPlanetSaver from "./SlimFaasPlanetSaver.js";
 
 const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavior={} }) => {
     const [isFirstStart, setIsFirstStart] = useState(true);
-    const instanceRef = useRef<null | any>(null);
+    const instanceRef = useRef(null);
 
     useEffect(() => {
         if (!baseUrl) return;
