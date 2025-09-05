@@ -3,21 +3,22 @@ import SlimFaasPlanetSaver from "./SlimFaasPlanetSaver.js";
 
 const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavior={} }) => {
     const [isFirstStart, setIsFirstStart] = useState(true);
-    const environmentStarterRef = useRef(null);
+    const instanceRef = useRef(null);
 
     useEffect(() => {
         if (!baseUrl) return;
 
-        if (environmentStarterRef.current) return;
+        if (instanceRef.current) return;
 
         const instance = new SlimFaasPlanetSaver(baseUrl, {
             interval: 2000,
             fetch,
             behavior,
             updateCallback: (data) => {
+                const inst = instanceRef.current;
                 // Filter only the items that block the UI (WakeUp+BlockUI)
                 const blockingItems = data.filter(
-                    (item) => instance.getBehavior(item.Name) === 'WakeUp+BlockUI'
+                    (item) => inst?.getBehavior(item.Name) === 'WakeUp+BlockUI'
                 );
 
                 // If all blocking items are ready, set isFirstStart to false
@@ -40,15 +41,18 @@ const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavi
             noActivityTimeout
         });
 
-        environmentStarterRef.current = instance;
+        instanceRef.current = instance;
 
         // Initialiser les effets de bord
         instance.initialize();
         instance.startPolling();
 
         return () => {
-            instance.cleanup();
-            environmentStarterRef.current = null;
+            try {
+                instance.cleanup();
+            } finally {
+                instanceRef.current = null;
+            }
         };
     }, [baseUrl]);
 

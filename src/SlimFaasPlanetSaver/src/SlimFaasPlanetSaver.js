@@ -154,7 +154,7 @@ export default class SlimFaasPlanetSaver {
             this.errorCallback(errorMessage);
             console.error('Error fetching slimfaas data:', errorMessage);
         } finally {
-            if (this.intervalId) {
+            if (!this.cleanned) {
                 this.intervalId = setTimeout(() => {
                     this.fetchStatus();
                 }, this.interval);
@@ -180,9 +180,6 @@ export default class SlimFaasPlanetSaver {
     startPolling() {
         if (this.intervalId || !this.baseUrl || this.cleanned) return;
         this.fetchStatus();
-        this.intervalId = setTimeout(() => {
-            this.fetchStatus();
-        }, this.interval);
     }
 
     /**
