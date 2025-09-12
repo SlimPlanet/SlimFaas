@@ -24,6 +24,8 @@ services:
      # - SLIMFAAS_SUBSCRIBE_EVENTS=reload=>https://host.docker.internal:5002
       - SLIMFAAS_ORCHESTRATOR=Docker
       - Logging:LogLevel:Default=DEBUG
+      - Logging:LogLevel:Microsoft=DEBUG
+      - Logging__LogLevel__Default=Debug
       - HOSTNAME=slimfaas-slimfaas-1
       - SLIMDATA_DIRECTORY=/database
     volumes:
@@ -56,6 +58,8 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:5000
       - Logging:LogLevel:Default=DEBUG
+      - Logging:LogLevel:Microsoft=DEBUG
+      - Logging__LogLevel__Microsoft=Debug
     labels:
       slimfaas/function: "true"
       app: "fibonacci"
@@ -63,7 +67,7 @@ services:
       SlimFaas/Configuration: '{"DefaultSync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultAsync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultPublish":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]}}'
       SlimFaas/ReplicasAtStart: "1"
       SlimFaas/ReplicasMin: "0"
-      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "30"
       SlimFaas/NumberParallelRequest: "1"
       SlimFaas/DefaultVisibility: "Public"
       SlimFaas/DefaultTrust: "Trusted"

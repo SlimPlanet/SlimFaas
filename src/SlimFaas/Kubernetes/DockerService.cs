@@ -15,6 +15,7 @@ namespace SlimFaas.Kubernetes
     [ExcludeFromCodeCoverage]
     public class DockerService : IKubernetesService
     {
+        private const string TemplateLabel = "SlimFaas/template";
         // ---- SlimFaas keys reused for parity with KubernetesService ----
         private const string ReplicasMin = "SlimFaas/ReplicasMin";
         private const string Schedule = "SlimFaas/Schedule";
@@ -33,6 +34,7 @@ namespace SlimFaas.Kubernetes
         private const string TimeoutSecondBeforeSetReplicasMin = "SlimFaas/TimeoutSecondBeforeSetReplicasMin";
         private const string NumberParallelRequest = "SlimFaas/NumberParallelRequest";
         private const string DefaultTrust = "SlimFaas/DefaultTrust";
+        private const string PublishedPortsLabel = "SlimFaas/PublishedPorts";
 
         private const string SlimfaasJobName = "slimfaas-job-name";
         private const string SlimfaasJobElementId = "slimfaas-job-element-id";
@@ -42,6 +44,7 @@ namespace SlimFaas.Kubernetes
         private readonly ILogger<DockerService> _logger;
         private readonly HttpClient _http;
         private readonly string _apiPrefix; // e.g. "/v1.43" negotiated at startup
+        private readonly string? _networkName;
 
         public DockerService(ILogger<DockerService> logger, string? dockerHost = null)
         {
@@ -62,47 +65,167 @@ namespace SlimFaas.Kubernetes
 
             // Negotiate API version (fall back to v1.43 if unavailable)
             _apiPrefix = TryGetApiVersionAsync(_http).GetAwaiter().GetResult();
+            _networkName = GetSelfPrimaryNetworkNameAsync().GetAwaiter().GetResult();
+        }
+
+        private async Task<string?> GetSelfPrimaryNetworkNameAsync()
+        {
+            try
+            {
+                var selfId = System.Net.Dns.GetHostName();           // ex: a1b2c3…
+                var insp = await TryInspectContainerAsync(selfId);   // utilise ta TryInspectContainerAsync
+                var nets = insp?.NetworkSettings?.Networks;
+                if (nets is null || nets.Count == 0) return null;
+
+                // Prend un réseau utilisateur (≠ bridge/host/none) si possible
+                foreach (var key in nets.Keys)
+                    if (!string.Equals(key, "bridge", StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(key, "host",   StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(key, "none",   StringComparison.OrdinalIgnoreCase))
+                        return key;
+
+                // sinon le premier dispo
+                return nets.Keys.FirstOrDefault();
+            }
+            catch { return null; }
         }
 
         // ------------------ IKubernetesService ------------------
 
-        public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
+        private async Task EnsureTemplateContainerAsync(string deployment, string ns, InspectContainerResponse source)
         {
-            string deployment = request.Deployment;
-            string ns = request.Namespace;
-            int desired = request.Replicas;
+            // 1) Existe déjà ?
+            var existing = await ListContainersByLabelsAsync(new Dictionary<string,string> {
+                [Function] = FunctionTrue,
+                [AppLabel] = deployment,
+                [NamespaceLabel] = ns,
+                [TemplateLabel] = "true"
+            }, all: true);
+            if (existing.Any()) return; // déjà un template
 
-            var containers = await ListContainersByLabelsAsync(new Dictionary<string, string>
+            // 2) Labels de base + flag template
+            var labels = new Dictionary<string,string>(source.Config?.Labels ?? new())
             {
                 [Function] = FunctionTrue,
                 [AppLabel] = deployment,
-                [NamespaceLabel] = ns
-            }, all: true);
+                [NamespaceLabel] = ns,
+                [TemplateLabel] = "true"
+            };
 
-            var running = containers.Where(c => c.State == "running").ToList();
-            int current = running.Count;
+            // 3) Crée un conteneur ARRÊTÉ (AutoRemove=false), non démarré
+            var name = $"{deployment}-template";
+            // éviter collision de nom
+            int i = 1;
+            while ((await ResolveContainerIdByNameAsync(name)) is not null)
+                name = $"{deployment}-template-{i++}";
 
-            if (current < desired)
-            {
-                // scale up from a template (any existing container from the group)
-                var template = containers.FirstOrDefault()
-                               ?? throw new InvalidOperationException($"No template container found for deployment '{deployment}' in namespace '{ns}'. Create one instance first or provide an image mapping.");
-
-                var templateInspect = await InspectContainerAsync(template.ID);
-                for (int i = 0; i < desired - current; i++)
-                    await CreateAndStartReplicaFromTemplateAsync(deployment, ns, templateInspect);
-            }
-            else if (current > desired)
-            {
-                foreach (var c in running.Take(current - desired))
+            var imageRef = source.Config?.Image ?? source.Image;
+            var img = await InspectImageAsync(imageRef);
+            var endpoints = (_networkName is not null)
+                ? new Dictionary<string, CreateContainer_EndpointSettings>
                 {
-                    await StopContainerIfRunningAsync(c.ID);
-                    await RemoveContainerAsync(c.ID, force: true);
+                    [_networkName] = new CreateContainer_EndpointSettings
+                    {
+                        Aliases = new List<string> { deployment, name } // DNS utiles
+                    }
                 }
-            }
+                : null;
 
-            return request;
+            // publis d'origine du replica source (s'il y en a)
+            var publishedMap = BuildPublishedBindingsFromInspect(source);
+            if (publishedMap.Count > 0)
+            {
+                labels[PublishedPortsLabel] = SerializePublishedBindingsLabel(publishedMap);
+            }
+            var createBody = new CreateContainerRequest
+            {
+                Image = imageRef,
+                Name  = name,
+                Labels = labels,
+                Env = BuildEnvForClone(source, img),
+                Cmd = source.Config?.Cmd ?? Array.Empty<string>(),
+                HostConfig = new CreateContainer_HostConfig { AutoRemove = false },
+                ExposedPorts = BuildExposedPortsForClone(source, img),   // 👈 ports corrects
+                NetworkingConfig = endpoints is null ? null : new CreateContainer_NetworkingConfig { EndpointsConfig = endpoints }
+            };
+
+            await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+                $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
+                createBody,
+                DockerJson.Default.CreateContainerRequest,
+                DockerJson.Default.CreateContainerResponse);
+
+            // Ne PAS démarrer : on veut juste une “carcasse” pour porter les métadonnées
         }
+
+
+public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
+{
+    string deployment = request.Deployment;
+    string ns = request.Namespace;
+    int desired = request.Replicas;
+
+    var all = await ListContainersByLabelsAsync(new Dictionary<string,string>
+    {
+        [Function] = FunctionTrue,
+        [AppLabel] = deployment,
+        [NamespaceLabel] = ns
+    }, all: true);
+
+    var running = all.Where(c => c.State == "running").ToList();
+    int current = running.Count;
+
+    if (current < desired)
+    {
+        // scale up
+        var template = (await ListContainersByLabelsAsync(new Dictionary<string,string>{
+                [Function]=FunctionTrue,[AppLabel]=deployment,[NamespaceLabel]=ns,[TemplateLabel]="true"
+            }, all:true)).FirstOrDefault()
+            ?? all.FirstOrDefault()
+            ?? throw new InvalidOperationException($"No template for '{deployment}' in ns '{ns}'.");
+
+        var templateInspect = await InspectContainerAsync(template.ID);
+        for (int i = 0; i < desired - current; i++)
+            await CreateAndStartReplicaFromTemplateAsync(deployment, ns, templateInspect);
+    }
+    else if (current > desired)
+    {
+        // scale down
+        // si on va à 0, assurer un template avant de supprimer
+        if (desired == 0 && running.Count > 0)
+        {
+            // prend un exemplaire courant comme source de template
+            var srcInsp = await TryInspectContainerAsync(running[0].ID);
+            if (srcInsp is not null)
+                await EnsureTemplateContainerAsync(deployment, ns, srcInsp);
+        }
+
+        // stop & remove extra running
+        foreach (var c in running.Take(current - desired))
+        {
+            await StopContainerIfRunningAsync(c.ID);
+            await RemoveContainerAsync(c.ID, force: true);
+        }
+
+        // si desired==0 et il reste des running (fenêtre de course), stop les restants
+        if (desired == 0)
+        {
+            var again = await ListContainersByLabelsAsync(new Dictionary<string,string> {
+                [Function]=FunctionTrue,[AppLabel]=deployment,[NamespaceLabel]=ns
+            }, all: true);
+            foreach (var c in again.Where(x => x.State == "running"))
+            {
+                await StopContainerIfRunningAsync(c.ID);
+                // AutoRemove peut être true sur des anciens clones → ils partiront d’eux-mêmes
+                // on tente remove au cas où
+                await RemoveContainerAsync(c.ID, force: true);
+            }
+        }
+    }
+
+    return request;
+}
+
 
         public async Task<DeploymentsInformations> ListFunctionsAsync(string kubeNamespace, DeploymentsInformations previousDeployments)
         {
@@ -124,7 +247,7 @@ namespace SlimFaas.Kubernetes
 
                 // Ne compter que les RUNNING pour les replicas et les pods
                 var running = grp.Where(c => string.Equals(c.State, "running", StringComparison.OrdinalIgnoreCase)).ToList();
-
+                Console.WriteLine($"DockerService: Deployment {deploymentName} has {running.Count} running containers.");
                 var pods = new List<PodInformation>();
                 foreach (var c in running)
                 {
@@ -135,9 +258,9 @@ namespace SlimFaas.Kubernetes
                     bool ready = insp.State?.Running == true &&
                                  (insp.State.Health == null || string.Equals(insp.State.Health.Status, "healthy", StringComparison.OrdinalIgnoreCase));
 
-                    string ip = ExtractFirstIPAddress(insp);
-                    var ports = ExtractPrivatePorts(insp);
-
+                    string ip = ExtractPreferredIPAddress(insp);
+                    var ports = GetAllContainerPortsNoHeuristic(insp);
+                    Console.WriteLine($"DockerService: Pod {name} IP={ip} Ports=[{string.Join(",", ports)}] Ready={ready}");
                     pods.Add(new PodInformation(
                         Name: name ?? c.ID[..12],
                         Started: insp.State?.StartedAt is not null,
@@ -210,6 +333,25 @@ namespace SlimFaas.Kubernetes
             // Legacy IP
             if (!string.IsNullOrWhiteSpace(insp.NetworkSettings?.IPAddress)) return insp.NetworkSettings!.IPAddress!;
             return "";
+        }
+
+        private string ExtractPreferredIPAddress(InspectContainerResponse insp)
+        {
+            // 1) IP sur le réseau préféré
+            if (_networkName is not null &&
+                insp.NetworkSettings?.Networks is { } nets &&
+                nets.TryGetValue(_networkName, out var ep) &&
+                !string.IsNullOrWhiteSpace(ep.IPAddress))
+                return ep.IPAddress!;
+
+            // 2) Première IP d’un réseau attaché
+            if (insp.NetworkSettings?.Networks is { } nets2)
+                foreach (var kv in nets2)
+                    if (!string.IsNullOrWhiteSpace(kv.Value.IPAddress))
+                        return kv.Value.IPAddress!;
+
+            // 3) IP “legacy”
+            return insp.NetworkSettings?.IPAddress ?? "";
         }
 
         private static List<int> ExtractPrivatePorts(InspectContainerResponse insp)
@@ -303,7 +445,7 @@ namespace SlimFaas.Kubernetes
                 if (insp is null) continue;
 
                 var ips = new List<string>();
-                var ip = ExtractFirstIPAddress(insp);
+                var ip = ExtractPreferredIPAddress(insp);
                 if (!string.IsNullOrWhiteSpace(ip)) ips.Add(ip!);
 
                 JobStatus status = JobStatus.Pending;
@@ -368,33 +510,111 @@ namespace SlimFaas.Kubernetes
 
             var name = $"{deployment}-{Guid.NewGuid():N}".Substring(0, 20);
 
+            var imageRef = template.Config?.Image ?? template.Image;
+            var img = await InspectImageAsync(imageRef);
+            var endpoints = (_networkName is not null)
+                ? new Dictionary<string, CreateContainer_EndpointSettings>
+                {
+                    [_networkName] = new CreateContainer_EndpointSettings
+                    {
+                        Aliases = new List<string> { deployment, name }
+                    }
+                }
+                : null;
             var createBody = new CreateContainerRequest
             {
-                Image = image,
+                Image = imageRef,
                 Name = name,
                 Labels = labels,
-                Env = env,
-                Cmd = cmd,
-                HostConfig = new CreateContainer_HostConfig { AutoRemove = true }
+                Env = BuildEnvForClone(template, img),
+                Cmd = template.Config?.Cmd ?? Array.Empty<string>(),
+                HostConfig = new CreateContainer_HostConfig { AutoRemove = true },
+                ExposedPorts = BuildExposedPortsForClone(template, img),
+                NetworkingConfig = endpoints is null ? null : new CreateContainer_NetworkingConfig { EndpointsConfig = endpoints }
             };
 
-            if (template.NetworkSettings?.Ports is { Count: > 0 })
+            // 1) Si le template porte un label de publis, on les ré-applique tels quels
+            var persisted = TryParsePublishedBindingsLabel(template.Config?.Labels);
+            if (persisted is not null && persisted.Count > 0)
             {
-                var exposed = new Dictionary<string, object>();
-                foreach (var kv in template.NetworkSettings.Ports)
-                    if (!string.IsNullOrWhiteSpace(kv.Key)) exposed[kv.Key] = new { };
-                createBody.ExposedPorts = exposed;
+                createBody.HostConfig ??= new CreateContainer_HostConfig();
+                createBody.HostConfig.PortBindings = persisted;
+            }
+            else
+            {
+                // 2) Sinon, on publie par défaut (même host-port si possible)
+                AttachPublishBindingsFromExposedPorts(createBody, preferSameHostPort: true);
             }
 
-            var createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+// 3) Création + retry si conflit de port hôte
+            CreateContainerResponse? createRes;
+            try
+            {
+                createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+                    $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
+                    createBody,
+                    DockerJson.Default.CreateContainerRequest,
+                    DockerJson.Default.CreateContainerResponse);
+            }
+            catch (HttpRequestException)
+            {
+                // Conflit (409) ou autre -> on repasse en host-port aléatoire
+                MakeBindingsRandomHostPort(createBody);
+                createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+                    $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
+                    createBody,
+                    DockerJson.Default.CreateContainerRequest,
+                    DockerJson.Default.CreateContainerResponse);
+            }
+
+
+            /*var createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
                 $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
                 createBody,
                 DockerJson.Default.CreateContainerRequest,
-                DockerJson.Default.CreateContainerResponse);
+                DockerJson.Default.CreateContainerResponse);*/
 
             var id = createRes?.Id ?? throw new InvalidOperationException("Create container returned no Id.");
             await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
         }
+
+        // Construit PortBindings à partir des ExposedPorts (clés "5000/tcp")
+// preferSameHostPort=true => tente 5000:5000 ; si on retente après échec on passera en host-port aléatoire.
+        private static void AttachPublishBindingsFromExposedPorts(
+            CreateContainerRequest req,
+            bool preferSameHostPort)
+        {
+            if (req.ExposedPorts is null || req.ExposedPorts.Count == 0)
+                return;
+
+            req.HostConfig ??= new CreateContainer_HostConfig();
+            var bindings = new Dictionary<string, List<CreateContainer_PortBinding>>(StringComparer.Ordinal);
+
+            foreach (var key in req.ExposedPorts.Keys) // ex: "5000/tcp"
+            {
+                var port = key.Split('/')[0]; // "5000"
+                bindings[key] = new List<CreateContainer_PortBinding>
+                {
+                    new CreateContainer_PortBinding
+                    {
+                        HostIp   = "0.0.0.0",
+                        HostPort = preferSameHostPort ? port : null  // null => port aléatoire choisi par Docker
+                    }
+                };
+            }
+
+            req.HostConfig.PortBindings = bindings;
+        }
+
+// Si la création échoue (port occupé), on bascule tous les bindings en HostPort aléatoire
+        private static void MakeBindingsRandomHostPort(CreateContainerRequest req)
+        {
+            if (req.HostConfig?.PortBindings is null) return;
+            foreach (var list in req.HostConfig.PortBindings.Values)
+            foreach (var b in list)
+                b.HostPort = null;
+        }
+
 
         private async Task<IList<PodInformation>> GetSlimFaasSelfPodsAsync()
         {
@@ -429,16 +649,16 @@ namespace SlimFaas.Kubernetes
             return pods;
         }
 
-        private static PodInformation ToPod(InspectContainerResponse insp, string deploymentName)
+        private PodInformation ToPod(InspectContainerResponse insp, string deploymentName)
         {
             return new PodInformation(
                 Name: TrimSlash(insp.Name) ?? insp.Id[..12],
                 Started: insp.State?.StartedAt is not null,
                 Ready: insp.State?.Running == true &&
                        (insp.State.Health == null || string.Equals(insp.State.Health.Status, "healthy", StringComparison.OrdinalIgnoreCase)),
-                Ip: ExtractFirstIPAddress(insp),
+                Ip: ExtractPreferredIPAddress(insp),
                 DeploymentName: deploymentName,
-                Ports: ExtractPrivatePorts(insp),
+                Ports: GetAllContainerPortsNoHeuristic(insp),
                 ResourceVersion: insp.Created?.ToUniversalTime().Ticks.ToString() ?? DateTime.UtcNow.Ticks.ToString()
             );
         }
@@ -781,6 +1001,128 @@ namespace SlimFaas.Kubernetes
             using var res = await _http.DeleteAsync(path);
             res.EnsureSuccessStatusCode();
         }
+
+        private Task<InspectImageResponse?> InspectImageAsync(string imageRef)
+{
+    if (string.IsNullOrWhiteSpace(imageRef)) return Task.FromResult<InspectImageResponse?>(null);
+    // imageRef peut être "repo/name:tag" ou un digest/id
+    var url = $"{_apiPrefix}/images/{Uri.EscapeDataString(imageRef)}/json";
+    return GetAsync(url, DockerJson.Default.InspectImageResponse);
+}
+
+        private static Dictionary<string, Dictionary<string, string>> BuildExposedPortsForClone(
+            InspectContainerResponse template,
+            InspectImageResponse? image)
+        {
+            static Dictionary<string, string> Empty() => new();
+
+            var exposed = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+
+            // 1) Conteneur: Config.ExposedPorts
+            if (template.Config?.ExposedPorts is { Count: > 0 })
+            {
+                foreach (var k in template.Config.ExposedPorts.Keys)
+                    if (!string.IsNullOrWhiteSpace(k)) exposed[k] = Empty();
+            }
+
+            // 2) Image: Config.ExposedPorts
+            if (exposed.Count == 0 && image?.Config?.ExposedPorts is { Count: > 0 })
+            {
+                foreach (var k in image.Config.ExposedPorts.Keys)
+                    if (!string.IsNullOrWhiteSpace(k)) exposed[k] = Empty();
+            }
+
+            // 3) Fallback: NetworkSettings.Ports ("5000/tcp")
+            if (exposed.Count == 0 && template.NetworkSettings?.Ports is { Count: > 0 })
+            {
+                foreach (var k in template.NetworkSettings.Ports.Keys)
+                    if (!string.IsNullOrWhiteSpace(k)) exposed[k] = Empty();
+            }
+
+            return exposed;
+        }
+
+
+private static string[] BuildEnvForClone(
+    InspectContainerResponse template,
+    InspectImageResponse? image
+)
+{
+    // 1) Conteneur
+    if (template.Config?.Env is { Length: > 0 })
+        return template.Config.Env;
+
+    // 2) Image
+    if (image?.Config?.Env is { Length: > 0 })
+        return image.Config.Env;
+
+    // 3) Rien
+    return Array.Empty<string>();
+}
+
+private static List<int> GetAllContainerPortsNoHeuristic(InspectContainerResponse insp)
+{
+    var set = new HashSet<int>();
+
+    // NetworkSettings.Ports
+    if (insp.NetworkSettings?.Ports != null)
+    {
+        foreach (var key in insp.NetworkSettings.Ports.Keys)
+        {
+            var idx = key?.IndexOf('/');
+            if (idx > 0 && int.TryParse(key!.AsSpan(0, idx.Value), out var p)) set.Add(p);
+        }
+    }
+
+    // Config.ExposedPorts
+    if (insp.Config?.ExposedPorts != null)
+    {
+        foreach (var key in insp.Config.ExposedPorts.Keys)
+        {
+            var idx = key?.IndexOf('/');
+            if (idx > 0 && int.TryParse(key!.AsSpan(0, idx.Value), out var p)) set.Add(p);
+        }
+    }
+
+    return set.OrderByDescending(n => n).ToList();
+}
+
+// Extrait les PortBindings publiés (NetworkSettings.Ports) d'un inspect conteneur
+private static Dictionary<string, List<CreateContainer_PortBinding>> BuildPublishedBindingsFromInspect(InspectContainerResponse insp)
+{
+    var result = new Dictionary<string, List<CreateContainer_PortBinding>>(StringComparer.Ordinal);
+    var ports = insp.NetworkSettings?.Ports;
+    if (ports is null || ports.Count == 0) return result;
+
+    foreach (var (key, list) in ports)
+    {
+        if (string.IsNullOrWhiteSpace(key)) continue;
+        if (list is null || list.Count == 0) continue; // non publié
+        var mapped = new List<CreateContainer_PortBinding>(list.Count);
+        foreach (var b in list)
+            mapped.Add(new CreateContainer_PortBinding { HostIp = b.HostIp, HostPort = b.HostPort });
+        result[key] = mapped;
+    }
+    return result;
+}
+
+// Sérialise en string pour le label
+private static string SerializePublishedBindingsLabel(Dictionary<string, List<CreateContainer_PortBinding>> map)
+    => JsonSerializer.Serialize(map, DockerJson.Default.DictionaryStringListCreateContainer_PortBinding);
+
+// Essaie de lire/parse le label
+private static Dictionary<string, List<CreateContainer_PortBinding>>? TryParsePublishedBindingsLabel(IReadOnlyDictionary<string,string>? labels)
+{
+    if (labels is null) return null;
+    if (!labels.TryGetValue(PublishedPortsLabel, out var json) || string.IsNullOrWhiteSpace(json)) return null;
+    try
+    {
+        return JsonSerializer.Deserialize(json, DockerJson.Default.DictionaryStringListCreateContainer_PortBinding);
+    }
+    catch { return null; }
+}
+
+
     }
 
 // ------------------ Minimal Docker API DTOs & source-gen ------------------
@@ -859,8 +1201,14 @@ namespace SlimFaas.Kubernetes
         [JsonPropertyName("Labels")] public Dictionary<string,string>? Labels { get; init; }
         [JsonPropertyName("Env")] public string[]? Env { get; init; }
         [JsonPropertyName("Cmd")] public string[]? Cmd { get; init; }
-        [JsonPropertyName("HostConfig")] public CreateContainer_HostConfig? HostConfig { get; init; }
-        [JsonPropertyName("ExposedPorts")] public Dictionary<string, object>? ExposedPorts { get; set; }
+        [JsonPropertyName("HostConfig")] public CreateContainer_HostConfig? HostConfig { get; set; }
+
+        // AVANT: Dictionary<string, object>?  (⚠️ causait new {})
+        // APRÈS: dictionnaire → dictionnaire vide
+        [JsonPropertyName("ExposedPorts")]
+        public Dictionary<string, Dictionary<string, string>>? ExposedPorts { get; init; }
+        [JsonPropertyName("NetworkingConfig")]
+        public CreateContainer_NetworkingConfig? NetworkingConfig { get; init; }
     }
 
     internal record CreateContainer_HostConfig
@@ -869,9 +1217,43 @@ namespace SlimFaas.Kubernetes
         [JsonPropertyName("Memory")] public long? Memory { get; set; }
         [JsonPropertyName("CpuPeriod")] public long? CPUPeriod { get; set; }
         [JsonPropertyName("CpuQuota")] public long? CPUQuota { get; set; }
+        // 👇 publication des ports
+        [JsonPropertyName("PortBindings")]
+        public Dictionary<string, List<CreateContainer_PortBinding>>? PortBindings { get; set; }
     }
 
     internal record CreateContainerResponse([property: JsonPropertyName("Id")] string Id);
+
+    internal record InspectImageResponse(
+        [property: JsonPropertyName("Id")] string Id,
+        [property: JsonPropertyName("Config")] InspectImage_Config? Config,
+        [property: JsonPropertyName("ContainerConfig")] InspectImage_Config? ContainerConfig
+    );
+
+    internal record InspectImage_Config(
+        [property: JsonPropertyName("Env")] string[]? Env,
+        [property: JsonPropertyName("ExposedPorts")] Dictionary<string, object>? ExposedPorts
+    );
+
+
+    internal record CreateContainer_NetworkingConfig
+    {
+        [JsonPropertyName("EndpointsConfig")]
+        public Dictionary<string, CreateContainer_EndpointSettings>? EndpointsConfig { get; init; }
+    }
+
+    internal record CreateContainer_EndpointSettings
+    {
+        [JsonPropertyName("Aliases")] public List<string>? Aliases { get; init; }
+    }
+
+    internal record CreateContainer_PortBinding
+    {
+        [JsonPropertyName("HostIp")]   public string? HostIp   { get; init; }
+        [JsonPropertyName("HostPort")] public string? HostPort { get; set; }
+    }
+
+
 
     [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(DockerVersionResponse))]
@@ -881,6 +1263,8 @@ namespace SlimFaas.Kubernetes
     [JsonSerializable(typeof(CreateContainerResponse))]
     [JsonSerializable(typeof(FiltersLabel))]
     [JsonSerializable(typeof(FiltersName))]
+    [JsonSerializable(typeof(InspectImageResponse))]
+    [JsonSerializable(typeof(Dictionary<string, List<CreateContainer_PortBinding>>))]
     [JsonSerializable(typeof(object))]
     internal partial class DockerJson : JsonSerializerContext { }
 }

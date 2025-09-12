@@ -331,6 +331,9 @@ app.UseCors(builder =>
     }
 });
 
+Console.WriteLine("Using SlimProxyMiddleware");
+app.UseMiddleware<SlimProxyMiddleware>();
+
 Console.WriteLine("SlimFaas started");
 app.Use(async (context, next) =>
 {
@@ -356,8 +359,7 @@ app.Use(async (context, next) =>
         await next.Invoke();
     }
 });
-Console.WriteLine("Using SlimProxyMiddleware");
-app.UseMiddleware<SlimProxyMiddleware>();
+
 Console.WriteLine("Using Routing");
 app.UseRouting();
 Console.WriteLine("Using Endpoints");
