@@ -1,32 +1,79 @@
-﻿version: '3.7'
+﻿
+networks:
+  slimfaas-net:
+    driver: bridge
 
 services:
   slimfaas:
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    image: docker.io/axaguildev/slimfaas:latest
-    #build:
-    #  context: .
-    #  dockerfile: ./Dockerfile
+    image: axaguildev/slimfaas:dev
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     ports:
-      - 5020:5000
+      - "8080:8080"
+      #- "3262:3262"
+    user: "0:0"
     environment:
-      - BASE_FUNCTION_URL=http://{function_name}:5000
-      - BASE_FUNCTION_POD_URL=http://{function_name}:5000
-      - MOCK_KUBERNETES_FUNCTIONS={"Functions":[{"Name":"fibonacci","NumberParallelRequest":1}],"Slimfaas":[{"Name":"slimfaas-1"}]}
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      #- BASE_FUNCTION_URL=http://{function_name}:5000
+      #- BASE_FUNCTION_POD_URL=http://{function_name}:5000
       - BASE_SLIMDATA_URL=http://localhost:3262/
-      - HOSTNAME=slimfaas-1
       - SLIMDATA_CONFIGURATION={"coldStart":"true"}
-      - SLIMFAAS_PORTS=5000,5020
-      - SLIMFAAS_SUBSCRIBE_EVENTS=reload=>https://host.docker.internal:5002
+      - ASPNETCORE_URLS=http://0.0.0.0:8080
+      #- SLIMFAAS_LISTEN_ADDITIONAL_PORTS=5021
+     # - SLIMFAAS_SUBSCRIBE_EVENTS=reload=>https://host.docker.internal:5002
+      - SLIMFAAS_ORCHESTRATOR=Docker
+      - Logging:LogLevel:Default=DEBUG
+      - HOSTNAME=slimfaas-slimfaas-1
+      - SLIMDATA_DIRECTORY=/database
+    volumes:
+      - slimfaas_data:/database
+      - /var/run/docker.sock:/var/run/docker.sock
+
+    #extra_hosts:
+    #  - host.docker.internal:host-gateway
+    #depends_on:
+    #  - fibonacci
+    networks:
+      - slimfaas-net
+    labels:
+      app: "slimfaas"
+      com.docker.compose.service: "slimfaas"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5021/health"]  # ou 8080 selon l’option
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
   fibonacci:
-    #image: docker.io/axaguildev/fibonacci:latest
+    image: axaguildev/fibonacci:dev
     build:
       context: src/Fibonacci
       dockerfile: ./Dockerfile
+
     ports:
-      - 5021:5000
+      - "5000:5000"
     environment:
-      - BASE_FUNCTION_URL=http://{function_name}:5000
-      - Logging:LogLevel:Default=DEBUG
       - ASPNETCORE_URLS=http://+:5000
+      - Logging:LogLevel:Default=DEBUG
+    labels:
+      slimfaas/function: "true"
+      app: "fibonacci"
+      slimfaas/namespace: "default"
+      SlimFaas/Configuration: '{"DefaultSync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultAsync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultPublish":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]}}'
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/ReplicasMin: "0"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+      SlimFaas/NumberParallelRequest: "1"
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/DefaultTrust: "Trusted"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    networks:
+      - slimfaas-net
+volumes:
+  slimfaas_data:

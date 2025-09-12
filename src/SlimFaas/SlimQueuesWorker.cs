@@ -20,7 +20,9 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        Console.WriteLine("SlimQueuesWorker is starting.");
         await slimDataStatus.WaitForReadyAsync();
+        Console.WriteLine("SlimQueuesWorker is ready.");
         Dictionary<string, IList<RequestToWait>> processingTasks = new();
         Dictionary<string, int> setTickLastCallCounterDictionary = new();
         while (stoppingToken.IsCancellationRequested == false)

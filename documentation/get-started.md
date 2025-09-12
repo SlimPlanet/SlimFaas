@@ -85,7 +85,7 @@ docker-compose up
 
 When it’s ready:
 
-- GET http://slimfaas/function/fibonacci/hello/guillaume
+- GET http://localhost:5020/function/fibonacci/hello/guillaume
 
 Enjoy SlimFaas!
 

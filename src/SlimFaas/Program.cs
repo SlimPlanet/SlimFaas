@@ -50,7 +50,13 @@ IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appse
     .AddJsonFile($"appsettings.{environment} .json", true)
     .AddEnvironmentVariables().Build();
 
-string? mockKubernetesFunction = Environment.GetEnvironmentVariable(EnvironmentVariables.MockKubernetesFunctions);
+var envOrConfig = Environment.GetEnvironmentVariable("SLIMFAAS_ORCHESTRATOR");
+if (envOrConfig == "Docker")
+    serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
+else
+    serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>();
+
+/*string? mockKubernetesFunction = Environment.GetEnvironmentVariable(EnvironmentVariables.MockKubernetesFunctions);
 if (!string.IsNullOrEmpty(mockKubernetesFunction))
 {
     serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
@@ -62,7 +68,7 @@ else
         bool useKubeConfig = bool.Parse(configuration["UseKubeConfig"] ?? "false");
         return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig);
     });
-}
+}*/
 
 serviceCollectionStarter.AddLogging(loggingBuilder =>
 {
@@ -115,11 +121,24 @@ string podDataDirectoryPersistantStorage = string.Empty;
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? EnvironmentVariables.HostnameDefault;
-while (replicasService?.Deployments.SlimFaas.Pods.Any(p => p.Name == hostname) == false)
+
+
+
+while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name == hostname) == false)
 {
     Console.WriteLine("Waiting current pod to be ready");
     Task.Delay(1000).Wait();
     replicasService?.SyncDeploymentsAsync(namespace_).Wait();
+    foreach (PodInformation podInformation in replicasService?.Deployments?.SlimFaas?.Pods ?? [])
+    {
+        Console.WriteLine(">> Pod Information:");
+        Console.WriteLine(podInformation.Name);
+        Console.WriteLine(podInformation.DeploymentName);
+        Console.WriteLine(podInformation.Ip);
+        Console.WriteLine(podInformation.Ready);
+        Console.WriteLine(podInformation.ResourceVersion);
+        Console.WriteLine(podInformation.Ready);
+    }
 }
 
 while (!slimDataAllowColdStart &&
@@ -257,6 +276,7 @@ foreach (KeyValuePair<string,string> keyValuePair in slimDataConfiguration)
 }
 
 builder.Configuration["publicEndPoint"] = slimDataConfiguration["publicEndPoint"];
+Console.WriteLine("SlimData publicEndPoint: " + builder.Configuration["publicEndPoint"]);
 startup.ConfigureServices(serviceCollectionSlimFaas);
 
 builder.Host
@@ -268,6 +288,7 @@ var slimfaasPorts = serviceProviderStarter.GetService<ISlimFaasPorts>();
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
+    Console.WriteLine($"SlimData listening on port {uri.Port}");
     serverOptions.ListenAnyIP(uri.Port);
 
     if (slimfaasPorts == null)
@@ -275,7 +296,7 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
         Console.WriteLine("No Slimfaas ports");
         return;
     }
-    Console.WriteLine("Initilazing Slimfaas ports");
+    Console.WriteLine("Initializing Slimfaas ports");
     foreach (int slimFaasPort in slimfaasPorts.Ports)
     {
         Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
@@ -309,9 +330,12 @@ app.UseCors(builder =>
             .AllowAnyHeader();
     }
 });
-app.UseMiddleware<SlimProxyMiddleware>();
+
+Console.WriteLine("SlimFaas started");
 app.Use(async (context, next) =>
 {
+    Console.WriteLine($"Post: {context.Request.Host.Port}");
+    Console.WriteLine($"Post: {context.Request.Path }");
     if (slimfaasPorts == null)
     {
         await next.Invoke();
@@ -332,29 +356,32 @@ app.Use(async (context, next) =>
         await next.Invoke();
     }
 });
-
+Console.WriteLine("Using SlimProxyMiddleware");
+app.UseMiddleware<SlimProxyMiddleware>();
+Console.WriteLine("Using Routing");
 app.UseRouting();
-
+Console.WriteLine("Using Endpoints");
 app.UseHttpMetrics(options =>
 {
     // This will preserve only the first digit of the status code.
     // For example: 200, 201, 203 -> 2xx
     options.ReduceStatusCodeCardinality();
 });
+Console.WriteLine("Using MetricServer");
 app.UseMetricServer();
-
+Console.WriteLine("Using Startup Configure");
 startup.Configure(app);
 
-
+Console.WriteLine("Using fallback 404");
 app.Run(async context =>
 {
     context.Response.StatusCode = 404;
     await context.Response.WriteAsync("404");
 });
 
-
+Console.WriteLine("Running app");
 app.Run();
-
+Console.WriteLine("Disposing serviceProviderStarter");
 serviceProviderStarter.Dispose();
 
 
