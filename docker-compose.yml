@@ -14,20 +14,43 @@ services:
       #- "3262:3262"
     user: "0:0"
     environment:
-      - DOCKER_HOST=unix:///var/run/docker.sock
-      #- BASE_FUNCTION_URL=http://{function_name}:5000
-      #- BASE_FUNCTION_POD_URL=http://{function_name}:5000
-      - BASE_SLIMDATA_URL=http://localhost:3262/
-      - SLIMDATA_CONFIGURATION={"coldStart":"true"}
-      - ASPNETCORE_URLS=http://0.0.0.0:8080
-      #- SLIMFAAS_LISTEN_ADDITIONAL_PORTS=5021
-     # - SLIMFAAS_SUBSCRIBE_EVENTS=reload=>https://host.docker.internal:5002
-      - SLIMFAAS_ORCHESTRATOR=Docker
-      - Logging:LogLevel:Default=DEBUG
-      - Logging:LogLevel:Microsoft=DEBUG
-      - Logging__LogLevel__Default=Debug
-      - HOSTNAME=slimfaas-slimfaas-1
-      - SLIMDATA_DIRECTORY=/database
+      DOCKER_HOST: "unix:///var/run/docker.sock"
+      BASE_SLIMDATA_URL: "http://localhost:3262/"
+      SLIMDATA_CONFIGURATION: '{"coldStart":"true"}'
+      ASPNETCORE_URLS: "http://0.0.0.0:8080"
+      SLIMFAAS_ORCHESTRATOR: "Docker"
+      "Logging:LogLevel:Default": "DEBUG"
+      "Logging:LogLevel:Microsoft": "DEBUG"
+      Logging__LogLevel__Default: "Debug"
+      HOSTNAME: "slimfaas-slimfaas-1"
+      SLIMDATA_DIRECTORY: "/database"
+
+      # ➜ Ta variable multiligne (JSON valide, sans virgules finales)
+      SLIMFAAS_JOBS_CONFIGURATION: |
+        {
+          "Configurations": {
+            "fibonacci": {
+              "Image": "axaguildev/fibonacci-batch:latest",
+              "ImagesWhitelist": [],
+              "Resources": {
+                "Requests": { "cpu": "400m", "memory": "400Mi" },
+                "Limits":   { "cpu": "400m", "memory": "400Mi" }
+              },
+              "DependsOn": [],
+              "Environments": [],
+              "BackoffLimit": 1,
+              "Visibility": "Public",
+              "NumberParallelJob": 2,
+              "TtlSecondsAfterFinished": 2,
+              "RestartPolicy": "Never"
+            }
+          },
+          "Schedules": {
+            "fibonacci": [
+              { "Schedule": "0 0 * * *", "Args": ["42", "43"] }
+            ]
+          }
+        }
     volumes:
       - slimfaas_data:/database
       - /var/run/docker.sock:/var/run/docker.sock
@@ -71,6 +94,7 @@ services:
       SlimFaas/NumberParallelRequest: "1"
       SlimFaas/DefaultVisibility: "Public"
       SlimFaas/DefaultTrust: "Trusted"
+      SlimFaas/SubscribeEvents : "fibo-public"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
       interval: 10s
