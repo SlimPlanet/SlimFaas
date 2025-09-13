@@ -55,8 +55,8 @@ services:
       - slimfaas_data:/database
       - /var/run/docker.sock:/var/run/docker.sock
 
-    #extra_hosts:
-    #  - host.docker.internal:host-gateway
+    extra_hosts:
+      - host.docker.internal:host-gateway
     #depends_on:
     #  - fibonacci
     networks:

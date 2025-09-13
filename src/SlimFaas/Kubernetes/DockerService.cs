@@ -66,6 +66,20 @@ namespace SlimFaas.Kubernetes
             // Negotiate API version (fall back to v1.43 if unavailable)
             _apiPrefix = TryGetApiVersionAsync(_http).GetAwaiter().GetResult();
             _networkName = GetSelfPrimaryNetworkNameAsync().GetAwaiter().GetResult();
+            _composeProject = GetComposeProjectAsync().GetAwaiter().GetResult();
+        }
+
+        private string? _composeProject;
+
+        private async Task<string?> GetComposeProjectAsync()
+        {
+            try
+            {
+                var selfId = System.Net.Dns.GetHostName();
+                var insp = await TryInspectContainerAsync(selfId);
+                return insp?.Config?.Labels?.GetValueOrDefault("com.docker.compose.project");
+            }
+            catch { return null; }
         }
 
         private async Task<string?> GetSelfPrimaryNetworkNameAsync()
@@ -372,69 +386,155 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             return ports.Distinct().ToList();
         }
 
-        public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob createJob, string elementId, string jobFullName, long inQueueTimestamp)
+        private async Task EnsureImagePresentAsync(string image)
         {
-            var labels = new Dictionary<string, string>
-            {
-                [SlimfaasJobName] = jobFullName,
-                [SlimfaasJobElementId] = elementId,
-                [SlimfaasInQueueTimestamp] = inQueueTimestamp.ToString(CultureInfo.InvariantCulture),
-                [SlimfaasJobStartTimestamp] = DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture),
-                [Function] = "false",
-                [NamespaceLabel] = kubeNamespace
-            };
-            if (createJob.DependsOn is { Count: > 0 })
-                labels[DependsOn] = string.Join(",", createJob.DependsOn);
+            if (string.IsNullOrWhiteSpace(image)) throw new ArgumentException("Image is empty.", nameof(image));
 
-            var env = (createJob.Environments ?? Array.Empty<EnvVarInput>())
-                .Where(e => e.SecretRef == null && e.ConfigMapRef == null && e.FieldRef == null && e.ResourceFieldRef == null)
-                .Select(e => $"{e.Name}={e.Value}")
-                .ToArray();
+            // 1) Try local inspect first
+            var exists = await InspectImageAsync(image);
+            if (exists is not null) return;
 
-            var hostConfig = new CreateContainer_HostConfig
+            // 2) Pull; if it fails, throw with body for visibility
+            var imageName = image;
+            var tag = "latest";
+            var idx = image.LastIndexOf(':');
+            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@'))
             {
-                AutoRemove = true
-            };
-            if (createJob.Resources?.Limits is not null)
-            {
-                if (createJob.Resources.Limits.TryGetValue("memory", out var mem) && TryParseMemoryBytes(mem, out long bytes))
-                    hostConfig.Memory = bytes;
-                if (createJob.Resources.Limits.TryGetValue("cpu", out var cpu))
-                    ApplyCpuLimit(hostConfig, cpu);
+                imageName = image[..idx];
+                tag = image[(idx + 1)..];
             }
 
-            await TryPullImageAsync(createJob.Image);
+            var path = $"{_apiPrefix}/images/create?fromImage={Uri.EscapeDataString(imageName)}&tag={Uri.EscapeDataString(tag)}";
+            using var req = new HttpRequestMessage(HttpMethod.Post, path) { Content = new ByteArrayContent(Array.Empty<byte>()) };
+            using var res = await _http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead);
 
-            var createBody = new CreateContainerRequest
+            if (!res.IsSuccessStatusCode)
             {
-                Image = createJob.Image,
-                Name = jobFullName,
-                Labels = labels,
-                Env = env,
-                Cmd = createJob.Args?.ToArray() ?? Array.Empty<string>(),
-                HostConfig = hostConfig
-            };
+                var body = await res.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Image pull failed for '{image}': {(int)res.StatusCode} {res.ReasonPhrase}\n{body}");
+            }
 
-            var createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
-                $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(jobFullName)}",
-                createBody,
-                DockerJson.Default.CreateContainerRequest,
-                DockerJson.Default.CreateContainerResponse);
-
-            var id = createRes?.Id ?? throw new InvalidOperationException("Docker returned no container id for job creation.");
-            await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
+            // 3) Re‑inspect to be sure
+            var check = await InspectImageAsync(image);
+            if (check is null) throw new InvalidOperationException($"Image '{image}' not present after pull.");
         }
+        private const string TtlSecondsAfterFinished = "SlimFaas/TtlSecondsAfterFinished";
+        public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob createJob,
+                                 string elementId, string jobFullName, long inQueueTimestamp)
+{
+    var labels = new Dictionary<string, string>
+    {
+        [SlimfaasJobName] = jobFullName,
+        [SlimfaasJobElementId] = elementId,
+        [SlimfaasInQueueTimestamp] = inQueueTimestamp.ToString(CultureInfo.InvariantCulture),
+        [SlimfaasJobStartTimestamp] = DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture),
+        [Function] = "false",
+        [NamespaceLabel] = kubeNamespace
+    };
+
+    if (!string.IsNullOrWhiteSpace(_composeProject))
+    {
+        labels["com.docker.compose.project"] = _composeProject;
+        labels["com.docker.compose.service"] = "slimfaas"; // ou "jobs" si tu veux une sous-ligne dédiée
+        // labels["com.docker.compose.version"] = "2.0"; // optionnel
+    }
+
+        // ...
+        var ttl = createJob.TtlSecondsAfterFinished; // 0 = pas de TTL
+            if (ttl > 0) labels[TtlSecondsAfterFinished] = ttl.ToString(CultureInfo.InvariantCulture);
+
+    await EnsureImagePresentAsync(createJob.Image);
+    if (createJob.DependsOn is { Count: > 0 })
+        labels[DependsOn] = string.Join(",", createJob.DependsOn);
+
+    var env = (createJob.Environments ?? Array.Empty<EnvVarInput>())
+        .Where(e => e.SecretRef == null && e.ConfigMapRef == null && e.FieldRef == null && e.ResourceFieldRef == null)
+        .Select(e => $"{e.Name}={e.Value}")
+        .ToArray();
+
+    var hostConfig = new CreateContainer_HostConfig
+    {
+        // ⚠️ set false while you debug; flip back to true once stable
+        AutoRemove = false
+    };
+    if (createJob.Resources?.Limits is not null)
+    {
+        if (createJob.Resources.Limits.TryGetValue("memory", out var mem) && TryParseMemoryBytes(mem, out long bytes))
+            hostConfig.Memory = bytes;
+        if (createJob.Resources.Limits.TryGetValue("cpu", out var cpu))
+            ApplyCpuLimit(hostConfig, cpu);
+    }
+
+    await TryPullImageAsync(createJob.Image);
+
+    // Attach to SlimFaas/compose network if we know it
+    Dictionary<string, CreateContainer_EndpointSettings>? endpoints = null;
+    if (!string.IsNullOrWhiteSpace(_networkName))
+    {
+        endpoints = new()
+        {
+            [_networkName!] = new CreateContainer_EndpointSettings
+            {
+                Aliases = new List<string> { jobFullName }
+            }
+        };
+    }
+
+    var createBody = new CreateContainerRequest
+    {
+        Image = createJob.Image,
+        Name = jobFullName,
+        Labels = labels,
+        Env = env,
+        Cmd = createJob.Args?.ToArray() ?? Array.Empty<string>(),
+        HostConfig = hostConfig,
+        NetworkingConfig = endpoints is null ? null : new CreateContainer_NetworkingConfig { EndpointsConfig = endpoints }
+        // If you need to force an entrypoint, add: Entrypoint = new[] { "bash", "-lc" }
+    };
+
+    var createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+        $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(jobFullName)}",
+        createBody,
+        DockerJson.Default.CreateContainerRequest,
+        DockerJson.Default.CreateContainerResponse);
+
+    var id = createRes?.Id ?? throw new InvalidOperationException("Docker returned no container id for job creation.");
+    _logger.LogInformation("Job create: name={Name} id={Id}", jobFullName, id);
+    try
+    {
+        await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
+        await Task.Delay(150);
+        var insp = await TryInspectContainerAsync(id);
+        _logger.LogInformation("Job started: {Name} state={State} exit={Exit} error={Err}",
+            jobFullName, insp?.State?.Running, insp?.State?.ExitCode, insp?.State?.Error);
+    }
+    catch (HttpRequestException ex)
+    {
+        // Optional: grab last logs to understand failure
+        var tail = await GetContainerLogsAsync(id, tail: 200);
+        _logger.LogError(ex, "Failed to start job {Job}. Logs tail:\n{Logs}", jobFullName, tail);
+        throw;
+    }
+}
+
+        private async Task<string> GetContainerLogsAsync(string id, int tail = 200)
+        {
+            var url = $"{_apiPrefix}/containers/{id}/logs?stdout=1&stderr=1&tail={tail}";
+            using var res = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            res.EnsureSuccessStatusCode();
+            return await res.Content.ReadAsStringAsync();
+        }
+
+
 
         public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
         {
-            var labelDict = new Dictionary<string, bool>
-            {
-                [SlimfaasJobName] = true,                       // présence du label
-                [$"{NamespaceLabel}={kubeNamespace}"] = true    // label égal à la valeur
-            };
-            var filter = new FiltersLabel(labelDict);
-            string filterJson = JsonSerializer.Serialize(filter, DockerJson.Default.FiltersLabel);
-            string url = $"{_apiPrefix}/containers/json?all=1&filters={WebUtility.UrlEncode(filterJson)}";
+            var filters = new FiltersLabelArray(new List<string> {
+                SlimfaasJobName,                           // presence
+                $"{NamespaceLabel}={kubeNamespace}"
+            });
+            var filterJson = JsonSerializer.Serialize(filters, DockerJson.Default.FiltersLabelArray);
+            var url = $"{_apiPrefix}/containers/json?all=1&filters={WebUtility.UrlEncode(filterJson)}";
 
             var containers = await GetAsync(url, DockerJson.Default.ListContainerSummary) ?? new List<ContainerSummary>();
 
@@ -457,12 +557,37 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
                     insp.State!.Error!.IndexOf("pull", StringComparison.OrdinalIgnoreCase) >= 0)
                     status = JobStatus.ImagePullBackOff;
 
-                var labels = insp.Config?.Labels ?? new Dictionary<string, string>();
+                var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                if (c.Labels is not null)
+                    foreach (var kv in c.Labels) labels[kv.Key] = kv.Value;
+                if (insp.Config?.Labels is not null)
+                    foreach (var kv in insp.Config.Labels) labels[kv.Key] = kv.Value;
                 var dependsOn = SplitCsv(labels, DependsOn);
                 labels.TryGetValue(SlimfaasJobElementId, out var elementId);
                 long.TryParse(labels.GetValueOrDefault(SlimfaasInQueueTimestamp), out var inQueue);
                 long.TryParse(labels.GetValueOrDefault(SlimfaasJobStartTimestamp), out var startTs);
 
+
+                int ttlSec = 0;
+                if (labels.TryGetValue(TtlSecondsAfterFinished, out var ttlStr))
+                    int.TryParse(ttlStr, NumberStyles.Integer, CultureInfo.InvariantCulture, out ttlSec);
+
+                bool isFinished = status is JobStatus.Succeeded or JobStatus.Failed;
+                if (isFinished && ttlSec > 0 && insp.State?.FinishedAt is DateTimeOffset fin)
+                {
+                    var ageSec = (int)(DateTimeOffset.UtcNow - fin.ToUniversalTime()).TotalSeconds;
+                    if (ageSec >= ttlSec)
+                    {
+                        // 1) Ne pas l’afficher
+                        // 2) Optionnel : le supprimer physiquement
+                        try
+                        {
+                            await RemoveContainerAsync(insp.Id, force: true); // stop if needed inside remove or call StopContainerIfRunningAsync
+                        }
+                        catch { /* ignore best effort */ }
+                        continue; // 👈 saute l'ajout à la liste
+                    }
+                }
                 result.Add(new Job(
                     Name: TrimSlash(insp.Name) ?? c.Names?.FirstOrDefault()?.Trim('/') ?? c.ID[..12],
                     Status: status,
@@ -993,13 +1118,21 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         private async Task PostAsync(string path, HttpContent? body)
         {
             using var res = await _http.PostAsync(path, body);
-            res.EnsureSuccessStatusCode();
+            if (!res.IsSuccessStatusCode)
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"POST {path} failed: {(int)res.StatusCode} {res.ReasonPhrase}\n{err}");
+            }
         }
 
         private async Task DeleteAsync(string path)
         {
             using var res = await _http.DeleteAsync(path);
-            res.EnsureSuccessStatusCode();
+            if (!res.IsSuccessStatusCode)
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"DELETE {path} failed: {(int)res.StatusCode} {res.ReasonPhrase}\n{err}");
+            }
         }
 
         private Task<InspectImageResponse?> InspectImageAsync(string imageRef)
@@ -1144,6 +1277,8 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("Version")] string Version
     );
 
+    internal record FiltersLabelArray([property: JsonPropertyName("label")] List<string> Labels);
+
     internal record ContainerSummary(
         [property: JsonPropertyName("Id")] string ID,
         [property: JsonPropertyName("Names")] List<string>? Names,
@@ -1176,7 +1311,8 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("ExitCode")] int ExitCode,
         [property: JsonPropertyName("Error")] string? Error,
         [property: JsonPropertyName("Health")] Inspect_Health? Health,
-        [property: JsonPropertyName("StartedAt")] DateTimeOffset? StartedAt
+        [property: JsonPropertyName("StartedAt")] DateTimeOffset? StartedAt,
+        [property: JsonPropertyName("FinishedAt")] DateTimeOffset? FinishedAt
     );
 
     internal record Inspect_Health([property: JsonPropertyName("Status")] string Status);
@@ -1254,7 +1390,6 @@ namespace SlimFaas.Kubernetes
     }
 
 
-
     [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(DockerVersionResponse))]
     [JsonSerializable(typeof(List<ContainerSummary>))]
@@ -1264,6 +1399,7 @@ namespace SlimFaas.Kubernetes
     [JsonSerializable(typeof(FiltersLabel))]
     [JsonSerializable(typeof(FiltersName))]
     [JsonSerializable(typeof(InspectImageResponse))]
+    [JsonSerializable(typeof(FiltersLabelArray))]
     [JsonSerializable(typeof(Dictionary<string, List<CreateContainer_PortBinding>>))]
     [JsonSerializable(typeof(object))]
     internal partial class DockerJson : JsonSerializerContext { }
