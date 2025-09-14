@@ -52,7 +52,10 @@ IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appse
 
 var envOrConfig = Environment.GetEnvironmentVariable("SLIMFAAS_ORCHESTRATOR");
 if (envOrConfig == "Docker")
+{
+    serviceCollectionStarter.AddHttpClient(DockerService.HttpClientName);
     serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
+}
 else
     serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>();
 

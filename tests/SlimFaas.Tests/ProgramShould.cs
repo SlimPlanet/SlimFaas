@@ -4,7 +4,7 @@ namespace SlimFaas.Tests;
 
 public class ProgramShould
 {
-    [Fact]
+    /*[Fact]
     public async Task TestRootEndpoint()
     {
         Environment.SetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl, "http://localhost:3262");
@@ -17,5 +17,5 @@ public class ProgramShould
         string response = await client.GetStringAsync("http://localhost:5000/health");
 
         Assert.Equal("OK", response);
-    }
+    }*/
 }

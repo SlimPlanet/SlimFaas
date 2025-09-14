@@ -46,22 +46,33 @@ namespace SlimFaas.Kubernetes
         private readonly string _apiPrefix; // e.g. "/v1.43" negotiated at startup
         private readonly string? _networkName;
 
-        public DockerService(ILogger<DockerService> logger, string? dockerHost = null)
+        public const string HttpClientName = "DockerServiceHttpClient";
+        public DockerService(IHttpClientFactory httpClientFactory, ILogger<DockerService> logger, string? dockerHost = null)
         {
             _logger = logger;
 
             // Resolve DOCKER_HOST or provided override
-            var host = dockerHost ?? Environment.GetEnvironmentVariable("DOCKER_HOST");
-            if (string.IsNullOrWhiteSpace(host))
+            _http = httpClientFactory.CreateClient(HttpClientName);
+            if (_http.BaseAddress is null)
             {
-                // default to local unix socket (Linux/macOS) or TCP on Windows
-                host = OperatingSystem.IsWindows()
-                    ? "http://127.0.0.1:2375" // recommend TCP on Windows for AOT
-                    : "unix:///var/run/docker.sock";
-            }
+                var host = dockerHost ?? Environment.GetEnvironmentVariable("DOCKER_HOST");
+                if (string.IsNullOrWhiteSpace(host))
+                {
+                    host = OperatingSystem.IsWindows() ? "http://127.0.0.1:2375" : "unix:///var/run/docker.sock";
+                }
 
-            _http = CreateHttpClientForDocker(host, out var baseAddress);
-            _http.BaseAddress = baseAddress;
+                if (host.StartsWith("unix://"))
+                {
+                    throw new InvalidOperationException("Unix sockets not supported via IHttpClientFactory. Use TCP.");
+                }
+
+                // http(s) → utilise comme BaseAddress
+                var uri = new UriBuilder(host);
+                if (uri.Scheme == Uri.UriSchemeHttp && (uri.Port == 80 || uri.Port == -1)) uri.Port = 2375;
+                else if (uri.Scheme == Uri.UriSchemeHttps && (uri.Port == 443 || uri.Port == -1)) uri.Port = 2376;
+
+                _http.BaseAddress = uri.Uri;
+            }
 
             // Negotiate API version (fall back to v1.43 if unavailable)
             _apiPrefix = TryGetApiVersionAsync(_http).GetAwaiter().GetResult();
@@ -1272,14 +1283,14 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("name")] Dictionary<string, bool> Name
     );
 
-    internal record DockerVersionResponse(
+    public record DockerVersionResponse(
         [property: JsonPropertyName("ApiVersion")] string ApiVersion,
         [property: JsonPropertyName("Version")] string Version
     );
 
     internal record FiltersLabelArray([property: JsonPropertyName("label")] List<string> Labels);
 
-    internal record ContainerSummary(
+    public record ContainerSummary(
         [property: JsonPropertyName("Id")] string ID,
         [property: JsonPropertyName("Names")] List<string>? Names,
         [property: JsonPropertyName("Image")] string Image,
@@ -1288,7 +1299,7 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("Labels")] Dictionary<string,string>? Labels
     );
 
-    internal record InspectContainerResponse(
+    public record InspectContainerResponse(
         [property: JsonPropertyName("Id")] string Id,
         [property: JsonPropertyName("Name")] string? Name,
         [property: JsonPropertyName("Image")] string Image,
@@ -1298,7 +1309,7 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("NetworkSettings")] Inspect_NetworkSettings? NetworkSettings
     );
 
-    internal record Inspect_Config(
+    public record Inspect_Config(
         [property: JsonPropertyName("Image")] string? Image,
         [property: JsonPropertyName("Env")] string[]? Env,
         [property: JsonPropertyName("Cmd")] string[]? Cmd,
@@ -1306,7 +1317,7 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("ExposedPorts")] Dictionary<string, object>? ExposedPorts
     );
 
-    internal record Inspect_State(
+    public record Inspect_State(
         [property: JsonPropertyName("Running")] bool Running,
         [property: JsonPropertyName("ExitCode")] int ExitCode,
         [property: JsonPropertyName("Error")] string? Error,
@@ -1315,22 +1326,22 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("FinishedAt")] DateTimeOffset? FinishedAt
     );
 
-    internal record Inspect_Health([property: JsonPropertyName("Status")] string Status);
+    public record Inspect_Health([property: JsonPropertyName("Status")] string Status);
 
-    internal record Inspect_NetworkSettings(
+    public record Inspect_NetworkSettings(
         [property: JsonPropertyName("IPAddress")] string? IPAddress,
         [property: JsonPropertyName("Networks")] Dictionary<string, Inspect_EndpointSettings>? Networks,
         [property: JsonPropertyName("Ports")] Dictionary<string, List<Inspect_PortBinding>?>? Ports
     );
 
-    internal record Inspect_EndpointSettings([property: JsonPropertyName("IPAddress")] string? IPAddress);
+    public record Inspect_EndpointSettings([property: JsonPropertyName("IPAddress")] string? IPAddress);
 
-    internal record Inspect_PortBinding(
+    public record Inspect_PortBinding(
         [property: JsonPropertyName("HostIp")] string? HostIp,
         [property: JsonPropertyName("HostPort")] string? HostPort
     );
 
-    internal record CreateContainerRequest
+    public record CreateContainerRequest
     {
         [JsonPropertyName("Image")] public string? Image { get; init; }
         [JsonPropertyName("Name")] public string? Name { get; init; }
@@ -1347,7 +1358,7 @@ namespace SlimFaas.Kubernetes
         public CreateContainer_NetworkingConfig? NetworkingConfig { get; init; }
     }
 
-    internal record CreateContainer_HostConfig
+    public record CreateContainer_HostConfig
     {
         [JsonPropertyName("AutoRemove")] public bool AutoRemove { get; set; }
         [JsonPropertyName("Memory")] public long? Memory { get; set; }
@@ -1358,32 +1369,32 @@ namespace SlimFaas.Kubernetes
         public Dictionary<string, List<CreateContainer_PortBinding>>? PortBindings { get; set; }
     }
 
-    internal record CreateContainerResponse([property: JsonPropertyName("Id")] string Id);
+    public record CreateContainerResponse([property: JsonPropertyName("Id")] string Id);
 
-    internal record InspectImageResponse(
+    public record InspectImageResponse(
         [property: JsonPropertyName("Id")] string Id,
         [property: JsonPropertyName("Config")] InspectImage_Config? Config,
         [property: JsonPropertyName("ContainerConfig")] InspectImage_Config? ContainerConfig
     );
 
-    internal record InspectImage_Config(
+    public record InspectImage_Config(
         [property: JsonPropertyName("Env")] string[]? Env,
         [property: JsonPropertyName("ExposedPorts")] Dictionary<string, object>? ExposedPorts
     );
 
 
-    internal record CreateContainer_NetworkingConfig
+    public record CreateContainer_NetworkingConfig
     {
         [JsonPropertyName("EndpointsConfig")]
         public Dictionary<string, CreateContainer_EndpointSettings>? EndpointsConfig { get; init; }
     }
 
-    internal record CreateContainer_EndpointSettings
+    public record CreateContainer_EndpointSettings
     {
         [JsonPropertyName("Aliases")] public List<string>? Aliases { get; init; }
     }
 
-    internal record CreateContainer_PortBinding
+    public record CreateContainer_PortBinding
     {
         [JsonPropertyName("HostIp")]   public string? HostIp   { get; init; }
         [JsonPropertyName("HostPort")] public string? HostPort { get; set; }
