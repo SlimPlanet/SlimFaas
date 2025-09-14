@@ -199,8 +199,8 @@ namespace SlimFaas.Kubernetes
                 // Ne compter que les RUNNING pour les replicas et les pods
                 List<ContainerSummary> running = grp
                     .Where(c => string.Equals(c.State, "running", StringComparison.OrdinalIgnoreCase)).ToList();
-                Console.WriteLine(
-                    $"DockerService: Deployment {deploymentName} has {running.Count} running containers.");
+                _logger.LogDebug("DockerService: Deployment {Deployment} has {Count} running containers",
+                    deploymentName, running.Count);
                 List<PodInformation> pods = new();
                 foreach (ContainerSummary c in running)
                 {
@@ -218,8 +218,8 @@ namespace SlimFaas.Kubernetes
 
                     string ip = ExtractPreferredIPAddress(insp);
                     List<int> ports = GetAllContainerPortsNoHeuristic(insp);
-                    Console.WriteLine(
-                        $"DockerService: Pod {name} IP={ip} Ports=[{string.Join(",", ports)}] Ready={ready}");
+                    _logger.LogDebug("DockerService: Pod {Pod} IP={IP} Ports=[{Ports}] Ready={Ready}",
+                        name, ip, string.Join(",", ports), ready);
                     pods.Add(new PodInformation(
                         name ?? c.ID[..12],
                         insp.State?.StartedAt is not null,

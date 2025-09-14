@@ -130,16 +130,6 @@ while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name == hostname)
     Console.WriteLine("Waiting current pod to be ready");
     Task.Delay(1000).Wait();
     replicasService?.SyncDeploymentsAsync(namespace_).Wait();
-    foreach (PodInformation podInformation in replicasService?.Deployments?.SlimFaas?.Pods ?? [])
-    {
-        Console.WriteLine(">> Pod Information:");
-        Console.WriteLine(podInformation.Name);
-        Console.WriteLine(podInformation.DeploymentName);
-        Console.WriteLine(podInformation.Ip);
-        Console.WriteLine(podInformation.Ready);
-        Console.WriteLine(podInformation.ResourceVersion);
-        Console.WriteLine(podInformation.Ready);
-    }
 }
 
 while (!slimDataAllowColdStart &&
@@ -270,14 +260,12 @@ foreach (KeyValuePair<string,string> keyValuePair in slimDataDefaultConfiguratio
         slimDataConfiguration.Add(keyValuePair.Key, keyValuePair.Value);
     }
 }
-Console.WriteLine(">> Configuration: ");
 foreach (KeyValuePair<string,string> keyValuePair in slimDataConfiguration)
 {
     Console.WriteLine($"- {keyValuePair.Key}:{keyValuePair.Value}");
 }
 
 builder.Configuration["publicEndPoint"] = slimDataConfiguration["publicEndPoint"];
-Console.WriteLine("SlimData publicEndPoint: " + builder.Configuration["publicEndPoint"]);
 startup.ConfigureServices(serviceCollectionSlimFaas);
 
 builder.Host
@@ -289,7 +277,6 @@ var slimfaasPorts = serviceProviderStarter.GetService<ISlimFaasPorts>();
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
-    Console.WriteLine($"SlimData listening on port {uri.Port}");
     serverOptions.ListenAnyIP(uri.Port);
 
     if (slimfaasPorts == null)
@@ -314,7 +301,6 @@ app.UseCors(builder =>
 {
     string slimFaasCorsAllowOrigin = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasCorsAllowOrigin) ??
                                EnvironmentVariables.SlimFaasCorsAllowOriginDefault;
-    Console.WriteLine($"CORS Allowing origins: {slimFaasCorsAllowOrigin}");
     if (slimFaasCorsAllowOrigin == "*")
     {
         Console.WriteLine("CORS Allowing all origins");
@@ -332,14 +318,10 @@ app.UseCors(builder =>
     }
 });
 
-Console.WriteLine("Using SlimProxyMiddleware");
 app.UseMiddleware<SlimProxyMiddleware>();
 
-Console.WriteLine("SlimFaas started");
 app.Use(async (context, next) =>
 {
-    Console.WriteLine($"Post: {context.Request.Host.Port}");
-    Console.WriteLine($"Post: {context.Request.Path }");
     if (slimfaasPorts == null)
     {
         await next.Invoke();
@@ -361,37 +343,26 @@ app.Use(async (context, next) =>
     }
 });
 
-Console.WriteLine("Using Routing");
 app.UseRouting();
-Console.WriteLine("Using Endpoints");
 app.UseHttpMetrics(options =>
 {
     // This will preserve only the first digit of the status code.
     // For example: 200, 201, 203 -> 2xx
     options.ReduceStatusCodeCardinality();
 });
-Console.WriteLine("Using MetricServer");
 app.UseMetricServer();
-Console.WriteLine("Using Startup Configure");
 startup.Configure(app);
 
-Console.WriteLine("Using fallback 404");
 app.Run(async context =>
 {
     context.Response.StatusCode = 404;
     await context.Response.WriteAsync("404");
 });
 
-Console.WriteLine("Running app");
 app.Run();
-Console.WriteLine("Disposing serviceProviderStarter");
 serviceProviderStarter.Dispose();
 
-
-
-public partial class Program
-{
-}
+public partial class Program;
 
 
 #pragma warning restore CA2252
