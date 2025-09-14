@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -56,7 +57,28 @@ Console.WriteLine($"Using orchestrator: {envOrConfig}");
 switch (envOrConfig)
 {
     case "Docker":
-        serviceCollectionStarter.AddHttpClient(DockerService.HttpClientName);
+        serviceCollectionStarter.AddHttpClient(DockerService.HttpClientName, client =>
+            {
+                client.BaseAddress = new Uri("http://localhost"); // obligatoire pour HttpClient
+            })
+            .ConfigurePrimaryHttpMessageHandler(() =>
+            {
+                var dockerHost = Environment.GetEnvironmentVariable("DOCKER_HOST");
+                var udsPath = "/var/run/docker.sock";
+                if (!string.IsNullOrWhiteSpace(dockerHost) && dockerHost.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
+                    udsPath = dockerHost.Replace("unix://", "", StringComparison.OrdinalIgnoreCase);
+
+                return new SocketsHttpHandler
+                {
+                    ConnectCallback = async (ctx, ct) =>
+                    {
+                        var ep = new UnixDomainSocketEndPoint(udsPath);
+                        var sock = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+                        await sock.ConnectAsync(ep, ct);
+                        return new NetworkStream(sock, ownsSocket: true);
+                    }
+                };
+            });
         serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
         break;
     case "Mock":

@@ -71,10 +71,10 @@ namespace SlimFaas.Kubernetes
                     host = OperatingSystem.IsWindows() ? "http://127.0.0.1:2375" : "unix:///var/run/docker.sock";
                 }
 
-                if (host.StartsWith("unix://"))
+                /*if (host.StartsWith("unix://"))
                 {
                     throw new InvalidOperationException("Unix sockets not supported via IHttpClientFactory. Use TCP.");
-                }
+                }*/
 
                 // http(s) → utilise comme BaseAddress
                 UriBuilder uri = new(host);

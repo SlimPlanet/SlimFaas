@@ -26,10 +26,6 @@ public class Startup(IConfiguration configuration)
         const string ListLengthResource = "/SlimData/ListLength";
         const string ListSetQueueItemStatus = "/SlimData/ListCallback";
         const string HealthResource = "/health";
-        Console.WriteLine("SlimData Cluster Members:");
-        foreach (var member in ClusterMembers)
-            Console.WriteLine($"  {member}");
-        Console.WriteLine("SlimData After Cluster Members");
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
@@ -50,7 +46,6 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapPost(AddKeyValueResource,  Endpoints.AddKeyValueAsync);
                 endpoints.MapPost(ListSetQueueItemStatus,  Endpoints.ListCallbackAsync);
             });
-        Console.WriteLine("SlimData started");
     }
 
 
