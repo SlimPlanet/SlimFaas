@@ -50,28 +50,26 @@ IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appse
     .AddJsonFile($"appsettings.{environment} .json", true)
     .AddEnvironmentVariables().Build();
 
-var envOrConfig = Environment.GetEnvironmentVariable("SLIMFAAS_ORCHESTRATOR");
-if (envOrConfig == "Docker")
-{
-    serviceCollectionStarter.AddHttpClient(DockerService.HttpClientName);
-    serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
-}
-else
-    serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>();
+var envOrConfig = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasOrchestrator) ?? EnvironmentVariables.SlimFaasOrchestratorDefault;
+Console.WriteLine($"Using orchestrator: {envOrConfig}");
 
-/*string? mockKubernetesFunction = Environment.GetEnvironmentVariable(EnvironmentVariables.MockKubernetesFunctions);
-if (!string.IsNullOrEmpty(mockKubernetesFunction))
+switch (envOrConfig)
 {
-    serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
+    case "Docker":
+        serviceCollectionStarter.AddHttpClient(DockerService.HttpClientName);
+        serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
+        break;
+    case "Mock":
+        serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
+        break;
+    default:
+        serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>(sp =>
+        {
+            bool useKubeConfig = bool.Parse(configuration["UseKubeConfig"] ?? "false");
+            return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig);
+        });
+        break;
 }
-else
-{
-    serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>(sp =>
-    {
-        bool useKubeConfig = bool.Parse(configuration["UseKubeConfig"] ?? "false");
-        return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig);
-    });
-}*/
 
 serviceCollectionStarter.AddLogging(loggingBuilder =>
 {
@@ -145,14 +143,14 @@ while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name == hostname)
 }
 
 while (!slimDataAllowColdStart &&
-       replicasService?.Deployments.SlimFaas.Pods.Count(p => !string.IsNullOrEmpty(p.Ip)) < 2)
+       replicasService?.Deployments?.SlimFaas?.Pods.Count(p => !string.IsNullOrEmpty(p.Ip)) < 2)
 {
     Console.WriteLine("Waiting for at least 2 pods to be ready");
     Task.Delay(1000).Wait();
     replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 }
 
-if (replicasService?.Deployments.SlimFaas.Pods != null)
+if (replicasService?.Deployments?.SlimFaas?.Pods != null)
 {
     foreach (string enumerateDirectory in Directory.EnumerateDirectories(slimDataDirectory))
     {
@@ -250,7 +248,7 @@ if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 
 Startup startup = new(builder.Configuration);
 // Node start as master if it is alone in the cluster
-string coldStart = replicasService != null && replicasService.Deployments.SlimFaas.Pods.Count == 1 ? "true" : "false";
+string coldStart = replicasService != null && replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 ? "true" : "false";
 
 Dictionary<string, string> slimDataDefaultConfiguration = new()
 {
