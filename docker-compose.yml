@@ -19,12 +19,8 @@ services:
       SLIMDATA_CONFIGURATION: '{"coldStart":"true"}'
       ASPNETCORE_URLS: "http://0.0.0.0:8080"
       SLIMFAAS_ORCHESTRATOR: "Docker"
-      "Logging:LogLevel:Default": "DEBUG"
-      "Logging:LogLevel:Microsoft": "DEBUG"
-      Logging__LogLevel__Default: "Debug"
       HOSTNAME: "slimfaas-slimfaas-1"
       SLIMDATA_DIRECTORY: "/database"
-
       # ➜ Ta variable multiligne (JSON valide, sans virgules finales)
       SLIMFAAS_JOBS_CONFIGURATION: |
         {
@@ -54,11 +50,8 @@ services:
     volumes:
       - slimfaas_data:/database
       - /var/run/docker.sock:/var/run/docker.sock
-
     extra_hosts:
       - host.docker.internal:host-gateway
-    #depends_on:
-    #  - fibonacci
     networks:
       - slimfaas-net
     labels:
@@ -75,7 +68,6 @@ services:
     build:
       context: src/Fibonacci
       dockerfile: ./Dockerfile
-
     ports:
       - "5000:5000"
     environment:
