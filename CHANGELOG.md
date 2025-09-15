@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.41.2
+
+- [1e0fd16](https://github.com/SlimPlanet/SlimFaas/commit/1e0fd16a4816b9396e7fb5469ba990725e680546) - fix(doc): typo readme.md (release), 2025-09-15 by *Guillaume Chervet*
+- [1c8c4b8](https://github.com/SlimPlanet/SlimFaas/commit/1c8c4b882172649726348fec162a185ce8adddc5) - feature(slimfaas): docker compose implementation (#162), 2025-09-15 by *Guillaume Chervet*
+- [fd90f98](https://github.com/SlimPlanet/SlimFaas/commit/fd90f9826fbb8e02ad25853403e1d60c4d677781) - fix(slimfaas-mcp): anyOf oneOf allOf and $ref (#163), 2025-09-14 by *Guillaume Chervet*
+
+
+## 0.41.1
+
+
+
 ## v0.41.1
 
 - [c9dbb70](https://github.com/SlimPlanet/SlimFaas/commit/c9dbb70c6340c4b645372d1043bb69910ba52219) - fix(planet-saver): too many timer (#160) (release), 2025-09-05 by *Guillaume Chervet*
@@ -279,15 +290,5 @@
 
 ## v0.36.12
 
-
-
-## v0.36.11
-
-- [e859d77](https://github.com/SlimPlanet/SlimFaas/commit/e859d770f496601e14122215b4120626c8ba75eb) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
-
-
-## v0.36.10
-
-- [11c25ff](https://github.com/SlimPlanet/SlimFaas/commit/11c25ff29d582be12e21c150c34254151dbbcfbf) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
 
 
