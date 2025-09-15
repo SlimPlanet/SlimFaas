@@ -26,7 +26,6 @@ public class Startup(IConfiguration configuration)
         const string ListLengthResource = "/SlimData/ListLength";
         const string ListSetQueueItemStatus = "/SlimData/ListCallback";
         const string HealthResource = "/health";
-
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)

@@ -75,13 +75,11 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         IJobService jobService,
         IServiceProvider serviceProvider)
     {
-
         if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts.Ports.ToArray()))
         {
             await next(context);
             return;
         }
-
         HttpRequest contextRequest = context.Request;
         HttpResponse contextResponse = context.Response;
 
@@ -633,13 +631,20 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         historyHttpService.SetTickLastCall(functionName, lastSetTicks);
         while (numberLoop > 0)
         {
+            logger.LogDebug("WaitForAnyPodStartedAsync: Wait for any pod started for {FunctionName} {NumberLoop}", functionName, numberLoop);
             DeploymentInformation? function = SearchFunction(replicasService, functionName);
             if(function == null)
             {
                 continue;
             }
+
             bool? isAnyContainerStarted = function.Pods.Any(p => p.Ready.HasValue && p.Ready.Value);
+            foreach (PodInformation podInformation in function.Pods)
+            {
+                logger.LogDebug("Pod {PodName} Ready {PodReady} IP {PodIp}", podInformation.Name, podInformation.Ready, podInformation.Ip);
+            }
             bool isReady = isAnyContainerStarted.Value && function?.EndpointReady == true;
+            logger.LogDebug("WaitForAnyPodStartedAsync: Is any pod started for {FunctionName} {IsAnyContainerStarted} {EndpointReady}", functionName, isAnyContainerStarted, function?.EndpointReady);
             if (!isReady && !context.RequestAborted.IsCancellationRequested)
             {
                 numberLoop--;

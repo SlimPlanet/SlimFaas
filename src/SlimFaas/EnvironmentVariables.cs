@@ -22,7 +22,6 @@ public static class EnvironmentVariables
     public const string SlimJobsWorkerDelayMilliseconds = "SLIM_JOBS_WORKER_DELAY_MILLISECONDS";
     public const int SlimJobsWorkerDelayMillisecondsDefault = 1000;
 
-    public const string SlimFaasListenAdditionalPorts = "SLIMFAAS_LISTEN_ADDITIONAL_PORTS";
     public const string BaseSlimDataUrl = "BASE_SLIMDATA_URL";
     public const string BaseSlimDataUrlDefault = "http://{pod_ip}:3262";
 
@@ -73,6 +72,9 @@ public static class EnvironmentVariables
 
     public const string SlimDataDirectory = "SLIMDATA_DIRECTORY";
     public const string SlimDataConfiguration = "SLIMDATA_CONFIGURATION";
+
+    public const string SlimFaasOrchestrator = "SLIMFAAS_ORCHESTRATOR";
+    public const string SlimFaasOrchestratorDefault = "Kubernetes";
 
     public const bool SlimDataAllowColdStartDefault = false;
     public static readonly int[] SlimFaasListenAdditionalPortsDefault = { };

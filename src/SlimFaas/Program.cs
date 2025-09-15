@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -50,18 +51,46 @@ IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appse
     .AddJsonFile($"appsettings.{environment} .json", true)
     .AddEnvironmentVariables().Build();
 
-string? mockKubernetesFunction = Environment.GetEnvironmentVariable(EnvironmentVariables.MockKubernetesFunctions);
-if (!string.IsNullOrEmpty(mockKubernetesFunction))
+var envOrConfig = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasOrchestrator) ?? EnvironmentVariables.SlimFaasOrchestratorDefault;
+Console.WriteLine($"Using orchestrator: {envOrConfig}");
+
+switch (envOrConfig)
 {
-    serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
-}
-else
-{
-    serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>(sp =>
-    {
-        bool useKubeConfig = bool.Parse(configuration["UseKubeConfig"] ?? "false");
-        return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig);
-    });
+    case "Docker":
+        serviceCollectionStarter.AddHttpClient(DockerService.HttpClientName, client =>
+            {
+                client.BaseAddress = new Uri("http://localhost"); // obligatoire pour HttpClient
+            })
+            .ConfigurePrimaryHttpMessageHandler(() =>
+            {
+                var dockerHost = Environment.GetEnvironmentVariable("DOCKER_HOST");
+                var udsPath = "/var/run/docker.sock";
+                if (!string.IsNullOrWhiteSpace(dockerHost) && dockerHost.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
+                    udsPath = dockerHost.Replace("unix://", "", StringComparison.OrdinalIgnoreCase);
+
+                return new SocketsHttpHandler
+                {
+                    ConnectCallback = async (ctx, ct) =>
+                    {
+                        var ep = new UnixDomainSocketEndPoint(udsPath);
+                        var sock = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+                        await sock.ConnectAsync(ep, ct);
+                        return new NetworkStream(sock, ownsSocket: true);
+                    }
+                };
+            });
+        serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
+        break;
+    case "Mock":
+        serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
+        break;
+    default:
+        serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>(sp =>
+        {
+            bool useKubeConfig = bool.Parse(configuration["UseKubeConfig"] ?? "false");
+            return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig);
+        });
+        break;
 }
 
 serviceCollectionStarter.AddLogging(loggingBuilder =>
@@ -115,7 +144,10 @@ string podDataDirectoryPersistantStorage = string.Empty;
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? EnvironmentVariables.HostnameDefault;
-while (replicasService?.Deployments.SlimFaas.Pods.Any(p => p.Name == hostname) == false)
+
+
+
+while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name == hostname) == false)
 {
     Console.WriteLine("Waiting current pod to be ready");
     Task.Delay(1000).Wait();
@@ -123,14 +155,14 @@ while (replicasService?.Deployments.SlimFaas.Pods.Any(p => p.Name == hostname) =
 }
 
 while (!slimDataAllowColdStart &&
-       replicasService?.Deployments.SlimFaas.Pods.Count(p => !string.IsNullOrEmpty(p.Ip)) < 2)
+       replicasService?.Deployments?.SlimFaas?.Pods.Count(p => !string.IsNullOrEmpty(p.Ip)) < 2)
 {
     Console.WriteLine("Waiting for at least 2 pods to be ready");
     Task.Delay(1000).Wait();
     replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 }
 
-if (replicasService?.Deployments.SlimFaas.Pods != null)
+if (replicasService?.Deployments?.SlimFaas?.Pods != null)
 {
     foreach (string enumerateDirectory in Directory.EnumerateDirectories(slimDataDirectory))
     {
@@ -228,7 +260,7 @@ if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 
 Startup startup = new(builder.Configuration);
 // Node start as master if it is alone in the cluster
-string coldStart = replicasService != null && replicasService.Deployments.SlimFaas.Pods.Count == 1 ? "true" : "false";
+string coldStart = replicasService != null && replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 ? "true" : "false";
 
 Dictionary<string, string> slimDataDefaultConfiguration = new()
 {
@@ -250,7 +282,6 @@ foreach (KeyValuePair<string,string> keyValuePair in slimDataDefaultConfiguratio
         slimDataConfiguration.Add(keyValuePair.Key, keyValuePair.Value);
     }
 }
-Console.WriteLine(">> Configuration: ");
 foreach (KeyValuePair<string,string> keyValuePair in slimDataConfiguration)
 {
     Console.WriteLine($"- {keyValuePair.Key}:{keyValuePair.Value}");
@@ -275,7 +306,7 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
         Console.WriteLine("No Slimfaas ports");
         return;
     }
-    Console.WriteLine("Initilazing Slimfaas ports");
+    Console.WriteLine("Initializing Slimfaas ports");
     foreach (int slimFaasPort in slimfaasPorts.Ports)
     {
         Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
@@ -292,7 +323,6 @@ app.UseCors(builder =>
 {
     string slimFaasCorsAllowOrigin = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasCorsAllowOrigin) ??
                                EnvironmentVariables.SlimFaasCorsAllowOriginDefault;
-    Console.WriteLine($"CORS Allowing origins: {slimFaasCorsAllowOrigin}");
     if (slimFaasCorsAllowOrigin == "*")
     {
         Console.WriteLine("CORS Allowing all origins");
@@ -309,7 +339,9 @@ app.UseCors(builder =>
             .AllowAnyHeader();
     }
 });
+
 app.UseMiddleware<SlimProxyMiddleware>();
+
 app.Use(async (context, next) =>
 {
     if (slimfaasPorts == null)
@@ -334,7 +366,6 @@ app.Use(async (context, next) =>
 });
 
 app.UseRouting();
-
 app.UseHttpMetrics(options =>
 {
     // This will preserve only the first digit of the status code.
@@ -342,9 +373,7 @@ app.UseHttpMetrics(options =>
     options.ReduceStatusCodeCardinality();
 });
 app.UseMetricServer();
-
 startup.Configure(app);
-
 
 app.Run(async context =>
 {
@@ -352,16 +381,10 @@ app.Run(async context =>
     await context.Response.WriteAsync("404");
 });
 
-
 app.Run();
-
 serviceProviderStarter.Dispose();
 
-
-
-public partial class Program
-{
-}
+public partial class Program;
 
 
 #pragma warning restore CA2252

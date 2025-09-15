@@ -18,8 +18,6 @@ public class SlimFaasPorts : ISlimFaasPorts
             slimDataUrl = slimDataUrl.Substring(0, slimDataUrl.Length - 1);
         }
         int slimDataUrlPort = int.Parse(slimDataUrl.Split(":")[2]);
-        var slimfaasListenAdditionalPorts = EnvironmentVariables.ReadIntegers(EnvironmentVariables.SlimFaasListenAdditionalPorts,
-        EnvironmentVariables.SlimFaasListenAdditionalPortsDefault);
         var ports = replicasService.Deployments.SlimFaas.Pods.FirstOrDefault()?.Ports;
 
         if(ports == null)
@@ -29,7 +27,6 @@ public class SlimFaasPorts : ISlimFaasPorts
             return;
         }
         var mergedPorts = new List<int>(ports);
-        mergedPorts.AddRange(slimfaasListenAdditionalPorts);
         Ports = mergedPorts.Where(p => p != slimDataUrlPort).ToList();
         foreach (int port in Ports)
         {

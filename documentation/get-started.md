@@ -14,7 +14,7 @@ You can also find [advanced installation details](#manual-installation-on-kubern
 Below is an example workflow for running SlimFaas on Kubernetes locally (e.g., via Docker Desktop, kind or minikube).:
 
 ```bash
-git clone https://github.com/AxaFrance/slimfaas.git
+git clone hhttps://github.com/SlimPlanet/SlimFaas.git
 cd slimfaas/demo
 
 # Deploy SlimFaas (StatefulSet) and related ServiceAccount
@@ -77,15 +77,17 @@ Browse to http://localhost:8000
 
 ## 2. Docker Compose Quick Start
 
+> **Note:** This is for local testing only. For production, use Kubernetes.
+
 ```bash
-git clone https://github.com/AxaFrance/slimfaas.git
+git clone https://github.com/SlimPlanet/SlimFaas.git
 cd slimfaas
 docker-compose up
 ```
 
 When it’s ready:
 
-- GET http://slimfaas/function/fibonacci/hello/guillaume
+- GET http://localhost:8080/function/fibonacci/hello/guillaume
 
 Enjoy SlimFaas!
 
