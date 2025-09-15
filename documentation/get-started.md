@@ -77,6 +77,8 @@ Browse to http://localhost:8000
 
 ## 2. Docker Compose Quick Start
 
+> **Note:** This is for local testing only. For production, use Kubernetes.
+
 ```bash
 git clone https://github.com/AxaFrance/slimfaas.git
 cd slimfaas

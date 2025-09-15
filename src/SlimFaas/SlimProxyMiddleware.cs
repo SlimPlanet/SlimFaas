@@ -631,7 +631,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         historyHttpService.SetTickLastCall(functionName, lastSetTicks);
         while (numberLoop > 0)
         {
-            logger.LogDebug("=================> Wait for any pod started for {FunctionName} {NumberLoop}", functionName, numberLoop);
+            logger.LogDebug("WaitForAnyPodStartedAsync: Wait for any pod started for {FunctionName} {NumberLoop}", functionName, numberLoop);
             DeploymentInformation? function = SearchFunction(replicasService, functionName);
             if(function == null)
             {
@@ -644,7 +644,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 logger.LogDebug("Pod {PodName} Ready {PodReady} IP {PodIp}", podInformation.Name, podInformation.Ready, podInformation.Ip);
             }
             bool isReady = isAnyContainerStarted.Value && function?.EndpointReady == true;
-            logger.LogDebug("=================> Is any pod started for {FunctionName} {IsAnyContainerStarted} {EndpointReady}", functionName, isAnyContainerStarted, function?.EndpointReady);
+            logger.LogDebug("WaitForAnyPodStartedAsync: Is any pod started for {FunctionName} {IsAnyContainerStarted} {EndpointReady}", functionName, isAnyContainerStarted, function?.EndpointReady);
             if (!isReady && !context.RequestAborted.IsCancellationRequested)
             {
                 numberLoop--;
