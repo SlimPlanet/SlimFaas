@@ -10,18 +10,16 @@ services:
       context: .
       dockerfile: ./Dockerfile
     ports:
-      - "8080:8080"
-      #- "3262:3262"
+      - "30021:30021"
     user: "0:0"
     environment:
       DOCKER_HOST: "unix:///var/run/docker.sock"
       BASE_SLIMDATA_URL: "http://localhost:3262/"
       SLIMDATA_CONFIGURATION: '{"coldStart":"true"}'
-      ASPNETCORE_URLS: "http://0.0.0.0:8080"
+      ASPNETCORE_URLS: "http://0.0.0.0:30021"
       SLIMFAAS_ORCHESTRATOR: "Docker"
       HOSTNAME: "slimfaas-slimfaas-1"
       SLIMDATA_DIRECTORY: "/database"
-      # ➜ Ta variable multiligne (JSON valide, sans virgules finales)
       SLIMFAAS_JOBS_CONFIGURATION: |
         {
           "Configurations": {
@@ -63,7 +61,7 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
-  fibonacci:
+  fibonacci1:
     image: axaguildev/fibonacci:dev
     build:
       context: src/Fibonacci
@@ -74,12 +72,12 @@ services:
       - ASPNETCORE_URLS=http://+:5000
     labels:
       slimfaas/function: "true"
-      app: "fibonacci"
+      app: "fibonacci1"
       slimfaas/namespace: "default"
       SlimFaas/Configuration: '{"DefaultSync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultAsync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultPublish":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]}}'
       SlimFaas/ReplicasAtStart: "1"
       SlimFaas/ReplicasMin: "0"
-      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "30"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
       SlimFaas/NumberParallelRequest: "1"
       SlimFaas/DefaultVisibility: "Public"
       SlimFaas/DefaultTrust: "Trusted"

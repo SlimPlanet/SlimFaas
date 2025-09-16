@@ -77,7 +77,7 @@ Browse to http://localhost:8000
 
 ## 2. Docker Compose Quick Start
 
-> **Note:** This is for local testing only. For production, use Kubernetes.
+> **Note:** This is for local testing only. For production, use Kubernetes. Works with Docker Compose or Podman Compose.
 
 ```bash
 git clone https://github.com/SlimPlanet/SlimFaas.git
@@ -87,7 +87,7 @@ docker-compose up
 
 When it’s ready:
 
-- GET http://localhost:8080/function/fibonacci/hello/guillaume
+- GET http://localhost:30021/function/fibonacci/hello/guillaume
 
 Enjoy SlimFaas!
 
