@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.42.1
+
+- [7568d56](https://github.com/SlimPlanet/SlimFaas/commit/7568d56e85b590b7b6815e11fc31247a5583354a) - fix(slimfaas-mcp): structured-output must be an object (#166) (release), 2025-09-18 by *Guillaume Chervet*
+
+
+## 0.42.0
+
+
+
 ## v0.42.0
 
 - [bd34d02](https://github.com/SlimPlanet/SlimFaas/commit/bd34d026b02e12e023001908e8f8758817e60e3c) - feat(slimfaas-mcp): add tool prefix (#165) (release), 2025-09-18 by *Guillaume Chervet*
@@ -281,15 +290,5 @@
 ## v0.36.16
 
 - [d379c79](https://github.com/SlimPlanet/SlimFaas/commit/d379c796f139d9c4c82497079e7f555da0885dab) - fix(website): adapt css + image path to custom domain (release), 2025-04-07 by *Guillaume Chervet*
-
-
-## v0.36.15
-
-- [33d775d](https://github.com/SlimPlanet/SlimFaas/commit/33d775d7eecf8091c17dfec274b35ee0c5a0e1d7) - fix(website): adapt css + image path to custom domain (release), 2025-04-07 by *Guillaume Chervet*
-
-
-## v0.36.14
-
-- [825ed3f](https://github.com/SlimPlanet/SlimFaas/commit/825ed3f7f86821d94929df3bdb463b2c99cbfc4c) - doc(readme.md): update readme (release), 2025-04-07 by *Guillaume Chervet*
 
 
