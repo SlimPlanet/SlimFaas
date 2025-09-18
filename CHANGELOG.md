@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.42.0
+
+- [bd34d02](https://github.com/SlimPlanet/SlimFaas/commit/bd34d026b02e12e023001908e8f8758817e60e3c) - feat(slimfaas-mcp): add tool prefix (#165) (release), 2025-09-18 by *Guillaume Chervet*
+- [9816baa](https://github.com/SlimPlanet/SlimFaas/commit/9816baafd47715c1d952de6908b36b85ddfdd476) - fix(doc): update readme and docker-compose.yml, 2025-09-16 by *Guillaume Chervet*
+
+
+## 0.41.2
+
+
+
 ## v0.41.2
 
 - [1e0fd16](https://github.com/SlimPlanet/SlimFaas/commit/1e0fd16a4816b9396e7fb5469ba990725e680546) - fix(doc): typo readme.md (release), 2025-09-15 by *Guillaume Chervet*
@@ -281,14 +291,5 @@
 ## v0.36.14
 
 - [825ed3f](https://github.com/SlimPlanet/SlimFaas/commit/825ed3f7f86821d94929df3bdb463b2c99cbfc4c) - doc(readme.md): update readme (release), 2025-04-07 by *Guillaume Chervet*
-
-
-## v0.36.13
-
-- [24340d8](https://github.com/SlimPlanet/SlimFaas/commit/24340d83c65821ad22a5b55215674ec3c533c4e7) - feature(site): add website (#93) (release), 2025-04-06 by *Guillaume Chervet*
-
-
-## v0.36.12
-
 
 
