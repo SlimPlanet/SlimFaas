@@ -112,8 +112,9 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
 
                         if (structuredContentEnabled)
                         {
+                            var wrapped = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
                             node["outputSchema"] = JsonNode.Parse(
-                                JsonSerializer.Serialize(t.OutputSchema, AppJsonContext.Default.JsonNode))!;
+                                JsonSerializer.Serialize(wrapped, AppJsonContext.Default.JsonNode))!;
                         }
 
                         return node;
@@ -194,6 +195,12 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
     if (!structuredContentEnabled)
     {
         foreach (var t in tools) t.OutputSchema = new JsonObject();
+    }
+    else
+    {
+        // ⬇️ applique le même wrapping pour que l’UI annonce le bon schéma
+        foreach (var t in tools)
+            t.OutputSchema = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
     }
 
     return TypedResults.Ok(tools);

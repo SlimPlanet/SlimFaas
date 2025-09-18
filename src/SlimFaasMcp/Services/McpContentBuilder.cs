@@ -102,8 +102,15 @@ public static class McpContentBuilder
         if (!looksMaybeJson) return false;
         try
         {
-            node = JsonNode.Parse(text);
-            return node is not null;
+            var parsed  = JsonNode.Parse(text);
+            if (parsed is null) return false;
+
+            // ✅ règle MCP :
+            // - scalaire => { "value": ... }
+            // - array    => { "items": [...] }
+            // - objet    => tel quel
+            node = WrapStructuredNode(parsed);
+            return true;
         }
         catch
         {
@@ -120,5 +127,21 @@ public static class McpContentBuilder
             return c == '{' || c == '[';
         }
         return false;
+    }
+
+    private static JsonNode WrapStructuredNode(JsonNode parsed)
+    {
+        switch (parsed)
+        {
+            case JsonArray arr:
+                return new JsonObject { ["items"] = arr }; // { items: [...] }
+
+            case JsonObject obj:
+                return obj; // objet inchangé
+
+            default:
+                // JsonValue (string/number/bool/null)
+                return new JsonObject { ["value"] = parsed }; // { value: ... }
+        }
     }
 }
