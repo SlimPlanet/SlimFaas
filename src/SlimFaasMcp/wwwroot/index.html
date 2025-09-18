@@ -19,6 +19,13 @@
 <label>Base URL override:
     <input id="baseUrl" type="text" placeholder="(optional, e.g. https://petstore3.swagger.io/api/v3)" value="https://petstore3.swagger.io/api/v3" style="width: 50%;" />
 </label><br>
+<label>Tool prefix:
+    <input id="toolPrefix" type="text" placeholder="(optional, e.g. myapp)" style="width: 50%;" />
+</label><br>
+<label style="display:block;margin-top:8px;">
+    <input id="structuredContentCheckbox" type="checkbox">
+    Activer <code>structured_content</code> (inclure <code>structuredContent</code> dans la réponse)
+</label><br>
 <label>MCP Prompt base 64:
     <input id="mcpPromptbase64input" type="text" placeholder="(optional)" style="width: 50%;" />
 </label>
@@ -61,10 +68,7 @@
            placeholder="(optional Bearer token)"
            style="width:50%;" />
 </label><br>
-<label style="display:block;margin-top:8px;">
-    <input id="structuredContentCheckbox" type="checkbox">
-    Activer <code>structured_content</code> (inclure <code>structuredContent</code> dans la réponse)
-</label>
+
 
 <hr>
 <div id="tools"></div>
@@ -112,6 +116,7 @@
         const base      = document.getElementById("baseUrl").value.trim();
         const oauthB64  = document.getElementById("oauthMetaBase64").textContent.trim();
         const mcpB64    = document.getElementById("mcpPromptBase64").textContent.trim();
+        const toolPrefix = document.getElementById("toolPrefix").value.trim();
         const structured = isStructuredContentEnabled();
 
         const originPath = window.location.origin +
@@ -122,6 +127,7 @@
         if (isBase64(mcpB64) && mcpB64)   url += `&mcp_prompt=${encodeURIComponent(mcpB64)}`;
         if (isBase64(oauthB64) && oauthB64) url += `&oauth=${encodeURIComponent(oauthB64)}`;
         if (structured)         url += `&structured_content=true`;
+        if (toolPrefix) url += `&tool_prefix=${encodeURIComponent(toolPrefix)}`;
 
         const span = document.getElementById("shareUrl");
         span.textContent = url;
@@ -140,7 +146,7 @@
         document.getElementById("oauthShareUrl").textContent = metaUrl;
     }
 
-    ["swaggerUrl", "baseUrl"].forEach(id => {
+    ["swaggerUrl", "baseUrl", "toolPrefix"].forEach(id => {
         document.getElementById(id).addEventListener("input", () => updateShareUrl());
     });
 
@@ -193,12 +199,14 @@
         const swaggerUrl = document.getElementById("swaggerUrl").value.trim();
         const baseUrl    = document.getElementById("baseUrl").value.trim();
         const b64Prompt  = document.getElementById("mcpPromptbase64input").value.trim();
+        const toolPrefix = document.getElementById("toolPrefix").value.trim();
 
         let endpoint = `/tools?openapi_url=${encodeURIComponent(swaggerUrl)}`;
         if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
         const oauthB64 = encodeOAuthMeta();
         if (oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
         if (isStructuredContentEnabled()) endpoint += `&structured_content=true`;
+        if (toolPrefix) endpoint += `&tool_prefix=${encodeURIComponent(toolPrefix)}`;
         let headers = getBearerHeader();
 
         const toolsRes = await fetch(endpoint, { method: "GET", headers });
@@ -270,6 +278,8 @@
         const tool     = loadedTools.find(t => t.name === name);
         const swagger  = document.getElementById("swaggerUrl").value.trim();
         const baseUrl  = document.getElementById("baseUrl").value.trim();
+        const toolPrefix = document.getElementById("toolPrefix").value.trim();
+
         let endpoint   = `/tools/${name}?openapi_url=${encodeURIComponent(swagger)}`;
         if (baseUrl) endpoint += `&base_url=${encodeURIComponent(baseUrl)}`;
         const { b64 }  = getMcpPromptBase64();
@@ -277,6 +287,7 @@
         const oauthB64 = document.getElementById("oauthMetaBase64").textContent.trim();
         if (isBase64(oauthB64) && oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
         if (isStructuredContentEnabled()) endpoint += `&structured_content=true`;
+        if (toolPrefix) endpoint += `&tool_prefix=${encodeURIComponent(toolPrefix)}`;
 
         const contentType = tool.endpoint?.contentType || "application/json";
         let body;

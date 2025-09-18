@@ -60,6 +60,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
     var baseUrl       = qs.TryGetValue("base_url", out var qb)       ? qb.ToString()     : "";
     var mcpPromptB64  = qs.TryGetValue("mcp_prompt", out var qp)     ? qp.ToString()     : null;
     var oauthB64    = qs.TryGetValue("oauth", out var qOauth) ? qOauth.ToString() : null;
+    var toolPrefix = qs.TryGetValue("tool_prefix", out var qtp) ? qtp.ToString() : null;
     var structuredContentEnabled =
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
@@ -92,7 +93,11 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
             {
                 var tools = await toolProxyService.GetToolsAsync(
                     openapiUrl, baseUrl, additionalHeaders, mcpPromptB64);
-
+                if (!string.IsNullOrWhiteSpace(toolPrefix))
+                {
+                    foreach (var t in tools)
+                        t.Name = $"{toolPrefix}_{t.Name}";
+                }
                 response["result"] = new JsonObject
                 {
                     ["tools"] = new JsonArray(tools.Select(t =>
@@ -125,10 +130,11 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                     response["error"] = new JsonObject { ["code"] = -32602, ["message"] = "Missing params" };
                     break;
                 }
-
+                var incomingName = p.GetProperty("name").GetString()!;
+                var realName = StripToolPrefix(incomingName, toolPrefix);
                 var callResult = await toolProxyService.ExecuteToolAsync(
                     openapiUrl,
-                    p.GetProperty("name").GetString()!,
+                    realName!,
                     p.GetProperty("arguments"),
                     baseUrl,
                     additionalHeaders);
@@ -174,6 +180,13 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
         mcp_prompt);
 
     var qs = httpRequest.Query;
+    var toolPrefix = qs.TryGetValue("tool_prefix", out var qtp) ? qtp.ToString() : null;
+
+    if (!string.IsNullOrWhiteSpace(toolPrefix))
+    {
+        foreach (var t in tools)
+            t.Name = $"{toolPrefix}_{t.Name}";
+    }
     var structuredContentEnabled =
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
@@ -197,13 +210,14 @@ grp.MapPost("/{toolName}", async Task<IResult> (
     =>
 {
     IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
-
+    var qs = httpRequest.Query;
+    var toolPrefix = qs.TryGetValue("tool_prefix", out var qtp) ? qtp.ToString() : null;
+    var realName   = StripToolPrefix(toolName, toolPrefix);
     var r = await proxy.ExecuteToolAsync(
-        openapi_url, toolName, arguments,
+        openapi_url, realName!, arguments,
         base_url,
         additionalHeaders);
 
-    var qs = httpRequest.Query;
     var structuredContentEnabled =
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
@@ -254,6 +268,15 @@ IDictionary<string, string> AuthHeader(HttpRequest httpRequest1, out string? s)
     if (!string.IsNullOrWhiteSpace(dpopHeader))
         dictionary["Dpop"] = dpopHeader;
     return dictionary;
+}
+
+static string? StripToolPrefix(string? name, string? prefix)
+{
+    if (string.IsNullOrWhiteSpace(prefix) || string.IsNullOrWhiteSpace(name)) return name;
+    var wanted = prefix + "_";
+    return name!.StartsWith(wanted, StringComparison.OrdinalIgnoreCase)
+        ? name.Substring(wanted.Length)
+        : name;
 }
 
 public partial class Program { }

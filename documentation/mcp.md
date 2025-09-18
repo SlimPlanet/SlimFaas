@@ -34,11 +34,11 @@ This project is a **runtime MCP proxy** that dynamically generates SlimFaas‑co
 
     * `POST /mcp` (JSON‑RPC 2.0)
 
-        * Query – `openapi_url`, `base_url`, `mcp_prompt`, `oauth`, `structured_content`
+        * Query – `openapi_url`, `base_url`, `mcp_prompt`, `oauth`, `structured_content`, `tool_prefix`
     * `GET  /tools` – list all generated MCP tools
-      * Query – `openapi_url`, `base_url`, `mcp_prompt`
+      * Query – `openapi_url`, `base_url`, `mcp_prompt`, `tool_prefix`
     * `POST /tools/{toolName}` – execute a proxied call to the API
-      * Query – `openapi_url`, `base_url`, `mcp_prompt`, `oauth`, `structured_content`
+      * Query – `openapi_url`, `base_url`, `mcp_prompt`, `oauth`, `structured_content`, `tool_prefix`
     * `GET /{oauth}/.well-known/oauth-protected-resource` – for client dynamic authorization server discovery (RFC 9728)
 * **Minimal Web UI** served at `/index.html` for interactive testing.
 
@@ -49,12 +49,13 @@ This project is a **runtime MCP proxy** that dynamically generates SlimFaas‑co
 > Applies to both `POST /mcp` (JSON-RPC endpoint) and the UI helper endpoint `POST /tools/{toolName}`.
 
 | Parameter            | Required | Type / Format                                                      | Purpose                                                                      | Notes                                                                                                                                                                                     | Example                                            |
-| -------------------- | -------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+|----------------------| -------- |--------------------------------------------------------------------|------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------------------------------------|
 | `openapi_url`        | ✅ Yes    | Absolute URL                                                       | Location of the OpenAPI (JSON) document to consume.                          | Used to discover endpoints (tools).                                                                                                                                                       | `https://petstore3.swagger.io/api/v3/openapi.json` |
 | `base_url`           | ✅ Yes | Absolute URL                                                       | Overrides the base URL used for actual API calls.                            | Useful if the OpenAPI doc is hosted separately from the API origin.                                                                                                                       | `https://petstore3.swagger.io/api/v3`              |
 | `mcp_prompt`         | Optional | **Base64** of a JSON object (or YAML converted to JSON)            | Filters/overrides tools (`activeTools`, descriptions, input/output schemas). | Must be **UTF-8 base64**. Server applies overrides **before** exposing `tools/list`.                                                                                                      | See base64 example below                           |
 | `oauth`              | Optional | **Base64** of an OAuth Protected Resource Metadata JSON (RFC 9728) | Lets the server advertise protected resource metadata.                       | If present **and** there is **no** `Authorization` header, server returns `401` with a `WWW-Authenticate: Bearer resource_metadata=".../.well-known/oauth-protected-resource"` challenge. | See base64 example below                           |
 | `structured_content` | Optional | Boolean (`true`/`false`)                                           | Enables inclusion of **`structuredContent`** (JSON object) in responses.     | When `true` and the upstream response is JSON, the server returns **both** a human-readable `content[]` block (with a `text` item) **and** a machine-readable `structuredContent` object. | `true`                                             |
+| `tool_prefix`        | Optional | string                                                             | Prefix all tool name with **`value_`**                                        | Usefull to prevent mismatch between tools name on differents services                                                                                                                     | `?tool_prefix=youhou`                              |
 
 ---
 
@@ -122,6 +123,7 @@ https://localhost:5001/mcp
   &mcp_prompt=eyJhY3RpdmV...fV19
   &oauth=eyJyZXNvdXJ...aIl19
   &structured_content=true
+  &tool_prefix=youhou
 ```
 
 > The base64 strings are truncated here for readability—use the full strings above (URL-encoded).
