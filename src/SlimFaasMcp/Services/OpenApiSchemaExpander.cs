@@ -12,7 +12,7 @@ public class OpenApiSchemaExpander
     public OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
     {
         _root = root;
-        _maxDepth = Math.Max(8, maxDepth);
+        _maxDepth = Math.Max(2, maxDepth);
     }
 
     private static string? AsString(JsonElement e)
@@ -120,14 +120,46 @@ public class OpenApiSchemaExpander
         }
 
         // ----- Combinators (anyOf/oneOf/allOf) --------------------------
-        if (schema.TryGetProperty("anyOf", out var anyOfArr) && anyOfArr.ValueKind == JsonValueKind.Array)
-            return ExpandComposite(schema, "anyOf", anyOfArr, depth);
+        {
+            var hasCombinator = false;
+            var comboDict = new Dictionary<string, object>();
 
-        if (schema.TryGetProperty("oneOf", out var oneOfArr) && oneOfArr.ValueKind == JsonValueKind.Array)
-            return ExpandComposite(schema, "oneOf", oneOfArr, depth);
+            if (schema.TryGetProperty("anyOf", out var anyOfArr) && anyOfArr.ValueKind == JsonValueKind.Array)
+            {
+                var list = new List<object>();
+                foreach (var item in anyOfArr.EnumerateArray())
+                    list.Add(ExpandSchema(item, depth + 1));
+                comboDict["anyOf"] = list;
+                hasCombinator = true;
+            }
 
-        if (schema.TryGetProperty("allOf", out var allOfArr) && allOfArr.ValueKind == JsonValueKind.Array)
-            return ExpandComposite(schema, "allOf", allOfArr, depth);
+            if (schema.TryGetProperty("oneOf", out var oneOfArr) && oneOfArr.ValueKind == JsonValueKind.Array)
+            {
+                var list = new List<object>();
+                foreach (var item in oneOfArr.EnumerateArray())
+                    list.Add(ExpandSchema(item, depth + 1));
+                comboDict["oneOf"] = list;
+                hasCombinator = true;
+            }
+
+            if (schema.TryGetProperty("allOf", out var allOfArr) && allOfArr.ValueKind == JsonValueKind.Array)
+            {
+                var list = new List<object>();
+                foreach (var item in allOfArr.EnumerateArray())
+                    list.Add(ExpandSchema(item, depth + 1));
+                comboDict["allOf"] = list;
+                hasCombinator = true;
+            }
+
+            if (hasCombinator)
+            {
+                var d = ReadStringProp(schema, "description");
+                if (!string.IsNullOrWhiteSpace(d)) comboDict["description"] = d!;
+                var t = ReadStringProp(schema, "title");
+                if (!string.IsNullOrWhiteSpace(t)) comboDict["title"] = t!;
+                return comboDict;
+            }
+        }
 
         // ----- Enum ------------------------------------------------------
         if (schema.TryGetProperty("enum", out var enumProp))
