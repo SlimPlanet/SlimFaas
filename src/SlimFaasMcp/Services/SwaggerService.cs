@@ -210,8 +210,9 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                             respContent.TryGetProperty("application/json", out var respJson) &&
                             respJson.TryGetProperty("schema", out var respSchema))
                         {
-                            responseSchema = SchemaHelpers.ToJsonNode(
-                                new OpenApiSchemaExpander(root).ExpandSchema(respSchema));
+                            var expanded = expander.ExpandSchema(respSchema);
+                            var sanitized = SchemaSanitizer.SanitizeForMcp(expanded);
+                            responseSchema = SchemaHelpers.ToJsonNode(sanitized, maxDepth: 64);
                         }
                     }
                 }
