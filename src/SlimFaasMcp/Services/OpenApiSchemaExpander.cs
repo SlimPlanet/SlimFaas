@@ -2,18 +2,11 @@
 
 namespace SlimFaasMcp.Services;
 
-public class OpenApiSchemaExpander
+public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
 {
-    private readonly JsonElement _root;
     private readonly Dictionary<string, object> _refCache = new(StringComparer.Ordinal);
     private readonly HashSet<string> _inProgress = new(StringComparer.Ordinal);
-    private readonly int _maxDepth;
-
-    public OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
-    {
-        _root = root;
-        _maxDepth = Math.Max(2, maxDepth);
-    }
+    private readonly int _maxDepth = Math.Max(2, maxDepth);
 
     private static string? AsString(JsonElement e)
     {
@@ -325,7 +318,7 @@ public class OpenApiSchemaExpander
             .Split('/', StringSplitOptions.RemoveEmptyEntries)
             .Select(UnescapeJsonPointer);
 
-        JsonElement current = _root;
+        JsonElement current = root;
         foreach (var part in parts)
         {
             if (!current.TryGetProperty(part, out var next))
