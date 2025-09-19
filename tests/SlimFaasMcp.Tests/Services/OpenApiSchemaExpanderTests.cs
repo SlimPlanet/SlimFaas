@@ -217,11 +217,11 @@ public class OpenApiSchemaExpanderTests
         var expandedNode = Assert.IsType<Dictionary<string, object>>(expander.ExpandSchema(nodeEl));
         var props = Assert.IsType<Dictionary<string, object>>(expandedNode["properties"]);
 
-        // 'self' est le placeholder de Node (rempli), distinct du top-level
+        // 'self' is the placeholder for Node (filled), distinct from the top-level
         var selfRef = Assert.IsType<Dictionary<string, object>>(props["self"]);
         Assert.NotSame(expandedNode, selfRef);
 
-        // La self‑référence boucle bien sur LA MÊME instance (placeholder réutilisé)
+        // The self-reference correctly loops back to THE SAME instance (placeholder reused)
         var props2 = Assert.IsType<Dictionary<string, object>>(selfRef["properties"]);
         var selfRef2 = Assert.IsType<Dictionary<string, object>>(props2["self"]);
         Assert.Same(selfRef, selfRef2);
