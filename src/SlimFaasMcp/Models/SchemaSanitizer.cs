@@ -6,7 +6,6 @@ namespace SlimFaasMcp.Models;
 
 public static class SchemaSanitizer
 {
-    // Mots-clés JSON Schema qu’on garde (subset largement compatible avec les clients MCP)
     private static readonly HashSet<string> AllowedKeys = new(StringComparer.Ordinal)
     {
         // core
@@ -17,51 +16,76 @@ public static class SchemaSanitizer
         "items", "minItems", "maxItems", "uniqueItems",
         // string
         "minLength", "maxLength", "pattern", "format",
-        // number/integer
+        // numeric
         "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
-        // combinators (si tu les utilises/autorises côté client)
+        // combinators
         "anyOf", "oneOf", "allOf", "not"
     };
 
     private static readonly Regex VendorExt = new(@"^x\-", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-    // Clés OpenAPI/Swagger à supprimer systématiquement
     private static readonly HashSet<string> DropKeys = new(StringComparer.Ordinal)
     {
-        "$ref",               // on a déjà expansé
-        "nullable",           // OpenAPI 3.0 (utiliser anyOf [null, T] si besoin)
+        "$ref",
+        "nullable",
         "readOnly", "writeOnly",
         "deprecated",
         "xml", "discriminator", "externalDocs",
         "example", "examples",
-        "requiredIf", "oneOfExclusive", // divers restes de convertisseurs
+        // divers convertisseurs exotiques éventuels
+        "requiredIf", "oneOfExclusive",
     };
 
-    public static object SanitizeForMcp(object node)
+    // Clés dont la valeur est une "map de schémas" : NE PAS filtrer les noms de propriété ici
+    private static readonly HashSet<string> SchemaMapContainers = new(StringComparer.Ordinal)
+    {
+        "properties", "patternProperties", "$defs", "definitions", "schemas" // "schemas" pour components.schemas (voir path)
+    };
+
+    public static object SanitizeForMcp(object node) => Sanitize(node, parentKey: null, path: Array.Empty<string>());
+
+    private static object Sanitize(object node, string? parentKey, IReadOnlyList<string> path)
     {
         switch (node)
         {
             case Dictionary<string, object> dict:
-                return SanitizeDict(dict);
+                return SanitizeDict(dict, parentKey, path);
 
             case IList list:
             {
                 var newList = new List<object>(list.Count);
                 foreach (var item in list)
-                    newList.Add(SanitizeForMcp(item));
+                    newList.Add(Sanitize(item, parentKey: null, path));
                 return newList;
             }
 
             default:
-                return node; // primitive / JsonElement déjà aplati par ExpandSchema
+                return node; // primitives etc.
         }
     }
 
-    private static object SanitizeDict(Dictionary<string, object> dict)
+    private static object SanitizeDict(Dictionary<string, object> dict, string? parentKey, IReadOnlyList<string> path)
     {
-        // 1) Nettoie clés interdites et vendor-ext
-        var keys = dict.Keys.ToList();
-        foreach (var k in keys)
+        // Sommes-nous dans une "map de schémas" (ex: à l'intérieur de "properties") ?
+        var inSchemaMap =
+            (parentKey != null && SchemaMapContainers.Contains(parentKey)) ||
+            // Cas spécial components.schemas : path se termine par ["components","schemas"]
+            (path.Count >= 2 && path[^2] == "components" && path[^1] == "schemas");
+
+        if (inSchemaMap)
+        {
+            // Ne PAS filtrer les noms : ce sont des noms de champs
+            var keys = dict.Keys.ToList();
+            foreach (var propName in keys)
+            {
+                dict[propName] = Sanitize(dict[propName], parentKey: null, Combine(path, propName));
+            }
+            return dict;
+        }
+
+        // Niveau "schéma" : on filtre selon allow-list et drop-list
+        var toProcess = dict.Keys.ToList();
+        foreach (var k in toProcess)
         {
             if (DropKeys.Contains(k) || VendorExt.IsMatch(k) || !AllowedKeys.Contains(k))
             {
@@ -69,69 +93,58 @@ public static class SchemaSanitizer
                 continue;
             }
 
-            // 2) Descend récursivement
-            var v = dict[k];
-            dict[k] = SanitizeForMcp(v);
+            dict[k] = Sanitize(dict[k], parentKey: k, Combine(path, k));
         }
 
-        // 3) Normalisations spécifiques
+        // Normalisations
 
-        // additionalProperties doit être bool ou schema
-        if (dict.TryGetValue("additionalProperties", out var ap))
+        // additionalProperties : doit être bool ou dict
+        if (dict.TryGetValue("additionalProperties", out var ap) &&
+            ap is not bool && ap is not Dictionary<string, object>)
         {
-            if (ap is not bool && ap is not Dictionary<string, object>)
-            {
-                // fallback MCP-friendly : autoriser des props libres
-                dict["additionalProperties"] = true;
-            }
+            dict["additionalProperties"] = true;
         }
 
-        // items: doit être objet ou tableau d’objets (on garde tel quel si déjà bon)
+        // items : doit être dict ou liste de dicts
         if (dict.TryGetValue("items", out var items))
         {
             if (items is not Dictionary<string, object> && items is not IList)
             {
-                // fallback sur un item permissif
                 dict["items"] = new Dictionary<string, object> { ["type"] = "object" };
             }
         }
 
-        // properties: s’assurer que c’est un dict<string, object>
-        if (dict.TryGetValue("properties", out var props) && props is Dictionary<string, object> pDict)
-        {
-            // Rien de plus à faire ici, on a déjà sanitizé récursivement
-        }
-
-        // required: garder uniquement les noms existants dans properties (si présent)
-        if (dict.TryGetValue("required", out var req) && req is IList reqList
-            && dict.TryGetValue("properties", out var pr) && pr is Dictionary<string, object> props2)
+        // required : garder seulement les clés existant dans properties
+        if (dict.TryGetValue("required", out var req) && req is IList reqList &&
+            dict.TryGetValue("properties", out var props) && props is Dictionary<string, object> propsDict)
         {
             var filtered = new List<object>();
             foreach (var r in reqList)
             {
-                if (r is string s && props2.ContainsKey(s))
+                if (r is string s && propsDict.ContainsKey(s))
                     filtered.Add(s);
             }
             dict["required"] = filtered;
         }
 
-        // combinators: nettoyer chaque branche
-        foreach (var comb in new[] { "anyOf", "oneOf", "allOf", "not" })
+        // Si l'objet a "properties" mais que c'est vide, autoriser des props libres (optionnel)
+        if (dict.TryGetValue("type", out var t) && t is string ts && ts == "object")
         {
-            if (!dict.TryGetValue(comb, out var cv)) continue;
-            if (cv is IList arr)
+            if (dict.TryGetValue("properties", out var p) && p is Dictionary<string, object> pd && pd.Count == 0)
             {
-                var newArr = new List<object>(arr.Count);
-                foreach (var item in arr)
-                    newArr.Add(SanitizeForMcp(item));
-                dict[comb] = newArr;
-            }
-            else if (cv is Dictionary<string, object> d)
-            {
-                dict[comb] = SanitizeForMcp(d);
+                // Ne *pas* forcer additionalProperties=true si tu veux rester strict.
+                // Ici, on n'ajoute rien pour ne pas masquer un vrai problème amont.
             }
         }
 
         return dict;
+    }
+
+    private static IReadOnlyList<string> Combine(IReadOnlyList<string> prefix, string next)
+    {
+        var arr = new string[prefix.Count + 1];
+        for (int i = 0; i < prefix.Count; i++) arr[i] = prefix[i];
+        arr[^1] = next;
+        return arr;
     }
 }
