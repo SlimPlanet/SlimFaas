@@ -66,36 +66,54 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 string contentType = "application/json"; // défaut
 
                 // (A) parameters (path/query/header)
-                if (operation.TryGetProperty("parameters", out var parametersArray))
+        if (operation.TryGetProperty("parameters", out var parametersArray))
+        {
+            foreach (var param0 in parametersArray.EnumerateArray())
+            {
+                var param = ResolveParamRefIfAny(root, param0);
+
+                // --- schéma complet éventuel (préserve anyOf/oneOf/allOf) -------------
+                JsonElement? schemaEl = null;
+
+                if (param.TryGetProperty("schema", out var sch))
+                    schemaEl = sch;
+                else if (param.TryGetProperty("content", out var cnt) && cnt.ValueKind == JsonValueKind.Object)
                 {
-                    foreach (var param0 in parametersArray.EnumerateArray())
-                    {
-                        var param = ResolveParamRefIfAny(root, param0);
-
-                        JsonElement? enumArr = null;
-                        if (param.TryGetProperty("enum", out var eArr))
-                            enumArr = eArr;
-                        else if (param.TryGetProperty("schema", out var sch0) && sch0.TryGetProperty("enum", out var e2))
-                            enumArr = e2;
-
-                        var descr = param.TryGetProperty("description", out var d)
-                                   ? d.GetString()
-                                   : "";
-                        descr = AppendEnumValues(descr, enumArr);
-
-                        parameters.Add(new Parameter
-                        {
-                            Name        = param.GetProperty("name").GetString(),
-                            In          = param.GetProperty("in").GetString(),
-                            Required    = param.TryGetProperty("required", out var req) && req.GetBoolean(),
-                            Description = descr,
-                            SchemaType  = param.TryGetProperty("schema", out var sch) &&
-                                          sch.TryGetProperty("type", out var typ)
-                                               ? typ.GetString()
-                                               : "string",
-                        });
-                    }
+                    // OpenAPI autorise content/application/json pour query params
+                    if (cnt.TryGetProperty("application/json", out var cj) &&
+                        cj.TryGetProperty("schema", out var sch2))
+                        schemaEl = sch2;
                 }
+
+                // --- enum (pour enrichir la description, facultatif) -------------------
+                JsonElement? enumArr = null;
+                if (param.TryGetProperty("enum", out var eArr))
+                    enumArr = eArr;
+                else if (schemaEl is JsonElement sch0 && sch0.TryGetProperty("enum", out var e2))
+                    enumArr = e2;
+
+                var descr = param.TryGetProperty("description", out var d) ? d.GetString() : "";
+                descr = AppendEnumValues(descr, enumArr);
+
+                // Type "simple" (fallback ; pas utilisé si Schema est renseigné)
+                string? schemaType =
+                    schemaEl is JsonElement sch1 && sch1.TryGetProperty("type", out var typEl)
+                        ? typEl.GetString()
+                        : (param.TryGetProperty("type", out var typLegacy) ? typLegacy.GetString() : "string");
+
+                parameters.Add(new Parameter
+                {
+                    Name        = param.GetProperty("name").GetString(),
+                    In          = param.GetProperty("in").GetString(),
+                    Required    = param.TryGetProperty("required", out var req) && req.GetBoolean(),
+                    Description = descr,
+                    SchemaType  = schemaType,
+                    // ✅ ICI: on stocke le schéma EXPANSÉ → anyOf/oneOf/allOf conservés
+                    Schema      = schemaEl is JsonElement se ? CopyDescriptionFromParameter(expander.ExpandSchema(se),param) : null
+                });
+            }
+        }
+
 
                 // (B) requestBody (v3)
                 if (operation.TryGetProperty("requestBody", out var body) &&
@@ -247,6 +265,22 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
             }
         }
         return param;
+    }
+
+    private static object CopyDescriptionFromParameter(object expanded, JsonElement param)
+    {
+        // si le schéma n’a pas de description, hérite de celle du paramètre
+        if (expanded is Dictionary<string, object> dd)
+        {
+            var descr = param.TryGetProperty("description", out var d) ? d.GetString() : null;
+            if (!dd.TryGetValue("description", out var dv) || string.IsNullOrWhiteSpace(dv?.ToString()))
+            {
+                if (!string.IsNullOrWhiteSpace(descr))
+                    dd["description"] = descr!;
+            }
+        }
+
+        return expanded;
     }
 
     private static string Summary(JsonElement operation, string verb, string url)

@@ -8,6 +8,43 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
     private readonly HashSet<string> _inProgress = new(StringComparer.Ordinal);
     private readonly int _maxDepth = Math.Max(2, maxDepth);
 
+    private static void CopyIfPresent(JsonElement src, string name, IDictionary<string, object> dst)
+    {
+        if (!src.TryGetProperty(name, out var v)) return;
+        switch (v.ValueKind)
+        {
+            case JsonValueKind.String:  dst[name] = v.GetString()!; break;
+            case JsonValueKind.True:
+            case JsonValueKind.False:   dst[name] = v.GetBoolean(); break;
+            case JsonValueKind.Number:
+                if (v.TryGetInt64(out var l)) dst[name] = l; else dst[name] = v.GetDouble();
+                break;
+            case JsonValueKind.Array:
+                dst[name] = v.EnumerateArray().Select(e => e.ValueKind == JsonValueKind.String ? e.GetString()! : e.GetRawText()).ToArray();
+                break;
+            case JsonValueKind.Object:
+                // stocke brut (on évite de ré‑expanser ici)
+                dst[name] = v.GetRawText();
+                break;
+        }
+    }
+
+    private static void MergeSiblingMetadata(JsonElement schemaNode, IDictionary<string, object> dst)
+    {
+        // Priorité : si dst n’a pas la clé, on copie depuis le nœud courant.
+        // Liste « utile » OAS (ajuste au besoin)
+        foreach (var key in new[]
+                 {
+                     "description","title","default","deprecated","nullable","example","examples",
+                     "format","minimum","maximum","exclusiveMinimum","exclusiveMaximum","pattern",
+                     "minLength","maxLength","minItems","maxItems","uniqueItems"
+                 })
+        {
+            if (!dst.ContainsKey(key))
+                CopyIfPresent(schemaNode, key, dst);
+        }
+    }
+
     private static string? AsString(JsonElement e)
     {
         return e.ValueKind switch
@@ -95,7 +132,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                 {
                     foreach (var kv in dict)
                         placeholder[kv.Key] = kv.Value;
-
+                    MergeSiblingMetadata(schema, placeholder);
                     // Optionnel : nettoie les métadonnées pour une sortie plus "propre"
                     placeholder.Remove("x_circular");
                     placeholder.Remove("x_ref");
@@ -150,6 +187,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                 if (!string.IsNullOrWhiteSpace(d)) comboDict["description"] = d!;
                 var t = ReadStringProp(schema, "title");
                 if (!string.IsNullOrWhiteSpace(t)) comboDict["title"] = t!;
+                MergeSiblingMetadata(schema, comboDict);
                 return comboDict;
             }
         }
@@ -173,6 +211,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
             var t = ReadStringProp(schema, "title");
             if (!string.IsNullOrWhiteSpace(t))
                 dict["title"] = t!;
+            MergeSiblingMetadata(schema, dict);
             return dict;
         }
 
@@ -209,6 +248,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
             var t = ReadStringProp(schema, "title");
             if (!string.IsNullOrWhiteSpace(t))
                dict["title"] = t!;
+            MergeSiblingMetadata(schema, dict);
             return dict;
         }
 
@@ -228,6 +268,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                 if (!string.IsNullOrWhiteSpace(t1))
                     dict["title"] = t1!;
             }
+            MergeSiblingMetadata(schema, dict);
             return dict;
         }
 
@@ -287,23 +328,8 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
         }
 
         // Si vraiment vide, renvoyer un stub générique
+        MergeSiblingMetadata(schema, resultDict);
         return resultDict.Count > 0 ? resultDict : new Dictionary<string, object> { ["type"] = type ?? "object" };
-    }
-
-    private object ExpandComposite(JsonElement schema, string keyword, JsonElement arr, int depth)
-    {
-        var list = new List<object>();
-        foreach (var item in arr.EnumerateArray())
-            list.Add(ExpandSchema(item, depth + 1));
-
-        var dict = new Dictionary<string, object> { [keyword] = list };
-        var d = ReadStringProp(schema, "description");
-        if (!string.IsNullOrWhiteSpace(d))
-            dict["description"] = d!;
-        var t = ReadStringProp(schema, "title");
-        if (!string.IsNullOrWhiteSpace(t))
-            dict["title"] = t!;
-        return dict;
     }
 
     private static string UnescapeJsonPointer(string token) =>

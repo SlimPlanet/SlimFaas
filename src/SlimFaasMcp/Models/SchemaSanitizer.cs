@@ -33,7 +33,8 @@ public static class SchemaSanitizer
         "requiredIf", "oneOfExclusive",
     };
 
-    private static readonly Regex VendorExt = new(@"^x\-", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+    private static readonly Regex VendorExt = new(@"^x\-", RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromMilliseconds(50));
 
     // Clés dont la valeur est une "map de schémas" : ne pas filtrer les noms enfants
     private static readonly HashSet<string> SchemaMapContainers = new(StringComparer.Ordinal)

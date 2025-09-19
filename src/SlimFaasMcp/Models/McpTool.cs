@@ -19,8 +19,6 @@ public class McpTool
         public string? ContentType { get; set; }
     }
 
-
-
     public static JsonNode GenerateInputSchema(List<Parameter> parameters)
     {
         var props = new JsonObject();
