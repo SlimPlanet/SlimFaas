@@ -109,7 +109,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     Description = descr,
                     SchemaType  = schemaType,
                     // ✅ ICI: on stocke le schéma EXPANSÉ → anyOf/oneOf/allOf conservés
-                    Schema      = schemaEl is JsonElement se ? CopyDescriptionFromParameter(expander.ExpandSchema(se),param) : null
+                    Schema      = schemaEl is JsonElement se ? CopyDescriptionFromParameter(ExpandAndSanitize(expander, se)!,param) : null
                 });
             }
         }
@@ -133,7 +133,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                             Required    = true,
                             Description = "Request body",
                             SchemaType  = schema.TryGetProperty("type", out var t) ? t.GetString() : "object",
-                            Schema      = expander.ExpandSchema(schema)
+                            Schema      =  ExpandAndSanitize(expander, schema)
                         });
                         contentType = "application/json";
                     }
@@ -189,7 +189,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                                         Description = descr,
                                         SchemaType  = p.TryGetProperty("type", out var t) ? t.GetString() : "string",
                                         Format      = p.TryGetProperty("format", out var f) ? f.GetString() : null,
-                                        Schema      = expander.ExpandSchema(mpSchema)
+                                        Schema      = ExpandAndSanitize(expander, p)
                                     });
                                 }
                             }
@@ -305,5 +305,12 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
         var prefix = string.IsNullOrWhiteSpace(description) ? "" : description.TrimEnd() + " ";
         return $"{prefix}({string.Join(", ", values)})";
+    }
+
+    private static object? ExpandAndSanitize(OpenApiSchemaExpander expander, JsonElement schemaEl)
+    {
+        var expanded   = expander.ExpandSchema(schemaEl);
+        var sanitized  = SchemaSanitizer.SanitizeForMcp(expanded);
+        return sanitized;
     }
 }
