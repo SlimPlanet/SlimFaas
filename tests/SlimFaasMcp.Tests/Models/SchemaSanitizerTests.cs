@@ -68,7 +68,7 @@ public class SchemaSanitizerTests
 
         var writeOnlyProp = AsDict(itemProps["writeOnlyProp"]);
         Assert.Equal("string", writeOnlyProp["type"]);
-        // la clé writeOnly a été supprimée
+        // the writeOnly key has been removed
         Assert.False(writeOnlyProp.ContainsKey("writeOnly"));
 
         // required filtré pour ne garder que "value"
