@@ -166,7 +166,7 @@ public class SchemaHelpersTests
     [Fact]
     public void Unknown_Object_Types_FallBack_To_ToString()
     {
-        var weird = new { A = 1, B = 2 }; // type anonyme
+        var weird = new { A = 1, B = 2 }; // anonymous type
         var node = SchemaHelpers.ToJsonNode(weird);
         // Le helper convertit default -> ToString() encapsulé en JsonValue
         Assert.Contains(nameof(weird.A), node!.ToJsonString()); // au minimum, non null
