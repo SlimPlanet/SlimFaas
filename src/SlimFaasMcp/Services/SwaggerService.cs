@@ -85,7 +85,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                         schemaEl = sch2;
                 }
 
-                // --- enum (pour enrichir la description, facultatif) -------------------
+                // --- enum (to enrich the description, optional) -------------------
                 JsonElement? enumArr = null;
                 if (param.TryGetProperty("enum", out var eArr))
                     enumArr = eArr;
