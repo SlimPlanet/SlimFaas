@@ -91,7 +91,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
             if (_refCache.TryGetValue(refPath, out var cached))
                 return cached;
 
-            // Si on retombe sur le même $ref pendant l’expansion, retourne le même placeholder (même instance)
+            // If we encounter the same $ref again during expansion, return the same placeholder (same instance)
             if (_inProgress.Contains(refPath))
             {
                 if (_refCache.TryGetValue(refPath, out var ph) && ph is Dictionary<string, object> d)
