@@ -6,7 +6,7 @@ namespace SlimFaasMcp.Models;
 
 public static class SchemaSanitizer
 {
-    // --- Config clés gardées/supprimées --------------------------------
+    // --- Config: keys to keep/remove --------------------------------
 
     private static readonly HashSet<string> AllowedKeys = new(StringComparer.Ordinal)
     {
