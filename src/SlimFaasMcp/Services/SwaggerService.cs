@@ -269,7 +269,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
     private static object CopyDescriptionFromParameter(object expanded, JsonElement param)
     {
-        // si le schéma n’a pas de description, hérite de celle du paramètre
+        // if the schema does not have a description, inherit it from the parameter
         if (expanded is Dictionary<string, object> dd)
         {
             var descr = param.TryGetProperty("description", out var d) ? d.GetString() : null;
