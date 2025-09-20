@@ -207,7 +207,7 @@ public class SchemaSanitizerTests
         var sanitized = Sanitize(input);
 
         var anyOf = AsList(sanitized["anyOf"]);
-        var any0 = AsDict(anyOf[0]); // writeOnly supprimé
+        var any0 = AsDict(anyOf[0]); // writeOnly removed
         Assert.Equal("string", any0["type"]);
         Assert.False(any0.ContainsKey("writeOnly"));
 
