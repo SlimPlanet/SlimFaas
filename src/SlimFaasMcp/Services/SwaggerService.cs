@@ -72,7 +72,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
             {
                 var param = ResolveParamRefIfAny(root, param0);
 
-                // --- schéma complet éventuel (préserve anyOf/oneOf/allOf) -------------
+                // --- full schema if present (preserves anyOf/oneOf/allOf) -------------
                 JsonElement? schemaEl = null;
 
                 if (param.TryGetProperty("schema", out var sch))
