@@ -110,7 +110,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                 return cyclePlaceholder;
             }
 
-            // Placeholder MCP-safe (pas de "$ref" dans la sortie)
+            // MCP-safe placeholder (no "$ref" in the output)
             var placeholder = new Dictionary<string, object>
             {
                 ["type"] = "object",
