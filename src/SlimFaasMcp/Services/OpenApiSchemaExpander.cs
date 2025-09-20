@@ -327,7 +327,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
             }
         }
 
-        // Si vraiment vide, renvoyer un stub générique
+        // If really empty, return a generic stub
         MergeSiblingMetadata(schema, resultDict);
         return resultDict.Count > 0 ? resultDict : new Dictionary<string, object> { ["type"] = type ?? "object" };
     }
