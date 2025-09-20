@@ -211,7 +211,7 @@ public class SchemaSanitizerTests
         Assert.Equal("string", any0["type"]);
         Assert.False(any0.ContainsKey("writeOnly"));
 
-        var any1 = AsDict(anyOf[1]); // x-foo supprimé
+        var any1 = AsDict(anyOf[1]); // x-foo removed
         Assert.Equal("number", any1["type"]);
         Assert.False(any1.ContainsKey("x-foo"));
 
