@@ -99,7 +99,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                     d["x_circular"] = true; // optionnel, pour debug
                     return d;
                 }
-                // Cas limite (théoriquement jamais atteint)
+                // Edge case (theoretically never reached)
                 var cyclePlaceholder = new Dictionary<string, object>
                 {
                     ["type"] = "object",
