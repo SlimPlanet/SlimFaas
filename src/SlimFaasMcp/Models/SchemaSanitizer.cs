@@ -36,7 +36,7 @@ public static class SchemaSanitizer
     private static readonly Regex VendorExt = new(@"^x\-", RegexOptions.IgnoreCase | RegexOptions.Compiled,
         TimeSpan.FromMilliseconds(50));
 
-    // Clés dont la valeur est une "map de schémas" : ne pas filtrer les noms enfants
+    // Keys whose value is a "schema map": do not filter child names
     private static readonly HashSet<string> SchemaMapContainers = new(StringComparer.Ordinal)
     {
         "properties", "patternProperties", "$defs", "definitions"
