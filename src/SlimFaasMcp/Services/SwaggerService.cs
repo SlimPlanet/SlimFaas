@@ -95,7 +95,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 var descr = param.TryGetProperty("description", out var d) ? d.GetString() : "";
                 descr = AppendEnumValues(descr, enumArr);
 
-                // Type "simple" (fallback ; pas utilisé si Schema est renseigné)
+                // "Simple" type (fallback; not used if Schema is provided)
                 string? schemaType =
                     schemaEl is JsonElement sch1 && sch1.TryGetProperty("type", out var typEl)
                         ? typEl.GetString()
