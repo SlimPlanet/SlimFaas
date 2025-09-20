@@ -22,7 +22,7 @@ public static class SchemaSanitizer
         "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
         // combinators
         "anyOf", "oneOf", "allOf", "not",
-        // ⚠️ Ne PAS inclure "components"/"schemas" dans l'output MCP final.
+        // ⚠️ Do NOT include "components"/"schemas" in the final MCP output.
     };
 
     private static readonly HashSet<string> DropKeys = new(StringComparer.Ordinal)
