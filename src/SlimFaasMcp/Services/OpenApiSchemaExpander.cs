@@ -139,7 +139,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                     return placeholder; // même instance réutilisée partout
                 }
 
-                // Expansion non-dictionnaire (enum/primitive/etc.) : remplace dans le cache
+                // Non-dictionary expansion (enum/primitive/etc.): replace in the cache
                 _refCache[refPath] = expanded;
                 return expanded;
             }
