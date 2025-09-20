@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.42.2
+
+- [ab11f59](https://github.com/SlimPlanet/SlimFaas/commit/ab11f59fbff782c4c3798e61bed37b21a759c616) - fix(slimfaas-mcp) : cyclic reference crash (#167) (release), 2025-09-20 by *Guillaume Chervet*
+
+
+## 0.42.1
+
+
+
 ## v0.42.1
 
 - [7568d56](https://github.com/SlimPlanet/SlimFaas/commit/7568d56e85b590b7b6815e11fc31247a5583354a) - fix(slimfaas-mcp): structured-output must be an object (#166) (release), 2025-09-18 by *Guillaume Chervet*
@@ -280,15 +289,5 @@
 ## v0.36.18
 
 - [b518ca5](https://github.com/SlimPlanet/SlimFaas/commit/b518ca564d03fdd5ed80b1fe2c865ad107cc308b) - fix(website): try repair path (release), 2025-04-07 by *Guillaume Chervet*
-
-
-## v0.36.17
-
-- [5cc5b42](https://github.com/SlimPlanet/SlimFaas/commit/5cc5b42f474c802ae4abf27354e445637614f5e6) - fix(website): test to set correct path (release), 2025-04-07 by *Guillaume Chervet*
-
-
-## v0.36.16
-
-- [d379c79](https://github.com/SlimPlanet/SlimFaas/commit/d379c796f139d9c4c82497079e7f555da0885dab) - fix(website): adapt css + image path to custom domain (release), 2025-04-07 by *Guillaume Chervet*
 
 
