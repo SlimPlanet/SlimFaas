@@ -19,10 +19,6 @@ public class McpTool
         public string? ContentType { get; set; }
     }
 
-    // helper basique (optionnel) pour générer un schéma de sortie « sans introspection »
-    public static JsonNode GenerateOutputSchema(object? schema) =>
-        SchemaHelpers.ToJsonNode(schema);
-
     public static JsonNode GenerateInputSchema(List<Parameter> parameters)
     {
         var props = new JsonObject();

@@ -4,7 +4,7 @@ using SlimFaasMcp.Models;
 using SlimFaasMcp.Services;
 using Xunit;
 
-namespace SlimFaasMcp.Tests;
+namespace SlimFaasMcp.Tests.Services;
 
 public class McpContentBuilderTests
 {
