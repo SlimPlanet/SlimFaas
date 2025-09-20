@@ -419,7 +419,7 @@ public class OpenApiSchemaExpanderTests
         var p2 = Assert.IsType<Dictionary<string, object>>(n1["properties"]);
         var n2 = Assert.IsType<Dictionary<string, object>>(p2["n"]);
 
-        // Au-delà de depth, l’impl renvoie un stub { "$ref": "#", "truncated": true }
+        // Beyond the maximum depth, the implementation returns a stub { "$ref": "#", "truncated": true }
         Assert.True(n2.TryGetValue("truncated", out var tr));
         Assert.Equal(true, tr);
     }
