@@ -71,7 +71,7 @@ public class SchemaSanitizerTests
         // the writeOnly key has been removed
         Assert.False(writeOnlyProp.ContainsKey("writeOnly"));
 
-        // required filtré pour ne garder que "value"
+        // required filtered to keep only "value"
         var required = AsList(items["required"]);
         Assert.Single(required);
         Assert.Equal("value", required[0]);
