@@ -131,7 +131,7 @@ public class SchemaHelpersTests
     [Fact]
     public void Cycle_Marker_Preserves_x_ref_When_Present()
     {
-        // Simule un placeholder d'expansion avec x_ref
+        // Simulate an expansion placeholder with x_ref
         var a = new Dictionary<string, object?> { ["x_ref"] = "#/components/schemas/Foo" };
         a["self"] = a;
 
