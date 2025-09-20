@@ -108,7 +108,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     Required    = param.TryGetProperty("required", out var req) && req.GetBoolean(),
                     Description = descr,
                     SchemaType  = schemaType,
-                    // ✅ ICI: on stocke le schéma EXPANSÉ → anyOf/oneOf/allOf conservés
+                    // ✅ Here: we store the expanded schema; anyOf/oneOf/allOf are preserved
                     Schema      = schemaEl is JsonElement se ? CopyDescriptionFromParameter(ExpandAndSanitize(expander, se)!,param) : null
                 });
             }
