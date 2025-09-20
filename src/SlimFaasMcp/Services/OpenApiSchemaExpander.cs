@@ -32,7 +32,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
     private static void MergeSiblingMetadata(JsonElement schemaNode, IDictionary<string, object> dst)
     {
         // Priorité : si dst n’a pas la clé, on copie depuis le nœud courant.
-        // Liste « utile » OAS (ajuste au besoin)
+        // Useful OAS keys list (adjust as needed)
         foreach (var key in new[]
                  {
                      "description","title","default","deprecated","nullable","example","examples",
