@@ -124,7 +124,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                 var resolved = ResolveRef(refPath);
                 var expanded = ExpandSchema(resolved, depth + 1);
 
-                // Auto-référence pure : laisse le placeholder tel quel
+                // Pure self-reference: leave the placeholder as is
                 if (ReferenceEquals(expanded, placeholder))
                     return placeholder;
 
