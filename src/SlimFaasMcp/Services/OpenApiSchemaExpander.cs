@@ -23,7 +23,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                 dst[name] = v.EnumerateArray().Select(e => e.ValueKind == JsonValueKind.String ? e.GetString()! : e.GetRawText()).ToArray();
                 break;
             case JsonValueKind.Object:
-                // stocke brut (on évite de ré‑expanser ici)
+                // store raw (avoid re-expanding here)
                 dst[name] = v.GetRawText();
                 break;
         }
