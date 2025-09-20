@@ -239,7 +239,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                             ? true
                             : addProps.ValueKind == JsonValueKind.False
                                 ? false
-                                : (object)true; // fallback permissif
+                                : (object)true; // permissive fallback
             }
 
             var d = ReadStringProp(schema, "description");
