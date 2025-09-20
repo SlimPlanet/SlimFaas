@@ -133,7 +133,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                     foreach (var kv in dict)
                         placeholder[kv.Key] = kv.Value;
                     MergeSiblingMetadata(schema, placeholder);
-                    // Optionnel : nettoie les métadonnées pour une sortie plus "propre"
+                    // Optional: clean up metadata for a "cleaner" output
                     placeholder.Remove("x_circular");
                     placeholder.Remove("x_ref");
                     return placeholder; // même instance réutilisée partout
