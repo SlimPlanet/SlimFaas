@@ -119,7 +119,7 @@ public class SchemaSanitizerTests
     }
 
     [Theory]
-    [InlineData("weird")] // cas invalide -> doit devenir true
+    [InlineData("weird")] // invalid case -> should become true
     [InlineData(123)]
     public void AdditionalProperties_Invalid_Values_Fall_Back_To_True(object invalid)
     {
