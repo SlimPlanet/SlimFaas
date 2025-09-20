@@ -23,7 +23,7 @@ public static class SchemaHelpers
         switch (value)
         {
             case JsonNode node:
-                return node; // déjà JsonNode
+                return node; // already a JsonNode
 
             case JsonElement elem:
                 return FromJsonElement(elem, maxDepth, depth, seen);
