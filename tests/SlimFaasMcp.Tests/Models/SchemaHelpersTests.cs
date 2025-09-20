@@ -124,7 +124,7 @@ public class SchemaHelpersTests
         var nodeA = ToNode(a);
         var nodeB = AsObj(nodeA["b"]);
         var back = AsObj(nodeB["a"]);
-        // re-descente sur le même objet doit produire un marqueur x_cycle
+        // descending again on the same object should produce an x_cycle marker
         Assert.True(back["x_cycle"]!.GetValue<bool>());
     }
 
