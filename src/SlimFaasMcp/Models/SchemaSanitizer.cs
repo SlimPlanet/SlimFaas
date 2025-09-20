@@ -51,7 +51,7 @@ public static class SchemaSanitizer
         return Sanitize(node, parentKey: null, path: Array.Empty<string>(), visited, depth: 0, maxDepth);
     }
 
-    // --- Implémentation cycle-safe avec mémoïsation ---------------------
+    // --- Cycle-safe implementation with memoization ---------------------
 
     private static object Sanitize(
         object node,
