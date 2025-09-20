@@ -320,8 +320,8 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
                     }
                     break;
                 case JsonValueKind.Object:
-                    // Cas notables: items/object sans type, additionalProperties object, etc.
-                    // On essaie une expansion prudente (non récursive massive) :
+                    // Notable cases: items/object without type, additionalProperties object, etc.
+                    // We attempt a cautious expansion (not a massive recursive one):
                     resultDict[prop.Name] = ExpandSchema(prop.Value, depth + 1);
                     break;
             }
