@@ -218,7 +218,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
         // ----- Type heuristics ------------------------------------------
         var type = ReadType(schema);
 
-        // Objet implicite: pas de type mais des properties => traiter comme object
+        // Implicit object: no type but has properties => treat as object
         if ((type is null || type == "object") && schema.TryGetProperty("properties", out var propsObj))
         {
             var dict = new Dictionary<string, object> { ["type"] = "object" };
