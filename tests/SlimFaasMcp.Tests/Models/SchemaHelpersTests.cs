@@ -144,7 +144,7 @@ public class SchemaHelpersTests
     [Fact]
     public void MaxDepth_Truncates_With_Flag()
     {
-        // construit un objet imbriqué profondeur 5
+        // builds a nested object of depth 5
         var deep = new Dictionary<string, object?>();
         var cur = deep;
         for (int i = 0; i < 5; i++)
