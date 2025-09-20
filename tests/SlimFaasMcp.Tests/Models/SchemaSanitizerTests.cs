@@ -159,7 +159,7 @@ public class SchemaSanitizerTests
     {
         var input = D(
             ("type", "array"),
-            ("items", "string") // invalide pour JSON Schema
+            ("items", "string") // invalid for JSON Schema
         );
 
         var sanitized = Sanitize(input);
