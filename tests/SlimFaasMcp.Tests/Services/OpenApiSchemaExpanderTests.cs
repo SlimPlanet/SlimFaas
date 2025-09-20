@@ -370,7 +370,7 @@ public class OpenApiSchemaExpanderTests
     [Fact]
     public void ExpandSchema_JsonPointerUnescape_Works_For_TildeAndSlash()
     {
-        // Clé 'Foo/Bar~Baz' doit être référencée via '#/components/schemas/Foo~1Bar~0Baz'
+        // Key 'Foo/Bar~Baz' must be referenced via '#/components/schemas/Foo~1Bar~0Baz'
         const string docJson = """
         {
           "openapi": "3.1.0",
