@@ -394,7 +394,7 @@ public class OpenApiSchemaExpanderTests
     [Fact]
     public void ExpandSchema_MaxDepth_Truncates_WithMarker()
     {
-        // Chaîne longue de refs pour provoquer troncature
+        // Long chain of refs to trigger truncation
         const string deep = """
         {
           "openapi": "3.1.0",
