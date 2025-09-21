@@ -144,7 +144,9 @@ The API listens on **[http://localhost:8080](http://localhost:8080)** by default
 ## 🖥️ Web UI for tool testing
 
 1. Open **[http://localhost:8080/index.html](http://localhost:8080/index.html)**.
-2. Enter a Swagger URL (e.g. `https://petstore3.swagger.io/api/v3/openapi.json`).
+2. Enter a Swagger URL
+ - e.g. `https://petstore3.swagger.io/api/v3/openapi.json`
+ - e.g. `https://developer.atlassian.com/cloud/jira/platform/swagger-v3.v3.json`
 3. Click **Load Tools**.
 4. Explore and call MCP tools directly from your browser.
 
@@ -162,13 +164,40 @@ The API listens on **[http://localhost:8080](http://localhost:8080)** by default
 
 ---
 
-## 🛠️ Example usage
 
-1. Browse to **[http://localhost:8080/index.html](http://localhost:8080/index.html)**.
-2. Use the public PetStore Swagger URL: `https://petstore3.swagger.io/api/v3/openapi.json`.
-3. Click **Load Tools**. Displayed informations are exactly the same as an MCP Client will see.
-4. For any generated tool:
+### Configure CORS via environment variables
 
-    * Provide a JSON payload.
-    * Click **Run** to see the live proxied response.
+SlimFaas MCP supports CORS configuration through environment variables.
+Each variable overrides the default values from `appsettings.json`.
 
+| Environment Variable | Type     | Example Values                                                                                    |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------- |
+| `CORS_ORIGINS`       | CSV list | `*` — allow any origin<br>`https://*.axa.com,http://localhost:3000` — allow specific origins      |
+| `CORS_METHODS`       | CSV list | `*` — allow all methods<br>`GET,POST,OPTIONS` — allow only these methods                          |
+| `CORS_HEADERS`       | CSV list | `*` — allow all headers<br>`Authorization,Content-Type,Dpop` — allow only these headers           |
+| `CORS_EXPOSE`        | CSV list | Headers exposed to the browser, e.g. `WWW-Authenticate,Content-Disposition`                       |
+| `CORS_CREDENTIALS`   | boolean  | `true` or `false` — whether to allow credentialed requests (cookies, Authorization headers, etc.) |
+| `CORS_MAXAGEMINUTES` | integer  | How long preflight responses can be cached (in minutes), e.g. `60`                                |
+
+
+#### ✅ Example (development)
+```bash
+CORS_ORIGINS=*
+CORS_METHODS=*
+CORS_HEADERS=*
+CORS_CREDENTIALS=false
+CORS_MAXAGEMINUTES=10
+```
+
+#### ✅ Example (production)
+```bash
+CORS_ORIGINS=https://*.axa.com,https://tools.axa.com
+CORS_METHODS=GET,POST,OPTIONS
+CORS_HEADERS=Authorization,Content-Type,Dpop
+CORS_EXPOSE=WWW-Authenticate,Content-Disposition
+CORS_CREDENTIALS=true
+CORS_MAXAGEMINUTES=120
+```
+
+**Wildcards** (`*`, `*.domain.com`, `localhost:*`) **are supported** in origins.
+Empty or missing values fallback to the default configuration in `appsettings.json`.
