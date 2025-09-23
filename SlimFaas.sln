@@ -18,6 +18,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasMcp", "src\SlimFaas
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasMcp.Tests", "tests\SlimFaasMcp.Tests\SlimFaasMcp.Tests.csproj", "{B840F7FA-2900-49FA-84B5-326BAEA85B21}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GmailMailerApi", "src\GmailMailerApi\GmailMailerApi.csproj", "{96376DBF-6071-4E55-B6AC-CC51D1A50846}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -60,5 +62,9 @@ Global
 		{B840F7FA-2900-49FA-84B5-326BAEA85B21}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B840F7FA-2900-49FA-84B5-326BAEA85B21}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B840F7FA-2900-49FA-84B5-326BAEA85B21}.Release|Any CPU.Build.0 = Release|Any CPU
+		{96376DBF-6071-4E55-B6AC-CC51D1A50846}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{96376DBF-6071-4E55-B6AC-CC51D1A50846}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{96376DBF-6071-4E55-B6AC-CC51D1A50846}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{96376DBF-6071-4E55-B6AC-CC51D1A50846}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
