@@ -407,7 +407,6 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
             Format      = isBinary ? "binary" : format,
             Schema      = ExpandAndSanitize(expander, unwrapped)  // ✅ on garde le schéma
         });
-        return;
     }
 }
     private static string? ReadDescription(JsonElement el)

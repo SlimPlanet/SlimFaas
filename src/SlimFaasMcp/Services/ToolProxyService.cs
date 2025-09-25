@@ -113,7 +113,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         {
             return new ProxyCallResult
             {
-                IsBinary = false, Text = "{\"error\":\"Tool not found\"}", MimeType = "application/json"
+                IsBinary = false, Text = "{\"error\":\"Tool not found\"}", MimeType = "application/json", StatusCode = 500
             };
         }
 
@@ -419,7 +419,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                 || (!isText && !isJson) // tout le reste non-texte/non-json
             ))
             || fileName is not null; // attachment
-
+        var status = (int)resp.StatusCode;
         if (looksBinary)
         {
             byte[] bytes = await resp.Content.ReadAsByteArrayAsync();
@@ -428,12 +428,13 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                 IsBinary = true,
                 MimeType = string.IsNullOrWhiteSpace(mediaType) ? "application/octet-stream" : mediaType,
                 FileName = fileName,
-                Bytes = bytes
+                Bytes = bytes,
+                StatusCode = status
             };
         }
 
         // Texte / JSON
         string text = await resp.Content.ReadAsStringAsync();
-        return new ProxyCallResult { IsBinary = false, MimeType = mediaType ?? "application/json", Text = text };
+        return new ProxyCallResult { IsBinary = false, MimeType = mediaType ?? "application/json", Text = text, StatusCode = status};
     }
 }

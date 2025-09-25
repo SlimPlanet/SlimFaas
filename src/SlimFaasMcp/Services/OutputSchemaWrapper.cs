@@ -14,7 +14,7 @@ public static class OutputSchemaWrapper
     /// - type object  => inchangé (retourne tel quel)
     /// - inconnu      => par défaut scalaire -> wrap "value"
     /// </summary>
-    public static JsonNode WrapForStructuredContent(JsonNode? original)
+    public static JsonNode? WrapForStructuredContent(JsonNode? original)
     {
         original ??= new JsonObject();
 
@@ -58,14 +58,6 @@ public static class OutputSchemaWrapper
         }
 
         // Pas de "type" explicite ou combinators/etc. -> default "scalaire"
-        return new JsonObject
-        {
-            ["type"] = "object",
-            ["properties"] = new JsonObject
-            {
-                ["value"] = original
-            },
-            ["required"] = new JsonArray("value")
-        };
+        return new JsonObject();
     }
 }

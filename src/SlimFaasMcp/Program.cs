@@ -146,11 +146,12 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                                 JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode))!
                         };
 
-                        if (structuredContentEnabled)
+                        if (structuredContentEnabled && HasKnownOutputSchema(t.OutputSchema))
                         {
                             var wrapped = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
-                            node["outputSchema"] = JsonNode.Parse(
-                                JsonSerializer.Serialize(wrapped, AppJsonContext.Default.JsonNode))!;
+                            if(wrapped != null)
+                                node["outputSchema"] = JsonNode.Parse(
+                                    JsonSerializer.Serialize(wrapped, AppJsonContext.Default.JsonNode))!;
                         }
 
                         return node;
@@ -169,6 +170,11 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                 }
                 var incomingName = p.GetProperty("name").GetString()!;
                 var realName = StripToolPrefix(incomingName, toolPrefix);
+
+                // 🔁 Récupère la même liste d'outils que pour tools/list (avec mcpPrompt & cache)
+                var toolsForCall = await toolProxyService.GetToolsAsync(openapiUrl, baseUrl, additionalHeaders, mcpPromptB64);
+                var toolMeta     = toolsForCall.FirstOrDefault(t => string.Equals(t.Name, realName, StringComparison.Ordinal));
+
                 var callResult = await toolProxyService.ExecuteToolAsync(
                     openapiUrl,
                     realName!,
@@ -176,8 +182,11 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                     baseUrl,
                     additionalHeaders);
 
+                bool allowStructured = structuredContentEnabled && toolMeta is not null && HasKnownOutputSchema(toolMeta.OutputSchema) && callResult.StatusCode >= 200
+                    && callResult.StatusCode < 300;
+
                 // ✅ RESULT MCP (content[] + structuredContent si activé via query)
-                var resultObj = McpContentBuilder.BuildResult(callResult, structuredContentEnabled);
+                var resultObj = McpContentBuilder.BuildResult(callResult, allowStructured);
 
                 response["result"] = resultObj;
 
@@ -236,7 +245,10 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
     {
         // ⬇️ applique le même wrapping pour que l’UI annonce le bon schéma
         foreach (var t in tools)
-            t.OutputSchema = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
+            if (HasKnownOutputSchema(t.OutputSchema))
+                t.OutputSchema = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
+            else
+                t.OutputSchema = new JsonObject();
     }
 
     return TypedResults.Ok(tools);
@@ -256,7 +268,7 @@ grp.MapPost("/{toolName}", async Task<IResult> (
     var qs = httpRequest.Query;
     var toolPrefix = qs.TryGetValue("tool_prefix", out var qtp) ? qtp.ToString() : null;
     var realName   = StripToolPrefix(toolName, toolPrefix);
-    var r = await proxy.ExecuteToolAsync(
+    var callResult = await proxy.ExecuteToolAsync(
         openapi_url, realName!, arguments,
         base_url,
         additionalHeaders);
@@ -264,8 +276,13 @@ grp.MapPost("/{toolName}", async Task<IResult> (
     var structuredContentEnabled =
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+    var toolsForCall = await proxy.GetToolsAsync(openapi_url, base_url, additionalHeaders, mcp_prompt);
+    var toolMeta     = toolsForCall.FirstOrDefault(t => string.Equals(t.Name, realName, StringComparison.Ordinal));
+    bool allowStructured = structuredContentEnabled && toolMeta is not null && HasKnownOutputSchema(toolMeta.OutputSchema) && callResult.StatusCode >= 200
+        && callResult.StatusCode < 300;
 
-    var resultObj = McpContentBuilder.BuildResult(r, structuredContentEnabled);
+
+    var resultObj = McpContentBuilder.BuildResult(callResult, allowStructured);
     return Results.Json(resultObj, AppJsonContext.Default.JsonNode);
 });
 
@@ -410,5 +427,25 @@ static string GlobToRegex(string pattern)
     }
     return sb.ToString();
 }
+
+static bool HasKnownOutputSchema(System.Text.Json.Nodes.JsonNode? schema)
+{
+    if (schema is not System.Text.Json.Nodes.JsonObject obj) return false;
+
+    // cas explicite: type string non vide
+    if (obj.TryGetPropertyValue("type", out var t) && t is System.Text.Json.Nodes.JsonValue tv)
+    {
+        var ts = tv.TryGetValue<string>(out var s) ? s : tv.ToString();
+        if (!string.IsNullOrWhiteSpace(ts)) return true;
+    }
+
+    // cas implicites: présence de structure/combinators
+    if (obj.ContainsKey("properties")) return true;
+    if (obj.ContainsKey("items")) return true;
+    if (obj.ContainsKey("anyOf") || obj.ContainsKey("oneOf") || obj.ContainsKey("allOf")) return true;
+
+    return false;
+}
+
 
 public partial class Program { }
