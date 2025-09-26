@@ -72,9 +72,7 @@ class MCPChat {
                 //transport: "sse",
                 transport: "http",                 // ✅ HTTP POST “classique”, sans stream
                 automaticSSEFallback: false,
-                url,
-                //reconnect: { enabled: true, maxAttempts: 5, delayMs: 1500 },
-                // headers: { Authorization: "Bearer ..." }, // si votre proxy MCP en a besoin
+                url
             };
         }
         return {
