@@ -30,7 +30,7 @@ public static class SchemaSanitizer
         "$ref", "nullable", "readOnly", "writeOnly", "deprecated",
         "xml", "discriminator", "externalDocs",
         "example", "examples",
-        "requiredIf", "oneOfExclusive",
+        "requiredIf", "oneOfExclusive", "additionalProperties"
     };
 
     private static readonly Regex VendorExt = new(@"^x\-", RegexOptions.IgnoreCase | RegexOptions.Compiled,
@@ -105,7 +105,6 @@ public static class SchemaSanitizer
                 }
 
                 // Normalisations
-                NormalizeAdditionalProperties(newDict);
                 NormalizeItems(newDict);
                 NormalizeRequired(newDict);
 
@@ -128,16 +127,6 @@ public static class SchemaSanitizer
 
     // --- Normalisations spécifiques ------------------------------------
 
-    private static void NormalizeAdditionalProperties(Dictionary<string, object> dict)
-    {
-        if (!dict.TryGetValue("additionalProperties", out var ap)) return;
-
-        if (ap is bool) return;
-        if (ap is Dictionary<string, object>) return;
-
-        // Fallback MCP-friendly
-        dict["additionalProperties"] = true;
-    }
 
     private static void NormalizeItems(Dictionary<string, object> dict)
     {

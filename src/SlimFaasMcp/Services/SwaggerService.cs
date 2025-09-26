@@ -126,14 +126,15 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     if (content.TryGetProperty("application/json", out var appJson) &&
                         appJson.TryGetProperty("schema", out var schema))
                     {
+                        var unwrapped = UnwrapSinglePropObjectIfAny(expander, schema);
                         parameters.Add(new Parameter
                         {
                             Name        = "body",
                             In          = "body",
                             Required    = true,
                             Description = "Request body",
-                            SchemaType  = schema.TryGetProperty("type", out var t) ? t.GetString() : "object",
-                            Schema      =  ExpandAndSanitize(expander, schema)
+                            SchemaType  = unwrapped.TryGetProperty("type", out var t) ? t.GetString() : "object",
+                            Schema      =  ExpandAndSanitize(expander, unwrapped)
                         });
                         contentType = "application/json";
                     }
@@ -158,60 +159,29 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     var hasMultipart = content.TryGetProperty("multipart/form-data", out var multipart);
                     if (hasMultipart)
                     {
-                        contentType = "multipart/form-data"; // ✅ priorité au multipart
+                        contentType = "multipart/form-data";
                         if (multipart.TryGetProperty("schema", out var mpSchema))
                         {
-                            // Si on peut lire les propriétés -> on fabrique les params
-                            if (mpSchema.TryGetProperty("properties", out var props))
+                            // 🧠 clé : appel unique et générique
+                            FlattenMultipartIntoParameters(expander, mpSchema, parameters);
+                        }
+                        else
+                        {
+                            // fallback minimal
+                            parameters.Add(new Parameter
                             {
-                                var requiredFields = mpSchema.TryGetProperty("required", out var reqArr)
-                                                     ? reqArr.EnumerateArray().Select(x => x.GetString()).ToHashSet()!
-                                                     : new HashSet<string>();
-
-                                foreach (var prop in props.EnumerateObject())
-                                {
-                                    var p = prop.Value;
-
-                                    JsonElement? enumArr = null;
-                                    if (p.TryGetProperty("enum", out var eArr))
-                                        enumArr = eArr;
-
-                                    var descr = p.TryGetProperty("description", out var d)
-                                             ? d.GetString()
-                                             : "";
-                                    descr = AppendEnumValues(descr, enumArr);
-
-                                    parameters.Add(new Parameter
-                                    {
-                                        Name        = prop.Name,
-                                        In          = "formData",
-                                        Required    = requiredFields.Contains(prop.Name),
-                                        Description = descr,
-                                        SchemaType  = p.TryGetProperty("type", out var t) ? t.GetString() : "string",
-                                        Format      = p.TryGetProperty("format", out var f) ? f.GetString() : null,
-                                        Schema      = ExpandAndSanitize(expander, p)
-                                    });
-                                }
-                            }
-                            else
-                            {
-                                // ✅ multipart sans properties lisibles : on synthétise un champ fichier par défaut
-                                parameters.Add(new Parameter
-                                {
-                                    Name        = "file",
-                                    In          = "formData",
-                                    Required    = true,
-                                    Description = "Binary file",
-                                    SchemaType  = "string",
-                                    Format      = "binary",
-                                    Schema      = null
-                                });
-                            }
+                                Name        = "file",
+                                In          = "formData",
+                                Required    = true,
+                                Description = "Binary file",
+                                SchemaType  = "string",
+                                Format      = "binary",
+                                Schema      = null
+                            });
                         }
                     }
                     else if (available.Contains("application/octet-stream") && !available.Contains("application/json"))
                     {
-                        // Si uniquement octet-stream (cas de ton screenshot), fige le CT à octet-stream
                         contentType = "application/octet-stream";
                     }
                 }
@@ -313,4 +283,138 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         var sanitized  = SchemaSanitizer.SanitizeForMcp(expanded);
         return sanitized;
     }
+
+    private static JsonElement UnwrapSinglePropObjectIfAny(OpenApiSchemaExpander expander, JsonElement schemaEl)
+    {
+        // 1) Expand -> object graph
+        var expanded = expander.ExpandSchema(schemaEl);
+
+        // 2) Convertit en JsonNode puis en JsonElement SANS serializer
+        static JsonElement ToElem(JsonNode n)
+        {
+            using var doc = JsonDocument.Parse(n.ToJsonString()); // pas de reflection
+            return doc.RootElement.Clone();
+        }
+
+        var rootElem = ToElem(SchemaHelpers.ToJsonNode(expanded, maxDepth: 64) ?? new JsonObject());
+
+        // 3) Détection wrapper { type: "object", properties: { only: {...} }, required?: ["only"] }
+        if (rootElem.ValueKind == JsonValueKind.Object
+            && rootElem.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String
+            && string.Equals(t.GetString(), "object", StringComparison.OrdinalIgnoreCase)
+            && rootElem.TryGetProperty("properties", out var propsObj) && propsObj.ValueKind == JsonValueKind.Object)
+        {
+            var props = propsObj.EnumerateObject().ToList();
+            if (props.Count == 1)
+            {
+                var only = props[0];
+
+                var okRequired = true;
+                if (rootElem.TryGetProperty("required", out var req) && req.ValueKind == JsonValueKind.Array)
+                {
+                    var set = req.EnumerateArray().Select(e => e.GetString())
+                        .Where(s => !string.IsNullOrWhiteSpace(s)).ToHashSet();
+                    okRequired = set.Count <= 1 && (!set.Any() || set.Contains(only.Name));
+                }
+
+                if (okRequired)
+                {
+                    var childExpanded = expander.ExpandSchema(only.Value);
+                    var childNode = SchemaHelpers.ToJsonNode(childExpanded, maxDepth: 64) ?? new JsonObject();
+                    return ToElem(childNode); // ✅ renvoie le schéma unwrap
+                }
+            }
+        }
+
+        return rootElem; // pas de wrapper → retourne l’expansion
+    }
+
+    private static void FlattenMultipartIntoParameters(
+    OpenApiSchemaExpander expander,
+    JsonElement schemaEl,
+    List<Parameter> intoParams,
+    string? prefix = null,
+    HashSet<string>? requiredSet = null)
+{
+    // 0) Dé-wrapper si objet à propriété unique
+    var unwrapped = UnwrapSinglePropObjectIfAny(expander, schemaEl);
+
+    // 1) Lire type
+    string? type = null;
+    if (unwrapped.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String)
+        type = t.GetString();
+
+    // 2) Si object: parcourir properties
+    if (string.Equals(type, "object", StringComparison.OrdinalIgnoreCase)
+        && unwrapped.TryGetProperty("properties", out var props) && props.ValueKind == JsonValueKind.Object)
+    {
+        // required local
+        var localRequired = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        if (unwrapped.TryGetProperty("required", out var req) && req.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var r in req.EnumerateArray())
+                if (r.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(r.GetString()))
+                    localRequired.Add(r.GetString()!);
+        }
+
+        foreach (var p in props.EnumerateObject())
+        {
+            var name = string.IsNullOrWhiteSpace(prefix) ? p.Name : $"{prefix}.{p.Name}";
+            // Recurse
+            FlattenMultipartIntoParameters(expander, p.Value, intoParams, name, localRequired);
+        }
+        return;
+    }
+
+    // 3) Si array
+    if (string.Equals(type, "array", StringComparison.OrdinalIgnoreCase)
+        && unwrapped.TryGetProperty("items", out var itemsEl))
+    {
+        var desc = ReadDescription(unwrapped) ?? ReadDescription(itemsEl) ?? "";
+
+        intoParams.Add(new Parameter
+        {
+            Name        = prefix ?? "file",
+            In          = "formData",
+            Required    = requiredSet?.Contains(prefix ?? "") ?? false,
+            Description = desc,                                  // ✅ description propagée
+            SchemaType  = "array",
+            Format      = null,
+            Schema      = ExpandAndSanitize(expander, unwrapped) // ✅ on garde le schéma (préserve array)
+        });
+        return;
+    }
+
+// [C] Cas primitive / string[format=binary] / autres:
+    {
+        var schemaType = type ?? "string";
+        string? format = null;
+        if (unwrapped.TryGetProperty("format", out var fmt) && fmt.ValueKind == JsonValueKind.String)
+            format = fmt.GetString();
+
+        var isBinary = string.Equals(schemaType, "string", StringComparison.OrdinalIgnoreCase)
+                       && string.Equals(format, "binary", StringComparison.OrdinalIgnoreCase);
+
+        var desc = ReadDescription(unwrapped) ?? "";
+
+        intoParams.Add(new Parameter
+        {
+            Name        = prefix ?? "file",
+            In          = "formData",
+            Required    = requiredSet?.Contains(prefix ?? "") ?? false,
+            Description = desc,                                   // ✅ description propagée
+            SchemaType  = isBinary ? "string" : schemaType,
+            Format      = isBinary ? "binary" : format,
+            Schema      = ExpandAndSanitize(expander, unwrapped)  // ✅ on garde le schéma
+        });
+    }
+}
+    private static string? ReadDescription(JsonElement el)
+        => el.ValueKind == JsonValueKind.Object
+           && el.TryGetProperty("description", out var d)
+           && d.ValueKind == JsonValueKind.String
+            ? d.GetString()
+            : null;
+
+
 }

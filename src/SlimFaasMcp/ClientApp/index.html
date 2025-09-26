@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <script>
+        // Petits shims runtime, inoffensifs côté browser
+        window.global = globalThis;
+        // No-op pour libs qui lisent process.* sans l’importer
+        window.process = { env: {}, argv: [], platform: "browser" };
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>MCP Agent Chat – Vite + Vanilla</title>
+    <style>
+        :root { font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif; }
+        body { margin: 0; padding: 24px; background: #0b0c10; color: #e6e6e6; }
+        .row { display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        label { font-size:12px; opacity:.85; display:block; margin-bottom:6px; }
+        input, textarea, button { width:100%; padding:10px; border-radius:10px; border:1px solid #2b2f36; background:#111318; color:#e6e6e6; }
+        textarea { min-height:90px; resize:vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;}
+        button { cursor:pointer; font-weight:600; }
+        button.primary { background:#3b82f6; border-color:#3b82f6; color:white; }
+        .card { background:#0f1116; border:1px solid #1f2430; border-radius:14px; padding:14px; margin-bottom:16px; }
+        .chat { height:360px; overflow:auto; display:grid; gap:12px; padding:16px; background:#0d1015; border:1px solid #1b2030; border-radius:14px; }
+        .msg { padding:10px 12px; border-radius:12px; max-width:80%; line-height:1.35; }
+        .user { justify-self:end; background:#1f2937; }
+        .bot { justify-self:start; background:#111827; border:1px solid #273043; }
+        .hint { font-size:12px; opacity:.75; }
+        .chat .msg.bot h1,.chat .msg.bot h2,.chat .msg.bot h3 { margin: 0.2rem 0 0.4rem; }
+        .chat .msg.bot p, .chat .msg.bot ul, .chat .msg.bot ol { margin: 0.4rem 0; }
+        .chat .msg.bot pre { overflow: auto; padding: 10px; border-radius: 10px; }
+        .chat .msg.bot code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+        .chat .msg.bot blockquote { margin: 0.4rem 0; padding-left: 10px; border-left: 3px solid #273043; opacity: .95; }
+
+    </style>
+
+</head>
+<body>
+<h1>MCP Agent Chat – Vite + Vanilla</h1>
+
+<div class="card">
+    <div class="row">
+        <div>
+            <label for="openaiKey">OpenAI API Key</label>
+            <input id="openaiKey" type="password" placeholder="sk-..." />
+        </div>
+        <div>
+            <label for="model">OpenAI Model</label>
+            <input id="model" type="text" value="gpt-4o-2024-08-06"/>
+        </div>
+    </div>
+
+    <label for="serversJson" style="margin-top:8px;">Serveurs MCP (JSON { name: url })</label>
+    <textarea id="serversJson" spellcheck="false">{
+  "petstore": "http://localhost:5269/mcp?openapi_url=https%3A%2F%2Fpetstore3.swagger.io%2Fapi%2Fv3%2Fopenapi.json&base_url=https%3A%2F%2Fpetstore3.swagger.io%2Fapi%2Fv3&mcp_prompt=eyJhY3RpdmVUb29scyI6WyJnZXRfcGV0X2ZpbmRCeVN0YXR1cyIsImdldF9wZXRfcGV0SWQiLCJkZWxldGVfcGV0X3BldElkIl19"
+}</textarea>
+
+    <div style="display:flex; gap:10px; margin-top:12px;">
+        <button id="initBtn" class="primary">Initialiser l’agent</button>
+        <button id="closeBtn">Fermer connexions</button>
+    </div>
+    <div class="hint" style="margin-top:6px;">
+        Vos serveurs MCP doivent autoriser CORS + SSE depuis http://localhost:5173 (par défaut).
+    </div>
+</div>
+
+<div class="card">
+    <div id="chat" class="chat" aria-live="polite"></div>
+    <div class="row" style="margin-top:12px;">
+        <textarea id="userMsg" placeholder="Votre message… (Ctrl+Entrée pour envoyer)"></textarea>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            <button id="sendBtn" class="primary">Envoyer</button>
+            <button id="clearBtn">Effacer</button>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

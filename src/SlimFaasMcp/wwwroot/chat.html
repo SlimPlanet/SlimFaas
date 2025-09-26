@@ -1,0 +1,273 @@
+﻿<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <title>MCP Agent Chat – Vanilla JS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/slimfaas.svg" />
+    <style>
+        :root { font-family: ui-sans-serif, system-ui, Segoe UI, Roboto, Arial, sans-serif; }
+        body { margin: 0; padding: 24px; background: #0b0c10; color: #e6e6e6; }
+        h1 { margin: 0 0 16px; font-size: 20px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; }
+        label { font-size: 12px; opacity: 0.85; display: block; margin-bottom: 6px; }
+        input, textarea, button { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; border: 1px solid #2b2f36; background: #111318; color: #e6e6e6; }
+        textarea { resize: vertical; min-height: 90px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+        button { cursor: pointer; font-weight: 600; }
+        button.primary { background: #3b82f6; border-color: #3b82f6; color: white; }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .card { background: #0f1116; border: 1px solid #1f2430; border-radius: 14px; padding: 14px; }
+        .chat { height: 360px; overflow: auto; padding: 16px; display: grid; gap: 12px; background: #0d1015; border: 1px solid #1b2030; border-radius: 14px; }
+        .msg { padding: 12px 14px; border-radius: 12px; max-width: 80%; line-height: 1.35; }
+        .user { justify-self: end; background: #1f2937; }
+        .bot { justify-self: start; background: #111827; border: 1px solid #273043; }
+        .hdr { display:flex; gap:8px; align-items:center; margin-bottom:10px; }
+        .tag { background:#111827; border:1px solid #273043; padding:4px 8px; border-radius:999px; font-size:11px; opacity:.9;}
+        .hint { font-size: 12px; opacity: 0.75; }
+    </style>
+</head>
+<body>
+<h1>MCP Agent Chat – Vanilla JS</h1>
+
+<!-- Initialisation -->
+<div class="card" style="margin-bottom:16px;">
+    <div class="row">
+        <div>
+            <label for="openaiKey">OpenAI API Key</label>
+            <input id="openaiKey" type="password" placeholder="sk-..." />
+        </div>
+        <div>
+            <label for="model">OpenAI Model (ex: gpt-4o-2024-08-06)</label>
+            <input id="model" type="text" value="gpt-4o-2024-08-06" />
+        </div>
+    </div>
+
+    <label for="serversJson">Serveurs MCP (JSON { name: url })</label>
+    <textarea id="serversJson" spellcheck="false">
+{
+  "petstore": "http://localhost:5269/index.html/mcp?openapi_url=https%3A%2F%2Fpetstore3.swagger.io%2Fapi%2Fv3%2Fopenapi.json&base_url=https%3A%2F%2Fpetstore3.swagger.io%2Fapi%2Fv3&mcp_prompt=eyJhY3RpdmVUb29scyI6WyJnZXRfcGV0X2ZpbmRCeVN0YXR1cyJdfQ%3D%3D"
+}
+    </textarea>
+
+    <div style="display:flex; gap: 10px; margin-top: 12px;">
+        <button id="initBtn" class="primary">Initialiser l’agent</button>
+        <button id="closeBtn">Fermer connexions</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">
+        Astuce : vos serveurs MCP HTTP/SSE doivent autoriser CORS, sinon le navigateur bloquera la connexion.
+    </div>
+</div>
+
+<!-- Chat -->
+<div class="card">
+    <div class="hdr">
+        <div class="tag">Agent ReAct LangGraph</div>
+        <div class="tag">MCP multi‑serveurs</div>
+        <div class="tag">OpenAI</div>
+    </div>
+    <div id="chat" class="chat" aria-live="polite"></div>
+    <div class="row" style="margin-top:12px;">
+        <textarea id="userMsg" placeholder="Tapez votre message... (ex: 'Liste les endpoints disponibles et trouve les animaux disponibles')"></textarea>
+        <div style="display:flex; flex-direction:column; gap:12px;">
+            <button id="sendBtn" class="primary">Envoyer</button>
+            <button id="clearBtn">Effacer</button>
+        </div>
+    </div>
+</div>
+
+<!-- Import des modules depuis ESM CDN -->
+<script type="module">
+    // Import ESM (fonctionne dans les navigateurs modernes)
+    import { MultiServerMCPClient } from "https://cdn.skypack.dev/@langchain/mcp-adapters@0.6.0";
+    import { createReactAgent } from "https://cdn.skypack.dev/@langchain/langgraph@0.2.34/prebuilt";
+    import { ChatOpenAI } from "https://cdn.skypack.dev/@langchain/openai@0.2.11";
+
+    /**
+     * Classe MCPChat
+     * - Reçoit un dictionnaire { name: url } et une clé OpenAI.
+     * - Ouvre un MultiServerMCPClient (HTTP/SSE) pour chaque URL.
+     * - Crée un agent ReAct LangGraph avec les outils MCP chargés.
+     */
+    class MCPChat {
+        constructor(mcpServerMap, openaiKey, modelName = "gpt-4o-2024-08-06") {
+            this.mcpServerMap = mcpServerMap;
+            this.openaiKey = openaiKey;
+            this.modelName = modelName;
+            this.client = null;
+            this.agent = null;
+            this.initialized = false;
+        }
+
+        /**
+         * Transforme {name: url} => config MultiServerMCPClient mcpServers
+         * On force le transport "sse" (HTTP Streamable) pour navigateur.
+         * Voir doc @langchain/mcp-adapters (SSE/HTTP). :contentReference[oaicite:2]{index=2}
+         */
+        _buildMcpConfig() {
+            const mcpServers = {};
+            for (const [name, url] of Object.entries(this.mcpServerMap)) {
+                mcpServers[name] = {
+                    transport: "sse",
+                    url: url,
+                    // Optionnel: headers si auth côté serveur MCP
+                    // headers: { Authorization: "Bearer ..." },
+                    reconnect: { enabled: true, maxAttempts: 5, delayMs: 1500 },
+                };
+            }
+            return {
+                // Options globales utiles (voir doc) :contentReference[oaicite:3]{index=3}
+                throwOnLoadError: true,
+                useStandardContentBlocks: true,
+                prefixToolNameWithServerName: true, // utile si collisions de noms
+                additionalToolNamePrefix: "",
+                mcpServers,
+            };
+        }
+
+        async init() {
+            if (this.initialized) return;
+            const cfg = this._buildMcpConfig();
+            this.client = new MultiServerMCPClient(cfg);
+
+            // Récupère et aplatit tous les outils MCP
+            const tools = await this.client.getTools();
+
+            // Instancie le modèle OpenAI
+            const llm = new ChatOpenAI({
+                apiKey: this.openaiKey,
+                model: this.modelName,
+                temperature: 0,
+            });
+
+            // Crée l’agent ReAct pré‑construit (LangGraph) avec ces outils
+            // API : createReactAgent({ llm, tools }) :contentReference[oaicite:4]{index=4}
+            this.agent = createReactAgent({ llm, tools });
+            this.initialized = true;
+        }
+
+        /**
+         * Envoie un message utilisateur et renvoie le texte de réponse.
+         * L’agent LangGraph renvoie un état qui contient un tableau `messages`.
+         * Le dernier message est la réponse. :contentReference[oaicite:5]{index=5}
+         */
+        async send(userText) {
+            if (!this.initialized) throw new Error("Agent non initialisé.");
+            const state = await this.agent.invoke({
+                messages: [{ role: "user", content: userText }],
+            });
+            const msgs = state?.messages ?? [];
+            const last = msgs[msgs.length - 1];
+            // `content` peut être string ou tableaux de blocks; on simplifie ici
+            const content = Array.isArray(last?.content)
+                ? last.content.map(b => (typeof b === "string" ? b : b?.text ?? "")).join("\n")
+                : (last?.content ?? "");
+            return content || "[Réponse vide]";
+        }
+
+        async close() {
+            try { await this.client?.close?.(); } catch (_) {}
+            this.client = null;
+            this.agent = null;
+            this.initialized = false;
+        }
+    }
+
+    // ---------------- UI WIRING ----------------
+    const el = (id) => document.getElementById(id);
+    const chatEl = el("chat");
+    const sendBtn = el("sendBtn");
+    const clearBtn = el("clearBtn");
+    const initBtn = el("initBtn");
+    const closeBtn = el("closeBtn");
+    const userMsgEl = el("userMsg");
+    const serversEl = el("serversJson");
+    const keyEl = el("openaiKey");
+    const modelEl = el("model");
+
+    let chat = null;
+    let busy = false;
+
+    function addMsg(text, who = "bot") {
+        const div = document.createElement("div");
+        div.className = `msg ${who === "user" ? "user" : "bot"}`;
+        div.textContent = text;
+        chatEl.appendChild(div);
+        chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    async function onInit() {
+        if (busy) return;
+        try {
+            busy = true;
+            initBtn.disabled = true;
+
+            // Lecture des inputs
+            const key = keyEl.value.trim();
+            if (!key) throw new Error("Veuillez saisir votre clé OpenAI.");
+            let serversObj;
+            try {
+                serversObj = JSON.parse(serversEl.value);
+            } catch {
+                throw new Error("JSON des serveurs MCP invalide.");
+            }
+            if (!serversObj || typeof serversObj !== "object" || !Object.keys(serversObj).length) {
+                throw new Error("Le dictionnaire de serveurs MCP est vide.");
+            }
+
+            chat?.close?.();
+            chat = new MCPChat(serversObj, key, modelEl.value.trim() || "gpt-4o-2024-08-06");
+            await chat.init();
+            addMsg("✅ Agent initialisé. Vous pouvez maintenant discuter.", "bot");
+        } catch (err) {
+            console.error(err);
+            addMsg("❌ " + (err?.message || String(err)), "bot");
+        } finally {
+            busy = false;
+            initBtn.disabled = false;
+        }
+    }
+
+    async function onSend() {
+        if (busy) return;
+        const text = userMsgEl.value.trim();
+        if (!text) return;
+
+        try {
+            busy = true;
+            sendBtn.disabled = true;
+            userMsgEl.value = "";
+            addMsg(text, "user");
+            const reply = await chat.send(text);
+            addMsg(reply, "bot");
+        } catch (err) {
+            console.error(err);
+            addMsg("❌ " + (err?.message || String(err)), "bot");
+        } finally {
+            busy = false;
+            sendBtn.disabled = false;
+        }
+    }
+
+    function onClear() {
+        chatEl.innerHTML = "";
+    }
+
+    async function onClose() {
+        await chat?.close?.();
+        addMsg("🔌 Connexions fermées.", "bot");
+    }
+
+    initBtn.addEventListener("click", onInit);
+    closeBtn.addEventListener("click", onClose);
+    sendBtn.addEventListener("click", onSend);
+    clearBtn.addEventListener("click", onClear);
+    userMsgEl.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            onSend();
+        }
+    });
+</script>
+</body>
+</html>

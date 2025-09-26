@@ -1,5 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using SlimFaasMcp;
@@ -7,6 +9,38 @@ using SlimFaasMcp.Services;
 using SlimFaasMcp.Models;
 
 var builder = WebApplication.CreateSlimBuilder(args);
+
+var corsSection  = builder.Configuration.GetSection("Cors");
+var corsSettings = corsSection.Get<CorsSettings>() ?? new CorsSettings();
+builder.Services.Configure<CorsSettings>(corsSection);
+
+// ---- Flat env vars override (CORS_*) ----
+static string[]? ReadCsv(string? s) =>
+    string.IsNullOrWhiteSpace(s) ? null :
+        s.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+string? envOrigins = builder.Configuration["CORS_ORIGINS"];
+string? envMethods = builder.Configuration["CORS_METHODS"];
+string? envHeaders = builder.Configuration["CORS_HEADERS"];
+string? envExpose  = builder.Configuration["CORS_EXPOSE"];
+string? envCreds   = builder.Configuration["CORS_CREDENTIALS"];
+string? envMaxAge  = builder.Configuration["CORS_MAXAGEMINUTES"];
+
+var o = ReadCsv(envOrigins); if (o is not null) corsSettings.Origins  = o;
+var m = ReadCsv(envMethods); if (m is not null) corsSettings.Methods  = m;
+var h = ReadCsv(envHeaders); if (h is not null) corsSettings.Headers  = h;
+var e = ReadCsv(envExpose);  if (e is not null) corsSettings.Expose   = e;
+if (bool.TryParse(envCreds, out var bc)) corsSettings.Credentials = bc;
+if (int.TryParse(envMaxAge, out var mi)) corsSettings.MaxAgeMinutes = mi;
+
+// Register CORS policy using the already present ConfigureCorsPolicyFromWildcard(...)
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("SlimFaasMcpCors", policy =>
+    {
+        ConfigureCorsPolicyFromWildcard(policy, corsSettings);
+    });
+});
 
 builder.Services.AddHttpClient("InsecureHttpClient")
                 .ConfigurePrimaryHttpMessageHandler(() =>
@@ -27,6 +61,8 @@ var app = builder.Build();
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+app.UseCors("SlimFaasMcpCors");
 
 app.MapGet("/mcp", () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed));
 
@@ -110,11 +146,12 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                                 JsonSerializer.Serialize(t.InputSchema, AppJsonContext.Default.JsonNode))!
                         };
 
-                        if (structuredContentEnabled)
+                        if (structuredContentEnabled && HasKnownOutputSchema(t.OutputSchema))
                         {
                             var wrapped = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
-                            node["outputSchema"] = JsonNode.Parse(
-                                JsonSerializer.Serialize(wrapped, AppJsonContext.Default.JsonNode))!;
+                            if(wrapped != null)
+                                node["outputSchema"] = JsonNode.Parse(
+                                    JsonSerializer.Serialize(wrapped, AppJsonContext.Default.JsonNode))!;
                         }
 
                         return node;
@@ -133,6 +170,11 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                 }
                 var incomingName = p.GetProperty("name").GetString()!;
                 var realName = StripToolPrefix(incomingName, toolPrefix);
+
+                // 🔁 Récupère la même liste d'outils que pour tools/list (avec mcpPrompt & cache)
+                var toolsForCall = await toolProxyService.GetToolsAsync(openapiUrl, baseUrl, additionalHeaders, mcpPromptB64);
+                var toolMeta     = toolsForCall.FirstOrDefault(t => string.Equals(t.Name, realName, StringComparison.Ordinal));
+
                 var callResult = await toolProxyService.ExecuteToolAsync(
                     openapiUrl,
                     realName!,
@@ -140,8 +182,11 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                     baseUrl,
                     additionalHeaders);
 
+                bool allowStructured = structuredContentEnabled && toolMeta is not null && HasKnownOutputSchema(toolMeta.OutputSchema) && callResult.StatusCode >= 200
+                    && callResult.StatusCode < 300;
+
                 // ✅ RESULT MCP (content[] + structuredContent si activé via query)
-                var resultObj = McpContentBuilder.BuildResult(callResult, structuredContentEnabled);
+                var resultObj = McpContentBuilder.BuildResult(callResult, allowStructured);
 
                 response["result"] = resultObj;
 
@@ -200,7 +245,10 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
     {
         // ⬇️ applique le même wrapping pour que l’UI annonce le bon schéma
         foreach (var t in tools)
-            t.OutputSchema = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
+            if (HasKnownOutputSchema(t.OutputSchema))
+                t.OutputSchema = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
+            else
+                t.OutputSchema = new JsonObject();
     }
 
     return TypedResults.Ok(tools);
@@ -220,7 +268,7 @@ grp.MapPost("/{toolName}", async Task<IResult> (
     var qs = httpRequest.Query;
     var toolPrefix = qs.TryGetValue("tool_prefix", out var qtp) ? qtp.ToString() : null;
     var realName   = StripToolPrefix(toolName, toolPrefix);
-    var r = await proxy.ExecuteToolAsync(
+    var callResult = await proxy.ExecuteToolAsync(
         openapi_url, realName!, arguments,
         base_url,
         additionalHeaders);
@@ -228,8 +276,13 @@ grp.MapPost("/{toolName}", async Task<IResult> (
     var structuredContentEnabled =
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
+    var toolsForCall = await proxy.GetToolsAsync(openapi_url, base_url, additionalHeaders, mcp_prompt);
+    var toolMeta     = toolsForCall.FirstOrDefault(t => string.Equals(t.Name, realName, StringComparison.Ordinal));
+    bool allowStructured = structuredContentEnabled && toolMeta is not null && HasKnownOutputSchema(toolMeta.OutputSchema) && callResult.StatusCode >= 200
+        && callResult.StatusCode < 300;
 
-    var resultObj = McpContentBuilder.BuildResult(r, structuredContentEnabled);
+
+    var resultObj = McpContentBuilder.BuildResult(callResult, allowStructured);
     return Results.Json(resultObj, AppJsonContext.Default.JsonNode);
 });
 
@@ -285,5 +338,114 @@ static string? StripToolPrefix(string? name, string? prefix)
         ? name.Substring(wanted.Length)
         : name;
 }
+
+static void ConfigureCorsPolicyFromWildcard(CorsPolicyBuilder policy, CorsSettings cfg)
+{
+    // ORIGINS
+    if (IsAny(cfg.Origins))
+    {
+        if (cfg.Credentials)
+        {
+            // Echo dynamique de toute origine (⚠️ à n'activer qu'en connaissance de cause)
+            policy.SetIsOriginAllowed(_ => true).AllowCredentials();
+        }
+        else
+        {
+            policy.AllowAnyOrigin();
+        }
+    }
+    else
+    {
+        var originPred = BuildOriginPredicate(cfg.Origins!);
+        policy.SetIsOriginAllowed(originPred);
+
+        if (cfg.Credentials) policy.AllowCredentials();
+        else                  policy.DisallowCredentials();
+    }
+
+    // METHODS
+    if (IsAny(cfg.Methods)) policy.AllowAnyMethod();
+    else                    policy.WithMethods(Normalize(cfg.Methods!));
+
+    // HEADERS
+    if (IsAny(cfg.Headers)) policy.AllowAnyHeader();
+    else                    policy.WithHeaders(Normalize(cfg.Headers!));
+
+    // EXPOSED
+    if (cfg.Expose is { Length: > 0 }) policy.WithExposedHeaders(Normalize(cfg.Expose));
+
+    // PREFLIGHT CACHE
+    if (cfg.MaxAgeMinutes is int m && m > 0) policy.SetPreflightMaxAge(TimeSpan.FromMinutes(m));
+}
+
+static bool IsAny(string[]? arr) => arr is null || arr.Length == 0 || Array.Exists(arr, s => s.Trim() == "*");
+static string[] Normalize(string[] arr) => arr.Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToArray();
+
+static Func<string, bool> BuildOriginPredicate(string[] patterns)
+{
+    // Supporte:
+    //   https://*.axa.com
+    //   http://localhost:*
+    //   http*://dev-*.example.local:808*
+    //   https://exact.example.com
+    var regs = patterns
+        .Select(p => p.Trim())
+        .Where(p => !string.IsNullOrWhiteSpace(p))
+        .Select(p => new Regex("^" + GlobToRegex(p) + "$", RegexOptions.IgnoreCase | RegexOptions.Compiled))
+        .ToArray();
+
+    if (regs.Length == 0)
+        return _ => false;
+
+    return origin =>
+    {
+        if (string.IsNullOrWhiteSpace(origin)) return false;
+        foreach (var r in regs) if (r.IsMatch(origin)) return true;
+        return false;
+    };
+}
+
+static string GlobToRegex(string pattern)
+{
+    // Échappe les regex chars, puis remplace les jokers glob par des classes regex
+    // *  => .*
+    // ?  => .
+    // On garde : // : // dans l'URL ne posent pas souci car on matche toute la chaîne
+    var special = new HashSet<char> { '.', '$', '^', '{', '[', '(', '|', ')', '+', '\\' };
+    var sb = new System.Text.StringBuilder(pattern.Length * 2);
+    foreach (var ch in pattern)
+    {
+        switch (ch)
+        {
+            case '*': sb.Append(".*"); break;
+            case '?': sb.Append('.');  break;
+            default:
+                if (special.Contains(ch)) sb.Append('\\');
+                sb.Append(ch);
+                break;
+        }
+    }
+    return sb.ToString();
+}
+
+static bool HasKnownOutputSchema(System.Text.Json.Nodes.JsonNode? schema)
+{
+    if (schema is not System.Text.Json.Nodes.JsonObject obj) return false;
+
+    // cas explicite: type string non vide
+    if (obj.TryGetPropertyValue("type", out var t) && t is System.Text.Json.Nodes.JsonValue tv)
+    {
+        var ts = tv.TryGetValue<string>(out var s) ? s : tv.ToString();
+        if (!string.IsNullOrWhiteSpace(ts)) return true;
+    }
+
+    // cas implicites: présence de structure/combinators
+    if (obj.ContainsKey("properties")) return true;
+    if (obj.ContainsKey("items")) return true;
+    if (obj.ContainsKey("anyOf") || obj.ContainsKey("oneOf") || obj.ContainsKey("allOf")) return true;
+
+    return false;
+}
+
 
 public partial class Program { }

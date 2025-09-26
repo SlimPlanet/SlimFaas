@@ -118,24 +118,8 @@ public class SchemaSanitizerTests
         Assert.Equal("a", required[0]);
     }
 
-    [Theory]
-    [InlineData("weird")] // invalid case -> should become true
-    [InlineData(123)]
-    public void AdditionalProperties_Invalid_Values_Fall_Back_To_True(object invalid)
-    {
-        var input = D(
-            ("type", "object"),
-            ("additionalProperties", invalid),
-            ("properties", D())
-        );
-
-        var sanitized = Sanitize(input);
-        Assert.True(sanitized.ContainsKey("additionalProperties"));
-        Assert.True((bool)sanitized["additionalProperties"]);
-    }
-
     [Fact]
-    public void AdditionalProperties_Bool_And_Dict_Are_Preserved()
+    public void AdditionalProperties_Bool_And_Dict_Are_Not_Preserved()
     {
         var dictCase = D(
             ("type", "object"),
@@ -149,9 +133,7 @@ public class SchemaSanitizerTests
         var s1 = Sanitize(dictCase);
         var s2 = Sanitize(boolCase);
 
-        Assert.IsType<Dictionary<string, object>>(s1["additionalProperties"]);
-        Assert.IsType<bool>(s2["additionalProperties"]);
-        Assert.False((bool)s2["additionalProperties"]);
+        Assert.False(s2.ContainsKey("additionalProperties"));
     }
 
     [Fact]

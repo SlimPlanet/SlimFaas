@@ -20,4 +20,6 @@ public class ProxyCallResult
     // Helper base64 (utilisé par /tools pour renvoyer un JSON lisible)
     public string? Base64 =>
         Bytes is null ? null : System.Convert.ToBase64String(Bytes);
+
+    public int StatusCode { get; set; } = 200;
 }
