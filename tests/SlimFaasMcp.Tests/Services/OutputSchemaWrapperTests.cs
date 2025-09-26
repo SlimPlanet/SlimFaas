@@ -95,7 +95,7 @@ public class OutputSchemaWrapperTests
     }
 
     [Fact]
-    public void Wrap_NoType_ShouldDefaultToValueObjectWithOriginalUnderValue()
+    public void Wrap_NoType_ShouldDefaultEmptyJson()
     {
         // Arrange
         var original = new JsonObject
@@ -109,22 +109,11 @@ public class OutputSchemaWrapperTests
 
         // Assert
         Assert.NotNull(wrapped);
-        Assert.Equal("object", wrapped!["type"]!.GetValue<string>());
-
-        var props = wrapped!["properties"]!.AsObject();
-        Assert.True(props.ContainsKey("value"));
-
-        // Le contenu original doit être préservé sous "value"
-        var valueSchema = props["value"]!.AsObject();
-        Assert.Equal("No explicit type", valueSchema["description"]!.GetValue<string>());
-        Assert.Equal(0, valueSchema["minimum"]!.GetValue<int>());
-
-        var required = wrapped!["required"]!.AsArray();
-        Assert.Contains("value", required.Select(n => n!.GetValue<string>()));
+        Assert.Equal("{}", wrapped.ToJsonString());
     }
 
     [Fact]
-    public void Wrap_NullInput_ShouldProduceValueObjectWrappingEmptyObject()
+    public void Wrap_NullInput_ShouldDefaultEmptyJson()
     {
         // Arrange
         JsonNode? original = null;
@@ -134,16 +123,7 @@ public class OutputSchemaWrapperTests
 
         // Assert
         Assert.NotNull(wrapped);
-        Assert.Equal("object", wrapped!["type"]!.GetValue<string>());
-
-        var props = wrapped!["properties"]!.AsObject();
-        Assert.True(props.ContainsKey("value"));
-
-        // Ici, "value" reçoit un objet vide (comportement par défaut)
-        Assert.IsType<JsonObject>(props["value"]);
-
-        var required = wrapped!["required"]!.AsArray();
-        Assert.Contains("value", required.Select(n => n!.GetValue<string>()));
+        Assert.Equal("{}", wrapped.ToJsonString());
     }
 
     [Theory]

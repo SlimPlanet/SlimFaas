@@ -101,6 +101,13 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
                                                      It.IsAny<IDictionary<string,string>?>()))
                       .ReturnsAsync(proxyCallResult);
 
+        _toolProxyMock.Setup(p => p.GetToolsAsync(It.IsAny<string>(), It.IsAny<string?>(),
+                                                  It.IsAny<IDictionary<string,string>>(), It.IsAny<string?>()))
+                      .ReturnsAsync(new List<McpTool>
+                      {
+                          new() { Name = "getPets", Description = "Get all pets", InputSchema = new JsonObject() }
+                      });
+
         var rpc = JsonSerializer.Deserialize<JsonNode>("""{"jsonrpc":"2.0","id":"abc","method":"tools/call","params":{"name":"getPets","arguments":{}}}""")!;
 
         var client   = _factory.CreateClient();
