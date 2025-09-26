@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.43.0
+
+- [98c2a7d](https://github.com/SlimPlanet/SlimFaas/commit/98c2a7d1cc5feb55fddbfdce700e38a512f2c62b) - feat(slimfaas-mcp): add cors configuration (#168)  (release), 2025-09-26 by *Guillaume Chervet*
+
+
+## 0.42.2
+
+
+
 ## v0.42.2
 
 - [ab11f59](https://github.com/SlimPlanet/SlimFaas/commit/ab11f59fbff782c4c3798e61bed37b21a759c616) - fix(slimfaas-mcp) : cyclic reference crash (#167) (release), 2025-09-20 by *Guillaume Chervet*
@@ -279,15 +288,5 @@
 - [8e632a7](https://github.com/SlimPlanet/SlimFaas/commit/8e632a7dee6148188c151d152fad2719011a8b04) - feature(planetsaver): add behavior to configure exceptions (#108) (release), 2025-04-15 by *Guillaume Chervet*
 - [b4720ac](https://github.com/SlimPlanet/SlimFaas/commit/b4720ac917d6500abce2c83d4859c4df4cc61b51) - fix(docs): Updating correct annotation for private function path (#107), 2025-04-11 by *FaresAhmedAXA*
 - [79f9f69](https://github.com/SlimPlanet/SlimFaas/commit/79f9f69c430012c93a8f04c094780c3f65e43e6d) - fix(website): repair logo path, 2025-04-07 by *Guillaume Chervet*
-
-
-## v0.36.19
-
-- [3ac2319](https://github.com/SlimPlanet/SlimFaas/commit/3ac2319a15490dce06c68c7fbda57d002ae8dd79) - fix(PlanetSaver): wake up more easily (release) (#105), 2025-04-07 by *Guillaume Chervet*
-
-
-## v0.36.18
-
-- [b518ca5](https://github.com/SlimPlanet/SlimFaas/commit/b518ca564d03fdd5ed80b1fe2c865ad107cc308b) - fix(website): try repair path (release), 2025-04-07 by *Guillaume Chervet*
 
 
