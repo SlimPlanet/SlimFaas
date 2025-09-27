@@ -9,25 +9,32 @@ namespace SlimFaasMcp.Services;
 
 public interface IToolProxyService
 {
-    Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl, IDictionary<string, string> additionalHeaders,
-        string? mcpPromptB64);
+    Task<List<McpTool>> GetToolsAsync(string swaggerUrl,
+        string? baseUrl,
+        IDictionary<string, string> additionalHeaders,
+        string? mcpPromptB64,
+        ushort? slidingExpiration);
 
     Task<ProxyCallResult> ExecuteToolAsync(
         string swaggerUrl,
         string toolName,
         JsonElement input,
         string? baseUrl = null,
-        IDictionary<string, string>? additionalHeaders = null);
+        IDictionary<string, string>? additionalHeaders = null,
+        ushort? slidingExpiration = null);
 }
 
 public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory httpClientFactory) : IToolProxyService
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
 
-    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl, string? baseUrl,
-        IDictionary<string, string>? additionalHeaders, string? mcpPromptB64)
+    public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl,
+        string? baseUrl,
+        IDictionary<string, string>? additionalHeaders,
+        string? mcpPromptB64,
+        ushort? slidingExpiration)
     {
-        JsonDocument swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, additionalHeaders);
+        JsonDocument swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, additionalHeaders, slidingExpiration);
         IEnumerable<Endpoint> endpoints = swaggerService.ParseEndpoints(swagger);
 
         List<McpTool> tools = endpoints.Select(e => new McpTool
@@ -103,9 +110,10 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         string toolName,
         JsonElement input,
         string? baseUrl = null,
-        IDictionary<string, string>? additionalHeaders = null)
+        IDictionary<string, string>? additionalHeaders = null,
+        ushort? slidingExpiration = null)
     {
-        JsonDocument swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, additionalHeaders);
+        JsonDocument swagger = await swaggerService.GetSwaggerAsync(swaggerUrl, baseUrl, additionalHeaders, slidingExpiration);
         IEnumerable<Endpoint> endpoints = swaggerService.ParseEndpoints(swagger);
         Endpoint? endpoint = endpoints.FirstOrDefault(e => e.Name == toolName);
 

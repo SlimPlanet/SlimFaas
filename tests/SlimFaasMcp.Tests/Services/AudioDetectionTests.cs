@@ -46,7 +46,7 @@ public class AudioDetectionTests
     {
         private readonly List<Endpoint> _eps;
         public StubSwaggerService(List<Endpoint> eps) => _eps = eps;
-        public Task<JsonDocument> GetSwaggerAsync(string u, string? b = null, IDictionary<string,string>? h = null)
+        public Task<JsonDocument> GetSwaggerAsync(string u, string? b = null, IDictionary<string,string>? h = null, ushort? exp = null)
             => Task.FromResult(JsonDocument.Parse("""{"openapi":"3.0.0"}"""));
         public IEnumerable<Endpoint> ParseEndpoints(JsonDocument _) => _eps;
     }
