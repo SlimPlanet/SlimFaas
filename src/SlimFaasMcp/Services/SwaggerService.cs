@@ -8,7 +8,10 @@ namespace SlimFaasMcp.Services;
 
 public interface ISwaggerService
 {
-    Task<JsonDocument> GetSwaggerAsync(string swaggerUrl, string? baseUrl = null, IDictionary<string, string>? additionalHeaders = null);
+    Task<JsonDocument> GetSwaggerAsync(string swaggerUrl,
+        string? baseUrl = null,
+        IDictionary<string, string>? additionalHeaders = null,
+        ushort? slidingExpiration = null);
     IEnumerable<Endpoint> ParseEndpoints(JsonDocument swagger);
 }
 
@@ -21,7 +24,8 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
     public async Task<JsonDocument> GetSwaggerAsync(
         string swaggerUrl,
         string? baseUrl   = null,
-        IDictionary<string, string>? additionalHeaders = null)
+        IDictionary<string, string>? additionalHeaders = null,
+        ushort? slidingExpiration = null)
     {
         var cacheKey = $"swagger::{swaggerUrl}";
         if (memoryCache.TryGetValue<JsonDocument>(cacheKey, out var cached) && cached is not null)
@@ -41,7 +45,14 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         var swaggerStr = await response.Content.ReadAsStringAsync();
 
         var doc = JsonDocument.Parse(swaggerStr);
-        memoryCache.Set(cacheKey, doc, new MemoryCacheEntryOptions { SlidingExpiration = s_slidingExpiration });
+
+        var cacheExpiration = slidingExpiration == null ? s_slidingExpiration : TimeSpan.FromMinutes(slidingExpiration.Value);
+
+        if (cacheExpiration.TotalMinutes > 0)
+        {
+            memoryCache.Set(cacheKey, doc, new MemoryCacheEntryOptions { SlidingExpiration = cacheExpiration });
+        }
+
         return doc;
     }
 

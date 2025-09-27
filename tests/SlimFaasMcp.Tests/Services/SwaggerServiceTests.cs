@@ -44,6 +44,16 @@ public class SwaggerServiceTests
     }
 
     [Fact]
+    public async Task GetSwagger_Not_Cached()
+    {
+        var (svc, stub) = Create();
+        _ = await svc.GetSwaggerAsync("https://api.example.com/openapi.json", null, null, 0);
+        _ = await svc.GetSwaggerAsync("https://api.example.com/openapi.json", null, null, 0);
+
+        Assert.Equal(2, stub.CallCount);           // no cache when expiration is 0 => two calls
+    }
+
+    [Fact]
     public async Task ParseEndpoints_Returns_Expected_Endpoint()
     {
         var (svc, _) = Create();

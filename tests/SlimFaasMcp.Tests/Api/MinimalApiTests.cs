@@ -70,11 +70,11 @@ public class MinimalApiTests : IClassFixture<MinimalApiTests.TestAppFactory>
             }
         ];
 
-        public Task<List<McpTool>> GetToolsAsync(string s1,string? s2,IDictionary<string,string> s3,string? s4)
+        public Task<List<McpTool>> GetToolsAsync(string s1,string? s2,IDictionary<string,string> s3,string? s4, ushort? s5)
             => Task.FromResult(_tools);
 
         public Task<ProxyCallResult> ExecuteToolAsync(string s1,string s2,
-                                             System.Text.Json.JsonElement e,string? s3,IDictionary<string,string>? s4)
+                                             System.Text.Json.JsonElement e,string? s3,IDictionary<string,string>? s4, ushort? s5)
         {
             ProxyCallResult proxyCallResult = new() { Text = @"{""status"":""ok""}" };
             return Task.FromResult(proxyCallResult);

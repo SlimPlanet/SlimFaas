@@ -46,7 +46,7 @@ public class ToolProxyServiceTests
     {
         var (svc, _) = Create();
         var tools = await svc.GetToolsAsync("https://api.example.com/openapi.json",
-                                            "https://api.example.com", null, null);
+                                            "https://api.example.com", null, null, null);
 
         var tool = Assert.Single(tools);
         Assert.Equal("get_pets", tool.Name);
