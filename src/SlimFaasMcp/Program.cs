@@ -97,6 +97,8 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
     var mcpPromptB64  = qs.TryGetValue("mcp_prompt", out var qp)     ? qp.ToString()     : null;
     var oauthB64    = qs.TryGetValue("oauth", out var qOauth) ? qOauth.ToString() : null;
     var toolPrefix = qs.TryGetValue("tool_prefix", out var qtp) ? qtp.ToString() : null;
+    var expirationTime = qs.TryGetValue("cache_expiration", out var exp) ? exp.ToString() : null;
+
     var structuredContentEnabled =
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
@@ -104,6 +106,8 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
 
     if (!string.IsNullOrEmpty(oauthB64) && string.IsNullOrWhiteSpace(authHeader))
         return Challenge(httpRequest, oauthB64);
+
+    ushort? slidingExpiration = ushort.TryParse(expirationTime, out ushort result) ?  result : null;
 
     // --- champs JSON-RPC ----------------------------------------------
     JsonNode response = new JsonObject {
@@ -128,7 +132,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
         case "tools/list":
             {
                 var tools = await toolProxyService.GetToolsAsync(
-                    openapiUrl, baseUrl, additionalHeaders, mcpPromptB64);
+                    openapiUrl, baseUrl, additionalHeaders, mcpPromptB64, slidingExpiration);
                 if (!string.IsNullOrWhiteSpace(toolPrefix))
                 {
                     foreach (var t in tools)
@@ -172,7 +176,7 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
                 var realName = StripToolPrefix(incomingName, toolPrefix);
 
                 // 🔁 Récupère la même liste d'outils que pour tools/list (avec mcpPrompt & cache)
-                var toolsForCall = await toolProxyService.GetToolsAsync(openapiUrl, baseUrl, additionalHeaders, mcpPromptB64);
+                var toolsForCall = await toolProxyService.GetToolsAsync(openapiUrl, baseUrl, additionalHeaders, mcpPromptB64, slidingExpiration);
                 var toolMeta     = toolsForCall.FirstOrDefault(t => string.Equals(t.Name, realName, StringComparison.Ordinal));
 
                 var callResult = await toolProxyService.ExecuteToolAsync(
@@ -214,6 +218,7 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
         string openapi_url,
         [FromQuery] string? base_url,
         [FromQuery] string? mcp_prompt,
+        [FromQuery] ushort? cache_expiration,
         HttpRequest httpRequest,
         IToolProxyService proxy)
         =>
@@ -223,7 +228,8 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
     var tools = await proxy.GetToolsAsync(
         openapi_url, base_url,
         additionalHeaders,
-        mcp_prompt);
+        mcp_prompt,
+        cache_expiration);
 
     var qs = httpRequest.Query;
     var toolPrefix = qs.TryGetValue("tool_prefix", out var qtp) ? qtp.ToString() : null;
@@ -260,6 +266,7 @@ grp.MapPost("/{toolName}", async Task<IResult> (
         [FromBody] JsonElement arguments,
         [FromQuery] string? base_url,
         [FromQuery] string? mcp_prompt,
+        [FromQuery] ushort? cache_expiration,
         HttpRequest httpRequest,
         IToolProxyService proxy)
     =>
@@ -276,7 +283,7 @@ grp.MapPost("/{toolName}", async Task<IResult> (
     var structuredContentEnabled =
         qs.TryGetValue("structured_content", out var qsc)
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
-    var toolsForCall = await proxy.GetToolsAsync(openapi_url, base_url, additionalHeaders, mcp_prompt);
+    var toolsForCall = await proxy.GetToolsAsync(openapi_url, base_url, additionalHeaders, mcp_prompt, cache_expiration);
     var toolMeta     = toolsForCall.FirstOrDefault(t => string.Equals(t.Name, realName, StringComparison.Ordinal));
     bool allowStructured = structuredContentEnabled && toolMeta is not null && HasKnownOutputSchema(toolMeta.OutputSchema) && callResult.StatusCode >= 200
         && callResult.StatusCode < 300;

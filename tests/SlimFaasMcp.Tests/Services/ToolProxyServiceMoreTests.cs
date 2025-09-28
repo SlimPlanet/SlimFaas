@@ -27,7 +27,10 @@ public class ToolProxyServiceMoreTests
     private void SetupSwaggerAndEndpoints(IEnumerable<Endpoint> endpoints)
     {
         var dummyDoc = JsonDocument.Parse("{}");
-        _swaggerMock.Setup(s => s.GetSwaggerAsync(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<IDictionary<string, string>?>()))
+        _swaggerMock.Setup(s => s.GetSwaggerAsync(It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IDictionary<string, string>?>(),
+                It.IsAny<ushort?>()))
                     .ReturnsAsync(dummyDoc);
         _swaggerMock.Setup(s => s.ParseEndpoints(dummyDoc))
                     .Returns(endpoints);
@@ -60,7 +63,7 @@ public class ToolProxyServiceMoreTests
         };
         var b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(promptObj)));
 
-        var tools = await _sut.GetToolsAsync("https://swagger.example", null, null, b64);
+        var tools = await _sut.GetToolsAsync("https://swagger.example", null, null, b64, null);
 
         var tool = Assert.Single(tools);
         Assert.Equal("My custom desc", tool.Description);
