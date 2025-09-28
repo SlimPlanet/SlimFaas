@@ -23,7 +23,7 @@
 <label>Tool prefix:
     <input id="toolPrefix" type="text" placeholder="(optional, e.g. myapp)" style="width: 50%;" />
 </label><br>
-<label>Swagger expiration time (in minutes):
+<label>Swagger cache expiration time (in minutes):
     <input id="slidingExpiration" type="number" min="0" placeholder="(optional, e.g. 10)" style="width: 50%;" />
 </label><br>
 <label style="display:block;margin-top:8px;">
@@ -133,7 +133,7 @@
         if (isBase64(oauthB64) && oauthB64) url += `&oauth=${encodeURIComponent(oauthB64)}`;
         if (structured)         url += `&structured_content=true`;
         if (toolPrefix) url += `&tool_prefix=${encodeURIComponent(toolPrefix)}`;
-        if (slidingExpiration) url += `&expiration=${slidingExpiration}`;
+        if (slidingExpiration) url += `&cache_expiration=${slidingExpiration}`;
 
         const span = document.getElementById("shareUrl");
         span.textContent = url;
@@ -214,7 +214,7 @@
         if (oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
         if (isStructuredContentEnabled()) endpoint += `&structured_content=true`;
         if (toolPrefix) endpoint += `&tool_prefix=${encodeURIComponent(toolPrefix)}`;
-        if (slidingExpiration) endpoint += `&expiration=${slidingExpiration}`;
+        if (slidingExpiration) endpoint += `&cache_expiration=${slidingExpiration}`;
         let headers = getBearerHeader();
 
         const toolsRes = await fetch(endpoint, { method: "GET", headers });
@@ -297,7 +297,7 @@
         if (isBase64(oauthB64) && oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
         if (isStructuredContentEnabled()) endpoint += `&structured_content=true`;
         if (toolPrefix) endpoint += `&tool_prefix=${encodeURIComponent(toolPrefix)}`;
-        if (slidingExpiration) endpoint += `&expiration=${slidingExpiration}`;
+        if (slidingExpiration) endpoint += `&cache_expiration=${slidingExpiration}`;
 
         const contentType = tool.endpoint?.contentType || "application/json";
         let body;
