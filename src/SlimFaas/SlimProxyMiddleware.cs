@@ -75,7 +75,13 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         IJobService jobService,
         IServiceProvider serviceProvider)
     {
-        if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts.Ports.ToArray()))
+        Console.WriteLine("======== Host: " + context.Request.Host.Port);
+        foreach (var slimfaasPort in slimFaasPorts?.Ports ?? Array.Empty<int>())
+        {
+            Console.WriteLine("=========== SlimFaasPort: " + slimfaasPort);
+        }
+
+        if (!HostPort.IsSamePort(context.Request.Host.Port, slimFaasPorts?.Ports.ToArray() ?? []))
         {
             await next(context);
             return;

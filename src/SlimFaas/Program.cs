@@ -344,6 +344,7 @@ app.UseMiddleware<SlimProxyMiddleware>();
 
 app.Use(async (context, next) =>
 {
+
     if (slimfaasPorts == null)
     {
         await next.Invoke();
