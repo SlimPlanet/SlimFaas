@@ -81,8 +81,8 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         {
             Console.WriteLine("=========== SlimFaasPort: " + slimfaasPort);
         }
-
-        if (!HostPort.IsSamePort(context.Connection.LocalPort, slimFaasPorts?.Ports.ToArray() ?? []))
+        var currentPort = context.Connection.LocalPort != 0 ? context.Connection.LocalPort : context.Request.Host.Port;
+        if (!HostPort.IsSamePort(currentPort, slimFaasPorts?.Ports.ToArray() ?? []))
         {
             await next(context);
             return;

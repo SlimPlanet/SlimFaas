@@ -43,7 +43,8 @@ public class Endpoints
     public static async Task DoAsync(HttpContext context, RespondDelegate respondDelegate)
     {
         var slimDataInfo = context.RequestServices.GetRequiredService<SlimDataInfo>();
-        if (context.Connection.LocalPort != slimDataInfo.Port)
+        var currentPort = context.Connection.LocalPort != 0 ? context.Connection.LocalPort : context.Request.Host.Port;
+        if (currentPort != slimDataInfo.Port)
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
