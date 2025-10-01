@@ -2,8 +2,16 @@
 
 public class HostPort
 {
-    public static bool IsSamePort(int? requestPort, int[] ports)
+    public static bool IsSamePort(int[] requestPorts, int[] ports)
     {
-        return requestPort == null || ports.Any(port => port == requestPort);
+        foreach (int requestPort in requestPorts)
+        {
+            if (ports.Any(port => port == requestPort))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -344,12 +344,13 @@ app.UseMiddleware<SlimProxyMiddleware>();
 
 app.Use(async (context, next) =>
 {
+
     if (slimfaasPorts == null)
     {
         await next.Invoke();
         return;
     }
-    if (!HostPort.IsSamePort(context.Request.Host.Port, slimfaasPorts.Ports.ToArray()))
+    if (!HostPort.IsSamePort([context.Connection.LocalPort, context.Request.Host.Port ?? 0], slimfaasPorts.Ports.ToArray()))
     {
         await next.Invoke();
         return;
