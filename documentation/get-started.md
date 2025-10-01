@@ -68,6 +68,10 @@ If you used slimfaas-nodeport.yml, port 30021 might be exposed. You can call you
 ]
 ```
 
+### SlimFaas REST API
+
+Demo Bruno collection is available here: [Bruno Collection](https://github.com/SlimPlanet/SlimFaas/blob/main/demo/bruno-slimfaas-demo.json)
+
 ### Single Page WebApp Demo
 If you ran the Fibonacci webapp container above:
 
