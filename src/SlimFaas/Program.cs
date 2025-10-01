@@ -303,13 +303,10 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 
     if (slimfaasPorts == null)
     {
-        Console.WriteLine("No Slimfaas ports");
         return;
     }
-    Console.WriteLine("Initializing Slimfaas ports");
     foreach (int slimFaasPort in slimfaasPorts.Ports)
     {
-        Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
         serverOptions.ListenAnyIP(slimFaasPort, listenOptions =>
         {
             listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
