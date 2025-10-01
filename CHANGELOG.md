@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.43.2
+
+- [ce77ea0](https://github.com/SlimPlanet/SlimFaas/commit/ce77ea0f3ffc8d82e657d5abb81c9f05355d2d31) - fix(slimfaas): demo (#172) (release), 2025-10-01 by *Guillaume Chervet*
+
+
+## 0.43.1
+
+
+
 ## v0.43.1
 
 - [2fe3382](https://github.com/SlimPlanet/SlimFaas/commit/2fe33823684629758b2d30b905e46bacaf8477c4) - Feat/slimfaas mcp custom expiration (#170) (release), 2025-09-28 by *Fares Ahmed*
@@ -274,16 +283,5 @@
 - [7f3b59b](https://github.com/SlimPlanet/SlimFaas/commit/7f3b59b1829c6da7e602305638ee8ece19c0e4e1) - doc: add GOVERNANCE.md file, 2025-06-19 by *Antoine BLANCKE*
 - [346f588](https://github.com/SlimPlanet/SlimFaas/commit/346f5884dc7a9220685498c5f583398af7ddc452) - Merge branch 'main' into doc/gouverance.md, 2025-06-19 by *Guillaume Chervet*
 - [b9245ab](https://github.com/SlimPlanet/SlimFaas/commit/b9245ab4e3c91b2f7dd56a7c8e84b5c5cc0f28fb) - doc: add gouvernance.md, 2025-02-25 by *Guillaume Chervet*
-
-
-## v0.36.23
-
-- [47b1dab](https://github.com/SlimPlanet/SlimFaas/commit/47b1dab1a9b91a2700acae4c343d5ca70b4f394c) - feature(job): add images whitelist pattern (#111) (release), 2025-05-27 by *Guillaume Chervet*
-
-
-## v0.36.22
-
-- [59a9fc7](https://github.com/SlimPlanet/SlimFaas/commit/59a9fc71219c54ce916493d6e9c7d0711725734a) - doc(all): update demo and badges (#110) (release), 2025-04-21 by *Guillaume Chervet*
-- [2b1ed8a](https://github.com/SlimPlanet/SlimFaas/commit/2b1ed8a4ab34452b138204f5447169b278297700) - doc: Update README.md add FOSSA badges, 2025-04-19 by *Guillaume Chervet*
 
 
