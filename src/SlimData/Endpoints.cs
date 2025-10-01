@@ -45,12 +45,19 @@ public class Endpoints
         var slimDataInfo = context.RequestServices.GetRequiredService<SlimDataInfo>();
         int[] currentPorts = [context.Connection.LocalPort, context.Request.Host.Port ?? 0];
 
+        foreach (var currentPort in currentPorts)
+        {
+            Console.WriteLine($"====> Current port {currentPort}");
+        }
+        Console.WriteLine($"====> SlimData port {slimDataInfo.Port}");
+
         if (!currentPorts.Contains(slimDataInfo.Port))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
+            Console.WriteLine($"====> SlimData port Status404NotFound");
             return;
         }
-
+        Console.WriteLine($"====> SlimData port OK");
         var cluster = context.RequestServices.GetRequiredService<IRaftCluster>();
         var provider = context.RequestServices.GetRequiredService<SlimPersistentState>();
         var source = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted,
