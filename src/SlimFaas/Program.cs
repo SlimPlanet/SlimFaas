@@ -350,8 +350,7 @@ app.Use(async (context, next) =>
         await next.Invoke();
         return;
     }
-    var currentPort = context.Connection.LocalPort != 0 ? context.Connection.LocalPort : context.Request.Host.Port;
-    if (!HostPort.IsSamePort(currentPort, slimfaasPorts.Ports.ToArray()))
+    if (!HostPort.IsSamePort([context.Connection.LocalPort, context.Request.Host.Port ?? 0], slimfaasPorts.Ports.ToArray()))
     {
         await next.Invoke();
         return;
