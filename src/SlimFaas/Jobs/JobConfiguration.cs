@@ -35,6 +35,20 @@ public class JobConfiguration : IJobConfiguration
                 Console.WriteLine("JobConfiguration: ");
                 Console.WriteLine(json);
                 slimfaasJobConfiguration = JsonSerializer.Deserialize(json, SlimfaasJobConfigurationSerializerContext.Default.SlimFaasJobConfiguration);
+
+                var configurations = new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase);
+                if (slimfaasJobConfiguration?.Configurations != null)
+                {
+                    foreach (var (key, value) in slimfaasJobConfiguration.Configurations)
+                    {
+                        configurations[key] = value;
+                    }
+                }
+
+                if (slimfaasJobConfiguration != null)
+                {
+                    slimfaasJobConfiguration = slimfaasJobConfiguration with { Configurations = configurations };
+                }
             }
         }
         catch (Exception ex)
