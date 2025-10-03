@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.43.3
+
+- [68e0a67](https://github.com/SlimPlanet/SlimFaas/commit/68e0a6718c06d4505fa3521ba06057ef8809a83c) - fix(slimfaas): pass auth headers (#174) (release), 2025-10-03 by *Guillaume Chervet*
+- [2f51c66](https://github.com/SlimPlanet/SlimFaas/commit/2f51c6694689bd193b3ff79e44c4cca40475d900) - fix(demo): remove cold start, 2025-10-01 by *Guillaume Chervet*
+
+
 ## v0.43.2
 
 - [ce77ea0](https://github.com/SlimPlanet/SlimFaas/commit/ce77ea0f3ffc8d82e657d5abb81c9f05355d2d31) - fix(slimfaas): demo (#172) (release), 2025-10-01 by *Guillaume Chervet*
@@ -273,15 +279,5 @@
 ## v0.37.0
 
 - [dfe6f23](https://github.com/SlimPlanet/SlimFaas/commit/dfe6f230519a5e265646c58d0ffd884594e8fced) - feat(slimfaas-mcp): proxyfy openapi to mcp (#114) (release), 2025-07-18 by *Guillaume Chervet*
-
-
-## v0.36.24
-
-- [bc7bafc](https://github.com/SlimPlanet/SlimFaas/commit/bc7bafce7eebbcf55e7e11c5734aacc802e121c7) - feature(slimfaas): delete job (#129) (release), 2025-07-18 by *Guillaume Chervet*
-- [282ffb8](https://github.com/SlimPlanet/SlimFaas/commit/282ffb8bad7a919c8d1428beef63ca9bad824559) - doc: add meeting calendar (#113), 2025-06-26 by *Guillaume Chervet*
-- [f088c8f](https://github.com/SlimPlanet/SlimFaas/commit/f088c8fcb0711a00fa12d9a15401f4787c9b1acf) - doc: copy apache-2.0 LICENCE from Keda (#112), 2025-06-24 by *Guillaume Chervet*
-- [7f3b59b](https://github.com/SlimPlanet/SlimFaas/commit/7f3b59b1829c6da7e602305638ee8ece19c0e4e1) - doc: add GOVERNANCE.md file, 2025-06-19 by *Antoine BLANCKE*
-- [346f588](https://github.com/SlimPlanet/SlimFaas/commit/346f5884dc7a9220685498c5f583398af7ddc452) - Merge branch 'main' into doc/gouverance.md, 2025-06-19 by *Guillaume Chervet*
-- [b9245ab](https://github.com/SlimPlanet/SlimFaas/commit/b9245ab4e3c91b2f7dd56a7c8e84b5c5cc0f28fb) - doc: add gouvernance.md, 2025-02-25 by *Guillaume Chervet*
 
 
