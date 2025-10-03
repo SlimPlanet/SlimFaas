@@ -112,13 +112,16 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             requestMessage.Content = streamContent;
         }
 
+        foreach (var header in context.Headers.Where(header => header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase) ||
+                                                               header.Key.Equals("DPoP", StringComparison.OrdinalIgnoreCase)))
+        {
+            requestMessage.Headers.Remove(header.Key);
+            requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Values);
+        }
+
         foreach (CustomHeader header in context.Headers)
         {
-            Console.WriteLine($"======> Header: {header.Key} Values: {string.Join(",", header.Values)}");
-            if (requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Values) == false)
-            {
-                Console.WriteLine($"======> Fail to add Header: {header.Key} Values: {string.Join(",", header.Values)}");
-            }
+            requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Values);
         }
     }
 
