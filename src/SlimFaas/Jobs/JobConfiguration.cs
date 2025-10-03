@@ -44,7 +44,7 @@ public class JobConfiguration : IJobConfiguration
 
         if (slimfaasJobConfiguration is null or { Configurations: null })
         {
-            slimfaasJobConfiguration = new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>());
+            slimfaasJobConfiguration = new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase));
         }
 
         if (!slimfaasJobConfiguration.Configurations.TryAdd(Default, defaultSlimfaasJob))

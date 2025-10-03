@@ -174,6 +174,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 return;
             }
 
+            functionName = functionName.ToLowerInvariant();
             logger.LogInformation("Create job {JobName} with {ScheduleCreateJob}", functionName, scheduleCreateJob);
             if (logger.IsEnabled(LogLevel.Debug))
             {
