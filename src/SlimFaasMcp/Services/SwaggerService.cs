@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using SlimFaasMcp.Models;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 using Endpoint = SlimFaasMcp.Models.Endpoint;
 
 namespace SlimFaasMcp.Services;
@@ -44,7 +46,28 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         response.EnsureSuccessStatusCode();
         var swaggerStr = await response.Content.ReadAsStringAsync();
 
-        var doc = JsonDocument.Parse(swaggerStr);
+        JsonDocument doc;
+
+        var trimmed = swaggerStr.TrimStart();
+        if (trimmed.StartsWith("{") || trimmed.StartsWith("["))
+        {
+            doc = JsonDocument.Parse(swaggerStr);
+        }
+        else
+        {
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+
+            var yamlObject = deserializer.Deserialize<object>(swaggerStr);
+
+            var serializer = new SerializerBuilder()
+                .JsonCompatible()
+                .Build();
+
+            var jsonString = serializer.Serialize(yamlObject);
+            doc = JsonDocument.Parse(jsonString);
+        }
 
         var cacheExpiration = slidingExpiration == null ? s_slidingExpiration : TimeSpan.FromMinutes(slidingExpiration.Value);
 

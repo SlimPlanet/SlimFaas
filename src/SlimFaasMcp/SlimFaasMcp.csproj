@@ -12,6 +12,10 @@
         <PublishAot>true</PublishAot>
     </PropertyGroup>
 
+    <ItemGroup>
+      <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    </ItemGroup>
+
   <Target Name="RemoveDebugArtifactsFromPublish" AfterTargets="Publish">
     <ItemGroup>
       <_DebugArtifacts Include="$(PublishDir)**\*.pdb" />

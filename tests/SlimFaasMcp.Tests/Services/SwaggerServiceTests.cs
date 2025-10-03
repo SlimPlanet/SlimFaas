@@ -18,15 +18,43 @@ public class SwaggerServiceTests
                                            }
                                         """;
 
+    // Nouveau : version YAML du même contenu
+    private const string SwaggerYaml = """
+openapi: "3.0.0"
+paths:
+  /pets:
+    get:
+      summary: "List pets"
+      parameters:
+        - name: "limit"
+          in: "query"
+          schema:
+            type: "integer"
+""";
+
     private static (ISwaggerService svc, StubHttpMessageHandler stub) Create()
     {
         var stub = new StubHttpMessageHandler(req =>
         {
             var path = req.RequestUri!.AbsoluteUri;
-            return path.EndsWith("/openapi.json")
-                ? new HttpResponseMessage(HttpStatusCode.OK)
-                    { Content = new StringContent(SwaggerJson, Encoding.UTF8, "application/json") }
-                : new HttpResponseMessage(HttpStatusCode.NotFound);
+
+            if (path.EndsWith("/openapi.json"))
+            {
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(SwaggerJson, Encoding.UTF8, "application/json")
+                };
+            }
+            else if (path.EndsWith("/openapi.yaml") || path.EndsWith("/openapi.yml"))
+            {
+                // On renvoie du YAML avec un content-type YAML
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(SwaggerYaml, Encoding.UTF8, "application/yaml")
+                };
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
         });
 
         var factory = new FakeHttpClientFactory(stub);
@@ -63,5 +91,22 @@ public class SwaggerServiceTests
         Assert.Equal("get_pets", ep.Name);
         Assert.Equal("/pets",   ep.Url);
         Assert.Equal("GET",     ep.Verb);
+    }
+
+    // Nouveau : test du parsing YAML
+    [Fact]
+    public async Task GetSwagger_Yaml_Parses()
+    {
+        var (svc, stub) = Create();
+        var doc = await svc.GetSwaggerAsync("https://api.example.com/openapi.yaml");
+
+        var ep = svc.ParseEndpoints(doc).Single();
+        Assert.Equal("get_pets", ep.Name);
+        Assert.Equal("/pets",   ep.Url);
+        Assert.Equal("GET",     ep.Verb);
+
+        // Vérifie que le cache marche aussi pour YAML
+        _ = await svc.GetSwaggerAsync("https://api.example.com/openapi.yaml");
+        Assert.Equal(1, stub.CallCount);
     }
 }
