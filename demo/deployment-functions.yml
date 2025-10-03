@@ -14,14 +14,14 @@ spec:
         app: fibonacci1
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "5"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
         SlimFaas/NumberParallelRequest : "2"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
       containers:
         - name: fibonacci1
-          image: axaguildev/fibonacci-api:latest
+          image: axaguildev/fibonacci-api:0.43.3-pr.17493
           livenessProbe:
             httpGet:
               path: /health
@@ -69,14 +69,14 @@ spec:
         app: fibonacci2
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "5"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
         SlimFaas/DependsOn: "fibonacci1,mysql"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
       containers:
         - name: fibonacci2
-          image: axaguildev/fibonacci-api:latest
+          image: axaguildev/fibonacci-api:0.43.3-pr.17493
           livenessProbe:
             httpGet:
               path: /health
@@ -129,7 +129,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci3
-          image: axaguildev/fibonacci-api:latest
+          image: axaguildev/fibonacci-api:0.43.3-pr.17493
           livenessProbe:
             httpGet:
               path: /health

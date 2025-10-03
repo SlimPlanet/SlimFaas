@@ -108,12 +108,13 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             !HttpMethods.IsTrace(requestMethod) &&
             context.Body != null)
         {
-            StreamContent streamContent = new StreamContent(new MemoryStream(context.Body));
+            StreamContent streamContent = new(new MemoryStream(context.Body));
             requestMessage.Content = streamContent;
         }
 
         foreach (CustomHeader header in context.Headers)
         {
+            Console.WriteLine($"Header: {header.Key} Values: {string.Join(",", header.Values)}");
             requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Values);
         }
     }

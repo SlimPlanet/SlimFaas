@@ -682,6 +682,11 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     {
         List<CustomHeader> customHeaders = contextRequest.Headers
             .Select(headers => new CustomHeader(headers.Key, headers.Value.ToArray())).ToList();
+        // Print all http headers
+        foreach (CustomHeader customHeader in customHeaders)
+        {
+            Console.WriteLine($"Header: {customHeader.Key} Values: {string.Join(",", customHeader.Values)}");
+        }
 
         string requestMethod = contextRequest.Method;
         byte[]? requestBodyBytes = null;
@@ -690,14 +695,14 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             !HttpMethods.IsDelete(requestMethod) &&
             !HttpMethods.IsTrace(requestMethod))
         {
-            using StreamContent streamContent = new StreamContent(context.Request.Body);
-            using MemoryStream memoryStream = new MemoryStream();
+            using StreamContent streamContent = new(context.Request.Body);
+            using MemoryStream memoryStream = new();
             await streamContent.CopyToAsync(memoryStream);
             requestBodyBytes = memoryStream.ToArray();
         }
 
         QueryString requestQueryString = contextRequest.QueryString;
-        CustomRequest customRequest = new CustomRequest
+        CustomRequest customRequest = new()
         {
             Headers = customHeaders,
             FunctionName = functionName,
