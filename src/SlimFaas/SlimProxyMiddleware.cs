@@ -174,6 +174,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 return;
             }
 
+            functionName = functionName.ToLowerInvariant();
             logger.LogInformation("Create job {JobName} with {ScheduleCreateJob}", functionName, scheduleCreateJob);
             if (logger.IsEnabled(LogLevel.Debug))
             {
@@ -576,51 +577,77 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         }
     }
 
-    private async Task BuildSyncResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, HistoryHttpMemoryService historyHttpService,
-        ISendClient sendClient, IReplicasService replicasService, IJobService jobService, string functionName, string functionPath)
+    private async Task BuildSyncResponseAsync(
+        ILogger<SlimProxyMiddleware> logger,
+        HttpContext context,
+        HistoryHttpMemoryService historyHttpService,
+        ISendClient sendClient,
+        IReplicasService replicasService,
+        IJobService jobService,
+        string functionName,
+        string functionPath)
     {
-        DeploymentInformation? function = SearchFunction(replicasService, functionName);
-        if (function == null)
+        var ct = context.RequestAborted;
+
+        var function = SearchFunction(replicasService, functionName);
+        if (function is null)
         {
             logger.LogDebug("{FunctionName} not found 404", functionName);
-            context.Response.StatusCode = 404;
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
         var visibility = GetFunctionVisibility(logger, function, functionPath);
-
-        if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
+        if (visibility == FunctionVisibility.Private &&
+            !MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
         {
             logger.LogDebug("{FunctionName} not found 404 because is private 404", functionName);
-            context.Response.StatusCode = 404;
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;
         }
 
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
-        Task<HttpResponseMessage> responseMessagePromise = sendClient.SendHttpRequestSync(context, functionName,
-            functionPath, context.Request.QueryString.ToUriComponent(), function.Configuration.DefaultSync, null, new Proxy(replicasService, functionName));
+        Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
+            context,
+            functionName,
+            functionPath,
+            context.Request.QueryString.ToUriComponent(),
+            function.Configuration.DefaultSync,
+            null,
+            new Proxy(replicasService, functionName));
 
-        long lastSetTicks = DateTime.UtcNow.Ticks;
-        historyHttpService.SetTickLastCall(functionName, lastSetTicks);
-        while (!responseMessagePromise.IsCompleted)
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
         {
-            await Task.Delay(10, context.RequestAborted);
-            bool isOneSecondElapsed = new DateTime(lastSetTicks, DateTimeKind.Utc) < DateTime.UtcNow.AddSeconds(-1);
-            if (!isOneSecondElapsed)
-            {
-                continue;
-            }
+            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
 
-            lastSetTicks = DateTime.UtcNow.Ticks;
-            historyHttpService.SetTickLastCall(functionName, lastSetTicks);
+            while (true)
+            {
+                var nextTickTask = timer.WaitForNextTickAsync(ct).AsTask();
+                var completed = await Task.WhenAny(responseTask, nextTickTask);
+
+                if (completed == responseTask)
+                    break;
+
+                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+            }
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
+            return;
         }
 
-        historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-        using HttpResponseMessage responseMessage = responseMessagePromise.Result;
+        using var responseMessage = await responseTask.ConfigureAwait(false);
+
         context.Response.StatusCode = (int)responseMessage.StatusCode;
         CopyFromTargetResponseHeaders(context, responseMessage);
-        await responseMessage.Content.CopyToAsync(context.Response.Body);
+
+        var stream = await responseMessage.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
+
+        historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
     }
 
     private async Task WaitForAnyPodStartedAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, HistoryHttpMemoryService historyHttpService,
@@ -690,14 +717,14 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             !HttpMethods.IsDelete(requestMethod) &&
             !HttpMethods.IsTrace(requestMethod))
         {
-            using StreamContent streamContent = new StreamContent(context.Request.Body);
-            using MemoryStream memoryStream = new MemoryStream();
+            using StreamContent streamContent = new(context.Request.Body);
+            using MemoryStream memoryStream = new();
             await streamContent.CopyToAsync(memoryStream);
             requestBodyBytes = memoryStream.ToArray();
         }
 
         QueryString requestQueryString = contextRequest.QueryString;
-        CustomRequest customRequest = new CustomRequest
+        CustomRequest customRequest = new()
         {
             Headers = customHeaders,
             FunctionName = functionName,

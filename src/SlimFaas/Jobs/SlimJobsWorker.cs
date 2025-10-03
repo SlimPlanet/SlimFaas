@@ -52,11 +52,11 @@ public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
         try
         {
             jobs = jobs.Where(j => j.Status != JobStatus.ImagePullBackOff).ToList();
-            var jobsDictionary = new Dictionary<string, List<Job>>();
+            var jobsDictionary = new Dictionary<string, List<Job>>(StringComparer.OrdinalIgnoreCase);
             var configurations = jobConfiguration.Configuration.Configurations;
             foreach (var data in configurations)
             {
-                jobsDictionary.Add(data.Key, new List<Job>());
+                jobsDictionary.Add(data.Key.ToLowerInvariant(), new List<Job>());
             }
 
             foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey)))

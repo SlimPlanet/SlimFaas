@@ -189,7 +189,7 @@ public class ProxyMiddlewareTests
     public async Task CallFunctionInSyncModeAndReturnOk(string path, HttpStatusCode expected)
     {
         Mock<IWakeUpFunction> wakeUpFunctionMock = new();
-        HttpResponseMessage responseMessage = new HttpResponseMessage();
+        HttpResponseMessage responseMessage = new();
         responseMessage.StatusCode = HttpStatusCode.OK;
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
         sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(),

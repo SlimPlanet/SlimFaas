@@ -2,6 +2,8 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.Extensions.Caching.Memory;
 using SlimFaasMcp.Models;
+using YamlDotNet.Serialization;
+using YamlDotNet.Serialization.NamingConventions;
 using Endpoint = SlimFaasMcp.Models.Endpoint;
 
 namespace SlimFaasMcp.Services;
@@ -44,7 +46,28 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         response.EnsureSuccessStatusCode();
         var swaggerStr = await response.Content.ReadAsStringAsync();
 
-        var doc = JsonDocument.Parse(swaggerStr);
+        JsonDocument doc;
+
+        var trimmed = swaggerStr.TrimStart();
+        if (trimmed.StartsWith("{") || trimmed.StartsWith("["))
+        {
+            doc = JsonDocument.Parse(swaggerStr);
+        }
+        else
+        {
+            var deserializer = new DeserializerBuilder()
+                .WithNamingConvention(CamelCaseNamingConvention.Instance)
+                .Build();
+
+            var yamlObject = deserializer.Deserialize<object>(swaggerStr);
+
+            var serializer = new SerializerBuilder()
+                .JsonCompatible()
+                .Build();
+
+            var jsonString = serializer.Serialize(yamlObject);
+            doc = JsonDocument.Parse(jsonString);
+        }
 
         var cacheExpiration = slidingExpiration == null ? s_slidingExpiration : TimeSpan.FromMinutes(slidingExpiration.Value);
 
@@ -116,7 +139,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 {
                     Name        = param.GetProperty("name").GetString(),
                     In          = param.GetProperty("in").GetString(),
-                    Required    = param.TryGetProperty("required", out var req) && req.GetBoolean(),
+                    Required    = param.TryGetProperty("required", out var req) && TryParseBool(req, out var required) && required,
                     Description = descr,
                     SchemaType  = schemaType,
                     // ✅ Here: we store the expanded schema; anyOf/oneOf/allOf are preserved
@@ -246,6 +269,31 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
             }
         }
         return param;
+    }
+
+    private static bool TryParseBool(JsonElement element, out bool result)
+    {
+        result = false;
+
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.True:
+                result = true;
+                return true;
+            case JsonValueKind.False:
+                result = false;
+                return true;
+            case JsonValueKind.String:
+                var str = element.GetString();
+                if (bool.TryParse(str, out var parsed))
+                {
+                    result = parsed;
+                    return true;
+                }
+                break;
+        }
+
+        return false;
     }
 
     private static object CopyDescriptionFromParameter(object expanded, JsonElement param)

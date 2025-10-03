@@ -56,7 +56,7 @@ services:
       app: "slimfaas"
       com.docker.compose.service: "slimfaas"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5021/health"]  # ou 8080 selon l’option
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:30021/health"]  # ou 8080 selon l’option
       interval: 10s
       timeout: 3s
       retries: 10
