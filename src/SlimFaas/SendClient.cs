@@ -42,14 +42,12 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             {
                 finalToken = localCancellationToken.Token;
             }
-            return await Retry.DoRequestAsync(() =>
+            return await Retry.DoRequestAsync(async () =>
                     {
-                        var promise =
-                            ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy);
-                        string targetUrl = promise.Result;
+                        string targetUrl = await ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy);
                         logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
                         HttpRequestMessage targetRequestMessage = CreateTargetMessage(customRequest, new Uri(targetUrl));
-                        return httpClient.SendAsync(targetRequestMessage,
+                        return await httpClient.SendAsync(targetRequestMessage,
                             HttpCompletionOption.ResponseHeadersRead,
                             finalToken);
                     },
@@ -79,13 +77,12 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
             var cancellationToken = httpContext.RequestAborted;
             using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(localCancellationToken.Token, cancellationToken);
             CancellationToken finalToken = linkedTokenSource.Token;
-            HttpResponseMessage responseMessage = await  Retry.DoRequestAsync(() =>
+            HttpResponseMessage responseMessage = await  Retry.DoRequestAsync(async () =>
                 {
-                    var promise = ComputeTargetUrlAsync(baseUrl ?? _baseFunctionUrl, functionName, functionPath, functionQuery, _namespaceSlimFaas, proxy);
-                    string targetUrl = promise.Result;
+                    string targetUrl = await ComputeTargetUrlAsync(baseUrl ?? _baseFunctionUrl, functionName, functionPath, functionQuery, _namespaceSlimFaas, proxy);
                     logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
                     HttpRequestMessage targetRequestMessage = CreateTargetMessage(httpContext, new Uri(targetUrl));
-                    return httpClient.SendAsync(targetRequestMessage,
+                    return await httpClient.SendAsync(targetRequestMessage,
                         HttpCompletionOption.ResponseHeadersRead, finalToken);
                 },
                 logger, slimFaasDefaultConfiguration.TimeoutRetries, slimFaasDefaultConfiguration.HttpStatusRetries).ConfigureAwait(false);
