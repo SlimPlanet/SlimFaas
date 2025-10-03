@@ -114,8 +114,11 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
 
         foreach (CustomHeader header in context.Headers)
         {
-            Console.WriteLine($"Header: {header.Key} Values: {string.Join(",", header.Values)}");
-            requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Values);
+            Console.WriteLine($"======> Header: {header.Key} Values: {string.Join(",", header.Values)}");
+            if (requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Values) == false)
+            {
+                Console.WriteLine($"======> Fail to add Header: {header.Key} Values: {string.Join(",", header.Values)}");
+            }
         }
     }
 
