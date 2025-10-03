@@ -45,11 +45,17 @@ app.MapGet("/download", ([FromServices] ILogger<Fibonacci> logger) =>
 
 
 app.MapPost("/fibonacci", (
+    HttpContext httpContext,
     [FromServices] ILogger<Fibonacci> logger,
     [FromServices] Fibonacci fibonacci,
     FibonacciInput input) =>
 {
     logger.LogInformation("Fibonacci Called with input: {Input}", input.Input);
+    // Log Authorization header if present
+    if (httpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
+    {
+        logger.LogInformation("Authorization Header: {Auth}", authHeader.ToString());
+    }
     var output = new FibonacciOutput();
     output.Result = fibonacci.Run(input.Input);
     logger.LogInformation("Fibonacci output: {Output}", output.Result);
