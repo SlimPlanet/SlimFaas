@@ -608,62 +608,47 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
-        // Démarre l’appel HTTP en asynchrone (idéalement en ResponseHeadersRead côté sendClient)
-        var responseTask = sendClient.SendHttpRequestSync(
+        Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
             context,
             functionName,
             functionPath,
             context.Request.QueryString.ToUriComponent(),
             function.Configuration.DefaultSync,
             null,
-            new Proxy(replicasService, functionName)
-        );
+            new Proxy(replicasService, functionName));
 
-        // Heartbeat 1s pendant l’attente de la réponse (sans polling bloquant)
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-        var heartbeat = Task.Run(async () =>
-        {
-            try
-            {
-                while (await timer.WaitForNextTickAsync(ct))
-                    historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-            }
-            catch (OperationCanceledException)
-            {
-                logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
-            }
-        }, ct);
-
         try
         {
-            using var response = await responseTask.ConfigureAwait(false);
+            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
 
-            // Stoppe le heartbeat
-            await Task.WhenAny(heartbeat); // laisse la task se terminer proprement
+            while (true)
+            {
+                var nextTickTask = timer.WaitForNextTickAsync(ct).AsTask();
+                var completed = await Task.WhenAny(responseTask, nextTickTask);
 
-            context.Response.StatusCode = (int)response.StatusCode;
-            CopyFromTargetResponseHeaders(context, response);
+                if (completed == responseTask)
+                    break;
 
-            var responseStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-            await responseStream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
+                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+            }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
+            return;
         }
-        catch (Exception ex)
-        {
-            await Task.WhenAny(heartbeat);
-            logger.LogError(ex, "Error while proxying sync response for {FunctionName}", functionName);
-            if (!context.Response.HasStarted)
-                context.Response.StatusCode = StatusCodes.Status502BadGateway;
-        }
-        finally
-        {
-            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-        }
-    }
 
+        using var responseMessage = await responseTask.ConfigureAwait(false);
+
+        context.Response.StatusCode = (int)responseMessage.StatusCode;
+        CopyFromTargetResponseHeaders(context, responseMessage);
+
+        var stream = await responseMessage.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+        await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
+
+        historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+    }
 
     private async Task WaitForAnyPodStartedAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, HistoryHttpMemoryService historyHttpService,
         IReplicasService replicasService, string functionName)
