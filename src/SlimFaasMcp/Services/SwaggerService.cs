@@ -139,7 +139,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 {
                     Name        = param.GetProperty("name").GetString(),
                     In          = param.GetProperty("in").GetString(),
-                    Required    = param.TryGetProperty("required", out var req) && req.GetBoolean(),
+                    Required    = param.TryGetProperty("required", out var req) && TryParseBool(req, out var required) && required,
                     Description = descr,
                     SchemaType  = schemaType,
                     // ✅ Here: we store the expanded schema; anyOf/oneOf/allOf are preserved
@@ -269,6 +269,31 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
             }
         }
         return param;
+    }
+
+    private static bool TryParseBool(JsonElement element, out bool result)
+    {
+        result = false;
+
+        switch (element.ValueKind)
+        {
+            case JsonValueKind.True:
+                result = true;
+                return true;
+            case JsonValueKind.False:
+                result = false;
+                return true;
+            case JsonValueKind.String:
+                var str = element.GetString();
+                if (bool.TryParse(str, out var parsed))
+                {
+                    result = parsed;
+                    return true;
+                }
+                break;
+        }
+
+        return false;
     }
 
     private static object CopyDescriptionFromParameter(object expanded, JsonElement param)
