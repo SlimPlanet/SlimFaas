@@ -683,11 +683,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     {
         List<CustomHeader> customHeaders = contextRequest.Headers
             .Select(headers => new CustomHeader(headers.Key, headers.Value.ToArray())).ToList();
-        // Print all http headers
-        foreach (CustomHeader customHeader in customHeaders)
-        {
-            Console.WriteLine($"Header: {customHeader.Key} Values: {string.Join(",", customHeader.Values)}");
-        }
 
         string requestMethod = contextRequest.Method;
         byte[]? requestBodyBytes = null;
