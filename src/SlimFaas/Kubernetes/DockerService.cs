@@ -22,10 +22,10 @@ namespace SlimFaas.Kubernetes
         private const string ReplicasMin = "SlimFaas/ReplicasMin";
         private const string Schedule = "SlimFaas/Schedule";
         private const string Configuration = "SlimFaas/Configuration";
-        private const string Function = "slimfaas/function"; // ← label key for functions
+        private const string Function = "SlimFaas/function"; // ← label key for functions
         private const string FunctionTrue = "true";
         private const string AppLabel = "app"; // group containers by "deployment"
-        private const string NamespaceLabel = "slimfaas/namespace";
+        private const string NamespaceLabel = "SlimFaas/namespace";
 
         private const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
         private const string DependsOn = "SlimFaas/DependsOn";

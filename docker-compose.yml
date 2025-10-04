@@ -71,9 +71,9 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:5000
     labels:
-      slimfaas/function: "true"
+      SlimFaas/function: "true"
       app: "fibonacci1"
-      slimfaas/namespace: "default"
+      SlimFaas/namespace: "default"
       SlimFaas/Configuration: '{"DefaultSync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultAsync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultPublish":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]}}'
       SlimFaas/ReplicasAtStart: "1"
       SlimFaas/ReplicasMin: "0"
