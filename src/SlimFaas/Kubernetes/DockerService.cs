@@ -22,10 +22,10 @@ namespace SlimFaas.Kubernetes
         private const string ReplicasMin = "SlimFaas/ReplicasMin";
         private const string Schedule = "SlimFaas/Schedule";
         private const string Configuration = "SlimFaas/Configuration";
-        private const string Function = "SlimFaas/function"; // ← label key for functions
+        private const string Function = "SlimFaas/Function"; // ← label key for functions
         private const string FunctionTrue = "true";
         private const string AppLabel = "app"; // group containers by "deployment"
-        private const string NamespaceLabel = "SlimFaas/namespace";
+        private const string NamespaceLabel = "SlimFaas/Namespace";
 
         private const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
         private const string DependsOn = "SlimFaas/DependsOn";
@@ -95,7 +95,14 @@ namespace SlimFaas.Kubernetes
             _networkName = GetSelfPrimaryNetworkNameAsync().GetAwaiter().GetResult();
             _composeProject = GetComposeProjectAsync().GetAwaiter().GetResult();
         }
-
+        private static bool IsTrueLike(string? v)
+        {
+            if (string.IsNullOrWhiteSpace(v)) return false;
+            return v.Equals("true", StringComparison.OrdinalIgnoreCase)
+                   || v.Equals("1", StringComparison.OrdinalIgnoreCase)
+                   || v.Equals("yes", StringComparison.OrdinalIgnoreCase)
+                   || v.Equals("y", StringComparison.OrdinalIgnoreCase);
+        }
 
         public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         {
@@ -104,10 +111,14 @@ namespace SlimFaas.Kubernetes
             int desired = request.Replicas;
 
             List<ContainerSummary> all = await ListContainersByLabelsAsync(
-                new Dictionary<string, string>
+                new Dictionary<string, string?>
                 {
                     [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns
                 }, true);
+
+            all = all.Where(c => c.Labels is not null
+                                 && c.Labels.TryGetValue(Function, out var v)
+                                 && IsTrueLike(v)).ToList();
 
             List<ContainerSummary> running = all.Where(c => c.State == "running").ToList();
             int current = running.Count;
@@ -115,17 +126,19 @@ namespace SlimFaas.Kubernetes
             if (current < desired)
             {
                 // scale up
+                var withTemplate = await ListContainersByLabelsAsync(
+                    new Dictionary<string, string?>
+                    {
+                        [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
+                    }, true);
+
+                withTemplate = withTemplate.Where(c => c.Labels is not null
+                                                       && c.Labels.TryGetValue(Function, out var v)
+                                                       && IsTrueLike(v)).ToList();
                 ContainerSummary template =
-                    (await ListContainersByLabelsAsync(
-                        new Dictionary<string, string>
-                        {
-                            [Function] = FunctionTrue,
-                            [AppLabel] = deployment,
-                            [NamespaceLabel] = ns,
-                            [TemplateLabel] = "true"
-                        }, true)).FirstOrDefault()
-                    ?? all.FirstOrDefault()
-                    ?? throw new InvalidOperationException($"No template for '{deployment}' in ns '{ns}'.");
+                    withTemplate.FirstOrDefault()
+                     ?? all.FirstOrDefault()
+                     ?? throw new InvalidOperationException($"No template for '{deployment}' in ns '{ns}'.");
 
                 InspectContainerResponse templateInspect = await InspectContainerAsync(template.ID);
                 for (int i = 0; i < desired - current; i++)
@@ -158,10 +171,13 @@ namespace SlimFaas.Kubernetes
                 if (desired == 0)
                 {
                     List<ContainerSummary> again = await ListContainersByLabelsAsync(
-                        new Dictionary<string, string>
+                        new Dictionary<string, string?>
                         {
-                            [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns
+                            [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns
                         }, true);
+                    again = again.Where(c => c.Labels is not null
+                                             && c.Labels.TryGetValue(Function, out var v)
+                                             && IsTrueLike(v)).ToList();
                     foreach (ContainerSummary c in again.Where(x => x.State == "running"))
                     {
                         await StopContainerIfRunningAsync(c.ID);
@@ -180,7 +196,17 @@ namespace SlimFaas.Kubernetes
             DeploymentsInformations previousDeployments)
         {
             List<ContainerSummary> containers = await ListContainersByLabelsAsync(
-                new Dictionary<string, string> { [Function] = FunctionTrue, [NamespaceLabel] = kubeNamespace }, true);
+                new Dictionary<string, string?> { [Function] = null, [NamespaceLabel] = kubeNamespace }, true);
+            containers = containers.Where(c => c.Labels is not null
+                                               && c.Labels.TryGetValue(Function, out var v)
+                                               && IsTrueLike(v)).ToList();
+
+            // Post-filtre côté C#
+            containers = containers.Where(c =>
+                c.Labels is not null &&
+                c.Labels.TryGetValue(Function, out var v) &&
+                IsTrueLike(v)
+            ).ToList();
 
             IEnumerable<IGrouping<string, ContainerSummary>> groups = containers.GroupBy(c =>
                 c.Labels != null && c.Labels.TryGetValue(AppLabel, out string? d) ? d : "");
@@ -575,13 +601,16 @@ namespace SlimFaas.Kubernetes
         {
             // 1) Existe déjà ?
             List<ContainerSummary> existing = await ListContainersByLabelsAsync(
-                new Dictionary<string, string>
+                new Dictionary<string, string?>
                 {
-                    [Function] = FunctionTrue,
+                    [Function] = null,
                     [AppLabel] = deployment,
                     [NamespaceLabel] = ns,
                     [TemplateLabel] = "true"
                 }, true);
+            existing = existing.Where(c => c.Labels is not null
+                                           && c.Labels.TryGetValue(Function, out var v)
+                                           && IsTrueLike(v)).ToList();
             if (existing.Any())
             {
                 return; // déjà un template
@@ -965,21 +994,20 @@ namespace SlimFaas.Kubernetes
 
 
         private async Task<List<ContainerSummary>> ListContainersByLabelsAsync(
-            Dictionary<string, string> labels, bool all)
+            Dictionary<string, string?> labels, bool all)
         {
-            // Convert "k"->"v" en "k=v"
             var list = new List<string>(labels.Count);
             foreach (var kv in labels)
             {
-                list.Add($"{kv.Key}={kv.Value}");
+                // si valeur null => filtre "présence du label"
+                list.Add(kv.Value is null ? kv.Key : $"{kv.Key}={kv.Value}");
             }
 
             var filters = new FiltersLabelArray(list);
             string filterJson = JsonSerializer.Serialize(filters, DockerJson.Default.FiltersLabelArray);
             string url = $"{_apiPrefix}/containers/json?all={(all ? 1 : 0)}&filters={WebUtility.UrlEncode(filterJson)}";
 
-            return await GetAsync(url, DockerJson.Default.ListContainerSummary)
-                   ?? new List<ContainerSummary>();
+            return await GetAsync(url, DockerJson.Default.ListContainerSummary) ?? new List<ContainerSummary>();
         }
 
 
