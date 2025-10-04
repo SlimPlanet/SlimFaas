@@ -3,6 +3,8 @@ using System.Net.Sockets;
 using System.Text.Json;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Http;
 using Prometheus;
 using SlimData;
 using SlimFaas;
@@ -48,9 +50,14 @@ serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
 
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json")
-    .AddJsonFile($"appsettings.{environment} .json", true)
+    .AddJsonFile($"appsettings.{environment}.json", true)
     .AddEnvironmentVariables().Build();
 
+serviceCollectionStarter.AddLogging(loggingBuilder =>
+{
+    loggingBuilder.AddConsole();
+    loggingBuilder.AddDebug();
+});
 var envOrConfig = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasOrchestrator) ?? EnvironmentVariables.SlimFaasOrchestratorDefault;
 Console.WriteLine($"Using orchestrator: {envOrConfig}");
 
@@ -78,8 +85,9 @@ switch (envOrConfig)
                         return new NetworkStream(sock, ownsSocket: true);
                     }
                 };
-            });
+            }).ConfigureAdditionalHttpMessageHandlers((_, _) => { });
         serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
+        serviceCollectionStarter.RemoveAll<IHttpMessageHandlerBuilderFilter>();
         break;
     case "Mock":
         serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
@@ -93,11 +101,6 @@ switch (envOrConfig)
         break;
 }
 
-serviceCollectionStarter.AddLogging(loggingBuilder =>
-{
-    loggingBuilder.AddConsole();
-    loggingBuilder.AddDebug();
-});
 
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
@@ -147,8 +150,12 @@ string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? EnvironmentV
 
 
 
-while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name == hostname) == false)
+while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hostname)) == false)
 {
+    foreach (PodInformation podInformation in replicasService?.Deployments?.SlimFaas?.Pods ?? Array.Empty<PodInformation>())
+    {
+        Console.WriteLine($"Current SlimFaas pod: {podInformation.Name} {podInformation.Ip} {podInformation.Started}");
+    }
     Console.WriteLine("Waiting current pod to be ready");
     Task.Delay(1000).Wait();
     replicasService?.SyncDeploymentsAsync(namespace_).Wait();
@@ -167,7 +174,7 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
     foreach (string enumerateDirectory in Directory.EnumerateDirectories(slimDataDirectory))
     {
         if (replicasService.Deployments.SlimFaas.Pods.Any(p =>
-                p.Name == new DirectoryInfo(enumerateDirectory).Name) == false)
+                (new DirectoryInfo(enumerateDirectory).Name).Contains(p.Name)) == false)
         {
             try
             {
@@ -184,12 +191,19 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
     foreach (PodInformation podInformation in replicasService.Deployments.SlimFaas.Pods
                  .Where(p => !string.IsNullOrEmpty(p.Ip) && p.Started == true).ToList())
     {
-        string slimDataEndpoint = SlimDataEndpoint.Get(podInformation);
-        Console.WriteLine($"Adding node  {slimDataEndpoint}");
-        Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
+        try
+        {
+            string slimDataEndpoint = SlimDataEndpoint.Get(podInformation);
+            Console.WriteLine($"Adding node  {slimDataEndpoint}");
+            Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error adding node {ex}");
+        }
     }
 
-    PodInformation currentPod = replicasService.Deployments.SlimFaas.Pods.First(p => p.Name == hostname);
+    PodInformation currentPod = replicasService.Deployments.SlimFaas.Pods.First(p => p.Name.Contains(hostname));
     Console.WriteLine($"Starting node {currentPod.Name}");
     podDataDirectoryPersistantStorage = Path.Combine(slimDataDirectory, currentPod.Name);
     if (Directory.Exists(podDataDirectoryPersistantStorage) == false)
@@ -215,10 +229,7 @@ serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
     {
-        var httpClientHandler = new HttpClientHandler
-        {
-            AllowAutoRedirect = true
-        };
+        var httpClientHandler = new HttpClientHandler { AllowAutoRedirect = true };
         if (allowUnsecureSSL)
         {
             httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;

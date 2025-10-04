@@ -759,91 +759,115 @@ namespace SlimFaas.Kubernetes
         // ------------------ Internal helpers ------------------
 
         private async Task CreateAndStartReplicaFromTemplateAsync(string deployment, string ns,
-            InspectContainerResponse template)
+    InspectContainerResponse template)
+{
+    var labels = new Dictionary<string, string>(template.Config?.Labels ?? new())
+    {
+        [Function] = FunctionTrue,
+        [AppLabel] = deployment,
+        [NamespaceLabel] = ns
+    };
+
+    string name = $"{deployment}-{Guid.NewGuid():N}".Substring(0, 20);
+    string imageRef = template.Config?.Image ?? template.Image;
+    var img = await InspectImageAsync(imageRef);
+
+    Dictionary<string, CreateContainer_EndpointSettings>? endpoints =
+        _networkName is not null
+            ? new() { [_networkName] = new() { Aliases = new List<string> { deployment, name } } }
+            : null;
+
+    var createBody = new CreateContainerRequest
+    {
+        Image = imageRef,
+        Name = name,
+        Labels = labels,
+        Env = BuildEnvForClone(template, img),
+        Cmd = template.Config?.Cmd ?? Array.Empty<string>(),
+        HostConfig = new CreateContainer_HostConfig
         {
-            Dictionary<string, string> labels = new(template.Config?.Labels ?? new Dictionary<string, string>())
-            {
-                [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns
-            };
+            AutoRemove = true,
+            // ⚠️ IMPORTANT: ne pas publier par défaut → laisse null
+            PortBindings = null
+        },
+        ExposedPorts = BuildExposedPortsForClone(template, img),
+        NetworkingConfig = endpoints is null ? null : new CreateContainer_NetworkingConfig { EndpointsConfig = endpoints }
+    };
 
-            string[] env = template.Config?.Env ?? Array.Empty<string>();
-            string image = template.Config?.Image ?? template.Image;
-            string[] cmd = template.Config?.Cmd ?? Array.Empty<string>();
+    // Si le template porte des bindings persistés, on peut choisir de les respecter,
+    // mais pour éviter les collisions, on LES RANDOMISE pour les replicas.
+    var persisted = TryParsePublishedBindingsLabel(template.Config?.Labels);
+    if (persisted is not null && persisted.Count > 0)
+    {
+        createBody.HostConfig ??= new CreateContainer_HostConfig { AutoRemove = true };
+        createBody.HostConfig.PortBindings = persisted;
+        // randomise tous les HostPort pour éviter collision
+        MakeBindingsRandomHostPort(createBody);
+    }
+    // SINON: ne rien publier (PortBindings=null) → accès via réseau interne
 
-            if (!string.IsNullOrWhiteSpace(image))
-            {
-                await TryPullImageAsync(image!);
-            }
+    // Création
+    CreateContainerResponse? createRes;
+    try
+    {
+        createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+            $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
+            createBody,
+            DockerJson.Default.CreateContainerRequest,
+            DockerJson.Default.CreateContainerResponse);
+    }
+    catch (HttpRequestException)
+    {
+        // Dernière cartouche: si quelqu’un a mis des bindings avant nous, on randomise et on retente
+        MakeBindingsRandomHostPort(createBody);
+        createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+            $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
+            createBody,
+            DockerJson.Default.CreateContainerRequest,
+            DockerJson.Default.CreateContainerResponse);
+    }
 
-            string name = $"{deployment}-{Guid.NewGuid():N}".Substring(0, 20);
+    string id = createRes?.Id ?? throw new InvalidOperationException("Create container returned no Id.");
 
-            string imageRef = template.Config?.Image ?? template.Image;
-            InspectImageResponse? img = await InspectImageAsync(imageRef);
-            Dictionary<string, CreateContainer_EndpointSettings>? endpoints = _networkName is not null
-                ? new Dictionary<string, CreateContainer_EndpointSettings>
-                {
-                    [_networkName] = new() { Aliases = new List<string> { deployment, name } }
-                }
-                : null;
-            CreateContainerRequest createBody = new()
-            {
-                Image = imageRef,
-                Name = name,
-                Labels = labels,
-                Env = BuildEnvForClone(template, img),
-                Cmd = template.Config?.Cmd ?? Array.Empty<string>(),
-                HostConfig = new CreateContainer_HostConfig { AutoRemove = true },
-                ExposedPorts = BuildExposedPortsForClone(template, img),
-                NetworkingConfig = endpoints is null
-                    ? null
-                    : new CreateContainer_NetworkingConfig { EndpointsConfig = endpoints }
-            };
+    try
+    {
+        await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
+    }
+    catch (HttpRequestException ex)
+    {
+        // Diagnostic utile
+        string logs = await GetContainerLogsAsync(id);
+        _logger.LogWarning(ex, "Start failed for replica {Name} (id={Id}). Logs tail:\n{Logs}", name, id, logs);
 
-            // 1) Si le template porte un label de publis, on les ré-applique tels quels
-            Dictionary<string, List<CreateContainer_PortBinding>>? persisted =
-                TryParsePublishedBindingsLabel(template.Config?.Labels);
-            if (persisted is not null && persisted.Count > 0)
-            {
-                createBody.HostConfig ??= new CreateContainer_HostConfig();
-                createBody.HostConfig.PortBindings = persisted;
-            }
-            else
-            {
-                // 2) Sinon, on publie par défaut (même host-port si possible)
-                AttachPublishBindingsFromExposedPorts(createBody, true);
-            }
-
-// 3) Création + retry si conflit de port hôte
-            CreateContainerResponse? createRes;
+        // Port collision typique: retente une fois en randomisant les bindings
+        if (createBody.HostConfig?.PortBindings is not null)
+        {
             try
             {
-                createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
-                    $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
-                    createBody,
-                    DockerJson.Default.CreateContainerRequest,
-                    DockerJson.Default.CreateContainerResponse);
+                // Stop + remove le raté
+                await StopContainerIfRunningAsync(id);
+                await RemoveContainerAsync(id, true);
             }
-            catch (HttpRequestException)
-            {
-                // Conflit (409) ou autre -> on repasse en host-port aléatoire
-                MakeBindingsRandomHostPort(createBody);
-                createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
-                    $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
-                    createBody,
-                    DockerJson.Default.CreateContainerRequest,
-                    DockerJson.Default.CreateContainerResponse);
-            }
+            catch { /* best effort */ }
 
-
-            /*var createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+            MakeBindingsRandomHostPort(createBody);
+            var retry = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
                 $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
                 createBody,
                 DockerJson.Default.CreateContainerRequest,
-                DockerJson.Default.CreateContainerResponse);*/
+                DockerJson.Default.CreateContainerResponse);
 
-            string id = createRes?.Id ?? throw new InvalidOperationException("Create container returned no Id.");
-            await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
+            string id2 = retry?.Id ?? throw new InvalidOperationException("Create container retry returned no Id.");
+            await PostAsync($"{_apiPrefix}/containers/{id2}/start", null);
         }
+        else
+        {
+            // Rien n’était publié → rééchec ≠ port collision → remonter l’erreur
+            throw;
+        }
+    }
+}
+
 
         // Construit PortBindings à partir des ExposedPorts (clés "5000/tcp")
 // preferSameHostPort=true => tente 5000:5000 ; si on retente après échec on passera en host-port aléatoire.
@@ -943,20 +967,21 @@ namespace SlimFaas.Kubernetes
         private async Task<List<ContainerSummary>> ListContainersByLabelsAsync(
             Dictionary<string, string> labels, bool all)
         {
-            // Convertit "k"->"v" en "k=v"
-            Dictionary<string, bool> labelDict = new();
-            foreach (KeyValuePair<string, string> kv in labels)
+            // Convert "k"->"v" en "k=v"
+            var list = new List<string>(labels.Count);
+            foreach (var kv in labels)
             {
-                labelDict[$"{kv.Key}={kv.Value}"] = true;
+                list.Add($"{kv.Key}={kv.Value}");
             }
 
-            FiltersLabel filter = new(labelDict);
-            string filterJson = JsonSerializer.Serialize(filter, DockerJson.Default.FiltersLabel);
+            var filters = new FiltersLabelArray(list);
+            string filterJson = JsonSerializer.Serialize(filters, DockerJson.Default.FiltersLabelArray);
             string url = $"{_apiPrefix}/containers/json?all={(all ? 1 : 0)}&filters={WebUtility.UrlEncode(filterJson)}";
 
-            List<ContainerSummary>? list = await GetAsync(url, DockerJson.Default.ListContainerSummary);
-            return list ?? new List<ContainerSummary>();
+            return await GetAsync(url, DockerJson.Default.ListContainerSummary)
+                   ?? new List<ContainerSummary>();
         }
+
 
 
         private async Task<InspectContainerResponse> InspectContainerAsync(string id)
