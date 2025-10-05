@@ -104,92 +104,159 @@ namespace SlimFaas.Kubernetes
                    || v.Equals("y", StringComparison.OrdinalIgnoreCase);
         }
 
-        public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
+       public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
+{
+    string deployment = request.Deployment;
+    string ns = request.Namespace;
+    int desired = Math.Max(0, request.Replicas);
+
+    // 1) Récupère tous les conteneurs du "deployment" (running + stopped), présence du label Function
+    List<ContainerSummary> all = await ListContainersByLabelsAsync(
+        new Dictionary<string, string?> {
+            [Function] = null,                 // présence du label
+            [AppLabel] = deployment,
+            [NamespaceLabel] = ns
+        },
+        all: true);
+
+    // Post-filtre tolérant sur la valeur du label Function
+    all = all.Where(c => c.Labels is not null
+                      && c.Labels.TryGetValue(Function, out var v)
+                      && IsTrueLike(v)).ToList();
+
+    // 2) Running actuels (comparaison case-insensitive)
+    static bool IsRunning(string? s) => s is not null && s.Equals("running", StringComparison.OrdinalIgnoreCase);
+    List<ContainerSummary> running = all.Where(c => IsRunning(c.State)).ToList();
+    int current = running.Count;
+
+    if (current < desired)
+    {
+        // -------- Scale UP --------
+        // a) Cherche un template existant
+        List<ContainerSummary> withTemplate = await ListContainersByLabelsAsync(
+            new Dictionary<string, string?> {
+                [Function] = null,
+                [AppLabel] = deployment,
+                [NamespaceLabel] = ns,
+                [TemplateLabel] = "true"
+            },
+            all: true);
+
+        withTemplate = withTemplate.Where(c => c.Labels is not null
+                                            && c.Labels.TryGetValue(Function, out var v)
+                                            && IsTrueLike(v)).ToList();
+
+        InspectContainerResponse? templateInspect = null;
+
+        if (withTemplate.FirstOrDefault() is { } tpl)
         {
-            string deployment = request.Deployment;
-            string ns = request.Namespace;
-            int desired = request.Replicas;
-
-            List<ContainerSummary> all = await ListContainersByLabelsAsync(
-                new Dictionary<string, string?>
-                {
-                    [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns
-                }, true);
-
-            all = all.Where(c => c.Labels is not null
-                                 && c.Labels.TryGetValue(Function, out var v)
-                                 && IsTrueLike(v)).ToList();
-
-            List<ContainerSummary> running = all.Where(c => c.State == "running").ToList();
-            int current = running.Count;
-
-            if (current < desired)
-            {
-                // scale up
-                var withTemplate = await ListContainersByLabelsAsync(
-                    new Dictionary<string, string?>
-                    {
-                        [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
-                    }, true);
-
-                withTemplate = withTemplate.Where(c => c.Labels is not null
-                                                       && c.Labels.TryGetValue(Function, out var v)
-                                                       && IsTrueLike(v)).ToList();
-                ContainerSummary template =
-                    withTemplate.FirstOrDefault()
-                     ?? all.FirstOrDefault()
-                     ?? throw new InvalidOperationException($"No template for '{deployment}' in ns '{ns}'.");
-
-                InspectContainerResponse templateInspect = await InspectContainerAsync(template.ID);
-                for (int i = 0; i < desired - current; i++)
-                {
-                    await CreateAndStartReplicaFromTemplateAsync(deployment, ns, templateInspect);
-                }
-            }
-            else if (current > desired)
-            {
-                // scale down
-                // si on va à 0, assurer un template avant de supprimer
-                if (desired == 0 && running.Count > 0)
-                {
-                    // prend un exemplaire courant comme source de template
-                    InspectContainerResponse? srcInsp = await TryInspectContainerAsync(running[0].ID);
-                    if (srcInsp is not null)
-                    {
-                        await EnsureTemplateContainerAsync(deployment, ns, srcInsp);
-                    }
-                }
-
-                // stop & remove extra running
-                foreach (ContainerSummary c in running.Take(current - desired))
-                {
-                    await StopContainerIfRunningAsync(c.ID);
-                    await RemoveContainerAsync(c.ID, true);
-                }
-
-                // si desired==0 et il reste des running (fenêtre de course), stop les restants
-                if (desired == 0)
-                {
-                    List<ContainerSummary> again = await ListContainersByLabelsAsync(
-                        new Dictionary<string, string?>
-                        {
-                            [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns
-                        }, true);
-                    again = again.Where(c => c.Labels is not null
-                                             && c.Labels.TryGetValue(Function, out var v)
-                                             && IsTrueLike(v)).ToList();
-                    foreach (ContainerSummary c in again.Where(x => x.State == "running"))
-                    {
-                        await StopContainerIfRunningAsync(c.ID);
-                        // AutoRemove peut être true sur des anciens clones → ils partiront d’eux-mêmes
-                        // on tente remove au cas où
-                        await RemoveContainerAsync(c.ID, true);
-                    }
-                }
-            }
-
-            return request;
+            // Template déjà présent
+            templateInspect = await InspectContainerAsync(tpl.ID);
         }
+        else
+        {
+            // Pas de template : on prend une source (running si possible, sinon n'importe laquelle)
+            ContainerSummary? source = running.FirstOrDefault() ?? all.FirstOrDefault();
+            if (source is null)
+                throw new InvalidOperationException($"No container found to clone for '{deployment}' in ns '{ns}'.");
+
+            InspectContainerResponse srcInsp = await InspectContainerAsync(source.ID);
+
+            // On assure un template "carcasse" pour conserver les métadonnées (labels/ports), puis on s’en sert
+            await EnsureTemplateContainerAsync(deployment, ns, srcInsp);
+
+            // Re‑lookup du template (optionnel mais propre)
+            withTemplate = await ListContainersByLabelsAsync(
+                new Dictionary<string, string?> {
+                    [Function] = null,
+                    [AppLabel] = deployment,
+                    [NamespaceLabel] = ns,
+                    [TemplateLabel] = "true"
+                },
+                all: true);
+            withTemplate = withTemplate.Where(c => c.Labels is not null
+                                                && c.Labels.TryGetValue(Function, out var v)
+                                                && IsTrueLike(v)).ToList();
+
+            if (withTemplate.FirstOrDefault() is { } tpl2)
+                templateInspect = await InspectContainerAsync(tpl2.ID);
+            else
+                // À défaut (course condition), on peut cloner directement depuis srcInsp
+                templateInspect = srcInsp;
+        }
+
+        int toCreate = desired - current;
+        for (int i = 0; i < toCreate; i++)
+        {
+            await CreateAndStartReplicaFromTemplateAsync(deployment, ns, templateInspect);
+        }
+    }
+    else if (current > desired)
+    {
+        // -------- Scale DOWN --------
+        // a) Si on va à 0 → assurer un template, même si plus de running
+        if (desired == 0)
+        {
+            // Cherche si un template existe déjà
+            List<ContainerSummary> existingTemplate = await ListContainersByLabelsAsync(
+                new Dictionary<string, string?> {
+                    [Function] = null,
+                    [AppLabel] = deployment,
+                    [NamespaceLabel] = ns,
+                    [TemplateLabel] = "true"
+                },
+                all: true);
+
+            existingTemplate = existingTemplate.Where(c => c.Labels is not null
+                                                        && c.Labels.TryGetValue(Function, out var v)
+                                                        && IsTrueLike(v)).ToList();
+
+            if (existingTemplate.Count == 0)
+            {
+                // Source pour créer le template : running si possible, sinon n'importe laquelle
+                ContainerSummary? source = running.FirstOrDefault() ?? all.FirstOrDefault();
+                if (source is not null)
+                {
+                    InspectContainerResponse? srcInsp = await TryInspectContainerAsync(source.ID);
+                    if (srcInsp is not null)
+                        await EnsureTemplateContainerAsync(deployment, ns, srcInsp);
+                }
+            }
+        }
+
+        // b) Stop & remove les running en surplus
+        foreach (ContainerSummary c in running.Take(current - desired))
+        {
+            await StopContainerIfRunningAsync(c.ID);
+            await RemoveContainerAsync(c.ID, force: true);
+        }
+
+        // c) Si desired==0 → fenêtre de course : s'il reste des running, on les arrête/retire
+        if (desired == 0)
+        {
+            List<ContainerSummary> again = await ListContainersByLabelsAsync(
+                new Dictionary<string, string?> {
+                    [Function] = null,
+                    [AppLabel] = deployment,
+                    [NamespaceLabel] = ns
+                },
+                all: true);
+
+            again = again.Where(c => c.Labels is not null
+                                  && c.Labels.TryGetValue(Function, out var v)
+                                  && IsTrueLike(v)).ToList();
+
+            foreach (ContainerSummary c in again.Where(x => IsRunning(x.State)))
+            {
+                await StopContainerIfRunningAsync(c.ID);
+                await RemoveContainerAsync(c.ID, force: true);
+            }
+        }
+    }
+
+    return request;
+}
+
 
 
         public async Task<DeploymentsInformations> ListFunctionsAsync(string kubeNamespace,
