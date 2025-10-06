@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.43.5
+
+- [4e81f97](https://github.com/SlimPlanet/SlimFaas/commit/4e81f973c8f15a450cd29d5e49f44e41ad5732cc) - fix(slimfaas): docker compose worked only with one function (release) (#175), 2025-10-06 by *Guillaume Chervet*
+
+
+## 0.43.4
+
+
+
 ## v0.43.4
 
 - [145f6a1](https://github.com/SlimPlanet/SlimFaas/commit/145f6a1c12575a5c2816c03162547d791ccdfed4) - fix(slimfaas-mcp): yaml compatible aot (release), 2025-10-03 by *Guillaume Chervet*
@@ -269,15 +278,5 @@
 ## v0.37.2
 
 - [3a54e98](https://github.com/SlimPlanet/SlimFaas/commit/3a54e9827aa29cd5029bdf4afd2261ce6aa85f9e) - fix(queue): message lost (#130) (release), 2025-08-01 by *Guillaume Chervet*
-
-
-## 0.37.1
-
-
-
-## v0.37.1
-
-- [6990149](https://github.com/SlimPlanet/SlimFaas/commit/6990149cea1a6e07247f302aaef91abf722b448d) - doc(slimfaas-mcp): Update mcp.md (release), 2025-07-24 by *Guillaume Chervet*
-- [512e80c](https://github.com/SlimPlanet/SlimFaas/commit/512e80c6ae68c1341eeb5566b4a17f17a1a824c2) - refactor(mcp): clean up (#131), 2025-07-22 by *Guillaume Chervet*
 
 
