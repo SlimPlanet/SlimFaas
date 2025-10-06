@@ -275,16 +275,58 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
     // ===== 2) Scale UP =====
     if (current < desired)
     {
-        // Chercher un template existant
+        // -------- Scale UP (avec garde anti-boucle) --------
+        static bool IsActiveState(string? s) =>
+            s is not null &&
+            !s.Equals("exited", StringComparison.OrdinalIgnoreCase) &&
+            !s.Equals("dead", StringComparison.OrdinalIgnoreCase) &&
+            !s.Equals("removing", StringComparison.OrdinalIgnoreCase);
+
+        // 1) Réplicas ACTIFS (non-template, quel que soit l'état actif)
+        var active = nonTemplate.Where(c => IsActiveState(c.State)).ToList();
+        int existing = active.Count;
+
+        // 2) Petit warmup: si un conteneur vient juste d'être créé/démarré, on laisse Docker stabiliser l'état
+        const int ScaleUpWarmupSeconds = 3;
+        foreach (var c in active)
+        {
+            var insp = await TryInspectContainerAsync(c.ID);
+            if (insp is null) continue;
+
+            var started = insp.State?.StartedAt?.ToUniversalTime();
+            var created = insp.Created?.ToUniversalTime();
+
+            if ((started is not null && (DateTimeOffset.UtcNow - started.Value).TotalSeconds < ScaleUpWarmupSeconds)
+                || (started is null && created is not null &&
+                    (DateTimeOffset.UtcNow - created.Value).TotalSeconds < ScaleUpWarmupSeconds))
+            {
+                _logger.LogInformation("[Scale] {Deployment} ns={Ns} scale-up: replica récent détecté (state={State}) → on attend",
+                    deployment, ns, c.State);
+                return request; // ⟵ évite la création en double
+            }
+        }
+
+        // 3) S'il y a déjà assez de réplicas ACTIFS, ne rien créer
+        if (existing >= desired)
+        {
+            _logger.LogInformation("[Scale] {Deployment} ns={Ns} scale-up: {Existing} actif(s) ≥ desired={Desired} → skip",
+                deployment, ns, existing, desired);
+            return request;
+        }
+
+        // 4) Choisir/assurer le template
         List<ContainerSummary> withTemplate = await ListContainersByLabelsAsync(
             new Dictionary<string, string?> {
-                [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
-            }, all: true);
+                [Function] = null,
+                [AppLabel] = deployment,
+                [NamespaceLabel] = ns,
+                [TemplateLabel] = "true"
+            },
+            all: true);
 
         withTemplate = withTemplate.Where(c => c.Labels is not null
                                             && c.Labels.TryGetValue(Function, out var v)
                                             && IsTrueLike(v)).ToList();
-
         _logger.LogInformation("[withTemplate] Count={Count}", withTemplate.Count);
 
         InspectContainerResponse? templateInspect = null;
@@ -295,23 +337,22 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         }
         else
         {
-            // Pas de template: prendre une source
-            ContainerSummary? source = running.FirstOrDefault() ?? all.FirstOrDefault();
+            var source = active.FirstOrDefault() ?? all.FirstOrDefault();
             if (source is null)
             {
-                _logger.LogWarning("[Scale] {Deployment} ns={Ns} scale-up aborted: no container or template found",
-                    deployment, ns);
+                _logger.LogWarning("[Scale] {Deployment} ns={Ns} scale-up failed: no container or template found", deployment, ns);
                 return request;
             }
 
-            InspectContainerResponse srcInsp = await InspectContainerAsync(source.ID);
+            var srcInsp = await InspectContainerAsync(source.ID);
             await EnsureTemplateContainerAsync(deployment, ns, srcInsp);
 
-            // Re-lookup (propre)
+            // Re-lookup
             withTemplate = await ListContainersByLabelsAsync(
                 new Dictionary<string, string?> {
                     [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
-                }, all: true);
+                },
+                all: true);
             withTemplate = withTemplate.Where(c => c.Labels is not null
                                                 && c.Labels.TryGetValue(Function, out var v)
                                                 && IsTrueLike(v)).ToList();
@@ -321,10 +362,11 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
                 : srcInsp;
         }
 
-        int toCreate = desired - current;
+        // 5) Créer seulement le delta vs ACTIFS
+        int toCreate = desired - existing;
         for (int i = 0; i < toCreate; i++)
         {
-            await CreateAndStartReplicaFromTemplateAsync(deployment, ns, templateInspect);
+            await CreateAndStartReplicaFromTemplateAsync(deployment, ns, templateInspect!);
         }
 
         return request;
@@ -822,12 +864,11 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             }
 
             // 2) Labels de base + flag template
-            Dictionary<string, string> labels = new(source.Config?.Labels ?? new Dictionary<string, string>())
-            {
-                [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
-            };
-            labels = labels.Where(l => !l.Key.Contains("com.docker.compose", StringComparison.OrdinalIgnoreCase))
-                           .ToDictionary(kv => kv.Key, kv => kv.Value);
+            Dictionary<string, string> labels = BuildCloneLabels(
+                source.Config?.Labels,
+                deployment,
+                ns,
+                isTemplate: true);
 
 
             // 3) Crée un conteneur ARRÊTÉ (AutoRemove=false), non démarré
@@ -993,25 +1034,61 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             return await res.Content.ReadAsStringAsync();
         }
 
+        private Dictionary<string, string> BuildCloneLabels(
+            IReadOnlyDictionary<string, string>? sourceLabels,
+            string deployment,
+            string ns,
+            bool isTemplate)
+        {
+            var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // Copie "safe" des labels source (on évite les labels compose intrusifs et le flag template)
+            if (sourceLabels is not null)
+            {
+                foreach (var kv in sourceLabels)
+                {
+                    if (kv.Key.StartsWith("com.docker.compose.", StringComparison.OrdinalIgnoreCase) &&
+                        !kv.Key.Equals("com.docker.compose.project", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (kv.Key.Equals(TemplateLabel, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    labels[kv.Key] = kv.Value;
+                }
+            }
+
+            // Labels SlimFaas
+            labels[Function] = FunctionTrue;
+            labels[AppLabel] = deployment;
+            labels[NamespaceLabel] = ns;
+            if (isTemplate) labels[TemplateLabel] = "true";
+
+            // Ancrage au projet compose, mais hors gestion "up"
+            if (!string.IsNullOrWhiteSpace(_composeProject))
+            {
+                labels["com.docker.compose.project"] = _composeProject!;
+                labels["com.docker.compose.oneoff"]  = "true";
+                labels["com.docker.compose.service"] = isTemplate
+                    ? $"sf-template-{deployment}"
+                    : $"sf-replica-{deployment}";
+            }
+
+            return labels;
+        }
+
+
+
         // ------------------ Internal helpers ------------------
 
         private async Task CreateAndStartReplicaFromTemplateAsync(string deployment, string ns,
     InspectContainerResponse template)
 {
-    // Clone labels du template, puis NORMALISER pour un replica
-    var labels = new Dictionary<string, string>(template.Config?.Labels ?? new())
-    {
-        [Function] = FunctionTrue,
-        [AppLabel] = deployment,
-        [NamespaceLabel] = ns
-    };
-
-    // ❗️ CRUCIAL: ne PAS laisser un replica porter le label "template"
-    labels.Remove(TemplateLabel);
-    // Ce label n'a de sens que sur le template (pour re-publier si besoin)
-    labels.Remove(PublishedPortsLabel);
-    labels = labels.Where(l => !l.Key.Contains("com.docker.compose", StringComparison.OrdinalIgnoreCase))
-        .ToDictionary(kv => kv.Key, kv => kv.Value);
+    var labels = BuildCloneLabels(
+        template.Config?.Labels,
+        deployment,
+        ns,
+        isTemplate: false);
 
     string name = $"{deployment}-{Guid.NewGuid():N}".Substring(0, 20);
     string imageRef = template.Config?.Image ?? template.Image;
