@@ -25,7 +25,13 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                      noActivityTimeout={10000}
                      interval={2000}
                      wakeUpTimeout={1000}
-                     behavior={{'fibonacci4': 'None'}}>
+                     behavior={{
+                         'fibonacci1': 'WakeUp+BlockUI',
+                         'fibonacci2': 'WakeUp',
+                         'fibonacci3': 'WakeUp',
+                         'fibonacci4': 'None'
+                         'mysql': 'WakeUp+BlockUI'
+        }}>
             <Main url="http://localhost:30021"/>
         </PlanetSaver> : <Main url="http://localhost:30021" />}
     </React.StrictMode>,
