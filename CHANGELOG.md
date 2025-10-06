@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.43.4
+
+- [145f6a1](https://github.com/SlimPlanet/SlimFaas/commit/145f6a1c12575a5c2816c03162547d791ccdfed4) - fix(slimfaas-mcp): yaml compatible aot (release), 2025-10-03 by *Guillaume Chervet*
+
+
+## 0.43.3
+
+
+
 ## v0.43.3
 
 - [68e0a67](https://github.com/SlimPlanet/SlimFaas/commit/68e0a6718c06d4505fa3521ba06057ef8809a83c) - fix(slimfaas): pass auth headers (#174) (release), 2025-10-03 by *Guillaume Chervet*
@@ -270,14 +279,5 @@
 
 - [6990149](https://github.com/SlimPlanet/SlimFaas/commit/6990149cea1a6e07247f302aaef91abf722b448d) - doc(slimfaas-mcp): Update mcp.md (release), 2025-07-24 by *Guillaume Chervet*
 - [512e80c](https://github.com/SlimPlanet/SlimFaas/commit/512e80c6ae68c1341eeb5566b4a17f17a1a824c2) - refactor(mcp): clean up (#131), 2025-07-22 by *Guillaume Chervet*
-
-
-## 0.37.0
-
-
-
-## v0.37.0
-
-- [dfe6f23](https://github.com/SlimPlanet/SlimFaas/commit/dfe6f230519a5e265646c58d0ffd884594e8fced) - feat(slimfaas-mcp): proxyfy openapi to mcp (#114) (release), 2025-07-18 by *Guillaume Chervet*
 
 
