@@ -13,7 +13,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="DotNext.AspNetCore.Cluster" Version="5.24.1" />
+        <PackageReference Include="DotNext.AspNetCore.Cluster" Version="5.25.2" />
         <PackageReference Include="MemoryPack" Version="1.21.4" />
     </ItemGroup>
 

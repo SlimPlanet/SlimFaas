@@ -18,7 +18,7 @@ services:
       SLIMDATA_CONFIGURATION: '{"coldStart":"true"}'
       ASPNETCORE_URLS: "http://0.0.0.0:30021"
       SLIMFAAS_ORCHESTRATOR: "Docker"
-      HOSTNAME: "slimfaas-slimfaas-1"
+      HOSTNAME: "slimfaas-1"
       SLIMDATA_DIRECTORY: "/database"
       SLIMFAAS_JOBS_CONFIGURATION: |
         {
@@ -71,9 +71,9 @@ services:
     environment:
       - ASPNETCORE_URLS=http://+:5000
     labels:
-      slimfaas/function: "true"
+      SlimFaas/Function: "true"
       app: "fibonacci1"
-      slimfaas/namespace: "default"
+      SlimFaas/Namespace: "default"
       SlimFaas/Configuration: '{"DefaultSync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultAsync":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]},"DefaultPublish":{"HttpTimeout":120,"TimeoutRetries":[2,4,8],"HttpStatusRetries":[500,502,503]}}'
       SlimFaas/ReplicasAtStart: "1"
       SlimFaas/ReplicasMin: "0"

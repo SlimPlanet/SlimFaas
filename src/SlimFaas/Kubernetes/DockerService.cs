@@ -22,10 +22,10 @@ namespace SlimFaas.Kubernetes
         private const string ReplicasMin = "SlimFaas/ReplicasMin";
         private const string Schedule = "SlimFaas/Schedule";
         private const string Configuration = "SlimFaas/Configuration";
-        private const string Function = "slimfaas/function"; // ← label key for functions
+        private const string Function = "SlimFaas/Function"; // ← label key for functions
         private const string FunctionTrue = "true";
         private const string AppLabel = "app"; // group containers by "deployment"
-        private const string NamespaceLabel = "slimfaas/namespace";
+        private const string NamespaceLabel = "SlimFaas/Namespace";
 
         private const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
         private const string DependsOn = "SlimFaas/DependsOn";
@@ -95,194 +95,467 @@ namespace SlimFaas.Kubernetes
             _networkName = GetSelfPrimaryNetworkNameAsync().GetAwaiter().GetResult();
             _composeProject = GetComposeProjectAsync().GetAwaiter().GetResult();
         }
-
-
-        public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
+        private static bool IsTrueLike(string? v)
         {
-            string deployment = request.Deployment;
-            string ns = request.Namespace;
-            int desired = request.Replicas;
+            if (string.IsNullOrWhiteSpace(v)) return false;
+            return v.Equals("true", StringComparison.OrdinalIgnoreCase)
+                   || v.Equals("1", StringComparison.OrdinalIgnoreCase)
+                   || v.Equals("yes", StringComparison.OrdinalIgnoreCase)
+                   || v.Equals("y", StringComparison.OrdinalIgnoreCase);
+        }
 
-            List<ContainerSummary> all = await ListContainersByLabelsAsync(
-                new Dictionary<string, string>
-                {
-                    [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns
-                }, true);
 
-            List<ContainerSummary> running = all.Where(c => c.State == "running").ToList();
-            int current = running.Count;
+        private static bool NameLooksLikeTemplate(ContainerSummary c)
+        {
+            var n = c.Names?.FirstOrDefault() ?? "";
+            return n.Contains("-template", StringComparison.OrdinalIgnoreCase);
+        }
 
-            if (current < desired)
+// champ de classe
+        private int _startupCleanupDone = 0;
+
+        private async Task EnsureStartupCleanupOnceAsync()
+        {
+            if (Interlocked.Exchange(ref _startupCleanupDone, 1) == 1) return;
+
+            try
             {
-                // scale up
-                ContainerSummary template =
-                    (await ListContainersByLabelsAsync(
-                        new Dictionary<string, string>
-                        {
-                            [Function] = FunctionTrue,
-                            [AppLabel] = deployment,
-                            [NamespaceLabel] = ns,
-                            [TemplateLabel] = "true"
-                        }, true)).FirstOrDefault()
-                    ?? all.FirstOrDefault()
-                    ?? throw new InvalidOperationException($"No template for '{deployment}' in ns '{ns}'.");
+                await PurgeStaleTemplatesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[Startup] PurgeStaleTemplates failed (continuing)");
+            }
+        }
 
-                InspectContainerResponse templateInspect = await InspectContainerAsync(template.ID);
-                for (int i = 0; i < desired - current; i++)
+        private async Task PurgeStaleTemplatesAsync()
+        {
+            // On cible explicitement nos templates
+            var filters = new Dictionary<string, string?> {
+                [Function] = null,
+                [TemplateLabel] = "true",
+                [NamespaceLabel] = null // facultatif: limite par ns si tu veux
+            };
+            var allTpl = await ListContainersByLabelsAsync(filters, all: true);
+
+            // + garde-fou si d’anciens templates n’avaient plus le label
+            allTpl.AddRange(
+                (await ListContainersByLabelsAsync(new Dictionary<string, string?> { [Function] = null }, all: true))
+                .Where(c => (c.Names?.Any(n => n.Contains("-template", StringComparison.OrdinalIgnoreCase)) ?? false)
+                            && (c.Labels?.TryGetValue(TemplateLabel, out var v) != true))
+            );
+
+            // Supprimer aussi les vieux templates portant des labels compose (voir §2)
+            foreach (var c in allTpl.DistinctBy(x => x.ID))
+            {
+                _logger.LogInformation("[Startup] Removing stale template id={Id} name={Name} state={State}",
+                    c.ID, c.Names?.FirstOrDefault(), c.State);
+                await StopContainerIfRunningAsync(c.ID);
+                await RemoveContainerAsync(c.ID, force: true);
+
+                // Attendre leur disparition effective pour éviter des courses
+                for (int i = 0; i < 30; i++)
                 {
-                    await CreateAndStartReplicaFromTemplateAsync(deployment, ns, templateInspect);
+                    var inspect = await TryInspectContainerAsync(c.ID);
+                    if (inspect is null) break;
+                    await Task.Delay(100);
                 }
             }
-            else if (current > desired)
+        }
+
+public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
+{
+    await EnsureStartupCleanupOnceAsync();
+    _logger.LogInformation("[Scale] {Deployment} ns={Ns} desired={Desired}",
+        request.Deployment, request.Namespace, request.Replicas);
+
+    string deployment = request.Deployment;
+    string ns = request.Namespace;
+    int desired = Math.Max(0, request.Replicas);
+
+    // ---- Collecte initiale
+    List<ContainerSummary> all = await ListContainersByLabelsAsync(
+        new Dictionary<string, string?> {
+            [Function] = null,
+            [AppLabel] = deployment,
+            [NamespaceLabel] = ns
+        }, all: true);
+
+    static bool IsTemplate(ContainerSummary c)
+        => c.Labels is not null
+           && c.Labels.TryGetValue(TemplateLabel, out var t)
+           && t.Equals("true", StringComparison.OrdinalIgnoreCase);
+
+    static bool IsRunning(string? s)
+        => s is not null && s.Equals("running", StringComparison.OrdinalIgnoreCase);
+
+    // post-filtre Function:true
+    all = all.Where(c => c.Labels is not null
+                      && c.Labels.TryGetValue(Function, out var v)
+                      && IsTrueLike(v)).ToList();
+
+    // garde-fou: si un jour un template est mal labellé, on l’ignore aussi par nom
+    static bool NameLooksLikeTemplate(ContainerSummary c)
+    {
+        var n = c.Names?.FirstOrDefault() ?? "";
+        return n.Contains("-template", StringComparison.OrdinalIgnoreCase);
+    }
+
+    var nonTemplate = all.Where(c => !IsTemplate(c) && !NameLooksLikeTemplate(c)).ToList();
+    var running = nonTemplate.Where(c => IsRunning(c.State)).ToList();
+    int current = running.Count;
+
+    // ===== 1) Scale to ZERO: faire le cleanup INCONDITIONNEL =====
+    if (desired == 0)
+    {
+        // a) S'assurer qu'un template existe
+        var existingTemplate = await ListContainersByLabelsAsync(
+            new Dictionary<string, string?> {
+                [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
+            }, all: true);
+
+        existingTemplate = existingTemplate.Where(c => c.Labels is not null
+                                                    && c.Labels.TryGetValue(Function, out var v)
+                                                    && IsTrueLike(v)).ToList();
+
+        if (existingTemplate.Count == 0)
+        {
+            // choisir une source: running sinon arrêtée
+            var source = running.FirstOrDefault() ?? nonTemplate.FirstOrDefault();
+            if (source is not null)
             {
-                // scale down
-                // si on va à 0, assurer un template avant de supprimer
-                if (desired == 0 && running.Count > 0)
+                var srcInsp = await TryInspectContainerAsync(source.ID);
+                if (srcInsp is not null)
                 {
-                    // prend un exemplaire courant comme source de template
-                    InspectContainerResponse? srcInsp = await TryInspectContainerAsync(running[0].ID);
-                    if (srcInsp is not null)
+                    await EnsureTemplateContainerAsync(deployment, ns, srcInsp);
+
+                    // vérifier la création
+                    var confirmed = await ListContainersByLabelsAsync(
+                        new Dictionary<string, string?> {
+                            [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
+                        }, all: true);
+                    confirmed = confirmed.Where(c => c.Labels is not null
+                                                  && c.Labels.TryGetValue(Function, out var v)
+                                                  && IsTrueLike(v)).ToList();
+
+                    if (confirmed.Count == 0)
                     {
-                        await EnsureTemplateContainerAsync(deployment, ns, srcInsp);
+                        _logger.LogWarning("[Scale] {Deployment} desired=0: template creation failed, skip cleanup this tick.",
+                            deployment);
+                        return request;
                     }
                 }
-
-                // stop & remove extra running
-                foreach (ContainerSummary c in running.Take(current - desired))
+                else
                 {
-                    await StopContainerIfRunningAsync(c.ID);
-                    await RemoveContainerAsync(c.ID, true);
-                }
-
-                // si desired==0 et il reste des running (fenêtre de course), stop les restants
-                if (desired == 0)
-                {
-                    List<ContainerSummary> again = await ListContainersByLabelsAsync(
-                        new Dictionary<string, string>
-                        {
-                            [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns
-                        }, true);
-                    foreach (ContainerSummary c in again.Where(x => x.State == "running"))
-                    {
-                        await StopContainerIfRunningAsync(c.ID);
-                        // AutoRemove peut être true sur des anciens clones → ils partiront d’eux-mêmes
-                        // on tente remove au cas où
-                        await RemoveContainerAsync(c.ID, true);
-                    }
+                    _logger.LogWarning("[Scale] {Deployment} desired=0: cannot inspect source; skip cleanup this tick.",
+                        deployment);
+                    return request;
                 }
             }
+            else
+            {
+                // pas de source : on ne peut pas créer de template (pas grave, on nettoie quand même)
+                _logger.LogInformation("[Scale] {Deployment} desired=0: no source found to build template; continuing cleanup.",
+                    deployment);
+            }
+        }
 
+        // b) Supprimer TOUS les non-templates (quel que soit l'état)
+        foreach (var c in nonTemplate)
+        {
+            _logger.LogInformation("[Scale] Stop/Remove (desired=0) {Deployment} id={Id} name={Name} state={State}",
+                deployment, c.ID, c.Names?.FirstOrDefault(), c.State);
+            await StopContainerIfRunningAsync(c.ID);
+            await RemoveContainerAsync(c.ID, force: true);
+        }
+
+        return request;
+    }
+
+    // ===== 2) Scale UP =====
+    if (current < desired)
+    {
+        // -------- Scale UP (avec garde anti-boucle) --------
+        static bool IsActiveState(string? s) =>
+            s is not null &&
+            !s.Equals("exited", StringComparison.OrdinalIgnoreCase) &&
+            !s.Equals("dead", StringComparison.OrdinalIgnoreCase) &&
+            !s.Equals("removing", StringComparison.OrdinalIgnoreCase);
+
+        // 1) Réplicas ACTIFS (non-template, quel que soit l'état actif)
+        var active = nonTemplate.Where(c => IsActiveState(c.State)).ToList();
+        int existing = active.Count;
+
+        // 2) Petit warmup: si un conteneur vient juste d'être créé/démarré, on laisse Docker stabiliser l'état
+        const int ScaleUpWarmupSeconds = 3;
+        foreach (var c in active)
+        {
+            var insp = await TryInspectContainerAsync(c.ID);
+            if (insp is null) continue;
+
+            var started = insp.State?.StartedAt?.ToUniversalTime();
+            var created = insp.Created?.ToUniversalTime();
+
+            if ((started is not null && (DateTimeOffset.UtcNow - started.Value).TotalSeconds < ScaleUpWarmupSeconds)
+                || (started is null && created is not null &&
+                    (DateTimeOffset.UtcNow - created.Value).TotalSeconds < ScaleUpWarmupSeconds))
+            {
+                _logger.LogInformation("[Scale] {Deployment} ns={Ns} scale-up: replica récent détecté (state={State}) → on attend",
+                    deployment, ns, c.State);
+                return request; // ⟵ évite la création en double
+            }
+        }
+
+        // 3) S'il y a déjà assez de réplicas ACTIFS, ne rien créer
+        if (existing >= desired)
+        {
+            _logger.LogInformation("[Scale] {Deployment} ns={Ns} scale-up: {Existing} actif(s) ≥ desired={Desired} → skip",
+                deployment, ns, existing, desired);
             return request;
         }
 
+        // 4) Choisir/assurer le template
+        List<ContainerSummary> withTemplate = await ListContainersByLabelsAsync(
+            new Dictionary<string, string?> {
+                [Function] = null,
+                [AppLabel] = deployment,
+                [NamespaceLabel] = ns,
+                [TemplateLabel] = "true"
+            },
+            all: true);
 
-        public async Task<DeploymentsInformations> ListFunctionsAsync(string kubeNamespace,
-            DeploymentsInformations previousDeployments)
+        withTemplate = withTemplate.Where(c => c.Labels is not null
+                                            && c.Labels.TryGetValue(Function, out var v)
+                                            && IsTrueLike(v)).ToList();
+        _logger.LogInformation("[withTemplate] Count={Count}", withTemplate.Count);
+
+        InspectContainerResponse? templateInspect = null;
+
+        if (withTemplate.FirstOrDefault() is { } tpl)
         {
-            List<ContainerSummary> containers = await ListContainersByLabelsAsync(
-                new Dictionary<string, string> { [Function] = FunctionTrue, [NamespaceLabel] = kubeNamespace }, true);
-
-            IEnumerable<IGrouping<string, ContainerSummary>> groups = containers.GroupBy(c =>
-                c.Labels != null && c.Labels.TryGetValue(AppLabel, out string? d) ? d : "");
-
-            List<DeploymentInformation> deployments = new();
-            List<PodInformation> allPods = new();
-
-            foreach (IGrouping<string, ContainerSummary> grp in groups)
+            templateInspect = await InspectContainerAsync(tpl.ID);
+        }
+        else
+        {
+            var source = active.FirstOrDefault() ?? all.FirstOrDefault();
+            if (source is null)
             {
-                string deploymentName = grp.Key;
-                if (string.IsNullOrWhiteSpace(deploymentName))
-                {
-                    continue;
-                }
-
-                // Ne compter que les RUNNING pour les replicas et les pods
-                List<ContainerSummary> running = grp
-                    .Where(c => string.Equals(c.State, "running", StringComparison.OrdinalIgnoreCase)).ToList();
-                _logger.LogDebug("DockerService: Deployment {Deployment} has {Count} running containers",
-                    deploymentName, running.Count);
-                List<PodInformation> pods = new();
-                foreach (ContainerSummary c in running)
-                {
-                    InspectContainerResponse? insp = await TryInspectContainerAsync(c.ID);
-                    if (insp is null)
-                    {
-                        continue; // supprimé entre-temps → on ignore
-                    }
-
-                    string? name = TrimSlash(insp.Name) ??
-                                   (c.Names?.FirstOrDefault() is string n ? TrimSlash(n) : c.ID[..12]);
-                    bool ready = insp.State?.Running == true &&
-                                 (insp.State.Health == null || string.Equals(insp.State.Health.Status, "healthy",
-                                     StringComparison.OrdinalIgnoreCase));
-
-                    string ip = ExtractPreferredIPAddress(insp);
-                    List<int> ports = GetAllContainerPortsNoHeuristic(insp);
-                    _logger.LogDebug("DockerService: Pod {Pod} IP={IP} Ports=[{Ports}] Ready={Ready}",
-                        name, ip, string.Join(",", ports), ready);
-                    pods.Add(new PodInformation(
-                        name ?? c.ID[..12],
-                        insp.State?.StartedAt is not null,
-                        ready,
-                        ip,
-                        deploymentName,
-                        ports,
-                        insp.Created?.ToUniversalTime().Ticks.ToString() ?? DateTime.UtcNow.Ticks.ToString()
-                    ));
-                }
-
-                allPods.AddRange(pods);
-
-                // Récupérer la config/annotations depuis le premier conteneur du groupe (même s’il n’est pas running)
-                ContainerSummary first = grp.First();
-                Dictionary<string, string> labels = first.Labels ?? new Dictionary<string, string>();
-
-                SlimFaasConfiguration config = ParseOrDefault(labels, Configuration, () => new SlimFaasConfiguration(),
-                    json => JsonSerializer.Deserialize(json,
-                                SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration) ??
-                            new SlimFaasConfiguration());
-
-                int replicas = running.Count; // 👈 uniquement RUNNING
-                bool endpointReady = pods.Any(p => (p.Ports?.Count ?? 0) > 0);
-
-                DeploymentInformation di = new(
-                    deploymentName,
-                    kubeNamespace,
-                    pods,
-                    config,
-                    replicas,
-                    GetInt(labels, ReplicasAtStart, 1),
-                    GetInt(labels, ReplicasMin, 0),
-                    GetInt(labels, TimeoutSecondBeforeSetReplicasMin, 300),
-                    GetInt(labels, NumberParallelRequest, 10),
-                    GetBool(labels, ReplicasStartAsSoonAsOneFunctionRetrieveARequest, false),
-                    PodType.Deployment,
-                    SplitCsv(labels, DependsOn),
-                    ParseOrDefault(labels, Schedule, () => new ScheduleConfig(),
-                        json =>
-                            JsonSerializer.Deserialize(json, ScheduleConfigSerializerContext.Default.ScheduleConfig) ??
-                            new ScheduleConfig()),
-                    GetSubscribeEvents(labels),
-                    ParseEnum(labels, DefaultVisibility, FunctionVisibility.Public),
-                    GetPathsStartWithVisibility(labels),
-                    $"{replicas}-{pods.Count}-{endpointReady}",
-                    endpointReady,
-                    ParseEnum(labels, DefaultTrust, FunctionTrust.Trusted)
-                );
-
-                deployments.Add(di);
+                _logger.LogWarning("[Scale] {Deployment} ns={Ns} scale-up failed: no container or template found", deployment, ns);
+                return request;
             }
 
-            // AVANT le return, après avoir rempli deployments + allPods :
-            IList<PodInformation> slimFaasPods = await GetSlimFaasSelfPodsAsync();
-            SlimFaasDeploymentInformation slimfaasInfo = new(slimFaasPods.Count, slimFaasPods);
+            var srcInsp = await InspectContainerAsync(source.ID);
+            await EnsureTemplateContainerAsync(deployment, ns, srcInsp);
 
-            // (facultatif) on ajoute aussi ces pods à la vue globale
-            allPods.AddRange(slimFaasPods);
+            // Re-lookup
+            withTemplate = await ListContainersByLabelsAsync(
+                new Dictionary<string, string?> {
+                    [Function] = null, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
+                },
+                all: true);
+            withTemplate = withTemplate.Where(c => c.Labels is not null
+                                                && c.Labels.TryGetValue(Function, out var v)
+                                                && IsTrueLike(v)).ToList();
 
-            // puis :
-            return new DeploymentsInformations(deployments, slimfaasInfo, allPods);
+            templateInspect = withTemplate.FirstOrDefault() is { } tpl2
+                ? await InspectContainerAsync(tpl2.ID)
+                : srcInsp;
         }
+
+        // 5) Créer seulement le delta vs ACTIFS
+        int toCreate = desired - existing;
+        for (int i = 0; i < toCreate; i++)
+        {
+            await CreateAndStartReplicaFromTemplateAsync(deployment, ns, templateInspect!);
+        }
+
+        return request;
+    }
+
+    // ===== 3) Scale DOWN partiel (desired > 0 et current > desired) =====
+    if (current > desired)
+    {
+        const int WarmupSeconds = 1;
+
+        static bool IsStarting(InspectContainerResponse insp)
+            => insp.State?.Health != null
+               && string.Equals(insp.State.Health.Status, "starting", StringComparison.OrdinalIgnoreCase);
+
+        static bool IsWithinWarmup(InspectContainerResponse insp, int warmupSeconds)
+        {
+            var started = insp.State?.StartedAt?.ToUniversalTime();
+            if (started is null) return false;
+            return (DateTimeOffset.UtcNow - started.Value).TotalSeconds < warmupSeconds;
+        }
+
+        // Gate warmup uniquement si on garde >0
+        foreach (var c in running)
+        {
+            var insp = await TryInspectContainerAsync(c.ID);
+            if (insp is null) continue;
+
+            if (IsStarting(insp) || IsWithinWarmup(insp, WarmupSeconds))
+            {
+                _logger.LogInformation(
+                    "[Scale] Skip down {Deployment} (desired={Desired}) -> warmup/starting; since {StartedAt:u}",
+                    deployment, desired, insp.State?.StartedAt?.ToUniversalTime());
+                return request;
+            }
+        }
+
+        // Retirer l'excédent parmi les RUNNING
+        foreach (var c in running.Take(current - desired))
+        {
+            _logger.LogInformation("[Scale] Stop/Remove {Deployment} id={Id} name={Name}",
+                deployment, c.ID, c.Names?.FirstOrDefault());
+            await StopContainerIfRunningAsync(c.ID);
+            await RemoveContainerAsync(c.ID, force: true);
+        }
+    }
+
+    return request;
+}
+
+
+
+
+
+       public async Task<DeploymentsInformations> ListFunctionsAsync(string kubeNamespace,
+    DeploymentsInformations previousDeployments)
+{
+    await EnsureStartupCleanupOnceAsync();
+    // 1) On récupère TOUTES les fonctions (incluant les templates !) pour ne pas perdre les déploiements à 0
+    List<ContainerSummary> containers = await ListContainersByLabelsAsync(
+        new Dictionary<string, string?> { [Function] = null, [NamespaceLabel] = kubeNamespace }, true);
+
+    // Filtre "Function:true" (tolérant)
+    containers = containers.Where(c =>
+        c.Labels is not null &&
+        c.Labels.TryGetValue(Function, out var v) &&
+        IsTrueLike(v)
+    ).ToList();
+
+    // Helpers locaux
+    static bool IsTemplate(ContainerSummary c) =>
+        c.Labels is not null
+        && c.Labels.TryGetValue("SlimFaas/template", out var t)
+        && t.Equals("true", StringComparison.OrdinalIgnoreCase);
+
+
+    static bool IsRunning(string? s) =>
+        s is not null && s.Equals("running", StringComparison.OrdinalIgnoreCase);
+
+    // 2) GroupBy par "app" (même si le groupe ne contient qu'un template arrêté)
+    IEnumerable<IGrouping<string, ContainerSummary>> groups = containers.GroupBy(c =>
+        c.Labels != null && c.Labels.TryGetValue(AppLabel, out string? d) ? d : ""
+    );
+
+    List<DeploymentInformation> deployments = new();
+    List<PodInformation> allPods = new();
+
+    foreach (IGrouping<string, ContainerSummary> grp in groups)
+    {
+        string deploymentName = grp.Key;
+        if (string.IsNullOrWhiteSpace(deploymentName))
+            continue;
+
+        // --- Très important ---
+        // On NE filtre PAS les templates ici (ils servent à matérialiser le déploiement à 0).
+        // On les exclut SEULEMENT pour compter les replicas et construire les pods.
+
+        // 3) Pods "visibles" = conteneurs RUNNING NON-template
+        List<ContainerSummary> runningNonTemplate = grp
+            .Where(c => !IsTemplate(c) && !NameLooksLikeTemplate(c) && IsRunning(c.State))
+            .ToList();
+
+        _logger.LogDebug("DockerService: Deployment {Deployment} has {Count} running non-template containers",
+            deploymentName, runningNonTemplate.Count);
+
+        List<PodInformation> pods = new();
+        foreach (ContainerSummary c in runningNonTemplate)
+        {
+            InspectContainerResponse? insp = await TryInspectContainerAsync(c.ID);
+            if (insp is null) continue;
+
+            string? name = TrimSlash(insp.Name) ??
+                           (c.Names?.FirstOrDefault() is string n ? TrimSlash(n) : c.ID[..12]);
+
+            bool ready = insp.State?.Running == true &&
+                         (insp.State.Health == null ||
+                          string.Equals(insp.State.Health.Status, "healthy", StringComparison.OrdinalIgnoreCase));
+
+            string ip = ExtractPreferredIPAddress(insp);
+            List<int> ports = GetAllContainerPortsNoHeuristic(insp);
+
+            _logger.LogDebug("DockerService: Pod {Pod} IP={IP} Ports=[{Ports}] Ready={Ready}",
+                name, ip, string.Join(",", ports), ready);
+
+            pods.Add(new PodInformation(
+                name ?? c.ID[..12],
+                insp.State?.StartedAt is not null,
+                ready,
+                ip,
+                deploymentName,
+                ports,
+                insp.Created?.ToUniversalTime().Ticks.ToString() ?? DateTime.UtcNow.Ticks.ToString()
+            ));
+        }
+
+        allPods.AddRange(pods);
+
+        // 4) Récupérer la config/annotations depuis un conteneur du groupe
+        //    (idéalement un non-template s'il existe, sinon le template)
+        ContainerSummary first = grp.FirstOrDefault(x => !IsTemplate(x) && !NameLooksLikeTemplate(x))
+                                 ?? grp.First();
+
+        Dictionary<string, string> labels = first.Labels ?? new Dictionary<string, string>();
+
+        SlimFaasConfiguration config = ParseOrDefault(labels, Configuration, () => new SlimFaasConfiguration(),
+            json => JsonSerializer.Deserialize(json,
+                        SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration)
+                   ?? new SlimFaasConfiguration());
+
+        // 5) Nombre de replicas = nombre de RUNNING NON-template
+        int replicas = runningNonTemplate.Count;
+
+        // endpointReady = au moins un pod exposant des ports
+        bool endpointReady = pods.Any(p => (p.Ports?.Count ?? 0) > 0);
+
+        DeploymentInformation di = new(
+            deploymentName,
+            kubeNamespace,
+            pods,
+            config,
+            replicas,
+            GetInt(labels, ReplicasAtStart, 1),
+            GetInt(labels, ReplicasMin, 0),
+            GetInt(labels, TimeoutSecondBeforeSetReplicasMin, 300),
+            GetInt(labels, NumberParallelRequest, 10),
+            GetBool(labels, ReplicasStartAsSoonAsOneFunctionRetrieveARequest, false),
+            PodType.Deployment,
+            SplitCsv(labels, DependsOn),
+            ParseOrDefault(labels, Schedule, () => new ScheduleConfig(),
+                json => JsonSerializer.Deserialize(json, ScheduleConfigSerializerContext.Default.ScheduleConfig)
+                       ?? new ScheduleConfig()),
+            GetSubscribeEvents(labels),
+            ParseEnum(labels, DefaultVisibility, FunctionVisibility.Public),
+            GetPathsStartWithVisibility(labels),
+            $"{replicas}-{pods.Count}-{endpointReady}",
+            endpointReady,
+            ParseEnum(labels, DefaultTrust, FunctionTrust.Trusted)
+        );
+
+        deployments.Add(di);
+    }
+
+    // 6) Pods SlimFaas lui-même (inchangé)
+    IList<PodInformation> slimFaasPods = await GetSlimFaasSelfPodsAsync();
+    SlimFaasDeploymentInformation slimfaasInfo = new(slimFaasPods.Count, slimFaasPods);
+    allPods.AddRange(slimFaasPods);
+
+    return new DeploymentsInformations(deployments, slimfaasInfo, allPods);
+}
+
 
         public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob createJob,
             string elementId, string jobFullName, long inQueueTimestamp)
@@ -575,23 +848,28 @@ namespace SlimFaas.Kubernetes
         {
             // 1) Existe déjà ?
             List<ContainerSummary> existing = await ListContainersByLabelsAsync(
-                new Dictionary<string, string>
+                new Dictionary<string, string?>
                 {
-                    [Function] = FunctionTrue,
+                    [Function] = null,
                     [AppLabel] = deployment,
                     [NamespaceLabel] = ns,
                     [TemplateLabel] = "true"
                 }, true);
+            existing = existing.Where(c => c.Labels is not null
+                                           && c.Labels.TryGetValue(Function, out var v)
+                                           && IsTrueLike(v)).ToList();
             if (existing.Any())
             {
                 return; // déjà un template
             }
 
             // 2) Labels de base + flag template
-            Dictionary<string, string> labels = new(source.Config?.Labels ?? new Dictionary<string, string>())
-            {
-                [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns, [TemplateLabel] = "true"
-            };
+            Dictionary<string, string> labels = BuildCloneLabels(
+                source.Config?.Labels,
+                deployment,
+                ns,
+                isTemplate: true);
+
 
             // 3) Crée un conteneur ARRÊTÉ (AutoRemove=false), non démarré
             string name = $"{deployment}-template";
@@ -629,19 +907,19 @@ namespace SlimFaas.Kubernetes
                 Labels = labels,
                 Env = BuildEnvForClone(source, img),
                 Cmd = source.Config?.Cmd ?? Array.Empty<string>(),
-                HostConfig = new CreateContainer_HostConfig { AutoRemove = false },
+                HostConfig = new CreateContainer_HostConfig { AutoRemove = false, RestartPolicy = new CreateContainer_RestartPolicy("no") },
                 ExposedPorts = BuildExposedPortsForClone(source, img), // 👈 ports corrects
                 NetworkingConfig = endpoints is null
                     ? null
                     : new CreateContainer_NetworkingConfig { EndpointsConfig = endpoints }
             };
 
-            await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+            var response = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
                 $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
                 createBody,
                 DockerJson.Default.CreateContainerRequest,
                 DockerJson.Default.CreateContainerResponse);
-
+            _logger.LogInformation("[Template] Created template for {Deployment} in ns={Ns} name={Name}", deployment, ns, name);
             // Ne PAS démarrer : on veut juste une “carcasse” pour porter les métadonnées
         }
 
@@ -756,124 +1034,159 @@ namespace SlimFaas.Kubernetes
             return await res.Content.ReadAsStringAsync();
         }
 
+        private Dictionary<string, string> BuildCloneLabels(
+            IReadOnlyDictionary<string, string>? sourceLabels,
+            string deployment,
+            string ns,
+            bool isTemplate)
+        {
+            var labels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+            // Copie "safe" des labels source (on évite les labels compose intrusifs et le flag template)
+            if (sourceLabels is not null)
+            {
+                foreach (var kv in sourceLabels)
+                {
+                    if (kv.Key.StartsWith("com.docker.compose.", StringComparison.OrdinalIgnoreCase) &&
+                        !kv.Key.Equals("com.docker.compose.project", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (kv.Key.Equals(TemplateLabel, StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    labels[kv.Key] = kv.Value;
+                }
+            }
+
+            // Labels SlimFaas
+            labels[Function] = FunctionTrue;
+            labels[AppLabel] = deployment;
+            labels[NamespaceLabel] = ns;
+            if (isTemplate) labels[TemplateLabel] = "true";
+
+            // Ancrage au projet compose, mais hors gestion "up"
+            if (!string.IsNullOrWhiteSpace(_composeProject))
+            {
+                labels["com.docker.compose.project"] = _composeProject!;
+                labels["com.docker.compose.oneoff"]  = "true";
+                labels["com.docker.compose.service"] = isTemplate
+                    ? $"sf-template-{deployment}"
+                    : $"sf-replica-{deployment}";
+            }
+
+            return labels;
+        }
+
+
+
         // ------------------ Internal helpers ------------------
 
         private async Task CreateAndStartReplicaFromTemplateAsync(string deployment, string ns,
-            InspectContainerResponse template)
+    InspectContainerResponse template)
+{
+    var labels = BuildCloneLabels(
+        template.Config?.Labels,
+        deployment,
+        ns,
+        isTemplate: false);
+
+    string name = $"{deployment}-{Guid.NewGuid():N}".Substring(0, 20);
+    string imageRef = template.Config?.Image ?? template.Image;
+    var img = await InspectImageAsync(imageRef);
+
+    Dictionary<string, CreateContainer_EndpointSettings>? endpoints =
+        _networkName is not null
+            ? new() { [_networkName] = new() { Aliases = new List<string> { deployment, name } } }
+            : null;
+
+    var createBody = new CreateContainerRequest
+    {
+        Image = imageRef,
+        Name = name,
+        Labels = labels,
+        Env = BuildEnvForClone(template, img),
+        Cmd = template.Config?.Cmd ?? Array.Empty<string>(),
+        HostConfig = new CreateContainer_HostConfig
         {
-            Dictionary<string, string> labels = new(template.Config?.Labels ?? new Dictionary<string, string>())
-            {
-                [Function] = FunctionTrue, [AppLabel] = deployment, [NamespaceLabel] = ns
-            };
+            AutoRemove = true,
+            RestartPolicy = new CreateContainer_RestartPolicy("no"),
+            // Par défaut: pas de publication explicite → service joignable via réseau interne
+            PortBindings = null
+        },
+        ExposedPorts = BuildExposedPortsForClone(template, img),
+        NetworkingConfig = endpoints is null
+            ? null
+            : new CreateContainer_NetworkingConfig { EndpointsConfig = endpoints }
+    };
 
-            string[] env = template.Config?.Env ?? Array.Empty<string>();
-            string image = template.Config?.Image ?? template.Image;
-            string[] cmd = template.Config?.Cmd ?? Array.Empty<string>();
+    // Si le template a mémorisé des bindings à publier → on peut les réappliquer
+    // MAIS on randomise les ports hôte pour éviter les collisions.
+    var persisted = TryParsePublishedBindingsLabel(template.Config?.Labels);
+    if (persisted is not null && persisted.Count > 0)
+    {
+        createBody.HostConfig.PortBindings = persisted;
+        MakeBindingsRandomHostPort(createBody); // évite 6379 déjà pris, etc.
+    }
 
-            if (!string.IsNullOrWhiteSpace(image))
-            {
-                await TryPullImageAsync(image!);
-            }
+    // Création (+ 1 retry si collision de port)
+    CreateContainerResponse? createRes;
+    try
+    {
+        createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+            $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
+            createBody,
+            DockerJson.Default.CreateContainerRequest,
+            DockerJson.Default.CreateContainerResponse);
+    }
+    catch (HttpRequestException)
+    {
+        MakeBindingsRandomHostPort(createBody);
+        createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+            $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
+            createBody,
+            DockerJson.Default.CreateContainerRequest,
+            DockerJson.Default.CreateContainerResponse);
+    }
 
-            string name = $"{deployment}-{Guid.NewGuid():N}".Substring(0, 20);
+    string id = createRes?.Id ?? throw new InvalidOperationException("Create container returned no Id.");
 
-            string imageRef = template.Config?.Image ?? template.Image;
-            InspectImageResponse? img = await InspectImageAsync(imageRef);
-            Dictionary<string, CreateContainer_EndpointSettings>? endpoints = _networkName is not null
-                ? new Dictionary<string, CreateContainer_EndpointSettings>
-                {
-                    [_networkName] = new() { Aliases = new List<string> { deployment, name } }
-                }
-                : null;
-            CreateContainerRequest createBody = new()
-            {
-                Image = imageRef,
-                Name = name,
-                Labels = labels,
-                Env = BuildEnvForClone(template, img),
-                Cmd = template.Config?.Cmd ?? Array.Empty<string>(),
-                HostConfig = new CreateContainer_HostConfig { AutoRemove = true },
-                ExposedPorts = BuildExposedPortsForClone(template, img),
-                NetworkingConfig = endpoints is null
-                    ? null
-                    : new CreateContainer_NetworkingConfig { EndpointsConfig = endpoints }
-            };
+    try
+    {
+        await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
+        _logger.LogInformation("[Scale-UP] Started replica {Deployment} id={Id} (template label removed)",
+            deployment, id);
+    }
+    catch (HttpRequestException ex)
+    {
+        string logs = await GetContainerLogsAsync(id);
+        _logger.LogWarning(ex, "Start failed for replica {Name} (id={Id}). Logs tail:\n{Logs}", name, id, logs);
 
-            // 1) Si le template porte un label de publis, on les ré-applique tels quels
-            Dictionary<string, List<CreateContainer_PortBinding>>? persisted =
-                TryParsePublishedBindingsLabel(template.Config?.Labels);
-            if (persisted is not null && persisted.Count > 0)
-            {
-                createBody.HostConfig ??= new CreateContainer_HostConfig();
-                createBody.HostConfig.PortBindings = persisted;
-            }
-            else
-            {
-                // 2) Sinon, on publie par défaut (même host-port si possible)
-                AttachPublishBindingsFromExposedPorts(createBody, true);
-            }
-
-// 3) Création + retry si conflit de port hôte
-            CreateContainerResponse? createRes;
+        if (createBody.HostConfig?.PortBindings is not null)
+        {
             try
             {
-                createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
-                    $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
-                    createBody,
-                    DockerJson.Default.CreateContainerRequest,
-                    DockerJson.Default.CreateContainerResponse);
+                await StopContainerIfRunningAsync(id);
+                await RemoveContainerAsync(id, true);
             }
-            catch (HttpRequestException)
-            {
-                // Conflit (409) ou autre -> on repasse en host-port aléatoire
-                MakeBindingsRandomHostPort(createBody);
-                createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
-                    $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
-                    createBody,
-                    DockerJson.Default.CreateContainerRequest,
-                    DockerJson.Default.CreateContainerResponse);
-            }
+            catch { /* best effort */ }
 
-
-            /*var createRes = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
+            MakeBindingsRandomHostPort(createBody);
+            var retry = await PostJsonAsync<CreateContainerRequest, CreateContainerResponse>(
                 $"{_apiPrefix}/containers/create?name={Uri.EscapeDataString(name)}",
                 createBody,
                 DockerJson.Default.CreateContainerRequest,
-                DockerJson.Default.CreateContainerResponse);*/
+                DockerJson.Default.CreateContainerResponse);
 
-            string id = createRes?.Id ?? throw new InvalidOperationException("Create container returned no Id.");
-            await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
+            string id2 = retry?.Id ?? throw new InvalidOperationException("Create container retry returned no Id.");
+            await PostAsync($"{_apiPrefix}/containers/{id2}/start", null);
         }
-
-        // Construit PortBindings à partir des ExposedPorts (clés "5000/tcp")
-// preferSameHostPort=true => tente 5000:5000 ; si on retente après échec on passera en host-port aléatoire.
-        private static void AttachPublishBindingsFromExposedPorts(
-            CreateContainerRequest req,
-            bool preferSameHostPort)
+        else
         {
-            if (req.ExposedPorts is null || req.ExposedPorts.Count == 0)
-            {
-                return;
-            }
-
-            req.HostConfig ??= new CreateContainer_HostConfig();
-            Dictionary<string, List<CreateContainer_PortBinding>> bindings = new(StringComparer.Ordinal);
-
-            foreach (string key in req.ExposedPorts.Keys) // ex: "5000/tcp"
-            {
-                string port = key.Split('/')[0]; // "5000"
-                bindings[key] = new List<CreateContainer_PortBinding>
-                {
-                    new()
-                    {
-                        HostIp = "0.0.0.0",
-                        HostPort = preferSameHostPort ? port : null // null => port aléatoire choisi par Docker
-                    }
-                };
-            }
-
-            req.HostConfig.PortBindings = bindings;
+            throw;
         }
+    }
+}
+
 
 // Si la création échoue (port occupé), on bascule tous les bindings en HostPort aléatoire
         private static void MakeBindingsRandomHostPort(CreateContainerRequest req)
@@ -941,22 +1254,22 @@ namespace SlimFaas.Kubernetes
 
 
         private async Task<List<ContainerSummary>> ListContainersByLabelsAsync(
-            Dictionary<string, string> labels, bool all)
+            Dictionary<string, string?> labels, bool all)
         {
-            // Convertit "k"->"v" en "k=v"
-            Dictionary<string, bool> labelDict = new();
-            foreach (KeyValuePair<string, string> kv in labels)
+            var list = new List<string>(labels.Count);
+            foreach (var kv in labels)
             {
-                labelDict[$"{kv.Key}={kv.Value}"] = true;
+                // si valeur null => filtre "présence du label"
+                list.Add(kv.Value is null ? kv.Key : $"{kv.Key}={kv.Value}");
             }
 
-            FiltersLabel filter = new(labelDict);
-            string filterJson = JsonSerializer.Serialize(filter, DockerJson.Default.FiltersLabel);
+            var filters = new FiltersLabelArray(list);
+            string filterJson = JsonSerializer.Serialize(filters, DockerJson.Default.FiltersLabelArray);
             string url = $"{_apiPrefix}/containers/json?all={(all ? 1 : 0)}&filters={WebUtility.UrlEncode(filterJson)}";
 
-            List<ContainerSummary>? list = await GetAsync(url, DockerJson.Default.ListContainerSummary);
-            return list ?? new List<ContainerSummary>();
+            return await GetAsync(url, DockerJson.Default.ListContainerSummary) ?? new List<ContainerSummary>();
         }
+
 
 
         private async Task<InspectContainerResponse> InspectContainerAsync(string id)
@@ -1691,7 +2004,14 @@ namespace SlimFaas.Kubernetes
         // 👇 publication des ports
         [JsonPropertyName("PortBindings")]
         public Dictionary<string, List<CreateContainer_PortBinding>>? PortBindings { get; set; }
+
+        [JsonPropertyName("RestartPolicy")] public CreateContainer_RestartPolicy? RestartPolicy { get; set; }
     }
+
+    public record CreateContainer_RestartPolicy(
+        [property: JsonPropertyName("Name")] string? Name,           // "no", "on-failure", "always", "unless-stopped"
+        [property: JsonPropertyName("MaximumRetryCount")] int? MaximumRetryCount = null
+    );
 
     public record CreateContainerResponse([property: JsonPropertyName("Id")] string Id);
 
