@@ -29,7 +29,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                          'fibonacci1': 'WakeUp+BlockUI',
                          'fibonacci2': 'WakeUp',
                          'fibonacci3': 'WakeUp',
-                         'fibonacci4': 'None'
+                         'fibonacci4': 'None',
                          'mysql': 'WakeUp+BlockUI'
         }}>
             <Main url="http://localhost:30021"/>
