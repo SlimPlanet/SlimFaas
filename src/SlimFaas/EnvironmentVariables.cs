@@ -26,11 +26,6 @@ public static class EnvironmentVariables
     public const string BaseSlimDataUrlDefault = "http://{pod_ip}:3262";
 
 
-    public const int SlimProxyMiddlewareTimeoutWaitWakeSyncFunctionMilliSecondsDefault = 30000;
-
-    public const string TimeMaximumWaitForAtLeastOnePodStartedForSyncFunction =
-        "TIME_MAXIMUM_WAIT_FOR_AT_LEAST_ONE_POD_STARTED_FOR_SYNC_FUNCTION";
-
     public const string ReplicasSynchronisationWorkerDelayMilliseconds =
         "REPLICAS_SYNCHRONISATION_WORKER_DELAY_MILLISECONDS";
 

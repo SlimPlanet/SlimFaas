@@ -35,7 +35,7 @@ spec:
         app: mysql
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
     spec:
       containers:
         - image: mysql:5.6
