@@ -124,8 +124,6 @@ spec:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
         SlimFaas/SubscribeEvents : "fibo-public"
-        SlimFaas/FunctionName : "fibonacci3"
-        SlimFaas/BaseFunction : "http://fibonacci3.{namespace}.svc.cluster.local:5000"
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
