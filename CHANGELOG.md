@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.43.8
+
+- [ffea1e6](https://github.com/SlimPlanet/SlimFaas/commit/ffea1e6815de1553afb3d736ef2fc8b44449bf13) - fix(demo): typo (release), 2025-10-07 by *Guillaume Chervet*
+
+
+## 0.43.7
+
+
+
 ## v0.43.7
 
 - [4adacb0](https://github.com/SlimPlanet/SlimFaas/commit/4adacb093ecc11b908ea43796086dde356b507de) - fix(website): typo (release), 2025-10-07 by *Guillaume Chervet*
@@ -268,15 +277,5 @@
 ## v0.38.2
 
 - [e9acdaf](https://github.com/SlimPlanet/SlimFaas/commit/e9acdafbafcdc988b59e0eb983afac589ce068ef) - doc: slimfaas job enhance documentation (release), 2025-08-07 by *Guillaume Chervet*
-
-
-## 0.38.1
-
-
-
-## v0.38.1
-
-- [af16a83](https://github.com/SlimPlanet/SlimFaas/commit/af16a83171e973698034a4d8696b0642a6546108) - feature(mcp): add oauth rfc9728 (#139) (release), 2025-08-06 by *Guillaume Chervet*
-- [0f19915](https://github.com/SlimPlanet/SlimFaas/commit/0f19915237e682b170c911fdd566bc32f2af78b5) - feature(slimfaas): jobs cron schedule (#140) (release), 2025-08-06 by *Guillaume Chervet*
 
 
