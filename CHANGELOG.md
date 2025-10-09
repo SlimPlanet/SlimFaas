@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.44.1
+
+- [637b1f7](https://github.com/SlimPlanet/SlimFaas/commit/637b1f77283ad391813b2fd0b419729d23b37a7d) - fix(demo): docker arm (release) (#178), 2025-10-09 by *Guillaume Chervet*
+
+
+## 0.44.0
+
+
+
 ## v0.44.0
 
 - [6f013ce](https://github.com/SlimPlanet/SlimFaas/commit/6f013ce685bb33c90e0ba0e976edd2e5e79796eb) - feat(demo): docker compatible arm64 (release) (#177), 2025-10-09 by *Guillaume Chervet*
@@ -268,14 +277,5 @@
 ## v0.38.4
 
 - [c1c7305](https://github.com/SlimPlanet/SlimFaas/commit/c1c73059ed654c19e31a77ee209255c9b2809c0b) - fix(slimfaas): schedule http code and adopters logo link (#142) (release), 2025-08-07 by *Guillaume Chervet*
-
-
-## 0.38.3
-
-
-
-## v0.38.3
-
-- [1bf9b55](https://github.com/SlimPlanet/SlimFaas/commit/1bf9b55b8033e8eda8a5375d4c7c3b8dcce61da0) - feature(readme): add adopters (release) (#141), 2025-08-07 by *Guillaume Chervet*
 
 
