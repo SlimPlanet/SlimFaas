@@ -13,12 +13,21 @@ RUN dotnet publish "FibonacciBatch.csproj" -c $BUILD_CONFIGURATION -o /app/publi
 FROM mcr.microsoft.com/dotnet/runtime:9.0 AS final
 WORKDIR /app
 
-# (optionnel) créer un user non-root stable
+# ==== user/group idempotents & cross-distro (Debian/Alpine) ====
+ARG APP_USER=app
 ARG APP_UID=10001
 ARG APP_GID=10001
-RUN groupadd -g ${APP_GID} app && useradd -m -u ${APP_UID} -g ${APP_GID} -s /usr/sbin/nologin app
+RUN set -eux; \
+    if [ -f /etc/alpine-release ]; then \
+        addgroup -g "${APP_GID}" -S "${APP_USER}" 2>/dev/null || true; \
+        adduser  -u "${APP_UID}" -S -G "${APP_USER}" -s /sbin/nologin "${APP_USER}" 2>/dev/null || true; \
+    else \
+        getent group "${APP_USER}" >/dev/null || groupadd -g "${APP_GID}" "${APP_USER}"; \
+        id -u "${APP_USER}" >/dev/null 2>&1 || useradd -m -u "${APP_UID}" -g "${APP_GID}" -s /usr/sbin/nologin "${APP_USER}"; \
+    fi
+
 COPY --from=build /app/publish ./
-RUN chown -R app:app /app
-USER app
+RUN chown -R "${APP_USER}:${APP_USER}" /app
+USER ${APP_USER}
 
 ENTRYPOINT ["dotnet", "FibonacciBatch.dll"]
