@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.44.2
+
+- [70d4125](https://github.com/SlimPlanet/SlimFaas/commit/70d4125609db6af5b6edbab34060278080c86cb3) - fix(slimfaas): scale from 0 to 1 sync timeout based on http timeout (#176) (release), 2025-10-10 by *Guillaume Chervet*
+
+
+## 0.44.1
+
+
+
 ## v0.44.1
 
 - [637b1f7](https://github.com/SlimPlanet/SlimFaas/commit/637b1f77283ad391813b2fd0b419729d23b37a7d) - fix(demo): docker arm (release) (#178), 2025-10-09 by *Guillaume Chervet*
@@ -268,14 +277,5 @@
 
 - [d3b49e5](https://github.com/SlimPlanet/SlimFaas/commit/d3b49e55a43a8201eb16a6f4deb24918e9b4d6e5) - refactor(SlimData): Migration to a new command handler API (#145) (release), 2025-08-12 by *Roman Sakno*
 - [431763e](https://github.com/SlimPlanet/SlimFaas/commit/431763e530d568f7b4c2eb43b0d1a635390e0558) - ci(dependabot): add dependabot-secure-ci.yml (#144), 2025-08-11 by *Guillaume Chervet*
-
-
-## 0.38.4
-
-
-
-## v0.38.4
-
-- [c1c7305](https://github.com/SlimPlanet/SlimFaas/commit/c1c73059ed654c19e31a77ee209255c9b2809c0b) - fix(slimfaas): schedule http code and adopters logo link (#142) (release), 2025-08-07 by *Guillaume Chervet*
 
 
