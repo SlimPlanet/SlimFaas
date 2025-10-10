@@ -44,8 +44,6 @@ public partial class ListFunctionStatusSerializerContext : JsonSerializerContext
 
 public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQueue, IWakeUpFunction wakeUpFunction,
     ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts ,
-    int timeoutWaitWakeSyncFunctionMilliSecond =
-        EnvironmentVariables.SlimProxyMiddlewareTimeoutWaitWakeSyncFunctionMilliSecondsDefault,
     string slimFaasSubscribeEventsDefault = EnvironmentVariables.SlimFaasSubscribeEventsDefault)
 
 {
@@ -58,9 +56,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string Job = "/job";
     private const string JobSchedules = "/job-schedules";
 
-    private readonly int _timeoutMaximumWaitWakeSyncFunctionMilliSecond = EnvironmentVariables.ReadInteger(logger,
-        EnvironmentVariables.TimeMaximumWaitForAtLeastOnePodStartedForSyncFunction,
-        timeoutWaitWakeSyncFunctionMilliSecond);
 
     private readonly IDictionary<string, IList<string>> _slimFaasSubscribeEvents = EnvironmentVariables.ReadSlimFaasSubscribeEvents(logger,
         EnvironmentVariables.SlimFaasSubscribeEvents,
@@ -653,18 +648,23 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private async Task WaitForAnyPodStartedAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, HistoryHttpMemoryService historyHttpService,
         IReplicasService replicasService, string functionName)
     {
-        int numberLoop = _timeoutMaximumWaitWakeSyncFunctionMilliSecond / 10;
         long lastSetTicks = DateTime.UtcNow.Ticks;
         historyHttpService.SetTickLastCall(functionName, lastSetTicks);
+        DeploymentInformation? function = SearchFunction(replicasService, functionName);
+        if(function == null)
+        {
+            return;
+        }
+
+        var timeoutMiniSeconds = function.Configuration.DefaultSync.HttpTimeout * 100;
+        var numberLoop = timeoutMiniSeconds / 10;
         while (numberLoop > 0)
         {
             logger.LogDebug("WaitForAnyPodStartedAsync: Wait for any pod started for {FunctionName} {NumberLoop}", functionName, numberLoop);
-            DeploymentInformation? function = SearchFunction(replicasService, functionName);
             if(function == null)
             {
-                continue;
+                return;
             }
-
             bool? isAnyContainerStarted = function.Pods.Any(p => p.Ready.HasValue && p.Ready.Value);
             foreach (PodInformation podInformation in function.Pods)
             {

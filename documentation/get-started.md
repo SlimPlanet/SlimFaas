@@ -26,7 +26,7 @@ kubectl apply -f slimfaas-nodeport.yml
 # Alternatively:
 # kubectl apply -f slimfaas-ingress.yml
 
-# Deploy three sample Fibonacci functions
+# Deploy four sample Fibonacci functions
 kubectl apply -f deployment-functions.yml
 
 # Deploy MySQL (used by the Fibonacci functions)
