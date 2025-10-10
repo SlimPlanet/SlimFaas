@@ -21,7 +21,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci1
-          image: axaguildev/fibonacci-api:0.45.0-pr.178124
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
