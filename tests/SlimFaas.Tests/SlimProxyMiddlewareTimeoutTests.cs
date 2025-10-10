@@ -55,69 +55,66 @@ internal class NeverReadyReplicasService : IReplicasService
     public Task SyncDeploymentsFromSlimData(DeploymentsInformations deploymentsInformations) => Task.CompletedTask;
 }
 
+// Flip Ready en place (sans recréer les records)
 internal class FlipReadyQuicklyReplicasService : IReplicasService
 {
-    private readonly DeploymentInformation _function;
     private readonly DeploymentsInformations _deployments;
+    private readonly DeploymentInformation _function; // référence gardée pour modifier ses pods
 
     public FlipReadyQuicklyReplicasService(int httpTimeoutTenthsMs = 20, int flipDelayMs = 100)
     {
+        // Fonction "fibonacci" : EndpointReady = true dès le départ
         _function = new DeploymentInformation(
             Replicas: 1,
             Deployment: "fibonacci",
+            SubscribeEvents: new List<SubscribeEvent>(),
+            PathsStartWithVisibility: new List<PathVisibility>(),
             Namespace: "default",
             Configuration: new SlimFaasConfiguration
             {
-                DefaultSync = new SlimFaasDefaultConfiguration { HttpTimeout = httpTimeoutTenthsMs }
+                DefaultSync = new SlimFaasDefaultConfiguration
+                {
+                    // 20 => ~ 2s dans WaitForAnyPodStartedAsync (x100 ms)
+                    HttpTimeout = httpTimeoutTenthsMs
+                }
             },
             Pods: new List<PodInformation>
             {
-                // Démarre non prêt, puis deviendra prêt après flip
-                new PodInformation("fibonacci-0", false, false, "0", "fibonacci", new List<int> { 8080 })
+                // Pod initialement non prêt
+                new PodInformation("fibonacci-0", false, false, "10.0.0.42", "fibonacci", new List<int>{8080})
             },
-            EndpointReady: false
+            EndpointReady: true // ✅ on ne la modifie plus ensuite
         );
 
         _deployments = new DeploymentsInformations(
             new List<DeploymentInformation> { _function },
-            new SlimFaasDeploymentInformation(1,
-                new List<PodInformation> { new("", true, true, "", "", new List<int> { 5000 }) }),
+            new SlimFaasDeploymentInformation(1, new List<PodInformation> { new("", true, true, "", "", new List<int> { 5000 }) }),
             new List<PodInformation>()
         );
 
-        // Flip asynchrone : met chaque pod en READY après flipDelayMs
+        // Après un court délai, on bascule le/les pods en Ready=true (modif en place)
         _ = Task.Run(async () =>
         {
-            await Task.Delay(flipDelayMs);
+            await Task.Delay(flipDelayMs).ConfigureAwait(false);
 
-            // On remplace les éléments par index (foreach interdit l'affectation)
-            var funcs = _deployments.Functions;
-            for (int i = 0; i < funcs.Count; i++)
+            // On modifie la LISTE pods existante (même référence) :
+            // - on ne recrée NI la fonction NI Deployments
+            var pods = _function.Pods;
+            for (int j = 0; j < pods.Count; j++)
             {
-                if (funcs[i].Deployment != "fibonacci") continue;
-
-                var f = funcs[i];
-                var pods = f.Pods;
-
-                for (int j = 0; j < pods.Count; j++)
-                {
-                    // pods[j] est un record => on crée une nouvelle instance avec Ready=true
-                    pods[j] = pods[j] with { Ready = true };
-                }
-
-                // On replace le record function par un nouveau avec la même liste (déjà modifiée)
-                funcs[i] = f with { Pods = pods };
-                break;
+                // PodInformation est un record => on remplace l'élément par une copie Ready=true
+                pods[j] = pods[j] with { Ready = true };
             }
         });
     }
 
-    public DeploymentsInformations Deployments { get; }
+    public DeploymentsInformations Deployments => _deployments;
+
     public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => throw new NotImplementedException();
-
     public Task CheckScaleAsync(string kubeNamespace) => throw new NotImplementedException();
-
+    public Task SyncDeploymentsFromSlimData(DeploymentsInformations deploymentsInformations) => Task.CompletedTask;
 }
+
 
 // === Client HTTP sync pilotable pour forcer un 504 si besoin ===
 internal class SendClientGatewayTimeout : ISendClient
