@@ -179,12 +179,13 @@ app.MapGet("/error", async () =>
 });
 
 
-app.MapPost("/compute", async ([FromServices] RequestCounter counter) =>
+app.MapPost("/compute", async ([FromServices] RequestCounter counter, [FromBody] JsonElement body) =>
 {
     counter.Begin();
 
     try
     {
+        Console.WriteLine("[fib] body: " + body.GetRawText());
         Console.WriteLine($"InProgress: {counter.InProgress}");
         Console.WriteLine($"State: {counter.State}");
         Console.WriteLine($"Completed: {counter.Completed}");
