@@ -136,8 +136,6 @@ serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
 
-
-
 serviceCollectionSlimFaas.AddCors();
 
 string publicEndPoint = string.Empty;

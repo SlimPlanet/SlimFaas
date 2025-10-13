@@ -114,11 +114,11 @@ spec:
               mountPath: /database
           resources:
             limits:
-              memory: "120Mi"
-              cpu: "400m"
+              memory: "380Mi"
+              cpu: "1000m"
             requests:
-              memory: "120Mi"
-              cpu: "250m"
+              memory: "380Mi"
+              cpu: "1000m"
           ports:
             - containerPort: 5000
               name: slimfaas
