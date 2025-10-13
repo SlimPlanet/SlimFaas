@@ -43,8 +43,7 @@ public partial class ListFunctionStatusSerializerContext : JsonSerializerContext
 }
 
 public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQueue, IWakeUpFunction wakeUpFunction,
-    ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts ,
-    string slimFaasSubscribeEventsDefault = EnvironmentVariables.SlimFaasSubscribeEventsDefault)
+    ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts)
 
 {
     private const string AsyncFunction = "/async-function";
