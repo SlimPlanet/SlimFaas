@@ -1,41 +1,56 @@
-﻿// dotnet run --project Client  (par ex.)
-// Framework: .NET 7/8/9 OK
+﻿// dotnet run
+// .NET 7/8/9
 
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 
 var baseAddress = "http://localhost:30021";
-var fib1Path = "/async-function/fibonacci1/compute";
-var fib2Path = "/async-function/fibonacci2/compute";
+var fib1 = "/async-function/fibonacci1/compute";
+var fib2 = "/async-function/fibonacci2/compute";
 
-// nombre total de requêtes pour reproduire le bug
-int total = 100;
-// délai entre requêtes (optionnel)
-TimeSpan? delay = TimeSpan.FromMilliseconds(50);
+// Combien de paires (2 requêtes envoyées en même temps : fib1 + fib2)
+int pairs = 10000;
+
+// (Optionnel) délai entre paires pour bien voir les logs côté serveur
+TimeSpan? interPairDelay = TimeSpan.FromMilliseconds(10);
 
 using var http = new HttpClient { BaseAddress = new Uri(baseAddress) };
 
-for (int i = 0; i < total; i++)
+for (int i = 0; i < pairs; i++)
 {
-    bool toFib1 = (i % 2 == 0);
-    var endpoint = toFib1 ? fib1Path : fib2Path;
+    // Prépare 2 bodies différents
+    var body1 = JsonSerializer.Serialize(new { seq = i, type = "fib1", n = 30, note = "pair-start" });
+    var body2 = JsonSerializer.Serialize(new { seq = i, type = "fib2", n = 31, note = "pair-start" });
 
-    // Bodies différents pour 1 et 2
-    object payload = toFib1
-        ? new { seq = i, type = "fib1", n = 30, hint = "alt:1" }
-        : new { seq = i, type = "fib2", n = 31, hint = "alt:2" };
+    // Crée les 2 requêtes
+    using var req1 = new HttpRequestMessage(HttpMethod.Post, fib1)
+    {
+        Content = new StringContent(body1, Encoding.UTF8, "application/json")
+    };
+    using var req2 = new HttpRequestMessage(HttpMethod.Post, fib2)
+    {
+        Content = new StringContent(body2, Encoding.UTF8, "application/json")
+    };
 
-    var json = JsonSerializer.Serialize(payload);
-    using var content = new StringContent(json, Encoding.UTF8, "application/json");
+    Console.WriteLine($"[{i}] -> (parallel) POST {fib1} | {fib2}");
 
-    Console.WriteLine($"-> POST {endpoint}  body={json}");
-    var resp = await http.PostAsync(endpoint, content);
-    var respText = await resp.Content.ReadAsStringAsync();
-    Console.WriteLine($"<- {(int)resp.StatusCode} {resp.ReasonPhrase}  body={respText}");
+    // Lance vraiment en parallèle
+    var send1 = http.SendAsync(req1);
+    var send2 = http.SendAsync(req2);
 
-    if (delay is not null)
-        await Task.Delay(delay.Value);
+    var responses = await Task.WhenAll(send1, send2);
+
+    // (Optionnel) log des réponses
+    for (int k = 0; k < responses.Length; k++)
+    {
+        var r = responses[k];
+        var txt = await r.Content.ReadAsStringAsync();
+        Console.WriteLine($"[{i}] <- {(k==0 ? "fib1" : "fib2")} {((int)r.StatusCode)} {r.ReasonPhrase} body={txt}");
+    }
+
+    if (interPairDelay is not null)
+        await Task.Delay(interPairDelay.Value);
 }
 
 Console.WriteLine("Done.");

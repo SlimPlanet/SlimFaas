@@ -98,6 +98,44 @@ public class SlimDataInterpreter : CommandInterpreter
         
         return default;
     }
+    
+    [CommandHandler]
+    public ValueTask ListLeftPushBatchAsync(ListLeftPushBatchCommand listLeftPushBatchCommand, CancellationToken token)
+    {
+        return DoListLeftPushBatchAsync(listLeftPushBatchCommand, SlimDataState);
+    }
+    
+    internal static ValueTask DoListLeftPushBatchAsync(ListLeftPushBatchCommand listLeftPushBatchCommand, SlimDataState slimDataState)
+    {
+        var queues = slimDataState.Queues;
+        foreach (var listLeftPushCommand in listLeftPushBatchCommand.Items)
+        {
+            var queueElement = new QueueElement(
+                listLeftPushCommand.Value,
+                listLeftPushCommand.Identifier,
+                listLeftPushCommand.NowTicks,
+                listLeftPushCommand.RetryTimeout,
+                listLeftPushCommand.Retries.ToImmutableList(),
+                ImmutableList<QueueHttpTryElement>.Empty,
+                listLeftPushCommand.HttpStatusCodesWorthRetrying.ToImmutableList()
+            );
+            if (queues.TryGetValue(listLeftPushCommand.Key, out var value))
+            {
+                if (value.All(q => q.Id != listLeftPushCommand.Identifier))
+                {
+                    var newValue = value.Add(queueElement);
+                    queues = queues.SetItem(listLeftPushCommand.Key, newValue);
+                }
+            }
+            else
+            {
+                var newValue = ImmutableList<QueueElement>.Empty.Add(queueElement);
+                queues = queues.Add(listLeftPushCommand.Key, newValue);
+            }
+        }
+        slimDataState.Queues = queues;
+        return default;
+    }
 
     [CommandHandler]
     public ValueTask ListLeftPushAsync(ListLeftPushCommand addHashSetCommand, CancellationToken token)

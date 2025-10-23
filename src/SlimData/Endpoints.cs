@@ -10,6 +10,15 @@ namespace SlimData;
 public partial record ListLeftPushInput(byte[] Value, byte[] RetryInformation);
 
 [MemoryPackable]
+public partial record ListLeftPushBatchItem(string Key, byte[] Payload); // Payload = serialize de ListLeftPushInput
+
+[MemoryPackable]
+public partial record ListLeftPushBatchRequest(ListLeftPushBatchItem[] Items);
+
+[MemoryPackable]
+public partial record ListLeftPushBatchResponse(string[] ElementIds);
+
+[MemoryPackable]
 public partial record RetryInformation(List<int> Retries, int RetryTimeoutSeconds, List<int> HttpStatusRetries);
 
 [MemoryPackable]
@@ -200,9 +209,69 @@ public class Endpoints
         return values;
     }
     
+    public static async Task ListLeftPushBatchAsync(HttpContext context)
+    {
+        var task = DoAsync(context, async (cluster, provider, source) =>
+        {
+            var inputStream = context.Request.Body;
+            await using var memoryStream = new MemoryStream();
+            await inputStream.CopyToAsync(memoryStream, source.Token);
+            var value = memoryStream.ToArray();
+            var listLeftPushBatchCommand = await ListLeftPushBatchCommand(provider, value, cluster, source);
+            context.Response.StatusCode = StatusCodes.Status201Created;
+            var responseBytes = MemoryPackSerializer.Serialize(listLeftPushBatchCommand);
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = "application/octet-stream";
+            context.Response.ContentLength = responseBytes.Length;
+
+            await context.Response.Body.WriteAsync(responseBytes, 0, responseBytes.Length, source.Token);
+            await context.Response.Body.FlushAsync(source.Token);
+
+        });
+        await task;
+    }
+    
+    public static async Task<ListLeftPushBatchResponse> ListLeftPushBatchCommand(SlimPersistentState provider, byte[] value,
+        IRaftCluster cluster, CancellationTokenSource source)
+    {
+        
+        var bin = MemoryPackSerializer.Serialize(value);
+        var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(bin);
+        
+        List<ListLeftPushBatchCommand.BatchItem> batchItems = new(listLeftPushBatchRequest.Items.Length); 
+        foreach (var item in listLeftPushBatchRequest.Items)
+        {
+            var key = item.Key;
+            var listLeftPushInput = MemoryPackSerializer.Deserialize<ListLeftPushInput>(item.Payload);
+            var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(listLeftPushInput.RetryInformation);
+            var batchItem = new ListLeftPushBatchCommand.BatchItem();
+            batchItem.Key = key;
+            batchItem.Value = new ArraySegment<byte>(listLeftPushInput.Value);
+            batchItem.HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries;
+            batchItem.RetryTimeout = retryInformation.RetryTimeoutSeconds;
+            batchItem.HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries;
+            batchItem.Identifier = Guid.NewGuid().ToString();
+            batchItem.NowTicks = DateTime.UtcNow.Ticks;
+            batchItems.Add(batchItem);
+        }
+
+        var logEntry = new LogEntry<ListLeftPushBatchCommand>()
+        {
+            Term = cluster.Term,
+            Command = new()
+            {
+                Items = batchItems,
+            },
+        };
+
+        await cluster.ReplicateAsync(logEntry, source.Token);
+        var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => b.Identifier).ToArray());
+
+        return listLeftPushBatchResponse;
+    }
+    
     public static async Task ListLeftPushAsync(HttpContext context)
     {
-
         var task = DoAsync(context, async (cluster, provider, source) =>
         {
             context.Request.Query.TryGetValue("key", out var key);
@@ -248,7 +317,6 @@ public class Endpoints
         };
 
         await cluster.ReplicateAsync(logEntry, source.Token);
-
         return id;
     }
     
