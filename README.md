@@ -3,7 +3,7 @@
   <img src="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" alt="SlimFaas" />
 </div>
 
-<div align="center">
+<div align="center"> 
   <h1>
     <a href="https://slimfaas.dev">Go to SlimFaas website</a>
   </h1>
