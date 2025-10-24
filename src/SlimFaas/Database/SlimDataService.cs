@@ -42,7 +42,7 @@ public class SlimDataService
          _llpBatcher = new AdaptiveBatcher<ListLeftPushReq, string>(
              directHandler: (req, ct) => DirectHandlerAsync(req, ct),
              batchHandler:  (batch, ct) => BatchHandlerAsync(batch, ct),
-             flushInterval: TimeSpan.FromMilliseconds(20),
+             flushInterval: TimeSpan.FromMilliseconds(100),
              thresholds: thresholds,
              ringSizePowerOf2: 10,
              maxBatchSize: 512
@@ -100,7 +100,6 @@ public class SlimDataService
             var result = await Endpoints.ListLeftPushBatchCommand(_cluster, bin, new CancellationTokenSource());
             return result.ElementIds;
         }
-
 
         using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListLeftPushBatch"))
