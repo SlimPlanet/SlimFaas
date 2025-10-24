@@ -51,20 +51,32 @@ public sealed class AdaptiveBatcher<TReq, TRes> : IAsyncDisposable
         _loopTask = Task.Run(LoopAsync);
     }
 
+    private int _pending; // nombre d'éléments actuellement dans le channel
+
+
     public async Task<TRes> EnqueueAsync(TReq request, CancellationToken ct = default)
     {
         RecordArrival();
 
-        // Fast-path: si pas en mode batch ET queue vide => handler direct
-        if (!ShouldBatch() && _channel.Reader.Count == 0)
+        if (!ShouldBatch() && Volatile.Read(ref _pending) == 0)
         {
             return await _directHandler(request, ct).ConfigureAwait(false);
         }
 
         var tcs = new TaskCompletionSource<TRes>(TaskCreationOptions.RunContinuationsAsynchronously);
-        await _channel.Writer.WriteAsync((request, tcs), ct).ConfigureAwait(false);
+        Interlocked.Increment(ref _pending);
+        try
+        {
+            await _channel.Writer.WriteAsync((request, tcs), ct).ConfigureAwait(false);
+        }
+        catch
+        {
+            Interlocked.Decrement(ref _pending); // rollback si l'écriture échoue
+            throw;
+        }
         return await tcs.Task.ConfigureAwait(false);
     }
+
 
     private async Task LoopAsync()
     {
@@ -75,7 +87,6 @@ public sealed class AdaptiveBatcher<TReq, TRes> : IAsyncDisposable
         {
             while (!ct.IsCancellationRequested)
             {
-                // attendre le 1er élément
                 (TReq req, TaskCompletionSource<TRes> tcs) first;
                 try { first = await reader.ReadAsync(ct).ConfigureAwait(false); }
                 catch (OperationCanceledException) { break; }
@@ -83,9 +94,11 @@ public sealed class AdaptiveBatcher<TReq, TRes> : IAsyncDisposable
                 var buffer = new List<(TReq req, TaskCompletionSource<TRes> tcs)> { first };
                 var start = ValueStopwatch.StartNew();
 
-                // fenêtre de coalescence
                 while (start.Elapsed < _flushInterval && buffer.Count < _maxBatchSize && reader.TryRead(out var more))
                     buffer.Add(more);
+
+                // on a retiré 'buffer.Count' éléments du channel
+                Interlocked.Add(ref _pending, -buffer.Count);
 
                 try
                 {
@@ -102,9 +115,13 @@ public sealed class AdaptiveBatcher<TReq, TRes> : IAsyncDisposable
         {
             // vider la file en erreur
             while (reader.TryRead(out var item))
+            {
+                Interlocked.Decrement(ref _pending);
                 item.tcs.TrySetException(new TaskCanceledException("Batcher stopped"));
+            }
         }
     }
+
 
     private async Task ProcessBufferAsync(List<(TReq req, TaskCompletionSource<TRes> tcs)> buffer, CancellationToken ct)
     {

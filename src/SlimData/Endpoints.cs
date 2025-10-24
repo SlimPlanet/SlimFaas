@@ -235,8 +235,8 @@ public class Endpoints
         IRaftCluster cluster, CancellationTokenSource source)
     {
         
-        var bin = MemoryPackSerializer.Serialize(value);
-        var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(bin);
+        //var bin = MemoryPackSerializer.Serialize(value);
+        var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
         
         List<ListLeftPushBatchCommand.BatchItem> batchItems = new(listLeftPushBatchRequest.Items.Length); 
         foreach (var item in listLeftPushBatchRequest.Items)

@@ -13,8 +13,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="DotNext.AspNetCore.Cluster" Version="5.25.2" />
+        <PackageReference Include="DotNext.AspNetCore.Cluster" Version="5.26.0" />
         <PackageReference Include="MemoryPack" Version="1.21.4" />
+        <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="9.0.10" />
     </ItemGroup>
 
 </Project>

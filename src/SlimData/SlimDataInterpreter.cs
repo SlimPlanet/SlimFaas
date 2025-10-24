@@ -336,6 +336,7 @@ public class SlimDataInterpreter : CommandInterpreter
     {
         ValueTask ListRightPopHandler(ListRightPopCommand command, CancellationToken token) => DoListRightPopAsync(command, state);
         ValueTask ListLeftPushHandler(ListLeftPushCommand command, CancellationToken token) => DoListLeftPushAsync(command, state);
+        ValueTask ListLeftPushBatchHandler(ListLeftPushBatchCommand command, CancellationToken token) => DoListLeftPushBatchAsync(command, state);
         ValueTask AddHashSetHandler(AddHashSetCommand command, CancellationToken token) => DoAddHashSetAsync(command, state);
         ValueTask DeleteHashSetHandler(DeleteHashSetCommand command, CancellationToken token) => DoDeleteHashSetAsync(command, state);
         ValueTask AddKeyValueHandler(AddKeyValueCommand command, CancellationToken token) => DoAddKeyValueAsync(command, state);
@@ -346,6 +347,7 @@ public class SlimDataInterpreter : CommandInterpreter
         var interpreter = new Builder()
             .Add(new Func<ListRightPopCommand, CancellationToken, ValueTask>(ListRightPopHandler))
             .Add(new Func<ListLeftPushCommand, CancellationToken, ValueTask>(ListLeftPushHandler))
+            .Add(new Func<ListLeftPushBatchCommand, CancellationToken, ValueTask>(ListLeftPushBatchHandler))
             .Add(new Func<AddHashSetCommand, CancellationToken, ValueTask>(AddHashSetHandler))
             .Add(new Func<DeleteHashSetCommand, CancellationToken, ValueTask>(DeleteHashSetHandler))
             .Add(new Func<AddKeyValueCommand, CancellationToken, ValueTask>(AddKeyValueHandler))

@@ -22,6 +22,7 @@ public class Startup(IConfiguration configuration)
         const string DeleteHashSetResource = "/SlimData/DeleteHashset";
         const string ListRightPopResource = "/SlimData/ListRightPop";
         const string ListLeftPushResource = "/SlimData/ListLeftPush";
+        const string ListLeftPushBatchResource = "/SlimData/ListLeftPushBatch";
         const string AddKeyValueResource = "/SlimData/AddKeyValue";
         const string ListLengthResource = "/SlimData/ListLength";
         const string ListSetQueueItemStatus = "/SlimData/ListCallback";
@@ -30,6 +31,7 @@ public class Startup(IConfiguration configuration)
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
             .RedirectToLeader(ListLeftPushResource)
+            .RedirectToLeader(ListLeftPushBatchResource)
             .RedirectToLeader(ListRightPopResource)
             .RedirectToLeader(AddKeyValueResource)
             .RedirectToLeader(AddHashSetResource)
@@ -40,6 +42,7 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapGet(LeaderResource, Endpoints.RedirectToLeaderAsync);
                 endpoints.MapGet(HealthResource, async context => { await context.Response.WriteAsync("OK"); });
                 endpoints.MapPost(ListLeftPushResource,  Endpoints.ListLeftPushAsync);
+                endpoints.MapPost(ListLeftPushBatchResource,  Endpoints.ListLeftPushBatchAsync);
                 endpoints.MapPost(ListRightPopResource,  Endpoints.ListRightPopAsync);
                 endpoints.MapPost(AddHashSetResource,  Endpoints.AddHashSetAsync);
                 endpoints.MapPost(DeleteHashSetResource,  Endpoints.DeleteHashSetAsync);

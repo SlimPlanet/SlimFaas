@@ -14,7 +14,7 @@ public readonly record struct ListLeftPushReq(string Key, byte[] SerializedPaylo
 
 #pragma warning disable CA2252
 public class SlimDataService
-    : IDatabaseService
+    : IDatabaseService, IAsyncDisposable
 {
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceProvider _serviceProvider;
@@ -83,51 +83,51 @@ public class SlimDataService
     private Task<string> DirectHandlerAsync(ListLeftPushReq req, CancellationToken ct)
         => DoListLeftPushAsync(req.Key, req.Field, req.RetryInfo);
 
-// 6) Handler batch = leader/non-leader
-private async Task<IReadOnlyList<string>> BatchHandlerAsync(IReadOnlyList<ListLeftPushReq> batch, CancellationToken ct)
-{
-    // Récupère endpoint + rôle
-    var endpoint = await GetAndWaitForLeader();
-    var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
-
-    if (isLeader)
+    // 6) Handler batch = leader/non-leader
+    private async Task<IReadOnlyList<string>> BatchHandlerAsync(IReadOnlyList<ListLeftPushReq> batch, CancellationToken ct)
     {
-        // Traiter localement, un par un
-        var simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
-        var results = new string[batch.Count];
-        for (int i = 0; i < batch.Count; i++)
+        // Récupère endpoint + rôle
+        var endpoint = await GetAndWaitForLeader();
+        var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
+
+        if (isLeader)
         {
-            var it = batch[i];
-            results[i] = await Endpoints.ListLeftPushCommand(
-                simplePersistentState, it.Key, it.SerializedPayload, _cluster, new CancellationTokenSource());
+            // Traiter localement, un par un
+            var simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
+            var results = new string[batch.Count];
+            for (int i = 0; i < batch.Count; i++)
+            {
+                var it = batch[i];
+                results[i] = await Endpoints.ListLeftPushCommand(
+                    simplePersistentState, it.Key, it.SerializedPayload, _cluster, new CancellationTokenSource());
+            }
+            return results;
         }
-        return results;
+
+        // Non-leader : un seul POST vers SlimData/ListLeftPushBatch
+        var req = new ListLeftPushBatchRequest(
+            batch.Select(b => new ListLeftPushBatchItem(b.Key, b.SerializedPayload)).ToArray()
+        );
+        var bin = MemoryPackSerializer.Serialize(req);
+
+        using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListLeftPushBatch"))
+        {
+            Content = new ByteArrayContent(bin)
+        };
+        using var response = await httpClient.SendAsync(httpRequest, ct);
+        if ((int)response.StatusCode >= 500)
+            throw new DataException("Error in calling SlimData HTTP Service (batch)");
+
+        var respBytes = await response.Content.ReadAsByteArrayAsync(ct);
+        var resp = MemoryPackSerializer.Deserialize<ListLeftPushBatchResponse>(respBytes)
+                   ?? throw new DataException("Null batch response");
+
+        if (resp.ElementIds.Length != batch.Count)
+            throw new DataException("Batch response count mismatch");
+
+        return resp.ElementIds;
     }
-
-    // Non-leader : un seul POST vers SlimData/ListLeftPushBatch
-    var req = new ListLeftPushBatchRequest(
-        batch.Select(b => new ListLeftPushBatchItem(b.Key, b.SerializedPayload)).ToArray()
-    );
-    var bin = MemoryPackSerializer.Serialize(req);
-
-    using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
-    using var httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListLeftPushBatch"))
-    {
-        Content = new ByteArrayContent(bin)
-    };
-    using var response = await httpClient.SendAsync(httpRequest, ct);
-    if ((int)response.StatusCode >= 500)
-        throw new DataException("Error in calling SlimData HTTP Service (batch)");
-
-    var respBytes = await response.Content.ReadAsByteArrayAsync(ct);
-    var resp = MemoryPackSerializer.Deserialize<ListLeftPushBatchResponse>(respBytes)
-               ?? throw new DataException("Null batch response");
-
-    if (resp.ElementIds.Length != batch.Count)
-        throw new DataException("Batch response count mismatch");
-
-    return resp.ElementIds;
-}
 
     // 7) Dispose
     public async ValueTask DisposeAsync()
