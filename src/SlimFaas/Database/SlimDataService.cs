@@ -88,27 +88,19 @@ public class SlimDataService
     {
         // Récupère endpoint + rôle
         var endpoint = await GetAndWaitForLeader();
-        var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
 
-        if (isLeader)
-        {
-            // Traiter localement, un par un
-            var simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            var results = new string[batch.Count];
-            for (int i = 0; i < batch.Count; i++)
-            {
-                var it = batch[i];
-                results[i] = await Endpoints.ListLeftPushCommand(
-                    simplePersistentState, it.Key, it.SerializedPayload, _cluster, new CancellationTokenSource());
-            }
-            return results;
-        }
-
-        // Non-leader : un seul POST vers SlimData/ListLeftPushBatch
         var req = new ListLeftPushBatchRequest(
             batch.Select(b => new ListLeftPushBatchItem(b.Key, b.SerializedPayload)).ToArray()
         );
         var bin = MemoryPackSerializer.Serialize(req);
+        var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
+
+        if (isLeader)
+        {
+            var result = await Endpoints.ListLeftPushBatchCommand(_cluster, bin, new CancellationTokenSource());
+            return result.ElementIds;
+        }
+
 
         using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListLeftPushBatch"))

@@ -217,7 +217,7 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
-            var listLeftPushBatchCommand = await ListLeftPushBatchCommand(provider, value, cluster, source);
+            var listLeftPushBatchCommand = await ListLeftPushBatchCommand(cluster, value, source);
             context.Response.StatusCode = StatusCodes.Status201Created;
             var responseBytes = MemoryPackSerializer.Serialize(listLeftPushBatchCommand);
             context.Response.StatusCode = StatusCodes.Status200OK;
@@ -231,8 +231,8 @@ public class Endpoints
         await task;
     }
     
-    public static async Task<ListLeftPushBatchResponse> ListLeftPushBatchCommand(SlimPersistentState provider, byte[] value,
-        IRaftCluster cluster, CancellationTokenSource source)
+    public static async Task<ListLeftPushBatchResponse> ListLeftPushBatchCommand(IRaftCluster cluster, byte[] value
+        , CancellationTokenSource source)
     {
         
         //var bin = MemoryPackSerializer.Serialize(value);
