@@ -58,10 +58,10 @@ public sealed class AdaptiveBatcher<TReq, TRes> : IAsyncDisposable
     {
         RecordArrival();
 
-        if (!ShouldBatch() && Volatile.Read(ref _pending) == 0)
+       /* if (!ShouldBatch() && Volatile.Read(ref _pending) == 0)
         {
             return await _directHandler(request, ct).ConfigureAwait(false);
-        }
+        }*/
 
         var tcs = new TaskCompletionSource<TRes>(TaskCreationOptions.RunContinuationsAsynchronously);
         Interlocked.Increment(ref _pending);
