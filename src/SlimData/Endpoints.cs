@@ -42,7 +42,7 @@ public class Endpoints
         CancellationTokenSource? source);
     
     // Taille: 2–4 × (nombre de followers) est un bon départ
-    private static readonly SemaphoreSlim Inflight = new(initialCount: 1);
+    private static readonly SemaphoreSlim Inflight = new(initialCount: 4);
 
     private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, LogEntry<T> cmd, CancellationToken ct)
         where T : struct, ICommand<T>
@@ -52,6 +52,9 @@ public class Endpoints
             throw new TooManyRequestsException(); // ou return 429
         try
         {
+            var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
+            if (!isLeader)
+                throw new AbandonedMutexException("Node is not leader anymore");
             return await cluster.ReplicateAsync(cmd, ct);
         }
         finally
