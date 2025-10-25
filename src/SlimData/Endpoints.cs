@@ -40,6 +40,25 @@ public class Endpoints
 {
     public delegate Task RespondDelegate(IRaftCluster cluster, SlimPersistentState provider,
         CancellationTokenSource? source);
+    
+    // Taille: 2–4 × (nombre de followers) est un bon départ
+    private static readonly SemaphoreSlim Inflight = new(initialCount: 16);
+
+    private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, LogEntry<T> cmd, CancellationToken ct)
+        where T : struct, ICommand<T>
+    {
+        // Évite le head-of-line : ne bloque pas indéfiniment
+        if (!await Inflight.WaitAsync(TimeSpan.FromMilliseconds(2000), ct))
+            throw new TooManyRequestsException(); // ou return 429
+        try
+        {
+            return await cluster.ReplicateAsync(cmd, ct);
+        }
+        finally
+        {
+            Inflight.Release();
+        }
+    }
 
     public static Task RedirectToLeaderAsync(HttpContext context)
     {
@@ -106,7 +125,7 @@ public class Endpoints
             Term = cluster.Term,
             Command = new() { Key = key, Value = value },
         };
-        await cluster.ReplicateAsync(logEntry, source.Token);
+        await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
     
     public static async Task DeleteHashSetAsync(HttpContext context)
@@ -138,7 +157,7 @@ public class Endpoints
             Command = new() { Key = key, DictionaryKey = dictionaryKey }
         };
 
-        await cluster.ReplicateAsync(logEntry, source.Token);
+        await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
 
     public static Task ListRightPopAsync(HttpContext context)
@@ -175,7 +194,7 @@ public class Endpoints
             Term = cluster.Term,
             Command = new() { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId },
         };
-        await cluster.ReplicateAsync(logEntry, source.Token);
+        await SafeReplicateAsync(cluster, logEntry, source.Token);
         await Task.Delay(2, source.Token);
         var supplier = (ISupplier<SlimDataPayload>)provider;
         int numberTry = 10;
@@ -264,7 +283,7 @@ public class Endpoints
             },
         };
 
-        await cluster.ReplicateAsync(logEntry, source.Token);
+        await SafeReplicateAsync(cluster, logEntry, source.Token);
         var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => b.Identifier).ToArray());
 
         return listLeftPushBatchResponse;
@@ -316,7 +335,7 @@ public class Endpoints
             },
         };
 
-        await cluster.ReplicateAsync(logEntry, source.Token);
+        await SafeReplicateAsync(cluster, logEntry, source.Token);
         return id;
     }
     
@@ -365,7 +384,7 @@ public class Endpoints
             },
         };
         
-        await cluster.ReplicateAsync(logEntry, source.Token);
+        await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
 
     private static (string key, string value) GetKeyValue(IFormCollection form)
@@ -411,6 +430,10 @@ public class Endpoints
             Command = new() { Key = key, Value = value },
         };
         
-        await cluster.ReplicateAsync(logEntry, source.Token);
+        await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
+}
+
+public class TooManyRequestsException : Exception
+{
 }
