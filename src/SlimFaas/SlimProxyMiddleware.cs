@@ -43,8 +43,7 @@ public partial class ListFunctionStatusSerializerContext : JsonSerializerContext
 }
 
 public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQueue, IWakeUpFunction wakeUpFunction,
-    ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts ,
-    string slimFaasSubscribeEventsDefault = EnvironmentVariables.SlimFaasSubscribeEventsDefault)
+    ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts)
 
 {
     private const string AsyncFunction = "/async-function";
@@ -56,10 +55,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string Job = "/job";
     private const string JobSchedules = "/job-schedules";
 
-
-    private readonly IDictionary<string, IList<string>> _slimFaasSubscribeEvents = EnvironmentVariables.ReadSlimFaasSubscribeEvents(logger,
-        EnvironmentVariables.SlimFaasSubscribeEvents,
-        slimFaasSubscribeEventsDefault);
 
 
 
@@ -482,8 +477,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     {
         logger.LogDebug("Receiving event: {EventName}", eventName);
         var functions = SearchFunctions(logger, context, replicasService, jobService, eventName);
-        var slimFaasSubscribeEvents = _slimFaasSubscribeEvents.Where(s => s.Key == eventName);
-        if (functions.Count <= 0 && !slimFaasSubscribeEvents.Any())
+        if (functions.Count <= 0)
         {
             logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
             context.Response.StatusCode = 404;
@@ -522,16 +516,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl);
                 logger.LogDebug("Sending event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent}", eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
                 Task task = SendRequest(queryString, sendClient, customRequest with {FunctionName =  function.Deployment}, baseUrl, logger, eventName, function.Configuration.DefaultPublish);
-                tasks.Add(task);
-            }
-        }
-
-        foreach (KeyValuePair<string,IList<string>> slimFaasSubscribeEvent in slimFaasSubscribeEvents)
-        {
-            foreach (string baseUrl in slimFaasSubscribeEvent.Value)
-            {
-                logger.LogDebug("Sending event {EventName} to {BaseUrl} with path {FunctionPath} and query {UriComponent}", eventName, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
-                Task task = SendRequest(queryString, sendClient, customRequest with {FunctionName = ""}, baseUrl, logger, eventName, new SlimFaasDefaultConfiguration());
                 tasks.Add(task);
             }
         }

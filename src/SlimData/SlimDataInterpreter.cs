@@ -98,6 +98,44 @@ public class SlimDataInterpreter : CommandInterpreter
         
         return default;
     }
+    
+    [CommandHandler]
+    public ValueTask ListLeftPushBatchAsync(ListLeftPushBatchCommand listLeftPushBatchCommand, CancellationToken token)
+    {
+        return DoListLeftPushBatchAsync(listLeftPushBatchCommand, SlimDataState);
+    }
+    
+    internal static ValueTask DoListLeftPushBatchAsync(ListLeftPushBatchCommand listLeftPushBatchCommand, SlimDataState slimDataState)
+    {
+        var queues = slimDataState.Queues;
+        foreach (var listLeftPushCommand in listLeftPushBatchCommand.Items)
+        {
+            var queueElement = new QueueElement(
+                listLeftPushCommand.Value,
+                listLeftPushCommand.Identifier,
+                listLeftPushCommand.NowTicks,
+                listLeftPushCommand.RetryTimeout,
+                listLeftPushCommand.Retries.ToImmutableList(),
+                ImmutableList<QueueHttpTryElement>.Empty,
+                listLeftPushCommand.HttpStatusCodesWorthRetrying.ToImmutableList()
+            );
+            if (queues.TryGetValue(listLeftPushCommand.Key, out var value))
+            {
+                if (value.All(q => q.Id != listLeftPushCommand.Identifier))
+                {
+                    var newValue = value.Add(queueElement);
+                    queues = queues.SetItem(listLeftPushCommand.Key, newValue);
+                }
+            }
+            else
+            {
+                var newValue = ImmutableList<QueueElement>.Empty.Add(queueElement);
+                queues = queues.Add(listLeftPushCommand.Key, newValue);
+            }
+        }
+        slimDataState.Queues = queues;
+        return default;
+    }
 
     [CommandHandler]
     public ValueTask ListLeftPushAsync(ListLeftPushCommand addHashSetCommand, CancellationToken token)
@@ -298,6 +336,7 @@ public class SlimDataInterpreter : CommandInterpreter
     {
         ValueTask ListRightPopHandler(ListRightPopCommand command, CancellationToken token) => DoListRightPopAsync(command, state);
         ValueTask ListLeftPushHandler(ListLeftPushCommand command, CancellationToken token) => DoListLeftPushAsync(command, state);
+        ValueTask ListLeftPushBatchHandler(ListLeftPushBatchCommand command, CancellationToken token) => DoListLeftPushBatchAsync(command, state);
         ValueTask AddHashSetHandler(AddHashSetCommand command, CancellationToken token) => DoAddHashSetAsync(command, state);
         ValueTask DeleteHashSetHandler(DeleteHashSetCommand command, CancellationToken token) => DoDeleteHashSetAsync(command, state);
         ValueTask AddKeyValueHandler(AddKeyValueCommand command, CancellationToken token) => DoAddKeyValueAsync(command, state);
@@ -308,6 +347,7 @@ public class SlimDataInterpreter : CommandInterpreter
         var interpreter = new Builder()
             .Add(new Func<ListRightPopCommand, CancellationToken, ValueTask>(ListRightPopHandler))
             .Add(new Func<ListLeftPushCommand, CancellationToken, ValueTask>(ListLeftPushHandler))
+            .Add(new Func<ListLeftPushBatchCommand, CancellationToken, ValueTask>(ListLeftPushBatchHandler))
             .Add(new Func<AddHashSetCommand, CancellationToken, ValueTask>(AddHashSetHandler))
             .Add(new Func<DeleteHashSetCommand, CancellationToken, ValueTask>(DeleteHashSetHandler))
             .Add(new Func<AddKeyValueCommand, CancellationToken, ValueTask>(AddKeyValueHandler))
