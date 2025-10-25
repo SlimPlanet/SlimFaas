@@ -42,7 +42,7 @@ public class Endpoints
         CancellationTokenSource? source);
     
     // Taille: 2–4 × (nombre de followers) est un bon départ
-    private static readonly SemaphoreSlim Inflight = new(initialCount: 16);
+    private static readonly SemaphoreSlim Inflight = new(initialCount: 2);
 
     private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, LogEntry<T> cmd, CancellationToken ct)
         where T : struct, ICommand<T>
