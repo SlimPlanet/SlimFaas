@@ -25,7 +25,8 @@ public class Startup(IConfiguration configuration)
         const string ListLeftPushBatchResource = "/SlimData/ListLeftPushBatch";
         const string AddKeyValueResource = "/SlimData/AddKeyValue";
         const string ListLengthResource = "/SlimData/ListLength";
-        const string ListSetQueueItemStatus = "/SlimData/ListCallback";
+        const string ListCallback = "/SlimData/ListCallback";
+        const string ListCallBackBatch = "/SlimData/ListCallbackBatch";
         const string HealthResource = "/health";
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
@@ -35,7 +36,8 @@ public class Startup(IConfiguration configuration)
             .RedirectToLeader(ListRightPopResource)
             .RedirectToLeader(AddKeyValueResource)
             .RedirectToLeader(AddHashSetResource)
-            .RedirectToLeader(ListSetQueueItemStatus)
+            .RedirectToLeader(ListCallback)
+            .RedirectToLeader(ListCallBackBatch)
             .UseRouting()
             .UseEndpoints(static endpoints =>
             {
@@ -47,7 +49,7 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapPost(AddHashSetResource,  Endpoints.AddHashSetAsync);
                 endpoints.MapPost(DeleteHashSetResource,  Endpoints.DeleteHashSetAsync);
                 endpoints.MapPost(AddKeyValueResource,  Endpoints.AddKeyValueAsync);
-                endpoints.MapPost(ListSetQueueItemStatus,  Endpoints.ListCallbackAsync);
+                endpoints.MapPost(ListCallback,  Endpoints.ListCallbackAsync);
             });
     }
 

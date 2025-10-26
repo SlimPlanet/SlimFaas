@@ -88,13 +88,15 @@ public class SlimDataService
     // 4) Remplacer ListLeftPushAsync
     public async Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
-        // pré-sérialisation identique à votre code
-        var input = new ListLeftPushInput(field, MemoryPackSerializer.Serialize(retryInformation));
-        var payload = MemoryPackSerializer.Serialize(input);
-
-        return await _llpBatcher.EnqueueAsync(
-            new ListLeftPushReq(key, payload, field, retryInformation)
-        ).ConfigureAwait(false);
+       return await Retry.DoAsync(async () =>
+        {
+            // pré-sérialisation identique à votre code
+            var input = new ListLeftPushInput(field, MemoryPackSerializer.Serialize(retryInformation));
+            var payload = MemoryPackSerializer.Serialize(input);
+            return await _llpBatcher.EnqueueAsync(
+                new ListLeftPushReq(key, payload, field, retryInformation)
+            ).ConfigureAwait(false);
+        }, _logger, _retryInterval);
     }
 
     // 5) Handler direct = logique unitaire existante
@@ -157,59 +159,56 @@ public class SlimDataService
         await Retry.DoAsync(async () =>
         {
             var payload = MemoryPackSerializer.Serialize(queueItemStatus);
-
             // on enfile dans le batcher ; le bool renvoyé n’a pas d’importance ici
             return await _lcbBatcher.EnqueueAsync(new ListCallbackReq(key, payload)).ConfigureAwait(false);
-
         }, _logger, _retryInterval);
 
-    // Direct = logique unitaire existante (réutilise DoListCallbackAsync)
-private async Task<bool> DirectListCallbackHandlerAsync(ListCallbackReq req, CancellationToken ct)
-{
-    var status = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(req.SerializedStatus)
-                 ?? throw new DataException("Invalid ListQueueItemStatus");
-    await DoListCallbackAsync(req.Key, status).ConfigureAwait(false);
-    return true;
-}
-
-// Batch = leader / non leader (comme pour ListLeftPushBatch)
-private async Task<IReadOnlyList<bool>> BatchListCallbackHandlerAsync(
-    IReadOnlyList<ListCallbackReq> batch, CancellationToken ct)
-{
-    var endpoint = await GetAndWaitForLeader();
-
-    var req = new ListCallbackBatchRequest(
-        batch.Select(b => new ListCallbackBatchItem(b.Key, b.SerializedStatus)).ToArray()
-    );
-    var bin = MemoryPackSerializer.Serialize(req);
-    var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
-
-    if (isLeader)
+        // Direct = logique unitaire existante (réutilise DoListCallbackAsync)
+    private async Task<bool> DirectListCallbackHandlerAsync(ListCallbackReq req, CancellationToken ct)
     {
-        // Commande locale (à implémenter côté serveur, cf. section 3)
-        var resp = await Endpoints.ListCallbackBatchCommand(_cluster, bin, new CancellationTokenSource());
-        if (resp.Acks.Length != batch.Count)
-            throw new DataException("Batch response count mismatch");
-        return resp.Acks;
+        var status = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(req.SerializedStatus)
+                     ?? throw new DataException("Invalid ListQueueItemStatus");
+        await DoListCallbackAsync(req.Key, status).ConfigureAwait(false);
+        return true;
     }
 
-    using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
-    using var httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListCallbackBatch"))
+    // Batch = leader / non leader (comme pour ListLeftPushBatch)
+    private async Task<IReadOnlyList<bool>> BatchListCallbackHandlerAsync(
+        IReadOnlyList<ListCallbackReq> batch, CancellationToken ct)
     {
-        Content = new ByteArrayContent(bin)
-    };
-    using var response = await httpClient.SendAsync(httpRequest, ct);
-    if ((int)response.StatusCode >= 500)
-        throw new DataException("Error in calling SlimData HTTP Service (callback batch)");
+        var endpoint = await GetAndWaitForLeader();
 
-    var respBytes = await response.Content.ReadAsByteArrayAsync(ct);
-    var resp = MemoryPackSerializer.Deserialize<ListCallbackBatchResponse>(respBytes)
-               ?? throw new DataException("Null ListCallbackBatchResponse");
-    if (resp.Acks.Length != batch.Count)
-        throw new DataException("Batch response count mismatch");
+        var req = new ListCallbackBatchRequest(
+            batch.Select(b => new ListCallbackBatchItem(b.Key, b.SerializedStatus)).ToArray()
+        );
+        var bin = MemoryPackSerializer.Serialize(req);
+        var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
 
-    return resp.Acks;
-}
+        if (isLeader)
+        {
+            // Commande locale (à implémenter côté serveur, cf. section 3)
+            var respLeader = await Endpoints.ListCallbackBatchCommand(_cluster, bin, new CancellationTokenSource());
+            if (respLeader.Acks.Length != batch.Count)
+                throw new DataException("Batch response count mismatch");
+            return respLeader.Acks;
+        }
+
+        using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListCallbackBatch"))
+        {
+            Content = new ByteArrayContent(bin)
+        };
+        using var response = await httpClient.SendAsync(httpRequest, ct);
+        if ((int)response.StatusCode >= 500)
+            throw new DataException("Error in calling SlimData HTTP Service (callback batch)");
+
+        var respBytes = await response.Content.ReadAsByteArrayAsync(ct);
+        var resp = MemoryPackSerializer.Deserialize<ListCallbackBatchResponse>(respBytes);
+        if (resp.Acks.Length != batch.Count)
+            throw new DataException("Batch response count mismatch");
+
+        return resp.Acks;
+    }
 
 
     private async Task<byte[]?> DoGetAsync(string key)

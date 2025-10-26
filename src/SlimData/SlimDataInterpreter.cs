@@ -211,6 +211,62 @@ public class SlimDataInterpreter : CommandInterpreter
 
         return default;
     }
+    
+    [CommandHandler]
+    public ValueTask ListCallbackBatchAsync(ListCallbackBatchCommand command, CancellationToken token)
+    {
+        return DoListCallbackBatchAsync(command, SlimDataState);
+    }
+
+    internal static ValueTask DoListCallbackBatchAsync(ListCallbackBatchCommand listCallbackBatchCommand, SlimDataState slimDataState)
+    {
+        var queues = slimDataState.Queues;
+        if (listCallbackBatchCommand.Items is null || listCallbackBatchCommand.Items.Count == 0)
+            return default;
+
+        // On traite item par item (chaque item a sa clé + son horodatage + ses éléments)
+        foreach (var batchItem in listCallbackBatchCommand.Items)
+        {
+            if (!queues.TryGetValue(batchItem.Key, out var value) || batchItem.CallbackElements is null || batchItem.CallbackElements.Count == 0)
+                continue;
+
+            // On part de la liste courante
+            var listForKey = value;
+
+            foreach (var callbackElement in batchItem.CallbackElements)
+            {
+                var queueElement = listForKey.FirstOrDefault(x => x.Id == callbackElement.Identifier);
+                if (queueElement == null)
+                    continue;
+
+                if (callbackElement.HttpCode == DeleteFromQueueCode)
+                {
+                    // Suppression explicite
+                    listForKey = listForKey.Remove(queueElement);
+                }
+                else if (queueElement.RetryQueueElements.Count > 0)
+                {
+                    // On clôture la tentative courante
+                    var retryQueueElement = queueElement.RetryQueueElements[^1];
+                    retryQueueElement.EndTimeStamp = batchItem.NowTicks;
+                    retryQueueElement.HttpCode = callbackElement.HttpCode;
+
+                    // Si l’élément est terminé (timeout/tries/etc.), on le retire de la file
+                    if (queueElement.IsFinished(batchItem.NowTicks))
+                    {
+                        listForKey = listForKey.Remove(queueElement);
+                    }
+                }
+            }
+
+            // Persiste la liste mise à jour pour la clé
+            queues = queues.SetItem(batchItem.Key, listForKey);
+        }
+
+        slimDataState.Queues = queues;
+        return default;
+    }
+
 
     [CommandHandler]
     public ValueTask AddHashSetAsync(AddHashSetCommand addHashSetCommand, CancellationToken token)
@@ -342,6 +398,8 @@ public class SlimDataInterpreter : CommandInterpreter
         ValueTask AddKeyValueHandler(AddKeyValueCommand command, CancellationToken token) => DoAddKeyValueAsync(command, state);
         ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand command, CancellationToken token) => DoDeleteKeyValueAsync(command, state);
         ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand command, CancellationToken token) => DoListCallbackAsync(command, state);
+        ValueTask ListCallbackBatchHandler(ListCallbackBatchCommand command, CancellationToken token) => DoListCallbackBatchAsync(command, state);
+
         ValueTask SnapshotHandler(LogSnapshotCommand command, CancellationToken token) => DoHandleSnapshotAsync(command, state);
 
         var interpreter = new Builder()
@@ -353,6 +411,7 @@ public class SlimDataInterpreter : CommandInterpreter
             .Add(new Func<AddKeyValueCommand, CancellationToken, ValueTask>(AddKeyValueHandler))
             .Add(new Func<DeleteKeyValueCommand, CancellationToken, ValueTask>(DeleteKeyValueHandler))
             .Add(new Func<ListCallbackCommand, CancellationToken, ValueTask>(ListSetQueueItemStatusAsync))
+            .Add(new Func<ListCallbackBatchCommand, CancellationToken, ValueTask>(ListCallbackBatchHandler))
             .Add(new Func<LogSnapshotCommand, CancellationToken, ValueTask>(SnapshotHandler))
             .Build();
 

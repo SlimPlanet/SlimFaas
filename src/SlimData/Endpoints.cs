@@ -50,7 +50,7 @@ public class Endpoints
         CancellationTokenSource? source);
     
     // Taille: 2–4 × (nombre de followers) est un bon départ
-    private static readonly SemaphoreSlim Inflight = new(initialCount: 4);
+    private static readonly SemaphoreSlim Inflight = new(initialCount: 8);
 
     private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, LogEntry<T> cmd, CancellationToken ct)
         where T : struct, ICommand<T>
@@ -396,6 +396,93 @@ public class Endpoints
         };
         
         await SafeReplicateAsync(cluster, logEntry, source.Token);
+    }
+    
+    public static async Task<ListCallbackBatchResponse> ListCallbackBatchCommand(
+    IRaftCluster cluster,
+    byte[] value,
+    CancellationTokenSource source)
+{
+    // 1) Désérialise la requête batch
+    var req = MemoryPackSerializer.Deserialize<ListCallbackBatchRequest>(value);
+
+    // Prépare les ACKs (même longueur que la requête)
+    var acks = new bool[req.Items.Length];
+    if (req.Items.Length == 0)
+        return new ListCallbackBatchResponse(acks);
+
+    // 2) Construit la commande Raft batch (une seule log entry pour tout le lot)
+    var nowTicks = DateTime.UtcNow.Ticks;
+    var items = new List<SlimData.Commands.ListCallbackBatchCommand.BatchItem>(req.Items.Length);
+
+    for (int i = 0; i < req.Items.Length; i++)
+    {
+        var item = req.Items[i];
+
+        // Payload = ListQueueItemStatus sérialisé
+        var status = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(item.Payload);
+        if (status?.Items is null || status.Items.Count == 0)
+        {
+            // Rien à appliquer : on ack "true" (pas d'erreur), mais on n'ajoute pas d'item vide
+            acks[i] = true;
+            continue;
+        }
+
+        // Convertit en CallbackElements
+        var elements = new List<CallbackElement>(status.Items.Count);
+        foreach (var s in status.Items)
+            elements.Add(new CallbackElement(s.Id, s.HttpCode));
+
+        items.Add(new SlimData.Commands.ListCallbackBatchCommand.BatchItem
+        {
+            Key = item.Key,
+            NowTicks = nowTicks,               // même horodatage pour la cohérence du batch
+            CallbackElements = elements
+        });
+
+        acks[i] = true;
+    }
+
+    // S’il n’y a finalement aucun item utile, on renvoie juste les ACKs
+    if (items.Count == 0)
+        return new ListCallbackBatchResponse(acks);
+
+    // 3) Réplication Raft : UNE seule entrée pour tout le batch
+    var logEntry = new LogEntry<SlimData.Commands.ListCallbackBatchCommand>
+    {
+        Term = cluster.Term,
+        Command = new SlimData.Commands.ListCallbackBatchCommand
+        {
+            Items = items
+        },
+    };
+
+    await SafeReplicateAsync(cluster, logEntry, source.Token);
+
+    // 4) Réponse
+    return new ListCallbackBatchResponse(acks);
+}
+
+
+    public static async Task ListCallbackBatchAsync(HttpContext context)
+    {
+        var task = DoAsync(context, async (cluster, provider, source) =>
+        {
+            var inputStream = context.Request.Body;
+            await using var memoryStream = new MemoryStream();
+            await inputStream.CopyToAsync(memoryStream, source.Token);
+            var value = memoryStream.ToArray();
+
+            var resp = await ListCallbackBatchCommand(cluster, value, source);
+            var bytes = MemoryPackSerializer.Serialize(resp);
+
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = "application/octet-stream";
+            context.Response.ContentLength = bytes.Length;
+            await context.Response.Body.WriteAsync(bytes, 0, bytes.Length, source.Token);
+            await context.Response.Body.FlushAsync(source.Token);
+        });
+        await task;
     }
 
     private static (string key, string value) GetKeyValue(IFormCollection form)
