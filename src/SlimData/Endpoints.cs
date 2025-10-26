@@ -35,6 +35,14 @@ public partial record ListQueueItemStatus
 public partial record struct HashsetSet(string Key, IDictionary<string, byte[]> Values);
 
 
+[MemoryPackable]
+public partial record struct ListCallbackBatchItem(string Key, byte[] Payload);
+
+[MemoryPackable]
+public partial record struct ListCallbackBatchRequest(ListCallbackBatchItem[] Items);
+
+[MemoryPackable]
+public partial record struct ListCallbackBatchResponse(bool[] Acks);
 
 public class Endpoints
 {
