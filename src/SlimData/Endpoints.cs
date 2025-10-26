@@ -50,7 +50,7 @@ public class Endpoints
         CancellationTokenSource? source);
     
     // Taille: 2–4 × (nombre de followers) est un bon départ
-    private static readonly SemaphoreSlim Inflight = new(initialCount: 8);
+    private static readonly SemaphoreSlim Inflight = new(initialCount: 4);
 
     private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, LogEntry<T> cmd, CancellationToken ct)
         where T : struct, ICommand<T>
@@ -265,7 +265,9 @@ public class Endpoints
         , CancellationTokenSource source)
     {
         
-        //var bin = MemoryPackSerializer.Serialize(value);
+        double sizeInKo = value.Length / 1024.0;
+        Console.WriteLine($"Taille ListLeftPushBatchCommand : {sizeInKo:F2} Ko");
+
         var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
         
         List<ListLeftPushBatchCommand.BatchItem> batchItems = new(listLeftPushBatchRequest.Items.Length); 
@@ -366,6 +368,8 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
+            double sizeInKo = value.Length / 1024.0;
+            Console.WriteLine($"Taille ListCallbackAsync : {sizeInKo:F2} Ko");
             var list = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(value);
             await ListCallbackCommandAsync(provider, key, list, cluster, source);
         });
