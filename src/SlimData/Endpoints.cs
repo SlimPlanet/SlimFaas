@@ -269,7 +269,7 @@ public class Endpoints
         Console.WriteLine($"Taille ListLeftPushBatchCommand : {sizeInKo:F2} Ko");
 
         var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
-        
+        Console.WriteLine($" Count ListLeftPushBatchCommand: {listLeftPushBatchRequest.Items.Length}");
         List<ListLeftPushBatchCommand.BatchItem> batchItems = new(listLeftPushBatchRequest.Items.Length); 
         foreach (var item in listLeftPushBatchRequest.Items)
         {
@@ -371,7 +371,7 @@ public class Endpoints
             double sizeInKo = value.Length / 1024.0;
             Console.WriteLine($"Taille ListCallbackAsync : {sizeInKo:F2} Ko");
             var list = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(value);
-            Console.WriteLine($" Count List: {list.Items.Count}");
+            Console.WriteLine($" Count ListCallbackAsync: {list.Items.Count}");
             await ListCallbackCommandAsync(provider, key, list, cluster, source);
         });
     }
