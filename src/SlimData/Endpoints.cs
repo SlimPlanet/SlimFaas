@@ -371,6 +371,7 @@ public class Endpoints
             double sizeInKo = value.Length / 1024.0;
             Console.WriteLine($"Taille ListCallbackAsync : {sizeInKo:F2} Ko");
             var list = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(value);
+            Console.WriteLine($" Count List: {list.Items.Count}");
             await ListCallbackCommandAsync(provider, key, list, cluster, source);
         });
     }
