@@ -6,6 +6,7 @@ using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
 using SlimData;
 using SlimData.Commands;
+using SlimFaas.Common;
 
 namespace SlimFaas.Database;
 
@@ -26,8 +27,8 @@ public class SlimDataService
     public const string HttpClientName = "SlimDataHttpClient";
     private readonly IList<int> _retryInterval = new List<int> { 1, 1, 1 };
     private readonly TimeSpan _timeMaxToWaitForLeader = TimeSpan.FromMilliseconds(3000);
-    private readonly AdaptiveBatcher<ListLeftPushReq, string> _llpBatcher;
-    private readonly AdaptiveBatcher<ListCallbackReq, bool> _lcbBatcher;
+    private readonly RateAdaptiveBatcher<ListLeftPushReq, string> _llpBatcher;
+    private readonly RateAdaptiveBatcher<ListCallbackReq, bool> _lcbBatcher;
 
 
      public SlimDataService(
@@ -40,29 +41,26 @@ public class SlimDataService
          _serviceProvider = serviceProvider;
          _cluster = cluster;
          _logger = logger;
-         AdaptiveBatcherThresholds thresholds = new(
-             EnterWindow: TimeSpan.FromMilliseconds(200), EnterCount: 4,
-             ExitWindow:  TimeSpan.FromMilliseconds(400), ExitCount: 2
-         );
-         _llpBatcher = new AdaptiveBatcher<ListLeftPushReq, string>(
+        // Config paliers custom si besoin
+         var tiers = new[]
+         {
+             new RateTier(8,   TimeSpan.FromMilliseconds(25)),
+             new RateTier(30,  TimeSpan.FromMilliseconds(60)),
+             new RateTier(120, TimeSpan.FromMilliseconds(120)),
+             new RateTier(300, TimeSpan.FromMilliseconds(250)),
+         };
+
+         _llpBatcher = new RateAdaptiveBatcher<ListLeftPushReq, string>(
              directHandler: (req, ct) => DirectHandlerAsync(req, ct),
              batchHandler:  (batch, ct) => BatchHandlerAsync(batch, ct),
-             flushInterval: TimeSpan.FromMilliseconds(400),
-             thresholds: thresholds,
-             ringSizePowerOf2: 10,
+             tiers: tiers,
              maxBatchSize: 512
          );
-         AdaptiveBatcherThresholds cbThresholds = new(
-             EnterWindow: TimeSpan.FromMilliseconds(200), EnterCount: 4,
-             ExitWindow:  TimeSpan.FromMilliseconds(400), ExitCount: 2
-         );
 
-         _lcbBatcher = new AdaptiveBatcher<ListCallbackReq, bool>(
+         _lcbBatcher = new RateAdaptiveBatcher<ListCallbackReq, bool>(
              directHandler: (req, ct) => DirectListCallbackHandlerAsync(req, ct),
              batchHandler:  (batch, ct) => BatchListCallbackHandlerAsync(batch, ct),
-             flushInterval: TimeSpan.FromMilliseconds(400),
-             thresholds: cbThresholds,
-             ringSizePowerOf2: 10,
+             tiers: tiers,
              maxBatchSize: 512
          );
      }
@@ -160,7 +158,7 @@ public class SlimDataService
         {
             var payload = MemoryPackSerializer.Serialize(queueItemStatus);
             // on enfile dans le batcher ; le bool renvoyé n’a pas d’importance ici
-            return await _lcbBatcher.EnqueueAsync(new ListCallbackReq(key, payload)).ConfigureAwait(false);
+            await _lcbBatcher.EnqueueAsync(new ListCallbackReq(key, payload)).ConfigureAwait(false);
         }, _logger, _retryInterval);
 
         // Direct = logique unitaire existante (réutilise DoListCallbackAsync)
