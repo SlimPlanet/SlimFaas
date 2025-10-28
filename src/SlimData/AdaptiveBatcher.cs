@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 
-namespace SlimFaas.Common;
+namespace SlimData;
 
 // Palier: au-delà de MinPerMinute, on attend Delay avant d'envoyer (pour regrouper)
 public sealed record RateTier(int MinPerMinute, TimeSpan Delay);
@@ -183,6 +183,8 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
     private TimeSpan ComputeDelayFromRatePerMinute()
     {
         var rpm = ComputeRatePerMinute();
+
+        Console.WriteLine($"Rate per minutes: {rpm}");
 
         // Cherche le palier le plus élevé atteint
         TimeSpan delay = TimeSpan.Zero;

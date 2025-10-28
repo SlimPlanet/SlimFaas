@@ -6,7 +6,6 @@ using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
 using SlimData;
 using SlimData.Commands;
-using SlimFaas.Common;
 
 namespace SlimFaas.Database;
 
