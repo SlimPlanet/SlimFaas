@@ -66,11 +66,11 @@ spec:
       volumes:
         - name: slimfaas-volume
           emptyDir:
-            sizeLimit: 3000Mi
+            sizeLimit: 1000Mi
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.44.4-pr.179165
+          image: axaguildev/slimfaas:0.44.4-pr.179166
           livenessProbe:
             httpGet:
               path: /health
