@@ -18,10 +18,10 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
     public CommandInterpreter Interpreter { get; }
 
     public  SlimPersistentState(string path)
-        : base(path, recordsPerPartition: 96, 
+        : base(path, recordsPerPartition: 14, 
             new Options {
                 BufferSize = 1 * 1024 * 1024,             // 1 MiB (marge > 512 KiB)
-                InitialPartitionSize = 64 * 1024 * 1024,  // 64 MiB pré-alloués
+                InitialPartitionSize = 32 * 1024 * 1024,  // 64 MiB pré-alloués
                 UseCaching = true,
                 UseLegacyBinaryFormat = false
             })
