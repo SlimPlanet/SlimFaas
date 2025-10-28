@@ -43,10 +43,10 @@ public class SlimDataService
         // Config paliers custom si besoin
          var tiers = new[]
          {
-             new RateTier(8,   TimeSpan.FromMilliseconds(25)),
-             new RateTier(30,  TimeSpan.FromMilliseconds(60)),
-             new RateTier(120, TimeSpan.FromMilliseconds(120)),
-             new RateTier(300, TimeSpan.FromMilliseconds(250)),
+             new RateTier(8,   TimeSpan.FromMilliseconds(60)),
+             new RateTier(30,  TimeSpan.FromMilliseconds(120)),
+             new RateTier(120, TimeSpan.FromMilliseconds(250)),
+             new RateTier(300, TimeSpan.FromMilliseconds(500)),
          };
 
          _llpBatcher = new RateAdaptiveBatcher<ListLeftPushReq, string>(
