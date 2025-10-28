@@ -16,6 +16,9 @@ spec:
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"
         SlimFaas/NumberParallelRequest: "2"
         SlimFaas/ReplicasAtStart: "2"
+        prometheus.io/path: /metrics
+        prometheus.io/port: '5000'
+        prometheus.io/scrape: 'true'
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
@@ -72,6 +75,9 @@ spec:
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"
         SlimFaas/NumberParallelRequest: "2"
         SlimFaas/ReplicasAtStart: "2"
+        prometheus.io/path: /metrics
+        prometheus.io/port: '5000'
+        prometheus.io/scrape: 'true'
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
@@ -126,6 +132,9 @@ spec:
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
         SlimFaas/SubscribeEvents: "fibo-public"
         SlimFaas/ReplicasAtStart: "2"
+        prometheus.io/path: /metrics
+        prometheus.io/port: '5000'
+        prometheus.io/scrape: 'true'
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
@@ -181,6 +190,9 @@ spec:
         SlimFaas/DefaultVisibility: "Private"
         SlimFaas/ReplicasAtStart: "2"
         SlimFaas/SubscribeEvents: "Public:fibo-public"
+        prometheus.io/path: /metrics
+        prometheus.io/port: '5000'
+        prometheus.io/scrape: 'true'
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false

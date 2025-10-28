@@ -3,9 +3,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Mvc;
+using Prometheus;
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 IServiceCollection serviceCollection = builder.Services;
+
 serviceCollection.AddSingleton<Fibonacci, Fibonacci>();
 serviceCollection.AddCors();
 builder.Services.AddHttpClient("internal", c =>
@@ -40,6 +42,12 @@ app.UseCors(builder => builder
     .AllowAnyMethod()
     .AllowAnyHeader()
 );
+
+// Collecte des métriques HTTP (latence, codes, etc.)
+app.UseHttpMetrics();
+
+// Expose le endpoint Prometheus
+app.MapMetrics("/metrics");
 
 app.MapGet("/health", () => "OK");
 

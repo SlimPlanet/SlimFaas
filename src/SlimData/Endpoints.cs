@@ -274,8 +274,7 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
             var groups = reqs
                 .Select((r, idx) => (r, idx))
                 .GroupBy(x => x.r.Cluster);
-
-            // Prépare la réponse dans l’ordre des entrées
+            
             var results = new ListLeftPushBatchResponse[reqs.Count];
 
             foreach (var g in groups)
