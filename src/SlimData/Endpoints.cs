@@ -246,127 +246,127 @@ public class Endpoints
             
         return values;
     }
-    
+  
     private static ListLeftPushBatchRequest DeserializeListLeftPushBatchRequest(byte[] value)
     {
         return MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
     }
-    
-    // Batcher pour ListLeftPushBatch : combine les requêtes entrantes côté leader
+    /*
+  // Batcher pour ListLeftPushBatch : combine les requêtes entrantes côté leader
 private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _lpBatcher =
-    new RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse>(
-        directHandler: async (req, ct) =>
-        {
-            // Chemin "direct" (débit faible) : une seule requête -> une seule réplication
-            var ids = await ReplicateListLeftPushBatchAsync(
-                req.Cluster,
-                req.Request.Items,
-                req.Ct.IsCancellationRequested ? req.Ct : ct);
+  new RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse>(
+      directHandler: async (req, ct) =>
+      {
+          // Chemin "direct" (débit faible) : une seule requête -> une seule réplication
+          var ids = await ReplicateListLeftPushBatchAsync(
+              req.Cluster,
+              req.Request.Items,
+              req.Ct.IsCancellationRequested ? req.Ct : ct);
 
-            // Les IDs renvoyés doivent correspondre au nombre d’items de LA requête
-            if (ids.Length != req.Request.Items.Length)
-                throw new InvalidOperationException("Inconsistent IDs count in direct handler.");
-            return new ListLeftPushBatchResponse(ids);
-        },
-        batchHandler: async (reqs, ct) =>
-        {
-            // Regroupe par instance de cluster (sécurité si jamais plusieurs IRaftCluster coexistent)
-            var groups = reqs
-                .Select((r, idx) => (r, idx))
-                .GroupBy(x => x.r.Cluster);
-            
-            var results = new ListLeftPushBatchResponse[reqs.Count];
+          // Les IDs renvoyés doivent correspondre au nombre d’items de LA requête
+          if (ids.Length != req.Request.Items.Length)
+              throw new InvalidOperationException("Inconsistent IDs count in direct handler.");
+          return new ListLeftPushBatchResponse(ids);
+      },
+      batchHandler: async (reqs, ct) =>
+      {
+          // Regroupe par instance de cluster (sécurité si jamais plusieurs IRaftCluster coexistent)
+          var groups = reqs
+              .Select((r, idx) => (r, idx))
+              .GroupBy(x => x.r.Cluster);
 
-            foreach (var g in groups)
-            {
-                var cluster = g.Key;
-                var groupList = g.ToList(); // (r, idx)
-                
-                // Aplatis tous les items du groupe en conservant les tailles pour re-slicer après
-                var allItems = new List<ListLeftPushBatchItem>();
-                var countsPerReq = new int[groupList.Count];
+          var results = new ListLeftPushBatchResponse[reqs.Count];
 
-                for (int i = 0; i < groupList.Count; i++)
-                {
-                    var items = groupList[i].r.Request.Items;
-                    countsPerReq[i] = items.Length;
-                    allItems.AddRange(items);
-                }
+          foreach (var g in groups)
+          {
+              var cluster = g.Key;
+              var groupList = g.ToList(); // (r, idx)
 
-                // Une seule réplication Raft pour tout le groupe
-                var anyCt = groupList[0].r.Ct;
-                var ctToUse = anyCt.IsCancellationRequested ? ct : anyCt;
+              // Aplatis tous les items du groupe en conservant les tailles pour re-slicer après
+              var allItems = new List<ListLeftPushBatchItem>();
+              var countsPerReq = new int[groupList.Count];
 
-                var allIds = await ReplicateListLeftPushBatchAsync(cluster, allItems, ctToUse);
+              for (int i = 0; i < groupList.Count; i++)
+              {
+                  var items = groupList[i].r.Request.Items;
+                  countsPerReq[i] = items.Length;
+                  allItems.AddRange(items);
+              }
 
-                // Redistribue les IDs à chaque requête d’origine (dans l’ordre)
-                int cursor = 0;
-                for (int i = 0; i < groupList.Count; i++)
-                {
-                    var take = countsPerReq[i];
-                    var slice = allIds.AsSpan(cursor, take).ToArray();
-                    cursor += take;
+              // Une seule réplication Raft pour tout le groupe
+              var anyCt = groupList[0].r.Ct;
+              var ctToUse = anyCt.IsCancellationRequested ? ct : anyCt;
 
-                    results[groupList[i].idx] = new ListLeftPushBatchResponse(slice);
-                }
-            }
+              var allIds = await ReplicateListLeftPushBatchAsync(cluster, allItems, ctToUse);
 
-            return results.ToList().AsReadOnly();
-        },
-        // Réutilise ta logique de paliers par défaut
-        tiers: null,
-        // Nombre max de REQUÊTES agrégées par batcher (pas le nb d’items)
-        maxBatchSize: 64,
-        // File "illimitée" (à ajuster si besoin)
-        maxQueueLength: 0,
-        // By-pass: si pas de délai imposé par les paliers et un seul item => directHandler
-        directBypassDelay: TimeSpan.Zero
-    );
+              // Redistribue les IDs à chaque requête d’origine (dans l’ordre)
+              int cursor = 0;
+              for (int i = 0; i < groupList.Count; i++)
+              {
+                  var take = countsPerReq[i];
+                  var slice = allIds.AsSpan(cursor, take).ToArray();
+                  cursor += take;
 
-    
-    private static async Task<string[]> ReplicateListLeftPushBatchAsync(
-        IRaftCluster cluster,
-        IEnumerable<ListLeftPushBatchItem> allItems,
-        CancellationToken ct)
-    {
-        var batchItems = new List<SlimData.Commands.ListLeftPushBatchCommand.BatchItem>();
+                  results[groupList[i].idx] = new ListLeftPushBatchResponse(slice);
+              }
+          }
 
-        foreach (var item in allItems)
-        {
-            var key = item.Key;
-            var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(item.Payload);
-            var retry = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
-
-            batchItems.Add(new SlimData.Commands.ListLeftPushBatchCommand.BatchItem
-            {
-                Key = key,
-                Identifier = Guid.NewGuid().ToString(),
-                NowTicks = DateTime.UtcNow.Ticks,
-                Value = new ArraySegment<byte>(input.Value),
-                RetryTimeout = retry.RetryTimeoutSeconds,
-                HttpStatusCodesWorthRetrying = retry.HttpStatusRetries
-            });
-        }
-
-        if (batchItems.Count == 0)
-            return Array.Empty<string>();
-
-        var logEntry = new LogEntry<SlimData.Commands.ListLeftPushBatchCommand>
-        {
-            Term = cluster.Term,
-            Command = new SlimData.Commands.ListLeftPushBatchCommand
-            {
-                Items = batchItems
-            },
-        };
-
-        await SafeReplicateAsync(cluster, logEntry, ct);
-
-        // Renvoie les IDs dans l’ordre de construction
-        return batchItems.Select(b => b.Identifier).ToArray();
-    }
+          return results.ToList().AsReadOnly();
+      },
+      // Réutilise ta logique de paliers par défaut
+      tiers: null,
+      // Nombre max de REQUÊTES agrégées par batcher (pas le nb d’items)
+      maxBatchSize: 64,
+      // File "illimitée" (à ajuster si besoin)
+      maxQueueLength: 0,
+      // By-pass: si pas de délai imposé par les paliers et un seul item => directHandler
+      directBypassDelay: TimeSpan.Zero
+  );
 
 
+  private static async Task<string[]> ReplicateListLeftPushBatchAsync(
+      IRaftCluster cluster,
+      IEnumerable<ListLeftPushBatchItem> allItems,
+      CancellationToken ct)
+  {
+      var batchItems = new List<SlimData.Commands.ListLeftPushBatchCommand.BatchItem>();
+
+      foreach (var item in allItems)
+      {
+          var key = item.Key;
+          var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(item.Payload);
+          var retry = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
+
+          batchItems.Add(new SlimData.Commands.ListLeftPushBatchCommand.BatchItem
+          {
+              Key = key,
+              Identifier = Guid.NewGuid().ToString(),
+              NowTicks = DateTime.UtcNow.Ticks,
+              Value = new ArraySegment<byte>(input.Value),
+              RetryTimeout = retry.RetryTimeoutSeconds,
+              HttpStatusCodesWorthRetrying = retry.HttpStatusRetries
+          });
+      }
+
+      if (batchItems.Count == 0)
+          return Array.Empty<string>();
+
+      var logEntry = new LogEntry<SlimData.Commands.ListLeftPushBatchCommand>
+      {
+          Term = cluster.Term,
+          Command = new SlimData.Commands.ListLeftPushBatchCommand
+          {
+              Items = batchItems
+          },
+      };
+
+      await SafeReplicateAsync(cluster, logEntry, ct);
+
+      // Renvoie les IDs dans l’ordre de construction
+      return batchItems.Select(b => b.Identifier).ToArray();
+  }
+
+*/
     
     public static async Task ListLeftPushBatchAsync(HttpContext context)
     {
@@ -377,14 +377,15 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
             // Désérialise en ListLeftPushBatchRequest
-            var req = DeserializeListLeftPushBatchRequest(value);
-            Console.WriteLine($"Count ListLeftPushBatchAsync: {req.Items.Length}");
+            //var req = DeserializeListLeftPushBatchRequest(value);
+            //Console.WriteLine($"Count ListLeftPushBatchAsync: {req.Items.Length}");
 
             // Enfile dans le batcher (sera combiné avec d’autres appels entrants)
-            var resp = await _lpBatcher.EnqueueAsync(
+           /* var resp = await _lpBatcher.EnqueueAsync(
                 new LpReq(cluster, req, source.Token),
                 source.Token
-            );
+            );*/
+           var resp = await ListLeftPushBatchCommand(cluster, value, source);
             context.Response.StatusCode = StatusCodes.Status201Created;
             var responseBytes = MemoryPackSerializer.Serialize(resp);
             context.Response.StatusCode = StatusCodes.Status200OK;
