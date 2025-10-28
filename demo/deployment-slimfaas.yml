@@ -66,11 +66,11 @@ spec:
       volumes:
         - name: slimfaas-volume
           emptyDir:
-            sizeLimit: 1000Mi
+            sizeLimit: 1400Mi
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.44.4-pr.179166
+          image: axaguildev/slimfaas:0.44.4-pr.179167
           livenessProbe:
             httpGet:
               path: /health
@@ -78,7 +78,7 @@ spec:
             initialDelaySeconds: 3
             periodSeconds: 10
             timeoutSeconds: 8
-            terminationGracePeriodSeconds: 30
+            terminationGracePeriodSeconds: 10
           env:
             #- name: BASE_FUNCTION_URL
               #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
@@ -89,15 +89,18 @@ spec:
             #  value: "http://{pod_ip}:3262/"
             #- name: NAMESPACE
             #  value: "slimfaas-demo"
-            #- name: SLIMDATA_DIRECTORY
-            #  value: "/database"
+            - name: SLIMDATA_DIRECTORY
+              value: "/database"
             #- name: ASPNETCORE_URLS
             #  value: http://+:5000
             - name: Logging__LogLevel__SlimFaas
               value: "Information"
-            #- name: SLIMDATA_CONFIGURATION
-            #  value: |
-            #      {"coldStart":"true"}
+            #- name: "SLIMDATA_CONFIGURATION"
+            #  value: '{"lowerElectionTimeout":"150","upperElectionTimeout":"300","requestTimeout":"00:00:00.3000000","rpcTimeout":"00:00:00.1500000","heartbeatThreshold":"0.5"}'
+
+            - name: SLIMDATA_CONFIGURATION
+              value: |
+                  {"heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_CONFIGURATION
             #  value: |
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
