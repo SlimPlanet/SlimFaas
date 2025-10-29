@@ -1,4 +1,5 @@
-﻿using DotNext;
+﻿using System.Net;
+using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Connections;
@@ -56,6 +57,23 @@ public class Startup(IConfiguration configuration)
 
     public void ConfigureServices(IServiceCollection services)
     {
+        services.AddHttpClient("RaftClient", c =>
+            {
+                // Force HTTP/1.1 pour toutes les requêtes Raft
+                c.DefaultRequestVersion = HttpVersion.Version11;
+                c.DefaultVersionPolicy  = HttpVersionPolicy.RequestVersionExact; // pas de négociation h2
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                ConnectTimeout = TimeSpan.FromSeconds(2),
+                AllowAutoRedirect = false,
+                AutomaticDecompression = DecompressionMethods.None,
+                PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+                PooledConnectionIdleTimeout = TimeSpan.FromMinutes(2),
+                MaxConnectionsPerServer = 100,
+                EnableMultipleHttp2Connections = false,
+                UseProxy = false
+            });
         services.UseInMemoryConfigurationStorage(AddClusterMembers)
             .ConfigureCluster<ClusterConfigurator>()
             .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()

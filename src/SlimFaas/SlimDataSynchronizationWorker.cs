@@ -33,7 +33,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
 
                 bool isWaitForNextRound = false;
                 foreach (PodInformation slimFaasPod in replicasService.Deployments.SlimFaas.Pods.Where(p =>
-                             p.Started == true))
+                             p.Started == true && !string.IsNullOrEmpty(p.Ip)))
                 {
                     string url = SlimDataEndpoint.Get(slimFaasPod);
                     if (cluster.Members.ToList().Exists(m => SlimFaasPorts.RemoveLastPathSegment(m.EndPoint.ToString()) == SlimFaasPorts.RemoveLastPathSegment(url)))

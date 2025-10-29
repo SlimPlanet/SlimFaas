@@ -19,7 +19,7 @@ internal sealed class RaftClientHandlerFactory : IHttpMessageHandlerFactory
         var handler = new SocketsHttpHandler
         {
             // Etablissement TCP+TLS : vise 2s en prod K8s/mesh
-            ConnectTimeout = TimeSpan.FromMilliseconds(electionTimeout),
+            ConnectTimeout = TimeSpan.FromSeconds(2),
             AllowAutoRedirect = false,
             AutomaticDecompression = DecompressionMethods.None,
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
