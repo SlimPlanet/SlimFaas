@@ -36,7 +36,7 @@ var scenario = Scenario.Create("fibonacci_scenario", async context =>
     .WithoutWarmUp()
     .WithLoadSimulations(
         Simulation.Inject(
-            rate: 100,
+            rate: 150,
             interval: TimeSpan.FromSeconds(1),
             during: TimeSpan.FromMinutes(5))
     );

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.Diagnostics;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using SlimData.Commands;
 
@@ -369,24 +370,72 @@ public class SlimDataInterpreter : CommandInterpreter
     
     internal static ValueTask DoHandleSnapshotAsync(LogSnapshotCommand command, SlimDataState slimDataState)
     {
+        var sw = Stopwatch.StartNew();
+        Console.WriteLine("=== Start Snapshot ===");
+
+        // ---- KeyValues ----
+        long totalKeyValuesBytes = command.keysValues.Sum(kvp => kvp.Value.Length);
+        double totalKeyValuesMB = totalKeyValuesBytes / (1024.0 * 1024.0);
+        Console.WriteLine($"[KeyValues] Count: {command.keysValues.Count}, Total Size: {totalKeyValuesMB:F2} MB");
+
+        foreach (var kvp in command.keysValues)
+        {
+            Console.WriteLine($"  Key: {kvp.Key}, Size: {kvp.Value.Length / 1024.0:F2} KB");
+        }
+
         slimDataState.KeyValues = command.keysValues.ToImmutableDictionary();
-        
+
+        // ---- Queues ----
+        int totalQueueElements = 0;
+        long totalQueueBytes = 0;
+
+        foreach (var queue in command.queues)
+        {
+            int count = queue.Value.Count;
+            totalQueueElements += count;
+            long sizeBytes = queue.Value.Sum(q => q.Value.Length);
+            totalQueueBytes += sizeBytes;
+
+            Console.WriteLine($"[Queue] Key: {queue.Key}, Count: {count}, Size: {sizeBytes / (1024.0 * 1024.0):F2} MB");
+        }
+
+        Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
+
         var queues = ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty;
         foreach (var queue in command.queues)
         {
             queues = queues.SetItem(queue.Key, queue.Value.ToImmutableList());
         }
         slimDataState.Queues = queues;
-        
+
+        // ---- Hashsets ----
+        int totalHashsetElements = 0;
+        long totalHashsetBytes = 0;
+
+        foreach (var hashset in command.hashsets)
+        {
+            int count = hashset.Value.Count;
+            totalHashsetElements += count;
+            long sizeBytes = hashset.Value.Sum(h => h.Value.Length);
+            totalHashsetBytes += sizeBytes;
+
+            Console.WriteLine($"[Hashset] Key: {hashset.Key}, Count: {count}, Size: {sizeBytes / (1024.0 * 1024.0):F2} MB");
+        }
+
+        Console.WriteLine($"[Hashsets] Total Elements: {totalHashsetElements}, Total Size: {totalHashsetBytes / (1024.0 * 1024.0):F2} MB");
+
         var hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
         foreach (var hashset in command.hashsets)
         {
             hashsets = hashsets.SetItem(hashset.Key, hashset.Value.ToImmutableDictionary());
         }
         slimDataState.Hashsets = hashsets;
-        
+
+        sw.Stop();
+        Console.WriteLine($"=== End Snapshot (Duration: {sw.ElapsedMilliseconds} ms) ===");
+
         return default;
-    }   
+    }
     
     public static CommandInterpreter InitInterpreter(SlimDataState state)   
     {

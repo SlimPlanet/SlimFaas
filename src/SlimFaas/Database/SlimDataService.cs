@@ -97,7 +97,6 @@ public class SlimDataService
             // pré-sérialisation identique à votre code
             var input = new ListLeftPushInput(field, MemoryPackSerializer.Serialize(retryInformation));
             var payload = MemoryPackSerializer.Serialize(input);
-            Console.WriteLine("ListLeftPushAsync ");
             return await _batcher.EnqueueAsync<ListLeftPushReq, string>(
                 "llp",
                 new ListLeftPushReq(key, payload, field, retryInformation)
