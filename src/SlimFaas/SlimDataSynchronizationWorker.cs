@@ -42,6 +42,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                     }
 
                     Console.WriteLine($"SlimDataSynchronizationWorker: SlimFaas pod {slimFaasPod.Name} has to be added in the cluster");
+                    await Task.Delay(_delay, stoppingToken);
                     await ((IRaftHttpCluster)cluster).AddMemberAsync(new Uri(url), stoppingToken);
 
                     // Add only one at once to let a synchronization time

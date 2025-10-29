@@ -141,12 +141,6 @@ string podDataDirectoryPersistantStorage = string.Empty;
 
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? EnvironmentVariables.HostnameDefault;
-if (replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 && !Directory.EnumerateDirectories(slimDataDirectory).Any())
-{
-    slimDataAllowColdStart = true;
-}
-
-Console.WriteLine($"Starting SlimFaas :{slimDataAllowColdStart}");
 
 while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hostname)) == false)
 {
@@ -157,6 +151,12 @@ while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hos
     Console.WriteLine("Waiting current pod to be ready");
     Task.Delay(1000).Wait();
     replicasService?.SyncDeploymentsAsync(namespace_).Wait();
+}
+
+if (replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 && !Directory.EnumerateDirectories(slimDataDirectory).Any())
+{
+    slimDataAllowColdStart = true;
+    Console.WriteLine($"Starting SlimFaas, coldstart:{slimDataAllowColdStart}");
 }
 
 while (!slimDataAllowColdStart &&
