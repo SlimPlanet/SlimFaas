@@ -146,6 +146,8 @@ if (replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 && !Directory.Enumer
     slimDataAllowColdStart = true;
 }
 
+Console.WriteLine($"Starting SlimFaas :{slimDataAllowColdStart}");
+
 while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hostname)) == false)
 {
     foreach (PodInformation podInformation in replicasService?.Deployments?.SlimFaas?.Pods ?? Array.Empty<PodInformation>())

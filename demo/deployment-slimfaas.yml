@@ -52,7 +52,7 @@ metadata:
   name: slimfaas
   namespace: slimfaas-demo
 spec:
-  podManagementPolicy: Parallel
+  podManagementPolicy: OrderedReady
   replicas: 3
   serviceName: slimfaas
   selector:
@@ -70,7 +70,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.44.4-pr.179168
+          image: axaguildev/slimfaas:0.44.4-pr.179170
           livenessProbe:
             httpGet:
               path: /health
@@ -79,6 +79,12 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 8
             terminationGracePeriodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 5
           env:
             #- name: BASE_FUNCTION_URL
               #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
@@ -95,12 +101,11 @@ spec:
             #  value: http://+:5000
             - name: Logging__LogLevel__SlimFaas
               value: "Information"
-            #- name: "SLIMDATA_CONFIGURATION"
-            #  value: '{"lowerElectionTimeout":"150","upperElectionTimeout":"300","requestTimeout":"00:00:00.3000000","rpcTimeout":"00:00:00.1500000","heartbeatThreshold":"0.5"}'
-
-            - name: SLIMDATA_CONFIGURATION
-              value: |
-                  {"heartbeatThreshold":"0.5","lowerElectionTimeout":"1500","upperElectionTimeout":"3000","requestTimeout":"00:00:03","rpcTimeout":"00:00:01.5000000"}
+            - name: "SLIMDATA_CONFIGURATION"
+              value: '{"lowerElectionTimeout":"150","upperElectionTimeout":"300","requestTimeout":"00:00:00.3000000","rpcTimeout":"00:00:00.1500000","heartbeatThreshold":"0.5"}'
+            #- name: SLIMDATA_CONFIGURATION
+            #  value: |
+            #      {"heartbeatThreshold":"0.5","lowerElectionTimeout":"1500","upperElectionTimeout":"3000","requestTimeout":"00:00:05","rpcTimeout":"00:00:02.5000000"}
             #- name: SLIMDATA_CONFIGURATION
             #  value: |
             #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
