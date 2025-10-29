@@ -184,7 +184,7 @@ public class SlimDataService
         if (isLeader)
         {
             // Commande locale (à implémenter côté serveur, cf. section 3)
-            var respLeader = await Endpoints.ListCallbackBatchCommand(_cluster, bin, new CancellationTokenSource());
+            var respLeader = await Endpoints.ListCallbackBatchCommand(_cluster, bin, CancellationTokenSource.CreateLinkedTokenSource(ct));
             if (respLeader.Acks.Length != batch.Count)
                 throw new DataException("Batch response count mismatch");
             return respLeader.Acks;

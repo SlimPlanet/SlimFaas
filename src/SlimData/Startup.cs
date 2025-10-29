@@ -51,6 +51,7 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapPost(DeleteHashSetResource,  Endpoints.DeleteHashSetAsync);
                 endpoints.MapPost(AddKeyValueResource,  Endpoints.AddKeyValueAsync);
                 endpoints.MapPost(ListCallback,  Endpoints.ListCallbackAsync);
+                endpoints.MapPost(ListCallBackBatch,  Endpoints.ListCallbackBatchAsync);
             });
     }
 
