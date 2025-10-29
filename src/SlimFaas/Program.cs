@@ -101,10 +101,8 @@ switch (envOrConfig)
         break;
 }
 
-
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
-
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
@@ -141,12 +139,12 @@ serviceCollectionSlimFaas.AddCors();
 string publicEndPoint = string.Empty;
 string podDataDirectoryPersistantStorage = string.Empty;
 
-
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
-
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? EnvironmentVariables.HostnameDefault;
-
-
+if (replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 && !Directory.EnumerateDirectories(slimDataDirectory).Any())
+{
+    slimDataAllowColdStart = true;
+}
 
 while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hostname)) == false)
 {
@@ -169,7 +167,7 @@ while (!slimDataAllowColdStart &&
 
 if (replicasService?.Deployments?.SlimFaas?.Pods != null)
 {
-    foreach (string enumerateDirectory in Directory.EnumerateDirectories(slimDataDirectory))
+    /*foreach (string enumerateDirectory in Directory.EnumerateDirectories(slimDataDirectory))
     {
         if (replicasService.Deployments.SlimFaas.Pods.Any(p =>
                 (new DirectoryInfo(enumerateDirectory).Name).Contains(p.Name)) == false)
@@ -184,7 +182,7 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
                 Console.WriteLine(ex.ToString());
             }
         }
-    }
+    }*/
 
     foreach (PodInformation podInformation in replicasService.Deployments.SlimFaas.Pods
                  .Where(p => !string.IsNullOrEmpty(p.Ip) && p.Started == true).ToList())
@@ -192,9 +190,9 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
         try
         {
             string slimDataEndpoint = SlimDataEndpoint.Get(podInformation);
-            Console.WriteLine($"Adding node  {slimDataEndpoint}");
             if (!podInformation.Name.Contains(hostname))
             {
+                Console.WriteLine($"Adding node  {slimDataEndpoint} {hostname} {podInformation.Name}");
                 Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
             }
         }
