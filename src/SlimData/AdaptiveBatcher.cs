@@ -4,7 +4,6 @@ using System.Runtime.CompilerServices;
 
 namespace SlimData;
 
-public sealed record RateTier(int MinPerMinute, TimeSpan Delay);
 
 public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
 {

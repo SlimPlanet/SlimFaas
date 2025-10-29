@@ -53,7 +53,7 @@ metadata:
   namespace: slimfaas-demo
 spec:
   podManagementPolicy: OrderedReady
-  replicas: 1
+  replicas: 3
   serviceName: slimfaas
   selector:
     matchLabels:
@@ -70,7 +70,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.44.4-pr.179175
+          image: axaguildev/slimfaas:0.44.4-pr.179178
           livenessProbe:
             httpGet:
               path: /health

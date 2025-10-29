@@ -26,9 +26,7 @@ public class SlimDataService
     public const string HttpClientName = "SlimDataHttpClient";
     private readonly IList<int> _retryInterval = new List<int> { 1, 1, 1 };
     private readonly TimeSpan _timeMaxToWaitForLeader = TimeSpan.FromMilliseconds(3000);
-    private readonly RateAdaptiveBatcher<ListLeftPushReq, string> _llpBatcher;
-    private readonly RateAdaptiveBatcher<ListCallbackReq, bool> _lcbBatcher;
-
+    private readonly MultiRateAdaptiveBatcher _batcher;
 
      public SlimDataService(
          IHttpClientFactory httpClientFactory,
@@ -40,29 +38,39 @@ public class SlimDataService
          _serviceProvider = serviceProvider;
          _cluster = cluster;
          _logger = logger;
-        // Config paliers custom si besoin
-         /*var tiers = new[]
-         {
-            // new RateTier(8,   TimeSpan.FromMilliseconds(120)),
-             new RateTier(20, TimeSpan.FromMilliseconds(250)),
-             new RateTier(300, TimeSpan.FromMilliseconds(500)),
-         };*/
+         _batcher = new MultiRateAdaptiveBatcher(
+             idleStop: TimeSpan.FromSeconds(15),
+             maxWaitPerTick: TimeSpan.FromSeconds(5)
+         );
 
-         _llpBatcher = new RateAdaptiveBatcher<ListLeftPushReq, string>(
-             directHandler: (req, ct) => DirectHandlerAsync(req, ct),
-             batchHandler:  (batch, ct) => BatchHandlerAsync(batch, ct),
-             //tiers: tiers,
+         // (optionnel) paliers spécifiques par kind
+         var tiersLlp = new[]
+         {
+             new RateTier(20,  TimeSpan.FromMilliseconds(250)),
+             new RateTier(300, TimeSpan.FromMilliseconds(500)),
+         };
+         var tiersLcb = new[]
+         {
+             new RateTier(50,  TimeSpan.FromMilliseconds(150)),
+             new RateTier(500, TimeSpan.FromMilliseconds(400)),
+         };
+
+         // Kind "llp" : ListLeftPush -> string
+         _batcher.RegisterKind<ListLeftPushReq, string>(
+             kind: "llp",
+             batchHandler: BatchHandlerAsync,
+             tiers: tiersLlp,
              maxBatchSize: 512
          );
 
-         _lcbBatcher = new RateAdaptiveBatcher<ListCallbackReq, bool>(
-             directHandler: (req, ct) => DirectListCallbackHandlerAsync(req, ct),
-             batchHandler:  (batch, ct) => BatchListCallbackHandlerAsync(batch, ct),
-             //tiers: tiers,
+         // Kind "lcb" : ListCallback -> bool
+         _batcher.RegisterKind<ListCallbackReq, bool>(
+             kind: "lcb",
+             batchHandler: BatchListCallbackHandlerAsync,
+             tiers: tiersLcb,
              maxBatchSize: 512
          );
      }
-
 
     private ISupplier<SlimDataPayload> SimplePersistentState =>
         _serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
@@ -89,7 +97,9 @@ public class SlimDataService
             // pré-sérialisation identique à votre code
             var input = new ListLeftPushInput(field, MemoryPackSerializer.Serialize(retryInformation));
             var payload = MemoryPackSerializer.Serialize(input);
-            return await _llpBatcher.EnqueueAsync(
+            Console.WriteLine("ListLeftPushAsync ");
+            return await _batcher.EnqueueAsync<ListLeftPushReq, string>(
+                "llp",
                 new ListLeftPushReq(key, payload, field, retryInformation)
             ).ConfigureAwait(false);
         }, _logger, _retryInterval);
@@ -108,6 +118,7 @@ public class SlimDataService
         var req = new ListLeftPushBatchRequest(
             batch.Select(b => new ListLeftPushBatchItem(b.Key, b.SerializedPayload)).ToArray()
         );
+        Console.WriteLine("Push Item BatchHandlerAsync " + req.Items.Length) ;
         var bin = MemoryPackSerializer.Serialize(req);
         var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
 
@@ -138,8 +149,7 @@ public class SlimDataService
 
     public async ValueTask DisposeAsync()
     {
-        await _llpBatcher.DisposeAsync();
-        await _lcbBatcher.DisposeAsync();
+        await _batcher.DisposeAsync();
     }
 
     public async Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1)
@@ -156,7 +166,10 @@ public class SlimDataService
         {
             var payload = MemoryPackSerializer.Serialize(queueItemStatus);
             // on enfile dans le batcher ; le bool renvoyé n’a pas d’importance ici
-            await _lcbBatcher.EnqueueAsync(new ListCallbackReq(key, payload)).ConfigureAwait(false);
+            _ = await _batcher.EnqueueAsync<ListCallbackReq, bool>(
+                "lcb",
+                new ListCallbackReq(key, payload)
+            ).ConfigureAwait(false);
         }, _logger, _retryInterval);
 
         // Direct = logique unitaire existante (réutilise DoListCallbackAsync)
