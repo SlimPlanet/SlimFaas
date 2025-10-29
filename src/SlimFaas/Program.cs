@@ -193,7 +193,10 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
         {
             string slimDataEndpoint = SlimDataEndpoint.Get(podInformation);
             Console.WriteLine($"Adding node  {slimDataEndpoint}");
-            Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
+            if (!podInformation.Name.Contains(hostname))
+            {
+                Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
+            }
         }
         catch (Exception ex)
         {
@@ -222,7 +225,7 @@ serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
     .SetHandlerLifetime(TimeSpan.FromMinutes(5))
     .ConfigureHttpClient(client =>
     {
-        client.DefaultRequestVersion = HttpVersion.Version20;
+        client.DefaultRequestVersion = HttpVersion.Version11;
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
@@ -308,7 +311,7 @@ var slimfaasPorts = serviceProviderStarter.GetService<ISlimFaasPorts>();
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
-    serverOptions.ListenAnyIP(uri.Port);
+    serverOptions.ListenAnyIP(uri.Port, o => o.Protocols = HttpProtocols.Http1);
 
     if (slimfaasPorts == null)
     {

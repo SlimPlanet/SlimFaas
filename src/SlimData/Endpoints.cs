@@ -251,7 +251,7 @@ public class Endpoints
     {
         return MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
     }
-    /*
+    
   // Batcher pour ListLeftPushBatch : combine les requêtes entrantes côté leader
 private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _lpBatcher =
   new RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse>(
@@ -366,7 +366,7 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
       return batchItems.Select(b => b.Identifier).ToArray();
   }
 
-*/
+
     
     public static async Task ListLeftPushBatchAsync(HttpContext context)
     {
@@ -377,15 +377,15 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
             await inputStream.CopyToAsync(memoryStream, source.Token);
             var value = memoryStream.ToArray();
             // Désérialise en ListLeftPushBatchRequest
-            //var req = DeserializeListLeftPushBatchRequest(value);
-            //Console.WriteLine($"Count ListLeftPushBatchAsync: {req.Items.Length}");
+            var req = DeserializeListLeftPushBatchRequest(value);
+            Console.WriteLine($"Count ListLeftPushBatchAsync: {req.Items.Length}");
 
             // Enfile dans le batcher (sera combiné avec d’autres appels entrants)
-           /* var resp = await _lpBatcher.EnqueueAsync(
+           var resp = await _lpBatcher.EnqueueAsync(
                 new LpReq(cluster, req, source.Token),
                 source.Token
-            );*/
-           var resp = await ListLeftPushBatchCommand(cluster, value, source);
+            );
+           //var resp = await ListLeftPushBatchCommand(cluster, value, source);
             context.Response.StatusCode = StatusCodes.Status201Created;
             var responseBytes = MemoryPackSerializer.Serialize(resp);
             context.Response.StatusCode = StatusCodes.Status200OK;

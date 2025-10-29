@@ -1,4 +1,5 @@
-﻿using System.Net.Security;
+﻿using System.Net;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
 namespace SlimData;
@@ -19,15 +20,12 @@ internal sealed class RaftClientHandlerFactory : IHttpMessageHandlerFactory
         {
             // Etablissement TCP+TLS : vise 2s en prod K8s/mesh
             ConnectTimeout = TimeSpan.FromMilliseconds(electionTimeout),
-
-            // Evite les connexions zombifiées derrière un LB
-            PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+            AllowAutoRedirect = false,
+            AutomaticDecompression = DecompressionMethods.None,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
             PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
-
-            // HTTP/2: garde la connexion en vie (si HTTP/2 activé)
-            KeepAlivePingDelay = TimeSpan.FromSeconds(15),
-            KeepAlivePingTimeout = TimeSpan.FromSeconds(20),
-            EnableMultipleHttp2Connections = true,
+            MaxConnectionsPerServer = 100,
+            EnableMultipleHttp2Connections = false,
 
             UseProxy = false
             
