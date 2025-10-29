@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace SlimData;
 
-// Palier: au-delà de MinPerMinute, on attend Delay avant d'envoyer (pour regrouper)
 public sealed record RateTier(int MinPerMinute, TimeSpan Delay);
 
 public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
@@ -12,15 +12,22 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
     private readonly Func<IReadOnlyList<TReq>, CancellationToken, Task<IReadOnlyList<TRes>>> _batchHandler;
 
     private readonly ConcurrentQueue<(TReq req, TaskCompletionSource<TRes> tcs)> _queue = new();
-    private readonly ConcurrentQueue<long> _arrivals = new(); // timestamps (ticks) des arrivées pour calcul/minute
+    private readonly ConcurrentQueue<long> _arrivals = new();
     private readonly SemaphoreSlim _signal = new(0);
-    private readonly CancellationTokenSource _cts = new();
-    private readonly Task _loopTask;
 
-    private readonly List<RateTier> _tiers; // ordonnés par MinPerMinute croissant
+    private readonly List<RateTier> _tiers;
     private readonly int _maxBatchSize;
-    private readonly int _maxQueueLength; // 0 = illimité
-    private readonly TimeSpan _directBypassDelay; // pour sécurité; 0 par défaut
+    private readonly int _maxQueueLength;
+    private readonly TimeSpan _directBypassDelay;
+
+    private readonly CancellationTokenSource _disposeCts = new();
+    private volatile bool _disposed;
+
+    // Worker paresseux
+    private volatile int _workerRunning; // 0 = arrêté, 1 = en cours
+    private Task? _loopTask;
+    public TimeSpan IdleStop { get; }   // arrêt après inactivité
+    public TimeSpan MaxWaitPerTick { get; } // borne sup de Wait pour recalcul palier régulièrement
 
     public RateAdaptiveBatcher(
         Func<TReq, CancellationToken, Task<TRes>> directHandler,
@@ -28,89 +35,131 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
         IEnumerable<RateTier>? tiers = null,
         int maxBatchSize = 512,
         int maxQueueLength = 0,
-        TimeSpan? directBypassDelay = null)
+        TimeSpan? directBypassDelay = null,
+        TimeSpan? idleStop = null,
+        TimeSpan? maxWaitPerTick = null)
     {
-        _directHandler = directHandler ?? throw new ArgumentNullException(nameof(directHandler));
-        _batchHandler  = batchHandler  ?? throw new ArgumentNullException(nameof(batchHandler));
-        _maxBatchSize  = Math.Max(1, maxBatchSize);
+        _directHandler  = directHandler ?? throw new ArgumentNullException(nameof(directHandler));
+        _batchHandler   = batchHandler  ?? throw new ArgumentNullException(nameof(batchHandler));
+        _maxBatchSize   = Math.Max(1, maxBatchSize);
         _maxQueueLength = Math.Max(0, maxQueueLength);
         _directBypassDelay = directBypassDelay ?? TimeSpan.Zero;
 
-        // Paliers par défaut (tu peux les changer à l’appel)
-        // >8/min  =>  25ms
-        // >30/min =>  60ms
-        // >120/min => 120ms
-        // >300/min => 250ms
+        IdleStop = idleStop ?? TimeSpan.FromSeconds(15);
+        MaxWaitPerTick = maxWaitPerTick ?? TimeSpan.FromSeconds(5);
+
         _tiers = (tiers ?? new[]
         {
-            //new RateTier(8,   TimeSpan.FromMilliseconds(60)),
-            new RateTier(2,  TimeSpan.FromMilliseconds(120)),
-            new RateTier(120, TimeSpan.FromMilliseconds(250)),
-            new RateTier(300, TimeSpan.FromMilliseconds(500)),
+            new RateTier(32,   TimeSpan.FromMilliseconds(60)),
+            new RateTier(64, TimeSpan.FromMilliseconds(120)),
+            new RateTier(128, TimeSpan.FromMilliseconds(240)),
         }).OrderBy(t => t.MinPerMinute).ToList();
-
-        _loopTask = Task.Run(LoopAsync);
     }
 
     public async Task<TRes> EnqueueAsync(TReq request, CancellationToken ct = default)
     {
-        // Backpressure optionnel
+        if (_disposed) throw new ObjectDisposedException(nameof(RateAdaptiveBatcher<TReq, TRes>));
+
         if (_maxQueueLength > 0 && _queue.Count >= _maxQueueLength)
             throw new InvalidOperationException("Batcher queue is full");
 
         var tcs = new TaskCompletionSource<TRes>(TaskCreationOptions.RunContinuationsAsynchronously);
         _queue.Enqueue((request, tcs));
         RecordArrival();
-        _signal.Release(); // réveille la boucle
+
+        // Démarre le worker si nécessaire
+        StartWorkerIfNeeded();
+
+        // Réveille le worker
+        _signal.Release();
+
         using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
         return await tcs.Task.ConfigureAwait(false);
     }
 
-    private async Task LoopAsync()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void StartWorkerIfNeeded()
     {
-        var ct = _cts.Token;
+        if (_disposed) return;
 
+        // un seul gagnant démarre le worker
+        if (Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
+        {
+            var ct = _disposeCts.Token;
+            _loopTask = Task.Run(() => LoopAsync(ct), ct);
+        }
+    }
+    
+    static TimeSpan Min(TimeSpan a, TimeSpan b)
+        => TimeSpan.FromTicks(Math.Min(a.Ticks, b.Ticks));
+
+    private async Task LoopAsync(CancellationToken ct)
+    {
         try
         {
+            // On boucle tant qu’on n’est pas disposé ET qu’il y a de l’activité
             while (!ct.IsCancellationRequested)
             {
-                // Calcule le délai d’attente dynamique selon le débit courant
                 var delay = ComputeDelayFromRatePerMinute();
 
-                // S’il n’y a rien dans la queue, on attend un signal ou le délai (pour recalculer le palier)
+                // Si vide, on attend soit un signal, soit IdleStop (arrêt si toujours vide)
                 if (_queue.IsEmpty)
                 {
-                    await _signal.WaitAsync(delay, ct).ConfigureAwait(false);
-                    continue; // repart au calcul
+                    // borne supérieure pour se « réveiller » périodiquement si delay est énorme
+                    var wait = delay > TimeSpan.Zero ? Min(delay, MaxWaitPerTick) : MaxWaitPerTick;
+                    // mais on impose un vrai timeout d’inactivité pour stopper
+                    var idleDeadline = DateTime.UtcNow + IdleStop;
+
+                    // boucle d’attente « douce » jusqu’à IdleStop, interrompue par un signal
+                    while (!_disposed && DateTime.UtcNow < idleDeadline && _queue.IsEmpty)
+                    {
+                        await _signal.WaitAsync(wait, ct).ConfigureAwait(false);
+                        if (!ct.IsCancellationRequested && !_queue.IsEmpty)
+                            break; // du travail est arrivé
+                    }
+
+                    if (_queue.IsEmpty)
+                    {
+                        // Toujours rien après IdleStop -> on éteint le worker
+                        Interlocked.Exchange(ref _workerRunning, 0);
+
+                        // Double-check contre la course: si des items sont arrivés juste après,
+                        // on retente de redevenir le worker et on repart.
+                        if (!_queue.IsEmpty &&
+                            Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
+                        {
+                            continue; // redevenu le worker
+                        }
+
+                        return; // s’arrête réellement
+                    }
+
+                    // du travail est arrivé, on continue
                 }
 
-                // S’il n’y a rien à attendre (palier direct) et qu’un seul item, traite en direct
-                if (delay <= _directBypassDelay && _queue.Count == 1)
+                // Traitement direct si 1 seul item et délai quasi nul
+                if (delay <= _directBypassDelay && _queue.Count == 1 && _queue.TryDequeue(out var single))
                 {
-                    if (_queue.TryDequeue(out var item))
+                    try
                     {
-                        try
-                        {
-                            var res = await _directHandler(item.req, ct).ConfigureAwait(false);
-                            item.tcs.TrySetResult(res);
-                        }
-                        catch (Exception ex)
-                        {
-                            item.tcs.TrySetException(ex);
-                        }
+                        var res = await _directHandler(single.req, ct).ConfigureAwait(false);
+                        single.tcs.TrySetResult(res);
+                    }
+                    catch (Exception ex)
+                    {
+                        single.tcs.TrySetException(ex);
                     }
                     continue;
                 }
 
-                // Sinon on attend le délai pour grouper
+                // Sinon on attend "un peu" (palier) mais sans bloquer trop longtemps
                 if (delay > TimeSpan.Zero)
                 {
-                    // Double condition: si pendant le délai, de nouveaux items arrivent, _signal fera sortir plus tôt
-                    // mais on utilise une WaitAsync avec timeout pour ne pas bloquer si aucun signal
-                    await _signal.WaitAsync(delay, ct).ConfigureAwait(false);
+                    var wait = Min(delay, MaxWaitPerTick);
+                    await _signal.WaitAsync(wait, ct).ConfigureAwait(false);
                 }
 
-                // Drain en batch (jusqu’à _maxBatchSize)
+                // Drain en batch
                 var batch = new List<(TReq req, TaskCompletionSource<TRes> tcs)>(_maxBatchSize);
                 while (batch.Count < _maxBatchSize && _queue.TryDequeue(out var wi))
                     batch.Add(wi);
@@ -118,7 +167,6 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
                 if (batch.Count == 0)
                     continue;
 
-                // Si 1 seul élément ET palier direct, on fait quand même direct (évite overhead batch)
                 if (batch.Count == 1 && delay <= _directBypassDelay)
                 {
                     var (req, tcs) = batch[0];
@@ -134,7 +182,6 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
                     continue;
                 }
 
-                // Exécution batch
                 try
                 {
                     var reqs = batch.Select(b => b.req).ToList();
@@ -153,71 +200,61 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
-        {
-            // shutting down
-        }
+        catch (OperationCanceledException) { /* normal on dispose */ }
         finally
         {
-            // Vide la file en erreur
+            // En cas d’arrêt, on rejette ce qui reste
             while (_queue.TryDequeue(out var it))
                 it.tcs.TrySetException(new TaskCanceledException("Batcher stopped"));
         }
     }
 
-    // ——— Débit par minute & paliers ———
+    // ——— Débit / paliers ———
 
     private void RecordArrival()
     {
-        // On stocke des ticks (Stopwatch plus précis que DateTime.UtcNow)
         _arrivals.Enqueue(Stopwatch.GetTimestamp());
-        PruneArrivals(); // nettoie > 60s
+        PruneArrivals();
     }
 
     private int ComputeRatePerMinute()
     {
         PruneArrivals();
-        return _arrivals.Count; // fenêtre glissante ~60s
+        return _arrivals.Count;
     }
 
     private TimeSpan ComputeDelayFromRatePerMinute()
     {
         var rpm = ComputeRatePerMinute();
-
-        // Cherche le palier le plus élevé atteint
         TimeSpan delay = TimeSpan.Zero;
         foreach (var tier in _tiers)
         {
-            if (rpm > tier.MinPerMinute)
-                delay = tier.Delay;
-            else
-                break;
+            if (rpm > tier.MinPerMinute) delay = tier.Delay;
+            else break;
         }
-
         return delay;
     }
 
     private void PruneArrivals()
     {
-        // Supprime les timestamps plus vieux que ~60s
         var now = Stopwatch.GetTimestamp();
-        var freq = Stopwatch.Frequency;
-        var windowTicks = freq * 60L;
-
+        var windowTicks = Stopwatch.Frequency * 60L;
         while (_arrivals.TryPeek(out var ts))
         {
-            if ((now - ts) > windowTicks)
-                _arrivals.TryDequeue(out _);
-            else
-                break;
+            if ((now - ts) > windowTicks) _arrivals.TryDequeue(out _);
+            else break;
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        _cts.Cancel();
-        try { await _loopTask.ConfigureAwait(false); } catch { /* ignore */ }
+        if (_disposed) return;
+        _disposed = true;
+
+        _disposeCts.Cancel();
+        try { if (_loopTask is not null) await _loopTask.ConfigureAwait(false); } catch { /* ignore */ }
+
         _signal.Dispose();
-        _cts.Dispose();
+        _disposeCts.Dispose();
     }
 }

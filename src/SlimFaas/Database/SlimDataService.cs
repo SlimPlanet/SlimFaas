@@ -41,24 +41,24 @@ public class SlimDataService
          _cluster = cluster;
          _logger = logger;
         // Config paliers custom si besoin
-         var tiers = new[]
+         /*var tiers = new[]
          {
             // new RateTier(8,   TimeSpan.FromMilliseconds(120)),
              new RateTier(20, TimeSpan.FromMilliseconds(250)),
              new RateTier(300, TimeSpan.FromMilliseconds(500)),
-         };
+         };*/
 
          _llpBatcher = new RateAdaptiveBatcher<ListLeftPushReq, string>(
              directHandler: (req, ct) => DirectHandlerAsync(req, ct),
              batchHandler:  (batch, ct) => BatchHandlerAsync(batch, ct),
-             tiers: tiers,
+             //tiers: tiers,
              maxBatchSize: 512
          );
 
          _lcbBatcher = new RateAdaptiveBatcher<ListCallbackReq, bool>(
              directHandler: (req, ct) => DirectListCallbackHandlerAsync(req, ct),
              batchHandler:  (batch, ct) => BatchListCallbackHandlerAsync(batch, ct),
-             tiers: tiers,
+             //tiers: tiers,
              maxBatchSize: 512
          );
      }
