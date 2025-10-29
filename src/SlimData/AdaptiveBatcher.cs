@@ -43,8 +43,8 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
         // >300/min => 250ms
         _tiers = (tiers ?? new[]
         {
-            new RateTier(8,   TimeSpan.FromMilliseconds(60)),
-            new RateTier(30,  TimeSpan.FromMilliseconds(120)),
+            //new RateTier(8,   TimeSpan.FromMilliseconds(60)),
+            new RateTier(2,  TimeSpan.FromMilliseconds(120)),
             new RateTier(120, TimeSpan.FromMilliseconds(250)),
             new RateTier(300, TimeSpan.FromMilliseconds(500)),
         }).OrderBy(t => t.MinPerMinute).ToList();

@@ -190,7 +190,6 @@ app.MapGet("/error", async () =>
 app.MapPost("/compute", async ([FromServices] RequestCounter counter, [FromBody] JsonElement body) =>
 {
     counter.Begin();
-
     try
     {
         Console.WriteLine("[fib] body: " + body.GetRawText());

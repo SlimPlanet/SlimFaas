@@ -251,7 +251,7 @@ public class Endpoints
     {
         return MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
     }
-    /*
+    
   // Batcher pour ListLeftPushBatch : combine les requêtes entrantes côté leader
 private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _lpBatcher =
   new RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse>(
@@ -316,7 +316,7 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
       // Réutilise ta logique de paliers par défaut
       tiers: null,
       // Nombre max de REQUÊTES agrégées par batcher (pas le nb d’items)
-      maxBatchSize: 64,
+      maxBatchSize: 32,
       // File "illimitée" (à ajuster si besoin)
       maxQueueLength: 0,
       // By-pass: si pas de délai imposé par les paliers et un seul item => directHandler
@@ -366,7 +366,7 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
       return batchItems.Select(b => b.Identifier).ToArray();
   }
 
-*/
+
     
     public static async Task ListLeftPushBatchAsync(HttpContext context)
     {
@@ -381,11 +381,11 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
             Console.WriteLine($"Count ListLeftPushBatchAsync: {req.Items.Length}");
 
             // Enfile dans le batcher (sera combiné avec d’autres appels entrants)
-           /* var resp = await _lpBatcher.EnqueueAsync(
+            var resp = await _lpBatcher.EnqueueAsync(
                 new LpReq(cluster, req, source.Token),
                 source.Token
-            );*/
-           var resp = await ListLeftPushBatchCommand(cluster, value, source);
+            );
+           //var resp = await ListLeftPushBatchCommand(cluster, value, source);
             context.Response.StatusCode = StatusCodes.Status201Created;
             var responseBytes = MemoryPackSerializer.Serialize(resp);
             context.Response.StatusCode = StatusCodes.Status200OK;

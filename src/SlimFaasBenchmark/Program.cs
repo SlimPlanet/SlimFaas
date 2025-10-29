@@ -9,7 +9,7 @@ using var httpClient = new HttpClient
 
 var scenario = Scenario.Create("hello_scenario", async context =>
     {
-       var response = await httpClient.PostAsync("http://localhost:30021/async-function/fibonacci1/compute", new StringContent(""));
+       var response = await httpClient.PostAsync("http://localhost:30021/async-function/fibonacci1/compute", new StringContent("{\"input\":13}"));
         return response.IsSuccessStatusCode ? Response.Ok() : Response.Fail();
     })
     .WithoutWarmUp()
