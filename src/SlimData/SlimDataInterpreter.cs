@@ -171,6 +171,19 @@ public class SlimDataInterpreter : CommandInterpreter
         }
 
         slimDataState.Queues = queues;
+        int totalQueueElements = 0;
+        long totalQueueBytes = 0;
+        foreach (var queue in slimDataState.Queues)
+        {
+            int count = queue.Value.Count;
+            totalQueueElements += count;
+            long sizeBytes = queue.Value.Sum(q => q.Value.Length);
+            totalQueueBytes += sizeBytes;
+
+            Console.WriteLine($"[Queue] Key: {queue.Key}, Count: {count}, Size: {sizeBytes / (1024.0 * 1024.0):F2} MB");
+        }
+
+        Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
 
         return default;
     }
@@ -209,6 +222,20 @@ public class SlimDataInterpreter : CommandInterpreter
         }
         
         slimDataState.Queues = queues.SetItem(listCallbackCommand.Key, value);
+        // ---- Queues ----
+        int totalQueueElements = 0;
+        long totalQueueBytes = 0;
+
+        foreach (var queue in slimDataState.Queues)
+        {
+            int count = queue.Value.Count;
+            totalQueueElements += count;
+            long sizeBytes = queue.Value.Sum(q => q.Value.Length);
+            totalQueueBytes += sizeBytes;
+
+            Console.WriteLine($"[Queue] Key: {queue.Key}, Count: {count}, Size: {sizeBytes / (1024.0 * 1024.0):F2} MB");
+        }
+        Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
 
         return default;
     }

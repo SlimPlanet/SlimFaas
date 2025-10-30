@@ -302,7 +302,12 @@ public class RaftClusterTests
             tasks.Add(databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value" + i), new RetryInformation([], 30, [])));
 
         await Task.WhenAll(tasks);
+
+        foreach (var task in tasks)
+            Console.WriteLine($"task {task.Result}");
+        Console.WriteLine("ici1");
         await GetLocalClusterView(host1).ForceReplicationAsync();
+        Console.WriteLine("ici2");
         var listLength3 = await databaseServiceSlave.ListCountElementAsync("listKey1", new List<CountType>() { CountType.Available });
         Assert.Equal(1000, listLength3.Count);
 

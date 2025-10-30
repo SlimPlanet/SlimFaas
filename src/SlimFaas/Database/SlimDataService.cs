@@ -75,7 +75,7 @@ public class SlimDataService
      }
 
     private ISupplier<SlimDataPayload> SimplePersistentState =>
-        _serviceProvider.GetRequiredService<ISupplier<SlimDataPayload>>();
+        _serviceProvider.GetRequiredService<SlimPersistentState>();
 
     public Task DeleteAsync(string key) => throw new NotImplementedException();
 

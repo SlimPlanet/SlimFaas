@@ -55,7 +55,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
             return false;
 
         await Interpreter.InterpretAsync(entry, token).ConfigureAwait(false);
-        return entry.Index % 10L is 0; // snapshot périodique simple
+        return entry.Index % 1000L is 0; // snapshot périodique simple
     }
 
     // Persiste un snapshot en sérialisant un LogSnapshotCommand (réutilise ta sérialisation existante).

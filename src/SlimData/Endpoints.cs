@@ -385,7 +385,7 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
                 new LpReq(cluster, req, source.Token),
                 source.Token
             );*/
-           var resp = await ListLeftPushBatchCommand(cluster, value, source);
+            var resp = await ListLeftPushBatchCommand(cluster, value, source);
             context.Response.StatusCode = StatusCodes.Status201Created;
             var responseBytes = MemoryPackSerializer.Serialize(resp);
             context.Response.StatusCode = StatusCodes.Status200OK;
@@ -545,66 +545,66 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
     IRaftCluster cluster,
     byte[] value,
     CancellationTokenSource source)
-{
-    // 1) Désérialise la requête batch
-    var req = MemoryPackSerializer.Deserialize<ListCallbackBatchRequest>(value);
-
-    // Prépare les ACKs (même longueur que la requête)
-    var acks = new bool[req.Items.Length];
-    if (req.Items.Length == 0)
-        return new ListCallbackBatchResponse(acks);
-
-    // 2) Construit la commande Raft batch (une seule log entry pour tout le lot)
-    var nowTicks = DateTime.UtcNow.Ticks;
-    var items = new List<SlimData.Commands.ListCallbackBatchCommand.BatchItem>(req.Items.Length);
-
-    for (int i = 0; i < req.Items.Length; i++)
     {
-        var item = req.Items[i];
+        // 1) Désérialise la requête batch
+        var req = MemoryPackSerializer.Deserialize<ListCallbackBatchRequest>(value);
 
-        // Payload = ListQueueItemStatus sérialisé
-        var status = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(item.Payload);
-        if (status?.Items is null || status.Items.Count == 0)
+        // Prépare les ACKs (même longueur que la requête)
+        var acks = new bool[req.Items.Length];
+        if (req.Items.Length == 0)
+            return new ListCallbackBatchResponse(acks);
+
+        // 2) Construit la commande Raft batch (une seule log entry pour tout le lot)
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var items = new List<SlimData.Commands.ListCallbackBatchCommand.BatchItem>(req.Items.Length);
+
+        for (int i = 0; i < req.Items.Length; i++)
         {
-            // Rien à appliquer : on ack "true" (pas d'erreur), mais on n'ajoute pas d'item vide
+            var item = req.Items[i];
+
+            // Payload = ListQueueItemStatus sérialisé
+            var status = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(item.Payload);
+            if (status?.Items is null || status.Items.Count == 0)
+            {
+                // Rien à appliquer : on ack "true" (pas d'erreur), mais on n'ajoute pas d'item vide
+                acks[i] = true;
+                continue;
+            }
+
+            // Convertit en CallbackElements
+            var elements = new List<CallbackElement>(status.Items.Count);
+            foreach (var s in status.Items)
+                elements.Add(new CallbackElement(s.Id, s.HttpCode));
+
+            items.Add(new SlimData.Commands.ListCallbackBatchCommand.BatchItem
+            {
+                Key = item.Key,
+                NowTicks = nowTicks,               // même horodatage pour la cohérence du batch
+                CallbackElements = elements
+            });
+
             acks[i] = true;
-            continue;
         }
 
-        // Convertit en CallbackElements
-        var elements = new List<CallbackElement>(status.Items.Count);
-        foreach (var s in status.Items)
-            elements.Add(new CallbackElement(s.Id, s.HttpCode));
+        // S’il n’y a finalement aucun item utile, on renvoie juste les ACKs
+        if (items.Count == 0)
+            return new ListCallbackBatchResponse(acks);
 
-        items.Add(new SlimData.Commands.ListCallbackBatchCommand.BatchItem
+        // 3) Réplication Raft : UNE seule entrée pour tout le batch
+        var logEntry = new LogEntry<SlimData.Commands.ListCallbackBatchCommand>
         {
-            Key = item.Key,
-            NowTicks = nowTicks,               // même horodatage pour la cohérence du batch
-            CallbackElements = elements
-        });
+            Term = cluster.Term,
+            Command = new SlimData.Commands.ListCallbackBatchCommand
+            {
+                Items = items
+            },
+        };
 
-        acks[i] = true;
-    }
+        await SafeReplicateAsync(cluster, logEntry, source.Token);
 
-    // S’il n’y a finalement aucun item utile, on renvoie juste les ACKs
-    if (items.Count == 0)
+        // 4) Réponse
         return new ListCallbackBatchResponse(acks);
-
-    // 3) Réplication Raft : UNE seule entrée pour tout le batch
-    var logEntry = new LogEntry<SlimData.Commands.ListCallbackBatchCommand>
-    {
-        Term = cluster.Term,
-        Command = new SlimData.Commands.ListCallbackBatchCommand
-        {
-            Items = items
-        },
-    };
-
-    await SafeReplicateAsync(cluster, logEntry, source.Token);
-
-    // 4) Réponse
-    return new ListCallbackBatchResponse(acks);
-}
+    }
 
 
     public static async Task ListCallbackBatchAsync(HttpContext context)
