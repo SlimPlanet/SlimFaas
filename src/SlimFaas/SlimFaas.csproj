@@ -20,6 +20,7 @@
     <UseSystemResourceKeys>false</UseSystemResourceKeys>
     <UseNativeHttpHandler>false</UseNativeHttpHandler>
     <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
+    <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
 
   <PropertyGroup>

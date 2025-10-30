@@ -8,12 +8,16 @@ public sealed record RateTier(int MinPerMinute, TimeSpan Delay);
 
 public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
 {
-    private sealed class Kind
+    private sealed record Kind
     {
+        public required string Name;
         public required Func<IReadOnlyList<object>, CancellationToken, Task<IReadOnlyList<object>>> Handler;
         public required List<RateTier> Tiers;
         public required int MaxBatchSize;
         public int MaxQueueLength;
+        
+        public int MaxBatchBytes; // 0 = unlimited
+        public required Func<object, int> SizeEstimatorBytes;
 
         public readonly ConcurrentQueue<(object req, TaskCompletionSource<object> tcs)> Queue = new();
         public readonly ConcurrentQueue<long> Arrivals = new(); // Stopwatch ticks in last minute
@@ -45,7 +49,9 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         Func<IReadOnlyList<TReq>, CancellationToken, Task<IReadOnlyList<TRes>>> batchHandler,
         IEnumerable<RateTier>? tiers = null,
         int maxBatchSize = 512,
-        int maxQueueLength = 0)
+        int maxQueueLength = 0,
+        int maxBatchBytes = 512 * 1024 * 1024,                    
+        Func<TReq, int>? sizeEstimatorBytes = null )
     {
         if (_disposed) throw new ObjectDisposedException(nameof(MultiRateAdaptiveBatcher));
         if (string.IsNullOrWhiteSpace(kind)) throw new ArgumentNullException(nameof(kind));
@@ -57,12 +63,15 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
             new RateTier(64,  TimeSpan.FromMilliseconds(120)),
             new RateTier(128, TimeSpan.FromMilliseconds(240)),
         }).OrderBy(t => t.MinPerMinute).ToList();
-
+        Func<TReq, int> typedEstimator = sizeEstimatorBytes ?? (_ => 0);
         var k = new Kind
         {
+            Name = kind,
             MaxBatchSize = Math.Max(1, maxBatchSize),
             MaxQueueLength = Math.Max(0, maxQueueLength),
             Tiers = tiersList,
+            MaxBatchBytes = Math.Max(0, maxBatchBytes),
+            SizeEstimatorBytes = o => typedEstimator((TReq)o),
             Handler = async (objs, ct) =>
             {
                 // cast sûr tant qu'on respecte EnqueueAsync<TReq,TRes> pour ce kind
@@ -179,12 +188,38 @@ private async Task LoopAsync(CancellationToken ct)
                 await Task.Delay(wait, ct).ConfigureAwait(false);
                 continue;
             }
-
-            // 3) Drain du kind sélectionné
+            
             var ksel = readyKind;
+            // --- Drain avec limite mémoire et "toujours envoyer au moins 1" ---
             var batch = new List<(object req, TaskCompletionSource<object> tcs)>(ksel.MaxBatchSize);
-            while (batch.Count < ksel.MaxBatchSize && ksel.Queue.TryDequeue(out var it))
-                batch.Add(it);
+            int usedBytes = 0;
+            int cap = ksel.MaxBatchBytes; // 0 = pas de limite
+
+            while (batch.Count < ksel.MaxBatchSize && ksel.Queue.TryPeek(out var next))
+            {
+                int sz = (cap > 0) ? Math.Max(0, ksel.SizeEstimatorBytes(next.req)) : 0;
+
+                if (cap > 0)
+                {
+                    if (batch.Count == 0 && sz >= cap)
+                    {
+                        // ⚠️ 1 seul élément qui dépasse la limite => on l’envoie QUAND MÊME, mais seul
+                        ksel.Queue.TryDequeue(out var it);
+                        batch.Add(it);
+                        usedBytes = sz;
+                        break; // on stoppe ici: batch=1, "gros" item
+                    }
+
+                    // Sinon, si ajouter cet élément dépasse le cap et qu'on a déjà qqch, on s'arrête
+                    if (batch.Count > 0 && (usedBytes + sz) > cap)
+                        break;
+                }
+
+                // Ok, on peut ajouter cet élément
+                ksel.Queue.TryDequeue(out var accepted);
+                batch.Add(accepted);
+                usedBytes += sz;
+            }
 
             if (batch.Count == 0)
                 continue;
@@ -192,8 +227,8 @@ private async Task LoopAsync(CancellationToken ct)
             try
             {
                 var reqs = batch.Select(b => b.req).ToList();
+                Console.WriteLine($"[Batch] kind={ksel.Name} count={batch.Count} bytes~{usedBytes} at {DateTime.UtcNow:O}");
                 var results = await ksel.Handler(reqs, ct).ConfigureAwait(false);
-                Console.WriteLine($"[MultiBatcher] kind processed batch size={batch.Count} at {DateTime.UtcNow:O}");
                 if (results.Count != batch.Count)
                     throw new InvalidOperationException("Batch handler must return as many results as inputs.");
 
