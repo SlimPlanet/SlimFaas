@@ -70,7 +70,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.44.4-pr.179181
+          image: axaguildev/slimfaas:0.44.4-pr.179183
           livenessProbe:
             httpGet:
               path: /health
@@ -86,7 +86,6 @@ spec:
             initialDelaySeconds: 3
             periodSeconds: 10
             timeoutSeconds: 8
-            terminationGracePeriodSeconds: 10
           env:
             #- name: BASE_FUNCTION_URL
               #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"

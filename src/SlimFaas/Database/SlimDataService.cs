@@ -60,7 +60,8 @@ public class SlimDataService
              kind: "llp",
              batchHandler: BatchHandlerAsync,
              tiers: tiersLlp,
-             maxBatchSize: 512
+             maxBatchSize: 512,
+             sizeEstimatorBytes: r => r.SerializedPayload?.Length ?? 0
          );
 
          // Kind "lcb" : ListCallback -> bool
@@ -68,7 +69,8 @@ public class SlimDataService
              kind: "lcb",
              batchHandler: BatchListCallbackHandlerAsync,
              tiers: tiersLcb,
-             maxBatchSize: 512
+             maxBatchSize: 512,
+             sizeEstimatorBytes: r => r.SerializedStatus?.Length ?? 0
          );
      }
 
