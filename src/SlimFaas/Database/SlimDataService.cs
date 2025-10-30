@@ -106,9 +106,6 @@ public class SlimDataService
         }, _logger, _retryInterval);
     }
 
-    // 5) Handler direct = logique unitaire existante
-    private Task<string> DirectHandlerAsync(ListLeftPushReq req, CancellationToken ct)
-        => DoListLeftPushAsync(req.Key, req.Field, req.RetryInfo);
 
     // 6) Handler batch = leader/non-leader
     private async Task<IReadOnlyList<string>> BatchHandlerAsync(IReadOnlyList<ListLeftPushReq> batch, CancellationToken ct)
@@ -173,14 +170,6 @@ public class SlimDataService
             ).ConfigureAwait(false);
         }, _logger, _retryInterval);
 
-        // Direct = logique unitaire existante (réutilise DoListCallbackAsync)
-    private async Task<bool> DirectListCallbackHandlerAsync(ListCallbackReq req, CancellationToken ct)
-    {
-        var status = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(req.SerializedStatus)
-                     ?? throw new DataException("Invalid ListQueueItemStatus");
-        await DoListCallbackAsync(req.Key, status).ConfigureAwait(false);
-        return true;
-    }
 
     // Batch = leader / non leader (comme pour ListLeftPushBatch)
     private async Task<IReadOnlyList<bool>> BatchListCallbackHandlerAsync(

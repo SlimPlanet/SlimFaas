@@ -1,10 +1,8 @@
 ﻿using System.Net;
-using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
-using SlimData.Commands;
 
 namespace SlimData;
 
@@ -16,7 +14,7 @@ public class Startup(IConfiguration configuration)
     {
         ClusterMembers.Add(endpoint);
     }
-
+    
     public void Configure(IApplicationBuilder app)
     {
         const string LeaderResource = "/SlimData/leader";
@@ -30,6 +28,9 @@ public class Startup(IConfiguration configuration)
         const string ListCallback = "/SlimData/ListCallback";
         const string ListCallBackBatch = "/SlimData/ListCallbackBatch";
         const string HealthResource = "/health";
+#pragma warning disable DOTNEXT001
+        app.RestoreStateAsync<SlimPersistentState>(new CancellationToken());
+#pragma warning restore DOTNEXT001
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
@@ -55,7 +56,6 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapPost(ListCallBackBatch,  Endpoints.ListCallbackBatchAsync);
             });
     }
-
 
     public void ConfigureServices(IServiceCollection services)
     {

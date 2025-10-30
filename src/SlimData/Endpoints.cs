@@ -434,8 +434,8 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
             },
         };
 
-        await SafeReplicateAsync(cluster, logEntry, source.Token);
-        var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => b.Identifier).ToArray());
+        bool success = await SafeReplicateAsync(cluster, logEntry, source.Token);
+        var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => success ? b.Identifier : "").ToArray());
 
         return listLeftPushBatchResponse;
     }
@@ -486,8 +486,8 @@ private static readonly RateAdaptiveBatcher<LpReq, ListLeftPushBatchResponse> _l
             },
         };
 
-        await SafeReplicateAsync(cluster, logEntry, source.Token);
-        return id;
+        var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
+        return success ? id : "";
     }
     
     public static Task ListCallbackAsync(HttpContext context)

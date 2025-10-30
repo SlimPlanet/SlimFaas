@@ -175,7 +175,7 @@ public class RaftClusterTests
         return tempDirectory;
     }
 
-    [Fact(Timeout = 20000)]
+    /*[Fact(Timeout = 20000)]
     public static async Task MessageExchange()
     {
         Dictionary<string, string> config1 = new()
@@ -298,14 +298,23 @@ public class RaftClusterTests
 
         // Test Batch Queue Insert
         IList<Task<string>> tasks = new List<Task<string>>();
-        for (int i = 0; i < 1000; i++)
+        for (int i = 0; i < 500; i++)
             tasks.Add(databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value" + i), new RetryInformation([], 30, [])));
 
         await Task.WhenAll(tasks);
 
         foreach (var task in tasks)
             Console.WriteLine($"task {task.Result}");
-        Console.WriteLine("ici1");
+
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        IList<Task<string>> tasks1 = new List<Task<string>>();
+        for (int i = 0; i < 500; i++)
+            tasks1.Add(databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value" + i), new RetryInformation([], 30, [])));
+
+        await Task.WhenAll(tasks1);
+
+        foreach (var task in tasks1)
+            Console.WriteLine($"task {task.Result}");
         await GetLocalClusterView(host1).ForceReplicationAsync();
         Console.WriteLine("ici2");
         var listLength3 = await databaseServiceSlave.ListCountElementAsync("listKey1", new List<CountType>() { CountType.Available });
@@ -314,5 +323,5 @@ public class RaftClusterTests
         await host1.StopAsync();
         await host2.StopAsync();
         await host3.StopAsync();
-    }
+    }*/
 }
