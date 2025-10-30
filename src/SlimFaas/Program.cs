@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -372,6 +373,22 @@ app.Use(async (context, next) =>
     if (context.Request.Path == "/health")
     {
         await context.Response.WriteAsync("OK");
+    }
+    else if (context.Request.Path == "/ready")
+    {
+        var cluster = context.RequestServices.GetService<IRaftCluster>();
+        // 200 si le nœud a terminé son warmup/rattrapage et peut être ajouté
+        if (cluster is not null && cluster.Readiness.IsCompletedSuccessfully)
+        {
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            await context.Response.WriteAsync("READY");
+        }
+        else
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await context.Response.WriteAsync("NOT_READY");
+        }
+        return;
     }
     else
     {

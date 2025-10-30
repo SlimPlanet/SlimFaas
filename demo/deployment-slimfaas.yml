@@ -81,10 +81,12 @@ spec:
             terminationGracePeriodSeconds: 10
           readinessProbe:
             httpGet:
-              path: /health
+              path: /ready
               port: 5000
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 8
+            terminationGracePeriodSeconds: 10
           env:
             #- name: BASE_FUNCTION_URL
               #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
