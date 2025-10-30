@@ -2,6 +2,7 @@
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
 using SlimData.Commands;
 
@@ -60,9 +61,8 @@ public class Startup(IConfiguration configuration)
     {
         services.AddHttpClient("RaftClient", c =>
             {
-                // Force HTTP/1.1 pour toutes les requêtes Raft
                 c.DefaultRequestVersion = HttpVersion.Version11;
-                c.DefaultVersionPolicy  = HttpVersionPolicy.RequestVersionExact; // pas de négociation h2
+                c.DefaultVersionPolicy  = HttpVersionPolicy.RequestVersionExact;
             })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
@@ -82,7 +82,12 @@ public class Startup(IConfiguration configuration)
             .AddRouting();
         var path = configuration[SlimPersistentState.LogLocation];
         if (!string.IsNullOrWhiteSpace(path))
-            services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
+        {
+#pragma warning disable DOTNEXT001
+            services.AddSingleton(new WriteAheadLog.Options { Location = path });
+            services.UseStateMachine<SlimPersistentState>();
+#pragma warning restore DOTNEXT001
+        }
         var endpoint = configuration["publicEndPoint"];
         if (!string.IsNullOrEmpty(endpoint))
         {
