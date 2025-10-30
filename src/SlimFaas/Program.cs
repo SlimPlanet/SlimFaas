@@ -117,7 +117,7 @@ serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
 serviceCollectionSlimFaas.AddHostedService<HealthWorker>();
-serviceCollectionSlimFaas.AddHostedService<ThreadPoolTuner>();
+//serviceCollectionSlimFaas.AddHostedService<ThreadPoolTuner>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
 serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();

@@ -23,8 +23,9 @@ public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
     {
         get
         {
+            return null;
             // Taille estimée (sans compter les préfixes de longueur des Encode/Decode, même approche que tes autres commandes)
-            long total = sizeof(int); // nombre d'items
+            /*long total = sizeof(int); // nombre d'items
             if (Items is null) return total;
 
             foreach (var it in Items)
@@ -42,7 +43,7 @@ public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
                     }
                 }
             }
-            return total;
+            return total;*/
         }
     }
 
@@ -92,8 +93,10 @@ public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
         for (int i = 0; i < count; i++)
         {
             // Key
-            var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false),
-                                               LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+            using var keyOwner = await reader.DecodeAsync(
+                new DecodingContext(Encoding.UTF8, false),
+                LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+            string key = new string(keyOwner.Span);
 
             // NowTicks
             var nowTicks = await reader.ReadLittleEndianAsync<Int64>(token).ConfigureAwait(false);
@@ -104,15 +107,17 @@ public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
 
             while (elCount-- > 0)
             {
-                var identifier = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false),
-                                                          LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+                using var idOwner = await reader.DecodeAsync(
+                    new DecodingContext(Encoding.UTF8, false),
+                    LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+                string identifier = new string(idOwner.Span);
                 var httpCode = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-                elements.Add(new CallbackElement(identifier.ToString(), httpCode));
+                elements.Add(new CallbackElement(identifier, httpCode));
             }
 
             items.Add(new BatchItem
             {
-                Key = key.ToString(),
+                Key = key,
                 NowTicks = nowTicks,
                 CallbackElements = elements
             });

@@ -29,7 +29,8 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
     {
         get
         {
-            if (Items is null) return sizeof(int);
+            return null;
+            /*if (Items is null) return sizeof(int);
             long total = sizeof(int); // nombre d'items
             foreach (var it in Items)
             {
@@ -41,7 +42,7 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
                 total += sizeof(int) + (long)(it.Retries?.Count ?? 0) * sizeof(int); // count + items
                 total += sizeof(int) + (long)(it.HttpStatusCodesWorthRetrying?.Count ?? 0) * sizeof(int);
             }
-            return total;
+            return total;*/
         }
     }
 
@@ -103,10 +104,17 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
         for (int i = 0; i < count; i++)
         {
             // Strings
-            var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false),
-                                               LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
-            var identifier = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false),
-                                                      LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+            using var keyOwner = await reader
+                .DecodeAsync(new DecodingContext(Encoding.UTF8, false),
+                    LengthFormat.LittleEndian, token: token)
+                .ConfigureAwait(false);
+            string key = new string(keyOwner.Span);
+
+            using var idOwner = await reader
+                .DecodeAsync(new DecodingContext(Encoding.UTF8, false),
+                    LengthFormat.LittleEndian, token: token)
+                .ConfigureAwait(false);
+            string identifier = new string(idOwner.Span);
 
             // Scalaires
             var nowTicks = await reader.ReadLittleEndianAsync<Int64>(token).ConfigureAwait(false);
@@ -130,8 +138,8 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
 
             items.Add(new BatchItem
             {
-                Key = key.ToString(),
-                Identifier = identifier.ToString(),
+                Key = key,
+                Identifier = identifier,
                 NowTicks = nowTicks,
                 RetryTimeout = retryTimeout,
                 Value = value,
