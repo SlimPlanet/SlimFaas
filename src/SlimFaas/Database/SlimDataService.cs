@@ -59,7 +59,7 @@ public class SlimDataService
          _batcher.RegisterKind<ListLeftPushReq, string>(
              kind: "llp",
              batchHandler: BatchHandlerAsync,
-             tiers: tiersLlp,
+            // tiers: tiersLlp,
              maxBatchSize: 512,
              sizeEstimatorBytes: r => r.SerializedPayload?.Length ?? 0
          );
@@ -68,7 +68,7 @@ public class SlimDataService
          _batcher.RegisterKind<ListCallbackReq, bool>(
              kind: "lcb",
              batchHandler: BatchListCallbackHandlerAsync,
-             tiers: tiersLcb,
+            // tiers: tiersLcb,
              maxBatchSize: 512,
              sizeEstimatorBytes: r => r.SerializedStatus?.Length ?? 0
          );

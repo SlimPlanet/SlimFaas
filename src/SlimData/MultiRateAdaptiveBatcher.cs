@@ -17,6 +17,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         public int MaxQueueLength;
         
         public int MaxBatchBytes; // 0 = unlimited
+        public TimeSpan CoalesceWindow;
         public required Func<object, int> SizeEstimatorBytes;
 
         public readonly ConcurrentQueue<(object req, TaskCompletionSource<object> tcs)> Queue = new();
@@ -51,7 +52,8 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         int maxBatchSize = 512,
         int maxQueueLength = 0,
         int maxBatchBytes = 512 * 1024 * 1024,                    
-        Func<TReq, int>? sizeEstimatorBytes = null )
+        Func<TReq, int>? sizeEstimatorBytes = null,
+        TimeSpan? coalesceWindow = null)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(MultiRateAdaptiveBatcher));
         if (string.IsNullOrWhiteSpace(kind)) throw new ArgumentNullException(nameof(kind));
@@ -72,6 +74,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
             Tiers = tiersList,
             MaxBatchBytes = Math.Max(0, maxBatchBytes),
             SizeEstimatorBytes = o => typedEstimator((TReq)o),
+            CoalesceWindow = coalesceWindow ?? tiersList[0].Delay, 
             Handler = async (objs, ct) =>
             {
                 // cast sûr tant qu'on respecte EnqueueAsync<TReq,TRes> pour ce kind
@@ -190,6 +193,13 @@ private async Task LoopAsync(CancellationToken ct)
             }
             
             var ksel = readyKind;
+            // 🔴 Fenêtre de coalescence : laisse la rafale se remplir (sans toucher au sémaphore)
+            if (ksel.CoalesceWindow > TimeSpan.Zero)
+            {
+                // Si on n'a pas déjà de quoi remplir un gros batch, on attend un poil
+                if (ksel.Queue.Count < ksel.MaxBatchSize)
+                    await Task.Delay(ksel.CoalesceWindow, ct).ConfigureAwait(false);
+            }
             // --- Drain avec limite mémoire et "toujours envoyer au moins 1" ---
             var batch = new List<(object req, TaskCompletionSource<object> tcs)>(ksel.MaxBatchSize);
             int usedBytes = 0;
