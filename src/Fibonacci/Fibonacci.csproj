@@ -20,5 +20,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="prometheus-net" Version="8.2.1" />
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+  </ItemGroup>
+
 
 </Project>

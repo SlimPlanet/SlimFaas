@@ -1,81 +1,130 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Immutable;
+using Xunit;
 
 namespace SlimData.Tests;
 
-public class QueueElementExtentionsTests
+public class QueueElementExtensionsTests
 {
     [Fact]
-    public static void QueueElementExtensionsGetQueueRunningElement()
+    public static void QueueElementExtensions_GetQueueStates_WorkAsExpected()
     {
-        // I want a test which text my extention
-        var nowTicks = DateTime.UtcNow.Ticks;
-        List<int> _retries = [2, 6, 10];
-        var retries = _retries.ToImmutableList();
-        int retryTimeout = 30;
-        int[] httpStatusCodesWorthRetrying =
-            [
-                // 408 , // HttpStatusCode.RequestTimeout,
-                500, // HttpStatusCode.InternalServerError,
-                502, // HttpStatusCode.BadGateway,
-                503, // HttpStatusCode.ServiceUnavailable,
-                //504, // HttpStatusCode.GatewayTimeout
-            ];
+        // Arrange
+        long nowTicks = DateTime.UtcNow.Ticks;
 
-        var timeout = 30;
-        var idTransaction = "";
-        var timeoutSpanTicks = TimeSpan.FromSeconds(31).Ticks;
-        ImmutableList<QueueElement> queueElements = ImmutableList<QueueElement>.Empty;
-        var _httpRetriesCode = new List<int>(httpStatusCodesWorthRetrying) ;
-        var httpRetriesCode = _httpRetriesCode.ToImmutableList();
-        queueElements = queueElements.Add(new QueueElement(new ReadOnlyMemory<byte>([1]), "-1", 090902, timeout, retries, new List<QueueHttpTryElement>()
-        {
-            new(nowTicks -100, idTransaction, nowTicks, 500),
-            new(nowTicks -50, idTransaction, nowTicks, 500),
-            new(nowTicks -20, idTransaction, nowTicks, 500),
-            new(nowTicks -10, idTransaction, nowTicks, 500),
-        }.ToImmutableList(), httpRetriesCode));
-        queueElements = queueElements.Add(new QueueElement(new ReadOnlyMemory<byte>([1]), "0", 090902, timeout, retries, new List<QueueHttpTryElement>()
-        {
-            new(nowTicks - timeoutSpanTicks -100, idTransaction, nowTicks, 500),
-            new(nowTicks- timeoutSpanTicks -50, idTransaction, nowTicks, 500),
-            new(nowTicks- timeoutSpanTicks -30, idTransaction, nowTicks, 500),
-            new(nowTicks- timeoutSpanTicks -20,  idTransaction,0, 0),
-        }.ToImmutableList(), httpRetriesCode));
-        queueElements = queueElements.Add(new QueueElement(new ReadOnlyMemory<byte>([1]), "0-ok", 090902, timeout, retries, new List<QueueHttpTryElement>()
-        {
-            new(nowTicks  -100, idTransaction, nowTicks, 200),
-        }.ToImmutableList(), httpRetriesCode));
-        queueElements = queueElements.Add(new QueueElement(new ReadOnlyMemory<byte>([1]), "1", 090902, timeout, retries, new List<QueueHttpTryElement>()
-        {
-            new(nowTicks - 1000, idTransaction, nowTicks, 500),
-            new(nowTicks- 500, idTransaction, nowTicks, 500),
-            new(nowTicks- 200, idTransaction, nowTicks, 500),
-            new(nowTicks- 100, idTransaction, 0, 0),
-        }.ToImmutableList(), httpRetriesCode));
-        queueElements = queueElements.Add(new QueueElement(new ReadOnlyMemory<byte>([1]), "1timeout", 090902, timeout, retries, new List<QueueHttpTryElement>()
-        {
-            new(nowTicks - 1000, idTransaction, nowTicks, 500),
-            new(nowTicks- 500, idTransaction, nowTicks, 500),
-            new(nowTicks- 400, idTransaction, nowTicks, 500),
-            new(nowTicks- timeoutSpanTicks, idTransaction, 0, 0),
-        }.ToImmutableList(), httpRetriesCode));
-        queueElements = queueElements.Add(new QueueElement(new ReadOnlyMemory<byte>([1]), "2", 090902, timeout, retries, ImmutableList<QueueHttpTryElement>.Empty, httpRetriesCode));
-        queueElements = queueElements.Add(new QueueElement(new ReadOnlyMemory<byte>([1]), "3", 090902, timeout, retries, ImmutableList<QueueHttpTryElement>.Empty, httpRetriesCode));
-        queueElements = queueElements.Add(new QueueElement(new ReadOnlyMemory<byte>([1]), "4", 090902, timeout, retries, ImmutableList<QueueHttpTryElement>.Empty, httpRetriesCode));
+        // Retries (en secondes) et timeout (en secondes)
+        var retries = ImmutableArray.Create(2, 6, 10);
+        int httpTimeoutSeconds = 30;
 
+        // Codes HTTP à retenter
+        var httpStatusCodesWorthRetrying = ImmutableHashSet.Create(500, 502, 503);
+
+        // Un petit décalage > timeout pour fabriquer un "timeout" côté ticks
+        long timeoutSpanTicks = TimeSpan.FromSeconds(httpTimeoutSeconds + 1).Ticks;
+
+        var b = ImmutableArray.CreateBuilder<QueueElement>();
+
+        // -1 : 4 tentatives déjà terminées (code 500) -> retries dépassés => Finished
+        b.Add(new QueueElement(
+            new ReadOnlyMemory<byte>(new byte[] { 1 }),
+            "-1",
+            090902,
+            httpTimeoutSeconds,
+            retries,
+            ImmutableArray.Create(
+                new QueueHttpTryElement(nowTicks - 100, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks - 50,  "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks - 20,  "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks - 10,  "", nowTicks, 500)
+            ),
+            httpStatusCodesWorthRetrying
+        ));
+
+        // 0 : dernière tentative non terminée et très ancienne => Timeout ; count(tries)=4 > retries(3) => Finished
+        b.Add(new QueueElement(
+            new ReadOnlyMemory<byte>(new byte[] { 1 }),
+            "0",
+            090902,
+            httpTimeoutSeconds,
+            retries,
+            ImmutableArray.Create(
+                new QueueHttpTryElement(nowTicks - timeoutSpanTicks - 100, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks - timeoutSpanTicks -  50, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks - timeoutSpanTicks -  30, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks - timeoutSpanTicks -  20, "", 0,      0)
+            ),
+            httpStatusCodesWorthRetrying
+        ));
+
+        // 0-ok : dernière tentative terminée et code 200 (non retryable) => Finished
+        b.Add(new QueueElement(
+            new ReadOnlyMemory<byte>(new byte[] { 1 }),
+            "0-ok",
+            090902,
+            httpTimeoutSeconds,
+            retries,
+            ImmutableArray.Create(
+                new QueueHttpTryElement(nowTicks - 100, "", nowTicks, 200)
+            ),
+            httpStatusCodesWorthRetrying
+        ));
+
+        // 1 : dernière tentative démarrée, pas terminée, pas time-out => Running
+        b.Add(new QueueElement(
+            new ReadOnlyMemory<byte>(new byte[] { 1 }),
+            "1",
+            090902,
+            httpTimeoutSeconds,
+            retries,
+            ImmutableArray.Create(
+                new QueueHttpTryElement(nowTicks - 1000, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks -  500, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks -  200, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks -  100, "", 0,      0)
+            ),
+            httpStatusCodesWorthRetrying
+        ));
+
+        // 1timeout : dernière tentative démarrée il y a > timeout, non terminée, retries dépassés => Finished
+        b.Add(new QueueElement(
+            new ReadOnlyMemory<byte>(new byte[] { 1 }),
+            "1timeout",
+            090902,
+            httpTimeoutSeconds,
+            retries,
+            ImmutableArray.Create(
+                new QueueHttpTryElement(nowTicks - 1000, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks -  500, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks -  400, "", nowTicks, 500),
+                new QueueHttpTryElement(nowTicks - timeoutSpanTicks, "", 0, 0)
+            ),
+            httpStatusCodesWorthRetrying
+        ));
+
+        // 2, 3, 4 : aucun essai => Available
+        b.Add(new QueueElement(new ReadOnlyMemory<byte>(new byte[] { 1 }), "2", 090902, httpTimeoutSeconds, retries, ImmutableArray<QueueHttpTryElement>.Empty, httpStatusCodesWorthRetrying));
+        b.Add(new QueueElement(new ReadOnlyMemory<byte>(new byte[] { 1 }), "3", 090902, httpTimeoutSeconds, retries, ImmutableArray<QueueHttpTryElement>.Empty, httpStatusCodesWorthRetrying));
+        b.Add(new QueueElement(new ReadOnlyMemory<byte>(new byte[] { 1 }), "4", 090902, httpTimeoutSeconds, retries, ImmutableArray<QueueHttpTryElement>.Empty, httpStatusCodesWorthRetrying));
+
+        var queueElements = b.MoveToImmutable();
+
+        // Act
         var availableElements = queueElements.GetQueueAvailableElement(nowTicks, 3);
+        var runningElements   = queueElements.GetQueueRunningElement(nowTicks);
+        var finishedElements  = queueElements.GetQueueFinishedElement(nowTicks);
 
-        Assert.Equal(3, availableElements.Count);
+        // Assert
+        Assert.Equal(3, availableElements.Length);
         Assert.Equal("2", availableElements[0].Id);
         Assert.Equal("3", availableElements[1].Id);
+        Assert.Equal("4", availableElements[2].Id);
 
-        var runningElements = queueElements.GetQueueRunningElement(nowTicks);
-        Assert.Equal(1, runningElements.Count);
+        Assert.Equal(1, runningElements.Length);
         Assert.Equal("1", runningElements[0].Id);
 
-
-        var finishedElements = queueElements.GetQueueFinishedElement(nowTicks);
-        Assert.Equal(4, finishedElements.Count);
+        Assert.Equal(4, finishedElements.Length);
+        // (optionnel) on peut vérifier qu'ils contiennent bien les ID attendus, quel que soit l'ordre
+        var finishedIds = finishedElements.Select(e => e.Id).ToImmutableHashSet();
+        Assert.True(finishedIds.SetEquals(new[] { "-1", "0", "0-ok", "1timeout" }));
     }
-
 }

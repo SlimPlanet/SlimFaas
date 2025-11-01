@@ -1,152 +1,149 @@
-﻿using System.Collections.Immutable;
+﻿using System;
+using System.Collections.Immutable;
 
 namespace SlimData;
 
 public static class QueueElementExtensions
 {
-    public static bool IsTimeout(this QueueElement element, long nowTicks)
+    // ---------- Petites aides internes (inlinables) ----------
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private static bool TryGetLastTry(in QueueElement e, out QueueHttpTryElement last)
     {
-        if (element.RetryQueueElements.Count <= 0) return false;
-        int timeout = element.HttpTimeout;
-        var retryQueueElement = element.RetryQueueElements[^1];
-        if (retryQueueElement.EndTimeStamp == 0 &&
-            retryQueueElement.StartTimeStamp + TimeSpan.FromSeconds(timeout).Ticks <= nowTicks)
-        {
-            return true;
-        }
-        return false;   
+        var arr = e.RetryQueueElements;
+        if (arr.IsDefaultOrEmpty) { last = null!; return false; }
+        last = arr[^1];
+        return true;
     }
-    
-    public static bool IsWaitingForRetry(this QueueElement element, long nowTicks)
-    {
-        ImmutableList<int> retries = element.TimeoutRetries;
-        var count = element.RetryQueueElements.Count;
-        if (count == 0 || count > retries.Count) return false;
-        
-        if (element.IsFinished(nowTicks)) return false;
-        if (element.IsRunning(nowTicks)) return false;
-        
-        var retryQueueElement = element.RetryQueueElements[^1];
-        var retryTimeout = retries[count - 1];
-        if (element.IsTimeout(nowTicks) && TimeSpan.FromSeconds(retryTimeout).Ticks + element.HttpTimeout > nowTicks - retryQueueElement.StartTimeStamp)
-        {
-            return true;
-        }
 
-        if (retryQueueElement.EndTimeStamp != 0 &&
-            (TimeSpan.FromSeconds(retryTimeout).Ticks > nowTicks - retryQueueElement.EndTimeStamp))
-        {
-            return true;
-        }
-        
-        return false;
-    }
-    
-    public static bool IsFinished(this QueueElement queueElement, long nowTicks)
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
+    private static long SecondsToTicks(int seconds) => (long)seconds * TimeSpan.TicksPerSecond;
+
+    // ---------- États élémentaires ----------
+    public static bool IsTimeout(this QueueElement e, long nowTicks)
     {
-        var count = queueElement.RetryQueueElements.Count;
+        if (!TryGetLastTry(e, out var last)) return false;
+        // timeout si pas terminé et délai écoulé
+        return last.EndTimeStamp == 0 && (last.StartTimeStamp + e.HttpTimeoutTicks) <= nowTicks;
+    }
+
+    public static bool IsRunning(this QueueElement e, long nowTicks)
+    {
+        if (!TryGetLastTry(e, out var last)) return false;
+        // en cours seulement si non timeout et pas d’End
+        return last.EndTimeStamp == 0 && !e.IsTimeout(nowTicks);
+    }
+
+    public static bool IsFinished(this QueueElement e, long nowTicks)
+    {
+        var tries = e.RetryQueueElements;
+        var count = tries.IsDefault ? 0 : tries.Length;
         if (count <= 0) return false;
-        ImmutableList<int> retries = queueElement.TimeoutRetries;
-        var retryQueueElement = queueElement.RetryQueueElements[^1];
-        if (retryQueueElement.EndTimeStamp > 0 &&
-            !queueElement.HttpStatusRetries.Contains(retryQueueElement.HttpCode))
-        {
+
+        var retries = e.TimeoutRetriesSeconds;
+        var last = tries[^1];
+
+        // Terminé si on a un End et que le code HTTP n’est pas dans les "à retenter"
+        if (last.EndTimeStamp > 0 && !e.HttpStatusRetries.Contains(last.HttpCode))
             return true;
+
+        // Si on a consommé tous les retries, on termine au premier timeout ou fin
+        if (!retries.IsDefaultOrEmpty && retries.Length < count)
+        {
+            if (e.IsTimeout(nowTicks) || last.EndTimeStamp > 0)
+                return true;
         }
 
-        if (retries.Count < count)
-        {
-            if (queueElement.IsTimeout(nowTicks) || retryQueueElement.EndTimeStamp > 0)
-            {
-                return true;
-            }
-        }
-        
         return false;
     }
-    
-    public static bool IsRunning(this QueueElement queueElement, long nowTicks)
+
+    public static bool IsWaitingForRetry(this QueueElement e, long nowTicks)
     {
-        if (queueElement.RetryQueueElements.Count <= 0) return false;
-        var retryQueueElement = queueElement.RetryQueueElements[^1];
-        if (retryQueueElement.EndTimeStamp == 0 &&
-            !queueElement.IsTimeout(nowTicks))
+        var retries = e.TimeoutRetriesSeconds;
+        if (retries.IsDefaultOrEmpty) return false;
+
+        var tries = e.RetryQueueElements;
+        var count = tries.IsDefault ? 0 : tries.Length;
+
+        if (count == 0 || count > retries.Length) return false;
+        if (e.IsFinished(nowTicks)) return false;
+        if (e.IsRunning(nowTicks)) return false;
+
+        var last = tries[^1];
+        var retryTimeoutSec = retries[count - 1];
+        var retryTicks = SecondsToTicks(retryTimeoutSec);
+
+        if (e.IsTimeout(nowTicks))
         {
-            return true;
+            // fenêtre d’attente après un timeout en cours (pas encore End)
+            // NB: " + e.HttpTimeout" dans votre code original semble une erreur d’unités (sec vs ticks).
+            // On compare des ticks à des ticks ici (correct).
+            return (nowTicks - last.StartTimeStamp) <= (e.HttpTimeoutTicks + retryTicks);
         }
+
+        if (last.EndTimeStamp != 0)
+        {
+            // fenêtre d’attente après un essai terminé
+            return (nowTicks - last.EndTimeStamp) <= retryTicks;
+        }
+
         return false;
     }
-    
-    public static ImmutableList<QueueElement> GetQueueTimeoutElement(this ImmutableList<QueueElement> elements, long nowTicks)
+
+    // ---------- Sélections mono-pass ----------
+    public static ImmutableArray<QueueElement> GetQueueTimeoutElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
-        var timeoutElements = ImmutableList.CreateBuilder<QueueElement>();
-        foreach (var queueElement in elements)
-        {
-            if (queueElement.IsTimeout(nowTicks))
-            {
-                timeoutElements.Add(queueElement);
-            }
-        }
-        return timeoutElements.ToImmutable();
+        var builder = ImmutableArray.CreateBuilder<QueueElement>(elements.Length);
+        foreach (var e in elements)
+            if (e.IsTimeout(nowTicks)) builder.Add(e);
+        return builder.ToImmutable();
     }
-    
-    public static ImmutableList<QueueElement> GetQueueRunningElement(this ImmutableList<QueueElement> elements, long nowTicks)
+
+    public static ImmutableArray<QueueElement> GetQueueRunningElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
-        var runningElements = ImmutableList.CreateBuilder<QueueElement>();
-        foreach (var queueElement in elements)
-        {
-            if (queueElement.IsRunning(nowTicks))
-            {
-                runningElements.Add(queueElement);
-            }
-        }
-        return runningElements.ToImmutable();
+        var builder = ImmutableArray.CreateBuilder<QueueElement>(elements.Length);
+        foreach (var e in elements)
+            if (e.IsRunning(nowTicks)) builder.Add(e);
+        return builder.ToImmutable();
     }
-    
-    public static ImmutableList<QueueElement> GetQueueWaitingForRetryElement(this ImmutableList<QueueElement> elements, long nowTicks)
+
+    public static ImmutableArray<QueueElement> GetQueueWaitingForRetryElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
-        var waitingForRetry = ImmutableList.CreateBuilder<QueueElement>();
-        foreach (var queueElement in elements)
-        {
-            if (queueElement.IsWaitingForRetry(nowTicks))
-            {
-                waitingForRetry.Add(queueElement);
-            }
-        }
-        return waitingForRetry.ToImmutable();
+        var builder = ImmutableArray.CreateBuilder<QueueElement>(elements.Length);
+        foreach (var e in elements)
+            if (e.IsWaitingForRetry(nowTicks)) builder.Add(e);
+        return builder.ToImmutable();
     }
-    
-    public static ImmutableList<QueueElement> GetQueueAvailableElement(this ImmutableList<QueueElement> elements, long nowTicks, int maximum)
+
+    public static ImmutableArray<QueueElement> GetQueueFinishedElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
-        var runningElements = elements.GetQueueRunningElement(nowTicks);
-        var runningWaitingForRetryElements = elements.GetQueueWaitingForRetryElement(nowTicks);
-        var finishedElements = elements.GetQueueFinishedElement(nowTicks);
-        var availableElements = ImmutableList.CreateBuilder<QueueElement>();
-        var currentElements = elements.Except(runningElements).Except(runningWaitingForRetryElements).Except(finishedElements);
-        var currentCount = 0;
-       
-        foreach (var queueElement in currentElements)
-        {
-            if (currentCount == maximum)
-            {
-                return availableElements.ToImmutable();
-            }
-            availableElements.Add(queueElement);
-            currentCount++;
-        }
-        return availableElements.ToImmutable();
+        var builder = ImmutableArray.CreateBuilder<QueueElement>(elements.Length);
+        foreach (var e in elements)
+            if (e.IsFinished(nowTicks)) builder.Add(e);
+        return builder.ToImmutable();
     }
-    
-    public static ImmutableList<QueueElement> GetQueueFinishedElement(this ImmutableList<QueueElement> elements, long nowTicks)
+
+    /// <summary>
+    /// Version O(n) sans Except / allocations intermédiaires.
+    /// Renvoie jusqu’à <paramref name="maximum"/> éléments disponibles.
+    /// </summary>
+    public static ImmutableArray<QueueElement> GetQueueAvailableElement(this ImmutableArray<QueueElement> elements, long nowTicks, int maximum)
     {
-        var queueFinishedElements = ImmutableList.CreateBuilder<QueueElement>();
-        foreach (var queueElement in elements)
+        if (maximum <= 0 || elements.IsDefaultOrEmpty)
+            return ImmutableArray<QueueElement>.Empty;
+
+        var builder = ImmutableArray.CreateBuilder<QueueElement>(Math.Min(maximum, elements.Length));
+
+        foreach (var e in elements)
         {
-            if (queueElement.IsFinished(nowTicks))
-            {
-                queueFinishedElements.Add(queueElement);
-            }
+            // ordre : on élimine rapidement les cas fréquents
+            if (e.IsFinished(nowTicks)) continue;
+            if (e.IsRunning(nowTicks)) continue;
+            if (e.IsWaitingForRetry(nowTicks)) continue;
+
+            builder.Add(e);
+            if (builder.Count == maximum) break;
         }
-        return queueFinishedElements.ToImmutable(); 
+
+        return builder.ToImmutable();
     }
 }
