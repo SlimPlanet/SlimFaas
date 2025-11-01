@@ -83,8 +83,11 @@ internal class MemorySlimFaasQueue : ISlimFaasQueue
 
     public Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus) => throw new NotImplementedException();
 
-    public async Task EnqueueAsync(string key, byte[] message, RetryInformation retryInformation) => await Task.Delay(100);
-
+    public async Task<string> EnqueueAsync(string key, byte[] message, RetryInformation retryInformation)
+    {
+        await Task.Delay(100);
+        return Guid.NewGuid().ToString();
+    }
 }
 
 internal record SendData(string FunctionName, string Path, string BaseUrl);

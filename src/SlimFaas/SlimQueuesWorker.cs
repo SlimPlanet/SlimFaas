@@ -83,7 +83,6 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         }
     }
 
-    private static int numberDequedSended = 0;
     private async Task SendHttpRequestToFunction(Dictionary<string, IList<RequestToWait>> processingTasks,
         int numberLimitProcessingTasks,
         DeploymentInformation function)
@@ -91,7 +90,6 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         string functionDeployment = function.Deployment;
         var jsons = await slimFaasQueue.DequeueAsync(functionDeployment, numberLimitProcessingTasks);
 
-        numberDequedSended = numberDequedSended + jsons?.Count ?? 0;
         if (jsons == null)
         {
             return;
@@ -178,7 +176,14 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
                 httpResponseMessagesToDelete.Add(processing);
-                queueItemStatusList.Add(new QueueItemStatus(processing.Id, statusCode));
+                if (statusCode == 202)
+                {
+                    logger.LogInformation("SlimFaas is waiting callback from {FunctionDeployment}", functionDeployment);
+                }
+                else
+                {
+                    queueItemStatusList.Add(new QueueItemStatus(processing.Id, statusCode));
+                }
                 httpResponseMessage.Dispose();
             }
             catch (Exception e)

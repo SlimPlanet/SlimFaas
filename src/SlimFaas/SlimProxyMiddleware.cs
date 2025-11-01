@@ -47,6 +47,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
 {
     private const string AsyncFunction = "/async-function";
+    private const string AsyncFunctionCallback = "/async-function-callback";
     private const string AsyncFunctionQueue = "/async-function-queue";
     private const string StatusFunction = "/status-function";
     private const string WakeFunction = "/wake-function";
@@ -467,8 +468,8 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         var bin = MemoryPackSerializer.Serialize(customRequest);
         var defaultAsync = function.Configuration.DefaultAsync;
-        await slimFaasQueue.EnqueueAsync(functionName, bin, new RetryInformation(defaultAsync.TimeoutRetries, defaultAsync.HttpTimeout, defaultAsync.HttpStatusRetries));
-
+        var id = await slimFaasQueue.EnqueueAsync(functionName, bin, new RetryInformation(defaultAsync.TimeoutRetries, defaultAsync.HttpTimeout, defaultAsync.HttpStatusRetries));
+        context.Response.Headers.Append("slimfaas-element-id", id);
         context.Response.StatusCode = 202;
     }
 

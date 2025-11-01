@@ -1,8 +1,10 @@
 ﻿using System.Net;
+using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
+using SlimData.Commands;
 
 namespace SlimData;
 
@@ -29,7 +31,7 @@ public class Startup(IConfiguration configuration)
         const string ListCallBackBatch = "/SlimData/ListCallbackBatch";
         const string HealthResource = "/health";
 #pragma warning disable DOTNEXT001
-        app.RestoreStateAsync<SlimPersistentState>(new CancellationToken());
+     //   app.RestoreStateAsync<SlimPersistentState>(new CancellationToken());
 #pragma warning restore DOTNEXT001
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
@@ -81,13 +83,15 @@ public class Startup(IConfiguration configuration)
             .AddOptions()
             .AddRouting();
         var path = configuration[SlimPersistentState.LogLocation];
-        if (!string.IsNullOrWhiteSpace(path))
+       /* if (!string.IsNullOrWhiteSpace(path))
         {
 #pragma warning disable DOTNEXT001
             services.AddSingleton(new WriteAheadLog.Options { Location = path });
             services.UseStateMachine<SlimPersistentState>();
 #pragma warning restore DOTNEXT001
-        }
+        }*/
+       if (!string.IsNullOrWhiteSpace(path))
+           services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
         var endpoint = configuration["publicEndPoint"];
         if (!string.IsNullOrEmpty(endpoint))
         {
