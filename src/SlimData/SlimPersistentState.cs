@@ -118,7 +118,7 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
     private readonly SlimDataState _state = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
-        ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
+        ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
         );
     public CommandInterpreter Interpreter { get; }
 
@@ -170,7 +170,7 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
         private readonly SlimDataState _state =  new(
             ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
             ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
-            ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
+            ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
             );
         private readonly CommandInterpreter _interpreter;
 

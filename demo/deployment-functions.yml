@@ -14,7 +14,7 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"
-        SlimFaas/NumberParallelRequest: "2"
+        SlimFaas/NumberParallelRequest: "20"
         SlimFaas/ReplicasAtStart: "2"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
@@ -73,7 +73,7 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"
-        SlimFaas/NumberParallelRequest: "2"
+        SlimFaas/NumberParallelRequest: "20"
         SlimFaas/ReplicasAtStart: "2"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'

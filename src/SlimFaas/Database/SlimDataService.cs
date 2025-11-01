@@ -388,9 +388,11 @@ public class SlimDataService
         SlimDataPayload data = SimplePersistentState.Invoke();
         List<QueueElement> result = new();
 
-        if (!data.Queues.TryGetValue(key, out ImmutableList<QueueElement>? value))
+        if (!data.Queues.TryGetValue(key, out ImmutableArray<QueueElement> value) ||
+            value.IsDefaultOrEmpty ||
+            countTypes.Count == 0)
         {
-            return new List<QueueData>(0);
+            return Array.Empty<QueueData>();
         }
 
         long nowTicks = DateTime.UtcNow.Ticks;

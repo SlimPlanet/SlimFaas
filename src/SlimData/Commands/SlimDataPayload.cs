@@ -7,7 +7,7 @@ public struct SlimDataPayload
 {
     public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; }
     
-    public ImmutableDictionary<string, ImmutableList<QueueElement>> Queues { get; set; }
+    public ImmutableDictionary<string, ImmutableArray<QueueElement>> Queues { get; set; }
     public ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets { get; set; }
     
 }
