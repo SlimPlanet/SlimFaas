@@ -16,6 +16,7 @@ public enum FunctionType
 {
     Sync,
     Async,
+    AsyncCallback,
     Wake,
     Status,
     Publish,
@@ -55,9 +56,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string PublishEvent = "/publish-event";
     private const string Job = "/job";
     private const string JobSchedules = "/job-schedules";
-
-
-
 
     public async Task InvokeAsync(HttpContext context,
         HistoryHttpMemoryService historyHttpService,
@@ -139,6 +137,9 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     functionPath);
                 break;
 
+            case FunctionType.AsyncCallback:
+                await BuildAsyncCallbackResponseAsync(logger, context, replicasService, jobService, functionName, functionPath);
+                break;
             case FunctionType.Async:
             default:
                 {
@@ -446,6 +447,41 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         return function.Visibility;
     }
 
+    private async Task BuildAsyncCallbackResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, IJobService jobService, string functionName,
+        string functionPath)
+    {
+        DeploymentInformation? function = SearchFunction(replicasService, functionName);
+        if (function == null)
+        {
+            context.Response.StatusCode = 404;
+            return;
+        }
+
+        var visibility = GetFunctionVisibility(logger, function, functionPath);
+
+        if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
+        {
+            context.Response.StatusCode = 404;
+            return;
+        }
+
+        var split = functionPath.Split('/');
+        if (split.Length < 1)
+        {
+            context.Response.StatusCode = 400;
+            return;
+        }
+
+        var elementId = split[0];
+        var status = split[1];
+
+        var items = new ListQueueItemStatus();
+        items.Items = new List<QueueItemStatus>(1);
+        items.Items.Add(new QueueItemStatus(elementId, status.ToLowerInvariant() ==  "success" ? 200 : 500));
+        await slimFaasQueue.ListCallbackAsync(function.Deployment, items);
+        context.Response.StatusCode = 202;
+    }
+
     private async Task BuildAsyncResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, IJobService jobService, string functionName,
         string functionPath)
     {
@@ -747,6 +783,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         FunctionType functionType = functionBeginPath switch
         {
             AsyncFunction => FunctionType.Async,
+            AsyncFunctionCallback => FunctionType.AsyncCallback,
             Function => FunctionType.Sync,
             StatusFunction => FunctionType.Status,
             WakeFunction => FunctionType.Wake,
@@ -765,6 +802,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         if (path.StartsWithSegments(AsyncFunction))
         {
             functionBeginPath = $"{AsyncFunction}";
+        }
+        else if (path.StartsWithSegments(AsyncFunctionCallback))
+        {
+            functionBeginPath = $"{AsyncFunctionCallback}";
         }
         else if (path.StartsWithSegments(Function))
         {

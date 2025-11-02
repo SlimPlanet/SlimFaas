@@ -2,7 +2,6 @@
 using System.Text;
 using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
-using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
 namespace SlimData.Commands;
