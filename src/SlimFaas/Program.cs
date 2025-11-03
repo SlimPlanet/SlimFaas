@@ -155,7 +155,7 @@ while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hos
     replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 }
 
-if (replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 && !Directory.EnumerateDirectories(slimDataDirectory).Any())
+if (replicasService?.Deployments?.SlimFaas?.Pods.Count == 1)
 {
     slimDataAllowColdStart = true;
     Console.WriteLine($"Starting SlimFaas, coldstart:{slimDataAllowColdStart}");
