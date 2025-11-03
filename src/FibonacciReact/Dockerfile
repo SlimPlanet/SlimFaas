@@ -1,36 +1,30 @@
-FROM node:22-alpine AS base
+# ---- build ----
+FROM node:22-alpine AS build
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=development
 
 RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
-RUN apk add --no-cache --virtual .build-deps python3 make g++
-
 COPY package.json pnpm-lock.yaml ./
-
-RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm fetch
-
-FROM base AS prod-deps
-RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --prod --offline
-
-FROM base AS build
-ENV NODE_ENV=development
-RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile --offline
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 COPY . .
-RUN pnpm run build
+RUN pnpm run build   # produit /app/dist avec index.html + assets
 
-FROM node:22-alpine AS runtime
-WORKDIR /app
-ENV NODE_ENV=production
+# ---- runtime ----
+FROM nginx:1.27-alpine AS runtime
+# SPA fallback vers index.html
+COPY <<'NGINX' /etc/nginx/conf.d/default.conf
+server {
+  listen 8000;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
 
-RUN apk add --no-cache tini
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}
+NGINX
 
-COPY --from=prod-deps /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY package.json ./
-
+COPY --from=build /app/dist/ /usr/share/nginx/html/
 EXPOSE 8000
-ENTRYPOINT ["/sbin/tini","--"]
-CMD ["node","dist/index.js"]
+CMD ["nginx","-g","daemon off;"]
