@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.44.4
+
+- [c206169](https://github.com/SlimPlanet/SlimFaas/commit/c206169a5e5a8cfff2996c88209472372cd7a9a9) - doc: Update readme (release), 2025-11-03 by *Guillaume Chervet*
+- [3fa35de](https://github.com/SlimPlanet/SlimFaas/commit/3fa35de38dd377e48579dbc9d9a04ac3c01793a4) - fix(slimfaas): ready node on startup and bulk load stability (#179), 2025-11-03 by *Guillaume Chervet*
+
+
+## v0.44.3
+
+- [d3ae03f](https://github.com/SlimPlanet/SlimFaas/commit/d3ae03fe8231d54215e6a8d622229af25eb1a81d) - fix(demo): arm46 (#184) (release), 2025-10-23 by *Guillaume Chervet*
+- [2be4761](https://github.com/SlimPlanet/SlimFaas/commit/2be47617f4a62bd1e4ac4835ab2074103ed1b567) - fix(demo): back to latest, 2025-10-10 by *Guillaume Chervet*
+
+
+## 0.44.2
+
+
+
 ## v0.44.2
 
 - [70d4125](https://github.com/SlimPlanet/SlimFaas/commit/70d4125609db6af5b6edbab34060278080c86cb3) - fix(slimfaas): scale from 0 to 1 sync timeout based on http timeout (#176) (release), 2025-10-10 by *Guillaume Chervet*
@@ -262,20 +278,5 @@
 
 ## 0.38.6
 
-
-
-## v0.38.6
-
-- [9809e70](https://github.com/SlimPlanet/SlimFaas/commit/9809e7017c82ef8c7b58adbb78ebf46b1d811ebf) - feature(mcp): manage file octet stream (release) (#146), 2025-08-14 by *Guillaume Chervet*
-
-
-## 0.38.5
-
-
-
-## v0.38.5
-
-- [d3b49e5](https://github.com/SlimPlanet/SlimFaas/commit/d3b49e55a43a8201eb16a6f4deb24918e9b4d6e5) - refactor(SlimData): Migration to a new command handler API (#145) (release), 2025-08-12 by *Roman Sakno*
-- [431763e](https://github.com/SlimPlanet/SlimFaas/commit/431763e530d568f7b4c2eb43b0d1a635390e0558) - ci(dependabot): add dependabot-secure-ci.yml (#144), 2025-08-11 by *Guillaume Chervet*
 
 
