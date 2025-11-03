@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.44.5
+
+- [dbebd22](https://github.com/SlimPlanet/SlimFaas/commit/dbebd225e76cfa1dccd31b1bdba56311499b220d) - fix(slimfaas): startup (release), 2025-11-03 by *Guillaume Chervet*
+
+
+## 0.44.4
+
+
+
 ## v0.44.4
 
 - [c206169](https://github.com/SlimPlanet/SlimFaas/commit/c206169a5e5a8cfff2996c88209472372cd7a9a9) - doc: Update readme (release), 2025-11-03 by *Guillaume Chervet*
@@ -267,16 +276,6 @@
 
 
 ## 0.38.7
-
-
-
-## v0.38.7
-
-- [235e8b3](https://github.com/SlimPlanet/SlimFaas/commit/235e8b32d171a40bebb4efbc7ab0e32f9299916e) - fix(ci): docker image slimfaas logo info (release), 2025-08-14 by *Guillaume Chervet*
-- [4eb7f3a](https://github.com/SlimPlanet/SlimFaas/commit/4eb7f3a696c7784afe82a702acf1ccda2050d8f1) - Create scorecard.yml, 2025-08-14 by *Guillaume Chervet*
-
-
-## 0.38.6
 
 
 
