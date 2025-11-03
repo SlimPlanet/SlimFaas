@@ -248,7 +248,7 @@ app.MapPost("/computeWithCallback", async (
     counter.Begin();
     try
     {
-        var elementId = ctx.Request.Headers.TryGetValue("slimfaas-element-id", out StringValues hdr)
+        var elementId = ctx.Request.Headers.TryGetValue("SlimFaas-Element-Id", out StringValues hdr)
             && !StringValues.IsNullOrEmpty(hdr)
                 ? hdr.ToString()
                 : "";

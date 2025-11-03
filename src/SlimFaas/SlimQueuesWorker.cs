@@ -15,6 +15,8 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
         int delay = EnvironmentVariables.SlimWorkerDelayMillisecondsDefault)
     : BackgroundService
 {
+
+    public const string SlimfaasElementId = "SlimFaas-Element-Id";
     private readonly int _delay =
         EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.SlimWorkerDelayMilliseconds, delay);
 
@@ -109,7 +111,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                 TimeoutRetries = [],
                 HttpStatusRetries = []
             };
-            customRequest.Headers.Add(new CustomHeader("slimfaas-element-id", [requestJson.Id]));
+            customRequest.Headers.Add(new CustomHeader(SlimfaasElementId, [requestJson.Id]));
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
                 .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, new Proxy(replicasService, functionDeployment));
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id));
