@@ -951,35 +951,6 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             return insp.NetworkSettings?.IPAddress ?? "";
         }
 
-        private static List<int> ExtractPrivatePorts(InspectContainerResponse insp)
-        {
-            List<int> ports = new();
-            if (insp.NetworkSettings?.Ports != null)
-            {
-                foreach (KeyValuePair<string, List<Inspect_PortBinding>?> kv in insp.NetworkSettings.Ports)
-                {
-                    // key example: "5000/tcp"
-                    string key = kv.Key;
-                    if (string.IsNullOrWhiteSpace(key))
-                    {
-                        continue;
-                    }
-
-                    int idx = key.IndexOf('/');
-                    if (idx <= 0)
-                    {
-                        continue;
-                    }
-
-                    if (int.TryParse(key.AsSpan(0, idx), out int p))
-                    {
-                        ports.Add(p);
-                    }
-                }
-            }
-
-            return ports.Distinct().ToList();
-        }
 
         private async Task EnsureImagePresentAsync(string image)
         {
@@ -1047,9 +1018,9 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             {
                 foreach (var kv in sourceLabels)
                 {
-                    if (kv.Key.StartsWith("com.docker.compose.", StringComparison.OrdinalIgnoreCase) &&
-                        !kv.Key.Equals("com.docker.compose.project", StringComparison.OrdinalIgnoreCase))
-                        continue;
+                    //if (kv.Key.StartsWith("com.docker.compose.", StringComparison.OrdinalIgnoreCase) &&
+                    //    !kv.Key.Equals("com.docker.compose.project", StringComparison.OrdinalIgnoreCase))
+                     //   continue;
 
                     if (kv.Key.Equals(TemplateLabel, StringComparison.OrdinalIgnoreCase))
                         continue;

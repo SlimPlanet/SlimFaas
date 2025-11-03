@@ -364,9 +364,9 @@ public class KubernetesService : IKubernetesService
             Task<V1StatefulSetList>? statefulSetListTask = client.ListNamespacedStatefulSetAsync(kubeNamespace);
 
             await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask);
-            V1DeploymentList? deploymentList = deploymentListTask.Result;
-            IEnumerable<PodInformation> podList = MapPodInformations(podListTask.Result, _logger);
-            V1StatefulSetList? statefulSetList = statefulSetListTask.Result;
+            V1DeploymentList? deploymentList = await deploymentListTask;
+            IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, _logger);
+            V1StatefulSetList? statefulSetList = await statefulSetListTask;
 
             SlimFaasDeploymentInformation? slimFaasDeploymentInformation = statefulSetList.Items
                 .Where(deploymentListItem => deploymentListItem.Metadata.Name == SlimfaasDeploymentName).Select(

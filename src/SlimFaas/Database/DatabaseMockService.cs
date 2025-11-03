@@ -10,7 +10,7 @@ public class DatabaseMockService : IDatabaseService
     private readonly ConcurrentDictionary<string, List<QueueData>> queue = new();
 
     public Task DeleteAsync(string key) => throw new NotImplementedException();
-    
+
     Task IDatabaseService.HashSetDeleteAsync(string key, string dictionaryKey = "")
     {
         return Task.FromResult("");

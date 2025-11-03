@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -101,10 +102,8 @@ switch (envOrConfig)
         break;
 }
 
-
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
-
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
@@ -118,6 +117,7 @@ serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
 serviceCollectionSlimFaas.AddHostedService<HealthWorker>();
+//serviceCollectionSlimFaas.AddHostedService<ThreadPoolTuner>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
 serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
@@ -136,19 +136,13 @@ serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
 
-
-
 serviceCollectionSlimFaas.AddCors();
 
 string publicEndPoint = string.Empty;
 string podDataDirectoryPersistantStorage = string.Empty;
 
-
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
-
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? EnvironmentVariables.HostnameDefault;
-
-
 
 while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hostname)) == false)
 {
@@ -161,6 +155,12 @@ while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hos
     replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 }
 
+if (replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 && !Directory.EnumerateDirectories(slimDataDirectory).Any())
+{
+    slimDataAllowColdStart = true;
+    Console.WriteLine($"Starting SlimFaas, coldstart:{slimDataAllowColdStart}");
+}
+
 while (!slimDataAllowColdStart &&
        replicasService?.Deployments?.SlimFaas?.Pods.Count(p => !string.IsNullOrEmpty(p.Ip)) < 2)
 {
@@ -171,7 +171,7 @@ while (!slimDataAllowColdStart &&
 
 if (replicasService?.Deployments?.SlimFaas?.Pods != null)
 {
-    foreach (string enumerateDirectory in Directory.EnumerateDirectories(slimDataDirectory))
+    /*foreach (string enumerateDirectory in Directory.EnumerateDirectories(slimDataDirectory))
     {
         if (replicasService.Deployments.SlimFaas.Pods.Any(p =>
                 (new DirectoryInfo(enumerateDirectory).Name).Contains(p.Name)) == false)
@@ -186,7 +186,7 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
                 Console.WriteLine(ex.ToString());
             }
         }
-    }
+    }*/
 
     foreach (PodInformation podInformation in replicasService.Deployments.SlimFaas.Pods
                  .Where(p => !string.IsNullOrEmpty(p.Ip) && p.Started == true).ToList())
@@ -194,8 +194,11 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
         try
         {
             string slimDataEndpoint = SlimDataEndpoint.Get(podInformation);
-            Console.WriteLine($"Adding node  {slimDataEndpoint}");
-            Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
+            if (!podInformation.Name.Contains(hostname))
+            {
+                Console.WriteLine($"Adding node  {slimDataEndpoint} {hostname} {podInformation.Name}");
+                Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
+            }
         }
         catch (Exception ex)
         {
@@ -224,7 +227,7 @@ serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
     .SetHandlerLifetime(TimeSpan.FromMinutes(5))
     .ConfigureHttpClient(client =>
     {
-        client.DefaultRequestVersion = HttpVersion.Version20;
+        client.DefaultRequestVersion = HttpVersion.Version11;
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
@@ -276,14 +279,14 @@ string coldStart = replicasService != null && replicasService?.Deployments?.Slim
 Dictionary<string, string> slimDataDefaultConfiguration = new()
 {
     { "partitioning", "false" },
-    { "lowerElectionTimeout", "150" },
-    { "upperElectionTimeout", "300" },
-    { "requestTimeout", "00:00:00.3000000" },
-    { "rpcTimeout", "00:00:00.1500000" },
+    { "lowerElectionTimeout", "2500" },
+    { "upperElectionTimeout", "5000" },
+    { "requestTimeout", "00:00:05.0000000" },
+    { "rpcTimeout", "00:00:02.5000000" },
     { "publicEndPoint", publicEndPoint },
     { coldstart, coldStart },
-    { "requestJournal:memoryLimit", "5" },
-    { "requestJournal:expiration", "00:01:00" },
+    { "requestJournal:memoryLimit", "50" },
+    { "requestJournal:expiration", "00:05:00" },
     { "heartbeatThreshold", "0.5" }
 };
 foreach (KeyValuePair<string,string> keyValuePair in slimDataDefaultConfiguration)
@@ -309,8 +312,8 @@ Uri uri = new(publicEndPoint);
 var slimfaasPorts = serviceProviderStarter.GetService<ISlimFaasPorts>();
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
-    serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
-    serverOptions.ListenAnyIP(uri.Port);
+    //serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
+    serverOptions.ListenAnyIP(uri.Port, o => o.Protocols = HttpProtocols.Http1);
 
     if (slimfaasPorts == null)
     {
@@ -370,6 +373,22 @@ app.Use(async (context, next) =>
     if (context.Request.Path == "/health")
     {
         await context.Response.WriteAsync("OK");
+    }
+    else if (context.Request.Path == "/ready")
+    {
+        var cluster = context.RequestServices.GetService<IRaftCluster>();
+        // 200 si le nœud a terminé son warmup/rattrapage et peut être ajouté
+        if (cluster is not null && cluster.Readiness.IsCompletedSuccessfully)
+        {
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            await context.Response.WriteAsync("READY");
+        }
+        else
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+            await context.Response.WriteAsync("NOT_READY");
+        }
+        return;
     }
     else
     {

@@ -19,7 +19,7 @@ internal class NeverReadyReplicasService : IReplicasService
     private readonly DeploymentInformation _function;
     private readonly DeploymentsInformations _deployments;
 
-    public NeverReadyReplicasService(int httpTimeoutTenthsMs = 20) // 20 => ~2s
+    public NeverReadyReplicasService(int httpTimeoutTenthsSeconds = 2)
     {
         _function = new DeploymentInformation(
             Replicas: 1,
@@ -29,7 +29,7 @@ internal class NeverReadyReplicasService : IReplicasService
             {
                 DefaultSync = new SlimFaasDefaultConfiguration
                 {
-                    HttpTimeout = httpTimeoutTenthsMs
+                    HttpTimeout = httpTimeoutTenthsSeconds
                 }
             },
             Pods: new List<PodInformation>
@@ -133,7 +133,7 @@ public class ProxyMiddlewareTimeoutReadyTests
     public async Task Sync_TimesOut_When_No_Pod_Ready_After_2s()
     {
         // HttpTimeout = 20 -> ~ 2 secondes dans WaitForAnyPodStartedAsync
-        var replicas = new NeverReadyReplicasService(httpTimeoutTenthsMs: 20);
+        var replicas = new NeverReadyReplicasService(httpTimeoutTenthsSeconds: 2);
         var sendClient = new SendClientGatewayTimeout();
 
         var wakeUpFunctionMock = new Mock<IWakeUpFunction>();

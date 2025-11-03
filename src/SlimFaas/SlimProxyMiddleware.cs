@@ -1,4 +1,5 @@
-﻿using System.Collections.Immutable;
+﻿
+using System.Diagnostics;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -16,6 +17,7 @@ public enum FunctionType
 {
     Sync,
     Async,
+    AsyncCallback,
     Wake,
     Status,
     Publish,
@@ -43,11 +45,11 @@ public partial class ListFunctionStatusSerializerContext : JsonSerializerContext
 }
 
 public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQueue, IWakeUpFunction wakeUpFunction,
-    ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts ,
-    string slimFaasSubscribeEventsDefault = EnvironmentVariables.SlimFaasSubscribeEventsDefault)
+    ILogger<SlimProxyMiddleware> logger, ISlimFaasPorts slimFaasPorts)
 
 {
     private const string AsyncFunction = "/async-function";
+    private const string AsyncFunctionCallback = "/async-function-callback";
     private const string AsyncFunctionQueue = "/async-function-queue";
     private const string StatusFunction = "/status-function";
     private const string WakeFunction = "/wake-function";
@@ -55,13 +57,6 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     private const string PublishEvent = "/publish-event";
     private const string Job = "/job";
     private const string JobSchedules = "/job-schedules";
-
-
-    private readonly IDictionary<string, IList<string>> _slimFaasSubscribeEvents = EnvironmentVariables.ReadSlimFaasSubscribeEvents(logger,
-        EnvironmentVariables.SlimFaasSubscribeEvents,
-        slimFaasSubscribeEventsDefault);
-
-
 
     public async Task InvokeAsync(HttpContext context,
         HistoryHttpMemoryService historyHttpService,
@@ -142,7 +137,9 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                 await BuildPublishResponseAsync(context, historyHttpService, sendClient, replicasService, jobService, functionName,
                     functionPath);
                 break;
-
+            case FunctionType.AsyncCallback:
+                await BuildAsyncCallbackResponseAsync(logger, context, replicasService, jobService, functionName, functionPath);
+                break;
             case FunctionType.Async:
             default:
                 {
@@ -450,6 +447,42 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         return function.Visibility;
     }
 
+    private async Task BuildAsyncCallbackResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, IJobService jobService, string functionName,
+        string functionPath)
+    {
+        DeploymentInformation? function = SearchFunction(replicasService, functionName);
+        if (function == null)
+        {
+            context.Response.StatusCode = 404;
+            return;
+        }
+
+        var visibility = GetFunctionVisibility(logger, function, functionPath);
+        if (visibility == FunctionVisibility.Private && !MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
+        {
+            context.Response.StatusCode = 404;
+            return;
+        }
+
+        var split = functionPath.Split('/');
+        if (split.Length < 1)
+        {
+            context.Response.StatusCode = 400;
+            return;
+        }
+
+        var elementId = split[0];
+        var status = split[1];
+
+        var items = new ListQueueItemStatus { Items =
+            [
+                new QueueItemStatus(elementId, status.ToLowerInvariant() == "success" ? 200 : 500)
+            ]
+        };
+        await slimFaasQueue.ListCallbackAsync(function.Deployment, items);
+        context.Response.StatusCode = 200;
+    }
+
     private async Task BuildAsyncResponseAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, IReplicasService replicasService, IJobService jobService, string functionName,
         string functionPath)
     {
@@ -472,8 +505,8 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
 
         var bin = MemoryPackSerializer.Serialize(customRequest);
         var defaultAsync = function.Configuration.DefaultAsync;
-        await slimFaasQueue.EnqueueAsync(functionName, bin, new RetryInformation(defaultAsync.TimeoutRetries, defaultAsync.HttpTimeout, defaultAsync.HttpStatusRetries));
-
+        var id = await slimFaasQueue.EnqueueAsync(functionName, bin, new RetryInformation(defaultAsync.TimeoutRetries, defaultAsync.HttpTimeout, defaultAsync.HttpStatusRetries));
+        context.Response.Headers.Append(SlimQueuesWorker.SlimfaasElementId, id);
         context.Response.StatusCode = 202;
     }
 
@@ -482,8 +515,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
     {
         logger.LogDebug("Receiving event: {EventName}", eventName);
         var functions = SearchFunctions(logger, context, replicasService, jobService, eventName);
-        var slimFaasSubscribeEvents = _slimFaasSubscribeEvents.Where(s => s.Key == eventName);
-        if (functions.Count <= 0 && !slimFaasSubscribeEvents.Any())
+        if (functions.Count <= 0)
         {
             logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
             context.Response.StatusCode = 404;
@@ -526,19 +558,9 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             }
         }
 
-        foreach (KeyValuePair<string,IList<string>> slimFaasSubscribeEvent in slimFaasSubscribeEvents)
-        {
-            foreach (string baseUrl in slimFaasSubscribeEvent.Value)
-            {
-                logger.LogDebug("Sending event {EventName} to {BaseUrl} with path {FunctionPath} and query {UriComponent}", eventName, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
-                Task task = SendRequest(queryString, sendClient, customRequest with {FunctionName = ""}, baseUrl, logger, eventName, new SlimFaasDefaultConfiguration());
-                tasks.Add(task);
-            }
-        }
-
         while (tasks.Any(t => !t.IsCompleted) && !context.RequestAborted.IsCancellationRequested)
         {
-            await Task.Delay(10, context.RequestAborted);
+            await Task.Delay(20, context.RequestAborted);
             bool isOneSecondElapsed = new DateTime(lastSetTicks, DateTimeKind.Utc) < DateTime.UtcNow.AddSeconds(-1);
             if (!isOneSecondElapsed)
             {
@@ -645,49 +667,84 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
     }
 
-    private async Task WaitForAnyPodStartedAsync(ILogger<SlimProxyMiddleware> logger, HttpContext context, HistoryHttpMemoryService historyHttpService,
-        IReplicasService replicasService, string functionName)
-    {
-        long lastSetTicks = DateTime.UtcNow.Ticks;
-        historyHttpService.SetTickLastCall(functionName, lastSetTicks);
-        DeploymentInformation? function = SearchFunction(replicasService, functionName);
-        if(function == null)
-        {
-            return;
-        }
+private static bool IsFunctionReady(DeploymentInformation f) =>
+    (f?.Pods?.Any(p => p?.Ready == true) ?? false) && f?.EndpointReady == true;
 
-        var timeoutMiniSeconds = function.Configuration.DefaultSync.HttpTimeout * 100;
-        var numberLoop = timeoutMiniSeconds / 10;
-        while (numberLoop > 0)
+private async Task WaitForAnyPodStartedAsync(
+    ILogger<SlimProxyMiddleware> logger,
+    HttpContext context,
+    HistoryHttpMemoryService historyHttpService,
+    IReplicasService replicasService,
+    string functionName)
+{
+    // Récupère l’état initial
+    var function = SearchFunction(replicasService, functionName);
+    if (function is null) return;
+
+    // Timeout en secondes -> TimeSpan
+    var timeout = TimeSpan.FromSeconds(function.Configuration.DefaultSync.HttpTimeout);
+
+    // Pour une mesure précise du temps écoulé (insensible aux changements d’horloge)
+    var sw = Stopwatch.StartNew();
+
+    // Mise à jour "last call" immédiate + cadence 1s
+    historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+    var lastTickUpdate = sw.Elapsed;
+
+    // Intervalle de polling (sera clampé à ce qu’il reste)
+    var basePoll = TimeSpan.FromMilliseconds(100);
+
+    try
+    {
+        while (true)
         {
-            logger.LogDebug("WaitForAnyPodStartedAsync: Wait for any pod started for {FunctionName} {NumberLoop}", functionName, numberLoop);
-            if(function == null)
+            // Rafraîchit l’état (important pour voir les pods/EndpointReady évoluer)
+            function = SearchFunction(replicasService, functionName);
+            if (function is null) return;
+
+            if (IsFunctionReady(function))
             {
+                logger.LogDebug("WaitForAnyPodStartedAsync: {FunctionName} is ready (EndpointReady={EndpointReady}).",
+                    functionName, function.EndpointReady);
                 return;
             }
-            bool? isAnyContainerStarted = function.Pods.Any(p => p.Ready.HasValue && p.Ready.Value);
-            foreach (PodInformation podInformation in function.Pods)
+
+            // Log (optionnel) : liste des pods et leur état
+            foreach (var pod in function.Pods ?? Enumerable.Empty<PodInformation>())
             {
-                logger.LogDebug("Pod {PodName} Ready {PodReady} IP {PodIp}", podInformation.Name, podInformation.Ready, podInformation.Ip);
-            }
-            bool isReady = isAnyContainerStarted.Value && function?.EndpointReady == true;
-            logger.LogDebug("WaitForAnyPodStartedAsync: Is any pod started for {FunctionName} {IsAnyContainerStarted} {EndpointReady}", functionName, isAnyContainerStarted, function?.EndpointReady);
-            if (!isReady && !context.RequestAborted.IsCancellationRequested)
-            {
-                numberLoop--;
-                await Task.Delay(10, context.RequestAborted);
-                bool isOneSecondElapsed = new DateTime(lastSetTicks) < DateTime.UtcNow.AddSeconds(-1);
-                if (isOneSecondElapsed)
-                {
-                    lastSetTicks = DateTime.UtcNow.Ticks;
-                    historyHttpService.SetTickLastCall(functionName, lastSetTicks);
-                }
-                continue;
+                logger.LogDebug("Pod {PodName} Ready={Ready} IP={Ip}", pod.Name, pod.Ready, pod.Ip);
             }
 
-            numberLoop = 0;
+            // Mise à jour du "last call" toutes les ~1s
+            if (sw.Elapsed - lastTickUpdate >= TimeSpan.FromSeconds(1))
+            {
+                var nowTicks = DateTime.UtcNow.Ticks;
+                historyHttpService.SetTickLastCall(functionName, nowTicks);
+                lastTickUpdate = sw.Elapsed;
+            }
+
+            // Calcul du temps restant et arrêt si timeout/cancellation
+            var remaining = timeout - sw.Elapsed;
+            if (remaining <= TimeSpan.Zero)
+            {
+                logger.LogWarning("WaitForAnyPodStartedAsync: timeout ({Timeout}s) atteint pour {FunctionName}.",
+                    timeout.TotalSeconds, functionName);
+                return; // ou throw si vous préférez signaler l’échec
+            }
+
+            if (context.RequestAborted.IsCancellationRequested) return;
+
+            // Attente précise, clampée au temps restant
+            var delay = remaining <= basePoll ? remaining : basePoll;
+            await Task.Delay(delay, context.RequestAborted);
         }
     }
+    catch (OperationCanceledException)
+    {
+        // Requête annulée par le client : on sort proprement
+        logger.LogDebug("WaitForAnyPodStartedAsync: annulé pour {FunctionName}.", functionName);
+    }
+}
 
     private void CopyFromTargetResponseHeaders(HttpContext context, HttpResponseMessage responseMessage)
     {
@@ -762,6 +819,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         FunctionType functionType = functionBeginPath switch
         {
             AsyncFunction => FunctionType.Async,
+            AsyncFunctionCallback => FunctionType.AsyncCallback,
             Function => FunctionType.Sync,
             StatusFunction => FunctionType.Status,
             WakeFunction => FunctionType.Wake,
@@ -780,6 +838,10 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         if (path.StartsWithSegments(AsyncFunction))
         {
             functionBeginPath = $"{AsyncFunction}";
+        }
+        else if (path.StartsWithSegments(AsyncFunctionCallback))
+        {
+            functionBeginPath = $"{AsyncFunctionCallback}";
         }
         else if (path.StartsWithSegments(Function))
         {

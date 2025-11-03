@@ -2,135 +2,142 @@
 using System.Text;
 using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
-using DotNext.Runtime.Serialization;
 using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte>> keysValues,
-        Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>> hashsets, Dictionary<string, List<QueueElement>> queues)
-    : ICommand<LogSnapshotCommand>
+public readonly struct LogSnapshotCommand(
+    Dictionary<string, ReadOnlyMemory<byte>> keysValues,
+    Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>> hashsets,
+    Dictionary<string, List<QueueElement>> queues // on garde List ici pour I/O, tu convertiras en ImmutableArray côté state
+) : ICommand<LogSnapshotCommand>
 {
     public const int Id = 5;
-    
-    static int ICommand<LogSnapshotCommand>.Id => Id;
 
+    static int ICommand<LogSnapshotCommand>.Id => Id;
     static bool ICommand<LogSnapshotCommand>.IsSnapshot => true;
 
     public readonly Dictionary<string, ReadOnlyMemory<byte>> keysValues = keysValues;
     public readonly Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>> hashsets = hashsets;
     public readonly Dictionary<string, List<QueueElement>> queues = queues;
 
-
-    long? IDataTransferObject.Length // optional implementation, may return null
+    // Estimation de longueur (même philosophie que ton code initial)
+    long? IDataTransferObject.Length
     {
         get
         {
-            // compute length of the serialized data, in bytes
-            long result = sizeof(Int32); // 4 bytes for count
-            foreach (var keyValuePair in keysValues)
-                result += Encoding.UTF8.GetByteCount(keyValuePair.Key) + keyValuePair.Value.Length;
+            long result = sizeof(int); // count keyValues
+            foreach (var kv in keysValues)
+                result += Encoding.UTF8.GetByteCount(kv.Key) + kv.Value.Length;
 
-            // compute length of the serialized data, in bytes
-            result += sizeof(Int32);
-            foreach (var queue in queues)
+            result += sizeof(int); // count queues
+            foreach (var q in queues)
             {
-                result += Encoding.UTF8.GetByteCount(queue.Key);
-                result += sizeof(Int32); // 4 bytes for queue count
-                queue.Value.ForEach(x =>
+                result += Encoding.UTF8.GetByteCount(q.Key);
+                result += sizeof(int); // queue count
+                foreach (var x in q.Value)
                 {
-                    result += x.Value.Length + Encoding.UTF8.GetByteCount(x.Id) + sizeof(Int64);
-                    result += sizeof(Int32); // 4 bytes for timeout
-                    result += sizeof(Int32); // 4 bytes for retries count
-                    result += x.TimeoutRetries.Count * sizeof(Int32);
-                    
-                    result += sizeof(Int32); // 4 bytes for hashset count
-                    foreach (var retryQueueElement in x.RetryQueueElements)
+                    // Value + Id + Insert + HttpTimeoutSeconds
+                    result += x.Value.Length
+                           +  Encoding.UTF8.GetByteCount(x.Id)
+                           +  sizeof(long)
+                           +  sizeof(int);
+
+                    // TimeoutRetriesSeconds (array<int>)
+                    result += sizeof(int); // len
+                    result += (long)x.TimeoutRetriesSeconds.Length * sizeof(int);
+
+                    // RetryQueueElements
+                    result += sizeof(int); // len
+                    foreach (var r in x.RetryQueueElements)
                     {
-                        result += sizeof(Int64) * 2 + sizeof(Int32);
+                        result += sizeof(long) * 2 // Start/End
+                               +  sizeof(int)      // HttpCode
+                               +  Encoding.UTF8.GetByteCount(r.IdTransaction);
                     }
-                    
-                    result += sizeof(Int32); // 4 bytes for HttpStatusRetries count
-                    result += x.HttpStatusRetries.Count * sizeof(Int32);
-                });
+
+                    // HttpStatusRetries (hashset<int>)
+                    result += sizeof(int);
+                    result += (long)x.HttpStatusRetries.Count * sizeof(int);
+                }
             }
 
-            // compute length of the serialized data, in bytes
-            result += sizeof(Int32);
-            foreach (var hashset in hashsets)
+            result += sizeof(int); // count hashsets
+            foreach (var hs in hashsets)
             {
-                result += Encoding.UTF8.GetByteCount(hashset.Key);
-                result += sizeof(Int32); // 4 bytes for hashset count
-                foreach (var keyValuePair in hashset.Value)
-                    result += Encoding.UTF8.GetByteCount(keyValuePair.Key) +
-                              keyValuePair.Value.Length;
+                result += Encoding.UTF8.GetByteCount(hs.Key);
+                result += sizeof(int); // entries
+                foreach (var kv in hs.Value)
+                    result += Encoding.UTF8.GetByteCount(kv.Key) + kv.Value.Length;
             }
+
             return result;
         }
     }
 
-
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
     {
-            // write the number of entries
-            await writer.WriteLittleEndianAsync(keysValues.Count, token).ConfigureAwait(false);
-            // write the entries
-            foreach (var (key, value) in keysValues)
-            {
-                await writer.EncodeAsync(key.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
-                await writer.WriteAsync(value, LengthFormat.Compressed, token).ConfigureAwait(false);
-            }
+        // ---- KeyValues ----
+        await writer.WriteLittleEndianAsync(keysValues.Count, token).ConfigureAwait(false);
+        foreach (var (key, value) in keysValues)
+        {
+            await writer.EncodeAsync(key.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
+            await writer.WriteAsync(value, LengthFormat.Compressed, token).ConfigureAwait(false);
+        }
 
-            // write the number of entries
-            await writer.WriteLittleEndianAsync(queues.Count, token).ConfigureAwait(false);
-            // write the entries
-            foreach (var queue in queues)
-            {
-                await writer.EncodeAsync(queue.Key.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
-                await writer.WriteLittleEndianAsync(queue.Value.Count, token).ConfigureAwait(false);
-                foreach (var value in queue.Value){
-                    await writer.WriteAsync(value.Value, LengthFormat.Compressed, token).ConfigureAwait(false);
-                    await writer.EncodeAsync(value.Id.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
-                    await writer.WriteBigEndianAsync(value.InsertTimeStamp,  token).ConfigureAwait(false);
-                    await writer.WriteLittleEndianAsync(value.HttpTimeout, token).ConfigureAwait(false);
-                    await writer.WriteLittleEndianAsync(value.TimeoutRetries.Count, token).ConfigureAwait(false);
-                    foreach (var valueRetry in value.TimeoutRetries)
-                    {
-                        await writer.WriteLittleEndianAsync(valueRetry, token).ConfigureAwait(false);
-                    }
-                    
-                    await writer.WriteLittleEndianAsync(value.RetryQueueElements.Count, token).ConfigureAwait(false);
-                    foreach (var retryQueueElement in value.RetryQueueElements)
-                    {
-                        await writer.WriteBigEndianAsync(retryQueueElement.StartTimeStamp, token).ConfigureAwait(false);
-                        await writer.WriteBigEndianAsync(retryQueueElement.EndTimeStamp, token).ConfigureAwait(false);
-                        await writer.WriteLittleEndianAsync(retryQueueElement.HttpCode, token).ConfigureAwait(false);
-                        await writer.EncodeAsync(retryQueueElement.IdTransaction.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
+        // ---- Queues ----
+        await writer.WriteLittleEndianAsync(queues.Count, token).ConfigureAwait(false);
+        foreach (var q in queues)
+        {
+            await writer.EncodeAsync(q.Key.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
+            await writer.WriteLittleEndianAsync(q.Value.Count, token).ConfigureAwait(false);
 
-                    }
-                    
-                    await writer.WriteLittleEndianAsync(value.HttpStatusRetries.Count, token).ConfigureAwait(false);
-                    foreach (var httpStatusCode in value.HttpStatusRetries)
-                    {
-                        await writer.WriteLittleEndianAsync(httpStatusCode, token).ConfigureAwait(false);
-                    }
-                }
-            }
-
-            // write the number of entries
-            await writer.WriteLittleEndianAsync(hashsets.Count, token).ConfigureAwait(false);
-            // write the entries
-            foreach (var hashset in hashsets)
+            foreach (var v in q.Value)
             {
-                await writer.EncodeAsync(hashset.Key.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
-                await writer.WriteLittleEndianAsync(hashset.Value.Count, token).ConfigureAwait(false);
-                foreach (var (key, value) in hashset.Value)
+                await writer.WriteAsync(v.Value, LengthFormat.Compressed, token).ConfigureAwait(false);
+                await writer.EncodeAsync(v.Id.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
+                await writer.WriteBigEndianAsync(v.InsertTimeStamp, token).ConfigureAwait(false);
+
+                // Nouveau champ : HttpTimeoutSeconds
+                await writer.WriteLittleEndianAsync(v.HttpTimeoutSeconds, token).ConfigureAwait(false);
+
+                // TimeoutRetriesSeconds
+                await writer.WriteLittleEndianAsync(v.TimeoutRetriesSeconds.Length, token).ConfigureAwait(false);
+                for (int i = 0; i < v.TimeoutRetriesSeconds.Length; i++)
+                    await writer.WriteLittleEndianAsync(v.TimeoutRetriesSeconds[i], token).ConfigureAwait(false);
+
+                // RetryQueueElements
+                await writer.WriteLittleEndianAsync(v.RetryQueueElements.Length, token).ConfigureAwait(false);
+                for (int i = 0; i < v.RetryQueueElements.Length; i++)
                 {
-                    await writer.EncodeAsync(key.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
-                    await writer.WriteAsync(value, LengthFormat.Compressed, token).ConfigureAwait(false);
+                    var r = v.RetryQueueElements[i];
+                    await writer.WriteBigEndianAsync(r.StartTimeStamp, token).ConfigureAwait(false);
+                    await writer.WriteBigEndianAsync(r.EndTimeStamp, token).ConfigureAwait(false);
+                    await writer.WriteLittleEndianAsync(r.HttpCode, token).ConfigureAwait(false);
+                    await writer.EncodeAsync(r.IdTransaction.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
                 }
+
+                // HttpStatusRetries (hashset)
+                await writer.WriteLittleEndianAsync(v.HttpStatusRetries.Count, token).ConfigureAwait(false);
+                foreach (var code in v.HttpStatusRetries)
+                    await writer.WriteLittleEndianAsync(code, token).ConfigureAwait(false);
             }
+        }
+
+        // ---- Hashsets ----
+        await writer.WriteLittleEndianAsync(hashsets.Count, token).ConfigureAwait(false);
+        foreach (var hs in hashsets)
+        {
+            await writer.EncodeAsync(hs.Key.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
+            await writer.WriteLittleEndianAsync(hs.Value.Count, token).ConfigureAwait(false);
+
+            foreach (var (k, v) in hs.Value)
+            {
+                await writer.EncodeAsync(k.AsMemory(), new EncodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token).ConfigureAwait(false);
+                await writer.WriteAsync(v, LengthFormat.Compressed, token).ConfigureAwait(false);
+            }
+        }
     }
 
 #pragma warning disable CA2252
@@ -138,85 +145,96 @@ public readonly struct LogSnapshotCommand(Dictionary<string, ReadOnlyMemory<byte
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
+        // ---- KeyValues ----
+        var kvCount = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+        var keysValues = new Dictionary<string, ReadOnlyMemory<byte>>(kvCount);
+        while (kvCount-- > 0)
+        {
+            var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+            using var value = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
+            // IMPORTANT: copier, sinon buffer invalidé après Dispose()
+            keysValues.Add(key.ToString(), value.Memory.ToArray());
+        }
 
-            var count = await reader.ReadLittleEndianAsync<Int32>(token);
-            var keysValues = new Dictionary<string,ReadOnlyMemory<byte>>(count);
-            // deserialize entries;
-            while (count-- > 0)
+        // ---- Queues ----
+        var queuesCount = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+        var queues = new Dictionary<string, List<QueueElement>>(queuesCount);
+        while (queuesCount-- > 0)
+        {
+            var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+            var countQueue = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+
+            var queue = new List<QueueElement>(countQueue);
+            while (countQueue-- > 0)
             {
-                var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
-                    .ConfigureAwait(false);
                 using var value = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
-                keysValues.Add(key.ToString(), value.Memory);
-            }
+                var id = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+                var insertTimeStamp = await reader.ReadBigEndianAsync<long>(token).ConfigureAwait(false);
 
-            var countQueues = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-            var queues = new Dictionary<string, List<QueueElement>>(countQueues);
-            // deserialize entries
-            while (countQueues-- > 0)
-            {
-                var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
-                    .ConfigureAwait(false);
-                var countQueue = await reader.ReadLittleEndianAsync<Int32>(token);
-                var queue = new List<QueueElement>(countQueue);
-                while (countQueue-- > 0)
+                // Nouveau champ : HttpTimeoutSeconds
+                var timeoutSeconds = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+
+                // TimeoutRetriesSeconds
+                var retriesLen = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+                var retries = new int[retriesLen];
+                for (int i = 0; i < retriesLen; i++)
+                    retries[i] = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+
+                // RetryQueueElements
+                var tryCount = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+                var tries = new QueueHttpTryElement[tryCount];
+                for (int i = 0; i < tryCount; i++)
                 {
-                    using var value = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
-                    var id = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
-                        .ConfigureAwait(false);
-                    var insertTimeStamp = await reader.ReadBigEndianAsync<Int64>(token);
-                    var timeout = await reader.ReadLittleEndianAsync<Int32>(token);
-                    var countRetries = await reader.ReadLittleEndianAsync<Int32>(token);
-                    var retries = new List<int>(countRetries);
-                    while (countRetries-- > 0)
-                    {
-                        retries.Add(await reader.ReadLittleEndianAsync<Int32>(token));
-                    }
-                    
-                    var countRetryQueueElements = await reader.ReadLittleEndianAsync<Int32>(token);
-                    var retryQueueElements = new List<QueueHttpTryElement>(countRetryQueueElements);
-                    while (countRetryQueueElements-- > 0)
-                    {
-                        var startTimestamp = await reader.ReadBigEndianAsync<Int64>(token);
-                        var endTimestamp = await reader.ReadBigEndianAsync<Int64>(token);
-                        var httpCode = await reader.ReadLittleEndianAsync<Int32>(token);
-                        var idTransaction = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
-                            .ConfigureAwait(false);
-                        retryQueueElements.Add(new QueueHttpTryElement(startTimestamp, idTransaction.ToString(), endTimestamp, httpCode));
-                    }
-                    
-                    var countHttpStatusCodesWorthRetrying = await reader.ReadLittleEndianAsync<Int32>(token);
-                    var httpStatusCodesWorthRetrying = new List<int>(countHttpStatusCodesWorthRetrying);
-                    while (countHttpStatusCodesWorthRetrying-- > 0)
-                    {
-                        httpStatusCodesWorthRetrying.Add(await reader.ReadLittleEndianAsync<Int32>(token));
-                    }
-                    
-                    queue.Add(new QueueElement(value.Memory, id.ToString(), insertTimeStamp, timeout, retries.ToImmutableList(), retryQueueElements.ToImmutableList(), httpStatusCodesWorthRetrying.ToImmutableList()));
+                    var startTs = await reader.ReadBigEndianAsync<long>(token).ConfigureAwait(false);
+                    var endTs = await reader.ReadBigEndianAsync<long>(token).ConfigureAwait(false);
+                    var httpCode = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+                    var idTx = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+                    tries[i] = new QueueHttpTryElement(startTs, idTx.ToString(), endTs, httpCode);
                 }
 
-                queues.Add(key.ToString(), queue);
+                // HttpStatusRetries
+                var hsCount = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+                var hs = new int[hsCount];
+                for (int i = 0; i < hsCount; i++)
+                    hs[i] = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+
+                // IMPORTANT: copier la payload pour survivre à Dispose()
+                var payload = value.Memory.ToArray();
+
+                queue.Add(new QueueElement(
+                    payload,
+                    id.ToString(),
+                    insertTimeStamp,
+                    timeoutSeconds,
+                    retries.ToImmutableArray(),
+                    tries.ToImmutableArray(),
+                    hs.ToImmutableHashSet()
+                ));
             }
 
-            var countHashsets = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-            var hashsets = new Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>>(countHashsets);
-            // deserialize entries
-            while (countHashsets-- > 0)
+            queues.Add(key.ToString(), queue);
+        }
+
+        // ---- Hashsets ----
+        var hsTopCount = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+        var hashsets = new Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>>(hsTopCount);
+        while (hsTopCount-- > 0)
+        {
+            var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+            var countHashset = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+
+            var hashset = new Dictionary<string, ReadOnlyMemory<byte>>(countHashset);
+            while (countHashset-- > 0)
             {
-                var key = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
-                    .ConfigureAwait(false);
-                var countHashset = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-                var hashset = new Dictionary<string, ReadOnlyMemory<byte>>(countHashset);
-                while (countHashset-- > 0)
-                {
-                    var keyHashset = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token)
-                        .ConfigureAwait(false);
-                    using var value = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
-                    hashset.Add(keyHashset.ToString(), value.Memory.ToArray());
-                }
-
-                hashsets.Add(key.ToString(), hashset);
+                var hkey = await reader.DecodeAsync(new DecodingContext(Encoding.UTF8, false), LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
+                using var value = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
+                // idem: copier
+                hashset.Add(hkey.ToString(), value.Memory.ToArray());
             }
-            return new LogSnapshotCommand(keysValues, hashsets, queues);
+
+            hashsets.Add(key.ToString(), hashset);
+        }
+
+        return new LogSnapshotCommand(keysValues, hashsets, queues);
     }
 }

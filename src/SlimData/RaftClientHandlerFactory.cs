@@ -1,4 +1,5 @@
-﻿using System.Net.Security;
+﻿using System.Net;
+using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 
 namespace SlimData;
@@ -15,7 +16,20 @@ internal sealed class RaftClientHandlerFactory : IHttpMessageHandlerFactory
             throw new Exception("SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT is not an integer");
         }
         Console.WriteLine($"RaftClientHandlerFactory.CreateHandler({name}) with electionTimeout {electionTimeout}");
-        var handler = new SocketsHttpHandler { ConnectTimeout = TimeSpan.FromMilliseconds(electionTimeout) };
+        var handler = new SocketsHttpHandler
+        {
+            // Etablissement TCP+TLS : vise 2s en prod K8s/mesh
+            ConnectTimeout = TimeSpan.FromSeconds(2),
+            AllowAutoRedirect = false,
+            AutomaticDecompression = DecompressionMethods.None,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
+            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+            MaxConnectionsPerServer = 100,
+            EnableMultipleHttp2Connections = false,
+
+            UseProxy = false
+            
+        };
         handler.SslOptions.RemoteCertificateValidationCallback = AllowCertificate;
         handler.UseProxy = false;
         return handler;

@@ -3,9 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
+using Prometheus;
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 IServiceCollection serviceCollection = builder.Services;
+
 serviceCollection.AddSingleton<Fibonacci, Fibonacci>();
 serviceCollection.AddCors();
 builder.Services.AddHttpClient("internal", c =>
@@ -40,6 +43,12 @@ app.UseCors(builder => builder
     .AllowAnyMethod()
     .AllowAnyHeader()
 );
+
+// Collecte des métriques HTTP (latence, codes, etc.)
+app.UseHttpMetrics();
+
+// Expose le endpoint Prometheus
+app.MapMetrics("/metrics");
 
 app.MapGet("/health", () => "OK");
 
@@ -179,12 +188,12 @@ app.MapGet("/error", async () =>
 });
 
 
-app.MapPost("/compute", async ([FromServices] RequestCounter counter) =>
+app.MapPost("/compute", async ([FromServices] RequestCounter counter, [FromBody] JsonElement body) =>
 {
     counter.Begin();
-
     try
     {
+        Console.WriteLine("[fib] body: " + body.GetRawText());
         Console.WriteLine($"InProgress: {counter.InProgress}");
         Console.WriteLine($"State: {counter.State}");
         Console.WriteLine($"Completed: {counter.Completed}");
@@ -197,6 +206,85 @@ app.MapPost("/compute", async ([FromServices] RequestCounter counter) =>
             runningRequests  = counter.InProgress,
             finishedRequests = counter.Completed
         });
+    }
+    finally
+    {
+        counter.End();
+    }
+});
+
+app.MapPost("/computeVerySlow", async ([FromServices] RequestCounter counter, [FromBody] JsonElement body) =>
+{
+    counter.Begin();
+    try
+    {
+        Console.WriteLine("[fib] body: " + body.GetRawText());
+        Console.WriteLine($"InProgress: {counter.InProgress}");
+        Console.WriteLine($"State: {counter.State}");
+        Console.WriteLine($"Completed: {counter.Completed}");
+        Console.WriteLine($"Total: {counter.Completed+counter.InProgress}");
+        await Task.Delay(1000 * 60 * 10); // 10 Minutes
+
+        return Results.Ok(new
+        {
+            state            = counter.State,
+            runningRequests  = counter.InProgress,
+            finishedRequests = counter.Completed
+        });
+    }
+    finally
+    {
+        counter.End();
+    }
+});
+
+
+app.MapPost("/computeWithCallback", async (
+    HttpContext ctx,
+    [FromServices] IHttpClientFactory factory,
+    [FromServices] RequestCounter counter,
+    [FromBody] JsonElement body) =>
+{
+    counter.Begin();
+    try
+    {
+        var elementId = ctx.Request.Headers.TryGetValue("SlimFaas-Element-Id", out StringValues hdr)
+            && !StringValues.IsNullOrEmpty(hdr)
+                ? hdr.ToString()
+                : "";
+
+        Console.WriteLine("[fib] body: " + body.GetRawText());
+        Console.WriteLine($"InProgress: {counter.InProgress}");
+        Console.WriteLine($"State: {counter.State}");
+        Console.WriteLine($"Completed: {counter.Completed}");
+        Console.WriteLine($"Total: {counter.Completed + counter.InProgress}");
+
+        // 2) Lancer ton travail asynchrone (ex: appel interne) en arrière-plan
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(10000);
+            var client = factory.CreateClient("internal");
+
+            using var req = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"http://slimfaas.slimfaas-demo.svc.cluster.local:5000/async-function-callback/fibonacci1/{elementId}/success")
+            {
+                Content = JsonContent.Create(new { })
+            };
+            await client.SendAsync(req);
+
+        });
+        var statusUrl = $"/operations/{elementId}/status";
+        var payload = new
+        {
+            elementId,
+            state            = counter.State,
+            runningRequests  = counter.InProgress,
+            finishedRequests = counter.Completed
+        };
+
+        ctx.Response.Headers.Append("slimfaas-element-id", elementId);
+        return Results.Accepted(statusUrl, payload);
     }
     finally
     {

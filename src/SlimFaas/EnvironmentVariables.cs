@@ -7,14 +7,8 @@ public static class EnvironmentVariables
 
     public const string SlimFaasJobsConfiguration = "SLIMFAAS_JOBS_CONFIGURATION";
 
-    public const string SlimFaasSubscribeEvents = "SLIMFAAS_SUBSCRIBE_EVENTS";
-    public const string SlimFaasSubscribeEventsDefault = "";
-
     public const string SlimFaasCorsAllowOrigin = "SLIMFAAS_CORS_ALLOW_ORIGIN";
     public const string SlimFaasCorsAllowOriginDefault = "*";
-
-    public const string SlimFaasMaxRequestBodySize = "SLIMFASS_MAX_REQUEST_BODY_SIZE";
-    public const long SlimFaasMaxRequestBodySizeDefault = 524288000;
 
     public const string SlimWorkerDelayMilliseconds = "SLIM_WORKER_DELAY_MILLISECONDS";
     public const int SlimWorkerDelayMillisecondsDefault = 10;
@@ -29,7 +23,7 @@ public static class EnvironmentVariables
     public const string ReplicasSynchronisationWorkerDelayMilliseconds =
         "REPLICAS_SYNCHRONISATION_WORKER_DELAY_MILLISECONDS";
 
-    public const int ReplicasSynchronizationWorkerDelayMillisecondsDefault = 1000;
+    public const int ReplicasSynchronizationWorkerDelayMillisecondsDefault = 3000;
 
     public const string HistorySynchronisationWorkerDelayMilliseconds =
         "HISTORY_SYNCHRONISATION_WORKER_DELAY_MILLISECONDS";
@@ -72,7 +66,6 @@ public static class EnvironmentVariables
     public const string SlimFaasOrchestratorDefault = "Kubernetes";
 
     public const bool SlimDataAllowColdStartDefault = false;
-    public static readonly int[] SlimFaasListenAdditionalPortsDefault = { };
 
     public static string HostnameDefault = "slimfaas-1";
 
@@ -87,34 +80,6 @@ public static class EnvironmentVariables
 
         Directory.CreateDirectory(tempDirectory);
         return tempDirectory;
-    }
-
-    public static IDictionary<string, IList<string>> ReadSlimFaasSubscribeEvents<T>(ILogger<T> logger, string environmentVariableName, string defaultValue)
-    {
-        string valueString = Environment.GetEnvironmentVariable(environmentVariableName) ?? defaultValue;
-        var results = new Dictionary<string, IList<string>>();
-        if (!string.IsNullOrEmpty(valueString))
-        {
-            //"my-event-name1=>http://localhost:5002;http://localhost:5003,my-event-name2;http://localhost:5002"
-            var events = valueString.Split(',');
-            foreach (var @event in events)
-            {
-                var eventParts = @event.Split("=>");
-                if (eventParts.Length < 2)
-                {
-                    logger.LogWarning("Cannot parse the event {Event} with value {EventValue}", @event, valueString);
-                    continue;
-                }
-
-                var eventKey = eventParts[0];
-                var urls = eventParts[1].Split(";");
-                results[eventKey] = urls;
-            }
-
-            return results;
-        }
-
-        return results;
     }
 
     public static int ReadInteger<T>(ILogger<T> logger, string environmentVariableName, int defaultInteger)
