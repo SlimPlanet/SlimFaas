@@ -70,7 +70,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.44.4-pr.179193
+          image: axaguildev/slimfaas:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -104,12 +104,6 @@ spec:
               value: "Information"
             #- name: "SLIMDATA_CONFIGURATION"
             #  value: '{"lowerElectionTimeout":"150","upperElectionTimeout":"300","requestTimeout":"00:00:00.3000000","rpcTimeout":"00:00:00.1500000","heartbeatThreshold":"0.5"}'
-            #- name: SLIMDATA_CONFIGURATION
-            #  value: |
-            #      {"heartbeatThreshold":"0.5","lowerElectionTimeout":"1500","upperElectionTimeout":"3000","requestTimeout":"00:00:05","rpcTimeout":"00:00:02.5000000"}
-            #- name: SLIMDATA_CONFIGURATION
-            #  value: |
-            #    {"lowerElectionTimeout":"500","upperElectionTimeout":"1000","requestTimeout":"00:01:20.0000000","rpcTimeout":"00:00:40.0000000","heartbeatThreshold":"0.5"}
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
             #  value: "500"
             - name: SLIMFAAS_JOBS_CONFIGURATION
@@ -122,11 +116,11 @@ spec:
               mountPath: /database
           resources:
             limits:
-              memory: "380Mi"
-              cpu: "800m"
+              memory: "120Mi"
+              cpu: "400m"
             requests:
-              memory: "380Mi"
-              cpu: "800m"
+              memory: "120Mi"
+              cpu: "400m"
           ports:
             - containerPort: 5000
               name: slimfaas

@@ -13,9 +13,9 @@ spec:
         app: fibonacci1
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"
-        SlimFaas/NumberParallelRequest: "1000"
-        SlimFaas/ReplicasAtStart: "2"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
+        SlimFaas/NumberParallelRequest: "2"
+        SlimFaas/ReplicasAtStart: "1"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
         prometheus.io/scrape: 'true'
@@ -24,7 +24,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci1
-          image: axaguildev/fibonacci-api:0.44.4-pr.179192
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -72,9 +72,9 @@ spec:
         app: fibonacci2
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"
-        SlimFaas/NumberParallelRequest: "20"
-        SlimFaas/ReplicasAtStart: "2"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
+        SlimFaas/NumberParallelRequest: "2"
+        SlimFaas/ReplicasAtStart: "1"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
         prometheus.io/scrape: 'true'
@@ -83,7 +83,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci2
-          image: axaguildev/fibonacci-api:0.44.4-pr.179163
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -140,7 +140,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci3
-          image: axaguildev/fibonacci-api:0.44.4-pr.179163
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -198,7 +198,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci4
-          image: axaguildev/fibonacci-api:0.44.4-pr.179163
+          image: axaguildev/fibonacci-api:latest
           livenessProbe:
             httpGet:
               path: /health
