@@ -10,9 +10,6 @@ public static class EnvironmentVariables
     public const string SlimFaasCorsAllowOrigin = "SLIMFAAS_CORS_ALLOW_ORIGIN";
     public const string SlimFaasCorsAllowOriginDefault = "*";
 
-    public const string SlimFaasMaxRequestBodySize = "SLIMFASS_MAX_REQUEST_BODY_SIZE";
-    public const long SlimFaasMaxRequestBodySizeDefault = 524288000;
-
     public const string SlimWorkerDelayMilliseconds = "SLIM_WORKER_DELAY_MILLISECONDS";
     public const int SlimWorkerDelayMillisecondsDefault = 10;
 
