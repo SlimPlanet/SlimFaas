@@ -91,7 +91,7 @@ docker-compose up
 
 When it’s ready:
 
-- GET http://localhost:30021/function/fibonacci/hello/guillaume
+- GET http://localhost:30021/function/fibonacci1/hello/guillaume
 
 Enjoy SlimFaas!
 
@@ -183,6 +183,7 @@ metadata:
   name: slimfaas
   namespace: slimfaas-demo
 spec:
+  podManagementPolicy: OrderedReady
   replicas: 3
   selector:
     matchLabels:
@@ -201,9 +202,6 @@ spec:
             - containerPort: 5000    # SlimFaas main port
             - containerPort: 3262    # SlimData port
           #env:
-          #  - name: SLIMDATA_CONFIGURATION # To start slimfaas with only 1 replica
-          #    value: |
-          #        {"coldStart":"true"}
           # ...
 ---
 apiVersion: v1

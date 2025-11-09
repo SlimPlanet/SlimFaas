@@ -215,3 +215,83 @@ metadata:
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
         SlimFaas/NumberParallelRequest: "10"
 ```
+
+---
+
+## 10. Asynchronous Function Execution: Control Callback Mode
+
+SlimFaas  supports **asynchronous function execution**, allowing a function pod to take control of when the final result is returned.
+This pattern is well suited for long-running tasks, external system calls, or workflows that cannot complete immediately.
+
+### How It Works
+
+1. The client (or another service) sends a request to SlimFaas:
+   ```http
+   POST /async-function/<function-name>/<path>
+   ```
+
+2. SlimFaas forwards the request to the function pod and attaches a header:
+   ```http
+   SlimFaas-Element-Id: <generated-id>
+   ```
+
+3. If the function wants to run control the callback, it must explicitly:
+    - **Return `HTTP 202 Accepted`** instead of a final result.
+    - Take responsibility for sending a **callback** when the result is ready.
+
+   Returning **202** is the key trigger that enables callback mode.
+
+4. When the function completes its work:
+    - On success:
+      ```http
+      POST /async-function-callback/<function-name>/<SlimFaas-Element-Id>/success
+      ```
+
+    - On failure:
+      ```http
+      POST /async-function-callback/<function-name>/<SlimFaas-Element-Id>/error
+      ```
+
+5. If the timeout configured in SlimFaas expires before any callback is received, the execution is marked as **failed**.
+
+### Sequence Example
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant SlimFaas
+    participant Function as Function Pod (e.g., Fibonacci)
+
+    Client->>SlimFaas: POST /async-function/fibonacci
+    SlimFaas->>Function: POST /fibonacci (with SlimFaas-Element-Id)
+    Function-->>SlimFaas: HTTP 202 Accepted (async mode enabled)
+    Note over Function: Function is now responsible for callback
+
+    alt Success
+        Function->>SlimFaas: POST /async-function-callback/fibonacci/<id>/success
+        SlimFaas-->>Client: Final success response or notification
+    else Error
+        Function->>SlimFaas: POST /async-function-callback/fibonacci/<id>/error
+        SlimFaas-->>Client: Error response or notification
+    end
+
+    SlimFaas-->>Client: Timeout if no callback received
+```
+
+### Key Points
+
+| Element | Description |
+|--------|-------------|
+| **Returning HTTP 202** | This explicitly activates asynchronous callback mode |
+| **SlimFaas-Element-Id header** | Allows the function to reference the execution instance in its callback |
+| **Function controls completion** | The function decides when to send success/error notification |
+| **Timeout handling** | If no callback is received within the configured timeout, SlimFaas marks the execution as failed |
+
+### When to Use
+
+Choose this mode when your function:
+- Performs long-running or deferred processing
+- Depends on external systems (queues, schedulers, batching, GPU workloads, etc.)
+- Should not block the client during execution
+
+---

@@ -5,17 +5,16 @@ networks:
 
 services:
   slimfaas:
-    image: axaguildev/slimfaas:dev
-    build:
-      context: .
-      dockerfile: ./Dockerfile
+    image: axaguildev/slimfaas:latest
+   # build:
+   #   context: .
+      #dockerfile: ./Dockerfile
     ports:
       - "30021:30021"
     user: "0:0"
     environment:
       DOCKER_HOST: "unix:///var/run/docker.sock"
       BASE_SLIMDATA_URL: "http://localhost:3262/"
-      SLIMDATA_CONFIGURATION: '{"coldStart":"true"}'
       ASPNETCORE_URLS: "http://0.0.0.0:30021"
       SLIMFAAS_ORCHESTRATOR: "Docker"
       HOSTNAME: "slimfaas-1"
