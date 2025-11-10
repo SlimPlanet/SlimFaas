@@ -5,8 +5,6 @@ using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
 
-
-
 public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRaftCluster cluster,
         ILogger<SlimDataSynchronizationWorker> logger, ISlimDataStatus slimDataStatus,
         int delay = EnvironmentVariables.ReplicasSynchronizationWorkerDelayMillisecondsDefault)

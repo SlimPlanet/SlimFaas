@@ -132,7 +132,10 @@ public record PodInformation(
     string Ip,
     string DeploymentName,
     IList<int>? Ports = null,
-    string ResourceVersion = "");
+    string ResourceVersion = "")
+{
+    public IDictionary<string, string>? Annotations { get; init; }
+}
 
 [MemoryPackable]
 public partial record CreateJob(
@@ -972,7 +975,7 @@ public class KubernetesService : IKubernetesService
                     continue;
                 }
 
-                if (item.Metadata.OwnerReferences == null || item.Metadata.OwnerReferences.Count == 0)
+                if (item.Metadata == null || item.Metadata.OwnerReferences == null || item.Metadata.OwnerReferences.Count == 0)
                 {
                     // c'est un job
                     // logger.LogWarning("No OwnerReference found for pod {PodName}", item.Metadata.Name);
@@ -996,7 +999,10 @@ public class KubernetesService : IKubernetesService
                     .ToList() ?? new List<int>();
 
                 PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp,
-                    deploymentName, ports, resourceVersion);
+                    deploymentName, ports, resourceVersion)
+                {
+                    Annotations = item.Metadata?.Annotations
+                };
                 result.Add(podInformation);
             }
             catch (Exception ex)
