@@ -212,15 +212,21 @@ public sealed class PromQlMiniEvaluator
         public override EvalValue Eval(EvalContext ctx)
         {
             var v = inner.Eval(ctx);
-            if (v.IsScalar) return v;
+            if (v.IsScalar)
+                return v;
 
             if (byLabel is null)
-                return EvalValue.FromScalar(v.ByLe!.Values.Sum());
+            {
+                // sum(...) sans "by" => on renvoie un scalaire : somme de toutes les valeurs
+                if (v.ByLe is null) return EvalValue.FromScalar(double.NaN);
+                return EvalValue.FromScalar(v.ByLe.Values.Sum());
+            }
 
-            // sum by (le) : on conserve le dictionnaire par le
-            // inner doit retourner des buckets le -> valeur
+            // ✅ sum by (le)(...) => on CONSERVE le dictionnaire par 'le'
+            // (pour que min/max/avg puissent ensuite travailler dessus)
             return EvalValue.FromByLe(new Dictionary<string, double>(v.ByLe!, StringComparer.Ordinal));
         }
+
     }
 
     private sealed class HistogramQuantileNode(double phi, ValueNode bucketsExpr) : ValueNode
@@ -274,6 +280,43 @@ public sealed class PromQlMiniEvaluator
             return EvalValue.FromScalar(points.Last().le);
         }
     }
+
+    private sealed class MinNode(ValueNode inner, string? byLabel) : ValueNode
+    {
+        public override EvalValue Eval(EvalContext ctx)
+        {
+            var v = inner.Eval(ctx);
+            if (v.IsScalar) return v;
+
+            if (byLabel is not null)
+            {
+                // même comportement que sum by (le) : on conserve le dictionnaire par 'le'
+                return EvalValue.FromByLe(new Dictionary<string, double>(v.ByLe!, StringComparer.Ordinal));
+            }
+
+            if (v.ByLe is null || v.ByLe.Count == 0) return EvalValue.FromScalar(double.NaN);
+            return EvalValue.FromScalar(v.ByLe.Values.Min());
+        }
+    }
+
+    private sealed class MaxNode(ValueNode inner, string? byLabel) : ValueNode
+    {
+        public override EvalValue Eval(EvalContext ctx)
+        {
+            var v = inner.Eval(ctx);
+            if (v.IsScalar) return v;
+
+            if (byLabel is not null)
+            {
+                // même comportement que sum by (le) : on conserve le dictionnaire par 'le'
+                return EvalValue.FromByLe(new Dictionary<string, double>(v.ByLe!, StringComparer.Ordinal));
+            }
+
+            if (v.ByLe is null || v.ByLe.Count == 0) return EvalValue.FromScalar(double.NaN);
+            return EvalValue.FromScalar(v.ByLe.Values.Max());
+        }
+    }
+
 
     private sealed class RateNode(MetricSelector selector, TimeSpan window) : ValueNode
     {
@@ -544,6 +587,22 @@ public sealed class PromQlMiniEvaluator
                 }
                 SkipWs();
                 Expect("(");
+                SkipWs();
+
+                // ✅ Spécial : si on a "sum by (le) ( rate( ... ) )"
+                // alors on force un RatePerBucketNode regroupé par ce label,
+                // même si le nom de métrique ne se termine pas par "_bucket".
+                if (byLabel is not null && _s.AsSpan(_pos).StartsWith("rate", StringComparison.Ordinal))
+                {
+                    Accept("rate");
+                    Expect("(");
+                    var (sel, win) = ParseSelectorWithRange();
+                    Expect(")");
+                    Expect(")"); // ferme sum(
+                    return new SumNode(new RatePerBucketNode(sel, win, byLabel), byLabel);
+                }
+
+                // Cas général inchangé
                 var inner = ParseExpr();
                 Expect(")");
                 return new SumNode(inner, byLabel);
@@ -561,11 +620,217 @@ public sealed class PromQlMiniEvaluator
                 return new RateNode(sel, win);
             }
 
+            // min by (label) (expr)  |  min(expr [, expr2, ...])
+            if (string.Equals(ident, "min", StringComparison.OrdinalIgnoreCase))
+            {
+                SkipWs();
+                string? byLabel = null;
+                if (Accept("by"))
+                {
+                    SkipWs();
+                    Expect("(");
+                    byLabel = ParseIdent();
+                    Expect(")");
+                }
+                SkipWs();
+                Expect("(");
+
+                // Parse un ou plusieurs arguments séparés par des virgules
+                var args = new List<ValueNode>();
+                do
+                {
+                    var e = ParseExpr();
+                    args.Add(e);
+                    SkipWs();
+                }
+                while (Accept(",")); // consomme toutes les virgules intermédiaires
+
+                Expect(")"); // ferme min(
+
+                if (args.Count > 1)
+                {
+                    // Variadique autorisé seulement sans "by (...)"
+                    if (byLabel is not null)
+                        throw new FormatException("min by (...) with multiple arguments is not supported");
+                    return new VariadicMinNode(args);
+                }
+
+                // Cas 1 arg : comportement précédent
+                return new MinNode(args[0], byLabel);
+            }
+
+// max by (label) (expr)  |  max(expr [, expr2, ...])
+            if (string.Equals(ident, "max", StringComparison.OrdinalIgnoreCase))
+            {
+                SkipWs();
+                string? byLabel = null;
+                if (Accept("by"))
+                {
+                    SkipWs();
+                    Expect("(");
+                    byLabel = ParseIdent();
+                    Expect(")");
+                }
+                SkipWs();
+                Expect("(");
+
+                var args = new List<ValueNode>();
+                do
+                {
+                    var e = ParseExpr();
+                    args.Add(e);
+                    SkipWs();
+                }
+                while (Accept(","));
+
+                Expect(")");
+
+                if (args.Count > 1)
+                {
+                    if (byLabel is not null)
+                        throw new FormatException("max by (...) with multiple arguments is not supported");
+                    return new VariadicMaxNode(args);
+                }
+
+                return new MaxNode(args[0], byLabel);
+            }
+
+            // avg by (label) (expr)  |  avg(expr)
+// cas spécial : si on a "avg by (le) ( rate(metric{..}[win]) )"
+// => on force RatePerBucketNode(..., le) puis AvgNode(byLabel) pour préserver {le -> valeur}
+            if (string.Equals(ident, "avg", StringComparison.OrdinalIgnoreCase))
+            {
+                SkipWs();
+                string? byLabel = null;
+                if (Accept("by"))
+                {
+                    SkipWs();
+                    Expect("(");
+                    byLabel = ParseIdent();
+                    Expect(")");
+                }
+                SkipWs();
+                Expect("(");
+                SkipWs();
+
+                // ✅ Spécial : avg by (le) ( rate(...) )
+                if (byLabel is not null && _s.AsSpan(_pos).StartsWith("rate", StringComparison.Ordinal))
+                {
+                    Accept("rate");
+                    Expect("(");
+                    var (sel, win) = ParseSelectorWithRange();
+                    Expect(")");
+                    Expect(")"); // ferme avg(
+                    return new AvgNode(new RatePerBucketNode(sel, win, byLabel), byLabel);
+                }
+
+                // ✅ Spécial : avg(rate(...)) sans "by" => moyenne des débits par série
+                if (byLabel is null && _s.AsSpan(_pos).StartsWith("rate", StringComparison.Ordinal))
+                {
+                    Accept("rate");
+                    Expect("(");
+                    var (sel, win) = ParseSelectorWithRange();
+                    Expect(")");
+                    Expect(")");
+                    return new AvgRateNode(sel, win);
+                }
+
+                // Cas général : avg(inner)
+                var inner = ParseExpr();
+                Expect(")");
+                return new AvgNode(inner, byLabel);
+            }
+
             // Si on arrive ici : ident est un metricName => parse sélecteur + option range ? (pour sum(rate(...)) on ne vient pas là)
             var selector = ParseOptionalSelectorAfterKnownName(ident);
             // Par défaut, on fera sum instantané des séries (non utilisé dans tes exemples).
             return new SelectorSumNode(selector, window: null);
         }
+
+        private sealed class VariadicMinNode : ValueNode
+        {
+            private readonly List<ValueNode> _args;
+            public VariadicMinNode(List<ValueNode> args) => _args = args;
+
+            public override EvalValue Eval(EvalContext ctx)
+            {
+                double? acc = null;
+                foreach (var a in _args)
+                {
+                    var v = a.Eval(ctx).AsScalar();
+                    if (double.IsNaN(v)) continue;
+                    acc = acc is null ? v : Math.Min(acc.Value, v);
+                }
+                return EvalValue.FromScalar(acc ?? double.NaN);
+            }
+        }
+
+        private sealed class VariadicMaxNode : ValueNode
+        {
+            private readonly List<ValueNode> _args;
+            public VariadicMaxNode(List<ValueNode> args) => _args = args;
+
+            public override EvalValue Eval(EvalContext ctx)
+            {
+                double? acc = null;
+                foreach (var a in _args)
+                {
+                    var v = a.Eval(ctx).AsScalar();
+                    if (double.IsNaN(v)) continue;
+                    acc = acc is null ? v : Math.Max(acc.Value, v);
+                }
+                return EvalValue.FromScalar(acc ?? double.NaN);
+            }
+        }
+
+
+        private sealed class AvgNode(ValueNode inner, string? byLabel) : ValueNode
+        {
+            public override EvalValue Eval(EvalContext ctx)
+            {
+                var v = inner.Eval(ctx);
+                if (v.IsScalar) return v;
+
+                if (byLabel is not null)
+                {
+                    // même logique que sum/min/max : on conserve le dictionnaire par 'le'
+                    return EvalValue.FromByLe(new Dictionary<string, double>(v.ByLe!, StringComparer.Ordinal));
+                }
+
+                if (v.ByLe is null || v.ByLe.Count == 0) return EvalValue.FromScalar(double.NaN);
+                return EvalValue.FromScalar(v.ByLe.Values.Average());
+            }
+        }
+
+// avg(rate(metric{...}[win])) : moyenne des débits par série (pod)
+        private sealed class AvgRateNode(MetricSelector selector, TimeSpan window) : ValueNode
+        {
+            public override EvalValue Eval(EvalContext ctx)
+            {
+                var series = ctx.SelectSeries(selector, window);
+                double sum = 0.0;
+                int count = 0;
+
+                foreach (var sl in series.Values)
+                {
+                    if (sl.Count < 2) continue;
+                    var first = sl.First();
+                    var last = sl.Last();
+                    var dt = (double)(last.Key - first.Key);
+                    if (dt <= 0) continue;
+
+                    var diff = last.Value - first.Value;
+                    if (diff < 0) continue; // reset
+
+                    sum += diff / dt;
+                    count++;
+                }
+
+                if (count == 0) return EvalValue.FromScalar(0.0);
+                return EvalValue.FromScalar(sum / count);
+            }
+        }
+
 
         private double ParseNumber()
         {
