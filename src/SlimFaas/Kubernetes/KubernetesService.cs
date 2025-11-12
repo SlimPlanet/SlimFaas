@@ -122,7 +122,8 @@ public record DeploymentInformation(
     IList<PathVisibility>? PathsStartWithVisibility = null,
     string ResourceVersion = "",
     bool EndpointReady = false,
-    FunctionTrust Trust = FunctionTrust.Trusted
+    FunctionTrust Trust = FunctionTrust.Trusted,
+    ScaleConfig? Scale = null
 );
 
 public record PodInformation(
@@ -257,6 +258,7 @@ public class KubernetesService : IKubernetesService
     private const string SubscribeEvents = "SlimFaas/SubscribeEvents";
     private const string DefaultVisibility = "SlimFaas/DefaultVisibility";
     private const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
+    private const string Scale = "SlimFaas/Scale";
 
     private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
         "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
@@ -287,6 +289,73 @@ public class KubernetesService : IKubernetesService
         _client = new k8s.Kubernetes(k8SConfig);
     }
 
+    private static ScaleConfig NormalizeScaleConfig(ScaleConfig? cfg)
+    {
+        // objet racine
+        cfg ??= new ScaleConfig();
+
+        // Behavior (et ses sous-objets)
+        var behavior = cfg.Behavior ?? new ScaleBehavior();
+
+        var scaleUp = behavior.ScaleUp ?? ScaleDirectionBehavior.DefaultScaleUp();
+        var scaleDown = behavior.ScaleDown ?? ScaleDirectionBehavior.DefaultScaleDown();
+
+        // Policies (si null -> defaults)
+        var upPolicies = scaleUp.Policies is { Count: > 0 } ? scaleUp.Policies : ScaleDirectionBehavior.DefaultScaleUp().Policies;
+        var downPolicies = scaleDown.Policies is { Count: > 0 } ? scaleDown.Policies : ScaleDirectionBehavior.DefaultScaleDown().Policies;
+
+        // Triggers (si null -> liste vide)
+        var triggers = cfg.Triggers ?? new List<ScaleTrigger>();
+
+        // On reconstruit via 'with' (records immutables)
+        return cfg with
+        {
+            Triggers = triggers,
+            Behavior = behavior with
+            {
+                ScaleUp = scaleUp with { Policies = upPolicies },
+                ScaleDown = scaleDown with { Policies = downPolicies }
+            }
+        };
+    }
+
+
+    private static ScaleConfig? GetScaleConfig(
+        IDictionary<string, string> annotations,
+        string name,
+        ILogger<KubernetesService> logger)
+    {
+        try
+        {
+            if (annotations.TryGetValue(Scale, out string? annotation) &&
+                !string.IsNullOrWhiteSpace(annotation))
+            {
+                annotation = JsonMinifier.MinifyJson(annotation);
+                if (!string.IsNullOrEmpty(annotation))
+                {
+                    // AOT-safe : on n'utilise QUE le contexte source-généré
+                    var opts = new JsonSerializerOptions
+                    {
+                        PropertyNameCaseInsensitive = true,
+                        TypeInfoResolver = ScaleConfigSerializerContext.Default
+                    };
+                    // Enums en string (insensible à la casse) — AOT OK
+                    opts.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
+
+                    var parsed = JsonSerializer.Deserialize<ScaleConfig>(annotation, opts);
+
+                    // IMPORTANT : on normalise pour injecter les defaults si des sous-objets manquent
+                    return NormalizeScaleConfig(parsed);
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "name: {Name}\n annotations[Scale]: {Annotation}", name, annotations.TryGetValue(Scale, out var a) ? a : "<missing>");
+        }
+
+        return null;
+    }
 
     public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
     {
@@ -649,12 +718,10 @@ public class KubernetesService : IKubernetesService
 
                 string? name = deploymentListItem.Metadata.Name;
                 List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
-                ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
-                SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
-                StringBuilder resourceVersionBuilder = new StringBuilder($"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}");
+                StringBuilder resourceVersionBuilder = new($"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}");
                 foreach (PodInformation pod in pods)
                 {
                     resourceVersionBuilder.Append($"-{pod.ResourceVersion}");
@@ -667,10 +734,14 @@ public class KubernetesService : IKubernetesService
                 }
                 else
                 {
+                    SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
+                    ScaleConfig? scaleConfig = GetScaleConfig(annotations, name, logger);
+                    ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
                     FunctionVisibility funcVisibility =
                         annotations.TryGetValue(DefaultVisibility, out string? visibility)
                             ? Enum.Parse<FunctionVisibility>(visibility)
                             : FunctionVisibility.Public;
+
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
@@ -702,7 +773,8 @@ public class KubernetesService : IKubernetesService
                         endpointReady,
                         annotations.TryGetValue(DefaultTrust, out string? trust)
                             ? Enum.Parse<FunctionTrust>(trust)
-                            : FunctionTrust.Trusted
+                            : FunctionTrust.Trusted,
+                        scaleConfig
                     );
                     deploymentInformationList.Add(deploymentInformation);
                 }
@@ -901,8 +973,6 @@ public class KubernetesService : IKubernetesService
 
                 string? name = deploymentListItem.Metadata.Name;
                 List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
-                ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
-                SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
@@ -913,10 +983,13 @@ public class KubernetesService : IKubernetesService
                 }
                 else
                 {
+                    ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
+                    SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
                     FunctionVisibility funcVisibility =
                         annotations.TryGetValue(DefaultVisibility, out string? visibility)
                             ? Enum.Parse<FunctionVisibility>(visibility)
                             : FunctionVisibility.Public;
+                    ScaleConfig? scaleConfig = GetScaleConfig(annotations, name, logger);
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
@@ -948,7 +1021,8 @@ public class KubernetesService : IKubernetesService
                         endpointReady,
                         annotations.TryGetValue(DefaultTrust, out string? trust)
                             ? Enum.Parse<FunctionTrust>(trust)
-                            : FunctionTrust.Trusted);
+                            : FunctionTrust.Trusted,
+                        scaleConfig);
 
                     deploymentInformationList.Add(deploymentInformation);
                 }

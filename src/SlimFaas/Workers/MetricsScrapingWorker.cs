@@ -52,7 +52,7 @@ public class MetricsScrapingWorker(
     IMetricsStore metricsStore,
     ISlimDataStatus slimDataStatus,
     ILogger<MetricsScrapingWorker> logger,
-    int delay = 10_000)
+    int delay = 5_000)
     : BackgroundService
 {
 // Remplace TOUTE la déclaration existante de MetricLine par celle-ci :
@@ -64,11 +64,11 @@ public class MetricsScrapingWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await slimDataStatus.WaitForReadyAsync();
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
+                await slimDataStatus.WaitForReadyAsync();
                 if (!IsDesignatedScraperNode(replicasService, cluster, logger))
                 {
                     await Task.Delay(delay, stoppingToken);
@@ -166,6 +166,9 @@ public class MetricsScrapingWorker(
             .ToList();
         if (slimfaasPods.Count == 0)
             return false;
+
+        if(slimfaasPods.Count == 1)
+            return true;
 
         var leaderEndpoint = cluster.Leader?.EndPoint?.ToString();
         string? leaderKey = null;

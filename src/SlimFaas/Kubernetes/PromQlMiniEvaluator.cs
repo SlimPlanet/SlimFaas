@@ -879,7 +879,7 @@ public sealed class PromQlMiniEvaluator
                     SkipWs();
                     var value = ParseQuoted();
                     if (op == "=~")
-                        sel.Matchers.Add((label, null, new Regex($"^{value}$", RegexOptions.Compiled)));
+                        sel.Matchers.Add((label, null, new Regex($"^{value}$", RegexOptions.Compiled, TimeSpan.FromMilliseconds(50))));
                     else
                         sel.Matchers.Add((label, value, null));
                     SkipWs();

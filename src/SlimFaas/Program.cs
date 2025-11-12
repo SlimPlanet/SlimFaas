@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -12,6 +13,7 @@ using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.MetricsQuery;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 
 #pragma warning disable CA2252
@@ -221,6 +223,7 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
 var allowUnsecureSSL = EnvironmentVariables.ReadBoolean(EnvironmentVariables.SlimFaasAllowUnsecureSSL, EnvironmentVariables.SlimFaasAllowUnsecureSSLDefault);
 
 serviceCollectionSlimFaas.AddHostedService<SlimDataSynchronizationWorker>();
+serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
 serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
@@ -331,6 +334,21 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
     }
 });
 
+// AOT-friendly JSON (source generators)
+builder.Services.ConfigureHttpJsonOptions(opt =>
+{
+    opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
+});
+
+// IMetricsStore en mémoire (ta classe)
+builder.Services.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
+
+// PromQlMiniEvaluator branché sur le snapshot du store
+builder.Services.AddSingleton<PromQlMiniEvaluator>(sp =>
+{
+    var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
+    return new PromQlMiniEvaluator(() => store.Snapshot());
+});
 
 WebApplication app = builder.Build();
 app.UseCors(builder =>
@@ -353,6 +371,35 @@ app.UseCors(builder =>
             .AllowAnyHeader();
     }
 });
+
+
+// POST /promql/eval  { query: string, nowUnixSeconds?: long }
+app.MapPost("/promql/eval", (PromQlRequest req, PromQlMiniEvaluator eval) =>
+    {
+        if (string.IsNullOrWhiteSpace(req.Query))
+            return Results.BadRequest(new { error = "query is required" });
+
+        double result;
+        try
+        {
+            result = eval.Evaluate(req.Query, req.NowUnixSeconds);
+        }
+        catch (FormatException fe)
+        {
+            return Results.BadRequest(new { error = fe.Message });
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem(title: "Evaluation error", detail: ex.Message, statusCode: 500);
+        }
+
+        return Results.Ok(new PromQlResponse(result));
+    })
+    .WithName("PromQlEvaluate")
+    .Produces<PromQlResponse>(StatusCodes.Status200OK)
+    .Produces(StatusCodes.Status400BadRequest)
+    .ProducesProblem(StatusCodes.Status500InternalServerError);
+
 
 app.UseMiddleware<SlimProxyMiddleware>();
 
@@ -416,6 +463,23 @@ app.Run();
 serviceProviderStarter.Dispose();
 
 public partial class Program;
+
+
+public sealed class PromQlRequest
+{
+    public required string Query { get; init; }
+    public long? NowUnixSeconds { get; init; }
+}
+
+public sealed class PromQlResponse
+{
+    public PromQlResponse(double value) => Value = value;
+    public double Value { get; init; }
+}
+
+[JsonSerializable(typeof(PromQlRequest))]
+[JsonSerializable(typeof(PromQlResponse))]
+public partial class AppJsonContext : JsonSerializerContext;
 
 
 #pragma warning restore CA2252
