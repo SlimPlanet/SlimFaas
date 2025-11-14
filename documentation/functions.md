@@ -295,3 +295,62 @@ Choose this mode when your function:
 - Should not block the client during execution
 
 ---
+
+
+## 11. Scale out
+
+```yaml
+# Example snippet from a Deployment
+metadata:
+    annotations:
+        SlimFaas/Scale: > # if not set default is null value
+            {
+               "ReplicaMax" : 1
+               "Triggers": [ # default is empty
+                   "MetricType": "AverageValue" # la valeur moyenne par pod visée. or "Value" # a valeur totale (somme) visée.
+                   "MetricName": "pod0_rps",
+                   "Query": "sum(rate(http_server_requests_seconds_count{namespace=\"${namespace}\",job=\"${app}\",pod=\"${app}-0\"}[1m]))",
+                   "Threshold": 50
+                ]
+              "Behavior": { # Not mandatory, default value below
+                "ScaleUp": { # Not mandatory, default value below
+                    "StabilizationWindowSeconds": 0,
+                    "Policies": [{
+                          "Type": "Percent"
+                          "Value": 100
+                          "PeriodSeconds": 15
+                        },
+                        {
+                          "Type": "Pods"
+                          "Value": 4
+                          "PeriodSeconds": 15
+                        }
+                    ]
+                  }
+                 "ScaleDown": # Not mandatory, default value below
+                  {
+                    "StabilizationWindowSeconds": 300
+                    "Policies": [{
+                         "Type": "Percent"
+                         "Value": 100
+                         "PeriodSeconds": 15
+                    }]
+                  }
+              }
+            }
+        SlimFaas/ReplicasMin: "0" #minReplicaCount
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin : 120 # cooldownPeriod
+        SlimFaas/ReplicasAtStart: "1"
+
+```
+
+#desiredReplicas = ceil( currentReplicas * ( currentMetric / target ) )
+
+
+4) Comment choisir threshold ?
+
+- Value (total) → pense « capacité globale visée ».
+Ex: threshold = 120 req/s si tu estimes qu’un groupe actuel de pods sait encaisser ~120 rps sans dégrader la latence.
+
+- AverageValue (par pod) → pense « cible par pod ».
+Ex: backlog 200 msgs/pod, in-flight 50 req/pod, CPU 0.7 cores/pod.
