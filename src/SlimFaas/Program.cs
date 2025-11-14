@@ -373,11 +373,10 @@ app.UseCors(builder =>
 });
 
 
-// POST /promql/eval  { query: string, nowUnixSeconds?: long }
 app.MapPost("/promql/eval", (PromQlRequest req, PromQlMiniEvaluator eval) =>
     {
         if (string.IsNullOrWhiteSpace(req.Query))
-            return Results.BadRequest(new { error = "query is required" });
+            return Results.BadRequest(new ErrorResponse { Error = "query is required" });
 
         double result;
         try
@@ -386,19 +385,24 @@ app.MapPost("/promql/eval", (PromQlRequest req, PromQlMiniEvaluator eval) =>
         }
         catch (FormatException fe)
         {
-            return Results.BadRequest(new { error = fe.Message });
+            return Results.BadRequest(new ErrorResponse { Error = fe.Message });
         }
         catch (Exception ex)
         {
-            return Results.Problem(title: "Evaluation error", detail: ex.Message, statusCode: 500);
+            return Results.Problem(
+                title: "Evaluation error",
+                detail: ex.Message,
+                statusCode: 500
+            );
         }
 
         return Results.Ok(new PromQlResponse(result));
     })
     .WithName("PromQlEvaluate")
     .Produces<PromQlResponse>(StatusCodes.Status200OK)
-    .Produces(StatusCodes.Status400BadRequest)
+    .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
+
 
 
 app.UseMiddleware<SlimProxyMiddleware>();
@@ -471,6 +475,11 @@ public sealed class PromQlRequest
     public long? NowUnixSeconds { get; init; }
 }
 
+public sealed class ErrorResponse
+{
+    public string Error { get; init; } = string.Empty;
+}
+
 public sealed class PromQlResponse
 {
     public PromQlResponse(double value) => Value = value;
@@ -479,6 +488,7 @@ public sealed class PromQlResponse
 
 [JsonSerializable(typeof(PromQlRequest))]
 [JsonSerializable(typeof(PromQlResponse))]
+[JsonSerializable(typeof(ErrorResponse))]
 public partial class AppJsonContext : JsonSerializerContext;
 
 

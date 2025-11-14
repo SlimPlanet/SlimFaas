@@ -102,7 +102,7 @@ public class MetricsScrapingWorker(
                         }
                         catch (Exception e)
                         {
-                            logger.LogDebug(e, "metrics scrape error for {Url}", url);
+                            logger.LogWarning(e, "metrics scrape error for {Url}", url);
                         }
                     }
                 }
