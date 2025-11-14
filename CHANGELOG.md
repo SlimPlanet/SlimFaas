@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.44.6
+
+- [71cad27](https://github.com/SlimPlanet/SlimFaas/commit/71cad277213c6089f298993593b231d954efd481) - refactor(all): dotnet 10 (#188) (release), 2025-11-14 by *Guillaume Chervet*
+- [8293d86](https://github.com/SlimPlanet/SlimFaas/commit/8293d866e431abd6c0fb8de5c5eb94ce4b60e300) - doc(function): ## 10. Asynchronous Function Execution: Control Callback Mode, 2025-11-09 by *Guillaume Chervet*
+
+
+## 0.44.5
+
+
+
 ## v0.44.5
 
 - [dbebd22](https://github.com/SlimPlanet/SlimFaas/commit/dbebd225e76cfa1dccd31b1bdba56311499b220d) - fix(slimfaas): startup (release), 2025-11-03 by *Guillaume Chervet*
@@ -265,17 +275,6 @@
 
 
 ## 0.39.0
-
-
-
-## v0.39.0
-
-- [09f684b](https://github.com/SlimPlanet/SlimFaas/commit/09f684b61dec0ef7b45ef867beb2f8972d33924c) - feat(mcp): api to client base 64 (release) (#148), 2025-08-17 by *Guillaume Chervet*
-- [9ea579e](https://github.com/SlimPlanet/SlimFaas/commit/9ea579ecd71f418ff752bb65b70760fa72752687) - doc: add badge OpenSSF Best Practices, 2025-08-15 by *Guillaume Chervet*
-- [0adb0b5](https://github.com/SlimPlanet/SlimFaas/commit/0adb0b5b21309ff4429faa56a9aeaf3acfe6061e) - doc: add scorecard badge, 2025-08-15 by *Guillaume Chervet*
-
-
-## 0.38.7
 
 
 
