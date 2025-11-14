@@ -13,7 +13,7 @@ spec:
         app: fibonacci1
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"
         SlimFaas/NumberParallelRequest: "2"
         SlimFaas/ReplicasAtStart: "1"
         prometheus.io/path: /metrics

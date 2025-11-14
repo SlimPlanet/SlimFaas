@@ -382,6 +382,15 @@ app.MapPost("/promql/eval", (PromQlRequest req, PromQlMiniEvaluator eval) =>
         try
         {
             result = eval.Evaluate(req.Query, req.NowUnixSeconds);
+
+            // 👇 IMPORTANT : filtrer NaN / ±Infinity
+            if (double.IsNaN(result) || double.IsInfinity(result))
+            {
+                return Results.BadRequest(new ErrorResponse
+                {
+                    Error = "PromQL result is NaN or Infinity (probably no data or division by zero)."
+                });
+            }
         }
         catch (FormatException fe)
         {
@@ -402,6 +411,7 @@ app.MapPost("/promql/eval", (PromQlRequest req, PromQlMiniEvaluator eval) =>
     .Produces<PromQlResponse>(StatusCodes.Status200OK)
     .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
+
 
 
 
