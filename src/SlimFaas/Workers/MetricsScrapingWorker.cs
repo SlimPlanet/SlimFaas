@@ -59,7 +59,7 @@ public class MetricsScrapingWorker(
     private static readonly Regex MetricLine = new(
         // <metric_name><optional {labels}> <value> [optional_timestamp]
         @"^\s*([a-zA-Z_:][a-zA-Z0-9_:]*)(\{[^}]*\})?\s+([-+]?(?:NaN|(?:\+|-)?Inf|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?))(?:\s+\d+)?\s*$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        RegexOptions.Compiled | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(120));
 
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

@@ -2,6 +2,8 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using SlimFaas.Kubernetes;
+using SlimFaas.MetricsQuery;
+using SlimFaas.Scaling;
 
 namespace SlimFaas.Tests;
 
@@ -55,35 +57,87 @@ public class  ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
 
 public class ReplicasScaleWorkerShould
 {
+    private static AutoScaler CreateAutoScalerForTests()
+    {
+        PromQlMiniEvaluator.SnapshotProvider snapshotProvider = () =>
+        {
+            var metrics = new Dictionary<string, double> { { "dummy_metric", 1.0 } };
+            var pod = new Dictionary<string, IReadOnlyDictionary<string, double>>
+            {
+                { "pod-0", metrics }
+            };
+            var deployment = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>
+            {
+                { "dummy-deploy", pod }
+            };
+            var root = new Dictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>>
+            {
+                { 1L, deployment }
+            };
+            return root;
+        };
+
+        var evaluator = new PromQlMiniEvaluator(snapshotProvider);
+        var store = new InMemoryAutoScalerStore();
+        return new AutoScaler(evaluator, store, logger: null);
+    }
+
     [Theory]
     [ClassData(typeof(ReplicasScaleDeploymentsTestData))]
-    public async Task ScaleFunctionUpAndDown(DeploymentsInformations deploymentsInformations, Times scaleUpTimes,
+    public async Task ScaleFunctionUpAndDown(
+        DeploymentsInformations deploymentsInformations,
+        Times scaleUpTimes,
         Times scaleDownTimes)
     {
-        Mock<ILogger<ScaleReplicasWorker>> logger = new();
-        Mock<IKubernetesService> kubernetesService = new();
-        Mock<IMasterService> masterService = new();
-        HistoryHttpMemoryService historyHttpService = new();
-        historyHttpService.SetTickLastCall("fibonacci2", DateTime.UtcNow.Ticks);
-        Mock<ILogger<ReplicasService>> loggerReplicasService = new();
-        ReplicasService replicasService =
-            new(kubernetesService.Object,
-                historyHttpService,
-                loggerReplicasService.Object);
-        masterService.Setup(ms => ms.IsMaster).Returns(true);
-        kubernetesService.Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>())).ReturnsAsync(deploymentsInformations);
+        var logger = new Mock<ILogger<ScaleReplicasWorker>>();
+        var kubernetesService = new Mock<IKubernetesService>();
+        var masterService = new Mock<IMasterService>();
+        var historyHttpService = new HistoryHttpMemoryService();
 
-        ReplicaRequest scaleRequestFibonacci1 = new("fibonacci1", "default", 0, PodType.Deployment);
-        kubernetesService.Setup(k => k.ScaleAsync(scaleRequestFibonacci1)).ReturnsAsync(scaleRequestFibonacci1);
-        ReplicaRequest scaleRequestFibonacci2 = new("fibonacci2", "default", 1, PodType.Deployment);
-        kubernetesService.Setup(k => k.ScaleAsync(scaleRequestFibonacci2)).ReturnsAsync(scaleRequestFibonacci2);
+        // On force "fibonacci2" comme récemment appelé pour déclencher le scale-up 0 -> 1
+        historyHttpService.SetTickLastCall("fibonacci2", DateTime.UtcNow.Ticks);
+
+        var loggerReplicasService = new Mock<ILogger<ReplicasService>>();
+        var autoScaler = CreateAutoScalerForTests();
+
+        var replicasService = new ReplicasService(
+            kubernetesService.Object,
+            historyHttpService,
+            autoScaler,
+            loggerReplicasService.Object);
+
+        masterService.Setup(ms => ms.IsMaster).Returns(true);
+
+        kubernetesService
+            .Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deploymentsInformations);
+
+        // Scale down fibonacci1 -> 0
+        var scaleRequestFibonacci1 = new ReplicaRequest("fibonacci1", "default", 0, PodType.Deployment);
+        kubernetesService
+            .Setup(k => k.ScaleAsync(scaleRequestFibonacci1))
+            .ReturnsAsync(scaleRequestFibonacci1);
+
+        // Scale up fibonacci2 -> 1
+        var scaleRequestFibonacci2 = new ReplicaRequest("fibonacci2", "default", 1, PodType.Deployment);
+        kubernetesService
+            .Setup(k => k.ScaleAsync(scaleRequestFibonacci2))
+            .ReturnsAsync(scaleRequestFibonacci2);
+
         await replicasService.SyncDeploymentsAsync("default");
 
-        ScaleReplicasWorker service = new(replicasService, masterService.Object, logger.Object, 100);
+        var service = new ScaleReplicasWorker(
+            replicasService,
+            masterService.Object,
+            logger.Object,
+            delay: 100);
+
         using var cts = new CancellationTokenSource();
-        Task task = service.StartAsync(cts.Token);
+        var task = service.StartAsync(cts.Token);
+
         await Task.Delay(3000);
 
+        // Vérification du scale up/down selon les cas de test
         kubernetesService.Verify(v => v.ScaleAsync(scaleRequestFibonacci2), scaleUpTimes);
         kubernetesService.Verify(v => v.ScaleAsync(scaleRequestFibonacci1), scaleDownTimes);
 
