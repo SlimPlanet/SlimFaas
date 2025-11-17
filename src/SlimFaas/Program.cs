@@ -136,6 +136,7 @@ serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
 serviceCollectionSlimFaas.AddHostedService<HealthWorker>();
+serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 //serviceCollectionSlimFaas.AddHostedService<ThreadPoolTuner>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
@@ -242,7 +243,6 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
 var allowUnsecureSSL = EnvironmentVariables.ReadBoolean(EnvironmentVariables.SlimFaasAllowUnsecureSSL, EnvironmentVariables.SlimFaasAllowUnsecureSSLDefault);
 
 serviceCollectionSlimFaas.AddHostedService<SlimDataSynchronizationWorker>();
-serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
 serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
