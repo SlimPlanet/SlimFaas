@@ -127,6 +127,17 @@ serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
+// IMetricsStore en mémoire (ta classe)
+builder.Services.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
+
+// PromQlMiniEvaluator branché sur le snapshot du store
+builder.Services.AddSingleton<PromQlMiniEvaluator>(sp =>
+{
+    var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
+    return new PromQlMiniEvaluator(() => store.Snapshot());
+});
+builder.Services.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
+builder.Services.AddSingleton<AutoScaler>();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasPorts, SlimFaasPorts>(sp =>
     (SlimFaasPorts)serviceProviderStarter.GetService<ISlimFaasPorts>()!);
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpDatabaseService>();
@@ -138,6 +149,7 @@ serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
+
 
 serviceCollectionSlimFaas.AddCors();
 
@@ -341,17 +353,7 @@ builder.Services.ConfigureHttpJsonOptions(opt =>
     opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
 });
 
-// IMetricsStore en mémoire (ta classe)
-builder.Services.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 
-// PromQlMiniEvaluator branché sur le snapshot du store
-builder.Services.AddSingleton<PromQlMiniEvaluator>(sp =>
-{
-    var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
-    return new PromQlMiniEvaluator(() => store.Snapshot());
-});
-builder.Services.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
-builder.Services.AddSingleton<AutoScaler>();
 
 WebApplication app = builder.Build();
 app.UseCors(builder =>

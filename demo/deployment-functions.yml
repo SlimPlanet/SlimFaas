@@ -13,12 +13,46 @@ spec:
         app: fibonacci1
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"
+
+        # 0 -> N / N -> 0 (HTTP + schedule)
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"   # 1h d'inactivité avant scale-down
         SlimFaas/NumberParallelRequest: "2"
         SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/ReplicasMin: "0"                            # autorise le scale-to-zero
+
+        # Scraping metrics par Prometheus / SlimFaas
         prometheus.io/path: /metrics
-        prometheus.io/port: '5000'
-        prometheus.io/scrape: 'true'
+        prometheus.io/port: "5000"
+        prometheus.io/scrape: "true"
+
+        # N -> M (AutoScaler Prometheus)
+        SlimFaas/Scale: >
+          {
+            "ReplicaMax": 10,
+            "Triggers": [
+              {
+                "MetricType": "Value",
+                "MetricName": "avg_latency_fibonacci_seconds",
+                "Query": "(sum(rate(http_server_requests_seconds_sum{app=\"fibonacci1\",route=\"/fibonacci\"}[1m])) / sum(rate(http_server_requests_seconds_count{app=\"fibonacci1\",route=\"/fibonacci\"}[1m])))",
+                "Threshold": 20
+              }
+            ],
+            "Behavior": {
+              "ScaleUp": {
+                "StabilizationWindowSeconds": 0,
+                "Policies": [
+                  { "Type": "Percent", "Value": 100, "PeriodSeconds": 15 },
+                  { "Type": "Pods",    "Value": 4,   "PeriodSeconds": 15 }
+                ]
+              },
+              "ScaleDown": {
+                "StabilizationWindowSeconds": 300,
+                "Policies": [
+                  { "Type": "Percent", "Value": 50, "PeriodSeconds": 30 }
+                ]
+              }
+            }
+          }
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false
