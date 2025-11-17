@@ -105,6 +105,22 @@ switch (envOrConfig)
         break;
 }
 
+// Store métriques Prometheus en mémoire
+serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
+
+// Evaluateur PromQL branché sur le snapshot du store
+serviceCollectionStarter.AddSingleton<PromQlMiniEvaluator>(sp =>
+{
+    var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
+    return new PromQlMiniEvaluator(store.Snapshot);
+});
+
+// Store d’historique de décisions de scaling
+serviceCollectionStarter.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
+
+// AutoScaler (utilisé par ReplicasService)
+serviceCollectionStarter.AddSingleton<AutoScaler>();
+
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
 
@@ -127,17 +143,7 @@ serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
-// IMetricsStore en mémoire (ta classe)
-builder.Services.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 
-// PromQlMiniEvaluator branché sur le snapshot du store
-builder.Services.AddSingleton<PromQlMiniEvaluator>(sp =>
-{
-    var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
-    return new PromQlMiniEvaluator(() => store.Snapshot());
-});
-builder.Services.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
-builder.Services.AddSingleton<AutoScaler>();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasPorts, SlimFaasPorts>(sp =>
     (SlimFaasPorts)serviceProviderStarter.GetService<ISlimFaasPorts>()!);
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpDatabaseService>();
@@ -416,8 +422,6 @@ app.MapPost("/promql/eval", (PromQlRequest req, PromQlMiniEvaluator eval) =>
     .Produces<PromQlResponse>(StatusCodes.Status200OK)
     .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
-
-
 
 
 app.UseMiddleware<SlimProxyMiddleware>();
