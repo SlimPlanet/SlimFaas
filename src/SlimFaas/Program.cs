@@ -127,6 +127,18 @@ IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasS
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
 IServiceCollection serviceCollectionSlimFaas = builder.Services;
+// Réutilise IMetricsStore / PromQlMiniEvaluator / AutoScaler depuis le starter
+serviceCollectionSlimFaas.AddSingleton<IMetricsStore>(sp =>
+    serviceProviderStarter.GetRequiredService<IMetricsStore>());
+
+serviceCollectionSlimFaas.AddSingleton<PromQlMiniEvaluator>(sp =>
+    serviceProviderStarter.GetRequiredService<PromQlMiniEvaluator>());
+
+serviceCollectionSlimFaas.AddSingleton<IAutoScalerStore>(sp =>
+    serviceProviderStarter.GetRequiredService<IAutoScalerStore>());
+
+serviceCollectionSlimFaas.AddSingleton<AutoScaler>(sp =>
+    serviceProviderStarter.GetRequiredService<AutoScaler>());
 serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimScheduleJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimJobsWorker>();
@@ -137,7 +149,6 @@ serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
 serviceCollectionSlimFaas.AddHostedService<HealthWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
-//serviceCollectionSlimFaas.AddHostedService<ThreadPoolTuner>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
 serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
