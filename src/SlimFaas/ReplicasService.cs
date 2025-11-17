@@ -126,9 +126,25 @@ public class ReplicasService(
             {
                 // --- 2. SYSTÈME N -> M (AutoScaler Prometheus) ---
                 // IMPORTANT : ne s'applique que si on a déjà au moins un pod.
+                Console.WriteLine("deploymentInformation.Scale " + deploymentInformation.Scale?.ReplicaMax);
+                if (deploymentInformation.Scale is not null)
+                {
+                    foreach (ScaleTrigger scaleTrigger in deploymentInformation.Scale.Triggers)
+                    {
+                        Console.WriteLine("scaleTrigger " + scaleTrigger.MetricName);
+                        Console.WriteLine("MetricType " + scaleTrigger.MetricType);
+                        Console.WriteLine("Query " + scaleTrigger.Query);
+                        Console.WriteLine("Threshold " + scaleTrigger.Threshold);
+                    }
+
+                    Console.WriteLine(deploymentInformation.Scale.Behavior.ScaleDown.StabilizationWindowSeconds);
+                    Console.WriteLine(deploymentInformation.Scale.Behavior.ScaleUp.StabilizationWindowSeconds);
+                }
+
                 if (deploymentInformation.Scale is not null && currentScale > 0)
                 {
                     desiredReplicas = _autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
+                    Console.WriteLine($"ComputeDesiredReplicas {desiredReplicas}");
                 }
             }
 
