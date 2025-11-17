@@ -14,6 +14,7 @@ using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.MetricsQuery;
+using SlimFaas.Scaling;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 
 #pragma warning disable CA2252
@@ -349,6 +350,8 @@ builder.Services.AddSingleton<PromQlMiniEvaluator>(sp =>
     var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
     return new PromQlMiniEvaluator(() => store.Snapshot());
 });
+builder.Services.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
+builder.Services.AddSingleton<AutoScaler>();
 
 WebApplication app = builder.Build();
 app.UseCors(builder =>
@@ -477,29 +480,6 @@ app.Run();
 serviceProviderStarter.Dispose();
 
 public partial class Program;
-
-
-public sealed class PromQlRequest
-{
-    public required string Query { get; init; }
-    public long? NowUnixSeconds { get; init; }
-}
-
-public sealed class ErrorResponse
-{
-    public string Error { get; init; } = string.Empty;
-}
-
-public sealed class PromQlResponse
-{
-    public PromQlResponse(double value) => Value = value;
-    public double Value { get; init; }
-}
-
-[JsonSerializable(typeof(PromQlRequest))]
-[JsonSerializable(typeof(PromQlResponse))]
-[JsonSerializable(typeof(ErrorResponse))]
-public partial class AppJsonContext : JsonSerializerContext;
 
 
 #pragma warning restore CA2252
