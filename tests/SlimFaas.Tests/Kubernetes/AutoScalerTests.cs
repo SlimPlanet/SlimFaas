@@ -202,10 +202,25 @@ public sealed class AutoScalerTests
         string key = "func";
         long now = 1_000;
 
-        // metric très élevé → desired brut très grand
+        // metric très élevé → desired brut très grand, clampé à ReplicaMax
         var cfg = MakeSimpleScaleConfig(metricValue: 100, threshold: 1) with
         {
             ReplicaMax = 10
+        };
+
+        // On neutralise les limites de ScaleUp pour ce test
+        cfg = cfg with
+        {
+            Behavior = new ScaleBehavior
+            {
+                ScaleUp = new ScaleDirectionBehavior
+                {
+                    StabilizationWindowSeconds = 0,
+                    Policies = new List<ScalePolicy>() // aucune policy => pas de limitation
+                },
+                // ScaleDown par défaut, pas utilisé ici
+                ScaleDown = ScaleDirectionBehavior.DefaultScaleDown()
+            }
         };
 
         var desired = scaler.ComputeDesiredReplicas(
@@ -216,8 +231,10 @@ public sealed class AutoScalerTests
             maxReplicas: 10,
             nowUnixSeconds: now);
 
+        // desired brut = 300, clampé à ReplicaMax = 10, pas de limitation par policies
         Assert.Equal(10, desired);
     }
+
 
     [Fact]
     public void MultipleTriggers_ShouldTakeMaxDesiredAcrossTriggers()
@@ -246,7 +263,17 @@ public sealed class AutoScalerTests
                     Threshold: 10
                 )
             },
-            Behavior = new ScaleBehavior()
+            Behavior = new ScaleBehavior
+            {
+                // On neutralise les limites de ScaleUp pour ce test
+                ScaleUp = new ScaleDirectionBehavior
+                {
+                    StabilizationWindowSeconds = 0,
+                    Policies = new List<ScalePolicy>()
+                },
+                // On peut garder le ScaleDown par défaut, il ne sera pas utilisé ici
+                ScaleDown = ScaleDirectionBehavior.DefaultScaleDown()
+            }
         };
 
         var desired = scaler.ComputeDesiredReplicas(
@@ -257,8 +284,10 @@ public sealed class AutoScalerTests
             maxReplicas: 100,
             nowUnixSeconds: now);
 
+        // max(desiredTrigger1=3, desiredTrigger2=9) = 9
         Assert.Equal(9, desired);
     }
+
 
     [Fact]
     public void FromZero_WithPositiveMetric_ShouldScaleFromOne()
