@@ -121,12 +121,11 @@ serviceCollectionStarter.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>
 
 // AutoScaler (utilisé par ReplicasService)
 serviceCollectionStarter.AddSingleton<AutoScaler>();
+serviceCollectionStarter.AddSingleton<IRequestedMetricsRegistry, RequestedMetricsRegistry>();
+serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
-
-serviceCollectionStarter.AddSingleton<IRequestedMetricsRegistry, RequestedMetricsRegistry>();
-serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
