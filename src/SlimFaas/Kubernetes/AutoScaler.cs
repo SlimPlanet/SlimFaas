@@ -45,10 +45,11 @@ public sealed class AutoScaler
     if (currentReplicas < 0) currentReplicas = 0;
     if (minReplicas < 0) minReplicas = 0;
 
-    // Pas de config => simplement clamp sur min/max (aucun historique nécessaire)
+    // Pas de config => clamp simple
     if (scaleConfig is null || scaleConfig.Triggers.Count == 0)
     {
         var clamped = Clamp(currentReplicas, minReplicas, maxReplicas);
+        // Ici tu peux choisir de ne PAS stocker, ce n'est pas critique pour les policies
         return clamped;
     }
 
@@ -60,17 +61,7 @@ public sealed class AutoScaler
         maxReplicas,
         nowUnixSeconds);
 
-    // 👉 On enregistre dans l’historique la RECOMMANDATION BRUTE,
-    // pas la valeur stabilisée finale.
-    _store.AddSample(key, nowUnixSeconds, rawDesired);
-
     var desired = rawDesired;
-
-    if (desired == currentReplicas)
-    {
-        // Pas besoin d’appliquer les policies / stabilisation, rien ne change.
-        return desired;
-    }
 
     var behavior = scaleConfig.Behavior ?? new ScaleBehavior();
 
@@ -91,7 +82,7 @@ public sealed class AutoScaler
             isScaleUp: true,
             nowUnixSeconds);
     }
-    else
+    else if (desired < currentReplicas)
     {
         desired = ApplyScaleDownPolicies(
             key,
@@ -107,6 +98,7 @@ public sealed class AutoScaler
             isScaleUp: false,
             nowUnixSeconds);
     }
+    // else desired == currentReplicas : pas de scale, on ne touche pas à l’historique
 
     // 3. Clamp final
     desired = Clamp(desired, minReplicas, maxReplicas);
@@ -115,7 +107,12 @@ public sealed class AutoScaler
     if (desired <= 0 && minReplicas == 0)
         desired = 0;
 
-    // ❌ NE PLUS enregistrer ici : on a déjà enregistré rawDesired plus haut.
+    // 4. On enregistre UNIQUEMENT quand on change réellement la cible
+    if (desired != currentReplicas)
+    {
+        _store.AddSample(key, nowUnixSeconds, desired);
+    }
+
     return desired;
 }
 
@@ -362,30 +359,40 @@ public sealed class AutoScaler
         if (samples.Count == 0)
             return desired;
 
-        var stabilized = desired;
-
         if (isScaleUp)
         {
-            // Scale UP : on ne monte pas plus haut que le MIN des reco récentes
-            for (var i = 0; i < samples.Count; i++)
+            // Option 2 : scale UP stabilisé
+            // On ne laisse pas la nouvelle recommandation dépasser
+            // le max des recommandations récentes dans la fenêtre.
+            // => Ne peut que réduire "desired", jamais l'augmenter.
+
+            var maxRecent = samples[0].DesiredReplicas;
+            for (var i = 1; i < samples.Count; i++)
             {
                 var v = samples[i].DesiredReplicas;
-                if (v < stabilized)
-                    stabilized = v;
+                if (v > maxRecent)
+                    maxRecent = v;
             }
-        }
-        else
-        {
-            // Scale DOWN : on ne descend pas plus bas que le MAX des reco récentes
-            for (var i = 0; i < samples.Count; i++)
-            {
-                var v = samples[i].DesiredReplicas;
-                if (v > stabilized)
-                    stabilized = v;
-            }
+
+            // Si le nouveau desired est plus agressif que tout ce qu'on a
+            // recommandé récemment, on le rabaisse à maxRecent.
+            if (desired > maxRecent)
+                return maxRecent;
+
+            return desired;
         }
 
-        return stabilized;
+        // Scale DOWN : comportement conservateur type HPA :
+        // on ne descend pas plus bas que la plus grande recommandation récente.
+        var maxDesired = desired;
+        for (var i = 0; i < samples.Count; i++)
+        {
+            var v = samples[i].DesiredReplicas;
+            if (v > maxDesired)
+                maxDesired = v;
+        }
+
+        return maxDesired;
     }
 
 }

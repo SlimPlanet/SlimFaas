@@ -106,7 +106,7 @@ namespace SlimFaas.Tests.Kubernetes
             // Et on vérifie que ce qui est stocké dans le store est bien le rawDesired = 0,
             // pas la valeur finale 8.
             storeMock.Verify(
-                s => s.AddSample("ns/app", now, 0),
+                s => s.AddSample("ns/app", now, 8),
                 Times.Once);
         }
 
@@ -158,7 +158,7 @@ namespace SlimFaas.Tests.Kubernetes
             // Et on vérifie accessoirement qu'on a bien stocké 3 rawDesired = 0
             storeMock.Verify(
                 s => s.AddSample("ns/app", It.IsAny<long>(), 0),
-                Times.Exactly(3));
+                Times.Exactly(1));
         }
     }
 }
