@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Generic;
-using Microsoft.Extensions.Logging;
-using SlimFaas.Kubernetes;
 using SlimFaas.MetricsQuery;
 
-namespace SlimFaas.Scaling;
+namespace SlimFaas.Kubernetes;
 
 public sealed class AutoScaler
 {
@@ -22,9 +18,6 @@ public sealed class AutoScaler
         _logger = logger;
     }
 
-    /// <summary>
-    /// Calcul du desiredReplicas à partir d'un DeploymentInformation SlimFaas.
-    /// </summary>
     public int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds)
     {
         if (deployment is null) throw new ArgumentNullException(nameof(deployment));
@@ -34,7 +27,6 @@ public sealed class AutoScaler
         var min = deployment.ReplicasMin;
         int? max = scale?.ReplicaMax;
 
-        // On utilise le nom de deployment comme clé logique dans le store
         return ComputeDesiredReplicas(
             deployment.Deployment,
             scale,
@@ -44,9 +36,6 @@ public sealed class AutoScaler
             nowUnixSeconds);
     }
 
-    /// <summary>
-    /// Calcul du desiredReplicas avec paramètres explicites.
-    /// </summary>
     public int ComputeDesiredReplicas(
         string key,
         ScaleConfig? scaleConfig,
@@ -58,28 +47,37 @@ public sealed class AutoScaler
         if (currentReplicas < 0) currentReplicas = 0;
         if (minReplicas < 0) minReplicas = 0;
 
-        // Pas de config de scale → on clamp juste sur min / max
+        // Pas de config => simplement clamp sur min/max
         if (scaleConfig is null || scaleConfig.Triggers.Count == 0)
         {
-            return Clamp(currentReplicas, minReplicas, maxReplicas);
+            var clamped = Clamp(currentReplicas, minReplicas, maxReplicas);
+            _store.AddSample(key, nowUnixSeconds, clamped);
+            return clamped;
         }
 
-        // 1. Calcul brut depuis les triggers (PromQL + formule HPA)
+        // 1. Calcul brut via triggers (PromQL + formule HPA)
         var rawDesired = ComputeFromTriggers(scaleConfig, currentReplicas, minReplicas, maxReplicas, nowUnixSeconds);
-
-        // 2. On stocke la recommandation brute pour la fenêtre de stabilisation
-        _store.AddSample(key, nowUnixSeconds, rawDesired);
 
         var desired = rawDesired;
         if (desired == currentReplicas)
-            return desired; // rien à faire
+        {
+            // On enregistre quand même : utile pour les fenêtres futures.
+            _store.AddSample(key, nowUnixSeconds, desired);
+            return desired;
+        }
 
         var behavior = scaleConfig.Behavior ?? new ScaleBehavior();
 
-        // 3. Application des policies + fenêtres de stabilisation
+        // 2. Policies + Stabilization (UP / DOWN)
         if (desired > currentReplicas)
         {
-            desired = ApplyScaleUpPolicies(behavior.ScaleUp, currentReplicas, desired);
+            desired = ApplyScaleUpPolicies(
+                key,
+                behavior.ScaleUp,
+                currentReplicas,
+                desired,
+                nowUnixSeconds);
+
             desired = ApplyStabilizationWindow(
                 key,
                 behavior.ScaleUp.StabilizationWindowSeconds,
@@ -89,7 +87,13 @@ public sealed class AutoScaler
         }
         else
         {
-            desired = ApplyScaleDownPolicies(behavior.ScaleDown, currentReplicas, desired);
+            desired = ApplyScaleDownPolicies(
+                key,
+                behavior.ScaleDown,
+                currentReplicas,
+                desired,
+                nowUnixSeconds);
+
             desired = ApplyStabilizationWindow(
                 key,
                 behavior.ScaleDown.StabilizationWindowSeconds,
@@ -98,20 +102,19 @@ public sealed class AutoScaler
                 nowUnixSeconds);
         }
 
-        // 4. Clamp final sur min / max
+        // 3. Clamp final
         desired = Clamp(desired, minReplicas, maxReplicas);
 
-        // Autoriser scale-to-zero uniquement si minReplicas == 0
+        // Scale-to-zero seulement si minReplicas == 0
         if (desired <= 0 && minReplicas == 0)
-            return 0;
+            desired = 0;
+
+        // 4. On enregistre la recommandation finale dans l’historique
+        _store.AddSample(key, nowUnixSeconds, desired);
 
         return desired;
     }
 
-    /// <summary>
-    /// Applique la logique "max des triggers" + formule HPA/KEDA :
-    /// desired = ceil(currentReplicas * (currentMetric / target)).
-    /// </summary>
     private int ComputeFromTriggers(
         ScaleConfig config,
         int currentReplicas,
@@ -133,16 +136,19 @@ public sealed class AutoScaler
             try
             {
                 metricValue = _evaluator.Evaluate(trigger.Query, nowUnixSeconds);
-                Console.WriteLine($"Metric value: {metricValue}");
             }
             catch (InvalidOperationException ex)
             {
-                _logger?.LogWarning(ex, "InvalidOperationException while evaluating PromQL query '{Query}'", trigger.Query);
+                _logger?.LogWarning(ex,
+                    "InvalidOperationException while evaluating PromQL query '{Query}'",
+                    trigger.Query);
                 continue;
             }
             catch (ArgumentException ex)
             {
-                _logger?.LogWarning(ex, "ArgumentException while evaluating PromQL query '{Query}'", trigger.Query);
+                _logger?.LogWarning(ex,
+                    "ArgumentException while evaluating PromQL query '{Query}'",
+                    trigger.Query);
                 continue;
             }
 
@@ -152,12 +158,6 @@ public sealed class AutoScaler
             if (metricValue < 0)
                 continue;
 
-            // Formule officielle HPA:
-            // desiredReplicas = ceil(currentReplicas * (currentMetricValue / desiredMetricValue))
-            //
-            // Cas particulier currentReplicas == 0 :
-            // on utilise un "current" effectif à 1 pour ne pas rester bloqué à 0
-            // lorsque la métrique est > 0 (comportement proche KEDA "activation").
             var effectiveCurrent = currentReplicas == 0 ? 1 : currentReplicas;
             var ratio = metricValue / trigger.Threshold;
             var desiredForTriggerDouble = effectiveCurrent * ratio;
@@ -166,7 +166,6 @@ public sealed class AutoScaler
             if (desiredForTrigger < 0)
                 desiredForTrigger = 0;
 
-            // Clamp par min / max à ce stade pour éviter les valeurs délirantes
             if (maxReplicas.HasValue && desiredForTrigger > maxReplicas.Value)
                 desiredForTrigger = maxReplicas.Value;
 
@@ -179,7 +178,6 @@ public sealed class AutoScaler
 
         if (maxDesired is null)
         {
-            // Aucune métrique exploitable → on reste sur la valeur courante clampée.
             return Clamp(currentReplicas, minReplicas, maxReplicas);
         }
 
@@ -196,13 +194,14 @@ public sealed class AutoScaler
     }
 
     /// <summary>
-    /// Applique les policies de ScaleUp (Percent / Pods).
-    /// Comportement par défaut : selectPolicy = Max (comme HPA/KEDA).
+    /// Scale UP : applique Value + PeriodSeconds en utilisant l'historique.
     /// </summary>
-    private static int ApplyScaleUpPolicies(
+    private int ApplyScaleUpPolicies(
+        string key,
         ScaleDirectionBehavior behavior,
         int currentReplicas,
-        int desired)
+        int desired,
+        long nowUnixSeconds)
     {
         if (behavior.Policies is null || behavior.Policies.Count == 0)
             return desired;
@@ -210,33 +209,67 @@ public sealed class AutoScaler
         if (desired <= currentReplicas)
             return desired;
 
-        var delta = desired - currentReplicas;
-        var maxIncAllowed = 0;
+        var requestedDelta = desired - currentReplicas;
+        var maxAllowedDelta = 0;
 
         foreach (var policy in behavior.Policies)
         {
-            var allowed = ComputeDelta(policy, currentReplicas);
-            if (allowed > maxIncAllowed)
-                maxIncAllowed = allowed;
+            if (policy.Value <= 0)
+                continue;
+
+            var baseDelta = ComputeDelta(policy, currentReplicas);
+            if (baseDelta <= 0)
+                continue;
+
+            // Pas de contrainte temporelle => on applique la limite "classique"
+            if (policy.PeriodSeconds <= 0)
+            {
+                if (baseDelta > maxAllowedDelta)
+                    maxAllowedDelta = baseDelta;
+                continue;
+            }
+
+            var fromTs = nowUnixSeconds - policy.PeriodSeconds;
+            var samples = _store.GetSamples(key, fromTs);
+
+            // baseline = min(desired) dans la fenêtre => point de départ du scale-up
+            var baseline = currentReplicas;
+            if (samples.Count > 0)
+            {
+                baseline = samples[0].DesiredReplicas;
+                for (var i = 1; i < samples.Count; i++)
+                {
+                    if (samples[i].DesiredReplicas < baseline)
+                        baseline = samples[i].DesiredReplicas;
+                }
+            }
+
+            var alreadyUp = Math.Max(0, currentReplicas - baseline);
+            var remainingUp = Math.Max(0, policy.Value - alreadyUp);
+            if (remainingUp <= 0)
+                continue;
+
+            var allowedForPolicy = Math.Min(baseDelta, remainingUp);
+            if (allowedForPolicy > maxAllowedDelta)
+                maxAllowedDelta = allowedForPolicy;
         }
 
-        if (maxIncAllowed <= 0)
-            return currentReplicas; // scale up bloqué par les policies
+        if (maxAllowedDelta <= 0)
+            return currentReplicas;
 
-        if (delta > maxIncAllowed)
-            return currentReplicas + maxIncAllowed;
-
-        return desired;
+        var finalDelta = Math.Min(requestedDelta, maxAllowedDelta);
+        return currentReplicas + finalDelta;
     }
 
     /// <summary>
-    /// Applique les policies de ScaleDown.
-    /// Comportement par défaut : selectPolicy = Min (comme recommandé pour HPA).
+    /// Scale DOWN : applique Value + PeriodSeconds de manière conservative.
     /// </summary>
-    private static int ApplyScaleDownPolicies(
+    private int ApplyScaleDownPolicies(
+        string key,
         ScaleDirectionBehavior behavior,
         int currentReplicas,
-        int desired)
+        int desired,
+        long nowUnixSeconds)
     {
         if (behavior.Policies is null || behavior.Policies.Count == 0)
             return desired;
@@ -244,36 +277,56 @@ public sealed class AutoScaler
         if (desired >= currentReplicas)
             return desired;
 
-        var delta = currentReplicas - desired;
-
-        var minDecAllowed = int.MaxValue;
-        var any = false;
+        var requestedDelta = currentReplicas - desired;
+        int? minAllowedDelta = null;
 
         foreach (var policy in behavior.Policies)
         {
-            var allowed = ComputeDelta(policy, currentReplicas);
-            if (allowed <= 0)
+            if (policy.Value <= 0)
                 continue;
 
-            if (!any || allowed < minDecAllowed)
+            var baseDelta = ComputeDelta(policy, currentReplicas);
+            if (baseDelta <= 0)
+                continue;
+
+            if (policy.PeriodSeconds > 0)
             {
-                minDecAllowed = allowed;
-                any = true;
+                var fromTs = nowUnixSeconds - policy.PeriodSeconds;
+                var samples = _store.GetSamples(key, fromTs);
+
+                // baseline = max(desired) dans la fenêtre => point le plus haut
+                var baseline = currentReplicas;
+                if (samples.Count > 0)
+                {
+                    baseline = samples[0].DesiredReplicas;
+                    for (var i = 1; i < samples.Count; i++)
+                    {
+                        if (samples[i].DesiredReplicas > baseline)
+                            baseline = samples[i].DesiredReplicas;
+                    }
+                }
+
+                var alreadyDown = Math.Max(0, baseline - currentReplicas);
+                var remainingDown = Math.Max(0, policy.Value - alreadyDown);
+                if (remainingDown <= 0)
+                    continue;
+
+                baseDelta = Math.Min(baseDelta, remainingDown);
+                if (baseDelta <= 0)
+                    continue;
             }
+
+            if (minAllowedDelta is null || baseDelta < minAllowedDelta.Value)
+                minAllowedDelta = baseDelta;
         }
 
-        if (!any)
-            return desired; // aucune policy efficace → pas de limitation
+        if (minAllowedDelta is null)
+            return currentReplicas;
 
-        if (delta > minDecAllowed)
-            return currentReplicas - minDecAllowed;
-
-        return desired;
+        var finalDelta = Math.Min(requestedDelta, minAllowedDelta.Value);
+        return currentReplicas - finalDelta;
     }
 
-    /// <summary>
-    /// Calcul du delta autorisé par une policy (en nombre de pods).
-    /// </summary>
     private static int ComputeDelta(ScalePolicy policy, int currentReplicas)
     {
         if (policy.Value <= 0)
@@ -289,10 +342,6 @@ public sealed class AutoScaler
         };
     }
 
-    /// <summary>
-    /// Applique la fenêtre de stabilisation KEDA/HPA en s'appuyant sur l'historique du store.
-    /// Approche : rolling max des desiredReplicas récents pour éviter le flapping.
-    /// </summary>
     private int ApplyStabilizationWindow(
         string key,
         int stabilizationWindowSeconds,
@@ -308,8 +357,7 @@ public sealed class AutoScaler
         if (samples.Count == 0)
             return desired;
 
-        // KEDA/HPA utilisent un "rolling max" des recommandations passées
-        // dans la fenêtre pour éviter de supprimer des pods / osciller.
+        // Approche simple : rolling max (comme HPA) pour éviter le flapping
         var maxDesired = desired;
         for (var i = 0; i < samples.Count; i++)
         {

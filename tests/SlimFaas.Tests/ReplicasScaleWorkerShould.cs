@@ -4,7 +4,6 @@ using Moq;
 using SlimFaas;
 using SlimFaas.Kubernetes;
 using SlimFaas.MetricsQuery;
-using SlimFaas.Scaling;
 
 namespace SlimFaas.Tests;
 

@@ -1,7 +1,6 @@
 ﻿using SlimFaas.Kubernetes;
 using NodaTime;
 using NodaTime.TimeZones;
-using SlimFaas.Scaling;
 
 namespace SlimFaas;
 

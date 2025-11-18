@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 
-namespace SlimFaas.Scaling;
+namespace SlimFaas.Kubernetes;
 
 public interface IAutoScalerStore
 {

@@ -14,7 +14,6 @@ using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.MetricsQuery;
-using SlimFaas.Scaling;
 using SlimFaas.Workers;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 
