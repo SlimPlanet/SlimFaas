@@ -453,7 +453,7 @@ app.MapPost("/promql/eval", (PromQlRequest req,
     .ProducesProblem(StatusCodes.Status500InternalServerError);
 
 
-app.MapGet("/metrics/debug/store", (IMetricsStore store, IRequestedMetricsRegistry registry) =>
+app.MapGet("/debug/store", (IMetricsStore store, IRequestedMetricsRegistry registry) =>
     {
         var snapshot = store.Snapshot();
 
