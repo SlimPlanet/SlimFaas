@@ -1,5 +1,4 @@
 using SlimFaas.Kubernetes;
-using SlimFaas.MetricsQuery;
 
 namespace SlimFaas.Tests.Kubernetes;
 

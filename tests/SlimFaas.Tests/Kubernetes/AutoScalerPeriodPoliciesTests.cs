@@ -4,7 +4,6 @@ using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SlimFaas.Kubernetes;
-using SlimFaas.MetricsQuery;
 using Xunit;
 
 namespace SlimFaas.Tests.Kubernetes

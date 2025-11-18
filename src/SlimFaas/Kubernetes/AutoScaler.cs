@@ -1,5 +1,3 @@
-using SlimFaas.MetricsQuery;
-
 namespace SlimFaas.Kubernetes;
 
 public sealed class AutoScaler

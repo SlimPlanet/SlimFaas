@@ -1,4 +1,4 @@
-using SlimFaas.MetricsQuery;
+using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests.Kubernetes
 {
@@ -98,7 +98,7 @@ namespace SlimFaas.Tests.Kubernetes
             var snap = BuildSnapshot((1, "d", "p", "m", 1));
             var eval = NewEval(snap);
             var res = eval.Evaluate("1 / 0");
-            Assert.True(double.IsNaN(res));
+            Assert.Equal(0, res);
         }
 
         // --- rate() : cas bord, resets, un seul point, dt=0 ---------------------------------

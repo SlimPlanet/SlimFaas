@@ -6,7 +6,6 @@ using SlimData;
 using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
-using SlimFaas.MetricsQuery;
 
 namespace SlimFaas.Tests;
 

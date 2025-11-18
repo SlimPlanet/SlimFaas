@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using SlimFaas.MetricsQuery;
+using SlimFaas.Kubernetes;
 using Xunit;
 
 namespace SlimFaas.Tests.MetricsQuery
@@ -84,7 +84,7 @@ namespace SlimFaas.Tests.MetricsQuery
                 double result = evaluator.Evaluate(AvgLatencyQuery, nowUnixSeconds: 160);
 
                 // Assert : denom = 0 => NaN
-                Assert.True(double.IsNaN(result));
+                Assert.Equal(0, result);
             }
 
             [Fact]

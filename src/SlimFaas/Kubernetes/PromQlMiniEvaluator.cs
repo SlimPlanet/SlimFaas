@@ -1,10 +1,8 @@
-using System.Collections.Concurrent;
 using System.Globalization;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace SlimFaas.MetricsQuery;
+namespace SlimFaas.Kubernetes;
 
 // Mini-évaluateur PromQL ciblé pour les cas d'usage fournis.
 // Supporte : rate(), sum(), sum by(label)(), histogram_quantile(), arithmétique, sélecteurs {a="x",b=~"re"} et fenêtres [1m].
@@ -35,8 +33,11 @@ public sealed class PromQlMiniEvaluator
         var ast = Parser.Parse(query);
         var ctx = new EvalContext(snapshot, now);
         var res = ast.Eval(ctx);
+        var scalar = res.AsScalar();
+        if (double.IsNaN(scalar) || double.IsInfinity(scalar))
+            return 0.0;
 
-        return res.AsScalar();
+        return scalar;
     }
 
     // --------- Eval model ---------
@@ -202,10 +203,30 @@ public sealed class PromQlMiniEvaluator
                 "+" => EvalValue.FromScalar(a + b),
                 "-" => EvalValue.FromScalar(a - b),
                 "*" => EvalValue.FromScalar(a * b),
-                "/" => EvalValue.FromScalar(b == 0 ? double.NaN : a / b),
+                "/" => EvalValue.FromScalar(SafeDiv(a, b)),
                 _ => throw new InvalidOperationException($"Unknown operator {op}")
             };
         }
+    }
+
+    private static double SafeDiv(double a, double b)
+    {
+        // Si déjà NaN quelque part, on propage
+        if (double.IsNaN(a) || double.IsNaN(b))
+            return double.NaN;
+
+        if (b == 0.0)
+        {
+            // Cas "pas de trafic" : 0 / 0 => 0
+            if (a == 0.0)
+                return 0.0;
+
+            // Cas plus suspect : num != 0, denom = 0
+            // À toi de choisir : +∞, 0, clamp à une valeur max…
+            return double.PositiveInfinity;
+        }
+
+        return a / b;
     }
 
     private sealed class SumNode(ValueNode inner, string? byLabel) : ValueNode

@@ -122,4 +122,18 @@ public class RequestedMetricsRegistryShould
         Assert.True(registry.IsRequestedKey("metric_b_total{instance=\"i2\"}"));
         Assert.False(registry.IsRequestedKey("metric_c_total{instance=\"i3\"}"));
     }
+
+    [Fact]
+    public void RegisterFromQuery_ShouldIgnorePromqlFunctions()
+    {
+        var registry = new RequestedMetricsRegistry();
+        registry.RegisterFromQuery("sum(rate(http_request_duration_seconds_sum[1m])) / sum(rate(http_request_duration_seconds_count[1m]))");
+
+        var names = registry.GetRequestedMetricNames().OrderBy(x => x).ToArray();
+
+        Assert.DoesNotContain("sum", names);
+        Assert.DoesNotContain("rate", names);
+        Assert.Contains("http_request_duration_seconds_sum", names);
+        Assert.Contains("http_request_duration_seconds_count", names);
+    }
 }

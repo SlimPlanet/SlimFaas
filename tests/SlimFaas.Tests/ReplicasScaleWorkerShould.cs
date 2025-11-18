@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using SlimFaas;
 using SlimFaas.Kubernetes;
-using SlimFaas.MetricsQuery;
 
 namespace SlimFaas.Tests;
 
