@@ -35,83 +35,90 @@ public sealed class AutoScaler
     }
 
     public int ComputeDesiredReplicas(
-        string key,
-        ScaleConfig? scaleConfig,
-        int currentReplicas,
-        int minReplicas,
-        int? maxReplicas,
-        long nowUnixSeconds)
+    string key,
+    ScaleConfig? scaleConfig,
+    int currentReplicas,
+    int minReplicas,
+    int? maxReplicas,
+    long nowUnixSeconds)
+{
+    if (currentReplicas < 0) currentReplicas = 0;
+    if (minReplicas < 0) minReplicas = 0;
+
+    // Pas de config => simplement clamp sur min/max (aucun historique nécessaire)
+    if (scaleConfig is null || scaleConfig.Triggers.Count == 0)
     {
-        if (currentReplicas < 0) currentReplicas = 0;
-        if (minReplicas < 0) minReplicas = 0;
+        var clamped = Clamp(currentReplicas, minReplicas, maxReplicas);
+        return clamped;
+    }
 
-        // Pas de config => simplement clamp sur min/max
-        if (scaleConfig is null || scaleConfig.Triggers.Count == 0)
-        {
-            var clamped = Clamp(currentReplicas, minReplicas, maxReplicas);
-            _store.AddSample(key, nowUnixSeconds, clamped);
-            return clamped;
-        }
+    // 1. Calcul brut via triggers (PromQL + formule HPA)
+    var rawDesired = ComputeFromTriggers(
+        scaleConfig,
+        currentReplicas,
+        minReplicas,
+        maxReplicas,
+        nowUnixSeconds);
 
-        // 1. Calcul brut via triggers (PromQL + formule HPA)
-        var rawDesired = ComputeFromTriggers(scaleConfig, currentReplicas, minReplicas, maxReplicas, nowUnixSeconds);
+    // 👉 On enregistre dans l’historique la RECOMMANDATION BRUTE,
+    // pas la valeur stabilisée finale.
+    _store.AddSample(key, nowUnixSeconds, rawDesired);
 
-        var desired = rawDesired;
-        if (desired == currentReplicas)
-        {
-            // On enregistre quand même : utile pour les fenêtres futures.
-            _store.AddSample(key, nowUnixSeconds, desired);
-            return desired;
-        }
+    var desired = rawDesired;
 
-        var behavior = scaleConfig.Behavior ?? new ScaleBehavior();
-
-        // 2. Policies + Stabilization (UP / DOWN)
-        if (desired > currentReplicas)
-        {
-            desired = ApplyScaleUpPolicies(
-                key,
-                behavior.ScaleUp,
-                currentReplicas,
-                desired,
-                nowUnixSeconds);
-
-            desired = ApplyStabilizationWindow(
-                key,
-                behavior.ScaleUp.StabilizationWindowSeconds,
-                desired,
-                isScaleUp: true,
-                nowUnixSeconds);
-        }
-        else
-        {
-            desired = ApplyScaleDownPolicies(
-                key,
-                behavior.ScaleDown,
-                currentReplicas,
-                desired,
-                nowUnixSeconds);
-
-            desired = ApplyStabilizationWindow(
-                key,
-                behavior.ScaleDown.StabilizationWindowSeconds,
-                desired,
-                isScaleUp: false,
-                nowUnixSeconds);
-        }
-
-        // 3. Clamp final
-        desired = Clamp(desired, minReplicas, maxReplicas);
-
-        // Scale-to-zero seulement si minReplicas == 0
-        if (desired <= 0 && minReplicas == 0)
-            desired = 0;
-
-        // 4. On enregistre la recommandation finale dans l’historique
-        _store.AddSample(key, nowUnixSeconds, desired);
-
+    if (desired == currentReplicas)
+    {
+        // Pas besoin d’appliquer les policies / stabilisation, rien ne change.
         return desired;
     }
+
+    var behavior = scaleConfig.Behavior ?? new ScaleBehavior();
+
+    // 2. Policies + Stabilization (UP / DOWN)
+    if (desired > currentReplicas)
+    {
+        desired = ApplyScaleUpPolicies(
+            key,
+            behavior.ScaleUp,
+            currentReplicas,
+            desired,
+            nowUnixSeconds);
+
+        desired = ApplyStabilizationWindow(
+            key,
+            behavior.ScaleUp.StabilizationWindowSeconds,
+            desired,
+            isScaleUp: true,
+            nowUnixSeconds);
+    }
+    else
+    {
+        desired = ApplyScaleDownPolicies(
+            key,
+            behavior.ScaleDown,
+            currentReplicas,
+            desired,
+            nowUnixSeconds);
+
+        desired = ApplyStabilizationWindow(
+            key,
+            behavior.ScaleDown.StabilizationWindowSeconds,
+            desired,
+            isScaleUp: false,
+            nowUnixSeconds);
+    }
+
+    // 3. Clamp final
+    desired = Clamp(desired, minReplicas, maxReplicas);
+
+    // Scale-to-zero seulement si minReplicas == 0
+    if (desired <= 0 && minReplicas == 0)
+        desired = 0;
+
+    // ❌ NE PLUS enregistrer ici : on a déjà enregistré rawDesired plus haut.
+    return desired;
+}
+
 
     private int ComputeFromTriggers(
         ScaleConfig config,
@@ -355,15 +362,30 @@ public sealed class AutoScaler
         if (samples.Count == 0)
             return desired;
 
-        // Approche simple : rolling max (comme HPA) pour éviter le flapping
-        var maxDesired = desired;
-        for (var i = 0; i < samples.Count; i++)
+        var stabilized = desired;
+
+        if (isScaleUp)
         {
-            var v = samples[i].DesiredReplicas;
-            if (v > maxDesired)
-                maxDesired = v;
+            // Scale UP : on ne monte pas plus haut que le MIN des reco récentes
+            for (var i = 0; i < samples.Count; i++)
+            {
+                var v = samples[i].DesiredReplicas;
+                if (v < stabilized)
+                    stabilized = v;
+            }
+        }
+        else
+        {
+            // Scale DOWN : on ne descend pas plus bas que le MAX des reco récentes
+            for (var i = 0; i < samples.Count; i++)
+            {
+                var v = samples[i].DesiredReplicas;
+                if (v > stabilized)
+                    stabilized = v;
+            }
         }
 
-        return maxDesired;
+        return stabilized;
     }
+
 }
