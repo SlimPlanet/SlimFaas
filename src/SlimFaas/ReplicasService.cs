@@ -142,6 +142,10 @@ public class ReplicasService(
                 if (deploymentInformation.Scale is not null && currentScale > 0)
                 {
                     desiredReplicas = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
+                    if (desiredReplicas < deploymentInformation.ReplicasAtStart)
+                    {
+                        desiredReplicas = deploymentInformation.ReplicasAtStart;
+                    }
                     Console.WriteLine($"ComputeDesiredReplicas {desiredReplicas}");
                 }
             }
