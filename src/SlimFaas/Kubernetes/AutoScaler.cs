@@ -133,10 +133,16 @@ public sealed class AutoScaler
             try
             {
                 metricValue = _evaluator.Evaluate(trigger.Query, nowUnixSeconds);
+                Console.WriteLine($"Metric value: {metricValue}");
             }
-            catch (Exception ex)
+            catch (InvalidOperationException ex)
             {
-                _logger?.LogWarning(ex, "Error while evaluating PromQL query '{Query}'", trigger.Query);
+                _logger?.LogWarning(ex, "InvalidOperationException while evaluating PromQL query '{Query}'", trigger.Query);
+                continue;
+            }
+            catch (ArgumentException ex)
+            {
+                _logger?.LogWarning(ex, "ArgumentException while evaluating PromQL query '{Query}'", trigger.Query);
                 continue;
             }
 

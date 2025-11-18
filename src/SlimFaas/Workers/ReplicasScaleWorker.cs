@@ -18,7 +18,7 @@ public class ScaleReplicasWorker(IReplicasService replicasService, IMasterServic
             try
             {
                 await Task.Delay(_delay, stoppingToken);
-                if (masterService.IsMaster == false)
+                if (!masterService.IsMaster)
                 {
                     continue;
                 }
