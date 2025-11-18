@@ -122,6 +122,7 @@ serviceCollectionStarter.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>
 // AutoScaler (utilisé par ReplicasService)
 serviceCollectionStarter.AddSingleton<AutoScaler>();
 serviceCollectionStarter.AddSingleton<IRequestedMetricsRegistry, RequestedMetricsRegistry>();
+serviceCollectionStarter.AddSingleton<IMetricsScrapingGuard, MetricsScrapingGuard>();
 serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
@@ -158,7 +159,8 @@ serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
-
+serviceCollectionSlimFaas.AddSingleton<IMetricsScrapingGuard>(sp =>
+    serviceProviderStarter.GetRequiredService<IMetricsScrapingGuard>());
 serviceCollectionSlimFaas.AddSingleton<IRequestedMetricsRegistry>(sp =>
     serviceProviderStarter.GetRequiredService<IRequestedMetricsRegistry>());
 serviceCollectionSlimFaas.AddSingleton<IMetricsStore>(sp =>
