@@ -21,7 +21,16 @@ public sealed class PromQlResponse
     public double Value { get; init; }
 }
 
+public sealed record MetricsStoreDebugResponse(
+    IReadOnlyCollection<string> RequestedMetricNames,
+    int TimestampBuckets,
+    int SeriesCount,
+    int TotalPoints
+);
+
+
 [JsonSerializable(typeof(PromQlRequest))]
 [JsonSerializable(typeof(PromQlResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
+[JsonSerializable(typeof(MetricsStoreDebugResponse))]
 public partial class AppJsonContext : JsonSerializerContext;

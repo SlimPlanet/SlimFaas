@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SlimFaas;
 using SlimFaas.Kubernetes;
 using SlimFaas.MetricsQuery;
 using SlimFaas.Scaling;
@@ -11,7 +12,7 @@ namespace SlimFaas.Tests;
 public class ScaleWorkerCollection { }
 
 [Collection("ScaleWorker")]
-public class  ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
+public class ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
 {
     public IEnumerator<object[]> GetEnumerator()
     {
@@ -41,8 +42,16 @@ public class  ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
             new DeploymentsInformations(
                 new List<DeploymentInformation>
                 {
-                    new("fibonacci1", "default", Replicas: 1, Pods: new List<PodInformation>() { new PodInformation("fibonacci1", true, true, "localhost", "fibonacci1")}, Configuration: new SlimFaasConfiguration()),
-                    new("fibonacci2", "default", Replicas: 0, Pods: new List<PodInformation>(), DependsOn: new List<string> { "fibonacci1" }, Configuration: new SlimFaasConfiguration())
+                    new("fibonacci1", "default", Replicas: 1,
+                        Pods: new List<PodInformation>
+                        {
+                            new("fibonacci1", true, true, "localhost", "fibonacci1")
+                        },
+                        Configuration: new SlimFaasConfiguration()),
+                    new("fibonacci2", "default", Replicas: 0,
+                        Pods: new List<PodInformation>(),
+                        DependsOn: new List<string> { "fibonacci1" },
+                        Configuration: new SlimFaasConfiguration())
                 },
                 new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
                 new List<PodInformation>()
@@ -100,11 +109,15 @@ public class ReplicasScaleWorkerShould
         var loggerReplicasService = new Mock<ILogger<ReplicasService>>();
         var autoScaler = CreateAutoScalerForTests();
 
+        // Nouveau : registry dummy pour coller à la signature de ReplicasService
+        var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
+
         var replicasService = new ReplicasService(
             kubernetesService.Object,
             historyHttpService,
             autoScaler,
-            loggerReplicasService.Object);
+            loggerReplicasService.Object,
+            metricsRegistry);
 
         masterService.Setup(ms => ms.IsMaster).Returns(true);
 
@@ -175,7 +188,6 @@ public class ReplicasScaleWorkerShould
         Assert.True(task.IsCompletedSuccessfully);
     }
 
-
     [Fact]
     public void GetTimeoutSecondBeforeSetReplicasMin()
     {
@@ -183,29 +195,30 @@ public class ReplicasScaleWorkerShould
             "default",
             Replicas: 1,
             Configuration: new SlimFaasConfiguration(),
-            Pods: new List<PodInformation>()
+            Pods: new List<PodInformation>
             {
-                new PodInformation("fibonacci1", true, true, "localhost", "fibonacci1")
+                new("fibonacci1", true, true, "localhost", "fibonacci1")
             },
-            Schedule: new ScheduleConfig()
+            Schedule: new ScheduleConfig
             {
                 TimeZoneID = "Europe/Paris",
-                Default = new DefaultSchedule()
+                Default = new DefaultSchedule
                 {
-                    ScaleDownTimeout = new List<ScaleDownTimeout>()
+                    ScaleDownTimeout = new List<ScaleDownTimeout>
                     {
-                        new() { Time = "8:00", Value = 60 }, new() { Time = "21:00", Value = 10 },
+                        new() { Time = "8:00", Value = 60 },
+                        new() { Time = "21:00", Value = 10 },
                     }
                 }
             }
         );
 
         var now = DateTime.UtcNow;
-        now = now.AddHours(- (now.Hour - 9));
+        now = now.AddHours(-(now.Hour - 9));
         var timeout = ReplicasService.GetTimeoutSecondBeforeSetReplicasMin(deplymentInformation, now);
         Assert.Equal(60, timeout);
 
-        now = now.AddHours(- (now.Hour - 22));
+        now = now.AddHours(-(now.Hour - 22));
         timeout = ReplicasService.GetTimeoutSecondBeforeSetReplicasMin(deplymentInformation, now);
         Assert.Equal(10, timeout);
     }
@@ -217,16 +230,16 @@ public class ReplicasScaleWorkerShould
             "default",
             Replicas: 1,
             Configuration: new SlimFaasConfiguration(),
-            Pods: new List<PodInformation>()
+            Pods: new List<PodInformation>
             {
-                new PodInformation("fibonacci1", true, true, "localhost", "fibonacci1")
+                new("fibonacci1", true, true, "localhost", "fibonacci1")
             },
-            Schedule: new ScheduleConfig()
+            Schedule: new ScheduleConfig
             {
                 TimeZoneID = "Europe/Paris",
-                Default = new DefaultSchedule()
+                Default = new DefaultSchedule
                 {
-                    WakeUp = new List<string>()
+                    WakeUp = new List<string>
                     {
                         "8:00",
                         "21:00"
@@ -236,17 +249,17 @@ public class ReplicasScaleWorkerShould
         );
 
         var now = DateTime.UtcNow;
-        now = now.AddHours(- (now.Hour - 9));
+        now = now.AddHours(-(now.Hour - 9));
         var ticks = ReplicasService.GetLastTicksFromSchedule(deploymentInformation, now);
         var dateTimeFromTicks = new DateTime(ticks ?? 0, DateTimeKind.Utc);
         Assert.True(dateTimeFromTicks.Hour < 12);
 
-        now = now.AddHours(- (now.Hour - 22));
+        now = now.AddHours(-(now.Hour - 22));
         ticks = ReplicasService.GetLastTicksFromSchedule(deploymentInformation, now);
         var dateTimeFromTicks22 = new DateTime(ticks ?? 0, DateTimeKind.Utc);
         Assert.True(dateTimeFromTicks22.Hour > 16);
 
-        now = now.AddHours(- (now.Hour - 1));
+        now = now.AddHours(-(now.Hour - 1));
         ticks = ReplicasService.GetLastTicksFromSchedule(deploymentInformation, now);
         var dateTimeFromTicks1 = new DateTime(ticks ?? 0, DateTimeKind.Utc);
         Assert.True(dateTimeFromTicks1.Hour > 16);

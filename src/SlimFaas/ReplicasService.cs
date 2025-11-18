@@ -17,6 +17,7 @@ public class ReplicasService(
     HistoryHttpMemoryService historyHttpService,
     AutoScaler autoScaler,
     ILogger<ReplicasService> logger,
+    IRequestedMetricsRegistry metricsRegistry,
     Func<DateTime>? nowProvider = null)
     : IReplicasService
 {
@@ -24,7 +25,6 @@ public class ReplicasService(
         EnvironmentVariables.PodScaledUpByDefaultWhenInfrastructureHasNeverCalled,
         EnvironmentVariables.PodScaledUpByDefaultWhenInfrastructureHasNeverCalledDefault);
 
-    private readonly AutoScaler _autoScaler = autoScaler;
     private readonly Func<DateTime> _nowProvider = nowProvider ?? (() => DateTime.UtcNow);
 
     // On part du principe que DeploymentsInformations est (quasi) immuable.
@@ -45,6 +45,20 @@ public class ReplicasService(
     public async Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace)
     {
         DeploymentsInformations deployments = await kubernetesService.ListFunctionsAsync(kubeNamespace, Deployments);
+
+        // 🔍 Enregistrer les métriques utilisées par les triggers
+        foreach (var f in deployments.Functions)
+        {
+            if (f.Scale?.Triggers is null)
+                continue;
+
+            foreach (var trigger in f.Scale.Triggers)
+            {
+                if (!string.IsNullOrWhiteSpace(trigger.Query))
+                    metricsRegistry.RegisterFromQuery(trigger.Query);
+            }
+        }
+
         // Remplacement atomique de l'instance.
         Interlocked.Exchange(ref _deployments, deployments);
         return deployments;
@@ -126,24 +140,9 @@ public class ReplicasService(
             {
                 // --- 2. SYSTÈME N -> M (AutoScaler Prometheus) ---
                 // IMPORTANT : ne s'applique que si on a déjà au moins un pod.
-                Console.WriteLine("deploymentInformation.Scale " + deploymentInformation.Scale?.ReplicaMax);
-                if (deploymentInformation.Scale is not null)
-                {
-                    foreach (ScaleTrigger scaleTrigger in deploymentInformation.Scale.Triggers)
-                    {
-                        Console.WriteLine("scaleTrigger " + scaleTrigger.MetricName);
-                        Console.WriteLine("MetricType " + scaleTrigger.MetricType);
-                        Console.WriteLine("Query " + scaleTrigger.Query);
-                        Console.WriteLine("Threshold " + scaleTrigger.Threshold);
-                    }
-
-                    Console.WriteLine(deploymentInformation.Scale.Behavior.ScaleDown.StabilizationWindowSeconds);
-                    Console.WriteLine(deploymentInformation.Scale.Behavior.ScaleUp.StabilizationWindowSeconds);
-                }
-
                 if (deploymentInformation.Scale is not null && currentScale > 0)
                 {
-                    desiredReplicas = _autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
+                    desiredReplicas = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
                     Console.WriteLine($"ComputeDesiredReplicas {desiredReplicas}");
                 }
             }

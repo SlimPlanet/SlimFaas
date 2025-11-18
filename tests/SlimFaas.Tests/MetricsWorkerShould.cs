@@ -3,6 +3,7 @@ using MemoryPack;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SlimData;
+using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using SlimFaas.MetricsQuery;
@@ -60,11 +61,15 @@ public class MetricsWorkerShould
 
         var autoScaler = CreateAutoScalerForTests();
 
+        // Nouveau : registry pour coller à la nouvelle signature de ReplicasService
+        var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
+
         ReplicasService replicasService =
             new(kubernetesService.Object,
                 historyHttpService,
                 autoScaler,
-                loggerReplicasService.Object);
+                loggerReplicasService.Object,
+                metricsRegistry);
 
         masterService.Setup(ms => ms.IsMaster).Returns(true);
         kubernetesService

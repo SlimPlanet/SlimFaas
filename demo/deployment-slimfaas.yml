@@ -70,7 +70,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.45.0-pr.187222
+          image: axaguildev/slimfaas:0.45.0-pr.187223
           livenessProbe:
             httpGet:
               path: /health
@@ -116,7 +116,7 @@ spec:
               mountPath: /database
           resources:
             limits:
-              memory: "120Mi"
+              memory: "240Mi"
               cpu: "400m"
             requests:
               memory: "120Mi"

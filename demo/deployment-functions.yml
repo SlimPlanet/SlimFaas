@@ -33,7 +33,7 @@ spec:
               {
                 "MetricType": "Value",
                 "MetricName": "avg_latency_fibonacci_seconds",
-                "Query": "(sum(rate(http_server_requests_seconds_sum{app=\"fibonacci1\",route=\"/fibonacci\"}[1m])) / sum(rate(http_server_requests_seconds_count{app=\"fibonacci1\",route=\"/fibonacci\"}[1m])))",
+                "Query": "sum(rate(http_request_duration_seconds_sum{code=\"200\",method=\"POST\",endpoint=\"/fibonacci\"}[1m])) / sum(rate(http_request_duration_seconds_count{code=\"200\",method=\"POST\",endpoint=\"/fibonacci\"}[1m]))",
                 "Threshold": 20
               }
             ],
@@ -41,14 +41,14 @@ spec:
               "ScaleUp": {
                 "StabilizationWindowSeconds": 0,
                 "Policies": [
-                  { "Type": "Percent", "Value": 100, "PeriodSeconds": 15 },
-                  { "Type": "Pods",    "Value": 4,   "PeriodSeconds": 15 }
+                  { "Type": "Percent", "Value": 10, "PeriodSeconds": 15 },
+                  { "Type": "Pods",    "Value": 1,   "PeriodSeconds": 15 }
                 ]
               },
               "ScaleDown": {
-                "StabilizationWindowSeconds": 300,
+                "StabilizationWindowSeconds": 20,
                 "Policies": [
-                  { "Type": "Percent", "Value": 50, "PeriodSeconds": 30 }
+                  { "Type": "Percent", "Value": 1, "PeriodSeconds": 30 }
                 ]
               }
             }

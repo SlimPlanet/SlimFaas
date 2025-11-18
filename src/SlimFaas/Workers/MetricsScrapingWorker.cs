@@ -1,17 +1,18 @@
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Net.Http;
 using System.Text.RegularExpressions;
 using DotNext.Net.Cluster.Consensus.Raft;
-using DotNext.Net.Cluster.Consensus.Raft.Http;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 
-namespace SlimFaas;
+namespace SlimFaas.Workers;
 
 public interface IMetricsStore
 {
     void Add(long timestamp, string deployment, string podIp, IReadOnlyDictionary<string, double> metrics);
+
+    public IReadOnlyDictionary<long,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> Snapshot();
 }
 
 public class InMemoryMetricsStore : IMetricsStore
@@ -21,13 +22,48 @@ public class InMemoryMetricsStore : IMetricsStore
             ConcurrentDictionary<string,
                 ConcurrentDictionary<string, double>>>> _store = new();
 
+    private readonly long _retentionSeconds;
+    private readonly IRequestedMetricsRegistry _registry;
+
+    public InMemoryMetricsStore(IRequestedMetricsRegistry registry, long retentionSeconds = 1800)
+    {
+        _registry = registry;
+        _retentionSeconds = retentionSeconds;
+    }
+
     public void Add(long timestamp, string deployment, string podIp, IReadOnlyDictionary<string, double> metrics)
     {
+        // 1) Nettoyage par rétention
+        var minAllowed = timestamp - _retentionSeconds;
+        foreach (var key in _store.Keys)
+        {
+            if (key < minAllowed)
+                _store.TryRemove(key, out _);
+        }
+
+        // 2) Filtre sur les métriques “demandées”
+        var any = false;
+
         var d = _store.GetOrAdd(timestamp, _ => new());
         var dd = d.GetOrAdd(deployment, _ => new());
         var p = dd.GetOrAdd(podIp, _ => new());
+
         foreach (var kv in metrics)
+        {
+            if (!_registry.IsRequestedKey(kv.Key))
+                continue;
+
             p[kv.Key] = kv.Value;
+            any = true;
+        }
+
+        // Si rien d'intéressant, on peut laisser les structures vides,
+        // mais on pourrait aussi nettoyer dd/p si besoin.
+        if (!any)
+        {
+            if (p.Count == 0 && dd.TryGetValue(podIp, out _))
+                dd.TryRemove(podIp, out _);
+        }
     }
 
     public IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> Snapshot()
@@ -51,6 +87,7 @@ public class MetricsScrapingWorker(
     IHttpClientFactory httpClientFactory,
     IMetricsStore metricsStore,
     ISlimDataStatus slimDataStatus,
+    IMetricsScrapingGuard scrapingGuard,
     ILogger<MetricsScrapingWorker> logger,
     int delay = 5_000)
     : BackgroundService
@@ -69,14 +106,46 @@ public class MetricsScrapingWorker(
             try
             {
                 await slimDataStatus.WaitForReadyAsync();
+
+                var deployments = replicasService.Deployments;
+
+                // 👉 Est-ce qu'au moins une fonction utilise le ScaleConfig ?
+                var scaledDeployments = deployments.Functions
+                    .Where(f => f.Scale is { Triggers.Count: > 0 })
+                    .Select(f => f.Deployment)
+                    .ToHashSet(StringComparer.Ordinal);
+
+                var hasScaleConfig = scaledDeployments.Count > 0;
+
+                // 👉 Si aucune fonction n'a Scale ET aucune requête PromQL n'a été faite, on ne scrape pas
+                if (!hasScaleConfig && !scrapingGuard.IsEnabled)
+                {
+                    await Task.Delay(delay, stoppingToken);
+                    continue;
+                }
+
                 if (!IsDesignatedScraperNode(replicasService, cluster, logger))
                 {
                     await Task.Delay(delay, stoppingToken);
                     continue;
                 }
 
-                var infos = replicasService.Deployments;
-                var targetsByDeployment = infos.GetMetricsTargets();
+                var targetsByDeployment = deployments.GetMetricsTargets();
+
+                // 👉 Si on a des fonctions avec Scale, on ne scrape que celles-là
+                if (hasScaleConfig)
+                {
+                    targetsByDeployment = targetsByDeployment
+                        .Where(kvp => scaledDeployments.Contains(kvp.Key))
+                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+
+                    if (targetsByDeployment.Count == 0)
+                    {
+                        await Task.Delay(delay, stoppingToken);
+                        continue;
+                    }
+                }
+
                 var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
                 foreach (var (deployment, urls) in targetsByDeployment)

@@ -15,6 +15,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.MetricsQuery;
 using SlimFaas.Scaling;
+using SlimFaas.Workers;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 
 #pragma warning disable CA2252
@@ -124,6 +125,9 @@ serviceCollectionStarter.AddSingleton<AutoScaler>();
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
 
+serviceCollectionStarter.AddSingleton<IRequestedMetricsRegistry, RequestedMetricsRegistry>();
+serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
+
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
 IServiceCollection serviceCollectionSlimFaas = builder.Services;
@@ -156,6 +160,10 @@ serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
 
+serviceCollectionSlimFaas.AddSingleton<IRequestedMetricsRegistry>(sp =>
+    serviceProviderStarter.GetRequiredService<IRequestedMetricsRegistry>());
+serviceCollectionSlimFaas.AddSingleton<IMetricsStore>(sp =>
+    serviceProviderStarter.GetRequiredService<IMetricsStore>());
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasPorts, SlimFaasPorts>(sp =>
     (SlimFaasPorts)serviceProviderStarter.GetService<ISlimFaasPorts>()!);
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpDatabaseService>();
@@ -395,8 +403,17 @@ app.UseCors(builder =>
 });
 
 
-app.MapPost("/promql/eval", (PromQlRequest req, PromQlMiniEvaluator eval) =>
+app.MapPost("/promql/eval", (PromQlRequest req,
+        PromQlMiniEvaluator eval,
+        IMetricsScrapingGuard guard,
+        IRequestedMetricsRegistry registry) =>
     {
+        // Active le scraping côté PromQL
+        guard.EnablePromql();
+
+        // Enregistre les métriques demandées par cette requête
+        registry.RegisterFromQuery(req.Query);
+
         if (string.IsNullOrWhiteSpace(req.Query))
             return Results.BadRequest(new ErrorResponse { Error = "query is required" });
 
@@ -434,6 +451,41 @@ app.MapPost("/promql/eval", (PromQlRequest req, PromQlMiniEvaluator eval) =>
     .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
     .ProducesProblem(StatusCodes.Status500InternalServerError);
 
+
+app.MapGet("/metrics/debug/store", (IMetricsStore store, IRequestedMetricsRegistry registry) =>
+    {
+        var snapshot = store.Snapshot();
+
+        int timestampBuckets = snapshot.Count;
+        int seriesCount = 0;
+        int totalPoints = 0;
+
+        foreach (var tsEntry in snapshot)                  // ts
+        {
+            foreach (var depEntry in tsEntry.Value)        // deployment
+            {
+                foreach (var podEntry in depEntry.Value)   // podIp
+                {
+                    var metrics = podEntry.Value;          // Dictionary<string,double>
+                    int metricCount = metrics.Count;
+
+                    totalPoints += metricCount;
+                    seriesCount += metricCount;
+                }
+            }
+        }
+
+        var response = new MetricsStoreDebugResponse(
+            RequestedMetricNames: registry.GetRequestedMetricNames(),
+            TimestampBuckets: timestampBuckets,
+            SeriesCount: seriesCount,
+            TotalPoints: totalPoints
+        );
+
+        return Results.Ok(response);
+    })
+    .WithName("MetricsStoreDebug")
+    .Produces<MetricsStoreDebugResponse>(StatusCodes.Status200OK);
 
 app.UseMiddleware<SlimProxyMiddleware>();
 
@@ -497,6 +549,5 @@ app.Run();
 serviceProviderStarter.Dispose();
 
 public partial class Program;
-
 
 #pragma warning restore CA2252
