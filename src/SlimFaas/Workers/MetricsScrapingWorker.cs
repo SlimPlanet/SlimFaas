@@ -81,6 +81,7 @@ public class MetricsScrapingWorker(
 
                 foreach (var (deployment, urls) in targetsByDeployment)
                 {
+                    Console.WriteLine("Scraping metrics for deployment {0} with {1} targets", deployment, urls.Count);
                     foreach (var url in urls)
                     {
                         try
