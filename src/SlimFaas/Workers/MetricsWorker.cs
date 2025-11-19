@@ -1,7 +1,7 @@
 ﻿using DotNext.Net.Cluster.Consensus.Raft;
 using SlimFaas.Database;
 
-namespace SlimFaas;
+namespace SlimFaas.Workers;
 
 public class MetricsWorker(IReplicasService replicasService, ISlimFaasQueue slimFaasQueue, DynamicGaugeService dynamicGaugeService, IRaftCluster raftCluster,
         ILogger<MetricsWorker> logger,
@@ -13,7 +13,7 @@ public class MetricsWorker(IReplicasService replicasService, ISlimFaasQueue slim
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        while (stoppingToken.IsCancellationRequested == false)
+        while (!stoppingToken.IsCancellationRequested)
         {
             try
             {

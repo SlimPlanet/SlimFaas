@@ -6,10 +6,12 @@ using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SlimData;
 using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using SlimFaas.Workers;
+using Xunit;
 
 namespace SlimFaas.Tests.Workers
 {
@@ -33,6 +35,41 @@ namespace SlimFaas.Tests.Workers
             public bool IsEnabled { get; set; }
 
             public void EnablePromql() => IsEnabled = true;
+        }
+
+        private sealed class InMemoryDatabaseService : IDatabaseService
+        {
+            private readonly ConcurrentDictionary<string, byte[]> _storage = new(StringComparer.Ordinal);
+
+            public Task SetAsync(string key, byte[] value)
+            {
+                _storage[key] = value;
+                return Task.CompletedTask;
+            }
+
+            public Task HashSetAsync(string key, IDictionary<string, byte[]> values) => throw new NotImplementedException();
+
+            public Task HashSetDeleteAsync(string key, string dictionaryKey = "") => throw new NotImplementedException();
+
+            public Task<IDictionary<string, byte[]>> HashGetAllAsync(string key) => throw new NotImplementedException();
+
+            public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation) => throw new NotImplementedException();
+
+            public Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1) => throw new NotImplementedException();
+
+            public Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes, int maximum = Int32.MaxValue) => throw new NotImplementedException();
+
+            public Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus) => throw new NotImplementedException();
+
+            public Task DeleteAsync(string key) => throw new NotImplementedException();
+
+            public Task<byte[]?> GetAsync(string key)
+            {
+                _storage.TryGetValue(key, out var value);
+                return Task.FromResult<byte[]?>(value);
+            }
+
+            public bool TryGetRaw(string key, out byte[] value) => _storage.TryGetValue(key, out value);
         }
 
         // --- Helpers de construction ---
@@ -148,6 +185,7 @@ namespace SlimFaas.Tests.Workers
             HttpClient httpClient,
             string currentPodName,
             InMemoryMetricsStore store,
+            InMemoryDatabaseService? database = null,
             bool scrapingEnabled = true,
             int delayMs = 10_000) // le scraping se fait avant le premier Delay
         {
@@ -179,11 +217,14 @@ namespace SlimFaas.Tests.Workers
             // ILogger
             var logger = Mock.Of<ILogger<MetricsScrapingWorker>>();
 
+            var db = database ?? new InMemoryDatabaseService();
+
             return new MetricsScrapingWorker(
                 replicasService: replicas.Object,
                 cluster: cluster.Object,
                 httpClientFactory: httpFactory.Object,
                 metricsStore: store,
+                databaseService: db,
                 slimDataStatus: status.Object,
                 scrapingGuard: guard,
                 logger: logger,
@@ -233,7 +274,8 @@ namespace SlimFaas.Tests.Workers
             var http = new HttpClient(handler);
 
             var store = CreateStore();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store);
+            var db = new InMemoryDatabaseService();
+            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
@@ -261,6 +303,11 @@ namespace SlimFaas.Tests.Workers
 
             Assert.Equal(3.0, m2["metric_one"], 6);
             Assert.Equal(4.5, m2[@"metric_two{label=""a""}"], 6);
+
+            // Et le snapshot doit être persisté en base
+            Assert.True(db.TryGetRaw("metrics:store", out var bytes));
+            Assert.NotNull(bytes);
+            Assert.NotEmpty(bytes);
         }
 
         [Fact]
@@ -273,12 +320,13 @@ namespace SlimFaas.Tests.Workers
 
             // Node courant = slimfaas-1 (le plus petit ordinal est -0) => pas désigné
             var store = CreateStore();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-1", store: store);
+            var db = new InMemoryDatabaseService();
+            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-1", store: store, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
             var snapshot = store.Snapshot();
-            Assert.True(snapshot.Count == 0); // rien scrapé
+            Assert.True(snapshot.Count == 0); // rien scrapé et rien à hydrater
         }
 
         [Fact]
@@ -295,7 +343,8 @@ namespace SlimFaas.Tests.Workers
             var http = new HttpClient(handler);
 
             var store = CreateStore();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store);
+            var db = new InMemoryDatabaseService();
+            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
@@ -353,7 +402,8 @@ namespace SlimFaas.Tests.Workers
             var http = new HttpClient(handler);
 
             var store = CreateStore();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store);
+            var db = new InMemoryDatabaseService();
+            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
@@ -365,6 +415,84 @@ namespace SlimFaas.Tests.Workers
             Assert.Equal(2, m.Count);
             Assert.Equal(1.0, m["metric_one"], 6);
             Assert.Equal(2.5, m[@"metric_two{label=""a""}"], 6);
+        }
+
+        [Fact]
+        public async Task Non_Designated_Node_Hydrates_From_Database()
+        {
+            var deployments = BuildDeploymentsForScrape();
+
+            // 1) Nœud désigné : scrape + persist
+            var urls = deployments.GetMetricsTargets();
+            var depAUrls = urls["dep-a"].OrderBy(x => x).ToArray();
+
+            var body1 = """
+                        metric_one 1
+                        metric_two{label="a"} 2.5
+                        """;
+
+            var body2 = """
+                        metric_one 3
+                        metric_two{label="a"} 4.5
+                        """;
+
+            var handler1 = new MapHttpHandler(new[]
+            {
+                (depAUrls[0], HttpStatusCode.OK, body1),
+                (depAUrls[1], HttpStatusCode.OK, body2)
+            });
+            var http1 = new HttpClient(handler1);
+
+            var db = new InMemoryDatabaseService();
+
+            var storeDesignated = CreateStore();
+            var workerDesignated = NewWorker(
+                deployments,
+                http1,
+                currentPodName: "slimfaas-0", // désigné
+                store: storeDesignated,
+                database: db);
+
+            await StartRunOnceAndStopAsync(workerDesignated);
+
+            var snapshotDesignated = storeDesignated.Snapshot();
+            Assert.NotEmpty(snapshotDesignated);
+            Assert.True(db.TryGetRaw("metrics:store", out var bytes));
+            Assert.NotNull(bytes);
+            Assert.NotEmpty(bytes);
+
+            // 2) Nœud non désigné : ne scrape pas mais hydrate depuis DB
+            var handler2 = new MapHttpHandler(Array.Empty<(string, HttpStatusCode, string)>());
+            var http2 = new HttpClient(handler2);
+
+            var storeNonDesignated = CreateStore();
+            var workerNonDesignated = NewWorker(
+                deployments,
+                http2,
+                currentPodName: "slimfaas-1", // non désigné
+                store: storeNonDesignated,
+                database: db);
+
+            await StartRunOnceAndStopAsync(workerNonDesignated);
+
+            var snapshotNonDesignated = storeNonDesignated.Snapshot();
+            Assert.NotEmpty(snapshotNonDesignated);
+
+            // On vérifie qu'il a bien les métriques attendues (hydrate OK)
+            var depMap = snapshotNonDesignated.Values.Single();
+            var podMap = depMap["dep-a"];
+
+            Assert.True(podMap.ContainsKey("10.1.0.1"));
+            Assert.True(podMap.ContainsKey("10.1.0.2"));
+
+            var m1 = podMap["10.1.0.1"];
+            var m2 = podMap["10.1.0.2"];
+
+            Assert.Equal(1.0, m1["metric_one"], 6);
+            Assert.Equal(2.5, m1[@"metric_two{label=""a""}"], 6);
+
+            Assert.Equal(3.0, m2["metric_one"], 6);
+            Assert.Equal(4.5, m2[@"metric_two{label=""a""}"], 6);
         }
     }
 }

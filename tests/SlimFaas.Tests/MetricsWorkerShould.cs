@@ -6,6 +6,7 @@ using SlimData;
 using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Workers;
 
 namespace SlimFaas.Tests;
 
@@ -96,7 +97,7 @@ public class MetricsWorkerShould
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
 
-        await Task.Delay(3000);
+        await Task.Delay(3000, cts.Token);
 
         await cts.CancelAsync();
         await task;

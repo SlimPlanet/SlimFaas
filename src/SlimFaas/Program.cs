@@ -402,7 +402,7 @@ app.UseCors(builder =>
 });
 
 
-app.MapPost("/promql/eval", (PromQlRequest req,
+app.MapPost("/debug/promql/eval", (PromQlRequest req,
         PromQlMiniEvaluator eval,
         IMetricsScrapingGuard guard,
         IRequestedMetricsRegistry registry) =>

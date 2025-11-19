@@ -2,90 +2,20 @@ using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using DotNext.Net.Cluster.Consensus.Raft;
+using MemoryPack;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Workers;
 
-public interface IMetricsStore
-{
-    void Add(long timestamp, string deployment, string podIp, IReadOnlyDictionary<string, double> metrics);
 
-    public IReadOnlyDictionary<long,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> Snapshot();
-}
-
-public class InMemoryMetricsStore : IMetricsStore
-{
-    private readonly ConcurrentDictionary<long,
-        ConcurrentDictionary<string,
-            ConcurrentDictionary<string,
-                ConcurrentDictionary<string, double>>>> _store = new();
-
-    private readonly long _retentionSeconds;
-    private readonly IRequestedMetricsRegistry _registry;
-
-    public InMemoryMetricsStore(IRequestedMetricsRegistry registry, long retentionSeconds = 1800)
-    {
-        _registry = registry;
-        _retentionSeconds = retentionSeconds;
-    }
-
-    public void Add(long timestamp, string deployment, string podIp, IReadOnlyDictionary<string, double> metrics)
-    {
-        // 1) Nettoyage par rétention
-        var minAllowed = timestamp - _retentionSeconds;
-        foreach (var key in _store.Keys)
-        {
-            if (key < minAllowed)
-                _store.TryRemove(key, out _);
-        }
-
-        // 2) Filtre sur les métriques “demandées”
-        var any = false;
-
-        var d = _store.GetOrAdd(timestamp, _ => new());
-        var dd = d.GetOrAdd(deployment, _ => new());
-        var p = dd.GetOrAdd(podIp, _ => new());
-
-        foreach (var kv in metrics)
-        {
-            if (!_registry.IsRequestedKey(kv.Key))
-                continue;
-
-            p[kv.Key] = kv.Value;
-            any = true;
-        }
-
-        // Si rien d'intéressant, on peut laisser les structures vides,
-        // mais on pourrait aussi nettoyer dd/p si besoin.
-        if (!any)
-        {
-            if (p.Count == 0 && dd.TryGetValue(podIp, out _))
-                dd.TryRemove(podIp, out _);
-        }
-    }
-
-    public IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> Snapshot()
-    {
-        return _store.ToDictionary(
-            t => t.Key,
-            t => (IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>)t.Value.ToDictionary(
-                d => d.Key,
-                d => (IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>)d.Value.ToDictionary(
-                    p => p.Key,
-                    p => (IReadOnlyDictionary<string, double>)p.Value.ToDictionary(m => m.Key, m => m.Value)
-                )
-            )
-        );
-    }
-}
 
 public class MetricsScrapingWorker(
     IReplicasService replicasService,
     IRaftCluster cluster,
     IHttpClientFactory httpClientFactory,
     IMetricsStore metricsStore,
+    IDatabaseService databaseService,
     ISlimDataStatus slimDataStatus,
     IMetricsScrapingGuard scrapingGuard,
     ILogger<MetricsScrapingWorker> logger,
@@ -126,7 +56,8 @@ public class MetricsScrapingWorker(
 
                 if (!IsDesignatedScraperNode(replicasService, cluster, logger))
                 {
-                    await Task.Delay(delay, stoppingToken);
+                    await TryHydrateMetricsFromDatabaseAsync(stoppingToken);
+                    await Task.Delay(1000, stoppingToken);
                     continue;
                 }
 
@@ -175,6 +106,7 @@ public class MetricsScrapingWorker(
                         }
                     }
                 }
+                await PersistMetricsSnapshotAsync(stoppingToken);
             }
             catch (Exception e)
             {
@@ -185,7 +117,14 @@ public class MetricsScrapingWorker(
             {
                 await Task.Delay(delay, stoppingToken);
             }
-            catch { }
+            catch (OperationCanceledException)
+            {
+                // Expected when stoppingToken is cancelled; ignore.
+            }
+            catch (Exception e)
+            {
+                logger.LogWarning(e, "Unexpected error during delay in MetricsScrapingWorker");
+            }
         }
     }
 
@@ -282,4 +221,49 @@ public class MetricsScrapingWorker(
             return n;
         return int.MaxValue;
     }
+
+    private async Task PersistMetricsSnapshotAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            var snapshot = metricsStore.Snapshot();
+            if (snapshot.Count == 0)
+                return;
+
+            var record = MetricsStoreRecord.FromSnapshot(snapshot);
+            var bytes = MemoryPackSerializer.Serialize(record);
+            await databaseService.SetAsync("metrics:store", bytes);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Unable to persist metrics store to database");
+        }
+    }
+
+    private async Task TryHydrateMetricsFromDatabaseAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            var bytes = await databaseService.GetAsync("metrics:store");
+            if (bytes is null || bytes.Length == 0)
+                return;
+
+            var record = MemoryPackSerializer.Deserialize<MetricsStoreRecord>(bytes);
+            if (record is null)
+                return;
+
+            metricsStore.ReplaceFromRecord(record);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception e)
+        {
+            logger.LogWarning(e, "Unable to hydrate metrics store from database");
+        }
+    }
+
 }
