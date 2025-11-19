@@ -1,71 +1,116 @@
-// Ajoutez/Remplacez la classe utilitaire par ceci (même namespace SlimFaas.Kubernetes)
+using System.Globalization;
 
 namespace SlimFaas.Kubernetes;
 
 public static class MetricsExtensions
 {
-    private static bool IsScrapeEnabled(IDictionary<string, string>? ann)
+    private const string ScrapeAnnotation = "prometheus.io/scrape";
+    private const string SchemeAnnotation = "prometheus.io/scheme";
+    private const string PathAnnotation   = "prometheus.io/path";
+    private const string PortAnnotation   = "prometheus.io/port";
+
+    private const string DefaultScheme = "http";
+    private const string DefaultPath   = "/metrics";
+    private const string SlimFaasKey   = "slimfaas";
+
+    private static bool IsScrapeEnabled(IDictionary<string, string>? annotations)
     {
-        if (ann is null) return false;
-        if (!ann.TryGetValue("prometheus.io/scrape", out var v)) return false;
-        v = v?.Trim()?.ToLowerInvariant() ?? "";
-        return v is "true" or "1" or "yes";
+        if (annotations is null)
+            return false;
+
+        if (!annotations.TryGetValue(ScrapeAnnotation, out var raw) || string.IsNullOrWhiteSpace(raw))
+            return false;
+
+        var v = raw.Trim();
+        return v.Equals("true", StringComparison.OrdinalIgnoreCase)
+               || v.Equals("1", StringComparison.OrdinalIgnoreCase)
+               || v.Equals("yes", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string ResolveScheme(IDictionary<string, string>? ann)
+    private static string ResolveScheme(IDictionary<string, string>? annotations)
     {
-        // Pas de “fallback” vers d’autres sources; juste une valeur par défaut de protocole
-        // (Prometheus considère http par défaut si scheme absent).
-        if (ann is null) return "http";
-        return ann.TryGetValue("prometheus.io/scheme", out var s) && !string.IsNullOrWhiteSpace(s)
+        if (annotations is null)
+            return DefaultScheme;
+
+        return annotations.TryGetValue(SchemeAnnotation, out var s) && !string.IsNullOrWhiteSpace(s)
             ? s.Trim()
-            : "http";
+            : DefaultScheme;
     }
 
-    private static string ResolvePath(IDictionary<string, string>? ann)
+    private static string ResolvePath(IDictionary<string, string>? annotations)
     {
-        // Valeur par défaut usuelle côté Prometheus si non précisée.
-        var p = (ann != null && ann.TryGetValue("prometheus.io/path", out var path)) ? path?.Trim() : "/metrics";
-        if (string.IsNullOrWhiteSpace(p)) p = "/metrics";
-        if (!p.StartsWith("/")) p = "/" + p;
-        return p;
+        var raw = annotations is not null && annotations.TryGetValue(PathAnnotation, out var p)
+            ? p
+            : DefaultPath;
+
+        if (string.IsNullOrWhiteSpace(raw))
+            raw = DefaultPath;
+
+        raw = raw.Trim();
+
+        return raw.StartsWith("/", StringComparison.Ordinal)
+            ? raw
+            : "/" + raw;
     }
 
-    private static int? GetAnnotatedPort(IDictionary<string, string>? ann)
+    private static int? ResolvePort(IDictionary<string, string>? annotations)
     {
-        if (ann is null) return null;
-        if (!ann.TryGetValue("prometheus.io/port", out var sp)) return null;
-        return int.TryParse(sp?.Trim(), out var port) && port > 0 ? port : null;
+        if (annotations is null)
+            return null;
+
+        if (!annotations.TryGetValue(PortAnnotation, out var raw) || string.IsNullOrWhiteSpace(raw))
+            return null;
+
+        return int.TryParse(raw.Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var port) && port > 0
+            ? port
+            : null;
     }
 
-    // — Pod -> liste d’URLs /metrics (0 ou 1 URL selon annotations) —
+    // Pod -> liste d’URLs /metrics (0 ou 1 URL selon annotations)
     public static IList<string> GetMetricsTargets(this PodInformation pod)
     {
-        if (string.IsNullOrWhiteSpace(pod.Ip)) return new List<string>();
-        var ann = pod.Annotations;
+        if (string.IsNullOrWhiteSpace(pod.Ip))
+            return new List<string>();
 
-        // STRICT : nécessite scrape=true ET port annoté. Sinon => aucune URL.
-        if (!IsScrapeEnabled(ann)) return new List<string>();
+        var annotations = pod.Annotations;
 
-        var port = GetAnnotatedPort(ann);
-        if (port is null) return new List<string>();
+        // STRICT : nécessite scrape=true ET port annoté
+        if (!IsScrapeEnabled(annotations))
+            return new List<string>();
 
-        var scheme = ResolveScheme(ann);
-        var path = ResolvePath(ann);
+        var port = ResolvePort(annotations);
+        if (port is null)
+            return new List<string>();
+
+        var scheme = ResolveScheme(annotations);
+        var path = ResolvePath(annotations);
 
         return new List<string> { $"{scheme}://{pod.Ip}:{port}{path}" };
     }
 
-    // — Map global : aucun regroupement “other” spéculatif, aucune déduction —
+    private static IList<string> GetMetricsTargetsForPods(IEnumerable<PodInformation> pods)
+        => pods
+            .SelectMany(p => p.GetMetricsTargets())
+            .Where(u => !string.IsNullOrWhiteSpace(u))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+    // Map global simple : 1 clé par déploiement + "slimfaas"
     public static IDictionary<string, IList<string>> GetMetricsTargets(this DeploymentsInformations infos)
     {
-        var map = new Dictionary<string, IList<string>>();
+        var result = new Dictionary<string, IList<string>>(StringComparer.Ordinal);
 
         foreach (var fn in infos.Functions)
-            map[fn.Deployment] = fn.Pods.SelectMany(p => p.GetMetricsTargets()).Distinct().ToList();
+        {
+            var targets = GetMetricsTargetsForPods(fn.Pods);
+            if (targets.Count > 0)
+                result[fn.Deployment] = targets;
+        }
 
-        map["slimfaas"] = infos.SlimFaas.Pods.SelectMany(p => p.GetMetricsTargets()).Distinct().ToList();
+        var slimFaasTargets = GetMetricsTargetsForPods(infos.SlimFaas.Pods);
+        if (slimFaasTargets.Count > 0)
+            result[SlimFaasKey] = slimFaasTargets;
 
-        return map;
+        return result;
     }
 }

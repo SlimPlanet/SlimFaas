@@ -53,7 +53,7 @@ metadata:
   namespace: slimfaas-demo
 spec:
   podManagementPolicy: OrderedReady
-  replicas: 1
+  replicas: 3
   serviceName: slimfaas
   selector:
     matchLabels:
@@ -62,6 +62,10 @@ spec:
     metadata:
       labels:
         app: slimfaas
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "5000"
+        prometheus.io/scrape: "true"
     spec:
       volumes:
         - name: slimfaas-volume
@@ -70,7 +74,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.45.0-pr.187234
+          image: axaguildev/slimfaas:0.45.0-pr.187235
           livenessProbe:
             httpGet:
               path: /health
