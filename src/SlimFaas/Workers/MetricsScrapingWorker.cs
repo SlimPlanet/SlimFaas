@@ -63,18 +63,11 @@ public class MetricsScrapingWorker(
 
                 var targetsByDeployment = deployments.GetMetricsTargets();
 
-                // 👉 Si on a des fonctions avec Scale, on ne scrape que celles-là
-                if (hasScaleConfig)
+                // Si aucune cible annotée prometheus n'existe, on ne fait rien
+                if (targetsByDeployment.Count == 0)
                 {
-                    targetsByDeployment = targetsByDeployment
-                        .Where(kvp => scaledDeployments.Contains(kvp.Key))
-                        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-
-                    if (targetsByDeployment.Count == 0)
-                    {
-                        await Task.Delay(delay, stoppingToken);
-                        continue;
-                    }
+                    await Task.Delay(delay, stoppingToken);
+                    continue;
                 }
 
                 var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
