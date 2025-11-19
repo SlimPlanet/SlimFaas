@@ -209,6 +209,32 @@ public sealed class PromQlMiniEvaluator
         }
     }
 
+    private sealed class MaxOverTimeNode(MetricSelector selector, TimeSpan window) : ValueNode
+    {
+        public override EvalValue Eval(EvalContext ctx)
+        {
+            var series = ctx.SelectSeries(selector, window);
+
+            double? globalMax = null;
+
+            foreach (var sl in series.Values)
+            {
+                if (sl.Count == 0) continue;
+
+                // Max des valeurs de CETTE série dans la fenêtre
+                var localMax = sl.Values.Max();
+                if (double.IsNaN(localMax)) continue;
+
+                globalMax = globalMax is null
+                    ? localMax
+                    : Math.Max(globalMax.Value, localMax);
+            }
+
+            return EvalValue.FromScalar(globalMax ?? double.NaN);
+        }
+    }
+
+
     private static double SafeDiv(double a, double b)
     {
         // Si déjà NaN quelque part, on propage
@@ -593,6 +619,15 @@ public sealed class PromQlMiniEvaluator
                 var inner = ParseExpr();
                 Expect(")");
                 return new HistogramQuantileNode(phi, inner);
+            }
+
+            // max_over_time(metric{...}[win])
+            if (string.Equals(ident, "max_over_time", StringComparison.OrdinalIgnoreCase))
+            {
+                Expect("(");
+                var (sel, win) = ParseSelectorWithRange();
+                Expect(")");
+                return new MaxOverTimeNode(sel, win);
             }
 
             // sum by (label) (expr)  |  sum(expr)
