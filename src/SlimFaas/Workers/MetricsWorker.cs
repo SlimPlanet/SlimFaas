@@ -3,9 +3,13 @@ using SlimFaas.Database;
 
 namespace SlimFaas.Workers;
 
-public class MetricsWorker(IReplicasService replicasService, ISlimFaasQueue slimFaasQueue, DynamicGaugeService dynamicGaugeService, IRaftCluster raftCluster,
-        ILogger<MetricsWorker> logger,
-        int delay = EnvironmentVariables.ScaleReplicasWorkerDelayMillisecondsDefault)
+public class MetricsWorker(
+    IReplicasService replicasService,
+    ISlimFaasQueue slimFaasQueue,
+    DynamicGaugeService dynamicGaugeService,
+    IRaftCluster raftCluster,
+    ILogger<MetricsWorker> logger,
+    int delay = EnvironmentVariables.ScaleReplicasWorkerDelayMillisecondsDefault)
     : BackgroundService
 {
     private readonly int _delay =
@@ -18,28 +22,53 @@ public class MetricsWorker(IReplicasService replicasService, ISlimFaasQueue slim
             try
             {
                 await Task.Delay(_delay, stoppingToken);
-                if (raftCluster.Leader == null)
+
+                if (raftCluster.Leader is null)
                 {
                     continue;
                 }
+
                 var deployments = replicasService.Deployments;
                 foreach (var deployment in deployments.Functions)
                 {
-                    var deploymentName = deployment.Deployment.Replace("-", "_").ToLowerInvariant();
-                    var numberElementAvailable = await slimFaasQueue.CountElementAsync(deployment.Deployment, new List<CountType>() { CountType.Available });
-                    dynamicGaugeService.SetGaugeValue(
-                        $"slimfaas_queue_available_{deploymentName}_length",
-                        numberElementAvailable, "Current number of elements available in the queue");
+                    // Label Prometheus : function="fibonacci1"
+                    var labels = new Dictionary<string, string>
+                    {
+                        ["function"] = deployment.Deployment
+                    };
 
-                    var numberElementProcessing = await slimFaasQueue.CountElementAsync(deployment.Deployment, new List<CountType>() { CountType.Running });
-                    dynamicGaugeService.SetGaugeValue(
-                        $"slimfaas_queue_processing_{deploymentName}_length",
-                        numberElementProcessing, "Current number of elements processing in the queue");
+                    // 1) Messages prêts (ready_items)
+                    var readyCount = await slimFaasQueue.CountElementAsync(
+                        deployment.Deployment,
+                        new List<CountType> { CountType.Available });
 
-                    var numberElementWaitingForRetry = await slimFaasQueue.CountElementAsync(deployment.Deployment, new List<CountType>() { CountType.WaitingForRetry });
                     dynamicGaugeService.SetGaugeValue(
-                        $"slimfaas_queue_waiting_for_retry_{deploymentName}_length",
-                        numberElementWaitingForRetry, "Current number of elements waiting for retry in the queue");
+                        "slimfaas_function_queue_ready_items",
+                        readyCount,
+                        "Number of messages currently ready to be processed in the function queue",
+                        labels);
+
+                    // 2) Messages en cours (in_flight_items)
+                    var inFlightCount = await slimFaasQueue.CountElementAsync(
+                        deployment.Deployment,
+                        new List<CountType> { CountType.Running });
+
+                    dynamicGaugeService.SetGaugeValue(
+                        "slimfaas_function_queue_in_flight_items",
+                        inFlightCount,
+                        "Number of messages currently being processed by workers for the function",
+                        labels);
+
+                    // 3) Messages en attente de retry (retry_pending_items)
+                    var retryPendingCount = await slimFaasQueue.CountElementAsync(
+                        deployment.Deployment,
+                        new List<CountType> { CountType.WaitingForRetry });
+
+                    dynamicGaugeService.SetGaugeValue(
+                        "slimfaas_function_queue_retry_pending_items",
+                        retryPendingCount,
+                        "Number of messages waiting for a retry in the function queue",
+                        labels);
                 }
             }
             catch (Exception e)
