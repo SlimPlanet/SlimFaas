@@ -195,73 +195,75 @@ public sealed class AutoScaler
         return value;
     }
 
-    /// <summary>
-    /// Scale UP : applique Value + PeriodSeconds en utilisant l'historique.
-    /// </summary>
     private int ApplyScaleUpPolicies(
-        string key,
-        ScaleDirectionBehavior behavior,
-        int currentReplicas,
-        int desired,
-        long nowUnixSeconds)
+    string key,
+    ScaleDirectionBehavior behavior,
+    int currentReplicas,
+    int desired,
+    long nowUnixSeconds)
+{
+    if (behavior.Policies is null || behavior.Policies.Count == 0)
+        return desired;
+
+    if (desired <= currentReplicas)
+        return desired;
+
+    var requestedDelta = desired - currentReplicas;
+    var maxAllowedDelta = 0;
+
+    foreach (var policy in behavior.Policies)
     {
-        if (behavior.Policies is null || behavior.Policies.Count == 0)
-            return desired;
+        if (policy.Value <= 0)
+            continue;
 
-        if (desired <= currentReplicas)
-            return desired;
+        var baseDelta = ComputeDelta(policy, currentReplicas);
+        if (baseDelta <= 0)
+            continue;
 
-        var requestedDelta = desired - currentReplicas;
-        var maxAllowedDelta = 0;
-
-        foreach (var policy in behavior.Policies)
+        // Pas de contrainte temporelle => on applique juste la limite "classique"
+        if (policy.PeriodSeconds <= 0)
         {
-            if (policy.Value <= 0)
-                continue;
-
-            var baseDelta = ComputeDelta(policy, currentReplicas);
-            if (baseDelta <= 0)
-                continue;
-
-            // Pas de contrainte temporelle => on applique la limite "classique"
-            if (policy.PeriodSeconds <= 0)
-            {
-                if (baseDelta > maxAllowedDelta)
-                    maxAllowedDelta = baseDelta;
-                continue;
-            }
-
-            var fromTs = nowUnixSeconds - policy.PeriodSeconds;
-            var samples = _store.GetSamples(key, fromTs);
-
-            // baseline = min(desired) dans la fenêtre => point de départ du scale-up
-            var baseline = currentReplicas;
-            if (samples.Count > 0)
-            {
-                baseline = samples[0].DesiredReplicas;
-                for (var i = 1; i < samples.Count; i++)
-                {
-                    if (samples[i].DesiredReplicas < baseline)
-                        baseline = samples[i].DesiredReplicas;
-                }
-            }
-
-            var alreadyUp = Math.Max(0, currentReplicas - baseline);
-            var remainingUp = Math.Max(0, policy.Value - alreadyUp);
-            if (remainingUp <= 0)
-                continue;
-
-            var allowedForPolicy = Math.Min(baseDelta, remainingUp);
-            if (allowedForPolicy > maxAllowedDelta)
-                maxAllowedDelta = allowedForPolicy;
+            if (baseDelta > maxAllowedDelta)
+                maxAllowedDelta = baseDelta;
+            continue;
         }
 
-        if (maxAllowedDelta <= 0)
-            return currentReplicas;
+        // Avec PeriodSeconds : on ne veut PAS plusieurs scale-up successifs
+        // dans la même fenêtre. Chaque "sample" représente déjà une décision
+        // de scale (up ou down). Pour Pods, on considère qu'une décision
+        // a consommé toute la "Value" pour la fenêtre.
+        var fromTs = nowUnixSeconds - policy.PeriodSeconds;
+        var samples = _store.GetSamples(key, fromTs);
 
-        var finalDelta = Math.Min(requestedDelta, maxAllowedDelta);
-        return currentReplicas + finalDelta;
+        int remainingForPolicy;
+
+        if (samples.Count == 0)
+        {
+            // Aucun scale récent dans cette fenêtre => on peut utiliser la full Value.
+            remainingForPolicy = policy.Value;
+        }
+        else
+        {
+            // Au moins un scale (up ou down) récent => on considère que la "Value"
+            // est déjà consommée pour cette fenêtre.
+            remainingForPolicy = 0;
+        }
+
+        if (remainingForPolicy <= 0)
+            continue;
+
+        var allowedForPolicy = Math.Min(baseDelta, remainingForPolicy);
+        if (allowedForPolicy > maxAllowedDelta)
+            maxAllowedDelta = allowedForPolicy;
     }
+
+    if (maxAllowedDelta <= 0)
+        return currentReplicas;
+
+    var finalDelta = Math.Min(requestedDelta, maxAllowedDelta);
+    return currentReplicas + finalDelta;
+}
+
 
     /// <summary>
     /// Scale DOWN : applique Value + PeriodSeconds de manière conservative.

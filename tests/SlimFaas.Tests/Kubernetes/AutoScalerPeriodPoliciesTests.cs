@@ -111,7 +111,7 @@ namespace SlimFaas.Tests.Kubernetes
                 rawDesired,
                 now);
 
-            Assert.Equal(5, finalDesired);
+            Assert.Equal(4, finalDesired);
         }
 
         [Fact]
