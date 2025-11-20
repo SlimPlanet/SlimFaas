@@ -3,13 +3,40 @@ using MemoryPack;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SlimData;
+using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Workers;
 
 namespace SlimFaas.Tests;
 
 public class MetricsWorkerShould
 {
+    private static AutoScaler CreateAutoScalerForTests()
+    {
+        PromQlMiniEvaluator.SnapshotProvider snapshotProvider = () =>
+        {
+            var metrics = new Dictionary<string, double> { { "dummy_metric", 1.0 } };
+            var pod = new Dictionary<string, IReadOnlyDictionary<string, double>>
+            {
+                { "pod-0", metrics }
+            };
+            var deployment = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>
+            {
+                { "dummy-deploy", pod }
+            };
+            var root = new Dictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>>
+            {
+                { 1L, deployment }
+            };
+            return root;
+        };
+
+        var evaluator = new PromQlMiniEvaluator(snapshotProvider);
+        var store = new InMemoryAutoScalerStore();
+        return new AutoScaler(evaluator, store, logger: null);
+    }
+
     [Fact]
     public async Task AddQueueMetrics()
     {
@@ -24,20 +51,31 @@ public class MetricsWorkerShould
             new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
             new List<PodInformation>()
         );
+
         Mock<ILogger<MetricsWorker>> logger = new();
         Mock<IKubernetesService> kubernetesService = new();
         Mock<IMasterService> masterService = new();
         HistoryHttpMemoryService historyHttpService = new();
         Mock<ILogger<ReplicasService>> loggerReplicasService = new();
+
+        var autoScaler = CreateAutoScalerForTests();
+
+        // Nouveau : registry pour coller à la nouvelle signature de ReplicasService
+        var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
+
         ReplicasService replicasService =
             new(kubernetesService.Object,
                 historyHttpService,
-                loggerReplicasService.Object);
+                autoScaler,
+                loggerReplicasService.Object,
+                metricsRegistry);
+
         masterService.Setup(ms => ms.IsMaster).Returns(true);
-        kubernetesService.Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>())).ReturnsAsync(deploymentsInformations);
+        kubernetesService
+            .Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deploymentsInformations);
 
         Mock<IRaftClusterMember> raftClusterMember = new();
-
 
         Mock<IRaftCluster> raftCluster = new();
         raftCluster.Setup(rc => rc.Leader).Returns(raftClusterMember.Object);
@@ -51,16 +89,18 @@ public class MetricsWorkerShould
         var jsonCustomRequest = MemoryPackSerializer.Serialize(customRequest);
         var retryInformation = new RetryInformation([], 30, []);
         await slimFaasQueue.EnqueueAsync("fibonacci1", jsonCustomRequest, retryInformation);
+
         var dynamicGaugeService = new DynamicGaugeService();
-        MetricsWorker service = new(replicasService, slimFaasQueue, dynamicGaugeService, raftCluster.Object, logger.Object, 100);
+        MetricsWorker service =
+            new(replicasService, slimFaasQueue, dynamicGaugeService, raftCluster.Object, logger.Object, 100);
+
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
-        await Task.Delay(3000);
 
+        await Task.Delay(3000, cts.Token);
 
         await cts.CancelAsync();
         await task;
         Assert.True(task.IsCompletedSuccessfully);
     }
-
 }

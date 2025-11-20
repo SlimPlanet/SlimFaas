@@ -8,63 +8,142 @@
   </h1>
 </div>
 
-# SlimFaas: The Slimmest and Simplest Function-as-a-Service [![Continuous Integration](https://github.com/SlimPlanet/SlimFaas/actions/workflows/main.yml/badge.svg)](https://github.com/SlimPlanet/SlimFaas/actions/workflows/main.yml) [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=alert_status)](https://sonarcloud.io/dashboard?id=SlimPlanet_SlimFaas) [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=reliability_rating) [![Security](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=security_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=security_rating) [![Code Coverage](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=coverage)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=Coverage) [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas.svg?label=docker+pull+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver&label=latest+version+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas)](https://artifacthub.io/packages/search?repo=slimfaas) [![Docker SlimFaas MCP](https://img.shields.io/docker/pulls/axaguildev/slimfaas-mcp.svg?label=docker+pull+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-mcp?label=image+size+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-mcp?sort=semver&label=latest+version+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas-mcp)](https://artifacthub.io/packages/search?repo=slimfaas-mcp) [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas?ref=badge_shield&issueType=license) [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas?ref=badge_shield&issueType=security) [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/SlimPlanet/SlimFaas/badge)](https://scorecard.dev/viewer/?uri=github.com/SlimPlanet/SlimFaas) [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10016/badge)](https://www.bestpractices.dev/projects/10016)
+# SlimFaas: The Slimmest, Simplest & Autoscaling-First Function-as-a-Service
 
-SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform for Kubernetes (Docker-Compose, Podman-Compose and beyond).
-It’s designed to be **fast**, **simple**, and **extremely slim**—making it easy to deploy and manage serverless
-functions with minimal overhead.
+[![Continuous Integration](https://github.com/SlimPlanet/SlimFaas/actions/workflows/main.yml/badge.svg)](https://github.com/SlimPlanet/SlimFaas/actions/workflows/main.yml)
+[![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=alert_status)](https://sonarcloud.io/dashboard?id=SlimPlanet_SlimFaas)
+[![Reliability](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=reliability_rating)
+[![Security](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=security_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=security_rating)
+[![Code Coverage](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=coverage)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=Coverage)
+[![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas.svg?label=docker+pull+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
+[![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
+[![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver&label=latest+version+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas)](https://artifacthub.io/packages/search?repo=slimfaas)
+[![Docker SlimFaas MCP](https://img.shields.io/docker/pulls/axaguildev/slimfaas-mcp.svg?label=docker+pull+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds)
+[![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-mcp?label=image+size+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds)
+[![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-mcp?sort=semver&label=latest+version+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas-mcp)](https://artifacthub.io/packages/search?repo=slimfaas-mcp)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas?ref=badge_shield&issueType=license)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas?ref=badge_shield&issueType=security)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/SlimPlanet/SlimFaas/badge)](https://scorecard.dev/viewer/?uri=github.com/SlimPlanet/SlimFaas)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10016/badge)](https://www.bestpractices.dev/projects/10016)
 
-> **Looking for MCP integration?** Check out **[SlimFaas MCP](https://slimfaas.dev/mcp)** -the companion runtime that converts *any* OpenAPI definition into MCP‑ready tools on the fly.
+SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform for Kubernetes (and Docker-Compose / Podman-Compose).
+It’s designed to be **fast**, **simple**, and **extremely slim** — with a very opinionated, **autoscaling-first** design:
+- `0 → N` wake-up from HTTP history & schedules,
+- `N → M` scaling powered by PromQL,
+- internal metrics store, debug endpoints, and scale-to-zero out of the box.
+
+> **Looking for MCP integration?**
+> Check out **[SlimFaas MCP](https://slimfaas.dev/mcp)** — the companion runtime that converts *any* OpenAPI definition into MCP-ready tools on the fly.
+
+---
 
 ## Why Use SlimFaas?
 
-- **Scale**
-    - Scale to zero after a period of inactivity.
-    - Scale from zero to any number of replicas on demand (supporting standard HTTP triggers).
-    - Compatible with Horizontal Pod Autoscalers (HPA), KEDA, and Prometheus metrics.
-    - (Coming soon) SlimFaas-integrated autonomous scale-up.
+### 🚀 Autoscaling that actually understands your traffic
 
-- **Synchronous and Asynchronous Functions**
-    - Simple HTTP endpoints for both sync and async calls.
-    - Async mode lets you limit the number of parallel requests and configure retry patterns.
+- **Scale-to-zero & wake-up**
+    - Scale down to `0` after inactivity with configurable timeouts.
+    - Wake up from `0 → N` based on real HTTP traffic and/or cron-like schedules.
+    - Control initial capacity with `ReplicasAtStart` to reduce cold-start impact.
 
-- **Jobs**
-    - Run one‑off, batch, and scheduled (cron) jobs via HTTP calls, with configurable concurrency and visibility (public/private).
+- **Two-phase scaling model**
+    - **`0 → N`**: driven by HTTP history, schedules and dependencies between functions.
+    - **`N → M`**: driven by a built-in PromQL mini-evaluator on top of an internal metrics store.
+    - Metrics-based autoscaling only runs when at least one pod exists — no reliance on non-existent metrics.
 
-- **Private/Public Functions and Jobs**
-    - Keep internal functions private, accessible only from within the cluster or via trusted pods.
+- **PromQL-driven autoscaler**
+    - Express scaling rules with PromQL-style queries, for example:
+        - `sum(rate(http_server_requests_seconds_count{namespace="...",job="..."}[1m]))`
+        - `max_over_time(slimfaas_function_queue_ready_items{function="my-func"}[30s])`
+        - `histogram_quantile(0.95, sum by (le) ( rate(http_server_requests_seconds_bucket{...}[1m]) ))`
+    - Choose whether thresholds are **per pod** (`AverageValue`) or **global** (`Value`).
+    - Configure scale-up/scale-down policies and stabilization windows inspired by HPA/KEDA.
 
-- **Publish/Subscribe Internal Events**
-    - Synchronously send events to every replica of selected functions (with no extra event-bus dependency).
+- **Integrated metrics scraping**
+    - SlimFaas scrapes only the Prometheus-style HTTP metrics endpoints of pods with `prometheus.io/scrape: "true"`.
+    - It stores only the **metric keys that are requested** in autoscaling triggers or debug queries.
+    - A single designated node scrapes and persists metrics; all other nodes read from the same store.
 
-- **“Mind Changer” (Status & Wake-up API)**
-    - A built-in REST API to monitor your functions and wake them up on demand.
+- **Debug-friendly**
+    - `POST /debug/promql/eval` – evaluate a PromQL expression against the internal store and see the scalar result.
+    - `GET /debug/store` – inspect what metrics are being scraped, how many series exist, and retention size.
+    - Designed so you can easily answer: *“What does SlimFaas see when it decides to scale?”*
 
-- **Plug and Play**
-    - Deploy SlimFaas as a standard pod/StatefulSet with minimal configuration.
-    - Just add annotations to your existing pods to integrate them into SlimFaas scaling logic.
+- **FinOps-minded**
+    - 30-minute metrics retention window for predictable memory usage.
+    - Native scale-to-zero and schedules to keep non-critical workloads cold when they’re not needed.
+    - Slim control-plane footprint to avoid burning resources in your autoscaling logic itself.
 
-- **Slim & Fast**
-    - Written in .NET with a focus on performance and minimal resource usage.
+### 🧵 Synchronous and Asynchronous Functions
+
+- Simple HTTP endpoints for both **sync** and **async** calls.
+- Async mode:
+    - Limit the number of concurrent requests per function.
+    - Configure retry behaviors and backoff strategies.
+    - Drive autoscaling decisions from queue metrics.
+
+### ⏱ Jobs
+
+- Run **one-off**, **batch**, and **scheduled (cron)** jobs via HTTP calls.
+- Configure:
+    - concurrency,
+    - visibility (public/private),
+    - retry behavior.
+
+### 🔐 Private/Public Functions and Jobs
+
+- Mark functions as **public** or **private**:
+    - Private: only accessible from within the cluster or from trusted pods.
+    - Public: fronted by Ingress / API Gateways as usual.
+
+### 📣 Publish/Subscribe Internal Events
+
+- Synchronously send events to **every replica** of selected functions.
+- No additional event bus required — ideal for cluster-local fan-out, cache invalidation, configuration refresh, etc.
+
+### 🧠 “Mind Changer” (Status & Wake-up API)
+
+- Built-in REST APIs to:
+    - monitor function and replica status,
+    - wake functions up on demand,
+    - integrate autoscaling state into your own tools/dashboards.
+
+### 🔌 Plug and Play
+
+- Deploy SlimFaas as a standard pod/StatefulSet with minimal configuration.
+- Onboard existing workloads simply by adding annotations:
+    - let SlimFaas manage their scaling without rewriting your applications.
+
+### ⚡ Slim & Fast
+
+- Written in .NET with:
+    - focus on performance and low memory footprint,
+    - AOT-friendly design,
+    - minimal dependency surface.
 
 <div align="center">
   <img src="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true" alt="SlimFaas CPU RAM" />
 </div>
 
+---
 
 ## Ready to Get Started?
 
 Check out:
 
 - [Get Started](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/get-started.md) – Learn how to deploy SlimFaas on Kubernetes or Docker Compose.
+- [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
+  *(See the autoscaling documentation in this repository.)*
 - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
 - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
-- [Jobs](https://github.com/SlimPlanet/blob/main/SlimFaas/documentation/jobs.md) – Learn how to define and run one-off jobs.
+- [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
 - [How It Works](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/how-it-works.md) – Dive into SlimFaas’s architecture and design.
 - [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
-- [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP‑ready tools on the fly.
+- [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP-ready tools on the fly.
 
-We hope SlimFaas helps you streamline serverless development!
+We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **keep your serverless workloads slim**.
 
 ---
 
@@ -75,7 +154,7 @@ We hope SlimFaas helps you streamline serverless development!
 
   <div align="center">
     <img alt="CNCF logo" src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg" width="200"/>
-</div>
+  </div>
 
 - **Community Meeting**
   Join us through our [Community Meeting Calendar](https://calendar.google.com/calendar/embed?src=be1dd72d18650490580a7d5d96a45a6eebe0fc4c9fe8adce630754cbb6121cca%40group.calendar.google.com&ctz=Europe%2FParis)
@@ -89,6 +168,7 @@ We hope SlimFaas helps you streamline serverless development!
 
 Enjoy SlimFaas!
 
+---
 
 ## Adopters
 
@@ -99,6 +179,8 @@ List of organizations using this project in production or at stages of testing.
 </div>
 
 ---
+
 Add your logo via a pull request:
+
 - Logo must be at PNG format, `100 px width, and 100 px height`.
 - Add your logo to the `documentation/adopters` folder.

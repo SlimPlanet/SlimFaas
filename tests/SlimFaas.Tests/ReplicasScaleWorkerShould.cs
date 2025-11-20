@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SlimFaas;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Tests;
@@ -9,7 +10,7 @@ namespace SlimFaas.Tests;
 public class ScaleWorkerCollection { }
 
 [Collection("ScaleWorker")]
-public class  ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
+public class ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
 {
     public IEnumerator<object[]> GetEnumerator()
     {
@@ -39,8 +40,16 @@ public class  ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
             new DeploymentsInformations(
                 new List<DeploymentInformation>
                 {
-                    new("fibonacci1", "default", Replicas: 1, Pods: new List<PodInformation>() { new PodInformation("fibonacci1", true, true, "localhost", "fibonacci1")}, Configuration: new SlimFaasConfiguration()),
-                    new("fibonacci2", "default", Replicas: 0, Pods: new List<PodInformation>(), DependsOn: new List<string> { "fibonacci1" }, Configuration: new SlimFaasConfiguration())
+                    new("fibonacci1", "default", Replicas: 1,
+                        Pods: new List<PodInformation>
+                        {
+                            new("fibonacci1", true, true, "localhost", "fibonacci1")
+                        },
+                        Configuration: new SlimFaasConfiguration()),
+                    new("fibonacci2", "default", Replicas: 0,
+                        Pods: new List<PodInformation>(),
+                        DependsOn: new List<string> { "fibonacci1" },
+                        Configuration: new SlimFaasConfiguration())
                 },
                 new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
                 new List<PodInformation>()
@@ -55,35 +64,91 @@ public class  ReplicasScaleDeploymentsTestData : IEnumerable<object[]>
 
 public class ReplicasScaleWorkerShould
 {
+    private static AutoScaler CreateAutoScalerForTests()
+    {
+        PromQlMiniEvaluator.SnapshotProvider snapshotProvider = () =>
+        {
+            var metrics = new Dictionary<string, double> { { "dummy_metric", 1.0 } };
+            var pod = new Dictionary<string, IReadOnlyDictionary<string, double>>
+            {
+                { "pod-0", metrics }
+            };
+            var deployment = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>
+            {
+                { "dummy-deploy", pod }
+            };
+            var root = new Dictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>>
+            {
+                { 1L, deployment }
+            };
+            return root;
+        };
+
+        var evaluator = new PromQlMiniEvaluator(snapshotProvider);
+        var store = new InMemoryAutoScalerStore();
+        return new AutoScaler(evaluator, store, logger: null);
+    }
+
     [Theory]
     [ClassData(typeof(ReplicasScaleDeploymentsTestData))]
-    public async Task ScaleFunctionUpAndDown(DeploymentsInformations deploymentsInformations, Times scaleUpTimes,
+    public async Task ScaleFunctionUpAndDown(
+        DeploymentsInformations deploymentsInformations,
+        Times scaleUpTimes,
         Times scaleDownTimes)
     {
-        Mock<ILogger<ScaleReplicasWorker>> logger = new();
-        Mock<IKubernetesService> kubernetesService = new();
-        Mock<IMasterService> masterService = new();
-        HistoryHttpMemoryService historyHttpService = new();
-        historyHttpService.SetTickLastCall("fibonacci2", DateTime.UtcNow.Ticks);
-        Mock<ILogger<ReplicasService>> loggerReplicasService = new();
-        ReplicasService replicasService =
-            new(kubernetesService.Object,
-                historyHttpService,
-                loggerReplicasService.Object);
-        masterService.Setup(ms => ms.IsMaster).Returns(true);
-        kubernetesService.Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>())).ReturnsAsync(deploymentsInformations);
+        var logger = new Mock<ILogger<ScaleReplicasWorker>>();
+        var kubernetesService = new Mock<IKubernetesService>();
+        var masterService = new Mock<IMasterService>();
+        var historyHttpService = new HistoryHttpMemoryService();
 
-        ReplicaRequest scaleRequestFibonacci1 = new("fibonacci1", "default", 0, PodType.Deployment);
-        kubernetesService.Setup(k => k.ScaleAsync(scaleRequestFibonacci1)).ReturnsAsync(scaleRequestFibonacci1);
-        ReplicaRequest scaleRequestFibonacci2 = new("fibonacci2", "default", 1, PodType.Deployment);
-        kubernetesService.Setup(k => k.ScaleAsync(scaleRequestFibonacci2)).ReturnsAsync(scaleRequestFibonacci2);
+        // On force "fibonacci2" comme récemment appelé pour déclencher le scale-up 0 -> 1
+        historyHttpService.SetTickLastCall("fibonacci2", DateTime.UtcNow.Ticks);
+
+        var loggerReplicasService = new Mock<ILogger<ReplicasService>>();
+        var autoScaler = CreateAutoScalerForTests();
+
+        // Nouveau : registry dummy pour coller à la signature de ReplicasService
+        var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
+
+        var replicasService = new ReplicasService(
+            kubernetesService.Object,
+            historyHttpService,
+            autoScaler,
+            loggerReplicasService.Object,
+            metricsRegistry);
+
+        masterService.Setup(ms => ms.IsMaster).Returns(true);
+
+        kubernetesService
+            .Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deploymentsInformations);
+
+        // Scale down fibonacci1 -> 0
+        var scaleRequestFibonacci1 = new ReplicaRequest("fibonacci1", "default", 0, PodType.Deployment);
+        kubernetesService
+            .Setup(k => k.ScaleAsync(scaleRequestFibonacci1))
+            .ReturnsAsync(scaleRequestFibonacci1);
+
+        // Scale up fibonacci2 -> 1
+        var scaleRequestFibonacci2 = new ReplicaRequest("fibonacci2", "default", 1, PodType.Deployment);
+        kubernetesService
+            .Setup(k => k.ScaleAsync(scaleRequestFibonacci2))
+            .ReturnsAsync(scaleRequestFibonacci2);
+
         await replicasService.SyncDeploymentsAsync("default");
 
-        ScaleReplicasWorker service = new(replicasService, masterService.Object, logger.Object, 100);
+        var service = new ScaleReplicasWorker(
+            replicasService,
+            masterService.Object,
+            logger.Object,
+            delay: 100);
+
         using var cts = new CancellationTokenSource();
-        Task task = service.StartAsync(cts.Token);
+        var task = service.StartAsync(cts.Token);
+
         await Task.Delay(3000);
 
+        // Vérification du scale up/down selon les cas de test
         kubernetesService.Verify(v => v.ScaleAsync(scaleRequestFibonacci2), scaleUpTimes);
         kubernetesService.Verify(v => v.ScaleAsync(scaleRequestFibonacci1), scaleDownTimes);
 
@@ -121,7 +186,6 @@ public class ReplicasScaleWorkerShould
         Assert.True(task.IsCompletedSuccessfully);
     }
 
-
     [Fact]
     public void GetTimeoutSecondBeforeSetReplicasMin()
     {
@@ -129,29 +193,30 @@ public class ReplicasScaleWorkerShould
             "default",
             Replicas: 1,
             Configuration: new SlimFaasConfiguration(),
-            Pods: new List<PodInformation>()
+            Pods: new List<PodInformation>
             {
-                new PodInformation("fibonacci1", true, true, "localhost", "fibonacci1")
+                new("fibonacci1", true, true, "localhost", "fibonacci1")
             },
-            Schedule: new ScheduleConfig()
+            Schedule: new ScheduleConfig
             {
                 TimeZoneID = "Europe/Paris",
-                Default = new DefaultSchedule()
+                Default = new DefaultSchedule
                 {
-                    ScaleDownTimeout = new List<ScaleDownTimeout>()
+                    ScaleDownTimeout = new List<ScaleDownTimeout>
                     {
-                        new() { Time = "8:00", Value = 60 }, new() { Time = "21:00", Value = 10 },
+                        new() { Time = "8:00", Value = 60 },
+                        new() { Time = "21:00", Value = 10 },
                     }
                 }
             }
         );
 
         var now = DateTime.UtcNow;
-        now = now.AddHours(- (now.Hour - 9));
+        now = now.AddHours(-(now.Hour - 9));
         var timeout = ReplicasService.GetTimeoutSecondBeforeSetReplicasMin(deplymentInformation, now);
         Assert.Equal(60, timeout);
 
-        now = now.AddHours(- (now.Hour - 22));
+        now = now.AddHours(-(now.Hour - 22));
         timeout = ReplicasService.GetTimeoutSecondBeforeSetReplicasMin(deplymentInformation, now);
         Assert.Equal(10, timeout);
     }
@@ -163,16 +228,16 @@ public class ReplicasScaleWorkerShould
             "default",
             Replicas: 1,
             Configuration: new SlimFaasConfiguration(),
-            Pods: new List<PodInformation>()
+            Pods: new List<PodInformation>
             {
-                new PodInformation("fibonacci1", true, true, "localhost", "fibonacci1")
+                new("fibonacci1", true, true, "localhost", "fibonacci1")
             },
-            Schedule: new ScheduleConfig()
+            Schedule: new ScheduleConfig
             {
                 TimeZoneID = "Europe/Paris",
-                Default = new DefaultSchedule()
+                Default = new DefaultSchedule
                 {
-                    WakeUp = new List<string>()
+                    WakeUp = new List<string>
                     {
                         "8:00",
                         "21:00"
@@ -182,17 +247,17 @@ public class ReplicasScaleWorkerShould
         );
 
         var now = DateTime.UtcNow;
-        now = now.AddHours(- (now.Hour - 9));
+        now = now.AddHours(-(now.Hour - 9));
         var ticks = ReplicasService.GetLastTicksFromSchedule(deploymentInformation, now);
         var dateTimeFromTicks = new DateTime(ticks ?? 0, DateTimeKind.Utc);
         Assert.True(dateTimeFromTicks.Hour < 12);
 
-        now = now.AddHours(- (now.Hour - 22));
+        now = now.AddHours(-(now.Hour - 22));
         ticks = ReplicasService.GetLastTicksFromSchedule(deploymentInformation, now);
         var dateTimeFromTicks22 = new DateTime(ticks ?? 0, DateTimeKind.Utc);
         Assert.True(dateTimeFromTicks22.Hour > 16);
 
-        now = now.AddHours(- (now.Hour - 1));
+        now = now.AddHours(-(now.Hour - 1));
         ticks = ReplicasService.GetLastTicksFromSchedule(deploymentInformation, now);
         var dateTimeFromTicks1 = new DateTime(ticks ?? 0, DateTimeKind.Utc);
         Assert.True(dateTimeFromTicks1.Hour > 16);

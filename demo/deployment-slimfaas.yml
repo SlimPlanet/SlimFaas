@@ -62,6 +62,10 @@ spec:
     metadata:
       labels:
         app: slimfaas
+      annotations:
+        prometheus.io/path: /metrics
+        prometheus.io/port: "5000"
+        prometheus.io/scrape: "true"
     spec:
       volumes:
         - name: slimfaas-volume
@@ -116,7 +120,7 @@ spec:
               mountPath: /database
           resources:
             limits:
-              memory: "120Mi"
+              memory: "240Mi"
               cpu: "400m"
             requests:
               memory: "120Mi"

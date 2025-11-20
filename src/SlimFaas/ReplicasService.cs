@@ -14,12 +14,17 @@ public interface IReplicasService
 public class ReplicasService(
     IKubernetesService kubernetesService,
     HistoryHttpMemoryService historyHttpService,
-    ILogger<ReplicasService> logger)
+    AutoScaler autoScaler,
+    ILogger<ReplicasService> logger,
+    IRequestedMetricsRegistry metricsRegistry,
+    Func<DateTime>? nowProvider = null)
     : IReplicasService
 {
     private readonly bool _isTurnOnByDefault = EnvironmentVariables.ReadBoolean(logger,
         EnvironmentVariables.PodScaledUpByDefaultWhenInfrastructureHasNeverCalled,
         EnvironmentVariables.PodScaledUpByDefaultWhenInfrastructureHasNeverCalledDefault);
+
+    private readonly Func<DateTime> _nowProvider = nowProvider ?? (() => DateTime.UtcNow);
 
     // On part du principe que DeploymentsInformations est (quasi) immuable.
     private DeploymentsInformations _deployments = new(
@@ -39,6 +44,20 @@ public class ReplicasService(
     public async Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace)
     {
         DeploymentsInformations deployments = await kubernetesService.ListFunctionsAsync(kubeNamespace, Deployments);
+
+        // 🔍 Enregistrer les métriques utilisées par les triggers
+        foreach (var f in deployments.Functions)
+        {
+            if (f.Scale?.Triggers is null)
+                continue;
+
+            foreach (var trigger in f.Scale.Triggers)
+            {
+                if (!string.IsNullOrWhiteSpace(trigger.Query))
+                    metricsRegistry.RegisterFromQuery(trigger.Query);
+            }
+        }
+
         // Remplacement atomique de l'instance.
         Interlocked.Exchange(ref _deployments, deployments);
         return deployments;
@@ -47,9 +66,12 @@ public class ReplicasService(
     public async Task CheckScaleAsync(string kubeNamespace)
     {
         var currentDeployments = _deployments;
+        var nowUtc = _nowProvider();
+        long nowUnixSeconds = new DateTimeOffset(nowUtc).ToUnixTimeSeconds();
 
         long maximumTicks = 0L;
-        var ticksLastCall = new Dictionary<string, long>();
+        var ticksLastCall = new Dictionary<string, long>(StringComparer.Ordinal);
+
         foreach (DeploymentInformation deploymentInformation in currentDeployments.Functions)
         {
             long tickLastCall = historyHttpService.GetTicksLastCall(deploymentInformation.Deployment);
@@ -58,6 +80,7 @@ public class ReplicasService(
         }
 
         List<Task<ReplicaRequest?>> tasks = new();
+
         foreach (DeploymentInformation deploymentInformation in currentDeployments.Functions)
         {
             long tickLastCall = deploymentInformation.ReplicasStartAsSoonAsOneFunctionRetrieveARequest
@@ -66,10 +89,10 @@ public class ReplicasService(
 
             if (_isTurnOnByDefault && tickLastCall == 0)
             {
-                tickLastCall = DateTime.UtcNow.Ticks;
+                tickLastCall = nowUtc.Ticks;
             }
 
-            var lastTicksFromSchedule = GetLastTicksFromSchedule(deploymentInformation, DateTime.UtcNow);
+            var lastTicksFromSchedule = GetLastTicksFromSchedule(deploymentInformation, nowUtc);
             if (lastTicksFromSchedule.HasValue && lastTicksFromSchedule > tickLastCall)
             {
                 tickLastCall = lastTicksFromSchedule.Value;
@@ -85,64 +108,84 @@ public class ReplicasService(
                     tickLastCall = ticksLastCall[information.Deployment];
             }
 
-            var timeToWaitSeconds = TimeSpan.FromSeconds(GetTimeoutSecondBeforeSetReplicasMin(deploymentInformation, DateTime.UtcNow));
-            bool timeElapsedWithoutRequest = (TimeSpan.FromTicks(tickLastCall) + timeToWaitSeconds) < TimeSpan.FromTicks(DateTime.UtcNow.Ticks);
+            var timeoutSeconds = TimeSpan.FromSeconds(GetTimeoutSecondBeforeSetReplicasMin(deploymentInformation, nowUtc));
+            bool timeElapsedWithoutRequest =
+                (TimeSpan.FromTicks(tickLastCall) + timeoutSeconds) < TimeSpan.FromTicks(nowUtc.Ticks);
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                var time = (TimeSpan.FromTicks(tickLastCall) + timeToWaitSeconds) - TimeSpan.FromTicks(DateTime.UtcNow.Ticks);
-                logger.LogDebug("Time left without request for scale down {Deployment} is {TimeElapsedWithoutRequest}",
-                    deploymentInformation.Deployment, time);
+                var timeLeft = (TimeSpan.FromTicks(tickLastCall) + timeoutSeconds) - TimeSpan.FromTicks(nowUtc.Ticks);
+                logger.LogDebug("Time left without request for scale down {Deployment} is {TimeLeft}",
+                    deploymentInformation.Deployment, timeLeft);
             }
+
             int currentScale = deploymentInformation.Replicas;
+            int desiredReplicas = currentScale;
+
+            // --- 1. SYSTÈME 0 -> N (historique HTTP + schedule) ---
+
             if (timeElapsedWithoutRequest)
             {
-                if (currentScale == deploymentInformation.ReplicasMin)
-                {
-                    continue;
-                }
-
-                if (currentScale < deploymentInformation.ReplicasMin)
-                {
-                    logger.LogInformation("Scale up {Deployment} from {CurrentScale} to {ReplicaAtStart}",
-                        deploymentInformation.Deployment, currentScale, deploymentInformation.ReplicasAtStart);
-                }
-                else
-                {
-                    logger.LogInformation("Scale down {Deployment} from {CurrentScale} to {ReplicasMin}",
-                        deploymentInformation.Deployment, currentScale, deploymentInformation.ReplicasMin);
-                }
-
-                tasks.Add(kubernetesService.ScaleAsync(new ReplicaRequest(
-                    Replicas: deploymentInformation.ReplicasMin,
-                    Deployment: deploymentInformation.Deployment,
-                    Namespace: kubeNamespace,
-                    PodType: deploymentInformation.PodType
-                )));
+                // Idle trop longtemps => on ramène à ReplicasMin (peut être 0)
+                desiredReplicas = deploymentInformation.ReplicasMin;
             }
-            else if ((currentScale is 0 || currentScale < deploymentInformation.ReplicasMin) && DependsOnReady(deploymentInformation))
+            else if ((currentScale == 0 || currentScale < deploymentInformation.ReplicasMin)
+                     && DependsOnReady(deploymentInformation))
             {
-                logger.LogInformation("Scale up {Deployment} from {CurrentScale} to {ReplicaAtStart}",
-                    deploymentInformation.Deployment, currentScale, deploymentInformation.ReplicasAtStart);
-                tasks.Add(kubernetesService.ScaleAsync(new ReplicaRequest(
-                    Replicas: deploymentInformation.ReplicasAtStart,
-                    Deployment: deploymentInformation.Deployment,
-                    Namespace: kubeNamespace,
-                    PodType: deploymentInformation.PodType
-                )));
+                // Sortie de 0 ou mise à niveau jusqu'à ReplicasAtStart
+                desiredReplicas = deploymentInformation.ReplicasAtStart;
             }
+            else
+            {
+                // --- 2. SYSTÈME N -> M (AutoScaler Prometheus) ---
+                // IMPORTANT : ne s'applique que si on a déjà au moins un pod.
+                if (deploymentInformation.Scale is not null && currentScale > 0)
+                {
+                    desiredReplicas = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
+                    if (desiredReplicas < deploymentInformation.ReplicasAtStart)
+                    {
+                        desiredReplicas = deploymentInformation.ReplicasAtStart;
+                    }
+                    Console.WriteLine($"ComputeDesiredReplicas {desiredReplicas}");
+                }
+            }
+
+            if (desiredReplicas == currentScale)
+            {
+                continue;
+            }
+
+            logger.LogInformation("Scale {Deployment} from {CurrentScale} to {DesiredReplicas}",
+                deploymentInformation.Deployment, currentScale, desiredReplicas);
+
+            tasks.Add(kubernetesService.ScaleAsync(new ReplicaRequest(
+                Replicas: desiredReplicas,
+                Deployment: deploymentInformation.Deployment,
+                Namespace: kubeNamespace,
+                PodType: deploymentInformation.PodType
+            )));
         }
 
         if (tasks.Count > 0)
         {
             List<DeploymentInformation> updatedFunctions = new();
             ReplicaRequest?[] replicaRequests = await Task.WhenAll(tasks);
+            var requestsByDeployment = replicaRequests
+                .Where(r => r is not null)
+                .ToDictionary(r => r!.Deployment, r => r!, StringComparer.Ordinal);
+
             foreach (DeploymentInformation function in currentDeployments.Functions)
             {
-                ReplicaRequest? updatedFunction = replicaRequests.ToList().Find(t => t?.Deployment == function.Deployment);
-                updatedFunctions.Add(function with { Replicas = updatedFunction?.Replicas ?? function.Replicas });
+                if (requestsByDeployment.TryGetValue(function.Deployment, out var updatedRequest))
+                {
+                    updatedFunctions.Add(function with { Replicas = updatedRequest.Replicas });
+                }
+                else
+                {
+                    updatedFunctions.Add(function);
+                }
             }
-            // Création d'une nouvelle instance en combinant les mises à jour.
+
             var updatedDeployments = currentDeployments with { Functions = updatedFunctions };
             Interlocked.Exchange(ref _deployments, updatedDeployments);
         }
@@ -222,13 +265,6 @@ public class ReplicasService(
 
             if (times.Count >= 2)
             {
-
-                /*
-                    Convert to ticks to prevent schedule elements, when moving to utc time, from taking precedence when they shoudln't.
-                    For instance: 1am in French would become 11pm of the day before in utc hour.
-                    This would make it take precedence over almost every other time.
-                    Therefore, comparing only the total amount of minutes, as was done before, would not work.
-                */
                 var orderedTimes = times
                     .Where(t => t.DateTime.Ticks < nowUtc.Ticks)
                     .OrderBy(t => t.DateTime.Ticks)

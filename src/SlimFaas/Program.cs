@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -12,6 +13,7 @@ using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Workers;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 
 #pragma warning disable CA2252
@@ -102,12 +104,43 @@ switch (envOrConfig)
         break;
 }
 
+// Store métriques Prometheus en mémoire
+serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
+
+// Evaluateur PromQL branché sur le snapshot du store
+serviceCollectionStarter.AddSingleton<PromQlMiniEvaluator>(sp =>
+{
+    var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
+    return new PromQlMiniEvaluator(store.Snapshot);
+});
+
+// Store d’historique de décisions de scaling
+serviceCollectionStarter.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
+
+// AutoScaler (utilisé par ReplicasService)
+serviceCollectionStarter.AddSingleton<AutoScaler>();
+serviceCollectionStarter.AddSingleton<IRequestedMetricsRegistry, RequestedMetricsRegistry>();
+serviceCollectionStarter.AddSingleton<IMetricsScrapingGuard, MetricsScrapingGuard>();
+serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
+
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 
 IServiceCollection serviceCollectionSlimFaas = builder.Services;
+// Réutilise IMetricsStore / PromQlMiniEvaluator / AutoScaler depuis le starter
+serviceCollectionSlimFaas.AddSingleton<IMetricsStore>(sp =>
+    serviceProviderStarter.GetRequiredService<IMetricsStore>());
+
+serviceCollectionSlimFaas.AddSingleton<PromQlMiniEvaluator>(sp =>
+    serviceProviderStarter.GetRequiredService<PromQlMiniEvaluator>());
+
+serviceCollectionSlimFaas.AddSingleton<IAutoScalerStore>(sp =>
+    serviceProviderStarter.GetRequiredService<IAutoScalerStore>());
+
+serviceCollectionSlimFaas.AddSingleton<AutoScaler>(sp =>
+    serviceProviderStarter.GetRequiredService<AutoScaler>());
 serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimScheduleJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimJobsWorker>();
@@ -117,13 +150,19 @@ serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
 serviceCollectionSlimFaas.AddHostedService<HealthWorker>();
-//serviceCollectionSlimFaas.AddHostedService<ThreadPoolTuner>();
+serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
 serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
 serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
     (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
+serviceCollectionSlimFaas.AddSingleton<IMetricsScrapingGuard>(sp =>
+    serviceProviderStarter.GetRequiredService<IMetricsScrapingGuard>());
+serviceCollectionSlimFaas.AddSingleton<IRequestedMetricsRegistry>(sp =>
+    serviceProviderStarter.GetRequiredService<IRequestedMetricsRegistry>());
+serviceCollectionSlimFaas.AddSingleton<IMetricsStore>(sp =>
+    serviceProviderStarter.GetRequiredService<IMetricsStore>());
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasPorts, SlimFaasPorts>(sp =>
     (SlimFaasPorts)serviceProviderStarter.GetService<ISlimFaasPorts>()!);
 serviceCollectionSlimFaas.AddSingleton<HistoryHttpDatabaseService>();
@@ -135,6 +174,7 @@ serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
+
 
 serviceCollectionSlimFaas.AddCors();
 
@@ -331,6 +371,13 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
     }
 });
 
+// AOT-friendly JSON (source generators)
+builder.Services.ConfigureHttpJsonOptions(opt =>
+{
+    opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
+});
+
+
 
 WebApplication app = builder.Build();
 app.UseCors(builder =>
@@ -353,6 +400,91 @@ app.UseCors(builder =>
             .AllowAnyHeader();
     }
 });
+
+
+app.MapPost("/debug/promql/eval", (PromQlRequest req,
+        PromQlMiniEvaluator eval,
+        IMetricsScrapingGuard guard,
+        IRequestedMetricsRegistry registry) =>
+    {
+        // Active le scraping côté PromQL
+        guard.EnablePromql();
+
+        // Enregistre les métriques demandées par cette requête
+        registry.RegisterFromQuery(req.Query);
+
+        if (string.IsNullOrWhiteSpace(req.Query))
+            return Results.BadRequest(new ErrorResponse { Error = "query is required" });
+
+        double result;
+        try
+        {
+            result = eval.Evaluate(req.Query, req.NowUnixSeconds);
+
+            // 👇 IMPORTANT : filtrer NaN / ±Infinity
+            if (double.IsNaN(result) || double.IsInfinity(result))
+            {
+                return Results.BadRequest(new ErrorResponse
+                {
+                    Error = "PromQL result is NaN or Infinity (probably no data or division by zero)."
+                });
+            }
+        }
+        catch (FormatException fe)
+        {
+            return Results.BadRequest(new ErrorResponse { Error = fe.Message });
+        }
+        catch (Exception ex)
+        {
+            return Results.Problem(
+                title: "Evaluation error",
+                detail: ex.Message,
+                statusCode: 500
+            );
+        }
+
+        return Results.Ok(new PromQlResponse(result));
+    })
+    .WithName("PromQlEvaluate")
+    .Produces<PromQlResponse>(StatusCodes.Status200OK)
+    .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
+    .ProducesProblem(StatusCodes.Status500InternalServerError);
+
+
+app.MapGet("/debug/store", (IMetricsStore store, IRequestedMetricsRegistry registry) =>
+    {
+        var snapshot = store.Snapshot();
+
+        int timestampBuckets = snapshot.Count;
+        int seriesCount = 0;
+        int totalPoints = 0;
+
+        foreach (var tsEntry in snapshot)                  // ts
+        {
+            foreach (var depEntry in tsEntry.Value)        // deployment
+            {
+                foreach (var podEntry in depEntry.Value)   // podIp
+                {
+                    var metrics = podEntry.Value;          // Dictionary<string,double>
+                    int metricCount = metrics.Count;
+
+                    totalPoints += metricCount;
+                    seriesCount += metricCount;
+                }
+            }
+        }
+
+        var response = new MetricsStoreDebugResponse(
+            RequestedMetricNames: registry.GetRequestedMetricNames(),
+            TimestampBuckets: timestampBuckets,
+            SeriesCount: seriesCount,
+            TotalPoints: totalPoints
+        );
+
+        return Results.Ok(response);
+    })
+    .WithName("MetricsStoreDebug")
+    .Produces<MetricsStoreDebugResponse>(StatusCodes.Status200OK);
 
 app.UseMiddleware<SlimProxyMiddleware>();
 
@@ -416,6 +548,5 @@ app.Run();
 serviceProviderStarter.Dispose();
 
 public partial class Program;
-
 
 #pragma warning restore CA2252
