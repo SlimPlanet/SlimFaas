@@ -37,6 +37,9 @@ const Navbar: React.FC = () => {
                         <Link href="/functions">Functions</Link>
                     </li>
                     <li className="navbar__item">
+                        <Link href="/autoscaling">Autoscaling</Link>
+                    </li>
+                    <li className="navbar__item">
                         <Link href="/events">Events</Link>
                     </li>
                     <li className="navbar__item">

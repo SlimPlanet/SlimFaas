@@ -12,11 +12,14 @@
 3. [Autoscaling architecture](#autoscaling-architecture)
 4. [Configuring `0 → N` scale (HTTP history + schedule)](#configuring-0--n-scale-http-history--schedule)
 5. [Configuring `N → M` scale (Prometheus AutoScaler)](#configuring-n--m-scale-prometheus-autoscaler)
-6. [Decision algorithm details](#decision-algorithm-details)
-7. [Configuration examples](#configuration-examples)
-8. [Best practices](#best-practices)
-9. [Observability & debugging](#observability--debugging)
-10. [FAQ](#faq)
+6. [PromQL support & current limitations](#promql-support--current-limitations)
+7. [Metrics scraping internals](#metrics-scraping-internals)
+8. [Debug HTTP endpoints](#debug-http-endpoints)
+9. [Decision algorithm details](#decision-algorithm-details)
+10. [Configuration examples](#configuration-examples)
+11. [Best practices](#best-practices)
+12. [Observability & debugging](#observability--debugging)
+13. [FAQ](#faq)
 
 ---
 
@@ -373,6 +376,643 @@ Conceptually:
 
 ---
 
+## PromQL support & current limitations
+
+SlimFaas embeds a **small PromQL evaluator** that is focused on autoscaling use cases.
+It supports a **restricted but practical subset** of PromQL, and always evaluates the
+query to a **single scalar** that can be used by the AutoScaler.
+
+> If a query cannot be parsed, or ultimately evaluates to `NaN` / `Infinity`,
+> the AutoScaler treats it as “no data” and keeps the current replica count
+> (subject to `ReplicasMin` / `ReplicaMax`).
+
+### Supported query patterns
+
+#### 1. Instant and range selectors
+
+- **Instant selector**
+
+  ```promql
+  http_server_requests_seconds_count{namespace="default", job="fibonacci"}
+  ```
+
+  The evaluator loads all time series that match the metric name and label filters,
+  and keeps the latest value per series.
+
+- **Range selector** (used with functions like `rate`, `max_over_time`, etc.)
+
+  ```promql
+  http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m]
+  ```
+
+  Supported duration units: `s`, `m`, `h` (e.g. `15s`, `1m`, `5m`, `1h`).
+
+- **Label matchers**
+
+    - Exact match: `label="value"`
+    - Regex match: `label=~"value.*"`
+
+  (Negative operators `!=` / `!~` are **not** supported.)
+
+#### 2. Arithmetic on scalars
+
+Once a query has been reduced to a scalar, you can combine expressions with basic
+arithmetic:
+
+```promql
+max_over_time(slimfaas_function_queue_ready_items{function="fibonacci"}[30s]) / 100
+```
+
+Supported operators: `+`, `-`, `*`, `/` (no comparison or logical operators).
+
+#### 3. `rate()` on counters
+
+```promql
+rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m])
+```
+
+- Computes the **per-series rate** based on the first and last sample in the window.
+- Resets (counter going backwards) are ignored.
+- The evaluator returns the **sum of the rates of all matching series**.
+
+This is typically combined with `sum()` (or used directly) as a global RPS estimator.
+
+#### 4. Aggregations: `sum`, `min`, `max`, `avg`
+
+All aggregations operate on scalars or on the per-bucket maps used for histograms.
+
+Common patterns:
+
+- **Global sum**
+
+  ```promql
+  sum(rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m]))
+  ```
+
+- **Global min / max / avg** of a scalar expression:
+
+  ```promql
+  max(
+    rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m])
+  )
+  ```
+
+- **Aggregations with `by (label)`**
+
+  ```promql
+  sum by (le) (
+    rate(http_server_requests_seconds_bucket{namespace="default", job="fibonacci"}[1m])
+  )
+  ```
+
+  This form is specifically supported for histogram use cases (see below).
+  For non-histogram use cases, the `by (...)` support is limited and mostly
+  intended as an internal building block for `histogram_quantile`.
+
+> For autoscaling, you should assume that the final result is always a single scalar.
+> Even when using `by (...)` aggregations, the evaluator eventually collapses the
+> data to a scalar to feed the scaling formula.
+
+#### 5. Histograms and `histogram_quantile()`
+
+SlimFaas supports the standard Prometheus pattern for computing quantiles from histograms:
+
+```promql
+histogram_quantile(
+  0.95,
+  sum by (le) (
+    rate(http_server_requests_seconds_bucket{namespace="default", job="fibonacci"}[1m])
+  )
+)
+```
+
+Supported semantics:
+
+- The `_bucket` metric is treated as a **cumulative histogram**.
+- `rate(...[win])` converts buckets to per-second rates.
+- `sum by (le)` merges per-pod buckets into **global buckets per `le`**.
+- `histogram_quantile(phi, …)` then applies Prometheus’ official algorithm
+  to compute the `phi` quantile (e.g. `0.95` for p95).
+
+The result is a **single scalar** representing the chosen quantile in seconds.
+
+#### 6. `max_over_time()` on gauges
+
+SlimFaas exposes several queue-related metrics as gauges, for example:
+
+```promql
+slimfaas_function_queue_ready_items{function="fibonacci"}
+slimfaas_function_queue_in_flight_items{function="fibonacci"}
+slimfaas_function_queue_retry_pending_items{function="fibonacci"}
+```
+
+You can use `max_over_time()` to look at the worst case in a recent window:
+
+```promql
+max_over_time(slimfaas_function_queue_ready_items{function="fibonacci"}[30s])
+```
+
+Semantics:
+
+- For each matching series, the evaluator computes the **maximum value** in the window.
+- The global result is the **maximum of all series maxima**.
+- The output is a scalar, perfect for triggers such as “max queue length over 30s”.
+
+This is particularly useful for queue-driven autoscaling.
+
+### Practical examples for triggers
+
+Here are a few ready-to-use patterns for `SlimFaas/Scale.Triggers[].Query`.
+
+#### Example: total RPS per function
+
+```jsonc
+{
+  "MetricType": "AverageValue",
+  "MetricName": "rps_per_pod",
+  "Query": "sum(rate(http_server_requests_seconds_count{namespace="${namespace}",job="${app}"}[1m]))",
+  "Threshold": 20
+}
+```
+
+Interpretation:
+
+- The query returns the total RPS for the function.
+- With `MetricType = "AverageValue"`, the AutoScaler treats `Threshold = 20`
+  as “target 20 RPS **per pod**”.
+
+#### Example: max queue length over 30 seconds
+
+```jsonc
+{
+  "MetricType": "Value",
+  "MetricName": "queue_max_30s",
+  "Query": "max_over_time(slimfaas_function_queue_ready_items{function="${app}"}[30s])",
+  "Threshold": 200
+}
+```
+
+Interpretation:
+
+- If the maximum queue length over the last 30 seconds is 400 and the threshold is 200,
+  the AutoScaler will aim for `desiredReplicas ≈ 2× currentReplicas` (subject to policies).
+
+#### Example: p95 latency
+
+```jsonc
+{
+  "MetricType": "AverageValue",
+  "MetricName": "p95_latency",
+  "Query": "histogram_quantile(0.95, sum by (le) ( rate(http_server_requests_seconds_bucket{namespace="${namespace}",job="${app}"}[1m]) ))",
+  "Threshold": 0.500
+}
+```
+
+Interpretation:
+
+- The query computes the p95 latency in seconds.
+- `Threshold = 0.500` means “keep p95 latency around 500ms per pod”.
+
+### Current limitations & gotchas
+
+The SlimFaas PromQL mini-evaluator is intentionally simple. Notable limitations:
+
+1. **Scalar only**
+    - All queries must reduce to a **single scalar**.
+    - There's no support for returning full time series or vectors.
+    - The scaler sums or aggregates all matching series internally.
+
+2. **Limited function set**
+    - Supported: `rate`, `sum`, `min`, `max`, `avg`, `histogram_quantile`, `max_over_time`,
+      plus basic arithmetic `+ - * /`.
+    - Not supported: `count`, `stddev`, `quantile_over_time`, `increase`, `irate`, `predict_linear`,
+      `clamp_*`, `label_replace`, etc.
+
+3. **No logical or comparison operators**
+    - Operators such as `>`, `<`, `==`, `and`, `or`, `unless` are not supported.
+    - Use these expressions only in dashboards, not in SlimFaas AutoScaler queries.
+
+4. **Simple label matchers only**
+    - Supported: `=` and `=~`.
+    - Not supported: `!=`, `!~`.
+    - Make sure your metric cardinality and label design fit this constraint.
+
+5. **Range selector constraints**
+    - Only simple durations with `s`, `m`, `h` are supported (e.g. `15s`, `1m`, `5m`).
+    - Nested subqueries like `rate(sum(...)[5m:1m])` are **not** supported.
+
+6. **Histogram assumptions**
+    - Histogram support assumes standard Prometheus conventions:
+        - cumulative `_bucket` metrics,
+        - a `le` label with numeric bounds or `+Inf`.
+    - The recommended pattern is exactly:
+      `histogram_quantile(phi, sum by (le) ( rate(<metric>_bucket[win]) ))`.
+
+7. **Evaluation time**
+    - By default, the evaluator uses the **latest timestamp** found in the metrics store
+      as the “now” for range selections.
+    - You can override it in code (`Evaluate(query, nowUnixSeconds)`), but the SlimFaas
+      AutoScaler uses the default.
+
+8. **Error handling**
+    - A parse error or unsupported construct results in a `FormatException`
+      which is caught by the AutoScaler and logged as a warning.
+    - Any resulting `NaN` / `Infinity` is treated as “no data” and the current replica
+      count is preserved (within `ReplicasMin` / `ReplicaMax`).
+
+In short: **keep queries simple and scalar-oriented**. If a query would be hard to express
+without advanced PromQL features, it is probably better suited for dashboards than for
+direct autoscaling decisions.
+
+---
+
+## Metrics scraping internals
+
+SlimFaas does not talk directly to Prometheus. Instead, it has its own lightweight
+scraping and storage pipeline that is optimized for autoscaling signals.
+
+At a high level:
+
+- Only the **metrics HTTP endpoint** is called on your pods.
+- SlimFaas keeps in memory **only the metric keys that have been requested at least once**.
+- A single SlimFaas node is responsible for scraping and persisting metrics.
+- All nodes evaluate PromQL against a **shared, synchronized store** with a **30-minute retention window**.
+
+---
+
+### Scraping cycle (every 5 seconds)
+
+Every 5 seconds, a background worker (`MetricsScrapingWorker`) runs on the
+**designated scraping node** and performs the following steps:
+
+1. Discover pods that:
+    - are part of your SlimFaas workloads, and
+    - expose Prometheus-compatible HTTP metrics via annotations.
+
+2. For each pod that has Prometheus HTTP annotations (for example):
+
+    - `prometheus.io/scrape: "true"`
+    - `prometheus.io/scheme: "http"` (optional, defaults to HTTP)
+    - `prometheus.io/port: "5000"` (optional)
+    - `prometheus.io/path: "/metrics"` (optional)
+
+   the worker builds the target URL:
+
+   ```text
+   <scheme>://<pod-ip>:<port><path>
+   ```
+
+3. It sends a **single HTTP GET** to the metrics endpoint of each such pod and
+   parses the standard Prometheus exposition format:
+
+   ```text
+   <metric_name>{optional_labels} <value> [optional_timestamp]
+   ```
+
+4. For each parsed metric line, it decides whether to store the sample
+   in the in-memory `IMetricsStore` (see next section).
+
+Only this lightweight HTTP metrics scrape happens every 5 seconds; no other
+“debug” or control endpoints are called on your functions during scraping.
+
+---
+
+### Requested metric keys only
+
+To keep memory and I/O usage small, SlimFaas does **not** store every metric
+it sees. Instead, it maintains a dynamic allow-list of **requested metric names**
+via `IRequestedMetricsRegistry`.
+
+A metric name becomes “requested” in two situations:
+
+1. It appears in a `SlimFaas/Scale.Triggers[].Query` used by the AutoScaler.
+2. It is referenced at least once in a call to the debug endpoint
+   [`POST /debug/promql/eval`](#debug-http-endpoints).
+
+During scraping:
+
+- For each metric line, SlimFaas:
+    - extracts the metric name (e.g. `http_server_requests_seconds_count`,
+      `slimfaas_function_queue_ready_items`, etc.),
+    - checks if this name is present in the requested set,
+    - **only stores the sample if the metric name is requested**.
+
+All other metrics are simply ignored.
+
+#### Enabling new metrics via debug
+
+If you run a debug query that uses a metric which was **not** previously requested,
+for example:
+
+```bash
+curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
+    "query": "max_over_time(some_new_metric{function="fibonacci"}[30s])"
+  }'
+```
+
+then:
+
+- `IRequestedMetricsRegistry` will add `some_new_metric` to the requested set,
+- from the next scraping cycles onward, the scraper will start storing
+  samples for `some_new_metric` (provided the pods actually expose it).
+
+This is not retroactive: data is only available from the moment the metric
+becomes requested.
+
+---
+
+### Scraping node, master node, and database synchronization
+
+In a SlimFaas cluster there are two important roles:
+
+- The **master node**
+  Responsible for orchestration and scaling decisions:
+    - runs `ReplicasService.CheckScaleAsync`,
+    - runs `ScaleReplicasWorker`,
+    - applies scaling changes to Kubernetes.
+
+- The **designated scraping node** (not the master)
+  Responsible for metrics ingestion:
+    - runs `MetricsScrapingWorker`,
+    - calls the metrics endpoints on your pods every 5 seconds,
+    - updates the in-memory `IMetricsStore`,
+    - periodically serializes the metrics store to the SlimFaas database
+      (for example under the key `metrics:store`).
+
+All **other** SlimFaas nodes, including the master, do **not** scrape your pods.
+Instead, they:
+
+1. Periodically read the serialized metrics store from the SlimFaas database.
+2. Hydrate their local `IMetricsStore` from this binary snapshot.
+3. Evaluate PromQL queries locally against this hydrated store
+   (for autoscaler triggers or debug requests).
+
+This architecture:
+
+- avoids hammering your functions with multiple scrapers,
+- keeps network traffic and CPU overhead low,
+- still allows every node to have a consistent view of recent metrics.
+
+---
+
+### Retention window (30 minutes)
+
+The in-memory `IMetricsStore` is a time-bucketed structure, keyed by Unix timestamps
+in seconds. On each scrape:
+
+- new samples are added under the **current timestamp bucket**,
+- older buckets that fall outside the retention window are removed.
+
+By default, SlimFaas keeps **only 30 minutes of data** in the store.
+
+Practical implications:
+
+- PromQL range windows like `[15s]`, `[30s]`, `[1m]`, `[5m]`, `[15m]` work as expected.
+- Longer windows (e.g. `[1h]`, `[6h]`) effectively see only the **most recent
+  30 minutes** of samples and may produce misleading results.
+- The autoscaler and debug endpoints always work on “recent” data, which keeps
+  memory usage predictable and bounded.
+
+When combined with the requested-metrics filter, this retention model gives you
+a compact, autoscaling-oriented time series store: just enough history to compute
+rates, quantiles and queue peaks, without trying to be a full Prometheus
+replacement.
+
+---
+
+## Debug HTTP endpoints
+
+SlimFaas exposes two **debug HTTP endpoints** to help you understand:
+
+- Which metrics are actually stored in the in-memory metrics store,
+- How your PromQL expressions are evaluated by the internal PromQL mini-evaluator.
+
+> These endpoints are designed for **local development, QA, and troubleshooting**.
+> In production, you should restrict access to them (authN/authZ, network policies, etc.)
+> or expose them only to operators.
+
+---
+
+### `POST /debug/promql/eval`
+
+Evaluate a PromQL expression **against the current in-memory metrics store** and see
+the scalar value that the AutoScaler would use.
+
+This endpoint also:
+
+- Enables PromQL-driven scraping via `IMetricsScrapingGuard` (so the scraping worker
+  will actively collect metrics referenced in queries),
+- Registers the metric names found in the query via `IRequestedMetricsRegistry`
+  (so the scraper can focus on relevant metrics).
+
+#### Request
+
+- Method: `POST`
+- Path: `/debug/promql/eval`
+- Body (JSON, `PromQlRequest`):
+
+```jsonc
+{
+  "query": "max_over_time(slimfaas_function_queue_ready_items{function="fibonacci"}[30s])",
+  "nowUnixSeconds": 1732100000
+}
+```
+
+Fields:
+
+- `query` (required): the PromQL expression to evaluate.
+- `nowUnixSeconds` (optional): Unix timestamp (seconds) to use as “now” for range selectors.
+  If omitted, the evaluator uses the **latest timestamp available in the store**.
+
+#### Successful response (200)
+
+Body (JSON, `PromQlResponse`):
+
+```json
+{
+  "value": 42.0
+}
+```
+
+This is the final scalar value returned by the PromQL mini-evaluator.
+
+#### Example: evaluate queue length over 30 seconds
+
+```bash
+curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
+    "query": "max_over_time(slimfaas_function_queue_ready_items{function="fibonacci"}[30s])"
+  }'
+```
+
+Possible response:
+
+```json
+{
+  "value": 128
+}
+```
+
+#### Example: evaluate RPS
+
+```bash
+curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
+    "query": "sum(rate(http_server_requests_seconds_count{namespace="default",job="fibonacci"}[1m]))"
+  }'
+```
+
+Possible response:
+
+```json
+{
+  "value": 17.352941176470587
+}
+```
+
+You can compare this value with the trigger `Threshold` to understand
+how the AutoScaler will compute `desiredReplicas`.
+
+#### Error responses
+
+The endpoint returns structured errors when something goes wrong.
+
+**1. Missing or empty query**
+
+```bash
+curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{"query": ""}'
+```
+
+Response (400):
+
+```json
+{
+  "error": "query is required"
+}
+```
+
+**2. Parse error / unsupported syntax**
+
+```json
+{
+  "error": "Unexpected trailing characters in query"
+}
+```
+
+**3. Result is NaN or Infinity**
+
+For example, when there is no data or a division by zero:
+
+```json
+{
+  "error": "PromQL result is NaN or Infinity (probably no data or division by zero)."
+}
+```
+
+**4. Internal error**
+
+Unexpected exceptions during evaluation are returned as RFC 7807 problem details:
+
+```json
+{
+  "type": "about:blank",
+  "title": "Evaluation error",
+  "status": 500,
+  "detail": "Some internal exception message..."
+}
+```
+
+Use this endpoint to **dry-run** any PromQL expression before using it
+in `SlimFaas/Scale.Triggers[].Query`.
+
+---
+
+### `GET /debug/store`
+
+Inspect a **summary of the in-memory metrics store** and see which metric names are
+currently being “requested” by the autoscaler and by your debug PromQL calls.
+
+This endpoint does *not* dump all the raw samples. Instead, it returns a compact view
+of what’s inside the store.
+
+#### Request
+
+- Method: `GET`
+- Path: `/debug/store`
+- Body: none
+
+#### Response (200)
+
+Body (JSON, `MetricsStoreDebugResponse`):
+
+```json
+{
+  "requestedMetricNames": [
+    "http_server_requests_seconds_count",
+    "slimfaas_function_queue_ready_items"
+  ],
+  "timestampBuckets": 48,
+  "seriesCount": 1262,
+  "totalPoints": 1262
+}
+```
+
+Fields:
+
+- `requestedMetricNames`
+  List of distinct metric names registered via `IRequestedMetricsRegistry`, typically from:
+    - `SlimFaas/Scale.Triggers[].Query` (autoscaler triggers),
+    - calls to `POST /debug/promql/eval`.
+
+  If this list is empty, it usually means that no PromQL-based queries
+  have been registered yet, and the scraper may not be focusing on any metric.
+
+- `timestampBuckets`
+  Number of distinct timestamps currently stored. This is roughly the size
+  of the internal rolling window in “buckets”.
+
+- `seriesCount`
+  Number of time series (deployment × pod × metric key) in the store.
+
+- `totalPoints`
+  Total number of points `(timestamp, series)` currently stored.
+
+#### Example: inspect the metrics store
+
+```bash
+curl "http://localhost:5000/debug/store"
+```
+
+Example response:
+
+```json
+{
+  "requestedMetricNames": [
+    "http_server_requests_seconds_count",
+    "slimfaas_function_queue_ready_items"
+  ],
+  "timestampBuckets": 4,
+  "seriesCount": 8,
+  "totalPoints": 8
+}
+```
+
+How to read this:
+
+- Your PromQL queries currently reference two metric names
+  (HTTP request counter and queue length gauge).
+- The store holds data for 4 different timestamps.
+- There are 8 logical series (e.g. 2 metrics × 4 pods).
+- Each series has one point per timestamp, so `totalPoints = 8`.
+
+If `timestampBuckets` stays at `0` or `1` for a long time, it usually means that:
+
+- the scraping worker is not running,
+- or it cannot reach your pods (annotations, network, etc.).
+
+Using this endpoint together with `POST /debug/promql/eval` gives you a very quick way
+to understand “what SlimFaas sees” when making autoscaling decisions.
+
+---
+
 ## Decision algorithm details
 
 High-level logic for each periodic tick of `CheckScaleAsync`:
@@ -444,7 +1084,7 @@ metadata:
           {
             "MetricType": "AverageValue",
             "MetricName": "rps_per_pod",
-            "Query": "sum(rate(http_server_requests_seconds_count{namespace="${namespace}",job="${app}"}[1m]))",
+            "Query": "sum(rate(http_server_requests_seconds_count{namespace=\"${namespace}\",job=\"${app}\"}[1m]))",
             "Threshold": 20
           }
         ]
@@ -491,13 +1131,13 @@ metadata:
           {
             "MetricType": "AverageValue",
             "MetricName": "rps_per_pod",
-            "Query": "sum(rate(http_server_requests_seconds_count{namespace="${namespace}",job="${app}"}[1m]))",
+            "Query": "sum(rate(http_server_requests_seconds_count{namespace=\"${namespace}\",job=\"${app}\"}[1m]))",
             "Threshold": 30
           },
           {
             "MetricType": "Value",
             "MetricName": "queue_length",
-            "Query": "sum(slimfaas_queue_length{function="${app}"})",
+            "Query": "sum(slimfaas_function_queue_ready_items{function=\"${app}\"})",
             "Threshold": 200
           }
         ],
@@ -619,7 +1259,11 @@ To understand and debug autoscaling behavior:
         - The effective RPS, queue length, etc.
         - The number of replicas per function over time.
 
-4. **Metrics for desired vs actual replicas**
+4. **Debug HTTP endpoints**
+    - Use `/debug/promql/eval` to validate PromQL expressions against the current store.
+    - Use `/debug/store` to check that metrics are being scraped and stored.
+
+5. **Metrics for desired vs actual replicas**
     - Expose or log the desired replica count computed per tick for better visibility.
 
 ---
@@ -687,5 +1331,3 @@ Yes.
 - This lets you, for example, scale based on:
     - both RPS and queue length,
     - or RPS and CPU usage, etc.
-
----
