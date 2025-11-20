@@ -17,7 +17,7 @@ public interface IRequestedMetricsRegistry
         // Match tous les identifiants PromQL
         private static readonly Regex MetricNameRegex = new(
             @"[a-zA-Z_:][a-zA-Z0-9_:]*",
-            RegexOptions.Compiled | RegexOptions.CultureInvariant);
+            RegexOptions.Compiled | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(120));
 
         // Fonctions / mots-clés PromQL à ignorer
         private static readonly HashSet<string> IgnoredIdentifiers = new(StringComparer.Ordinal)

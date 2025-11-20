@@ -556,7 +556,6 @@ metadata:
         }
       }
 spec:
-  replicas: 2
   # ...
 ```
 
