@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.45.0
+
+- [d38cabe](https://github.com/SlimPlanet/SlimFaas/commit/d38cabe15d6dfefdc0fc8e9e89c05b4a98730a19) - feat(slimfaas): add scale out (#187) (release), 2025-11-20 by *Guillaume Chervet*
+
+
+## 0.44.6
+
+
+
 ## v0.44.6
 
 - [71cad27](https://github.com/SlimPlanet/SlimFaas/commit/71cad277213c6089f298993593b231d954efd481) - refactor(all): dotnet 10 (#188) (release), 2025-11-14 by *Guillaume Chervet*
@@ -265,16 +274,6 @@
 
 
 ## 0.39.1
-
-
-
-## v0.39.1
-
-- [c3c8660](https://github.com/SlimPlanet/SlimFaas/commit/c3c866003befad56a27d3932ebf9e50348d736d2) - google webmaster tool (release), 2025-08-18 by *Guillaume Chervet*
-- [7ee56c6](https://github.com/SlimPlanet/SlimFaas/commit/7ee56c6abc2e25776d1e5728cabbac1f8983618a) - google webmastertool, 2025-08-18 by *Guillaume Chervet*
-
-
-## 0.39.0
 
 
 
