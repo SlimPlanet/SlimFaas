@@ -1,0 +1,1307 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8" data-next-head=""/><meta name="viewport" content="width=device-width" data-next-head=""/><link rel="icon" type="image/svg+xml" href="/slimfaas.svg" data-next-head=""/><title data-next-head="">SlimFaas : The slimmest and simplest Function As A Service</title><meta property="og:title" content="SlimFaas : The slimmest and simplest Function As A Service" data-next-head=""/><meta property="og:description" content="Deploy functions effortlessly with SlimFaas, the ultra-light FaaS platform." data-next-head=""/><meta property="og:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" data-next-head=""/><meta property="og:url" content="https://github.com/SlimPlanet/SlimFaas" data-next-head=""/><meta property="og:type" content="website" data-next-head=""/><meta name="twitter:card" content="summary_large_image" data-next-head=""/><meta name="twitter:title" content="SlimFaas : The slimmest and simplest Function As A Service" data-next-head=""/><meta name="twitter:description" content="Deploy functions effortlessly with SlimFaas, the ultra-light FaaS platform." data-next-head=""/><meta name="twitter:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" data-next-head=""/><link rel="preload" href="/_next/static/css/0257a25a1c522049.css" as="style"/><script id="consent-mode-default" data-nscript="beforeInteractive">
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('consent', 'default', {
+                    analytics_storage: 'denied',
+                    ad_storage: 'denied',
+                    ad_user_data: 'denied',
+                    ad_personalization: 'denied',
+                    wait_for_update: 500
+                  });
+                </script><link rel="stylesheet" href="/_next/static/css/0257a25a1c522049.css" data-n-g=""/><noscript data-n-css=""></noscript><script defer="" noModule="" src="/_next/static/chunks/polyfills-42372ed130431b0a.js"></script><script src="/_next/static/chunks/webpack-fd0b18825a0e16e8.js" defer=""></script><script src="/_next/static/chunks/framework-36c5ddacb45f3fbc.js" defer=""></script><script src="/_next/static/chunks/main-793a17259f7f5ac2.js" defer=""></script><script src="/_next/static/chunks/pages/_app-61573f35e60d88c4.js" defer=""></script><script src="/_next/static/chunks/76-96af0a67de1a544e.js" defer=""></script><script src="/_next/static/chunks/pages/autoscaling-279b046b25a5c1a5.js" defer=""></script><script src="/_next/static/rrt1qlTBrispE9fUTZgKw/_buildManifest.js" defer=""></script><script src="/_next/static/rrt1qlTBrispE9fUTZgKw/_ssgManifest.js" defer=""></script></head><body><noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PKM3T5QT" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><div id="__next"><div class="layout"><nav class="layout__navbar"><div class="navbar__left"><a href="/"><img alt="Logo" data-nimg="1" loading="lazy" width="64" height="64" decoding="async" class="navbar__logo" style="color:transparent" src="https://github.com/cncf/artwork/blob/main/projects/slimfaas/icon/white/slimfaas-icon-white.svg?raw=true"/></a><button class="navbar__toggle " aria-label="Toggle menu"><span></span><span></span><span></span></button><ul class="navbar__list "><li class="navbar__item"><a href="/">Home</a></li><li class="navbar__item"><a href="/get-started">Get Started</a></li><li class="navbar__item"><a href="/functions">Functions</a></li><li class="navbar__item"><a href="/autoscaling">Autoscaling</a></li><li class="navbar__item"><a href="/events">Events</a></li><li class="navbar__item"><a href="/jobs">Jobs</a></li><li class="navbar__item"><a href="/how-it-works">How it works</a></li><li class="navbar__item"><a href="/planet-saver">PlanetSaver</a></li><li class="navbar__item"><a href="/mcp">MCP</a></li></ul></div><a href="https://github.com/SlimPlanet/SlimFaas" class="navbar__github" target="_blank" rel="noopener noreferrer"><svg width="32" height="32" viewBox="0 0 24 24" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M12 0.296875C5.37256 0.296875 0 5.66943 0 12.2969C0 17.6394 3.43848 22.146 8.20703 23.7744C8.80762 23.8848 9.02344 23.5156 9.02344 23.1982C9.02344 22.9277 9.0127 21.9941 9.00781 20.9102C5.67188 21.6572 4.96875 19.1738 4.96875 19.1738C4.4375 17.8193 3.64062 17.498 3.64062 17.498C2.54785 16.7939 3.72461 16.8105 3.72461 16.8105C4.93359 16.8896 5.55469 18.0332 5.55469 18.0332C6.625 19.9316 8.37207 19.4082 9.0625 19.1113C9.16797 18.3301 9.45898 17.7939 9.78906 17.4863C7.14062 17.1807 4.34766 16.1582 4.34766 11.6084C4.34766 10.3223 4.8125 9.22852 5.58984 8.36133C5.46094 8.05566 5.04883 6.8418 5.71094 5.16406C5.71094 5.16406 6.72559 4.83008 9.00488 6.44336C9.97852 6.18164 11.0078 6.05078 12.0371 6.04688C13.0664 6.05078 14.0957 6.18164 15.0693 6.44336C17.3486 4.83008 18.3623 5.16406 18.3623 5.16406C19.0244 6.8418 18.6123 8.05566 18.4824 8.36133C19.2598 9.22852 19.7246 10.3223 19.7246 11.6084C19.7246 16.168 16.9277 17.1768 14.2734 17.4746C14.6914 17.8525 15.0547 18.5742 15.0547 19.7012C15.0547 21.3076 15.0391 22.6631 15.0391 23.1982C15.0391 23.5156 15.2559 23.8896 15.8613 23.7744C20.625 22.146 24.0664 17.6394 24.0664 12.2969C24 5.66943 18.6274 0.296875 12 0.296875Z"></path></svg></a></nav><main class="layout__content"><div><div><html><head></head><body><h1>SlimFaas Autoscaling Guide</h1>
+<blockquote>
+<p>End-to-end autoscaling for SlimFaas functions:
+<strong>HTTP activity &amp; schedules for <code>0 → N</code> + Prometheus / PromQL AutoScaler for <code>N → M</code></strong></p>
+</blockquote>
+<hr>
+<h2>Table of contents</h2>
+<ol>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#core-concepts">Core concepts</a></li>
+<li><a href="#autoscaling-architecture">Autoscaling architecture</a></li>
+<li><a href="#configuring-0--n-scale-http-history--schedule">Configuring <code>0 → N</code> scale (HTTP history + schedule)</a></li>
+<li><a href="#configuring-n--m-scale-prometheus-autoscaler">Configuring <code>N → M</code> scale (Prometheus AutoScaler)</a></li>
+<li><a href="#promql-support--current-limitations">PromQL support &amp; current limitations</a></li>
+<li><a href="#metrics-scraping-internals">Metrics scraping internals</a></li>
+<li><a href="#debug-http-endpoints">Debug HTTP endpoints</a></li>
+<li><a href="#decision-algorithm-details">Decision algorithm details</a></li>
+<li><a href="#configuration-examples">Configuration examples</a></li>
+<li><a href="#best-practices">Best practices</a></li>
+<li><a href="#observability--debugging">Observability &amp; debugging</a></li>
+<li><a href="#faq">FAQ</a></li>
+</ol>
+<hr>
+<h2>Overview</h2>
+<p>SlimFaas combines <strong>two complementary autoscaling systems</strong>:</p>
+<ol>
+<li>
+<p><strong><code>0 → N</code> scaling (wake-up from zero)</strong>
+Driven by:</p>
+<ul>
+<li>HTTP call history (in-memory + database),</li>
+<li>optional <strong>schedule configuration</strong> (wake-up times, scale-down timeouts),</li>
+<li><strong>function dependencies</strong> (<code>DependsOn</code>).</li>
+</ul>
+<p>👉 This system is the <strong>only one allowed to bring a function from <code>0</code> to <code>&gt; 0</code> replicas</strong>.</p>
+</li>
+<li>
+<p><strong><code>N → M</code> scaling (Prometheus AutoScaler)</strong>
+Driven by:</p>
+<ul>
+<li>a Prometheus metrics scraping worker,</li>
+<li>a small PromQL evaluator,</li>
+<li>an <code>AutoScaler</code> that computes the desired number of replicas based on metrics.</li>
+</ul>
+<p>👉 This system is used <strong>only when the function already has at least one pod</strong> (<code>replicas &gt; 0</code>).</p>
+</li>
+</ol>
+<p>Both systems are orchestrated by:</p>
+<ul>
+<li><code>ReplicasService.CheckScaleAsync(namespace)</code></li>
+<li><code>ScaleReplicasWorker</code>, a background worker that calls <code>CheckScaleAsync</code> periodically on the master node.</li>
+</ul>
+<hr>
+<h2>Core concepts</h2>
+<p>In SlimFaas, each function is represented by a Kubernetes <code>Deployment</code> and a set of <strong>annotations</strong> that drive autoscaling.</p>
+<h3>Key properties (conceptual)</h3>
+<p>For each function (deployment):</p>
+<ul>
+<li>
+<p><strong>Current replicas</strong>
+The current number of pods, as seen by SlimFaas.</p>
+</li>
+<li>
+<p><strong><code>ReplicasMin</code></strong>
+Minimal number of pods allowed after scale-down. This can be <code>0</code> if you want <strong>scale-to-zero</strong>, or a positive value if you want to avoid full cold starts.</p>
+</li>
+<li>
+<p><strong><code>ReplicasAtStart</code></strong>
+Number of pods to start when waking up a function from <code>0</code> (or from below minimum) via the <code>0 → N</code> system.</p>
+</li>
+<li>
+<p><strong><code>TimeoutSecondBeforeSetReplicasMin</code></strong>
+Inactivity duration (based on HTTP history and schedule) before SlimFaas scales down the function to <code>ReplicasMin</code>.</p>
+</li>
+<li>
+<p><strong><code>DependsOn</code></strong>
+List of other functions that this function depends on. SlimFaas can ensure dependencies are ready before waking up a function.</p>
+</li>
+<li>
+<p><strong><code>Schedule</code></strong>
+Time-based configuration for:</p>
+<ul>
+<li><strong>wake-up times</strong> (treated as synthetic HTTP activity),</li>
+<li><strong>time-dependent scale-down timeouts</strong>.</li>
+</ul>
+</li>
+<li>
+<p><strong><code>Scale</code></strong>
+Metrics-based autoscaling configuration, powered by Prometheus &amp; PromQL, used for <code>N → M</code> scaling.</p>
+</li>
+</ul>
+<h3>How this is exposed in Kubernetes</h3>
+<p>Many of these properties are configured via <strong>annotations</strong> on your function <code>Deployment</code>, for example:</p>
+<pre><code class="language-yaml hljs"><span class="hljs-params">apiVersion:</span> apps<span class="hljs-symbol">/v1</span>
+<span class="hljs-params">kind:</span> Deployment
+<span class="hljs-params">metadata:</span>
+  <span class="hljs-params">name:</span> fibonacci
+  <span class="hljs-params">namespace:</span> default
+  <span class="hljs-params">annotations:</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasMin:</span> <span class="hljs-string">"0"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasAtStart:</span> <span class="hljs-string">"1"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">TimeoutSecondBeforeSetReplicasMin:</span> <span class="hljs-string">"300"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">DependsOn:</span> '[<span class="hljs-string">"another-func-a"</span>,<span class="hljs-string">"another-func-b"</span>]'
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">Schedule:</span> <span class="hljs-operator">&gt;</span>
+      {
+        <span class="hljs-string">"TimeZoneID"</span>: <span class="hljs-string">"Europe/Paris"</span>,
+        <span class="hljs-string">"Default"</span>: {
+          <span class="hljs-string">"WakeUp"</span>: [ <span class="hljs-string">"08:00"</span>, <span class="hljs-string">"13:30"</span> ],
+          <span class="hljs-string">"ScaleDownTimeout"</span>: [
+            { <span class="hljs-string">"Time"</span>: <span class="hljs-string">"08:00"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">1800</span> },
+            { <span class="hljs-string">"Time"</span>: <span class="hljs-string">"19:00"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">300</span> }
+          ]
+        }
+      }
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">Scale:</span> <span class="hljs-operator">&gt;</span>
+      {
+        <span class="hljs-string">"ReplicaMax"</span>: <span class="hljs-number">10</span>,
+        <span class="hljs-string">"Triggers"</span>: [],
+        <span class="hljs-string">"Behavior"</span>: {}
+      }
+<span class="hljs-params">spec:</span>
+  <span class="hljs-params">replicas:</span> <span class="hljs-number">1</span>
+  <span class="hljs-comment"># ...</span>
+</code></pre>
+<blockquote>
+<p>Note: when the <code>SlimFaas/Scale</code> annotation is not present (or is invalid), the Prometheus-based AutoScaler is simply disabled for that function.</p>
+</blockquote>
+<hr>
+<h2>Autoscaling architecture</h2>
+<h3>High-level diagram</h3>
+<pre><code class="language-mermaid hljs">flowchart LR
+    subgraph HTTP_history[<span class="hljs-string">"HTTP history &amp; Schedule (0→N)"</span>]
+        H[History HTTP (<span class="hljs-built_in">in</span>-memory + DB)] --&gt; R
+        S[Schedule config] --&gt; R
+        D[DependsOn] --&gt; R
+    <span class="hljs-keyword">end</span>
+
+    subgraph Prometheus[<span class="hljs-string">"Prometheus AutoScaler (N→M)"</span>]
+        MSW[MetricsScrapingWorker] --&gt; MS[Metrics store]
+        MS --&gt; PQ[PromQL evaluator]
+        PQ --&gt; AS[AutoScaler]
+        AS --&gt; ASS[AutoScalerStore]
+    <span class="hljs-keyword">end</span>
+
+    subgraph Core[<span class="hljs-string">"Scaling orchestration"</span>]
+        R[ReplicasService.CheckScaleAsync]
+        SW[ScaleReplicasWorker]
+    <span class="hljs-keyword">end</span>
+
+    SW --&gt; R
+    R --&gt;|<span class="hljs-type">scale</span> <span class="hljs-number">0</span>→N / N→<span class="hljs-number">0</span>| <span class="hljs-type">K8S</span>[(Kubernetes API)]
+    R --&gt;|<span class="hljs-type">desiredReplicas</span> N→M| <span class="hljs-type">K8S</span>
+</code></pre>
+<ul>
+<li><code>ScaleReplicasWorker</code> periodically calls <code>CheckScaleAsync</code> if the node is the master.</li>
+<li><code>ReplicasService.CheckScaleAsync</code>:
+<ol>
+<li>Computes a <strong>desired replica count</strong> using the <strong>HTTP/schedule based system</strong> (<code>0 → N</code> / <code>N → 0</code>).</li>
+<li>If the function already has <code>replicas &gt; 0</code> and a <code>SlimFaas/Scale</code> annotation, it invokes the <strong>Prometheus AutoScaler</strong> to adjust <code>N → M</code>.</li>
+</ol>
+</li>
+</ul>
+<hr>
+<h2>Configuring <code>0 → N</code> scale (HTTP history + schedule)</h2>
+<p>The <code>0 → N</code> system is responsible for:</p>
+<ul>
+<li><strong>Scaling down</strong> to <code>ReplicasMin</code> after inactivity,</li>
+<li><strong>Waking up</strong> functions to <code>ReplicasAtStart</code> based on:
+<ul>
+<li>HTTP activity,</li>
+<li>schedule,</li>
+<li>dependencies.</li>
+</ul>
+</li>
+</ul>
+<h3>Inactivity timeout → scale down to <code>ReplicasMin</code></h3>
+<p>SlimFaas measures the time since the last HTTP activity (or synthetic activity from schedule/dependencies).</p>
+<p>Key annotations:</p>
+<pre><code class="language-yaml hljs"><span class="hljs-params">metadata:</span>
+  <span class="hljs-params">annotations:</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasMin:</span> <span class="hljs-string">"0"</span>                         <span class="hljs-comment"># minimum replicas after scale-down (can be 0)</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasAtStart:</span> <span class="hljs-string">"1"</span>                     <span class="hljs-comment"># replicas after wake-up from zero</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">TimeoutSecondBeforeSetReplicasMin:</span> <span class="hljs-string">"300"</span> <span class="hljs-comment"># seconds of inactivity before scale-down</span>
+</code></pre>
+<p>Behavior (simplified):</p>
+<ul>
+<li>
+<p>SlimFaas computes a last activity timestamp for each function:</p>
+<ul>
+<li>from HTTP history,</li>
+<li>plus schedule wake-up events,</li>
+<li>plus the dependencies’ activity if relevant.</li>
+</ul>
+</li>
+<li>
+<p>If:</p>
+<pre><code class="language-text hljs">lastActivity + TimeoutSecondBeforeSetReplicasMin &lt; <span class="hljs-built_in">now</span>
+</code></pre>
+<p>then SlimFaas scales the function to <strong><code>ReplicasMin</code></strong>.</p>
+</li>
+</ul>
+<p>If <code>ReplicasMin</code> is <code>"0"</code>, this gives you <strong>scale-to-zero</strong>.</p>
+<h3>Wake-up <code>0 → N</code> (from zero or below minimum)</h3>
+<p>There are two main situations where SlimFaas wakes a function up:</p>
+<ol>
+<li>
+<p><strong>From <code>0</code> to <code>ReplicasAtStart</code></strong>:</p>
+<ul>
+<li>The function currently has <code>replicas == 0</code>.</li>
+<li>There is recent activity (HTTP or schedule) for this function.</li>
+<li>All <code>DependsOn</code> functions are ready enough (as determined by SlimFaas).</li>
+<li>⇒ SlimFaas scales the function <strong>to <code>ReplicasAtStart</code></strong>.</li>
+</ul>
+</li>
+<li>
+<p><strong>From below min to <code>ReplicasAtStart</code></strong>:</p>
+<ul>
+<li>The function currently has <code>replicas &lt; ReplicasMin</code>.</li>
+<li>Dependencies are ready.</li>
+<li>⇒ SlimFaas scales the function up to <code>ReplicasAtStart</code>.</li>
+</ul>
+</li>
+</ol>
+<p>This ensures:</p>
+<ul>
+<li><strong>Only the <code>0 → N</code> system can wake a function from 0</strong>,</li>
+<li>The function will start with a known initial capacity before the Prometheus AutoScaler adjusts it.</li>
+</ul>
+<h3>Time-based schedule (wake-up &amp; scale-down timeout)</h3>
+<p>The <code>SlimFaas/Schedule</code> annotation lets you:</p>
+<ul>
+<li>Declare <strong>wake-up times</strong> (treated as “calls”),</li>
+<li>Configure <strong>different scale-down timeouts by time of day</strong>.</li>
+</ul>
+<p>Annotation example:</p>
+<pre><code class="language-yaml hljs">metadata:
+  annotations:
+    SlimFaas/Schedule: &gt;
+      {
+        "TimeZoneID": <span class="hljs-string">"Europe/Paris"</span>,
+        <span class="hljs-string">"Default"</span>: {
+          "WakeUp": [
+            <span class="hljs-string">"08:30"</span>
+          ],
+          <span class="hljs-string">"ScaleDownTimeout"</span>: [
+            { "<span class="hljs-selector-tag">Time</span>": <span class="hljs-string">"08:30"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">3600</span> },
+            { "<span class="hljs-selector-tag">Time</span>": <span class="hljs-string">"18:30"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">300</span> }
+          ]
+        }
+      }
+</code></pre>
+<ul>
+<li><code>TimeZoneID</code>: IANA time zone ID.</li>
+<li><code>WakeUp</code>: list of <code>HH:mm</code> times when the function is considered active (even without HTTP calls).</li>
+<li><code>ScaleDownTimeout</code>: list of time-based overrides for the inactivity timeout (<code>Value</code> is in seconds).</li>
+</ul>
+<p>This allows you, for example:</p>
+<ul>
+<li>Large timeout in business hours (keep pods warm),</li>
+<li>Short timeout at night (aggressive scale-down).</li>
+</ul>
+<hr>
+<h2>Configuring <code>N → M</code> scale (Prometheus AutoScaler)</h2>
+<p>The Prometheus-based AutoScaler is activated by adding a <code>SlimFaas/Scale</code> annotation on the function’s Deployment. It <strong>only runs when the function has at least one pod</strong>.</p>
+<h3><code>SlimFaas/Scale</code> annotation structure (JSON)</h3>
+<p>The annotation is a JSON <code>ScaleConfig</code>:</p>
+<pre><code class="language-yaml hljs"><span class="hljs-params">metadata:</span>
+  <span class="hljs-params">annotations:</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">Scale:</span> <span class="hljs-operator">&gt;</span>
+      {
+        <span class="hljs-string">"ReplicaMax"</span>: <span class="hljs-number">20</span>,
+        <span class="hljs-string">"Triggers"</span>: [
+          {
+            <span class="hljs-string">"MetricType"</span>: <span class="hljs-string">"AverageValue"</span>,
+            <span class="hljs-string">"MetricName"</span>: <span class="hljs-string">"rps_per_pod"</span>,
+            <span class="hljs-string">"Query"</span>: <span class="hljs-string">"sum(rate(http_server_requests_seconds_count{namespace="</span>${namespace}<span class="hljs-string">",job="</span>${app}<span class="hljs-string">"}[1m]))"</span>,
+            <span class="hljs-string">"Threshold"</span>: <span class="hljs-number">50</span>
+          }
+        ],
+        <span class="hljs-string">"Behavior"</span>: {
+          <span class="hljs-string">"ScaleUp"</span>: {
+            <span class="hljs-string">"StabilizationWindowSeconds"</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">"Policies"</span>: [
+              { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Percent"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">100</span>, <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">15</span> },
+              { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Pods"</span>,    <span class="hljs-string">"Value"</span>: <span class="hljs-number">4</span>,   <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">15</span> }
+            ]
+          },
+          <span class="hljs-string">"ScaleDown"</span>: {
+            <span class="hljs-string">"StabilizationWindowSeconds"</span>: <span class="hljs-number">300</span>,
+            <span class="hljs-string">"Policies"</span>: [
+              { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Percent"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">50</span>, <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">30</span> }
+            ]
+          }
+        }
+      }
+</code></pre>
+<p>Main fields:</p>
+<ul>
+<li>
+<p><code>ReplicaMax</code>
+Maximum number of pods SlimFaas may ever scale this function to. <code>null</code> means no hard cap.</p>
+</li>
+<li>
+<p><code>Triggers</code>
+List of metrics-based scaling rules.</p>
+<p>Each trigger has:</p>
+<ul>
+<li><code>MetricType</code>: <code>"AverageValue"</code> or <code>"Value"</code>.
+<ul>
+<li><code>"AverageValue"</code>: threshold is interpreted as <strong>target per pod</strong>.</li>
+<li><code>"Value"</code>: threshold is interpreted as <strong>target for the total sum</strong>.</li>
+</ul>
+</li>
+<li><code>MetricName</code>: human-readable metric name (for doc / logs).</li>
+<li><code>Query</code>: PromQL query that <strong>must return a scalar</strong> (single numeric value).</li>
+<li><code>Threshold</code>: target value for the metric (per pod or total, depending on <code>MetricType</code>).</li>
+</ul>
+</li>
+<li>
+<p><code>Behavior</code>
+Configuration of scale-up / scale-down behavior:</p>
+<ul>
+<li><code>ScaleUp</code>: policies and stabilization for increasing replicas.</li>
+<li><code>ScaleDown</code>: policies and stabilization for decreasing replicas.</li>
+</ul>
+</li>
+</ul>
+<h3>Scaling formula (HPA/KEDA-style)</h3>
+<p>For each trigger, the AutoScaler computes:</p>
+<pre><code class="language-text hljs"><span class="hljs-attribute">desiredReplicasTrigger</span> <span class="hljs-operator">=</span> ceil(currentReplicas * (currentMetric / Threshold))
+</code></pre>
+<p>Then:</p>
+<ul>
+<li>
+<p>If <strong>multiple triggers</strong> are configured:</p>
+<ul>
+<li>The AutoScaler takes the <strong>maximum</strong> of all <code>desiredReplicasTrigger</code>.</li>
+</ul>
+</li>
+<li>
+<p>The result is then constrained by:</p>
+<ul>
+<li><code>ReplicasMin</code> and <code>ReplicaMax</code>,</li>
+<li>scale-up / scale-down policies,</li>
+<li>stabilization windows.</li>
+</ul>
+</li>
+</ul>
+<p>If all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the AutoScaler <strong>keeps the current replica count</strong>, only clamping it between <code>ReplicasMin</code> and <code>ReplicaMax</code>.</p>
+<h3>Policies and stabilization</h3>
+<p>The <code>Behavior.ScaleUp.Policies</code> and <code>Behavior.ScaleDown.Policies</code> define how fast the scaler is allowed to change the number of pods:</p>
+<pre><code class="language-jsonc hljs"><span class="hljs-string">"Behavior"</span>: {
+  <span class="hljs-string">"ScaleUp"</span>: {
+    <span class="hljs-string">"StabilizationWindowSeconds"</span>: <span class="hljs-number">0</span>,
+    <span class="hljs-string">"Policies"</span>: [
+      { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Percent"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">100</span>, <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">15</span> },
+      { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Pods"</span>,    <span class="hljs-string">"Value"</span>: <span class="hljs-number">4</span>,   <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">15</span> }
+    ]
+  },
+  <span class="hljs-string">"ScaleDown"</span>: {
+    <span class="hljs-string">"StabilizationWindowSeconds"</span>: <span class="hljs-number">300</span>,
+    <span class="hljs-string">"Policies"</span>: [
+      { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Percent"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">50</span>, <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">30</span> }
+    ]
+  }
+}
+</code></pre>
+<p>Conceptually:</p>
+<ul>
+<li>
+<p>For <strong>scale-up</strong>:</p>
+<ul>
+<li>Each policy defines a <strong>maximum allowed increase</strong> (either percentage or absolute pod count).</li>
+<li>SlimFaas picks the <strong>most aggressive</strong> policy (maximum allowed increase).</li>
+</ul>
+</li>
+<li>
+<p>For <strong>scale-down</strong>:</p>
+<ul>
+<li>Each policy defines a <strong>maximum allowed decrease</strong>.</li>
+<li>SlimFaas picks the <strong>most conservative</strong> policy (smallest allowed decrease).</li>
+</ul>
+</li>
+<li>
+<p><code>StabilizationWindowSeconds</code>:</p>
+<ul>
+<li>For scale-down, a non-zero window makes SlimFaas look at the <strong>max desired replicas</strong> in the recent window to avoid flapping.</li>
+<li>For scale-up, you can also use a stabilization window, but the default is usually <code>0</code>.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>PromQL support &amp; current limitations</h2>
+<p>SlimFaas embeds a <strong>small PromQL evaluator</strong> that is focused on autoscaling use cases.
+It supports a <strong>restricted but practical subset</strong> of PromQL, and always evaluates the
+query to a <strong>single scalar</strong> that can be used by the AutoScaler.</p>
+<blockquote>
+<p>If a query cannot be parsed, or ultimately evaluates to <code>NaN</code> / <code>Infinity</code>,
+the AutoScaler treats it as “no data” and keeps the current replica count
+(subject to <code>ReplicasMin</code> / <code>ReplicaMax</code>).</p>
+</blockquote>
+<h3>Supported query patterns</h3>
+<h4>1. Instant and range selectors</h4>
+<ul>
+<li>
+<p><strong>Instant selector</strong></p>
+<pre><code class="language-promql hljs">http_server_requests_seconds_count{<span class="hljs-attribute">namespace</span>=<span class="hljs-string">"default"</span>, <span class="hljs-attribute">job</span>=<span class="hljs-string">"fibonacci"</span>}
+</code></pre>
+<p>The evaluator loads all time series that match the metric name and label filters,
+and keeps the latest value per series.</p>
+</li>
+<li>
+<p><strong>Range selector</strong> (used with functions like <code>rate</code>, <code>max_over_time</code>, etc.)</p>
+<pre><code class="language-promql hljs">http_server_requests_seconds_count{<span class="hljs-keyword">namespace</span>="<span class="hljs-symbol">default</span>", <span class="hljs-symbol">job</span>="<span class="hljs-symbol">fibonacci</span>"}[<span class="hljs-symbol">1m</span>]
+</code></pre>
+<p>Supported duration units: <code>s</code>, <code>m</code>, <code>h</code> (e.g. <code>15s</code>, <code>1m</code>, <code>5m</code>, <code>1h</code>).</p>
+</li>
+<li>
+<p><strong>Label matchers</strong></p>
+<ul>
+<li>Exact match: <code>label="value"</code></li>
+<li>Regex match: <code>label=~"value.*"</code></li>
+</ul>
+<p>(Negative operators <code>!=</code> / <code>!~</code> are <strong>not</strong> supported.)</p>
+</li>
+</ul>
+<h4>2. Arithmetic on scalars</h4>
+<p>Once a query has been reduced to a scalar, you can combine expressions with basic
+arithmetic:</p>
+<pre><code class="language-promql hljs"><span class="hljs-function"><span class="hljs-title">max_over_time</span><span class="hljs-params">(slimfaas_function_queue_ready_items{function=<span class="hljs-string">"fibonacci"</span>}[<span class="hljs-number">30s</span>])</span></span> / <span class="hljs-number">100</span>
+</code></pre>
+<p>Supported operators: <code>+</code>, <code>-</code>, <code>*</code>, <code>/</code> (no comparison or logical operators).</p>
+<h4>3. <code>rate()</code> on counters</h4>
+<pre><code class="language-promql hljs">rate(http_server_requests_seconds_count{<span class="hljs-keyword">namespace</span>="<span class="hljs-symbol">default</span>", <span class="hljs-symbol">job</span>="<span class="hljs-symbol">fibonacci</span>"}[<span class="hljs-symbol">1m</span>])
+</code></pre>
+<ul>
+<li>Computes the <strong>per-series rate</strong> based on the first and last sample in the window.</li>
+<li>Resets (counter going backwards) are ignored.</li>
+<li>The evaluator returns the <strong>sum of the rates of all matching series</strong>.</li>
+</ul>
+<p>This is typically combined with <code>sum()</code> (or used directly) as a global RPS estimator.</p>
+<h4>4. Aggregations: <code>sum</code>, <code>min</code>, <code>max</code>, <code>avg</code></h4>
+<p>All aggregations operate on scalars or on the per-bucket maps used for histograms.</p>
+<p>Common patterns:</p>
+<ul>
+<li>
+<p><strong>Global sum</strong></p>
+<pre><code class="language-promql hljs">sum(rate(http_server_requests_seconds_count{<span class="hljs-keyword">namespace</span>="<span class="hljs-symbol">default</span>", <span class="hljs-symbol">job</span>="<span class="hljs-symbol">fibonacci</span>"}[<span class="hljs-symbol">1m</span>]))
+</code></pre>
+</li>
+<li>
+<p><strong>Global min / max / avg</strong> of a scalar expression:</p>
+<pre><code class="language-promql hljs">max(
+  rate(http_server_requests_seconds_count{<span class="hljs-keyword">namespace</span>="<span class="hljs-symbol">default</span>", <span class="hljs-symbol">job</span>="<span class="hljs-symbol">fibonacci</span>"}[<span class="hljs-symbol">1m</span>])
+)
+</code></pre>
+</li>
+<li>
+<p><strong>Aggregations with <code>by (label)</code></strong></p>
+<pre><code class="language-promql hljs">sum by (le) (
+  rate(http_server_requests_seconds_bucket{<span class="hljs-keyword">namespace</span>="<span class="hljs-symbol">default</span>", <span class="hljs-symbol">job</span>="<span class="hljs-symbol">fibonacci</span>"}[<span class="hljs-symbol">1m</span>])
+)
+</code></pre>
+<p>This form is specifically supported for histogram use cases (see below).
+For non-histogram use cases, the <code>by (...)</code> support is limited and mostly
+intended as an internal building block for <code>histogram_quantile</code>.</p>
+</li>
+</ul>
+<blockquote>
+<p>For autoscaling, you should assume that the final result is always a single scalar.
+Even when using <code>by (...)</code> aggregations, the evaluator eventually collapses the
+data to a scalar to feed the scaling formula.</p>
+</blockquote>
+<h4>5. Histograms and <code>histogram_quantile()</code></h4>
+<p>SlimFaas supports the standard Prometheus pattern for computing quantiles from histograms:</p>
+<pre><code class="language-promql hljs">histogram_quantile(
+  <span class="hljs-number">0.95</span>,
+  sum by (<span class="hljs-name">le</span>) (
+    <span class="hljs-name">rate</span>(<span class="hljs-name">http_server_requests_seconds_bucket</span>{namespace=<span class="hljs-string">"default"</span>, job=<span class="hljs-string">"fibonacci"</span>}[<span class="hljs-number">1</span>m])
+  )
+)
+</code></pre>
+<p>Supported semantics:</p>
+<ul>
+<li>The <code>_bucket</code> metric is treated as a <strong>cumulative histogram</strong>.</li>
+<li><code>rate(...[win])</code> converts buckets to per-second rates.</li>
+<li><code>sum by (le)</code> merges per-pod buckets into <strong>global buckets per <code>le</code></strong>.</li>
+<li><code>histogram_quantile(phi, …)</code> then applies Prometheus’ official algorithm
+to compute the <code>phi</code> quantile (e.g. <code>0.95</code> for p95).</li>
+</ul>
+<p>The result is a <strong>single scalar</strong> representing the chosen quantile in seconds.</p>
+<h4>6. <code>max_over_time()</code> on gauges</h4>
+<p>SlimFaas exposes several queue-related metrics as gauges, for example:</p>
+<pre><code class="language-promql hljs"><span class="hljs-keyword">slimfaas_function_queue_ready_items</span>{<span class="hljs-keyword">function</span><span class="hljs-operator">=</span><span class="hljs-string">"fibonacci"</span>}
+<span class="hljs-keyword">slimfaas_function_queue_in_flight_items</span>{<span class="hljs-keyword">function</span><span class="hljs-operator">=</span><span class="hljs-string">"fibonacci"</span>}
+<span class="hljs-keyword">slimfaas_function_queue_retry_pending_items</span>{<span class="hljs-keyword">function</span><span class="hljs-operator">=</span><span class="hljs-string">"fibonacci"</span>}
+</code></pre>
+<p>You can use <code>max_over_time()</code> to look at the worst case in a recent window:</p>
+<pre><code class="language-promql hljs"><span class="hljs-function"><span class="hljs-title">max_over_time</span><span class="hljs-params">(slimfaas_function_queue_ready_items{function=<span class="hljs-string">"fibonacci"</span>}[<span class="hljs-number">30s</span>])</span></span>
+</code></pre>
+<p>Semantics:</p>
+<ul>
+<li>For each matching series, the evaluator computes the <strong>maximum value</strong> in the window.</li>
+<li>The global result is the <strong>maximum of all series maxima</strong>.</li>
+<li>The output is a scalar, perfect for triggers such as “max queue length over 30s”.</li>
+</ul>
+<p>This is particularly useful for queue-driven autoscaling.</p>
+<h3>Practical examples for triggers</h3>
+<p>Here are a few ready-to-use patterns for <code>SlimFaas/Scale.Triggers[].Query</code>.</p>
+<h4>Example: total RPS per function</h4>
+<pre><code class="language-jsonc hljs">{
+  <span class="hljs-string">"MetricType"</span>: <span class="hljs-string">"AverageValue"</span>,
+  <span class="hljs-string">"MetricName"</span>: <span class="hljs-string">"rps_per_pod"</span>,
+  <span class="hljs-string">"Query"</span>: <span class="hljs-string">"sum(rate(http_server_requests_seconds_count{namespace="</span><span class="hljs-variable">${namespace}</span><span class="hljs-string">",job="</span><span class="hljs-variable">${app}</span><span class="hljs-string">"}[1m]))"</span>,
+  <span class="hljs-string">"Threshold"</span>: <span class="hljs-number">20</span>
+}
+</code></pre>
+<p>Interpretation:</p>
+<ul>
+<li>The query returns the total RPS for the function.</li>
+<li>With <code>MetricType = "AverageValue"</code>, the AutoScaler treats <code>Threshold = 20</code>
+as “target 20 RPS <strong>per pod</strong>”.</li>
+</ul>
+<h4>Example: max queue length over 30 seconds</h4>
+<pre><code class="language-jsonc hljs">{
+  <span class="hljs-string">"MetricType"</span>: <span class="hljs-string">"Value"</span>,
+  <span class="hljs-string">"MetricName"</span>: <span class="hljs-string">"queue_max_30s"</span>,
+  <span class="hljs-string">"Query"</span>: <span class="hljs-string">"max_over_time(slimfaas_function_queue_ready_items{function="</span><span class="hljs-variable">${app}</span><span class="hljs-string">"}[30s])"</span>,
+  <span class="hljs-string">"Threshold"</span>: <span class="hljs-number">200</span>
+}
+</code></pre>
+<p>Interpretation:</p>
+<ul>
+<li>If the maximum queue length over the last 30 seconds is 400 and the threshold is 200,
+the AutoScaler will aim for <code>desiredReplicas ≈ 2× currentReplicas</code> (subject to policies).</li>
+</ul>
+<h4>Example: p95 latency</h4>
+<pre><code class="language-jsonc hljs">{
+  <span class="hljs-string">"MetricType"</span>: <span class="hljs-string">"AverageValue"</span>,
+  <span class="hljs-string">"MetricName"</span>: <span class="hljs-string">"p95_latency"</span>,
+  <span class="hljs-string">"Query"</span>: <span class="hljs-string">"histogram_quantile(0.95, sum by (le) ( rate(http_server_requests_seconds_bucket{namespace="</span><span class="hljs-variable">${namespace}</span><span class="hljs-string">",job="</span><span class="hljs-variable">${app}</span><span class="hljs-string">"}[1m]) ))"</span>,
+  <span class="hljs-string">"Threshold"</span>: <span class="hljs-number">0.500</span>
+}
+</code></pre>
+<p>Interpretation:</p>
+<ul>
+<li>The query computes the p95 latency in seconds.</li>
+<li><code>Threshold = 0.500</code> means “keep p95 latency around 500ms per pod”.</li>
+</ul>
+<h3>Current limitations &amp; gotchas</h3>
+<p>The SlimFaas PromQL mini-evaluator is intentionally simple. Notable limitations:</p>
+<ol>
+<li>
+<p><strong>Scalar only</strong></p>
+<ul>
+<li>All queries must reduce to a <strong>single scalar</strong>.</li>
+<li>There's no support for returning full time series or vectors.</li>
+<li>The scaler sums or aggregates all matching series internally.</li>
+</ul>
+</li>
+<li>
+<p><strong>Limited function set</strong></p>
+<ul>
+<li>Supported: <code>rate</code>, <code>sum</code>, <code>min</code>, <code>max</code>, <code>avg</code>, <code>histogram_quantile</code>, <code>max_over_time</code>,
+plus basic arithmetic <code>+ - * /</code>.</li>
+<li>Not supported: <code>count</code>, <code>stddev</code>, <code>quantile_over_time</code>, <code>increase</code>, <code>irate</code>, <code>predict_linear</code>,
+<code>clamp_*</code>, <code>label_replace</code>, etc.</li>
+</ul>
+</li>
+<li>
+<p><strong>No logical or comparison operators</strong></p>
+<ul>
+<li>Operators such as <code>&gt;</code>, <code>&lt;</code>, <code>==</code>, <code>and</code>, <code>or</code>, <code>unless</code> are not supported.</li>
+<li>Use these expressions only in dashboards, not in SlimFaas AutoScaler queries.</li>
+</ul>
+</li>
+<li>
+<p><strong>Simple label matchers only</strong></p>
+<ul>
+<li>Supported: <code>=</code> and <code>=~</code>.</li>
+<li>Not supported: <code>!=</code>, <code>!~</code>.</li>
+<li>Make sure your metric cardinality and label design fit this constraint.</li>
+</ul>
+</li>
+<li>
+<p><strong>Range selector constraints</strong></p>
+<ul>
+<li>Only simple durations with <code>s</code>, <code>m</code>, <code>h</code> are supported (e.g. <code>15s</code>, <code>1m</code>, <code>5m</code>).</li>
+<li>Nested subqueries like <code>rate(sum(...)[5m:1m])</code> are <strong>not</strong> supported.</li>
+</ul>
+</li>
+<li>
+<p><strong>Histogram assumptions</strong></p>
+<ul>
+<li>Histogram support assumes standard Prometheus conventions:
+<ul>
+<li>cumulative <code>_bucket</code> metrics,</li>
+<li>a <code>le</code> label with numeric bounds or <code>+Inf</code>.</li>
+</ul>
+</li>
+<li>The recommended pattern is exactly:
+<code>histogram_quantile(phi, sum by (le) ( rate(&lt;metric&gt;_bucket[win]) ))</code>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Evaluation time</strong></p>
+<ul>
+<li>By default, the evaluator uses the <strong>latest timestamp</strong> found in the metrics store
+as the “now” for range selections.</li>
+<li>You can override it in code (<code>Evaluate(query, nowUnixSeconds)</code>), but the SlimFaas
+AutoScaler uses the default.</li>
+</ul>
+</li>
+<li>
+<p><strong>Error handling</strong></p>
+<ul>
+<li>A parse error or unsupported construct results in a <code>FormatException</code>
+which is caught by the AutoScaler and logged as a warning.</li>
+<li>Any resulting <code>NaN</code> / <code>Infinity</code> is treated as “no data” and the current replica
+count is preserved (within <code>ReplicasMin</code> / <code>ReplicaMax</code>).</li>
+</ul>
+</li>
+</ol>
+<p>In short: <strong>keep queries simple and scalar-oriented</strong>. If a query would be hard to express
+without advanced PromQL features, it is probably better suited for dashboards than for
+direct autoscaling decisions.</p>
+<hr>
+<h2>Metrics scraping internals</h2>
+<p>SlimFaas does not talk directly to Prometheus. Instead, it has its own lightweight
+scraping and storage pipeline that is optimized for autoscaling signals.</p>
+<p>At a high level:</p>
+<ul>
+<li>Only the <strong>metrics HTTP endpoint</strong> is called on your pods.</li>
+<li>SlimFaas keeps in memory <strong>only the metric keys that have been requested at least once</strong>.</li>
+<li>A single SlimFaas node is responsible for scraping and persisting metrics.</li>
+<li>All nodes evaluate PromQL against a <strong>shared, synchronized store</strong> with a <strong>30-minute retention window</strong>.</li>
+</ul>
+<hr>
+<h3>Scraping cycle (every 5 seconds)</h3>
+<p>Every 5 seconds, a background worker (<code>MetricsScrapingWorker</code>) runs on the
+<strong>designated scraping node</strong> and performs the following steps:</p>
+<ol>
+<li>
+<p>Discover pods that:</p>
+<ul>
+<li>are part of your SlimFaas workloads, and</li>
+<li>expose Prometheus-compatible HTTP metrics via annotations.</li>
+</ul>
+</li>
+<li>
+<p>For each pod that has Prometheus HTTP annotations (for example):</p>
+<ul>
+<li><code>prometheus.io/scrape: "true"</code></li>
+<li><code>prometheus.io/scheme: "http"</code> (optional, defaults to HTTP)</li>
+<li><code>prometheus.io/port: "5000"</code> (optional)</li>
+<li><code>prometheus.io/path: "/metrics"</code> (optional)</li>
+</ul>
+<p>the worker builds the target URL:</p>
+<pre><code class="language-text hljs">&lt;scheme&gt;<span class="hljs-symbol">://&lt;pod-ip&gt;</span><span class="hljs-symbol">:&lt;port&gt;&lt;path&gt;</span>
+</code></pre>
+</li>
+<li>
+<p>It sends a <strong>single HTTP GET</strong> to the metrics endpoint of each such pod and
+parses the standard Prometheus exposition format:</p>
+<pre><code class="language-text hljs"><span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">metric_name</span>&gt;</span></span><span class="hljs-template-variable">{optional_labels}</span><span class="language-xml"> <span class="hljs-tag">&lt;<span class="hljs-name">value</span>&gt;</span> [optional_timestamp]
+</span></code></pre>
+</li>
+<li>
+<p>For each parsed metric line, it decides whether to store the sample
+in the in-memory <code>IMetricsStore</code> (see next section).</p>
+</li>
+</ol>
+<p>Only this lightweight HTTP metrics scrape happens every 5 seconds; no other
+“debug” or control endpoints are called on your functions during scraping.</p>
+<hr>
+<h3>Requested metric keys only</h3>
+<p>To keep memory and I/O usage small, SlimFaas does <strong>not</strong> store every metric
+it sees. Instead, it maintains a dynamic allow-list of <strong>requested metric names</strong>
+via <code>IRequestedMetricsRegistry</code>.</p>
+<p>A metric name becomes “requested” in two situations:</p>
+<ol>
+<li>It appears in a <code>SlimFaas/Scale.Triggers[].Query</code> used by the AutoScaler.</li>
+<li>It is referenced at least once in a call to the debug endpoint
+<a href="#debug-http-endpoints"><code>POST /debug/promql/eval</code></a>.</li>
+</ol>
+<p>During scraping:</p>
+<ul>
+<li>For each metric line, SlimFaas:
+<ul>
+<li>extracts the metric name (e.g. <code>http_server_requests_seconds_count</code>,
+<code>slimfaas_function_queue_ready_items</code>, etc.),</li>
+<li>checks if this name is present in the requested set,</li>
+<li><strong>only stores the sample if the metric name is requested</strong>.</li>
+</ul>
+</li>
+</ul>
+<p>All other metrics are simply ignored.</p>
+<h4>Enabling new metrics via debug</h4>
+<p>If you run a debug query that uses a metric which was <strong>not</strong> previously requested,
+for example:</p>
+<pre><code class="language-bash hljs">curl -X <span class="hljs-keyword">POST</span> <span class="hljs-string">"http://localhost:5000/debug/promql/eval"</span>   -<span class="hljs-keyword">H</span> <span class="hljs-string">"Content-Type: application/json"</span>   -<span class="hljs-keyword">d</span> '{
+    <span class="hljs-string">"query"</span>: <span class="hljs-string">"max_over_time(some_new_metric{function="</span>fibonacci<span class="hljs-string">"}[30s])"</span>
+  }'
+</code></pre>
+<p>then:</p>
+<ul>
+<li><code>IRequestedMetricsRegistry</code> will add <code>some_new_metric</code> to the requested set,</li>
+<li>from the next scraping cycles onward, the scraper will start storing
+samples for <code>some_new_metric</code> (provided the pods actually expose it).</li>
+</ul>
+<p>This is not retroactive: data is only available from the moment the metric
+becomes requested.</p>
+<hr>
+<h3>Scraping node, master node, and database synchronization</h3>
+<p>In a SlimFaas cluster there are two important roles:</p>
+<ul>
+<li>
+<p>The <strong>master node</strong>
+Responsible for orchestration and scaling decisions:</p>
+<ul>
+<li>runs <code>ReplicasService.CheckScaleAsync</code>,</li>
+<li>runs <code>ScaleReplicasWorker</code>,</li>
+<li>applies scaling changes to Kubernetes.</li>
+</ul>
+</li>
+<li>
+<p>The <strong>designated scraping node</strong> (not the master)
+Responsible for metrics ingestion:</p>
+<ul>
+<li>runs <code>MetricsScrapingWorker</code>,</li>
+<li>calls the metrics endpoints on your pods every 5 seconds,</li>
+<li>updates the in-memory <code>IMetricsStore</code>,</li>
+<li>periodically serializes the metrics store to the SlimFaas database
+(for example under the key <code>metrics:store</code>).</li>
+</ul>
+</li>
+</ul>
+<p>All <strong>other</strong> SlimFaas nodes, including the master, do <strong>not</strong> scrape your pods.
+Instead, they:</p>
+<ol>
+<li>Periodically read the serialized metrics store from the SlimFaas database.</li>
+<li>Hydrate their local <code>IMetricsStore</code> from this binary snapshot.</li>
+<li>Evaluate PromQL queries locally against this hydrated store
+(for autoscaler triggers or debug requests).</li>
+</ol>
+<p>This architecture:</p>
+<ul>
+<li>avoids hammering your functions with multiple scrapers,</li>
+<li>keeps network traffic and CPU overhead low,</li>
+<li>still allows every node to have a consistent view of recent metrics.</li>
+</ul>
+<hr>
+<h3>Retention window (30 minutes)</h3>
+<p>The in-memory <code>IMetricsStore</code> is a time-bucketed structure, keyed by Unix timestamps
+in seconds. On each scrape:</p>
+<ul>
+<li>new samples are added under the <strong>current timestamp bucket</strong>,</li>
+<li>older buckets that fall outside the retention window are removed.</li>
+</ul>
+<p>By default, SlimFaas keeps <strong>only 30 minutes of data</strong> in the store.</p>
+<p>Practical implications:</p>
+<ul>
+<li>PromQL range windows like <code>[15s]</code>, <code>[30s]</code>, <code>[1m]</code>, <code>[5m]</code>, <code>[15m]</code> work as expected.</li>
+<li>Longer windows (e.g. <code>[1h]</code>, <code>[6h]</code>) effectively see only the <strong>most recent
+30 minutes</strong> of samples and may produce misleading results.</li>
+<li>The autoscaler and debug endpoints always work on “recent” data, which keeps
+memory usage predictable and bounded.</li>
+</ul>
+<p>When combined with the requested-metrics filter, this retention model gives you
+a compact, autoscaling-oriented time series store: just enough history to compute
+rates, quantiles and queue peaks, without trying to be a full Prometheus
+replacement.</p>
+<hr>
+<h2>Debug HTTP endpoints</h2>
+<p>SlimFaas exposes two <strong>debug HTTP endpoints</strong> to help you understand:</p>
+<ul>
+<li>Which metrics are actually stored in the in-memory metrics store,</li>
+<li>How your PromQL expressions are evaluated by the internal PromQL mini-evaluator.</li>
+</ul>
+<blockquote>
+<p>These endpoints are designed for <strong>local development, QA, and troubleshooting</strong>.
+In production, you should restrict access to them (authN/authZ, network policies, etc.)
+or expose them only to operators.</p>
+</blockquote>
+<hr>
+<h3><code>POST /debug/promql/eval</code></h3>
+<p>Evaluate a PromQL expression <strong>against the current in-memory metrics store</strong> and see
+the scalar value that the AutoScaler would use.</p>
+<p>This endpoint also:</p>
+<ul>
+<li>Enables PromQL-driven scraping via <code>IMetricsScrapingGuard</code> (so the scraping worker
+will actively collect metrics referenced in queries),</li>
+<li>Registers the metric names found in the query via <code>IRequestedMetricsRegistry</code>
+(so the scraper can focus on relevant metrics).</li>
+</ul>
+<h4>Request</h4>
+<ul>
+<li>Method: <code>POST</code></li>
+<li>Path: <code>/debug/promql/eval</code></li>
+<li>Body (JSON, <code>PromQlRequest</code>):</li>
+</ul>
+<pre><code class="language-jsonc hljs">{
+  <span class="hljs-string">"query"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"max_over_time(slimfaas_function_queue_ready_items{function="</span>fibonacci<span class="hljs-string">"}[30s])"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-string">"nowUnixSeconds"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">1732100000</span>
+}
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li><code>query</code> (required): the PromQL expression to evaluate.</li>
+<li><code>nowUnixSeconds</code> (optional): Unix timestamp (seconds) to use as “now” for range selectors.
+If omitted, the evaluator uses the <strong>latest timestamp available in the store</strong>.</li>
+</ul>
+<h4>Successful response (200)</h4>
+<p>Body (JSON, <code>PromQlResponse</code>):</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"value"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">42.0</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p>This is the final scalar value returned by the PromQL mini-evaluator.</p>
+<h4>Example: evaluate queue length over 30 seconds</h4>
+<pre><code class="language-bash hljs">curl -X <span class="hljs-keyword">POST</span> <span class="hljs-string">"http://localhost:5000/debug/promql/eval"</span>   -<span class="hljs-keyword">H</span> <span class="hljs-string">"Content-Type: application/json"</span>   -<span class="hljs-keyword">d</span> '{
+    <span class="hljs-string">"query"</span>: <span class="hljs-string">"max_over_time(slimfaas_function_queue_ready_items{function="</span>fibonacci<span class="hljs-string">"}[30s])"</span>
+  }'
+</code></pre>
+<p>Possible response:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"value"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">128</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h4>Example: evaluate RPS</h4>
+<pre><code class="language-bash hljs">curl -X POST <span class="hljs-string">"http://localhost:5000/debug/promql/eval"</span>   -H <span class="hljs-string">"Content-Type: application/json"</span>   -d <span class="hljs-string">'{
+    "</span>query<span class="hljs-string">": "</span><span class="hljs-built_in">sum</span>(rate(http_server_requests_seconds_count{namespace=<span class="hljs-string">"default"</span>,job=<span class="hljs-string">"fibonacci"</span>}[<span class="hljs-number">1</span>m]))<span class="hljs-string">"
+  }'</span>
+</code></pre>
+<p>Possible response:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"value"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">17.352941176470587</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p>You can compare this value with the trigger <code>Threshold</code> to understand
+how the AutoScaler will compute <code>desiredReplicas</code>.</p>
+<h4>Error responses</h4>
+<p>The endpoint returns structured errors when something goes wrong.</p>
+<p><strong>1. Missing or empty query</strong></p>
+<pre><code class="language-bash hljs">curl -X POST <span class="hljs-string">"http://localhost:5000/debug/promql/eval"</span>   -H <span class="hljs-string">"Content-Type: application/json"</span>   -d <span class="hljs-string">'{"</span>query<span class="hljs-string">": "</span><span class="hljs-string">"}'</span>
+</code></pre>
+<p>Response (400):</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"error"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"query is required"</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>2. Parse error / unsupported syntax</strong></p>
+<pre><code class="language-json hljs">{
+  <span class="hljs-comment">"error"</span>: <span class="hljs-comment">"Unexpected trailing characters in query"</span>
+}
+</code></pre>
+<p><strong>3. Result is NaN or Infinity</strong></p>
+<p>For example, when there is no data or a division by zero:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"error"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"PromQL result is NaN or Infinity (probably no data or division by zero)."</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p><strong>4. Internal error</strong></p>
+<p>Unexpected exceptions during evaluation are returned as RFC 7807 problem details:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"type"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"about:blank"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"title"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"Evaluation error"</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"status"</span><span class="hljs-punctuation">:</span> <span class="hljs-number">500</span><span class="hljs-punctuation">,</span>
+  <span class="hljs-attr">"detail"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"Some internal exception message..."</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<p>Use this endpoint to <strong>dry-run</strong> any PromQL expression before using it
+in <code>SlimFaas/Scale.Triggers[].Query</code>.</p>
+<hr>
+<h3><code>GET /debug/store</code></h3>
+<p>Inspect a <strong>summary of the in-memory metrics store</strong> and see which metric names are
+currently being “requested” by the autoscaler and by your debug PromQL calls.</p>
+<p>This endpoint does <em>not</em> dump all the raw samples. Instead, it returns a compact view
+of what’s inside the store.</p>
+<h4>Request</h4>
+<ul>
+<li>Method: <code>GET</code></li>
+<li>Path: <code>/debug/store</code></li>
+<li>Body: none</li>
+</ul>
+<h4>Response (200)</h4>
+<p>Body (JSON, <code>MetricsStoreDebugResponse</code>):</p>
+<pre><code class="language-json hljs">{
+  <span class="hljs-string">"requestedMetricNames"</span>: [
+    <span class="hljs-string">"http_server_requests_seconds_count"</span>,
+    <span class="hljs-string">"slimfaas_function_queue_ready_items"</span>
+  ],
+  <span class="hljs-string">"timestampBuckets"</span>: <span class="hljs-number">48</span>,
+  <span class="hljs-string">"seriesCount"</span>: <span class="hljs-number">1262</span>,
+  <span class="hljs-string">"totalPoints"</span>: <span class="hljs-number">1262</span>
+}
+</code></pre>
+<p>Fields:</p>
+<ul>
+<li>
+<p><code>requestedMetricNames</code>
+List of distinct metric names registered via <code>IRequestedMetricsRegistry</code>, typically from:</p>
+<ul>
+<li><code>SlimFaas/Scale.Triggers[].Query</code> (autoscaler triggers),</li>
+<li>calls to <code>POST /debug/promql/eval</code>.</li>
+</ul>
+<p>If this list is empty, it usually means that no PromQL-based queries
+have been registered yet, and the scraper may not be focusing on any metric.</p>
+</li>
+<li>
+<p><code>timestampBuckets</code>
+Number of distinct timestamps currently stored. This is roughly the size
+of the internal rolling window in “buckets”.</p>
+</li>
+<li>
+<p><code>seriesCount</code>
+Number of time series (deployment × pod × metric key) in the store.</p>
+</li>
+<li>
+<p><code>totalPoints</code>
+Total number of points <code>(timestamp, series)</code> currently stored.</p>
+</li>
+</ul>
+<h4>Example: inspect the metrics store</h4>
+<pre><code class="language-bash hljs"><span class="hljs-attribute">curl</span> <span class="hljs-string">"http://localhost:5000/debug/store"</span>
+</code></pre>
+<p>Example response:</p>
+<pre><code class="language-json hljs">{
+  <span class="hljs-string">"requestedMetricNames"</span>: [
+    <span class="hljs-string">"http_server_requests_seconds_count"</span>,
+    <span class="hljs-string">"slimfaas_function_queue_ready_items"</span>
+  ],
+  <span class="hljs-string">"timestampBuckets"</span>: <span class="hljs-number">4</span>,
+  <span class="hljs-string">"seriesCount"</span>: <span class="hljs-number">8</span>,
+  <span class="hljs-string">"totalPoints"</span>: <span class="hljs-number">8</span>
+}
+</code></pre>
+<p>How to read this:</p>
+<ul>
+<li>Your PromQL queries currently reference two metric names
+(HTTP request counter and queue length gauge).</li>
+<li>The store holds data for 4 different timestamps.</li>
+<li>There are 8 logical series (e.g. 2 metrics × 4 pods).</li>
+<li>Each series has one point per timestamp, so <code>totalPoints = 8</code>.</li>
+</ul>
+<p>If <code>timestampBuckets</code> stays at <code>0</code> or <code>1</code> for a long time, it usually means that:</p>
+<ul>
+<li>the scraping worker is not running,</li>
+<li>or it cannot reach your pods (annotations, network, etc.).</li>
+</ul>
+<p>Using this endpoint together with <code>POST /debug/promql/eval</code> gives you a very quick way
+to understand “what SlimFaas sees” when making autoscaling decisions.</p>
+<hr>
+<h2>Decision algorithm details</h2>
+<p>High-level logic for each periodic tick of <code>CheckScaleAsync</code>:</p>
+<pre><code class="language-text hljs">for each function:
+
+<span class="hljs-bullet">  1.</span> Read current replicas and configuration (annotations).
+
+<span class="hljs-bullet">  2.</span> Compute "last activity" timestamp using:
+<span class="hljs-bullet">     -</span> HTTP history,
+<span class="hljs-bullet">     -</span> schedule wake-up times,
+<span class="hljs-bullet">     -</span> dependency activity.
+
+<span class="hljs-bullet">  3.</span> HTTP/schedule-based 0→N / N→0 system:
+
+<span class="hljs-bullet">     -</span> If inactivity is longer than the current timeout:
+<span class="hljs-code">         desiredReplicas = ReplicasMin
+</span>
+<span class="hljs-bullet">     -</span> Else if (replicas == 0 or replicas &lt; ReplicasMin) and dependencies are ready:
+<span class="hljs-code">         desiredReplicas = ReplicasAtStart
+</span>
+<span class="hljs-bullet">     -</span> Else:
+<span class="hljs-code">         desiredReplicas = currentReplicas
+</span>
+<span class="hljs-bullet">  4.</span> Prometheus-based N→M system:
+
+<span class="hljs-bullet">     -</span> If there is a valid SlimFaas/Scale annotation
+<span class="hljs-code">       AND currentReplicas &gt; 0:
+</span>
+<span class="hljs-code">         desiredReplicas = AutoScaler(desiredReplicas, metrics...)
+</span>
+<span class="hljs-bullet">  5.</span> If desiredReplicas != currentReplicas:
+<span class="hljs-code">       call Kubernetes Scale (Deployment replicas) for this function.
+</span></code></pre>
+<p>Key points:</p>
+<ul>
+<li>The <strong>HTTP/schedule system always runs first</strong>, and is the only one that can propose a transition from <code>0</code> to <code>&gt; 0</code>.</li>
+<li>The <strong>Prometheus AutoScaler only runs if <code>currentReplicas &gt; 0</code></strong>.</li>
+<li>The final decision is applied only if <code>desiredReplicas</code> differs from the current value.</li>
+</ul>
+<hr>
+<h2>Configuration examples</h2>
+<h3>1. Simple RPS-based autoscaling with scale-to-zero</h3>
+<p>This example:</p>
+<ul>
+<li>Scales based on <strong>requests per second (RPS)</strong>,</li>
+<li>Allows <strong>scale-to-zero</strong> after 5 minutes of inactivity,</li>
+<li>Starts with 1 pod when waking up.</li>
+</ul>
+<pre><code class="language-yaml hljs"><span class="hljs-params">apiVersion:</span> apps<span class="hljs-symbol">/v1</span>
+<span class="hljs-params">kind:</span> Deployment
+<span class="hljs-params">metadata:</span>
+  <span class="hljs-params">name:</span> fibonacci
+  <span class="hljs-params">namespace:</span> default
+  <span class="hljs-params">annotations:</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasMin:</span> <span class="hljs-string">"0"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasAtStart:</span> <span class="hljs-string">"1"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">TimeoutSecondBeforeSetReplicasMin:</span> <span class="hljs-string">"300"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">Scale:</span> <span class="hljs-operator">&gt;</span>
+      {
+        <span class="hljs-string">"ReplicaMax"</span>: <span class="hljs-number">10</span>,
+        <span class="hljs-string">"Triggers"</span>: [
+          {
+            <span class="hljs-string">"MetricType"</span>: <span class="hljs-string">"AverageValue"</span>,
+            <span class="hljs-string">"MetricName"</span>: <span class="hljs-string">"rps_per_pod"</span>,
+            <span class="hljs-string">"Query"</span>: <span class="hljs-string">"sum(rate(http_server_requests_seconds_count{namespace=<span class="hljs-char escape_">\"</span><span class="hljs-subst">${namespace}</span><span class="hljs-char escape_">\"</span>,job=<span class="hljs-char escape_">\"</span><span class="hljs-subst">${app}</span><span class="hljs-char escape_">\"</span>}[1m]))"</span>,
+            <span class="hljs-string">"Threshold"</span>: <span class="hljs-number">20</span>
+          }
+        ]
+      }
+<span class="hljs-params">spec:</span>
+  <span class="hljs-params">replicas:</span> <span class="hljs-number">1</span>
+  <span class="hljs-comment"># ...</span>
+</code></pre>
+<p>Interpretation:</p>
+<ul>
+<li>
+<p>Target: <strong>20 RPS per pod</strong>.</p>
+</li>
+<li>
+<p>Scale-up/down formula:</p>
+<pre><code class="language-text hljs"><span class="hljs-attribute">desiredReplicas</span> <span class="hljs-operator">=</span> ceil(currentReplicas * (currentRps / <span class="hljs-number">20</span>))
+</code></pre>
+</li>
+<li>
+<p>After 5 minutes with no activity (HTTP or schedule), SlimFaas scales down to 0.</p>
+</li>
+</ul>
+<h3>2. Combined trigger: RPS per pod + queue length</h3>
+<p>This example:</p>
+<ul>
+<li>Uses two triggers:
+<ul>
+<li>RPS per pod,</li>
+<li>Total queue length for this function.</li>
+</ul>
+</li>
+<li>Uses per-pod and total constraints.</li>
+</ul>
+<pre><code class="language-yaml hljs"><span class="hljs-params">apiVersion:</span> apps<span class="hljs-symbol">/v1</span>
+<span class="hljs-params">kind:</span> Deployment
+<span class="hljs-params">metadata:</span>
+  <span class="hljs-params">name:</span> my-queue-driven-func
+  <span class="hljs-params">namespace:</span> default
+  <span class="hljs-params">annotations:</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasMin:</span> <span class="hljs-string">"1"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasAtStart:</span> <span class="hljs-string">"2"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">TimeoutSecondBeforeSetReplicasMin:</span> <span class="hljs-string">"600"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">Scale:</span> <span class="hljs-operator">&gt;</span>
+      {
+        <span class="hljs-string">"ReplicaMax"</span>: <span class="hljs-number">50</span>,
+        <span class="hljs-string">"Triggers"</span>: [
+          {
+            <span class="hljs-string">"MetricType"</span>: <span class="hljs-string">"AverageValue"</span>,
+            <span class="hljs-string">"MetricName"</span>: <span class="hljs-string">"rps_per_pod"</span>,
+            <span class="hljs-string">"Query"</span>: <span class="hljs-string">"sum(rate(http_server_requests_seconds_count{namespace=<span class="hljs-char escape_">\"</span><span class="hljs-subst">${namespace}</span><span class="hljs-char escape_">\"</span>,job=<span class="hljs-char escape_">\"</span><span class="hljs-subst">${app}</span><span class="hljs-char escape_">\"</span>}[1m]))"</span>,
+            <span class="hljs-string">"Threshold"</span>: <span class="hljs-number">30</span>
+          },
+          {
+            <span class="hljs-string">"MetricType"</span>: <span class="hljs-string">"Value"</span>,
+            <span class="hljs-string">"MetricName"</span>: <span class="hljs-string">"queue_length"</span>,
+            <span class="hljs-string">"Query"</span>: <span class="hljs-string">"sum(slimfaas_function_queue_ready_items{function=<span class="hljs-char escape_">\"</span><span class="hljs-subst">${app}</span><span class="hljs-char escape_">\"</span>})"</span>,
+            <span class="hljs-string">"Threshold"</span>: <span class="hljs-number">200</span>
+          }
+        ],
+        <span class="hljs-string">"Behavior"</span>: {
+          <span class="hljs-string">"ScaleUp"</span>: {
+            <span class="hljs-string">"StabilizationWindowSeconds"</span>: <span class="hljs-number">0</span>,
+            <span class="hljs-string">"Policies"</span>: [
+              { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Percent"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">100</span>, <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">15</span> },
+              { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Pods"</span>,    <span class="hljs-string">"Value"</span>: <span class="hljs-number">10</span>,  <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">15</span> }
+            ]
+          },
+          <span class="hljs-string">"ScaleDown"</span>: {
+            <span class="hljs-string">"StabilizationWindowSeconds"</span>: <span class="hljs-number">300</span>,
+            <span class="hljs-string">"Policies"</span>: [
+              { <span class="hljs-string">"Type"</span>: <span class="hljs-string">"Percent"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">50</span>, <span class="hljs-string">"PeriodSeconds"</span>: <span class="hljs-number">30</span> }
+            ]
+          }
+        }
+      }
+<span class="hljs-params">spec:</span>
+  <span class="hljs-params">replicas:</span> <span class="hljs-number">2</span>
+  <span class="hljs-comment"># ...</span>
+</code></pre>
+<p>Behavior:</p>
+<ul>
+<li>For each trigger, the AutoScaler computes a desired replica count.</li>
+<li>The final <code>desiredReplicas</code> is the <strong>maximum</strong> of:
+<ul>
+<li>the desired from RPS trigger,</li>
+<li>the desired from queue length trigger.</li>
+</ul>
+</li>
+</ul>
+<h3>3. Business-hours warmup via Schedule</h3>
+<p>Keep pods warm during business hours, aggressive scale-down at night:</p>
+<pre><code class="language-yaml hljs"><span class="hljs-params">apiVersion:</span> apps<span class="hljs-symbol">/v1</span>
+<span class="hljs-params">kind:</span> Deployment
+<span class="hljs-params">metadata:</span>
+  <span class="hljs-params">name:</span> business-func
+  <span class="hljs-params">namespace:</span> default
+  <span class="hljs-params">annotations:</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasMin:</span> <span class="hljs-string">"1"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasAtStart:</span> <span class="hljs-string">"2"</span>
+    SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">Schedule:</span> <span class="hljs-operator">&gt;</span>
+      {
+        <span class="hljs-string">"TimeZoneID"</span>: <span class="hljs-string">"Europe/Paris"</span>,
+        <span class="hljs-string">"Default"</span>: {
+          <span class="hljs-string">"WakeUp"</span>: [
+            <span class="hljs-string">"08:30"</span>
+          ],
+          <span class="hljs-string">"ScaleDownTimeout"</span>: [
+            { <span class="hljs-string">"Time"</span>: <span class="hljs-string">"08:30"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">3600</span> },
+            { <span class="hljs-string">"Time"</span>: <span class="hljs-string">"18:30"</span>, <span class="hljs-string">"Value"</span>: <span class="hljs-number">300</span> }
+          ]
+        }
+      }
+<span class="hljs-params">spec:</span>
+  <span class="hljs-comment"># ...</span>
+</code></pre>
+<ul>
+<li>At 08:30 local time:
+<ul>
+<li>The function is “virtually called” and can be scaled up to <code>ReplicasAtStart</code>.</li>
+<li>Inactivity timeout is 3600 seconds (1 hour).</li>
+</ul>
+</li>
+<li>After 18:30:
+<ul>
+<li>Timeout is only 300 seconds (5 minutes), so pods can scale down quickly.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h2>Best practices</h2>
+<ol>
+<li>
+<p><strong>Always set a meaningful <code>ReplicaMax</code></strong>
+Avoid unbounded scaling in case of incorrect thresholds or noisy metrics.</p>
+</li>
+<li>
+<p><strong>Choose <code>ReplicasMin</code> carefully</strong></p>
+<ul>
+<li>Use <code>0</code> only when you accept cold start latency.</li>
+<li>Use <code>1</code> or more for critical, low-latency functions.</li>
+</ul>
+</li>
+<li>
+<p><strong>Use reasonable PromQL windows</strong></p>
+<ul>
+<li>Prefer metrics such as <code>rate(...[1m])</code> or <code>rate(...[5m])</code> rather than raw counters.</li>
+<li>Avoid overly short windows that create noisy signals.</li>
+</ul>
+</li>
+<li>
+<p><strong>Be conservative with scale-down</strong></p>
+<ul>
+<li>Add a <code>ScaleDown</code> stabilization window.</li>
+<li>Use smaller percent values (e.g., 50%) to avoid aggressive shrink.</li>
+</ul>
+</li>
+<li>
+<p><strong>Never rely on Prometheus to wake from 0</strong></p>
+<ul>
+<li>Prometheus metrics require pods to be running and scraped.</li>
+<li>In SlimFaas, <strong>only HTTP/schedule controls 0 → N</strong>.</li>
+</ul>
+</li>
+<li>
+<p><strong>Document each trigger</strong></p>
+<ul>
+<li>Use <code>MetricName</code> for clear semantic names.</li>
+<li>Keep the PromQL queries in team documentation or dashboards.</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2>Observability &amp; debugging</h2>
+<p>To understand and debug autoscaling behavior:</p>
+<ol>
+<li>
+<p><strong>Logs from ReplicasService / ScaleReplicasWorker</strong></p>
+<ul>
+<li>
+<p>Debug logs show time left before scale-down.</p>
+</li>
+<li>
+<p>Info logs show scaling decisions:</p>
+<pre><code class="language-text hljs"><span class="hljs-attribute">Scale</span> up {Deployment} <span class="hljs-selector-tag">from</span> {Current} <span class="hljs-selector-tag">to</span> {Desired}
+<span class="hljs-attribute">Scale</span> down {Deployment} <span class="hljs-selector-tag">from</span> {Current} <span class="hljs-selector-tag">to</span> {ReplicasMin}
+</code></pre>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Logs from the AutoScaler / PromQL evaluator</strong></p>
+<ul>
+<li>Warnings when:
+<ul>
+<li>PromQL queries fail,</li>
+<li>Metric values are NaN or infinite,</li>
+<li>Thresholds are invalid.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Prometheus / Grafana dashboards</strong></p>
+<ul>
+<li>Visualize:
+<ul>
+<li>The PromQL used in triggers.</li>
+<li>The effective RPS, queue length, etc.</li>
+<li>The number of replicas per function over time.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>
+<p><strong>Debug HTTP endpoints</strong></p>
+<ul>
+<li>Use <code>/debug/promql/eval</code> to validate PromQL expressions against the current store.</li>
+<li>Use <code>/debug/store</code> to check that metrics are being scraped and stored.</li>
+</ul>
+</li>
+<li>
+<p><strong>Metrics for desired vs actual replicas</strong></p>
+<ul>
+<li>Expose or log the desired replica count computed per tick for better visibility.</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2>FAQ</h2>
+<h3>Q1. Why does the AutoScaler never wake a function from 0?</h3>
+<p>By design:</p>
+<ul>
+<li>SlimFaas <strong>only allows the HTTP/schedule system to wake functions from 0</strong>.</li>
+<li>The Prometheus AutoScaler only adjusts <strong>existing</strong> capacity.</li>
+</ul>
+<p>This avoids relying on metrics that cannot exist while no pod is running.</p>
+<hr>
+<h3>Q2. What happens if all triggers return invalid metrics?</h3>
+<p>If all triggers in <code>SlimFaas/Scale</code> produce invalid values (NaN, Inf, negative, PromQL error):</p>
+<ul>
+<li>The AutoScaler ignores them.</li>
+<li>The replica count is left unchanged, except for:
+<ul>
+<li>enforcing <code>ReplicasMin</code>,</li>
+<li>enforcing <code>ReplicaMax</code>.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3>Q3. How do I enable scale-to-zero?</h3>
+<p>Set:</p>
+<pre><code class="language-yaml hljs"><span class="hljs-params">annotations:</span>
+  SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">ReplicasMin:</span> <span class="hljs-string">"0"</span>
+  SlimFaas<span class="hljs-operator">/</span><span class="hljs-params">TimeoutSecondBeforeSetReplicasMin:</span> <span class="hljs-string">"300"</span>
+</code></pre>
+<p>After 300 seconds of inactivity (considering HTTP history, schedule, and dependencies), SlimFaas will scale the function down to 0.</p>
+<hr>
+<h3>Q4. How do I temporarily disable the Prometheus AutoScaler for a function?</h3>
+<p>Simply remove the <code>SlimFaas/Scale</code> annotation from the Deployment (or set it to an empty config with no triggers):</p>
+<pre><code class="language-yaml hljs"><span class="hljs-attribute">annotations</span><span class="hljs-punctuation">:</span>
+  <span class="hljs-attribute">SlimFaas/Scale</span><span class="hljs-punctuation">:</span> <span class="hljs-string">&gt;</span>
+    <span class="hljs-attribute">{
+      "Triggers"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">[]</span>
+    }
+</code></pre>
+<p>With no valid triggers, the <code>N → M</code> system will effectively be disabled; only <code>0 → N</code> / <code>N → 0</code> will remain active.</p>
+<hr>
+<h3>Q5. Can I combine several triggers for one function?</h3>
+<p>Yes.</p>
+<ul>
+<li>Each trigger computes its own desired replica count.</li>
+<li>The AutoScaler chooses the <strong>maximum</strong> of all trigger outputs.</li>
+<li>This lets you, for example, scale based on:
+<ul>
+<li>both RPS and queue length,</li>
+<li>or RPS and CPU usage, etc.</li>
+</ul>
+</li>
+</ul>
+</body></html></div></div></main><footer class="footer"><div class="footer__container"><p class="footer__origin">SlimFaas was originally created by AXA France.</p><div class="footer__cncf"><p class="footer__cncf-text">We are a Cloud Native Computing Foundation sandbox project.</p><img alt="CNCF Logo" loading="lazy" width="150" height="150" decoding="async" data-nimg="1" class="footer__cncf-logo" style="color:transparent" src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg"/></div><p class="footer__kubecon">Learn more about us at <a href="https://events.linuxfoundation.org/kubecon-cloudnativecon/" class="footer__kubecon-link">KubeCon + CloudNativeCon</a>.</p><p class="footer__trademark">The Linux Foundation® (TLF) has registered trademarks and uses trademarks. For a list of TLF trademarks, see <a href="https://www.linuxfoundation.org/trademark-usage" class="footer__trademark-link">Trademark Usage</a>.</p><p class="footer__copyright">© SlimFaas a Series of LF Projects, LLC. All rights reserved.  | <a href="#" class="footer__trademark-link">Cookie settings</a></p></div></footer></div></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"contentHtml":"\u003chtml\u003e\u003chead\u003e\u003c/head\u003e\u003cbody\u003e\u003ch1\u003eSlimFaas Autoscaling Guide\u003c/h1\u003e\n\u003cblockquote\u003e\n\u003cp\u003eEnd-to-end autoscaling for SlimFaas functions:\n\u003cstrong\u003eHTTP activity \u0026amp; schedules for \u003ccode\u003e0 → N\u003c/code\u003e + Prometheus / PromQL AutoScaler for \u003ccode\u003eN → M\u003c/code\u003e\u003c/strong\u003e\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003chr\u003e\n\u003ch2\u003eTable of contents\u003c/h2\u003e\n\u003col\u003e\n\u003cli\u003e\u003ca href=\"#overview\"\u003eOverview\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#core-concepts\"\u003eCore concepts\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#autoscaling-architecture\"\u003eAutoscaling architecture\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#configuring-0--n-scale-http-history--schedule\"\u003eConfiguring \u003ccode\u003e0 → N\u003c/code\u003e scale (HTTP history + schedule)\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#configuring-n--m-scale-prometheus-autoscaler\"\u003eConfiguring \u003ccode\u003eN → M\u003c/code\u003e scale (Prometheus AutoScaler)\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#promql-support--current-limitations\"\u003ePromQL support \u0026amp; current limitations\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#metrics-scraping-internals\"\u003eMetrics scraping internals\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#debug-http-endpoints\"\u003eDebug HTTP endpoints\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#decision-algorithm-details\"\u003eDecision algorithm details\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#configuration-examples\"\u003eConfiguration examples\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#best-practices\"\u003eBest practices\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#observability--debugging\"\u003eObservability \u0026amp; debugging\u003c/a\u003e\u003c/li\u003e\n\u003cli\u003e\u003ca href=\"#faq\"\u003eFAQ\u003c/a\u003e\u003c/li\u003e\n\u003c/ol\u003e\n\u003chr\u003e\n\u003ch2\u003eOverview\u003c/h2\u003e\n\u003cp\u003eSlimFaas combines \u003cstrong\u003etwo complementary autoscaling systems\u003c/strong\u003e:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003e\u003ccode\u003e0 → N\u003c/code\u003e scaling (wake-up from zero)\u003c/strong\u003e\nDriven by:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eHTTP call history (in-memory + database),\u003c/li\u003e\n\u003cli\u003eoptional \u003cstrong\u003eschedule configuration\u003c/strong\u003e (wake-up times, scale-down timeouts),\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003efunction dependencies\u003c/strong\u003e (\u003ccode\u003eDependsOn\u003c/code\u003e).\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e👉 This system is the \u003cstrong\u003eonly one allowed to bring a function from \u003ccode\u003e0\u003c/code\u003e to \u003ccode\u003e\u0026gt; 0\u003c/code\u003e replicas\u003c/strong\u003e.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003e\u003ccode\u003eN → M\u003c/code\u003e scaling (Prometheus AutoScaler)\u003c/strong\u003e\nDriven by:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ea Prometheus metrics scraping worker,\u003c/li\u003e\n\u003cli\u003ea small PromQL evaluator,\u003c/li\u003e\n\u003cli\u003ean \u003ccode\u003eAutoScaler\u003c/code\u003e that computes the desired number of replicas based on metrics.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e👉 This system is used \u003cstrong\u003eonly when the function already has at least one pod\u003c/strong\u003e (\u003ccode\u003ereplicas \u0026gt; 0\u003c/code\u003e).\u003c/p\u003e\n\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp\u003eBoth systems are orchestrated by:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eReplicasService.CheckScaleAsync(namespace)\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eScaleReplicasWorker\u003c/code\u003e, a background worker that calls \u003ccode\u003eCheckScaleAsync\u003c/code\u003e periodically on the master node.\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eCore concepts\u003c/h2\u003e\n\u003cp\u003eIn SlimFaas, each function is represented by a Kubernetes \u003ccode\u003eDeployment\u003c/code\u003e and a set of \u003cstrong\u003eannotations\u003c/strong\u003e that drive autoscaling.\u003c/p\u003e\n\u003ch3\u003eKey properties (conceptual)\u003c/h3\u003e\n\u003cp\u003eFor each function (deployment):\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eCurrent replicas\u003c/strong\u003e\nThe current number of pods, as seen by SlimFaas.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003e\u003ccode\u003eReplicasMin\u003c/code\u003e\u003c/strong\u003e\nMinimal number of pods allowed after scale-down. This can be \u003ccode\u003e0\u003c/code\u003e if you want \u003cstrong\u003escale-to-zero\u003c/strong\u003e, or a positive value if you want to avoid full cold starts.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003e\u003ccode\u003eReplicasAtStart\u003c/code\u003e\u003c/strong\u003e\nNumber of pods to start when waking up a function from \u003ccode\u003e0\u003c/code\u003e (or from below minimum) via the \u003ccode\u003e0 → N\u003c/code\u003e system.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003e\u003ccode\u003eTimeoutSecondBeforeSetReplicasMin\u003c/code\u003e\u003c/strong\u003e\nInactivity duration (based on HTTP history and schedule) before SlimFaas scales down the function to \u003ccode\u003eReplicasMin\u003c/code\u003e.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003e\u003ccode\u003eDependsOn\u003c/code\u003e\u003c/strong\u003e\nList of other functions that this function depends on. SlimFaas can ensure dependencies are ready before waking up a function.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003e\u003ccode\u003eSchedule\u003c/code\u003e\u003c/strong\u003e\nTime-based configuration for:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003ewake-up times\u003c/strong\u003e (treated as synthetic HTTP activity),\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003etime-dependent scale-down timeouts\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003e\u003ccode\u003eScale\u003c/code\u003e\u003c/strong\u003e\nMetrics-based autoscaling configuration, powered by Prometheus \u0026amp; PromQL, used for \u003ccode\u003eN → M\u003c/code\u003e scaling.\u003c/p\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eHow this is exposed in Kubernetes\u003c/h3\u003e\n\u003cp\u003eMany of these properties are configured via \u003cstrong\u003eannotations\u003c/strong\u003e on your function \u003ccode\u003eDeployment\u003c/code\u003e, for example:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003eapiVersion:\u003c/span\u003e apps\u003cspan class=\"hljs-symbol\"\u003e/v1\u003c/span\u003e\n\u003cspan class=\"hljs-params\"\u003ekind:\u003c/span\u003e Deployment\n\u003cspan class=\"hljs-params\"\u003emetadata:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003ename:\u003c/span\u003e fibonacci\n  \u003cspan class=\"hljs-params\"\u003enamespace:\u003c/span\u003e default\n  \u003cspan class=\"hljs-params\"\u003eannotations:\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"0\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasAtStart:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"1\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eTimeoutSecondBeforeSetReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"300\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eDependsOn:\u003c/span\u003e '[\u003cspan class=\"hljs-string\"\u003e\"another-func-a\"\u003c/span\u003e,\u003cspan class=\"hljs-string\"\u003e\"another-func-b\"\u003c/span\u003e]'\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eSchedule:\u003c/span\u003e \u003cspan class=\"hljs-operator\"\u003e\u0026gt;\u003c/span\u003e\n      {\n        \u003cspan class=\"hljs-string\"\u003e\"TimeZoneID\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Europe/Paris\"\u003c/span\u003e,\n        \u003cspan class=\"hljs-string\"\u003e\"Default\"\u003c/span\u003e: {\n          \u003cspan class=\"hljs-string\"\u003e\"WakeUp\"\u003c/span\u003e: [ \u003cspan class=\"hljs-string\"\u003e\"08:00\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"13:30\"\u003c/span\u003e ],\n          \u003cspan class=\"hljs-string\"\u003e\"ScaleDownTimeout\"\u003c/span\u003e: [\n            { \u003cspan class=\"hljs-string\"\u003e\"Time\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"08:00\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e1800\u003c/span\u003e },\n            { \u003cspan class=\"hljs-string\"\u003e\"Time\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"19:00\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e300\u003c/span\u003e }\n          ]\n        }\n      }\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eScale:\u003c/span\u003e \u003cspan class=\"hljs-operator\"\u003e\u0026gt;\u003c/span\u003e\n      {\n        \u003cspan class=\"hljs-string\"\u003e\"ReplicaMax\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e10\u003c/span\u003e,\n        \u003cspan class=\"hljs-string\"\u003e\"Triggers\"\u003c/span\u003e: [],\n        \u003cspan class=\"hljs-string\"\u003e\"Behavior\"\u003c/span\u003e: {}\n      }\n\u003cspan class=\"hljs-params\"\u003espec:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003ereplicas:\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e1\u003c/span\u003e\n  \u003cspan class=\"hljs-comment\"\u003e# ...\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cblockquote\u003e\n\u003cp\u003eNote: when the \u003ccode\u003eSlimFaas/Scale\u003c/code\u003e annotation is not present (or is invalid), the Prometheus-based AutoScaler is simply disabled for that function.\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003chr\u003e\n\u003ch2\u003eAutoscaling architecture\u003c/h2\u003e\n\u003ch3\u003eHigh-level diagram\u003c/h3\u003e\n\u003cpre\u003e\u003ccode class=\"language-mermaid hljs\"\u003eflowchart LR\n    subgraph HTTP_history[\u003cspan class=\"hljs-string\"\u003e\"HTTP history \u0026amp; Schedule (0→N)\"\u003c/span\u003e]\n        H[History HTTP (\u003cspan class=\"hljs-built_in\"\u003ein\u003c/span\u003e-memory + DB)] --\u0026gt; R\n        S[Schedule config] --\u0026gt; R\n        D[DependsOn] --\u0026gt; R\n    \u003cspan class=\"hljs-keyword\"\u003eend\u003c/span\u003e\n\n    subgraph Prometheus[\u003cspan class=\"hljs-string\"\u003e\"Prometheus AutoScaler (N→M)\"\u003c/span\u003e]\n        MSW[MetricsScrapingWorker] --\u0026gt; MS[Metrics store]\n        MS --\u0026gt; PQ[PromQL evaluator]\n        PQ --\u0026gt; AS[AutoScaler]\n        AS --\u0026gt; ASS[AutoScalerStore]\n    \u003cspan class=\"hljs-keyword\"\u003eend\u003c/span\u003e\n\n    subgraph Core[\u003cspan class=\"hljs-string\"\u003e\"Scaling orchestration\"\u003c/span\u003e]\n        R[ReplicasService.CheckScaleAsync]\n        SW[ScaleReplicasWorker]\n    \u003cspan class=\"hljs-keyword\"\u003eend\u003c/span\u003e\n\n    SW --\u0026gt; R\n    R --\u0026gt;|\u003cspan class=\"hljs-type\"\u003escale\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e0\u003c/span\u003e→N / N→\u003cspan class=\"hljs-number\"\u003e0\u003c/span\u003e| \u003cspan class=\"hljs-type\"\u003eK8S\u003c/span\u003e[(Kubernetes API)]\n    R --\u0026gt;|\u003cspan class=\"hljs-type\"\u003edesiredReplicas\u003c/span\u003e N→M| \u003cspan class=\"hljs-type\"\u003eK8S\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eScaleReplicasWorker\u003c/code\u003e periodically calls \u003ccode\u003eCheckScaleAsync\u003c/code\u003e if the node is the master.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eReplicasService.CheckScaleAsync\u003c/code\u003e:\n\u003col\u003e\n\u003cli\u003eComputes a \u003cstrong\u003edesired replica count\u003c/strong\u003e using the \u003cstrong\u003eHTTP/schedule based system\u003c/strong\u003e (\u003ccode\u003e0 → N\u003c/code\u003e / \u003ccode\u003eN → 0\u003c/code\u003e).\u003c/li\u003e\n\u003cli\u003eIf the function already has \u003ccode\u003ereplicas \u0026gt; 0\u003c/code\u003e and a \u003ccode\u003eSlimFaas/Scale\u003c/code\u003e annotation, it invokes the \u003cstrong\u003ePrometheus AutoScaler\u003c/strong\u003e to adjust \u003ccode\u003eN → M\u003c/code\u003e.\u003c/li\u003e\n\u003c/ol\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eConfiguring \u003ccode\u003e0 → N\u003c/code\u003e scale (HTTP history + schedule)\u003c/h2\u003e\n\u003cp\u003eThe \u003ccode\u003e0 → N\u003c/code\u003e system is responsible for:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eScaling down\u003c/strong\u003e to \u003ccode\u003eReplicasMin\u003c/code\u003e after inactivity,\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eWaking up\u003c/strong\u003e functions to \u003ccode\u003eReplicasAtStart\u003c/code\u003e based on:\n\u003cul\u003e\n\u003cli\u003eHTTP activity,\u003c/li\u003e\n\u003cli\u003eschedule,\u003c/li\u003e\n\u003cli\u003edependencies.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eInactivity timeout → scale down to \u003ccode\u003eReplicasMin\u003c/code\u003e\u003c/h3\u003e\n\u003cp\u003eSlimFaas measures the time since the last HTTP activity (or synthetic activity from schedule/dependencies).\u003c/p\u003e\n\u003cp\u003eKey annotations:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003emetadata:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003eannotations:\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"0\"\u003c/span\u003e                         \u003cspan class=\"hljs-comment\"\u003e# minimum replicas after scale-down (can be 0)\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasAtStart:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"1\"\u003c/span\u003e                     \u003cspan class=\"hljs-comment\"\u003e# replicas after wake-up from zero\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eTimeoutSecondBeforeSetReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"300\"\u003c/span\u003e \u003cspan class=\"hljs-comment\"\u003e# seconds of inactivity before scale-down\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eBehavior (simplified):\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003eSlimFaas computes a last activity timestamp for each function:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003efrom HTTP history,\u003c/li\u003e\n\u003cli\u003eplus schedule wake-up events,\u003c/li\u003e\n\u003cli\u003eplus the dependencies’ activity if relevant.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eIf:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-text hljs\"\u003elastActivity + TimeoutSecondBeforeSetReplicasMin \u0026lt; \u003cspan class=\"hljs-built_in\"\u003enow\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003ethen SlimFaas scales the function to \u003cstrong\u003e\u003ccode\u003eReplicasMin\u003c/code\u003e\u003c/strong\u003e.\u003c/p\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eIf \u003ccode\u003eReplicasMin\u003c/code\u003e is \u003ccode\u003e\"0\"\u003c/code\u003e, this gives you \u003cstrong\u003escale-to-zero\u003c/strong\u003e.\u003c/p\u003e\n\u003ch3\u003eWake-up \u003ccode\u003e0 → N\u003c/code\u003e (from zero or below minimum)\u003c/h3\u003e\n\u003cp\u003eThere are two main situations where SlimFaas wakes a function up:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eFrom \u003ccode\u003e0\u003c/code\u003e to \u003ccode\u003eReplicasAtStart\u003c/code\u003e\u003c/strong\u003e:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe function currently has \u003ccode\u003ereplicas == 0\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eThere is recent activity (HTTP or schedule) for this function.\u003c/li\u003e\n\u003cli\u003eAll \u003ccode\u003eDependsOn\u003c/code\u003e functions are ready enough (as determined by SlimFaas).\u003c/li\u003e\n\u003cli\u003e⇒ SlimFaas scales the function \u003cstrong\u003eto \u003ccode\u003eReplicasAtStart\u003c/code\u003e\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eFrom below min to \u003ccode\u003eReplicasAtStart\u003c/code\u003e\u003c/strong\u003e:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe function currently has \u003ccode\u003ereplicas \u0026lt; ReplicasMin\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eDependencies are ready.\u003c/li\u003e\n\u003cli\u003e⇒ SlimFaas scales the function up to \u003ccode\u003eReplicasAtStart\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp\u003eThis ensures:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003eOnly the \u003ccode\u003e0 → N\u003c/code\u003e system can wake a function from 0\u003c/strong\u003e,\u003c/li\u003e\n\u003cli\u003eThe function will start with a known initial capacity before the Prometheus AutoScaler adjusts it.\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eTime-based schedule (wake-up \u0026amp; scale-down timeout)\u003c/h3\u003e\n\u003cp\u003eThe \u003ccode\u003eSlimFaas/Schedule\u003c/code\u003e annotation lets you:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eDeclare \u003cstrong\u003ewake-up times\u003c/strong\u003e (treated as “calls”),\u003c/li\u003e\n\u003cli\u003eConfigure \u003cstrong\u003edifferent scale-down timeouts by time of day\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eAnnotation example:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003emetadata:\n  annotations:\n    SlimFaas/Schedule: \u0026gt;\n      {\n        \"TimeZoneID\": \u003cspan class=\"hljs-string\"\u003e\"Europe/Paris\"\u003c/span\u003e,\n        \u003cspan class=\"hljs-string\"\u003e\"Default\"\u003c/span\u003e: {\n          \"WakeUp\": [\n            \u003cspan class=\"hljs-string\"\u003e\"08:30\"\u003c/span\u003e\n          ],\n          \u003cspan class=\"hljs-string\"\u003e\"ScaleDownTimeout\"\u003c/span\u003e: [\n            { \"\u003cspan class=\"hljs-selector-tag\"\u003eTime\u003c/span\u003e\": \u003cspan class=\"hljs-string\"\u003e\"08:30\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e3600\u003c/span\u003e },\n            { \"\u003cspan class=\"hljs-selector-tag\"\u003eTime\u003c/span\u003e\": \u003cspan class=\"hljs-string\"\u003e\"18:30\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e300\u003c/span\u003e }\n          ]\n        }\n      }\n\u003c/code\u003e\u003c/pre\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eTimeZoneID\u003c/code\u003e: IANA time zone ID.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eWakeUp\u003c/code\u003e: list of \u003ccode\u003eHH:mm\u003c/code\u003e times when the function is considered active (even without HTTP calls).\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eScaleDownTimeout\u003c/code\u003e: list of time-based overrides for the inactivity timeout (\u003ccode\u003eValue\u003c/code\u003e is in seconds).\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eThis allows you, for example:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eLarge timeout in business hours (keep pods warm),\u003c/li\u003e\n\u003cli\u003eShort timeout at night (aggressive scale-down).\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eConfiguring \u003ccode\u003eN → M\u003c/code\u003e scale (Prometheus AutoScaler)\u003c/h2\u003e\n\u003cp\u003eThe Prometheus-based AutoScaler is activated by adding a \u003ccode\u003eSlimFaas/Scale\u003c/code\u003e annotation on the function’s Deployment. It \u003cstrong\u003eonly runs when the function has at least one pod\u003c/strong\u003e.\u003c/p\u003e\n\u003ch3\u003e\u003ccode\u003eSlimFaas/Scale\u003c/code\u003e annotation structure (JSON)\u003c/h3\u003e\n\u003cp\u003eThe annotation is a JSON \u003ccode\u003eScaleConfig\u003c/code\u003e:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003emetadata:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003eannotations:\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eScale:\u003c/span\u003e \u003cspan class=\"hljs-operator\"\u003e\u0026gt;\u003c/span\u003e\n      {\n        \u003cspan class=\"hljs-string\"\u003e\"ReplicaMax\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e20\u003c/span\u003e,\n        \u003cspan class=\"hljs-string\"\u003e\"Triggers\"\u003c/span\u003e: [\n          {\n            \u003cspan class=\"hljs-string\"\u003e\"MetricType\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"AverageValue\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"MetricName\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"rps_per_pod\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"sum(rate(http_server_requests_seconds_count{namespace=\"\u003c/span\u003e${namespace}\u003cspan class=\"hljs-string\"\u003e\",job=\"\u003c/span\u003e${app}\u003cspan class=\"hljs-string\"\u003e\"}[1m]))\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Threshold\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e50\u003c/span\u003e\n          }\n        ],\n        \u003cspan class=\"hljs-string\"\u003e\"Behavior\"\u003c/span\u003e: {\n          \u003cspan class=\"hljs-string\"\u003e\"ScaleUp\"\u003c/span\u003e: {\n            \u003cspan class=\"hljs-string\"\u003e\"StabilizationWindowSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e0\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Policies\"\u003c/span\u003e: [\n              { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Percent\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e100\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e15\u003c/span\u003e },\n              { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Pods\"\u003c/span\u003e,    \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e4\u003c/span\u003e,   \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e15\u003c/span\u003e }\n            ]\n          },\n          \u003cspan class=\"hljs-string\"\u003e\"ScaleDown\"\u003c/span\u003e: {\n            \u003cspan class=\"hljs-string\"\u003e\"StabilizationWindowSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e300\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Policies\"\u003c/span\u003e: [\n              { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Percent\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e50\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e30\u003c/span\u003e }\n            ]\n          }\n        }\n      }\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eMain fields:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003e\u003ccode\u003eReplicaMax\u003c/code\u003e\nMaximum number of pods SlimFaas may ever scale this function to. \u003ccode\u003enull\u003c/code\u003e means no hard cap.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003ccode\u003eTriggers\u003c/code\u003e\nList of metrics-based scaling rules.\u003c/p\u003e\n\u003cp\u003eEach trigger has:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eMetricType\u003c/code\u003e: \u003ccode\u003e\"AverageValue\"\u003c/code\u003e or \u003ccode\u003e\"Value\"\u003c/code\u003e.\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003e\"AverageValue\"\u003c/code\u003e: threshold is interpreted as \u003cstrong\u003etarget per pod\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003e\"Value\"\u003c/code\u003e: threshold is interpreted as \u003cstrong\u003etarget for the total sum\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eMetricName\u003c/code\u003e: human-readable metric name (for doc / logs).\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eQuery\u003c/code\u003e: PromQL query that \u003cstrong\u003emust return a scalar\u003c/strong\u003e (single numeric value).\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eThreshold\u003c/code\u003e: target value for the metric (per pod or total, depending on \u003ccode\u003eMetricType\u003c/code\u003e).\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003ccode\u003eBehavior\u003c/code\u003e\nConfiguration of scale-up / scale-down behavior:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eScaleUp\u003c/code\u003e: policies and stabilization for increasing replicas.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eScaleDown\u003c/code\u003e: policies and stabilization for decreasing replicas.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eScaling formula (HPA/KEDA-style)\u003c/h3\u003e\n\u003cp\u003eFor each trigger, the AutoScaler computes:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-text hljs\"\u003e\u003cspan class=\"hljs-attribute\"\u003edesiredReplicasTrigger\u003c/span\u003e \u003cspan class=\"hljs-operator\"\u003e=\u003c/span\u003e ceil(currentReplicas * (currentMetric / Threshold))\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eThen:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003eIf \u003cstrong\u003emultiple triggers\u003c/strong\u003e are configured:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe AutoScaler takes the \u003cstrong\u003emaximum\u003c/strong\u003e of all \u003ccode\u003edesiredReplicasTrigger\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eThe result is then constrained by:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eReplicasMin\u003c/code\u003e and \u003ccode\u003eReplicaMax\u003c/code\u003e,\u003c/li\u003e\n\u003cli\u003escale-up / scale-down policies,\u003c/li\u003e\n\u003cli\u003estabilization windows.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eIf all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the AutoScaler \u003cstrong\u003ekeeps the current replica count\u003c/strong\u003e, only clamping it between \u003ccode\u003eReplicasMin\u003c/code\u003e and \u003ccode\u003eReplicaMax\u003c/code\u003e.\u003c/p\u003e\n\u003ch3\u003ePolicies and stabilization\u003c/h3\u003e\n\u003cp\u003eThe \u003ccode\u003eBehavior.ScaleUp.Policies\u003c/code\u003e and \u003ccode\u003eBehavior.ScaleDown.Policies\u003c/code\u003e define how fast the scaler is allowed to change the number of pods:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-jsonc hljs\"\u003e\u003cspan class=\"hljs-string\"\u003e\"Behavior\"\u003c/span\u003e: {\n  \u003cspan class=\"hljs-string\"\u003e\"ScaleUp\"\u003c/span\u003e: {\n    \u003cspan class=\"hljs-string\"\u003e\"StabilizationWindowSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e0\u003c/span\u003e,\n    \u003cspan class=\"hljs-string\"\u003e\"Policies\"\u003c/span\u003e: [\n      { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Percent\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e100\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e15\u003c/span\u003e },\n      { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Pods\"\u003c/span\u003e,    \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e4\u003c/span\u003e,   \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e15\u003c/span\u003e }\n    ]\n  },\n  \u003cspan class=\"hljs-string\"\u003e\"ScaleDown\"\u003c/span\u003e: {\n    \u003cspan class=\"hljs-string\"\u003e\"StabilizationWindowSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e300\u003c/span\u003e,\n    \u003cspan class=\"hljs-string\"\u003e\"Policies\"\u003c/span\u003e: [\n      { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Percent\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e50\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e30\u003c/span\u003e }\n    ]\n  }\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eConceptually:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003eFor \u003cstrong\u003escale-up\u003c/strong\u003e:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eEach policy defines a \u003cstrong\u003emaximum allowed increase\u003c/strong\u003e (either percentage or absolute pod count).\u003c/li\u003e\n\u003cli\u003eSlimFaas picks the \u003cstrong\u003emost aggressive\u003c/strong\u003e policy (maximum allowed increase).\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eFor \u003cstrong\u003escale-down\u003c/strong\u003e:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eEach policy defines a \u003cstrong\u003emaximum allowed decrease\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eSlimFaas picks the \u003cstrong\u003emost conservative\u003c/strong\u003e policy (smallest allowed decrease).\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003ccode\u003eStabilizationWindowSeconds\u003c/code\u003e:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eFor scale-down, a non-zero window makes SlimFaas look at the \u003cstrong\u003emax desired replicas\u003c/strong\u003e in the recent window to avoid flapping.\u003c/li\u003e\n\u003cli\u003eFor scale-up, you can also use a stabilization window, but the default is usually \u003ccode\u003e0\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003ePromQL support \u0026amp; current limitations\u003c/h2\u003e\n\u003cp\u003eSlimFaas embeds a \u003cstrong\u003esmall PromQL evaluator\u003c/strong\u003e that is focused on autoscaling use cases.\nIt supports a \u003cstrong\u003erestricted but practical subset\u003c/strong\u003e of PromQL, and always evaluates the\nquery to a \u003cstrong\u003esingle scalar\u003c/strong\u003e that can be used by the AutoScaler.\u003c/p\u003e\n\u003cblockquote\u003e\n\u003cp\u003eIf a query cannot be parsed, or ultimately evaluates to \u003ccode\u003eNaN\u003c/code\u003e / \u003ccode\u003eInfinity\u003c/code\u003e,\nthe AutoScaler treats it as “no data” and keeps the current replica count\n(subject to \u003ccode\u003eReplicasMin\u003c/code\u003e / \u003ccode\u003eReplicaMax\u003c/code\u003e).\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003ch3\u003eSupported query patterns\u003c/h3\u003e\n\u003ch4\u003e1. Instant and range selectors\u003c/h4\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eInstant selector\u003c/strong\u003e\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003ehttp_server_requests_seconds_count{\u003cspan class=\"hljs-attribute\"\u003enamespace\u003c/span\u003e=\u003cspan class=\"hljs-string\"\u003e\"default\"\u003c/span\u003e, \u003cspan class=\"hljs-attribute\"\u003ejob\u003c/span\u003e=\u003cspan class=\"hljs-string\"\u003e\"fibonacci\"\u003c/span\u003e}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eThe evaluator loads all time series that match the metric name and label filters,\nand keeps the latest value per series.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eRange selector\u003c/strong\u003e (used with functions like \u003ccode\u003erate\u003c/code\u003e, \u003ccode\u003emax_over_time\u003c/code\u003e, etc.)\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003ehttp_server_requests_seconds_count{\u003cspan class=\"hljs-keyword\"\u003enamespace\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003edefault\u003c/span\u003e\", \u003cspan class=\"hljs-symbol\"\u003ejob\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003efibonacci\u003c/span\u003e\"}[\u003cspan class=\"hljs-symbol\"\u003e1m\u003c/span\u003e]\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eSupported duration units: \u003ccode\u003es\u003c/code\u003e, \u003ccode\u003em\u003c/code\u003e, \u003ccode\u003eh\u003c/code\u003e (e.g. \u003ccode\u003e15s\u003c/code\u003e, \u003ccode\u003e1m\u003c/code\u003e, \u003ccode\u003e5m\u003c/code\u003e, \u003ccode\u003e1h\u003c/code\u003e).\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eLabel matchers\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eExact match: \u003ccode\u003elabel=\"value\"\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eRegex match: \u003ccode\u003elabel=~\"value.*\"\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e(Negative operators \u003ccode\u003e!=\u003c/code\u003e / \u003ccode\u003e!~\u003c/code\u003e are \u003cstrong\u003enot\u003c/strong\u003e supported.)\u003c/p\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch4\u003e2. Arithmetic on scalars\u003c/h4\u003e\n\u003cp\u003eOnce a query has been reduced to a scalar, you can combine expressions with basic\narithmetic:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003e\u003cspan class=\"hljs-function\"\u003e\u003cspan class=\"hljs-title\"\u003emax_over_time\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003e(slimfaas_function_queue_ready_items{function=\u003cspan class=\"hljs-string\"\u003e\"fibonacci\"\u003c/span\u003e}[\u003cspan class=\"hljs-number\"\u003e30s\u003c/span\u003e])\u003c/span\u003e\u003c/span\u003e / \u003cspan class=\"hljs-number\"\u003e100\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eSupported operators: \u003ccode\u003e+\u003c/code\u003e, \u003ccode\u003e-\u003c/code\u003e, \u003ccode\u003e*\u003c/code\u003e, \u003ccode\u003e/\u003c/code\u003e (no comparison or logical operators).\u003c/p\u003e\n\u003ch4\u003e3. \u003ccode\u003erate()\u003c/code\u003e on counters\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003erate(http_server_requests_seconds_count{\u003cspan class=\"hljs-keyword\"\u003enamespace\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003edefault\u003c/span\u003e\", \u003cspan class=\"hljs-symbol\"\u003ejob\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003efibonacci\u003c/span\u003e\"}[\u003cspan class=\"hljs-symbol\"\u003e1m\u003c/span\u003e])\n\u003c/code\u003e\u003c/pre\u003e\n\u003cul\u003e\n\u003cli\u003eComputes the \u003cstrong\u003eper-series rate\u003c/strong\u003e based on the first and last sample in the window.\u003c/li\u003e\n\u003cli\u003eResets (counter going backwards) are ignored.\u003c/li\u003e\n\u003cli\u003eThe evaluator returns the \u003cstrong\u003esum of the rates of all matching series\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eThis is typically combined with \u003ccode\u003esum()\u003c/code\u003e (or used directly) as a global RPS estimator.\u003c/p\u003e\n\u003ch4\u003e4. Aggregations: \u003ccode\u003esum\u003c/code\u003e, \u003ccode\u003emin\u003c/code\u003e, \u003ccode\u003emax\u003c/code\u003e, \u003ccode\u003eavg\u003c/code\u003e\u003c/h4\u003e\n\u003cp\u003eAll aggregations operate on scalars or on the per-bucket maps used for histograms.\u003c/p\u003e\n\u003cp\u003eCommon patterns:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eGlobal sum\u003c/strong\u003e\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003esum(rate(http_server_requests_seconds_count{\u003cspan class=\"hljs-keyword\"\u003enamespace\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003edefault\u003c/span\u003e\", \u003cspan class=\"hljs-symbol\"\u003ejob\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003efibonacci\u003c/span\u003e\"}[\u003cspan class=\"hljs-symbol\"\u003e1m\u003c/span\u003e]))\n\u003c/code\u003e\u003c/pre\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eGlobal min / max / avg\u003c/strong\u003e of a scalar expression:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003emax(\n  rate(http_server_requests_seconds_count{\u003cspan class=\"hljs-keyword\"\u003enamespace\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003edefault\u003c/span\u003e\", \u003cspan class=\"hljs-symbol\"\u003ejob\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003efibonacci\u003c/span\u003e\"}[\u003cspan class=\"hljs-symbol\"\u003e1m\u003c/span\u003e])\n)\n\u003c/code\u003e\u003c/pre\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eAggregations with \u003ccode\u003eby (label)\u003c/code\u003e\u003c/strong\u003e\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003esum by (le) (\n  rate(http_server_requests_seconds_bucket{\u003cspan class=\"hljs-keyword\"\u003enamespace\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003edefault\u003c/span\u003e\", \u003cspan class=\"hljs-symbol\"\u003ejob\u003c/span\u003e=\"\u003cspan class=\"hljs-symbol\"\u003efibonacci\u003c/span\u003e\"}[\u003cspan class=\"hljs-symbol\"\u003e1m\u003c/span\u003e])\n)\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eThis form is specifically supported for histogram use cases (see below).\nFor non-histogram use cases, the \u003ccode\u003eby (...)\u003c/code\u003e support is limited and mostly\nintended as an internal building block for \u003ccode\u003ehistogram_quantile\u003c/code\u003e.\u003c/p\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cblockquote\u003e\n\u003cp\u003eFor autoscaling, you should assume that the final result is always a single scalar.\nEven when using \u003ccode\u003eby (...)\u003c/code\u003e aggregations, the evaluator eventually collapses the\ndata to a scalar to feed the scaling formula.\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003ch4\u003e5. Histograms and \u003ccode\u003ehistogram_quantile()\u003c/code\u003e\u003c/h4\u003e\n\u003cp\u003eSlimFaas supports the standard Prometheus pattern for computing quantiles from histograms:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003ehistogram_quantile(\n  \u003cspan class=\"hljs-number\"\u003e0.95\u003c/span\u003e,\n  sum by (\u003cspan class=\"hljs-name\"\u003ele\u003c/span\u003e) (\n    \u003cspan class=\"hljs-name\"\u003erate\u003c/span\u003e(\u003cspan class=\"hljs-name\"\u003ehttp_server_requests_seconds_bucket\u003c/span\u003e{namespace=\u003cspan class=\"hljs-string\"\u003e\"default\"\u003c/span\u003e, job=\u003cspan class=\"hljs-string\"\u003e\"fibonacci\"\u003c/span\u003e}[\u003cspan class=\"hljs-number\"\u003e1\u003c/span\u003em])\n  )\n)\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eSupported semantics:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe \u003ccode\u003e_bucket\u003c/code\u003e metric is treated as a \u003cstrong\u003ecumulative histogram\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003erate(...[win])\u003c/code\u003e converts buckets to per-second rates.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003esum by (le)\u003c/code\u003e merges per-pod buckets into \u003cstrong\u003eglobal buckets per \u003ccode\u003ele\u003c/code\u003e\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003ehistogram_quantile(phi, …)\u003c/code\u003e then applies Prometheus’ official algorithm\nto compute the \u003ccode\u003ephi\u003c/code\u003e quantile (e.g. \u003ccode\u003e0.95\u003c/code\u003e for p95).\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eThe result is a \u003cstrong\u003esingle scalar\u003c/strong\u003e representing the chosen quantile in seconds.\u003c/p\u003e\n\u003ch4\u003e6. \u003ccode\u003emax_over_time()\u003c/code\u003e on gauges\u003c/h4\u003e\n\u003cp\u003eSlimFaas exposes several queue-related metrics as gauges, for example:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003e\u003cspan class=\"hljs-keyword\"\u003eslimfaas_function_queue_ready_items\u003c/span\u003e{\u003cspan class=\"hljs-keyword\"\u003efunction\u003c/span\u003e\u003cspan class=\"hljs-operator\"\u003e=\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\"fibonacci\"\u003c/span\u003e}\n\u003cspan class=\"hljs-keyword\"\u003eslimfaas_function_queue_in_flight_items\u003c/span\u003e{\u003cspan class=\"hljs-keyword\"\u003efunction\u003c/span\u003e\u003cspan class=\"hljs-operator\"\u003e=\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\"fibonacci\"\u003c/span\u003e}\n\u003cspan class=\"hljs-keyword\"\u003eslimfaas_function_queue_retry_pending_items\u003c/span\u003e{\u003cspan class=\"hljs-keyword\"\u003efunction\u003c/span\u003e\u003cspan class=\"hljs-operator\"\u003e=\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\"fibonacci\"\u003c/span\u003e}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eYou can use \u003ccode\u003emax_over_time()\u003c/code\u003e to look at the worst case in a recent window:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-promql hljs\"\u003e\u003cspan class=\"hljs-function\"\u003e\u003cspan class=\"hljs-title\"\u003emax_over_time\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003e(slimfaas_function_queue_ready_items{function=\u003cspan class=\"hljs-string\"\u003e\"fibonacci\"\u003c/span\u003e}[\u003cspan class=\"hljs-number\"\u003e30s\u003c/span\u003e])\u003c/span\u003e\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eSemantics:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eFor each matching series, the evaluator computes the \u003cstrong\u003emaximum value\u003c/strong\u003e in the window.\u003c/li\u003e\n\u003cli\u003eThe global result is the \u003cstrong\u003emaximum of all series maxima\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eThe output is a scalar, perfect for triggers such as “max queue length over 30s”.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eThis is particularly useful for queue-driven autoscaling.\u003c/p\u003e\n\u003ch3\u003ePractical examples for triggers\u003c/h3\u003e\n\u003cp\u003eHere are a few ready-to-use patterns for \u003ccode\u003eSlimFaas/Scale.Triggers[].Query\u003c/code\u003e.\u003c/p\u003e\n\u003ch4\u003eExample: total RPS per function\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-jsonc hljs\"\u003e{\n  \u003cspan class=\"hljs-string\"\u003e\"MetricType\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"AverageValue\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"MetricName\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"rps_per_pod\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"Query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"sum(rate(http_server_requests_seconds_count{namespace=\"\u003c/span\u003e\u003cspan class=\"hljs-variable\"\u003e${namespace}\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\",job=\"\u003c/span\u003e\u003cspan class=\"hljs-variable\"\u003e${app}\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\"}[1m]))\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"Threshold\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e20\u003c/span\u003e\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eInterpretation:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe query returns the total RPS for the function.\u003c/li\u003e\n\u003cli\u003eWith \u003ccode\u003eMetricType = \"AverageValue\"\u003c/code\u003e, the AutoScaler treats \u003ccode\u003eThreshold = 20\u003c/code\u003e\nas “target 20 RPS \u003cstrong\u003eper pod\u003c/strong\u003e”.\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch4\u003eExample: max queue length over 30 seconds\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-jsonc hljs\"\u003e{\n  \u003cspan class=\"hljs-string\"\u003e\"MetricType\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"MetricName\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"queue_max_30s\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"Query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"max_over_time(slimfaas_function_queue_ready_items{function=\"\u003c/span\u003e\u003cspan class=\"hljs-variable\"\u003e${app}\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\"}[30s])\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"Threshold\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e200\u003c/span\u003e\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eInterpretation:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eIf the maximum queue length over the last 30 seconds is 400 and the threshold is 200,\nthe AutoScaler will aim for \u003ccode\u003edesiredReplicas ≈ 2× currentReplicas\u003c/code\u003e (subject to policies).\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch4\u003eExample: p95 latency\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-jsonc hljs\"\u003e{\n  \u003cspan class=\"hljs-string\"\u003e\"MetricType\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"AverageValue\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"MetricName\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"p95_latency\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"Query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"histogram_quantile(0.95, sum by (le) ( rate(http_server_requests_seconds_bucket{namespace=\"\u003c/span\u003e\u003cspan class=\"hljs-variable\"\u003e${namespace}\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\",job=\"\u003c/span\u003e\u003cspan class=\"hljs-variable\"\u003e${app}\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\"}[1m]) ))\"\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"Threshold\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e0.500\u003c/span\u003e\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eInterpretation:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe query computes the p95 latency in seconds.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eThreshold = 0.500\u003c/code\u003e means “keep p95 latency around 500ms per pod”.\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eCurrent limitations \u0026amp; gotchas\u003c/h3\u003e\n\u003cp\u003eThe SlimFaas PromQL mini-evaluator is intentionally simple. Notable limitations:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eScalar only\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eAll queries must reduce to a \u003cstrong\u003esingle scalar\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eThere's no support for returning full time series or vectors.\u003c/li\u003e\n\u003cli\u003eThe scaler sums or aggregates all matching series internally.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eLimited function set\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eSupported: \u003ccode\u003erate\u003c/code\u003e, \u003ccode\u003esum\u003c/code\u003e, \u003ccode\u003emin\u003c/code\u003e, \u003ccode\u003emax\u003c/code\u003e, \u003ccode\u003eavg\u003c/code\u003e, \u003ccode\u003ehistogram_quantile\u003c/code\u003e, \u003ccode\u003emax_over_time\u003c/code\u003e,\nplus basic arithmetic \u003ccode\u003e+ - * /\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eNot supported: \u003ccode\u003ecount\u003c/code\u003e, \u003ccode\u003estddev\u003c/code\u003e, \u003ccode\u003equantile_over_time\u003c/code\u003e, \u003ccode\u003eincrease\u003c/code\u003e, \u003ccode\u003eirate\u003c/code\u003e, \u003ccode\u003epredict_linear\u003c/code\u003e,\n\u003ccode\u003eclamp_*\u003c/code\u003e, \u003ccode\u003elabel_replace\u003c/code\u003e, etc.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eNo logical or comparison operators\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eOperators such as \u003ccode\u003e\u0026gt;\u003c/code\u003e, \u003ccode\u003e\u0026lt;\u003c/code\u003e, \u003ccode\u003e==\u003c/code\u003e, \u003ccode\u003eand\u003c/code\u003e, \u003ccode\u003eor\u003c/code\u003e, \u003ccode\u003eunless\u003c/code\u003e are not supported.\u003c/li\u003e\n\u003cli\u003eUse these expressions only in dashboards, not in SlimFaas AutoScaler queries.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eSimple label matchers only\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eSupported: \u003ccode\u003e=\u003c/code\u003e and \u003ccode\u003e=~\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eNot supported: \u003ccode\u003e!=\u003c/code\u003e, \u003ccode\u003e!~\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eMake sure your metric cardinality and label design fit this constraint.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eRange selector constraints\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eOnly simple durations with \u003ccode\u003es\u003c/code\u003e, \u003ccode\u003em\u003c/code\u003e, \u003ccode\u003eh\u003c/code\u003e are supported (e.g. \u003ccode\u003e15s\u003c/code\u003e, \u003ccode\u003e1m\u003c/code\u003e, \u003ccode\u003e5m\u003c/code\u003e).\u003c/li\u003e\n\u003cli\u003eNested subqueries like \u003ccode\u003erate(sum(...)[5m:1m])\u003c/code\u003e are \u003cstrong\u003enot\u003c/strong\u003e supported.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eHistogram assumptions\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eHistogram support assumes standard Prometheus conventions:\n\u003cul\u003e\n\u003cli\u003ecumulative \u003ccode\u003e_bucket\u003c/code\u003e metrics,\u003c/li\u003e\n\u003cli\u003ea \u003ccode\u003ele\u003c/code\u003e label with numeric bounds or \u003ccode\u003e+Inf\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003eThe recommended pattern is exactly:\n\u003ccode\u003ehistogram_quantile(phi, sum by (le) ( rate(\u0026lt;metric\u0026gt;_bucket[win]) ))\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eEvaluation time\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eBy default, the evaluator uses the \u003cstrong\u003elatest timestamp\u003c/strong\u003e found in the metrics store\nas the “now” for range selections.\u003c/li\u003e\n\u003cli\u003eYou can override it in code (\u003ccode\u003eEvaluate(query, nowUnixSeconds)\u003c/code\u003e), but the SlimFaas\nAutoScaler uses the default.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eError handling\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eA parse error or unsupported construct results in a \u003ccode\u003eFormatException\u003c/code\u003e\nwhich is caught by the AutoScaler and logged as a warning.\u003c/li\u003e\n\u003cli\u003eAny resulting \u003ccode\u003eNaN\u003c/code\u003e / \u003ccode\u003eInfinity\u003c/code\u003e is treated as “no data” and the current replica\ncount is preserved (within \u003ccode\u003eReplicasMin\u003c/code\u003e / \u003ccode\u003eReplicaMax\u003c/code\u003e).\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp\u003eIn short: \u003cstrong\u003ekeep queries simple and scalar-oriented\u003c/strong\u003e. If a query would be hard to express\nwithout advanced PromQL features, it is probably better suited for dashboards than for\ndirect autoscaling decisions.\u003c/p\u003e\n\u003chr\u003e\n\u003ch2\u003eMetrics scraping internals\u003c/h2\u003e\n\u003cp\u003eSlimFaas does not talk directly to Prometheus. Instead, it has its own lightweight\nscraping and storage pipeline that is optimized for autoscaling signals.\u003c/p\u003e\n\u003cp\u003eAt a high level:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eOnly the \u003cstrong\u003emetrics HTTP endpoint\u003c/strong\u003e is called on your pods.\u003c/li\u003e\n\u003cli\u003eSlimFaas keeps in memory \u003cstrong\u003eonly the metric keys that have been requested at least once\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eA single SlimFaas node is responsible for scraping and persisting metrics.\u003c/li\u003e\n\u003cli\u003eAll nodes evaluate PromQL against a \u003cstrong\u003eshared, synchronized store\u003c/strong\u003e with a \u003cstrong\u003e30-minute retention window\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch3\u003eScraping cycle (every 5 seconds)\u003c/h3\u003e\n\u003cp\u003eEvery 5 seconds, a background worker (\u003ccode\u003eMetricsScrapingWorker\u003c/code\u003e) runs on the\n\u003cstrong\u003edesignated scraping node\u003c/strong\u003e and performs the following steps:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003e\n\u003cp\u003eDiscover pods that:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eare part of your SlimFaas workloads, and\u003c/li\u003e\n\u003cli\u003eexpose Prometheus-compatible HTTP metrics via annotations.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eFor each pod that has Prometheus HTTP annotations (for example):\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eprometheus.io/scrape: \"true\"\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eprometheus.io/scheme: \"http\"\u003c/code\u003e (optional, defaults to HTTP)\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eprometheus.io/port: \"5000\"\u003c/code\u003e (optional)\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eprometheus.io/path: \"/metrics\"\u003c/code\u003e (optional)\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003ethe worker builds the target URL:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-text hljs\"\u003e\u0026lt;scheme\u0026gt;\u003cspan class=\"hljs-symbol\"\u003e://\u0026lt;pod-ip\u0026gt;\u003c/span\u003e\u003cspan class=\"hljs-symbol\"\u003e:\u0026lt;port\u0026gt;\u0026lt;path\u0026gt;\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eIt sends a \u003cstrong\u003esingle HTTP GET\u003c/strong\u003e to the metrics endpoint of each such pod and\nparses the standard Prometheus exposition format:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-text hljs\"\u003e\u003cspan class=\"language-xml\"\u003e\u003cspan class=\"hljs-tag\"\u003e\u0026lt;\u003cspan class=\"hljs-name\"\u003emetric_name\u003c/span\u003e\u0026gt;\u003c/span\u003e\u003c/span\u003e\u003cspan class=\"hljs-template-variable\"\u003e{optional_labels}\u003c/span\u003e\u003cspan class=\"language-xml\"\u003e \u003cspan class=\"hljs-tag\"\u003e\u0026lt;\u003cspan class=\"hljs-name\"\u003evalue\u003c/span\u003e\u0026gt;\u003c/span\u003e [optional_timestamp]\n\u003c/span\u003e\u003c/code\u003e\u003c/pre\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eFor each parsed metric line, it decides whether to store the sample\nin the in-memory \u003ccode\u003eIMetricsStore\u003c/code\u003e (see next section).\u003c/p\u003e\n\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp\u003eOnly this lightweight HTTP metrics scrape happens every 5 seconds; no other\n“debug” or control endpoints are called on your functions during scraping.\u003c/p\u003e\n\u003chr\u003e\n\u003ch3\u003eRequested metric keys only\u003c/h3\u003e\n\u003cp\u003eTo keep memory and I/O usage small, SlimFaas does \u003cstrong\u003enot\u003c/strong\u003e store every metric\nit sees. Instead, it maintains a dynamic allow-list of \u003cstrong\u003erequested metric names\u003c/strong\u003e\nvia \u003ccode\u003eIRequestedMetricsRegistry\u003c/code\u003e.\u003c/p\u003e\n\u003cp\u003eA metric name becomes “requested” in two situations:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003eIt appears in a \u003ccode\u003eSlimFaas/Scale.Triggers[].Query\u003c/code\u003e used by the AutoScaler.\u003c/li\u003e\n\u003cli\u003eIt is referenced at least once in a call to the debug endpoint\n\u003ca href=\"#debug-http-endpoints\"\u003e\u003ccode\u003ePOST /debug/promql/eval\u003c/code\u003e\u003c/a\u003e.\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp\u003eDuring scraping:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eFor each metric line, SlimFaas:\n\u003cul\u003e\n\u003cli\u003eextracts the metric name (e.g. \u003ccode\u003ehttp_server_requests_seconds_count\u003c/code\u003e,\n\u003ccode\u003eslimfaas_function_queue_ready_items\u003c/code\u003e, etc.),\u003c/li\u003e\n\u003cli\u003echecks if this name is present in the requested set,\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003eonly stores the sample if the metric name is requested\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eAll other metrics are simply ignored.\u003c/p\u003e\n\u003ch4\u003eEnabling new metrics via debug\u003c/h4\u003e\n\u003cp\u003eIf you run a debug query that uses a metric which was \u003cstrong\u003enot\u003c/strong\u003e previously requested,\nfor example:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003ecurl -X \u003cspan class=\"hljs-keyword\"\u003ePOST\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"http://localhost:5000/debug/promql/eval\"\u003c/span\u003e   -\u003cspan class=\"hljs-keyword\"\u003eH\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Content-Type: application/json\"\u003c/span\u003e   -\u003cspan class=\"hljs-keyword\"\u003ed\u003c/span\u003e '{\n    \u003cspan class=\"hljs-string\"\u003e\"query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"max_over_time(some_new_metric{function=\"\u003c/span\u003efibonacci\u003cspan class=\"hljs-string\"\u003e\"}[30s])\"\u003c/span\u003e\n  }'\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003ethen:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eIRequestedMetricsRegistry\u003c/code\u003e will add \u003ccode\u003esome_new_metric\u003c/code\u003e to the requested set,\u003c/li\u003e\n\u003cli\u003efrom the next scraping cycles onward, the scraper will start storing\nsamples for \u003ccode\u003esome_new_metric\u003c/code\u003e (provided the pods actually expose it).\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eThis is not retroactive: data is only available from the moment the metric\nbecomes requested.\u003c/p\u003e\n\u003chr\u003e\n\u003ch3\u003eScraping node, master node, and database synchronization\u003c/h3\u003e\n\u003cp\u003eIn a SlimFaas cluster there are two important roles:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003eThe \u003cstrong\u003emaster node\u003c/strong\u003e\nResponsible for orchestration and scaling decisions:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eruns \u003ccode\u003eReplicasService.CheckScaleAsync\u003c/code\u003e,\u003c/li\u003e\n\u003cli\u003eruns \u003ccode\u003eScaleReplicasWorker\u003c/code\u003e,\u003c/li\u003e\n\u003cli\u003eapplies scaling changes to Kubernetes.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eThe \u003cstrong\u003edesignated scraping node\u003c/strong\u003e (not the master)\nResponsible for metrics ingestion:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eruns \u003ccode\u003eMetricsScrapingWorker\u003c/code\u003e,\u003c/li\u003e\n\u003cli\u003ecalls the metrics endpoints on your pods every 5 seconds,\u003c/li\u003e\n\u003cli\u003eupdates the in-memory \u003ccode\u003eIMetricsStore\u003c/code\u003e,\u003c/li\u003e\n\u003cli\u003eperiodically serializes the metrics store to the SlimFaas database\n(for example under the key \u003ccode\u003emetrics:store\u003c/code\u003e).\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eAll \u003cstrong\u003eother\u003c/strong\u003e SlimFaas nodes, including the master, do \u003cstrong\u003enot\u003c/strong\u003e scrape your pods.\nInstead, they:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003ePeriodically read the serialized metrics store from the SlimFaas database.\u003c/li\u003e\n\u003cli\u003eHydrate their local \u003ccode\u003eIMetricsStore\u003c/code\u003e from this binary snapshot.\u003c/li\u003e\n\u003cli\u003eEvaluate PromQL queries locally against this hydrated store\n(for autoscaler triggers or debug requests).\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp\u003eThis architecture:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eavoids hammering your functions with multiple scrapers,\u003c/li\u003e\n\u003cli\u003ekeeps network traffic and CPU overhead low,\u003c/li\u003e\n\u003cli\u003estill allows every node to have a consistent view of recent metrics.\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch3\u003eRetention window (30 minutes)\u003c/h3\u003e\n\u003cp\u003eThe in-memory \u003ccode\u003eIMetricsStore\u003c/code\u003e is a time-bucketed structure, keyed by Unix timestamps\nin seconds. On each scrape:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003enew samples are added under the \u003cstrong\u003ecurrent timestamp bucket\u003c/strong\u003e,\u003c/li\u003e\n\u003cli\u003eolder buckets that fall outside the retention window are removed.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eBy default, SlimFaas keeps \u003cstrong\u003eonly 30 minutes of data\u003c/strong\u003e in the store.\u003c/p\u003e\n\u003cp\u003ePractical implications:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ePromQL range windows like \u003ccode\u003e[15s]\u003c/code\u003e, \u003ccode\u003e[30s]\u003c/code\u003e, \u003ccode\u003e[1m]\u003c/code\u003e, \u003ccode\u003e[5m]\u003c/code\u003e, \u003ccode\u003e[15m]\u003c/code\u003e work as expected.\u003c/li\u003e\n\u003cli\u003eLonger windows (e.g. \u003ccode\u003e[1h]\u003c/code\u003e, \u003ccode\u003e[6h]\u003c/code\u003e) effectively see only the \u003cstrong\u003emost recent\n30 minutes\u003c/strong\u003e of samples and may produce misleading results.\u003c/li\u003e\n\u003cli\u003eThe autoscaler and debug endpoints always work on “recent” data, which keeps\nmemory usage predictable and bounded.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eWhen combined with the requested-metrics filter, this retention model gives you\na compact, autoscaling-oriented time series store: just enough history to compute\nrates, quantiles and queue peaks, without trying to be a full Prometheus\nreplacement.\u003c/p\u003e\n\u003chr\u003e\n\u003ch2\u003eDebug HTTP endpoints\u003c/h2\u003e\n\u003cp\u003eSlimFaas exposes two \u003cstrong\u003edebug HTTP endpoints\u003c/strong\u003e to help you understand:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eWhich metrics are actually stored in the in-memory metrics store,\u003c/li\u003e\n\u003cli\u003eHow your PromQL expressions are evaluated by the internal PromQL mini-evaluator.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cblockquote\u003e\n\u003cp\u003eThese endpoints are designed for \u003cstrong\u003elocal development, QA, and troubleshooting\u003c/strong\u003e.\nIn production, you should restrict access to them (authN/authZ, network policies, etc.)\nor expose them only to operators.\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003chr\u003e\n\u003ch3\u003e\u003ccode\u003ePOST /debug/promql/eval\u003c/code\u003e\u003c/h3\u003e\n\u003cp\u003eEvaluate a PromQL expression \u003cstrong\u003eagainst the current in-memory metrics store\u003c/strong\u003e and see\nthe scalar value that the AutoScaler would use.\u003c/p\u003e\n\u003cp\u003eThis endpoint also:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eEnables PromQL-driven scraping via \u003ccode\u003eIMetricsScrapingGuard\u003c/code\u003e (so the scraping worker\nwill actively collect metrics referenced in queries),\u003c/li\u003e\n\u003cli\u003eRegisters the metric names found in the query via \u003ccode\u003eIRequestedMetricsRegistry\u003c/code\u003e\n(so the scraper can focus on relevant metrics).\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch4\u003eRequest\u003c/h4\u003e\n\u003cul\u003e\n\u003cli\u003eMethod: \u003ccode\u003ePOST\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003ePath: \u003ccode\u003e/debug/promql/eval\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eBody (JSON, \u003ccode\u003ePromQlRequest\u003c/code\u003e):\u003c/li\u003e\n\u003c/ul\u003e\n\u003cpre\u003e\u003ccode class=\"language-jsonc hljs\"\u003e{\n  \u003cspan class=\"hljs-string\"\u003e\"query\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"max_over_time(slimfaas_function_queue_ready_items{function=\"\u003c/span\u003efibonacci\u003cspan class=\"hljs-string\"\u003e\"}[30s])\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e,\u003c/span\u003e\n  \u003cspan class=\"hljs-string\"\u003e\"nowUnixSeconds\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e1732100000\u003c/span\u003e\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eFields:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003equery\u003c/code\u003e (required): the PromQL expression to evaluate.\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003enowUnixSeconds\u003c/code\u003e (optional): Unix timestamp (seconds) to use as “now” for range selectors.\nIf omitted, the evaluator uses the \u003cstrong\u003elatest timestamp available in the store\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch4\u003eSuccessful response (200)\u003c/h4\u003e\n\u003cp\u003eBody (JSON, \u003ccode\u003ePromQlResponse\u003c/code\u003e):\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e\u003cspan class=\"hljs-punctuation\"\u003e{\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"value\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e42.0\u003c/span\u003e\n\u003cspan class=\"hljs-punctuation\"\u003e}\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eThis is the final scalar value returned by the PromQL mini-evaluator.\u003c/p\u003e\n\u003ch4\u003eExample: evaluate queue length over 30 seconds\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003ecurl -X \u003cspan class=\"hljs-keyword\"\u003ePOST\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"http://localhost:5000/debug/promql/eval\"\u003c/span\u003e   -\u003cspan class=\"hljs-keyword\"\u003eH\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Content-Type: application/json\"\u003c/span\u003e   -\u003cspan class=\"hljs-keyword\"\u003ed\u003c/span\u003e '{\n    \u003cspan class=\"hljs-string\"\u003e\"query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"max_over_time(slimfaas_function_queue_ready_items{function=\"\u003c/span\u003efibonacci\u003cspan class=\"hljs-string\"\u003e\"}[30s])\"\u003c/span\u003e\n  }'\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003ePossible response:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e\u003cspan class=\"hljs-punctuation\"\u003e{\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"value\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e128\u003c/span\u003e\n\u003cspan class=\"hljs-punctuation\"\u003e}\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003ch4\u003eExample: evaluate RPS\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003ecurl -X POST \u003cspan class=\"hljs-string\"\u003e\"http://localhost:5000/debug/promql/eval\"\u003c/span\u003e   -H \u003cspan class=\"hljs-string\"\u003e\"Content-Type: application/json\"\u003c/span\u003e   -d \u003cspan class=\"hljs-string\"\u003e'{\n    \"\u003c/span\u003equery\u003cspan class=\"hljs-string\"\u003e\": \"\u003c/span\u003e\u003cspan class=\"hljs-built_in\"\u003esum\u003c/span\u003e(rate(http_server_requests_seconds_count{namespace=\u003cspan class=\"hljs-string\"\u003e\"default\"\u003c/span\u003e,job=\u003cspan class=\"hljs-string\"\u003e\"fibonacci\"\u003c/span\u003e}[\u003cspan class=\"hljs-number\"\u003e1\u003c/span\u003em]))\u003cspan class=\"hljs-string\"\u003e\"\n  }'\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003ePossible response:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e\u003cspan class=\"hljs-punctuation\"\u003e{\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"value\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e17.352941176470587\u003c/span\u003e\n\u003cspan class=\"hljs-punctuation\"\u003e}\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eYou can compare this value with the trigger \u003ccode\u003eThreshold\u003c/code\u003e to understand\nhow the AutoScaler will compute \u003ccode\u003edesiredReplicas\u003c/code\u003e.\u003c/p\u003e\n\u003ch4\u003eError responses\u003c/h4\u003e\n\u003cp\u003eThe endpoint returns structured errors when something goes wrong.\u003c/p\u003e\n\u003cp\u003e\u003cstrong\u003e1. Missing or empty query\u003c/strong\u003e\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003ecurl -X POST \u003cspan class=\"hljs-string\"\u003e\"http://localhost:5000/debug/promql/eval\"\u003c/span\u003e   -H \u003cspan class=\"hljs-string\"\u003e\"Content-Type: application/json\"\u003c/span\u003e   -d \u003cspan class=\"hljs-string\"\u003e'{\"\u003c/span\u003equery\u003cspan class=\"hljs-string\"\u003e\": \"\u003c/span\u003e\u003cspan class=\"hljs-string\"\u003e\"}'\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eResponse (400):\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e\u003cspan class=\"hljs-punctuation\"\u003e{\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"error\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"query is required\"\u003c/span\u003e\n\u003cspan class=\"hljs-punctuation\"\u003e}\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003e\u003cstrong\u003e2. Parse error / unsupported syntax\u003c/strong\u003e\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e{\n  \u003cspan class=\"hljs-comment\"\u003e\"error\"\u003c/span\u003e: \u003cspan class=\"hljs-comment\"\u003e\"Unexpected trailing characters in query\"\u003c/span\u003e\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003e\u003cstrong\u003e3. Result is NaN or Infinity\u003c/strong\u003e\u003c/p\u003e\n\u003cp\u003eFor example, when there is no data or a division by zero:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e\u003cspan class=\"hljs-punctuation\"\u003e{\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"error\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"PromQL result is NaN or Infinity (probably no data or division by zero).\"\u003c/span\u003e\n\u003cspan class=\"hljs-punctuation\"\u003e}\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003e\u003cstrong\u003e4. Internal error\u003c/strong\u003e\u003c/p\u003e\n\u003cp\u003eUnexpected exceptions during evaluation are returned as RFC 7807 problem details:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e\u003cspan class=\"hljs-punctuation\"\u003e{\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"type\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"about:blank\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e,\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"title\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Evaluation error\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e,\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"status\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e500\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e,\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"detail\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Some internal exception message...\"\u003c/span\u003e\n\u003cspan class=\"hljs-punctuation\"\u003e}\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eUse this endpoint to \u003cstrong\u003edry-run\u003c/strong\u003e any PromQL expression before using it\nin \u003ccode\u003eSlimFaas/Scale.Triggers[].Query\u003c/code\u003e.\u003c/p\u003e\n\u003chr\u003e\n\u003ch3\u003e\u003ccode\u003eGET /debug/store\u003c/code\u003e\u003c/h3\u003e\n\u003cp\u003eInspect a \u003cstrong\u003esummary of the in-memory metrics store\u003c/strong\u003e and see which metric names are\ncurrently being “requested” by the autoscaler and by your debug PromQL calls.\u003c/p\u003e\n\u003cp\u003eThis endpoint does \u003cem\u003enot\u003c/em\u003e dump all the raw samples. Instead, it returns a compact view\nof what’s inside the store.\u003c/p\u003e\n\u003ch4\u003eRequest\u003c/h4\u003e\n\u003cul\u003e\n\u003cli\u003eMethod: \u003ccode\u003eGET\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003ePath: \u003ccode\u003e/debug/store\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eBody: none\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch4\u003eResponse (200)\u003c/h4\u003e\n\u003cp\u003eBody (JSON, \u003ccode\u003eMetricsStoreDebugResponse\u003c/code\u003e):\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e{\n  \u003cspan class=\"hljs-string\"\u003e\"requestedMetricNames\"\u003c/span\u003e: [\n    \u003cspan class=\"hljs-string\"\u003e\"http_server_requests_seconds_count\"\u003c/span\u003e,\n    \u003cspan class=\"hljs-string\"\u003e\"slimfaas_function_queue_ready_items\"\u003c/span\u003e\n  ],\n  \u003cspan class=\"hljs-string\"\u003e\"timestampBuckets\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e48\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"seriesCount\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e1262\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"totalPoints\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e1262\u003c/span\u003e\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eFields:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003e\u003ccode\u003erequestedMetricNames\u003c/code\u003e\nList of distinct metric names registered via \u003ccode\u003eIRequestedMetricsRegistry\u003c/code\u003e, typically from:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eSlimFaas/Scale.Triggers[].Query\u003c/code\u003e (autoscaler triggers),\u003c/li\u003e\n\u003cli\u003ecalls to \u003ccode\u003ePOST /debug/promql/eval\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eIf this list is empty, it usually means that no PromQL-based queries\nhave been registered yet, and the scraper may not be focusing on any metric.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003ccode\u003etimestampBuckets\u003c/code\u003e\nNumber of distinct timestamps currently stored. This is roughly the size\nof the internal rolling window in “buckets”.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003ccode\u003eseriesCount\u003c/code\u003e\nNumber of time series (deployment × pod × metric key) in the store.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003ccode\u003etotalPoints\u003c/code\u003e\nTotal number of points \u003ccode\u003e(timestamp, series)\u003c/code\u003e currently stored.\u003c/p\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch4\u003eExample: inspect the metrics store\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003e\u003cspan class=\"hljs-attribute\"\u003ecurl\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"http://localhost:5000/debug/store\"\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eExample response:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e{\n  \u003cspan class=\"hljs-string\"\u003e\"requestedMetricNames\"\u003c/span\u003e: [\n    \u003cspan class=\"hljs-string\"\u003e\"http_server_requests_seconds_count\"\u003c/span\u003e,\n    \u003cspan class=\"hljs-string\"\u003e\"slimfaas_function_queue_ready_items\"\u003c/span\u003e\n  ],\n  \u003cspan class=\"hljs-string\"\u003e\"timestampBuckets\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e4\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"seriesCount\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e8\u003c/span\u003e,\n  \u003cspan class=\"hljs-string\"\u003e\"totalPoints\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e8\u003c/span\u003e\n}\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eHow to read this:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eYour PromQL queries currently reference two metric names\n(HTTP request counter and queue length gauge).\u003c/li\u003e\n\u003cli\u003eThe store holds data for 4 different timestamps.\u003c/li\u003e\n\u003cli\u003eThere are 8 logical series (e.g. 2 metrics × 4 pods).\u003c/li\u003e\n\u003cli\u003eEach series has one point per timestamp, so \u003ccode\u003etotalPoints = 8\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eIf \u003ccode\u003etimestampBuckets\u003c/code\u003e stays at \u003ccode\u003e0\u003c/code\u003e or \u003ccode\u003e1\u003c/code\u003e for a long time, it usually means that:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ethe scraping worker is not running,\u003c/li\u003e\n\u003cli\u003eor it cannot reach your pods (annotations, network, etc.).\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eUsing this endpoint together with \u003ccode\u003ePOST /debug/promql/eval\u003c/code\u003e gives you a very quick way\nto understand “what SlimFaas sees” when making autoscaling decisions.\u003c/p\u003e\n\u003chr\u003e\n\u003ch2\u003eDecision algorithm details\u003c/h2\u003e\n\u003cp\u003eHigh-level logic for each periodic tick of \u003ccode\u003eCheckScaleAsync\u003c/code\u003e:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-text hljs\"\u003efor each function:\n\n\u003cspan class=\"hljs-bullet\"\u003e  1.\u003c/span\u003e Read current replicas and configuration (annotations).\n\n\u003cspan class=\"hljs-bullet\"\u003e  2.\u003c/span\u003e Compute \"last activity\" timestamp using:\n\u003cspan class=\"hljs-bullet\"\u003e     -\u003c/span\u003e HTTP history,\n\u003cspan class=\"hljs-bullet\"\u003e     -\u003c/span\u003e schedule wake-up times,\n\u003cspan class=\"hljs-bullet\"\u003e     -\u003c/span\u003e dependency activity.\n\n\u003cspan class=\"hljs-bullet\"\u003e  3.\u003c/span\u003e HTTP/schedule-based 0→N / N→0 system:\n\n\u003cspan class=\"hljs-bullet\"\u003e     -\u003c/span\u003e If inactivity is longer than the current timeout:\n\u003cspan class=\"hljs-code\"\u003e         desiredReplicas = ReplicasMin\n\u003c/span\u003e\n\u003cspan class=\"hljs-bullet\"\u003e     -\u003c/span\u003e Else if (replicas == 0 or replicas \u0026lt; ReplicasMin) and dependencies are ready:\n\u003cspan class=\"hljs-code\"\u003e         desiredReplicas = ReplicasAtStart\n\u003c/span\u003e\n\u003cspan class=\"hljs-bullet\"\u003e     -\u003c/span\u003e Else:\n\u003cspan class=\"hljs-code\"\u003e         desiredReplicas = currentReplicas\n\u003c/span\u003e\n\u003cspan class=\"hljs-bullet\"\u003e  4.\u003c/span\u003e Prometheus-based N→M system:\n\n\u003cspan class=\"hljs-bullet\"\u003e     -\u003c/span\u003e If there is a valid SlimFaas/Scale annotation\n\u003cspan class=\"hljs-code\"\u003e       AND currentReplicas \u0026gt; 0:\n\u003c/span\u003e\n\u003cspan class=\"hljs-code\"\u003e         desiredReplicas = AutoScaler(desiredReplicas, metrics...)\n\u003c/span\u003e\n\u003cspan class=\"hljs-bullet\"\u003e  5.\u003c/span\u003e If desiredReplicas != currentReplicas:\n\u003cspan class=\"hljs-code\"\u003e       call Kubernetes Scale (Deployment replicas) for this function.\n\u003c/span\u003e\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eKey points:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe \u003cstrong\u003eHTTP/schedule system always runs first\u003c/strong\u003e, and is the only one that can propose a transition from \u003ccode\u003e0\u003c/code\u003e to \u003ccode\u003e\u0026gt; 0\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eThe \u003cstrong\u003ePrometheus AutoScaler only runs if \u003ccode\u003ecurrentReplicas \u0026gt; 0\u003c/code\u003e\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eThe final decision is applied only if \u003ccode\u003edesiredReplicas\u003c/code\u003e differs from the current value.\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eConfiguration examples\u003c/h2\u003e\n\u003ch3\u003e1. Simple RPS-based autoscaling with scale-to-zero\u003c/h3\u003e\n\u003cp\u003eThis example:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eScales based on \u003cstrong\u003erequests per second (RPS)\u003c/strong\u003e,\u003c/li\u003e\n\u003cli\u003eAllows \u003cstrong\u003escale-to-zero\u003c/strong\u003e after 5 minutes of inactivity,\u003c/li\u003e\n\u003cli\u003eStarts with 1 pod when waking up.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003eapiVersion:\u003c/span\u003e apps\u003cspan class=\"hljs-symbol\"\u003e/v1\u003c/span\u003e\n\u003cspan class=\"hljs-params\"\u003ekind:\u003c/span\u003e Deployment\n\u003cspan class=\"hljs-params\"\u003emetadata:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003ename:\u003c/span\u003e fibonacci\n  \u003cspan class=\"hljs-params\"\u003enamespace:\u003c/span\u003e default\n  \u003cspan class=\"hljs-params\"\u003eannotations:\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"0\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasAtStart:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"1\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eTimeoutSecondBeforeSetReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"300\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eScale:\u003c/span\u003e \u003cspan class=\"hljs-operator\"\u003e\u0026gt;\u003c/span\u003e\n      {\n        \u003cspan class=\"hljs-string\"\u003e\"ReplicaMax\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e10\u003c/span\u003e,\n        \u003cspan class=\"hljs-string\"\u003e\"Triggers\"\u003c/span\u003e: [\n          {\n            \u003cspan class=\"hljs-string\"\u003e\"MetricType\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"AverageValue\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"MetricName\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"rps_per_pod\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"sum(rate(http_server_requests_seconds_count{namespace=\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e\u003cspan class=\"hljs-subst\"\u003e${namespace}\u003c/span\u003e\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e,job=\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e\u003cspan class=\"hljs-subst\"\u003e${app}\u003c/span\u003e\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e}[1m]))\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Threshold\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e20\u003c/span\u003e\n          }\n        ]\n      }\n\u003cspan class=\"hljs-params\"\u003espec:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003ereplicas:\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e1\u003c/span\u003e\n  \u003cspan class=\"hljs-comment\"\u003e# ...\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eInterpretation:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003eTarget: \u003cstrong\u003e20 RPS per pod\u003c/strong\u003e.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eScale-up/down formula:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-text hljs\"\u003e\u003cspan class=\"hljs-attribute\"\u003edesiredReplicas\u003c/span\u003e \u003cspan class=\"hljs-operator\"\u003e=\u003c/span\u003e ceil(currentReplicas * (currentRps / \u003cspan class=\"hljs-number\"\u003e20\u003c/span\u003e))\n\u003c/code\u003e\u003c/pre\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eAfter 5 minutes with no activity (HTTP or schedule), SlimFaas scales down to 0.\u003c/p\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003e2. Combined trigger: RPS per pod + queue length\u003c/h3\u003e\n\u003cp\u003eThis example:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eUses two triggers:\n\u003cul\u003e\n\u003cli\u003eRPS per pod,\u003c/li\u003e\n\u003cli\u003eTotal queue length for this function.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003eUses per-pod and total constraints.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003eapiVersion:\u003c/span\u003e apps\u003cspan class=\"hljs-symbol\"\u003e/v1\u003c/span\u003e\n\u003cspan class=\"hljs-params\"\u003ekind:\u003c/span\u003e Deployment\n\u003cspan class=\"hljs-params\"\u003emetadata:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003ename:\u003c/span\u003e my-queue-driven-func\n  \u003cspan class=\"hljs-params\"\u003enamespace:\u003c/span\u003e default\n  \u003cspan class=\"hljs-params\"\u003eannotations:\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"1\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasAtStart:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"2\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eTimeoutSecondBeforeSetReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"600\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eScale:\u003c/span\u003e \u003cspan class=\"hljs-operator\"\u003e\u0026gt;\u003c/span\u003e\n      {\n        \u003cspan class=\"hljs-string\"\u003e\"ReplicaMax\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e50\u003c/span\u003e,\n        \u003cspan class=\"hljs-string\"\u003e\"Triggers\"\u003c/span\u003e: [\n          {\n            \u003cspan class=\"hljs-string\"\u003e\"MetricType\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"AverageValue\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"MetricName\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"rps_per_pod\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"sum(rate(http_server_requests_seconds_count{namespace=\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e\u003cspan class=\"hljs-subst\"\u003e${namespace}\u003c/span\u003e\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e,job=\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e\u003cspan class=\"hljs-subst\"\u003e${app}\u003c/span\u003e\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e}[1m]))\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Threshold\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e30\u003c/span\u003e\n          },\n          {\n            \u003cspan class=\"hljs-string\"\u003e\"MetricType\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"MetricName\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"queue_length\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Query\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"sum(slimfaas_function_queue_ready_items{function=\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e\u003cspan class=\"hljs-subst\"\u003e${app}\u003c/span\u003e\u003cspan class=\"hljs-char escape_\"\u003e\\\"\u003c/span\u003e})\"\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Threshold\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e200\u003c/span\u003e\n          }\n        ],\n        \u003cspan class=\"hljs-string\"\u003e\"Behavior\"\u003c/span\u003e: {\n          \u003cspan class=\"hljs-string\"\u003e\"ScaleUp\"\u003c/span\u003e: {\n            \u003cspan class=\"hljs-string\"\u003e\"StabilizationWindowSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e0\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Policies\"\u003c/span\u003e: [\n              { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Percent\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e100\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e15\u003c/span\u003e },\n              { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Pods\"\u003c/span\u003e,    \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e10\u003c/span\u003e,  \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e15\u003c/span\u003e }\n            ]\n          },\n          \u003cspan class=\"hljs-string\"\u003e\"ScaleDown\"\u003c/span\u003e: {\n            \u003cspan class=\"hljs-string\"\u003e\"StabilizationWindowSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e300\u003c/span\u003e,\n            \u003cspan class=\"hljs-string\"\u003e\"Policies\"\u003c/span\u003e: [\n              { \u003cspan class=\"hljs-string\"\u003e\"Type\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Percent\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e50\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"PeriodSeconds\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e30\u003c/span\u003e }\n            ]\n          }\n        }\n      }\n\u003cspan class=\"hljs-params\"\u003espec:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003ereplicas:\u003c/span\u003e \u003cspan class=\"hljs-number\"\u003e2\u003c/span\u003e\n  \u003cspan class=\"hljs-comment\"\u003e# ...\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eBehavior:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eFor each trigger, the AutoScaler computes a desired replica count.\u003c/li\u003e\n\u003cli\u003eThe final \u003ccode\u003edesiredReplicas\u003c/code\u003e is the \u003cstrong\u003emaximum\u003c/strong\u003e of:\n\u003cul\u003e\n\u003cli\u003ethe desired from RPS trigger,\u003c/li\u003e\n\u003cli\u003ethe desired from queue length trigger.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003e3. Business-hours warmup via Schedule\u003c/h3\u003e\n\u003cp\u003eKeep pods warm during business hours, aggressive scale-down at night:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003eapiVersion:\u003c/span\u003e apps\u003cspan class=\"hljs-symbol\"\u003e/v1\u003c/span\u003e\n\u003cspan class=\"hljs-params\"\u003ekind:\u003c/span\u003e Deployment\n\u003cspan class=\"hljs-params\"\u003emetadata:\u003c/span\u003e\n  \u003cspan class=\"hljs-params\"\u003ename:\u003c/span\u003e business-func\n  \u003cspan class=\"hljs-params\"\u003enamespace:\u003c/span\u003e default\n  \u003cspan class=\"hljs-params\"\u003eannotations:\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"1\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasAtStart:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"2\"\u003c/span\u003e\n    SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eSchedule:\u003c/span\u003e \u003cspan class=\"hljs-operator\"\u003e\u0026gt;\u003c/span\u003e\n      {\n        \u003cspan class=\"hljs-string\"\u003e\"TimeZoneID\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"Europe/Paris\"\u003c/span\u003e,\n        \u003cspan class=\"hljs-string\"\u003e\"Default\"\u003c/span\u003e: {\n          \u003cspan class=\"hljs-string\"\u003e\"WakeUp\"\u003c/span\u003e: [\n            \u003cspan class=\"hljs-string\"\u003e\"08:30\"\u003c/span\u003e\n          ],\n          \u003cspan class=\"hljs-string\"\u003e\"ScaleDownTimeout\"\u003c/span\u003e: [\n            { \u003cspan class=\"hljs-string\"\u003e\"Time\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"08:30\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e3600\u003c/span\u003e },\n            { \u003cspan class=\"hljs-string\"\u003e\"Time\"\u003c/span\u003e: \u003cspan class=\"hljs-string\"\u003e\"18:30\"\u003c/span\u003e, \u003cspan class=\"hljs-string\"\u003e\"Value\"\u003c/span\u003e: \u003cspan class=\"hljs-number\"\u003e300\u003c/span\u003e }\n          ]\n        }\n      }\n\u003cspan class=\"hljs-params\"\u003espec:\u003c/span\u003e\n  \u003cspan class=\"hljs-comment\"\u003e# ...\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cul\u003e\n\u003cli\u003eAt 08:30 local time:\n\u003cul\u003e\n\u003cli\u003eThe function is “virtually called” and can be scaled up to \u003ccode\u003eReplicasAtStart\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eInactivity timeout is 3600 seconds (1 hour).\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003eAfter 18:30:\n\u003cul\u003e\n\u003cli\u003eTimeout is only 300 seconds (5 minutes), so pods can scale down quickly.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eBest practices\u003c/h2\u003e\n\u003col\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eAlways set a meaningful \u003ccode\u003eReplicaMax\u003c/code\u003e\u003c/strong\u003e\nAvoid unbounded scaling in case of incorrect thresholds or noisy metrics.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eChoose \u003ccode\u003eReplicasMin\u003c/code\u003e carefully\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eUse \u003ccode\u003e0\u003c/code\u003e only when you accept cold start latency.\u003c/li\u003e\n\u003cli\u003eUse \u003ccode\u003e1\u003c/code\u003e or more for critical, low-latency functions.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eUse reasonable PromQL windows\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ePrefer metrics such as \u003ccode\u003erate(...[1m])\u003c/code\u003e or \u003ccode\u003erate(...[5m])\u003c/code\u003e rather than raw counters.\u003c/li\u003e\n\u003cli\u003eAvoid overly short windows that create noisy signals.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eBe conservative with scale-down\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eAdd a \u003ccode\u003eScaleDown\u003c/code\u003e stabilization window.\u003c/li\u003e\n\u003cli\u003eUse smaller percent values (e.g., 50%) to avoid aggressive shrink.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eNever rely on Prometheus to wake from 0\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ePrometheus metrics require pods to be running and scraped.\u003c/li\u003e\n\u003cli\u003eIn SlimFaas, \u003cstrong\u003eonly HTTP/schedule controls 0 → N\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eDocument each trigger\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eUse \u003ccode\u003eMetricName\u003c/code\u003e for clear semantic names.\u003c/li\u003e\n\u003cli\u003eKeep the PromQL queries in team documentation or dashboards.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ol\u003e\n\u003chr\u003e\n\u003ch2\u003eObservability \u0026amp; debugging\u003c/h2\u003e\n\u003cp\u003eTo understand and debug autoscaling behavior:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eLogs from ReplicasService / ScaleReplicasWorker\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\n\u003cp\u003eDebug logs show time left before scale-down.\u003c/p\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003eInfo logs show scaling decisions:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-text hljs\"\u003e\u003cspan class=\"hljs-attribute\"\u003eScale\u003c/span\u003e up {Deployment} \u003cspan class=\"hljs-selector-tag\"\u003efrom\u003c/span\u003e {Current} \u003cspan class=\"hljs-selector-tag\"\u003eto\u003c/span\u003e {Desired}\n\u003cspan class=\"hljs-attribute\"\u003eScale\u003c/span\u003e down {Deployment} \u003cspan class=\"hljs-selector-tag\"\u003efrom\u003c/span\u003e {Current} \u003cspan class=\"hljs-selector-tag\"\u003eto\u003c/span\u003e {ReplicasMin}\n\u003c/code\u003e\u003c/pre\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eLogs from the AutoScaler / PromQL evaluator\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eWarnings when:\n\u003cul\u003e\n\u003cli\u003ePromQL queries fail,\u003c/li\u003e\n\u003cli\u003eMetric values are NaN or infinite,\u003c/li\u003e\n\u003cli\u003eThresholds are invalid.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003ePrometheus / Grafana dashboards\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eVisualize:\n\u003cul\u003e\n\u003cli\u003eThe PromQL used in triggers.\u003c/li\u003e\n\u003cli\u003eThe effective RPS, queue length, etc.\u003c/li\u003e\n\u003cli\u003eThe number of replicas per function over time.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eDebug HTTP endpoints\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eUse \u003ccode\u003e/debug/promql/eval\u003c/code\u003e to validate PromQL expressions against the current store.\u003c/li\u003e\n\u003cli\u003eUse \u003ccode\u003e/debug/store\u003c/code\u003e to check that metrics are being scraped and stored.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cp\u003e\u003cstrong\u003eMetrics for desired vs actual replicas\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eExpose or log the desired replica count computed per tick for better visibility.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ol\u003e\n\u003chr\u003e\n\u003ch2\u003eFAQ\u003c/h2\u003e\n\u003ch3\u003eQ1. Why does the AutoScaler never wake a function from 0?\u003c/h3\u003e\n\u003cp\u003eBy design:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eSlimFaas \u003cstrong\u003eonly allows the HTTP/schedule system to wake functions from 0\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eThe Prometheus AutoScaler only adjusts \u003cstrong\u003eexisting\u003c/strong\u003e capacity.\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eThis avoids relying on metrics that cannot exist while no pod is running.\u003c/p\u003e\n\u003chr\u003e\n\u003ch3\u003eQ2. What happens if all triggers return invalid metrics?\u003c/h3\u003e\n\u003cp\u003eIf all triggers in \u003ccode\u003eSlimFaas/Scale\u003c/code\u003e produce invalid values (NaN, Inf, negative, PromQL error):\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe AutoScaler ignores them.\u003c/li\u003e\n\u003cli\u003eThe replica count is left unchanged, except for:\n\u003cul\u003e\n\u003cli\u003eenforcing \u003ccode\u003eReplicasMin\u003c/code\u003e,\u003c/li\u003e\n\u003cli\u003eenforcing \u003ccode\u003eReplicaMax\u003c/code\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch3\u003eQ3. How do I enable scale-to-zero?\u003c/h3\u003e\n\u003cp\u003eSet:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003eannotations:\u003c/span\u003e\n  SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"0\"\u003c/span\u003e\n  SlimFaas\u003cspan class=\"hljs-operator\"\u003e/\u003c/span\u003e\u003cspan class=\"hljs-params\"\u003eTimeoutSecondBeforeSetReplicasMin:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"300\"\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eAfter 300 seconds of inactivity (considering HTTP history, schedule, and dependencies), SlimFaas will scale the function down to 0.\u003c/p\u003e\n\u003chr\u003e\n\u003ch3\u003eQ4. How do I temporarily disable the Prometheus AutoScaler for a function?\u003c/h3\u003e\n\u003cp\u003eSimply remove the \u003ccode\u003eSlimFaas/Scale\u003c/code\u003e annotation from the Deployment (or set it to an empty config with no triggers):\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-attribute\"\u003eannotations\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e\n  \u003cspan class=\"hljs-attribute\"\u003eSlimFaas/Scale\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\u0026gt;\u003c/span\u003e\n    \u003cspan class=\"hljs-attribute\"\u003e{\n      \"Triggers\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e[]\u003c/span\u003e\n    }\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eWith no valid triggers, the \u003ccode\u003eN → M\u003c/code\u003e system will effectively be disabled; only \u003ccode\u003e0 → N\u003c/code\u003e / \u003ccode\u003eN → 0\u003c/code\u003e will remain active.\u003c/p\u003e\n\u003chr\u003e\n\u003ch3\u003eQ5. Can I combine several triggers for one function?\u003c/h3\u003e\n\u003cp\u003eYes.\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eEach trigger computes its own desired replica count.\u003c/li\u003e\n\u003cli\u003eThe AutoScaler chooses the \u003cstrong\u003emaximum\u003c/strong\u003e of all trigger outputs.\u003c/li\u003e\n\u003cli\u003eThis lets you, for example, scale based on:\n\u003cul\u003e\n\u003cli\u003eboth RPS and queue length,\u003c/li\u003e\n\u003cli\u003eor RPS and CPU usage, etc.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/body\u003e\u003c/html\u003e","metadata":{}},"__N_SSG":true},"page":"/autoscaling","query":{},"buildId":"rrt1qlTBrispE9fUTZgKw","isFallback":false,"gsp":true,"scriptLoader":[]}</script></body></html>

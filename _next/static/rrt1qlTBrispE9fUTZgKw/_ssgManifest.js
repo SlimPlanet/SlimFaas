@@ -1,0 +1,1 @@
+self.__SSG_MANIFEST=new Set(["\u002F","\u002Fautoscaling","\u002Fevents","\u002Ffunctions","\u002Fget-started","\u002Fhow-it-works","\u002Fjobs","\u002Fmcp","\u002Fplanet-saver"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()
