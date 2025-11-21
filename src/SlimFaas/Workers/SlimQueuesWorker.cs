@@ -49,7 +49,11 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                 string functionDeployment = function.Deployment;
                 setTickLastCallCounterDictionary.TryAdd(functionDeployment, 0);
                 int numberProcessingTasks = await ManageProcessingTasksAsync(slimFaasQueue, processingTasks, functionDeployment);
-                int numberLimitProcessingTasks = function.NumberParallelRequest - numberProcessingTasks;
+
+                var numberPodsReady = function.Pods?.Count(p  => p.Ready.HasValue && p.Ready.Value && !string.IsNullOrEmpty(p.Ip)) ?? 1;
+
+                int numberMaxProcessingTasks = Math.Min(function.NumberParallelRequest, numberPodsReady * function.NumberParallelRequestPerPod);
+                int numberLimitProcessingTasks = numberMaxProcessingTasks - numberProcessingTasks;
                 setTickLastCallCounterDictionary[functionDeployment]++;
                 int functionReplicas = function.Replicas;
                 long queueLength = await UpdateTickLastCallIfRequestStillInProgress(
@@ -70,7 +74,7 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                     continue;
                 }
 
-                if (numberProcessingTasks >= function.NumberParallelRequest)
+                if (numberProcessingTasks >= numberMaxProcessingTasks)
                 {
                     continue;
                 }

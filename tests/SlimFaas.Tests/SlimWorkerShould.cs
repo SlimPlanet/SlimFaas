@@ -53,7 +53,7 @@ public class SlimWorkerShould
                 new(Replicas: 1, Deployment: "fibonacci", Namespace: "default", NumberParallelRequest: 1,
                     ReplicasMin: 0, ReplicasAtStart: 1, TimeoutSecondBeforeSetReplicasMin: 300,
                     ReplicasStartAsSoonAsOneFunctionRetrieveARequest: true, Configuration: new SlimFaasConfiguration(),
-                    Pods: new List<PodInformation> { new("", true, true, "", "")}, EndpointReady: true),
+                    Pods: new List<PodInformation> { new("", true, true, "1", "")}, EndpointReady: true),
                 new(Replicas: 1, Deployment: "no-pod-started", Namespace: "default", NumberParallelRequest: 1,
                     ReplicasMin: 0, ReplicasAtStart: 1, TimeoutSecondBeforeSetReplicasMin: 300,
                     ReplicasStartAsSoonAsOneFunctionRetrieveARequest: true, Configuration: new SlimFaasConfiguration(),
