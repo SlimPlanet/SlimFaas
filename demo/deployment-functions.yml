@@ -17,7 +17,7 @@ spec:
         # 0 -> N / N -> 0 (HTTP + schedule)
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"   # 1h d'inactivité avant scale-down
         SlimFaas/NumberParallelRequest: "40"
-        SlimFaas/NumberParallelRequestPerPod: "2"
+        SlimFaas/NumberParallelRequestPerPod: "1"
         SlimFaas/ReplicasAtStart: "1"
         SlimFaas/ReplicasMin: "0"                            # autorise le scale-to-zero
 

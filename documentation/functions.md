@@ -63,7 +63,7 @@ SlimFaas exposes a route to check the readiness status of all registered functio
 [
     {
       "NumberReady": 1,
-      "numberRequested": 1,
+      "NumberRequested": 1,
       "PodType": "Deployment",
       "Visibility": "Public",
       "Name": "fibonacci1"
@@ -203,7 +203,11 @@ Before you start calling functions, ensure you add the necessary annotations to 
   The number of **inactivity seconds** after which the function will scale down to `ReplicasMin`. (Default is often `300` seconds.)
 
 - **`SlimFaas/NumberParallelRequest: "10"`**
-  The maximum number of concurrent requests allowed for each replica. Additional requests will queue until a slot frees up.
+  The maximum number of concurrent requests allowed for all replicas. Additional requests will queue until a slot frees up.
+
+- **`SlimFaas/NumberParallelRequestPerPod: "10"`**:
+  The maximum number of concurrent requests allowed per pod. Additional requests will queue until a slot frees up.
+
 
 ```yaml
 # Example snippet from a Deployment
@@ -214,6 +218,7 @@ metadata:
         SlimFaas/ReplicasAtStart: "1"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
         SlimFaas/NumberParallelRequest: "10"
+        SlimFaas/NumberParallelRequestPerPod: "10"
 ```
 
 ---
