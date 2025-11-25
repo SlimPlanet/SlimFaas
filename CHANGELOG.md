@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.46.0
+
+- [072fd86](https://github.com/SlimPlanet/SlimFaas/commit/072fd86bfae0527b969615a4ac3c6c851cd785d0) - feat(slimfaas): NumberParallelRequestPerPod (#189) (release), 2025-11-25 by *Guillaume Chervet*
+
+
+## 0.45.0
+
+
+
 ## v0.45.0
 
 - [d38cabe](https://github.com/SlimPlanet/SlimFaas/commit/d38cabe15d6dfefdc0fc8e9e89c05b4a98730a19) - feat(slimfaas): add scale out (#187) (release), 2025-11-20 by *Guillaume Chervet*
@@ -265,15 +274,5 @@
 ## v0.39.3
 
 - [3c11c58](https://github.com/SlimPlanet/SlimFaas/commit/3c11c58e324a9e0c7b6a638b2815e5fc2b580498) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
-
-
-## v0.39.2
-
-- [18931a9](https://github.com/SlimPlanet/SlimFaas/commit/18931a9cbe5fcd5c19627a2313b3d6f766a18252) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
-- [427d653](https://github.com/SlimPlanet/SlimFaas/commit/427d653072dc986d5d349d208b9012501db3d751) - google analitycs header, 2025-08-18 by *Guillaume Chervet*
-
-
-## 0.39.1
-
 
 
