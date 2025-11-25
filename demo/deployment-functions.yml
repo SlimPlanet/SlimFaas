@@ -16,7 +16,8 @@ spec:
 
         # 0 -> N / N -> 0 (HTTP + schedule)
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "3600"   # 1h d'inactivité avant scale-down
-        SlimFaas/NumberParallelRequest: "2"
+        SlimFaas/NumberParallelRequest: "40"
+        SlimFaas/NumberParallelRequestPerPod: "1"
         SlimFaas/ReplicasAtStart: "1"
         SlimFaas/ReplicasMin: "0"                            # autorise le scale-to-zero
 
@@ -32,9 +33,9 @@ spec:
             "Triggers": [
               {
                 "MetricType": "Value",
-                "MetricName": "avg_latency_fibonacci_seconds",
-                "Query": "sum(rate(http_request_duration_seconds_sum{code=\"200\",method=\"POST\",endpoint=\"/fibonacci\"}[1m])) / sum(rate(http_request_duration_seconds_count{code=\"200\",method=\"POST\",endpoint=\"/fibonacci\"}[1m]))",
-                "Threshold": 20
+                "MetricName": "max_over_time_queue_fibonacci1",
+                "Query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci1\"}[30s])",
+                "Threshold": 10
               }
             ],
             "Behavior": {

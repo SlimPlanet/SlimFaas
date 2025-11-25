@@ -123,7 +123,8 @@ public record DeploymentInformation(
     string ResourceVersion = "",
     bool EndpointReady = false,
     FunctionTrust Trust = FunctionTrust.Trusted,
-    ScaleConfig? Scale = null
+    ScaleConfig? Scale = null,
+    int NumberParallelRequestPerPod = 10
 );
 
 public record PodInformation(
@@ -265,6 +266,7 @@ public class KubernetesService : IKubernetesService
 
     private const string TimeoutSecondBeforeSetReplicasMin = "SlimFaas/TimeoutSecondBeforeSetReplicasMin";
     private const string NumberParallelRequest = "SlimFaas/NumberParallelRequest";
+    private const string NumberParallelRequestPerPod = "SlimFaas/NumberParallelRequestPerPod";
     private const string DefaultTrust = "SlimFaas/DefaultTrust";
 
     private const string SlimfaasDeploymentName = "slimfaas";
@@ -774,7 +776,11 @@ public class KubernetesService : IKubernetesService
                         annotations.TryGetValue(DefaultTrust, out string? trust)
                             ? Enum.Parse<FunctionTrust>(trust)
                             : FunctionTrust.Trusted,
-                        scaleConfig
+                        scaleConfig,
+                        annotations.TryGetValue(NumberParallelRequestPerPod,
+                            out string? annotationNumberParallelRequestPerPod)
+                            ? int.Parse(annotationNumberParallelRequestPerPod)
+                            : 10
                     );
                     deploymentInformationList.Add(deploymentInformation);
                 }
@@ -1022,7 +1028,11 @@ public class KubernetesService : IKubernetesService
                         annotations.TryGetValue(DefaultTrust, out string? trust)
                             ? Enum.Parse<FunctionTrust>(trust)
                             : FunctionTrust.Trusted,
-                        scaleConfig);
+                        scaleConfig,
+                        annotations.TryGetValue(NumberParallelRequestPerPod,
+                            out string? annotationNumberParallelRequestPerPod)
+                            ? int.Parse(annotationNumberParallelRequestPerPod)
+                            : 10);
 
                     deploymentInformationList.Add(deploymentInformation);
                 }
