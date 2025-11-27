@@ -145,6 +145,12 @@ services:
         condition: service_started
     ports:
       - "5200:8080"
+    labels:
+      SlimFaas/Function: "true"
+      app: "slimfaaskafka"
+      SlimFaas/Namespace: "default"
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/ReplicasMin: "1"
     environment:
       - Kafka__BootstrapServers=kafka:9092
       - Kafka__CheckIntervalSeconds=5
