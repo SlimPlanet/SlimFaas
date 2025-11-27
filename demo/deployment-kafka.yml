@@ -134,7 +134,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: slimfaas-kafka
-          image: axaguildev/slimfaas-kafka:0.47.0-pr.190251
+          image: axaguildev/slimfaas-kafka:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -210,7 +210,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci-kafka-producer
-          image: axaguildev/fibonacci-kafka-producer:0.47.0-pr.190249
+          image: axaguildev/fibonacci-kafka-producer:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -251,7 +251,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: fibonacci-kafka-listener
-          image: axaguildev/fibonacci-kafka-listener:0.47.0-pr.190249
+          image: axaguildev/fibonacci-kafka-listener:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

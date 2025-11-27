@@ -1,14 +1,10 @@
 using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using Moq.Protected;
 using SlimFaasKafka.Config;
 using SlimFaasKafka.Services;
-using Xunit;
 
 namespace SlimFaasKafka.Tests;
 

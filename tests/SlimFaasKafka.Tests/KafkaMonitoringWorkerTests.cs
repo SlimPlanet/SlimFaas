@@ -6,7 +6,6 @@ using SlimFaasKafka.Config;
 using SlimFaasKafka.Kafka;
 using SlimFaasKafka.Services;
 using SlimFaasKafka.Workers;
-using Xunit;
 
 namespace SlimFaasKafka.Tests;
 

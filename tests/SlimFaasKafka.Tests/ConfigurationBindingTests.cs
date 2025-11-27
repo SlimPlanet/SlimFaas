@@ -2,7 +2,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using SlimFaasKafka.Config;
-using Xunit;
 
 namespace SlimFaasKafka.Tests;
 
