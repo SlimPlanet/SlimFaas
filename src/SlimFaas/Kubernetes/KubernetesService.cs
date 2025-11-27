@@ -446,8 +446,9 @@ public class KubernetesService : IKubernetesService
                 .Where(deploymentListItem => deploymentListItem.Metadata.Name == SlimfaasDeploymentName).Select(
                     deploymentListItem =>
                         new SlimFaasDeploymentInformation(deploymentListItem.Spec.Replicas ?? 0,
-                            podList.Where(p => p.Name.StartsWith(deploymentListItem.Metadata.Name)).ToList()))
+                            podList.Where(p => p.DeploymentName == deploymentListItem.Metadata.Name).ToList()))
                 .FirstOrDefault();
+
 
             IEnumerable<PodInformation> podInformations = podList.ToArray();
             await AddDeployments(kubeNamespace, deploymentList, podInformations, deploymentInformationList, _logger,

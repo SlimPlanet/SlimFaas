@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Prometheus;
 using SlimFaasKafka.Config;
+using SlimFaasKafka.Kafka;
 using SlimFaasKafka.Services;
 using SlimFaasKafka.Workers;
 
@@ -28,6 +29,7 @@ builder.Services.AddHttpClient<ISlimFaasClient, SlimFaasClient>((sp, client) =>
 });
 
 // Worker Kafka
+builder.Services.AddSingleton<IKafkaLagProvider, KafkaLagProvider>();
 builder.Services.AddHostedService<KafkaMonitoringWorker>();
 
 // API minimal + Swagger

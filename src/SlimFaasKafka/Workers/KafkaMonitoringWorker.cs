@@ -1,11 +1,10 @@
 using System.Collections.Concurrent;
-using Confluent.Kafka;
-using Confluent.Kafka.Admin;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Prometheus;
 using SlimFaasKafka.Config;
+using SlimFaasKafka.Kafka;
 using SlimFaasKafka.Services;
 
 namespace SlimFaasKafka.Workers;
@@ -22,6 +21,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
     private readonly IOptionsMonitor<KafkaOptions> _kafkaOptionsMonitor;
     private readonly IOptionsMonitor<BindingsOptions> _bindingsOptionsMonitor;
     private readonly ISlimFaasClient _slimFaasClient;
+    private readonly IKafkaLagProvider _kafkaLagProvider;
 
     // Pour éviter de spammer SlimFaas : garde en mémoire le dernier wake.
     // Clé au niveau (Topic, Group, Function) pour permettre plusieurs fonctions
@@ -68,12 +68,14 @@ public sealed class KafkaMonitoringWorker : BackgroundService
         ILogger<KafkaMonitoringWorker> logger,
         IOptionsMonitor<KafkaOptions> kafkaOptionsMonitor,
         IOptionsMonitor<BindingsOptions> bindingsOptionsMonitor,
-        ISlimFaasClient slimFaasClient)
+        ISlimFaasClient slimFaasClient,
+        IKafkaLagProvider kafkaLagProvider)
     {
         _logger = logger;
         _kafkaOptionsMonitor = kafkaOptionsMonitor;
         _bindingsOptionsMonitor = bindingsOptionsMonitor;
         _slimFaasClient = slimFaasClient;
+        _kafkaLagProvider = kafkaLagProvider;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -123,54 +125,26 @@ public sealed class KafkaMonitoringWorker : BackgroundService
         _logger.LogInformation("KafkaMonitoringWorker stopped");
     }
 
+    // NOTE: reste private, on l'appellera en test via réflexion.
     private async Task CheckBindingsAsync(
         KafkaOptions kafkaOptions,
         BindingsOptions bindingsOptions,
         CancellationToken cancellationToken)
     {
-        var adminConfig = new AdminClientConfig
-        {
-            BootstrapServers = kafkaOptions.BootstrapServers,
-            ClientId = kafkaOptions.ClientId
-        };
-
-        // Ce consumer ne rejoint pas le groupe surveillé, il sert uniquement
-        // à récupérer les watermarks (high offsets).
-        var consumerConfig = new ConsumerConfig
-        {
-            BootstrapServers = kafkaOptions.BootstrapServers,
-            GroupId = "slimfaaskafka-watermark",
-            EnableAutoCommit = false,
-            EnableAutoOffsetStore = false,
-            AllowAutoCreateTopics = kafkaOptions.AllowAutoCreateTopics
-        };
-
-        using var adminClient = new AdminClientBuilder(adminConfig).Build();
-        using var consumer = new ConsumerBuilder<Ignore, Ignore>(consumerConfig).Build();
-
-        var timeout = TimeSpan.FromSeconds(Math.Max(1, kafkaOptions.KafkaTimeoutSeconds));
         var now = DateTimeOffset.UtcNow;
 
         foreach (var binding in bindingsOptions.Bindings)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            // groupKey = (Topic, Group) pour l'activité / offsets
-            // wakeKey  = (Topic, Group, Function) pour le cooldown / wakeups
             var groupKey = (binding.Topic, binding.ConsumerGroupId);
             var wakeKey = (binding.Topic, binding.ConsumerGroupId, binding.FunctionName);
 
             try
             {
-                // --- Récupération pending + offsets via AdminClient si possible, sinon fallback ---
                 var (pending, committedSum, usedAdmin) =
-                    await GetPendingWithAdminOrFallbackAsync(
-                        adminClient,
-                        consumer,
-                        binding,
-                        timeout,
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                    await _kafkaLagProvider.GetLagAsync(binding, kafkaOptions, cancellationToken)
+                        .ConfigureAwait(false);
 
                 if (!usedAdmin)
                 {
@@ -182,12 +156,10 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                         binding.FunctionName);
                 }
 
-                // Met à jour la gauge des pending
                 PendingMessagesGauge
                     .WithLabels(binding.Topic, binding.ConsumerGroupId, binding.FunctionName)
                     .Set(pending);
 
-                // --- Gestion de l'activité récente (offsets qui avancent) ---
                 bool recentActivity = false;
                 long consumedDelta = 0;
 
@@ -197,7 +169,6 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                         groupKey,
                         addValueFactory: _ =>
                         {
-                            // Première fois qu'on voit ce binding : on initialise sans considérer de delta
                             var initial = committedSum;
                             _lastActivity[groupKey] = now;
                             LastActivityGauge
@@ -220,9 +191,6 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                             return committedSum > oldCommitted ? committedSum : oldCommitted;
                         });
 
-                    // Si on a effectivement détecté un delta strictement positif
-                    // et qu'il dépasse le seuil MinConsumedDeltaForActivity,
-                    // on considère que l'activité est valable pour le keep-alive.
                     if (consumedDelta >= binding.MinConsumedDeltaForActivity &&
                         binding.ActivityKeepAliveSeconds > 0)
                     {
@@ -230,7 +198,6 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                     }
                 }
 
-                // Même si pas de nouveau delta sur ce cycle, on peut encore être dans la fenêtre de keep-alive
                 if (!recentActivity && binding.ActivityKeepAliveSeconds > 0 &&
                     _lastActivity.TryGetValue(groupKey, out var lastAct))
                 {
@@ -251,7 +218,6 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                     recentActivity,
                     usedAdmin);
 
-                // --- Décision de wake up ---
                 var shouldWakeForPending = pending >= binding.MinPendingMessages;
                 var shouldWakeForActivity = recentActivity && binding.ActivityKeepAliveSeconds > 0;
 
@@ -292,14 +258,6 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                     }
                 }
             }
-            catch (KafkaException kex)
-            {
-                _logger.LogWarning(
-                    kex,
-                    "Kafka error while checking binding topic={Topic}, group={Group}",
-                    binding.Topic,
-                    binding.ConsumerGroupId);
-            }
             catch (Exception ex)
             {
                 _logger.LogError(
@@ -311,203 +269,6 @@ public sealed class KafkaMonitoringWorker : BackgroundService
         }
     }
 
-    /// <summary>
-    /// Essaie d'abord d'utiliser l'AdminClient (lag réel par consumer group).
-    /// Si non autorisé ou erreur, bascule sur une heuristique côté consumer uniquement,
-    /// avec des logs explicites.
-    /// </summary>
-    private async Task<(long pending, long totalCommitted, bool usedAdmin)> GetPendingWithAdminOrFallbackAsync(
-        IAdminClient adminClient,
-        IConsumer<Ignore, Ignore> consumer,
-        TopicBinding binding,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            var (pending, totalCommitted) = await GetPendingUsingAdminAsync(
-                    adminClient,
-                    consumer,
-                    binding,
-                    timeout,
-                    cancellationToken)
-                .ConfigureAwait(false);
-
-            return (pending, totalCommitted, usedAdmin: true);
-        }
-        catch (ListConsumerGroupOffsetsException ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "AdminClient.ListConsumerGroupOffsetsAsync failed for group '{GroupId}', topic '{Topic}'. " +
-                "Falling back to consumer-only heuristic (no visibility on consumer group offsets).",
-                binding.ConsumerGroupId,
-                binding.Topic);
-        }
-        catch (KafkaException ex) when (
-            ex.Error.Code == ErrorCode.GroupAuthorizationFailed ||
-            ex.Error.Code == ErrorCode.TopicAuthorizationFailed)
-        {
-            _logger.LogWarning(
-                ex,
-                "Not authorized to read consumer group offsets for group '{GroupId}', topic '{Topic}'. " +
-                "Falling back to consumer-only heuristic (no visibility on consumer group offsets).",
-                binding.ConsumerGroupId,
-                binding.Topic);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(
-                ex,
-                "Unexpected error while using AdminClient for group '{GroupId}', topic '{Topic}'. " +
-                "Falling back to consumer-only heuristic.",
-                binding.ConsumerGroupId,
-                binding.Topic);
-        }
-
-        var fallback = GetPendingUsingConsumerOnly(adminClient, consumer, binding, timeout);
-        return (fallback.pending, fallback.totalCommitted, usedAdmin: false);
-    }
-
-    /// <summary>
-    /// Mode "idéal" : utilise l'AdminClient pour récupérer les offsets du consumer group cible
-    /// et calcule le lag réel par partition (high watermark - committed).
-    /// </summary>
-    private static async Task<(long pending, long totalCommitted)> GetPendingUsingAdminAsync(
-        IAdminClient adminClient,
-        IConsumer<Ignore, Ignore> consumer,
-        TopicBinding binding,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
-    {
-        long pending = 0;
-        long totalCommitted = 0;
-
-        // 1. Récupère les partitions du topic via l’AdminClient
-        var metadata = adminClient.GetMetadata(binding.Topic, timeout);
-        var topicMetadata = metadata.Topics.SingleOrDefault(t => t.Topic == binding.Topic);
-
-        if (topicMetadata == null || topicMetadata.Error.IsError)
-        {
-            // Topic inconnu ou inaccessible
-            return (0, 0);
-        }
-
-        var topicPartitions = topicMetadata.Partitions
-            .Select(p => new TopicPartition(binding.Topic, p.PartitionId))
-            .ToList();
-
-        if (topicPartitions.Count == 0)
-        {
-            return (0, 0);
-        }
-
-        // 2. Demande des offsets du consumer group ciblé
-        var groupPartitions = new[]
-        {
-            new ConsumerGroupTopicPartitions(binding.ConsumerGroupId, topicPartitions)
-        };
-
-        var options = new ListConsumerGroupOffsetsOptions
-        {
-            RequestTimeout = timeout
-        };
-
-        var results = await adminClient
-            .ListConsumerGroupOffsetsAsync(groupPartitions, options)
-            .ConfigureAwait(false);
-
-        var groupResult = results.Single(); // on a passé exactement 1 group
-
-        // Map TopicPartition -> info offset+erreur
-        var byPartition = groupResult.Partitions
-            .ToDictionary(
-                p => p.TopicPartition,
-                p => p,
-                TopicPartitionEqualityComparer.Instance);
-
-        // 3. Pour chaque partition, calcule le lag
-        foreach (var tp in topicPartitions)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            var watermark = consumer.QueryWatermarkOffsets(tp, timeout);
-            var high = watermark.High;
-
-            if (high <= 0)
-            {
-                continue;
-            }
-
-            if (byPartition.TryGetValue(tp, out var tpoe) && !tpoe.Error.IsError)
-            {
-                var committedOffset = tpoe.Offset.Value;
-                if (committedOffset >= 0 && high >= committedOffset)
-                {
-                    pending += (high - committedOffset);
-                    totalCommitted += committedOffset;
-                }
-                else if (committedOffset < 0)
-                {
-                    // Aucun offset commité pour cette partition → on considère tout comme en attente.
-                    pending += high.Value;
-                }
-            }
-            else
-            {
-                // Pas d’information sur cette partition pour ce group → on considère tout comme en attente.
-                pending += high.Value;
-            }
-        }
-
-        return (pending, totalCommitted);
-    }
-
-    /// <summary>
-    /// Fallback minimal : ne regarde pas du tout les offsets de consumer group.
-    /// Estime juste le "volume brut" dans le log via les high watermarks.
-    /// </summary>
-    private static (long pending, long totalCommitted) GetPendingUsingConsumerOnly(
-        IAdminClient adminClient,
-        IConsumer<Ignore, Ignore> consumer,
-        TopicBinding binding,
-        TimeSpan timeout)
-    {
-        long pending = 0;
-
-        var metadata = adminClient.GetMetadata(binding.Topic, timeout);
-        var topicMetadata = metadata.Topics.SingleOrDefault(t => t.Topic == binding.Topic);
-
-        if (topicMetadata == null || topicMetadata.Error.IsError)
-        {
-            return (0, 0);
-        }
-
-        var topicPartitions = topicMetadata.Partitions
-            .Select(p => new TopicPartition(binding.Topic, p.PartitionId))
-            .ToList();
-
-        if (topicPartitions.Count == 0)
-        {
-            return (0, 0);
-        }
-
-        foreach (var tp in topicPartitions)
-        {
-            var watermark = consumer.QueryWatermarkOffsets(tp, timeout);
-            var high = watermark.High;
-
-            if (high >= 0)
-            {
-                // On compte le "volume brut" dans le log, sans savoir où en est le group SlimFaas
-                pending += high.Value;
-            }
-        }
-
-        // On ne connaît pas les offsets du group → 0 par convention
-        return (pending, totalCommitted: 0);
-    }
-
     private bool IsOutOfCooldown((string Topic, string Group, string Function) key, TopicBinding binding)
     {
         if (!_lastWakeUp.TryGetValue(key, out var last))
@@ -517,19 +278,5 @@ public sealed class KafkaMonitoringWorker : BackgroundService
 
         var cooldown = TimeSpan.FromSeconds(Math.Max(0, binding.CooldownSeconds));
         return DateTimeOffset.UtcNow - last >= cooldown;
-    }
-
-    /// <summary>
-    /// Comparer pour indexer proprement un TopicPartition dans un dictionnaire.
-    /// </summary>
-    private sealed class TopicPartitionEqualityComparer : IEqualityComparer<TopicPartition>
-    {
-        public static readonly TopicPartitionEqualityComparer Instance = new();
-
-        public bool Equals(TopicPartition? x, TopicPartition? y)
-            => x?.Topic == y?.Topic && x?.Partition == y?.Partition;
-
-        public int GetHashCode(TopicPartition obj)
-            => HashCode.Combine(obj.Topic, obj.Partition.Value);
     }
 }

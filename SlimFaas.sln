@@ -26,6 +26,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp1", "src\ConsoleA
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasKafka", "src\SlimFaasKafka\SlimFaasKafka.csproj", "{D771C816-4642-443B-A155-7DCA8C130864}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasKafka.Tests", "tests\SlimFaasKafka.Tests\SlimFaasKafka.Tests.csproj", "{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -84,5 +86,9 @@ Global
 		{D771C816-4642-443B-A155-7DCA8C130864}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D771C816-4642-443B-A155-7DCA8C130864}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D771C816-4642-443B-A155-7DCA8C130864}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
