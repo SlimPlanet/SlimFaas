@@ -1,14 +1,15 @@
 ﻿
-# SlimFaasKafka — User Guide
+# SlimFaas Kafka Connector [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas-kafka.svg?label=docker+pull+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-kafka?label=image+size+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-kafka?sort=semver&label=latest+version+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds)
 
-SlimFaasKafka is a lightweight micro‑service designed to **monitor Kafka topics** and automatically **wake up SlimFaas functions** when messages arrive or when recent Kafka activity indicates the function should stay awake.
+
+SlimFaas-Kafka is a lightweight micro‑service designed to **monitor Kafka topics** and automatically **wake up SlimFaas functions** when messages arrive or when recent Kafka activity indicates the function should stay awake.
 It enables full event‑driven autoscaling of SlimFaas functions based on Kafka queues — without consuming the messages itself.
 
 ---
 
 ## 🚀 Overview
 
-SlimFaasKafka acts as a **sidecar orchestration component** that:
+SlimFaas-Kafka acts as a **sidecar orchestration component** that:
 
 1. **Watches Kafka topics** for:
     - Pending messages (lag)
@@ -147,21 +148,21 @@ SlimFaasKafka uses three configuration sections:
 Each binding is configured through indexed env vars:
 
 ```
-SlimKafka__Bindings__0__Topic=fibo-public
-SlimKafka__Bindings__0__ConsumerGroupId=fibonacci-listener-group
-SlimKafka__Bindings__0__FunctionName=fibonaccilistener
-SlimKafka__Bindings__0__MinPendingMessages=1
-SlimKafka__Bindings__0__CooldownSeconds=30
-SlimKafka__Bindings__0__ActivityKeepAliveSeconds=60
-SlimKafka__Bindings__0__MinConsumedDeltaForActivity=1
+SlimFaasKafka__Bindings__0__Topic=fibo-public
+SlimFaasKafka__Bindings__0__ConsumerGroupId=fibonacci-listener-group
+SlimFaasKafka__Bindings__0__FunctionName=fibonaccilistener
+SlimFaasKafka__Bindings__0__MinPendingMessages=1
+SlimFaasKafka__Bindings__0__CooldownSeconds=30
+SlimFaasKafka__Bindings__0__ActivityKeepAliveSeconds=60
+SlimFaasKafka__Bindings__0__MinConsumedDeltaForActivity=1
 ```
 
 You can add more bindings:
 
 ```
-SlimKafka__Bindings__1__Topic=orders
-SlimKafka__Bindings__1__ConsumerGroupId=orders-group
-SlimKafka__Bindings__1__FunctionName=processorders
+SlimFaasKafka__Bindings__1__Topic=orders
+SlimFaasKafka__Bindings__1__ConsumerGroupId=orders-group
+SlimFaasKafka__Bindings__1__FunctionName=processorders
 ...
 ```
 
@@ -177,11 +178,11 @@ SlimFaasKafka exposes Prometheus metrics at:
 
 Metrics include:
 
-| Metric | Meaning |
-|--------|---------|
-| `slimkafka_wakeups_total` | Number of wake-ups per binding |
-| `slimkafka_pending_messages` | Pending messages per topic/group/function |
-| `slimkafka_last_activity_timestamp_seconds` | Last activity time |
+| Metric                                          | Meaning |
+|-------------------------------------------------|---------|
+| `slimfaaskafka_wakeups_total`                   | Number of wake-ups per binding |
+| `slimfaaskafka_pending_messages`                | Pending messages per topic/group/function |
+| `slimfaaskafka_last_activity_timestamp_seconds` | Last activity time |
 
 ---
 
@@ -228,42 +229,6 @@ Make sure:
 
 ---
 
-## 🧪 Testing the System
-
-### Send messages
-
-Use your sender service or:
-
-```bash
-docker exec -it kafka kafka-console-producer.sh   --bootstrap-server kafka:9092   --topic fibo-public
-```
-
-Then type:
-
-```
-42
-```
-
-SlimFaasKafka should log:
-
-```
-Triggering wake up for function fibonaccilistener (pending=1, ...)
-```
-
-And SlimFaas should scale the corresponding function pod.
-
----
-
-## 🛠 Troubleshooting
-
-| Symptom | Cause | Fix |
-|--------|--------|-----|
-| SlimFaasKafka logs `localhost:9092` | Kafka advertised listeners incorrect | Set `KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092` |
-| SlimFaas wake request fails | Docker DNS mismatch | Ensure `SlimFaas__BaseUrl=http://slimfaas:30021` |
-| Pending always 0 | Missing ACL for AdminClient | Fallback behaves normally but detects only watermarks |
-| Activity not detected | Consumer group commits disabled | Enable auto commit or explicit offset commits |
-
----
 
 ## ✔ Summary
 
@@ -277,12 +242,3 @@ SlimFaasKafka enables:
 - Works perfectly inside Docker or Kubernetes
 
 It is the recommended companion service for **event-driven SlimFaas workloads**.
-
----
-
-## 📄 License & Source
-
-SlimFaasKafka is part of the **SlimFaas ecosystem**.
-
-See:
-https://github.com/SlimPlanet/SlimFaas

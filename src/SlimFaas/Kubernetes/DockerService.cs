@@ -71,11 +71,6 @@ namespace SlimFaas.Kubernetes
                     host = OperatingSystem.IsWindows() ? "http://127.0.0.1:2375" : "unix:///var/run/docker.sock";
                 }
 
-                /*if (host.StartsWith("unix://"))
-                {
-                    throw new InvalidOperationException("Unix sockets not supported via IHttpClientFactory. Use TCP.");
-                }*/
-
                 // http(s) → utilise comme BaseAddress
                 UriBuilder uri = new(host);
                 if (uri.Scheme == Uri.UriSchemeHttp && (uri.Port == 80 || uri.Port == -1))
@@ -111,7 +106,7 @@ namespace SlimFaas.Kubernetes
             return n.Contains("-template", StringComparison.OrdinalIgnoreCase);
         }
 
-// champ de classe
+        // champ de classe
         private int _startupCleanupDone = 0;
 
         private async Task EnsureStartupCleanupOnceAsync()

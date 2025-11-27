@@ -132,7 +132,7 @@ services:
     networks:
       - slimfaas-net
 
-  slimfaaskafka:
+  slimfaas-kafka:
     #image: slimkafka:dev
     # ou build localement le projet SlimKafka si tu as le code à côté :
     build:
@@ -147,7 +147,7 @@ services:
       - "5200:8080"
     labels:
       SlimFaas/Function: "true"
-      app: "slimfaaskafka"
+      app: "slimfaas-kafka"
       SlimFaas/Namespace: "default"
       SlimFaas/ReplicasAtStart: "1"
       SlimFaas/ReplicasMin: "1"
@@ -167,7 +167,7 @@ services:
       - slimfaas-net
 
 
-  fibonaccikafkaproducer:
+  fibonacci-kafka-producer:
     build:
       context: ./src/FibonacciKafkaProducer
       dockerfile: Dockerfile
@@ -181,7 +181,7 @@ services:
     networks:
       - slimfaas-net
 
-  fibonaccikafkalistener:
+  fibonacci-kafka-listener:
     build:
       context: ./src/FibonacciKafkaListener
       dockerfile: Dockerfile
@@ -195,7 +195,7 @@ services:
       - Kafka__GroupId=fibonacci-listener-group
     labels:
       SlimFaas/Function: "true"
-      app: "fibonaccikafkalistener"
+      app: "fibonacci-kafka-listener"
       SlimFaas/Namespace: "default"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
     healthcheck:

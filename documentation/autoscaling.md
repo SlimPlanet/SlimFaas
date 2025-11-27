@@ -342,7 +342,7 @@ If all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the Auto
 
 The `Behavior.ScaleUp.Policies` and `Behavior.ScaleDown.Policies` define how fast the scaler is allowed to change the number of pods:
 
-```jsonc
+```json
 "Behavior": {
   "ScaleUp": {
     "StabilizationWindowSeconds": 0,

@@ -1,0 +1,275 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: slimfaas-demo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: slimfaas-demo
+  labels:
+    app: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kafka
+  template:
+    metadata:
+      labels:
+        app: kafka
+      annotations:
+        SlimFaas/Function: "true"
+        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/ReplicasMin: "0"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+    spec:
+      hostname: kafka
+      containers:
+        - name: kafka
+          image: apache/kafka:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9092
+              name: plaintext
+          env:
+            - name: KAFKA_BROKER_ID
+              value: "1"
+            - name: KAFKA_NODE_ID
+              value: "1"
+            - name: KAFKA_PROCESS_ROLES
+              value: "broker,controller"
+            - name: KAFKA_LISTENERS
+              value: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: "PLAINTEXT://kafka:9092"
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: "PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT"
+            - name: KAFKA_INTER_BROKER_LISTENER_NAME
+              value: "PLAINTEXT"
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: "CONTROLLER"
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: "1@kafka:9093"
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS
+              value: "0"
+            - name: KAFKA_LOG_DIRS
+              value: "/var/lib/kafka/data"
+            - name: KAFKA_AUTO_CREATE_TOPICS_ENABLE
+              value: "true"
+          volumeMounts:
+            - name: kafka-data
+              mountPath: /var/lib/kafka/data
+          readinessProbe:
+            exec:
+              command:
+                - /opt/kafka/bin/kafka-broker-api-versions.sh
+                - --bootstrap-server
+                - localhost:9092
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 20
+          livenessProbe:
+            exec:
+              command:
+                - /opt/kafka/bin/kafka-broker-api-versions.sh
+                - --bootstrap-server
+                - localhost:9092
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 5
+      volumes:
+        - name: kafka-data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: slimfaas-demo
+  labels:
+    app: kafka
+spec:
+  selector:
+    app: kafka
+  ports:
+    - name: plaintext
+      port: 9092
+      targetPort: plaintext
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: slimfaas-kafka
+  namespace: slimfaas-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: slimfaas-kafka
+  template:
+    metadata:
+      labels:
+        app: slimfaas-kafka
+      annotations:
+        SlimFaas/Function: "true"
+        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/ReplicasMin: "1"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+        SlimFaas/DependsOn: "kafka"
+        prometheus.io/path: /metrics
+        prometheus.io/port: "8080"
+        prometheus.io/scrape: "true"
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      containers:
+        - name: slimfaas-kafka
+          image: axaguildev/slimfaas-kafka:0.47.0-pr.190249
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: Kafka__BootstrapServers
+              value: "kafka.slimfaas-demo.svc.cluster.local:9092"
+            - name: Kafka__CheckIntervalSeconds
+              value: "5"
+            - name: Kafka__KafkaTimeoutSeconds
+              value: "5"
+            - name: SlimFaas__BaseUrl
+              value: "http://slimfaas.slimfaas-demo.svc.cluster.local:5000"
+            - name: SlimFaasKafka__Bindings__0__Topic
+              value: "fibo-public"
+            - name: SlimFaasKafka__Bindings__0__ConsumerGroupId
+              value: "fibonacci-listener-group"
+            - name: SlimFaasKafka__Bindings__0__FunctionName
+              value: "fibonacci-kafka-listener"
+            - name: SlimFaasKafka__Bindings__0__MinPendingMessages
+              value: "1"
+            - name: SlimFaasKafka__Bindings__0__CooldownSeconds
+              value: "30"
+            - name: SlimFaasKafka__Bindings__0__ActivityKeepAliveSeconds
+              value: "60"
+            - name: SlimFaasKafka__Bindings__0__MinConsumedDeltaForActivity
+              value: "1"
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+            requests:
+              memory: "64Mi"
+              cpu: "20m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibonacci-kafka-producer
+  namespace: slimfaas-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fibonacci-kafka-producer
+  template:
+    metadata:
+      labels:
+        app: fibonacci-kafka-producer
+      annotations:
+        SlimFaas/Function: "true"
+        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/ReplicasMin: "0"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+        SlimFaas/DependsOn: "kafka,slimfaas-kafka"
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      containers:
+        - name: fibonacci-kafka-producer
+          image: axaguildev/fibonacci-kafka-producer:0.47.0-pr.190249
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: Kafka__BootstrapServers
+              value: "kafka.slimfaas-demo.svc.cluster.local:9092"
+          resources:
+            limits:
+              memory: "96Mi"
+              cpu: "50m"
+            requests:
+              memory: "48Mi"
+              cpu: "10m"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibonacci-kafka-listener
+  namespace: slimfaas-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fibonacci-kafka-listener
+  template:
+    metadata:
+      labels:
+        app: fibonacci-kafka-listener
+      annotations:
+        SlimFaas/Function: "true"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
+        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/ReplicasMin: "0"
+        SlimFaas/DependsOn: "kafka"
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      containers:
+        - name: fibonacci-kafka-listener
+          image: axaguildev/fibonacci-kafka-listener:0.47.0-pr.190249
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: ASPNETCORE_URLS
+              value: "http://+:8080"
+            - name: Kafka__BootstrapServers
+              value: "kafka.slimfaas-demo.svc.cluster.local:9092"
+            - name: Kafka__Topic
+              value: "fibo-public"
+            - name: Kafka__GroupId
+              value: "fibonacci-listener-group"
+          resources:
+            limits:
+              memory: "96Mi"
+              cpu: "50m"
+            requests:
+              memory: "64Mi"
+              cpu: "10m"
+

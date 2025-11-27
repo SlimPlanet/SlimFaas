@@ -109,6 +109,7 @@ spec:
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
         SlimFaas/NumberParallelRequest: "2"
         SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/DependsOn: "fibonacci1,mysql"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
         prometheus.io/scrape: 'true'
