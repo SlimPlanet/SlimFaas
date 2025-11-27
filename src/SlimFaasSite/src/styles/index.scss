@@ -35,6 +35,11 @@
             color: #d63384;
         }
 
+        code.language-promql {
+            background-color: #111827;
+            color: #e5e7eb;
+        }
+
         blockquote {
             margin: 0 0 1rem;
             background-color: #696969;
@@ -149,6 +154,32 @@
 
         pre code.language-jsx .hljs-string{
             color: #afbeff;
+        }
+
+        /* === PromQL : thème clair et très contrasté sur fond sombre === */
+        pre code.language-promql {
+            background-color: #111827;   /* fond sombre homogène */
+            color: #e5e7eb;              /* texte principal très clair */
+        }
+
+        pre code.language-promql .hljs-keyword,
+        pre code.language-promql .hljs-built_in,
+        pre code.language-promql .hljs-operator {
+            color: #fde68a;              /* jaune bien visible (rate, sum, max_over_time, etc.) */
+        }
+
+        pre code.language-promql .hljs-number {
+            color: #fca5a5;              /* rouge clair pour les nombres */
+        }
+
+        pre code.language-promql .hljs-string,
+        pre code.language-promql .hljs-attr {
+            color: #6ee7b7;              /* vert/menthe pour labels, noms de métriques */
+        }
+
+        pre code.language-promql .hljs-comment {
+            color: #9ca3af;              /* gris clair pour commentaires */
+            font-style: italic;
         }
 
         table {

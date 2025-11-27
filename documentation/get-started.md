@@ -32,6 +32,9 @@ kubectl apply -f deployment-functions.yml
 # Deploy MySQL (used by the Fibonacci functions)
 kubectl apply -f deployment-mysql.yml
 
+# Deploy Kafka and demo Consumer and Producer
+kubectl apply -f deployment-kafka.yml
+
 # (Optional) Run a single-page demo webapp on http://localhost:8000
 docker run -d -p 8000:8000 --rm axaguildev/fibonacci-webapp:latest
 ```

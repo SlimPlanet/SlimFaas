@@ -19,10 +19,6 @@
 [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas?label=image+size+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas?sort=semver&label=latest+version+slimfaas)](https://hub.docker.com/r/axaguildev/slimfaas/builds)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas)](https://artifacthub.io/packages/search?repo=slimfaas)
-[![Docker SlimFaas MCP](https://img.shields.io/docker/pulls/axaguildev/slimfaas-mcp.svg?label=docker+pull+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds)
-[![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-mcp?label=image+size+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds)
-[![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-mcp?sort=semver&label=latest+version+slimfaas-mcp)](https://hub.docker.com/r/axaguildev/slimfaas-mcp/builds)
-[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas-mcp)](https://artifacthub.io/packages/search?repo=slimfaas-mcp)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas?ref=badge_shield&issueType=license)
 [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas.svg?type=shield&issueType=security)](https://app.fossa.com/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas?ref=badge_shield&issueType=security)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/SlimPlanet/SlimFaas/badge)](https://scorecard.dev/viewer/?uri=github.com/SlimPlanet/SlimFaas)
@@ -31,6 +27,7 @@
 SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform for Kubernetes (and Docker-Compose / Podman-Compose).
 It’s designed to be **fast**, **simple**, and **extremely slim** — with a very opinionated, **autoscaling-first** design:
 - `0 → N` wake-up from HTTP history & schedules,
+- `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
 - `N → M` scaling powered by PromQL,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
 
@@ -46,10 +43,11 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - **Scale-to-zero & wake-up**
     - Scale down to `0` after inactivity with configurable timeouts.
     - Wake up from `0 → N` based on real HTTP traffic and/or cron-like schedules.
+    - Wake up from `0 → N` based on **Kafka topic activity**, using **SlimFaas Kafka** to monitor consumer lag and call the SlimFaas wake-up API.
     - Control initial capacity with `ReplicasAtStart` to reduce cold-start impact.
 
 - **Two-phase scaling model**
-    - **`0 → N`**: driven by HTTP history, schedules and dependencies between functions.
+    - **`0 → N`**: driven by HTTP history, schedules, **and Kafka lag (SlimFaas Kafka)** to bring functions online only when they’re needed.
     - **`N → M`**: driven by a built-in PromQL mini-evaluator on top of an internal metrics store.
     - Metrics-based autoscaling only runs when at least one pod exists — no reliance on non-existent metrics.
 
@@ -135,7 +133,7 @@ Check out:
 
 - [Get Started](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/get-started.md) – Learn how to deploy SlimFaas on Kubernetes or Docker Compose.
 - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
-  *(See the autoscaling documentation in this repository.)*
+- [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.
 - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
 - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
 - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.

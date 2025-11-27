@@ -14,8 +14,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using SlimFaas;
 using SlimFaas.Database;
+using SlimFaas;
 
 namespace SlimData.Tests;
 

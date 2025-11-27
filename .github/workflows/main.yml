@@ -210,6 +210,51 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
+  build_slimfaas_kafka:
+    needs: tags
+    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
+    uses: ./.github/workflows/Docker.yml
+    with:
+      image_name: "axaguildev/slimfaas-kafka"
+      image_version: "${{ needs.tags.outputs.new_version }}"
+      image_build_args: ""
+      image_context: "./src/SlimFaasKafka"
+      image_file: "./src/SlimFaasKafka/Dockerfile"
+      platforms: "linux/amd64,linux/arm64"
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+  build_fibonacci_kafka_producer:
+    needs: tags
+    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
+    uses: ./.github/workflows/Docker.yml
+    with:
+      image_name: "axaguildev/fibonacci-kafka-producer"
+      image_version: "${{ needs.tags.outputs.new_version }}"
+      image_build_args: ""
+      image_context: "./src/FibonacciKafkaProducer"
+      image_file: "./src/FibonacciKafkaProducer/Dockerfile"
+      platforms: "linux/amd64,linux/arm64"
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
+  build_fibonacci_kafka_listener:
+    needs: tags
+    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
+    uses: ./.github/workflows/Docker.yml
+    with:
+      image_name: "axaguildev/fibonacci-kafka-listener"
+      image_version: "${{ needs.tags.outputs.new_version }}"
+      image_build_args: ""
+      image_context: "./src/FibonacciKafkaListener"
+      image_file: "./src/FibonacciKafkaListener/Dockerfile"
+      platforms: "linux/amd64,linux/arm64"
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
   build_fibonacci_api:
     needs: tags
     if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
