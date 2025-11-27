@@ -123,7 +123,7 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/ReplicasAtStart: "1"
-        SlimFaas/ReplicasMin: "1"
+        SlimFaas/ReplicasMin: "0"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
         SlimFaas/DependsOn: "kafka"
         prometheus.io/path: /metrics
@@ -134,7 +134,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: slimfaas-kafka
-          image: axaguildev/slimfaas-kafka:0.47.0-pr.190249
+          image: axaguildev/slimfaas-kafka:0.47.0-pr.190251
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

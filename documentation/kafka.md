@@ -1,7 +1,5 @@
 ﻿
-# SlimFaas Kafka Connector [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas-kafka.svg?label=docker+pull+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-kafka?label=image+size+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-kafka?sort=semver&label=latest+version+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds)
-
-
+# SlimFaas Kafka Connector [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas-kafka.svg?label=docker+pull+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-kafka?label=image+size+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-kafka?sort=semver&label=latest+version+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas-kafka)](https://artifacthub.io/packages/search?repo=slimfaas-kafka)
 SlimFaas-Kafka is a lightweight micro‑service designed to **monitor Kafka topics** and automatically **wake up SlimFaas functions** when messages arrive or when recent Kafka activity indicates the function should stay awake.
 It enables full event‑driven autoscaling of SlimFaas functions based on Kafka queues — without consuming the messages itself.
 

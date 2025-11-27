@@ -16,6 +16,7 @@
 SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform for Kubernetes (and Docker-Compose / Podman-Compose).
 It’s designed to be **fast**, **simple**, and **extremely slim** — with a very opinionated, **autoscaling-first** design:
 - `0 → N` wake-up from HTTP history & schedules,
+- `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
 - `N → M` scaling powered by PromQL,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
 
@@ -33,10 +34,11 @@ SlimFaas puts autoscaling at the center of the design:
 - **Scale-to-zero & cold-start control**
     - Scale down to `0` after inactivity with configurable timeouts.
     - Wake up from `0 → N` based on real HTTP history and/or time-based schedules.
+    - Wake up from `0 → N` based on **Kafka topic activity**: SlimFaas Kafka watches consumer group lag and calls the wake-up API whenever there are pending messages or recent consumption.
     - Control initial capacity via `ReplicasAtStart` to avoid thundering herds.
 
 - **Two-phase scaling model**
-    - **`0 → N`**: driven by HTTP history, schedules and dependencies.
+    - **`0 → N`**: driven by HTTP history, schedules, dependencies **and Kafka lag (via SlimFaas Kafka)** to bring functions online only when needed.
     - **`N → M`**: driven by Prometheus metrics and a built-in PromQL mini-evaluator.
     - The metrics-based autoscaler only runs once at least one pod exists — no “metrics from the void”.
 
@@ -122,6 +124,7 @@ Dive into the documentation:
 - [Get Started](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/get-started.md) – Learn how to deploy SlimFaas on Kubernetes or Docker Compose.
 - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
   *(See the `documentation/autoscaling` guide in this repo.)*
+- [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.
 - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
 - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
 - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
