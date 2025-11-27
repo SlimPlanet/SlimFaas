@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Prometheus;
 using SlimFaasKafka.Config;
@@ -21,27 +23,33 @@ public sealed class KafkaMonitoringWorker : BackgroundService
     private readonly IOptionsMonitor<BindingsOptions> _bindingsOptionsMonitor;
     private readonly ISlimFaasClient _slimFaasClient;
 
-    // Pour éviter de spammer SlimFaas : garde en mémoire le dernier wake pour chaque binding.
-    private readonly ConcurrentDictionary<(string Topic, string Group), DateTimeOffset> _lastWakeUp = new();
+    // Pour éviter de spammer SlimFaas : garde en mémoire le dernier wake.
+    // Clé au niveau (Topic, Group, Function) pour permettre plusieurs fonctions
+    // sur le même couple topic/group avec des cooldowns indépendants.
+    private readonly ConcurrentDictionary<(string Topic, string Group, string Function), DateTimeOffset> _lastWakeUp = new();
 
-    // Offset total commité par binding (pour détecter l'activité récente).
+    // Offset total commité par group (pour détecter l'activité récente).
+    // Clé au niveau (Topic, Group) car l'activité est propre au consumer group.
     private readonly ConcurrentDictionary<(string Topic, string Group), long> _lastCommittedOffsets = new();
 
-    // Dernière activité observée (offset qui avance) par binding.
+    // Dernière activité observée (offset qui avance) par group.
     private readonly ConcurrentDictionary<(string Topic, string Group), DateTimeOffset> _lastActivity = new();
 
     // --- Prometheus metrics ---
+    //
+    // Toutes les métriques sont préfixées par "slimfaaskafka_"
+    // et labellisées par topic, group et function.
 
     private static readonly Counter WakeupCounter = Metrics.CreateCounter(
-        "slimkafka_wakeups_total",
-        "Number of wake-ups triggered by SlimKafka.",
+        "slimfaaskafka_wakeups_total",
+        "Number of wake-ups triggered by SlimFaasKafka.",
         new CounterConfiguration
         {
             LabelNames = new[] { "topic", "group", "function", "reason" }
         });
 
     private static readonly Gauge PendingMessagesGauge = Metrics.CreateGauge(
-        "slimkafka_pending_messages",
+        "slimfaaskafka_pending_messages",
         "Last observed number of pending messages per topic/group/function.",
         new GaugeConfiguration
         {
@@ -49,7 +57,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
         });
 
     private static readonly Gauge LastActivityGauge = Metrics.CreateGauge(
-        "slimkafka_last_activity_timestamp_seconds",
+        "slimfaaskafka_last_activity_timestamp_seconds",
         "Last observed activity time (offset advancing) as Unix time in seconds.",
         new GaugeConfiguration
         {
@@ -70,12 +78,15 @@ public sealed class KafkaMonitoringWorker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        var kafkaOptions = _kafkaOptionsMonitor.CurrentValue;
-        _logger.LogInformation("KafkaMonitoringWorker started. BootstrapServers = {BootstrapServers}, ClientId = {ClientId}",
-            kafkaOptions.BootstrapServers, kafkaOptions.ClientId);
+        var kafkaOptionsAtStart = _kafkaOptionsMonitor.CurrentValue;
+        _logger.LogInformation(
+            "KafkaMonitoringWorker started. BootstrapServers = {BootstrapServers}, ClientId = {ClientId}",
+            kafkaOptionsAtStart.BootstrapServers,
+            kafkaOptionsAtStart.ClientId);
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            var kafkaOptions = _kafkaOptionsMonitor.CurrentValue;
             var bindingsOptions = _bindingsOptionsMonitor.CurrentValue;
 
             if (bindingsOptions.Bindings.Count == 0)
@@ -128,7 +139,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
         var consumerConfig = new ConsumerConfig
         {
             BootstrapServers = kafkaOptions.BootstrapServers,
-            GroupId = "slimkafka-watermark",
+            GroupId = "slimfaaskafka-watermark",
             EnableAutoCommit = false,
             EnableAutoOffsetStore = false,
             AllowAutoCreateTopics = kafkaOptions.AllowAutoCreateTopics
@@ -144,7 +155,10 @@ public sealed class KafkaMonitoringWorker : BackgroundService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var key = (binding.Topic, binding.ConsumerGroupId);
+            // groupKey = (Topic, Group) pour l'activité / offsets
+            // wakeKey  = (Topic, Group, Function) pour le cooldown / wakeups
+            var groupKey = (binding.Topic, binding.ConsumerGroupId);
+            var wakeKey = (binding.Topic, binding.ConsumerGroupId, binding.FunctionName);
 
             try
             {
@@ -180,12 +194,12 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                 if (committedSum > 0 && usedAdmin)
                 {
                     _lastCommittedOffsets.AddOrUpdate(
-                        key,
+                        groupKey,
                         addValueFactory: _ =>
                         {
                             // Première fois qu'on voit ce binding : on initialise sans considérer de delta
                             var initial = committedSum;
-                            _lastActivity[key] = now;
+                            _lastActivity[groupKey] = now;
                             LastActivityGauge
                                 .WithLabels(binding.Topic, binding.ConsumerGroupId, binding.FunctionName)
                                 .Set(now.ToUnixTimeSeconds());
@@ -197,7 +211,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                             if (delta > 0)
                             {
                                 consumedDelta = delta;
-                                _lastActivity[key] = now;
+                                _lastActivity[groupKey] = now;
                                 LastActivityGauge
                                     .WithLabels(binding.Topic, binding.ConsumerGroupId, binding.FunctionName)
                                     .Set(now.ToUnixTimeSeconds());
@@ -218,7 +232,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
 
                 // Même si pas de nouveau delta sur ce cycle, on peut encore être dans la fenêtre de keep-alive
                 if (!recentActivity && binding.ActivityKeepAliveSeconds > 0 &&
-                    _lastActivity.TryGetValue(key, out var lastAct))
+                    _lastActivity.TryGetValue(groupKey, out var lastAct))
                 {
                     var keepAliveWindow = TimeSpan.FromSeconds(Math.Max(1, binding.ActivityKeepAliveSeconds));
                     if (now - lastAct <= keepAliveWindow)
@@ -243,7 +257,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
 
                 if (shouldWakeForPending || shouldWakeForActivity)
                 {
-                    if (IsOutOfCooldown(key, binding))
+                    if (IsOutOfCooldown(wakeKey, binding))
                     {
                         var reason = shouldWakeForPending && shouldWakeForActivity
                             ? "pending_and_activity"
@@ -262,7 +276,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                             binding.ConsumerGroupId);
 
                         await _slimFaasClient.WakeAsync(binding.FunctionName, cancellationToken);
-                        _lastWakeUp[key] = now;
+                        _lastWakeUp[wakeKey] = now;
 
                         WakeupCounter
                             .WithLabels(binding.Topic, binding.ConsumerGroupId, binding.FunctionName, reason)
@@ -494,7 +508,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
         return (pending, totalCommitted: 0);
     }
 
-    private bool IsOutOfCooldown((string Topic, string Group) key, TopicBinding binding)
+    private bool IsOutOfCooldown((string Topic, string Group, string Function) key, TopicBinding binding)
     {
         if (!_lastWakeUp.TryGetValue(key, out var last))
         {

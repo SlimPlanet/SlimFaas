@@ -143,6 +143,8 @@ services:
         condition: service_healthy
       slimfaas:
         condition: service_started
+    ports:
+      - "5200:8080"
     environment:
       - Kafka__BootstrapServers=kafka:9092
       - Kafka__CheckIntervalSeconds=5
