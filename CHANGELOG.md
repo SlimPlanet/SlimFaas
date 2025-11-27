@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.47.0
+
+- [9d92252](https://github.com/SlimPlanet/SlimFaas/commit/9d92252de5c41c632c4f1c69e4b2602e77fcb5ac) - feat(slimfaaskafka): add slimfaas kafka (#190) (release), 2025-11-27 by *Guillaume Chervet*
+
+
+## 0.46.0
+
+
+
 ## v0.46.0
 
 - [072fd86](https://github.com/SlimPlanet/SlimFaas/commit/072fd86bfae0527b969615a4ac3c6c851cd785d0) - feat(slimfaas): NumberParallelRequestPerPod (#189) (release), 2025-11-25 by *Guillaume Chervet*
@@ -264,15 +273,5 @@
 ## v0.39.5
 
 - [e2f0f69](https://github.com/SlimPlanet/SlimFaas/commit/e2f0f69512c5fb4300de376377ec29ab95a38d53) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
-
-
-## v0.39.4
-
-- [47e16ab](https://github.com/SlimPlanet/SlimFaas/commit/47e16abfc0a684bd08736cfc27990e48cec4933f) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
-
-
-## v0.39.3
-
-- [3c11c58](https://github.com/SlimPlanet/SlimFaas/commit/3c11c58e324a9e0c7b6a638b2815e5fc2b580498) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
 
 
