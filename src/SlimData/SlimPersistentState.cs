@@ -113,7 +113,8 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
 
 public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<SlimDataPayload>
 {
-    public const string LogLocation = "logLocation";
+    public const string LogLocation = "SlimData:LogLocation";
+    public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
 
     private readonly SlimDataState _state = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,

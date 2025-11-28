@@ -134,7 +134,8 @@ public record PodInformation(
     string Ip,
     string DeploymentName,
     IList<int>? Ports = null,
-    string ResourceVersion = "")
+    string ResourceVersion = "",
+    string? ServiceName = null)
 {
     public IDictionary<string, string>? Annotations { get; init; }
 }
@@ -280,6 +281,7 @@ public class KubernetesService : IKubernetesService
     public const string SlimfaasJobKey = "-slimfaas-job-";
     private readonly k8s.Kubernetes _client;
     private readonly ILogger<KubernetesService> _logger;
+    private bool _serviceListForbidden;
 
     public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
     {
@@ -290,6 +292,39 @@ public class KubernetesService : IKubernetesService
         k8SConfig.SkipTlsVerify = true;
         _client = new k8s.Kubernetes(k8SConfig);
     }
+
+    private async Task<V1ServiceList?> TryListServicesAsync(string kubeNamespace)
+    {
+        // Si on sait déjà qu’on n’a pas les droits, on ne refait pas l’appel
+        if (_serviceListForbidden)
+        {
+            return null;
+        }
+
+        try
+        {
+            return await _client.ListNamespacedServiceAsync(kubeNamespace);
+        }
+        catch (HttpOperationException ex) when (ex.Response?.StatusCode == HttpStatusCode.Forbidden)
+        {
+            _serviceListForbidden = true;
+
+            _logger.LogWarning(ex,
+                "Insufficient RBAC permissions to list Services in namespace {Namespace}. ServiceName will be null in PodInformation.",
+                kubeNamespace);
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex,
+                "Error while listing Services in namespace {Namespace}. ServiceName will be null in PodInformation.",
+                kubeNamespace);
+
+            return null;
+        }
+    }
+
 
     private static ScaleConfig NormalizeScaleConfig(ScaleConfig? cfg)
     {
@@ -424,6 +459,35 @@ public class KubernetesService : IKubernetesService
         return request;
     }
 
+    static string? FindServiceNameForPod(V1Pod pod, V1ServiceList? services)
+    {
+        // Pas de droits / erreur => services == null => on renvoie juste null
+        if (services == null || pod.Metadata?.Labels == null || services.Items == null)
+        {
+            return null;
+        }
+
+        foreach (var svc in services.Items)
+        {
+            var selector = svc.Spec?.Selector;
+            if (selector == null || selector.Count == 0)
+            {
+                continue;
+            }
+
+            bool match = selector.All(kv =>
+                pod.Metadata.Labels.TryGetValue(kv.Key, out var v) &&
+                string.Equals(v, kv.Value, StringComparison.Ordinal));
+
+            if (match)
+            {
+                return svc.Metadata?.Name;
+            }
+        }
+
+        return null;
+    }
+
 
     public async Task<DeploymentsInformations> ListFunctionsAsync(string kubeNamespace,
         DeploymentsInformations previousDeployments)
@@ -436,10 +500,11 @@ public class KubernetesService : IKubernetesService
             Task<V1DeploymentList>? deploymentListTask = client.ListNamespacedDeploymentAsync(kubeNamespace);
             Task<V1PodList>? podListTask = client.ListNamespacedPodAsync(kubeNamespace);
             Task<V1StatefulSetList>? statefulSetListTask = client.ListNamespacedStatefulSetAsync(kubeNamespace);
+            Task<V1ServiceList?> serviceListTask = TryListServicesAsync(kubeNamespace);
 
-            await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask);
+            await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask, serviceListTask);
             V1DeploymentList? deploymentList = await deploymentListTask;
-            IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, _logger);
+            IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, await serviceListTask, _logger);
             V1StatefulSetList? statefulSetList = await statefulSetListTask;
 
             SlimFaasDeploymentInformation? slimFaasDeploymentInformation = statefulSetList.Items
@@ -1045,7 +1110,7 @@ public class KubernetesService : IKubernetesService
         }
     }
 
-    private static IEnumerable<PodInformation> MapPodInformations(V1PodList v1PodList,
+    private static IEnumerable<PodInformation> MapPodInformations(V1PodList v1PodList, V1ServiceList? serviceList,
         ILogger<KubernetesService> logger)
     {
         List<PodInformation> result = new();
@@ -1083,8 +1148,10 @@ public class KubernetesService : IKubernetesService
                     .Select(p => p.ContainerPort)
                     .ToList() ?? new List<int>();
 
+                string? serviceName = FindServiceNameForPod(item, serviceList);
+
                 PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp,
-                    deploymentName, ports, resourceVersion)
+                    deploymentName, ports, resourceVersion, serviceName)
                 {
                     Annotations = item.Metadata?.Annotations
                 };

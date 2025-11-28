@@ -24,7 +24,6 @@ public sealed class PromQlMiniEvaluator
     public double Evaluate(string query, long? nowUnixSeconds = null)
     {
         var snapshot = _snapshotProvider();
-        Console.WriteLine($"Snapshot.Count {snapshot.Count}");
         if (snapshot.Count == 0)
             return double.NaN;
 
