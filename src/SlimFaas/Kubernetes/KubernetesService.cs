@@ -135,7 +135,7 @@ public record PodInformation(
     string DeploymentName,
     IList<int>? Ports = null,
     string ResourceVersion = "",
-    string ServiceName = null);
+    string ServiceName = null)
 {
     public IDictionary<string, string>? Annotations { get; init; }
 }
