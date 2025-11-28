@@ -58,6 +58,15 @@ spec:
   selector:
     matchLabels:
       app: slimfaas
+  volumeClaimTemplates:
+    - metadata:
+        name: slimfaas-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 2Gi
   template:
     metadata:
       labels:
@@ -67,10 +76,6 @@ spec:
         prometheus.io/port: "5000"
         prometheus.io/scrape: "true"
     spec:
-      volumes:
-        - name: slimfaas-volume
-          emptyDir:
-            sizeLimit: 1400Mi
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
@@ -96,8 +101,8 @@ spec:
             #  value: "http://{pod_ip}:{pod_port}"
             #- name: BASE_FUNCTION_POD_URL # require for publish route
             #  value: "http://{pod_ip}:{pod_port}"
-            #- name: BASE_SLIMDATA_URL
-            #  value: "http://{pod_ip}:3262/"
+            - name: BASE_SLIMDATA_URL
+              value: "http://{pod_name}.slimfaas.{namespace}.svc.cluster.local:5000"
             #- name: NAMESPACE
             #  value: "slimfaas-demo"
             - name: SLIMDATA_DIRECTORY
@@ -137,6 +142,7 @@ metadata:
   name: slimfaas
   namespace: slimfaas-demo
 spec:
+  clusterIP: None
   selector:
     app: slimfaas
   ports:

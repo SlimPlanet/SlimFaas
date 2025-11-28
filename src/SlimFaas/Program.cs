@@ -258,6 +258,40 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
     Console.WriteLine($"Node started {currentPod.Name} {publicEndPoint}");
 }
 
+// -------------------------------------------------------------
+// Détermination du mode coldStart en fonction de l'état sur disque
+// et du rang du pod (StatefulSet : slimfaas-0, slimfaas-1, ...)
+// -------------------------------------------------------------
+bool hasExistingState =
+    !string.IsNullOrEmpty(podDataDirectoryPersistantStorage) &&
+    Directory.EnumerateFileSystemEntries(podDataDirectoryPersistantStorage).Any();
+
+// Avec un StatefulSet, le premier pod est typiquement ...-0
+bool isFirstPod = hostname.EndsWith("-0", StringComparison.OrdinalIgnoreCase);
+
+Console.WriteLine($"SlimData state dir: {podDataDirectoryPersistantStorage}, hasExistingState={hasExistingState}, isFirstPod={isFirstPod}, slimDataAllowColdStart={slimDataAllowColdStart}");
+
+// Règle :
+// - Si on a déjà un état sur disque -> on ne fait PAS de cold start.
+// - Si répertoire vide -> seul le premier pod (…-0) peut booter le cluster
+//   et seulement si slimDataAllowColdStart = true (config globale).
+string coldStart = (!hasExistingState && isFirstPod && slimDataAllowColdStart) ? "true" : "false";
+
+Dictionary<string, string> slimDataDefaultConfiguration = new()
+{
+    { "partitioning", "false" },
+    { "lowerElectionTimeout", "2500" },
+    { "upperElectionTimeout", "5000" },
+    { "requestTimeout", "00:00:05.0000000" },
+    { "rpcTimeout", "00:00:02.5000000" },
+    { "publicEndPoint", publicEndPoint },
+    { "coldstart", coldStart },
+    { "requestJournal:memoryLimit", "50" },
+    { "requestJournal:expiration", "00:05:00" },
+    { "heartbeatThreshold", "0.5" }
+};
+
+
 var allowUnsecureSSL = EnvironmentVariables.ReadBoolean(EnvironmentVariables.SlimFaasAllowUnsecureSSL, EnvironmentVariables.SlimFaasAllowUnsecureSSLDefault);
 
 serviceCollectionSlimFaas.AddHostedService<SlimDataSynchronizationWorker>();
@@ -314,7 +348,7 @@ if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 
 Startup startup = new(builder.Configuration);
 // Node start as master if it is alone in the cluster
-string coldStart = replicasService != null && replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 ? "true" : "false";
+/*string coldStart = replicasService != null && replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 ? "true" : "false";
 
 Dictionary<string, string> slimDataDefaultConfiguration = new()
 {
@@ -328,7 +362,7 @@ Dictionary<string, string> slimDataDefaultConfiguration = new()
     { "requestJournal:memoryLimit", "50" },
     { "requestJournal:expiration", "00:05:00" },
     { "heartbeatThreshold", "0.5" }
-};
+};*/
 foreach (KeyValuePair<string,string> keyValuePair in slimDataDefaultConfiguration)
 {
     if (!slimDataConfiguration.ContainsKey(keyValuePair.Key))
