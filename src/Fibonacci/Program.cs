@@ -267,7 +267,7 @@ app.MapPost("/computeWithCallback", async (
 
             using var req = new HttpRequestMessage(
                 HttpMethod.Post,
-                $"http://slimfaas.slimfaas-demo.svc.cluster.local:5000/async-function-callback/fibonacci1/{elementId}/success")
+                $"http://slimfaas.slimfaas-demo.svc:5000/async-function-callback/fibonacci1/{elementId}/success")
             {
                 Content = JsonContent.Create(new { })
             };

@@ -77,12 +77,20 @@ public class Startup(IConfiguration configuration)
                 EnableMultipleHttp2Connections = false,
                 UseProxy = false
             });
-        services.UseInMemoryConfigurationStorage(AddClusterMembers)
-            .ConfigureCluster<ClusterConfigurator>()
-            .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()
-            .AddOptions()
-            .AddRouting();
         var path = configuration[SlimPersistentState.LogLocation];
+        if (!string.IsNullOrWhiteSpace(path))
+            services.UsePersistentConfigurationStorage(path)
+                .ConfigureCluster<ClusterConfigurator>()
+                .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()
+                .AddOptions()
+                .AddRouting();
+        else
+            services.UseInMemoryConfigurationStorage(AddClusterMembers)
+                .ConfigureCluster<ClusterConfigurator>()
+                .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()
+                .AddOptions()
+                .AddRouting();
+        
        /* if (!string.IsNullOrWhiteSpace(path))
         {
 #pragma warning disable DOTNEXT001

@@ -17,7 +17,7 @@ public static class EnvironmentVariables
     public const int SlimJobsWorkerDelayMillisecondsDefault = 1000;
 
     public const string BaseSlimDataUrl = "BASE_SLIMDATA_URL";
-    public const string BaseSlimDataUrlDefault = "http://{pod_name}.{service_name}.{namespace}.svc.cluster.local:3262";
+    public const string BaseSlimDataUrlDefault = "http://{pod_name}.{service_name}.{namespace}.svc:3262";
 
 
     public const string ReplicasSynchronisationWorkerDelayMilliseconds =

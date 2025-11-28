@@ -141,8 +141,11 @@ kind: Service
 metadata:
   name: slimfaas
   namespace: slimfaas-demo
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
 spec:
   clusterIP: None
+  publishNotReadyAddresses: true
   selector:
     app: slimfaas
   ports:
