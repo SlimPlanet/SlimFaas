@@ -261,6 +261,9 @@ Console.WriteLine($"SlimData state dir: {podDataDirectoryPersistantStorage}, has
 // - Si répertoire vide -> seul le premier pod (…-0) peut booter le cluster
 //   et seulement si slimDataAllowColdStart = true (config globale).
 string coldStart = (!hasExistingState && isFirstPod && slimDataAllowColdStart) ? "true" : "false";
+if(envOrConfig=="Docker") {
+	coldStart = "true";
+}
 
 Dictionary<string, string> slimDataDefaultConfiguration = new()
 {
