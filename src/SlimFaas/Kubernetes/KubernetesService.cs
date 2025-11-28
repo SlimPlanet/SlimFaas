@@ -459,7 +459,7 @@ public class KubernetesService : IKubernetesService
         return request;
     }
 
-    static string FindServiceNameForPod(V1Pod pod, V1ServiceList? services)
+    static string? FindServiceNameForPod(V1Pod pod, V1ServiceList? services)
     {
         // Pas de droits / erreur => services == null => on renvoie juste null
         if (services == null || pod.Metadata?.Labels == null || services.Items == null)
