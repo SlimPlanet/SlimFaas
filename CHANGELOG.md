@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.47.1
+
+- [baf622b](https://github.com/SlimPlanet/SlimFaas/commit/baf622bf3ab8e8bcba638d8cb9dc2ce90031306b) - fix(slimfaas): startup node reboot raft (#191) (release), 2025-11-28 by *Guillaume Chervet*
+
+
+## 0.47.0
+
+
+
 ## v0.47.0
 
 - [9d92252](https://github.com/SlimPlanet/SlimFaas/commit/9d92252de5c41c632c4f1c69e4b2602e77fcb5ac) - feat(slimfaaskafka): add slimfaas kafka (#190) (release), 2025-11-27 by *Guillaume Chervet*
@@ -264,14 +273,5 @@
 ## v0.39.6
 
 - [e5005cc](https://github.com/SlimPlanet/SlimFaas/commit/e5005cc70be42fa1a369d531722ea9725a3190a1) - feature(mcp): add structured content (#149) (release), 2025-08-22 by *Guillaume Chervet*
-
-
-## 0.39.5
-
-
-
-## v0.39.5
-
-- [e2f0f69](https://github.com/SlimPlanet/SlimFaas/commit/e2f0f69512c5fb4300de376377ec29ab95a38d53) - google analytics body (release), 2025-08-18 by *Guillaume Chervet*
 
 
