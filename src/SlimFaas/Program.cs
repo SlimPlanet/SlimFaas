@@ -544,16 +544,16 @@ app.Use(async (context, next) =>
     {
         var cluster = context.RequestServices.GetService<IRaftCluster>();
         // 200 si le nœud a terminé son warmup/rattrapage et peut être ajouté
-        if (cluster is not null && cluster.Readiness.IsCompletedSuccessfully)
+        //if (cluster is not null && cluster.Readiness.IsCompletedSuccessfully)
         {
             context.Response.StatusCode = StatusCodes.Status200OK;
             await context.Response.WriteAsync("READY");
         }
-        else
+        /*else
         {
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
             await context.Response.WriteAsync("NOT_READY");
-        }
+        }*/
         return;
     }
     else
