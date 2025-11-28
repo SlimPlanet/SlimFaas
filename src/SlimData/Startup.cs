@@ -78,7 +78,8 @@ public class Startup(IConfiguration configuration)
                 UseProxy = false
             });
         var path = configuration[SlimPersistentState.LogLocation];
-        if (!string.IsNullOrWhiteSpace(path))
+        var usePersistentConfigurationStorage = bool.Parse(configuration[SlimPersistentState.UsePersistentConfigurationStorage] ?? "true");
+        if (!string.IsNullOrWhiteSpace(path) && usePersistentConfigurationStorage)
             services.UsePersistentConfigurationStorage(path)
                 .ConfigureCluster<ClusterConfigurator>()
                 .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()

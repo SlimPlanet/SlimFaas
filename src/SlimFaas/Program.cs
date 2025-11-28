@@ -63,7 +63,7 @@ serviceCollectionStarter.AddLogging(loggingBuilder =>
 });
 var envOrConfig = Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasOrchestrator) ?? EnvironmentVariables.SlimFaasOrchestratorDefault;
 Console.WriteLine($"Using orchestrator: {envOrConfig}");
-
+var usePersistentConfigurationStorage = true;
 switch (envOrConfig)
 {
     case "Docker":
@@ -91,6 +91,7 @@ switch (envOrConfig)
             }).ConfigureAdditionalHttpMessageHandlers((_, _) => { });
         serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
         serviceCollectionStarter.RemoveAll<IHttpMessageHandlerBuilderFilter>();
+		usePersistentConfigurationStorage = false;
         break;
     case "Mock":
         serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
@@ -211,22 +212,6 @@ while (!slimDataAllowColdStart &&
 
 if (replicasService?.Deployments?.SlimFaas?.Pods != null)
 {
-    /*foreach (string enumerateDirectory in Directory.EnumerateDirectories(slimDataDirectory))
-    {
-        if (replicasService.Deployments.SlimFaas.Pods.Any(p =>
-                (new DirectoryInfo(enumerateDirectory).Name).Contains(p.Name)) == false)
-        {
-            try
-            {
-                Console.WriteLine($"Deleting {enumerateDirectory}");
-                Directory.Delete(enumerateDirectory, false);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.ToString());
-            }
-        }
-    }*/
 
     foreach (PodInformation podInformation in replicasService.Deployments.SlimFaas.Pods
                  .Where(p => !string.IsNullOrEmpty(p.Ip) && p.Started == true).ToList())
@@ -344,25 +329,13 @@ serviceCollectionSlimFaas.AddHttpClient<ISendClient, SendClient>()
 if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 {
     builder.Configuration[SlimPersistentState.LogLocation] = podDataDirectoryPersistantStorage;
+	builder.Configuration[SlimPersistentState.UsePersistentConfigurationStorage] = usePersistentConfigurationStorage.ToString();
+} else {
+	builder.Configuration[SlimPersistentState.UsePersistentConfigurationStorage] = false.ToString();
 }
 
 Startup startup = new(builder.Configuration);
-// Node start as master if it is alone in the cluster
-/*string coldStart = replicasService != null && replicasService?.Deployments?.SlimFaas?.Pods.Count == 1 ? "true" : "false";
 
-Dictionary<string, string> slimDataDefaultConfiguration = new()
-{
-    { "partitioning", "false" },
-    { "lowerElectionTimeout", "2500" },
-    { "upperElectionTimeout", "5000" },
-    { "requestTimeout", "00:00:05.0000000" },
-    { "rpcTimeout", "00:00:02.5000000" },
-    { "publicEndPoint", publicEndPoint },
-    { coldstart, coldStart },
-    { "requestJournal:memoryLimit", "50" },
-    { "requestJournal:expiration", "00:05:00" },
-    { "heartbeatThreshold", "0.5" }
-};*/
 foreach (KeyValuePair<string,string> keyValuePair in slimDataDefaultConfiguration)
 {
     if (!slimDataConfiguration.ContainsKey(keyValuePair.Key))
@@ -411,8 +384,6 @@ builder.Services.ConfigureHttpJsonOptions(opt =>
     opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
 });
 
-
-
 WebApplication app = builder.Build();
 app.UseCors(builder =>
 {
@@ -434,7 +405,6 @@ app.UseCors(builder =>
             .AllowAnyHeader();
     }
 });
-
 
 app.MapPost("/debug/promql/eval", (PromQlRequest req,
         PromQlMiniEvaluator eval,
