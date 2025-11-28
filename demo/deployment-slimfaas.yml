@@ -102,7 +102,7 @@ spec:
             #- name: BASE_FUNCTION_POD_URL # require for publish route
             #  value: "http://{pod_ip}:{pod_port}"
             - name: BASE_SLIMDATA_URL
-              value: "http://{pod_name}.slimfaas.{namespace}.svc.cluster.local:5000"
+              value: "http://{pod_name}.{service_name}.{namespace}.svc.cluster.local:3262"
             #- name: NAMESPACE
             #  value: "slimfaas-demo"
             - name: SLIMDATA_DIRECTORY
