@@ -1,5 +1,4 @@
-﻿
-# SlimFaas Kafka Connector [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas-kafka.svg?label=docker+pull+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-kafka?label=image+size+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-kafka?sort=semver&label=latest+version+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas-kafka)](https://artifacthub.io/packages/search?repo=slimfaas-kafka)
+﻿# SlimFaas Kafka Connector [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas-kafka.svg?label=docker+pull+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-kafka?label=image+size+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-kafka?sort=semver&label=latest+version+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas-kafka)](https://artifacthub.io/packages/search?repo=slimfaas-kafka)
 SlimFaas-Kafka is a lightweight micro‑service designed to **monitor Kafka topics** and automatically **wake up SlimFaas functions** when messages arrive or when recent Kafka activity indicates the function should stay awake.
 It enables full event‑driven autoscaling of SlimFaas functions based on Kafka queues — without consuming the messages itself.
 
@@ -184,28 +183,189 @@ Metrics include:
 
 ---
 
+## 📈 Using Kafka metrics with SlimFaas Autoscaler (HPA-style)
+
+The metrics exported by `KafkaMonitoringWorker` can be used directly by the **SlimFaas PromQL-based autoscaler** (the HPA-like `SlimFaas/Scale` mechanism). Below are ready-to-use examples of PromQL queries that are compatible with the SlimFaas PromQL mini-evaluator and that you can plug into `SlimFaas/Scale.Triggers[].Query`.
+
+> All examples assume that:
+> - `slimfaaskafka_*` metrics are scraped by the SlimFaas metrics scraper,
+> - the label `function` corresponds to the SlimFaas function name (usually `${app}` in your annotations).
+
+### 1. Scale out based on Kafka pending messages (queue length)
+
+Scale a function based on **pending messages** observed by SlimFaasKafka:
+
+```jsonc
+annotations:
+  SlimFaas/Scale: >
+    {
+      "ReplicaMax": 50,
+      "Triggers": [
+        {
+          "MetricType": "Value",
+          "MetricName": "kafka_pending_messages_max_30s",
+          "Query": "max_over_time(slimfaaskafka_pending_messages{function=\"${app}\"}[30s])",
+          "Threshold": 200
+        }
+      ]
+    }
+```
+
+**How it works**
+
+- PromQL: `max_over_time(slimfaaskafka_pending_messages{function="${app}"}[30s])`
+    - Looks at the **maximum** pending messages for this function over the last 30 seconds.
+- `MetricType = "Value"`:
+    - The threshold is interpreted as the **total** value we’re willing to accept.
+- `Threshold = 200`:
+    - If the max pending messages in the last 30s is 400, the SlimFaas autoscaler will aim for roughly `2 × currentReplicas` (subject to policies and caps).
+- This is ideal when you want to **react to bursty Kafka queues**.
+
+### 2. Scale based on average pending messages (smooth queue pressure)
+
+If you prefer a smoother signal, you can use `avg_over_time`-like behavior by combining `avg()` and `max_over_time()`.
+Because the current mini-evaluator does not support `avg_over_time`, a simple alternative is to evaluate the **current** pending messages and treat spikes implicitly through your scale-up policies:
+
+```jsonc
+annotations:
+  SlimFaas/Scale: >
+    {
+      "ReplicaMax": 50,
+      "Triggers": [
+        {
+          "MetricType": "Value",
+          "MetricName": "kafka_pending_messages_instant",
+          "Query": "sum(slimfaaskafka_pending_messages{function=\"${app}\"})",
+          "Threshold": 100
+        }
+      ]
+    }
+```
+
+**How it works**
+
+- PromQL: `sum(slimfaaskafka_pending_messages{function="${app}"})`
+    - Sums all pending messages across bindings for this function.
+- `Threshold = 100`:
+    - When the total pending messages grows above 100, the autoscaler increases the number of pods.
+
+You can combine this with **scale-up policies** to react faster to sudden spikes:
+
+```jsonc
+"Behavior": {
+  "ScaleUp": {
+    "StabilizationWindowSeconds": 0,
+    "Policies": [
+      { "Type": "Percent", "Value": 100, "PeriodSeconds": 15 },
+      { "Type": "Pods",    "Value": 10,  "PeriodSeconds": 15 }
+    ]
+  }
+}
+```
+
+### 3. Scale based on wake-up rate (wakeups per minute)
+
+You can also use the **rate of wake-ups** as a signal that your Kafka queues are frequently triggering function activity.
+
+```jsonc
+annotations:
+  SlimFaas/Scale: >
+    {
+      "ReplicaMax": 20,
+      "Triggers": [
+        {
+          "MetricType": "Value",
+          "MetricName": "kafka_wakeups_per_minute",
+          "Query": "sum(rate(slimfaaskafka_wakeups_total{function=\"${app}\"}[1m]))",
+          "Threshold": 5
+        }
+      ]
+    }
+```
+
+**How it works**
+
+- PromQL: `sum(rate(slimfaaskafka_wakeups_total{function="${app}"}[1m]))`
+    - Estimates how many wake-ups per second occurred for this function over the last minute.
+    - Since it’s a rate, `5` means “around 5 wake-ups per second” (you can choose smaller values if needed).
+- Use this when:
+    - You see **frequent wake-up events** and want SlimFaas to keep more pods around to avoid cold starts.
+
+> Note: using wake-up rate alone can be noisy. It usually works best **combined with pending messages** or other metrics.
+
+### 4. Combined trigger: pending messages + wake-up rate
+
+You can combine Kafka-queue pressure and wake-up frequency in a single `SlimFaas/Scale` config:
+
+```jsonc
+annotations:
+  SlimFaas/Scale: >
+    {
+      "ReplicaMax": 50,
+      "Triggers": [
+        {
+          "MetricType": "Value",
+          "MetricName": "kafka_pending_messages_max_30s",
+          "Query": "max_over_time(slimfaaskafka_pending_messages{function=\"${app}\"}[30s])",
+          "Threshold": 200
+        },
+        {
+          "MetricType": "Value",
+          "MetricName": "kafka_wakeups_per_minute",
+          "Query": "sum(rate(slimfaaskafka_wakeups_total{function=\"${app}\"}[1m]))",
+          "Threshold": 2
+        }
+      ],
+      "Behavior": {
+        "ScaleUp": {
+          "StabilizationWindowSeconds": 0,
+          "Policies": [
+            { "Type": "Percent", "Value": 100, "PeriodSeconds": 15 },
+            { "Type": "Pods",    "Value": 10,  "PeriodSeconds": 15 }
+          ]
+        },
+        "ScaleDown": {
+          "StabilizationWindowSeconds": 300,
+          "Policies": [
+            { "Type": "Percent", "Value": 50, "PeriodSeconds": 30 }
+          ]
+        }
+      }
+    }
+```
+
+**Behavior**
+
+- The autoscaler computes a desired replica count for **each trigger**.
+- The final `desiredReplicas` is the **maximum** of:
+    - the desired from pending messages,
+    - the desired from wake-up rate.
+- Scale-up is fast (aggressive policies), scale-down is more conservative (stabilization window + softer policies).
+
+---
+
 ## 🐳 Running with Docker Compose
 
 Minimal example:
 
 ```yaml
 slimkafka:
-  build:
-    context: ./src/SlimFaasKafka
-    dockerfile: Dockerfile
-  environment:
-    - Kafka__BootstrapServers=kafka:9092
-    - Kafka__CheckIntervalSeconds=5
-    - SlimFaas__BaseUrl=http://slimfaas:30021
-    - SlimKafka__Bindings__0__Topic=fibo-public
-    - SlimKafka__Bindings__0__ConsumerGroupId=fibonacci-listener-group
-    - SlimKafka__Bindings__0__FunctionName=fibonaccilistener
-    - SlimKafka__Bindings__0__MinPendingMessages=1
-    - SlimKafka__Bindings__0__CooldownSeconds=30
-    - SlimKafka__Bindings__0__ActivityKeepAliveSeconds=60
-    - SlimKafka__Bindings__0__MinConsumedDeltaForActivity=1
-  networks:
-    - slimfaas-net
+    build:
+        context: ./src/SlimFaasKafka
+        dockerfile: Dockerfile
+    environment:
+        - Kafka__BootstrapServers=kafka:9092
+        - Kafka__CheckIntervalSeconds=5
+        - SlimFaas__BaseUrl=http://slimfaas:30021
+        - SlimKafka__Bindings__0__Topic=fibo-public
+        - SlimKafka__Bindings__0__ConsumerGroupId=fibonacci-listener-group
+        - SlimKafka__Bindings__0__FunctionName=fibonaccilistener
+        - SlimKafka__Bindings__0__MinPendingMessages=1
+        - SlimKafka__Bindings__0__CooldownSeconds=30
+        - SlimKafka__Bindings__0__ActivityKeepAliveSeconds=60
+        - SlimKafka__Bindings__0__MinConsumedDeltaForActivity=1
+    networks:
+        - slimfaas-net
 ```
 
 Make sure:
