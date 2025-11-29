@@ -195,7 +195,7 @@ The metrics exported by `KafkaMonitoringWorker` can be used directly by the **Sl
 
 Scale a function based on **pending messages** observed by SlimFaasKafka:
 
-```jsonc
+```json
 annotations:
   SlimFaas/Scale: >
     {
@@ -226,7 +226,7 @@ annotations:
 If you prefer a smoother signal, you can use `avg_over_time`-like behavior by combining `avg()` and `max_over_time()`.
 Because the current mini-evaluator does not support `avg_over_time`, a simple alternative is to evaluate the **current** pending messages and treat spikes implicitly through your scale-up policies:
 
-```jsonc
+```json
 annotations:
   SlimFaas/Scale: >
     {
@@ -251,7 +251,7 @@ annotations:
 
 You can combine this with **scale-up policies** to react faster to sudden spikes:
 
-```jsonc
+```json
 "Behavior": {
   "ScaleUp": {
     "StabilizationWindowSeconds": 0,
@@ -267,7 +267,7 @@ You can combine this with **scale-up policies** to react faster to sudden spikes
 
 You can also use the **rate of wake-ups** as a signal that your Kafka queues are frequently triggering function activity.
 
-```jsonc
+```json
 annotations:
   SlimFaas/Scale: >
     {
@@ -297,7 +297,7 @@ annotations:
 
 You can combine Kafka-queue pressure and wake-up frequency in a single `SlimFaas/Scale` config:
 
-```jsonc
+```json
 annotations:
   SlimFaas/Scale: >
     {
