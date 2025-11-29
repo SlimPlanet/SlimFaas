@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.48.0
+
+- [d4da9c2](https://github.com/SlimPlanet/SlimFaas/commit/d4da9c27ea3d7ca8ff7650adfaaa9406d70e1c51) - feat(slimfaas): autoscale down rule (#192) (release), 2025-11-29 by *Guillaume Chervet*
+
+
+## 0.47.1
+
+
+
 ## v0.47.1
 
 - [baf622b](https://github.com/SlimPlanet/SlimFaas/commit/baf622bf3ab8e8bcba638d8cb9dc2ce90031306b) - fix(slimfaas): startup node reboot raft (#191) (release), 2025-11-28 by *Guillaume Chervet*
@@ -264,14 +273,5 @@
 ## v0.40.0
 
 - [1e054c9](https://github.com/SlimPlanet/SlimFaas/commit/1e054c9803a443c86905e32e71492b278e52b7ef) - feat(website): table scroll-x (release) (#150), 2025-08-24 by *Guillaume Chervet*
-
-
-## 0.39.6
-
-
-
-## v0.39.6
-
-- [e5005cc](https://github.com/SlimPlanet/SlimFaas/commit/e5005cc70be42fa1a369d531722ea9725a3190a1) - feature(mcp): add structured content (#149) (release), 2025-08-22 by *Guillaume Chervet*
 
 
