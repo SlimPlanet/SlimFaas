@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.48.1
+
+- [ed6129f](https://github.com/SlimPlanet/SlimFaas/commit/ed6129fe6d8acd678afb2ff20fe71ce84631925a) - fix(doc): update kafka.md (release), 2025-11-29 by *Guillaume Chervet*
+
+
+## 0.48.0
+
+
+
 ## v0.48.0
 
 - [d4da9c2](https://github.com/SlimPlanet/SlimFaas/commit/d4da9c27ea3d7ca8ff7650adfaaa9406d70e1c51) - feat(slimfaas): autoscale down rule (#192) (release), 2025-11-29 by *Guillaume Chervet*
@@ -264,14 +273,5 @@
 ## v0.40.1
 
 - [ac47420](https://github.com/SlimPlanet/SlimFaas/commit/ac474209396d1351996bf8af26ff8b633b36d6d4) - fix(website): broken table markdown (release), 2025-08-24 by *Guillaume Chervet*
-
-
-## 0.40.0
-
-
-
-## v0.40.0
-
-- [1e054c9](https://github.com/SlimPlanet/SlimFaas/commit/1e054c9803a443c86905e32e71492b278e52b7ef) - feat(website): table scroll-x (release) (#150), 2025-08-24 by *Guillaume Chervet*
 
 
