@@ -273,7 +273,7 @@ Dictionary<string, string> slimDataDefaultConfiguration = new()
     { "requestTimeout", "00:00:05.0000000" },
     { "rpcTimeout", "00:00:02.5000000" },
     { "publicEndPoint", publicEndPoint },
-    { "coldstart", coldStart },
+    { "coldStart", coldStart },
     { "requestJournal:memoryLimit", "50" },
     { "requestJournal:expiration", "00:05:00" },
     { "heartbeatThreshold", "0.5" }
