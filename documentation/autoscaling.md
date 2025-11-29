@@ -43,6 +43,8 @@ SlimFaas combines **two complementary autoscaling systems**:
 
    👉 This system is used **only when the function already has at least one pod** (`replicas > 0`).
 
+When the Prometheus-based AutoScaler is enabled for a function (`SlimFaas/Scale` present), **scale-to-zero is allowed only if both systems agree**: the HTTP/schedule logic must decide that the function can go down to `ReplicasMin = 0`, *and* the metrics-based AutoScaler must also compute a desired replica count of `0`. If metrics still indicate that capacity is needed (`desired > 0`), SlimFaas keeps at least one replica running even if HTTP activity is idle.
+
 Both systems are orchestrated by:
 
 - `ReplicasService.CheckScaleAsync(namespace)`
@@ -154,7 +156,7 @@ flowchart LR
 - `ScaleReplicasWorker` periodically calls `CheckScaleAsync` if the node is the master.
 - `ReplicasService.CheckScaleAsync`:
     1. Computes a **desired replica count** using the **HTTP/schedule based system** (`0 → N` / `N → 0`).
-    2. If the function already has `replicas > 0` and a `SlimFaas/Scale` annotation, it invokes the **Prometheus AutoScaler** to adjust `N → M`.
+    2. If the function already has `replicas > 0` and a `SlimFaas/Scale` annotation, it invokes the **Prometheus AutoScaler** to adjust `N → M` and, when `ReplicasMin = 0`, to confirm whether scale-to-zero is actually allowed.
 
 ---
 
@@ -194,9 +196,10 @@ Behavior (simplified):
   lastActivity + TimeoutSecondBeforeSetReplicasMin < now
   ```
 
-  then SlimFaas scales the function to **`ReplicasMin`**.
+  then SlimFaas **proposes** scaling the function down to **`ReplicasMin`**.
 
-If `ReplicasMin` is `"0"`, this gives you **scale-to-zero**.
+If `ReplicasMin` is `"0"`, this gives you **scale-to-zero** when the Prometheus AutoScaler is disabled.
+If `ReplicasMin` is `"0"` **and** a `SlimFaas/Scale` configuration is present, SlimFaas will actually scale to zero **only if the metrics-based AutoScaler also agrees that `desiredReplicas` is `0`**. If the metrics say that some capacity is still needed (`desired > 0`), SlimFaas keeps at least one replica running (or more, according to the metrics).
 
 ### Wake-up `0 → N` (from zero or below minimum)
 
@@ -274,7 +277,7 @@ metadata:
           {
             "MetricType": "AverageValue",
             "MetricName": "rps_per_pod",
-            "Query": "sum(rate(http_server_requests_seconds_count{namespace="${namespace}",job="${app}"}[1m]))",
+            "Query": "sum(rate(http_server_requests_seconds_count{namespace=\"${namespace}\",job=\"${app}\"}[1m]))",
             "Threshold": 50
           }
         ],
@@ -337,6 +340,17 @@ Then:
     - stabilization windows.
 
 If all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the AutoScaler **keeps the current replica count**, only clamping it between `ReplicasMin` and `ReplicaMax`.
+
+#### Interaction with scale-to-zero
+
+When `ReplicasMin` is `0` and a `SlimFaas/Scale` configuration is present:
+
+- The HTTP/schedule system may **propose** going down to `ReplicasMin = 0` after inactivity.
+- The metrics-based AutoScaler then decides whether this is actually allowed:
+    - If it computes `desiredReplicas <= 0`, SlimFaas scales the function **to 0**.
+    - If it computes `desiredReplicas > 0`, SlimFaas keeps **at least one replica** running (or more, according to `desiredReplicas`), even if HTTP activity is idle.
+
+This provides an extra safety net against scaling to zero when metrics show that work may still be pending (for example due to queue length, high latency, etc.).
 
 ### Policies and stabilization
 
@@ -461,7 +475,7 @@ Common patterns:
 
   ```promql
   sum by (le) (
-    rate(http_server_requests_seconds_bucket{namespace="default", job="fibonacci"}[1m])
+    rate(http_server_requests_seconds_seconds_bucket{namespace="default", job="fibonacci"}[1m])
   )
   ```
 
@@ -530,7 +544,7 @@ Here are a few ready-to-use patterns for `SlimFaas/Scale.Triggers[].Query`.
 {
   "MetricType": "AverageValue",
   "MetricName": "rps_per_pod",
-  "Query": "sum(rate(http_server_requests_seconds_count{namespace="${namespace}",job="${app}"}[1m]))",
+  "Query": "sum(rate(http_server_requests_seconds_count{namespace=\"${namespace}\",job=\"${app}\"}[1m]))",
   "Threshold": 20
 }
 ```
@@ -547,7 +561,7 @@ Interpretation:
 {
   "MetricType": "Value",
   "MetricName": "queue_max_30s",
-  "Query": "max_over_time(slimfaas_function_queue_ready_items{function="${app}"}[30s])",
+  "Query": "max_over_time(slimfaas_function_queue_ready_items{function=\"${app}\"}[30s])",
   "Threshold": 200
 }
 ```
@@ -563,7 +577,7 @@ Interpretation:
 {
   "MetricType": "AverageValue",
   "MetricName": "p95_latency",
-  "Query": "histogram_quantile(0.95, sum by (le) ( rate(http_server_requests_seconds_bucket{namespace="${namespace}",job="${app}"}[1m]) ))",
+  "Query": "histogram_quantile(0.95, sum by (le) ( rate(http_server_requests_seconds_bucket{namespace=\"${namespace}\",job=\"${app}\"}[1m]) ))",
   "Threshold": 0.500
 }
 ```
@@ -706,7 +720,7 @@ for example:
 
 ```bash
 curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
-    "query": "max_over_time(some_new_metric{function="fibonacci"}[30s])"
+    "query": "max_over_time(some_new_metric{function=\"fibonacci\"}[30s])"
   }'
 ```
 
@@ -813,7 +827,7 @@ This endpoint also:
 
 ```jsonc
 {
-  "query": "max_over_time(slimfaas_function_queue_ready_items{function="fibonacci"}[30s])",
+  "query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci\"}[30s])",
   "nowUnixSeconds": 1732100000
 }
 ```
@@ -840,7 +854,7 @@ This is the final scalar value returned by the PromQL mini-evaluator.
 
 ```bash
 curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
-    "query": "max_over_time(slimfaas_function_queue_ready_items{function="fibonacci"}[30s])"
+    "query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci\"}[30s])"
   }'
 ```
 
@@ -856,7 +870,7 @@ Possible response:
 
 ```bash
 curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
-    "query": "sum(rate(http_server_requests_seconds_count{namespace="default",job="fibonacci"}[1m]))"
+    "query": "sum(rate(http_server_requests_seconds_count{namespace=\"default\",job=\"fibonacci\"}[1m]))"
   }'
 ```
 
@@ -1030,20 +1044,31 @@ for each function:
   3. HTTP/schedule-based 0→N / N→0 system:
 
      - If inactivity is longer than the current timeout:
-         desiredReplicas = ReplicasMin
+         proposedReplicas = ReplicasMin
 
      - Else if (replicas == 0 or replicas < ReplicasMin) and dependencies are ready:
-         desiredReplicas = ReplicasAtStart
+         proposedReplicas = ReplicasAtStart
 
      - Else:
-         desiredReplicas = currentReplicas
+         proposedReplicas = currentReplicas
 
   4. Prometheus-based N→M system:
 
      - If there is a valid SlimFaas/Scale annotation
        AND currentReplicas > 0:
 
-         desiredReplicas = AutoScaler(desiredReplicas, metrics...)
+         desiredFromMetrics = AutoScaler(proposedReplicas, metrics...)
+
+         - If ReplicasMin == 0 AND proposedReplicas == 0:
+             - If desiredFromMetrics <= 0:
+                 desiredReplicas = 0   (both systems agree on scale-to-zero)
+             - Else:
+                 desiredReplicas = max(1, desiredFromMetrics) (metrics veto scale-to-zero)
+           Else:
+             desiredReplicas = desiredFromMetrics
+
+       Else:
+         desiredReplicas = proposedReplicas
 
   5. If desiredReplicas != currentReplicas:
        call Kubernetes Scale (Deployment replicas) for this function.
@@ -1053,6 +1078,10 @@ Key points:
 
 - The **HTTP/schedule system always runs first**, and is the only one that can propose a transition from `0` to `> 0`.
 - The **Prometheus AutoScaler only runs if `currentReplicas > 0`**.
+- When `ReplicasMin = 0` and a `SlimFaas/Scale` configuration is present, **scale-to-zero requires both subsystems to agree**:
+    - HTTP/schedule must declare the function idle enough to go down to 0,
+    - metrics must also say that `desiredReplicas <= 0`.
+      If metrics still require capacity (`desiredReplicas > 0`), SlimFaas keeps at least one replica alive (`max(1, desiredFromMetrics)`).
 - The final decision is applied only if `desiredReplicas` differs from the current value.
 
 ---
@@ -1103,7 +1132,9 @@ Interpretation:
   desiredReplicas = ceil(currentReplicas * (currentRps / 20))
   ```
 
-- After 5 minutes with no activity (HTTP or schedule), SlimFaas scales down to 0.
+- After 5 minutes with no activity (HTTP or schedule), the HTTP/schedule system **proposes** scaling the function down to 0.
+  If no `SlimFaas/Scale` configuration is present, SlimFaas will scale to 0.
+  If a `SlimFaas/Scale` configuration is present, SlimFaas will actually scale to 0 **only if metrics also allow `desiredReplicas <= 0`**; otherwise it will keep at least one replica (or more, according to the metrics).
 
 ### 2. Combined trigger: RPS per pod + queue length
 
@@ -1227,6 +1258,7 @@ spec:
 5. **Never rely on Prometheus to wake from 0**
     - Prometheus metrics require pods to be running and scraped.
     - In SlimFaas, **only HTTP/schedule controls 0 → N**.
+    - When `SlimFaas/Scale` is enabled and `ReplicasMin = 0`, metrics also act as a **safety net** for 0 → N → 0 by vetoing scale-to-zero if they still indicate that capacity is needed.
 
 6. **Document each trigger**
     - Use `MetricName` for clear semantic names.
@@ -1276,6 +1308,7 @@ By design:
 
 - SlimFaas **only allows the HTTP/schedule system to wake functions from 0**.
 - The Prometheus AutoScaler only adjusts **existing** capacity.
+- When `SlimFaas/Scale` is enabled, metrics can **prevent** a function from going back to 0 (by vetoing scale-to-zero), but they can **never** create the first replica from 0.
 
 This avoids relying on metrics that cannot exist while no pod is running.
 
@@ -1302,7 +1335,10 @@ annotations:
   SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
 ```
 
-After 300 seconds of inactivity (considering HTTP history, schedule, and dependencies), SlimFaas will scale the function down to 0.
+After 300 seconds of inactivity (considering HTTP history, schedule, and dependencies), the HTTP/schedule system will **propose** scaling the function down to 0.
+
+- If there is **no** `SlimFaas/Scale` configuration for this function, SlimFaas will scale the function down to 0.
+- If there **is** a `SlimFaas/Scale` configuration, SlimFaas will only scale to 0 if the metrics-based AutoScaler also computes `desiredReplicas <= 0`. Otherwise, it will keep at least one replica running until metrics also consider that 0 is safe.
 
 ---
 
