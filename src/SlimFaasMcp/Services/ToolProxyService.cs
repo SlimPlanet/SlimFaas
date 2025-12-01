@@ -24,9 +24,39 @@ public interface IToolProxyService
         ushort? slidingExpiration = null);
 }
 
-public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory httpClientFactory) : IToolProxyService
+public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory httpClientFactory, ILogger<ToolProxyService> logger) : IToolProxyService
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
+    private void LogOutgoingRequest(
+        HttpMethod method,
+        string url,
+        IDictionary<string, string>? additionalHeaders,
+        string? bodyForLog)
+    {
+        if (!logger.IsEnabled(LogLevel.Debug))
+        {
+            return;
+        }
+
+        static string Truncate(string value, int max) =>
+            value.Length <= max ? value : value[..max] + "… (truncated)";
+
+        string headersForLog = additionalHeaders is null
+            ? string.Empty
+            : string.Join(", ", additionalHeaders.Select(h => $"{h.Key}={h.Value}"));
+
+        if (bodyForLog is not null)
+        {
+            bodyForLog = Truncate(bodyForLog, 4000);
+        }
+
+        logger.LogDebug(
+            "SlimFaasMcp → API {Method} {Url}\nHeaders: {Headers}\nBody: {Body}",
+            method,
+            url,
+            headersForLog,
+            bodyForLog ?? "<no body>");
+    }
 
     public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl,
         string? baseUrl,
@@ -190,7 +220,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                     reqGet.Headers.Add(header.Key, header.Value);
                 }
             }
-
+            LogOutgoingRequest(HttpMethod.Get, fullUrl, additionalHeaders, null);
             resp = await _httpClient.SendAsync(reqGet);
             return await ToProxyCallResult(resp);
         }
@@ -266,7 +296,14 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                         p.Name!);
                 }
             }
-
+            string multipartSummary =
+                "multipart/form-data; fields=[" +
+                string.Join(", ", endpoint.Parameters
+                    .Where(x => string.Equals(x.In, "formData", StringComparison.OrdinalIgnoreCase))
+                    .Select(x => x.Name)
+                    .Where(n => !string.IsNullOrEmpty(n))) +
+                "]";
+            LogOutgoingRequest(httpMethod, fullUrl, additionalHeaders, multipartSummary);
             reqMsg = new HttpRequestMessage(httpMethod, fullUrl) { Content = mp };
         }
         else if (treatAsOctet)
@@ -308,6 +345,8 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             content.Headers.ContentLength = bytes.LongLength;
 
+            string octetSummary = $"application/octet-stream; length={bytes.Length}";
+            LogOutgoingRequest(httpMethod, fullUrl, additionalHeaders, octetSummary);
             reqMsg = new HttpRequestMessage(httpMethod, fullUrl) { Content = content };
         }
         else
@@ -321,7 +360,9 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                     : JsonSerializer.Serialize(inputDict, AppJsonContext.Default.DictionaryStringJsonElement);
 
                 body = new StringContent(payload, Encoding.UTF8, "application/json");
+                LogOutgoingRequest(httpMethod, fullUrl, additionalHeaders, payload);
             }
+
 
             reqMsg = new HttpRequestMessage(httpMethod, fullUrl) { Content = body };
         }

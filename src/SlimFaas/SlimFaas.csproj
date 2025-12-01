@@ -24,10 +24,13 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <IlcGenerateMstatFile>true</IlcGenerateMstatFile>
     <IlcGenerateDgmlFile>true</IlcGenerateDgmlFile>
   </PropertyGroup>
-
 
   <ItemGroup>
     <PackageReference Include="KubernetesClient.Aot" Version="17.0.14" />
@@ -40,5 +43,7 @@
   <ItemGroup>
     <ProjectReference Include="..\SlimData\SlimData.csproj" />
   </ItemGroup>
+
+
 
 </Project>

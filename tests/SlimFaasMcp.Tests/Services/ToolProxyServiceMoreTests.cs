@@ -1,6 +1,7 @@
 ﻿using System.Net;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using SlimFaasMcp.Models;
 using SlimFaasMcp.Services;
@@ -21,7 +22,8 @@ public class ToolProxyServiceMoreTests
         _factoryMock.Setup(f => f.CreateClient("InsecureHttpClient"))
                     .Returns(client);
 
-        _sut = new ToolProxyService(_swaggerMock.Object, _factoryMock.Object);
+        var logger = NullLogger<ToolProxyService>.Instance;
+        _sut = new ToolProxyService(_swaggerMock.Object, _factoryMock.Object, logger);
     }
 
     private void SetupSwaggerAndEndpoints(IEnumerable<Endpoint> endpoints)
