@@ -50,7 +50,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             bodyForLog = Truncate(bodyForLog, 4000);
         }
 
-        logger.LogInformation(
+        logger.LogDebug(
             "SlimFaasMcp → API {Method} {Url}\nHeaders: {Headers}\nBody: {Body}",
             method,
             url,
