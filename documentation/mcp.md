@@ -180,10 +180,7 @@ Each variable overrides the default values from `appsettings.json`.
 | `CORS_CREDENTIALS`   | boolean  | `true` or `false` — whether to allow credentialed requests (cookies, Authorization headers, etc.) |
 | `CORS_MAXAGEMINUTES` | integer  | How long preflight responses can be cached (in minutes), e.g. `60`                                |
 
-You can log HTTP requests made by SlimFaas MCP :
-```bash
-export Logging__LogLevel__SlimFaasMcp.Services.ToolProxyService=Debug
-```
+
 
 #### ✅ Example (development)
 ```bash
@@ -206,3 +203,14 @@ CORS_MAXAGEMINUTES=120
 
 **Wildcards** (`*`, `*.domain.com`, `localhost:*`) **are supported** in origins.
 Empty or missing values fallback to the default configuration in `appsettings.json`.
+
+
+### Environment variables
+
+You can log HTTP requests made by SlimFaas MCP by using :
+```bash
+# Windows
+set Logging__LogLevel__SlimFaasMcp=Debug
+# Linux/Mac
+Logging__LogLevel__SlimFaasMcp=Debug
+```
