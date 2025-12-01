@@ -8,6 +8,7 @@ using SlimFaasMcp.Models;
 using SlimFaasMcp.Services;
 using Xunit;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging.Abstractions;
 
 public class AudioDetectionTests
 {
@@ -28,7 +29,8 @@ public class AudioDetectionTests
         var handler = new AudioProbeHandler();
         var factory = new FakeHttpClientFactory(new HttpClient(handler));
 
-        var svc = new ToolProxyService(swagger, factory);
+        var logger = NullLogger<ToolProxyService>.Instance;
+        var svc = new ToolProxyService(swagger, factory, logger);
 
         // Pas d'arguments
         using var doc = JsonDocument.Parse("{}");

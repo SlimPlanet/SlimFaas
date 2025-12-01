@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging.Abstractions;
 using SlimFaasMcp.Services;
 using Xunit;
 
@@ -38,7 +39,8 @@ public class ToolProxyServiceTests
 
         var factory = new FakeHttpClientFactory(stub);
         var swagger = new SwaggerService(factory, new MemoryCache(new MemoryCacheOptions()));
-        return (new ToolProxyService(swagger, factory), stub);
+        var logger = NullLogger<ToolProxyService>.Instance;
+        return (new ToolProxyService(swagger, factory, logger), stub);
     }
 
     [Fact]
