@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.49.0
+
+- [e95c9f6](https://github.com/SlimPlanet/SlimFaas/commit/e95c9f611364a65eb4d688f9e26eba60b8a4f95d) - feat(mcp): log http action input (release) (#193), 2025-12-01 by *Guillaume Chervet*
+
+
+## 0.48.1
+
+
+
 ## v0.48.1
 
 - [ed6129f](https://github.com/SlimPlanet/SlimFaas/commit/ed6129fe6d8acd678afb2ff20fe71ce84631925a) - fix(doc): update kafka.md (release), 2025-11-29 by *Guillaume Chervet*
@@ -264,14 +273,5 @@
 ## v0.40.2
 
 - [920801e](https://github.com/SlimPlanet/SlimFaas/commit/920801e0e7255f689c06bafc4f72c492c8c54064) - fix(all): remove debug symbols (release) (#151), 2025-08-25 by *Guillaume Chervet*
-
-
-## 0.40.1
-
-
-
-## v0.40.1
-
-- [ac47420](https://github.com/SlimPlanet/SlimFaas/commit/ac474209396d1351996bf8af26ff8b633b36d6d4) - fix(website): broken table markdown (release), 2025-08-24 by *Guillaume Chervet*
 
 
