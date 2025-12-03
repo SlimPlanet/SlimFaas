@@ -126,19 +126,10 @@ public class ReplicasService(
             int? desiredFromMetrics = null;
             if (deploymentInformation.Scale is not null && currentScale > 0)
             {
-                var metricsReplicas = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
-
-                if (metricsReplicas < deploymentInformation.ReplicasAtStart)
-                {
-                    metricsReplicas = deploymentInformation.ReplicasAtStart;
-                }
-
-                desiredFromMetrics = metricsReplicas;
-                Console.WriteLine($"ComputeDesiredReplicas {metricsReplicas}");
+                desiredFromMetrics = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
             }
 
             // --- 1. SYSTÈME 0 -> N / N -> ReplicasMin (historique HTTP + schedule) ---
-
             if (timeElapsedWithoutRequest)
             {
                 // HTTP/schedule disent : "on peut descendre à ReplicasMin"
@@ -146,19 +137,11 @@ public class ReplicasService(
 
                 // ⚠️ Cas particulier : ReplicasMin == 0
                 // On n'autorise le passage à 0 que si Prometheus (si activé) est d'accord.
-                if (replicasMin == 0 && desiredFromMetrics.HasValue)
+                if (desiredFromMetrics.HasValue)
                 {
-                    if (desiredFromMetrics.Value <= 0)
-                    {
-                        // HTTP OK pour 0 + métriques OK pour 0 => scale to 0
-                        desiredReplicas = 0;
-                    }
-                    else
-                    {
-                        // HTTP voudrait 0 mais les métriques disent qu'il faut encore >= 1 pod
-                        // => on reste "au chaud" avec au moins 1 pod, ou plus si Prometheus le demande.
-                        desiredReplicas = Math.Max(1, desiredFromMetrics.Value);
-                    }
+                    // HTTP voudrait 0 mais les métriques disent qu'il faut encore >= 1 pod
+                    // => on reste "au chaud" avec au moins 1 pod, ou plus si Prometheus le demande.
+                    desiredReplicas = Math.Max(replicasMin, desiredFromMetrics.Value);
                 }
                 else
                 {
@@ -172,16 +155,11 @@ public class ReplicasService(
                 // Sortie de 0 ou mise à niveau jusqu'à ReplicasAtStart
                 desiredReplicas = deploymentInformation.ReplicasAtStart;
             }
-            else
+            else if (desiredFromMetrics.HasValue)
             {
-                // --- 2. SYSTÈME N -> M (AutoScaler Prometheus) ---
-                // IMPORTANT : ne s'applique que si on a déjà au moins un pod.
-                if (desiredFromMetrics.HasValue)
-                {
-                    desiredReplicas = desiredFromMetrics.Value;
-                }
+                // --- 2. SYSTÈME N -> M (AutoScaler Prometheus) --- .
+                desiredReplicas = Math.Max(desiredFromMetrics.Value, deploymentInformation.ReplicasAtStart);
             }
-
 
             if (desiredReplicas == currentScale)
             {
