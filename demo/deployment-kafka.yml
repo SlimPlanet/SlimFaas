@@ -242,7 +242,7 @@ spec:
         app: fibonacci-kafka-listener
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "60"
         SlimFaas/ReplicasAtStart: "1"
         SlimFaas/ReplicasMin: "0"
         SlimFaas/DependsOn: "kafka"
