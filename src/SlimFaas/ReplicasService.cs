@@ -155,15 +155,11 @@ public class ReplicasService(
                 // Sortie de 0 ou mise à niveau jusqu'à ReplicasAtStart
                 desiredReplicas = deploymentInformation.ReplicasAtStart;
             }
-            else
+            else if (desiredFromMetrics.HasValue)
             {
                 // --- 2. SYSTÈME N -> M (AutoScaler Prometheus) --- .
-                if (desiredFromMetrics.HasValue)
-                {
-                    desiredReplicas = Math.Max(desiredFromMetrics.Value, deploymentInformation.ReplicasAtStart);
-                }
+                desiredReplicas = Math.Max(desiredFromMetrics.Value, deploymentInformation.ReplicasAtStart);
             }
-
 
             if (desiredReplicas == currentScale)
             {
