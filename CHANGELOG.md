@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.50.1
+
+- [20d7a55](https://github.com/SlimPlanet/SlimFaas/commit/20d7a5555414ec4e007742bd8eea26c6dff1470d) - fix(slimfaas): scaling (#197) (release), 2025-12-03 by *Guillaume Chervet*
+
+
+## 0.50.0
+
+
+
 ## v0.50.0
 
 - [14707cf](https://github.com/SlimPlanet/SlimFaas/commit/14707cf5b5d34de3ad06dbb496dd60d0662766dc) - feat(mcp): add opentelemetry connector (#196) (release), 2025-12-03 by *Silthian*
@@ -265,14 +274,5 @@
 
 - [2346abf](https://github.com/SlimPlanet/SlimFaas/commit/2346abf5e3711858d0731197f9e0fc5deddf9e70) - fix(slimfaas-mcp): output schema only when structured output (#159) (release), 2025-09-03 by *Guillaume Chervet*
 - [6616837](https://github.com/SlimPlanet/SlimFaas/commit/66168376d614c1be9de9b6f327b230680c853ebf) - feat(ci): better external build (#157), 2025-08-30 by *Guillaume Chervet*
-
-
-## 0.40.3
-
-
-
-## v0.40.3
-
-- [b987d06](https://github.com/SlimPlanet/SlimFaas/commit/b987d06e842342434d5638b9738695c24dcc7444) - build(deps): bump next from 15.1.7 to 15.2.4 in /src/SlimFaasSite (#155), 2025-08-28 by *dependabot[bot]*
 
 
