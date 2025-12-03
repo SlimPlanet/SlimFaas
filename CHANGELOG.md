@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.50.0
+
+- [14707cf](https://github.com/SlimPlanet/SlimFaas/commit/14707cf5b5d34de3ad06dbb496dd60d0662766dc) - feat(mcp): add opentelemetry connector (#196) (release), 2025-12-03 by *Silthian*
+- [2e8193c](https://github.com/SlimPlanet/SlimFaas/commit/2e8193cee6268519030f0c01d7dc7118316a35e7) - doc(mcp): enhance, 2025-12-01 by *Guillaume Chervet*
+
+
+## 0.49.0
+
+
+
 ## v0.49.0
 
 - [e95c9f6](https://github.com/SlimPlanet/SlimFaas/commit/e95c9f611364a65eb4d688f9e26eba60b8a4f95d) - feat(mcp): log http action input (release) (#193), 2025-12-01 by *Guillaume Chervet*
@@ -264,14 +274,5 @@
 ## v0.40.3
 
 - [b987d06](https://github.com/SlimPlanet/SlimFaas/commit/b987d06e842342434d5638b9738695c24dcc7444) - build(deps): bump next from 15.1.7 to 15.2.4 in /src/SlimFaasSite (#155), 2025-08-28 by *dependabot[bot]*
-
-
-## 0.40.2
-
-
-
-## v0.40.2
-
-- [920801e](https://github.com/SlimPlanet/SlimFaas/commit/920801e0e7255f689c06bafc4f72c492c8c54064) - fix(all): remove debug symbols (release) (#151), 2025-08-25 by *Guillaume Chervet*
 
 
