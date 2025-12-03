@@ -214,3 +214,46 @@ set Logging__LogLevel__SlimFaasMcp=Debug
 # Linux/Mac
 Logging__LogLevel__SlimFaasMcp=Debug
 ```
+
+---
+
+### Configure OpenTelemetry
+
+SlimFaas MCP supports OpenTelemetry instrumentation for distributed tracing and metrics.
+Configuration can be provided through `appsettings.json` or environment variables.
+
+| Configuration Key            | Type   | Description                                                                                      |
+| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------ |
+| `OpenTelemetry__ServiceName` | string | Name of the service for telemetry data. Defaults to "SlimFaasMcp" if not specified.             |
+| `OpenTelemetry__Endpoint`    | string | OTLP endpoint URL for exporting telemetry data. If empty or null, OpenTelemetry is disabled.    |
+
+#### ✅ Example (appsettings.json)
+```json
+{
+  "OpenTelemetry": {
+    "ServiceName": "SlimFaasMcp",
+    "Endpoint": "http://otel-collector:4317"
+  }
+}
+```
+
+#### ✅ Example (environment variables)
+```bash
+OpenTelemetry__ServiceName=SlimFaasMcp-Production
+OpenTelemetry__Endpoint=http://otel-collector:4317
+```
+
+#### ✅ Example (Docker)
+```bash
+docker run --rm -p 8080:8080 \
+  -e ASPNETCORE_URLS="http://*:8080" \
+  -e OpenTelemetry__ServiceName="SlimFaasMcp" \
+  -e OpenTelemetry__Endpoint="http://otel-collector:4317" \
+  axaguildev/slimfaas-mcp:latest
+```
+
+**Note:** When `Endpoint` is not configured or is empty, OpenTelemetry instrumentation is completely disabled to avoid unnecessary overhead.
+
+The instrumentation includes:
+- **Traces**: ASP.NET Core requests, HTTP client calls
+- **Metrics**: ASP.NET Core metrics, HTTP client metrics, runtime metrics
