@@ -4,10 +4,9 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Resources;
-using OpenTelemetry.Trace;
 using SlimFaasMcp;
+using SlimFaasMcp.Configuration;
+using SlimFaasMcp.Extensions;
 using SlimFaasMcp.Services;
 using SlimFaasMcp.Models;
 
@@ -36,39 +35,11 @@ var e = ReadCsv(envExpose);  if (e is not null) corsSettings.Expose   = e;
 if (bool.TryParse(envCreds, out var bc)) corsSettings.Credentials = bc;
 if (int.TryParse(envMaxAge, out var mi)) corsSettings.MaxAgeMinutes = mi;
 
-const string serviceName = "SlimFaasMcp";
+var openTelemetryConfig = builder.Configuration
+    .GetSection("OpenTelemetry")
+    .Get<OpenTelemetryConfig>() ?? new OpenTelemetryConfig();
 
-string? openTelemetryEndpoint = builder.Configuration["OpenTelemetry:Endpoint"];
-string openTelemetryServiceName = builder.Configuration["OpenTelemetry:ServiceName"] ?? serviceName;
-if (openTelemetryEndpoint != null && !string.IsNullOrWhiteSpace(openTelemetryEndpoint))
-{
-    builder.Services.AddOpenTelemetry()
-        .WithTracing(tracerProviderBuilder =>
-        {
-            tracerProviderBuilder
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddSource(openTelemetryServiceName)
-                .SetResourceBuilder(ResourceBuilder.CreateDefault()
-                    .AddService(openTelemetryServiceName)
-                    .AddTelemetrySdk())
-                .AddOtlpExporter(options =>
-                {
-                    options.Endpoint = new Uri(openTelemetryEndpoint);
-                });
-        })
-        .WithMetrics(meterProviderBuilder =>
-        {
-            meterProviderBuilder
-                .AddAspNetCoreInstrumentation()
-                .AddHttpClientInstrumentation()
-                .AddMeter(openTelemetryServiceName)
-                .AddOtlpExporter(options =>
-                {
-                    options.Endpoint = new Uri(openTelemetryEndpoint);
-                });
-        });
-}
+builder.Services.AddOpenTelemetry(openTelemetryConfig);
 
 // Register CORS policy using the already present ConfigureCorsPolicyFromWildcard(...)
 builder.Services.AddCors(options =>
