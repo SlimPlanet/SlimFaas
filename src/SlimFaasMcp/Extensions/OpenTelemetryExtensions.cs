@@ -17,74 +17,91 @@ public static class OpenTelemetryExtensions
             return services;
         }
 
-        var resourceBuilder = ResourceBuilder.CreateDefault().AddTelemetrySdk();
-        if (!string.IsNullOrWhiteSpace(config.ServiceName))
-        {
-            resourceBuilder.AddService(config.ServiceName);
-        }
+        var resourceBuilder = CreateResourceBuilder(config.ServiceName);
 
         services.AddOpenTelemetry()
-            .WithTracing(tracerProviderBuilder =>
-            {
-                tracerProviderBuilder
-                    .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .SetResourceBuilder(resourceBuilder);
-
-                if (!string.IsNullOrWhiteSpace(config.ServiceName))
-                {
-                    tracerProviderBuilder.AddSource(config.ServiceName);
-                }
-
-                tracerProviderBuilder.AddOtlpExporter(
-                    !string.IsNullOrWhiteSpace(config.Endpoint)
-                        ? options => options.Endpoint = new Uri(config.Endpoint)
-                        : _ => { }
-                );
-
-                if (config.EnableConsoleExporter)
-                {
-                    tracerProviderBuilder.AddConsoleExporter();
-                }
-            })
-            .WithMetrics(meterProviderBuilder =>
-            {
-                meterProviderBuilder
-                    .AddAspNetCoreInstrumentation()
-                    .AddHttpClientInstrumentation()
-                    .SetResourceBuilder(resourceBuilder);
-
-                if (!string.IsNullOrWhiteSpace(config.ServiceName))
-                {
-                    meterProviderBuilder.AddMeter(config.ServiceName);
-                }
-
-                meterProviderBuilder.AddOtlpExporter(
-                    !string.IsNullOrWhiteSpace(config.Endpoint)
-                        ? options => options.Endpoint = new Uri(config.Endpoint)
-                        : _ => { }
-                );
-
-                if (config.EnableConsoleExporter)
-                {
-                    meterProviderBuilder.AddConsoleExporter();
-                }
-            })
-            .WithLogging(loggerProviderBuilder =>
-            {
-                loggerProviderBuilder.SetResourceBuilder(resourceBuilder);
-                loggerProviderBuilder.AddOtlpExporter(
-                    !string.IsNullOrWhiteSpace(config.Endpoint)
-                        ? options => options.Endpoint = new Uri(config.Endpoint)
-                        : _ => { }
-                );
-
-                if (config.EnableConsoleExporter)
-                {
-                    loggerProviderBuilder.AddConsoleExporter();
-                }
-            });
+            .WithTracing(tracerProviderBuilder => ConfigureTracing(config, tracerProviderBuilder, resourceBuilder))
+            .WithMetrics(meterProviderBuilder => ConfigureMetric(config, meterProviderBuilder, resourceBuilder))
+            .WithLogging(loggerProviderBuilder => ConfigureLogging(config, loggerProviderBuilder, resourceBuilder));
 
         return services;
+    }
+
+    private static ResourceBuilder CreateResourceBuilder(string? serviceName)
+    {
+        var builder = ResourceBuilder.CreateDefault().AddTelemetrySdk();
+
+        if (!string.IsNullOrWhiteSpace(serviceName))
+        {
+            builder.AddService(serviceName);
+        }
+
+        return builder;
+    }
+
+    private static void ConfigureTracing(OpenTelemetryConfig config, TracerProviderBuilder tracerProviderBuilder,
+        ResourceBuilder resourceBuilder)
+    {
+        tracerProviderBuilder
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .SetResourceBuilder(resourceBuilder);
+
+        if (!string.IsNullOrWhiteSpace(config.ServiceName))
+        {
+            tracerProviderBuilder.AddSource(config.ServiceName);
+        }
+
+        tracerProviderBuilder.AddOtlpExporter(
+            !string.IsNullOrWhiteSpace(config.Endpoint)
+                ? options => options.Endpoint = new Uri(config.Endpoint)
+                : _ => { }
+        );
+
+        if (config.EnableConsoleExporter)
+        {
+            tracerProviderBuilder.AddConsoleExporter();
+        }
+    }
+
+    private static void ConfigureMetric(OpenTelemetryConfig config, MeterProviderBuilder meterProviderBuilder,
+        ResourceBuilder resourceBuilder)
+    {
+        meterProviderBuilder
+            .AddAspNetCoreInstrumentation()
+            .AddHttpClientInstrumentation()
+            .SetResourceBuilder(resourceBuilder);
+
+        if (!string.IsNullOrWhiteSpace(config.ServiceName))
+        {
+            meterProviderBuilder.AddMeter(config.ServiceName);
+        }
+
+        meterProviderBuilder.AddOtlpExporter(
+            !string.IsNullOrWhiteSpace(config.Endpoint)
+                ? options => options.Endpoint = new Uri(config.Endpoint)
+                : _ => { }
+        );
+
+        if (config.EnableConsoleExporter)
+        {
+            meterProviderBuilder.AddConsoleExporter();
+        }
+    }
+
+    private static void ConfigureLogging(OpenTelemetryConfig config, LoggerProviderBuilder loggerProviderBuilder,
+        ResourceBuilder resourceBuilder)
+    {
+        loggerProviderBuilder.SetResourceBuilder(resourceBuilder);
+        loggerProviderBuilder.AddOtlpExporter(
+            !string.IsNullOrWhiteSpace(config.Endpoint)
+                ? options => options.Endpoint = new Uri(config.Endpoint)
+                : _ => { }
+        );
+
+        if (config.EnableConsoleExporter)
+        {
+            loggerProviderBuilder.AddConsoleExporter();
+        }
     }
 }
