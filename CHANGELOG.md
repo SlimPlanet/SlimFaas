@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.51.0
+
+- [193c5e8](https://github.com/SlimPlanet/SlimFaas/commit/193c5e86620891fbcb54748c9f1a743f951c89dc) - feat(mcp): add console exporter to otel (#198) (release), 2025-12-04 by *Silthian*
+- [af5a92d](https://github.com/SlimPlanet/SlimFaas/commit/af5a92dbb773a6613dca2ac4acb1064dc3ba90c6) - fix(doc): add kafka env var description, 2025-12-04 by *Guillaume Chervet*
+
+
+## 0.50.1
+
+
+
 ## v0.50.1
 
 - [20d7a55](https://github.com/SlimPlanet/SlimFaas/commit/20d7a5555414ec4e007742bd8eea26c6dff1470d) - fix(slimfaas): scaling (#197) (release), 2025-12-03 by *Guillaume Chervet*
@@ -264,15 +274,5 @@
 ## v0.41.1
 
 - [c9dbb70](https://github.com/SlimPlanet/SlimFaas/commit/c9dbb70c6340c4b645372d1043bb69910ba52219) - fix(planet-saver): too many timer (#160) (release), 2025-09-05 by *Guillaume Chervet*
-
-
-## 0.41.0
-
-
-
-## v0.41.0
-
-- [2346abf](https://github.com/SlimPlanet/SlimFaas/commit/2346abf5e3711858d0731197f9e0fc5deddf9e70) - fix(slimfaas-mcp): output schema only when structured output (#159) (release), 2025-09-03 by *Guillaume Chervet*
-- [6616837](https://github.com/SlimPlanet/SlimFaas/commit/66168376d614c1be9de9b6f327b230680c853ebf) - feat(ci): better external build (#157), 2025-08-30 by *Guillaume Chervet*
 
 
