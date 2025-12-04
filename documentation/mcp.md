@@ -219,84 +219,67 @@ Logging__LogLevel__SlimFaasMcp=Debug
 
 ### Configure OpenTelemetry
 
-SlimFaas MCP supports OpenTelemetry instrumentation for distributed tracing and metrics.
+SlimFaas MCP supports OpenTelemetry instrumentation for distributed tracing, metrics, and logging.
 Configuration can be provided through `appsettings.json` or environment variables.
 
-| Configuration Key            | Type   | Description                                                                                      |
-| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------ |
-| `OpenTelemetry__ServiceName` | string | Name of the service for telemetry data. Defaults to "SlimFaasMcp" if not specified.             |
-| `OpenTelemetry__Endpoint`    | string | OTLP endpoint URL for exporting telemetry data. If empty or null, OpenTelemetry is disabled.    |
+| Configuration Key                    | Type    | Description                                                                                                                  |
+| ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `OpenTelemetry__Enable`              | boolean | Enable or disable OpenTelemetry instrumentation. Set to `false` to completely disable telemetry.                            |
+| `OpenTelemetry__ServiceName`         | string  | Name of the service for telemetry data. If not specified, falls back to `OTEL_SERVICE_NAME` environment variable (default behavior). |
+| `OpenTelemetry__Endpoint`            | string  | OTLP endpoint URL for exporting telemetry data. If not specified, falls back to `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable (default behavior). |
+| `OpenTelemetry__EnableConsoleExporter` | boolean | Enable console exporter for debugging purposes. Defaults to `false`.                                                         |
+
+**Configuration Priority (default behavior):**
+1. Configuration values from `appsettings.json` (highest priority)
+2. Environment variables `OTEL_SERVICE_NAME` and `OTEL_EXPORTER_OTLP_ENDPOINT` (fallback if configuration values are not specified)
+3. If `Enable` is `true` and no `Endpoint` is found in either configuration or environment variables, an exception will be thrown at startup
 
 #### ✅ Example (appsettings.json)
 ```json
 {
   "OpenTelemetry": {
+    "Enable": true,
     "ServiceName": "SlimFaasMcp",
-    "Endpoint": "http://otel-collector:4317"
+    "Endpoint": "http://otel-collector:4317",
+    "EnableConsoleExporter": false
   }
 }
 ```
 
-#### ✅ Example (environment variables)
+#### ✅ Example (using environment variables only - default fallback behavior)
 ```bash
-OpenTelemetry__ServiceName=SlimFaasMcp-Production
-OpenTelemetry__Endpoint=http://otel-collector:4317
+OpenTelemetry__Enable=true
+OTEL_SERVICE_NAME=SlimFaasMcp-Production
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
 ```
 
-#### ✅ Example (Docker)
+#### ✅ Example (Docker with configuration values)
 ```bash
 docker run --rm -p 8080:8080 \
   -e ASPNETCORE_URLS="http://*:8080" \
+  -e OpenTelemetry__Enable="true" \
   -e OpenTelemetry__ServiceName="SlimFaasMcp" \
   -e OpenTelemetry__Endpoint="http://otel-collector:4317" \
   axaguildev/slimfaas-mcp:latest
 ```
 
-**Note:** When `Endpoint` is not configured or is empty, OpenTelemetry instrumentation is completely disabled to avoid unnecessary overhead.
-
-The instrumentation includes:
-- **Traces**: ASP.NET Core requests, HTTP client calls
-- **Metrics**: ASP.NET Core metrics, HTTP client metrics, runtime metrics
-
----
-
-### Configure OpenTelemetry
-
-SlimFaas MCP supports OpenTelemetry instrumentation for distributed tracing and metrics.
-Configuration can be provided through `appsettings.json` or environment variables.
-
-| Configuration Key            | Type   | Description                                                                                      |
-| ---------------------------- | ------ | ------------------------------------------------------------------------------------------------ |
-| `OpenTelemetry__ServiceName` | string | Name of the service for telemetry data. Defaults to "SlimFaasMcp" if not specified.             |
-| `OpenTelemetry__Endpoint`    | string | OTLP endpoint URL for exporting telemetry data. If empty or null, OpenTelemetry is disabled.    |
-
-#### ✅ Example (appsettings.json)
-```json
-{
-  "OpenTelemetry": {
-    "ServiceName": "SlimFaasMcp",
-    "Endpoint": "http://otel-collector:4317"
-  }
-}
-```
-
-#### ✅ Example (environment variables)
-```bash
-OpenTelemetry__ServiceName=SlimFaasMcp-Production
-OpenTelemetry__Endpoint=http://otel-collector:4317
-```
-
-#### ✅ Example (Docker)
+#### ✅ Example (Docker using environment variables fallback - default behavior)
 ```bash
 docker run --rm -p 8080:8080 \
   -e ASPNETCORE_URLS="http://*:8080" \
-  -e OpenTelemetry__ServiceName="SlimFaasMcp" \
-  -e OpenTelemetry__Endpoint="http://otel-collector:4317" \
+  -e OpenTelemetry__Enable="true" \
+  -e OTEL_SERVICE_NAME="SlimFaasMcp" \
+  -e OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4317" \
   axaguildev/slimfaas-mcp:latest
 ```
 
-**Note:** When `Endpoint` is not configured or is empty, OpenTelemetry instrumentation is completely disabled to avoid unnecessary overhead.
+**Notes:**
+- When `Enable` is `false`, OpenTelemetry instrumentation is completely disabled to avoid unnecessary overhead
+- If `Enable` is `true` but no `Endpoint` is configured (neither in app settings nor in `OTEL_EXPORTER_OTLP_ENDPOINT`), an exception will be thrown at startup
+- The `ServiceName` is optional; if not specified in configuration, it automatically falls back to the `OTEL_SERVICE_NAME` environment variable (this is the default OpenTelemetry behavior)
+- The `Endpoint` automatically falls back to `OTEL_EXPORTER_OTLP_ENDPOINT` if not specified in configuration (this is the default OpenTelemetry behavior)
 
 The instrumentation includes:
 - **Traces**: ASP.NET Core requests, HTTP client calls
-- **Metrics**: ASP.NET Core metrics, HTTP client metrics, runtime metrics
+- **Metrics**: ASP.NET Core metrics, HTTP client metrics
+- **Logs**: Application logs with OpenTelemetry integration

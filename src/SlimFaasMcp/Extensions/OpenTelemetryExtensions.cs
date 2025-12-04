@@ -12,15 +12,16 @@ public static class OpenTelemetryExtensions
         this IServiceCollection services,
         OpenTelemetryConfig config)
     {
-        if (config.Endpoint == null || string.IsNullOrWhiteSpace(config.Endpoint))
+        if (!config.Enable)
         {
             return services;
         }
 
-        const string serviceName = "SlimFaasMcp";
-        string openTelemetryServiceName = string.IsNullOrWhiteSpace(config.ServiceName)
-            ? serviceName
-            : config.ServiceName;
+        var resourceBuilder = ResourceBuilder.CreateDefault().AddTelemetrySdk();
+        if (!string.IsNullOrWhiteSpace(config.ServiceName))
+        {
+            resourceBuilder.AddService(config.ServiceName);
+        }
 
         services.AddOpenTelemetry()
             .WithTracing(tracerProviderBuilder =>
@@ -28,31 +29,41 @@ public static class OpenTelemetryExtensions
                 tracerProviderBuilder
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddSource(openTelemetryServiceName)
-                    .SetResourceBuilder(ResourceBuilder.CreateDefault()
-                        .AddService(openTelemetryServiceName)
-                        .AddTelemetrySdk())
-                    .AddOtlpExporter(options =>
-                    {
-                        options.Endpoint = new Uri(config.Endpoint);
-                    });
+                    .SetResourceBuilder(resourceBuilder);
+
+                if (!string.IsNullOrWhiteSpace(config.ServiceName))
+                {
+                    tracerProviderBuilder.AddSource(config.ServiceName);
+                }
+
+                tracerProviderBuilder.AddOtlpExporter(
+                    !string.IsNullOrWhiteSpace(config.Endpoint)
+                        ? options => options.Endpoint = new Uri(config.Endpoint)
+                        : _ => { }
+                );
 
                 if (config.EnableConsoleExporter)
                 {
                     tracerProviderBuilder.AddConsoleExporter();
                 }
-
             })
             .WithMetrics(meterProviderBuilder =>
             {
                 meterProviderBuilder
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddMeter(openTelemetryServiceName)
-                    .AddOtlpExporter(options =>
-                    {
-                        options.Endpoint = new Uri(config.Endpoint);
-                    });
+                    .SetResourceBuilder(resourceBuilder);
+
+                if (!string.IsNullOrWhiteSpace(config.ServiceName))
+                {
+                    meterProviderBuilder.AddMeter(config.ServiceName);
+                }
+
+                meterProviderBuilder.AddOtlpExporter(
+                    !string.IsNullOrWhiteSpace(config.Endpoint)
+                        ? options => options.Endpoint = new Uri(config.Endpoint)
+                        : _ => { }
+                );
 
                 if (config.EnableConsoleExporter)
                 {
@@ -61,14 +72,12 @@ public static class OpenTelemetryExtensions
             })
             .WithLogging(loggerProviderBuilder =>
             {
-                loggerProviderBuilder
-                    .SetResourceBuilder(ResourceBuilder.CreateDefault()
-                        .AddService(openTelemetryServiceName)
-                        .AddTelemetrySdk())
-                    .AddOtlpExporter(options =>
-                    {
-                        options.Endpoint = new Uri(config.Endpoint);
-                    });
+                loggerProviderBuilder.SetResourceBuilder(resourceBuilder);
+                loggerProviderBuilder.AddOtlpExporter(
+                    !string.IsNullOrWhiteSpace(config.Endpoint)
+                        ? options => options.Endpoint = new Uri(config.Endpoint)
+                        : _ => { }
+                );
 
                 if (config.EnableConsoleExporter)
                 {
