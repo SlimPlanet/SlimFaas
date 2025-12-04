@@ -162,6 +162,18 @@ SlimFaasKafka__Bindings__1__ConsumerGroupId=orders-group
 SlimFaasKafka__Bindings__1__FunctionName=processorders
 ...
 ```
+Description:
+
+| Environment variable                                         | Type    | Default | Description |
+|-------------------------------------------------------------|---------|---------|-------------|
+| `SlimFaasKafka__Bindings__0__Topic`                         | string  | –       | Name of the **Kafka topic** to watch. SlimFaasKafka will inspect this topic to detect pending messages and activity. |
+| `SlimFaasKafka__Bindings__0__ConsumerGroupId`               | string  | –       | **Kafka consumer group** to monitor for this topic. SlimFaasKafka looks at this group’s committed offsets to estimate lag and recent activity. |
+| `SlimFaasKafka__Bindings__0__FunctionName`                  | string  | –       | Name of the **SlimFaas function** to wake up when conditions are met (pending messages and/or recent activity). This is the value used in the SlimFaas wake-up API. |
+| `SlimFaasKafka__Bindings__0__MinPendingMessages`            | int     | `1`     | Minimum number of **pending messages** (lag) required before triggering a wake-up based on backlog. If the lag is below this threshold, no wake-up is triggered for “pending” reason. |
+| `SlimFaasKafka__Bindings__0__CooldownSeconds`               | int     | `30`    | **Cooldown** between two wake-ups for this binding (topic + group + function). As long as the last wake-up is more recent than this delay, no new wake-up will be sent. |
+| `SlimFaasKafka__Bindings__0__ActivityKeepAliveSeconds`      | int     | `60`    | Duration during which a **recent consumption activity** (committed offsets increasing) keeps the function “warm”. If activity is detected within this window, SlimFaasKafka can trigger a wake-up even with low lag (reason = `activity`). |
+| `SlimFaasKafka__Bindings__0__MinConsumedDeltaForActivity`   | int     | `1`     | Minimum **delta of committed messages** (sum of offsets) to consider that “real” activity happened for the keep-alive logic. If the delta is below this value, the activity is ignored for the `activity` wake-up reason. |
+
 
 ---
 
