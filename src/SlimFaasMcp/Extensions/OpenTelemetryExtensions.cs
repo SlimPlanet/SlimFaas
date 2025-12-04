@@ -1,3 +1,4 @@
+using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -35,6 +36,12 @@ public static class OpenTelemetryExtensions
                     {
                         options.Endpoint = new Uri(config.Endpoint);
                     });
+
+                if (config.EnableConsoleExporter)
+                {
+                    tracerProviderBuilder.AddConsoleExporter();
+                }
+
             })
             .WithMetrics(meterProviderBuilder =>
             {
@@ -46,9 +53,29 @@ public static class OpenTelemetryExtensions
                     {
                         options.Endpoint = new Uri(config.Endpoint);
                     });
+
+                if (config.EnableConsoleExporter)
+                {
+                    meterProviderBuilder.AddConsoleExporter();
+                }
+            })
+            .WithLogging(loggerProviderBuilder =>
+            {
+                loggerProviderBuilder
+                    .SetResourceBuilder(ResourceBuilder.CreateDefault()
+                        .AddService(openTelemetryServiceName)
+                        .AddTelemetrySdk())
+                    .AddOtlpExporter(options =>
+                    {
+                        options.Endpoint = new Uri(config.Endpoint);
+                    });
+
+                if (config.EnableConsoleExporter)
+                {
+                    loggerProviderBuilder.AddConsoleExporter();
+                }
             });
 
         return services;
     }
 }
-
