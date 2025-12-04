@@ -34,8 +34,13 @@ public static class OpenTelemetryExtensions
                     .AddOtlpExporter(options =>
                     {
                         options.Endpoint = new Uri(config.Endpoint);
-                    })
-                    .AddConsoleExporter();
+                    });
+
+                if (config.EnableConsoleExporter)
+                {
+                    tracerProviderBuilder.AddConsoleExporter();
+                }
+
             })
             .WithMetrics(meterProviderBuilder =>
             {
@@ -46,8 +51,12 @@ public static class OpenTelemetryExtensions
                     .AddOtlpExporter(options =>
                     {
                         options.Endpoint = new Uri(config.Endpoint);
-                    })
-                    .AddConsoleExporter();
+                    });
+
+                if (config.EnableConsoleExporter)
+                {
+                    meterProviderBuilder.AddConsoleExporter();
+                }
             });
 
         return services;
