@@ -232,7 +232,7 @@ Configuration can be provided through `appsettings.json` or environment variable
 **Configuration Priority (default behavior):**
 1. Configuration values from `appsettings.json` (highest priority)
 2. Environment variables `OTEL_SERVICE_NAME` and `OTEL_EXPORTER_OTLP_ENDPOINT` (fallback if configuration values are not specified)
-3. If `Enable` is `true` and no `Endpoint` is found in either configuration or environment variables, an exception will be thrown at startup
+3. If `Enable` is `true` and no `Endpoint` is found in either configuration or environment variables, the OpenTelemetry default value will be used.
 
 #### ✅ Example (appsettings.json)
 ```json
@@ -275,7 +275,6 @@ docker run --rm -p 8080:8080 \
 
 **Notes:**
 - When `Enable` is `false`, OpenTelemetry instrumentation is completely disabled to avoid unnecessary overhead
-- If `Enable` is `true` but no `Endpoint` is configured (neither in app settings nor in `OTEL_EXPORTER_OTLP_ENDPOINT`), an exception will be thrown at startup
 - The `ServiceName` is optional; if not specified in configuration, it automatically falls back to the `OTEL_SERVICE_NAME` environment variable (this is the default OpenTelemetry behavior)
 - The `Endpoint` automatically falls back to `OTEL_EXPORTER_OTLP_ENDPOINT` if not specified in configuration (this is the default OpenTelemetry behavior)
 
