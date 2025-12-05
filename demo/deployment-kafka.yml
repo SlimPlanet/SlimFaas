@@ -157,9 +157,9 @@ spec:
             - name: SlimFaasKafka__Bindings__0__MinPendingMessages
               value: "1"
             - name: SlimFaasKafka__Bindings__0__CooldownSeconds
-              value: "30"
+              value: "5"
             - name: SlimFaasKafka__Bindings__0__ActivityKeepAliveSeconds
-              value: "60"
+              value: "20"
             - name: SlimFaasKafka__Bindings__0__MinConsumedDeltaForActivity
               value: "1"
           readinessProbe:
@@ -242,7 +242,7 @@ spec:
         app: fibonacci-kafka-listener
       annotations:
         SlimFaas/Function: "true"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "60"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
         SlimFaas/ReplicasAtStart: "1"
         SlimFaas/ReplicasMin: "0"
         SlimFaas/DependsOn: "kafka"
