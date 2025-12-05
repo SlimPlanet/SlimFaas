@@ -2,8 +2,8 @@ namespace SlimFaasMcp.Configuration;
 
 public class OpenTelemetryConfig
 {
-    public string ServiceName { get; set; } = string.Empty;
+    public bool Enable { get; set; }
     public string? Endpoint { get; set; }
-    public bool EnableConsoleExporter { get; set; } = false;
+    public string? ServiceName { get; set; }
+    public bool EnableConsoleExporter { get; set; }
 }
-
