@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.52.0
+
+- [5de9ec4](https://github.com/SlimPlanet/SlimFaas/commit/5de9ec4e374a79980c0de6276993b89333b3109e) - doc(kafka): update demo (release), 2025-12-05 by *Guillaume Chervet*
+- [cd583bc](https://github.com/SlimPlanet/SlimFaas/commit/cd583bcc83f1b483ea9d7488c66cdc54b8ee9a2c) - feat(mcp): Add flag to enable otel (#199), 2025-12-05 by *Silthian*
+
+
+## 0.51.0
+
+
+
 ## v0.51.0
 
 - [193c5e8](https://github.com/SlimPlanet/SlimFaas/commit/193c5e86620891fbcb54748c9f1a743f951c89dc) - feat(mcp): add console exporter to otel (#198) (release), 2025-12-04 by *Silthian*
@@ -265,14 +275,5 @@
 - [1e0fd16](https://github.com/SlimPlanet/SlimFaas/commit/1e0fd16a4816b9396e7fb5469ba990725e680546) - fix(doc): typo readme.md (release), 2025-09-15 by *Guillaume Chervet*
 - [1c8c4b8](https://github.com/SlimPlanet/SlimFaas/commit/1c8c4b882172649726348fec162a185ce8adddc5) - feature(slimfaas): docker compose implementation (#162), 2025-09-15 by *Guillaume Chervet*
 - [fd90f98](https://github.com/SlimPlanet/SlimFaas/commit/fd90f9826fbb8e02ad25853403e1d60c4d677781) - fix(slimfaas-mcp): anyOf oneOf allOf and $ref (#163), 2025-09-14 by *Guillaume Chervet*
-
-
-## 0.41.1
-
-
-
-## v0.41.1
-
-- [c9dbb70](https://github.com/SlimPlanet/SlimFaas/commit/c9dbb70c6340c4b645372d1043bb69910ba52219) - fix(planet-saver): too many timer (#160) (release), 2025-09-05 by *Guillaume Chervet*
 
 
