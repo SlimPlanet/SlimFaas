@@ -1,7 +1,9 @@
-﻿using System.Net.Http.Json;
+﻿using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using SlimFaasMcp.Models;
@@ -20,6 +22,16 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder =>
             {
+                // ✅ Configure la mapping _meta → headers pour les tests
+                builder.ConfigureAppConfiguration((ctx, config) =>
+                {
+                    var dict = new Dictionary<string, string?>
+                    {
+                        ["McpMetaHeaderMapping:authToken"] = "Authorization"
+                    };
+                    config.AddInMemoryCollection(dict);
+                });
+
                 builder.ConfigureServices(services =>
                 {
                     // Remplace l'implémentation réelle par un mock Moq
@@ -109,7 +121,8 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
                           new() { Name = "getPets", Description = "Get all pets", InputSchema = new JsonObject() }
                       });
 
-        var rpc = JsonSerializer.Deserialize<JsonNode>("""{"jsonrpc":"2.0","id":"abc","method":"tools/call","params":{"name":"getPets","arguments":{}}}""")!;
+        var rpc = JsonSerializer.Deserialize<JsonNode>(
+            """{"jsonrpc":"2.0","id":"abc","method":"tools/call","params":{"name":"getPets","arguments":{}}}""")!;
 
         var client   = _factory.CreateClient();
         var response = await client.PostAsJsonAsync("/mcp?openapi_url=https://example.com/openapi.json", rpc);
@@ -140,5 +153,100 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         var json  = await res.Content.ReadFromJsonAsync<JsonNode>();
         var error = json?["error"]!.AsObject();
         Assert.Equal(-32601, error["code"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public async Task ToolsCall_AuthTokenFromMeta_IsMappedToAuthorizationHeader()
+    {
+        // On capture les headers passés à ExecuteToolAsync
+        IDictionary<string, string>? capturedHeaders = null;
+
+        _toolProxyMock
+            .Setup(p => p.ExecuteToolAsync(
+                It.IsAny<string>(),
+                "getPets",
+                It.IsAny<JsonElement>(),
+                It.IsAny<string?>(),
+                It.IsAny<IDictionary<string, string>?>(),
+                It.IsAny<ushort?>()))
+            .Callback((string swaggerUrl,
+                       string toolName,
+                       JsonElement input,
+                       string? baseUrl,
+                       IDictionary<string, string>? headers,
+                       ushort? sliding) =>
+            {
+                capturedHeaders = headers != null
+                    ? new Dictionary<string, string>(headers)
+                    : null;
+            })
+            .ReturnsAsync(new ProxyCallResult { Text = "{}" });
+
+        _toolProxyMock
+            .Setup(p => p.GetToolsAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IDictionary<string, string>>(),
+                It.IsAny<string?>(),
+                It.IsAny<ushort?>()))
+            .ReturnsAsync(new List<McpTool>
+            {
+                new() { Name = "getPets", Description = "Get all pets", InputSchema = new JsonObject() }
+            });
+
+        var rpcJson = JsonSerializer.Deserialize<JsonNode>(
+            """
+            {
+              "jsonrpc":"2.0",
+              "id":"meta-test",
+              "method":"tools/call",
+              "params":{
+                "name":"getPets",
+                "arguments":{},
+                "_meta":{
+                  "authToken":"abc123"
+                }
+              }
+            }
+            """)!;
+
+        var client   = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/mcp?openapi_url=https://example.com/openapi.json", rpcJson);
+        response.EnsureSuccessStatusCode();
+
+        Assert.NotNull(capturedHeaders);
+        Assert.True(capturedHeaders!.TryGetValue("Authorization", out var authValue));
+        // ✅ SlimFaasMcp doit préfixer par "Bearer "
+        Assert.Equal("Bearer abc123", authValue);
+    }
+
+    [Fact]
+    public async Task Mcp_WithOauthAndNoAuthorization_Returns401Challenge()
+    {
+        var req = new
+        {
+            jsonrpc = "2.0",
+            id      = 10,
+            method  = "initialize"
+        };
+
+        var oauthMetaJson = """
+        {
+          "resource":"https://api.example.com/v1/",
+          "authorization_servers":["https://auth.example.com"]
+        }
+        """;
+
+        var oauthB64 = Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(oauthMetaJson));
+
+        var client   = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync($"/mcp?oauth={Uri.EscapeDataString(oauthB64)}", req);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues("WWW-Authenticate", out var values));
+
+        var header = values.Single();
+        Assert.Contains("Bearer", header);
+        Assert.Contains("/.well-known/oauth-protected-resource", header);
     }
 }
