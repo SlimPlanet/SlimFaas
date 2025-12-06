@@ -11,10 +11,15 @@ using SlimFaasMcp.Services;
 using SlimFaasMcp.Models;
 
 var builder = WebApplication.CreateSlimBuilder(args);
+// --- MCP _meta → HTTP headers mapping ---------------------------------
+var metaHeaderMappingSection = builder.Configuration.GetSection("McpMetaHeaderMapping");
+var metaHeaderMapping = metaHeaderMappingSection.Get<Dictionary<string, string>>()
+                        ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 var corsSection  = builder.Configuration.GetSection("Cors");
 var corsSettings = corsSection.Get<CorsSettings>() ?? new CorsSettings();
 builder.Services.Configure<CorsSettings>(corsSection);
+
 
 // ---- Flat env vars override (CORS_*) ----
 static string[]? ReadCsv(string? s) =>
@@ -93,10 +98,59 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
         return Results.StatusCode(StatusCodes.Status401Unauthorized);
     }
 
-    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
+    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest);
 
     using var jsonDocument = await JsonDocument.ParseAsync(httpRequest.Body);
     var root = jsonDocument.RootElement;
+
+    // --- mapping _meta → headers selon la configuration --------------
+    if (metaHeaderMapping.Count > 0)
+    {
+        if (root.TryGetProperty("params", out var paramsJson) &&
+            paramsJson.ValueKind == JsonValueKind.Object &&
+            paramsJson.TryGetProperty("_meta", out var metaJson) &&
+            metaJson.ValueKind == JsonValueKind.Object)
+        {
+            foreach (var kvp in metaHeaderMapping)
+            {
+                var metaKey    = kvp.Key;
+                var headerName = kvp.Value;
+
+                if (string.IsNullOrWhiteSpace(metaKey) || string.IsNullOrWhiteSpace(headerName))
+                    continue;
+
+                if (!metaJson.TryGetProperty(metaKey, out var metaValueElement))
+                    continue;
+
+                string? headerValue = metaValueElement.ValueKind switch
+                {
+                    JsonValueKind.String    => metaValueElement.GetString(),
+                    JsonValueKind.Null      => null,
+                    JsonValueKind.Undefined => null,
+                    _                       => metaValueElement.GetRawText()
+                };
+
+                if (string.IsNullOrWhiteSpace(headerValue))
+                    continue;
+
+                // Cas spécial: Authorization → on force "Bearer " si absent
+                if (string.Equals(headerName, "Authorization", StringComparison.OrdinalIgnoreCase) &&
+                    !headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) &&
+                    !headerValue.StartsWith("DPoP ",   StringComparison.OrdinalIgnoreCase))
+                {
+                    headerValue = "Bearer " + headerValue;
+                }
+
+                additionalHeaders[headerName] = headerValue;
+            }
+        }
+    }
+
+
+    // présence effective d'un Authorization (depuis header HTTP ou _meta)
+    bool hasAuthorizationHeader = additionalHeaders.Keys
+        .Any(k => string.Equals(k, "Authorization", StringComparison.OrdinalIgnoreCase));
+
 
     // --- query-string --------------------------------------------------
     var qs            = httpRequest.Query;
@@ -112,7 +166,48 @@ app.MapPost("/mcp", async (HttpRequest httpRequest,
         && string.Equals(qsc.ToString(), "true", StringComparison.OrdinalIgnoreCase);
 
 
-    if (!string.IsNullOrEmpty(oauthB64) && string.IsNullOrWhiteSpace(authHeader))
+    // --- mapping _meta → headers selon la configuration --------------
+    if (metaHeaderMapping.Count > 0 &&
+        root.TryGetProperty("params", out var paramsElem) &&
+        paramsElem.ValueKind == JsonValueKind.Object &&
+        paramsElem.TryGetProperty("_meta", out var metaElem) &&
+        metaElem.ValueKind == JsonValueKind.Object)
+    {
+        foreach (var kvp in metaHeaderMapping)
+        {
+            var metaKey    = kvp.Key;
+            var headerName = kvp.Value;
+
+            if (string.IsNullOrWhiteSpace(metaKey) || string.IsNullOrWhiteSpace(headerName))
+                continue;
+
+            if (!metaElem.TryGetProperty(metaKey, out var metaValueElement))
+                continue;
+
+            string? headerValue = metaValueElement.ValueKind switch
+            {
+                JsonValueKind.String      => metaValueElement.GetString(),
+                JsonValueKind.Null        => null,
+                JsonValueKind.Undefined   => null,
+                _                         => metaValueElement.GetRawText()
+            };
+
+            if (string.IsNullOrWhiteSpace(headerValue))
+                continue;
+
+            // Cas spécial: Authorization → on force "Bearer " si absent
+            if (string.Equals(headerName, "Authorization", StringComparison.OrdinalIgnoreCase) &&
+                !headerValue.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) &&
+                !headerValue.StartsWith("DPoP ",   StringComparison.OrdinalIgnoreCase))
+            {
+                headerValue = "Bearer " + headerValue;
+            }
+
+            additionalHeaders[headerName] = headerValue;
+        }
+    }
+
+    if (!string.IsNullOrEmpty(oauthB64) && !hasAuthorizationHeader)
         return Challenge(httpRequest, oauthB64);
 
     ushort? slidingExpiration = ushort.TryParse(expirationTime, out ushort result) ?  result : null;
@@ -231,7 +326,7 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
         IToolProxyService proxy)
         =>
 {
-    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
+    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest);
 
     var tools = await proxy.GetToolsAsync(
         openapi_url, base_url,
@@ -279,7 +374,7 @@ grp.MapPost("/{toolName}", async Task<IResult> (
         IToolProxyService proxy)
     =>
 {
-    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest, out string? authHeader);
+    IDictionary<string, string> additionalHeaders = AuthHeader(httpRequest);
     var qs = httpRequest.Query;
     var toolPrefix = qs.TryGetValue("tool_prefix", out var qtp) ? qtp.ToString() : null;
     var realName   = StripToolPrefix(toolName, toolPrefix);
@@ -332,16 +427,19 @@ app.MapGet("/health", () => Results.Text("OK"));
 
 await app.RunAsync();
 
-IDictionary<string, string> AuthHeader(HttpRequest httpRequest1, out string? s)
+IDictionary<string, string> AuthHeader(HttpRequest httpRequest1)
 {
-    s = httpRequest1.Headers["Authorization"].FirstOrDefault();
+    var authHeader = httpRequest1.Headers["Authorization"].FirstOrDefault();
     var dpopHeader = httpRequest1.Headers["Dpop"].FirstOrDefault();
 
     IDictionary<string, string> dictionary = new Dictionary<string, string>();
-    if (!string.IsNullOrWhiteSpace(s))
-        dictionary["Authorization"] = s;
+
+    if (!string.IsNullOrWhiteSpace(authHeader))
+        dictionary["Authorization"] = authHeader;
+
     if (!string.IsNullOrWhiteSpace(dpopHeader))
         dictionary["Dpop"] = dpopHeader;
+
     return dictionary;
 }
 

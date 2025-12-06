@@ -282,3 +282,92 @@ The instrumentation includes:
 - **Traces**: ASP.NET Core requests, HTTP client calls
 - **Metrics**: ASP.NET Core metrics, HTTP client metrics
 - **Logs**: Application logs with OpenTelemetry integration
+
+------------------------------------------------------------------------
+
+## 🔐 MCP `_meta` → HTTP Header Mapping
+
+SlimFaas MCP allows you to **dynamically map values sent in the MCP
+`_meta` object to outgoing HTTP headers**.\
+This is especially useful when using MCP clients such as **Spring AI**,
+which can transmit authentication tokens via `_meta` instead of standard
+HTTP headers.
+
+This feature makes it possible to: - Inject `Authorization` headers from
+`_meta` - Forward session IDs or correlation IDs - Keep your MCP clients
+fully portable and stateless
+
+------------------------------------------------------------------------
+
+### ✅ Configuration (`appsettings.json`)
+
+You can define the mapping using the `McpMetaHeaderMapping` section:
+
+``` json
+{
+  "McpMetaHeaderMapping": {
+    "authToken": "Authorization",
+    "xSessionId": "X-Session-Id"
+  }
+}
+```
+
+`_meta` Key    Injected HTTP Header
+  -------------- ----------------------
+`authToken`    `Authorization`
+`xSessionId`   `X-Session-Id`
+
+------------------------------------------------------------------------
+
+### ✅ MCP Request Example
+
+``` json
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "get_dashboard_policies",
+    "arguments": {},
+    "_meta": {
+      "authToken": "eyJhbGciOiJSUzI1NiIsInR5cCI...",
+      "xSessionId": "abc-123"
+    }
+  }
+}
+```
+
+This will automatically generate the following outgoing headers:
+
+    Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCI...
+    X-Session-Id: abc-123
+
+> ✅ If the mapped header is `Authorization`, SlimFaas MCP
+> **automatically prepends `Bearer`** if missing.
+
+------------------------------------------------------------------------
+
+### ✅ OAuth Challenge Compatibility
+
+If you use the `oauth` query parameter (RFC 9728):
+
+-   SlimFaas MCP checks for `Authorization` **both** in:
+    -   incoming HTTP headers
+    -   mapped `_meta` values
+-   If no token is found, a `401` challenge is returned
+-   If `_meta.authToken` is mapped to `Authorization`, the challenge is
+    **automatically bypassed**
+
+------------------------------------------------------------------------
+
+### ✅ Compatibility
+
+-   ✅ Spring AI MCP Client
+-   ✅ Custom MCP Clients
+-   ✅ Browser-based MCP Calls
+-   ✅ Secure OAuth / DPoP / PKCE / mTLS setups
+
+------------------------------------------------------------------------
+
+This feature ensures **clean separation between MCP payload transport
+and HTTP security**, while remaining fully MCP-compliant and
+framework-agnostic.
