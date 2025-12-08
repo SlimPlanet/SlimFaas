@@ -138,6 +138,8 @@ public record PodInformation(
     string? ServiceName = null)
 {
     public IDictionary<string, string>? Annotations { get; init; }
+    public string? StartFailureReason { get; init; }
+    public string? StartFailureMessage { get; init; }
 }
 
 [MemoryPackable]
@@ -1150,10 +1152,19 @@ public class KubernetesService : IKubernetesService
 
                 string? serviceName = FindServiceNameForPod(item, serviceList);
 
+                // 👉 Récupération de l'erreur de scheduling (quota / etc.)
+                var schedCondition = item.Status?.Conditions?
+                    .FirstOrDefault(c => c.Type == "PodScheduled" && c.Status == "False");
+
+                string? startFailureReason = schedCondition?.Reason;
+                string? startFailureMessage = schedCondition?.Message;
+
                 PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp,
                     deploymentName, ports, resourceVersion, serviceName)
                 {
-                    Annotations = item.Metadata?.Annotations
+                    Annotations = item.Metadata?.Annotations,
+                    StartFailureReason = startFailureReason,
+                    StartFailureMessage = startFailureMessage
                 };
                 result.Add(podInformation);
             }

@@ -161,6 +161,18 @@ public class ReplicasService(
                 desiredReplicas = Math.Max(desiredFromMetrics.Value, deploymentInformation.ReplicasAtStart);
             }
 
+            // 🔒 Protection : si un pod est bloqué "exceeded quota", on n'essaie plus de scaler vers le haut
+            bool isScaleUp = desiredReplicas > currentScale;
+            if (isScaleUp && HasQuotaExceededPod(deploymentInformation))
+            {
+                logger.LogWarning(
+                    "Skip scale-up for {Deployment} from {CurrentScale} to {DesiredReplicas} because a pod is blocked by ResourceQuota (exceeded quota).",
+                    deploymentInformation.Deployment, currentScale, desiredReplicas);
+
+                // On laisse le nombre de pods inchangé
+                desiredReplicas = currentScale;
+            }
+
             if (desiredReplicas == currentScale)
             {
                 continue;
@@ -311,4 +323,25 @@ public class ReplicasService(
         }
         return true;
     }
+
+    private static bool HasQuotaExceededPod(DeploymentInformation deploymentInformation)
+    {
+        if (deploymentInformation.Pods == null || deploymentInformation.Pods.Count == 0)
+        {
+            return false;
+        }
+
+        foreach (var pod in deploymentInformation.Pods)
+        {
+            var message = pod.StartFailureMessage;
+            if (!string.IsNullOrEmpty(message) &&
+                message.Contains("exceeded quota", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
 }
