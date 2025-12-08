@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using SlimFaasMcp;
 using SlimFaasMcp.Configuration;
 using SlimFaasMcp.Extensions;
+using SlimFaasMcp.Middleware;
 using SlimFaasMcp.Services;
 using SlimFaasMcp.Models;
 
@@ -76,6 +77,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.UseCors("SlimFaasMcpCors");
+app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.MapGet("/mcp", () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed));
 

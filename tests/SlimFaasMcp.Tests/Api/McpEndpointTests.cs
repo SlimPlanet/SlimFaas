@@ -27,7 +27,8 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
                 {
                     var dict = new Dictionary<string, string?>
                     {
-                        ["McpMetaHeaderMapping:authToken"] = "Authorization"
+                        ["McpMetaHeaderMapping:authToken"] = "Authorization",
+                        ["McpMetaHeaderMapping:extra"]     = "X-Extra"
                     };
                     config.AddInMemoryCollection(dict);
                 });
@@ -249,4 +250,141 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         Assert.Contains("Bearer", header);
         Assert.Contains("/.well-known/oauth-protected-resource", header);
     }
+
+        [Fact]
+    public async Task ToolsCall_MetaAuthTokenNull_DoesNotInjectAuthorizationHeader()
+    {
+        // On capture les headers passés à ExecuteToolAsync
+        IDictionary<string, string>? capturedHeaders = null;
+
+        _toolProxyMock
+            .Setup(p => p.ExecuteToolAsync(
+                It.IsAny<string>(),
+                "getPets",
+                It.IsAny<JsonElement>(),
+                It.IsAny<string?>(),
+                It.IsAny<IDictionary<string, string>?>(),
+                It.IsAny<ushort?>()))
+            .Callback((string swaggerUrl,
+                       string toolName,
+                       JsonElement input,
+                       string? baseUrl,
+                       IDictionary<string, string>? headers,
+                       ushort? sliding) =>
+            {
+                capturedHeaders = headers != null
+                    ? new Dictionary<string, string>(headers)
+                    : null;
+            })
+            .ReturnsAsync(new ProxyCallResult { Text = "{}" });
+
+        _toolProxyMock
+            .Setup(p => p.GetToolsAsync(
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
+                It.IsAny<IDictionary<string, string>>(),
+                It.IsAny<string?>(),
+                It.IsAny<ushort?>()))
+            .ReturnsAsync(new List<McpTool>
+            {
+                new() { Name = "getPets", Description = "Get all pets", InputSchema = new JsonObject() }
+            });
+
+        // authToken = null → JsonValueKind.Null → headerValue = null → pas de header créé
+        var rpcJson = JsonSerializer.Deserialize<JsonNode>(
+            """
+            {
+              "jsonrpc": "2.0",
+              "id": "meta-null",
+              "method": "tools/call",
+              "params": {
+                "name": "getPets",
+                "arguments": {},
+                "_meta": {
+                  "authToken": null
+                }
+              }
+            }
+            """)!;
+
+        var client   = _factory.CreateClient();
+        var response = await client.PostAsJsonAsync("/mcp?openapi_url=https://example.com/openapi.json", rpcJson);
+        response.EnsureSuccessStatusCode();
+
+        Assert.NotNull(capturedHeaders);
+        Assert.False(capturedHeaders!.ContainsKey("Authorization"));
+    }
+
+
+
+   [Fact]
+public async Task ToolsCall_MetaAuthTokenObject_UsesGetRawTextForAuthorizationHeader()
+{
+    IDictionary<string, string>? capturedHeaders = null;
+
+    _toolProxyMock
+        .Setup(p => p.ExecuteToolAsync(
+            It.IsAny<string>(),
+            "getPets",
+            It.IsAny<JsonElement>(),
+            It.IsAny<string?>(),
+            It.IsAny<IDictionary<string, string>?>(),
+            It.IsAny<ushort?>()))
+        .Callback((string swaggerUrl,
+                   string toolName,
+                   JsonElement input,
+                   string? baseUrl,
+                   IDictionary<string, string>? headers,
+                   ushort? sliding) =>
+        {
+            capturedHeaders = headers != null
+                ? new Dictionary<string, string>(headers)
+                : null;
+        })
+        .ReturnsAsync(new ProxyCallResult { Text = "{}" });
+
+    _toolProxyMock
+        .Setup(p => p.GetToolsAsync(
+            It.IsAny<string>(),
+            It.IsAny<string?>(),
+            It.IsAny<IDictionary<string, string>>(),
+            It.IsAny<string?>(),
+            It.IsAny<ushort?>()))
+        .ReturnsAsync(new List<McpTool>
+        {
+            new() { Name = "getPets", Description = "Get all pets", InputSchema = new JsonObject() }
+        });
+
+    // Objet JSON → ValueKind.Object → branche par défaut du switch → GetRawText()
+    var rpcJson = JsonSerializer.Deserialize<JsonNode>(
+        """
+        {
+          "jsonrpc": "2.0",
+          "id": "meta-object",
+          "method": "tools/call",
+          "params": {
+            "name": "getPets",
+            "arguments": {},
+            "_meta": {
+              "authToken": {
+                "role": "admin",
+                "level": 3
+              }
+            }
+          }
+        }
+        """)!;
+
+    var client   = _factory.CreateClient();
+    var response = await client.PostAsJsonAsync("/mcp?openapi_url=https://example.com/openapi.json", rpcJson);
+    response.EnsureSuccessStatusCode();
+
+    Assert.NotNull(capturedHeaders);
+    Assert.True(capturedHeaders!.TryGetValue("Authorization", out var authValue));
+
+    // GetRawText() renvoie du JSON minifié, et on ajoute "Bearer "
+    Assert.Equal("""Bearer {"role":"admin","level":3}""", authValue);
+}
+
+
 }
