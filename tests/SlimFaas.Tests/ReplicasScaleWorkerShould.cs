@@ -264,4 +264,113 @@ public class ReplicasScaleWorkerShould
         Console.WriteLine(dateTimeFromTicks1 - dateTimeFromTicks22);
         Assert.True(dateTimeFromTicks1 - dateTimeFromTicks22 < TimeSpan.FromHours(23));
     }
+
+        [Fact]
+    public async Task NotScaleUpWhenPodIsBlockedByQuota()
+    {
+        var loggerReplicasService = new Mock<ILogger<ReplicasService>>();
+        var kubernetesService = new Mock<IKubernetesService>();
+        var historyHttpService = new HistoryHttpMemoryService();
+        var autoScaler = CreateAutoScalerForTests();
+        var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
+
+        // Deployment avec 0 replicas, mais un pod bloqué par "exceeded quota"
+        var deployment = new DeploymentInformation(
+            Deployment: "fibonacci-quota",
+            Namespace: "default",
+            Pods: new List<PodInformation>
+            {
+                new("fibonacci-quota-0", Started: false, Ready: false, Ip: "10.0.0.1", DeploymentName: "fibonacci-quota")
+                {
+                    StartFailureMessage = "0/3 nodes are available: 3 exceeded quota: pods."
+                }
+            },
+            Configuration: new SlimFaasConfiguration(),
+            Replicas: 0 // => tentative 0 -> 1
+        );
+
+        var deploymentsInformations = new DeploymentsInformations(
+            new List<DeploymentInformation> { deployment },
+            new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
+            new List<PodInformation>());
+
+        kubernetesService
+            .Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deploymentsInformations);
+
+        // Dernier appel HTTP "maintenant" => pas de scale down, on devrait sortir de 0 -> 1
+        historyHttpService.SetTickLastCall("fibonacci-quota", DateTime.UtcNow.Ticks);
+
+        var replicasService = new ReplicasService(
+            kubernetesService.Object,
+            historyHttpService,
+            autoScaler,
+            loggerReplicasService.Object,
+            metricsRegistry);
+
+        await replicasService.SyncDeploymentsAsync("default");
+        await replicasService.CheckScaleAsync("default");
+
+        // ✅ On ne doit PAS appeler ScaleAsync car le pod est bloqué par un quota
+        kubernetesService.Verify(k => k.ScaleAsync(It.IsAny<ReplicaRequest>()), Times.Never);
+    }
+
+        [Fact]
+    public async Task ScaleDownEvenWhenPodIsBlockedByQuota()
+    {
+        var loggerReplicasService = new Mock<ILogger<ReplicasService>>();
+        var kubernetesService = new Mock<IKubernetesService>();
+        var historyHttpService = new HistoryHttpMemoryService();
+        var autoScaler = CreateAutoScalerForTests();
+        var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
+
+        // Deployment avec 2 replicas, pod bloqué par quota => on veut quand même autoriser le scale down
+        var deployment = new DeploymentInformation(
+            Deployment: "fibonacci-quota",
+            Namespace: "default",
+            Pods: new List<PodInformation>
+            {
+                new("fibonacci-quota-0", Started: false, Ready: false, Ip: "10.0.0.1", DeploymentName: "fibonacci-quota")
+                {
+                    StartFailureMessage = "0/3 nodes are available: 3 exceeded quota: pods."
+                }
+            },
+            Configuration: new SlimFaasConfiguration(),
+            Replicas: 2,
+            ReplicasMin: 0
+        );
+
+        var deploymentsInformations = new DeploymentsInformations(
+            new List<DeploymentInformation> { deployment },
+            new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
+            new List<PodInformation>());
+
+        kubernetesService
+            .Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deploymentsInformations);
+
+        // Dernier appel HTTP très ancien => on doit déclencher le scale down vers ReplicasMin (0)
+        historyHttpService.SetTickLastCall("fibonacci-quota", DateTime.UtcNow.AddMinutes(-10).Ticks);
+
+        var replicasService = new ReplicasService(
+            kubernetesService.Object,
+            historyHttpService,
+            autoScaler,
+            loggerReplicasService.Object,
+            metricsRegistry);
+
+        var expectedRequest = new ReplicaRequest("fibonacci-quota", "default", 0, PodType.Deployment);
+
+        kubernetesService
+            .Setup(k => k.ScaleAsync(expectedRequest))
+            .ReturnsAsync(expectedRequest);
+
+        await replicasService.SyncDeploymentsAsync("default");
+        await replicasService.CheckScaleAsync("default");
+
+        // ✅ Le scale down doit bien être effectué, malgré le quota exceeded
+        kubernetesService.Verify(k => k.ScaleAsync(expectedRequest), Times.Once);
+    }
+
+
 }
