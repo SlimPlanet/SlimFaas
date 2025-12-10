@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.54.0
+
+- [4922d09](https://github.com/SlimPlanet/SlimFaas/commit/4922d09d044f9f9871de5c1bf0a4851e2bec527f) - feat(slimfaas): stop scale up when quota exceeded (#201) (release), 2025-12-08 by *Guillaume Chervet*
+
+
+## 0.53.0
+
+
+
+## v0.53.0
+
+- [c4028e1](https://github.com/SlimPlanet/SlimFaas/commit/c4028e1f5226fd46b8129322efa4e42b06920345) - feat(mcp): MCP `_meta` → HTTP Header Mapping (#200) (release), 2025-12-08 by *Guillaume Chervet*
+
+
+## 0.52.0
+
+
+
 ## v0.52.0
 
 - [5de9ec4](https://github.com/SlimPlanet/SlimFaas/commit/5de9ec4e374a79980c0de6276993b89333b3109e) - doc(kafka): update demo (release), 2025-12-05 by *Guillaume Chervet*
@@ -254,26 +272,5 @@
 ## v0.42.1
 
 - [7568d56](https://github.com/SlimPlanet/SlimFaas/commit/7568d56e85b590b7b6815e11fc31247a5583354a) - fix(slimfaas-mcp): structured-output must be an object (#166) (release), 2025-09-18 by *Guillaume Chervet*
-
-
-## 0.42.0
-
-
-
-## v0.42.0
-
-- [bd34d02](https://github.com/SlimPlanet/SlimFaas/commit/bd34d026b02e12e023001908e8f8758817e60e3c) - feat(slimfaas-mcp): add tool prefix (#165) (release), 2025-09-18 by *Guillaume Chervet*
-- [9816baa](https://github.com/SlimPlanet/SlimFaas/commit/9816baafd47715c1d952de6908b36b85ddfdd476) - fix(doc): update readme and docker-compose.yml, 2025-09-16 by *Guillaume Chervet*
-
-
-## 0.41.2
-
-
-
-## v0.41.2
-
-- [1e0fd16](https://github.com/SlimPlanet/SlimFaas/commit/1e0fd16a4816b9396e7fb5469ba990725e680546) - fix(doc): typo readme.md (release), 2025-09-15 by *Guillaume Chervet*
-- [1c8c4b8](https://github.com/SlimPlanet/SlimFaas/commit/1c8c4b882172649726348fec162a185ce8adddc5) - feature(slimfaas): docker compose implementation (#162), 2025-09-15 by *Guillaume Chervet*
-- [fd90f98](https://github.com/SlimPlanet/SlimFaas/commit/fd90f9826fbb8e02ad25853403e1d60c4d677781) - fix(slimfaas-mcp): anyOf oneOf allOf and $ref (#163), 2025-09-14 by *Guillaume Chervet*
 
 
