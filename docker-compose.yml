@@ -46,7 +46,7 @@ services:
 
 
   slimfaas:
-    image: axaguildev/slimfaas:0.55.0-pr.202298
+    image: axaguildev/slimfaas:latest
    # build:
    #   context: .
       #dockerfile: ./Dockerfile
