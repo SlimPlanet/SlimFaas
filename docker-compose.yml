@@ -46,7 +46,7 @@ services:
 
 
   slimfaas:
-    image: axaguildev/slimfaas:0.55.0-pr.202297
+    image: axaguildev/slimfaas:0.55.0-pr.202298
    # build:
    #   context: .
       #dockerfile: ./Dockerfile
@@ -87,7 +87,9 @@ services:
         }
     volumes:
       - slimfaas_data:/database
-      - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock:Z
+      - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
+    security_opt:
+     - label=disable
     extra_hosts:
       - host.docker.internal:host-gateway
     networks:

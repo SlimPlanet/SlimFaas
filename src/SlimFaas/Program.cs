@@ -256,14 +256,26 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
     PodInformation currentPod = replicasService.Deployments.SlimFaas.Pods.First(p => p.Name.Contains(hostname));
     Console.WriteLine($"Starting node {currentPod.Name}");
     podDataDirectoryPersistantStorage = Path.Combine(slimDataDirectory, currentPod.Name);
-    if (Directory.Exists(podDataDirectoryPersistantStorage) == false)
+    if (!Directory.Exists(podDataDirectoryPersistantStorage))
     {
         Directory.CreateDirectory(podDataDirectoryPersistantStorage);
+    }
+    else
+    {
+        switch (envOrConfig)
+        {
+            case "Docker":
+                Directory.Delete(podDataDirectoryPersistantStorage, true);
+                Directory.CreateDirectory(podDataDirectoryPersistantStorage);
+                break;
+        }
     }
 
     publicEndPoint = SlimDataEndpoint.Get(currentPod);
     Console.WriteLine($"Node started {currentPod.Name} {publicEndPoint}");
 }
+
+
 
 // -------------------------------------------------------------
 // Détermination du mode coldStart en fonction de l'état sur disque

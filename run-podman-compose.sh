@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 1. Récupère le chemin du socket Podman côté host
-raw_socket_path=$(podman info --format '{{.Host.RemoteSocket.Path}}' 2>/dev/null || echo "")
-
-if [ -z "$raw_socket_path" ]; then
-  echo "Impossible de récupérer .Host.RemoteSocket.Path via 'podman info'."
-  echo "Vérifie que 'podman machine' est bien démarrée."
-  exit 1
+# Enable verbose mode for this script if VERBOSE=1
+VERBOSE="${VERBOSE:-0}"
+if [[ "$VERBOSE" == "1" ]]; then
+  set -x
 fi
 
-# Enlève éventuellement le prefix 'unix://'
-host_socket_path="${raw_socket_path#unix://}"
+# Podman log level (debug if VERBOSE=1, otherwise info)
+PODMAN_LOG_LEVEL="${PODMAN_LOG_LEVEL:-$([[ "$VERBOSE" == "1" ]] && echo debug || echo info)}"
+echo ">> Using PODMAN_LOG_LEVEL=$PODMAN_LOG_LEVEL"
 
-echo "Utilisation du socket Podman host : $host_socket_path"
+# 1) In the Podman VM, the Docker-compatible socket is /run/docker.sock
+DOCKER_SOCKET_PATH="/run/docker.sock"
+echo ">> Using DOCKER_SOCKET_PATH=$DOCKER_SOCKET_PATH"
 
-# 2. Lancer podman compose en surchargant uniquement les variables nécessaires
-DOCKER_SOCKET_PATH="$host_socket_path" \
-DOCKER_HOST="unix:///var/run/docker.sock" \
-podman compose "$@"
+# (Optional) Safety: make sure the socket is readable/writable
+podman machine ssh -- "sudo chmod 666 /run/user/*/podman/podman.sock /run/docker.sock 2>/dev/null || true"
+
+# 2) Run podman compose with the right environment variables
+export DOCKER_SOCKET_PATH
+export DOCKER_HOST="unix:///var/run/docker.sock"
+export PODMAN_LOG_LEVEL
+
+echo ">> Running: podman --log-level=$PODMAN_LOG_LEVEL compose $*"
+
+podman --log-level="$PODMAN_LOG_LEVEL" compose "$@"
