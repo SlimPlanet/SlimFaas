@@ -2,7 +2,7 @@
 
 This guide covers two primary ways to start using SlimFaas:
 1. **Kubernetes** (including local clusters via Docker Desktop)
-2. **Docker Compose** (for quick local testing)
+2. **Docker / Podman Compose** (for quick local testing)
 3. **Manual Installation** (for your own Kubernetes setup)
 
 You can also find [advanced installation details](#manual-installation-on-kubernetes) below.
@@ -82,7 +82,7 @@ Browse to http://localhost:8000
 
 ---
 
-## 2. Docker Compose Quick Start
+## 2. Docker / Podman Compose Quick Start
 
 > **Note:** This is for local testing only. For production, use Kubernetes. Works with Docker Compose or Podman Compose.
 
@@ -90,6 +90,15 @@ Browse to http://localhost:8000
 git clone https://github.com/SlimPlanet/SlimFaas.git
 cd slimfaas
 docker-compose up
+
+# with podman-compose on mac, use:
+chmod +x ./run-podman-compose.sh
+./run-podman-compose.sh up -d
+
+
+# with podman-compose on windows, use:
+.\run-podman-compose.ps1 up
+
 ```
 
 When it’s ready:

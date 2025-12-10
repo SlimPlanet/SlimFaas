@@ -54,7 +54,7 @@ services:
       - "30021:30021"
     user: "0:0"
     environment:
-      DOCKER_HOST: "unix:///var/run/docker.sock"
+      DOCKER_HOST: "${DOCKER_HOST:-unix:///var/run/docker.sock}"
       BASE_SLIMDATA_URL: "http://localhost:3262/"
       ASPNETCORE_URLS: "http://0.0.0.0:30021"
       SLIMFAAS_ORCHESTRATOR: "Docker"
@@ -87,7 +87,9 @@ services:
         }
     volumes:
       - slimfaas_data:/database
-      - /var/run/docker.sock:/var/run/docker.sock
+      - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
+    security_opt:
+     - label=disable
     extra_hosts:
       - host.docker.internal:host-gateway
     networks:

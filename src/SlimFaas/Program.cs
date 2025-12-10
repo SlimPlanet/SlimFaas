@@ -67,32 +67,54 @@ var usePersistentConfigurationStorage = true;
 switch (envOrConfig)
 {
     case "Docker":
-        serviceCollectionStarter.AddHttpClient(DockerService.HttpClientName, client =>
+        serviceCollectionStarter
+            .AddHttpClient(DockerService.HttpClientName, client =>
             {
-                client.BaseAddress = new Uri("http://localhost"); // obligatoire pour HttpClient
+                // Host "factice" requis pour HttpClient, pas utilisé avec le ConnectCallback.
+                client.BaseAddress = new Uri("http://docker");
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
+                // Chemin par défaut à l'intérieur du conteneur
                 var dockerHost = Environment.GetEnvironmentVariable("DOCKER_HOST");
                 var udsPath = "/var/run/docker.sock";
-                if (!string.IsNullOrWhiteSpace(dockerHost) && dockerHost.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
-                    udsPath = dockerHost.Replace("unix://", "", StringComparison.OrdinalIgnoreCase);
+
+                if (!string.IsNullOrWhiteSpace(dockerHost) &&
+                    dockerHost.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
+                {
+                    udsPath = dockerHost["unix://".Length..]; // on enlève le prefix "unix://"
+                }
 
                 return new SocketsHttpHandler
                 {
                     ConnectCallback = async (ctx, ct) =>
                     {
-                        var ep = new UnixDomainSocketEndPoint(udsPath);
+                        var ep   = new UnixDomainSocketEndPoint(udsPath);
                         var sock = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-                        await sock.ConnectAsync(ep, ct);
+
+                        try
+                        {
+                            await sock.ConnectAsync(ep, ct);
+                        }
+                        catch (SocketException ex)
+                        {
+                            throw new HttpRequestException(
+                                $"Failed to connect to Docker/Podman unix socket '{udsPath}'. " +
+                                "Vérifie que le socket est monté dans le conteneur et que les droits sont OK.",
+                                ex);
+                        }
+
                         return new NetworkStream(sock, ownsSocket: true);
                     }
                 };
-            }).ConfigureAdditionalHttpMessageHandlers((_, _) => { });
+            })
+            .ConfigureAdditionalHttpMessageHandlers((_, _) => { });
+
         serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
         serviceCollectionStarter.RemoveAll<IHttpMessageHandlerBuilderFilter>();
-		usePersistentConfigurationStorage = false;
+        usePersistentConfigurationStorage = false;
         break;
+
     case "Mock":
         serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
         break;
@@ -234,14 +256,26 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
     PodInformation currentPod = replicasService.Deployments.SlimFaas.Pods.First(p => p.Name.Contains(hostname));
     Console.WriteLine($"Starting node {currentPod.Name}");
     podDataDirectoryPersistantStorage = Path.Combine(slimDataDirectory, currentPod.Name);
-    if (Directory.Exists(podDataDirectoryPersistantStorage) == false)
+    if (!Directory.Exists(podDataDirectoryPersistantStorage))
     {
         Directory.CreateDirectory(podDataDirectoryPersistantStorage);
+    }
+    else
+    {
+        switch (envOrConfig)
+        {
+            case "Docker":
+                Directory.Delete(podDataDirectoryPersistantStorage, true);
+                Directory.CreateDirectory(podDataDirectoryPersistantStorage);
+                break;
+        }
     }
 
     publicEndPoint = SlimDataEndpoint.Get(currentPod);
     Console.WriteLine($"Node started {currentPod.Name} {publicEndPoint}");
 }
+
+
 
 // -------------------------------------------------------------
 // Détermination du mode coldStart en fonction de l'état sur disque
