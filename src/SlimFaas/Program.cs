@@ -67,16 +67,17 @@ var usePersistentConfigurationStorage = true;
 switch (envOrConfig)
 {
     case "Docker":
-        serviceCollectionStarter.AddHttpClient(DockerService.HttpClientName, client =>
+        serviceCollectionStarter
+            .AddHttpClient(DockerService.HttpClientName, client =>
             {
-                client.BaseAddress = new Uri("http://localhost"); // obligatoire pour HttpClient
+                // BaseAddress uniquement pour permettre les URLs relatives ("/version", etc.)
+                // La valeur (host/port) n'est pas utilisée grâce au ConnectCallback.
+                client.BaseAddress = new Uri("http://docker");
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
-                var dockerHost = Environment.GetEnvironmentVariable("DOCKER_HOST");
+                // 🔴 Plus de DOCKER_HOST ici : un chemin unique et stable
                 var udsPath = "/var/run/docker.sock";
-                if (!string.IsNullOrWhiteSpace(dockerHost) && dockerHost.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
-                    udsPath = dockerHost.Replace("unix://", "", StringComparison.OrdinalIgnoreCase);
 
                 return new SocketsHttpHandler
                 {
@@ -84,15 +85,31 @@ switch (envOrConfig)
                     {
                         var ep = new UnixDomainSocketEndPoint(udsPath);
                         var sock = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
-                        await sock.ConnectAsync(ep, ct);
+                        try
+                        {
+                            await sock.ConnectAsync(ep, ct);
+                        }
+                        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AccessDenied)
+                        {
+                            // Message beaucoup plus clair en cas de problème Podman/Docker
+                            throw new HttpRequestException(
+                                $"Permission denied opening unix socket '{udsPath}'. " +
+                                "Vérifie que le socket est bien monté dans le conteneur " +
+                                "et que l'utilisateur a les droits (root ou groupe docker/podman).",
+                                ex);
+                        }
+
                         return new NetworkStream(sock, ownsSocket: true);
                     }
                 };
-            }).ConfigureAdditionalHttpMessageHandlers((_, _) => { });
+            })
+            .ConfigureAdditionalHttpMessageHandlers((_, _) => { });
+
         serviceCollectionStarter.AddSingleton<IKubernetesService, DockerService>();
         serviceCollectionStarter.RemoveAll<IHttpMessageHandlerBuilderFilter>();
-		usePersistentConfigurationStorage = false;
+        usePersistentConfigurationStorage = false;
         break;
+
     case "Mock":
         serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
         break;
