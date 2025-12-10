@@ -70,32 +70,37 @@ switch (envOrConfig)
         serviceCollectionStarter
             .AddHttpClient(DockerService.HttpClientName, client =>
             {
-                // BaseAddress uniquement pour permettre les URLs relatives ("/version", etc.)
-                // La valeur (host/port) n'est pas utilisée grâce au ConnectCallback.
+                // Host "factice" requis pour HttpClient, pas utilisé avec le ConnectCallback.
                 client.BaseAddress = new Uri("http://docker");
             })
             .ConfigurePrimaryHttpMessageHandler(() =>
             {
-                // 🔴 Plus de DOCKER_HOST ici : un chemin unique et stable
+                // Chemin par défaut à l'intérieur du conteneur
+                var dockerHost = Environment.GetEnvironmentVariable("DOCKER_HOST");
                 var udsPath = "/var/run/docker.sock";
+
+                if (!string.IsNullOrWhiteSpace(dockerHost) &&
+                    dockerHost.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
+                {
+                    udsPath = dockerHost["unix://".Length..]; // on enlève le prefix "unix://"
+                }
 
                 return new SocketsHttpHandler
                 {
                     ConnectCallback = async (ctx, ct) =>
                     {
-                        var ep = new UnixDomainSocketEndPoint(udsPath);
+                        var ep   = new UnixDomainSocketEndPoint(udsPath);
                         var sock = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+
                         try
                         {
                             await sock.ConnectAsync(ep, ct);
                         }
-                        catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AccessDenied)
+                        catch (SocketException ex)
                         {
-                            // Message beaucoup plus clair en cas de problème Podman/Docker
                             throw new HttpRequestException(
-                                $"Permission denied opening unix socket '{udsPath}'. " +
-                                "Vérifie que le socket est bien monté dans le conteneur " +
-                                "et que l'utilisateur a les droits (root ou groupe docker/podman).",
+                                $"Failed to connect to Docker/Podman unix socket '{udsPath}'. " +
+                                "Vérifie que le socket est monté dans le conteneur et que les droits sont OK.",
                                 ex);
                         }
 
