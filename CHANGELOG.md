@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.54.2
+
+- [ce562dd](https://github.com/SlimPlanet/SlimFaas/commit/ce562ddba061cf9367611b32c2717623151f5690) - fix(slimfaas): scale stopped on infra scale error only (#206) (release), 2025-12-11 by *Guillaume Chervet*
+
+
+## 0.54.1
+
+
+
 ## v0.54.1
 
 - [228dbed](https://github.com/SlimPlanet/SlimFaas/commit/228dbedb170586642d2c371bd4c65cc87fb9e1fa) - fix(slimfaas): cluster stability (#204) (release), 2025-12-11 by *Guillaume Chervet*
@@ -265,14 +274,5 @@
 ## v0.43.0
 
 - [98c2a7d](https://github.com/SlimPlanet/SlimFaas/commit/98c2a7d1cc5feb55fddbfdce700e38a512f2c62b) - feat(slimfaas-mcp): add cors configuration (#168)  (release), 2025-09-26 by *Guillaume Chervet*
-
-
-## 0.42.2
-
-
-
-## v0.42.2
-
-- [ab11f59](https://github.com/SlimPlanet/SlimFaas/commit/ab11f59fbff782c4c3798e61bed37b21a759c616) - fix(slimfaas-mcp) : cyclic reference crash (#167) (release), 2025-09-20 by *Guillaume Chervet*
 
 
