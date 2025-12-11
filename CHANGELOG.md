@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.55.1
+
+- [16f5778](https://github.com/SlimPlanet/SlimFaas/commit/16f5778120cfd2205c46f051bd979e4beb23b771) - fix(slimfaas): kubernete null source error (release), 2025-12-11 by *Guillaume Chervet*
+
+
+## 0.55.0
+
+
+
 ## v0.55.0
 
 - [3a260b2](https://github.com/SlimPlanet/SlimFaas/commit/3a260b2f049460e19fbfc5f2bd8d69acf959b80b) - feat(slimfaas): Add opentelemetry connector (#205) (release), 2025-12-11 by *Silthian*
@@ -265,14 +274,5 @@
 ## v0.43.2
 
 - [ce77ea0](https://github.com/SlimPlanet/SlimFaas/commit/ce77ea0f3ffc8d82e657d5abb81c9f05355d2d31) - fix(slimfaas): demo (#172) (release), 2025-10-01 by *Guillaume Chervet*
-
-
-## 0.43.1
-
-
-
-## v0.43.1
-
-- [2fe3382](https://github.com/SlimPlanet/SlimFaas/commit/2fe33823684629758b2d30b905e46bacaf8477c4) - Feat/slimfaas mcp custom expiration (#170) (release), 2025-09-28 by *Fares Ahmed*
 
 
