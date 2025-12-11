@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.55.0
+
+- [3a260b2](https://github.com/SlimPlanet/SlimFaas/commit/3a260b2f049460e19fbfc5f2bd8d69acf959b80b) - feat(slimfaas): Add opentelemetry connector (#205) (release), 2025-12-11 by *Silthian*
+
+
+## 0.54.2
+
+
+
 ## v0.54.2
 
 - [ce562dd](https://github.com/SlimPlanet/SlimFaas/commit/ce562ddba061cf9367611b32c2717623151f5690) - fix(slimfaas): scale stopped on infra scale error only (#206) (release), 2025-12-11 by *Guillaume Chervet*
@@ -265,14 +274,5 @@
 ## v0.43.1
 
 - [2fe3382](https://github.com/SlimPlanet/SlimFaas/commit/2fe33823684629758b2d30b905e46bacaf8477c4) - Feat/slimfaas mcp custom expiration (#170) (release), 2025-09-28 by *Fares Ahmed*
-
-
-## 0.43.0
-
-
-
-## v0.43.0
-
-- [98c2a7d](https://github.com/SlimPlanet/SlimFaas/commit/98c2a7d1cc5feb55fddbfdce700e38a512f2c62b) - feat(slimfaas-mcp): add cors configuration (#168)  (release), 2025-09-26 by *Guillaume Chervet*
 
 
