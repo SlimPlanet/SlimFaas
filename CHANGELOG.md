@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.55.2
+
+- [ff112e6](https://github.com/SlimPlanet/SlimFaas/commit/ff112e639cbcb4dfc8c7dd0a0c2641ce35ab12d1) - fix(slimfaas): start failure log (release), 2025-12-11 by *Guillaume Chervet*
+- [7d7606e](https://github.com/SlimPlanet/SlimFaas/commit/7d7606e7831049f8a737a03b4564fb4a98f7a8e2) - fix(slimfaas): ReplicasService.cs more logs (release), 2025-12-11 by *Guillaume Chervet*
+- [6cb52cc](https://github.com/SlimPlanet/SlimFaas/commit/6cb52cc7f07a241c1a058893d9f26bcd879732df) - fix(slimfaas): ReplicasService more detailed log, 2025-12-11 by *Guillaume Chervet*
+
+
+## 0.55.1
+
+
+
 ## v0.55.1
 
 - [16f5778](https://github.com/SlimPlanet/SlimFaas/commit/16f5778120cfd2205c46f051bd979e4beb23b771) - fix(slimfaas): kubernete null source error (release), 2025-12-11 by *Guillaume Chervet*
@@ -263,16 +274,5 @@
 
 ## 0.43.3
 
-
-
-## v0.43.3
-
-- [68e0a67](https://github.com/SlimPlanet/SlimFaas/commit/68e0a6718c06d4505fa3521ba06057ef8809a83c) - fix(slimfaas): pass auth headers (#174) (release), 2025-10-03 by *Guillaume Chervet*
-- [2f51c66](https://github.com/SlimPlanet/SlimFaas/commit/2f51c6694689bd193b3ff79e44c4cca40475d900) - fix(demo): remove cold start, 2025-10-01 by *Guillaume Chervet*
-
-
-## v0.43.2
-
-- [ce77ea0](https://github.com/SlimPlanet/SlimFaas/commit/ce77ea0f3ffc8d82e657d5abb81c9f05355d2d31) - fix(slimfaas): demo (#172) (release), 2025-10-01 by *Guillaume Chervet*
 
 
