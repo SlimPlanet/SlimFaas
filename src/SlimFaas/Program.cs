@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -10,7 +9,9 @@ using Microsoft.Extensions.Http;
 using Prometheus;
 using SlimData;
 using SlimFaas;
+using SlimFaas.Configuration;
 using SlimFaas.Database;
+using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Workers;
@@ -150,6 +151,12 @@ ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServicePr
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
+
+var openTelemetryConfig = builder.Configuration
+    .GetSection("OpenTelemetry")
+    .Get<OpenTelemetryConfig>() ?? new OpenTelemetryConfig();
+
+builder.Services.AddOpenTelemetry(openTelemetryConfig);
 
 IServiceCollection serviceCollectionSlimFaas = builder.Services;
 // Réutilise IMetricsStore / PromQlMiniEvaluator / AutoScaler depuis le starter
