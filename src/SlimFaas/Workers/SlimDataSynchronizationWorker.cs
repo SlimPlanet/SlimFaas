@@ -52,6 +52,12 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                     continue;
                 }
 
+                // We remove extra replicas only if all desired replicas are not in the cluster
+                if(replicasService.Deployments.SlimFaas.Replicas >= cluster.Members.Count)
+                {
+                    continue;
+                }
+
                 foreach (var endpoint in cluster.Members.Select(r => r.EndPoint.ToString()))
                 {
                     if (replicasService.Deployments.SlimFaas.Pods.ToList().Exists(slimFaasPod =>
