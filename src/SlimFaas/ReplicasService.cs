@@ -172,11 +172,12 @@ public class ReplicasService(
 
             // 🔒 Protection : si un pod est bloqué "exceeded quota", on n'essaie plus de scaler vers le haut
             bool isScaleUp = desiredReplicas > currentScale;
-            if (isScaleUp && HasInfrastructurePodFailure(deploymentInformation))
+            var podFailureReason = HasInfrastructurePodFailure(deploymentInformation);
+            if (isScaleUp && podFailureReason != null)
             {
                 logger.LogWarning(
-                    "Skip scale-up for {Deployment} from {CurrentScale} to {DesiredReplicas} because a pod is blocked by ResourceQuota (exceeded quota).",
-                    deploymentInformation.Deployment, currentScale, desiredReplicas);
+                    "Skip scale-up for {Deployment} from {CurrentScale} to {DesiredReplicas} because a pod is blocked by Infrastructure Error: {PodFailureReason}",
+                    deploymentInformation.Deployment, currentScale, desiredReplicas, podFailureReason);
 
                 // On laisse le nombre de pods inchangé
                 desiredReplicas = currentScale;
@@ -333,22 +334,22 @@ public class ReplicasService(
         return true;
     }
 
-    private static bool HasInfrastructurePodFailure(DeploymentInformation deploymentInformation)
+    private static string? HasInfrastructurePodFailure(DeploymentInformation deploymentInformation)
     {
-        if (deploymentInformation.Pods == null || deploymentInformation.Pods.Count == 0)
+        if (deploymentInformation.Pods.Count == 0)
         {
-            return false;
+            return null;
         }
 
         foreach (var pod in deploymentInformation.Pods)
         {
             if (!IsInfrastructureFailure(pod))
             {
-                return true;
+                return pod.StartFailureReason;
             }
         }
 
-        return false;
+        return null;
     }
 
 }
