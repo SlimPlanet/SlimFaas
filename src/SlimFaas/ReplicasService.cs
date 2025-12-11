@@ -343,9 +343,9 @@ public class ReplicasService(
 
         foreach (var pod in deploymentInformation.Pods)
         {
-            if (!IsInfrastructureFailure(pod))
+            if (IsInfrastructureFailure(pod))
             {
-                return $"{pod.StartFailureReason} : {pod.AppFailureMessage}";
+                return $"{pod.StartFailureReason} : {pod.StartFailureMessage}";
             }
         }
 
