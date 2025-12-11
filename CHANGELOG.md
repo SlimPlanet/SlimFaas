@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.54.1
+
+- [228dbed](https://github.com/SlimPlanet/SlimFaas/commit/228dbedb170586642d2c371bd4c65cc87fb9e1fa) - fix(slimfaas): cluster stability (#204) (release), 2025-12-11 by *Guillaume Chervet*
+- [90fb97b](https://github.com/SlimPlanet/SlimFaas/commit/90fb97bea349957bd55c118740974d9357f514c7) - fix(compose): add container_name (#203) (release), 2025-12-11 by *antoinelrnld*
+- [5a00e98](https://github.com/SlimPlanet/SlimFaas/commit/5a00e98a641b153547ee90a9e3c469f5adaac7f3) - fix(podman): add compatibility with .sh (#202), 2025-12-10 by *Guillaume Chervet*
+
+
+## 0.54.0
+
+
+
 ## v0.54.0
 
 - [4922d09](https://github.com/SlimPlanet/SlimFaas/commit/4922d09d044f9f9871de5c1bf0a4851e2bec527f) - feat(slimfaas): stop scale up when quota exceeded (#201) (release), 2025-12-08 by *Guillaume Chervet*
@@ -263,14 +274,5 @@
 ## v0.42.2
 
 - [ab11f59](https://github.com/SlimPlanet/SlimFaas/commit/ab11f59fbff782c4c3798e61bed37b21a759c616) - fix(slimfaas-mcp) : cyclic reference crash (#167) (release), 2025-09-20 by *Guillaume Chervet*
-
-
-## 0.42.1
-
-
-
-## v0.42.1
-
-- [7568d56](https://github.com/SlimPlanet/SlimFaas/commit/7568d56e85b590b7b6815e11fc31247a5583354a) - fix(slimfaas-mcp): structured-output must be an object (#166) (release), 2025-09-18 by *Guillaume Chervet*
 
 
