@@ -140,8 +140,8 @@ public record PodInformation(
     public IDictionary<string, string>? Annotations { get; init; }
     public string? StartFailureReason { get; init; }
     public string? StartFailureMessage { get; init; }
-    public string? AppFailureReason { get; set; }
-    public string? AppFailureMessage { get; set; }
+    public string? AppFailureReason { get; init;}
+    public string? AppFailureMessage { get; init; }
 }
 
 [MemoryPackable]
@@ -1114,44 +1114,72 @@ public class KubernetesService : IKubernetesService
         }
     }
 
-    private static IEnumerable<PodInformation> MapPodInformations(V1PodList v1PodList, V1ServiceList? serviceList,
+    private static IEnumerable<PodInformation> MapPodInformations(
+        V1PodList v1PodList,
+        V1ServiceList? serviceList,
         ILogger<KubernetesService> logger)
     {
         List<PodInformation> result = new();
 
+        // v1PodList.Items peut être null
+        if (v1PodList?.Items == null)
+        {
+            return result;
+        }
+
         foreach (V1Pod? item in v1PodList.Items)
         {
+            if (item is null)
+            {
+                continue;
+            }
+
             try
             {
                 string podIp = item.Status?.PodIP ?? string.Empty;
 
-                if (item.Metadata == null || item.Metadata.OwnerReferences == null || item.Metadata.OwnerReferences.Count == 0)
+                var metadata = item.Metadata;
+                var ownerRefs = metadata?.OwnerReferences;
+
+                if (ownerRefs == null || ownerRefs.Count == 0)
                 {
-                    // c'est un job
-                    // logger.LogWarning("No OwnerReference found for pod {PodName}", item.Metadata.Name);
+                    // c'est un job (ou un pod orphelin) -> on ignore
                     continue;
                 }
 
-                V1ContainerStatus? containerStatus = item.Status?.ContainerStatuses.FirstOrDefault();
+                // ContainerStatuses peut être null
+                V1ContainerStatus? containerStatus = item.Status?.ContainerStatuses?.FirstOrDefault();
                 bool started = containerStatus?.Started ?? false;
+
+                // Conditions peut être null
+                var conditions = item.Status?.Conditions;
                 bool containerReady =
-                    item.Status?.Conditions.FirstOrDefault(c => c.Type == "ContainersReady")?.Status ==
-                    "True";
-                bool podReady = item.Status?.Conditions.FirstOrDefault(c => c.Type == "Ready")?.Status == "True";
-                string? podName = item.Metadata.Name;
-                string deploymentName = item.Metadata.OwnerReferences[0].Name;
-                var resourceVersion = item.Metadata.ResourceVersion;
-                List<int> ports = item.Spec?.Containers
-                    .Where(c => c.Ports != null)
-                    .SelectMany(c => c.Ports)
-                    .Where(p => p.ContainerPort > 0)
-                    .Select(p => p.ContainerPort)
-                    .ToList() ?? new List<int>();
+                    conditions?
+                        .FirstOrDefault(c => c.Type == "ContainersReady")?.Status == "True";
+
+                bool podReady =
+                    conditions?
+                        .FirstOrDefault(c => c.Type == "Ready")?.Status == "True";
+
+                string podName = metadata?.Name ?? string.Empty;
+                string deploymentName = ownerRefs[0].Name ?? string.Empty;
+                string resourceVersion = metadata?.ResourceVersion ?? string.Empty;
+
+                // Spec ou Containers peuvent être null
+                var containers = item.Spec?.Containers;
+                List<int> ports = containers != null
+                    ? containers
+                        .Where(c => c?.Ports != null)
+                        .SelectMany(c => c!.Ports!)
+                        .Where(p => p != null && p.ContainerPort > 0)
+                        .Select(p => p!.ContainerPort)
+                        .ToList()
+                    : new List<int>();
 
                 string? serviceName = FindServiceNameForPod(item, serviceList);
 
                 // 👉 Récupération de l'erreur de scheduling (quota / etc.)
-                var schedCondition = item.Status?.Conditions?
+                var schedCondition = conditions?
                     .FirstOrDefault(c => c.Type == "PodScheduled" && c.Status == "False");
 
                 string? startFailureReason = schedCondition?.Reason;
@@ -1162,7 +1190,8 @@ public class KubernetesService : IKubernetesService
                 string? appFailureMessage = null;
 
                 // On ne regarde les containers que si ce n'est pas déjà un problème de scheduling
-                if (schedCondition is null && item.Status?.ContainerStatuses is { Count: > 0 } containerStatuses)
+                if (schedCondition is null &&
+                    item.Status?.ContainerStatuses is { Count: > 0 } containerStatuses)
                 {
                     foreach (var cs in containerStatuses)
                     {
@@ -1185,24 +1214,36 @@ public class KubernetesService : IKubernetesService
                     }
                 }
 
-                PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp,
-                    deploymentName, ports, resourceVersion, serviceName)
+                PodInformation podInformation = new(
+                    podName,
+                    started,
+                    started && containerReady && podReady,
+                    podIp,
+                    deploymentName,
+                    ports,
+                    resourceVersion,
+                    serviceName)
                 {
-                    Annotations = item.Metadata?.Annotations,
+                    Annotations = metadata?.Annotations,
                     StartFailureReason = startFailureReason,
                     StartFailureMessage = startFailureMessage,
                     AppFailureReason = appFailureReason,
                     AppFailureMessage = appFailureMessage
                 };
+
                 result.Add(podInformation);
             }
             catch (Exception ex)
             {
-                logger.LogError("Error while mapping pod informations: {Error}", ex.Message);
+                logger.LogError(
+                    ex,
+                    "Error while mapping pod informations for pod {PodName}: {Error}",
+                    item.Metadata?.Name ?? "<unknown>",
+                    ex.Message);
             }
         }
 
-
         return result;
     }
+
 }
