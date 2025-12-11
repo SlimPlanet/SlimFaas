@@ -41,6 +41,15 @@ public class ReplicasService(
                                                _deployments.SlimFaas?.Pods ?? new List<PodInformation>()),
             new List<PodInformation>());
 
+    // souvent Reason = "Unschedulable", message contenant "exceeded quota", "Insufficient cpu", etc.
+    static bool IsInfrastructureFailure(PodInformation pod) =>
+        !string.IsNullOrEmpty(pod.StartFailureReason);
+
+
+    static bool IsCrashOnStartup(PodInformation pod) =>
+        string.IsNullOrEmpty(pod.StartFailureReason)
+        && !string.IsNullOrEmpty(pod.AppFailureReason);
+
     public async Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace)
     {
         DeploymentsInformations deployments = await kubernetesService.ListFunctionsAsync(kubeNamespace, Deployments);
@@ -163,7 +172,7 @@ public class ReplicasService(
 
             // 🔒 Protection : si un pod est bloqué "exceeded quota", on n'essaie plus de scaler vers le haut
             bool isScaleUp = desiredReplicas > currentScale;
-            if (isScaleUp && HasQuotaExceededPod(deploymentInformation))
+            if (isScaleUp && HasInfrastructurePodFailure(deploymentInformation))
             {
                 logger.LogWarning(
                     "Skip scale-up for {Deployment} from {CurrentScale} to {DesiredReplicas} because a pod is blocked by ResourceQuota (exceeded quota).",
@@ -324,7 +333,7 @@ public class ReplicasService(
         return true;
     }
 
-    private static bool HasQuotaExceededPod(DeploymentInformation deploymentInformation)
+    private static bool HasInfrastructurePodFailure(DeploymentInformation deploymentInformation)
     {
         if (deploymentInformation.Pods == null || deploymentInformation.Pods.Count == 0)
         {
@@ -333,9 +342,7 @@ public class ReplicasService(
 
         foreach (var pod in deploymentInformation.Pods)
         {
-            var message = pod.StartFailureMessage;
-            if (!string.IsNullOrEmpty(message) &&
-                message.Contains("exceeded quota", StringComparison.OrdinalIgnoreCase))
+            if (!IsInfrastructureFailure(pod))
             {
                 return true;
             }
