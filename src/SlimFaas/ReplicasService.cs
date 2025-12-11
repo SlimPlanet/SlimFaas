@@ -345,7 +345,7 @@ public class ReplicasService(
         {
             if (!IsInfrastructureFailure(pod))
             {
-                return pod.StartFailureReason;
+                return $"{pod.StartFailureReason} : {pod.AppFailureMessage}";
             }
         }
 

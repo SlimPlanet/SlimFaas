@@ -282,7 +282,8 @@ public class ReplicasScaleWorkerShould
             {
                 new("fibonacci-quota-0", Started: false, Ready: false, Ip: "10.0.0.1", DeploymentName: "fibonacci-quota")
                 {
-                    StartFailureMessage = "0/3 nodes are available: 3 exceeded quota: pods."
+                    StartFailureMessage = "0/3 nodes are available: 3 exceeded quota: pods.",
+                    StartFailureReason = "exceeded quota"
                 }
             },
             Configuration: new SlimFaasConfiguration(),
