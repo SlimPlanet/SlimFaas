@@ -46,6 +46,7 @@ services:
 
 
   slimfaas:
+    container_name: slimfaas-1
     image: axaguildev/slimfaas:latest
    # build:
    #   context: .
