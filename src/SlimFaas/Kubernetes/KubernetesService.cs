@@ -140,6 +140,8 @@ public record PodInformation(
     public IDictionary<string, string>? Annotations { get; init; }
     public string? StartFailureReason { get; init; }
     public string? StartFailureMessage { get; init; }
+    public string? AppFailureReason { get; set; }
+    public string? AppFailureMessage { get; set; }
 }
 
 [MemoryPackable]
@@ -1121,11 +1123,7 @@ public class KubernetesService : IKubernetesService
         {
             try
             {
-                string? podIp = item.Status?.PodIP;
-                if (podIp == null || string.IsNullOrEmpty(podIp))
-                {
-                    continue;
-                }
+                string podIp = item.Status?.PodIP ?? string.Empty;
 
                 if (item.Metadata == null || item.Metadata.OwnerReferences == null || item.Metadata.OwnerReferences.Count == 0)
                 {
@@ -1159,12 +1157,42 @@ public class KubernetesService : IKubernetesService
                 string? startFailureReason = schedCondition?.Reason;
                 string? startFailureMessage = schedCondition?.Message;
 
+                // Crash applicatif / container
+                string? appFailureReason = null;
+                string? appFailureMessage = null;
+
+                // On ne regarde les containers que si ce n'est pas déjà un problème de scheduling
+                if (schedCondition is null && item.Status?.ContainerStatuses is { Count: > 0 } containerStatuses)
+                {
+                    foreach (var cs in containerStatuses)
+                    {
+                        var waiting = cs.State?.Waiting;
+                        var terminated = cs.State?.Terminated;
+
+                        if (waiting is { Reason: not null })
+                        {
+                            appFailureReason = waiting.Reason;
+                            appFailureMessage = waiting.Message;
+                            break;
+                        }
+
+                        if (terminated is { Reason: not null })
+                        {
+                            appFailureReason = terminated.Reason;
+                            appFailureMessage = terminated.Message;
+                            break;
+                        }
+                    }
+                }
+
                 PodInformation podInformation = new(podName, started, started && containerReady && podReady, podIp,
                     deploymentName, ports, resourceVersion, serviceName)
                 {
                     Annotations = item.Metadata?.Annotations,
                     StartFailureReason = startFailureReason,
-                    StartFailureMessage = startFailureMessage
+                    StartFailureMessage = startFailureMessage,
+                    AppFailureReason = appFailureReason,
+                    AppFailureMessage = appFailureMessage
                 };
                 result.Add(podInformation);
             }
