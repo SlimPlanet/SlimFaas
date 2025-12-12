@@ -41,13 +41,13 @@ namespace SlimFaas.Tests.Workers
         {
             private readonly ConcurrentDictionary<string, byte[]> _storage = new(StringComparer.Ordinal);
 
-            public Task SetAsync(string key, byte[] value)
+            public Task SetAsync(string key, byte[] value, int? timeToLiveSeconds = null)
             {
                 _storage[key] = value;
                 return Task.CompletedTask;
             }
 
-            public Task HashSetAsync(string key, IDictionary<string, byte[]> values) => throw new NotImplementedException();
+            public Task HashSetAsync(string key, IDictionary<string, byte[]> values, int? timeToLiveSeconds = null) => throw new NotImplementedException();
 
             public Task HashSetDeleteAsync(string key, string dictionaryKey = "") => throw new NotImplementedException();
 

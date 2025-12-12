@@ -216,6 +216,8 @@ public class MetricsScrapingWorker(
         return int.MaxValue;
     }
 
+    const long ThirtyMinutesInMilliseconds = 1800000;
+
     private async Task PersistMetricsSnapshotAsync(CancellationToken stoppingToken)
     {
         try
@@ -226,7 +228,7 @@ public class MetricsScrapingWorker(
 
             var record = MetricsStoreRecord.FromSnapshot(snapshot);
             var bytes = MemoryPackSerializer.Serialize(record);
-            await databaseService.SetAsync("metrics:store", bytes);
+            await databaseService.SetAsync("metrics:store", bytes, ThirtyMinutesInMilliseconds);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {

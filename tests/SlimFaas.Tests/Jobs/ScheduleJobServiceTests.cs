@@ -99,8 +99,13 @@ public class ScheduleJobServiceTests
             Image: "allowed:latest");
 
         Dictionary<string, byte[]>? persisted = null;
-        _dbMock.Setup(d => d.HashSetAsync("ScheduleJob:test-func", It.IsAny<IDictionary<string, byte[]>>()))
-               .Callback<string, IDictionary<string, byte[]>>((_, dict) => persisted = new(dict));
+        _dbMock.Setup(d => d.HashSetAsync(
+                "ScheduleJob:test-func",
+                It.IsAny<IDictionary<string, byte[]>>(),
+                It.IsAny<long?>()))
+            .Callback<string, IDictionary<string, byte[]>, long?>((_, dict, __) =>
+                persisted = new Dictionary<string, byte[]>(dict)
+            );
 
         // Act
         var result = await _sut.CreateScheduleJobAsync("test-func", job, isMessageComeFromNamespaceInternal: true);

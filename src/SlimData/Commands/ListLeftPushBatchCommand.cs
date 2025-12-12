@@ -23,27 +23,54 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
         public ReadOnlyMemory<byte> Value { get; set; }
     }
 
-    // Estimation de longueur, sur le même principe que la commande simple :
-    // (on ne compte pas les préfixes de longueur ajoutés par EncodeAsync, exactement comme l'implémentation single).
     long? IDataTransferObject.Length
     {
         get
         {
-            return null;
-            /*if (Items is null) return sizeof(int);
-            long total = sizeof(int); // nombre d'items
+            long total = sizeof(int); // count Items
+            if (Items is null) return total;
+
             foreach (var it in Items)
             {
-                total += Encoding.UTF8.GetByteCount(it.Key);
-                total += Encoding.UTF8.GetByteCount(it.Identifier);
+                // Strings: [int32 length][utf8 bytes] (LengthFormat.LittleEndian)
+                var key = it.Key ?? string.Empty;
+                total += sizeof(int) + Encoding.UTF8.GetByteCount(key);
+
+                var identifier = it.Identifier ?? string.Empty;
+                total += sizeof(int) + Encoding.UTF8.GetByteCount(identifier);
+
+                // Scalars
                 total += sizeof(long); // NowTicks
                 total += sizeof(int);  // RetryTimeout
-                total += it.Value.Length; // payload compressé (on compte la donnée)
-                total += sizeof(int) + (long)(it.Retries?.Count ?? 0) * sizeof(int); // count + items
-                total += sizeof(int) + (long)(it.HttpStatusCodesWorthRetrying?.Count ?? 0) * sizeof(int);
+
+                // Payload: [7-bit length][bytes] (LengthFormat.Compressed)
+                int valueLen = it.Value.Length;
+                total += Get7BitEncodedIntSize(valueLen) + valueLen;
+
+                // Retries: [int32 count][int32...]
+                int retriesCount = it.Retries?.Count ?? 0;
+                total += sizeof(int) + (long)retriesCount * sizeof(int);
+
+                // HttpStatusCodesWorthRetrying: [int32 count][int32...]
+                int httpCount = it.HttpStatusCodesWorthRetrying?.Count ?? 0;
+                total += sizeof(int) + (long)httpCount * sizeof(int);
             }
-            return total;*/
+
+            return total;
         }
+    }
+
+    private static int Get7BitEncodedIntSize(int value)
+    {
+        // Length is non-negative, but we cast to uint for safety.
+        uint v = (uint)value;
+        int size = 1;
+        while (v >= 0x80)
+        {
+            size++;
+            v >>= 7;
+        }
+        return size;
     }
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)

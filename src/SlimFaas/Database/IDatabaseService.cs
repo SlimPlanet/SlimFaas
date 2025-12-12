@@ -15,8 +15,8 @@ public interface IDatabaseService
 {
     Task DeleteAsync(string key);
     Task<byte[]?> GetAsync(string key);
-    Task SetAsync(string key,  byte[] value);
-    Task HashSetAsync(string key, IDictionary<string, byte[]> values);
+    Task SetAsync(string key,  byte[] value, long? timeToLiveMilliseconds = null);
+    Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveMilliseconds = null);
     Task HashSetDeleteAsync(string key, string dictionaryKey = "");
     Task<IDictionary<string, byte[]>> HashGetAllAsync(string key);
     Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation);

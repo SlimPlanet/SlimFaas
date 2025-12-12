@@ -23,27 +23,36 @@ public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
     {
         get
         {
-            return null;
-            // Taille estimée (sans compter les préfixes de longueur des Encode/Decode, même approche que tes autres commandes)
-            /*long total = sizeof(int); // nombre d'items
+            long total = sizeof(int); // count Items
             if (Items is null) return total;
 
             foreach (var it in Items)
             {
-                total += Encoding.UTF8.GetByteCount(it.Key); // Key
-                total += sizeof(long);                        // NowTicks
-                total += sizeof(int);                         // count CallbackElements
+                // Key: [int32 length][utf8 bytes]
+                var key = it.Key ?? string.Empty;
+                total += sizeof(int) + Encoding.UTF8.GetByteCount(key);
+
+                // NowTicks
+                total += sizeof(long);
+
+                // count CallbackElements
+                total += sizeof(int);
 
                 if (it.CallbackElements is { Count: > 0 })
                 {
                     foreach (var el in it.CallbackElements)
                     {
-                        total += Encoding.UTF8.GetByteCount(el.Identifier); // Identifier
-                        total += sizeof(int);                                // HttpCode
+                        // Identifier: [int32 length][utf8 bytes]
+                        var id = el.Identifier ?? string.Empty;
+                        total += sizeof(int) + Encoding.UTF8.GetByteCount(id);
+
+                        // HttpCode
+                        total += sizeof(int);
                     }
                 }
             }
-            return total;*/
+
+            return total;
         }
     }
 
