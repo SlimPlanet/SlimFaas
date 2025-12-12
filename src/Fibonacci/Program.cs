@@ -9,6 +9,12 @@ using Prometheus;
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 IServiceCollection serviceCollection = builder.Services;
 
+var openTelemetryConfig = builder.Configuration
+    .GetSection("OpenTelemetry")
+    .Get<OpenTelemetryConfig>() ?? new OpenTelemetryConfig();
+
+builder.Services.AddOpenTelemetry(openTelemetryConfig);
+
 serviceCollection.AddSingleton<Fibonacci, Fibonacci>();
 serviceCollection.AddCors();
 builder.Services.AddHttpClient("internal", c =>
