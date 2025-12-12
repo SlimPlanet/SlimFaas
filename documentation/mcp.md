@@ -222,12 +222,13 @@ Logging__LogLevel__SlimFaasMcp=Debug
 SlimFaas MCP supports OpenTelemetry instrumentation for distributed tracing, metrics, and logging.
 Configuration can be provided through `appsettings.json` or environment variables.
 
-| Configuration Key                    | Type    | Description                                                                                                                  |
-| ------------------------------------ | ------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `OpenTelemetry__Enable`              | boolean | Enable or disable OpenTelemetry instrumentation. Set to `false` to completely disable telemetry.                            |
-| `OpenTelemetry__ServiceName`         | string  | Name of the service for telemetry data. If not specified, falls back to `OTEL_SERVICE_NAME` environment variable (default behavior). |
-| `OpenTelemetry__Endpoint`            | string  | OTLP endpoint URL for exporting telemetry data. If not specified, falls back to `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable (default behavior). |
-| `OpenTelemetry__EnableConsoleExporter` | boolean | Enable console exporter for debugging purposes. Defaults to `false`.                                                         |
+| Configuration Key                    | Type          | Description                                                                                          |
+| ------------------------------------ | ------------- | ---------------------------------------------------------------------------------------------------- |
+| `OpenTelemetry__Enable`              | boolean       | Enable or disable OpenTelemetry instrumentation. Set to `false` to completely disable telemetry.    |
+| `OpenTelemetry__ServiceName`         | string        | Name of the service for telemetry data. If not specified, falls back to `OTEL_SERVICE_NAME` environment variable (default behavior). |
+| `OpenTelemetry__Endpoint`            | string        | OTLP endpoint URL for exporting telemetry data. If not specified, falls back to `OTEL_EXPORTER_OTLP_ENDPOINT` environment variable (default behavior). |
+| `OpenTelemetry__EnableConsoleExporter` | boolean     | Enable console exporter for debugging purposes. Defaults to `false`.                                 |
+| `OpenTelemetry__ExcludedUrls`        | string array  | List of URL path prefixes to exclude from tracing. Defaults to `["/health", "/metrics"]`.           |
 
 **Configuration Priority (default behavior):**
 1. Configuration values from `appsettings.json` (highest priority)
@@ -241,7 +242,8 @@ Configuration can be provided through `appsettings.json` or environment variable
     "Enable": true,
     "ServiceName": "SlimFaasMcp",
     "Endpoint": "http://otel-collector:4317",
-    "EnableConsoleExporter": false
+    "EnableConsoleExporter": false,
+    "ExcludedUrls": ["/health", "/metrics", "/swagger"]
   }
 }
 ```
@@ -251,6 +253,9 @@ Configuration can be provided through `appsettings.json` or environment variable
 OpenTelemetry__Enable=true
 OTEL_SERVICE_NAME=SlimFaasMcp-Production
 OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+OpenTelemetry__ExcludedUrls__0=/health
+OpenTelemetry__ExcludedUrls__1=/metrics
+OpenTelemetry__ExcludedUrls__2=/swagger
 ```
 
 #### ✅ Example (Docker with configuration values)
@@ -260,6 +265,8 @@ docker run --rm -p 8080:8080 \
   -e OpenTelemetry__Enable="true" \
   -e OpenTelemetry__ServiceName="SlimFaasMcp" \
   -e OpenTelemetry__Endpoint="http://otel-collector:4317" \
+  -e OpenTelemetry__ExcludedUrls__0="/health" \
+  -e OpenTelemetry__ExcludedUrls__1="/metrics" \
   axaguildev/slimfaas-mcp:latest
 ```
 
@@ -270,6 +277,8 @@ docker run --rm -p 8080:8080 \
   -e OpenTelemetry__Enable="true" \
   -e OTEL_SERVICE_NAME="SlimFaasMcp" \
   -e OTEL_EXPORTER_OTLP_ENDPOINT="http://otel-collector:4317" \
+  -e OpenTelemetry__ExcludedUrls__0="/health" \
+  -e OpenTelemetry__ExcludedUrls__1="/metrics" \
   axaguildev/slimfaas-mcp:latest
 ```
 
@@ -277,6 +286,9 @@ docker run --rm -p 8080:8080 \
 - When `Enable` is `false`, OpenTelemetry instrumentation is completely disabled to avoid unnecessary overhead
 - The `ServiceName` is optional; if not specified in configuration, it automatically falls back to the `OTEL_SERVICE_NAME` environment variable (this is the default OpenTelemetry behavior)
 - The `Endpoint` automatically falls back to `OTEL_EXPORTER_OTLP_ENDPOINT` if not specified in configuration (this is the default OpenTelemetry behavior)
+- **URL exclusion**: URLs specified in `ExcludedUrls` are filtered from tracing based on **case-insensitive path prefix matching**. For example, `/health` will exclude `/health`, `/health/live`, `/health/ready`, etc.
+- Empty or missing `ExcludedUrls` configuration will use the default values `["/health", "/metrics"]`
+- URL filtering only applies to **traces**; metrics and logs are not affected
 
 The instrumentation includes:
 - **Traces**: ASP.NET Core requests, HTTP client calls

@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.56.0
+
+- [35112f5](https://github.com/SlimPlanet/SlimFaas/commit/35112f51dfd76c0fcc2fa93ea0b282a3e4d3aec9) - feat(otel): Allow to exclude urls from tracing (#207) (release), 2025-12-12 by *Silthian*
+
+
+## 0.55.2
+
+
+
 ## v0.55.2
 
 - [ff112e6](https://github.com/SlimPlanet/SlimFaas/commit/ff112e639cbcb4dfc8c7dd0a0c2641ce35ab12d1) - fix(slimfaas): start failure log (release), 2025-12-11 by *Guillaume Chervet*
@@ -264,15 +273,6 @@
 
 
 ## 0.43.4
-
-
-
-## v0.43.4
-
-- [145f6a1](https://github.com/SlimPlanet/SlimFaas/commit/145f6a1c12575a5c2816c03162547d791ccdfed4) - fix(slimfaas-mcp): yaml compatible aot (release), 2025-10-03 by *Guillaume Chervet*
-
-
-## 0.43.3
 
 
 

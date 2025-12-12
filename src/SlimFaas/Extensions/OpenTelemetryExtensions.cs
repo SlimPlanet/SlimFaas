@@ -43,7 +43,24 @@ public static class OpenTelemetryExtensions
         ResourceBuilder resourceBuilder)
     {
         tracerProviderBuilder
-            .AddAspNetCoreInstrumentation()
+            .AddAspNetCoreInstrumentation(options =>
+            {
+                if (config.ExcludedUrls is { Length: > 0 })
+                {
+                    options.Filter = httpContext =>
+                    {
+                        var path = httpContext.Request.Path.Value ?? string.Empty;
+                        foreach (var excludedUrl in config.ExcludedUrls)
+                        {
+                            if (path.StartsWith(excludedUrl, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return false;
+                            }
+                        }
+                        return true;
+                    };
+                }
+            })
             .AddHttpClientInstrumentation()
             .SetResourceBuilder(resourceBuilder);
 

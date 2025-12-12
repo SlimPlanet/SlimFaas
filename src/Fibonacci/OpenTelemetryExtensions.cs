@@ -2,9 +2,6 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using SlimFaasMcp.Configuration;
-
-namespace SlimFaasMcp.Extensions;
 
 public static class OpenTelemetryExtensions
 {

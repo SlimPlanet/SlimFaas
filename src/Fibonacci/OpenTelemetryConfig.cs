@@ -1,5 +1,3 @@
-namespace SlimFaasMcp.Configuration;
-
 public class OpenTelemetryConfig
 {
     public bool Enable { get; set; }
