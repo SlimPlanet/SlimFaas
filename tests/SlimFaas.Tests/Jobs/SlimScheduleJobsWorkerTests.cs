@@ -90,7 +90,7 @@ public class SlimScheduleJobsWorkerTests
         await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
 
         // Assert
-        _db.Verify(d => d.SetAsync("ScheduleJob:func:sid", It.IsAny<byte[]>()), Times.Once);
+        _db.Verify(d => d.SetAsync("ScheduleJob:func:sid", It.IsAny<byte[]>(), It.IsAny<long?>()), Times.Once);
         _jobSvc.Verify(s => s.EnqueueJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), true), Times.Never);
     }
 
@@ -116,7 +116,7 @@ public class SlimScheduleJobsWorkerTests
 
         // Assert
         _jobSvc.Verify(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true), Times.Once);
-        _db.Verify(d => d.SetAsync("ScheduleJob:func:sid", It.IsAny<byte[]>()), Times.AtLeastOnce);
+        _db.Verify(d => d.SetAsync("ScheduleJob:func:sid", It.IsAny<byte[]>(), It.IsAny<long?>()), Times.AtLeastOnce);
     }
 
      // -------------------------------------------------------------------------
@@ -161,7 +161,7 @@ public class SlimScheduleJobsWorkerTests
 
         // Assert --------------------------------------------------------------
         // ➜ le worker initialise le timestamp mais n'appelle PAS EnqueueJobAsync
-        _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>()), Times.Once);
+        _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()), Times.Once);
         _jobSvc.Verify(s => s.EnqueueJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), true), Times.Never);
     }
 
@@ -218,7 +218,7 @@ public class SlimScheduleJobsWorkerTests
                                               It.IsAny<CreateJob>(),
                                               true), Times.Once);
 
-        _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>()),
+        _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()),
                    Times.AtLeastOnce);   // mise à jour du nouveau timestamp
     }
 }
