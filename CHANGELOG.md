@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.57.0
+
+- [cfe3c0a](https://github.com/SlimPlanet/SlimFaas/commit/cfe3c0a99b045ba8cebed21dd68a5384456a5049) - feat(slimfaas): add data with time-to-live (#208) (release), 2025-12-13 by *Guillaume Chervet*
+
+
+## 0.56.0
+
+
+
 ## v0.56.0
 
 - [35112f5](https://github.com/SlimPlanet/SlimFaas/commit/35112f51dfd76c0fcc2fa93ea0b282a3e4d3aec9) - feat(otel): Allow to exclude urls from tracing (#207) (release), 2025-12-12 by *Silthian*
@@ -264,15 +273,6 @@
 
 
 ## 0.43.5
-
-
-
-## v0.43.5
-
-- [4e81f97](https://github.com/SlimPlanet/SlimFaas/commit/4e81f973c8f15a450cd29d5e49f44e41ad5732cc) - fix(slimfaas): docker compose worked only with one function (release) (#175), 2025-10-06 by *Guillaume Chervet*
-
-
-## 0.43.4
 
 
 
