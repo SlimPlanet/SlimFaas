@@ -68,7 +68,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
             logger.LogError(e, "Global error in SlimFaas schedule jobs worker");
         }
     }
-
+    const long OneYearInMilliseconds = 31622400000;
     private async Task EnqueueJobIfNeeded(string configurationName, string id, ScheduleCreateJob scheduleConfiguration)
     {
         var executionKey = $"{ScheduleJobService.ScheduleJob}{configurationName}:{id}";
@@ -78,7 +78,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(executionKey);
         if (lastestExecutionTimeStampFromDatabaseBytes == null)
         {
-            await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(timeStamp));
+            await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(timeStamp), OneYearInMilliseconds);
             return;
         }
         var lastestExecutionTimeStampFromDatabase = MemoryPackSerializer.Deserialize<long>(lastestExecutionTimeStampFromDatabaseBytes);
@@ -107,7 +107,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
 
         if (result.IsSuccess)
         {
-            await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(latestExecutionTimeStamp));
+            await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(latestExecutionTimeStamp), OneYearInMilliseconds);
             logger.LogInformation("Enqueued job for schedule {ScheduleId} in configuration {ConfigurationName}",
                 id, configurationName);
         }

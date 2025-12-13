@@ -14,6 +14,7 @@ public class SlimDataState(
     public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; } = KeyValues;
     public ImmutableDictionary<string, ImmutableArray<QueueElement>> Queues { get; set; } = Queues;
 }
+
 public sealed class QueueElement
 {
     public QueueElement(
@@ -21,9 +22,9 @@ public sealed class QueueElement
         string id,
         long insertTimeStamp,
         int httpTimeoutSeconds,
-        ImmutableArray<int> timeoutRetriesSeconds,                // <— ImmutableArray
-        ImmutableArray<QueueHttpTryElement> retryQueueElements,   // <— ImmutableArray
-        ImmutableHashSet<int> httpStatusRetries                   // <— HashSet immuable
+        ImmutableArray<int> timeoutRetriesSeconds,
+        ImmutableArray<QueueHttpTryElement> retryQueueElements,
+        ImmutableHashSet<int> httpStatusRetries
     )
     {
         Value = value;
@@ -33,17 +34,17 @@ public sealed class QueueElement
         TimeoutRetriesSeconds = timeoutRetriesSeconds;
         RetryQueueElements = retryQueueElements;
         HttpStatusRetries = httpStatusRetries;
-        HttpTimeoutTicks = (long)httpTimeoutSeconds * TimeSpan.TicksPerSecond; // pré-calcul
+        HttpTimeoutTicks = (long)httpTimeoutSeconds * TimeSpan.TicksPerSecond;
     }
 
     public ReadOnlyMemory<byte> Value { get; }
     public string Id { get; }
     public long InsertTimeStamp { get; }
     public int HttpTimeoutSeconds { get; }
-    public long HttpTimeoutTicks { get; } // <— évite TimeSpan.FromSeconds dans les hot-paths
+    public long HttpTimeoutTicks { get; }
 
     public ImmutableArray<int> TimeoutRetriesSeconds { get; }
-    public ImmutableArray<QueueHttpTryElement> RetryQueueElements { get; set; } // reste remplaçable atomiquement
+    public ImmutableArray<QueueHttpTryElement> RetryQueueElements { get; set; }
     public ImmutableHashSet<int> HttpStatusRetries { get; }
 }
 
@@ -63,17 +64,19 @@ public sealed class QueueHttpTryElement
     public string IdTransaction { get; set; }
 }
 
-#pragma warning restore CA2252using System;
-
-
+#pragma warning disable CA2252
 public class SlimDataInterpreter : CommandInterpreter
 {
     public const int DeleteFromQueueCode = 1000;
+    private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
+    private const string HashsetTtlField = "__ttl__";
+
+    private static string TtlKey(string key) => key + TimeToLiveSuffix;
 
     public SlimDataState SlimDataState = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
-        ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty // <— queues en ImmutableArray
+        ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
     );
 
     [CommandHandler]
@@ -88,7 +91,6 @@ public class SlimDataInterpreter : CommandInterpreter
         {
             var nowTicks = listRightPopCommand.NowTicks;
 
-            // 1) Marquer timeouts (modif en place du dernier try des éléments concernés)
             var queueTimeoutElements = queue.GetQueueTimeoutElement(nowTicks);
             for (int i = 0; i < queueTimeoutElements.Length; i++)
             {
@@ -99,7 +101,6 @@ public class SlimDataInterpreter : CommandInterpreter
                 last.HttpCode = 504;
             }
 
-            // 2) Retirer les éléments terminés en un seul passage
             var finished = queue.GetQueueFinishedElement(nowTicks);
             if (!finished.IsDefaultOrEmpty)
             {
@@ -107,9 +108,7 @@ public class SlimDataInterpreter : CommandInterpreter
                 for (int i = 0; i < queue.Length; i++)
                 {
                     var e = queue[i];
-                    // binaire « est-il fini ? »
                     bool isFinished = false;
-                    // NB: Inutile d’assembler un HashSet pour finished (souvent faible).
                     for (int j = 0; j < finished.Length; j++)
                     {
                         if (ReferenceEquals(e, finished[j])) { isFinished = true; break; }
@@ -119,7 +118,6 @@ public class SlimDataInterpreter : CommandInterpreter
                 queue = keep.MoveToImmutable();
             }
 
-            // 3) Si pas déjà pris par la même transaction, sélectionner N éléments disponibles et démarrer un try
             bool idTxAlreadyExists = false;
             if (!queue.IsDefaultOrEmpty)
             {
@@ -178,7 +176,6 @@ public class SlimDataInterpreter : CommandInterpreter
 
             if (queues.TryGetValue(item.Key, out var arr))
             {
-                // Unicité par Id
                 bool exists = false;
                 for (int i = 0; i < arr.Length; i++)
                 {
@@ -240,7 +237,6 @@ public class SlimDataInterpreter : CommandInterpreter
 
         state.Queues = queues;
 
-        // ---- Logs (sans LINQ) ----
         int totalQueueElements = 0;
         long totalQueueBytes = 0;
         foreach (var kv in state.Queues)
@@ -270,14 +266,12 @@ public class SlimDataInterpreter : CommandInterpreter
         if (!queues.TryGetValue(cmd.Key, out var arr))
             return default;
 
-        var work = arr; // point de départ
+        var work = arr;
 
-        // On construit une nouvelle file si des suppressions se produisent
         for (int i = 0; i < cmd.CallbackElements.Count; i++)
         {
             var cb = cmd.CallbackElements[i];
 
-            // Recherche par Id (lineaire)
             int idx = -1;
             for (int j = 0; j < work.Length; j++)
             {
@@ -288,7 +282,6 @@ public class SlimDataInterpreter : CommandInterpreter
             var qe = work[idx];
             if (cb.HttpCode == DeleteFromQueueCode)
             {
-                // suppression
                 var b = work.ToBuilder();
                 b.RemoveAt(idx);
                 work = b.ToImmutable();
@@ -313,7 +306,6 @@ public class SlimDataInterpreter : CommandInterpreter
         queues = queues.SetItem(cmd.Key, work);
         state.Queues = queues;
 
-        // Logs (sans LINQ)
         int totalQueueElements = 0;
         long totalQueueBytes = 0;
         foreach (var kv in state.Queues)
@@ -354,7 +346,6 @@ public class SlimDataInterpreter : CommandInterpreter
             {
                 var cb = item.CallbackElements[i];
 
-                // find by id
                 int idx = -1;
                 for (int j = 0; j < work.Length; j++)
                 {
@@ -399,20 +390,31 @@ public class SlimDataInterpreter : CommandInterpreter
     {
         var hashsets = state.Hashsets;
 
-        var key = cmd.Key;
-        var newPairs = cmd.Value;
-
-        if (hashsets.TryGetValue(key, out var existing))
+        if (hashsets.TryGetValue(cmd.Key, out var existing))
         {
-            var dict = existing.ToBuilder();
-            foreach (var kv in newPairs) dict[kv.Key] = kv.Value;
-            state.Hashsets = hashsets.SetItem(key, dict.ToImmutable());
+            var b = existing.ToBuilder();
+            foreach (var kv in cmd.Value) b[kv.Key] = kv.Value;
+            hashsets = hashsets.SetItem(cmd.Key, b.ToImmutable());
         }
         else
         {
-            state.Hashsets = hashsets.SetItem(key, newPairs.ToImmutableDictionary());
+            hashsets = hashsets.SetItem(cmd.Key, cmd.Value.ToImmutableDictionary());
         }
 
+        var ttlKey = TtlKey(cmd.Key);
+        if (cmd.ExpireAtUtcTicks.HasValue)
+        {
+            var meta = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+                .SetItem(HashsetTtlField, BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value));
+            hashsets = hashsets.SetItem(ttlKey, meta);
+        }
+        else
+        {
+            if (hashsets.ContainsKey(ttlKey))
+                hashsets = hashsets.Remove(ttlKey);
+        }
+
+        state.Hashsets = hashsets;
         return default;
     }
 
@@ -423,7 +425,22 @@ public class SlimDataInterpreter : CommandInterpreter
     internal static ValueTask DoAddKeyValueAsync(AddKeyValueCommand cmd, SlimDataState state)
     {
         var keyValues = state.KeyValues;
-        state.KeyValues = keyValues.SetItem(cmd.Key, cmd.Value);
+
+        keyValues = keyValues.SetItem(cmd.Key, cmd.Value);
+
+        var ttlKey = TtlKey(cmd.Key);
+        if (cmd.ExpireAtUtcTicks.HasValue)
+        {
+            var bytes = BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value);
+            keyValues = keyValues.SetItem(ttlKey, bytes);
+        }
+        else
+        {
+            if (keyValues.ContainsKey(ttlKey))
+                keyValues = keyValues.Remove(ttlKey);
+        }
+
+        state.KeyValues = keyValues;
         return default;
     }
 
@@ -434,8 +451,15 @@ public class SlimDataInterpreter : CommandInterpreter
     internal static ValueTask DoDeleteKeyValueAsync(DeleteKeyValueCommand cmd, SlimDataState state)
     {
         var keyValues = state.KeyValues;
+
         if (keyValues.ContainsKey(cmd.Key))
-            state.KeyValues = keyValues.Remove(cmd.Key);
+            keyValues = keyValues.Remove(cmd.Key);
+
+        var ttlKey = TtlKey(cmd.Key);
+        if (keyValues.ContainsKey(ttlKey))
+            keyValues = keyValues.Remove(ttlKey);
+
+        state.KeyValues = keyValues;
         return default;
     }
 
@@ -449,9 +473,13 @@ public class SlimDataInterpreter : CommandInterpreter
         if (string.IsNullOrEmpty(key) || !state.Hashsets.ContainsKey(key))
             return default;
 
+        var ttlKey = TtlKey(key);
+
         if (string.IsNullOrEmpty(cmd.DictionaryKey))
         {
             state.Hashsets = state.Hashsets.Remove(key);
+            if (state.Hashsets.ContainsKey(ttlKey))
+                state.Hashsets = state.Hashsets.Remove(ttlKey);
         }
         else
         {
@@ -475,24 +503,21 @@ public class SlimDataInterpreter : CommandInterpreter
         var sw = Stopwatch.StartNew();
         Console.WriteLine("=== Start Snapshot ===");
 
-        // ---- KeyValues ----
         long totalKeyValuesBytes = 0;
         foreach (var kv in command.keysValues) totalKeyValuesBytes += kv.Value.Length;
         Console.WriteLine($"[KeyValues] Count: {command.keysValues.Count}, Total Size: {totalKeyValuesBytes / (1024.0 * 1024.0):F2} MB");
 
         state.KeyValues = command.keysValues.ToImmutableDictionary();
 
-        // ---- Queues ----
         int totalQueueElements = 0;
         long totalQueueBytes = 0;
 
         foreach (var q in command.queues)
         {
-            var list = q.Value; // supposé IEnumerable<QueueElement> ou List<QueueElement>
+            var list = q.Value;
             int count = 0;
             long bytes = 0;
 
-            // on prépare l’ImmutableArray
             var builder = ImmutableArray.CreateBuilder<QueueElement>();
 
             foreach (var e in list)
@@ -507,15 +532,12 @@ public class SlimDataInterpreter : CommandInterpreter
 
             Console.WriteLine($"[Queue] Key: {q.Key}, Count: {count}, Size: {bytes / (1024.0 * 1024.0):F2} MB");
 
-            // persiste la nouvelle file
-            // (si q.Value est déjà un ImmutableArray, remplace par un MoveToImmutable conditionnel)
             var arr = builder.ToImmutable();
             state.Queues = state.Queues.SetItem(q.Key, arr);
         }
 
         Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
 
-        // ---- Hashsets ----
         int totalHashsetElements = 0;
         long totalHashsetBytes = 0;
 
@@ -533,7 +555,6 @@ public class SlimDataInterpreter : CommandInterpreter
 
         Console.WriteLine($"[Hashsets] Total Elements: {totalHashsetElements}, Total Size: {totalHashsetBytes / (1024.0 * 1024.0):F2} MB");
 
-        // persistance hashsets
         var newHashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
         foreach (var hs in command.hashsets)
             newHashsets = newHashsets.SetItem(hs.Key, hs.Value.ToImmutableDictionary());
@@ -573,4 +594,4 @@ public class SlimDataInterpreter : CommandInterpreter
         return interpreter;
     }
 }
-
+#pragma warning restore CA2252

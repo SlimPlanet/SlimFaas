@@ -4,6 +4,8 @@ namespace SlimFaas;
 
 public class HistoryHttpDatabaseService(IDatabaseService databaseService)
 {
+
+    const long ThirtyDaysInMilliseconds = 2592000000;
     public async Task<long> GetTicksLastCallAsync(string functionName)
     {
         byte[]? result = await databaseService.GetAsync($"TicksLastCall:{functionName}");
@@ -11,5 +13,5 @@ public class HistoryHttpDatabaseService(IDatabaseService databaseService)
     }
 
     public async Task SetTickLastCallAsync(string functionName, long ticks) =>
-        await databaseService.SetAsync($"TicksLastCall:{functionName}", MemoryPackSerializer.Serialize(ticks));
+        await databaseService.SetAsync($"TicksLastCall:{functionName}", MemoryPackSerializer.Serialize(ticks), ThirtyDaysInMilliseconds);
 }

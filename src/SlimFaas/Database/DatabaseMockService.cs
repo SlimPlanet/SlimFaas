@@ -25,7 +25,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.FromResult<byte[]?>(null);
     }
 
-    public Task SetAsync(string key, byte[] value)
+    public Task SetAsync(string key, byte[] value, long? timeToLiveSeconds = null)
     {
         if (keys.ContainsKey(key))
         {
@@ -39,7 +39,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.CompletedTask;
     }
 
-    public Task HashSetAsync(string key, IDictionary<string, byte[]> values)
+    public Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveSeconds = null)
     {
         if (hashSet.ContainsKey(key))
         {

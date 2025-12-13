@@ -13,12 +13,13 @@ public readonly record struct ListLeftPushReq(string Key, byte[] SerializedPaylo
 
 public readonly record struct ListCallbackReq(string Key, byte[] SerializedStatus);
 
-
-
 #pragma warning disable CA2252
 public class SlimDataService
     : IDatabaseService, IAsyncDisposable
 {
+    private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
+    private const string HashsetTtlField = "__ttl__";
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceProvider _serviceProvider;
     private readonly IRaftCluster _cluster;
@@ -28,75 +29,111 @@ public class SlimDataService
     private readonly TimeSpan _timeMaxToWaitForLeader = TimeSpan.FromMilliseconds(3000);
     private readonly MultiRateAdaptiveBatcher _batcher;
 
-     public SlimDataService(
-         IHttpClientFactory httpClientFactory,
-         IServiceProvider serviceProvider,
-         IRaftCluster cluster,
-         ILogger<SlimDataService> logger)
-     {
-         _httpClientFactory = httpClientFactory;
-         _serviceProvider = serviceProvider;
-         _cluster = cluster;
-         _logger = logger;
-         _batcher = new MultiRateAdaptiveBatcher(
-             idleStop: TimeSpan.FromSeconds(15),
-             maxWaitPerTick: TimeSpan.FromSeconds(5)
-         );
+    public SlimDataService(
+        IHttpClientFactory httpClientFactory,
+        IServiceProvider serviceProvider,
+        IRaftCluster cluster,
+        ILogger<SlimDataService> logger)
+    {
+        _httpClientFactory = httpClientFactory;
+        _serviceProvider = serviceProvider;
+        _cluster = cluster;
+        _logger = logger;
+        _batcher = new MultiRateAdaptiveBatcher(
+            idleStop: TimeSpan.FromSeconds(15),
+            maxWaitPerTick: TimeSpan.FromSeconds(5)
+        );
 
-         // (optionnel) paliers spécifiques par kind
-         var tiersLlp = new[]
-         {
-             new RateTier(20,  TimeSpan.FromMilliseconds(250)),
-             new RateTier(300, TimeSpan.FromMilliseconds(500)),
-         };
-         var tiersLcb = new[]
-         {
-             new RateTier(50,  TimeSpan.FromMilliseconds(150)),
-             new RateTier(500, TimeSpan.FromMilliseconds(400)),
-         };
+        var tiersLlp = new[]
+        {
+            new RateTier(20,  TimeSpan.FromMilliseconds(250)),
+            new RateTier(300, TimeSpan.FromMilliseconds(500)),
+        };
+        var tiersLcb = new[]
+        {
+            new RateTier(50,  TimeSpan.FromMilliseconds(150)),
+            new RateTier(500, TimeSpan.FromMilliseconds(400)),
+        };
 
-         // Kind "llp" : ListLeftPush -> string
-         _batcher.RegisterKind<ListLeftPushReq, string>(
-             kind: "llp",
-             batchHandler: BatchHandlerAsync,
-            // tiers: tiersLlp,
-             maxBatchSize: 512,
-             sizeEstimatorBytes: r => r.SerializedPayload?.Length ?? 0
-         );
+        _batcher.RegisterKind<ListLeftPushReq, string>(
+            kind: "llp",
+            batchHandler: BatchHandlerAsync,
+            maxBatchSize: 512,
+            sizeEstimatorBytes: r => r.SerializedPayload?.Length ?? 0
+        );
 
-         // Kind "lcb" : ListCallback -> bool
-         _batcher.RegisterKind<ListCallbackReq, bool>(
-             kind: "lcb",
-             batchHandler: BatchListCallbackHandlerAsync,
-            // tiers: tiersLcb,
-             maxBatchSize: 512,
-             sizeEstimatorBytes: r => r.SerializedStatus?.Length ?? 0
-         );
-     }
+        _batcher.RegisterKind<ListCallbackReq, bool>(
+            kind: "lcb",
+            batchHandler: BatchListCallbackHandlerAsync,
+            maxBatchSize: 512,
+            sizeEstimatorBytes: r => r.SerializedStatus?.Length ?? 0
+        );
+    }
 
     private ISupplier<SlimDataPayload> SimplePersistentState =>
         _serviceProvider.GetRequiredService<SlimPersistentState>();
 
-    public Task DeleteAsync(string key) => throw new NotImplementedException();
+    private static string Escape(string s) => Uri.EscapeDataString(s);
+
+    private static long? ToExpireAtUtcTicks(long? ttlMs)
+    {
+        if (!ttlMs.HasValue) return null;
+
+        var now = DateTime.UtcNow.Ticks;
+        if (ttlMs.Value <= 0) return now; // expiré immédiatement
+
+        // overflow-safe
+        var add = ttlMs.Value * TimeSpan.TicksPerMillisecond; // <-- ms ici
+        var expire = now + add;
+        if (expire < now) return long.MaxValue; // overflow => "très loin"
+        return expire;
+    }
+
+    private static string BuildTtlQuery(long? ttlMs)
+        => ttlMs.HasValue ? $"&ttlMs={ttlMs.Value}" : string.Empty;
+
+    private static string TtlKey(string key) => key + TimeToLiveSuffix;
+
+    private static bool TryReadExpireAtFromKeyValues(SlimDataPayload data, string key, out long expireAtTicks)
+    {
+        expireAtTicks = 0;
+        if (!data.KeyValues.TryGetValue(TtlKey(key), out var raw)) return false;
+        var arr = raw.ToArray();
+        if (arr.Length < sizeof(long)) return false;
+        expireAtTicks = BitConverter.ToInt64(arr, 0);
+        return true;
+    }
+
+    private static bool TryReadExpireAtFromHashsets(SlimDataPayload data, string key, out long expireAtTicks)
+    {
+        expireAtTicks = 0;
+        if (!data.Hashsets.TryGetValue(TtlKey(key), out var meta)) return false;
+        if (!meta.TryGetValue(HashsetTtlField, out var raw)) return false;
+        var arr = raw.ToArray();
+        if (arr.Length < sizeof(long)) return false;
+        expireAtTicks = BitConverter.ToInt64(arr, 0);
+        return true;
+    }
+
+    public Task DeleteAsync(string key) =>
+        Retry.DoAsync(() => DoDeleteAsync(key), _logger, _retryInterval);
 
     public async Task<byte[]?> GetAsync(string key) =>
         await Retry.DoAsync(() => DoGetAsync(key), _logger, _retryInterval);
 
-    public async Task SetAsync(string key, byte[] value) =>
-        await Retry.DoAsync(() => DoSetAsync(key, value), _logger, _retryInterval);
+    public async Task SetAsync(string key, byte[] value, long? timeToLiveMs = null) =>
+        await Retry.DoAsync(() => DoSetAsync(key, value, timeToLiveMs), _logger, _retryInterval);
 
-    public async Task HashSetAsync(string key, IDictionary<string, byte[]> values) =>
-        await Retry.DoAsync(() => DoHashSetAsync(key, values), _logger, _retryInterval);
+    public async Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveMs = null) =>
+        await Retry.DoAsync(() => DoHashSetAsync(key, values, timeToLiveMs), _logger, _retryInterval);
 
     public async Task<IDictionary<string, byte[]>> HashGetAllAsync(string key) =>
         await Retry.DoAsync(() => DoHashGetAllAsync(key), _logger, _retryInterval);
 
-    // 4) Remplacer ListLeftPushAsync
     public async Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
     {
-       return await Retry.DoAsync(async () =>
+        return await Retry.DoAsync(async () =>
         {
-            // pré-sérialisation identique à votre code
             var input = new ListLeftPushInput(field, MemoryPackSerializer.Serialize(retryInformation));
             var payload = MemoryPackSerializer.Serialize(input);
             return await _batcher.EnqueueAsync<ListLeftPushReq, string>(
@@ -106,17 +143,14 @@ public class SlimDataService
         }, _logger, _retryInterval);
     }
 
-
-    // 6) Handler batch = leader/non-leader
     private async Task<IReadOnlyList<string>> BatchHandlerAsync(IReadOnlyList<ListLeftPushReq> batch, CancellationToken ct)
     {
-        // Récupère endpoint + rôle
         var endpoint = await GetAndWaitForLeader();
 
         var req = new ListLeftPushBatchRequest(
             batch.Select(b => new ListLeftPushBatchItem(b.Key, b.SerializedPayload)).ToArray()
         );
-        Console.WriteLine("Push Item BatchHandlerAsync " + req.Items.Length) ;
+        Console.WriteLine("Push Item BatchHandlerAsync " + req.Items.Length);
         var bin = MemoryPackSerializer.Serialize(req);
         var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
 
@@ -163,15 +197,12 @@ public class SlimDataService
         await Retry.DoAsync(async () =>
         {
             var payload = MemoryPackSerializer.Serialize(queueItemStatus);
-            // on enfile dans le batcher ; le bool renvoyé n’a pas d’importance ici
             _ = await _batcher.EnqueueAsync<ListCallbackReq, bool>(
                 "lcb",
                 new ListCallbackReq(key, payload)
             ).ConfigureAwait(false);
         }, _logger, _retryInterval);
 
-
-    // Batch = leader / non leader (comme pour ListLeftPushBatch)
     private async Task<IReadOnlyList<bool>> BatchListCallbackHandlerAsync(
         IReadOnlyList<ListCallbackReq> batch, CancellationToken ct)
     {
@@ -185,7 +216,6 @@ public class SlimDataService
 
         if (isLeader)
         {
-            // Commande locale (à implémenter côté serveur, cf. section 3)
             var respLeader = await Endpoints.ListCallbackBatchCommand(_cluster, bin, CancellationTokenSource.CreateLinkedTokenSource(ct));
             if (respLeader.Acks.Length != batch.Count)
                 throw new DataException("Batch response count mismatch");
@@ -209,63 +239,63 @@ public class SlimDataService
         return resp.Acks;
     }
 
-
     private async Task<byte[]?> DoGetAsync(string key)
     {
         await GetAndWaitForLeader();
         await MasterWaitForleaseToken();
-        SlimDataPayload data = SimplePersistentState.Invoke();
-        return data.KeyValues.TryGetValue(key, out ReadOnlyMemory<byte> value) ? value.ToArray() : null;
+
+        var data = SimplePersistentState.Invoke();
+
+        if (TryReadExpireAtFromKeyValues(data, key, out var expireAt) && expireAt <= DateTime.UtcNow.Ticks)
+        {
+            return null;
+        }
+
+        return data.KeyValues.TryGetValue(key, out var value) ? value.ToArray() : null;
     }
 
-    private async Task DoSetAsync(string key, byte[] value)
+    private async Task DoSetAsync(string key, byte[] value, long? ttlMs)
     {
-        EndPoint endpoint = await GetAndWaitForLeader();
+        var endpoint = await GetAndWaitForLeader();
+        var expireAtUtcTicks = ToExpireAtUtcTicks(ttlMs);
 
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
-            SlimPersistentState simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.AddKeyValueCommand(simplePersistentState, key, value, _cluster,
-                new CancellationTokenSource());
+            var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
+            await Endpoints.AddKeyValueCommand(ps, key, value, expireAtUtcTicks, _cluster, new CancellationTokenSource());
         }
         else
         {
-            using HttpRequestMessage request = new(HttpMethod.Post,
-                new Uri($"{endpoint}SlimData/AddKeyValue?key={key}"));
-            request.Content = new ByteArrayContent(value);
-            using HttpClient httpClient = _httpClientFactory.CreateClient(HttpClientName);
-            using HttpResponseMessage response = await httpClient.SendAsync(request);
+            var uri = new Uri($"{endpoint}SlimData/AddKeyValue?key={Escape(key)}{BuildTtlQuery(ttlMs)}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(value) };
+            using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+            using var response = await httpClient.SendAsync(request);
             if ((int)response.StatusCode >= 500)
-            {
                 throw new DataException("Error in calling SlimData HTTP Service");
-            }
         }
     }
 
-    private async Task DoHashSetAsync(string key, IDictionary<string, byte[]> values)
+    private async Task DoHashSetAsync(string key, IDictionary<string, byte[]> values, long? ttlMs)
     {
-        EndPoint endpoint = await GetAndWaitForLeader();
+        var endpoint = await GetAndWaitForLeader();
+        var expireAtUtcTicks = ToExpireAtUtcTicks(ttlMs);
 
-        HashsetSet hashset = new(key, values);
-        byte[] serialize = MemoryPackSerializer.Serialize(hashset);
+        var hashset = new HashsetSet(key, values);
+        var serialize = MemoryPackSerializer.Serialize(hashset);
+
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
-            SlimPersistentState simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.AddHashSetCommand(simplePersistentState, key, new Dictionary<string, byte[]>(values),
-                _cluster, new CancellationTokenSource());
+            var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
+            await Endpoints.AddHashSetCommand(ps, key, new Dictionary<string, byte[]>(values), expireAtUtcTicks, _cluster, new CancellationTokenSource());
         }
         else
         {
-            using HttpRequestMessage request = new(HttpMethod.Post,
-                new Uri($"{endpoint}SlimData/AddHashset"));
-            request.Content = new ByteArrayContent(serialize);
-            using HttpClient httpClient = _httpClientFactory.CreateClient(HttpClientName);
-
-            using HttpResponseMessage response = await httpClient.SendAsync(request);
+            var uri = new Uri($"{endpoint}SlimData/AddHashset?{(ttlMs.HasValue ? $"ttlSeconds={ttlMs.Value}" : "")}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(serialize) };
+            using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+            using var response = await httpClient.SendAsync(request);
             if ((int)response.StatusCode >= 500)
-            {
                 throw new DataException("Error in calling SlimData HTTP Service");
-            }
         }
     }
 
@@ -274,24 +304,21 @@ public class SlimDataService
 
     private async Task DoHashSetDeleteAsync(string key, string dictionaryKey = "")
     {
-        EndPoint endpoint = await GetAndWaitForLeader();
+        var endpoint = await GetAndWaitForLeader();
 
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
-            SlimPersistentState simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.DeleteHashSetCommand(simplePersistentState, key, dictionaryKey,
-                _cluster, new CancellationTokenSource());
+            var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
+            await Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey, _cluster, new CancellationTokenSource());
         }
         else
         {
-            using HttpRequestMessage request = new(HttpMethod.Post,
+            using var request = new HttpRequestMessage(HttpMethod.Post,
                 new Uri($"{endpoint}SlimData/DeleteHashset?key={key}&dictionaryKey={dictionaryKey}"));
-            using HttpClient httpClient = _httpClientFactory.CreateClient(HttpClientName);
-            using HttpResponseMessage response = await httpClient.SendAsync(request);
+            using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+            using var response = await httpClient.SendAsync(request);
             if ((int)response.StatusCode >= 500)
-            {
                 throw new DataException("Error in calling SlimData HTTP Service");
-            }
         }
     }
 
@@ -300,83 +327,72 @@ public class SlimDataService
         await GetAndWaitForLeader();
         await MasterWaitForleaseToken();
 
-        SlimDataPayload data = SimplePersistentState.Invoke();
+        var data = SimplePersistentState.Invoke();
 
-        var dictionary = data.Hashsets.TryGetValue(key, out ImmutableDictionary<string, ReadOnlyMemory<byte>>? value)
+        if (TryReadExpireAtFromHashsets(data, key, out var expireAt) && expireAt <= DateTime.UtcNow.Ticks)
+        {
+            if (!_cluster.LeadershipToken.IsCancellationRequested)
+            {
+                var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
+                await Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey: "", _cluster, new CancellationTokenSource());
+            }
+            return new Dictionary<string, byte[]>(0);
+        }
+
+        var dictionary = data.Hashsets.TryGetValue(key, out var value)
             ? value
             : ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
 
-        Dictionary<string, byte[]> result = new(dictionary.Count);
-        foreach (KeyValuePair<string, ReadOnlyMemory<byte>> readOnlyMemory in dictionary)
-        {
-            result.Add(readOnlyMemory.Key, readOnlyMemory.Value.ToArray());
-        }
+        var result = new Dictionary<string, byte[]>(dictionary.Count);
+        foreach (var kv in dictionary)
+            result.Add(kv.Key, kv.Value.ToArray());
 
         return result;
     }
 
-    private async Task<string> DoListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
+    private async Task DoDeleteAsync(string key)
     {
-        EndPoint endpoint = await GetAndWaitForLeader();
-        ListLeftPushInput listLeftPushInput = new(field, MemoryPackSerializer.Serialize(retryInformation));
-        byte[] serialize = MemoryPackSerializer.Serialize(listLeftPushInput);
+        var endpoint = await GetAndWaitForLeader();
+
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
-            SlimPersistentState simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            string elementId = await Endpoints.ListLeftPushCommand(simplePersistentState, key, serialize, _cluster,
-                new CancellationTokenSource());
-            return elementId;
+            var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
+            await Endpoints.DeleteKeyValueCommand(ps, key, _cluster, new CancellationTokenSource());
         }
         else
         {
-            using HttpRequestMessage request = new(HttpMethod.Post,
-                new Uri($"{endpoint}SlimData/ListLeftPush?key={key}"));
-            request.Content = new ByteArrayContent(serialize);
-            using HttpClient httpClient = _httpClientFactory.CreateClient(HttpClientName);
-            using HttpResponseMessage response = await httpClient.SendAsync(request);
-
+            var uri = new Uri($"{endpoint}SlimData/DeleteKeyValue?key={Escape(key)}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri);
+            using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+            using var response = await httpClient.SendAsync(request);
             if ((int)response.StatusCode >= 500)
-            {
                 throw new DataException("Error in calling SlimData HTTP Service");
-            }
-
-            string elementId = await response.Content.ReadAsStringAsync();
-            if (string.IsNullOrEmpty(elementId))
-            {
-                throw new DataException("Received null or empty response from SlimData HTTP Service");
-            }
-
-            return elementId;
         }
     }
 
     private async Task<IList<QueueData>?> DoListRightPopAsync(string key, string transactionId, int count = 1)
     {
-        EndPoint endpoint = await GetAndWaitForLeader();
+        var endpoint = await GetAndWaitForLeader();
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
-            SlimPersistentState simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            ListItems result = await Endpoints.ListRightPopCommand(simplePersistentState, key, transactionId, count,
-                _cluster, new CancellationTokenSource());
+            var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
+            var result = await Endpoints.ListRightPopCommand(ps, key, transactionId, count, _cluster, new CancellationTokenSource());
             return result.Items;
         }
         else
         {
-            using HttpRequestMessage request = new(HttpMethod.Post, new Uri(
-                $"{endpoint}SlimData/ListRightPop?transactionId={transactionId}"));
-            MultipartFormDataContent multipart = new();
+            using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListRightPop?transactionId={transactionId}"));
+            var multipart = new MultipartFormDataContent();
             multipart.Add(new StringContent(count.ToString()), key);
 
             request.Content = multipart;
-            using HttpClient httpClient = _httpClientFactory.CreateClient(HttpClientName);
-            using HttpResponseMessage response = await httpClient.SendAsync(request);
+            using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+            using var response = await httpClient.SendAsync(request);
             if ((int)response.StatusCode >= 500)
-            {
                 throw new DataException("Error in calling SlimData HTTP Service");
-            }
 
-            byte[] bin = await response.Content.ReadAsByteArrayAsync();
-            ListItems? result = MemoryPackSerializer.Deserialize<ListItems>(bin);
+            var bin = await response.Content.ReadAsByteArrayAsync();
+            var result = MemoryPackSerializer.Deserialize<ListItems>(bin);
             return result?.Items ?? new List<QueueData>();
         }
     }
@@ -385,93 +401,42 @@ public class SlimDataService
     {
         await GetAndWaitForLeader();
 
-        SlimDataPayload data = SimplePersistentState.Invoke();
-        List<QueueElement> result = new();
+        var data = SimplePersistentState.Invoke();
 
-        if (!data.Queues.TryGetValue(key, out ImmutableArray<QueueElement> value) ||
-            value.IsDefaultOrEmpty ||
-            countTypes.Count == 0)
-        {
+        if (!data.Queues.TryGetValue(key, out var value) || value.IsDefaultOrEmpty || countTypes.Count == 0)
             return Array.Empty<QueueData>();
-        }
 
-        long nowTicks = DateTime.UtcNow.Ticks;
-        if (countTypes.Count == 0)
-        {
-            return new List<QueueData>(0);
-        }
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var result = new List<QueueElement>();
 
-        List<QueueElement> availableElements = new();
         if (countTypes.Contains(CountType.Available))
-        {
-            availableElements = value.GetQueueAvailableElement(nowTicks, maximum).ToList();
-        }
+            result.AddRange(value.GetQueueAvailableElement(nowTicks, maximum));
 
-        List<QueueElement> runningElements = new();
         if (countTypes.Contains(CountType.Running))
-        {
-            runningElements = value.GetQueueRunningElement(nowTicks).ToList();
-        }
-
-        List<QueueElement> runningWaitingForRetryElements = new();
+            result.AddRange(value.GetQueueRunningElement(nowTicks));
 
         if (countTypes.Contains(CountType.WaitingForRetry))
-        {
-            runningWaitingForRetryElements = value.GetQueueWaitingForRetryElement(nowTicks).ToList();
-        }
+            result.AddRange(value.GetQueueWaitingForRetryElement(nowTicks));
 
-        result.AddRange(availableElements);
-        result.AddRange(runningElements);
-        result.AddRange(runningWaitingForRetryElements);
-
-        List<QueueData> finalResult = new(result.Count);
-        finalResult.AddRange(
-            result.Select(queueElement => new QueueData(queueElement.Id, queueElement.Value.ToArray())));
-        return finalResult;
-    }
-
-    private async Task DoListCallbackAsync(string key, ListQueueItemStatus queueItemStatus)
-    {
-        EndPoint endpoint = await GetAndWaitForLeader();
-        if (!_cluster.LeadershipToken.IsCancellationRequested)
-        {
-            SlimPersistentState simplePersistentState = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.ListCallbackCommandAsync(simplePersistentState, key, queueItemStatus, _cluster,
-                new CancellationTokenSource());
-        }
-        else
-        {
-            using HttpRequestMessage request = new(HttpMethod.Post,
-                new Uri($"{endpoint}SlimData/ListCallback?key={key}"));
-            byte[] field = MemoryPackSerializer.Serialize(queueItemStatus);
-            request.Content = new ByteArrayContent(field);
-            using HttpClient httpClient = _httpClientFactory.CreateClient(HttpClientName);
-            using HttpResponseMessage response = await httpClient.SendAsync(request);
-            if ((int)response.StatusCode >= 500)
-            {
-                throw new DataException("Error in calling SlimData HTTP Service");
-            }
-        }
+        return result.Select(qe => new QueueData(qe.Id, qe.Value.ToArray())).ToList();
     }
 
     private async Task MasterWaitForleaseToken()
     {
-        int tryCount = 100;
-        while (_cluster.TryGetLeaseToken(out CancellationToken leaseToken) && leaseToken.IsCancellationRequested)
+        var tryCount = 100;
+        while (_cluster.TryGetLeaseToken(out var leaseToken) && leaseToken.IsCancellationRequested)
         {
             Console.WriteLine($"Master node is waiting for lease token {tryCount}");
             await Task.Delay(10);
             tryCount--;
             if (tryCount < 0)
-            {
                 throw new Exception("Master node cannot have lease token");
-            }
         }
     }
 
     private async Task<EndPoint> GetAndWaitForLeader()
     {
-        TimeSpan timeWaited = TimeSpan.Zero;
+        var timeWaited = TimeSpan.Zero;
         while (_cluster.Leader == null && timeWaited < _timeMaxToWaitForLeader)
         {
             await Task.Delay(500);
@@ -479,9 +444,7 @@ public class SlimDataService
         }
 
         if (_cluster.Leader == null)
-        {
             throw new DataException("No leader found");
-        }
 
         return _cluster.Leader.EndPoint;
     }
