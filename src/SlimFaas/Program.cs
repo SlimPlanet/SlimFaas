@@ -3,6 +3,7 @@ using System.Net.Sockets;
 using System.Text.Json;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
@@ -401,9 +402,15 @@ builder.Host
 
 Uri uri = new(publicEndPoint);
 var slimfaasPorts = serviceProviderStarter.GetService<ISlimFaasPorts>();
+builder.Services.Configure<FormOptions>(o =>
+{
+    var maxRequestBodySize = builder.Configuration["Kestrel:Limits:MaxRequestBodySize"];
+    if(!string.IsNullOrEmpty(maxRequestBodySize))
+        o.MultipartBodyLengthLimit = Convert.ToInt64(maxRequestBodySize);
+});
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
-    //serverOptions.Limits.MaxRequestBodySize = EnvironmentVariables.ReadLong<long>(null, EnvironmentVariables.SlimFaasMaxRequestBodySize, EnvironmentVariables.SlimFaasMaxRequestBodySizeDefault);
+    serverOptions.Configure(context.Configuration.GetSection("Kestrel"));
     serverOptions.ListenAnyIP(uri.Port, o => o.Protocols = HttpProtocols.Http1);
 
     if (slimfaasPorts == null)
