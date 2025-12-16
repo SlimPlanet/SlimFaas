@@ -144,7 +144,7 @@ app.MapGet("/data/file/{id}", async (string id, HttpContext ctx, IKvStore kv, IF
     if (exists)
     {
         var len = new FileInfo(path).Length;
-        if (len != meta.Size)
+        if (len != meta.SizeBytes)
             exists = false;
     }
 

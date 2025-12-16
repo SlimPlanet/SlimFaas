@@ -1,10 +1,10 @@
 using ClusterFileDemoProdish.Models;
 using ClusterFileDemoProdish.Storage;
 using DotNext.Net.Cluster.Messaging;
+using DotNext.IO;
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using DotNext.IO;
 
 namespace ClusterFileDemoProdish.Cluster;
 
@@ -12,7 +12,6 @@ public interface IClusterFileSync
 {
     Task BroadcastMetaUpsertAsync(FileMeta meta, CancellationToken ct);
     Task BroadcastFilePutAsync(string id, Stream content, string contentType, bool overwrite, CancellationToken ct);
-
     Task BroadcastMetaDeleteAsync(string id, CancellationToken ct);
 
     Task<bool> PullFileIfMissingAsync(string id, CancellationToken ct);
@@ -23,6 +22,9 @@ public interface IClusterFileSync
 
 public sealed class ClusterFileSync : IClusterFileSync
 {
+    // Prefix local pour éviter de dépendre d’une constante externe
+    private const string FileDeletePrefix = "file.del:";
+
     private readonly IMessageBus _bus;
     private readonly IKvStore _kv;
     private readonly IFileRepository _files;
@@ -39,22 +41,57 @@ public sealed class ClusterFileSync : IClusterFileSync
     public async Task BroadcastMetaUpsertAsync(FileMeta meta, CancellationToken ct)
     {
         var json = JsonSerializer.Serialize(meta);
+
+        // Stocke localement (source de vérité côté leader)
         await _kv.SetAsync(Keys.Meta(meta.Id), Encoding.UTF8.GetBytes(json), timeToLiveMilliseconds: null);
-        await _bus.SendBroadcastSignalAsync(new TextMessage(json, MessageNames.MetaUpsert), requiresConfirmation: false);
+
+        // Diffuse aux autres nodes
+        await _bus.SendBroadcastSignalAsync(
+            new TextMessage(json, MessageNames.MetaUpsert),
+            requiresConfirmation: false
+        );
     }
 
     public async Task BroadcastMetaDeleteAsync(string id, CancellationToken ct)
     {
+        // Delete local meta + fichier
         await _kv.DeleteAsync(Keys.Meta(id));
         await _files.DeleteAsync(id, ct);
-        await _bus.SendBroadcastSignalAsync(new TextMessage(id, MessageNames.MetaDelete), requiresConfirmation: false);
+
+        // Diffuse suppression meta
+        await _bus.SendBroadcastSignalAsync(
+            new TextMessage(id, MessageNames.MetaDelete),
+            requiresConfirmation: false
+        );
+
+        // Optionnel: supprime aussi le fichier sur les autres nodes
+        await _bus.SendBroadcastSignalAsync(
+            new TextMessage("", FileDeletePrefix + id),
+            requiresConfirmation: false
+        );
     }
 
     public async Task BroadcastFilePutAsync(string id, Stream fileStream, string contentType, bool overwrite, CancellationToken ct)
     {
+        // IMPORTANT overwrite:
+        // - on supprime d’abord l’ancien fichier sur les nodes (file.del)
+        // - ainsi, si un node rate le put, il se retrouve "meta présente + fichier manquant" => pull ok
+        if (overwrite)
+        {
+            await _bus.SendBroadcastSignalAsync(
+                new TextMessage("", FileDeletePrefix + id),
+                requiresConfirmation: false
+            );
+        }
+
+        // Ensure stream is at beginning (FileStream est seekable)
+        if (fileStream.CanSeek)
+            fileStream.Position = 0;
+
         var name = MessageNames.FilePutPrefix + id;
+
         await _bus.SendBroadcastSignalAsync(
-            new StreamMessage(fileStream, true, name, new System.Net.Mime.ContentType(contentType)),
+            new StreamMessage(fileStream, leaveOpen: true, name, new System.Net.Mime.ContentType(contentType)),
             requiresConfirmation: false
         );
     }
@@ -64,8 +101,9 @@ public sealed class ClusterFileSync : IClusterFileSync
         var (exists, _) = await _files.TryGetAsync(id, ct);
         if (exists) return true;
 
-        // Candidates: leader first, then other members.
+        // Candidats: leader d'abord, puis autres membres
         var candidates = new List<ISubscriber>();
+
         if (_bus.Leader is { } leader)
             candidates.Add(leader);
 
@@ -85,13 +123,21 @@ public sealed class ClusterFileSync : IClusterFileSync
                     {
                         try
                         {
+                            // Erreur renvoyée en texte
                             if (response is TextMessage txt && txt.Name.EndsWith(".error", StringComparison.Ordinal))
                                 return false;
 
+                            // Réponse attendue: DataTransferObject (StreamMessage implémente IDataTransferObject)
                             if (response is not IDataTransferObject dto)
                                 return false;
 
-                            await _files.WriteFromDataTransferObjectAsync(id, dto, chunkSize: 64 * 1024, token);
+                            await _files.WriteFromDataTransferObjectAsync(
+                                id,
+                                dto,
+                                chunkSize: 64 * 1024,
+                                token
+                            );
+
                             return true;
                         }
                         finally
@@ -148,7 +194,7 @@ public sealed class ClusterFileSync : IClusterFileSync
         if (leaderEndpoint is null)
             return null;
 
-        // Heuristic good for local dev: each node uses a different port.
+        // Si on est déjà sur le leader (heuristique par port)
         if (ctx.Request.Host.Port is int p && p == leaderEndpoint.Port)
             return null;
 
@@ -166,7 +212,7 @@ public sealed class ClusterFileSync : IClusterFileSync
 
     private static IPEndPoint? TryGetLeaderEndpoint(ISubscriber leader)
     {
-        // ISubscriber is also a cluster member. EndPoint is typically IPEndPoint in dev.
+        // ISubscriber est aussi un membre de cluster. EndPoint est souvent IPEndPoint en dev.
         var epProp = leader.GetType().GetProperty("EndPoint");
         if (epProp?.GetValue(leader) is EndPoint ep)
         {
@@ -177,6 +223,7 @@ public sealed class ClusterFileSync : IClusterFileSync
                 _ => null
             };
         }
+
         return null;
     }
 

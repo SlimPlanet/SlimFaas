@@ -1,18 +1,21 @@
 using ClusterFileDemoProdish.Models;
 using ClusterFileDemoProdish.Storage;
 using DotNext.Net.Cluster.Messaging;
+using DotNext.IO;
 using System.Net.Mime;
 using System.Text;
 using System.Text.Json;
-using DotNext.IO;
 
 namespace ClusterFileDemoProdish.Cluster;
 
 /// <summary>
-/// Receives file-meta signals, file put broadcasts, and file-get/meta-dump requests.
+/// Receives file-meta signals, file put broadcasts, file delete broadcasts, and file-get/meta-dump requests.
 /// </summary>
 public sealed class ClusterMessagingChannel : IInputChannel
 {
+    // Prefix local pour éviter de dépendre d’une constante externe
+    private const string FileDeletePrefix = "file.del:";
+
     private readonly IKvStore _kv;
     private readonly IFileRepository _files;
     private readonly ILogger<ClusterMessagingChannel> _logger;
@@ -30,7 +33,10 @@ public sealed class ClusterMessagingChannel : IInputChannel
         {
             if (messageName == MessageNames.MetaUpsert) return true;
             if (messageName == MessageNames.MetaDelete) return true;
+
             if (messageName.StartsWith(MessageNames.FilePutPrefix, StringComparison.Ordinal)) return true;
+            if (messageName.StartsWith(FileDeletePrefix, StringComparison.Ordinal)) return true;
+
             return false;
         }
 
@@ -41,6 +47,7 @@ public sealed class ClusterMessagingChannel : IInputChannel
     {
         try
         {
+            // meta upsert
             if (signal.Name == MessageNames.MetaUpsert)
             {
                 var json = await signal.ReadAsTextAsync(token);
@@ -51,6 +58,7 @@ public sealed class ClusterMessagingChannel : IInputChannel
                 return;
             }
 
+            // meta delete
             if (signal.Name == MessageNames.MetaDelete)
             {
                 var id = (await signal.ReadAsTextAsync(token)).Trim();
@@ -61,6 +69,19 @@ public sealed class ClusterMessagingChannel : IInputChannel
                 return;
             }
 
+            // file delete (overwrite strategy)
+            if (signal.Name.StartsWith(FileDeletePrefix, StringComparison.Ordinal))
+            {
+                var id = signal.Name.Substring(FileDeletePrefix.Length).Trim();
+                if (string.IsNullOrWhiteSpace(id)) return;
+
+                // IMPORTANT: on supprime uniquement le fichier disque.
+                // On NE supprime PAS la meta ici, pour que "meta présente + fichier manquant" déclenche le pull.
+                await _files.DeleteAsync(id, token);
+                return;
+            }
+
+            // file put
             if (signal.Name.StartsWith(MessageNames.FilePutPrefix, StringComparison.Ordinal))
             {
                 var id = signal.Name.Substring(MessageNames.FilePutPrefix.Length);
@@ -90,6 +111,7 @@ public sealed class ClusterMessagingChannel : IInputChannel
     {
         try
         {
+            // file.get request
             if (message.Name == MessageNames.FileGetRequest)
             {
                 var id = (await message.ReadAsTextAsync(token)).Trim();
@@ -112,9 +134,10 @@ public sealed class ClusterMessagingChannel : IInputChannel
                     Options = FileOptions.Asynchronous | FileOptions.SequentialScan
                 });
 
-                return new StreamMessage(stream, false,"file.get.ok", new System.Net.Mime.ContentType(ct));
+                return new StreamMessage(stream, leaveOpen: false, "file.get.ok", new System.Net.Mime.ContentType(ct));
             }
 
+            // meta.dump request (manifest)
             if (message.Name == MessageNames.MetaDumpRequest)
             {
                 if (_kv is not SlimDataKvStore slim)
