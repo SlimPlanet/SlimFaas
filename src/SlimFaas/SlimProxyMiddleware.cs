@@ -175,7 +175,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
                     ScheduleCreateJobSerializerContext.Default.ScheduleCreateJob));
             }
 
-            bool isInternal = accessPolicy.IsInternalRequest(context, replicasService, jobService);
+            bool isInternal = accessPolicy.IsInternalRequest(context);
 
             var result =
                 await scheduleJobService.CreateScheduleJobAsync(functionName, scheduleCreateJob, isInternal);
@@ -399,7 +399,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
         IReplicasService replicasService,
         IJobService jobService,
         string eventName)
-        => accessPolicy.GetAllowedSubscribers(context, replicasService, jobService, eventName);
+        => accessPolicy.GetAllowedSubscribers(context, eventName);
 
 
     private static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
@@ -473,7 +473,7 @@ public class SlimProxyMiddleware(RequestDelegate next, ISlimFaasQueue slimFaasQu
             return;
         }
 
-        if (!accessPolicy.CanAccessFunction(context, replicasService, jobService, function, functionPath))
+        if (!accessPolicy.CanAccessFunction(context, function, functionPath))
         {
             context.Response.StatusCode = 404;
             return;

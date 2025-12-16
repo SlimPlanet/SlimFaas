@@ -4,17 +4,18 @@ using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Security;
 
-public sealed class DefaultFunctionAccessPolicy : IFunctionAccessPolicy
+public sealed class DefaultFunctionAccessPolicy(
+    IReplicasService replicasService,
+    IJobService jobService,
+    ILogger<DefaultFunctionAccessPolicy> logger)
+    : IFunctionAccessPolicy
 {
-    private static readonly object InternalCacheKey = new(); // cache par requête (HttpContext.Items)
-    private readonly ILogger<DefaultFunctionAccessPolicy> _logger;
+    private static readonly object s_internalCacheKey = new(); // cache par requête (HttpContext.Items)
 
-    public DefaultFunctionAccessPolicy(ILogger<DefaultFunctionAccessPolicy> logger)
-        => _logger = logger;
 
-    public bool IsInternalRequest(HttpContext context, IReplicasService replicasService, IJobService jobService)
+    public bool IsInternalRequest(HttpContext context)
     {
-        if (context.Items.TryGetValue(InternalCacheKey, out var cached) && cached is bool b)
+        if (context.Items.TryGetValue(s_internalCacheKey, out var cached) && cached is bool b)
             return b;
 
         var trustedIps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -49,10 +50,10 @@ public sealed class DefaultFunctionAccessPolicy : IFunctionAccessPolicy
 
         var isInternal = candidates.Any(c => MatchesTrusted(c, trustedIps));
 
-        _logger.LogDebug("IsInternalRequest={IsInternal} Remote={RemoteIp} XFF={Xff}",
+        logger.LogDebug("IsInternalRequest={IsInternal} Remote={RemoteIp} XFF={Xff}",
             isInternal, remoteIp, context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "");
 
-        context.Items[InternalCacheKey] = isInternal;
+        context.Items[s_internalCacheKey] = isInternal;
         return isInternal;
     }
 
@@ -75,18 +76,17 @@ public sealed class DefaultFunctionAccessPolicy : IFunctionAccessPolicy
         return function.Visibility;
     }
 
-    public bool CanAccessFunction(HttpContext context, IReplicasService replicasService, IJobService jobService,
+    public bool CanAccessFunction(HttpContext context,
         DeploymentInformation function, string path)
     {
         var visibility = ResolveVisibility(function, path);
         if (visibility == FunctionVisibility.Public)
             return true;
 
-        return IsInternalRequest(context, replicasService, jobService);
+        return IsInternalRequest(context);
     }
 
-    public List<DeploymentInformation> GetAllowedSubscribers(HttpContext context, IReplicasService replicasService,
-        IJobService jobService, string eventName)
+    public List<DeploymentInformation> GetAllowedSubscribers(HttpContext context, string eventName)
     {
         var result = new List<DeploymentInformation>();
 
@@ -101,7 +101,7 @@ public sealed class DefaultFunctionAccessPolicy : IFunctionAccessPolicy
                 continue;
             }
 
-            if (IsInternalRequest(context, replicasService, jobService))
+            if (IsInternalRequest(context))
                 result.Add(deployment);
         }
 
