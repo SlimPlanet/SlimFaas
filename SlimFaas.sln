@@ -28,8 +28,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasKafka", "src\SlimFa
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasKafka.Tests", "tests\SlimFaasKafka.Tests\SlimFaasKafka.Tests.csproj", "{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClusterFileDemoProdish", "src\ClusterFileDemoProdish\ClusterFileDemoProdish.csproj", "{2D1DF909-9E90-4AC1-8240-331ACA10720A}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -92,9 +90,5 @@ Global
 		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2D1DF909-9E90-4AC1-8240-331ACA10720A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2D1DF909-9E90-4AC1-8240-331ACA10720A}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2D1DF909-9E90-4AC1-8240-331ACA10720A}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2D1DF909-9E90-4AC1-8240-331ACA10720A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

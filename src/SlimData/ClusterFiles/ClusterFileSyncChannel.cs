@@ -3,12 +3,8 @@ using DotNext.Net.Cluster.Messaging;
 
 namespace SlimData.ClusterFiles;
 
-internal sealed class ClusterFileSyncChannel : IInputChannel
+internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAnnounceQueue announceQueue) : IInputChannel
 {
-    private readonly IFileRepository _repo;
-
-    public ClusterFileSyncChannel(IFileRepository repo) => _repo = repo;
-
     public bool IsSupported(string messageName, bool oneWay)
     {
         if (oneWay)
@@ -21,7 +17,11 @@ internal sealed class ClusterFileSyncChannel : IInputChannel
     {
         // Variante "announce-only": on ne transfère PAS le fichier ici.
         // On pourrait stocker une "hint" si tu veux plus tard (index des versions), mais version simple => no-op.
-        _ = FileSyncProtocol.TryParseAnnounceName(signal.Name, out _, out _, out _, out _, out _);
+        if (FileSyncProtocol.TryParseAnnounceName(signal.Name, out var idEnc, out var sha, out _, out _, out _))
+        {
+            var id = Base64UrlCodec.Decode(idEnc);
+            announceQueue.TryEnqueue(new AnnouncedFile(id, sha));
+        }
         return Task.CompletedTask;
     }
 
@@ -34,14 +34,14 @@ internal sealed class ClusterFileSyncChannel : IInputChannel
 
             var id = Base64UrlCodec.Decode(idEnc);
 
-            if (!await _repo.ExistsAsync(id, sha, token).ConfigureAwait(false))
+            if (!await repo.ExistsAsync(id, sha, token).ConfigureAwait(false))
                 return new TextMessage("", FileSyncProtocol.FetchNotFound);
 
-            var meta = await _repo.TryGetMetadataAsync(id, token).ConfigureAwait(false);
+            var meta = await repo.TryGetMetadataAsync(id, token).ConfigureAwait(false);
             if (meta is null)
                 return new TextMessage("", FileSyncProtocol.FetchNotFound);
 
-            var stream = await _repo.OpenReadAsync(id, token).ConfigureAwait(false);
+            var stream = await repo.OpenReadAsync(id, token).ConfigureAwait(false);
             var replyName = FileSyncProtocol.BuildFetchOkName(idEnc, sha, meta.Length);
             var type = new ContentType(meta.ContentType);
 

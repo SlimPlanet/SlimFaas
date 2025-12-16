@@ -19,8 +19,8 @@ public static class DataSetRoutes
     {
         // Writes -> leader (DotNext HTTP consensus protocol handler)
         app.UseConsensusProtocolHandler()
-           .RedirectToLeader("/data/set")
-           .RedirectToLeader("/data/set/"); // couvre /data/set/{id} si RedirectToLeader fait un match par prefix
+           .RedirectToLeader("/data/file")
+           .RedirectToLeader("/data/file/"); // couvre /data/set/{id} si RedirectToLeader fait un match par prefix
 
         return app;
     }
@@ -30,9 +30,9 @@ public static class DataSetRoutes
     /// </summary>
     public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/data/set", DataSetHandlers.PostAsync);
-        endpoints.MapGet("/data/set/{elementId}", DataSetHandlers.GetAsync);
-        endpoints.MapDelete("/data/set/{elementId}", DataSetHandlers.DeleteAsync);
+        endpoints.MapPost("/data/file", DataSetHandlers.PostAsync);
+        endpoints.MapGet("/data/file/{elementId}", DataSetHandlers.GetAsync);
+        endpoints.MapDelete("/data/file/{elementId}", DataSetHandlers.DeleteAsync);
 
         return endpoints;
     }
@@ -52,6 +52,9 @@ public static class DataSetRoutes
             CancellationToken ct)
         {
             var elementId = string.IsNullOrWhiteSpace(key) ? Guid.NewGuid().ToString("N") : key;
+
+            if (!IdValidator.IsSafeId(elementId))
+                return Results.BadRequest("Invalid id.");
 
             // Snippet demandé
             var contentType = ctx.Request.ContentType ?? "application/octet-stream";
@@ -114,6 +117,10 @@ public static class DataSetRoutes
             IDatabaseService db,
             CancellationToken ct)
         {
+
+            if (!IdValidator.IsSafeId(elementId))
+                return Results.BadRequest("Invalid id.");
+
             var metaKey = MetaKey(elementId);
             var metaBytes = await db.GetAsync(metaKey);
             if (metaBytes is null || metaBytes.Length == 0)
@@ -177,3 +184,10 @@ public partial record DataSetMetadata(
     long Length,
     string ContentType,
     string FileName);
+
+
+static class IdValidator
+{
+    private static readonly System.Text.RegularExpressions.Regex Rx = new("^[A-Za-z0-9._-]{1,200}$", System.Text.RegularExpressions.RegexOptions.Compiled);
+    public static bool IsSafeId(string id) => Rx.IsMatch(id);
+}

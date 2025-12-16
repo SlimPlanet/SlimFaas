@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http;
 using System.Net.Mime;
 using System.Security.Cryptography;
 using System.Text;
@@ -5,6 +7,7 @@ using DotNext.Net.Cluster.Messaging;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SlimData.ClusterFiles;
+using Xunit;
 
 public sealed class ClusterFileSyncTests
 {
@@ -19,12 +22,13 @@ public sealed class ClusterFileSyncTests
         var local = new Mock<ISubscriber>(MockBehavior.Strict);
         var loggerMock = new Mock<ILogger<ClusterFileSync>>();
 
+        var queue = new ClusterFileAnnounceQueue();
+
         remote1.SetupGet(m => m.IsRemote).Returns(true);
         remote2.SetupGet(m => m.IsRemote).Returns(true);
         local.SetupGet(m => m.IsRemote).Returns(false);
 
         bus.SetupGet(b => b.Members).Returns(new List<ISubscriber> { local.Object, remote1.Object, remote2.Object });
-
         bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()));
         bus.Setup(b => b.RemoveListener(It.IsAny<IInputChannel>()));
 
@@ -43,7 +47,7 @@ public sealed class ClusterFileSyncTests
                .Callback<IMessage, bool, CancellationToken>((msg, _, _) => names.Add(msg.Name))
                .Returns(Task.CompletedTask);
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object, loggerMock.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object);
 
         var result = await sut.BroadcastFilePutAsync(
             "id1",
@@ -61,11 +65,65 @@ public sealed class ClusterFileSyncTests
     }
 
     [Fact]
+    public async Task BroadcastFilePutAsync_does_not_throw_when_a_remote_returns_501()
+    {
+        var repo = new Mock<IFileRepository>(MockBehavior.Strict);
+        var bus = new Mock<IMessageBus>(MockBehavior.Strict);
+
+        var remote1 = new Mock<ISubscriber>(MockBehavior.Strict);
+        var remote2 = new Mock<ISubscriber>(MockBehavior.Strict);
+        var loggerMock = new Mock<ILogger<ClusterFileSync>>();
+
+        var queue = new ClusterFileAnnounceQueue();
+
+        remote1.SetupGet(m => m.IsRemote).Returns(true);
+        remote2.SetupGet(m => m.IsRemote).Returns(true);
+
+        remote1.SetupGet(m => m.EndPoint).Returns(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 5001));
+        remote2.SetupGet(m => m.EndPoint).Returns(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, 5002));
+
+        bus.SetupGet(b => b.Members).Returns(new List<ISubscriber> { remote1.Object, remote2.Object });
+        bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()));
+        bus.Setup(b => b.RemoveListener(It.IsAny<IInputChannel>()));
+
+        var put = new FilePutResult("deadbeef", "text/plain", 4);
+
+        repo.Setup(r => r.SaveAsync("id1", It.IsAny<Stream>(), "text/plain", true, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(put);
+
+        // remote1 => 501 Not Implemented
+        remote1.Setup(m => m.SendSignalAsync(It.IsAny<IMessage>(), true, It.IsAny<CancellationToken>()))
+               .ThrowsAsync(new HttpRequestException("Response status code does not indicate success: 501 (Not Implemented).",
+                                                     inner: null,
+                                                     statusCode: HttpStatusCode.NotImplemented));
+
+        // remote2 => OK
+        int called = 0;
+        remote2.Setup(m => m.SendSignalAsync(It.IsAny<IMessage>(), true, It.IsAny<CancellationToken>()))
+               .Callback(() => called++)
+               .Returns(Task.CompletedTask);
+
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object);
+
+        // Act + Assert: ne doit pas throw
+        var result = await sut.BroadcastFilePutAsync(
+            "id1",
+            new MemoryStream(Encoding.UTF8.GetBytes("test")),
+            "text/plain",
+            overwrite: true,
+            CancellationToken.None);
+
+        Assert.Equal("deadbeef", result.Sha256Hex);
+        Assert.Equal(1, called); // remote2 doit quand même être appelé
+    }
+
+    [Fact]
     public async Task PullFileIfMissingAsync_returns_local_stream_when_already_present()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
         var bus = new Mock<IMessageBus>(MockBehavior.Strict);
         var loggerMock = new Mock<ILogger<ClusterFileSync>>();
+        var queue = new ClusterFileAnnounceQueue();
 
         bus.SetupGet(b => b.Members).Returns(Array.Empty<ISubscriber>());
         bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()));
@@ -77,7 +135,7 @@ public sealed class ClusterFileSyncTests
         repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MemoryStream(new byte[] { 1, 2, 3 }));
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object, loggerMock.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object);
 
         var pulled = await sut.PullFileIfMissingAsync("id1", "sha", CancellationToken.None);
 
@@ -100,6 +158,7 @@ public sealed class ClusterFileSyncTests
         var remote1 = new Mock<ISubscriber>(MockBehavior.Strict);
         var remote2 = new Mock<ISubscriber>(MockBehavior.Strict);
         var loggerMock = new Mock<ILogger<ClusterFileSync>>();
+        var queue = new ClusterFileAnnounceQueue();
 
         remote1.SetupGet(m => m.IsRemote).Returns(true);
         remote2.SetupGet(m => m.IsRemote).Returns(true);
@@ -150,7 +209,7 @@ public sealed class ClusterFileSyncTests
                 It.IsAny<CancellationToken>()))
             .Throws(new Exception("Should not be called"));
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object, loggerMock.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object);
 
         var pulled = await sut.PullFileIfMissingAsync("id1", sha, CancellationToken.None);
 
@@ -179,6 +238,7 @@ public sealed class ClusterFileSyncTests
 
         var remote = new Mock<ISubscriber>(MockBehavior.Strict);
         var loggerMock = new Mock<ILogger<ClusterFileSync>>();
+        var queue = new ClusterFileAnnounceQueue();
 
         remote.SetupGet(m => m.IsRemote).Returns(true);
 
@@ -200,7 +260,7 @@ public sealed class ClusterFileSyncTests
                 return reader(reply, ct).AsTask();
             });
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object, loggerMock.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object);
 
         var pulled = await sut.PullFileIfMissingAsync("id1", "sha", CancellationToken.None);
 

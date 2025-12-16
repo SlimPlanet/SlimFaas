@@ -1,8 +1,6 @@
 using System.Net;
 using DotNext.Net.Cluster;
-using DotNext.Net.Cluster.Consensus.Raft.Http;
 using DotNext.Net.Cluster.Messaging;
-using Microsoft.Extensions.Logging;
 
 namespace SlimData.ClusterFiles;
 
@@ -13,13 +11,13 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     private readonly ILogger<ClusterFileSync> _logger;
     private readonly ClusterFileSyncChannel _channel;
 
-    public ClusterFileSync(IMessageBus bus, IFileRepository repo, ILogger<ClusterFileSync> logger)
+    public ClusterFileSync(IMessageBus bus, IFileRepository repo, ClusterFileAnnounceQueue announceQueue, ILogger<ClusterFileSync> logger)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        _channel = new ClusterFileSyncChannel(_repo);
+        _channel = new ClusterFileSyncChannel(_repo, announceQueue);
         _bus.AddListener(_channel);
     }
 
