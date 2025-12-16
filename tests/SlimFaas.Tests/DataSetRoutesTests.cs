@@ -98,7 +98,7 @@ public sealed class DataSetRoutesTests
         Assert.Equal(capturedId, elementId);
         Assert.Equal("application/octet-stream", capturedContentType);
 
-        Assert.Equal($"data:set:{elementId}:meta", storedMetaKey);
+        Assert.Equal($"data:file:{elementId}:meta", storedMetaKey);
         Assert.Equal(ttlMs, storedTtl);
 
         var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(storedMetaBytes!);
@@ -193,7 +193,7 @@ public sealed class DataSetRoutesTests
         var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);
 
-        db.Setup(d => d.GetAsync("data:set:id1:meta"))
+        db.Setup(d => d.GetAsync("data:file:id1:meta"))
           .ReturnsAsync((byte[]?)null);
 
         var result = await DataSetRoutes.DataSetHandlers.GetAsync("id1", fileSync.Object, db.Object, CancellationToken.None);
@@ -216,7 +216,7 @@ public sealed class DataSetRoutesTests
         var meta = new DataSetMetadata("sha", 5, "application/octet-stream", "x.bin");
         var metaBytes = MemoryPackSerializer.Serialize(meta);
 
-        db.Setup(d => d.GetAsync("data:set:id1:meta"))
+        db.Setup(d => d.GetAsync("data:file:id1:meta"))
           .ReturnsAsync(metaBytes);
 
         var payload = Encoding.UTF8.GetBytes("abcde");
@@ -244,7 +244,7 @@ public sealed class DataSetRoutesTests
     {
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);
 
-        db.Setup(d => d.DeleteAsync("data:set:id1:meta"))
+        db.Setup(d => d.DeleteAsync("data:file:id1:meta"))
           .Returns(Task.CompletedTask);
 
         var result = await DataSetRoutes.DataSetHandlers.DeleteAsync("id1", db.Object, CancellationToken.None);

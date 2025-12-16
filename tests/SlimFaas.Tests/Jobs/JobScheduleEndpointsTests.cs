@@ -9,6 +9,7 @@ using Moq;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Security;
 
 namespace SlimFaas.Tests.Jobs;
 
@@ -46,6 +47,7 @@ public class JobScheduleEndpointsTests
 
                         // Les dépendances inutilisées dans ces scénarios peuvent être omises
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
+                        s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                     })
                     .Configure(app => app.UseMiddleware<SlimProxyMiddleware>());
             })

@@ -15,6 +15,7 @@ using SlimFaas.Database;
 using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Security;
 using SlimFaas.Workers;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
 
@@ -205,7 +206,7 @@ serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
-
+serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
 
 serviceCollectionSlimFaas.AddCors();
 

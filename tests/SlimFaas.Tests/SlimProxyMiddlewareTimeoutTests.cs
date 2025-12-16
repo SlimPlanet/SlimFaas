@@ -11,6 +11,7 @@ using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Security;
 using SlimFaas.Tests;
 
 // === Services de réplicas dédiés aux scénarios de timing ===
@@ -155,6 +156,7 @@ public class ProxyMiddlewareTimeoutReadyTests
                         s.AddSingleton<IReplicasService>(replicas);
                         s.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(sp => jobServiceMock.Object);
+                        s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                     })
                     .Configure(app => app.UseMiddleware<SlimProxyMiddleware>());
             })
@@ -201,6 +203,7 @@ public class ProxyMiddlewareFlipReadyTests
                         s.AddSingleton<IReplicasService>(replicas);
                         s.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(sp => jobServiceMock.Object);
+                        s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                     })
                     .Configure(app => app.UseMiddleware<SlimProxyMiddleware>());
             })

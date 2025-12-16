@@ -156,7 +156,7 @@ public static class DataSetRoutes
             return Results.NoContent();
         }
 
-        private static string MetaKey(string elementId) => $"data:set:{elementId}:meta";
+        private static string MetaKey(string elementId) => $"data:file:{elementId}:meta";
 
         private static string? TryGetFileName(string? contentDisposition)
         {
