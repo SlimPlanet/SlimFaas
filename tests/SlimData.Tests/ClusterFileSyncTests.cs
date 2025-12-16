@@ -2,6 +2,7 @@ using System.Net.Mime;
 using System.Security.Cryptography;
 using System.Text;
 using DotNext.Net.Cluster.Messaging;
+using Microsoft.Extensions.Logging;
 using Moq;
 using SlimData.ClusterFiles;
 
@@ -16,6 +17,7 @@ public sealed class ClusterFileSyncTests
         var remote1 = new Mock<ISubscriber>(MockBehavior.Strict);
         var remote2 = new Mock<ISubscriber>(MockBehavior.Strict);
         var local = new Mock<ISubscriber>(MockBehavior.Strict);
+        var loggerMock = new Mock<ILogger<ClusterFileSync>>();
 
         remote1.SetupGet(m => m.IsRemote).Returns(true);
         remote2.SetupGet(m => m.IsRemote).Returns(true);
@@ -41,7 +43,7 @@ public sealed class ClusterFileSyncTests
                .Callback<IMessage, bool, CancellationToken>((msg, _, _) => names.Add(msg.Name))
                .Returns(Task.CompletedTask);
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, loggerMock.Object);
 
         var result = await sut.BroadcastFilePutAsync(
             "id1",
@@ -63,6 +65,7 @@ public sealed class ClusterFileSyncTests
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
         var bus = new Mock<IMessageBus>(MockBehavior.Strict);
+        var loggerMock = new Mock<ILogger<ClusterFileSync>>();
 
         bus.SetupGet(b => b.Members).Returns(Array.Empty<ISubscriber>());
         bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()));
@@ -74,7 +77,7 @@ public sealed class ClusterFileSyncTests
         repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MemoryStream(new byte[] { 1, 2, 3 }));
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, loggerMock.Object);
 
         var pulled = await sut.PullFileIfMissingAsync("id1", "sha", CancellationToken.None);
 
@@ -96,6 +99,7 @@ public sealed class ClusterFileSyncTests
 
         var remote1 = new Mock<ISubscriber>(MockBehavior.Strict);
         var remote2 = new Mock<ISubscriber>(MockBehavior.Strict);
+        var loggerMock = new Mock<ILogger<ClusterFileSync>>();
 
         remote1.SetupGet(m => m.IsRemote).Returns(true);
         remote2.SetupGet(m => m.IsRemote).Returns(true);
@@ -146,7 +150,7 @@ public sealed class ClusterFileSyncTests
                 It.IsAny<CancellationToken>()))
             .Throws(new Exception("Should not be called"));
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, loggerMock.Object);
 
         var pulled = await sut.PullFileIfMissingAsync("id1", sha, CancellationToken.None);
 
@@ -174,6 +178,8 @@ public sealed class ClusterFileSyncTests
         var bus = new Mock<IMessageBus>(MockBehavior.Strict);
 
         var remote = new Mock<ISubscriber>(MockBehavior.Strict);
+        var loggerMock = new Mock<ILogger<ClusterFileSync>>();
+
         remote.SetupGet(m => m.IsRemote).Returns(true);
 
         bus.SetupGet(b => b.Members).Returns(new[] { remote.Object });
@@ -194,7 +200,7 @@ public sealed class ClusterFileSyncTests
                 return reader(reply, ct).AsTask();
             });
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, loggerMock.Object);
 
         var pulled = await sut.PullFileIfMissingAsync("id1", "sha", CancellationToken.None);
 

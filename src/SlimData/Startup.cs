@@ -103,7 +103,8 @@ public class Startup(IConfiguration configuration)
        {
            services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
            services.AddSingleton<IFileRepository>(_ => new DiskFileRepository(Path.Combine(path, "files")));
-           services.AddSingleton<IClusterFileSync, ClusterFileSync>();
+           services.AddSingleton<IClusterFileSync, ClusterFileSync>(); 
+           services.AddHostedService<ClusterFileSyncBootstrapper>();
        }
            
         var endpoint = configuration["publicEndPoint"];
