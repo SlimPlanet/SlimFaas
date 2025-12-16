@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.57.1
+
+- [5a33746](https://github.com/SlimPlanet/SlimFaas/commit/5a337469c19e7e30d5487d4d1c79dbbe2b4d2f77) - fix(slimfaas): MaxRequestBodySize (release), 2025-12-16 by *Guillaume Chervet*
+
+
+## 0.57.0
+
+
+
 ## v0.57.0
 
 - [cfe3c0a](https://github.com/SlimPlanet/SlimFaas/commit/cfe3c0a99b045ba8cebed21dd68a5384456a5049) - feat(slimfaas): add data with time-to-live (#208) (release), 2025-12-13 by *Guillaume Chervet*
@@ -264,15 +273,6 @@
 
 
 ## 0.43.6
-
-
-
-## v0.43.6
-
-- [f2d485b](https://github.com/SlimPlanet/SlimFaas/commit/f2d485be18232c1b5acf0202ab867c1a19e10bb3) - fix(demo): update demo default values (release), 2025-10-06 by *Guillaume Chervet*
-
-
-## 0.43.5
 
 
 
