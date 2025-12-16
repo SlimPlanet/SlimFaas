@@ -180,6 +180,25 @@ app.MapDelete("/data/file/{id}", async (string id, HttpContext ctx, IClusterFile
     return Results.NoContent();
 });
 
+app.MapGet("/debug/cluster", (DotNext.Net.Cluster.Messaging.IMessageBus bus) =>
+{
+    static string Ep(object m)
+    {
+        var epProp = m.GetType().GetProperty("EndPoint");
+        return epProp?.GetValue(m)?.ToString() ?? "null";
+    }
+
+    var leader = bus.Leader is null ? null : Ep(bus.Leader);
+
+    var members = bus.Members.Select(m => new
+    {
+        EndPoint = Ep(m),
+        Type = m.GetType().Name
+    });
+
+    return Results.Ok(new { leader, members });
+});
+
 app.Run();
 
 static string? TryGetFileName(string contentDisposition)

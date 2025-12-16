@@ -71,30 +71,59 @@ public sealed class ClusterFileSync : IClusterFileSync
         );
     }
 
-    public async Task BroadcastFilePutAsync(string id, Stream fileStream, string contentType, bool overwrite, CancellationToken ct)
+public async Task BroadcastFilePutAsync(string id, Stream fileStream, string contentType, bool overwrite, CancellationToken ct)
+{
+    // On ne peut PAS "broadcast" un StreamMessage unique : un stream se consomme.
+    // Donc : on envoie à chaque membre avec un nouveau stream (ou une réouverture du fichier).
+
+    var members = _bus.Members.Where(m => m.IsRemote).ToList();
+    _logger.LogInformation("BroadcastFilePutAsync id={Id} overwrite={Overwrite} members={Count}", id, overwrite, members.Count);
+
+    // IMPORTANT : ici on suppose que fileStream est un FileStream (cas de ton POST).
+    // On récupère le path pour rouvrir un stream par membre.
+    if (fileStream is not FileStream fs || string.IsNullOrWhiteSpace(fs.Name))
+        throw new InvalidOperationException("BroadcastFilePutAsync expects a FileStream (need path to reopen per member).");
+
+    var path = fs.Name;
+
+    foreach (var member in members)
     {
-        // IMPORTANT overwrite:
-        // - on supprime d’abord l’ancien fichier sur les nodes (file.del)
-        // - ainsi, si un node rate le put, il se retrouve "meta présente + fichier manquant" => pull ok
-        if (overwrite)
+        try
         {
-            await _bus.SendBroadcastSignalAsync(
-                new TextMessage("", FileDeletePrefix + id),
-                requiresConfirmation: false
-            );
+            if (overwrite)
+            {
+                _logger.LogInformation(" -> send {Msg} to {Member}", $"file.del:{id}", member);
+                await member.SendSignalAsync(new TextMessage("", "file.del:" + id), requiresConfirmation: true, token: ct);
+            }
+
+            await using var perMemberStream = new FileStream(path, new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.Read,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan
+            });
+
+            var name = MessageNames.FilePutPrefix + id;
+
+            using var msg = new StreamMessage(
+                perMemberStream,
+                leaveOpen: false,
+                name,
+                new System.Net.Mime.ContentType(contentType));
+
+            _logger.LogInformation(" -> send {Msg} ({Len} bytes) to {Member}", name, perMemberStream.Length, member);
+            await member.SendSignalAsync(msg, requiresConfirmation: true, token: ct);
+
+            _logger.LogInformation(" -> OK {Member}", member);
         }
-
-        // Ensure stream is at beginning (FileStream est seekable)
-        if (fileStream.CanSeek)
-            fileStream.Position = 0;
-
-        var name = MessageNames.FilePutPrefix + id;
-
-        await _bus.SendBroadcastSignalAsync(
-            new StreamMessage(fileStream, leaveOpen: true, name, new System.Net.Mime.ContentType(contentType)),
-            requiresConfirmation: false
-        );
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "BroadcastFilePutAsync failed to {Member} for id={Id}", member, id);
+        }
     }
+}
+
 
     public async Task<bool> PullFileIfMissingAsync(string id, CancellationToken ct)
     {

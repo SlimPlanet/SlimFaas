@@ -61,7 +61,9 @@ public sealed class ClusterMessagingChannel : IInputChannel
             // meta delete
             if (signal.Name == MessageNames.MetaDelete)
             {
+
                 var id = (await signal.ReadAsTextAsync(token)).Trim();
+                _logger.LogInformation("[recv] file.del id={Id} from={Sender}", id, sender);
                 if (string.IsNullOrWhiteSpace(id)) return;
 
                 await _kv.DeleteAsync(Keys.Meta(id));
@@ -85,6 +87,7 @@ public sealed class ClusterMessagingChannel : IInputChannel
             if (signal.Name.StartsWith(MessageNames.FilePutPrefix, StringComparison.Ordinal))
             {
                 var id = signal.Name.Substring(MessageNames.FilePutPrefix.Length);
+                _logger.LogInformation("[recv] file.put id={Id} from={Sender}", id, sender);
                 if (string.IsNullOrWhiteSpace(id)) return;
 
                 if (signal is not IDataTransferObject dto)
@@ -93,7 +96,8 @@ public sealed class ClusterMessagingChannel : IInputChannel
                     return;
                 }
 
-                await _files.WriteFromDataTransferObjectAsync(id, dto, chunkSize: 64 * 1024, token);
+                var (ok, sha, size) = await _files.WriteFromDataTransferObjectAsync(id, dto, chunkSize: 64 * 1024, token);
+                _logger.LogInformation("[recv] file.put id={Id} ok={Ok} size={Size} sha={Sha}", id, ok, size, sha);
                 return;
             }
         }

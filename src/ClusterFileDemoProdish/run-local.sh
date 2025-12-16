@@ -27,10 +27,10 @@ for i in "${!PORTS[@]}"; do
   port="${PORTS[$i]}"
   dir="${DATA_DIRS[$i]}"
 
-  echo "Starting node $((i+1)) on http://127.0.0.1:${port}"
+  echo "Starting node $((i+1)) on http://localhost:${port}"
   echo "  -> fileStorage.RootPath: ${dir}"
 
-  ASPNETCORE_URLS="http://127.0.0.1:${port}" \
+  ASPNETCORE_URLS="http://localhost:${port}" \
   fileStorage__RootPath="${dir}" \
   dotnet run --project "${PROJECT}" --no-launch-profile > "${ROOT}/node-${port}.log" 2>&1 &
 
@@ -39,9 +39,9 @@ done
 
 echo ""
 echo "Nodes started:"
-echo " - http://127.0.0.1:3262  (RootPath: ${DATA_DIRS[0]})"
-echo " - http://127.0.0.1:3263  (RootPath: ${DATA_DIRS[1]})"
-echo " - http://127.0.0.1:3264  (RootPath: ${DATA_DIRS[2]})"
+echo " - http://localhost:3262  (RootPath: ${DATA_DIRS[0]})"
+echo " - http://localhost:3263  (RootPath: ${DATA_DIRS[1]})"
+echo " - http://localhost:3264  (RootPath: ${DATA_DIRS[2]})"
 echo ""
 echo "Logs: node-3262.log / node-3263.log / node-3264.log"
 echo "Ctrl+C to stop."
