@@ -30,9 +30,12 @@ public static class DataSetRoutes
     /// </summary>
     public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/data/file", DataSetHandlers.PostAsync);
-        endpoints.MapGet("/data/file/{elementId}", DataSetHandlers.GetAsync);
-        endpoints.MapDelete("/data/file/{elementId}", DataSetHandlers.DeleteAsync);
+        var group = endpoints.MapGroup("/data/file")
+            .AddEndpointFilter<DataVisibilityEndpointFilter>();
+
+        group.MapPost("", DataSetHandlers.PostAsync);
+        group.MapGet("/{elementId}", DataSetHandlers.GetAsync);
+        group.MapDelete("/{elementId}", DataSetHandlers.DeleteAsync);
 
         return endpoints;
     }

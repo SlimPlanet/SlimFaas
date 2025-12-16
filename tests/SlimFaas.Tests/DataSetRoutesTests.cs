@@ -3,10 +3,14 @@ using MemoryPack;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Moq;
 using SlimData.ClusterFiles;
 using SlimFaas;
+using SlimFaas.Kubernetes;
+using SlimFaas.Options;
+using SlimFaas.Security;
 using Xunit;
 
 public sealed class DataSetRoutesTests
@@ -255,4 +259,94 @@ public sealed class DataSetRoutesTests
         Assert.Equal(204, status);
         db.VerifyAll();
     }
+
+    private sealed class TestInvocationContext : EndpointFilterInvocationContext
+    {
+        public override HttpContext HttpContext { get; }
+        public override IList<object?> Arguments { get; }
+
+        public TestInvocationContext(HttpContext httpContext, params object?[] args)
+        {
+            HttpContext = httpContext;
+            Arguments = args.ToList();
+        }
+
+        public override T GetArgument<T>(int index) => (T)Arguments[index]!;
+    }
+
+    [Fact]
+    public async Task DataVisibilityFilter_Allows_WhenDefaultVisibilityPublic()
+    {
+        var ctx = NewHttpContext();
+
+        var accessPolicy = new Mock<IFunctionAccessPolicy>(MockBehavior.Strict);
+        accessPolicy.Setup(p => p.IsInternalRequest(ctx)).Returns(false);
+
+        var services = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton<IOptions<DataOptions>>(Options.Create(new DataOptions { DefaultVisibility = FunctionVisibility.Public }))
+            .AddSingleton(accessPolicy.Object)
+            .BuildServiceProvider();
+
+        var filter = ActivatorUtilities.CreateInstance<DataVisibilityEndpointFilter>(services);
+
+        var inv = new TestInvocationContext(ctx);
+        EndpointFilterDelegate next = _ => ValueTask.FromResult<object?>(Results.Ok());
+
+        var output = await filter.InvokeAsync(inv, next);
+
+        Assert.IsAssignableFrom<IResult>(output);
+    }
+
+    [Fact]
+    public async Task DataVisibilityFilter_Denies_WhenPrivate_AndExternal()
+    {
+        var ctx = NewHttpContext();
+
+        var accessPolicy = new Mock<IFunctionAccessPolicy>(MockBehavior.Strict);
+        accessPolicy.Setup(p => p.IsInternalRequest(ctx)).Returns(false);
+
+        var services = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton<IOptions<DataOptions>>(Options.Create(new DataOptions { DefaultVisibility = FunctionVisibility.Private }))
+            .AddSingleton(accessPolicy.Object)
+            .BuildServiceProvider();
+
+        var filter = ActivatorUtilities.CreateInstance<DataVisibilityEndpointFilter>(services);
+
+        var inv = new TestInvocationContext(ctx);
+        EndpointFilterDelegate next = _ => ValueTask.FromResult<object?>(Results.Ok());
+
+        var output = await filter.InvokeAsync(inv, next);
+        var result = Assert.IsAssignableFrom<IResult>(output);
+
+        var (status, _, _) = await ExecuteAsync(result, ctx);
+        Assert.Equal(404, status);
+    }
+
+    [Fact]
+    public async Task DataVisibilityFilter_Allows_WhenPrivate_AndInternal()
+    {
+        var ctx = NewHttpContext();
+
+        var accessPolicy = new Mock<IFunctionAccessPolicy>(MockBehavior.Strict);
+        accessPolicy.Setup(p => p.IsInternalRequest(ctx)).Returns(true);
+
+        var services = new ServiceCollection()
+            .AddLogging()
+            .AddSingleton<IOptions<DataOptions>>(Options.Create(new DataOptions { DefaultVisibility = FunctionVisibility.Private }))
+            .AddSingleton(accessPolicy.Object)
+            .BuildServiceProvider();
+
+        var filter = ActivatorUtilities.CreateInstance<DataVisibilityEndpointFilter>(services);
+
+        var inv = new TestInvocationContext(ctx);
+        EndpointFilterDelegate next = _ => ValueTask.FromResult<object?>(Results.Ok());
+
+        var output = await filter.InvokeAsync(inv, next);
+
+        Assert.IsAssignableFrom<IResult>(output);
+    }
+
+
 }

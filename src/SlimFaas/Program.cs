@@ -15,6 +15,7 @@ using SlimFaas.Database;
 using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.Workers;
 using EnvironmentVariables = SlimFaas.EnvironmentVariables;
@@ -207,6 +208,12 @@ serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
 serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+
+builder.Services
+    .AddOptions<DataOptions>()
+    .BindConfiguration(DataOptions.SectionName)
+    .Validate(o => o.DefaultVisibility is FunctionVisibility.Public or FunctionVisibility.Private,
+        "Data:DefaultVisibility must be Public or Private.");
 
 serviceCollectionSlimFaas.AddCors();
 

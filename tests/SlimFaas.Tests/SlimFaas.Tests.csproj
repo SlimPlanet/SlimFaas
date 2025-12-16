@@ -28,4 +28,8 @@
     <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj"/>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Data\" />
+  </ItemGroup>
+
 </Project>
