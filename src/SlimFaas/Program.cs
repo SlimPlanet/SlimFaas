@@ -450,6 +450,8 @@ app.UseCors(builder =>
     }
 });
 
+app.MapDataSetRoutes();
+
 app.MapPost("/debug/promql/eval", (PromQlRequest req,
         PromQlMiniEvaluator eval,
         IMetricsScrapingGuard guard,

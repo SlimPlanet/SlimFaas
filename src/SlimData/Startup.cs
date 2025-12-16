@@ -2,7 +2,6 @@
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
-using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
