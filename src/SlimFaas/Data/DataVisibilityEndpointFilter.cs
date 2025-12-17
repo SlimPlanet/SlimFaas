@@ -12,10 +12,10 @@ public sealed class DataVisibilityEndpointFilter(
 {
     public async ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
     {
-        var vis = options.Value.DefaultVisibility;
+        var visibility = options.Value.DefaultVisibility;
 
         // Public => toujours OK
-        if (vis == FunctionVisibility.Public)
+        if (visibility == FunctionVisibility.Public)
             return await next(context);
 
         // Private => OK seulement si interne

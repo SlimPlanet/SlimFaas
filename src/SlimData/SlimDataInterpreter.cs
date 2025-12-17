@@ -500,68 +500,20 @@ public class SlimDataInterpreter : CommandInterpreter
 
     internal static ValueTask DoHandleSnapshotAsync(LogSnapshotCommand command, SlimDataState state)
     {
-        var sw = Stopwatch.StartNew();
-        Console.WriteLine("=== Start Snapshot ===");
-
-        long totalKeyValuesBytes = 0;
-        foreach (var kv in command.keysValues) totalKeyValuesBytes += kv.Value.Length;
-        Console.WriteLine($"[KeyValues] Count: {command.keysValues.Count}, Total Size: {totalKeyValuesBytes / (1024.0 * 1024.0):F2} MB");
-
         state.KeyValues = command.keysValues.ToImmutableDictionary();
-
-        int totalQueueElements = 0;
-        long totalQueueBytes = 0;
 
         foreach (var q in command.queues)
         {
-            var list = q.Value;
-            int count = 0;
-            long bytes = 0;
-
             var builder = ImmutableArray.CreateBuilder<QueueElement>();
-
-            foreach (var e in list)
-            {
-                builder.Add(e);
-                count++;
-                bytes += e.Value.Length;
-            }
-
-            totalQueueElements += count;
-            totalQueueBytes += bytes;
-
-            Console.WriteLine($"[Queue] Key: {q.Key}, Count: {count}, Size: {bytes / (1024.0 * 1024.0):F2} MB");
-
             var arr = builder.ToImmutable();
             state.Queues = state.Queues.SetItem(q.Key, arr);
         }
-
-        Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
-
-        int totalHashsetElements = 0;
-        long totalHashsetBytes = 0;
-
-        foreach (var hs in command.hashsets)
-        {
-            int count = 0;
-            long bytes = 0;
-            foreach (var kv in hs.Value) { count++; bytes += kv.Value.Length; }
-
-            totalHashsetElements += count;
-            totalHashsetBytes += bytes;
-
-            Console.WriteLine($"[Hashset] Key: {hs.Key}, Count: {count}, Size: {bytes / (1024.0 * 1024.0):F2} MB");
-        }
-
-        Console.WriteLine($"[Hashsets] Total Elements: {totalHashsetElements}, Total Size: {totalHashsetBytes / (1024.0 * 1024.0):F2} MB");
 
         var newHashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
         foreach (var hs in command.hashsets)
             newHashsets = newHashsets.SetItem(hs.Key, hs.Value.ToImmutableDictionary());
         state.Hashsets = newHashsets;
-
-        sw.Stop();
-        Console.WriteLine($"=== End Snapshot (Duration: {sw.ElapsedMilliseconds} ms) ===");
+        
         return default;
     }
 
