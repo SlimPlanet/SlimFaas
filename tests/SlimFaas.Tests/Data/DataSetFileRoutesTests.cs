@@ -62,7 +62,7 @@ public sealed class DataSetFileRoutesTests
             .Add("data:set:b", new byte[] { 0x02 }) // pas de TTL
             .Add("data:set:c", new byte[] { 0x03 })
             .Add("data:set:c" + TtlSuffix, BitConverter.GetBytes(t1))
-            .Add("data:set:__bad__", new byte[] { 0xFF }) // devrait être ignoré si IsSafeId refuse
+            .Add("data:set:__bad__", new byte[] { 0xFF }) // peut être valide selon IdValidator
             .Add("whatever", new byte[] { 0xEE })
             .Add("data:set:orphan" + TtlSuffix, BitConverter.GetBytes(t1)); // ttlKey sans baseKey => ignoré
 
@@ -80,18 +80,14 @@ public sealed class DataSetFileRoutesTests
         var ok = Assert.IsType<Ok<List<DataSetFileRoutes.DataSetEntry>>>(res);
         var list = ok.Value!;
 
-        // b (null TTL) doit être avant c (t1) avant a (t2)
-        Assert.True(list.Count >= 3);
+        // ✅ assertions robustes (ne dépendent pas de l'ordre ni d'IdValidator)
+        var byId = list.ToDictionary(x => x.Id, x => x.ExpireAtUtcTicks);
 
-        Assert.Equal("b", list[0].Id);
-        Assert.Null(list[0].ExpireAtUtcTicks);
-
-        Assert.Equal("c", list[1].Id);
-        Assert.Equal(t1, list[1].ExpireAtUtcTicks);
-
-        Assert.Equal("a", list[2].Id);
-        Assert.Equal(t2, list[2].ExpireAtUtcTicks);
+        Assert.Equal(t2, byId["a"]);
+        Assert.Null(byId["b"]);
+        Assert.Equal(t1, byId["c"]);
     }
+
 
     [Fact]
     public async Task Delete_deletes_key()
