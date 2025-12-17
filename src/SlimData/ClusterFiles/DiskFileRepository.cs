@@ -163,6 +163,21 @@ public sealed class DiskFileRepository : IFileRepository
         var meta = Path.Combine(_root, safe + ".meta.json");
         return (file, meta);
     }
+    
+    public Task DeleteAsync(string id, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        var (filePath, metaPath) = GetPaths(id);
+
+        if (File.Exists(filePath))
+            File.Delete(filePath);
+        
+        if (File.Exists(metaPath))
+            File.Delete(metaPath);
+        
+        return Task.CompletedTask;
+    }
 
     private static void MoveIntoPlace(string tmp, string dst, bool overwrite)
     {

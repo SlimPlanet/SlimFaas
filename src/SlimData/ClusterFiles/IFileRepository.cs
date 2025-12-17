@@ -28,6 +28,8 @@ public interface IFileRepository
     Task<bool> ExistsAsync(string id, string sha256Hex, CancellationToken ct);
 
     Task<FileMetadata?> TryGetMetadataAsync(string id, CancellationToken ct);
+    
+    Task DeleteAsync(string id, CancellationToken ct);
 
     Task<Stream> OpenReadAsync(string id, CancellationToken ct);
 }

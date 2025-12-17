@@ -37,7 +37,10 @@ public sealed class ClusterFileAnnounceWorker : BackgroundService
                 var res = await _sync.PullFileIfMissingAsync(a.Id, a.Sha256Hex, stoppingToken).ConfigureAwait(false);
 
                 // IMPORTANT: on n'a pas besoin du stream ici => on le ferme pour éviter les fuites
-                res.Stream?.Dispose();
+                if(res.Stream != null)
+                {
+                    await res.Stream.DisposeAsync().ConfigureAwait(false);
+                }
             }
             catch (Exception ex)
             {

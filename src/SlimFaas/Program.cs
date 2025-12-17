@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 using Prometheus;
 using SlimData;
+using SlimData.Expiration;
 using SlimFaas;
 using SlimFaas.Configuration;
 using SlimFaas.Database;
@@ -403,6 +404,13 @@ foreach (KeyValuePair<string,string> keyValuePair in slimDataConfiguration)
 
 builder.Configuration["publicEndPoint"] = slimDataConfiguration["publicEndPoint"];
 startup.ConfigureServices(serviceCollectionSlimFaas);
+
+serviceCollectionSlimFaas.AddSingleton<SlimDataExpirationCleaner>();
+serviceCollectionSlimFaas.AddHostedService(sp =>
+    new SlimDataExpirationCleanupWorker(
+        sp.GetRequiredService<SlimDataExpirationCleaner>(),
+        sp.GetRequiredService<ILogger<SlimDataExpirationCleanupWorker>>(),
+        interval: TimeSpan.FromSeconds(30)));
 
 builder.Host
     .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(slimDataConfiguration!))
