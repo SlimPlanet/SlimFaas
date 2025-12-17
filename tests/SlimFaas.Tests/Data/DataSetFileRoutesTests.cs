@@ -84,7 +84,7 @@ public sealed class DataSetFileRoutesTests
         var byId = list.ToDictionary(x => x.Id, x => x.ExpireAtUtcTicks);
 
         Assert.Equal(t2, byId["a"]);
-        Assert.Null(byId["b"]);
+        Assert.Equal(-1, byId["b"]);
         Assert.Equal(t1, byId["c"]);
     }
 

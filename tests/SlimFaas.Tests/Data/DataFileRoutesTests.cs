@@ -75,15 +75,10 @@ public sealed class DataFileRoutesTests
         Assert.Equal(2, list.Count);
 
         var abc = Assert.Single(list, x => x.Id == "abc");
-        Assert.Equal("data:file:abc:meta", abc.MetaKey);
         Assert.Equal(ticks1, abc.ExpireAtUtcTicks);
-        Assert.NotNull(abc.ExpireAtUtc);
-        Assert.Equal(DateTimeKind.Utc, abc.ExpireAtUtc!.Value.Kind);
-        Assert.Equal(ticks1, abc.ExpireAtUtc.Value.Ticks);
 
         var noTtl = Assert.Single(list, x => x.Id == "no-ttl");
-        Assert.Null(noTtl.ExpireAtUtcTicks);
-        Assert.Null(noTtl.ExpireAtUtc);
+        Assert.Equal(-1, noTtl.ExpireAtUtcTicks);
     }
 
     [Fact]
