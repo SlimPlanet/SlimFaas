@@ -79,7 +79,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.57.1-pr.209326
+          image: axaguildev/slimfaas:0.57.2-pr.209331
           livenessProbe:
             httpGet:
               path: /health
@@ -120,6 +120,8 @@ spec:
                 configMapKeyRef:
                   name: slimfaas-config
                   key: SLIMFAAS_JOBS_CONFIGURATION
+            - name: Data__DefaultVisibility
+              value: "Public"
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database
