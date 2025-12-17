@@ -1,0 +1,20 @@
+using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace SlimData.ClusterFiles;
+
+public interface IClusterFileSync
+{
+    Task<FilePutResult> BroadcastFilePutAsync(
+        string id,
+        Stream content,
+        string contentType,
+        bool overwrite,
+        CancellationToken ct);
+
+    Task<FilePullResult> PullFileIfMissingAsync(
+        string id,
+        string sha256Hex,
+        CancellationToken ct);
+}
