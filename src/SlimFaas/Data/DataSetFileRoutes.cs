@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using SlimData;
 using SlimData.Commands;
+using SlimData.Expiration;
 
 namespace SlimFaas;
 
@@ -126,16 +127,13 @@ public static class DataSetFileRoutes
                 if (string.IsNullOrWhiteSpace(id) || !IdValidator.IsSafeId(id))
                     continue;
 
-                long? expireAtTicks = null;
                 var ttlKey = TtlKey(key);
 
-                if (keyValues.TryGetValue(ttlKey, out var ttlBytes) && ttlBytes.Length >= sizeof(long))
-                {
-                    var t = BitConverter.ToInt64(ttlBytes.Span);
-                    if (t > 0) expireAtTicks = t;
-                }
+                long expireAtUtcTicks = -1;
+                if(keyValues.TryGetValue(ttlKey, out var ttlBytes))
+                    SlimDataExpirationCleaner.TryReadInt64(ttlBytes, out expireAtUtcTicks);
 
-                list.Add(new DataSetEntry(id, expireAtTicks));
+                list.Add(new DataSetEntry(id, expireAtUtcTicks));
             }
 
             list.Sort(static (a, b) =>

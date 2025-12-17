@@ -98,7 +98,7 @@ public sealed class SlimDataExpirationCleaner
         }
     }
 
-    private static bool TryReadInt64(ReadOnlyMemory<byte> bytes, out long value)
+    public static bool TryReadInt64(ReadOnlyMemory<byte> bytes, out long value)
     {
         value = 0;
         if (bytes.Length < sizeof(long)) return false;

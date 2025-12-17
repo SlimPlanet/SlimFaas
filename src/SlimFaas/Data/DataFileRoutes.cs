@@ -9,6 +9,7 @@ using Microsoft.Net.Http.Headers;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
+using SlimData.Expiration;
 
 namespace SlimFaas;
 
@@ -81,32 +82,16 @@ public static class DataFileRoutes
 
                 var ttlKey = metaKey + TimeToLiveSuffix;
 
-                long? expireAtUtcTicks = null;
-                DateTime? expireAtUtc = null;
-
-                if (keyValues.TryGetValue(ttlKey, out var ttlBytes) && ttlBytes.Length >= sizeof(long))
-                {
-                    var ticks = BitConverter.ToInt64(ttlBytes.Span);
-                    if (ticks > 0)
-                    {
-                        expireAtUtcTicks = ticks;
-                        expireAtUtc = new DateTime(ticks, DateTimeKind.Utc);
-                    }
-                }
+                long expireAtUtcTicks = -1;
+                if(keyValues.TryGetValue(ttlKey, out var ttlBytes))
+                    SlimDataExpirationCleaner.TryReadInt64(ttlBytes, out expireAtUtcTicks);
 
                 list.Add(new DataFileEntry(
                     Id: id,
-                    MetaKey: metaKey,
-                    ExpireAtUtcTicks: expireAtUtcTicks,
-                    ExpireAtUtc: expireAtUtc));
+                    ExpireAtUtcTicks: expireAtUtcTicks
+                    ));
             }
 
-            // tri: expiration puis id
-            list.Sort(static (a, b) =>
-            {
-                var c = Nullable.Compare(a.ExpireAtUtc, b.ExpireAtUtc);
-                return c != 0 ? c : string.CompareOrdinal(a.Id, b.Id);
-            });
 
             return Results.Ok(list);
         }
@@ -259,9 +244,7 @@ public partial record DataSetMetadata(
 
 public sealed record DataFileEntry(
     string Id,
-    string MetaKey,
-    long? ExpireAtUtcTicks,
-    DateTime? ExpireAtUtc
+    long ExpireAtUtcTicks
 );
 
 
