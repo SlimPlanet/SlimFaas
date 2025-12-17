@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.57.2
+
+- [c806a40](https://github.com/SlimPlanet/SlimFaas/commit/c806a40aa6a4d60a07a18ed510143b4d5b64175b) - slimfaas(data): data file (#209) (release), 2025-12-17 by *Guillaume Chervet*
+
+
+## 0.57.1
+
+
+
 ## v0.57.1
 
 - [5a33746](https://github.com/SlimPlanet/SlimFaas/commit/5a337469c19e7e30d5487d4d1c79dbbe2b4d2f77) - fix(slimfaas): MaxRequestBodySize (release), 2025-12-16 by *Guillaume Chervet*
@@ -264,15 +273,6 @@
 
 
 ## 0.43.7
-
-
-
-## v0.43.7
-
-- [4adacb0](https://github.com/SlimPlanet/SlimFaas/commit/4adacb093ecc11b908ea43796086dde356b507de) - fix(website): typo (release), 2025-10-07 by *Guillaume Chervet*
-
-
-## 0.43.6
 
 
 
