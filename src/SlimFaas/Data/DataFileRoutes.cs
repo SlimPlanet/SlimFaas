@@ -23,8 +23,8 @@ public static class DataFileRoutes
     {
         // Writes -> leader (DotNext HTTP consensus protocol handler)
         app.UseConsensusProtocolHandler()
-           .RedirectToLeader("/data/file")
-           .RedirectToLeader("/data/file/"); // couvre /data/set/{id} si RedirectToLeader fait un match par prefix
+           .RedirectToLeader("/data/files")
+           .RedirectToLeader("/data/files/"); // couvre /data/set/{id} si RedirectToLeader fait un match par prefix
 
         return app;
     }
