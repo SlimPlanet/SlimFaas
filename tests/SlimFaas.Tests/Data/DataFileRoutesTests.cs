@@ -170,7 +170,7 @@ public sealed class DataFileRoutesTests
 
         // Act
         var result = await DataFileRoutes.DataFileHandlers.PostAsync(
-            ctx, id: null, timeToLiveMilliseconds: ttlMs, fileSync.Object, db.Object, CancellationToken.None);
+            ctx, id: null, ttl: ttlMs, fileSync.Object, db.Object, CancellationToken.None);
 
         var (status, _, bodyBytes) = await ExecuteAsync(result, ctx);
         var elementId = Encoding.UTF8.GetString(bodyBytes);

@@ -116,7 +116,7 @@ public static class DataFileRoutes
         public static async Task<IResult> PostAsync(
             HttpContext context,
             [FromQuery] string? id,
-            [FromQuery] long? timeToLiveMilliseconds, // milliseconds
+            [FromQuery] long? ttl, // milliseconds
             IClusterFileSync fileSync,
             IDatabaseService db,
             CancellationToken ct)
@@ -174,7 +174,7 @@ public static class DataFileRoutes
             var metaKey = MetaKey(elementId);
             var metaBytes = MemoryPackSerializer.Serialize(meta);
 
-            await db.SetAsync(metaKey, metaBytes, timeToLiveMilliseconds);
+            await db.SetAsync(metaKey, metaBytes, ttl);
 
             // byte[] => element_id (ici: return element_id)
             return Results.Text(elementId);
