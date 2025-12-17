@@ -45,32 +45,32 @@ public static class DataSetRoutes
     // ------------------------------------------------------------
     public static class DataSetHandlers
     {
-        // POST /data/set?key=...&ttl=...
+        // POST /data/file?id=...&ttl=...
         public static async Task<IResult> PostAsync(
-            HttpContext ctx,
-            [FromQuery] string? key,
-            [FromQuery] long? ttl, // milliseconds
+            HttpContext context,
+            [FromQuery] string? id,
+            [FromQuery] long? timeToLiveMilliseconds, // milliseconds
             IClusterFileSync fileSync,
             IDatabaseService db,
             CancellationToken ct)
         {
-            var elementId = string.IsNullOrWhiteSpace(key) ? Guid.NewGuid().ToString("N") : key;
+            var elementId = string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("N") : id;
 
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
 
             // Snippet demandé
-            var contentType = ctx.Request.ContentType ?? "application/octet-stream";
-            var fileName = TryGetFileName(ctx.Request.Headers["Content-Disposition"].ToString());
+            var contentType = context.Request.ContentType ?? "application/octet-stream";
+            var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
 
             Stream contentStream;
             string? actualContentType = null;
             string? actualFileName = null;
 
             // “Vrai upload” : multipart/form-data -> IFormFile
-            if (ctx.Request.HasFormContentType)
+            if (context.Request.HasFormContentType)
             {
-                var form = await ctx.Request.ReadFormAsync(ct);
+                var form = await context.Request.ReadFormAsync(ct);
                 var file = form.Files.FirstOrDefault();
                 if (file is null)
                     return Results.BadRequest("No file found in multipart form-data.");
@@ -83,7 +83,7 @@ public static class DataSetRoutes
             else
             {
                 // fallback : raw body (application/octet-stream)
-                contentStream = ctx.Request.Body;
+                contentStream = context.Request.Body;
             }
 
             var finalContentType = actualContentType ?? contentType ?? "application/octet-stream";
@@ -107,13 +107,13 @@ public static class DataSetRoutes
             var metaKey = MetaKey(elementId);
             var metaBytes = MemoryPackSerializer.Serialize(meta);
 
-            await db.SetAsync(metaKey, metaBytes, timeToLiveMilliseconds: ttl);
+            await db.SetAsync(metaKey, metaBytes, timeToLiveMilliseconds);
 
             // byte[] => element_id (ici: return element_id)
             return Results.Text(elementId);
         }
 
-        // GET /data/set/{elementId}
+        // GET /data/file/{elementId}
         public static async Task<IResult> GetAsync(
             string elementId,
             IClusterFileSync fileSync,

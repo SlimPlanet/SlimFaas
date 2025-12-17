@@ -418,16 +418,23 @@ builder.Host
 
 Uri uri = new(publicEndPoint);
 var slimfaasPorts = serviceProviderStarter.GetService<ISlimFaasPorts>();
+
+var maxRequestBodySize = builder.Configuration.GetValue<long?>("Kestrel:Limits:MaxRequestBodySize")
+                         ?? 524_288_000L;
+
 builder.Services.Configure<FormOptions>(o =>
 {
-    var maxRequestBodySize = builder.Configuration["Kestrel:Limits:MaxRequestBodySize"];
-    if(!string.IsNullOrEmpty(maxRequestBodySize))
-        o.MultipartBodyLengthLimit = Convert.ToInt64(maxRequestBodySize);
+    o.MultipartBodyLengthLimit = maxRequestBodySize;
 });
 builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 {
     serverOptions.Configure(context.Configuration.GetSection("Kestrel"));
-    serverOptions.ListenAnyIP(uri.Port, o => o.Protocols = HttpProtocols.Http1);
+    serverOptions.Limits.MaxRequestBodySize = maxRequestBodySize;
+    serverOptions.ListenAnyIP(uri.Port, lo =>
+    {
+        lo.Protocols = HttpProtocols.Http1;
+        lo.KestrelServerOptions.Limits.MaxRequestBodySize = maxRequestBodySize;
+    });
 
     if (slimfaasPorts == null)
     {
@@ -435,12 +442,13 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
         return;
     }
     Console.WriteLine("Initializing Slimfaas ports");
-    foreach (int slimFaasPort in slimfaasPorts.Ports)
+    foreach (int slimFaasPort in slimfaasPorts.Ports.Where(p => p != uri.Port))
     {
         Console.WriteLine($"Slimfaas listening on port {slimFaasPort}");
         serverOptions.ListenAnyIP(slimFaasPort, listenOptions =>
         {
             listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
+            listenOptions.KestrelServerOptions.Limits.MaxRequestBodySize = maxRequestBodySize;
         });
     }
 });
@@ -474,90 +482,7 @@ app.UseCors(builder =>
 });
 
 app.MapDataSetRoutes();
-
-app.MapPost("/debug/promql/eval", (PromQlRequest req,
-        PromQlMiniEvaluator eval,
-        IMetricsScrapingGuard guard,
-        IRequestedMetricsRegistry registry) =>
-    {
-        // Active le scraping côté PromQL
-        guard.EnablePromql();
-
-        // Enregistre les métriques demandées par cette requête
-        registry.RegisterFromQuery(req.Query);
-
-        if (string.IsNullOrWhiteSpace(req.Query))
-            return Results.BadRequest(new ErrorResponse { Error = "query is required" });
-
-        double result;
-        try
-        {
-            result = eval.Evaluate(req.Query, req.NowUnixSeconds);
-
-            // 👇 IMPORTANT : filtrer NaN / ±Infinity
-            if (double.IsNaN(result) || double.IsInfinity(result))
-            {
-                return Results.BadRequest(new ErrorResponse
-                {
-                    Error = "PromQL result is NaN or Infinity (probably no data or division by zero)."
-                });
-            }
-        }
-        catch (FormatException fe)
-        {
-            return Results.BadRequest(new ErrorResponse { Error = fe.Message });
-        }
-        catch (Exception ex)
-        {
-            return Results.Problem(
-                title: "Evaluation error",
-                detail: ex.Message,
-                statusCode: 500
-            );
-        }
-
-        return Results.Ok(new PromQlResponse(result));
-    })
-    .WithName("PromQlEvaluate")
-    .Produces<PromQlResponse>(StatusCodes.Status200OK)
-    .Produces<ErrorResponse>(StatusCodes.Status400BadRequest)
-    .ProducesProblem(StatusCodes.Status500InternalServerError);
-
-
-app.MapGet("/debug/store", (IMetricsStore store, IRequestedMetricsRegistry registry) =>
-    {
-        var snapshot = store.Snapshot();
-
-        int timestampBuckets = snapshot.Count;
-        int seriesCount = 0;
-        int totalPoints = 0;
-
-        foreach (var tsEntry in snapshot)                  // ts
-        {
-            foreach (var depEntry in tsEntry.Value)        // deployment
-            {
-                foreach (var podEntry in depEntry.Value)   // podIp
-                {
-                    var metrics = podEntry.Value;          // Dictionary<string,double>
-                    int metricCount = metrics.Count;
-
-                    totalPoints += metricCount;
-                    seriesCount += metricCount;
-                }
-            }
-        }
-
-        var response = new MetricsStoreDebugResponse(
-            RequestedMetricNames: registry.GetRequestedMetricNames(),
-            TimestampBuckets: timestampBuckets,
-            SeriesCount: seriesCount,
-            TotalPoints: totalPoints
-        );
-
-        return Results.Ok(response);
-    })
-    .WithName("MetricsStoreDebug")
-    .Produces<MetricsStoreDebugResponse>(StatusCodes.Status200OK);
+app.MapDebugRoutes();
 
 app.UseMiddleware<SlimProxyMiddleware>();
 

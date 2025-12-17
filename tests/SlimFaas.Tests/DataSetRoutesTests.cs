@@ -91,7 +91,7 @@ public sealed class DataSetRoutesTests
 
         // Act
         var result = await DataSetRoutes.DataSetHandlers.PostAsync(
-            ctx, key: null, ttl: ttlMs, fileSync.Object, db.Object, CancellationToken.None);
+            ctx, id: null, timeToLiveMilliseconds: ttlMs, fileSync.Object, db.Object, CancellationToken.None);
 
         var (status, _, bodyBytes) = await ExecuteAsync(result, ctx);
         var elementId = Encoding.UTF8.GetString(bodyBytes);
@@ -168,7 +168,7 @@ public sealed class DataSetRoutesTests
 
         // Act
         var result = await DataSetRoutes.DataSetHandlers.PostAsync(
-            ctx, key: "id1", ttl: null, fileSync.Object, db.Object, CancellationToken.None);
+            ctx, id: "id1", null, fileSync.Object, db.Object, CancellationToken.None);
 
         var (status, _, bodyBytes) = await ExecuteAsync(result, ctx);
         var elementId = Encoding.UTF8.GetString(bodyBytes);
