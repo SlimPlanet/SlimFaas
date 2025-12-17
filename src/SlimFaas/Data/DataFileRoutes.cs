@@ -33,13 +33,13 @@ public static class DataFileRoutes
     /// </summary>
     public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/data/file")
+        var group = endpoints.MapGroup("/data/files")
             .AddEndpointFilter<DataVisibilityEndpointFilter>();
 
         group.MapPost("", DataFileHandlers.PostAsync);
         group.MapGet("/{elementId}", DataFileHandlers.GetAsync);
         group.MapDelete("/{elementId}", DataFileHandlers.DeleteAsync);
-        group.MapGet("/data/file", DataFileHandlers.ListFilesAsync);
+        group.MapGet("", DataFileHandlers.ListFilesAsync);
 
         return endpoints;
     }
@@ -222,6 +222,8 @@ public static class DataFileRoutes
             IDatabaseService db,
             CancellationToken ct)
         {
+            if (!IdValidator.IsSafeId(elementId))
+                return Results.BadRequest("Invalid id.");
             await db.DeleteAsync(MetaKey(elementId));
             return Results.NoContent();
         }

@@ -457,7 +457,9 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 builder.Services.ConfigureHttpJsonOptions(opt =>
 {
     opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
-    opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
+    opt.SerializerOptions.TypeInfoResolverChain.Insert(1, DataFileRoutesJsonContext.Default);
+    opt.SerializerOptions.TypeInfoResolverChain.Insert(2, DataSetFileRoutesRoutesJsonContext.Default);
+    opt.SerializerOptions.TypeInfoResolverChain.Insert(3, DataHashsetFileRoutesJsonContext.Default);
 });
 
 WebApplication app = builder.Build();

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using DotNext;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -20,17 +21,52 @@ public static class DataSetFileRoutes
 
     public static IEndpointRouteBuilder MapDataSetFileRoutes(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/data/set", Handlers.PostAsync);
-        app.MapGet("/data/set/{id}", Handlers.GetAsync);
-        app.MapGet("/data/set", Handlers.ListAsync);
-        app.MapDelete("/data/set/{id}", Handlers.DeleteAsync);
+        app.MapPost("/data/sets", Handlers.PostAsync);
+        app.MapGet("/data/sets/{id}", Handlers.GetAsync);
+        app.MapGet("/data/sets", Handlers.ListAsync);
+        app.MapDelete("/data/sets/{id}", Handlers.DeleteAsync);
         return app;
     }
 
-    public sealed record DataSetEntry(string Id, long? ExpireAtUtcTicks);
 
     public static class Handlers
     {
+
+    private const int MaxBodyBytes = 1 * 1024 * 1024; // 1 MiB = 1_048_576 bytes
+
+    private static IResult PayloadTooLarge() =>
+        Results.Problem(
+            title: "Payload too large",
+            detail: $"Max allowed size is {MaxBodyBytes} bytes (1 MiB).",
+            statusCode: StatusCodes.Status413PayloadTooLarge);
+
+    public static async Task<(byte[]? Bytes, IResult? Error)> ReadBodyUpTo1MbAsync(
+        HttpContext ctx,
+        CancellationToken ct)
+    {
+        if (ctx.Request.ContentLength is long len && len > MaxBodyBytes)
+            return (null, PayloadTooLarge());
+
+        using var ms = new MemoryStream(capacity: (int)Math.Min(ctx.Request.ContentLength ?? MaxBodyBytes, MaxBodyBytes));
+        var buffer = new byte[64 * 1024];
+
+        long total = 0;
+        while (true)
+        {
+            var read = await ctx.Request.Body.ReadAsync(buffer.AsMemory(0, buffer.Length), ct).ConfigureAwait(false);
+            if (read <= 0) break;
+
+            total += read;
+            if (total > MaxBodyBytes)
+                return (null, PayloadTooLarge());
+
+            ms.Write(buffer, 0, read);
+        }
+
+        return (ms.ToArray(), null);
+    }
+
+
         public static async Task<IResult> PostAsync(
             HttpContext ctx,
             IDatabaseService db,
@@ -45,14 +81,10 @@ public static class DataSetFileRoutes
 
             var key = DataKey(elementId);
 
-            byte[] bytes;
-            using (var ms = new MemoryStream())
-            {
-                await ctx.Request.Body.CopyToAsync(ms, ct).ConfigureAwait(false);
-                bytes = ms.ToArray();
-            }
+             var (bytes, error) = await ReadBodyUpTo1MbAsync(ctx, ct).ConfigureAwait(false);
+             if (error is not null) return error;
 
-            await db.SetAsync(key, bytes, ttl).ConfigureAwait(false);
+            await db.SetAsync(key, bytes ?? Array.Empty<byte>(), ttl).ConfigureAwait(false);
 
             return Results.Ok(elementId);
         }
@@ -125,3 +157,12 @@ public static class DataSetFileRoutes
         }
     }
 }
+
+public sealed record DataSetEntry(string Id, long? ExpireAtUtcTicks);
+
+
+[JsonSerializable(typeof(List<DataSetEntry>))]
+public partial class DataSetFileRoutesRoutesJsonContext : JsonSerializerContext
+{
+}
+

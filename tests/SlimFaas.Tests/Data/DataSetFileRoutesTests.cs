@@ -77,7 +77,7 @@ public sealed class DataSetFileRoutesTests
 
         var res = await DataSetFileRoutes.Handlers.ListAsync(state.Object);
 
-        var ok = Assert.IsType<Ok<List<DataSetFileRoutes.DataSetEntry>>>(res);
+        var ok = Assert.IsType<Ok<List<DataSetEntry>>>(res);
         var list = ok.Value!;
 
         // ✅ assertions robustes (ne dépendent pas de l'ordre ni d'IdValidator)

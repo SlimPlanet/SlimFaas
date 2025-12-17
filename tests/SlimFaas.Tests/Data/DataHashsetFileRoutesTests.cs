@@ -89,7 +89,7 @@ public sealed class DataHashsetFileRoutesTests
 
         var res = await DataHashsetFileRoutes.Handlers.ListAsync(state.Object);
 
-        var ok = Assert.IsType<Ok<List<DataHashsetFileRoutes.DataHashsetEntry>>>(res);
+        var ok = Assert.IsType<Ok<List<DataHashsetEntry>>>(res);
         var list = ok.Value!;
 
         // b (null TTL) doit être avant c (t1) avant a (t2)

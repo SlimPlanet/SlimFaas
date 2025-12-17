@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json.Serialization;
 using DotNext;
 using SlimData.Commands;
 
@@ -18,14 +19,14 @@ public static class DataHashsetFileRoutes
 
     public static IEndpointRouteBuilder MapDataHashsetFileRoutes(this IEndpointRouteBuilder app)
     {
-        app.MapPost("/data/hashset", Handlers.PostAsync);
-        app.MapGet("/data/hashset/{id}", Handlers.GetAsync);
-        app.MapGet("/data/hashset", Handlers.ListAsync);
-        app.MapDelete("/data/hashset/{id}", Handlers.DeleteAsync);
+        app.MapPost("/data/hashsets", Handlers.PostAsync);
+        app.MapGet("/data/hashsets/{id}", Handlers.GetAsync);
+        app.MapGet("/data/hashsets", Handlers.ListAsync);
+        app.MapDelete("/data/hashsets/{id}", Handlers.DeleteAsync);
         return app;
     }
 
-    public sealed record DataHashsetEntry(string Id, long? ExpireAtUtcTicks);
+
 
     public static class Handlers
     {
@@ -42,16 +43,12 @@ public static class DataHashsetFileRoutes
 
             var key = HashKey(elementId);
 
-            byte[] bytes;
-            using (var ms = new MemoryStream())
-            {
-                await ctx.Request.Body.CopyToAsync(ms, ct).ConfigureAwait(false);
-                bytes = ms.ToArray();
-            }
+            var (bytes, error) = await DataSetFileRoutes.Handlers.ReadBodyUpTo1MbAsync(ctx, ct).ConfigureAwait(false);
+            if (error is not null) return error;
 
             await db.HashSetAsync(key, new Dictionary<string, byte[]>
             {
-                [ValueField] = bytes
+                [ValueField] = bytes ?? Array.Empty<byte>()
             }, ttl).ConfigureAwait(false);
 
             return Results.Ok(elementId);
@@ -128,3 +125,11 @@ public static class DataHashsetFileRoutes
         }
     }
 }
+
+public sealed record DataHashsetEntry(string Id, long? ExpireAtUtcTicks);
+
+[JsonSerializable(typeof(List<DataHashsetEntry>))]
+public partial class DataHashsetFileRoutesJsonContext : JsonSerializerContext
+{
+}
+
