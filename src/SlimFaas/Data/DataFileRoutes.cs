@@ -1,15 +1,18 @@
 // DataSetRoutes.cs
-using System.Net.Mime;
+
+using System.Collections.Immutable;
+using System.Text.Json.Serialization;
+using DotNext;
 using MemoryPack;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using SlimData.ClusterFiles;
+using SlimData.Commands;
 
 namespace SlimFaas;
 
-public static class DataSetRoutes
+public static class DataFileRoutes
 {
     /// <summary>
     /// Redirection automatique vers le leader (écritures).
@@ -33,9 +36,10 @@ public static class DataSetRoutes
         var group = endpoints.MapGroup("/data/file")
             .AddEndpointFilter<DataVisibilityEndpointFilter>();
 
-        group.MapPost("", DataSetHandlers.PostAsync);
-        group.MapGet("/{elementId}", DataSetHandlers.GetAsync);
-        group.MapDelete("/{elementId}", DataSetHandlers.DeleteAsync);
+        group.MapPost("", DataFileHandlers.PostAsync);
+        group.MapGet("/{elementId}", DataFileHandlers.GetAsync);
+        group.MapDelete("/{elementId}", DataFileHandlers.DeleteAsync);
+        group.MapGet("/data/file", DataFileHandlers.ListFilesAsync);
 
         return endpoints;
     }
@@ -43,8 +47,71 @@ public static class DataSetRoutes
     // ------------------------------------------------------------
     // Handlers (testables unitairement)
     // ------------------------------------------------------------
-    public static class DataSetHandlers
+    public static class DataFileHandlers
     {
+                // Doit matcher SlimDataInterpreter
+        private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
+
+        private const string MetaPrefix = "data:file:";
+        private const string MetaSuffix = ":meta";
+
+        public static IResult ListFilesAsync(ISupplier<SlimDataPayload> state)
+        {
+            var payload = state.Invoke();
+
+            var keyValues = payload.KeyValues
+                ?? ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
+
+            var list = new List<DataFileEntry>(capacity: 128);
+
+            foreach (var kv in keyValues)
+            {
+                var metaKey = kv.Key;
+
+                if (!metaKey.StartsWith(MetaPrefix, StringComparison.Ordinal) ||
+                    !metaKey.EndsWith(MetaSuffix, StringComparison.Ordinal))
+                    continue;
+
+                var id = metaKey.Substring(
+                    MetaPrefix.Length,
+                    metaKey.Length - MetaPrefix.Length - MetaSuffix.Length);
+
+                if (string.IsNullOrWhiteSpace(id))
+                    continue;
+
+                var ttlKey = metaKey + TimeToLiveSuffix;
+
+                long? expireAtUtcTicks = null;
+                DateTime? expireAtUtc = null;
+
+                if (keyValues.TryGetValue(ttlKey, out var ttlBytes) && ttlBytes.Length >= sizeof(long))
+                {
+                    var ticks = BitConverter.ToInt64(ttlBytes.Span);
+                    if (ticks > 0)
+                    {
+                        expireAtUtcTicks = ticks;
+                        expireAtUtc = new DateTime(ticks, DateTimeKind.Utc);
+                    }
+                }
+
+                list.Add(new DataFileEntry(
+                    Id: id,
+                    MetaKey: metaKey,
+                    ExpireAtUtcTicks: expireAtUtcTicks,
+                    ExpireAtUtc: expireAtUtc));
+            }
+
+            // tri: expiration puis id
+            list.Sort(static (a, b) =>
+            {
+                var c = Nullable.Compare(a.ExpireAtUtc, b.ExpireAtUtc);
+                return c != 0 ? c : string.CompareOrdinal(a.Id, b.Id);
+            });
+
+            return Results.Ok(list);
+        }
+
+
         // POST /data/file?id=...&ttl=...
         public static async Task<IResult> PostAsync(
             HttpContext context,
@@ -188,9 +255,21 @@ public partial record DataSetMetadata(
     string ContentType,
     string FileName);
 
+public sealed record DataFileEntry(
+    string Id,
+    string MetaKey,
+    long? ExpireAtUtcTicks,
+    DateTime? ExpireAtUtc
+);
+
 
 static class IdValidator
 {
     private static readonly System.Text.RegularExpressions.Regex Rx = new("^[A-Za-z0-9._-]{1,200}$", System.Text.RegularExpressions.RegexOptions.Compiled);
     public static bool IsSafeId(string id) => Rx.IsMatch(id);
+}
+
+[JsonSerializable(typeof(List<DataFileEntry>))]
+internal partial class DataFileRoutesJsonContext : JsonSerializerContext
+{
 }

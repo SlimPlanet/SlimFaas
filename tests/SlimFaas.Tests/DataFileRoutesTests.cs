@@ -1,19 +1,23 @@
+using System.Collections.Immutable;
 using System.Text;
+using DotNext;
 using MemoryPack;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Moq;
+using SlimData;
 using SlimData.ClusterFiles;
+using SlimData.Commands;
 using SlimFaas;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Security;
-using Xunit;
 
-public sealed class DataSetRoutesTests
+public sealed class DataFileRoutesTests
 {
     // ------------------------------------------------------------
     // Helpers
@@ -37,6 +41,81 @@ public sealed class DataSetRoutesTests
         ctx.Response.Body.Position = 0;
         var bytes = ((MemoryStream)ctx.Response.Body).ToArray();
         return (ctx.Response.StatusCode, ctx.Response.ContentType, bytes);
+    }
+
+
+        [Fact]
+    public void ListFilesAsync_returns_file_ids_and_expiration()
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
+
+        var ticks1 = DateTime.UtcNow.AddMinutes(10).Ticks;
+
+        var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("data:file:abc:meta", new byte[] { 0x01 })
+            .Add("data:file:abc:meta${slimfaas-timetolive}$", BitConverter.GetBytes(ticks1))
+            .Add("data:file:no-ttl:meta", new byte[] { 0x02 }) // pas de ttl => expiration null
+            .Add("something:else", new byte[] { 0xFF });       // ignoré
+
+        var data = new SlimDataPayload
+        {
+            KeyValues = kv,
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+
+        state.Setup(s => s.Invoke()).Returns(data);
+
+        var result = DataFileRoutes.DataFileHandlers.ListFilesAsync(state.Object);
+
+        var ok = Assert.IsType<Ok<List<DataFileEntry>>>(result);
+        Assert.NotNull(ok.Value);
+
+        var list = ok.Value!;
+        Assert.Equal(2, list.Count);
+
+        var abc = Assert.Single(list, x => x.Id == "abc");
+        Assert.Equal("data:file:abc:meta", abc.MetaKey);
+        Assert.Equal(ticks1, abc.ExpireAtUtcTicks);
+        Assert.NotNull(abc.ExpireAtUtc);
+        Assert.Equal(DateTimeKind.Utc, abc.ExpireAtUtc!.Value.Kind);
+        Assert.Equal(ticks1, abc.ExpireAtUtc.Value.Ticks);
+
+        var noTtl = Assert.Single(list, x => x.Id == "no-ttl");
+        Assert.Null(noTtl.ExpireAtUtcTicks);
+        Assert.Null(noTtl.ExpireAtUtc);
+    }
+
+    [Fact]
+    public void ListFilesAsync_sorts_by_expiration_then_id()
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
+
+        var t1 = DateTime.UtcNow.AddMinutes(5).Ticks;
+        var t2 = DateTime.UtcNow.AddMinutes(15).Ticks;
+
+        var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("data:file:b:meta", new byte[] { 0x01 })
+            .Add("data:file:b:meta${slimfaas-timetolive}$", BitConverter.GetBytes(t2))
+            .Add("data:file:a:meta", new byte[] { 0x01 })
+            .Add("data:file:a:meta${slimfaas-timetolive}$", BitConverter.GetBytes(t1));
+
+        var data = new SlimDataPayload
+        {
+            KeyValues = kv,
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+
+        state.Setup(s => s.Invoke()).Returns(data);
+
+        var result = DataFileRoutes.DataFileHandlers.ListFilesAsync(state.Object);
+        var ok = Assert.IsType<Ok<List<DataFileEntry>>>(result);
+
+        var list = ok.Value!;
+        Assert.Equal(2, list.Count);
+        Assert.Equal("a", list[0].Id); // t1
+        Assert.Equal("b", list[1].Id); // t2
     }
 
     // ------------------------------------------------------------
@@ -90,7 +169,7 @@ public sealed class DataSetRoutesTests
         var ttlMs = 12345L;
 
         // Act
-        var result = await DataSetRoutes.DataSetHandlers.PostAsync(
+        var result = await DataFileRoutes.DataFileHandlers.PostAsync(
             ctx, id: null, timeToLiveMilliseconds: ttlMs, fileSync.Object, db.Object, CancellationToken.None);
 
         var (status, _, bodyBytes) = await ExecuteAsync(result, ctx);
@@ -167,7 +246,7 @@ public sealed class DataSetRoutesTests
           .Returns(Task.CompletedTask);
 
         // Act
-        var result = await DataSetRoutes.DataSetHandlers.PostAsync(
+        var result = await DataFileRoutes.DataFileHandlers.PostAsync(
             ctx, id: "id1", null, fileSync.Object, db.Object, CancellationToken.None);
 
         var (status, _, bodyBytes) = await ExecuteAsync(result, ctx);
@@ -200,7 +279,7 @@ public sealed class DataSetRoutesTests
         db.Setup(d => d.GetAsync("data:file:id1:meta"))
           .ReturnsAsync((byte[]?)null);
 
-        var result = await DataSetRoutes.DataSetHandlers.GetAsync("id1", fileSync.Object, db.Object, CancellationToken.None);
+        var result = await DataFileRoutes.DataFileHandlers.GetAsync("id1", fileSync.Object, db.Object, CancellationToken.None);
 
         var ctx = NewHttpContext();
         var (status, _, _) = await ExecuteAsync(result, ctx);
@@ -227,7 +306,7 @@ public sealed class DataSetRoutesTests
         fileSync.Setup(s => s.PullFileIfMissingAsync("id1", "sha", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new FilePullResult(new MemoryStream(payload)));
 
-        var result = await DataSetRoutes.DataSetHandlers.GetAsync("id1", fileSync.Object, db.Object, CancellationToken.None);
+        var result = await DataFileRoutes.DataFileHandlers.GetAsync("id1", fileSync.Object, db.Object, CancellationToken.None);
 
         var ctx = NewHttpContext();
         var (status, contentType, body) = await ExecuteAsync(result, ctx);
@@ -251,7 +330,7 @@ public sealed class DataSetRoutesTests
         db.Setup(d => d.DeleteAsync("data:file:id1:meta"))
           .Returns(Task.CompletedTask);
 
-        var result = await DataSetRoutes.DataSetHandlers.DeleteAsync("id1", db.Object, CancellationToken.None);
+        var result = await DataFileRoutes.DataFileHandlers.DeleteAsync("id1", db.Object, CancellationToken.None);
 
         var ctx = NewHttpContext();
         var (status, _, _) = await ExecuteAsync(result, ctx);

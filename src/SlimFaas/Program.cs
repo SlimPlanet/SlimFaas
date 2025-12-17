@@ -457,6 +457,7 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 builder.Services.ConfigureHttpJsonOptions(opt =>
 {
     opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
+    opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
 });
 
 WebApplication app = builder.Build();
@@ -481,6 +482,7 @@ app.UseCors(builder =>
     }
 });
 
+app.UseDataSetLeaderRedirect();
 app.MapDataSetRoutes();
 app.MapDebugRoutes();
 
@@ -488,7 +490,6 @@ app.UseMiddleware<SlimProxyMiddleware>();
 
 app.Use(async (context, next) =>
 {
-
     if (slimfaasPorts == null)
     {
         await next.Invoke();
