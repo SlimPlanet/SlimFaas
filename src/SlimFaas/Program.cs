@@ -413,6 +413,7 @@ serviceCollectionSlimFaas.AddHostedService(sp =>
         sp.GetRequiredService<ILogger<SlimDataExpirationCleanupWorker>>(),
         interval: TimeSpan.FromSeconds(30)));
 
+
 builder.Host
     .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(slimDataConfiguration!))
     .JoinCluster();

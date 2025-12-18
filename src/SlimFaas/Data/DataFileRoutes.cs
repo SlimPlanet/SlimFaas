@@ -99,6 +99,13 @@ public static class DataFileRoutes
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
 
+            context.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Upload").LogWarning("BodyType={Type} CanSeek={CanSeek} CL={CL}",
+                    context.Request.Body.GetType().FullName,
+                    context.Request.Body.CanSeek,
+                    context.Request.ContentLength);
+
             // Snippet demandé
             var contentType = context.Request.ContentType ?? "application/octet-stream";
             var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
