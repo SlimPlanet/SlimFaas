@@ -1,3 +1,4 @@
+using OpenTelemetry;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
@@ -110,15 +111,61 @@ public static class OpenTelemetryExtensions
         ResourceBuilder resourceBuilder)
     {
         loggerProviderBuilder.SetResourceBuilder(resourceBuilder);
+
         loggerProviderBuilder.AddOtlpExporter(
             !string.IsNullOrWhiteSpace(config.Endpoint)
                 ? options => options.Endpoint = new Uri(config.Endpoint)
                 : _ => { }
         );
 
+        if (config.ExcludedUrls is { Length: > 0 })
+        {
+            loggerProviderBuilder.AddProcessor(new ExcludeUrlLogProcessor(config.ExcludedUrls));
+        }
+
         if (config.EnableConsoleExporter)
         {
             loggerProviderBuilder.AddConsoleExporter();
         }
+    }
+}
+
+internal class ExcludeUrlLogProcessor(string[] excludedUrls) : BaseProcessor<LogRecord>
+{
+    public override void OnEnd(LogRecord data)
+    {
+        if (ShouldExclude(data))
+        {
+            return;
+        }
+
+        base.OnEnd(data);
+    }
+
+    private bool ShouldExclude(LogRecord data)
+    {
+        if (data.Attributes == null)
+        {
+            return false;
+        }
+
+        var path = data.Attributes.FirstOrDefault(kvp =>
+            kvp.Key == "Path" || kvp.Key == "RequestPath" || kvp.Key == "url.path")
+            .Value?.ToString() ?? string.Empty;
+
+        if (string.IsNullOrEmpty(path))
+        {
+            return false;
+        }
+
+        foreach (var excludedUrl in excludedUrls)
+        {
+            if (path.StartsWith(excludedUrl, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
