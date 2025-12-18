@@ -10,7 +10,7 @@ using SlimData.Expiration;
 
 namespace SlimFaas;
 
-public static class DataSetFileRoutes
+public static class DataSetRoutes
 {
     private const string SetPrefix = "data:set:";
 
@@ -20,7 +20,7 @@ public static class DataSetFileRoutes
     private static string DataKey(string id) => $"{SetPrefix}{id}";
     private static string TtlKey(string key) => key + TimeToLiveSuffix;
 
-    public static IEndpointRouteBuilder MapDataSetFileRoutes(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder app)
     {
         app.MapPost("/data/sets", Handlers.PostAsync);
         app.MapGet("/data/sets/{id}", Handlers.GetAsync);

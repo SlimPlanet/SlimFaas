@@ -9,7 +9,7 @@ using SlimData.Commands;
 using SlimFaas;
 using Xunit;
 
-public sealed class DataSetFileRoutesTests
+public sealed class DataSetRoutesTests
 {
     private const string TtlSuffix = "${slimfaas-timetolive}$";
 
@@ -25,7 +25,7 @@ public sealed class DataSetFileRoutesTests
         db.Setup(d => d.SetAsync("data:set:element1", It.Is<byte[]>(b => b.SequenceEqual(body)), 123L))
           .Returns(Task.CompletedTask);
 
-        var res = await DataSetFileRoutes.Handlers.PostAsync(ctx, db.Object, "element1", 123L, CancellationToken.None);
+        var res = await DataSetRoutes.Handlers.PostAsync(ctx, db.Object, "element1", 123L, CancellationToken.None);
 
         var ok = Assert.IsType<Ok<string>>(res);
         Assert.Equal("element1", ok.Value);
@@ -41,7 +41,7 @@ public sealed class DataSetFileRoutesTests
         db.Setup(d => d.GetAsync("data:set:missing"))
           .ReturnsAsync((byte[]?)null);
 
-        var res = await DataSetFileRoutes.Handlers.GetAsync(db.Object, "missing");
+        var res = await DataSetRoutes.Handlers.GetAsync(db.Object, "missing");
 
         Assert.IsType<NotFound>(res);
         db.VerifyAll();
@@ -75,7 +75,7 @@ public sealed class DataSetFileRoutesTests
 
         state.Setup(s => s.Invoke()).Returns(payload);
 
-        var res = await DataSetFileRoutes.Handlers.ListAsync(state.Object);
+        var res = await DataSetRoutes.Handlers.ListAsync(state.Object);
 
         var ok = Assert.IsType<Ok<List<DataSetEntry>>>(res);
         var list = ok.Value!;
@@ -97,7 +97,7 @@ public sealed class DataSetFileRoutesTests
         db.Setup(d => d.DeleteAsync("data:set:id1"))
           .Returns(Task.CompletedTask);
 
-        var res = await DataSetFileRoutes.Handlers.DeleteAsync(db.Object, "id1");
+        var res = await DataSetRoutes.Handlers.DeleteAsync(db.Object, "id1");
 
         Assert.IsType<NoContent>(res);
         db.VerifyAll();

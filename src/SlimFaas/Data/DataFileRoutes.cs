@@ -15,30 +15,17 @@ namespace SlimFaas;
 
 public static class DataFileRoutes
 {
-    /// <summary>
-    /// Redirection automatique vers le leader (écritures).
-    /// Appelle ceci dans Program.cs : app.UseDataSetLeaderRedirect();
-    /// </summary>
-    public static WebApplication UseDataSetLeaderRedirect(this WebApplication app)
-    {
-        // Writes -> leader (DotNext HTTP consensus protocol handler)
-        app.UseConsensusProtocolHandler()
-           .RedirectToLeader("/data/files")
-           .RedirectToLeader("/data/files/"); // couvre /data/set/{id} si RedirectToLeader fait un match par prefix
-
-        return app;
-    }
 
     /// <summary>
     /// Appelle ceci dans Program.cs : app.MapDataSetRoutes();
     /// </summary>
-    public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder endpoints)
+    public static IEndpointRouteBuilder MapDataFileRoutes(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/data/files")
             .AddEndpointFilter<DataVisibilityEndpointFilter>();
 
-        group.MapPost("", DataFileHandlers.PostAsync);
-        group.MapGet("/{elementId}", DataFileHandlers.GetAsync);
+        group.MapPost("", DataFileHandlers.PostAsync).RedirectToLeaderOnPublicPort();
+        group.MapGet("/{elementId}", DataFileHandlers.GetAsync).RedirectToLeaderOnPublicPort();
         group.MapDelete("/{elementId}", DataFileHandlers.DeleteAsync);
         group.MapGet("", DataFileHandlers.ListFilesAsync);
 
