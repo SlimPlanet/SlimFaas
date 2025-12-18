@@ -40,7 +40,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         var put = await _repo.SaveAsync(id, content, contentType, overwrite, ct).ConfigureAwait(false);
 
         // 2) Broadcast "announce-only" (pas de stream envoyé)
-        /*var idEnc = Base64UrlCodec.Encode(id);
+        var idEnc = Base64UrlCodec.Encode(id);
         var announceName = FileSyncProtocol.BuildAnnounceName(idEnc, put.Sha256Hex, put.Length, put.ContentType, overwrite);
 
         foreach (var member in _bus.Members)
@@ -62,7 +62,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 // Best effort: on ne casse pas l'upload, on log et on continue.
                 _logger.LogWarning(ex, "FileSync announce failed. Node={Node}", SafeNode(member));
             }
-        }*/
+        }
 
         return put;
     }
