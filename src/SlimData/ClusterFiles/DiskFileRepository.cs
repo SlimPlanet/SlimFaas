@@ -37,7 +37,7 @@ public sealed class DiskFileRepository : IFileRepository
         {
             await using var fs = new FileStream(
                 tmp, FileMode.Create, FileAccess.Write, FileShare.None,
-                bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
+                bufferSize: 128 * 1024, options: FileOptions.Asynchronous | FileOptions.WriteThrough);
 
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
