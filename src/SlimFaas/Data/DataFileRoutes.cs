@@ -24,8 +24,8 @@ public static class DataFileRoutes
         var group = endpoints.MapGroup("/data/files")
             .AddEndpointFilter<DataVisibilityEndpointFilter>();
 
-        group.MapPost("", DataFileHandlers.PostAsync).RedirectToLeaderOnPublicPort();
-        group.MapGet("/{elementId}", DataFileHandlers.GetAsync).RedirectToLeaderOnPublicPort();
+        group.MapPost("", DataFileHandlers.PostAsync);
+        group.MapGet("/{elementId}", DataFileHandlers.GetAsync);
         group.MapDelete("/{elementId}", DataFileHandlers.DeleteAsync);
         group.MapGet("", DataFileHandlers.ListFilesAsync);
 
