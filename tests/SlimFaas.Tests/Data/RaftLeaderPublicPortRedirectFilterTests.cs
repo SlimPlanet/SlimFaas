@@ -2,6 +2,7 @@ using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Http;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 
@@ -30,6 +31,11 @@ public sealed class RaftLeaderPublicPortRedirectFilterTests
         var filter = new RaftLeaderPublicPortRedirectFilter(cluster.Object, ports.Object, logger);
 
         var http = new DefaultHttpContext();
+        var services = new ServiceCollection()
+            .AddLogging()
+            .BuildServiceProvider();
+
+        http.RequestServices = services;
         http.Request.Scheme = "http";
         http.Request.Host = new HostString("any-follower", 30021);
         http.Connection.LocalPort = 30021;
@@ -70,6 +76,11 @@ public sealed class RaftLeaderPublicPortRedirectFilterTests
         var filter = new RaftLeaderPublicPortRedirectFilter(cluster.Object, ports.Object, logger);
 
         var http = new DefaultHttpContext();
+        var services = new ServiceCollection()
+            .AddLogging()
+            .BuildServiceProvider();
+
+        http.RequestServices = services;
         http.Request.Scheme = "http";
         http.Request.Host = new HostString("leader", 30021);
         http.Connection.LocalPort = 30021;
