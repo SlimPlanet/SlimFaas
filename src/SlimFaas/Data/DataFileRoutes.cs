@@ -103,28 +103,9 @@ public static class DataFileRoutes
             var contentType = context.Request.ContentType ?? "application/octet-stream";
             var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
 
-            Stream contentStream;
+            Stream contentStream = context.Request.Body;
             string? actualContentType = null;
             string? actualFileName = null;
-
-            // “Vrai upload” : multipart/form-data -> IFormFile
-            if (context.Request.HasFormContentType)
-            {
-                var form = await context.Request.ReadFormAsync(ct);
-                var file = form.Files.FirstOrDefault();
-                if (file is null)
-                    return Results.BadRequest("No file found in multipart form-data.");
-
-                actualFileName = string.IsNullOrWhiteSpace(file.FileName) ? null : file.FileName;
-                actualContentType = string.IsNullOrWhiteSpace(file.ContentType) ? null : file.ContentType;
-
-                contentStream = file.OpenReadStream();
-            }
-            else
-            {
-                // fallback : raw body (application/octet-stream)
-                contentStream = context.Request.Body;
-            }
 
             var finalContentType = actualContentType ?? contentType ?? "application/octet-stream";
             var finalFileName = actualFileName ?? fileName ?? elementId;
