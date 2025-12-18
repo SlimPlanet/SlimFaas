@@ -53,20 +53,18 @@ public class Endpoints
     public delegate Task RespondDelegate(IRaftCluster cluster, SlimPersistentState provider,
         CancellationTokenSource? source);
 
-    private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
-
     // Taille: 2–4 × (nombre de followers) est un bon départ
     private static readonly SemaphoreSlim Inflight = new(initialCount: 8);
 
     private static long? ToExpireAtUtcTicksFromQuery(HttpContext ctx)
     {
-        if (!ctx.Request.Query.TryGetValue("ttlSeconds", out var ttlStr)) return null;
-        if (!int.TryParse(ttlStr.ToString(), out var ttlSeconds)) return null;
+        if (!ctx.Request.Query.TryGetValue("ttl", out var ttlStr)) return null;
+        if (!long.TryParse(ttlStr.ToString(), out var ttlMilliseconds)) return null;
 
         var now = DateTime.UtcNow.Ticks;
-        if (ttlSeconds <= 0) return now;
+        if (ttlMilliseconds <= 0) return now;
 
-        var add = (long)ttlSeconds * TimeSpan.TicksPerSecond;
+        var add = ttlMilliseconds * TimeSpan.TicksPerMillisecond;
         var expire = now + add;
         if (expire < now) return long.MaxValue; // overflow -> "never expires"
         return expire;
@@ -426,7 +424,7 @@ public class Endpoints
             Console.WriteLine($"Taille ListCallbackAsync : {sizeInKo:F2} Ko");
 
             var list = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(value);
-            Console.WriteLine($" Count ListCallbackAsync: {list.Items?.Count ?? 0}");
+            Console.WriteLine($"Count ListCallbackAsync: {list.Items?.Count ?? 0}");
 
             await ListCallbackCommandAsync(provider, key, list, cluster, source);
         });

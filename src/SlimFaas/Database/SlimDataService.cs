@@ -90,7 +90,7 @@ public class SlimDataService
     }
 
     private static string BuildTtlQuery(long? ttlMs)
-        => ttlMs.HasValue ? $"&ttlMs={ttlMs.Value}" : string.Empty;
+        => ttlMs.HasValue ? $"&ttl={ttlMs.Value}" : string.Empty;
 
     private static string TtlKey(string key) => key + TimeToLiveSuffix;
 
@@ -292,7 +292,7 @@ public class SlimDataService
         }
         else
         {
-            var uri = new Uri($"{endpoint}SlimData/AddHashset?{(ttlMs.HasValue ? $"ttlSeconds={ttlMs.Value}" : "")}");
+            var uri = new Uri($"{endpoint}SlimData/AddHashset?{(ttlMs.HasValue ? $"ttl={ttlMs.Value}" : "")}");
             using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(serialize) };
             using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await httpClient.SendAsync(request);
