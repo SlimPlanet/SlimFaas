@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.58.0
+
+- [7faed1d](https://github.com/SlimPlanet/SlimFaas/commit/7faed1d8cdec1c5e9d197de7243268eeda897fd7) - fix(slimfaas): data file redirect on correct port (#210) (release), 2025-12-18 by *Guillaume Chervet*
+- [4b9fb41](https://github.com/SlimPlanet/SlimFaas/commit/4b9fb41d9e6e63dca5652e75f92479910dc778ca) - feat(otel): Allow to filter logs (#211) (release), 2025-12-18 by *Silthian*
+
+
+## 0.57.2
+
+
+
 ## v0.57.2
 
 - [c806a40](https://github.com/SlimPlanet/SlimFaas/commit/c806a40aa6a4d60a07a18ed510143b4d5b64175b) - slimfaas(data): data file (#209) (release), 2025-12-17 by *Guillaume Chervet*
@@ -264,15 +274,6 @@
 
 
 ## 0.43.8
-
-
-
-## v0.43.8
-
-- [ffea1e6](https://github.com/SlimPlanet/SlimFaas/commit/ffea1e6815de1553afb3d736ef2fc8b44449bf13) - fix(demo): typo (release), 2025-10-07 by *Guillaume Chervet*
-
-
-## 0.43.7
 
 
 
