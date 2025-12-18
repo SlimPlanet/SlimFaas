@@ -10,6 +10,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     private readonly IFileRepository _repo;
     private readonly ILogger<ClusterFileSync> _logger;
     private readonly ClusterFileSyncChannel _channel;
+    private readonly KeyedAsyncLock _idLock = new();
 
     public ClusterFileSync(IMessageBus bus, IFileRepository repo, ClusterFileAnnounceQueue announceQueue, ILogger<ClusterFileSync> logger)
     {
@@ -34,6 +35,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         bool overwrite,
         CancellationToken ct)
     {
+        await using var _ = await _idLock.AcquireAsync(id, ct);
         // 1) Sauvegarde locale + SHA256
         var put = await _repo.SaveAsync(id, content, contentType, overwrite, ct).ConfigureAwait(false);
 
@@ -73,6 +75,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             var local = await _repo.OpenReadAsync(id, ct).ConfigureAwait(false);
             return new FilePullResult(local);
         }
+        await using var _ = await _idLock.AcquireAsync(id, ct);
 
         var idEnc = Base64UrlCodec.Encode(id);
         var requestName = FileSyncProtocol.BuildFetchName(idEnc, sha256Hex);
