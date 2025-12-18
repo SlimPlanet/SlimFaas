@@ -79,6 +79,7 @@ public static class DataFileRoutes
                     ));
             }
 
+            list.Sort(static (a, b) => string.CompareOrdinal(a.Id, b.Id));
 
             return Results.Ok(list);
         }

@@ -109,8 +109,8 @@ public sealed class DataFileRoutesTests
 
         var list = ok.Value!;
         Assert.Equal(2, list.Count);
-        Assert.Equal("b", list[0].Id); // t1
-        Assert.Equal("a", list[1].Id); // t2
+        Assert.Equal("a", list[0].Id); // t1
+        Assert.Equal("b", list[1].Id); // t2
     }
 
     // ------------------------------------------------------------
