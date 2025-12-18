@@ -15,24 +15,11 @@ namespace SlimFaas;
 
 public static class DataFileRoutes
 {
-    /// <summary>
-    /// Redirection automatique vers le leader (écritures).
-    /// Appelle ceci dans Program.cs : app.UseDataSetLeaderRedirect();
-    /// </summary>
-    public static WebApplication UseDataSetLeaderRedirect(this WebApplication app)
-    {
-        // Writes -> leader (DotNext HTTP consensus protocol handler)
-        app.UseConsensusProtocolHandler()
-           .RedirectToLeader("/data/files")
-           .RedirectToLeader("/data/files/"); // couvre /data/set/{id} si RedirectToLeader fait un match par prefix
-
-        return app;
-    }
 
     /// <summary>
     /// Appelle ceci dans Program.cs : app.MapDataSetRoutes();
     /// </summary>
-    public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder endpoints)
+    public static IEndpointRouteBuilder MapDataFileRoutes(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/data/files")
             .AddEndpointFilter<DataVisibilityEndpointFilter>();
@@ -92,6 +79,7 @@ public static class DataFileRoutes
                     ));
             }
 
+            list.Sort(static (a, b) => string.CompareOrdinal(a.Id, b.Id));
 
             return Results.Ok(list);
         }
@@ -111,32 +99,20 @@ public static class DataFileRoutes
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
 
+            context.RequestServices
+                .GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Upload").LogWarning("BodyType={Type} CanSeek={CanSeek} CL={CL}",
+                    context.Request.Body.GetType().FullName,
+                    context.Request.Body.CanSeek,
+                    context.Request.ContentLength);
+
             // Snippet demandé
             var contentType = context.Request.ContentType ?? "application/octet-stream";
             var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
 
-            Stream contentStream;
+            Stream contentStream = context.Request.Body;
             string? actualContentType = null;
             string? actualFileName = null;
-
-            // “Vrai upload” : multipart/form-data -> IFormFile
-            if (context.Request.HasFormContentType)
-            {
-                var form = await context.Request.ReadFormAsync(ct);
-                var file = form.Files.FirstOrDefault();
-                if (file is null)
-                    return Results.BadRequest("No file found in multipart form-data.");
-
-                actualFileName = string.IsNullOrWhiteSpace(file.FileName) ? null : file.FileName;
-                actualContentType = string.IsNullOrWhiteSpace(file.ContentType) ? null : file.ContentType;
-
-                contentStream = file.OpenReadStream();
-            }
-            else
-            {
-                // fallback : raw body (application/octet-stream)
-                contentStream = context.Request.Body;
-            }
 
             var finalContentType = actualContentType ?? contentType ?? "application/octet-stream";
             var finalFileName = actualFileName ?? fileName ?? elementId;

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Http.Features;
@@ -412,6 +413,7 @@ serviceCollectionSlimFaas.AddHostedService(sp =>
         sp.GetRequiredService<ILogger<SlimDataExpirationCleanupWorker>>(),
         interval: TimeSpan.FromSeconds(30)));
 
+
 builder.Host
     .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(slimDataConfiguration!))
     .JoinCluster();
@@ -456,10 +458,11 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 // AOT-friendly JSON (source generators)
 builder.Services.ConfigureHttpJsonOptions(opt =>
 {
-    opt.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonContext.Default);
-    opt.SerializerOptions.TypeInfoResolverChain.Insert(1, DataFileRoutesJsonContext.Default);
-    opt.SerializerOptions.TypeInfoResolverChain.Insert(2, DataSetFileRoutesRoutesJsonContext.Default);
-    opt.SerializerOptions.TypeInfoResolverChain.Insert(3, DataHashsetFileRoutesJsonContext.Default);
+    var serializerOptionsTypeInfoResolverChain = opt.SerializerOptions.TypeInfoResolverChain;
+    serializerOptionsTypeInfoResolverChain.Insert(0, AppJsonContext.Default);
+    serializerOptionsTypeInfoResolverChain.Insert(1, DataFileRoutesJsonContext.Default);
+    serializerOptionsTypeInfoResolverChain.Insert(2, DataSetFileRoutesRoutesJsonContext.Default);
+    serializerOptionsTypeInfoResolverChain.Insert(3, DataHashsetFileRoutesJsonContext.Default);
 });
 
 WebApplication app = builder.Build();
@@ -484,8 +487,9 @@ app.UseCors(builder =>
     }
 });
 
-app.UseDataSetLeaderRedirect();
+app.MapDataHashsetRoutes();
 app.MapDataSetRoutes();
+app.MapDataFileRoutes();
 app.MapDebugRoutes();
 
 app.UseMiddleware<SlimProxyMiddleware>();

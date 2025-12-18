@@ -5,7 +5,7 @@ using SlimData.Commands;
 
 namespace SlimFaas;
 
-public static class DataHashsetFileRoutes
+public static class DataHashsetRoutes
 {
     private const string HashsetPrefix = "data:hashset:";
     private const string ValueField = "value";
@@ -17,7 +17,7 @@ public static class DataHashsetFileRoutes
     private static string HashKey(string id) => $"{HashsetPrefix}{id}";
     private static string TtlKey(string key) => key + TimeToLiveSuffix;
 
-    public static IEndpointRouteBuilder MapDataHashsetFileRoutes(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapDataHashsetRoutes(this IEndpointRouteBuilder app)
     {
         app.MapPost("/data/hashsets", Handlers.PostAsync);
         app.MapGet("/data/hashsets/{id}", Handlers.GetAsync);
@@ -43,7 +43,7 @@ public static class DataHashsetFileRoutes
 
             var key = HashKey(elementId);
 
-            var (bytes, error) = await DataSetFileRoutes.Handlers.ReadBodyUpTo1MbAsync(ctx, ct).ConfigureAwait(false);
+            var (bytes, error) = await DataSetRoutes.Handlers.ReadBodyUpTo1MbAsync(ctx, ct).ConfigureAwait(false);
             if (error is not null) return error;
 
             await db.HashSetAsync(key, new Dictionary<string, byte[]>

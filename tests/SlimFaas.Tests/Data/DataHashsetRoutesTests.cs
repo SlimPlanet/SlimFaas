@@ -8,7 +8,7 @@ using SlimData;
 using SlimData.Commands;
 using SlimFaas;
 
-public sealed class DataHashsetFileRoutesTests
+public sealed class DataHashsetRoutesTests
 {
     private const string TtlSuffix = "${slimfaas-timetolive}$";
     private const string TtlField = "__ttl__";
@@ -28,7 +28,7 @@ public sealed class DataHashsetFileRoutesTests
                 123L))
           .Returns(Task.CompletedTask);
 
-        var res = await DataHashsetFileRoutes.Handlers.PostAsync(ctx, db.Object, "element1", 123L, CancellationToken.None);
+        var res = await DataHashsetRoutes.Handlers.PostAsync(ctx, db.Object, "element1", 123L, CancellationToken.None);
 
         var ok = Assert.IsType<Ok<string>>(res);
         Assert.Equal("element1", ok.Value);
@@ -49,7 +49,7 @@ public sealed class DataHashsetFileRoutesTests
               ["value"] = payload
           });
 
-        var res = await DataHashsetFileRoutes.Handlers.GetAsync(db.Object, "id1");
+        var res = await DataHashsetRoutes.Handlers.GetAsync(db.Object, "id1");
 
         var file = Assert.IsType<FileContentHttpResult>(res);
         Assert.Equal("application/octet-stream", file.ContentType);
@@ -87,7 +87,7 @@ public sealed class DataHashsetFileRoutesTests
 
         state.Setup(s => s.Invoke()).Returns(payload);
 
-        var res = await DataHashsetFileRoutes.Handlers.ListAsync(state.Object);
+        var res = await DataHashsetRoutes.Handlers.ListAsync(state.Object);
 
         var ok = Assert.IsType<Ok<List<DataHashsetEntry>>>(res);
         var list = ok.Value!;
@@ -113,7 +113,7 @@ public sealed class DataHashsetFileRoutesTests
         db.Setup(d => d.HashSetDeleteAsync("data:hashset:id1", ""))
           .Returns(Task.CompletedTask);
 
-        var res = await DataHashsetFileRoutes.Handlers.DeleteAsync(db.Object, "id1");
+        var res = await DataHashsetRoutes.Handlers.DeleteAsync(db.Object, "id1");
 
         Assert.IsType<NoContent>(res);
         db.VerifyAll();

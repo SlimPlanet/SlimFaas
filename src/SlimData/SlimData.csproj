@@ -10,6 +10,7 @@
         <StripSymbols>false</StripSymbols>
         <PublishAot>true</PublishAot>
         <OptimizationPreference>Size</OptimizationPreference>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
 
     <ItemGroup>

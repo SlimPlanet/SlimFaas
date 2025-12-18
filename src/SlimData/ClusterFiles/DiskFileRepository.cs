@@ -1,11 +1,7 @@
-using System;
 using System.Buffers;
-using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 using DotNext.IO;
 
 namespace SlimData.ClusterFiles;
@@ -68,7 +64,7 @@ public sealed class DiskFileRepository : IFileRepository
             var shaHex = ToLowerHex(hash.GetHashAndReset());
             var meta = new FileMetadata(contentType, shaHex, total);
             await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
-
+            
             return new FilePutResult(shaHex, contentType, total);
         }
         catch
