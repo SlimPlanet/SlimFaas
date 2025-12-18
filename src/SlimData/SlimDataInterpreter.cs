@@ -427,17 +427,16 @@ public class SlimDataInterpreter : CommandInterpreter
         var keyValues = state.KeyValues;
 
         keyValues = keyValues.SetItem(cmd.Key, cmd.Value);
-
+        
         var ttlKey = TtlKey(cmd.Key);
+        Console.WriteLine("[AddKeyValue] Key: {0}, TTL: {1}", cmd.Key, cmd.ExpireAtUtcTicks.HasValue ? cmd.ExpireAtUtcTicks.Value.ToString() : "null");
         if (cmd.ExpireAtUtcTicks.HasValue)
         {
             var bytes = BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value);
             keyValues = keyValues.SetItem(ttlKey, bytes);
         }
-        else
-        {
-            if (keyValues.ContainsKey(ttlKey))
-                keyValues = keyValues.Remove(ttlKey);
+        else if (keyValues.ContainsKey(ttlKey)) {
+            keyValues = keyValues.Remove(ttlKey);
         }
 
         state.KeyValues = keyValues;
@@ -451,14 +450,16 @@ public class SlimDataInterpreter : CommandInterpreter
     internal static ValueTask DoDeleteKeyValueAsync(DeleteKeyValueCommand cmd, SlimDataState state)
     {
         var keyValues = state.KeyValues;
-
-        if (keyValues.ContainsKey(cmd.Key))
+        
+        if (keyValues.ContainsKey(cmd.Key)){
             keyValues = keyValues.Remove(cmd.Key);
-
+            Console.WriteLine("[DeleteKeyValue] Key: {0} deleted", cmd.Key);
+        }
         var ttlKey = TtlKey(cmd.Key);
-        if (keyValues.ContainsKey(ttlKey))
+        if (keyValues.ContainsKey(ttlKey)){
             keyValues = keyValues.Remove(ttlKey);
-
+            Console.WriteLine("[DeleteKeyValue] TTL Key: {0} deleted", ttlKey);
+        }
         state.KeyValues = keyValues;
         return default;
     }
