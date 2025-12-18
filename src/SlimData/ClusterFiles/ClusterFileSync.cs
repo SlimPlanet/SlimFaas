@@ -91,29 +91,40 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                     request,
                     async (response, token) =>
                     {
-                        // not found
-                        if (string.Equals(response.Name, FileSyncProtocol.FetchNotFound, StringComparison.Ordinal))
-                            return false;
+                        try
+                        {
+                            // not found
+                            if (string.Equals(response.Name, FileSyncProtocol.FetchNotFound, StringComparison.Ordinal))
+                                return false;
 
-                        if (!FileSyncProtocol.TryParseFetchOkName(response.Name, out var rid, out var rsha, out var rlen))
-                            return false;
+                            if (!FileSyncProtocol.TryParseFetchOkName(response.Name, out var rid, out var rsha, out var rlen))
+                                return false;
 
-                        if (!string.Equals(rid, idEnc, StringComparison.Ordinal) ||
-                            !string.Equals(rsha, sha256Hex, StringComparison.OrdinalIgnoreCase))
-                            return false;
+                            if (!string.Equals(rid, idEnc, StringComparison.Ordinal) ||
+                                !string.Equals(rsha, sha256Hex, StringComparison.OrdinalIgnoreCase))
+                                return false;
 
-                        var ct2 = response.Type?.MediaType ?? "application/octet-stream";
+                            var ct2 = response.Type?.MediaType ?? "application/octet-stream";
 
-                        await _repo.SaveFromTransferObjectAsync(
-                            id,
-                            response,
-                            ct2,
-                            overwrite: true,
-                            expectedSha256Hex: sha256Hex,
-                            expectedLength: rlen,
-                            token).ConfigureAwait(false);
+                            await _repo.SaveFromTransferObjectAsync(
+                                id,
+                                response,
+                                ct2,
+                                overwrite: true,
+                                expectedSha256Hex: sha256Hex,
+                                expectedLength: rlen,
+                                token).ConfigureAwait(false);
 
-                        return true;
+                            return true;
+                        }
+                        finally
+                        {
+                            // IMPORTANT: libère le stream / buffers / connection
+                            if (response is IAsyncDisposable ad)
+                                await ad.DisposeAsync().ConfigureAwait(false);
+                            else if (response is IDisposable d)
+                                d.Dispose();
+                        }
                     },
                     ct).ConfigureAwait(false);
 

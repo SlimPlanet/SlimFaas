@@ -24,9 +24,16 @@ internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAn
         }
         return Task.CompletedTask;
     }
+    
 
-    public async Task<IMessage> ReceiveMessage(ISubscriber sender, IMessage message, object? context, CancellationToken token)
+    public async Task<IMessage> ReceiveMessage(
+        ISubscriber sender,
+        IMessage message,
+        object? context,
+        CancellationToken token)
     {
+        Stream? stream = null;
+
         try
         {
             if (!FileSyncProtocol.TryParseFetchName(message.Name, out var idEnc, out var sha))
@@ -41,15 +48,22 @@ internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAn
             if (meta is null)
                 return new TextMessage("", FileSyncProtocol.FetchNotFound);
 
-            var stream = await repo.OpenReadAsync(id, token).ConfigureAwait(false);
+            stream = await repo.OpenReadAsync(id, token).ConfigureAwait(false);
+
             var replyName = FileSyncProtocol.BuildFetchOkName(idEnc, sha, meta.Length);
             var type = new ContentType(meta.ContentType);
 
-            return new StreamMessage(stream, leaveOpen: false, name: replyName, type: type);
+            var msgOut = new StreamMessage(stream, leaveOpen: false, name: replyName, type: type);
+            
+            return msgOut;
         }
         catch
         {
+            if (stream is not null)
+                await stream.DisposeAsync().ConfigureAwait(false);
+            
             return new TextMessage("", FileSyncProtocol.FetchNotFound);
         }
     }
+
 }

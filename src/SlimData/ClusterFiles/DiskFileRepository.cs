@@ -1,11 +1,7 @@
-using System;
 using System.Buffers;
-using System.IO;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 using DotNext.IO;
 
 namespace SlimData.ClusterFiles;
@@ -37,7 +33,7 @@ public sealed class DiskFileRepository : IFileRepository
         {
             await using var fs = new FileStream(
                 tmp, FileMode.Create, FileAccess.Write, FileShare.None,
-                bufferSize: 128 * 1024, options: FileOptions.Asynchronous | FileOptions.WriteThrough);
+                bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
 
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
 
@@ -62,7 +58,7 @@ public sealed class DiskFileRepository : IFileRepository
             }
 
             await fs.FlushAsync(ct).ConfigureAwait(false);
-            FileCacheHints.DropFromCache(fs);
+
             MoveIntoPlace(tmp, filePath, overwrite);
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
