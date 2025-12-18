@@ -58,14 +58,18 @@ public sealed class SlimDataExpirationCleaner
                 continue;
 
             var baseKey = ttlKey[..^TimeToLiveSuffix.Length];
-
+            _logger.LogWarning("Deleting expired keyvalue. key={Key}", baseKey);
             if (TryParseFileMetaKey(baseKey, out var elementId))
             {
+                _logger.LogWarning(" Also deleting local file for expired meta. id={Id}", elementId);
                 try { await _files.DeleteAsync(elementId, ct).ConfigureAwait(false); }
                 catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete local file for expired meta. id={Id}", elementId); }
             }
 
-            try { await _db.DeleteAsync(baseKey).ConfigureAwait(false); }
+            try
+            {
+                await _db.DeleteAsync(baseKey).ConfigureAwait(false);
+            }
             catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired keyvalue. key={Key}", baseKey); }
         }
 
