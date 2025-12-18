@@ -62,13 +62,13 @@ public sealed class DiskFileRepository : IFileRepository
             }
 
             await fs.FlushAsync(ct).ConfigureAwait(false);
-
+            FileCacheHints.DropFromCache(fs);
             MoveIntoPlace(tmp, filePath, overwrite);
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
             var meta = new FileMetadata(contentType, shaHex, total);
             await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
-
+            
             return new FilePutResult(shaHex, contentType, total);
         }
         catch
