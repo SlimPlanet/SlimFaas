@@ -487,8 +487,8 @@ app.UseCors(builder =>
     }
 });
 
-app.MapDataHashsetRoutes();
-app.MapDataSetRoutes();
+//app.MapDataHashsetRoutes();
+//app.MapDataSetRoutes();
 app.MapDataFileRoutes();
 app.MapDebugRoutes();
 

@@ -11,6 +11,7 @@ public interface IClusterFileSync
         Stream content,
         string contentType,
         bool overwrite,
+        long? ttl,
         CancellationToken ct);
 
     Task<FilePullResult> PullFileIfMissingAsync(

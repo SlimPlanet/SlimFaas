@@ -34,7 +34,7 @@ public sealed class ClusterFileSyncTests
 
         var put = new FilePutResult("deadbeef", "text/plain", 4);
 
-        repo.Setup(r => r.SaveAsync("id1", It.IsAny<Stream>(), "text/plain", true, It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.SaveAsync("id1", It.IsAny<Stream>(), "text/plain", true, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(put);
 
         var names = new List<string>();
@@ -54,6 +54,7 @@ public sealed class ClusterFileSyncTests
             new MemoryStream(Encoding.UTF8.GetBytes("test")),
             "text/plain",
             overwrite: true,
+            ttl: null,
             CancellationToken.None);
 
         Assert.Equal("deadbeef", result.Sha256Hex);
@@ -62,6 +63,39 @@ public sealed class ClusterFileSyncTests
 
         // broadcast-only => on ne relit jamais le fichier pour l'envoyer
         repo.Verify(r => r.OpenReadAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BroadcastFilePutAsync_passes_expireAt_to_repo_when_ttl_provided()
+    {
+        var repo = new Mock<IFileRepository>(MockBehavior.Strict);
+        var bus = new Mock<IMessageBus>(MockBehavior.Strict);
+        var loggerMock = new Mock<ILogger<ClusterFileSync>>();
+        var queue = new ClusterFileAnnounceQueue();
+
+        bus.SetupGet(b => b.Members).Returns(Array.Empty<ISubscriber>());
+        bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()));
+        bus.Setup(b => b.RemoveListener(It.IsAny<IInputChannel>()));
+
+        long? capturedExpireAt = null;
+        repo.Setup(r => r.SaveAsync("id1", It.IsAny<Stream>(), "text/plain", true, It.IsAny<long?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, Stream, string, bool, long?, CancellationToken>((_, _, _, _, exp, _) => capturedExpireAt = exp)
+            .ReturnsAsync(new FilePutResult("deadbeef", "text/plain", 4));
+
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object);
+
+        var ttlMs = 5_000L;
+        var before = DateTime.UtcNow.Ticks;
+        await sut.BroadcastFilePutAsync("id1", new MemoryStream(Encoding.UTF8.GetBytes("test")), "text/plain", true, ttlMs, CancellationToken.None);
+        var after = DateTime.UtcNow.Ticks;
+
+        Assert.NotNull(capturedExpireAt);
+        var min = before + ttlMs * TimeSpan.TicksPerMillisecond - TimeSpan.TicksPerSecond; // tolérance
+        var max = after + ttlMs * TimeSpan.TicksPerMillisecond + TimeSpan.TicksPerSecond;
+        Assert.InRange(capturedExpireAt!.Value, min, max);
+
+        repo.VerifyAll();
+        bus.VerifyAll();
     }
 
     [Fact]
@@ -88,7 +122,7 @@ public sealed class ClusterFileSyncTests
 
         var put = new FilePutResult("deadbeef", "text/plain", 4);
 
-        repo.Setup(r => r.SaveAsync("id1", It.IsAny<Stream>(), "text/plain", true, It.IsAny<CancellationToken>()))
+        repo.Setup(r => r.SaveAsync("id1", It.IsAny<Stream>(), "text/plain", true, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(put);
 
         // remote1 => 501 Not Implemented
@@ -111,6 +145,7 @@ public sealed class ClusterFileSyncTests
             new MemoryStream(Encoding.UTF8.GetBytes("test")),
             "text/plain",
             overwrite: true,
+            null,
             CancellationToken.None);
 
         Assert.Equal("deadbeef", result.Sha256Hex);
@@ -174,7 +209,8 @@ public sealed class ClusterFileSyncTests
 
         repo.Setup(r => r.ExistsAsync("id1", sha, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-
+        var expireAt = DateTime.UtcNow.AddMinutes(10).Ticks;
+        long? capturedExpireAt = null;
         repo.Setup(r => r.SaveFromTransferObjectAsync(
                 "id1",
                 It.IsAny<DotNext.IO.IDataTransferObject>(),
@@ -182,7 +218,9 @@ public sealed class ClusterFileSyncTests
                 true,
                 sha,
                 len,
+                It.IsAny<long?>(),
                 It.IsAny<CancellationToken>()))
+            .Callback<string, DotNext.IO.IDataTransferObject, string, bool, string?, long?, long?, CancellationToken>((_, _, _, _, _, _, exp, _) => capturedExpireAt = exp)
             .ReturnsAsync(new FilePutResult(sha, "application/octet-stream", len));
 
         // après download, on renvoie un stream local (simulé)
@@ -197,7 +235,7 @@ public sealed class ClusterFileSyncTests
             .Returns<IMessage, MessageReader<bool>, CancellationToken>((req, reader, ct) =>
             {
                 var idEnc = Base64UrlCodec.Encode("id1");
-                var replyName = FileSyncProtocol.BuildFetchOkName(idEnc, sha, len);
+                var replyName = FileSyncProtocol.BuildFetchOkName(idEnc, sha, len, expireAt);
                 var reply = new StreamMessage(new MemoryStream(payload), leaveOpen: false, name: replyName, type: new ContentType("application/octet-stream"));
                 return reader(reply, ct).AsTask();
             });
@@ -227,7 +265,10 @@ public sealed class ClusterFileSyncTests
             true,
             sha,
             len,
+            It.IsAny<long?>(),
             It.IsAny<CancellationToken>()), Times.Once);
+
+        Assert.Equal(expireAt, capturedExpireAt);
     }
 
     [Fact]
@@ -272,6 +313,7 @@ public sealed class ClusterFileSyncTests
             It.IsAny<string>(),
             It.IsAny<bool>(),
             It.IsAny<string?>(),
+            It.IsAny<long?>(),
             It.IsAny<long?>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }

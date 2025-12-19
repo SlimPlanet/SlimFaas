@@ -50,11 +50,14 @@ public sealed class DataFileRoutesTests
         var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
 
         var ticks1 = DateTime.UtcNow.AddMinutes(10).Ticks;
+        var expired = DateTime.UtcNow.AddMinutes(-10).Ticks;
 
         var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
             .Add("data:file:abc:meta", new byte[] { 0x01 })
-            .Add("data:file:abc:meta${slimfaas-timetolive}$", BitConverter.GetBytes(ticks1))
+            .Add("data:file:abc:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(ticks1))
             .Add("data:file:no-ttl:meta", new byte[] { 0x02 }) // pas de ttl => expiration null
+            .Add("data:file:old:meta", new byte[] { 0x03 })
+            .Add("data:file:old:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(expired))
             .Add("something:else", new byte[] { 0xFF });       // ignoré
 
         var data = new SlimDataPayload
@@ -91,9 +94,9 @@ public sealed class DataFileRoutesTests
 
         var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
             .Add("data:file:b:meta", new byte[] { 0x01 })
-            .Add("data:file:b:meta${slimfaas-timetolive}$", BitConverter.GetBytes(t2))
+            .Add("data:file:b:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t2))
             .Add("data:file:a:meta", new byte[] { 0x01 })
-            .Add("data:file:a:meta${slimfaas-timetolive}$", BitConverter.GetBytes(t1));
+            .Add("data:file:a:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t1));
 
         var data = new SlimDataPayload
         {
@@ -131,23 +134,25 @@ public sealed class DataFileRoutesTests
 
         string? capturedId = null;
         string? capturedContentType = null;
+        long? storedTtl = null;
 
         fileSync.Setup(s => s.BroadcastFilePutAsync(
                 It.IsAny<string>(),
                 It.IsAny<Stream>(),
                 It.IsAny<string>(),
                 true,
+                It.IsAny<long?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<string, Stream, string, bool, CancellationToken>((id, _, ctType, _, _) =>
+            .Callback<string, Stream, string, bool, long?, CancellationToken>((id, _, ctType, _, ttl, _) =>
             {
                 capturedId = id;
                 capturedContentType = ctType;
+                storedTtl = ttl;
             })
             .ReturnsAsync(new FilePutResult("sha1", "application/octet-stream", payload.Length));
 
         byte[]? storedMetaBytes = null;
         string? storedMetaKey = null;
-        long? storedTtl = null;
 
         db.Setup(d => d.SetAsync(
                 It.IsAny<string>(),

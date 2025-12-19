@@ -33,11 +33,16 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         Stream content,
         string contentType,
         bool overwrite,
+        long? ttl,
         CancellationToken ct)
     {
         await using var _ = await _idLock.AcquireAsync(id, ct);
+        
+        long? expireAtUtcTicks = null;
+        if (ttl.HasValue && ttl.Value > 0)
+             expireAtUtcTicks = DateTime.UtcNow.AddMilliseconds(ttl.Value).Ticks;
         // 1) Sauvegarde locale + SHA256
-        var put = await _repo.SaveAsync(id, content, contentType, overwrite, ct).ConfigureAwait(false);
+        var put = await _repo.SaveAsync(id, content, contentType, overwrite, expireAtUtcTicks, ct).ConfigureAwait(false);
 
         // 2) Broadcast "announce-only" (pas de stream envoyé)
         var idEnc = Base64UrlCodec.Encode(id);
@@ -97,7 +102,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                             if (string.Equals(response.Name, FileSyncProtocol.FetchNotFound, StringComparison.Ordinal))
                                 return false;
 
-                            if (!FileSyncProtocol.TryParseFetchOkName(response.Name, out var rid, out var rsha, out var rlen))
+                            if (!FileSyncProtocol.TryParseFetchOkName(response.Name, out var rid, out var rsha, out var rlen, out var expireAtUtcTicks))
                                 return false;
 
                             if (!string.Equals(rid, idEnc, StringComparison.Ordinal) ||
@@ -113,6 +118,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                                 overwrite: true,
                                 expectedSha256Hex: sha256Hex,
                                 expectedLength: rlen,
+                                expireAtUtcTicks: expireAtUtcTicks,
                                 token).ConfigureAwait(false);
 
                             return true;

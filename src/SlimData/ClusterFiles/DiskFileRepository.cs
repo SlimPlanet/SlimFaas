@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -24,6 +25,7 @@ public sealed class DiskFileRepository : IFileRepository
         Stream content,
         string contentType,
         bool overwrite,
+        long? expireAtUtcTicks,
         CancellationToken ct)
     {
         var (filePath, metaPath) = GetPaths(id);
@@ -62,7 +64,7 @@ public sealed class DiskFileRepository : IFileRepository
             MoveIntoPlace(tmp, filePath, overwrite);
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
-            var meta = new FileMetadata(contentType, shaHex, total);
+            var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks);
             await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
             
             return new FilePutResult(shaHex, contentType, total);
@@ -81,6 +83,7 @@ public sealed class DiskFileRepository : IFileRepository
         bool overwrite,
         string? expectedSha256Hex,
         long? expectedLength,
+        long? expireAtUtcTicks,
         CancellationToken ct)
     {
         var (filePath, metaPath) = GetPaths(id);
@@ -111,7 +114,7 @@ public sealed class DiskFileRepository : IFileRepository
 
             MoveIntoPlace(tmp, filePath, overwrite);
 
-            var meta = new FileMetadata(contentType, shaHex, length);
+            var meta = new FileMetadata(contentType, shaHex, length, expireAtUtcTicks);
             await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
 
             return new FilePutResult(shaHex, contentType, length);
@@ -120,6 +123,38 @@ public sealed class DiskFileRepository : IFileRepository
         {
             TryDelete(tmp);
             throw;
+        }
+    }
+    
+    public async IAsyncEnumerable<FileMetadataEntry> EnumerateAllMetadataAsync([EnumeratorCancellation] CancellationToken ct)
+    {
+        foreach (var metaPath in Directory.EnumerateFiles(_root, "*.meta.json", SearchOption.TopDirectoryOnly))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var file = Path.GetFileName(metaPath);
+            if (string.IsNullOrWhiteSpace(file) || !file.EndsWith(".meta.json", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var safe = file[..^".meta.json".Length];
+            string id;
+            try { id = Base64UrlCodec.Decode(safe); }
+            catch { continue; }
+
+            FileMetadata? meta = null;
+            try
+            {
+                await using var s = new FileStream(metaPath, FileMode.Open, FileAccess.Read, FileShare.Read,
+                    bufferSize: 16 * 1024, options: FileOptions.Asynchronous);
+                meta = await JsonSerializer.DeserializeAsync(s, FileRepositoryJsonContext.Default.FileMetadata, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                continue;
+            }
+
+            if (meta is null) continue;
+            yield return new FileMetadataEntry(id, meta);
         }
     }
 

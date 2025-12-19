@@ -7,6 +7,7 @@ using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using SlimData;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
 using SlimData.Expiration;
@@ -37,8 +38,6 @@ public static class DataFileRoutes
     // ------------------------------------------------------------
     public static class DataFileHandlers
     {
-                // Doit matcher SlimDataInterpreter
-        private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
 
         private const string MetaPrefix = "data:file:";
         private const string MetaSuffix = ":meta";
@@ -51,7 +50,7 @@ public static class DataFileRoutes
                 ?? ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
 
             var list = new List<DataFileEntry>(capacity: 128);
-
+            var nowTicks = DateTime.UtcNow.Ticks;
             foreach (var kv in keyValues)
             {
                 var metaKey = kv.Key;
@@ -67,11 +66,14 @@ public static class DataFileRoutes
                 if (string.IsNullOrWhiteSpace(id))
                     continue;
 
-                var ttlKey = metaKey + TimeToLiveSuffix;
+                var ttlKey = metaKey + SlimDataInterpreter.TimeToLivePostfix;
 
                 long expireAtUtcTicks = -1;
                 if(keyValues.TryGetValue(ttlKey, out var ttlBytes))
                     SlimDataExpirationCleaner.TryReadInt64(ttlBytes, out expireAtUtcTicks);
+
+                if (expireAtUtcTicks > 0 && expireAtUtcTicks <= nowTicks)
+                    continue;
 
                 list.Add(new DataFileEntry(
                     Id: id,
@@ -123,6 +125,7 @@ public static class DataFileRoutes
                 content: contentStream,
                 contentType: finalContentType,
                 overwrite: true,
+                ttl: ttl,
                 ct: ct);
 
             // Metadata RAFT (SlimData)

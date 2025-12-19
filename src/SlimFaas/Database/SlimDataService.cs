@@ -17,8 +17,6 @@ public readonly record struct ListCallbackReq(string Key, byte[] SerializedStatu
 public class SlimDataService
     : IDatabaseService, IAsyncDisposable
 {
-    private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
-    private const string HashsetTtlField = "__ttl__";
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceProvider _serviceProvider;
@@ -92,7 +90,7 @@ public class SlimDataService
     private static string BuildTtlQuery(long? ttlMs)
         => ttlMs.HasValue ? $"&ttl={ttlMs.Value}" : string.Empty;
 
-    private static string TtlKey(string key) => key + TimeToLiveSuffix;
+    private static string TtlKey(string key) => key + SlimDataInterpreter.TimeToLivePostfix;
 
     private static bool TryReadExpireAtFromKeyValues(SlimDataPayload data, string key, out long expireAtTicks)
     {
@@ -107,8 +105,8 @@ public class SlimDataService
     private static bool TryReadExpireAtFromHashsets(SlimDataPayload data, string key, out long expireAtTicks)
     {
         expireAtTicks = 0;
-        if (!data.Hashsets.TryGetValue(TtlKey(key), out var meta)) return false;
-        if (!meta.TryGetValue(HashsetTtlField, out var raw)) return false;
+        if (!data.Hashsets.TryGetValue(key, out var meta)) return false;
+        if (!meta.TryGetValue(SlimDataInterpreter.HashsetTtlField, out var raw)) return false;
         var arr = raw.ToArray();
         if (arr.Length < sizeof(long)) return false;
         expireAtTicks = BitConverter.ToInt64(arr, 0);

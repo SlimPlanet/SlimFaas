@@ -14,11 +14,8 @@ public static class DataSetRoutes
 {
     private const string SetPrefix = "data:set:";
 
-    // Doit matcher SlimDataInterpreter
-    private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
-
     private static string DataKey(string id) => $"{SetPrefix}{id}";
-    private static string TtlKey(string key) => key + TimeToLiveSuffix;
+    private static string TtlKey(string key) => key + SlimDataInterpreter.TimeToLivePostfix;
 
     public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder app)
     {
@@ -111,7 +108,7 @@ public static class DataSetRoutes
                 ?? ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
 
             var list = new List<DataSetEntry>(capacity: 128);
-
+            var nowTicks = DateTime.UtcNow.Ticks;
             foreach (var kv in keyValues)
             {
                 var key = kv.Key;
@@ -120,7 +117,7 @@ public static class DataSetRoutes
                 if (!key.StartsWith(SetPrefix, StringComparison.Ordinal))
                     continue;
 
-                if (key.EndsWith(TimeToLiveSuffix, StringComparison.Ordinal))
+                if (key.EndsWith(SlimDataInterpreter.TimeToLivePostfix, StringComparison.Ordinal))
                     continue;
 
                 var id = key.Substring(SetPrefix.Length);
@@ -132,6 +129,8 @@ public static class DataSetRoutes
                 long expireAtUtcTicks = -1;
                 if(keyValues.TryGetValue(ttlKey, out var ttlBytes))
                     SlimDataExpirationCleaner.TryReadInt64(ttlBytes, out expireAtUtcTicks);
+                if (expireAtUtcTicks > 0 && expireAtUtcTicks <= nowTicks)
+                    continue;
 
                 list.Add(new DataSetEntry(id, expireAtUtcTicks));
             }
