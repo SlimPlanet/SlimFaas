@@ -21,6 +21,7 @@
     <UseNativeHttpHandler>false</UseNativeHttpHandler>
     <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
     <ServerGarbageCollection>true</ServerGarbageCollection>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <PropertyGroup>

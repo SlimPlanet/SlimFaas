@@ -2,8 +2,8 @@
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
-using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
+using SlimData.ClusterFiles;
 using SlimData.Commands;
 
 namespace SlimData;
@@ -100,7 +100,16 @@ public class Startup(IConfiguration configuration)
 #pragma warning restore DOTNEXT001
         }*/
        if (!string.IsNullOrWhiteSpace(path))
+       {
            services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
+           services.AddSingleton<IFileRepository>(_ => new DiskFileRepository(Path.Combine(path, "files")));
+           services.AddSingleton<ClusterFileAnnounceQueue>();
+           services.AddHostedService<ClusterFileAnnounceWorker>();
+
+           services.AddSingleton<IClusterFileSync, ClusterFileSync>(); 
+           services.AddHostedService<ClusterFileSyncBootstrapper>();
+       }
+           
         var endpoint = configuration["publicEndPoint"];
         if (!string.IsNullOrEmpty(endpoint))
         {

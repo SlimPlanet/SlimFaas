@@ -286,9 +286,9 @@ docker run --rm -p 8080:8080 \
 - When `Enable` is `false`, OpenTelemetry instrumentation is completely disabled to avoid unnecessary overhead
 - The `ServiceName` is optional; if not specified in configuration, it automatically falls back to the `OTEL_SERVICE_NAME` environment variable (this is the default OpenTelemetry behavior)
 - The `Endpoint` automatically falls back to `OTEL_EXPORTER_OTLP_ENDPOINT` if not specified in configuration (this is the default OpenTelemetry behavior)
-- **URL exclusion**: URLs specified in `ExcludedUrls` are filtered from tracing based on **case-insensitive path prefix matching**. For example, `/health` will exclude `/health`, `/health/live`, `/health/ready`, etc.
+- **URL exclusion**: URLs specified in `ExcludedUrls` are filtered from **both tracing and logging** based on **case-insensitive path prefix matching**. For example, `/health` will exclude `/health`, `/health/live`, `/health/ready`, etc.
 - Empty or missing `ExcludedUrls` configuration will use the default values `["/health", "/metrics"]`
-- URL filtering only applies to **traces**; metrics and logs are not affected
+- URL filtering applies to **traces and logs**; metrics are not affected
 
 The instrumentation includes:
 - **Traces**: ASP.NET Core requests, HTTP client calls

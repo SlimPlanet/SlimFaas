@@ -13,6 +13,7 @@ using MemoryPack;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
+using SlimFaas.Security;
 
 namespace SlimFaas.Tests;
 
@@ -159,6 +160,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
+                        services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -217,6 +219,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
+                        services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -248,6 +251,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
+                        services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -281,6 +285,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
+                        services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })
@@ -317,6 +322,7 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IReplicasService, MemoryReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
+                        services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                     })
                     .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
             })

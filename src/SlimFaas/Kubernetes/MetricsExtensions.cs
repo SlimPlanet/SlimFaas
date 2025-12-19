@@ -69,7 +69,7 @@ public static class MetricsExtensions
     // Pod -> liste d’URLs /metrics (0 ou 1 URL selon annotations)
     public static IList<string> GetMetricsTargets(this PodInformation pod)
     {
-        if (string.IsNullOrWhiteSpace(pod.Ip))
+        if (string.IsNullOrWhiteSpace(pod.Ip) || pod.Ready == false)
             return new List<string>();
 
         var annotations = pod.Annotations;
