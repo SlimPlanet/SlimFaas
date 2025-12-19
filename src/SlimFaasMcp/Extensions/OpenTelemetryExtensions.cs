@@ -101,6 +101,8 @@ public static class OpenTelemetryExtensions
                 : _ => { }
         );
 
+        meterProviderBuilder.AddPrometheusExporter();
+
         if (config.EnableConsoleExporter)
         {
             meterProviderBuilder.AddConsoleExporter();
