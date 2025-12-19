@@ -89,6 +89,8 @@ public sealed class ClusterFileSyncTests
         await sut.BroadcastFilePutAsync("id1", new MemoryStream(Encoding.UTF8.GetBytes("test")), "text/plain", true, ttlMs, CancellationToken.None);
         var after = DateTime.UtcNow.Ticks;
 
+        await sut.DisposeAsync();
+
         Assert.NotNull(capturedExpireAt);
         var min = before + ttlMs * TimeSpan.TicksPerMillisecond - TimeSpan.TicksPerSecond; // tolérance
         var max = after + ttlMs * TimeSpan.TicksPerMillisecond + TimeSpan.TicksPerSecond;
