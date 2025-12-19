@@ -60,7 +60,7 @@ public sealed class DiskFileRepository : IFileRepository
             }
 
             await fs.FlushAsync(ct).ConfigureAwait(false);
-
+            LinuxFileCache.DropCache(fs);
             MoveIntoPlace(tmp, filePath, overwrite);
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
@@ -101,7 +101,7 @@ public sealed class DiskFileRepository : IFileRepository
             // IMPORTANT: on force l’écriture du DTO vers un Stream avec bufferSize explicite
             await DotNext.IO.DataTransferObject.WriteToAsync(dto, hashing, 128 * 1024, ct).ConfigureAwait(false);
             await fs.FlushAsync(ct).ConfigureAwait(false);
-
+            LinuxFileCache.DropCache(fs);
             var shaHex = ToLowerHex(hash.GetHashAndReset());
             var length = hashing.BytesWritten;
 
@@ -182,10 +182,13 @@ public sealed class DiskFileRepository : IFileRepository
     public Task<Stream> OpenReadAsync(string id, CancellationToken ct)
     {
         var (filePath, _) = GetPaths(id);
-        Stream s = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
+        var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
-        return Task.FromResult(s);
+
+        return Task.FromResult<Stream>(new DropCacheOnDisposeStream(fs));
     }
+    
+    
 
     private (string FilePath, string MetaPath) GetPaths(string id)
     {
@@ -294,4 +297,37 @@ public sealed class DiskFileRepository : IFileRepository
 [JsonSerializable(typeof(FileMetadata))]
 internal sealed partial class FileRepositoryJsonContext : JsonSerializerContext
 {
+}
+
+internal sealed class DropCacheOnDisposeStream : Stream
+{
+    private readonly FileStream _fs;
+    public DropCacheOnDisposeStream(FileStream fs) => _fs = fs;
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) LinuxFileCache.DropCache(_fs);
+        _fs.Dispose();
+    }
+
+    public override async ValueTask DisposeAsync()
+    {
+        LinuxFileCache.DropCache(_fs);
+        await _fs.DisposeAsync().ConfigureAwait(false);
+    }
+
+    // délégation
+    public override bool CanRead => _fs.CanRead;
+    public override bool CanSeek => _fs.CanSeek;
+    public override bool CanWrite => _fs.CanWrite;
+    public override long Length => _fs.Length;
+    public override long Position { get => _fs.Position; set => _fs.Position = value; }
+    public override void Flush() => _fs.Flush();
+    public override Task FlushAsync(CancellationToken cancellationToken) => _fs.FlushAsync(cancellationToken);
+    public override int Read(byte[] buffer, int offset, int count) => _fs.Read(buffer, offset, count);
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _fs.ReadAsync(buffer, cancellationToken);
+    public override long Seek(long offset, SeekOrigin origin) => _fs.Seek(offset, origin);
+    public override void SetLength(long value) => _fs.SetLength(value);
+    public override void Write(byte[] buffer, int offset, int count) => _fs.Write(buffer, offset, count);
+    public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) => _fs.WriteAsync(buffer, cancellationToken);
 }
