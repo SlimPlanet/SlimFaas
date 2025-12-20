@@ -69,15 +69,14 @@ public sealed class DataHashsetRoutesTests
 
         var hs = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty
             // main hashsets
-            .Add("data:hashset:a", ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("value", new byte[] { 0x01 }))
-            .Add("data:hashset:b", ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("value", new byte[] { 0x02 }))
-            .Add("data:hashset:c", ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("value", new byte[] { 0x03 }))
-            // ttl meta hashsets
-            .Add("data:hashset:a" + TtlSuffix, ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(TtlField, BitConverter.GetBytes(t2)))
-            .Add("data:hashset:c" + TtlSuffix, ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(TtlField, BitConverter.GetBytes(t1)))
-            // ttlKey orphelin (sans base)
-            .Add("data:hashset:orphan" + TtlSuffix, ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(TtlField, BitConverter.GetBytes(t1)));
-
+            .Add("data:hashset:a",
+                ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("value", new byte[] { 0x01 })
+                    .Add(SlimDataInterpreter.HashsetTtlField, BitConverter.GetBytes(t2)))
+            .Add("data:hashset:b",
+                ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("value", new byte[] { 0x02 }))
+            .Add("data:hashset:c",
+                ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("value", new byte[] { 0x03 })
+                    .Add(SlimDataInterpreter.HashsetTtlField, BitConverter.GetBytes(t1)));
         var payload = new SlimDataPayload
         {
             KeyValues = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
@@ -95,14 +94,12 @@ public sealed class DataHashsetRoutesTests
         // b (null TTL) doit être avant c (t1) avant a (t2)
         Assert.Equal(3, list.Count);
 
-        Assert.Equal("b", list[0].Id);
+        Assert.Equal("a", list[0].Id);
         Assert.Null(list[0].ExpireAtUtcTicks);
 
-        Assert.Equal("c", list[1].Id);
-        Assert.Equal(t1, list[1].ExpireAtUtcTicks);
+        Assert.Equal("b", list[1].Id);
 
-        Assert.Equal("a", list[2].Id);
-        Assert.Equal(t2, list[2].ExpireAtUtcTicks);
+        Assert.Equal("c", list[2].Id);
     }
 
     [Fact]

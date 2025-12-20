@@ -55,16 +55,19 @@ public sealed class DataSetRoutesTests
         var now = DateTime.UtcNow.Ticks;
         var t1 = now + TimeSpan.TicksPerMinute;
         var t2 = now + 2 * TimeSpan.TicksPerMinute;
+        var expired = now - TimeSpan.TicksPerMinute;
 
         var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
             .Add("data:set:a", new byte[] { 0x01 })
-            .Add("data:set:a" + TtlSuffix, BitConverter.GetBytes(t2))
+            .Add("data:set:a" + SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t2))
             .Add("data:set:b", new byte[] { 0x02 }) // pas de TTL
             .Add("data:set:c", new byte[] { 0x03 })
-            .Add("data:set:c" + TtlSuffix, BitConverter.GetBytes(t1))
+            .Add("data:set:c" + SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t1))
+            .Add("data:set:expired", new byte[] { 0x04 })
+            .Add("data:set:expired" + SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(expired))
             .Add("data:set:__bad__", new byte[] { 0xFF }) // peut être valide selon IdValidator
             .Add("whatever", new byte[] { 0xEE })
-            .Add("data:set:orphan" + TtlSuffix, BitConverter.GetBytes(t1)); // ttlKey sans baseKey => ignoré
+            .Add("data:set:orphan" + SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t1)); // ttlKey sans baseKey => ignoré
 
         var payload = new SlimDataPayload
         {
@@ -86,6 +89,7 @@ public sealed class DataSetRoutesTests
         Assert.Equal(t2, byId["a"]);
         Assert.Equal(-1, byId["b"]);
         Assert.Equal(t1, byId["c"]);
+        Assert.False(byId.ContainsKey("expired"));
     }
 
 

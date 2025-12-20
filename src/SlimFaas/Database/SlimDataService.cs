@@ -17,8 +17,6 @@ public readonly record struct ListCallbackReq(string Key, byte[] SerializedStatu
 public class SlimDataService
     : IDatabaseService, IAsyncDisposable
 {
-    private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
-    private const string HashsetTtlField = "__ttl__";
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceProvider _serviceProvider;
@@ -90,9 +88,9 @@ public class SlimDataService
     }
 
     private static string BuildTtlQuery(long? ttlMs)
-        => ttlMs.HasValue ? $"&ttlMs={ttlMs.Value}" : string.Empty;
+        => ttlMs.HasValue ? $"&ttl={ttlMs.Value}" : string.Empty;
 
-    private static string TtlKey(string key) => key + TimeToLiveSuffix;
+    private static string TtlKey(string key) => key + SlimDataInterpreter.TimeToLivePostfix;
 
     private static bool TryReadExpireAtFromKeyValues(SlimDataPayload data, string key, out long expireAtTicks)
     {
@@ -107,8 +105,8 @@ public class SlimDataService
     private static bool TryReadExpireAtFromHashsets(SlimDataPayload data, string key, out long expireAtTicks)
     {
         expireAtTicks = 0;
-        if (!data.Hashsets.TryGetValue(TtlKey(key), out var meta)) return false;
-        if (!meta.TryGetValue(HashsetTtlField, out var raw)) return false;
+        if (!data.Hashsets.TryGetValue(key, out var meta)) return false;
+        if (!meta.TryGetValue(SlimDataInterpreter.HashsetTtlField, out var raw)) return false;
         var arr = raw.ToArray();
         if (arr.Length < sizeof(long)) return false;
         expireAtTicks = BitConverter.ToInt64(arr, 0);
@@ -259,6 +257,8 @@ public class SlimDataService
         var endpoint = await GetAndWaitForLeader();
         var expireAtUtcTicks = ToExpireAtUtcTicks(ttlMs);
 
+        _logger.LogWarning("SlimDataService DoSetAsync key={Key} ttlMs={TtlMs} expireAtUtcTicks={ExpireAtUtcTicks}", key, ttlMs, expireAtUtcTicks);
+
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
@@ -290,7 +290,7 @@ public class SlimDataService
         }
         else
         {
-            var uri = new Uri($"{endpoint}SlimData/AddHashset?{(ttlMs.HasValue ? $"ttlSeconds={ttlMs.Value}" : "")}");
+            var uri = new Uri($"{endpoint}SlimData/AddHashset?{(ttlMs.HasValue ? $"ttl={ttlMs.Value}" : "")}");
             using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(serialize) };
             using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await httpClient.SendAsync(request);

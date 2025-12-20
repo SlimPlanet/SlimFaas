@@ -50,7 +50,7 @@ internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAn
 
             stream = await repo.OpenReadAsync(id, token).ConfigureAwait(false);
 
-            var replyName = FileSyncProtocol.BuildFetchOkName(idEnc, sha, meta.Length);
+            var replyName = FileSyncProtocol.BuildFetchOkName(idEnc, sha, meta.Length, meta.ExpireAtUtcTicks);
             var type = new ContentType(meta.ContentType);
 
             var msgOut = new StreamMessage(stream, leaveOpen: false, name: replyName, type: type);

@@ -81,23 +81,31 @@ public static class FileSyncProtocol
     }
 
     // fetch.ok|idEnc|sha|len
-    public static string BuildFetchOkName(string idEncoded, string sha256Hex, long length)
-        => $"{FetchOkPrefix}{Sep}{idEncoded}{Sep}{sha256Hex}{Sep}{length}";
+    public static string BuildFetchOkName(string idEncoded, string sha256Hex, long length, long? expireAtUtcTicks = null)
+        => expireAtUtcTicks is null  ? $"{FetchOkPrefix}{Sep}{idEncoded}{Sep}{sha256Hex}{Sep}{length}"
+                                     : $"{FetchOkPrefix}{Sep}{idEncoded}{Sep}{sha256Hex}{Sep}{length}{Sep}{expireAtUtcTicks.Value}";
 
-    public static bool TryParseFetchOkName(string name, out string idEncoded, out string sha256Hex, out long length)
+    public static bool TryParseFetchOkName(string name, out string idEncoded, out string sha256Hex, out long length, out long? expireAtUtcTicks)
     {
         idEncoded = sha256Hex = "";
         length = 0;
+        expireAtUtcTicks = null;
 
         if (!name.StartsWith(FetchOkPrefix + Sep, StringComparison.Ordinal))
             return false;
 
         var parts = name.Split(Sep);
-        if (parts.Length != 4)
+        if (parts.Length != 4 && parts.Length != 5)
             return false;
 
         idEncoded = parts[1];
         sha256Hex = parts[2];
-        return long.TryParse(parts[3], out length);
+        if (!long.TryParse(parts[3], out length))
+            return false;
+        
+        if (parts.Length == 5 && long.TryParse(parts[4], out var exp) && exp > 0)
+           expireAtUtcTicks = exp;
+        
+        return true;
     }
 }

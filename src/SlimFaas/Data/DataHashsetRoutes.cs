@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Text.Json.Serialization;
 using DotNext;
+using SlimData;
 using SlimData.Commands;
 
 namespace SlimFaas;
@@ -10,12 +11,8 @@ public static class DataHashsetRoutes
     private const string HashsetPrefix = "data:hashset:";
     private const string ValueField = "value";
 
-    // Doit matcher SlimDataInterpreter
-    private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
-    private const string HashsetTtlField = "__ttl__";
-
     private static string HashKey(string id) => $"{HashsetPrefix}{id}";
-    private static string TtlKey(string key) => key + TimeToLiveSuffix;
+    private static string TtlKey(string key) => key + SlimDataInterpreter.TimeToLivePostfix;
 
     public static IEndpointRouteBuilder MapDataHashsetRoutes(this IEndpointRouteBuilder app)
     {
@@ -62,7 +59,7 @@ public static class DataHashsetRoutes
             var key = HashKey(id);
             var dict = await db.HashGetAllAsync(key).ConfigureAwait(false);
 
-            if (dict is null || !dict.TryGetValue(ValueField, out var bytes))
+            if (!dict.TryGetValue(ValueField, out var bytes))
                 return Results.NotFound();
 
             return Results.Bytes(bytes, "application/octet-stream");
@@ -76,7 +73,7 @@ public static class DataHashsetRoutes
                 ?? ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
 
             var list = new List<DataHashsetEntry>(capacity: 128);
-
+            var nowTicks = DateTime.UtcNow.Ticks;
             foreach (var hs in hashsets)
             {
                 var key = hs.Key;
@@ -85,7 +82,7 @@ public static class DataHashsetRoutes
                 if (!key.StartsWith(HashsetPrefix, StringComparison.Ordinal))
                     continue;
 
-                if (key.EndsWith(TimeToLiveSuffix, StringComparison.Ordinal))
+                if (key.EndsWith(SlimDataInterpreter.TimeToLivePostfix, StringComparison.Ordinal))
                     continue;
 
                 var id = key.Substring(HashsetPrefix.Length);
@@ -96,12 +93,14 @@ public static class DataHashsetRoutes
                 var ttlKey = TtlKey(key);
 
                 if (hashsets.TryGetValue(ttlKey, out var meta) &&
-                    meta.TryGetValue(HashsetTtlField, out var ttlBytes) &&
+                    meta.TryGetValue(SlimDataInterpreter.HashsetTtlField, out var ttlBytes) &&
                     ttlBytes.Length >= sizeof(long))
                 {
                     var t = BitConverter.ToInt64(ttlBytes.Span);
                     if (t > 0) expireAtTicks = t;
                 }
+                if (expireAtTicks is { } texp and > 0 && texp <= nowTicks)
+                    continue;
 
                 list.Add(new DataHashsetEntry(id, expireAtTicks));
             }
