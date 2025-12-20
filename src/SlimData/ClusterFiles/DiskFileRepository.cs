@@ -59,7 +59,9 @@ public sealed class DiskFileRepository : IFileRepository
                 ArrayPool<byte>.Shared.Return(buffer);
             }
 
+            MemoryDump.Dump("BeforeSaveFlush");
             await fs.FlushAsync(ct).ConfigureAwait(false);
+            MemoryDump.Dump("AfterSaveFlush");
             LinuxFileCache.DropCache(fs);
             MoveIntoPlace(tmp, filePath, overwrite);
 
@@ -86,6 +88,7 @@ public sealed class DiskFileRepository : IFileRepository
         long? expireAtUtcTicks,
         CancellationToken ct)
     {
+        MemoryDump.Dump("BeforeSaveFromTransferObjectAsync");
         var (filePath, metaPath) = GetPaths(id);
         var tmp = filePath + ".tmp." + Guid.NewGuid().ToString("N");
 
@@ -116,7 +119,7 @@ public sealed class DiskFileRepository : IFileRepository
 
             var meta = new FileMetadata(contentType, shaHex, length, expireAtUtcTicks);
             await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
-
+            MemoryDump.Dump("AfterSaveFromTransferObjectAsync");
             return new FilePutResult(shaHex, contentType, length);
         }
         catch

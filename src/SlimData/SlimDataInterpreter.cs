@@ -248,10 +248,8 @@ public class SlimDataInterpreter : CommandInterpreter
             long sizeBytes = 0;
             for (int i = 0; i < arr1.Length; i++) sizeBytes += arr1[i].Value.Length;
             totalQueueBytes += sizeBytes;
-
-            Console.WriteLine($"[Queue] Key: {kv.Key}, Count: {count}, Size: {sizeBytes / (1024.0 * 1024.0):F2} MB");
+            
         }
-        Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
 
         return default;
     }
@@ -317,10 +315,7 @@ public class SlimDataInterpreter : CommandInterpreter
             long sizeBytes = 0;
             for (int i = 0; i < a.Length; i++) sizeBytes += a[i].Value.Length;
             totalQueueBytes += sizeBytes;
-
-            Console.WriteLine($"[Queue] Key: {kv.Key}, Count: {count}, Size: {sizeBytes / (1024.0 * 1024.0):F2} MB");
         }
-        Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
 
         return default;
     }
@@ -431,7 +426,6 @@ public class SlimDataInterpreter : CommandInterpreter
         keyValues = keyValues.SetItem(cmd.Key, cmd.Value);
         
         var ttlKey = TtlKey(cmd.Key);
-        Console.WriteLine("[AddKeyValue] Key: {0}, TTL: {1}", cmd.Key, cmd.ExpireAtUtcTicks.HasValue ? cmd.ExpireAtUtcTicks.Value.ToString() : "null");
         if (cmd.ExpireAtUtcTicks.HasValue)
         {
             var bytes = BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value);
@@ -455,12 +449,10 @@ public class SlimDataInterpreter : CommandInterpreter
         
         if (keyValues.ContainsKey(cmd.Key)){
             keyValues = keyValues.Remove(cmd.Key);
-            Console.WriteLine("[DeleteKeyValue] Key: {0} deleted", cmd.Key);
         }
         var ttlKey = TtlKey(cmd.Key);
         if (keyValues.ContainsKey(ttlKey)){
             keyValues = keyValues.Remove(ttlKey);
-            Console.WriteLine("[DeleteKeyValue] TTL Key: {0} deleted", ttlKey);
         }
         state.KeyValues = keyValues;
         return default;

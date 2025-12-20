@@ -36,6 +36,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         long? ttl,
         CancellationToken ct)
     {
+        MemoryDump.Dump("BeforeUpload");
         await using var _ = await _idLock.AcquireAsync(id, ct);
         
         long? expireAtUtcTicks = null;
@@ -68,7 +69,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 _logger.LogWarning(ex, "FileSync announce failed. Node={Node}", SafeNode(member));
             }
         }
-
+        MemoryDump.Dump("AfterUpload");
         return put;
     }
 
