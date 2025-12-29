@@ -257,8 +257,6 @@ public class SlimDataService
         var endpoint = await GetAndWaitForLeader();
         var expireAtUtcTicks = ToExpireAtUtcTicks(ttlMs);
 
-        _logger.LogWarning("SlimDataService DoSetAsync key={Key} ttlMs={TtlMs} expireAtUtcTicks={ExpireAtUtcTicks}", key, ttlMs, expireAtUtcTicks);
-
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
