@@ -111,6 +111,14 @@ public static class DataFileRoutes
             // Snippet demandé
             var contentType = context.Request.ContentType ?? "application/octet-stream";
             var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
+            var contentLength = context.Request.ContentLength;
+            if (contentLength is null || contentLength <= 0)
+            {
+                return Results.Problem(
+                    title: "Length required",
+                    detail: "Content-Length header is required for /data/files uploads (streamed uploads are not buffered).",
+                    statusCode: StatusCodes.Status411LengthRequired);
+            }
 
             Stream contentStream = context.Request.Body;
             string? actualContentType = null;
@@ -124,6 +132,7 @@ public static class DataFileRoutes
                 id: elementId,
                 content: contentStream,
                 contentType: finalContentType,
+                contentLengthBytes: contentLength.Value,
                 overwrite: true,
                 ttl: ttl,
                 ct: ct);

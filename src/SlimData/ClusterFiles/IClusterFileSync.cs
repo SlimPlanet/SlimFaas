@@ -10,6 +10,7 @@ public interface IClusterFileSync
         string id,
         Stream content,
         string contentType,
+        long contentLengthBytes,
         bool overwrite,
         long? ttl,
         CancellationToken ct);

@@ -10,7 +10,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     private readonly IFileRepository _repo;
     private readonly ILogger<ClusterFileSync> _logger;
     private readonly ClusterFileSyncChannel _channel;
-    private readonly KeyedAsyncLock _idLock = new();
+    private readonly KeyedAsyncLock _idLock = new(KeyedAsyncLock.MegaBytes(256));
 
     public ClusterFileSync(IMessageBus bus, IFileRepository repo, ClusterFileAnnounceQueue announceQueue, ILogger<ClusterFileSync> logger)
     {
@@ -18,7 +18,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        _channel = new ClusterFileSyncChannel(_repo, announceQueue);
+        _channel = new ClusterFileSyncChannel(_repo, announceQueue, _idLock);
         _bus.AddListener(_channel);
     }
 
@@ -32,12 +32,13 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         string id,
         Stream content,
         string contentType,
+        long contentLengthBytes,
         bool overwrite,
         long? ttl,
         CancellationToken ct)
     {
         MemoryDump.Dump("BeforeUpload");
-        await using var _ = await _idLock.AcquireAsync(id, ct);
+        await using var _ = await _idLock.AcquireAsync(id, contentLengthBytes, ct);
         
         long? expireAtUtcTicks = null;
         if (ttl.HasValue && ttl.Value > 0)

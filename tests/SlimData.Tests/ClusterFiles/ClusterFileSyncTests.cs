@@ -53,6 +53,7 @@ public sealed class ClusterFileSyncTests
             "id1",
             new MemoryStream(Encoding.UTF8.GetBytes("test")),
             "text/plain",
+            contentLengthBytes: 4,
             overwrite: true,
             ttl: null,
             CancellationToken.None);
@@ -86,7 +87,7 @@ public sealed class ClusterFileSyncTests
 
         var ttlMs = 5_000L;
         var before = DateTime.UtcNow.Ticks;
-        await sut.BroadcastFilePutAsync("id1", new MemoryStream(Encoding.UTF8.GetBytes("test")), "text/plain", true, ttlMs, CancellationToken.None);
+        await sut.BroadcastFilePutAsync("id1", new MemoryStream(Encoding.UTF8.GetBytes("test")), "text/plain", contentLengthBytes: 4, true, ttlMs, CancellationToken.None);
         var after = DateTime.UtcNow.Ticks;
 
         await sut.DisposeAsync();
@@ -146,6 +147,7 @@ public sealed class ClusterFileSyncTests
             "id1",
             new MemoryStream(Encoding.UTF8.GetBytes("test")),
             "text/plain",
+            contentLengthBytes: 4,
             overwrite: true,
             null,
             CancellationToken.None);

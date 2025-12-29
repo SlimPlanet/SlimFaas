@@ -131,6 +131,7 @@ public sealed class DataFileRoutesTests
         ctx.Request.ContentType = "application/octet-stream";
         ctx.Request.Body = new MemoryStream(payload);
         ctx.Request.Headers["Content-Disposition"] = "attachment; filename=\"a.bin\"";
+        ctx.Request.ContentLength = payload.Length;
 
         string? capturedId = null;
         string? capturedContentType = null;
@@ -140,10 +141,11 @@ public sealed class DataFileRoutesTests
                 It.IsAny<string>(),
                 It.IsAny<Stream>(),
                 It.IsAny<string>(),
+                It.IsAny<long>(),
                 true,
                 It.IsAny<long?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<string, Stream, string, bool, long?, CancellationToken>((id, _, ctType, _, ttl, _) =>
+            .Callback<string, Stream, long, string, bool, long?, CancellationToken>((id, _, _ ,  ctType, _, ttl, _) =>
             {
                 capturedId = id;
                 capturedContentType = ctType;
