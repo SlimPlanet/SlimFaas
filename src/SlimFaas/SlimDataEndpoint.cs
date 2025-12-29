@@ -2,7 +2,7 @@
 
 namespace SlimFaas;
 
-public class SlimDataEndpoint
+public static class SlimDataEndpoint
 {
     public static string Get(PodInformation podInformation, string? baseUrl = null)
     {

@@ -97,7 +97,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         foreach (var member in candidates)
         {
 
-            var baseUri = SafeNode(member);
+            var baseUri = RemoveLastPathSegment(SafeNode(member));
             // /cluster/files/{id}?sha=...
             var fileUri = new Uri($"{baseUri}/cluster/files/{Uri.EscapeDataString(id)}?sha={Uri.EscapeDataString(sha256Hex)}");
             _logger.LogInformation("GET {Node}", fileUri);
@@ -208,4 +208,18 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 
     private static string SafeNode(IClusterMember member)
         => member.EndPoint?.ToString() ?? member.Id.ToString();
+    
+    public static string RemoveLastPathSegment(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return "";
+        }
+        if (url.EndsWith('/'))
+        {
+            url = url.Substring(0, url.Length - 1);
+        }
+
+        return url;
+    }
 }
