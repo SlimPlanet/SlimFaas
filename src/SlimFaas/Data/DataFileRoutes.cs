@@ -111,13 +111,15 @@ public static class DataFileRoutes
             // Snippet demandé
             var contentType = context.Request.ContentType ?? "application/octet-stream";
             var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
+            const long DefaultUnknownLengthBytes = 20L * 1024L * 1024L; // 20 MiB
             var contentLength = context.Request.ContentLength;
+            var lengthForLimiter = (contentLength is long cl && cl > 0) ? cl : DefaultUnknownLengthBytes;
             if (contentLength is null || contentLength <= 0)
             {
-                return Results.Problem(
-                    title: "Length required",
-                    detail: "Content-Length header is required for /data/files uploads (streamed uploads are not buffered).",
-                    statusCode: StatusCodes.Status411LengthRequired);
+                context.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Upload")
+                    .LogWarning("Missing/invalid Content-Length for /data/files. Using default={DefaultBytes} bytes for limiter. Id={Id}",
+                        DefaultUnknownLengthBytes, elementId);
             }
 
             Stream contentStream = context.Request.Body;
@@ -132,7 +134,7 @@ public static class DataFileRoutes
                 id: elementId,
                 content: contentStream,
                 contentType: finalContentType,
-                contentLengthBytes: contentLength.Value,
+                contentLengthBytes: lengthForLimiter,
                 overwrite: true,
                 ttl: ttl,
                 ct: ct);
