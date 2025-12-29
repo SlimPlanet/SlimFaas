@@ -41,7 +41,6 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         long? ttl,
         CancellationToken ct)
     {
-        MemoryDump.Dump("BeforeUpload");
         await using var _ = await _idLock.AcquireAsync(id, contentLengthBytes, ct);
         
         long? expireAtUtcTicks = null;
@@ -74,7 +73,6 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 _logger.LogWarning(ex, "FileSync announce failed. Node={Node}", SafeNode(member));
             }
         }
-        MemoryDump.Dump("AfterUpload");
         return put;
     }
 
@@ -100,13 +98,13 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             var baseUri = RemoveLastPathSegment(SafeNode(member));
             // /cluster/files/{id}?sha=...
             var fileUri = new Uri($"{baseUri}/cluster/files/{Uri.EscapeDataString(id)}?sha={Uri.EscapeDataString(sha256Hex)}");
-            _logger.LogInformation("GET {Node}", fileUri);
+            _logger.LogDebug("GET {Node}", fileUri);
             HttpResponseMessage? headResp = null;
             try
             {
                 using var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
                 headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, ct).ConfigureAwait(false);
-                _logger.LogInformation("GET {FileUri} {StatusCode}", fileUri, headResp.StatusCode);
+                _logger.LogDebug("GET {FileUri} {StatusCode}", fileUri, headResp.StatusCode);
                 if (headResp.StatusCode == HttpStatusCode.NotFound)
                 {
                     continue;
@@ -167,7 +165,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                     {
                         _logger.LogWarning(
                             "Cluster pull integrity mismatch from {Node}. Id={Id} ExpectedSha={Sha} ActualSha={ActSha} ExpectedLen={Len} ActualLen={ActLen}",
-                            SafeNode(member), id, sha256Hex, put.Sha256Hex, length.Value, put.Length);
+                            fileUri, id, sha256Hex, put.Sha256Hex, length.Value, put.Length);
 
                         await _repo.DeleteAsync(id, ct).ConfigureAwait(false);
                         continue; // essaie un autre nœud
