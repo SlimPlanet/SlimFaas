@@ -3,7 +3,7 @@ using DotNext.Net.Cluster.Messaging;
 
 namespace SlimData.ClusterFiles;
 
-internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAnnounceQueue announceQueue, KeyedAsyncLock idLock, ILogger<ClusterFileSyncChannel> logger) : IInputChannel
+internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAnnounceQueue announceQueue, KeyedAsyncLock idLock, ILogger<ClusterFileSync>  logger) : IInputChannel
 {
     public bool IsSupported(string messageName, bool oneWay)
     {

@@ -18,7 +18,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        _channel = new ClusterFileSyncChannel(_repo, announceQueue, _idLock);
+        _channel = new ClusterFileSyncChannel(_repo, announceQueue, _idLock, logger);
         _bus.AddListener(_channel);
     }
 
