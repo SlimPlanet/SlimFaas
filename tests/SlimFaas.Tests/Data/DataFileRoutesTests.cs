@@ -145,7 +145,7 @@ public sealed class DataFileRoutesTests
                 true,
                 It.IsAny<long?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<string, Stream, long, string, bool, long?, CancellationToken>((id, _, _ ,  ctType, _, ttl, _) =>
+            .Callback<string, Stream, string, long, bool, long?, CancellationToken>((id, _, ctType, _ ,  _, ttl, _) =>
             {
                 capturedId = id;
                 capturedContentType = ctType;
