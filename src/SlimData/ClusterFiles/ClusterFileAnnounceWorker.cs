@@ -35,7 +35,11 @@ public sealed class ClusterFileAnnounceWorker : BackgroundService
 
                 // Pull => récupère depuis un des nœuds
                 var res = await _sync.PullFileIfMissingAsync(a.Id, a.Sha256Hex, stoppingToken).ConfigureAwait(false);
-
+                if (res.Stream is null)
+                {
+                    _logger.LogWarning("Auto-pull failed. Id={Id} Sha={Sha}", a.Id, a.Sha256Hex);
+                    continue;
+                }
                 // IMPORTANT: on n'a pas besoin du stream ici => on le ferme pour éviter les fuites
                 if(res.Stream != null)
                 {

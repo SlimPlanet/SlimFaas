@@ -3,7 +3,7 @@ using DotNext.Net.Cluster.Messaging;
 
 namespace SlimData.ClusterFiles;
 
-internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAnnounceQueue announceQueue, KeyedAsyncLock idLock) : IInputChannel
+internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAnnounceQueue announceQueue, KeyedAsyncLock idLock, ILogger<ClusterFileSyncChannel> logger) : IInputChannel
 {
     public bool IsSupported(string messageName, bool oneWay)
     {
@@ -63,8 +63,9 @@ internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAn
             
             return msgOut;
         }
-        catch
+        catch(Exception ex)
         {
+            logger.LogWarning($"[FileSync] Fetch handler failed: {ex}");
             if (stream is not null)
                 await stream.DisposeAsync().ConfigureAwait(false);
             else if (hasReleaser)
@@ -75,16 +76,10 @@ internal sealed class ClusterFileSyncChannel(IFileRepository repo, ClusterFileAn
 
 }
 
-internal sealed class LockReleasingStream : Stream
+internal sealed class LockReleasingStream(Stream inner, KeyedAsyncLock.Releaser releaser) : Stream
 {
-    private Stream? _inner;
-    private KeyedAsyncLock.Releaser _releaser;
-
-    public LockReleasingStream(Stream inner, KeyedAsyncLock.Releaser releaser)
-    {
-        _inner = inner ?? throw new ArgumentNullException(nameof(inner));
-        _releaser = releaser;
-    }
+    private Stream? _inner = inner ?? throw new ArgumentNullException(nameof(inner));
+    private KeyedAsyncLock.Releaser _releaser = releaser;
 
     public override bool CanRead => _inner!.CanRead;
     public override bool CanSeek => _inner!.CanSeek;
