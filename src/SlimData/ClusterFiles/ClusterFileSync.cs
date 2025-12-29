@@ -100,26 +100,26 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             var baseUri = SafeNode(member);
             // /cluster/files/{id}?sha=...
             var fileUri = new Uri($"{baseUri}/cluster/files/{Uri.EscapeDataString(id)}?sha={Uri.EscapeDataString(sha256Hex)}");
-
+            _logger.LogInformation("GET {Node}", SafeNode(member));
             HttpResponseMessage? headResp = null;
             try
             {
                 using var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
                 headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, ct).ConfigureAwait(false);
-
+                _logger.LogInformation("GET {Node}", SafeNode(member));
                 if (headResp.StatusCode == HttpStatusCode.NotFound)
                     continue;
 
                 if (!headResp.IsSuccessStatusCode)
                 {
-                    _logger.LogDebug("HEAD failed on node {Node}. Status={Status}", SafeNode(member), (int)headResp.StatusCode);
+                    _logger.LogWarning("HEAD failed on node {Node}. Status={Status}", SafeNode(member), (int)headResp.StatusCode);
                     continue;
                 }
 
                 var length = headResp.Content.Headers.ContentLength;
                 if (length is null || length <= 0)
                 {
-                    _logger.LogDebug("HEAD ok but no Content-Length from node {Node}", SafeNode(member));
+                    _logger.LogWarning("HEAD ok but no Content-Length from node {Node}", SafeNode(member));
                     continue;
                 }
 
@@ -176,7 +176,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogDebug(ex, "Range pull failed from node {Node}. Id={Id}", SafeNode(member), id);
+                    _logger.LogWarning(ex, "Range pull failed from node {Node}. Id={Id}", SafeNode(member), id);
                     // essaie le suivant
                     continue;
                 }

@@ -45,7 +45,7 @@ public static class ClusterFileTransferRoutes
         if (meta.ExpireAtUtcTicks is { } exp && exp > 0)
             ctx.Response.Headers["X-SlimFaas-ExpireAtUtcTicks"] = exp.ToString();
 
-        log.LogDebug("HEAD ok. Id={Id} Len={Len}", id, meta.Length);
+        log.LogInformation("HEAD ok. Id={Id} Len={Len}", id, meta.Length);
         return Results.Ok();
     }
 
@@ -79,7 +79,7 @@ public static class ClusterFileTransferRoutes
         if (meta.ExpireAtUtcTicks is { } exp && exp > 0)
             ctx.Response.Headers["X-SlimFaas-ExpireAtUtcTicks"] = exp.ToString();
 
-        log.LogDebug("GET streaming (range enabled). Id={Id} Len={Len}", id, meta.Length);
+        log.LogInformation("GET streaming (range enabled). Id={Id} Len={Len}", id, meta.Length);
 
         return Results.File(
             fileStream: stream,
