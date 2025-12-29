@@ -15,16 +15,7 @@ public interface IFileRepository
         bool overwrite,
         long? expireAtUtcTicks,
         CancellationToken ct);
-
-    Task<FilePutResult> SaveFromTransferObjectAsync(
-        string id,
-        IDataTransferObject dto,
-        string contentType,
-        bool overwrite,
-        string? expectedSha256Hex,
-        long? expectedLength,
-        long? expireAtUtcTicks, 
-        CancellationToken ct);
+    
 
     Task<bool> ExistsAsync(string id, string sha256Hex, CancellationToken ct);
 

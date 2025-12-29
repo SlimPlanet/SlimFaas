@@ -1,7 +1,6 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
-using DotNext.IO;
 using MemoryPack;
 
 namespace SlimData.ClusterFiles;
@@ -67,56 +66,6 @@ public sealed class DiskFileRepository : IFileRepository
             await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
 
             return new FilePutResult(shaHex, contentType, total);
-        }
-        catch
-        {
-            TryDelete(tmp);
-            throw;
-        }
-    }
-
-    public async Task<FilePutResult> SaveFromTransferObjectAsync(
-        string id,
-        IDataTransferObject dto,
-        string contentType,
-        bool overwrite,
-        string? expectedSha256Hex,
-        long? expectedLength,
-        long? expireAtUtcTicks,
-        CancellationToken ct)
-    {
-        var (filePath, metaPath) = GetPaths(id);
-        var tmp = filePath + ".tmp." + Guid.NewGuid().ToString("N");
-
-        try
-        {
-            await using var fs = new FileStream(
-                tmp, FileMode.Create, FileAccess.Write, FileShare.None,
-                bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
-
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            await using var hashing = new HashingWriteStream(fs, hash);
-
-            // IMPORTANT: on force l’écriture du DTO vers un Stream avec bufferSize explicite
-            await DotNext.IO.DataTransferObject.WriteToAsync(dto, hashing, 128 * 1024, ct).ConfigureAwait(false);
-            await fs.FlushAsync(ct).ConfigureAwait(false);
-
-            var shaHex = ToLowerHex(hash.GetHashAndReset());
-            var length = hashing.BytesWritten;
-
-            if (expectedLength is not null && expectedLength.Value != length)
-                throw new InvalidDataException($"Length mismatch. Expected={expectedLength} Actual={length}");
-
-            if (!string.IsNullOrWhiteSpace(expectedSha256Hex) &&
-                !shaHex.Equals(expectedSha256Hex, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException($"SHA256 mismatch. Expected={expectedSha256Hex} Actual={shaHex}");
-
-            MoveIntoPlace(tmp, filePath, overwrite);
-
-            var meta = new FileMetadata(contentType, shaHex, length, expireAtUtcTicks);
-            await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
-
-            return new FilePutResult(shaHex, contentType, length);
         }
         catch
         {
@@ -250,45 +199,5 @@ public sealed class DiskFileRepository : IFileRepository
 
     private static string ToLowerHex(byte[] bytes)
         => Convert.ToHexString(bytes).ToLowerInvariant();
-
-    private sealed class HashingWriteStream : Stream
-    {
-        private readonly Stream _inner;
-        private readonly IncrementalHash _hash;
-
-        public long BytesWritten { get; private set; }
-
-        public HashingWriteStream(Stream inner, IncrementalHash hash)
-        {
-            _inner = inner;
-            _hash = hash;
-        }
-
-        public override bool CanRead => false;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => throw new NotSupportedException();
-        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
-
-        public override void Flush() => _inner.Flush();
-        public override Task FlushAsync(CancellationToken cancellationToken) => _inner.FlushAsync(cancellationToken);
-
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => _inner.SetLength(value);
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            _hash.AppendData(buffer, offset, count);
-            BytesWritten += count;
-            _inner.Write(buffer, offset, count);
-        }
-
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            _hash.AppendData(buffer.Span);
-            BytesWritten += buffer.Length;
-            await _inner.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
-        }
-    }
+    
 }
