@@ -227,20 +227,45 @@ Instead:
 
 This yields eventual distribution with minimal upload latency.
 
-### Diagram (simplified)
+### Diagrams (simplified)
 
 ```mermaid
 flowchart LR
-  C[Client] -->|POST /data/files| A[Node A]
-  A -->|write binary| D[(Disk on Node A)]
-  A -->|store metadata| M[(Cluster-consistent metadata)]
-  A -->|announce id + sha| B[Other nodes]
+  %% 1) POST path — Upload + announce (fast)
 
-  C -->|"GET /data/files/{id}"| X[Node B]
-  X -->|read metadata| M
-  X -->|missing locally?| P[Pull from Node A]
-  P --> D
+  C[Client] -->|POST /data/files| A[Node A]
+  A -->|write binary| D_A[(Disk on Node A)]
+  A -->|"store metadata (id, sha, len, ttl...)"| M[(Cluster-consistent metadata)]
+  A -->|announce id + sha| BUS[(Cluster announce bus)]
+
+```
+
+```mermaid
+flowchart LR
+  %% 2) Background distribution — announce → async queue → worker → pull
+
+  BUS[(Cluster announce bus)] -->|event: id + sha| RX[Node B Listener]
+  RX -->|enqueue announce| Q[(AnnounceQueue)]
+  Q --> W[BackgroundPullWorker]
+  W -->|"pull in background<br/>GET /cluster/files/{id}?sha=..."| P[Pull client]
+  P -->|download from Node A| D_A[(Disk on Node A)]
+  W -->|verify sha + write| D_B[(Disk on Node B)]
+
+```
+
+```mermaid
+flowchart LR
+  %% 3) GET path — Read local or pull on demand
+
+  C[Client] -->|"GET /data/files/{id}"| X[Node B]
+  X -->|read metadata| M[(Cluster-consistent metadata)]
+  X --> HAS{Has file locally?}
+  HAS -->|yes| D_B[(Disk on Node B)]
+  HAS -->|no| P["Pull on demand<br/>GET /cluster/files/{id}?sha=..."]
+  P -->|download from Node A| D_A[(Disk on Node A)]
   X -->|stream binary| C
+
+
 ```
 
 ---
