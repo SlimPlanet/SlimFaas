@@ -75,9 +75,15 @@ public static class DataFileRoutes
                 if (expireAtUtcTicks > 0 && expireAtUtcTicks <= nowTicks)
                     continue;
 
+                var expireMs =
+                    expireAtUtcTicks > 0
+                        ? Math.Max(0L, (expireAtUtcTicks - nowTicks) / TimeSpan.TicksPerMillisecond)
+                        : -1L;
+
                 list.Add(new DataFileEntry(
                     Id: id,
-                    ExpireAtUtcTicks: expireAtUtcTicks
+                    ExpireAtUtcTicks: expireAtUtcTicks,
+                    ExpireMs: expireMs
                     ));
             }
 
@@ -227,7 +233,8 @@ public partial record DataSetMetadata(
 
 public sealed record DataFileEntry(
     string Id,
-    long ExpireAtUtcTicks
+    long ExpireAtUtcTicks,
+    long ExpireMs
 );
 
 

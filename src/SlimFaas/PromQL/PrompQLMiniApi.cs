@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace SlimFaas;
 
@@ -33,4 +34,7 @@ int TotalPoints
 [JsonSerializable(typeof(PromQlResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
 [JsonSerializable(typeof(MetricsStoreDebugResponse))]
+[JsonSerializable(typeof(ProblemDetails))]
+[JsonSerializable(typeof(ValidationProblemDetails))]
+[JsonSerializable(typeof(HttpValidationProblemDetails))]
 public partial class AppJsonContext : JsonSerializerContext;

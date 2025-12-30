@@ -79,7 +79,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.58.2-pr.214381
+          image: axaguildev/slimfaas:0.58.2-pr.214383
           livenessProbe:
             httpGet:
               path: /health
@@ -111,8 +111,8 @@ spec:
             #  value: http://+:5000
             - name: Logging__LogLevel__SlimFaas
               value: "Information"
-            - name: Logging__LogLevel__SlimData
-              value: "Debug"
+            #- name: Logging__LogLevel__SlimData
+            #  value: "Debug"
             #- name: "SLIMDATA_CONFIGURATION"
             #  value: '{"lowerElectionTimeout":"150","upperElectionTimeout":"300","requestTimeout":"00:00:00.3000000","rpcTimeout":"00:00:00.1500000","heartbeatThreshold":"0.5"}'
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
