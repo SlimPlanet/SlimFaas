@@ -1,0 +1,304 @@
+<!DOCTYPE html><html lang="en"><head><meta charSet="utf-8" data-next-head=""/><meta name="viewport" content="width=device-width" data-next-head=""/><link rel="icon" type="image/svg+xml" href="/slimfaas.svg" data-next-head=""/><title data-next-head="">SlimFaas : The slimmest and simplest Function As A Service</title><meta property="og:title" content="SlimFaas : The slimmest and simplest Function As A Service" data-next-head=""/><meta property="og:description" content="Deploy functions effortlessly with SlimFaas, the ultra-light FaaS platform." data-next-head=""/><meta property="og:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" data-next-head=""/><meta property="og:url" content="https://github.com/SlimPlanet/SlimFaas" data-next-head=""/><meta property="og:type" content="website" data-next-head=""/><meta name="twitter:card" content="summary_large_image" data-next-head=""/><meta name="twitter:title" content="SlimFaas : The slimmest and simplest Function As A Service" data-next-head=""/><meta name="twitter:description" content="Deploy functions effortlessly with SlimFaas, the ultra-light FaaS platform." data-next-head=""/><meta name="twitter:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" data-next-head=""/><link rel="preload" href="/_next/static/chunks/a19c593988fe6247.css" as="style"/><script id="consent-mode-default" data-nscript="beforeInteractive">
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('consent', 'default', {
+                    analytics_storage: 'denied',
+                    ad_storage: 'denied',
+                    ad_user_data: 'denied',
+                    ad_personalization: 'denied',
+                    wait_for_update: 500
+                  });
+                </script><link rel="stylesheet" href="/_next/static/chunks/a19c593988fe6247.css" data-n-g=""/><noscript data-n-css=""></noscript><script src="/_next/static/chunks/42cfeb73640e43d3.js" defer=""></script><script src="/_next/static/chunks/206dbd6d6554f34e.js" defer=""></script><script src="/_next/static/chunks/b8348272995323c7.js" defer=""></script><script src="/_next/static/chunks/76fae40834172bbd.js" defer=""></script><script src="/_next/static/chunks/turbopack-c5b33625727c269b.js" defer=""></script><script src="/_next/static/chunks/d2cca4ace8d2e7d1.js" defer=""></script><script src="/_next/static/chunks/73e30571f236d2cc.js" defer=""></script><script src="/_next/static/chunks/turbopack-87525f176420b3bd.js" defer=""></script><script src="/_next/static/Lbr9vEawqSNPXTZXHgX8X/_ssgManifest.js" defer=""></script><script src="/_next/static/Lbr9vEawqSNPXTZXHgX8X/_buildManifest.js" defer=""></script></head><body><noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-PKM3T5QT" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><div id="__next"><div class="layout"><nav class="layout__navbar navbar"><div class="navbar__left"><a class="navbar__logo-link" href="/"><img alt="Logo" loading="lazy" width="64" height="64" decoding="async" data-nimg="1" class="navbar__logo" style="color:transparent" src="https://github.com/cncf/artwork/blob/main/projects/slimfaas/icon/white/slimfaas-icon-white.svg?raw=true"/></a><button class="navbar__toggle " aria-label="Toggle menu" aria-expanded="false" aria-controls="navbar-main-list" type="button"><span class="navbar__toggle-bar"></span><span class="navbar__toggle-bar"></span><span class="navbar__toggle-bar"></span></button><ul id="navbar-main-list" class="navbar__list "><li class="navbar__item"><a class="navbar__link" href="/">Home</a></li><li class="navbar__item"><a class="navbar__link" href="/get-started">Get Started</a></li><li class="navbar__item navbar__item--has-submenu "><button type="button" class="navbar__link navbar__link--submenu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="navbar-functions-submenu">Functions<span class="navbar__submenu-icon" aria-hidden="true">▾</span></button><ul id="navbar-functions-submenu" class="navbar__submenu "><li class="navbar__submenu-item"><a class="navbar__submenu-link" href="/functions">Functions</a></li><li class="navbar__submenu-item"><a class="navbar__submenu-link" href="/events">Events</a></li><li class="navbar__submenu-item"><a class="navbar__submenu-link" href="/jobs">Jobs</a></li><li class="navbar__submenu-item"><a class="navbar__submenu-link" href="/opentelemetry">Open Telemetry</a></li></ul></li><li class="navbar__item navbar__item--has-submenu "><button type="button" class="navbar__link navbar__link--submenu-toggle" aria-haspopup="true" aria-expanded="false" aria-controls="navbar-scale-submenu">Scale<span class="navbar__submenu-icon" aria-hidden="true">▾</span></button><ul id="navbar-scale-submenu" class="navbar__submenu "><li class="navbar__submenu-item"><a class="navbar__submenu-link" href="/autoscaling">Autoscaling</a></li><li class="navbar__submenu-item"><a class="navbar__submenu-link" href="/kafka">Kafka Connector</a></li><li class="navbar__submenu-item"><a class="navbar__submenu-link" href="/planet-saver">PlanetSaver</a></li></ul></li><li class="navbar__item"><a class="navbar__link" href="/data-files">Data</a></li><li class="navbar__item"><a class="navbar__link" href="/how-it-works">How it works</a></li><li class="navbar__item"><a class="navbar__link" href="/mcp">MCP</a></li></ul></div><a href="https://github.com/SlimPlanet/SlimFaas" class="navbar__github" target="_blank" rel="noopener noreferrer"><svg class="navbar__github-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M12 0.296875C5.37256 0.296875 0 5.66943 0 12.2969C0 17.6394 3.43848 22.146 8.20703 23.7744C8.80762 23.8848 9.02344 23.5156 9.02344 23.1982C9.02344 22.9277 9.0127 21.9941 9.00781 20.9102C5.67188 21.6572 4.96875 19.1738 4.96875 19.1738C4.4375 17.8193 3.64062 17.498 3.64062 17.498C2.54785 16.7939 3.72461 16.8105 3.72461 16.8105C4.93359 16.8896 5.55469 18.0332 5.55469 18.0332C6.625 19.9316 8.37207 19.4082 9.0625 19.1113C9.16797 18.3301 9.45898 17.7939 9.78906 17.4863C7.14062 17.1807 4.34766 16.1582 4.34766 11.6084C4.34766 10.3223 4.8125 9.22852 5.58984 8.36133C5.46094 8.05566 5.04883 6.8418 5.71094 5.16406C5.71094 5.16406 6.72559 4.83008 9.00488 6.44336C9.97852 6.18164 11.0078 6.05078 12.0371 6.04688C13.0664 6.05078 14.0957 6.18164 15.0693 6.44336C17.3486 4.83008 18.3623 5.16406 18.3623 5.16406C19.0244 6.8418 18.6123 8.05566 18.4824 8.36133C19.2598 9.22852 19.7246 10.3223 19.7246 11.6084C19.7246 16.168 16.9277 17.1768 14.2734 17.4746C14.6914 17.8525 15.0547 18.5742 15.0547 19.7012C15.0547 21.3076 15.0391 22.6631 15.0391 23.1982C15.0391 23.5156 15.2559 23.8896 15.8613 23.7744C20.625 22.146 24.0664 17.6394 24.0664 12.2969C24 5.66943 18.6274 0.296875 12 0.296875Z"></path></svg></a></nav><main class="layout__content"><div><div><html><head></head><body><h1>Data temporary binary API</h1>
+<p>SlimFaas provides <strong>temporary binary storage</strong> through the <strong><code>/data/files</code></strong> endpoints.
+This feature is designed for internal workflows (functions, jobs, agents, pipelines) that need to store and retrieve <strong>binary artifacts</strong> (PDF, ZIP, audio, PPTX, etc.) for a limited time.</p>
+<p>This page explains:</p>
+<ul>
+<li>how to use the <code>/data/files</code> API,</li>
+<li>how it works internally (cluster behavior, safety limits),</li>
+<li>how to configure <strong>Public vs Private</strong> access and override it via <strong>environment variables</strong>.</li>
+</ul>
+<hr>
+<h2>What is <code>/data/files</code> for?</h2>
+<p>Use <code>/data/files</code> when you need:</p>
+<ul>
+<li>a simple temporary store for binary artifacts</li>
+<li>a way to retrieve an artifact from any node in a SlimFaas cluster</li>
+<li>a solution that avoids shipping large binaries through the cluster’s consensus layer</li>
+</ul>
+<p><strong>Core idea</strong></p>
+<ul>
+<li>The <strong>binary content</strong> is stored on <strong>disk</strong>.</li>
+<li>The <strong>metadata</strong> (checksum, size, content type, filename, TTL) is stored in a <strong>cluster-consistent store</strong> so every node knows “what exists”.</li>
+</ul>
+<hr>
+<h2>API summary</h2>
+<p>Base path: <code>/data/files</code></p>
+<div class="table-scroll" role="region" aria-label="Scrollable table" tabindex="0"><table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST</code></td>
+<td><code>/data/files?id={id?}&amp;ttl={ms?}</code></td>
+<td>Store a binary artifact (request body = raw bytes)</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/data/files/{id}</code></td>
+<td>Download an artifact (auto-pull from another node if missing locally)</td>
+</tr>
+<tr>
+<td><code>DELETE</code></td>
+<td><code>/data/files/{id}</code></td>
+<td>Remove metadata (the artifact becomes inaccessible through the API)</td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/data/files</code></td>
+<td>List known artifacts (metadata-based)</td>
+</tr>
+</tbody>
+</table></div>
+<hr>
+<h2>Store an artifact: <code>POST /data/files</code></h2>
+<h3>Request contract</h3>
+<ul>
+<li>Body: <strong>raw bytes</strong> (not multipart/form-data)</li>
+<li>Required header: <strong><code>Content-Length</code></strong></li>
+<li>Recommended headers:
+<ul>
+<li><code>Content-Type</code> (defaults to <code>application/octet-stream</code>)</li>
+<li><code>Content-Disposition</code> (to provide a download filename)</li>
+</ul>
+</li>
+</ul>
+<p>Query parameters:</p>
+<ul>
+<li><code>id</code> (optional): artifact identifier
+<ul>
+<li>If omitted, SlimFaas generates an id.</li>
+<li>Use URL-safe ids (letters, numbers, <code>.</code>, <code>_</code>, <code>-</code>).</li>
+</ul>
+</li>
+<li><code>ttl</code> (optional): time-to-live in <strong>milliseconds</strong>
+<ul>
+<li>Example: <code>ttl=600000</code> (10 minutes)</li>
+</ul>
+</li>
+</ul>
+<h3>Why <code>Content-Length</code> is required</h3>
+<p>SlimFaas streams the request body to disk. To apply its transfer safety guard (see <strong>256 MiB parallel limiter</strong>), SlimFaas must know the total size upfront.</p>
+<p>If the request uses chunked transfer encoding (unknown length), the upload is rejected with:</p>
+<ul>
+<li><strong>411 Length Required</strong></li>
+</ul>
+<h3>Responses</h3>
+<ul>
+<li><code>200 OK</code> with the artifact id as plain text</li>
+<li><code>400 Bad Request</code> if the id is invalid</li>
+<li><code>411 Length Required</code> if <code>Content-Length</code> is missing/unknown</li>
+</ul>
+<h3>Examples (curl)</h3>
+<p>Store an artifact for 10 minutes and keep a filename:</p>
+<pre><code class="language-bash hljs">curl -X <span class="hljs-keyword">POST</span> <span class="hljs-string">"http://&lt;slimfaas&gt;/data/files?ttl=600000"</span> \
+  -<span class="hljs-keyword">H</span> <span class="hljs-string">"Content-Type: application/pdf"</span> \
+  -<span class="hljs-keyword">H</span> <span class="hljs-string">"Content-Disposition: attachment; filename=\"</span><span class="hljs-keyword">report</span>.pdf\<span class="hljs-string">""</span> \
+  --data-binary @./<span class="hljs-keyword">report</span>.pdf
+</code></pre>
+<p>Store an artifact with a chosen id:</p>
+<pre><code class="language-bash hljs"><span class="hljs-attribute">curl</span> -X POST <span class="hljs-string">"http://&lt;slimfaas&gt;/data/files?id=my-artifact-001&amp;ttl=300000"</span> <span class="hljs-punctuation">\
+</span>  -H <span class="hljs-string">"Content-Type: application/octet-stream"</span> <span class="hljs-punctuation">\
+</span>  --data-binary @./payload.bin
+</code></pre>
+<hr>
+<h2>Download an artifact: <code>GET /data/files/{id}</code></h2>
+<h3>What happens on a download</h3>
+<p>When you request an artifact:</p>
+<ol>
+<li>SlimFaas reads the <strong>cluster-consistent metadata</strong> for <code>{id}</code> (checksum, size, content type, filename, TTL)</li>
+<li>It checks whether the binary exists locally and matches the expected checksum</li>
+<li>If missing, SlimFaas attempts to <strong>pull</strong> the binary from another cluster node that has it</li>
+<li>The response streams the binary to the client</li>
+</ol>
+<h3>Responses</h3>
+<ul>
+<li><code>200 OK</code> streamed response
+<ul>
+<li><code>Content-Type</code> from metadata (fallback <code>application/octet-stream</code>)</li>
+<li>a download filename if provided at upload time</li>
+</ul>
+</li>
+<li><code>400 Bad Request</code> if id is invalid</li>
+<li><code>404 Not Found</code> if metadata is missing/expired, or if no node can provide the binary</li>
+</ul>
+<h3>Example (curl)</h3>
+<pre><code class="language-bash hljs"><span class="hljs-attribute">curl</span> -L <span class="hljs-string">"http://&lt;slimfaas&gt;/data/files/my-artifact-001"</span> -o my-artifact-<span class="hljs-number">001</span>.bin
+</code></pre>
+<hr>
+<h2>Delete an artifact: <code>DELETE /data/files/{id}</code></h2>
+<p>This removes the <strong>metadata</strong> for the artifact.</p>
+<ul>
+<li><code>204 No Content</code> on success</li>
+<li><code>400 Bad Request</code> if id is invalid</li>
+</ul>
+<blockquote>
+<p>Important
+Removing metadata makes the artifact inaccessible through the API (downloads return 404), even if the binary still exists on disk. Disk cleanup depends on your configured cleanup/expiration strategy.</p>
+</blockquote>
+<hr>
+<h2>List artifacts: <code>GET /data/files</code></h2>
+<p>Returns the list of known artifact ids (metadata-based) and their expiration information (if any). Expired entries are not returned.</p>
+<p>Example:</p>
+<pre><code class="language-bash hljs"><span class="hljs-attribute">curl</span> -s <span class="hljs-string">"http://&lt;slimfaas&gt;/data/files"</span>
+</code></pre>
+<hr>
+<h2>Visibility &amp; security (Public vs Private)</h2>
+<p>All <code>/data/files</code> routes are protected by a <strong>data visibility</strong> setting.</p>
+<p>In <code>appsettings.json</code>:</p>
+<pre><code class="language-json hljs"><span class="hljs-punctuation">{</span>
+  <span class="hljs-attr">"Data"</span><span class="hljs-punctuation">:</span> <span class="hljs-punctuation">{</span>
+    <span class="hljs-attr">"DefaultVisibility"</span><span class="hljs-punctuation">:</span> <span class="hljs-string">"Private"</span>
+  <span class="hljs-punctuation">}</span>
+<span class="hljs-punctuation">}</span>
+</code></pre>
+<h3>Behavior</h3>
+<ul>
+<li><strong>Public</strong>: anyone who can reach SlimFaas can call <code>/data/files</code></li>
+<li><strong>Private</strong> (recommended): only <strong>internal</strong> requests are allowed
+External requests are typically answered with <strong>404 Not Found</strong> (intentionally “hidden”).</li>
+</ul>
+<hr>
+<h2>Overriding visibility via environment variables</h2>
+<p>SlimFaas supports standard configuration overrides via environment variables.</p>
+<p>To override:</p>
+<ul>
+<li><code>Data:DefaultVisibility</code></li>
+</ul>
+<p>Use:</p>
+<ul>
+<li><code>Data__DefaultVisibility</code></li>
+</ul>
+<h3>Example: set <code>/data/files</code> to Public</h3>
+<h4>Docker / Docker Compose</h4>
+<pre><code class="language-bash hljs"><span class="hljs-built_in">export</span> <span class="hljs-attribute">Data__DefaultVisibility</span>=Public
+</code></pre>
+<h4>Kubernetes Deployment (excerpt)</h4>
+<pre><code class="language-yaml hljs"><span class="hljs-params">env:</span>
+  <span class="hljs-operator">-</span> <span class="hljs-params">name:</span> Data__DefaultVisibility
+    <span class="hljs-params">value:</span> <span class="hljs-string">"Public"</span>
+</code></pre>
+<p>To keep it private (explicit):</p>
+<pre><code class="language-yaml hljs"><span class="hljs-params">env:</span>
+  <span class="hljs-operator">-</span> <span class="hljs-params">name:</span> Data__DefaultVisibility
+    <span class="hljs-params">value:</span> <span class="hljs-string">"Private"</span>
+</code></pre>
+<blockquote>
+<p>Notes</p>
+<ul>
+<li>This setting affects all data routes that are guarded by the same visibility filter, including <code>/data/files</code>.</li>
+<li>Use <code>Public</code> / <code>Private</code> for clarity.</li>
+</ul>
+</blockquote>
+<hr>
+<h2>How it works internally (high-level)</h2>
+<h3>1) Metadata is cluster-consistent; content is disk-backed</h3>
+<p>For <code>/data/files</code>:</p>
+<ul>
+<li><strong>metadata</strong> is stored in a cluster-consistent store so every node has the same view of what exists and how to serve it</li>
+<li><strong>binary content</strong> is stored on disk on the node that received the POST request</li>
+</ul>
+<p>This avoids moving large binaries through the cluster’s consensus layer.</p>
+<h3>2) Cluster distribution model: announce + pull</h3>
+<p>SlimFaas does not block the POST by pushing the binary to all nodes.</p>
+<p>Instead:</p>
+<ol>
+<li>The node that stored the artifact announces “I have <code>{id}</code> with checksum <code>{sha}</code>”</li>
+<li>Other nodes can <strong>pull</strong> the artifact in the background</li>
+<li>If a client requests an artifact from a node that doesn’t have it locally, that node can <strong>pull on demand</strong></li>
+</ol>
+<p>This yields eventual distribution with minimal upload latency.</p>
+<hr>
+<h2>The 256 MiB parallel limiter (safety guard)</h2>
+<p>SlimFaas applies a safety guard that limits concurrent binary transfers to roughly:</p>
+<ul>
+<li><strong>256 MiB in parallel</strong></li>
+</ul>
+<p>Meaning:</p>
+<ul>
+<li>each in-flight transfer reserves a “byte budget” equal to its size</li>
+<li>new transfers wait if starting them would exceed the budget</li>
+<li>a single artifact larger than 256 MiB can run only if it is <strong>alone</strong></li>
+</ul>
+<p><strong>This is not a strict memory cap</strong>; it’s a concurrency limiter.</p>
+<hr>
+<h2>Linux memory behavior (critical for sizing)</h2>
+<p>Even though SlimFaas streams uploads/downloads, <strong>Linux may cache file I/O in RAM</strong> (page cache). In containers, this commonly appears as:</p>
+<ul>
+<li>application memory looks stable,</li>
+<li>container memory usage grows (cgroup/RSS increases),</li>
+<li>memory may not drop immediately.</li>
+</ul>
+<h3>Practical consequence</h3>
+<p>With large artifacts (e.g., 200+ MB), you may see:</p>
+<ul>
+<li>a memory rise during storage (write → page cache),</li>
+<li>another rise when other nodes pull the artifact (read → page cache),</li>
+<li>slow return to baseline → risk of <strong>OOMKill</strong> if pod memory is too tight.</li>
+</ul>
+<h3>Sizing rule of thumb</h3>
+<p>Plan memory for:</p>
+<ul>
+<li>your baseline workload,</li>
+<li>
+<ul>
+<li>concurrent transfers (guarded by 256 MiB),</li>
+</ul>
+</li>
+<li>
+<ul>
+<li>Linux page cache.</li>
+</ul>
+</li>
+</ul>
+<p>A safe starting point is often:</p>
+<ul>
+<li><strong>memory limit ≥ baseline + (2 × largest artifact size you expect to handle concurrently)</strong></li>
+</ul>
+<p>Tune based on real monitoring.</p>
+<hr>
+<h2>Storage &amp; durability</h2>
+<p><code>/data/files</code> is disk-backed:</p>
+<ul>
+<li>If storage is ephemeral, artifacts may disappear on pod restart.</li>
+<li>For durability, mount a persistent volume.</li>
+<li>Artifacts can be re-pulled from other nodes only while at least one node still has the content <strong>and</strong> metadata still exists.</li>
+</ul>
+<hr>
+<h2>Troubleshooting</h2>
+<h3>411 Length Required</h3>
+<p>Your client/proxy sent the request without <code>Content-Length</code> (often chunked transfer).
+Fix: ensure uploads have a known length (e.g., <code>curl --data-binary @file</code>) and verify proxy settings.</p>
+<h3>404 Not Found on download</h3>
+<ul>
+<li>metadata expired or was deleted</li>
+<li>no node currently has the binary (restart, cleanup, ephemeral storage)</li>
+<li>temporary unavailability during cluster convergence</li>
+</ul>
+<h3>Memory grows and doesn’t drop</h3>
+<p>Usually Linux page cache behavior. Increase pod memory, reduce concurrency, or adapt storage strategy. Monitor cgroup/RSS and I/O.</p>
+<hr>
+<h2>Quick reference</h2>
+<ul>
+<li>Store: <code>POST /data/files?id={id?}&amp;ttl={ms?}</code></li>
+<li>Download: <code>GET /data/files/{id}</code></li>
+<li>Delete: <code>DELETE /data/files/{id}</code></li>
+<li>List: <code>GET /data/files</code></li>
+<li>Visibility config: <code>Data:DefaultVisibility = Public | Private</code></li>
+<li>Env override: <code>Data__DefaultVisibility=Public</code></li>
+</ul>
+</body></html></div></div></main><footer class="footer"><div class="footer__container"><p class="footer__origin">SlimFaas was originally created by AXA France.</p><div class="footer__cncf"><p class="footer__cncf-text">We are a Cloud Native Computing Foundation sandbox project.</p><img alt="CNCF Logo" loading="lazy" width="150" height="150" decoding="async" data-nimg="1" class="footer__cncf-logo" style="color:transparent" src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg"/></div><p class="footer__kubecon">Learn more about us at <a href="https://events.linuxfoundation.org/kubecon-cloudnativecon/" class="footer__kubecon-link">KubeCon + CloudNativeCon</a>.</p><p class="footer__trademark">The Linux Foundation® (TLF) has registered trademarks and uses trademarks. For a list of TLF trademarks, see <a href="https://www.linuxfoundation.org/trademark-usage" class="footer__trademark-link">Trademark Usage</a>.</p><p class="footer__copyright">© SlimFaas a Series of LF Projects, LLC. All rights reserved.  | <a href="#" class="footer__trademark-link">Cookie settings</a></p></div></footer></div></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{"contentHtml":"\u003chtml\u003e\u003chead\u003e\u003c/head\u003e\u003cbody\u003e\u003ch1\u003eData temporary binary API\u003c/h1\u003e\n\u003cp\u003eSlimFaas provides \u003cstrong\u003etemporary binary storage\u003c/strong\u003e through the \u003cstrong\u003e\u003ccode\u003e/data/files\u003c/code\u003e\u003c/strong\u003e endpoints.\nThis feature is designed for internal workflows (functions, jobs, agents, pipelines) that need to store and retrieve \u003cstrong\u003ebinary artifacts\u003c/strong\u003e (PDF, ZIP, audio, PPTX, etc.) for a limited time.\u003c/p\u003e\n\u003cp\u003eThis page explains:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ehow to use the \u003ccode\u003e/data/files\u003c/code\u003e API,\u003c/li\u003e\n\u003cli\u003ehow it works internally (cluster behavior, safety limits),\u003c/li\u003e\n\u003cli\u003ehow to configure \u003cstrong\u003ePublic vs Private\u003c/strong\u003e access and override it via \u003cstrong\u003eenvironment variables\u003c/strong\u003e.\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eWhat is \u003ccode\u003e/data/files\u003c/code\u003e for?\u003c/h2\u003e\n\u003cp\u003eUse \u003ccode\u003e/data/files\u003c/code\u003e when you need:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ea simple temporary store for binary artifacts\u003c/li\u003e\n\u003cli\u003ea way to retrieve an artifact from any node in a SlimFaas cluster\u003c/li\u003e\n\u003cli\u003ea solution that avoids shipping large binaries through the cluster’s consensus layer\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e\u003cstrong\u003eCore idea\u003c/strong\u003e\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThe \u003cstrong\u003ebinary content\u003c/strong\u003e is stored on \u003cstrong\u003edisk\u003c/strong\u003e.\u003c/li\u003e\n\u003cli\u003eThe \u003cstrong\u003emetadata\u003c/strong\u003e (checksum, size, content type, filename, TTL) is stored in a \u003cstrong\u003ecluster-consistent store\u003c/strong\u003e so every node knows “what exists”.\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eAPI summary\u003c/h2\u003e\n\u003cp\u003eBase path: \u003ccode\u003e/data/files\u003c/code\u003e\u003c/p\u003e\n\u003cdiv class=\"table-scroll\" role=\"region\" aria-label=\"Scrollable table\" tabindex=\"0\"\u003e\u003ctable\u003e\n\u003cthead\u003e\n\u003ctr\u003e\n\u003cth\u003eMethod\u003c/th\u003e\n\u003cth\u003ePath\u003c/th\u003e\n\u003cth\u003ePurpose\u003c/th\u003e\n\u003c/tr\u003e\n\u003c/thead\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003ePOST\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003e/data/files?id={id?}\u0026amp;ttl={ms?}\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eStore a binary artifact (request body = raw bytes)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eGET\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003e/data/files/{id}\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eDownload an artifact (auto-pull from another node if missing locally)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eDELETE\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003e/data/files/{id}\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eRemove metadata (the artifact becomes inaccessible through the API)\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e\u003ccode\u003eGET\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003e\u003ccode\u003e/data/files\u003c/code\u003e\u003c/td\u003e\n\u003ctd\u003eList known artifacts (metadata-based)\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e\u003c/div\u003e\n\u003chr\u003e\n\u003ch2\u003eStore an artifact: \u003ccode\u003ePOST /data/files\u003c/code\u003e\u003c/h2\u003e\n\u003ch3\u003eRequest contract\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003eBody: \u003cstrong\u003eraw bytes\u003c/strong\u003e (not multipart/form-data)\u003c/li\u003e\n\u003cli\u003eRequired header: \u003cstrong\u003e\u003ccode\u003eContent-Length\u003c/code\u003e\u003c/strong\u003e\u003c/li\u003e\n\u003cli\u003eRecommended headers:\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eContent-Type\u003c/code\u003e (defaults to \u003ccode\u003eapplication/octet-stream\u003c/code\u003e)\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003eContent-Disposition\u003c/code\u003e (to provide a download filename)\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eQuery parameters:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eid\u003c/code\u003e (optional): artifact identifier\n\u003cul\u003e\n\u003cli\u003eIf omitted, SlimFaas generates an id.\u003c/li\u003e\n\u003cli\u003eUse URL-safe ids (letters, numbers, \u003ccode\u003e.\u003c/code\u003e, \u003ccode\u003e_\u003c/code\u003e, \u003ccode\u003e-\u003c/code\u003e).\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003ettl\u003c/code\u003e (optional): time-to-live in \u003cstrong\u003emilliseconds\u003c/strong\u003e\n\u003cul\u003e\n\u003cli\u003eExample: \u003ccode\u003ettl=600000\u003c/code\u003e (10 minutes)\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eWhy \u003ccode\u003eContent-Length\u003c/code\u003e is required\u003c/h3\u003e\n\u003cp\u003eSlimFaas streams the request body to disk. To apply its transfer safety guard (see \u003cstrong\u003e256 MiB parallel limiter\u003c/strong\u003e), SlimFaas must know the total size upfront.\u003c/p\u003e\n\u003cp\u003eIf the request uses chunked transfer encoding (unknown length), the upload is rejected with:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003e411 Length Required\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eResponses\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003e200 OK\u003c/code\u003e with the artifact id as plain text\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003e400 Bad Request\u003c/code\u003e if the id is invalid\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003e411 Length Required\u003c/code\u003e if \u003ccode\u003eContent-Length\u003c/code\u003e is missing/unknown\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eExamples (curl)\u003c/h3\u003e\n\u003cp\u003eStore an artifact for 10 minutes and keep a filename:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003ecurl -X \u003cspan class=\"hljs-keyword\"\u003ePOST\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"http://\u0026lt;slimfaas\u0026gt;/data/files?ttl=600000\"\u003c/span\u003e \\\n  -\u003cspan class=\"hljs-keyword\"\u003eH\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Content-Type: application/pdf\"\u003c/span\u003e \\\n  -\u003cspan class=\"hljs-keyword\"\u003eH\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Content-Disposition: attachment; filename=\\\"\u003c/span\u003e\u003cspan class=\"hljs-keyword\"\u003ereport\u003c/span\u003e.pdf\\\u003cspan class=\"hljs-string\"\u003e\"\"\u003c/span\u003e \\\n  --data-binary @./\u003cspan class=\"hljs-keyword\"\u003ereport\u003c/span\u003e.pdf\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eStore an artifact with a chosen id:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003e\u003cspan class=\"hljs-attribute\"\u003ecurl\u003c/span\u003e -X POST \u003cspan class=\"hljs-string\"\u003e\"http://\u0026lt;slimfaas\u0026gt;/data/files?id=my-artifact-001\u0026amp;ttl=300000\"\u003c/span\u003e \u003cspan class=\"hljs-punctuation\"\u003e\\\n\u003c/span\u003e  -H \u003cspan class=\"hljs-string\"\u003e\"Content-Type: application/octet-stream\"\u003c/span\u003e \u003cspan class=\"hljs-punctuation\"\u003e\\\n\u003c/span\u003e  --data-binary @./payload.bin\n\u003c/code\u003e\u003c/pre\u003e\n\u003chr\u003e\n\u003ch2\u003eDownload an artifact: \u003ccode\u003eGET /data/files/{id}\u003c/code\u003e\u003c/h2\u003e\n\u003ch3\u003eWhat happens on a download\u003c/h3\u003e\n\u003cp\u003eWhen you request an artifact:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003eSlimFaas reads the \u003cstrong\u003ecluster-consistent metadata\u003c/strong\u003e for \u003ccode\u003e{id}\u003c/code\u003e (checksum, size, content type, filename, TTL)\u003c/li\u003e\n\u003cli\u003eIt checks whether the binary exists locally and matches the expected checksum\u003c/li\u003e\n\u003cli\u003eIf missing, SlimFaas attempts to \u003cstrong\u003epull\u003c/strong\u003e the binary from another cluster node that has it\u003c/li\u003e\n\u003cli\u003eThe response streams the binary to the client\u003c/li\u003e\n\u003c/ol\u003e\n\u003ch3\u003eResponses\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003e200 OK\u003c/code\u003e streamed response\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eContent-Type\u003c/code\u003e from metadata (fallback \u003ccode\u003eapplication/octet-stream\u003c/code\u003e)\u003c/li\u003e\n\u003cli\u003ea download filename if provided at upload time\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003e400 Bad Request\u003c/code\u003e if id is invalid\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003e404 Not Found\u003c/code\u003e if metadata is missing/expired, or if no node can provide the binary\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eExample (curl)\u003c/h3\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003e\u003cspan class=\"hljs-attribute\"\u003ecurl\u003c/span\u003e -L \u003cspan class=\"hljs-string\"\u003e\"http://\u0026lt;slimfaas\u0026gt;/data/files/my-artifact-001\"\u003c/span\u003e -o my-artifact-\u003cspan class=\"hljs-number\"\u003e001\u003c/span\u003e.bin\n\u003c/code\u003e\u003c/pre\u003e\n\u003chr\u003e\n\u003ch2\u003eDelete an artifact: \u003ccode\u003eDELETE /data/files/{id}\u003c/code\u003e\u003c/h2\u003e\n\u003cp\u003eThis removes the \u003cstrong\u003emetadata\u003c/strong\u003e for the artifact.\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003e204 No Content\u003c/code\u003e on success\u003c/li\u003e\n\u003cli\u003e\u003ccode\u003e400 Bad Request\u003c/code\u003e if id is invalid\u003c/li\u003e\n\u003c/ul\u003e\n\u003cblockquote\u003e\n\u003cp\u003eImportant\nRemoving metadata makes the artifact inaccessible through the API (downloads return 404), even if the binary still exists on disk. Disk cleanup depends on your configured cleanup/expiration strategy.\u003c/p\u003e\n\u003c/blockquote\u003e\n\u003chr\u003e\n\u003ch2\u003eList artifacts: \u003ccode\u003eGET /data/files\u003c/code\u003e\u003c/h2\u003e\n\u003cp\u003eReturns the list of known artifact ids (metadata-based) and their expiration information (if any). Expired entries are not returned.\u003c/p\u003e\n\u003cp\u003eExample:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003e\u003cspan class=\"hljs-attribute\"\u003ecurl\u003c/span\u003e -s \u003cspan class=\"hljs-string\"\u003e\"http://\u0026lt;slimfaas\u0026gt;/data/files\"\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003chr\u003e\n\u003ch2\u003eVisibility \u0026amp; security (Public vs Private)\u003c/h2\u003e\n\u003cp\u003eAll \u003ccode\u003e/data/files\u003c/code\u003e routes are protected by a \u003cstrong\u003edata visibility\u003c/strong\u003e setting.\u003c/p\u003e\n\u003cp\u003eIn \u003ccode\u003eappsettings.json\u003c/code\u003e:\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-json hljs\"\u003e\u003cspan class=\"hljs-punctuation\"\u003e{\u003c/span\u003e\n  \u003cspan class=\"hljs-attr\"\u003e\"Data\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-punctuation\"\u003e{\u003c/span\u003e\n    \u003cspan class=\"hljs-attr\"\u003e\"DefaultVisibility\"\u003c/span\u003e\u003cspan class=\"hljs-punctuation\"\u003e:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Private\"\u003c/span\u003e\n  \u003cspan class=\"hljs-punctuation\"\u003e}\u003c/span\u003e\n\u003cspan class=\"hljs-punctuation\"\u003e}\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003ch3\u003eBehavior\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003ePublic\u003c/strong\u003e: anyone who can reach SlimFaas can call \u003ccode\u003e/data/files\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003ePrivate\u003c/strong\u003e (recommended): only \u003cstrong\u003einternal\u003c/strong\u003e requests are allowed\nExternal requests are typically answered with \u003cstrong\u003e404 Not Found\u003c/strong\u003e (intentionally “hidden”).\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eOverriding visibility via environment variables\u003c/h2\u003e\n\u003cp\u003eSlimFaas supports standard configuration overrides via environment variables.\u003c/p\u003e\n\u003cp\u003eTo override:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eData:DefaultVisibility\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eUse:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003ccode\u003eData__DefaultVisibility\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eExample: set \u003ccode\u003e/data/files\u003c/code\u003e to Public\u003c/h3\u003e\n\u003ch4\u003eDocker / Docker Compose\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-bash hljs\"\u003e\u003cspan class=\"hljs-built_in\"\u003eexport\u003c/span\u003e \u003cspan class=\"hljs-attribute\"\u003eData__DefaultVisibility\u003c/span\u003e=Public\n\u003c/code\u003e\u003c/pre\u003e\n\u003ch4\u003eKubernetes Deployment (excerpt)\u003c/h4\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003eenv:\u003c/span\u003e\n  \u003cspan class=\"hljs-operator\"\u003e-\u003c/span\u003e \u003cspan class=\"hljs-params\"\u003ename:\u003c/span\u003e Data__DefaultVisibility\n    \u003cspan class=\"hljs-params\"\u003evalue:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Public\"\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cp\u003eTo keep it private (explicit):\u003c/p\u003e\n\u003cpre\u003e\u003ccode class=\"language-yaml hljs\"\u003e\u003cspan class=\"hljs-params\"\u003eenv:\u003c/span\u003e\n  \u003cspan class=\"hljs-operator\"\u003e-\u003c/span\u003e \u003cspan class=\"hljs-params\"\u003ename:\u003c/span\u003e Data__DefaultVisibility\n    \u003cspan class=\"hljs-params\"\u003evalue:\u003c/span\u003e \u003cspan class=\"hljs-string\"\u003e\"Private\"\u003c/span\u003e\n\u003c/code\u003e\u003c/pre\u003e\n\u003cblockquote\u003e\n\u003cp\u003eNotes\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eThis setting affects all data routes that are guarded by the same visibility filter, including \u003ccode\u003e/data/files\u003c/code\u003e.\u003c/li\u003e\n\u003cli\u003eUse \u003ccode\u003ePublic\u003c/code\u003e / \u003ccode\u003ePrivate\u003c/code\u003e for clarity.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/blockquote\u003e\n\u003chr\u003e\n\u003ch2\u003eHow it works internally (high-level)\u003c/h2\u003e\n\u003ch3\u003e1) Metadata is cluster-consistent; content is disk-backed\u003c/h3\u003e\n\u003cp\u003eFor \u003ccode\u003e/data/files\u003c/code\u003e:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003emetadata\u003c/strong\u003e is stored in a cluster-consistent store so every node has the same view of what exists and how to serve it\u003c/li\u003e\n\u003cli\u003e\u003cstrong\u003ebinary content\u003c/strong\u003e is stored on disk on the node that received the POST request\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eThis avoids moving large binaries through the cluster’s consensus layer.\u003c/p\u003e\n\u003ch3\u003e2) Cluster distribution model: announce + pull\u003c/h3\u003e\n\u003cp\u003eSlimFaas does not block the POST by pushing the binary to all nodes.\u003c/p\u003e\n\u003cp\u003eInstead:\u003c/p\u003e\n\u003col\u003e\n\u003cli\u003eThe node that stored the artifact announces “I have \u003ccode\u003e{id}\u003c/code\u003e with checksum \u003ccode\u003e{sha}\u003c/code\u003e”\u003c/li\u003e\n\u003cli\u003eOther nodes can \u003cstrong\u003epull\u003c/strong\u003e the artifact in the background\u003c/li\u003e\n\u003cli\u003eIf a client requests an artifact from a node that doesn’t have it locally, that node can \u003cstrong\u003epull on demand\u003c/strong\u003e\u003c/li\u003e\n\u003c/ol\u003e\n\u003cp\u003eThis yields eventual distribution with minimal upload latency.\u003c/p\u003e\n\u003chr\u003e\n\u003ch2\u003eThe 256 MiB parallel limiter (safety guard)\u003c/h2\u003e\n\u003cp\u003eSlimFaas applies a safety guard that limits concurrent binary transfers to roughly:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003e256 MiB in parallel\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eMeaning:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eeach in-flight transfer reserves a “byte budget” equal to its size\u003c/li\u003e\n\u003cli\u003enew transfers wait if starting them would exceed the budget\u003c/li\u003e\n\u003cli\u003ea single artifact larger than 256 MiB can run only if it is \u003cstrong\u003ealone\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003e\u003cstrong\u003eThis is not a strict memory cap\u003c/strong\u003e; it’s a concurrency limiter.\u003c/p\u003e\n\u003chr\u003e\n\u003ch2\u003eLinux memory behavior (critical for sizing)\u003c/h2\u003e\n\u003cp\u003eEven though SlimFaas streams uploads/downloads, \u003cstrong\u003eLinux may cache file I/O in RAM\u003c/strong\u003e (page cache). In containers, this commonly appears as:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eapplication memory looks stable,\u003c/li\u003e\n\u003cli\u003econtainer memory usage grows (cgroup/RSS increases),\u003c/li\u003e\n\u003cli\u003ememory may not drop immediately.\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003ePractical consequence\u003c/h3\u003e\n\u003cp\u003eWith large artifacts (e.g., 200+ MB), you may see:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003ea memory rise during storage (write → page cache),\u003c/li\u003e\n\u003cli\u003eanother rise when other nodes pull the artifact (read → page cache),\u003c/li\u003e\n\u003cli\u003eslow return to baseline → risk of \u003cstrong\u003eOOMKill\u003c/strong\u003e if pod memory is too tight.\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eSizing rule of thumb\u003c/h3\u003e\n\u003cp\u003ePlan memory for:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eyour baseline workload,\u003c/li\u003e\n\u003cli\u003e\n\u003cul\u003e\n\u003cli\u003econcurrent transfers (guarded by 256 MiB),\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003cli\u003e\n\u003cul\u003e\n\u003cli\u003eLinux page cache.\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eA safe starting point is often:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003e\u003cstrong\u003ememory limit ≥ baseline + (2 × largest artifact size you expect to handle concurrently)\u003c/strong\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003cp\u003eTune based on real monitoring.\u003c/p\u003e\n\u003chr\u003e\n\u003ch2\u003eStorage \u0026amp; durability\u003c/h2\u003e\n\u003cp\u003e\u003ccode\u003e/data/files\u003c/code\u003e is disk-backed:\u003c/p\u003e\n\u003cul\u003e\n\u003cli\u003eIf storage is ephemeral, artifacts may disappear on pod restart.\u003c/li\u003e\n\u003cli\u003eFor durability, mount a persistent volume.\u003c/li\u003e\n\u003cli\u003eArtifacts can be re-pulled from other nodes only while at least one node still has the content \u003cstrong\u003eand\u003c/strong\u003e metadata still exists.\u003c/li\u003e\n\u003c/ul\u003e\n\u003chr\u003e\n\u003ch2\u003eTroubleshooting\u003c/h2\u003e\n\u003ch3\u003e411 Length Required\u003c/h3\u003e\n\u003cp\u003eYour client/proxy sent the request without \u003ccode\u003eContent-Length\u003c/code\u003e (often chunked transfer).\nFix: ensure uploads have a known length (e.g., \u003ccode\u003ecurl --data-binary @file\u003c/code\u003e) and verify proxy settings.\u003c/p\u003e\n\u003ch3\u003e404 Not Found on download\u003c/h3\u003e\n\u003cul\u003e\n\u003cli\u003emetadata expired or was deleted\u003c/li\u003e\n\u003cli\u003eno node currently has the binary (restart, cleanup, ephemeral storage)\u003c/li\u003e\n\u003cli\u003etemporary unavailability during cluster convergence\u003c/li\u003e\n\u003c/ul\u003e\n\u003ch3\u003eMemory grows and doesn’t drop\u003c/h3\u003e\n\u003cp\u003eUsually Linux page cache behavior. Increase pod memory, reduce concurrency, or adapt storage strategy. Monitor cgroup/RSS and I/O.\u003c/p\u003e\n\u003chr\u003e\n\u003ch2\u003eQuick reference\u003c/h2\u003e\n\u003cul\u003e\n\u003cli\u003eStore: \u003ccode\u003ePOST /data/files?id={id?}\u0026amp;ttl={ms?}\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eDownload: \u003ccode\u003eGET /data/files/{id}\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eDelete: \u003ccode\u003eDELETE /data/files/{id}\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eList: \u003ccode\u003eGET /data/files\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eVisibility config: \u003ccode\u003eData:DefaultVisibility = Public | Private\u003c/code\u003e\u003c/li\u003e\n\u003cli\u003eEnv override: \u003ccode\u003eData__DefaultVisibility=Public\u003c/code\u003e\u003c/li\u003e\n\u003c/ul\u003e\n\u003c/body\u003e\u003c/html\u003e","metadata":{}},"__N_SSG":true},"page":"/data-files","query":{},"buildId":"Lbr9vEawqSNPXTZXHgX8X","isFallback":false,"gsp":true,"scriptLoader":[]}</script></body></html>
