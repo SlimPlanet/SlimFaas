@@ -1,4 +1,4 @@
-# Temporary data & binary storage with `/data/files`
+# Data temporary binary API
 
 SlimFaas provides **temporary binary storage** through the **`/data/files`** endpoints.
 This feature is designed for internal workflows (functions, jobs, agents, pipelines) that need to store and retrieve **binary artifacts** (PDF, ZIP, audio, PPTX, etc.) for a limited time.

@@ -5,13 +5,24 @@ import Image from "next/image";
 const Navbar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isScaleOpen, setIsScaleOpen] = useState(false);
+    const [isFunctionsOpen, setIsFunctionsOpen] = useState(false);
 
     const toggleMenu = () => setIsMenuOpen((prev) => !prev);
-    const toggleScale = () => setIsScaleOpen((prev) => !prev);
+
+    const toggleScale = () => {
+        setIsScaleOpen((prev) => !prev);
+        setIsFunctionsOpen(false);
+    };
+
+    const toggleFunctions = () => {
+        setIsFunctionsOpen((prev) => !prev);
+        setIsScaleOpen(false);
+    };
 
     const closeAll = () => {
         setIsMenuOpen(false);
         setIsScaleOpen(false);
+        setIsFunctionsOpen(false);
     };
 
     return (
@@ -61,10 +72,69 @@ const Navbar: React.FC = () => {
                         </Link>
                     </li>
 
-                    <li className="navbar__item">
-                        <Link href="/functions" className="navbar__link" onClick={closeAll}>
+                    {/* Sous-menu Functions */}
+                    <li
+                        className={`navbar__item navbar__item--has-submenu ${
+                            isFunctionsOpen ? "navbar__item--submenu-open" : ""
+                        }`}
+                    >
+                        <button
+                            type="button"
+                            className="navbar__link navbar__link--submenu-toggle"
+                            onClick={toggleFunctions}
+                            aria-haspopup="true"
+                            aria-expanded={isFunctionsOpen}
+                            aria-controls="navbar-functions-submenu"
+                        >
                             Functions
-                        </Link>
+                            <span className="navbar__submenu-icon" aria-hidden="true">
+                                ▾
+                            </span>
+                        </button>
+
+                        <ul
+                            id="navbar-functions-submenu"
+                            className={`navbar__submenu ${
+                                isFunctionsOpen ? "navbar__submenu--open" : ""
+                            }`}
+                        >
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href="/functions"
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    Functions
+                                </Link>
+                            </li>
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href="/events"
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    Events
+                                </Link>
+                            </li>
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href="/jobs"
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    Jobs
+                                </Link>
+                            </li>
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href="/opentelemetry"
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    Open Telemetry
+                                </Link>
+                            </li>
+                        </ul>
                     </li>
 
                     {/* Sous-menu Scale */}
@@ -79,6 +149,7 @@ const Navbar: React.FC = () => {
                             onClick={toggleScale}
                             aria-haspopup="true"
                             aria-expanded={isScaleOpen}
+                            aria-controls="navbar-scale-submenu"
                         >
                             Scale
                             <span className="navbar__submenu-icon" aria-hidden="true">
@@ -87,9 +158,8 @@ const Navbar: React.FC = () => {
                         </button>
 
                         <ul
-                            className={`navbar__submenu ${
-                                isScaleOpen ? "navbar__submenu--open" : ""
-                            }`}
+                            id="navbar-scale-submenu"
+                            className={`navbar__submenu ${isScaleOpen ? "navbar__submenu--open" : ""}`}
                         >
                             <li className="navbar__submenu-item">
                                 <Link
@@ -120,25 +190,24 @@ const Navbar: React.FC = () => {
                             </li>
                         </ul>
                     </li>
-
                     <li className="navbar__item">
-                        <Link href="/events" className="navbar__link" onClick={closeAll}>
-                            Events
+                        <Link
+                            href="/data-files"
+                            className="navbar__link"
+                            onClick={closeAll}
+                        >
+                            Data
                         </Link>
                     </li>
-
                     <li className="navbar__item">
-                        <Link href="/jobs" className="navbar__link" onClick={closeAll}>
-                            Jobs
-                        </Link>
-                    </li>
-
-                    <li className="navbar__item">
-                        <Link href="/how-it-works" className="navbar__link" onClick={closeAll}>
+                        <Link
+                            href="/how-it-works"
+                            className="navbar__link"
+                            onClick={closeAll}
+                        >
                             How it works
                         </Link>
                     </li>
-
                     <li className="navbar__item">
                         <Link href="/mcp" className="navbar__link" onClick={closeAll}>
                             MCP

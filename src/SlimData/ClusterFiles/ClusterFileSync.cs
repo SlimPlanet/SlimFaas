@@ -22,7 +22,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpFactory = httpFactory;
 
-        _channel = new ClusterFileSyncChannel(_repo, announceQueue, _idLock, logger);
+        _channel = new ClusterFileSyncChannel(announceQueue);
         _bus.AddListener(_channel);
     }
 
@@ -136,7 +136,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 var finalUri = headResp.RequestMessage?.RequestUri ?? fileUri;
 
                 // Lock + budget global (comme avant)
-                await using var _ = await _idLock.AcquireAsync(id, length.Value, ct).ConfigureAwait(false);
+                await using var _ = await _idLock.AcquireAsync(id, ct).ConfigureAwait(false);
 
                 // Re-check après lock
                 if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))

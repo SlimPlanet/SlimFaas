@@ -145,11 +145,12 @@ public sealed class DataFileRoutesTests
                 true,
                 It.IsAny<long?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<string, Stream, string, long, bool, long?, CancellationToken>((id, _, ctType, _ ,  _, ttl, _) =>
+            .Callback((string id, Stream content, string ctType, long contentLengthBytes, bool overwrite, long? ttl, CancellationToken ct) =>
             {
                 capturedId = id;
                 capturedContentType = ctType;
                 storedTtl = ttl;
+                // (optionnel) tu peux aussi capturer contentLengthBytes si tu veux l’asserter
             })
             .ReturnsAsync(new FilePutResult("sha1", "application/octet-stream", payload.Length));
 
