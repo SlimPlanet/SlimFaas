@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.58.3
+
+- [bcaaf14a](https://github.com/SlimPlanet/SlimFaas/commit/bcaaf14aa28d072bea57c8c8ec1834266d3a4ba2) - fix(website): add mermaid (release), 2025-12-30 by *Guillaume Chervet*
+
+
+## 0.58.2
+
+
+
 ## v0.58.2
 
 - [fae01447](https://github.com/SlimPlanet/SlimFaas/commit/fae014478964f296cbbe093fcba111ce64ef55c2) - fix(slimfaas): add files limit cache ram (#214) (release), 2025-12-30 by *Guillaume Chervet*
@@ -265,15 +274,6 @@
 
 
 ## 0.44.2
-
-
-
-## v0.44.2
-
-- [70d41256](https://github.com/SlimPlanet/SlimFaas/commit/70d4125609db6af5b6edbab34060278080c86cb3) - fix(slimfaas): scale from 0 to 1 sync timeout based on http timeout (#176) (release), 2025-10-10 by *Guillaume Chervet*
-
-
-## 0.44.1
 
 
 
