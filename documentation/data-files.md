@@ -229,6 +229,7 @@ This yields eventual distribution with minimal upload latency.
 
 ### Diagrams (simplified)
 
+#### Step 1: Post /data/files
 ```mermaid
 flowchart LR
   %% 1) POST path — Upload + announce (fast)
@@ -239,7 +240,7 @@ flowchart LR
   A -->|announce id + sha| BUS[(Cluster announce bus)]
 
 ```
-
+#### Sept 2: Background announce handling
 ```mermaid
 flowchart LR
   %% 2) Background distribution — announce → async queue → worker → pull
@@ -252,7 +253,7 @@ flowchart LR
   W -->|verify sha + write| D_B[(Disk on Node B)]
 
 ```
-
+#### Step 3: Get /data/files/{id}
 ```mermaid
 flowchart LR
   %% 3) GET path — Read local or pull on demand
