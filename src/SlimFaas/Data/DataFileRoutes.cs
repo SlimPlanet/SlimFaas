@@ -75,6 +75,7 @@ public static class DataFileRoutes
                 if (expireAtUtcTicks > 0 && expireAtUtcTicks <= nowTicks)
                     continue;
 
+
                 list.Add(new DataFileEntry(
                     Id: id,
                     ExpireAtUtcTicks: expireAtUtcTicks
@@ -101,16 +102,19 @@ public static class DataFileRoutes
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
 
-            context.RequestServices
-                .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("Upload").LogWarning("BodyType={Type} CanSeek={CanSeek} CL={CL}",
-                    context.Request.Body.GetType().FullName,
-                    context.Request.Body.CanSeek,
-                    context.Request.ContentLength);
-
             // Snippet demandé
             var contentType = context.Request.ContentType ?? "application/octet-stream";
             var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
+            const long DefaultUnknownLengthBytes = 20L * 1024L * 1024L; // 20 MiB
+            var contentLength = context.Request.ContentLength;
+            var lengthForLimiter = (contentLength is long cl && cl > 0) ? cl : DefaultUnknownLengthBytes;
+            if (contentLength is null || contentLength <= 0)
+            {
+                context.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Upload")
+                    .LogWarning("Missing/invalid Content-Length for /data/files. Using default={DefaultBytes} bytes for limiter. Id={Id}",
+                        DefaultUnknownLengthBytes, elementId);
+            }
 
             Stream contentStream = context.Request.Body;
             string? actualContentType = null;
@@ -124,6 +128,7 @@ public static class DataFileRoutes
                 id: elementId,
                 content: contentStream,
                 contentType: finalContentType,
+                contentLengthBytes: lengthForLimiter,
                 overwrite: true,
                 ttl: ttl,
                 ct: ct);

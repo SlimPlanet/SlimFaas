@@ -14,7 +14,7 @@ SlimFaas provides built-in support for OpenTelemetry, enabling comprehensive obs
 * **Production-ready** with configurable endpoints and service names
 
 ---
-~~~~
+
 ## 📖 Configuration Parameters
 
 > Configuration can be provided through `appsettings.json` or environment variables.

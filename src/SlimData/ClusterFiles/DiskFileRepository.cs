@@ -1,14 +1,13 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using DotNext.IO;
+using MemoryPack;
 
 namespace SlimData.ClusterFiles;
 
 public sealed class DiskFileRepository : IFileRepository
 {
+    private const string MetaExt = ".meta.mp";
     private readonly string _root;
 
     public DiskFileRepository(string pathDirectory)
@@ -58,17 +57,14 @@ public sealed class DiskFileRepository : IFileRepository
             {
                 ArrayPool<byte>.Shared.Return(buffer);
             }
-
-            MemoryDump.Dump("BeforeSaveFlush");
+            
             await fs.FlushAsync(ct).ConfigureAwait(false);
-            MemoryDump.Dump("AfterSaveFlush");
-            LinuxFileCache.DropCache(fs);
             MoveIntoPlace(tmp, filePath, overwrite);
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
             var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks);
             await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
-            
+
             return new FilePutResult(shaHex, contentType, total);
         }
         catch
@@ -78,78 +74,25 @@ public sealed class DiskFileRepository : IFileRepository
         }
     }
 
-    public async Task<FilePutResult> SaveFromTransferObjectAsync(
-        string id,
-        IDataTransferObject dto,
-        string contentType,
-        bool overwrite,
-        string? expectedSha256Hex,
-        long? expectedLength,
-        long? expireAtUtcTicks,
-        CancellationToken ct)
-    {
-        MemoryDump.Dump("BeforeSaveFromTransferObjectAsync");
-        var (filePath, metaPath) = GetPaths(id);
-        var tmp = filePath + ".tmp." + Guid.NewGuid().ToString("N");
-
-        try
-        {
-            await using var fs = new FileStream(
-                tmp, FileMode.Create, FileAccess.Write, FileShare.None,
-                bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
-
-            using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            await using var hashing = new HashingWriteStream(fs, hash);
-
-            // IMPORTANT: on force l’écriture du DTO vers un Stream avec bufferSize explicite
-            await DotNext.IO.DataTransferObject.WriteToAsync(dto, hashing, 128 * 1024, ct).ConfigureAwait(false);
-            await fs.FlushAsync(ct).ConfigureAwait(false);
-            LinuxFileCache.DropCache(fs);
-            var shaHex = ToLowerHex(hash.GetHashAndReset());
-            var length = hashing.BytesWritten;
-
-            if (expectedLength is not null && expectedLength.Value != length)
-                throw new InvalidDataException($"Length mismatch. Expected={expectedLength} Actual={length}");
-
-            if (!string.IsNullOrWhiteSpace(expectedSha256Hex) &&
-                !shaHex.Equals(expectedSha256Hex, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException($"SHA256 mismatch. Expected={expectedSha256Hex} Actual={shaHex}");
-
-            MoveIntoPlace(tmp, filePath, overwrite);
-
-            var meta = new FileMetadata(contentType, shaHex, length, expireAtUtcTicks);
-            await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
-            MemoryDump.Dump("AfterSaveFromTransferObjectAsync");
-            return new FilePutResult(shaHex, contentType, length);
-        }
-        catch
-        {
-            TryDelete(tmp);
-            throw;
-        }
-    }
-    
     public async IAsyncEnumerable<FileMetadataEntry> EnumerateAllMetadataAsync([EnumeratorCancellation] CancellationToken ct)
     {
-        foreach (var metaPath in Directory.EnumerateFiles(_root, "*.meta.json", SearchOption.TopDirectoryOnly))
+        foreach (var metaPath in Directory.EnumerateFiles(_root, "*" + MetaExt, SearchOption.TopDirectoryOnly))
         {
             ct.ThrowIfCancellationRequested();
 
             var file = Path.GetFileName(metaPath);
-            if (string.IsNullOrWhiteSpace(file) || !file.EndsWith(".meta.json", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrWhiteSpace(file) || !file.EndsWith(MetaExt, StringComparison.OrdinalIgnoreCase))
                 continue;
 
-            var safe = file[..^".meta.json".Length];
+            var safe = file[..^MetaExt.Length];
             string id;
             try { id = Base64UrlCodec.Decode(safe); }
             catch { continue; }
 
-            FileMetadata? meta = null;
+            FileMetadata? meta;
             try
             {
-                await using var s = new FileStream(metaPath, FileMode.Open, FileAccess.Read, FileShare.Read,
-                    bufferSize: 16 * 1024, options: FileOptions.Asynchronous);
-                meta = await JsonSerializer.DeserializeAsync(s, FileRepositoryJsonContext.Default.FileMetadata, ct).ConfigureAwait(false);
+                meta = await ReadMetadataAsync(metaPath, ct).ConfigureAwait(false);
             }
             catch
             {
@@ -175,11 +118,7 @@ public sealed class DiskFileRepository : IFileRepository
         if (!File.Exists(metaPath))
             return null;
 
-        await using var s = new FileStream(metaPath, FileMode.Open, FileAccess.Read, FileShare.Read,
-            bufferSize: 16 * 1024, options: FileOptions.Asynchronous);
-
-        return await JsonSerializer.DeserializeAsync(s, FileRepositoryJsonContext.Default.FileMetadata, ct)
-            .ConfigureAwait(false);
+        return await ReadMetadataAsync(metaPath, ct).ConfigureAwait(false);
     }
 
     public Task<Stream> OpenReadAsync(string id, CancellationToken ct)
@@ -188,19 +127,17 @@ public sealed class DiskFileRepository : IFileRepository
         var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
 
-        return Task.FromResult<Stream>(new DropCacheOnDisposeStream(fs));
+        return Task.FromResult<Stream>(fs);
     }
-    
-    
 
     private (string FilePath, string MetaPath) GetPaths(string id)
     {
         var safe = Base64UrlCodec.Encode(id);
         var file = Path.Combine(_root, safe + ".bin");
-        var meta = Path.Combine(_root, safe + ".meta.json");
+        var meta = Path.Combine(_root, safe + MetaExt);
         return (file, meta);
     }
-    
+
     public Task DeleteAsync(string id, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -209,10 +146,10 @@ public sealed class DiskFileRepository : IFileRepository
 
         if (File.Exists(filePath))
             File.Delete(filePath);
-        
+
         if (File.Exists(metaPath))
             File.Delete(metaPath);
-        
+
         return Task.CompletedTask;
     }
 
@@ -230,18 +167,27 @@ public sealed class DiskFileRepository : IFileRepository
         try { if (File.Exists(path)) File.Delete(path); } catch { /* ignore */ }
     }
 
+    private static async Task<FileMetadata?> ReadMetadataAsync(string metaPath, CancellationToken ct)
+    {
+        // Meta très petit => lecture complète OK, et cancellation supportée.
+        ct.ThrowIfCancellationRequested();
+        var bytes = await File.ReadAllBytesAsync(metaPath, ct).ConfigureAwait(false);
+        return MemoryPackSerializer.Deserialize<FileMetadata>(bytes);
+    }
+
     private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, CancellationToken ct)
     {
         var tmp = metaPath + ".tmp." + Guid.NewGuid().ToString("N");
         try
         {
+            var bytes = MemoryPackSerializer.Serialize(meta);
+
             await using var s = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None,
                 bufferSize: 16 * 1024, options: FileOptions.Asynchronous);
 
-            await JsonSerializer.SerializeAsync(s, meta, FileRepositoryJsonContext.Default.FileMetadata, ct)
-                .ConfigureAwait(false);
-
+            await s.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
             await s.FlushAsync(ct).ConfigureAwait(false);
+
             File.Move(tmp, metaPath, overwrite: true);
         }
         catch
@@ -253,84 +199,5 @@ public sealed class DiskFileRepository : IFileRepository
 
     private static string ToLowerHex(byte[] bytes)
         => Convert.ToHexString(bytes).ToLowerInvariant();
-
-    private sealed class HashingWriteStream : Stream
-    {
-        private readonly Stream _inner;
-        private readonly IncrementalHash _hash;
-
-        public long BytesWritten { get; private set; }
-
-        public HashingWriteStream(Stream inner, IncrementalHash hash)
-        {
-            _inner = inner;
-            _hash = hash;
-        }
-
-        public override bool CanRead => false;
-        public override bool CanSeek => false;
-        public override bool CanWrite => true;
-        public override long Length => throw new NotSupportedException();
-        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
-
-        public override void Flush() => _inner.Flush();
-        public override Task FlushAsync(CancellationToken cancellationToken) => _inner.FlushAsync(cancellationToken);
-
-        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
-        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
-        public override void SetLength(long value) => _inner.SetLength(value);
-
-        public override void Write(byte[] buffer, int offset, int count)
-        {
-            _hash.AppendData(buffer, offset, count);
-            BytesWritten += count;
-            _inner.Write(buffer, offset, count);
-        }
-
-        public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
-        {
-            _hash.AppendData(buffer.Span);
-            BytesWritten += buffer.Length;
-            await _inner.WriteAsync(buffer, cancellationToken).ConfigureAwait(false);
-        }
-    }
-}
-
-[JsonSourceGenerationOptions(WriteIndented = false)]
-[JsonSerializable(typeof(FileMetadata))]
-internal sealed partial class FileRepositoryJsonContext : JsonSerializerContext
-{
-}
-
-internal sealed class DropCacheOnDisposeStream : Stream
-{
-    private readonly FileStream _fs;
-    public DropCacheOnDisposeStream(FileStream fs) => _fs = fs;
-
-    protected override void Dispose(bool disposing)
-    {
-        if (disposing) LinuxFileCache.DropCache(_fs);
-        _fs.Dispose();
-    }
-
-    public override async ValueTask DisposeAsync()
-    {
-        LinuxFileCache.DropCache(_fs);
-        await _fs.DisposeAsync().ConfigureAwait(false);
-    }
-
-    // délégation
-    public override bool CanRead => _fs.CanRead;
-    public override bool CanSeek => _fs.CanSeek;
-    public override bool CanWrite => _fs.CanWrite;
-    public override long Length => _fs.Length;
-    public override long Position { get => _fs.Position; set => _fs.Position = value; }
-    public override void Flush() => _fs.Flush();
-    public override Task FlushAsync(CancellationToken cancellationToken) => _fs.FlushAsync(cancellationToken);
-    public override int Read(byte[] buffer, int offset, int count) => _fs.Read(buffer, offset, count);
-    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) => _fs.ReadAsync(buffer, cancellationToken);
-    public override long Seek(long offset, SeekOrigin origin) => _fs.Seek(offset, origin);
-    public override void SetLength(long value) => _fs.SetLength(value);
-    public override void Write(byte[] buffer, int offset, int count) => _fs.Write(buffer, offset, count);
-    public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) => _fs.WriteAsync(buffer, cancellationToken);
+    
 }

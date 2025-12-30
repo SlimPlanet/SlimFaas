@@ -79,7 +79,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.58.1-pr.212368
+          image: axaguildev/slimfaas:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -101,8 +101,8 @@ spec:
             #  value: "http://{pod_ip}:{pod_port}"
             #- name: BASE_FUNCTION_POD_URL # require for publish route
             #  value: "http://{pod_ip}:{pod_port}"
-            - name: BASE_SLIMDATA_URL
-              value: "http://{pod_name}.{service_name}.{namespace}.svc:3262"
+            #- name: BASE_SLIMDATA_URL
+            #  value: "http://{pod_name}.{service_name}.{namespace}.svc:3262"
             #- name: NAMESPACE
             #  value: "slimfaas-demo"
             - name: SLIMDATA_DIRECTORY
@@ -111,6 +111,8 @@ spec:
             #  value: http://+:5000
             - name: Logging__LogLevel__SlimFaas
               value: "Information"
+            #- name: Logging__LogLevel__SlimData
+            #  value: "Debug"
             #- name: "SLIMDATA_CONFIGURATION"
             #  value: '{"lowerElectionTimeout":"150","upperElectionTimeout":"300","requestTimeout":"00:00:00.3000000","rpcTimeout":"00:00:00.1500000","heartbeatThreshold":"0.5"}'
             #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT

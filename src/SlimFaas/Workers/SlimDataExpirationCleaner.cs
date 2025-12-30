@@ -52,7 +52,7 @@ public sealed class SlimDataExpirationCleaner
                 continue;
 
             var baseKey = ttlKey[..^SlimDataInterpreter.TimeToLivePostfix.Length];
-            _logger.LogWarning("Deleting expired keyvalue. key={Key}", baseKey);
+            _logger.LogDebug("Deleting expired keyvalue. key={Key}", baseKey);
 
             try
             {
@@ -91,7 +91,7 @@ public sealed class SlimDataExpirationCleaner
             if (exp is not long t || t <= 0 || t > nowTicks)
                 continue;
 
-            _logger.LogWarning("Deleting expired local file by disk metadata. id={Id} expireAt={ExpireAt}", entry.Id, t);
+            _logger.LogDebug("Deleting expired local file by disk metadata. id={Id} expireAt={ExpireAt}", entry.Id, t);
             try { await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false); }
             catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired local file. id={Id}", entry.Id); }
         }

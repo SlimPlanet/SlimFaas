@@ -30,6 +30,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
 - `N → M` scaling powered by PromQL,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
+- temporary **Data Binary** endpoints to ingest and stage files (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 
 > **Looking for MCP integration?**
 > Check out **[SlimFaas MCP](https://slimfaas.dev/mcp)** — the companion runtime that converts *any* OpenAPI definition into MCP-ready tools on the fly.
@@ -101,6 +102,16 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - Synchronously send events to **every replica** of selected functions.
 - No additional event bus required — ideal for cluster-local fan-out, cache invalidation, configuration refresh, etc.
 
+### 📁 Data & Files (real-time ingestion + ephemeral caching)
+
+SlimFaas includes **Data Files** endpoints to **stream, store, and serve temporary files** — from tiny payloads to *very large* binaries.
+Ideal for **agentic workflows** and **real-time ingestion**: upload once, get an `id`, then let tools/functions consume it when they’re ready.
+
+- Stream-first uploads (without buffering in memory or disk)
+- **Agentic-ready** attachments & multi-step flows
+- **Ephemeral caching** for intermediate artifacts
+- **TTL-based** lifecycle (auto-expiration)
+
 ### 🧠 “Mind Changer” (Status & Wake-up API)
 
 - Built-in REST APIs to:
@@ -132,13 +143,18 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 Check out:
 
 - [Get Started](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/get-started.md) – Learn how to deploy SlimFaas on Kubernetes or Docker Compose.
-- [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
-- [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.
-- [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
-- [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
-- [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
+- Scaling
+  - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
+  - [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.
+  - [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
+- Functions & Workloads
+  - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
+  - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
+  - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
+  - [OpenTelemetry](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/opentelemetry.md) – Enable distributed tracing, metrics, and logs with OpenTelemetry integration.
+- Data & Files
+  - [Data Files](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/data-files.md) - Understand how to ingest, store, and serve temporary binary artifacts.
 - [How It Works](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/how-it-works.md) – Dive into SlimFaas’s architecture and design.
-- [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
 - [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP-ready tools on the fly.
 
 We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **keep your serverless workloads slim**.

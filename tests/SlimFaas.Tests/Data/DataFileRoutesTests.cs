@@ -131,6 +131,7 @@ public sealed class DataFileRoutesTests
         ctx.Request.ContentType = "application/octet-stream";
         ctx.Request.Body = new MemoryStream(payload);
         ctx.Request.Headers["Content-Disposition"] = "attachment; filename=\"a.bin\"";
+        ctx.Request.ContentLength = payload.Length;
 
         string? capturedId = null;
         string? capturedContentType = null;
@@ -140,14 +141,16 @@ public sealed class DataFileRoutesTests
                 It.IsAny<string>(),
                 It.IsAny<Stream>(),
                 It.IsAny<string>(),
+                It.IsAny<long>(),
                 true,
                 It.IsAny<long?>(),
                 It.IsAny<CancellationToken>()))
-            .Callback<string, Stream, string, bool, long?, CancellationToken>((id, _, ctType, _, ttl, _) =>
+            .Callback((string id, Stream content, string ctType, long contentLengthBytes, bool overwrite, long? ttl, CancellationToken ct) =>
             {
                 capturedId = id;
                 capturedContentType = ctType;
                 storedTtl = ttl;
+                // (optionnel) tu peux aussi capturer contentLengthBytes si tu veux l’asserter
             })
             .ReturnsAsync(new FilePutResult("sha1", "application/octet-stream", payload.Length));
 
