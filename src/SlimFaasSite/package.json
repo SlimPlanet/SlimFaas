@@ -15,6 +15,7 @@
     "gh-pages": "^6.3.0",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
+    "mermaid": "^11.12.2",
     "next": "^16.1.1",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

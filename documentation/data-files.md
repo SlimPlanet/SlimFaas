@@ -42,7 +42,7 @@ Base path: `/data/files`
 ### Request contract
 
 - Body: **raw bytes** (not multipart/form-data)
-- Required header: **`Content-Length`**
+- **`Content-Length` is recommended** (for accurate concurrency accounting)
 - Recommended headers:
     - `Content-Type` (defaults to `application/octet-stream`)
     - `Content-Disposition` (to provide a download filename)
@@ -55,36 +55,36 @@ Query parameters:
 - `ttl` (optional): time-to-live in **milliseconds**
     - Example: `ttl=600000` (10 minutes)
 
-### Why `Content-Length` is required
+### Content-Length behavior (when missing or unknown)
 
-SlimFaas streams the request body to disk. To apply its transfer safety guard (see **256 MiB parallel limiter**), SlimFaas must know the total size upfront.
+SlimFaas streams the request body to disk. For its transfer safety guard (see **256 MiB parallel limiter**), SlimFaas normally relies on `Content-Length` to “reserve” the right byte budget.
 
-If the request uses chunked transfer encoding (unknown length), the upload is rejected with:
-- **411 Length Required**
+If `Content-Length` is **missing** or **unknown** (e.g., chunked transfer encoding), SlimFaas:
+
+- **accepts the upload**
+- logs a **warning**
+- **assumes the transfer is 20 MiB** for the limiter accounting
+
+> Recommendation
+> Provide `Content-Length` whenever possible to get accurate concurrency behavior (especially behind proxies).
 
 ### Responses
 
 - `200 OK` with the artifact id as plain text
 - `400 Bad Request` if the id is invalid
-- `411 Length Required` if `Content-Length` is missing/unknown
 
 ### Examples (curl)
 
 Store an artifact for 10 minutes and keep a filename:
 
 ```bash
-curl -X POST "http://<slimfaas>/data/files?ttl=600000" \
-  -H "Content-Type: application/pdf" \
-  -H "Content-Disposition: attachment; filename=\"report.pdf\"" \
-  --data-binary @./report.pdf
+curl -X POST "http://<slimfaas>/data/files?ttl=600000"   -H "Content-Type: application/pdf"   -H "Content-Disposition: attachment; filename=\"report.pdf\""   --data-binary @./report.pdf
 ```
 
 Store an artifact with a chosen id:
 
 ```bash
-curl -X POST "http://<slimfaas>/data/files?id=my-artifact-001&ttl=300000" \
-  -H "Content-Type: application/octet-stream" \
-  --data-binary @./payload.bin
+curl -X POST "http://<slimfaas>/data/files?id=my-artifact-001&ttl=300000"   -H "Content-Type: application/octet-stream"   --data-binary @./payload.bin
 ```
 
 ---
@@ -227,6 +227,22 @@ Instead:
 
 This yields eventual distribution with minimal upload latency.
 
+### Diagram (simplified)
+
+```mermaid
+flowchart LR
+  C[Client] -->|POST /data/files| A[Node A]
+  A -->|write binary| D[(Disk on Node A)]
+  A -->|store metadata| M[(Cluster-consistent metadata)]
+  A -->|announce id + sha| B[Other nodes]
+
+  C -->|"GET /data/files/{id}"| X[Node B]
+  X -->|read metadata| M
+  X -->|missing locally?| P[Pull from Node A]
+  P --> D
+  X -->|stream binary| C
+```
+
 ---
 
 ## The 256 MiB parallel limiter (safety guard)
@@ -241,38 +257,9 @@ Meaning:
 - new transfers wait if starting them would exceed the budget
 - a single artifact larger than 256 MiB can run only if it is **alone**
 
+When `Content-Length` is missing/unknown, SlimFaas uses **20 MiB** as the reserved size for that transfer (and logs a warning).
+
 **This is not a strict memory cap**; it’s a concurrency limiter.
-
----
-
-## Linux memory behavior (critical for sizing)
-
-Even though SlimFaas streams uploads/downloads, **Linux may cache file I/O in RAM** (page cache). In containers, this commonly appears as:
-
-- application memory looks stable,
-- container memory usage grows (cgroup/RSS increases),
-- memory may not drop immediately.
-
-### Practical consequence
-
-With large artifacts (e.g., 200+ MB), you may see:
-
-- a memory rise during storage (write → page cache),
-- another rise when other nodes pull the artifact (read → page cache),
-- slow return to baseline → risk of **OOMKill** if pod memory is too tight.
-
-### Sizing rule of thumb
-
-Plan memory for:
-- your baseline workload,
-- + concurrent transfers (guarded by 256 MiB),
-- + Linux page cache.
-
-A safe starting point is often:
-
-- **memory limit ≥ baseline + (2 × largest artifact size you expect to handle concurrently)**
-
-Tune based on real monitoring.
 
 ---
 
@@ -288,17 +275,16 @@ Tune based on real monitoring.
 
 ## Troubleshooting
 
-### 411 Length Required
+### Upload logs a warning about Content-Length
 Your client/proxy sent the request without `Content-Length` (often chunked transfer).
-Fix: ensure uploads have a known length (e.g., `curl --data-binary @file`) and verify proxy settings.
+
+SlimFaas will still accept the upload, but it will **assume 20 MiB** for concurrency accounting.
+Fix: ensure uploads have a known length (e.g., `curl --data-binary @file`) and verify proxy settings if you want precise limiter behavior.
 
 ### 404 Not Found on download
 - metadata expired or was deleted
 - no node currently has the binary (restart, cleanup, ephemeral storage)
 - temporary unavailability during cluster convergence
-
-### Memory grows and doesn’t drop
-Usually Linux page cache behavior. Increase pod memory, reduce concurrency, or adapt storage strategy. Monitor cgroup/RSS and I/O.
 
 ---
 

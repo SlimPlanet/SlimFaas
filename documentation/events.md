@@ -44,3 +44,40 @@ curl -X POST -H "Content-Type: application/json" \
 
 ```
 All function replicas that have subscribed to `my-event-name` will receive a POST request at their /hello URL (e.g., `http://<pod_ip>:<pod_port>/hello`), and can handle it as needed.
+
+
+```mermaid
+flowchart LR
+  %% SlimFaas Events: publish/subscribe broadcast to all replicas
+
+  subgraph Publish["1) Publish path (HTTP ingress)"]
+    P[Publisher<br/>Client / tool / pod]
+    GW[SlimFaas Gateway<br/>Publish Event Route]
+    VIS{Visibility rules<br/>Public / Private / Default}
+    AUTH["Private: trust check<br/>(trusted pods / same namespace)"]
+    BUS[Event Dispatcher / Bus]
+
+    P -->|POST /publish-event/<eventName>/<path><br/>JSON body| GW
+    GW --> VIS
+    VIS -->|Public| BUS
+    VIS -->|Private| AUTH
+    AUTH -->|allowed| BUS
+    AUTH -->|denied| DENY[Reject / ignore]
+    GW -->|204 No Content| P
+  end
+
+  subgraph Delivery["2) Delivery path (fan-out to replicas)"]
+    SUBS[Subscription Resolver<br/>SlimFaas/SubscribeEvents annotation]
+    TARGETS["Target function replicas<br/>(all subscribed pods)"]
+    POD1[(Replica #1)]
+    POD2[(Replica #2)]
+    PODN[(Replica #N)]
+
+    BUS --> SUBS
+    SUBS -->|Match: eventName| TARGETS
+    TARGETS -->|POST /<path><br/>same JSON payload| POD1
+    TARGETS -->|POST /<path><br/>same JSON payload| POD2
+    TARGETS -->|POST /<path><br/>same JSON payload| PODN
+  end
+
+```

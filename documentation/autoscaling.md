@@ -130,27 +130,27 @@ spec:
 
 ```mermaid
 flowchart LR
-    subgraph HTTP_history["HTTP history & Schedule (0→N)"]
-        H[History HTTP (in-memory + DB)] --> R
-        S[Schedule config] --> R
-        D[DependsOn] --> R
-    end
+  R[ReplicasService.CheckScaleAsync]
+  SW[ScaleReplicasWorker]
+  K8S[(Kubernetes API)]
 
-    subgraph Prometheus["Prometheus AutoScaler (N→M)"]
-        MSW[MetricsScrapingWorker] --> MS[Metrics store]
-        MS --> PQ[PromQL evaluator]
-        PQ --> AS[AutoScaler]
-        AS --> ASS[AutoScalerStore]
-    end
+  subgraph HTTP_history["HTTP history and Schedule (0->N)"]
+    H["History HTTP (in-memory + DB)"] --> R
+    SC[Schedule config] --> R
+    DP[DependsOn] --> R
+  end
 
-    subgraph Core["Scaling orchestration"]
-        R[ReplicasService.CheckScaleAsync]
-        SW[ScaleReplicasWorker]
-    end
+  subgraph Prometheus["Prometheus AutoScaler (N->M)"]
+    MSW[MetricsScrapingWorker] --> MS[Metrics store]
+    MS --> PQ[PromQL evaluator]
+    PQ --> AS[AutoScaler]
+    AS --> ASS[AutoScalerStore]
+  end
 
-    SW --> R
-    R -->|scale 0→N / N→0| K8S[(Kubernetes API)]
-    R -->|desiredReplicas N→M| K8S
+  SW --> R
+  R -- scale 0->N / N->0 --> K8S
+  R -- desiredReplicas N->M --> K8S
+
 ```
 
 - `ScaleReplicasWorker` periodically calls `CheckScaleAsync` if the node is the master.
