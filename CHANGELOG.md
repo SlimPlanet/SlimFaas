@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.58.2
+
+- [fae01447](https://github.com/SlimPlanet/SlimFaas/commit/fae014478964f296cbbe093fcba111ce64ef55c2) - fix(slimfaas): add files limit cache ram (#214) (release), 2025-12-30 by *Guillaume Chervet*
+
+
+## 0.58.1
+
+
+
 ## v0.58.1
 
 - [d28fc4fe](https://github.com/SlimPlanet/SlimFaas/commit/d28fc4fe50958df88fbf13ee63e4e380f02c0b48) - fix(slimfaas): files ttl (#212) (release), 2025-12-20 by *Guillaume Chervet*
@@ -265,15 +274,6 @@
 
 
 ## 0.44.1
-
-
-
-## v0.44.1
-
-- [637b1f77](https://github.com/SlimPlanet/SlimFaas/commit/637b1f77283ad391813b2fd0b419729d23b37a7d) - fix(demo): docker arm (release) (#178), 2025-10-09 by *Guillaume Chervet*
-
-
-## 0.44.0
 
 
 
