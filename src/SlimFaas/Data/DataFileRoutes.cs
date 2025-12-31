@@ -120,7 +120,7 @@ public static class DataFileRoutes
             string? actualContentType = null;
             string? actualFileName = null;
 
-            var finalContentType = actualContentType ?? contentType ?? "application/octet-stream";
+            var finalContentType = actualContentType ?? contentType;
             var finalFileName = actualFileName ?? fileName ?? elementId;
 
             // Persiste localement + calcule sha/len + announce-only cluster
@@ -175,7 +175,7 @@ public static class DataFileRoutes
                 return Results.Problem("Corrupted metadata", statusCode: 500);
             }
 
-            var pulled = await fileSync.PullFileIfMissingAsync(elementId, meta?.Sha256Hex ?? "", ct);
+            var pulled = await fileSync.PullFileIfMissingAsync(elementId, meta?.Sha256Hex ?? "", null, ct);
             if (pulled.Stream is null)
                 return Results.NotFound();
 

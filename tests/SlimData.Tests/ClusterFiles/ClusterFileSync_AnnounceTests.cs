@@ -11,8 +11,8 @@ public sealed class ClusterFileSync_AnnounceTests
     [Fact]
     public async Task ReceiveSignal_enqueue_announce_for_background_pull()
     {
-        var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        var bus = new Mock<IMessageBus>(MockBehavior.Strict);
+        var repo = new Mock<IFileRepository>();
+        var bus = new Mock<IMessageBus>();
         var logger = new Mock<ILogger<ClusterFileSync>>();
         var queue = new ClusterFileAnnounceQueue();
 
@@ -42,7 +42,7 @@ public sealed class ClusterFileSync_AnnounceTests
         var announceName = FileSyncProtocol.BuildAnnounceName(idEnc, sha, len, contentType, overwrite);
         var signal = new TextMessage("", announceName);
 
-        var sender = new Mock<ISubscriber>(MockBehavior.Strict);
+        var sender = new Mock<ISubscriber>();
 
         await captured!.ReceiveSignal(sender.Object, signal, context: null, token: CancellationToken.None);
 

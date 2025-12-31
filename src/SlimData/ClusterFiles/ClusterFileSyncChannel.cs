@@ -17,7 +17,9 @@ internal sealed class ClusterFileSyncChannel(ClusterFileAnnounceQueue announceQu
             
             string? preferredNode = null;
             if (sender is IClusterMember cm)
-                preferredNode = cm.EndPoint.ToString();
+            {
+                preferredNode = cm.EndPoint?.ToString() ?? null;
+            }
 
             Console.WriteLine("Announced file: Id={0} Sha={1} PreferredNode={2}", id, sha, preferredNode);
 
