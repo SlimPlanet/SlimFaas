@@ -18,5 +18,6 @@ public interface IClusterFileSync
     Task<FilePullResult> PullFileIfMissingAsync(
         string id,
         string sha256Hex,
+        string? preferredNode,
         CancellationToken ct);
 }

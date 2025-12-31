@@ -79,16 +79,30 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     private const int RangeChunkSizeBytes = 10 * 1024 * 1024;       // 10 MiB
     private static readonly TimeSpan PerChunkTimeout = TimeSpan.FromMinutes(2);
 
-    public async Task<FilePullResult> PullFileIfMissingAsync(string id, string sha256Hex, CancellationToken ct)
+    public async Task<FilePullResult> PullFileIfMissingAsync(string id, string sha256Hex, string? preferredNode, CancellationToken ct)
     {
         // Déjà présent localement
         if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))
             return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
 
         // Itérer sur tous les nœuds (remotes) pour trouver celui qui a le fichier
-        var candidates = _bus.Members.Where(m => m.IsRemote).ToArray();
-        if (candidates.Length == 0)
+        var candidates = _bus.Members.Where(m => m.IsRemote).ToList();
+        if (candidates.Count == 0)
             return new FilePullResult(null);
+        
+        // Reorder: preferred first (best-effort)
+        if (!string.IsNullOrWhiteSpace(preferredNode))
+        {
+            var idx = candidates.FindIndex(m =>
+                string.Equals(SafeNode(m), preferredNode, StringComparison.OrdinalIgnoreCase));
+
+            if (idx > 0)
+            {
+                var preferred = candidates[idx];
+                candidates.RemoveAt(idx);
+                candidates.Insert(0, preferred);
+            }
+        }
 
         var http = _httpFactory.CreateClient("ClusterFilesTransfer");
 

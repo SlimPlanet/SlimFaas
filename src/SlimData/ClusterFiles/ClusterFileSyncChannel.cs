@@ -1,4 +1,5 @@
 using System.Net.Mime;
+using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Messaging;
 
 namespace SlimData.ClusterFiles;
@@ -11,7 +12,18 @@ internal sealed class ClusterFileSyncChannel(ClusterFileAnnounceQueue announceQu
     public Task ReceiveSignal(ISubscriber sender, IMessage signal, object? context, CancellationToken token)
     {
         if (FileSyncProtocol.TryParseAnnounceName(signal.Name, out var idEnc, out var sha, out _, out _, out _))
-            announceQueue.TryEnqueue(new AnnouncedFile(Base64UrlCodec.Decode(idEnc), sha));
+        {
+            var id = Base64UrlCodec.Decode(idEnc);
+            
+            string? preferredNode = null;
+            if (sender is IClusterMember cm)
+                preferredNode = cm.EndPoint.ToString();
+
+            Console.WriteLine("Announced file: Id={0} Sha={1} PreferredNode={2}", id, sha, preferredNode);
+
+            announceQueue.TryEnqueue(new AnnouncedFile(id, sha, preferredNode));
+        }
+
         return Task.CompletedTask;
     }
 

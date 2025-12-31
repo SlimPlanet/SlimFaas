@@ -3,7 +3,7 @@ using System.Threading.Channels;
 
 namespace SlimData.ClusterFiles;
 
-public sealed record AnnouncedFile(string Id, string Sha256Hex);
+public sealed record AnnouncedFile(string Id, string Sha256Hex, string? PreferredNode);
 
 public sealed class ClusterFileAnnounceQueue
 {
