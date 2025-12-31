@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.58.5
+
+- [4bb51f2b](https://github.com/SlimPlanet/SlimFaas/commit/4bb51f2bb70bef21e647c75f9fcfa9ae976b1c16) - fic(doc): enhance mermaid (release), 2025-12-30 by *Guillaume Chervet*
+
+
+## 0.58.4
+
+
+
 ## v0.58.4
 
 - [b3158a41](https://github.com/SlimPlanet/SlimFaas/commit/b3158a416e0220a1508e84c9a04169bae9117f6c) - fix(doc): enhance (release), 2025-12-30 by *Guillaume Chervet*
@@ -264,15 +273,5 @@
 ## v0.44.5
 
 - [dbebd225](https://github.com/SlimPlanet/SlimFaas/commit/dbebd225e76cfa1dccd31b1bdba56311499b220d) - fix(slimfaas): startup (release), 2025-11-03 by *Guillaume Chervet*
-
-
-## 0.44.4
-
-
-
-## v0.44.4
-
-- [c206169a](https://github.com/SlimPlanet/SlimFaas/commit/c206169a5e5a8cfff2996c88209472372cd7a9a9) - doc: Update readme (release), 2025-11-03 by *Guillaume Chervet*
-- [3fa35de3](https://github.com/SlimPlanet/SlimFaas/commit/3fa35de38dd377e48579dbc9d9a04ac3c01793a4) - fix(slimfaas): ready node on startup and bulk load stability (#179), 2025-11-03 by *Guillaume Chervet*
 
 
