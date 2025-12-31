@@ -120,7 +120,7 @@ public static class DataFileRoutes
             string? actualContentType = null;
             string? actualFileName = null;
 
-            var finalContentType = actualContentType ?? contentType;
+            var finalContentType = actualContentType ?? contentType ?? "application/octet-stream" ;
             var finalFileName = actualFileName ?? fileName ?? elementId;
 
             // Persiste localement + calcule sha/len + announce-only cluster
