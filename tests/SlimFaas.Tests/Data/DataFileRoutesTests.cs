@@ -233,7 +233,7 @@ public sealed class DataFileRoutesTests
           .ReturnsAsync(metaBytes);
 
         var payload = Encoding.UTF8.GetBytes("abcde");
-        fileSync.Setup(s => s.PullFileIfMissingAsync("id1", "sha", It.IsAny<CancellationToken>()))
+        fileSync.Setup(s => s.PullFileIfMissingAsync("id1", "sha", null, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new FilePullResult(new MemoryStream(payload)));
 
         var result = await DataFileRoutes.DataFileHandlers.GetAsync("id1", fileSync.Object, db.Object, CancellationToken.None);

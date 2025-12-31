@@ -189,7 +189,7 @@ public sealed class ClusterFileSyncTests
 
         var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object, httpFactory);
 
-        var pulled = await sut.PullFileIfMissingAsync("id1", "sha", CancellationToken.None);
+        var pulled = await sut.PullFileIfMissingAsync("id1", "sha", null, CancellationToken.None);
 
         Assert.NotNull(pulled.Stream);
 
@@ -273,7 +273,7 @@ public sealed class ClusterFileSyncTests
 
         var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object, httpFactory);
 
-        var pulled = await sut.PullFileIfMissingAsync("id1", sha, CancellationToken.None);
+        var pulled = await sut.PullFileIfMissingAsync("id1", sha, null, CancellationToken.None);
 
         Assert.NotNull(pulled.Stream);
 
@@ -314,7 +314,7 @@ public sealed class ClusterFileSyncTests
 
         var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object, httpFactory);
 
-        var pulled = await sut.PullFileIfMissingAsync("id1", "sha", CancellationToken.None);
+        var pulled = await sut.PullFileIfMissingAsync("id1", "sha", null, CancellationToken.None);
 
         Assert.Null(pulled.Stream);
 
