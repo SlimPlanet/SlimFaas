@@ -108,7 +108,6 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 
         foreach (var member in candidates)
         {
-            Console.WriteLine("Trying node " + SafeNode(member));
             var baseUri = RemoveLastPathSegment(SafeNode(member));
             // /cluster/files/{id}?sha=...
             var fileUri = new Uri($"{baseUri}/cluster/files/{Uri.EscapeDataString(id)}?sha={Uri.EscapeDataString(sha256Hex)}");

@@ -20,9 +20,7 @@ internal sealed class ClusterFileSyncChannel(ClusterFileAnnounceQueue announceQu
             {
                 preferredNode = cm.EndPoint?.ToString() ?? null;
             }
-
-            Console.WriteLine("Announced file: Id={0} Sha={1} PreferredNode={2}", id, sha, preferredNode);
-
+            
             announceQueue.TryEnqueue(new AnnouncedFile(id, sha, preferredNode));
         }
 
