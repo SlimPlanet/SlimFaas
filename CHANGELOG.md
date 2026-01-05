@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.58.6
+
+- [34de475c](https://github.com/SlimPlanet/SlimFaas/commit/34de475c510e1a3f55e63a55ff88ef52a39a2526) - fix(file): optim prefered node (release) (#215), 2025-12-31 by *Guillaume Chervet*
+
+
+## 0.58.5
+
+
+
+## v0.58.5
+
+- [4bb51f2b](https://github.com/SlimPlanet/SlimFaas/commit/4bb51f2bb70bef21e647c75f9fcfa9ae976b1c16) - fic(doc): enhance mermaid (release), 2025-12-30 by *Guillaume Chervet*
+
+
+## 0.58.4
+
+
+
 ## v0.58.4
 
 - [b3158a41](https://github.com/SlimPlanet/SlimFaas/commit/b3158a416e0220a1508e84c9a04169bae9117f6c) - fix(doc): enhance (release), 2025-12-30 by *Guillaume Chervet*
@@ -255,24 +273,5 @@
 
 - [71cad277](https://github.com/SlimPlanet/SlimFaas/commit/71cad277213c6089f298993593b231d954efd481) - refactor(all): dotnet 10 (#188) (release), 2025-11-14 by *Guillaume Chervet*
 - [8293d866](https://github.com/SlimPlanet/SlimFaas/commit/8293d866e431abd6c0fb8de5c5eb94ce4b60e300) - doc(function): ## 10. Asynchronous Function Execution: Control Callback Mode, 2025-11-09 by *Guillaume Chervet*
-
-
-## 0.44.5
-
-
-
-## v0.44.5
-
-- [dbebd225](https://github.com/SlimPlanet/SlimFaas/commit/dbebd225e76cfa1dccd31b1bdba56311499b220d) - fix(slimfaas): startup (release), 2025-11-03 by *Guillaume Chervet*
-
-
-## 0.44.4
-
-
-
-## v0.44.4
-
-- [c206169a](https://github.com/SlimPlanet/SlimFaas/commit/c206169a5e5a8cfff2996c88209472372cd7a9a9) - doc: Update readme (release), 2025-11-03 by *Guillaume Chervet*
-- [3fa35de3](https://github.com/SlimPlanet/SlimFaas/commit/3fa35de38dd377e48579dbc9d9a04ac3c01793a4) - fix(slimfaas): ready node on startup and bulk load stability (#179), 2025-11-03 by *Guillaume Chervet*
 
 
