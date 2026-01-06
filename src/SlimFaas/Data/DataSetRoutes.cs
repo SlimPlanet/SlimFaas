@@ -17,13 +17,15 @@ public static class DataSetRoutes
     private static string DataKey(string id) => $"{SetPrefix}{id}";
     private static string TtlKey(string key) => key + SlimDataInterpreter.TimeToLivePostfix;
 
-    public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder app)
+    public static IEndpointRouteBuilder MapDataSetRoutes(this IEndpointRouteBuilder endpoints)
     {
-        app.MapPost("/data/sets", Handlers.PostAsync);
-        app.MapGet("/data/sets/{id}", Handlers.GetAsync);
-        app.MapGet("/data/sets", Handlers.ListAsync);
-        app.MapDelete("/data/sets/{id}", Handlers.DeleteAsync);
-        return app;
+        var group = endpoints.MapGroup("/data/sets")
+            .AddEndpointFilter<DataVisibilityEndpointFilter>();
+        group.MapPost("", Handlers.PostAsync);
+        group.MapGet("/{id}", Handlers.GetAsync);
+        group.MapGet("", Handlers.ListAsync);
+        group.MapDelete("/{id}", Handlers.DeleteAsync);
+        return endpoints;
     }
 
 
