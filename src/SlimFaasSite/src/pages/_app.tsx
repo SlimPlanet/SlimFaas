@@ -12,6 +12,8 @@ import dynamic from 'next/dynamic';
 
 // Bannière client-only (nommée CookieBanner pour éviter toute confusion)
 const CookieBanner = dynamic(() => import('@/components/CookieConsent'), { ssr: false });
+const MermaidRenderer = dynamic(() => import('@/components/MermaidRenderer'), { ssr: false });
+
 
 type DataLayerEvent = { event?: string; [key: string]: unknown };
 
@@ -84,6 +86,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
             <Component {...pageProps} />
             {isProd && <CookieBanner />}
+            <MermaidRenderer />
         </>
     );
 }

@@ -25,14 +25,14 @@ public sealed class ClusterFileAnnounceWorkerTests
         var disposedTcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var stream = new TrackingStream(() => disposedTcs.TrySetResult());
 
-        sync.Setup(s => s.PullFileIfMissingAsync(id, sha, It.IsAny<CancellationToken>()))
+        sync.Setup(s => s.PullFileIfMissingAsync(id, sha, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new FilePullResult(stream));
 
         var worker = new ClusterFileAnnounceWorker(queue, sync.Object, repo.Object, logger.Object);
 
         await worker.StartAsync(CancellationToken.None);
 
-        Assert.True(queue.TryEnqueue(new AnnouncedFile(id, sha)));
+        Assert.True(queue.TryEnqueue(new AnnouncedFile(id, sha, null)));
 
         // wait until stream disposed => implies pull happened and worker disposed it
         await disposedTcs.Task.WaitAsync(TimeSpan.FromSeconds(2));
@@ -63,7 +63,7 @@ public sealed class ClusterFileAnnounceWorkerTests
 
         await worker.StartAsync(CancellationToken.None);
 
-        Assert.True(queue.TryEnqueue(new AnnouncedFile(id, sha)));
+        Assert.True(queue.TryEnqueue(new AnnouncedFile(id, sha, null)));
 
         // small delay to allow worker to process
         await Task.Delay(150);

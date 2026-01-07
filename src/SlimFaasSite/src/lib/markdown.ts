@@ -3,20 +3,27 @@ import hljs from 'highlight.js';
 import { load } from 'cheerio';
 
 export async function renderMarkdownWithHighlight(rawHtml: string): Promise<string> {
-    // 2. Charger le HTML avec cheerio pour manipuler le DOM côté serveur.
     const $ = load(rawHtml);
 
-    // 3. Sélectionner chaque bloc <pre><code> et appliquer highlight.js
-    $('pre code').each((_ , element ) => {
-        const code = $(element).text();       // Récupère le code brut
-        const result = hljs.highlightAuto(code);  // Détection auto du langage ou highlight(code, { language: 'js' }) si vous savez le langage
-        $(element).html(result.value);        // Remplace le contenu par la version colorisée
-        // Optionnel : ajouter la classe hljs pour que le CSS s’applique
+    // ✅ 1) Convert Mermaid code fences -> <div class="mermaid">...</div>
+    // (beaucoup de parseurs Markdown sortent <code class="language-mermaid">...</code>) :contentReference[oaicite:1]{index=1}
+    $('pre code.language-mermaid').each((_, el) => {
+        const code = $(el).text();
+        const $pre = $(el).parent('pre');
+
+        const $div = $('<div></div>').addClass('mermaid').text(code); // text() = échappement sûr
+        $pre.replaceWith($div);
+    });
+
+    // ✅ 2) Highlight.js sur le reste uniquement
+    $('pre code').each((_, element) => {
+        const code = $(element).text();
+        const result = hljs.highlightAuto(code);
+        $(element).html(result.value);
         $(element).addClass('hljs');
     });
 
-
-    // ⬇️ Wrap tables for horizontal scrolling only when needed
+    // ⬇️ Wrap tables for horizontal scrolling
     $('table').each((_, el) => {
         const $table = $(el);
         if (!$table.parent().hasClass('table-scroll')) {
@@ -26,6 +33,5 @@ export async function renderMarkdownWithHighlight(rawHtml: string): Promise<stri
         }
     });
 
-    // 4. Renvoyer le HTML final
     return $.html();
 }

@@ -1,6 +1,4 @@
 using System.Text;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Logging;
 
 namespace SlimFaasMcp.Middleware;
 
@@ -29,6 +27,12 @@ public sealed class RequestLoggingMiddleware
         }
 
         var request = context.Request;
+
+        if (request.Path.Value != "/mcp")
+        {
+            await _next(context);
+            return;
+        }
 
         // Headers (tronqués pour éviter de log trop gros)
         var headers = string.Join(", ",

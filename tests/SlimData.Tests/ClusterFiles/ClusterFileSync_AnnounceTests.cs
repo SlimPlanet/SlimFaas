@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using DotNext.Net.Cluster.Messaging;
 using Microsoft.Extensions.Logging;
@@ -10,10 +11,15 @@ public sealed class ClusterFileSync_AnnounceTests
     [Fact]
     public async Task ReceiveSignal_enqueue_announce_for_background_pull()
     {
-        var repo = new Mock<IFileRepository>(MockBehavior.Strict);
-        var bus = new Mock<IMessageBus>(MockBehavior.Strict);
+        var repo = new Mock<IFileRepository>();
+        var bus = new Mock<IMessageBus>();
         var logger = new Mock<ILogger<ClusterFileSync>>();
         var queue = new ClusterFileAnnounceQueue();
+
+        var httpFactory = new TestHttpClientFactory(new HttpClient(new StubHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound)))
+        {
+            Timeout = Timeout.InfiniteTimeSpan
+        });
 
         IInputChannel? captured = null;
         bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()))
@@ -22,7 +28,7 @@ public sealed class ClusterFileSync_AnnounceTests
         bus.SetupGet(b => b.Members).Returns(Array.Empty<ISubscriber>());
         bus.Setup(b => b.RemoveListener(It.IsAny<IInputChannel>()));
 
-        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, logger.Object);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, logger.Object, httpFactory);
 
         Assert.NotNull(captured);
 
@@ -36,7 +42,7 @@ public sealed class ClusterFileSync_AnnounceTests
         var announceName = FileSyncProtocol.BuildAnnounceName(idEnc, sha, len, contentType, overwrite);
         var signal = new TextMessage("", announceName);
 
-        var sender = new Mock<ISubscriber>(MockBehavior.Strict);
+        var sender = new Mock<ISubscriber>();
 
         await captured!.ReceiveSignal(sender.Object, signal, context: null, token: CancellationToken.None);
 
@@ -59,5 +65,20 @@ public sealed class ClusterFileSync_AnnounceTests
         bus.Verify(b => b.AddListener(It.IsAny<IInputChannel>()), Times.Once);
         bus.Verify(b => b.RemoveListener(It.IsAny<IInputChannel>()), Times.Once); // grâce au await using
     }
+// --- helpers ---
+    private sealed class TestHttpClientFactory : IHttpClientFactory
+    {
+        private readonly HttpClient _client;
+        public TestHttpClientFactory(HttpClient client) => _client = client;
+        public HttpClient CreateClient(string name) => _client;
+    }
 
+    private sealed class StubHttpHandler : HttpMessageHandler
+    {
+        private readonly Func<HttpRequestMessage, HttpResponseMessage> _fn;
+        public StubHttpHandler(Func<HttpRequestMessage, HttpResponseMessage> fn) => _fn = fn;
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(_fn(request));
+    }
 }

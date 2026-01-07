@@ -5,6 +5,7 @@ using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Connections;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
+using SlimData.ClusterFiles.Http;
 
 namespace SlimData;
 
@@ -33,6 +34,7 @@ public class Startup(IConfiguration configuration)
 #pragma warning disable DOTNEXT001
      //   app.RestoreStateAsync<SlimPersistentState>(new CancellationToken());
 #pragma warning restore DOTNEXT001
+       
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
@@ -46,6 +48,7 @@ public class Startup(IConfiguration configuration)
             .UseRouting()
             .UseEndpoints(static endpoints =>
             {
+                endpoints.MapClusterFileTransferRoutes();
                 endpoints.MapGet(LeaderResource, Endpoints.RedirectToLeaderAsync);
                 endpoints.MapGet(HealthResource, async context => { await context.Response.WriteAsync("OK"); });
                 endpoints.MapPost(ListLeftPushResource,  Endpoints.ListLeftPushAsync);
@@ -61,6 +64,16 @@ public class Startup(IConfiguration configuration)
 
     public void ConfigureServices(IServiceCollection services)
     {
+        services.AddHttpClient("ClusterFilesTransfer", c =>
+            {
+                // on gère les timeouts par chunk via CancellationToken dans HttpRangeReadStream
+                c.Timeout = Timeout.InfiniteTimeSpan;
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false // on gère nous-même pour conserver Range
+            });
+
         services.AddHttpClient("RaftClient", c =>
             {
                 c.DefaultRequestVersion = HttpVersion.Version11;

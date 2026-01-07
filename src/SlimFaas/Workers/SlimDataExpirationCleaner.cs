@@ -9,12 +9,6 @@ namespace SlimData.Expiration;
 
 public sealed class SlimDataExpirationCleaner
 {
-    // doit matcher SlimDataInterpreter
-    public const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
-    public const string HashsetTtlField = "__ttl__";
-
-    private const string FileMetaPrefix = "data:file:";
-    private const string FileMetaSuffix = ":meta";
 
     private readonly ISupplier<SlimDataPayload> _state;
     private readonly IDatabaseService _db;
@@ -48,7 +42,7 @@ public sealed class SlimDataExpirationCleaner
             ct.ThrowIfCancellationRequested();
 
             var ttlKey = kv.Key;
-            if (!ttlKey.EndsWith(TimeToLiveSuffix, StringComparison.Ordinal))
+            if (!ttlKey.EndsWith(SlimDataInterpreter.TimeToLivePostfix, StringComparison.Ordinal))
                 continue;
 
             if (!TryReadInt64(kv.Value, out var expireAtTicks))
@@ -57,45 +51,59 @@ public sealed class SlimDataExpirationCleaner
             if (expireAtTicks > nowTicks)
                 continue;
 
-            var baseKey = ttlKey[..^TimeToLiveSuffix.Length];
+            var baseKey = ttlKey[..^SlimDataInterpreter.TimeToLivePostfix.Length];
+            _logger.LogDebug("Deleting expired keyvalue. key={Key}", baseKey);
 
-            if (TryParseFileMetaKey(baseKey, out var elementId))
+            try
             {
-                try { await _files.DeleteAsync(elementId, ct).ConfigureAwait(false); }
-                catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete local file for expired meta. id={Id}", elementId); }
+                await _db.DeleteAsync(baseKey).ConfigureAwait(false);
             }
-
-            try { await _db.DeleteAsync(baseKey).ConfigureAwait(false); }
             catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired keyvalue. key={Key}", baseKey); }
         }
 
-        // 2) Hashsets TTL: TTL dans hashset ttlKey (= baseKey+suffix) champ __ttl__
         foreach (var hs in hashsets)
         {
             ct.ThrowIfCancellationRequested();
 
-            var ttlKey = hs.Key;
-            if (!ttlKey.EndsWith(TimeToLiveSuffix, StringComparison.Ordinal))
+            var key = hs.Key;
+
+            // TTL actuel: stocké dans le hashset principal sous le champ __ttl__
+            long? expireAtTicks = TryReadHashsetExpireAt(hs.Value);
+
+            // Fallback legacy: TTL stocké dans hashsets[key+suffix][__ttl__]
+            if (expireAtTicks is null)
+            {
+                continue;
+            }
+
+            if (expireAtTicks.Value > nowTicks)
                 continue;
 
-            if (!hs.Value.TryGetValue(HashsetTtlField, out var ttlBytes))
-                continue;
-
-            if (!TryReadInt64(ttlBytes, out var expireAtTicks))
-                continue;
-
-            if (expireAtTicks > nowTicks)
-                continue;
-
-            var baseKey = ttlKey[..^TimeToLiveSuffix.Length];
-
-            try { await _db.HashSetDeleteAsync(baseKey).ConfigureAwait(false); }
-            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired hashset. key={Key}", baseKey); }
-
-            // sécurité : supprimer aussi ttlKey
-            try { await _db.HashSetDeleteAsync(ttlKey).ConfigureAwait(false); }
-            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired hashset ttlKey. key={Key}", ttlKey); }
+            try { await _db.HashSetDeleteAsync(key, "").ConfigureAwait(false); } // delete whole hashset
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired hashset. key={Key}", key); }
         }
+        // 3) Local disk TTL: chaque noeud supprime SES fichiers expirés en lisant .meta.json
+        await foreach (var entry in _files.EnumerateAllMetadataAsync(ct).ConfigureAwait(false))
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var exp = entry.Metadata.ExpireAtUtcTicks;
+            if (exp is not long t || t <= 0 || t > nowTicks)
+                continue;
+
+            _logger.LogDebug("Deleting expired local file by disk metadata. id={Id} expireAt={ExpireAt}", entry.Id, t);
+            try { await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired local file. id={Id}", entry.Id); }
+        }
+    }
+
+    private static long? TryReadHashsetExpireAt(ImmutableDictionary<string, ReadOnlyMemory<byte>> dict)
+    {
+        if (!dict.TryGetValue(SlimDataInterpreter.HashsetTtlField, out var ttlBytes))
+            return null;
+        if (!TryReadInt64(ttlBytes, out var t))
+            return null;
+        return t > 0 ? t : null;
     }
 
     public static bool TryReadInt64(ReadOnlyMemory<byte> bytes, out long value)
@@ -106,16 +114,4 @@ public sealed class SlimDataExpirationCleaner
         return true;
     }
 
-    private static bool TryParseFileMetaKey(string key, out string elementId)
-    {
-        elementId = "";
-        if (!key.StartsWith(FileMetaPrefix, StringComparison.Ordinal)) return false;
-        if (!key.EndsWith(FileMetaSuffix, StringComparison.Ordinal)) return false;
-
-        var middle = key.Substring(FileMetaPrefix.Length, key.Length - FileMetaPrefix.Length - FileMetaSuffix.Length);
-        if (string.IsNullOrWhiteSpace(middle)) return false;
-
-        elementId = middle;
-        return true;
-    }
 }

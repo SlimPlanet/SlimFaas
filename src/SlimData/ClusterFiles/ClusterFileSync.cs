@@ -1,6 +1,7 @@
 using System.Net;
 using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Messaging;
+using SlimData.ClusterFiles.Http;
 
 namespace SlimData.ClusterFiles;
 
@@ -9,16 +10,19 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     private readonly IMessageBus _bus;
     private readonly IFileRepository _repo;
     private readonly ILogger<ClusterFileSync> _logger;
+    private readonly IHttpClientFactory _httpFactory;
     private readonly ClusterFileSyncChannel _channel;
-    private readonly KeyedAsyncLock _idLock = new();
+    private readonly KeyedAsyncLock _idLock = new(KeyedAsyncLock.MegaBytes(256));
 
-    public ClusterFileSync(IMessageBus bus, IFileRepository repo, ClusterFileAnnounceQueue announceQueue, ILogger<ClusterFileSync> logger)
+    public ClusterFileSync(IMessageBus bus, IFileRepository repo, ClusterFileAnnounceQueue announceQueue, ILogger<ClusterFileSync> logger,
+        IHttpClientFactory httpFactory)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _httpFactory = httpFactory;
 
-        _channel = new ClusterFileSyncChannel(_repo, announceQueue);
+        _channel = new ClusterFileSyncChannel(announceQueue);
         _bus.AddListener(_channel);
     }
 
@@ -32,12 +36,18 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         string id,
         Stream content,
         string contentType,
+        long contentLengthBytes,
         bool overwrite,
+        long? ttl,
         CancellationToken ct)
     {
-        await using var _ = await _idLock.AcquireAsync(id, ct);
+        await using var _ = await _idLock.AcquireAsync(id, contentLengthBytes, ct);
+        
+        long? expireAtUtcTicks = null;
+        if (ttl.HasValue && ttl.Value > 0)
+             expireAtUtcTicks = DateTime.UtcNow.AddMilliseconds(ttl.Value).Ticks;
         // 1) Sauvegarde locale + SHA256
-        var put = await _repo.SaveAsync(id, content, contentType, overwrite, ct).ConfigureAwait(false);
+        var put = await _repo.SaveAsync(id, content, contentType, overwrite, expireAtUtcTicks, ct).ConfigureAwait(false);
 
         // 2) Broadcast "announce-only" (pas de stream envoyé)
         var idEnc = Base64UrlCodec.Encode(id);
@@ -63,90 +73,136 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 _logger.LogWarning(ex, "FileSync announce failed. Node={Node}", SafeNode(member));
             }
         }
-
         return put;
     }
 
-    public async Task<FilePullResult> PullFileIfMissingAsync(string id, string sha256Hex, CancellationToken ct)
+    private const int RangeChunkSizeBytes = 10 * 1024 * 1024;       // 10 MiB
+    private static readonly TimeSpan PerChunkTimeout = TimeSpan.FromMinutes(2);
+
+    public async Task<FilePullResult> PullFileIfMissingAsync(string id, string sha256Hex, string? preferredNode, CancellationToken ct)
     {
-        // déjà présent localement
+        // Déjà présent localement
         if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))
+            return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+
+        // Itérer sur tous les nœuds (remotes) pour trouver celui qui a le fichier
+        var candidates = _bus.Members.Where(m => m.IsRemote).ToList();
+        if (candidates.Count == 0)
+            return new FilePullResult(null);
+        
+        // Reorder: preferred first (best-effort)
+        if (!string.IsNullOrWhiteSpace(preferredNode))
         {
-            var local = await _repo.OpenReadAsync(id, ct).ConfigureAwait(false);
-            return new FilePullResult(local);
+            var idx = candidates.FindIndex(m =>
+                string.Equals(SafeNode(m), preferredNode, StringComparison.OrdinalIgnoreCase));
+
+            if (idx > 0)
+            {
+                var preferred = candidates[idx];
+                candidates.RemoveAt(idx);
+                candidates.Insert(0, preferred);
+            }
         }
-        await using var _ = await _idLock.AcquireAsync(id, ct);
 
-        var idEnc = Base64UrlCodec.Encode(id);
-        var requestName = FileSyncProtocol.BuildFetchName(idEnc, sha256Hex);
-        var request = new TextMessage("", requestName);
+        var http = _httpFactory.CreateClient("ClusterFilesTransfer");
 
-        foreach (var member in _bus.Members)
+        foreach (var member in candidates)
         {
-            if (!member.IsRemote) continue;
-
+            var baseUri = RemoveLastPathSegment(SafeNode(member));
+            // /cluster/files/{id}?sha=...
+            var fileUri = new Uri($"{baseUri}/cluster/files/{Uri.EscapeDataString(id)}?sha={Uri.EscapeDataString(sha256Hex)}");
+            _logger.LogDebug("GET {Node}", fileUri);
+            HttpResponseMessage? headResp = null;
             try
             {
-                var ok = await member.SendMessageAsync(
-                    request,
-                    async (response, token) =>
-                    {
-                        try
-                        {
-                            // not found
-                            if (string.Equals(response.Name, FileSyncProtocol.FetchNotFound, StringComparison.Ordinal))
-                                return false;
-
-                            if (!FileSyncProtocol.TryParseFetchOkName(response.Name, out var rid, out var rsha, out var rlen))
-                                return false;
-
-                            if (!string.Equals(rid, idEnc, StringComparison.Ordinal) ||
-                                !string.Equals(rsha, sha256Hex, StringComparison.OrdinalIgnoreCase))
-                                return false;
-
-                            var ct2 = response.Type?.MediaType ?? "application/octet-stream";
-
-                            await _repo.SaveFromTransferObjectAsync(
-                                id,
-                                response,
-                                ct2,
-                                overwrite: true,
-                                expectedSha256Hex: sha256Hex,
-                                expectedLength: rlen,
-                                token).ConfigureAwait(false);
-
-                            return true;
-                        }
-                        finally
-                        {
-                            // IMPORTANT: libère le stream / buffers / connection
-                            if (response is IAsyncDisposable ad)
-                                await ad.DisposeAsync().ConfigureAwait(false);
-                            else if (response is IDisposable d)
-                                d.Dispose();
-                        }
-                    },
-                    ct).ConfigureAwait(false);
-
-                if (ok)
+                using var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
+                headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, ct).ConfigureAwait(false);
+                _logger.LogDebug("GET {FileUri} {StatusCode}", fileUri, headResp.StatusCode);
+                if (headResp.StatusCode == HttpStatusCode.NotFound)
                 {
-                    var local = await _repo.OpenReadAsync(id, ct).ConfigureAwait(false);
-                    return new FilePullResult(local);
+                    continue;
+                }
+
+                if (!headResp.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("HEAD failed on node {Node}. Status={Status}", fileUri, (int)headResp.StatusCode);
+                    continue;
+                }
+
+                var length = headResp.Content.Headers.ContentLength;
+                if (length is null || length <= 0)
+                {
+                    _logger.LogWarning("HEAD ok but no Content-Length from node {Node}", fileUri);
+                    continue;
+                }
+
+                var contentType = headResp.Content.Headers.ContentType?.MediaType ?? "application/octet-stream";
+
+                long? expireAtUtcTicks = null;
+                if (headResp.Headers.TryGetValues("X-SlimFaas-ExpireAtUtcTicks", out var vals))
+                {
+                    var s = vals.FirstOrDefault();
+                    if (long.TryParse(s, out var v) && v > 0) expireAtUtcTicks = v;
+                }
+
+                // URL finale (si redirect 307/308 etc.)
+                var finalUri = headResp.RequestMessage?.RequestUri ?? fileUri;
+
+                // Lock + budget global (comme avant)
+                await using var _ = await _idLock.AcquireAsync(id, ct).ConfigureAwait(false);
+
+                // Re-check après lock
+                if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))
+                    return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+
+                // Téléchargement range -> SaveAsync (streaming)
+                try
+                {
+                    await using var rangeStream = new HttpRangeReadStream(
+                        http,
+                        finalUri,
+                        length.Value,
+                        RangeChunkSizeBytes,
+                        PerChunkTimeout);
+
+                    var put = await _repo.SaveAsync(
+                        id: id,
+                        content: rangeStream,
+                        contentType: contentType,
+                        overwrite: true,
+                        expireAtUtcTicks: expireAtUtcTicks,
+                        ct: ct).ConfigureAwait(false);
+
+                    // Vérif intégrité
+                    if (!put.Sha256Hex.Equals(sha256Hex, StringComparison.OrdinalIgnoreCase) || put.Length != length.Value)
+                    {
+                        _logger.LogWarning(
+                            "Cluster pull integrity mismatch from {Node}. Id={Id} ExpectedSha={Sha} ActualSha={ActSha} ExpectedLen={Len} ActualLen={ActLen}",
+                            fileUri, id, sha256Hex, put.Sha256Hex, length.Value, put.Length);
+
+                        await _repo.DeleteAsync(id, ct).ConfigureAwait(false);
+                        continue; // essaie un autre nœud
+                    }
+
+                    // OK
+                    return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Range pull failed from node {Node}. Id={Id}", SafeNode(member), id);
+                    // essaie le suivant
+                    continue;
                 }
             }
-            catch (Exception ex) when (IsNotImplemented(ex))
+            finally
             {
-                _logger.LogDebug("FileSync fetch skipped (remote returned 501 Not Implemented). Node={Node}", SafeNode(member));
-            }
-            catch (Exception ex)
-            {
-                // membre down/timeout/etc => on tente le suivant
-                _logger.LogDebug(ex, "FileSync fetch failed. Node={Node}", SafeNode(member));
+                headResp?.Dispose();
             }
         }
 
         return new FilePullResult(null);
     }
+
 
     private static bool IsNotImplemented(Exception ex)
     {
@@ -163,4 +219,18 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 
     private static string SafeNode(IClusterMember member)
         => member.EndPoint?.ToString() ?? member.Id.ToString();
+    
+    public static string RemoveLastPathSegment(string? url)
+    {
+        if (string.IsNullOrEmpty(url))
+        {
+            return "";
+        }
+        if (url.EndsWith('/'))
+        {
+            url = url.Substring(0, url.Length - 1);
+        }
+
+        return url;
+    }
 }

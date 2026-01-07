@@ -68,10 +68,10 @@ public sealed class QueueHttpTryElement
 public class SlimDataInterpreter : CommandInterpreter
 {
     public const int DeleteFromQueueCode = 1000;
-    private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
-    private const string HashsetTtlField = "__ttl__";
+    public const string TimeToLivePostfix = ":${__slimfaas_ttl__}$";
+    public const string HashsetTtlField = "${__slimfaas_ttl__}$";
 
-    private static string TtlKey(string key) => key + TimeToLiveSuffix;
+    public static string TtlKey(string key) => key + TimeToLivePostfix;
 
     public SlimDataState SlimDataState = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
@@ -248,10 +248,8 @@ public class SlimDataInterpreter : CommandInterpreter
             long sizeBytes = 0;
             for (int i = 0; i < arr1.Length; i++) sizeBytes += arr1[i].Value.Length;
             totalQueueBytes += sizeBytes;
-
-            Console.WriteLine($"[Queue] Key: {kv.Key}, Count: {count}, Size: {sizeBytes / (1024.0 * 1024.0):F2} MB");
+            
         }
-        Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
 
         return default;
     }
@@ -317,10 +315,7 @@ public class SlimDataInterpreter : CommandInterpreter
             long sizeBytes = 0;
             for (int i = 0; i < a.Length; i++) sizeBytes += a[i].Value.Length;
             totalQueueBytes += sizeBytes;
-
-            Console.WriteLine($"[Queue] Key: {kv.Key}, Count: {count}, Size: {sizeBytes / (1024.0 * 1024.0):F2} MB");
         }
-        Console.WriteLine($"[Queues] Total Elements: {totalQueueElements}, Total Size: {totalQueueBytes / (1024.0 * 1024.0):F2} MB");
 
         return default;
     }
@@ -394,24 +389,26 @@ public class SlimDataInterpreter : CommandInterpreter
         {
             var b = existing.ToBuilder();
             foreach (var kv in cmd.Value) b[kv.Key] = kv.Value;
+            
+            if (cmd.ExpireAtUtcTicks.HasValue)
+            {
+                b[HashsetTtlField] = BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value);
+            }
+            else
+            {
+                b.Remove(HashsetTtlField);
+            }
+            
             hashsets = hashsets.SetItem(cmd.Key, b.ToImmutable());
         }
         else
         {
-            hashsets = hashsets.SetItem(cmd.Key, cmd.Value.ToImmutableDictionary());
-        }
-
-        var ttlKey = TtlKey(cmd.Key);
-        if (cmd.ExpireAtUtcTicks.HasValue)
-        {
-            var meta = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
-                .SetItem(HashsetTtlField, BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value));
-            hashsets = hashsets.SetItem(ttlKey, meta);
-        }
-        else
-        {
-            if (hashsets.ContainsKey(ttlKey))
-                hashsets = hashsets.Remove(ttlKey);
+            var b = cmd.Value.ToImmutableDictionary().ToBuilder();
+            if (cmd.ExpireAtUtcTicks.HasValue)
+            {
+                b[HashsetTtlField] = BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value);
+            }
+            hashsets = hashsets.SetItem(cmd.Key, b.ToImmutable());
         }
 
         state.Hashsets = hashsets;
@@ -427,17 +424,15 @@ public class SlimDataInterpreter : CommandInterpreter
         var keyValues = state.KeyValues;
 
         keyValues = keyValues.SetItem(cmd.Key, cmd.Value);
-
+        
         var ttlKey = TtlKey(cmd.Key);
         if (cmd.ExpireAtUtcTicks.HasValue)
         {
             var bytes = BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value);
             keyValues = keyValues.SetItem(ttlKey, bytes);
         }
-        else
-        {
-            if (keyValues.ContainsKey(ttlKey))
-                keyValues = keyValues.Remove(ttlKey);
+        else if (keyValues.ContainsKey(ttlKey)) {
+            keyValues = keyValues.Remove(ttlKey);
         }
 
         state.KeyValues = keyValues;
@@ -451,14 +446,14 @@ public class SlimDataInterpreter : CommandInterpreter
     internal static ValueTask DoDeleteKeyValueAsync(DeleteKeyValueCommand cmd, SlimDataState state)
     {
         var keyValues = state.KeyValues;
-
-        if (keyValues.ContainsKey(cmd.Key))
+        
+        if (keyValues.ContainsKey(cmd.Key)){
             keyValues = keyValues.Remove(cmd.Key);
-
+        }
         var ttlKey = TtlKey(cmd.Key);
-        if (keyValues.ContainsKey(ttlKey))
+        if (keyValues.ContainsKey(ttlKey)){
             keyValues = keyValues.Remove(ttlKey);
-
+        }
         state.KeyValues = keyValues;
         return default;
     }
@@ -472,14 +467,10 @@ public class SlimDataInterpreter : CommandInterpreter
         var key = cmd.Key;
         if (string.IsNullOrEmpty(key) || !state.Hashsets.ContainsKey(key))
             return default;
-
-        var ttlKey = TtlKey(key);
-
+        
         if (string.IsNullOrEmpty(cmd.DictionaryKey))
         {
             state.Hashsets = state.Hashsets.Remove(key);
-            if (state.Hashsets.ContainsKey(ttlKey))
-                state.Hashsets = state.Hashsets.Remove(ttlKey);
         }
         else
         {

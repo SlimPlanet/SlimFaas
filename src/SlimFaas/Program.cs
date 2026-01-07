@@ -320,15 +320,15 @@ if(envOrConfig=="Docker") {
 Dictionary<string, string> slimDataDefaultConfiguration = new()
 {
     { "partitioning", "false" },
-    { "lowerElectionTimeout", "2500" },
-    { "upperElectionTimeout", "5000" },
-    { "requestTimeout", "00:00:05.0000000" },
-    { "rpcTimeout", "00:00:02.5000000" },
+    { "lowerElectionTimeout", "1500" },
+    { "upperElectionTimeout", "3000" },
+    { "requestTimeout", "00:00:02.5000000" },
+    { "rpcTimeout", "00:00:01.0000000" },
     { "publicEndPoint", publicEndPoint },
     { "coldStart", coldStart },
-    { "requestJournal:memoryLimit", "50" },
-    { "requestJournal:expiration", "00:05:00" },
-    { "heartbeatThreshold", "0.5" }
+    { "requestJournal:memoryLimit", "30" },
+    { "requestJournal:expiration", "00:01:30" },
+    { "heartbeatThreshold", "0.25" }
 };
 
 
@@ -487,8 +487,8 @@ app.UseCors(builder =>
     }
 });
 
-app.MapDataHashsetRoutes();
-app.MapDataSetRoutes();
+//app.MapDataHashsetRoutes();
+//app.MapDataSetRoutes();
 app.MapDataFileRoutes();
 app.MapDebugRoutes();
 

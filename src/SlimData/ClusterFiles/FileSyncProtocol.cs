@@ -31,7 +31,6 @@ public static class FileSyncProtocol
     public const string AnnouncePrefix   = "slimfaas.file.announce";
     public const string FetchPrefix      = "slimfaas.file.fetch";
     public const string FetchOkPrefix    = "slimfaas.file.fetch.ok";
-    public const string FetchNotFound    = "slimfaas.file.fetch.notfound";
 
     // announce|idEnc|sha|len|contentTypeEnc|overwrite(0/1)
     public static string BuildAnnounceName(string idEncoded, string sha256Hex, long length, string contentType, bool overwrite)
@@ -61,43 +60,4 @@ public static class FileSyncProtocol
         return true;
     }
 
-    // fetch|idEnc|sha
-    public static string BuildFetchName(string idEncoded, string sha256Hex)
-        => $"{FetchPrefix}{Sep}{idEncoded}{Sep}{sha256Hex}";
-
-    public static bool TryParseFetchName(string name, out string idEncoded, out string sha256Hex)
-    {
-        idEncoded = sha256Hex = "";
-        if (!name.StartsWith(FetchPrefix + Sep, StringComparison.Ordinal))
-            return false;
-
-        var parts = name.Split(Sep);
-        if (parts.Length != 3)
-            return false;
-
-        idEncoded = parts[1];
-        sha256Hex = parts[2];
-        return true;
-    }
-
-    // fetch.ok|idEnc|sha|len
-    public static string BuildFetchOkName(string idEncoded, string sha256Hex, long length)
-        => $"{FetchOkPrefix}{Sep}{idEncoded}{Sep}{sha256Hex}{Sep}{length}";
-
-    public static bool TryParseFetchOkName(string name, out string idEncoded, out string sha256Hex, out long length)
-    {
-        idEncoded = sha256Hex = "";
-        length = 0;
-
-        if (!name.StartsWith(FetchOkPrefix + Sep, StringComparison.Ordinal))
-            return false;
-
-        var parts = name.Split(Sep);
-        if (parts.Length != 4)
-            return false;
-
-        idEncoded = parts[1];
-        sha256Hex = parts[2];
-        return long.TryParse(parts[3], out length);
-    }
 }

@@ -10,11 +10,14 @@ public interface IClusterFileSync
         string id,
         Stream content,
         string contentType,
+        long contentLengthBytes,
         bool overwrite,
+        long? ttl,
         CancellationToken ct);
 
     Task<FilePullResult> PullFileIfMissingAsync(
         string id,
         string sha256Hex,
+        string? preferredNode,
         CancellationToken ct);
 }

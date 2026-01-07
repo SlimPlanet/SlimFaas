@@ -7,6 +7,7 @@ using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using SlimData;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
 using SlimData.Expiration;
@@ -37,8 +38,6 @@ public static class DataFileRoutes
     // ------------------------------------------------------------
     public static class DataFileHandlers
     {
-                // Doit matcher SlimDataInterpreter
-        private const string TimeToLiveSuffix = "${slimfaas-timetolive}$";
 
         private const string MetaPrefix = "data:file:";
         private const string MetaSuffix = ":meta";
@@ -51,7 +50,7 @@ public static class DataFileRoutes
                 ?? ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
 
             var list = new List<DataFileEntry>(capacity: 128);
-
+            var nowTicks = DateTime.UtcNow.Ticks;
             foreach (var kv in keyValues)
             {
                 var metaKey = kv.Key;
@@ -67,11 +66,15 @@ public static class DataFileRoutes
                 if (string.IsNullOrWhiteSpace(id))
                     continue;
 
-                var ttlKey = metaKey + TimeToLiveSuffix;
+                var ttlKey = metaKey + SlimDataInterpreter.TimeToLivePostfix;
 
                 long expireAtUtcTicks = -1;
                 if(keyValues.TryGetValue(ttlKey, out var ttlBytes))
                     SlimDataExpirationCleaner.TryReadInt64(ttlBytes, out expireAtUtcTicks);
+
+                if (expireAtUtcTicks > 0 && expireAtUtcTicks <= nowTicks)
+                    continue;
+
 
                 list.Add(new DataFileEntry(
                     Id: id,
@@ -99,22 +102,25 @@ public static class DataFileRoutes
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
 
-            context.RequestServices
-                .GetRequiredService<ILoggerFactory>()
-                .CreateLogger("Upload").LogWarning("BodyType={Type} CanSeek={CanSeek} CL={CL}",
-                    context.Request.Body.GetType().FullName,
-                    context.Request.Body.CanSeek,
-                    context.Request.ContentLength);
-
             // Snippet demandé
             var contentType = context.Request.ContentType ?? "application/octet-stream";
             var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
+            const long DefaultUnknownLengthBytes = 20L * 1024L * 1024L; // 20 MiB
+            var contentLength = context.Request.ContentLength;
+            var lengthForLimiter = (contentLength is long cl && cl > 0) ? cl : DefaultUnknownLengthBytes;
+            if (contentLength is null || contentLength <= 0)
+            {
+                context.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Upload")
+                    .LogWarning("Missing/invalid Content-Length for /data/files. Using default={DefaultBytes} bytes for limiter. Id={Id}",
+                        DefaultUnknownLengthBytes, elementId);
+            }
 
             Stream contentStream = context.Request.Body;
             string? actualContentType = null;
             string? actualFileName = null;
 
-            var finalContentType = actualContentType ?? contentType ?? "application/octet-stream";
+            var finalContentType = actualContentType ?? contentType ?? "application/octet-stream" ;
             var finalFileName = actualFileName ?? fileName ?? elementId;
 
             // Persiste localement + calcule sha/len + announce-only cluster
@@ -122,7 +128,9 @@ public static class DataFileRoutes
                 id: elementId,
                 content: contentStream,
                 contentType: finalContentType,
+                contentLengthBytes: lengthForLimiter,
                 overwrite: true,
+                ttl: ttl,
                 ct: ct);
 
             // Metadata RAFT (SlimData)
@@ -167,7 +175,7 @@ public static class DataFileRoutes
                 return Results.Problem("Corrupted metadata", statusCode: 500);
             }
 
-            var pulled = await fileSync.PullFileIfMissingAsync(elementId, meta?.Sha256Hex ?? "", ct);
+            var pulled = await fileSync.PullFileIfMissingAsync(elementId, meta?.Sha256Hex ?? "", null, ct);
             if (pulled.Stream is null)
                 return Results.NotFound();
 
