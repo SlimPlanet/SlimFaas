@@ -19,7 +19,8 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
 - `N → M` scaling powered by PromQL,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
-- temporary **Data Binary** endpoints to ingest and stage files (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
+- temporary **Data Sets** endpoints (Redis-like KV) to store small blobs/JSON with **TTL (milliseconds)** — perfect for cache & agentic state.
+- temporary **Data Files** endpoints to ingest and stage files (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 
 > **Looking for MCP integration?**
 > Check out **[SlimFaas MCP](https://slimfaas.dev/mcp)** — the companion runtime that converts *any* OpenAPI definition into MCP-ready tools on the fly.
@@ -93,15 +94,12 @@ SlimFaas puts autoscaling at the center of the design:
 - Synchronously broadcast events to **every replica** of selected functions.
 - No external event bus required — perfect for simple fan-out, cache invalidation, or configuration refresh scenarios.
 
-### 📁 Data & Files (real-time ingestion + ephemeral caching)
+### 🧺 Data Sets & 📁 Data Files (ephemeral state + real-time ingestion)
 
-SlimFaas includes **Data Files** endpoints to **stream, store, and serve temporary files** — from tiny payloads to *very large* binaries.
-Ideal for **agentic workflows** and **real-time ingestion**: upload once, get an `id`, then let tools/functions consume it when they’re ready.
+SlimFaas includes two complementary data APIs:
 
-- Stream-first uploads (without buffering in memory or disk)
-- **Agentic-ready** attachments & multi-step flows
-- **Ephemeral caching** for intermediate artifacts
-- **TTL-based** lifecycle (auto-expiration)
+- **Data Sets** (`/data/sets`): a Redis-like, cluster-consistent **KV store** for small payloads (cache, JSON state, flags, checkpoints) with optional **TTL in milliseconds** and a **1 MiB** payload limit.
+- **Data Files** (`/data/files`): stream-first endpoints to ingest, store, and serve temporary files — from tiny payloads to *very large* binaries — ideal for **agentic workflows** and **real-time ingestion** (upload once, get an `id`, then let tools/functions consume it when they’re ready).
 
 ### 🧠 “Mind Changer” (Status & Wake-up API)
 
@@ -143,6 +141,7 @@ Dive into the documentation:
     - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
     - [OpenTelemetry](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/opentelemetry.md) – Enable distributed tracing, metrics, and logs with OpenTelemetry integration.
 - Data & Files
+    - [Data Sets](https://slimfaas.dev/data-sets) - Store small blobs/JSON in a Redis-like KV store with TTL (milliseconds).
     - [Data Files](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/data-files.md) - Understand how to ingest, store, and serve temporary binary artifacts.
 - [How It Works](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/how-it-works.md) – Dive into SlimFaas’s architecture and design.
 - [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP-ready tools on the fly.

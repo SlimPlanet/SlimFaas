@@ -42,17 +42,6 @@ public class SlimDataService
             maxWaitPerTick: TimeSpan.FromSeconds(5)
         );
 
-        var tiersLlp = new[]
-        {
-            new RateTier(20,  TimeSpan.FromMilliseconds(250)),
-            new RateTier(300, TimeSpan.FromMilliseconds(500)),
-        };
-        var tiersLcb = new[]
-        {
-            new RateTier(50,  TimeSpan.FromMilliseconds(150)),
-            new RateTier(500, TimeSpan.FromMilliseconds(400)),
-        };
-
         _batcher.RegisterKind<ListLeftPushReq, string>(
             kind: "llp",
             batchHandler: BatchHandlerAsync,
