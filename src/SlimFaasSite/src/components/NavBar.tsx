@@ -6,23 +6,33 @@ const Navbar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isScaleOpen, setIsScaleOpen] = useState(false);
     const [isFunctionsOpen, setIsFunctionsOpen] = useState(false);
+    const [isDataOpen, setIsDataOpen] = useState(false);
 
     const toggleMenu = () => setIsMenuOpen((prev) => !prev);
 
     const toggleScale = () => {
         setIsScaleOpen((prev) => !prev);
         setIsFunctionsOpen(false);
+        setIsDataOpen(false);
     };
 
     const toggleFunctions = () => {
         setIsFunctionsOpen((prev) => !prev);
         setIsScaleOpen(false);
+        setIsDataOpen(false);
+    };
+
+    const toggleData = () => {
+        setIsDataOpen((prev) => !prev);
+        setIsScaleOpen(false);
+        setIsFunctionsOpen(false);
     };
 
     const closeAll = () => {
         setIsMenuOpen(false);
         setIsScaleOpen(false);
         setIsFunctionsOpen(false);
+        setIsDataOpen(false);
     };
 
     return (
@@ -190,21 +200,54 @@ const Navbar: React.FC = () => {
                             </li>
                         </ul>
                     </li>
-                    <li className="navbar__item">
-                        <Link
-                            href="/data-files"
-                            className="navbar__link"
-                            onClick={closeAll}
+
+                    {/* Sous-menu Data */}
+                    <li
+                        className={`navbar__item navbar__item--has-submenu ${
+                            isDataOpen ? "navbar__item--submenu-open" : ""
+                        }`}
+                    >
+                        <button
+                            type="button"
+                            className="navbar__link navbar__link--submenu-toggle"
+                            onClick={toggleData}
+                            aria-haspopup="true"
+                            aria-expanded={isDataOpen}
+                            aria-controls="navbar-data-submenu"
                         >
                             Data
-                        </Link>
-                    </li>
-                    <li className="navbar__item">
-                        <Link
-                            href="/how-it-works"
-                            className="navbar__link"
-                            onClick={closeAll}
+                            <span className="navbar__submenu-icon" aria-hidden="true">
+                                ▾
+                            </span>
+                        </button>
+
+                        <ul
+                            id="navbar-data-submenu"
+                            className={`navbar__submenu ${isDataOpen ? "navbar__submenu--open" : ""}`}
                         >
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href="/data-files"
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    Files
+                                </Link>
+                            </li>
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href="/data-sets"
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    Sets
+                                </Link>
+                            </li>
+                        </ul>
+                    </li>
+
+                    <li className="navbar__item">
+                        <Link href="/how-it-works" className="navbar__link" onClick={closeAll}>
                             How it works
                         </Link>
                     </li>
