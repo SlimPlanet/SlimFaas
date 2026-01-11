@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.59.0
+
+- [bbc505b9](https://github.com/SlimPlanet/SlimFaas/commit/bbc505b90dc62a7d755afbddd025aecb78bc603f) - feat(otel): Do not filter out logs by path (#217) (release), 2026-01-06 by *Silthian*
+
+
+## 0.58.6
+
+
+
 ## v0.58.6
 
 - [34de475c](https://github.com/SlimPlanet/SlimFaas/commit/34de475c510e1a3f55e63a55ff88ef52a39a2526) - fix(file): optim prefered node (release) (#215), 2025-12-31 by *Guillaume Chervet*
@@ -263,15 +272,5 @@
 ## v0.45.0
 
 - [d38cabe1](https://github.com/SlimPlanet/SlimFaas/commit/d38cabe15d6dfefdc0fc8e9e89c05b4a98730a19) - feat(slimfaas): add scale out (#187) (release), 2025-11-20 by *Guillaume Chervet*
-
-
-## 0.44.6
-
-
-
-## v0.44.6
-
-- [71cad277](https://github.com/SlimPlanet/SlimFaas/commit/71cad277213c6089f298993593b231d954efd481) - refactor(all): dotnet 10 (#188) (release), 2025-11-14 by *Guillaume Chervet*
-- [8293d866](https://github.com/SlimPlanet/SlimFaas/commit/8293d866e431abd6c0fb8de5c5eb94ce4b60e300) - doc(function): ## 10. Asynchronous Function Execution: Control Callback Mode, 2025-11-09 by *Guillaume Chervet*
 
 

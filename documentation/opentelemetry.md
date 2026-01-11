@@ -25,7 +25,7 @@ SlimFaas provides built-in support for OpenTelemetry, enabling comprehensive obs
 | `ServiceName` | Optional    | String       | Name of the service for tracing                                                           | Helps identify traces in your observability platform | `"SlimFaas"` |
 | `Endpoint` | Conditional | String (URL) | OTLP exporter endpoint (gRPC)                                                             | Required if `Enable` is `true`                       | `"http://localhost:4317"` |
 | `EnableConsoleExporter` | Optional    | Boolean      | Export to console for debugging                                                           | Useful for local development                         | `false` |
-| `ExcludedUrls`        |  Optional   | string array | List of URL path prefixes to exclude from tracing and logging |                | `["/health", "/metrics"]` |
+| `ExcludedUrls`        |  Optional   | string array | List of URL path prefixes to exclude from tracing |                | `["/health", "/metrics"]` |
 
 **Configuration Priority (default behavior):**
 1. Configuration values from `appsettings.json` (highest priority)
@@ -84,9 +84,7 @@ SlimFaas automatically instruments:
 ### Logs
 
 - ✅ **Application logs** exported via OTLP
-- URLs specified in `ExcludedUrls` are **also filtered from logs** based on **case-insensitive path prefix matching**
-- Log filtering applies to requests where the route path matches any excluded URL prefix
-- Empty or missing `ExcludedUrls` configuration will use the default values `["/health", "/metrics"]`
+- **Note**: URL filtering does **not** apply to logs; all logs are collected regardless of `ExcludedUrls`
 
 ### Metrics
 
