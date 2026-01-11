@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.60.0
+
+- [5245e5f9](https://github.com/SlimPlanet/SlimFaas/commit/5245e5f9b17864ab98d88adada616a652d213bf7) - feat(slimfaas): data set api (#216) (release), 2026-01-11 by *Guillaume Chervet*
+
+
+## 0.59.0
+
+
+
 ## v0.59.0
 
 - [bbc505b9](https://github.com/SlimPlanet/SlimFaas/commit/bbc505b90dc62a7d755afbddd025aecb78bc603f) - feat(otel): Do not filter out logs by path (#217) (release), 2026-01-06 by *Silthian*
@@ -263,14 +272,5 @@
 ## v0.46.0
 
 - [072fd86b](https://github.com/SlimPlanet/SlimFaas/commit/072fd86bfae0527b969615a4ac3c6c851cd785d0) - feat(slimfaas): NumberParallelRequestPerPod (#189) (release), 2025-11-25 by *Guillaume Chervet*
-
-
-## 0.45.0
-
-
-
-## v0.45.0
-
-- [d38cabe1](https://github.com/SlimPlanet/SlimFaas/commit/d38cabe15d6dfefdc0fc8e9e89c05b4a98730a19) - feat(slimfaas): add scale out (#187) (release), 2025-11-20 by *Guillaume Chervet*
 
 
