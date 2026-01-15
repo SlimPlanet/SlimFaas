@@ -143,7 +143,7 @@ public class SlimDataService
 
         if (isLeader)
         {
-            var result = await Endpoints.ListLeftPushBatchCommand(_cluster, bin, new CancellationTokenSource());
+            var result = await SlimData.Endpoints.ListLeftPushBatchCommand(_cluster, bin, new CancellationTokenSource());
             return result.ElementIds;
         }
 
@@ -203,7 +203,7 @@ public class SlimDataService
 
         if (isLeader)
         {
-            var respLeader = await Endpoints.ListCallbackBatchCommand(_cluster, bin, CancellationTokenSource.CreateLinkedTokenSource(ct));
+            var respLeader = await SlimData.Endpoints.ListCallbackBatchCommand(_cluster, bin, CancellationTokenSource.CreateLinkedTokenSource(ct));
             if (respLeader.Acks.Length != batch.Count)
                 throw new DataException("Batch response count mismatch");
             return respLeader.Acks;
@@ -249,7 +249,7 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.AddKeyValueCommand(ps, key, value, expireAtUtcTicks, _cluster, new CancellationTokenSource());
+            await SlimData.Endpoints.AddKeyValueCommand(ps, key, value, expireAtUtcTicks, _cluster, new CancellationTokenSource());
         }
         else
         {
@@ -273,7 +273,7 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.AddHashSetCommand(ps, key, new Dictionary<string, byte[]>(values), expireAtUtcTicks, _cluster, new CancellationTokenSource());
+            await SlimData.Endpoints.AddHashSetCommand(ps, key, new Dictionary<string, byte[]>(values), expireAtUtcTicks, _cluster, new CancellationTokenSource());
         }
         else
         {
@@ -296,7 +296,7 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey, _cluster, new CancellationTokenSource());
+            await SlimData.Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey, _cluster, new CancellationTokenSource());
         }
         else
         {
@@ -321,7 +321,7 @@ public class SlimDataService
             if (!_cluster.LeadershipToken.IsCancellationRequested)
             {
                 var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-                await Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey: "", _cluster, new CancellationTokenSource());
+                await SlimData.Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey: "", _cluster, new CancellationTokenSource());
             }
             return new Dictionary<string, byte[]>(0);
         }
@@ -344,7 +344,7 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.DeleteKeyValueCommand(ps, key, _cluster, new CancellationTokenSource());
+            await SlimData.Endpoints.DeleteKeyValueCommand(ps, key, _cluster, new CancellationTokenSource());
         }
         else
         {
@@ -363,7 +363,7 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            var result = await Endpoints.ListRightPopCommand(ps, key, transactionId, count, _cluster, new CancellationTokenSource());
+            var result = await SlimData.Endpoints.ListRightPopCommand(ps, key, transactionId, count, _cluster, new CancellationTokenSource());
             return result.Items;
         }
         else

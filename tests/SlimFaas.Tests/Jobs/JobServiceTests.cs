@@ -218,7 +218,7 @@ public class JobServiceTests
         {
             Environments = new List<EnvVarInput>
             {
-                new("ENV_EXISTING", "ExistingValue"), new("ENV_COMMON", "OldValue")
+                new("ENV_EXISTING", "ExistingValue"), new("ENV_COMMON", "OldValue"),
             }
         };
 
