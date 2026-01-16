@@ -196,6 +196,11 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
                throw new Exception("Not port or IP available");
            }
 
+           if(!functionUrl.EndsWith("/"))
+           {
+               functionUrl = $"{functionUrl}/";
+           }
+
            string url = functionUrl.Replace("{pod_ip}", ip) + customRequestPath + customRequestQuery;
            if (ports is { Count: > 0 })
            {
