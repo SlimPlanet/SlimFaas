@@ -7,6 +7,11 @@ using SlimFaas.Security;
 
 namespace SlimFaas.Endpoints;
 
+public class Job
+{
+
+}
+
 public static class JobEndpoints
 {
     public static void MapJobEndpoints(this IEndpointRouteBuilder app)
@@ -16,22 +21,26 @@ public static class JobEndpoints
             .WithName("CreateJob")
             .Produces<EnqueueJobResult>(202)
             .Produces(400)
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // GET /job/{functionName} - Lister les jobs
         app.MapGet("/job/{functionName}", ListJobs)
             .WithName("ListJobs")
-            .Produces<List<JobListResult>>(200);
+            .Produces<List<JobListResult>>(200)
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // DELETE /job/{functionName}/{elementId} - Supprimer un job
         app.MapDelete("/job/{functionName}/{elementId}", DeleteJob)
             .WithName("DeleteJob")
             .Produces(200)
-            .Produces(404);
+            .Produces(404)
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // Bloquer PUT et PATCH
         app.MapMethods("/job/{functionName}", new[] { "PUT", "PATCH" },
-            () => Results.StatusCode((int)HttpStatusCode.MethodNotAllowed));
+            () => Results.StatusCode((int)HttpStatusCode.MethodNotAllowed))
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> CreateJob(
@@ -39,7 +48,7 @@ public static class JobEndpoints
         HttpContext context,
         [FromServices] IJobService jobService,
         [FromServices] IReplicasService replicasService,
-        [FromServices] ILogger<SlimProxyMiddleware> logger)
+        [FromServices] ILogger<Job> logger)
     {
         CreateJob? createJob = await context.Request.ReadFromJsonAsync(
             CreateJobSerializerContext.Default.CreateJob);
@@ -89,7 +98,7 @@ public static class JobEndpoints
         HttpContext context,
         [FromServices] IJobService jobService,
         [FromServices] IReplicasService replicasService,
-        [FromServices] ILogger<SlimProxyMiddleware> logger)
+        [FromServices] ILogger<Job> logger)
     {
         bool isMessageComeFromNamespaceInternal =
             FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);

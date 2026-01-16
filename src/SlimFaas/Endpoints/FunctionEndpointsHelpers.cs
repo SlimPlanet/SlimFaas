@@ -129,12 +129,12 @@ public static class FunctionEndpointsHelpers
         return customRequest;
     }
 
-    public static SlimFaas.FunctionStatus MapToFunctionStatus(DeploymentInformation functionDeploymentInformation)
+    public static FunctionStatus MapToFunctionStatus(DeploymentInformation functionDeploymentInformation)
     {
         int numberReady = functionDeploymentInformation.Pods.Count(p => p.Ready.HasValue && p.Ready.Value);
         int numberRequested = functionDeploymentInformation.Replicas;
 
-        return new SlimFaas.FunctionStatus(
+        return new FunctionStatus(
             numberReady,
             numberRequested,
             functionDeploymentInformation.PodType.ToString(),

@@ -1,10 +1,13 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Endpoints;
+
+public class SyncFunction
+{
+}
 
 public static class SyncFunctionEndpoints
 {
@@ -15,26 +18,28 @@ public static class SyncFunctionEndpoints
             new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
             HandleSyncFunction)
             .WithName("HandleSyncFunction")
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         app.MapMethods("/function/{functionName}",
             new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
             (string functionName, HttpContext context,
-                ILogger<SlimProxyMiddleware> logger,
+                ILogger<SyncFunction> logger,
                 HistoryHttpMemoryService historyHttpService,
                 ISendClient sendClient,
                 IReplicasService replicasService,
                 IJobService jobService) =>
                 HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService))
             .WithName("HandleSyncFunctionRoot")
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> HandleSyncFunction(
         string functionName,
         string? functionPath,
         HttpContext context,
-        [FromServices] ILogger<SlimProxyMiddleware> logger,
+        [FromServices] ILogger<SyncFunction> logger,
         [FromServices] HistoryHttpMemoryService historyHttpService,
         [FromServices] ISendClient sendClient,
         [FromServices] IReplicasService replicasService,

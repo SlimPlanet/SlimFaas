@@ -3,6 +3,8 @@ using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Endpoints;
 
+
+
 public static class StatusEndpoints
 {
     public static void MapStatusEndpoints(this IEndpointRouteBuilder app)
@@ -10,19 +12,22 @@ public static class StatusEndpoints
         // GET /status-functions - Liste tous les statuts
         app.MapGet("/status-functions", GetAllFunctionStatuses)
             .WithName("GetAllFunctionStatuses")
-            .Produces<List<SlimFaas.FunctionStatus>>(200);
+            .Produces<List<SlimFaas.FunctionStatus>>(200)
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // GET /status-function/{functionName} - Statut d'une fonction
         app.MapGet("/status-function/{functionName}", GetFunctionStatus)
             .WithName("GetFunctionStatus")
             .Produces<SlimFaas.FunctionStatus>(200)
-            .Produces(404);
+            .Produces(404)
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // POST /wake-function/{functionName} - Réveiller une fonction
         app.MapPost("/wake-function/{functionName}", WakeFunction)
             .WithName("WakeFunction")
             .Produces(204)
-            .Produces(404);
+            .Produces(404)
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static IResult GetAllFunctionStatuses(

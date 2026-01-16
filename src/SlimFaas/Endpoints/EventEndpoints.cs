@@ -6,6 +6,10 @@ using SlimFaas.Security;
 
 namespace SlimFaas.Endpoints;
 
+public class Event
+{
+}
+
 public static class EventEndpoints
 {
     public static void MapEventEndpoints(this IEndpointRouteBuilder app)
@@ -15,11 +19,12 @@ public static class EventEndpoints
             .WithName("PublishEvent")
             .Produces(204)
             .Produces(404)
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         app.MapPost("/publish-event/{eventName}",
             (string eventName, HttpContext context,
-                ILogger<SlimProxyMiddleware> logger,
+                ILogger<Event> logger,
                 HistoryHttpMemoryService historyHttpService,
                 ISendClient sendClient,
                 IReplicasService replicasService,
@@ -29,14 +34,15 @@ public static class EventEndpoints
             .WithName("PublishEventRoot")
             .Produces(204)
             .Produces(404)
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> PublishEvent(
         string eventName,
         string? functionPath,
         HttpContext context,
-        [FromServices] ILogger<SlimProxyMiddleware> logger,
+        [FromServices] ILogger<Event> logger,
         [FromServices] HistoryHttpMemoryService historyHttpService,
         [FromServices] ISendClient sendClient,
         [FromServices] IReplicasService replicasService,

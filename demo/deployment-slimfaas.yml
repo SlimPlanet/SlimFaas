@@ -79,7 +79,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:latest
+          image: axaguildev/slimfaas:0.60.1-pr.219410
           livenessProbe:
             httpGet:
               path: /health
@@ -110,7 +110,7 @@ spec:
             #- name: ASPNETCORE_URLS
             #  value: http://+:5000
             - name: Logging__LogLevel__SlimFaas
-              value: "Information"
+              value: "Debug"
             #- name: Logging__LogLevel__SlimData
             #  value: "Debug"
             #- name: "SLIMDATA_CONFIGURATION"

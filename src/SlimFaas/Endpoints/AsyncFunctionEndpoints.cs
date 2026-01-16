@@ -8,6 +8,10 @@ using SlimFaas.Security;
 
 namespace SlimFaas.Endpoints;
 
+public class AsyncFunction
+{
+}
+
 public static class AsyncFunctionEndpoints
 {
     public static void MapAsyncFunctionEndpoints(this IEndpointRouteBuilder app)
@@ -19,12 +23,13 @@ public static class AsyncFunctionEndpoints
             .WithName("HandleAsyncFunction")
             .Produces(202)
             .Produces(404)
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         app.MapMethods("/async-function/{functionName}",
             new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
             (string functionName, HttpContext context,
-                ILogger<SlimProxyMiddleware> logger,
+                ILogger<AsyncFunction> logger,
                 IReplicasService replicasService,
                 IJobService jobService,
                 ISlimFaasQueue slimFaasQueue,
@@ -33,21 +38,23 @@ public static class AsyncFunctionEndpoints
             .WithName("HandleAsyncFunctionRoot")
             .Produces(202)
             .Produces(404)
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // POST /async-function-callback/{functionName}/{elementId}/{status}
         app.MapPost("/async-function-callback/{functionName}/{elementId}/{status}", HandleAsyncCallback)
             .WithName("HandleAsyncCallback")
             .Produces(200)
             .Produces(400)
-            .Produces(404);
+            .Produces(404)
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> HandleAsyncFunction(
         string functionName,
         string? functionPath,
         HttpContext context,
-        [FromServices] ILogger<SlimProxyMiddleware> logger,
+        [FromServices] ILogger<AsyncFunction> logger,
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
         [FromServices] ISlimFaasQueue slimFaasQueue,
@@ -88,7 +95,7 @@ public static class AsyncFunctionEndpoints
         string elementId,
         string status,
         HttpContext context,
-        [FromServices] ILogger<SlimProxyMiddleware> logger,
+        [FromServices] ILogger<AsyncFunction> logger,
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
         [FromServices] ISlimFaasQueue slimFaasQueue)

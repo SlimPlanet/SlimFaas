@@ -45,11 +45,6 @@ public class ReplicasService(
     static bool IsInfrastructureFailure(PodInformation pod) =>
         !string.IsNullOrEmpty(pod.StartFailureReason);
 
-
-    static bool IsCrashOnStartup(PodInformation pod) =>
-        string.IsNullOrEmpty(pod.StartFailureReason)
-        && !string.IsNullOrEmpty(pod.AppFailureReason);
-
     public async Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace)
     {
         DeploymentsInformations deployments = await kubernetesService.ListFunctionsAsync(kubeNamespace, Deployments);
