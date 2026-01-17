@@ -265,6 +265,8 @@ public class KubernetesService : IKubernetesService
     private const string DefaultVisibility = "SlimFaas/DefaultVisibility";
     private const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
     private const string Scale = "SlimFaas/Scale";
+    private const string Job = "SlimFaas/Job";
+    private const string JobImagesWhitelist = "SlimFaas/JobImagesWhitelist";
 
     private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
         "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
@@ -286,6 +288,7 @@ public class KubernetesService : IKubernetesService
     private readonly k8s.Kubernetes _client;
     private readonly ILogger<KubernetesService> _logger;
     private bool _serviceListForbidden;
+    private SlimFaasJobConfiguration? _jobConfiguration;
 
     public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
     {
@@ -505,11 +508,13 @@ public class KubernetesService : IKubernetesService
             Task<V1PodList>? podListTask = client.ListNamespacedPodAsync(kubeNamespace);
             Task<V1StatefulSetList>? statefulSetListTask = client.ListNamespacedStatefulSetAsync(kubeNamespace);
             Task<V1ServiceList?> serviceListTask = TryListServicesAsync(kubeNamespace);
+            Task<V1CronJobList>? cronJobListTask = client.ListNamespacedCronJobAsync(kubeNamespace);
 
-            await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask, serviceListTask);
+            await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask, serviceListTask, cronJobListTask);
             V1DeploymentList? deploymentList = await deploymentListTask;
             IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, await serviceListTask, _logger);
             V1StatefulSetList? statefulSetList = await statefulSetListTask;
+            V1CronJobList? cronJobList = await cronJobListTask;
 
             SlimFaasDeploymentInformation? slimFaasDeploymentInformation = statefulSetList.Items
                 .Where(deploymentListItem => deploymentListItem.Metadata.Name == SlimfaasDeploymentName).Select(
@@ -518,6 +523,8 @@ public class KubernetesService : IKubernetesService
                             podList.Where(p => p.DeploymentName == deploymentListItem.Metadata.Name).ToList()))
                 .FirstOrDefault();
 
+            SlimFaasJobConfiguration? slimfaasJobConfiguration = ExtractJobConfigurations(cronJobList);
+            Interlocked.Exchange(ref _jobConfiguration, slimfaasJobConfiguration);
 
             IEnumerable<PodInformation> podInformations = podList.ToArray();
             await AddDeployments(kubeNamespace, deploymentList, podInformations, deploymentInformationList, _logger,
@@ -1113,7 +1120,6 @@ public class KubernetesService : IKubernetesService
             }
         }
     }
-
     private static IEnumerable<PodInformation> MapPodInformations(
         V1PodList v1PodList,
         V1ServiceList? serviceList,
@@ -1246,4 +1252,89 @@ public class KubernetesService : IKubernetesService
         return result;
     }
 
+        private static SlimFaasJobConfiguration ExtractJobConfigurations(V1CronJobList cronJobList)
+    {
+        Dictionary<string, SlimfaasJob> jobs = new();
+
+        foreach (V1CronJob? cronJob in cronJobList.Items)
+        {
+            if (cronJob is null)
+            {
+                continue;
+            }
+
+            var annotations = cronJob.Metadata?.Annotations ?? new Dictionary<string, string>();
+            V1Container? container = cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers.FirstOrDefault();
+
+            bool isSlimfaasJob = annotations.TryGetValue(Job, out var labelValue) &&
+                                 bool.TryParse(labelValue, out var isJob) && isJob;
+            if (!isSlimfaasJob)
+                continue;
+
+
+            var name = cronJob.Metadata?.Name ?? "unknown";
+            var image = container?.Image ?? "";
+
+            var imagesWhitelist = annotations.TryGetValue(JobImagesWhitelist, out var whitelist)
+                ? whitelist.Split(',').Select(s => s.Trim()).ToList()
+                : new List<string>();
+
+            CreateJobResources? resources = new (
+                container?.Resources.Requests?.ToDictionary(kv => kv.Key, kv => kv.Value.ToString()) ??
+                new Dictionary<string, string> { { "cpu", "100m" }, { "memory", "100Mi" } },
+                container?.Resources.Limits?.ToDictionary(kv => kv.Key, kv => kv.Value.ToString()) ??
+                new Dictionary<string, string> { { "cpu", "100m" }, { "memory", "100Mi" } }
+            );
+
+            List<string>? dependsOn = annotations.TryGetValue(DependsOn, out var dependsOnValue)
+                ? dependsOnValue.Split(',').Select(s => s.Trim()).ToList()
+                : null;
+
+            List<EnvVarInput>? environments = null;
+
+            if (container?.Env != null)
+            {
+                environments = container.Env?.Select(e => new EnvVarInput(
+                    Name: e.Name,
+                    Value: e.Value ?? "",
+                    SecretRef: e.ValueFrom?.SecretKeyRef != null
+                        ? new SecretRef(e.ValueFrom.SecretKeyRef.Name, e.ValueFrom.SecretKeyRef.Key)
+                        : null,
+                    ConfigMapRef: e.ValueFrom?.ConfigMapKeyRef != null
+                        ? new ConfigMapRef(e.ValueFrom.ConfigMapKeyRef.Name, e.ValueFrom.ConfigMapKeyRef.Key)
+                        : null,
+                    FieldRef: e.ValueFrom?.FieldRef != null
+                        ? new FieldRef(e.ValueFrom.FieldRef.FieldPath)
+                        : null,
+                    ResourceFieldRef: e.ValueFrom?.ResourceFieldRef != null
+                        ? new ResourceFieldRef(
+                            e.ValueFrom.ResourceFieldRef.ContainerName,
+                            e.ValueFrom.ResourceFieldRef.Resource,
+                            e.ValueFrom.ResourceFieldRef.Divisor?.ToString() ?? "")
+                        : null
+                )).ToList();
+            }
+
+            var visibility = annotations.TryGetValue(DefaultVisibility, out var vis) ? vis : nameof(FunctionVisibility.Private);
+
+            jobs[name] = new SlimfaasJob(
+                Image: image,
+                ImagesWhitelist: imagesWhitelist,
+                Resources: resources,
+                DependsOn: dependsOn,
+                Environments: environments,
+                BackoffLimit: 1,
+                Visibility: visibility,
+                NumberParallelJob: 1,
+                TtlSecondsAfterFinished: 60,
+                RestartPolicy: "Never"
+            );
+
+            Console.WriteLine("JobConfiguration: ");
+            Console.WriteLine(jobs[name]);
+        }
+
+
+        return new SlimFaasJobConfiguration(jobs);
+    }
 }
