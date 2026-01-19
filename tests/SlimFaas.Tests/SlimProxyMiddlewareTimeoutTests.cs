@@ -33,6 +33,7 @@ internal class NeverReadyReplicasService : IReplicasService
             {
                 DefaultSync = new SlimFaasDefaultConfiguration
                 {
+                    // HttpTimeout est en secondes
                     HttpTimeout = httpTimeoutTenthsSeconds
                 }
             },
@@ -65,7 +66,7 @@ internal class FlipReadyQuicklyReplicasService : IReplicasService
     private readonly DeploymentsInformations _deployments;
     private readonly DeploymentInformation _function; // référence gardée pour modifier ses pods
 
-    public FlipReadyQuicklyReplicasService(int httpTimeoutTenthsMs = 20, int flipDelayMs = 100)
+    public FlipReadyQuicklyReplicasService(int httpTimeoutSeconds = 2, int flipDelayMs = 100)
     {
         // Fonction "fibonacci" : EndpointReady = true dès le départ
         _function = new DeploymentInformation(
@@ -78,8 +79,8 @@ internal class FlipReadyQuicklyReplicasService : IReplicasService
             {
                 DefaultSync = new SlimFaasDefaultConfiguration
                 {
-                    // 20 => ~ 2s dans WaitForAnyPodStartedAsync (x100 ms)
-                    HttpTimeout = httpTimeoutTenthsMs
+                    // HttpTimeout en secondes
+                    HttpTimeout = httpTimeoutSeconds
                 }
             },
             Pods: new List<PodInformation>
@@ -136,9 +137,9 @@ public class ProxyMiddlewareTimeoutReadyTests
     [Fact]
     public async Task Sync_TimesOut_When_No_Pod_Ready_After_2s()
     {
-        // HttpTimeout = 20 -> ~ 2 secondes dans WaitForAnyPodStartedAsync
-        var replicas = new NeverReadyReplicasService(httpTimeoutTenthsSeconds: 20);
-        var sendClient = new SendClientMock();
+        // HttpTimeout = 2 -> 2 secondes de timeout
+        var replicas = new NeverReadyReplicasService(httpTimeoutTenthsSeconds: 2);
+        var sendClient = new SendClientGatewayTimeout();
 
         var wakeUpFunctionMock = new Mock<IWakeUpFunction>();
         var jobServiceMock = new Mock<IJobService>();
@@ -189,7 +190,7 @@ public class ProxyMiddlewareFlipReadyTests
     public async Task Sync_Succeeds_When_Pod_Becomes_Ready_Quickly()
     {
         // Timeout max 2s, mais on flip READY après ~100ms
-        var replicas = new FlipReadyQuicklyReplicasService(httpTimeoutTenthsMs: 20, flipDelayMs: 100);
+        var replicas = new FlipReadyQuicklyReplicasService(httpTimeoutSeconds: 2, flipDelayMs: 100);
         var sendClientOk = new SendClientMock(); // déjà défini dans le fichier, retourne 200 OK
 
         var wakeUpFunctionMock = new Mock<IWakeUpFunction>();
