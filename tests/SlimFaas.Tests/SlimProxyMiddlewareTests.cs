@@ -173,7 +173,7 @@ public class ProxyMiddlewareTests
             })
             .StartAsync();
 
-        HttpResponseMessage response = await host.GetTestClient().GetAsync($"http://localhost:5000{path}");
+        HttpResponseMessage response = await host.GetTestClient().PostAsync($"http://localhost:5000{path}", new StringContent(""));
 
         if (times != null)
         {

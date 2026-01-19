@@ -14,15 +14,18 @@ public static class EventEndpoints
 {
     public static void MapEventEndpoints(this IEndpointRouteBuilder app)
     {
-        // POST /publish-event/{eventName}/**
-        app.MapPost("/publish-event/{eventName}/{**functionPath}", PublishEvent)
+        // Toutes les méthodes HTTP /publish-event/{eventName}/**
+        app.MapMethods("/publish-event/{eventName}/{**functionPath}",
+            new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
+            PublishEvent)
             .WithName("PublishEvent")
             .Produces(204)
             .Produces(404)
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
 
-        app.MapPost("/publish-event/{eventName}",
+        app.MapMethods("/publish-event/{eventName}",
+            new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
             (string eventName, HttpContext context,
                 ILogger<Event> logger,
                 HistoryHttpMemoryService historyHttpService,
