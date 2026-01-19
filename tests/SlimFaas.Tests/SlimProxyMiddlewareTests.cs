@@ -12,8 +12,10 @@ using SlimFaas.Kubernetes;
 using MemoryPack;
 using SlimData;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Security;
+using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests;
 
@@ -129,8 +131,8 @@ public class ProxyMiddlewareTests
 
     [Theory]
     [InlineData("/publish-event/toto/hello", HttpStatusCode.NotFound, null )]
-    [InlineData("/publish-event/reload/hello", HttpStatusCode.NoContent, "http://fibonacci-2.fibonacci:8080//hello,http://fibonacci-1.fibonacci:8080//hello" )]
-    [InlineData("/publish-event/reloadnoprefix/hello", HttpStatusCode.NoContent,  "http://fibonacci-2.fibonacci:8080//hello,http://fibonacci-1.fibonacci:8080//hello")]
+    [InlineData("/publish-event/reload/hello", HttpStatusCode.NoContent, "http://fibonacci-2.fibonacci:8080/hello,http://fibonacci-1.fibonacci:8080/hello" )]
+    [InlineData("/publish-event/reloadnoprefix/hello", HttpStatusCode.NoContent,  "http://fibonacci-2.fibonacci:8080/hello,http://fibonacci-1.fibonacci:8080/hello")]
     [InlineData("/publish-event/wrong/download", HttpStatusCode.NotFound, null)]
     [InlineData("/publish-event/reloadprivate/hello", HttpStatusCode.NotFound, null)]
     public async Task CallPublishInSyncModeAndReturnOk(string path, HttpStatusCode expected, string? times)
@@ -143,8 +145,8 @@ public class ProxyMiddlewareTests
 
         jobServiceMock
             .Setup(k => k.SyncJobsAsync())
-            .ReturnsAsync(new List<Job>());
-        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
+            .ReturnsAsync(new List<KubernetesJob>());
+        jobServiceMock.Setup(k => k.Jobs).Returns(new List<KubernetesJob>());
         Environment.SetEnvironmentVariable(EnvironmentVariables.BaseFunctionPodUrl, "http://{pod_name}.{function_name}:8080/");
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -161,8 +163,13 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddRouting();
                     })
-                    .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 
@@ -172,7 +179,7 @@ public class ProxyMiddlewareTests
         {
             var functionPath = $"/{path.Split("/")[3]}";
             var timesList = times.Split(",");
-            Assert.Equal(timesList.Length, sendClientMock.SendDatas.Count);
+                Assert.Equal(timesList.Length, sendClientMock.SendDatas.Count);
             foreach (var time in sendClientMock.SendDatas)
             {
                 var p = time.BaseUrl + time.Path;
@@ -202,8 +209,8 @@ public class ProxyMiddlewareTests
         Mock<IJobService> jobServiceMock = new();
         jobServiceMock
             .Setup(k => k.SyncJobsAsync())
-            .ReturnsAsync(new List<Job>());
-        jobServiceMock.Setup(k => k.Jobs).Returns(new List<Job>());
+            .ReturnsAsync(new List<KubernetesJob>());
+        jobServiceMock.Setup(k => k.Jobs).Returns(new List<KubernetesJob>());
 
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -220,8 +227,13 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddRouting();
                     })
-                    .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 
@@ -252,8 +264,13 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddRouting();
                     })
-                    .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 
@@ -286,12 +303,17 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddRouting();
                     })
-                    .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 
-        HttpResponseMessage response = await host.GetTestClient().GetAsync($"http://localhost:5000{path}");
+        HttpResponseMessage response = await host.GetTestClient().PostAsync($"http://localhost:5000{path}", new StringContent(""));
         HistoryHttpMemoryService historyHttpMemoryService =
             host.Services.GetRequiredService<HistoryHttpMemoryService>();
 
@@ -323,8 +345,13 @@ public class ProxyMiddlewareTests
                         services.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddRouting();
                     })
-                    .Configure(app => { app.UseMiddleware<SlimProxyMiddleware>(); });
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 
@@ -333,6 +360,5 @@ public class ProxyMiddlewareTests
         Assert.Equal(expectedBody, body);
         Assert.Equal(expectedHttpStatusCode, response.StatusCode);
     }
-
 
 }

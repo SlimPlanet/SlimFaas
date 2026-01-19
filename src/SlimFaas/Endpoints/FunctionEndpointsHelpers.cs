@@ -24,7 +24,7 @@ public static class FunctionEndpointsHelpers
 
         foreach (var pathStartWith in function.PathsStartWithVisibility)
         {
-            if (path.ToLowerInvariant().StartsWith(pathStartWith.Path))
+            if (GetPathWithoutPrefix(path,"/").ToLowerInvariant().StartsWith(GetPathWithoutPrefix(pathStartWith.Path, "/")))
             {
                 return pathStartWith.Visibility;
             }
@@ -32,6 +32,18 @@ public static class FunctionEndpointsHelpers
         }
         return function.Visibility;
     }
+
+
+    public static string GetPathWithoutPrefix(string functionPath, string prefix)
+    {
+        if (functionPath.StartsWith(prefix, StringComparison.InvariantCultureIgnoreCase))
+        {
+            return functionPath[prefix.Length..];
+        }
+        return functionPath;
+    }
+
+
 
     public static bool MessageComeFromNamespaceInternal(
         ILogger logger,

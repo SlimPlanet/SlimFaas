@@ -7,9 +7,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
+using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Jobs;
 
@@ -40,8 +42,13 @@ public class JobEndpointsTests
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddRouting();
                     })
-                    .Configure(app => app.UseMiddleware<SlimProxyMiddleware>());
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 
@@ -67,7 +74,7 @@ public class JobEndpointsTests
                     It.IsAny<bool>()))
                 .ReturnsAsync(new ResultWithError<EnqueueJobResult>(null, new ErrorResult("key")));
             jobServiceMock.SetupGet(s => s.Jobs)
-                .Returns(new List<Job>());
+                .Returns(new List<KubernetesJob>());
         });
 
         HttpResponseMessage resp = await host.GetTestClient()
@@ -129,7 +136,7 @@ public class JobEndpointsTests
         {
             jobServiceMock.Setup(s => s.DeleteJobAsync("daisy", jobId, false))
                 .ReturnsAsync(deleteSucceeded);
-            jobServiceMock.Setup(s => s.Jobs).Returns(new List<Job>());
+            jobServiceMock.Setup(s => s.Jobs).Returns(new List<KubernetesJob>());
         });
 
         HttpResponseMessage resp = await host.GetTestClient()

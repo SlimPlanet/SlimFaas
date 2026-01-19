@@ -10,7 +10,7 @@ public interface IJobConfiguration
 
 public class JobConfiguration : IJobConfiguration
 {
-    public const string Default = "default";
+    public const string Default = "Default";
 
     public SlimFaasJobConfiguration Configuration { get; }
 

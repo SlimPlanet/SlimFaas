@@ -9,10 +9,13 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using SlimFaas;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
-using SlimFaas.Tests;
+using KubernetesJob = SlimFaas.Kubernetes.Job;
+
+namespace SlimFaas.Tests;
 
 // === Services de réplicas dédiés aux scénarios de timing ===
 internal class NeverReadyReplicasService : IReplicasService
@@ -134,13 +137,13 @@ public class ProxyMiddlewareTimeoutReadyTests
     public async Task Sync_TimesOut_When_No_Pod_Ready_After_2s()
     {
         // HttpTimeout = 20 -> ~ 2 secondes dans WaitForAnyPodStartedAsync
-        var replicas = new NeverReadyReplicasService(httpTimeoutTenthsSeconds: 2);
-        var sendClient = new SendClientGatewayTimeout();
+        var replicas = new NeverReadyReplicasService(httpTimeoutTenthsSeconds: 20);
+        var sendClient = new SendClientMock();
 
         var wakeUpFunctionMock = new Mock<IWakeUpFunction>();
         var jobServiceMock = new Mock<IJobService>();
-        jobServiceMock.Setup(j => j.SyncJobsAsync()).ReturnsAsync(new List<Job>());
-        jobServiceMock.Setup(j => j.Jobs).Returns(new List<Job>());
+        jobServiceMock.Setup(j => j.SyncJobsAsync()).ReturnsAsync(new List<KubernetesJob>());
+        jobServiceMock.Setup(j => j.Jobs).Returns(new List<KubernetesJob>());
 
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -157,8 +160,13 @@ public class ProxyMiddlewareTimeoutReadyTests
                         s.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddRouting();
                     })
-                    .Configure(app => app.UseMiddleware<SlimProxyMiddleware>());
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 
@@ -186,8 +194,8 @@ public class ProxyMiddlewareFlipReadyTests
 
         var wakeUpFunctionMock = new Mock<IWakeUpFunction>();
         var jobServiceMock = new Mock<IJobService>();
-        jobServiceMock.Setup(j => j.SyncJobsAsync()).ReturnsAsync(new List<Job>());
-        jobServiceMock.Setup(j => j.Jobs).Returns(new List<Job>());
+        jobServiceMock.Setup(j => j.SyncJobsAsync()).ReturnsAsync(new List<KubernetesJob>());
+        jobServiceMock.Setup(j => j.Jobs).Returns(new List<KubernetesJob>());
 
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -204,8 +212,13 @@ public class ProxyMiddlewareFlipReadyTests
                         s.AddSingleton<IWakeUpFunction>(sp => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(sp => jobServiceMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddRouting();
                     })
-                    .Configure(app => app.UseMiddleware<SlimProxyMiddleware>());
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 

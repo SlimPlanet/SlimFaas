@@ -15,7 +15,7 @@ public record FunctionStatus(
     int NumberRequested,
     string PodType,
     string Visibility,
-    string FunctionName);
+    string Name);
 
 /// <summary>
 /// Contexte de sérialisation JSON pour FunctionStatus (compatible AOT)
