@@ -16,6 +16,9 @@ public static class EnvironmentVariables
     public const string SlimJobsWorkerDelayMilliseconds = "SLIM_JOBS_WORKER_DELAY_MILLISECONDS";
     public const int SlimJobsWorkerDelayMillisecondsDefault = 1000;
 
+    public const string SlimJobsConfigurationWorkerDelayMilliseconds = "SLIM_JOBS_CONFIGURATION_WORKER_DELAY_MILLISECONDS";
+    public const int SlimJobsConfigurationWorkerDelayMillisecondsDefault = 1000;
+
     public const string BaseSlimDataUrl = "BASE_SLIMDATA_URL";
     public const string BaseSlimDataUrlDefault = "http://{pod_name}.{service_name}.{namespace}.svc:3262";
 

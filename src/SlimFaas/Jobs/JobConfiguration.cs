@@ -5,17 +5,28 @@ namespace SlimFaas.Jobs;
 
 public interface IJobConfiguration
 {
-    SlimFaasJobConfiguration Configuration { get; }
+    SlimFaasJobConfiguration Configuration { get; set; }
+
+    Task SyncJobsConfigurationAsync();
 }
 
 public class JobConfiguration : IJobConfiguration
 {
     public const string Default = "Default";
 
-    public SlimFaasJobConfiguration Configuration { get; }
 
+    private SlimFaasJobConfiguration _configuration;
+    public SlimFaasJobConfiguration Configuration
+    {
+        get => _configuration;
+        set => _configuration = value;
+    }
+    private readonly IKubernetesService _service;
 
-    public JobConfiguration(string? json = null)
+    private readonly string _namespace = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
+                                         EnvironmentVariables.NamespaceDefault;
+
+    public JobConfiguration(IKubernetesService kubernetesService, string? json = null)
     {
         SlimFaasJobConfiguration? slimfaasJobConfiguration = null;
         Dictionary<string, string> resources = new();
@@ -70,6 +81,15 @@ public class JobConfiguration : IJobConfiguration
             }
         }
 
-        Configuration = slimfaasJobConfiguration;
+        _configuration = slimfaasJobConfiguration;
+        _service = kubernetesService;
+    }
+
+    public async Task SyncJobsConfigurationAsync()
+    {
+        var configuration = await _service.ListJobsConfigurationAsync(_namespace);
+
+        if (configuration != null)
+            Interlocked.Exchange(ref _configuration, configuration);
     }
 }

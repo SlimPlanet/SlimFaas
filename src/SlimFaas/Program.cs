@@ -56,6 +56,7 @@ ServiceCollection serviceCollectionStarter = new();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
 serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
+serviceCollectionStarter.AddSingleton<IJobConfiguration, JobConfiguration>();
 
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json")
@@ -128,7 +129,7 @@ switch (envOrConfig)
         serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>(sp =>
         {
             bool useKubeConfig = bool.Parse(configuration["UseKubeConfig"] ?? "false");
-            return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig);
+            return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig, sp.GetRequiredService<IJobConfiguration>());
         });
         break;
 }
@@ -179,6 +180,7 @@ serviceCollectionSlimFaas.AddSingleton<AutoScaler>(sp =>
 serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimScheduleJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimJobsWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimJobsConfigurationWorker>();
 serviceCollectionSlimFaas.AddHostedService<ScaleReplicasWorker>();
 
 serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
@@ -207,7 +209,8 @@ serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
     serviceProviderStarter.GetService<IKubernetesService>()!);
 serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
-serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
+serviceCollectionSlimFaas.AddSingleton<IJobConfiguration>(sp =>
+    serviceProviderStarter.GetService<IJobConfiguration>()!);
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
 serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
 

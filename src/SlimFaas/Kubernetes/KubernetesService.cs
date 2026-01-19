@@ -7,6 +7,7 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 using MemoryPack;
+using SlimFaas.Jobs;
 
 namespace SlimFaas.Kubernetes;
 
@@ -287,10 +288,10 @@ public class KubernetesService : IKubernetesService
     public const string SlimfaasJobKey = "-slimfaas-job-";
     private readonly k8s.Kubernetes _client;
     private readonly ILogger<KubernetesService> _logger;
+    private IJobConfiguration _jobConfiguration;
     private bool _serviceListForbidden;
-    private SlimFaasJobConfiguration? _jobConfiguration;
 
-    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
+    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig, IJobConfiguration jobConfiguration)
     {
         _logger = logger;
         KubernetesClientConfiguration k8SConfig = !useKubeConfig
@@ -298,6 +299,7 @@ public class KubernetesService : IKubernetesService
             : KubernetesClientConfiguration.BuildConfigFromConfigFile();
         k8SConfig.SkipTlsVerify = true;
         _client = new k8s.Kubernetes(k8SConfig);
+        _jobConfiguration = jobConfiguration;
     }
 
     private async Task<V1ServiceList?> TryListServicesAsync(string kubeNamespace)
@@ -508,13 +510,11 @@ public class KubernetesService : IKubernetesService
             Task<V1PodList>? podListTask = client.ListNamespacedPodAsync(kubeNamespace);
             Task<V1StatefulSetList>? statefulSetListTask = client.ListNamespacedStatefulSetAsync(kubeNamespace);
             Task<V1ServiceList?> serviceListTask = TryListServicesAsync(kubeNamespace);
-            Task<V1CronJobList>? cronJobListTask = client.ListNamespacedCronJobAsync(kubeNamespace);
 
-            await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask, serviceListTask, cronJobListTask);
+            await Task.WhenAll(deploymentListTask, podListTask, statefulSetListTask, serviceListTask);
             V1DeploymentList? deploymentList = await deploymentListTask;
             IEnumerable<PodInformation> podList = MapPodInformations(await podListTask, await serviceListTask, _logger);
             V1StatefulSetList? statefulSetList = await statefulSetListTask;
-            V1CronJobList? cronJobList = await cronJobListTask;
 
             SlimFaasDeploymentInformation? slimFaasDeploymentInformation = statefulSetList.Items
                 .Where(deploymentListItem => deploymentListItem.Metadata.Name == SlimfaasDeploymentName).Select(
@@ -522,9 +522,6 @@ public class KubernetesService : IKubernetesService
                         new SlimFaasDeploymentInformation(deploymentListItem.Spec.Replicas ?? 0,
                             podList.Where(p => p.DeploymentName == deploymentListItem.Metadata.Name).ToList()))
                 .FirstOrDefault();
-
-            SlimFaasJobConfiguration? slimfaasJobConfiguration = ExtractJobConfigurations(cronJobList);
-            Interlocked.Exchange(ref _jobConfiguration, slimfaasJobConfiguration);
 
             IEnumerable<PodInformation> podInformations = podList.ToArray();
             await AddDeployments(kubeNamespace, deploymentList, podInformations, deploymentInformationList, _logger,
@@ -540,6 +537,25 @@ public class KubernetesService : IKubernetesService
         {
             _logger.LogError(e, "Error while listing kubernetes functions");
             return previousDeployments;
+        }
+    }
+
+        public async Task<SlimFaasJobConfiguration?> ListJobsConfigurationAsync(string kubeNamespace)
+    {
+        try
+        {
+            k8s.Kubernetes client = _client;
+
+            Task<V1CronJobList>? cronJobListTask = client.ListNamespacedCronJobAsync(kubeNamespace);
+
+            V1CronJobList? cronJobList = await cronJobListTask;
+
+            return ExtractJobConfigurations(cronJobList);
+        }
+        catch (HttpOperationException e)
+        {
+            _logger.LogError(e, "Error while listing kubernetes cron jobs");
+            return null;
         }
     }
 
@@ -1252,7 +1268,7 @@ public class KubernetesService : IKubernetesService
         return result;
     }
 
-        private static SlimFaasJobConfiguration ExtractJobConfigurations(V1CronJobList cronJobList)
+        private static SlimFaasJobConfiguration? ExtractJobConfigurations(V1CronJobList cronJobList)
     {
         Dictionary<string, SlimfaasJob> jobs = new();
 
@@ -1334,7 +1350,14 @@ public class KubernetesService : IKubernetesService
             Console.WriteLine(jobs[name]);
         }
 
+        if (jobs.Count != 0)
+        {
+            return new SlimFaasJobConfiguration(jobs);
+        }
 
-        return new SlimFaasJobConfiguration(jobs);
+        Console.WriteLine("No SlimFaas job configurations found in the cluster.");
+        return null;
+
+
     }
 }
