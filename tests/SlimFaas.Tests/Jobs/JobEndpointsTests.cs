@@ -11,6 +11,7 @@ using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
+using SlimFaas.Tests.Endpoints;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Jobs;
