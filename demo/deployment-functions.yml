@@ -166,7 +166,7 @@ spec:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
         SlimFaas/SubscribeEvents: "fibo-public"
-        SlimFaas/ReplicasAtStart: "2"
+        SlimFaas/ReplicasAtStart: "1"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
         prometheus.io/scrape: 'true'
