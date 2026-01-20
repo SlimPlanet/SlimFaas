@@ -14,6 +14,7 @@ using SlimData.Expiration;
 using SlimFaas;
 using SlimFaas.Configuration;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -492,7 +493,8 @@ app.MapDataSetRoutes();
 app.MapDataFileRoutes();
 app.MapDebugRoutes();
 
-app.UseMiddleware<SlimProxyMiddleware>();
+// Map SlimFaas endpoints (remplace SlimProxyMiddleware)
+app.MapSlimFaasEndpoints();
 
 app.Use(async (context, next) =>
 {

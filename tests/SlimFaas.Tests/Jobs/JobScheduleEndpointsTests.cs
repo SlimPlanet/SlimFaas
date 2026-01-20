@@ -1,4 +1,4 @@
-﻿using System.Net;
+﻿﻿using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -7,9 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
+using SlimFaas.Tests.Endpoints;
+using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Jobs;
 
@@ -27,7 +30,7 @@ public class JobScheduleEndpointsTests
         Mock<IWakeUpFunction> wakeUpFunctionMock = new();
         setupScheduleSvc(scheduleSvcMock);
         jobServiceMock.SetupGet(s => s.Jobs)
-            .Returns(new List<Job>());
+            .Returns(new List<KubernetesJob>());
 
         IHost host = await new HostBuilder()
             .ConfigureWebHost(builder =>
@@ -48,8 +51,13 @@ public class JobScheduleEndpointsTests
                         // Les dépendances inutilisées dans ces scénarios peuvent être omises
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddRouting();
                     })
-                    .Configure(app => app.UseMiddleware<SlimProxyMiddleware>());
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
             })
             .StartAsync();
 

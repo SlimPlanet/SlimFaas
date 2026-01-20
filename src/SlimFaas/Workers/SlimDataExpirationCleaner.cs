@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using DotNext;
-using Microsoft.Extensions.Logging;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
 using SlimFaas;

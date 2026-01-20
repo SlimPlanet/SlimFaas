@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Primitives;
+﻿using System.Text;
+using Microsoft.Extensions.Primitives;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
@@ -196,7 +197,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
                throw new Exception("Not port or IP available");
            }
 
-           string url = functionUrl.Replace("{pod_ip}", ip) + customRequestPath + customRequestQuery;
+           string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), customRequestPath + customRequestQuery).ToString();
            if (ports is { Count: > 0 })
            {
                url = url.Replace("{pod_port}", ports[0].ToString());
@@ -217,6 +218,27 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger) : ISe
         return functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas) + customRequestPath +
                customRequestQuery;
     }
+
+    public static string CombinePaths(string baseUrl, params string[] segments)
+    {
+        var builder = new StringBuilder(baseUrl.TrimEnd('/'));
+
+        foreach (var segment in segments)
+        {
+            if (!string.IsNullOrEmpty(segment))
+            {
+                var cleanSegment = segment.Trim('/');
+                if (!string.IsNullOrEmpty(cleanSegment))
+                {
+                    builder.Append('/');
+                    builder.Append(cleanSegment);
+                }
+            }
+        }
+
+        return builder.ToString();
+    }
+
 
     private HttpRequestMessage CreateTargetMessage(HttpContext context, Uri targetUri)
     {
