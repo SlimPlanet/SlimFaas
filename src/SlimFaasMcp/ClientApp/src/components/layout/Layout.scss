@@ -1,0 +1,27 @@
+.layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.layout__main {
+  flex: 1;
+  padding-top: 14px;
+  padding-bottom: 22px;
+}
+
+.layout__footer {
+  border-top: 1px solid var(--sf-border);
+  background: rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(10px);
+}
+
+.layout__footer-inner {
+  padding: 14px 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.layout__footer-text {
+  font-size: 13px;
+}

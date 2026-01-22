@@ -1,22 +1,33 @@
 {
-  "name": "slimfaas-mcp",
+  "name": "clientapp",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc -b && vite build",
     "preview": "vite preview"
   },
-  "devDependencies": {
-    "vite": "^7.1.6"
-  },
   "dependencies": {
-    "@langchain/langgraph": "^0.4.9",
-    "@langchain/mcp-adapters": "^0.6.0",
-    "@langchain/openai": "^0.6.13",
-    "dompurify": "^3.2.7",
-    "highlight.js": "^11.11.1",
-    "marked": "^16.3.0"
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-router-dom": "7.12.0",
+    "js-yaml": "4.1.1",
+    "marked": "17.0.1",
+    "dompurify": "3.3.1",
+    "highlight.js": "11.11.1",
+    "@langchain/langgraph": "*",
+    "@langchain/mcp-adapters": "1.1.1",
+    "@langchain/openai": "1.2.0"
+  },
+  "devDependencies": {
+    "@types/dompurify": "3.2.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "sass": "1.97.2",
+    "typescript": "5.9.3",
+    "vite": "7.3.1",
+    "@vitejs/plugin-react": "^5.0.0"
   }
 }

@@ -1,0 +1,21 @@
+:root {
+  /* Inspired by slimfaas.dev (blue + dark surfaces) */
+  --sf-bg: #0b1220;
+  --sf-surface: #0f1a2e;
+  --sf-surface-2: #122140;
+  --sf-border: rgba(255, 255, 255, 0.10);
+  --sf-text: rgba(255, 255, 255, 0.92);
+  --sf-text-dim: rgba(255, 255, 255, 0.68);
+  --sf-primary: #2b68ff;
+  --sf-primary-2: #50b6ff;
+  --sf-success: #2dd4bf;
+  --sf-danger: #fb7185;
+  --sf-warning: #fbbf24;
+
+  --sf-radius: 14px;
+  --sf-radius-sm: 10px;
+  --sf-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+
+  --sf-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --sf-sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
