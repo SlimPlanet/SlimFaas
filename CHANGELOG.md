@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.60.5
+
+- [7d4bf1dd](https://github.com/SlimPlanet/SlimFaas/commit/7d4bf1dd4f4cbe3a3261fc57b179e76ad9b73ba5) - fix(slimfaas): cast invalid (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.4
+
+
+
 ## v0.60.4
 
 - [ffe36aa8](https://github.com/SlimPlanet/SlimFaas/commit/ffe36aa8bf3fb3657d3be51c0800800170a8e78f) - fix(slimfaas): resolve dependency (release), 2026-01-23 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 ## v0.49.0
 
 - [e95c9f61](https://github.com/SlimPlanet/SlimFaas/commit/e95c9f611364a65eb4d688f9e26eba60b8a4f95d) - feat(mcp): log http action input (release) (#193), 2025-12-01 by *Guillaume Chervet*
-
-
-## 0.48.1
-
-
-
-## v0.48.1
-
-- [ed6129fe](https://github.com/SlimPlanet/SlimFaas/commit/ed6129fe6d8acd678afb2ff20fe71ce84631925a) - fix(doc): update kafka.md (release), 2025-11-29 by *Guillaume Chervet*
 
 
