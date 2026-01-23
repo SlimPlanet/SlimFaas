@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.60.1
+
+- [cf04582a](https://github.com/SlimPlanet/SlimFaas/commit/cf04582a86c16475c2c649f80907615ad60eb6a2) - fix(slimfaas): upgrade kubernetes libraries (#224) (release), 2026-01-23 by *Guillaume Chervet*
+- [6595bf8a](https://github.com/SlimPlanet/SlimFaas/commit/6595bf8abb6c68b66272c7e79df4e3e57e1c33e4) - refactor(slimfaas): minimalapi (#219), 2026-01-20 by *Guillaume Chervet*
+
+
+## 0.60.0
+
+
+
 ## v0.60.0
 
 - [5245e5f9](https://github.com/SlimPlanet/SlimFaas/commit/5245e5f9b17864ab98d88adada616a652d213bf7) - feat(slimfaas): data set api (#216) (release), 2026-01-11 by *Guillaume Chervet*
@@ -263,14 +273,5 @@
 ## v0.47.0
 
 - [9d92252d](https://github.com/SlimPlanet/SlimFaas/commit/9d92252de5c41c632c4f1c69e4b2602e77fcb5ac) - feat(slimfaaskafka): add slimfaas kafka (#190) (release), 2025-11-27 by *Guillaume Chervet*
-
-
-## 0.46.0
-
-
-
-## v0.46.0
-
-- [072fd86b](https://github.com/SlimPlanet/SlimFaas/commit/072fd86bfae0527b969615a4ac3c6c851cd785d0) - feat(slimfaas): NumberParallelRequestPerPod (#189) (release), 2025-11-25 by *Guillaume Chervet*
 
 
