@@ -253,7 +253,7 @@ public class Endpoints
             Command = new() { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId },
         };
         await SafeReplicateAsync(cluster, logEntry, source.Token);
-        /*await Task.Delay(2, source.Token);
+        await Task.Delay(2, source.Token);
 
         var supplier = (ISupplier<SlimDataPayload>)provider;
         int numberTry = 10;
@@ -286,7 +286,7 @@ public class Endpoints
                 await Task.Delay(delayMs, source.Token);
                 delayMs = Math.Min(100, delayMs * 2);
             }
-        }*/
+        }
 
         return values;
     }
