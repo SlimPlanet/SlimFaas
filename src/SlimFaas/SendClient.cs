@@ -70,8 +70,6 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
         logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}",
             functionName, functionPath, functionQuery);
 
-        httpContext.Request.EnableBuffering(bufferThreshold: 1024 * 100, bufferLimit: 200 * 1024 * 1024);
-
         using var localCancellationToken = new CancellationTokenSource(
             TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout));
 
@@ -81,10 +79,8 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
 
         var finalToken = linkedTokenSource.Token;
 
-        HttpResponseMessage responseMessage = await Retry.DoRequestAsync(async () =>
-            {
-                if (httpContext.Request.Body.CanSeek)
-                    httpContext.Request.Body.Position = 0;
+        //HttpResponseMessage responseMessage = await Retry.DoRequestAsync(async () =>
+           // {
 
                 string targetUrl = await ComputeTargetUrlAsync(
                     baseUrl ?? _baseFunctionUrl,
@@ -102,12 +98,12 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
                     targetRequestMessage,
                     HttpCompletionOption.ResponseHeadersRead,
                     finalToken);
-            },
-            logger,
-            slimFaasDefaultConfiguration.TimeoutRetries,
-            slimFaasDefaultConfiguration.HttpStatusRetries).ConfigureAwait(false);
+           // },
+           // logger,
+           // slimFaasDefaultConfiguration.TimeoutRetries,
+           // slimFaasDefaultConfiguration.HttpStatusRetries).ConfigureAwait(false);
 
-        return responseMessage;
+       // return responseMessage;
     }
     catch (Exception e)
     {
@@ -279,50 +275,23 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
         return requestMessage;
     }
 
-    private static readonly HashSet<string> SkipHeaders = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "Host",
-        "Content-Length",
-        "Connection",
-        "Proxy-Connection",
-        "Keep-Alive",
-        "Transfer-Encoding",
-        "TE",
-        "Trailer",
-        "Upgrade"
-    };
-
     private void CopyFromOriginalRequestContentAndHeaders(HttpContext context, HttpRequestMessage requestMessage)
     {
-        var req = context.Request;
+        string requestMethod = context.Request.Method;
+        context.Request.EnableBuffering(bufferThreshold: 1024 * 100, bufferLimit: 200 * 1024 * 1024);
 
-        string method = req.Method;
-
-        if (!HttpMethods.IsGet(method) &&
-            !HttpMethods.IsHead(method) &&
-            !HttpMethods.IsDelete(method) &&
-            !HttpMethods.IsTrace(method))
+        if (!HttpMethods.IsGet(requestMethod) &&
+            !HttpMethods.IsHead(requestMethod) &&
+            !HttpMethods.IsDelete(requestMethod) &&
+            !HttpMethods.IsTrace(requestMethod))
         {
-            // Body position is managed outside (before each attempt)
-            requestMessage.Content = new StreamContent(req.Body);
-
-            // Content-Type (safe)
-            if (!string.IsNullOrWhiteSpace(req.ContentType))
-                requestMessage.Content.Headers.TryAddWithoutValidation("Content-Type", req.ContentType);
-
-            // NE PAS copier Content-Length à la main
+            StreamContent streamContent = new(context.Request.Body);
+            requestMessage.Content = streamContent;
         }
 
-        foreach (var header in req.Headers)
+        foreach (KeyValuePair<string, StringValues> header in context.Request.Headers)
         {
-            if (SkipHeaders.Contains(header.Key))
-                continue;
-
-            // Try request headers first, fallback to content headers
-            if (!requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray()))
-            {
-                requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
-            }
+            requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
         }
     }
 

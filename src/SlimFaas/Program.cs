@@ -143,9 +143,6 @@ serviceCollectionStarter.AddSingleton<PromQlMiniEvaluator>(sp =>
     var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
     return new PromQlMiniEvaluator(store.Snapshot);
 });
-serviceCollectionStarter.AddMemoryCache();
-serviceCollectionStarter.AddSingleton<FunctionStatusCache>();
-serviceCollectionStarter.AddSingleton<WakeUpGate>();
 
 // Store d’historique de décisions de scaling
 serviceCollectionStarter.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
@@ -214,6 +211,9 @@ serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
 serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+serviceCollectionSlimFaas.AddMemoryCache();
+serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
+serviceCollectionSlimFaas.AddSingleton<WakeUpGate>();
 
 builder.Services
     .AddOptions<DataOptions>()
