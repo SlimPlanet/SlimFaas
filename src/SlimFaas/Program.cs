@@ -143,6 +143,9 @@ serviceCollectionStarter.AddSingleton<PromQlMiniEvaluator>(sp =>
     var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
     return new PromQlMiniEvaluator(store.Snapshot);
 });
+serviceCollectionStarter.AddMemoryCache();
+serviceCollectionStarter.AddSingleton<FunctionStatusCache>();
+serviceCollectionStarter.AddSingleton<WakeUpGate>();
 
 // Store d’historique de décisions de scaling
 serviceCollectionStarter.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
