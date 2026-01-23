@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.60.4
+
+- [ffe36aa8](https://github.com/SlimPlanet/SlimFaas/commit/ffe36aa8bf3fb3657d3be51c0800800170a8e78f) - fix(slimfaas): resolve dependency (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.3
+
+
+
 ## v0.60.3
 
 - [2cfc20d5](https://github.com/SlimPlanet/SlimFaas/commit/2cfc20d50dbcf5d6930e0225ddeaea27b997a9ad) - fix(cpu): remove sync function retry temporaly (release), 2026-01-23 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 ## v0.48.1
 
 - [ed6129fe](https://github.com/SlimPlanet/SlimFaas/commit/ed6129fe6d8acd678afb2ff20fe71ce84631925a) - fix(doc): update kafka.md (release), 2025-11-29 by *Guillaume Chervet*
-
-
-## 0.48.0
-
-
-
-## v0.48.0
-
-- [d4da9c27](https://github.com/SlimPlanet/SlimFaas/commit/d4da9c27ea3d7ca8ff7650adfaaa9406d70e1c51) - feat(slimfaas): autoscale down rule (#192) (release), 2025-11-29 by *Guillaume Chervet*
 
 
