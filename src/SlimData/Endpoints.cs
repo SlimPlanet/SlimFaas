@@ -99,6 +99,9 @@ public class Endpoints
 
     public static async Task DoAsync(HttpContext context, RespondDelegate respondDelegate)
     {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("SlimData.Endpoints");
+        
         var slimDataInfo = context.RequestServices.GetRequiredService<SlimDataInfo>();
         int[] currentPorts = [context.Connection.LocalPort, context.Request.Host.Port ?? 0];
 
@@ -134,7 +137,7 @@ public class Endpoints
         }
         catch (Exception e)
         {
-            Console.WriteLine("Unexpected error {0}", e);
+            logger.LogError(e, "Unexpected error on {Path}", context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         }
         finally
@@ -250,7 +253,7 @@ public class Endpoints
             Command = new() { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId },
         };
         await SafeReplicateAsync(cluster, logEntry, source.Token);
-        await Task.Delay(2, source.Token);
+        /*await Task.Delay(2, source.Token);
 
         var supplier = (ISupplier<SlimDataPayload>)provider;
         int numberTry = 10;
@@ -279,7 +282,7 @@ public class Endpoints
             {
                 Console.WriteLine("Unexpected error {0}", ex);
             }
-        }
+        }*/
 
         return values;
     }
