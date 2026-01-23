@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.60.2
+
+- [59fb280e](https://github.com/SlimPlanet/SlimFaas/commit/59fb280e035b60439e52db70e878ce94c70f4d40) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+- [fc8bc7dd](https://github.com/SlimPlanet/SlimFaas/commit/fc8bc7dd134ba1157633d0cb3d56c11b0f45f96b) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+- [aeede916](https://github.com/SlimPlanet/SlimFaas/commit/aeede91641dddeb4e72fa27ad5da4ca5eb091792) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.1
+
+
+
 ## v0.60.1
 
 - [cf04582a](https://github.com/SlimPlanet/SlimFaas/commit/cf04582a86c16475c2c649f80907615ad60eb6a2) - fix(slimfaas): upgrade kubernetes libraries (#224) (release), 2026-01-23 by *Guillaume Chervet*
@@ -264,14 +275,5 @@
 ## v0.47.1
 
 - [baf622bf](https://github.com/SlimPlanet/SlimFaas/commit/baf622bf3ab8e8bcba638d8cb9dc2ce90031306b) - fix(slimfaas): startup node reboot raft (#191) (release), 2025-11-28 by *Guillaume Chervet*
-
-
-## 0.47.0
-
-
-
-## v0.47.0
-
-- [9d92252d](https://github.com/SlimPlanet/SlimFaas/commit/9d92252de5c41c632c4f1c69e4b2602e77fcb5ac) - feat(slimfaaskafka): add slimfaas kafka (#190) (release), 2025-11-27 by *Guillaume Chervet*
 
 
