@@ -202,7 +202,7 @@ export default function ChatPage() {
 
                     {m.who === "bot" ? (
                       <div
-                        className="msg__content"
+                          className="msg__content sf-markdown"
                         dangerouslySetInnerHTML={{ __html: m.safeHtml }}
                       />
                     ) : (
