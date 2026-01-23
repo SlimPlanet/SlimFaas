@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.60.3
+
+- [2cfc20d5](https://github.com/SlimPlanet/SlimFaas/commit/2cfc20d50dbcf5d6930e0225ddeaea27b997a9ad) - fix(cpu): remove sync function retry temporaly (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.2
+
+
+
 ## v0.60.2
 
 - [59fb280e](https://github.com/SlimPlanet/SlimFaas/commit/59fb280e035b60439e52db70e878ce94c70f4d40) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 ## v0.48.0
 
 - [d4da9c27](https://github.com/SlimPlanet/SlimFaas/commit/d4da9c27ea3d7ca8ff7650adfaaa9406d70e1c51) - feat(slimfaas): autoscale down rule (#192) (release), 2025-11-29 by *Guillaume Chervet*
-
-
-## 0.47.1
-
-
-
-## v0.47.1
-
-- [baf622bf](https://github.com/SlimPlanet/SlimFaas/commit/baf622bf3ab8e8bcba638d8cb9dc2ce90031306b) - fix(slimfaas): startup node reboot raft (#191) (release), 2025-11-28 by *Guillaume Chervet*
 
 
