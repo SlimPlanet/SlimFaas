@@ -10,6 +10,8 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
 {
     private sealed record Kind
     {
+        public int QueueLength;      // Interlocked
+        public int ArrivalsCount;
         public required string Name;
         public required Func<IReadOnlyList<object>, CancellationToken, Task<IReadOnlyList<object>>> Handler;
         public required List<RateTier> Tiers;
@@ -98,11 +100,12 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         if (!_kinds.TryGetValue(kind, out var k))
             throw new KeyNotFoundException($"Kind '{kind}' is not registered.");
 
-        if (k.MaxQueueLength > 0 && k.Queue.Count >= k.MaxQueueLength)
+        if (k.MaxQueueLength > 0 && Volatile.Read(ref k.QueueLength) >= k.MaxQueueLength)
             throw new InvalidOperationException($"Queue '{kind}' is full");
 
         var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
         k.Queue.Enqueue((request!, tcs));
+        Interlocked.Increment(ref k.QueueLength);
         RecordArrival(k);
 
         StartWorkerIfNeeded();
@@ -227,6 +230,7 @@ private async Task LoopAsync(CancellationToken ct)
 
                 // Ok, on peut ajouter cet élément
                 ksel.Queue.TryDequeue(out var accepted);
+                Interlocked.Decrement(ref ksel.QueueLength);
                 batch.Add(accepted);
                 usedBytes += sz;
             }
@@ -237,7 +241,6 @@ private async Task LoopAsync(CancellationToken ct)
             try
             {
                 var reqs = batch.Select(b => b.req).ToList();
-                Console.WriteLine($"[Batch] kind={ksel.Name} count={batch.Count} bytes~{usedBytes} at {DateTime.UtcNow:O}");
                 var results = await ksel.Handler(reqs, ct).ConfigureAwait(false);
                 if (results.Count != batch.Count)
                     throw new InvalidOperationException("Batch handler must return as many results as inputs.");
@@ -274,13 +277,14 @@ private async Task LoopAsync(CancellationToken ct)
     private static void RecordArrival(Kind k)
     {
         k.Arrivals.Enqueue(Stopwatch.GetTimestamp());
+        Interlocked.Increment(ref k.ArrivalsCount);
         PruneArrivals(k);
     }
 
     private static int ComputeRatePerMinute(Kind k)
     {
         PruneArrivals(k);
-        return k.Arrivals.Count;
+        return Math.Max(0, Volatile.Read(ref k.ArrivalsCount));
     }
 
     private static TimeSpan ComputeDelayFromRatePerMinute(Kind k)
@@ -301,7 +305,11 @@ private async Task LoopAsync(CancellationToken ct)
         var windowTicks = Stopwatch.Frequency * 60L;
         while (k.Arrivals.TryPeek(out var ts))
         {
-            if ((now - ts) > windowTicks) k.Arrivals.TryDequeue(out _);
+            if ((now - ts) > windowTicks)
+            {
+                if (k.Arrivals.TryDequeue(out _))
+                    Interlocked.Decrement(ref k.ArrivalsCount);
+            }
             else break;
         }
     }
