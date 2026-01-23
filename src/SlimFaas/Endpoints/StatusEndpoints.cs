@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Endpoints;
-
-
 
 public static class StatusEndpoints
 {

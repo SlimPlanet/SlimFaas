@@ -21,7 +21,7 @@ public sealed class FunctionStatusCache
             // Evite ToList si tu peux (array direct)
             return deployments.Functions
                 .Select(FunctionEndpointsHelpers.MapToFunctionStatus)
-                .ToArray();
+                .ToList();
         })!;
     }
 
