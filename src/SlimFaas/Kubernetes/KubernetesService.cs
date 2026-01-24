@@ -288,10 +288,9 @@ public class KubernetesService : IKubernetesService
     public const string SlimfaasJobKey = "-slimfaas-job-";
     private readonly k8s.Kubernetes _client;
     private readonly ILogger<KubernetesService> _logger;
-    private IJobConfiguration _jobConfiguration;
     private bool _serviceListForbidden;
 
-    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig, IJobConfiguration jobConfiguration)
+    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
     {
         _logger = logger;
         KubernetesClientConfiguration k8SConfig = !useKubeConfig
@@ -299,7 +298,6 @@ public class KubernetesService : IKubernetesService
             : KubernetesClientConfiguration.BuildConfigFromConfigFile();
         k8SConfig.SkipTlsVerify = true;
         _client = new k8s.Kubernetes(k8SConfig);
-        _jobConfiguration = jobConfiguration;
     }
 
     private async Task<V1ServiceList?> TryListServicesAsync(string kubeNamespace)
