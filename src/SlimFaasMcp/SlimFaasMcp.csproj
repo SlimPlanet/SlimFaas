@@ -21,6 +21,53 @@
       <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.14.0" />
       <PackageReference Include="Yaml2JsonNode" Version="2.2.0" />
     </ItemGroup>
+  
+  <!-- Ajoute ceci dans ton .csproj -->
+  <PropertyGroup>
+    <!-- adapte le chemin si besoin -->
+    <ClientAppDir>$(MSBuildProjectDirectory)\ClientApp</ClientAppDir>
+  </PropertyGroup>
+
+  <Target Name="BuildClientApp" BeforeTargets="Publish;Build">
+    <Message Importance="high" Text="Building ClientApp (npm run build)..." />
+    <Exec WorkingDirectory="$(ClientAppDir)" Command="npm ci" />
+    <Exec WorkingDirectory="$(ClientAppDir)" Command="npm run build" />
+  </Target>
+
+  <Target Name="CopyClientAppToWwwroot" AfterTargets="BuildClientApp" BeforeTargets="Publish">
+    <ItemGroup>
+      <_ClientDist Include="$(ClientAppDir)\dist\**\*" />
+    </ItemGroup>
+
+    <!-- Nettoie wwwroot puis copie le dist -->
+    <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot" />
+    <Copy SourceFiles="@(_ClientDist)"
+          DestinationFiles="@(_ClientDist->'$(MSBuildProjectDirectory)\wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- DEBUG (F5) : build front avant le démarrage -->
+  <Target Name="BuildClientAppDebug"
+          BeforeTargets="Build"
+          Condition="'$(Configuration)'=='Debug'">
+    <Exec WorkingDirectory="$(ClientAppDir)" Command="npm ci" />
+    <Exec WorkingDirectory="$(ClientAppDir)" Command="npm run build" />
+  </Target>
+
+  <Target Name="CopyClientAppToWwwrootDebug"
+          AfterTargets="BuildClientAppDebug"
+          Condition="'$(Configuration)'=='Debug'">
+    <ItemGroup>
+      <_ClientDist Include="$(ClientAppDir)\dist\**\*" />
+    </ItemGroup>
+
+    <RemoveDir Directories="$(MSBuildProjectDirectory)\wwwroot" />
+    <MakeDir Directories="$(MSBuildProjectDirectory)\wwwroot" />
+    <Copy SourceFiles="@(_ClientDist)"
+          DestinationFiles="@(_ClientDist->'$(MSBuildProjectDirectory)\wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
 
   <Target Name="RemoveDebugArtifactsFromPublish" AfterTargets="Publish">
     <ItemGroup>

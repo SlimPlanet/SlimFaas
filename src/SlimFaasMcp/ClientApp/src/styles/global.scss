@@ -1,0 +1,189 @@
+@use "./tokens";
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+
+body {
+    margin: 0;
+    font-family: var(--sf-sans);
+    background: var(--sf-bg);
+    color: var(--sf-text);
+}
+
+a { color: inherit; text-decoration: none; }
+button, input, textarea { font: inherit; }
+
+code, pre { font-family: var(--sf-mono); }
+
+::selection {
+    background: rgba(0, 0, 255, 0.18);
+}
+
+.sf-container {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 16px;
+}
+
+.sf-card {
+    background: var(--sf-surface);
+    border: 1px solid var(--sf-border);
+    border-radius: var(--sf-radius);
+    box-shadow: var(--sf-shadow);
+}
+
+.sf-card__inner {
+    padding: 16px;
+}
+
+.sf-title {
+    font-size: 18px;
+    font-weight: 750;
+    letter-spacing: 0.2px;
+    margin: 0 0 10px 0;
+}
+
+.sf-muted {
+    color: var(--sf-text-dim);
+}
+
+.sf-kbd {
+    font-family: var(--sf-mono);
+    font-size: 12px;
+    border: 1px solid var(--sf-border);
+    background: rgba(15, 23, 42, 0.03);
+    border-radius: 8px;
+    padding: 2px 6px;
+}
+
+.sf-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--sf-border);
+    background: rgba(15, 23, 42, 0.03);
+    padding: 8px 10px;
+    border-radius: 999px;
+}
+
+.sf-btn {
+    border: 1px solid var(--sf-border);
+    background: rgba(15, 23, 42, 0.03);
+    color: var(--sf-text);
+    border-radius: 12px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: transform 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.sf-btn:hover {
+    background: rgba(15, 23, 42, 0.06);
+    border-color: rgba(0, 0, 255, 0.25);
+}
+.sf-btn:active { transform: translateY(1px); }
+.sf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.sf-btn--primary {
+    background: var(--sf-primary);
+    border-color: rgba(0, 0, 255, 0.55);
+    color: #fff;
+}
+.sf-btn--primary:hover { background: var(--sf-primary-2); }
+
+.sf-btn--danger {
+    background: rgba(239, 68, 68, 0.10);
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #991b1b;
+}
+
+.sf-input,
+.sf-textarea {
+    width: 100%;
+    border-radius: 12px;
+    border: 1px solid var(--sf-border);
+    background: #ffffff;
+    color: var(--sf-text);
+    padding: 10px 12px;
+    outline: none;
+}
+.sf-input:focus,
+.sf-textarea:focus {
+    border-color: rgba(0, 0, 255, 0.55);
+    box-shadow: 0 0 0 4px rgba(0, 0, 255, 0.12);
+}
+.sf-textarea { min-height: 108px; resize: vertical; }
+
+.sf-pre {
+    margin: 0;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--sf-border);
+    background: rgba(15, 23, 42, 0.03);
+    overflow: auto;
+    max-width: 100%;
+}
+
+/* SlimFaas-like markdown styling */
+.sf-markdown code {
+    background-color: #f3f4f6;
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+    font-family: var(--sf-mono);
+    font-size: 0.95em;
+    color: #d63384;
+}
+
+.sf-markdown pre code {
+    display: block;
+    background-color: #1f1f1f;
+    color: #eee;
+    border-radius: 5px;
+    padding: 1em;
+    overflow-x: auto;
+    font-family: "Fira Code", Consolas, Monaco, "Andale Mono", "Ubuntu Mono", monospace;
+    margin: 1em 0;
+}
+
+/* HLJS tweaks (close to SlimFaas docs look) */
+.sf-markdown .hljs-regexp { color: #d17f66; }
+.sf-markdown pre code.language-yaml .hljs-key { color: #c678dd; }
+.sf-markdown pre code.language-yaml .hljs-string { color: #98c379; }
+.sf-markdown pre code.language-yaml .hljs-number { color: #d19a66; }
+.sf-markdown pre code .hljs-comment { color: #5c6370; font-style: italic; }
+
+.sf-markdown blockquote {
+    margin: 0 0 1rem;
+    background-color: #696969;
+    color: white;
+    font-style: oblique;
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+}
+
+/* Tables (if produced by markdown) */
+.sf-markdown table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+}
+.sf-markdown thead { background-color: #f5f7fa; }
+.sf-markdown th {
+    text-align: left;
+    padding: 1rem;
+    font-weight: 600;
+    border-bottom: 2px solid #e0e6ed;
+}
+.sf-markdown td {
+    padding: 0.75rem 1rem;
+    vertical-align: top;
+    line-height: 1.5;
+    border-bottom: 1px solid #eaecef;
+}
+.sf-markdown tbody tr:nth-child(even) { background-color: #f9fbfd; }
+
+@media (min-width: 860px) {
+    .sf-container { padding: 22px; }
+    .sf-card__inner { padding: 18px; }
+}
