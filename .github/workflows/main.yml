@@ -443,7 +443,7 @@ jobs:
 
   build_slimfaas_planet_saver:
     needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
+    if: github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
