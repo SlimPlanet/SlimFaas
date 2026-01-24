@@ -99,6 +99,9 @@ public class Endpoints
 
     public static async Task DoAsync(HttpContext context, RespondDelegate respondDelegate)
     {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("SlimData.Endpoints");
+        
         var slimDataInfo = context.RequestServices.GetRequiredService<SlimDataInfo>();
         int[] currentPorts = [context.Connection.LocalPort, context.Request.Host.Port ?? 0];
 
@@ -134,7 +137,7 @@ public class Endpoints
         }
         catch (Exception e)
         {
-            Console.WriteLine("Unexpected error {0}", e);
+            logger.LogError(e, "Unexpected error on {Path}", context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         }
         finally
@@ -254,30 +257,34 @@ public class Endpoints
 
         var supplier = (ISupplier<SlimDataPayload>)provider;
         int numberTry = 10;
-        while (values.Items.Count <= 0 && numberTry > 0)
+        int delayMs = 4;
+
+        while (values.Items.Count == 0 && numberTry-- > 0)
         {
-            numberTry--;
             try
             {
                 var queues = supplier.Invoke().Queues;
                 if (queues.TryGetValue(key, out var queue))
                 {
-                    var queueElements = queue.GetQueueRunningElement(nowTicks)
-                        .Where(q => q.RetryQueueElements[^1].IdTransaction == transactionId).ToList();
-                    if (queueElements.Count == 0)
+                    foreach (var qe in queue.GetQueueRunningElement(nowTicks))
                     {
-                        await Task.Delay(4, source.Token);
-                    }
+                        var last = qe.RetryQueueElements[^1];
+                        if (last.IdTransaction != transactionId) continue;
 
-                    foreach (var queueElement in queueElements)
-                    {
-                        values.Items.Add(new QueueData(queueElement.Id, queueElement.Value.ToArray()));
+                        values.Items.Add(new QueueData(qe.Id, qe.Value.ToArray()));
                     }
+                }
+
+                if (values.Items.Count == 0)
+                {
+                    await Task.Delay(delayMs, source.Token);
+                    delayMs = Math.Min(100, delayMs * 2); // backoff 4,8,16,32,64,100...
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Unexpected error {0}", ex);
+                await Task.Delay(delayMs, source.Token);
+                delayMs = Math.Min(100, delayMs * 2);
             }
         }
 

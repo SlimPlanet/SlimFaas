@@ -57,6 +57,8 @@ ServiceCollection serviceCollectionStarter = new();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
 serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
+serviceCollectionStarter.AddSingleton<FunctionStatusCache>();
+serviceCollectionStarter.AddSingleton<WakeUpGate>();
 
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 IConfigurationRoot configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json")
@@ -211,6 +213,9 @@ serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
 serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
 serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+serviceCollectionSlimFaas.AddMemoryCache();
+serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
+serviceCollectionSlimFaas.AddSingleton<WakeUpGate>();
 
 builder.Services
     .AddOptions<DataOptions>()

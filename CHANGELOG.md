@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.60.5
+
+- [7d4bf1dd](https://github.com/SlimPlanet/SlimFaas/commit/7d4bf1dd4f4cbe3a3261fc57b179e76ad9b73ba5) - fix(slimfaas): cast invalid (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.4
+
+
+
+## v0.60.4
+
+- [ffe36aa8](https://github.com/SlimPlanet/SlimFaas/commit/ffe36aa8bf3fb3657d3be51c0800800170a8e78f) - fix(slimfaas): resolve dependency (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.3
+
+
+
+## v0.60.3
+
+- [2cfc20d5](https://github.com/SlimPlanet/SlimFaas/commit/2cfc20d50dbcf5d6930e0225ddeaea27b997a9ad) - fix(cpu): remove sync function retry temporaly (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.2
+
+
+
+## v0.60.2
+
+- [59fb280e](https://github.com/SlimPlanet/SlimFaas/commit/59fb280e035b60439e52db70e878ce94c70f4d40) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+- [fc8bc7dd](https://github.com/SlimPlanet/SlimFaas/commit/fc8bc7dd134ba1157633d0cb3d56c11b0f45f96b) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+- [aeede916](https://github.com/SlimPlanet/SlimFaas/commit/aeede91641dddeb4e72fa27ad5da4ca5eb091792) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.1
+
+
+
+## v0.60.1
+
+- [cf04582a](https://github.com/SlimPlanet/SlimFaas/commit/cf04582a86c16475c2c649f80907615ad60eb6a2) - fix(slimfaas): upgrade kubernetes libraries (#224) (release), 2026-01-23 by *Guillaume Chervet*
+- [6595bf8a](https://github.com/SlimPlanet/SlimFaas/commit/6595bf8abb6c68b66272c7e79df4e3e57e1c33e4) - refactor(slimfaas): minimalapi (#219), 2026-01-20 by *Guillaume Chervet*
+
+
+## 0.60.0
+
+
+
 ## v0.60.0
 
 - [5245e5f9](https://github.com/SlimPlanet/SlimFaas/commit/5245e5f9b17864ab98d88adada616a652d213bf7) - feat(slimfaas): data set api (#216) (release), 2026-01-11 by *Guillaume Chervet*
@@ -227,50 +275,5 @@
 ## v0.49.0
 
 - [e95c9f61](https://github.com/SlimPlanet/SlimFaas/commit/e95c9f611364a65eb4d688f9e26eba60b8a4f95d) - feat(mcp): log http action input (release) (#193), 2025-12-01 by *Guillaume Chervet*
-
-
-## 0.48.1
-
-
-
-## v0.48.1
-
-- [ed6129fe](https://github.com/SlimPlanet/SlimFaas/commit/ed6129fe6d8acd678afb2ff20fe71ce84631925a) - fix(doc): update kafka.md (release), 2025-11-29 by *Guillaume Chervet*
-
-
-## 0.48.0
-
-
-
-## v0.48.0
-
-- [d4da9c27](https://github.com/SlimPlanet/SlimFaas/commit/d4da9c27ea3d7ca8ff7650adfaaa9406d70e1c51) - feat(slimfaas): autoscale down rule (#192) (release), 2025-11-29 by *Guillaume Chervet*
-
-
-## 0.47.1
-
-
-
-## v0.47.1
-
-- [baf622bf](https://github.com/SlimPlanet/SlimFaas/commit/baf622bf3ab8e8bcba638d8cb9dc2ce90031306b) - fix(slimfaas): startup node reboot raft (#191) (release), 2025-11-28 by *Guillaume Chervet*
-
-
-## 0.47.0
-
-
-
-## v0.47.0
-
-- [9d92252d](https://github.com/SlimPlanet/SlimFaas/commit/9d92252de5c41c632c4f1c69e4b2602e77fcb5ac) - feat(slimfaaskafka): add slimfaas kafka (#190) (release), 2025-11-27 by *Guillaume Chervet*
-
-
-## 0.46.0
-
-
-
-## v0.46.0
-
-- [072fd86b](https://github.com/SlimPlanet/SlimFaas/commit/072fd86bfae0527b969615a4ac3c6c851cd785d0) - feat(slimfaas): NumberParallelRequestPerPod (#189) (release), 2025-11-25 by *Guillaume Chervet*
 
 

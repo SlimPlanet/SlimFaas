@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Endpoints;
-
-
 
 public static class StatusEndpoints
 {
@@ -30,47 +27,54 @@ public static class StatusEndpoints
             .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
-    private static IResult GetAllFunctionStatuses(
-        [FromServices] IReplicasService replicasService)
-    {
-        IList<SlimFaas.FunctionStatus> functionStatuses = replicasService.Deployments.Functions
-            .Select(FunctionEndpointsHelpers.MapToFunctionStatus)
-            .ToList();
 
-        return Results.Json(functionStatuses,
+    private static IResult GetAllFunctionStatuses(
+        [FromServices] IReplicasService replicasService,
+        [FromServices] FunctionStatusCache cache)
+    {
+        var statuses = cache.GetAll(replicasService);
+
+        return Results.Json(statuses,
             SlimFaas.ListFunctionStatusSerializerContext.Default.ListFunctionStatus);
     }
 
     private static IResult GetFunctionStatus(
         string functionName,
-        [FromServices] IReplicasService replicasService)
+        [FromServices] IReplicasService replicasService,
+        [FromServices] FunctionStatusCache cache)
     {
-        DeploymentInformation? functionDeploymentInformation =
-            FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
+        var status = cache.GetOne(replicasService, functionName);
+        if (status is null) return Results.NotFound();
 
-        if (functionDeploymentInformation == null)
-        {
-            return Results.NotFound();
-        }
-
-        SlimFaas.FunctionStatus functionStatus = FunctionEndpointsHelpers.MapToFunctionStatus(functionDeploymentInformation);
-        return Results.Json(functionStatus, SlimFaas.FunctionStatusSerializerContext.Default.FunctionStatus);
+        return Results.Json(status,
+            SlimFaas.FunctionStatusSerializerContext.Default.FunctionStatus);
     }
 
     private static IResult WakeFunction(
         string functionName,
         [FromServices] IReplicasService replicasService,
-        [FromServices] IWakeUpFunction wakeUpFunction)
+        [FromServices] WakeUpGate gate,
+        [FromServices] IWakeUpFunction wakeUpFunction,
+        [FromServices] ILoggerFactory loggerFactory)
     {
-        DeploymentInformation? function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
+        var logger = loggerFactory.CreateLogger("SlimFaas.Wake");
 
-        if (function == null)
-        {
-            return Results.NotFound();
-        }
+        var function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
+        if (function is null) return Results.NotFound();
+
+        // Coalescing anti-spam
+        if (!gate.TryEnter(functionName))
+            return Results.NoContent(); // déjà réveillée / en cours
 
 #pragma warning disable CS4014
-        wakeUpFunction.FireAndForgetWakeUpAsync(functionName);
+        var t = wakeUpFunction.FireAndForgetWakeUpAsync(functionName);
+
+        _ = t.ContinueWith(task =>
+        {
+            gate.Exit(functionName);
+            if (task.IsFaulted && task.Exception is not null)
+                logger.LogError(task.Exception, "Wake failed for {FunctionName}", functionName);
+        }, TaskScheduler.Default);
 #pragma warning restore CS4014
 
         return Results.NoContent();
