@@ -9,7 +9,6 @@ on:
 
 env:
   PNPM_VERSION: 10.14.0
-  # Node.js LTS au 24 janv 2026: 24.x (Active LTS)
   NODE_VERSION: "24"
 
 permissions:
