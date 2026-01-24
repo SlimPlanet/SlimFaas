@@ -8,7 +8,7 @@
    version="1.1"
    id="svg1"
    inkscape:version="1.4 (86a8ad7, 2024-10-11)"
-   sodipodi:docname="slimfaas-icon-white.svg"
+   sodipodi:docname="slimfaas-icon-color.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -40,7 +40,7 @@
      id="layer1">
     <text
        xml:space="preserve"
-       style="font-size:131.536px;line-height:1.1;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#ffffff;fill-rule:evenodd;stroke-width:237.679;fill-opacity:1"
+       style="font-size:131.536px;line-height:1.1;font-family:Arial;-inkscape-font-specification:Arial;text-align:start;writing-mode:lr-tb;direction:ltr;text-anchor:start;fill:#0000ff;fill-rule:evenodd;stroke-width:237.679"
        x="44.758728"
        y="388.71936"
        id="text2"
@@ -49,11 +49,11 @@
          id="tspan1"
          x="44.758728"
          y="388.71936"
-         style="font-size:131.536px;fill:#ffffff;stroke-width:237.679;fill-opacity:1">Slim<tspan
-   style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Arial;-inkscape-font-specification:'Arial Bold';stroke-width:237.679;fill:#ffffff;fill-opacity:1"
+         style="font-size:131.536px;fill:#0000ff;stroke-width:237.679">Slim<tspan
+   style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-family:Arial;-inkscape-font-specification:'Arial Bold';stroke-width:237.679"
    id="tspan4">Faas</tspan></tspan></text>
     <path
-       style="fill:#ff0000;fill-opacity:0;fill-rule:evenodd;stroke:#ffffff;stroke-width:13.6487;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#0000ff;fill-opacity:0;fill-rule:evenodd;stroke:#0400ff;stroke-width:13.6487;stroke-dasharray:none;stroke-opacity:1"
        id="path4"
        sodipodi:type="arc"
        sodipodi:cx="306.01529"
@@ -66,7 +66,7 @@
        sodipodi:arc-type="arc"
        d="M 71.195544,276.50979 A 236.3015,226.56468 0 0 1 296.74516,75.452134 236.3015,226.56468 0 0 1 538.04083,258.93652" />
     <path
-       style="fill:#000000;fill-opacity:0;fill-rule:evenodd;stroke:#ffffff;stroke-width:13.6487;stroke-dasharray:none;stroke-opacity:1"
+       style="fill:#0000ff;fill-opacity:0;fill-rule:evenodd;stroke:#0400ff;stroke-width:13.6487;stroke-dasharray:none;stroke-opacity:1"
        id="path4-8"
        sodipodi:type="arc"
        sodipodi:cx="311.95276"

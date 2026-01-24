@@ -12,7 +12,7 @@ export default function Layout({ children }: PropsWithChildren) {
       <footer className="layout__footer">
         <div className="sf-container layout__footer-inner">
           <span className="layout__footer-text sf-muted">
-            SlimFaas MCP UI · React + TypeScript · BEM + SCSS
+            SlimFaas MCP Proxy © 2026 SlimPlanet
           </span>
         </div>
       </footer>

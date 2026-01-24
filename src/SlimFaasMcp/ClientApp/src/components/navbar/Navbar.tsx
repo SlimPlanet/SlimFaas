@@ -19,7 +19,7 @@ export default function Navbar() {
     <header className="nav">
       <div className="sf-container nav__inner">
           <a className="nav__brand" href="./">
-              <img className="nav__logo" src="/slimfaas.svg" alt="SlimFaas" />
+              <img className="nav__logo" src="/slimfaas-white.svg" alt="SlimFaas" />
               <div className="nav__brand-text">
                   <div className="nav__title">SlimFaas</div>
                   <div className="nav__subtitle">MCP Proxy</div>

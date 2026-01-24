@@ -2,6 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
+
+const asyncHooksShim = fileURLToPath(new URL("./src/polyfills/async_hooks.ts", import.meta.url));
+const mcpStdioShim = fileURLToPath(new URL("./src/polyfills/mcp_stdio.ts", import.meta.url));
+
 // Vite build output: ClientApp/dist
 export default defineConfig({
   plugins: [react()],
@@ -10,10 +14,6 @@ export default defineConfig({
       build: {
         outDir: "dist",
             emptyOutDir: true,
-            rollupOptions: {
-              // ✅ exclude Node-only MCP stdio transport from the browser bundle
-                  external: (id) => id.includes("@modelcontextprotocol/sdk") && id.endsWith("/client/stdio.js"),
-                },
       },
   define: {
       "process.env": {}, // ✅ avoid "process is not defined" in browser
@@ -23,11 +23,18 @@ export default defineConfig({
     port: 5173,
   },
     resolve: {
-      alias: {
-           "node:async_hooks": fileURLToPath(new URL("./src/polyfills/async_hooks.ts", import.meta.url)),
-          async_hooks: fileURLToPath(new URL("./src/polyfills/async_hooks.ts", import.meta.url)),
-              "@modelcontextprotocol/sdk/client/stdio": fileURLToPath(new URL("./src/polyfills/mcp_stdio.ts", import.meta.url)),
-         "@modelcontextprotocol/sdk/dist/esm/client/stdio.js": fileURLToPath(new URL("./src/polyfills/mcp_stdio.ts", import.meta.url)),
-      },
+        alias: [
+            // async_hooks polyfill
+            { find: /^node:async_hooks$/, replacement: asyncHooksShim },
+            { find: /^async_hooks$/, replacement: asyncHooksShim },
+
+            // ✅ MCP stdio polyfill (match avec .js ET sans .js)
+            { find: /^@modelcontextprotocol\/sdk\/client\/stdio(\.js)?$/, replacement: mcpStdioShim },
+            { find: /^@modelcontextprotocol\/sdk\/server\/stdio(\.js)?$/, replacement: mcpStdioShim },
+
+            // au cas où une dépendance importe les chemins dist/esm
+            { find: /^@modelcontextprotocol\/sdk\/dist\/esm\/client\/stdio\.js$/, replacement: mcpStdioShim },
+            { find: /^@modelcontextprotocol\/sdk\/dist\/esm\/server\/stdio\.js$/, replacement: mcpStdioShim },
+        ],
   },
 });

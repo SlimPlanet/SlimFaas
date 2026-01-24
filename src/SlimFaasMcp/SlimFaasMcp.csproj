@@ -21,16 +21,7 @@
       <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.14.0" />
       <PackageReference Include="Yaml2JsonNode" Version="2.2.0" />
     </ItemGroup>
-
-    <ItemGroup>
-      <_ContentIncludedByDefault Remove="wwwroot\assets\index-C71S9-IR.js" />
-      <_ContentIncludedByDefault Remove="wwwroot\assets\index-DtTugu6U.css" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="wwwroot\" />
-    </ItemGroup>
-
+  
   <!-- Ajoute ceci dans ton .csproj -->
   <PropertyGroup>
     <!-- adapte le chemin si besoin -->
