@@ -15,6 +15,7 @@ public interface IAuditService
     Task<IReadOnlyList<AuditHistoryItemDto>> ListAsync(string entityType, Guid entityId, CancellationToken ct);
     Task<string> ReconstructJsonAsync(string entityType, Guid entityId, int index, CancellationToken ct);
     Task<AuditDiffDto> DiffAsync(string entityType, Guid entityId, int fromIndex, int toIndex, CancellationToken ct);
+    Task<AuditTextDiffDto> TextDiffAsync(string entityType, Guid entityId, int fromIndex, int toIndex, CancellationToken ct);
 }
 
 public sealed record AuditAppendResult(int Index, long ModifiedAtUtc, string Author);
@@ -161,6 +162,38 @@ public sealed class AuditService : IAuditService
             new AuditSideDto(fromIndex, fromMeta.ModifiedAtUtc, fromMeta.Author),
             new AuditSideDto(toIndex, toMeta.ModifiedAtUtc, toMeta.Author),
             ops
+        );
+    }
+
+    public async Task<AuditTextDiffDto> TextDiffAsync(string entityType, Guid entityId, int fromIndex, int toIndex, CancellationToken ct)
+    {
+        if (fromIndex < 0 || toIndex < 0) throw new ApiException(400, "Audit indices must be >= 0.");
+
+        var history = await _db.AuditRecords
+            .Where(x => x.EntityType == entityType && x.EntityId == entityId && (x.Index == fromIndex || x.Index == toIndex))
+            .ToListAsync(ct);
+
+        var fromMeta = history.FirstOrDefault(x => x.Index == fromIndex);
+        var toMeta = history.FirstOrDefault(x => x.Index == toIndex);
+
+        if (fromMeta is null || toMeta is null)
+            throw new ApiException(404, "One or both audit indices not found.");
+
+        var fromJson = await ReconstructJsonAsync(entityType, entityId, fromIndex, ct);
+        var toJson = await ReconstructJsonAsync(entityType, entityId, toIndex, ct);
+
+        var fromNode = JsonNode.Parse(fromJson);
+        var toNode = JsonNode.Parse(toJson);
+
+        if (fromNode is null || toNode is null)
+            throw new InvalidOperationException("Invalid reconstructed JSON for diff.");
+
+        var unifiedDiff = JsonPatch.CreateTextDiff(fromNode, toNode);
+
+        return new AuditTextDiffDto(
+            new AuditSideDto(fromIndex, fromMeta.ModifiedAtUtc, fromMeta.Author),
+            new AuditSideDto(toIndex, toMeta.ModifiedAtUtc, toMeta.Author),
+            unifiedDiff
         );
     }
 }

@@ -1,0 +1,111 @@
+.diff-viewer {
+  margin: 1rem 0;
+  border: 1px solid var(--border-color, #e1e4e8);
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--bg-color, #ffffff);
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 12px;
+
+  &__empty {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-muted, #6a737d);
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  &__line {
+    &--unchanged {
+      background-color: var(--diff-bg-unchanged, #ffffff);
+      color: var(--diff-text-unchanged, #24292e);
+    }
+
+    &--inserted {
+      background-color: var(--diff-bg-inserted, #e6ffed);
+      color: var(--diff-text-inserted, #22863a);
+    }
+
+    &--deleted {
+      background-color: var(--diff-bg-deleted, #ffeef0);
+      color: var(--diff-text-deleted, #cb2431);
+    }
+
+    &--modified {
+      background-color: var(--diff-bg-modified, #fff5b1);
+      color: var(--diff-text-modified, #735c0f);
+    }
+
+    &:hover {
+      background-color: var(--diff-bg-hover, #f6f8fa);
+    }
+  }
+
+  &__line-number {
+    width: 50px;
+    padding: 0 10px;
+    text-align: right;
+    color: var(--diff-line-number, #959da5);
+    user-select: none;
+    vertical-align: top;
+    border-right: 1px solid var(--border-color, #e1e4e8);
+  }
+
+  &__prefix {
+    width: 20px;
+    padding: 0 8px;
+    text-align: center;
+    font-weight: bold;
+    user-select: none;
+    vertical-align: top;
+
+    .diff-viewer__line--inserted & {
+      color: var(--diff-text-inserted, #22863a);
+    }
+
+    .diff-viewer__line--deleted & {
+      color: var(--diff-text-deleted, #cb2431);
+    }
+
+    .diff-viewer__line--modified & {
+      color: var(--diff-text-modified, #735c0f);
+    }
+  }
+
+  &__text {
+    padding: 0 10px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    vertical-align: top;
+
+    code {
+      background: none;
+      padding: 0;
+      font-family: inherit;
+      font-size: inherit;
+    }
+  }
+}
+
+// Dark mode support
+@media (prefers-color-scheme: dark) {
+  .diff-viewer {
+    --bg-color: #0d1117;
+    --border-color: #30363d;
+    --text-muted: #8b949e;
+    --diff-bg-unchanged: #0d1117;
+    --diff-text-unchanged: #c9d1d9;
+    --diff-bg-inserted: #04260f;
+    --diff-text-inserted: #3fb950;
+    --diff-bg-deleted: #4b1b1e;
+    --diff-text-deleted: #f85149;
+    --diff-bg-modified: #3d2b00;
+    --diff-text-modified: #d29922;
+    --diff-bg-hover: #161b22;
+    --diff-line-number: #6e7681;
+  }
+}

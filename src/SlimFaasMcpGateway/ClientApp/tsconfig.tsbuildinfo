@@ -1,1 +1,1 @@
-{"root":["./src/main.tsx","./src/lib/api.ts","./src/lib/types.ts","./src/pages/app.tsx","./src/pages/configurationeditorpage.tsx","./src/pages/configurationspage.tsx","./src/pages/deploymentpage.tsx","./src/pages/tenantspage.tsx"],"version":"5.9.3"}
+{"root":["./src/main.tsx","./src/components/diffviewer.tsx","./src/lib/api.ts","./src/lib/types.ts","./src/pages/app.tsx","./src/pages/configurationeditorpage.tsx","./src/pages/configurationspage.tsx","./src/pages/deploymentpage.tsx","./src/pages/tenantspage.tsx"],"version":"5.9.3"}

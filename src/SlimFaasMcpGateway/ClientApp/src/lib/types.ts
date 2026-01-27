@@ -50,6 +50,24 @@ export type AuditDiffDto = {
   patch: { path: string; value?: any; remove: boolean }[];
 };
 
+export type DiffLineType = "Unchanged" | "Inserted" | "Deleted" | "Modified" | "Imaginary";
+
+export type DiffLine = {
+  type: DiffLineType;
+  text: string;
+  position: number | null;
+};
+
+export type UnifiedDiff = {
+  lines: DiffLine[];
+};
+
+export type AuditTextDiffDto = {
+  from: { index: number; modifiedAtUtc: number; author: string };
+  to: { index: number; modifiedAtUtc: number; author: string };
+  unifiedDiff: UnifiedDiff;
+};
+
 export type EnvironmentListDto = { environments: string[] };
 
 export type LoadCatalogResponseDto = { catalogYaml: string };

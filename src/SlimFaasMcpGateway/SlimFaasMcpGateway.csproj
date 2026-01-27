@@ -7,7 +7,7 @@
 
     <RuntimeIdentifiers>linux-x64;win-x64;osx-arm64</RuntimeIdentifiers>
     <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
-    
+
     <!-- SPA Configuration -->
     <SpaRoot>ClientApp\</SpaRoot>
     <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**</DefaultItemExcludes>
@@ -20,12 +20,13 @@
     <PublishTrimmed>true</PublishTrimmed>
     <TrimMode>partial</TrimMode>
     <InvariantGlobalization>true</InvariantGlobalization>
-    
+
     <!-- EF Core Compiled Model for NativeAOT -->
     <EntityFrameworkCoreGenerateCompiledModel>true</EntityFrameworkCoreGenerateCompiledModel>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="DiffPlex" Version="1.7.2" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
       <PrivateAssets>all</PrivateAssets>
@@ -49,42 +50,42 @@
   <!-- Build frontend and copy to wwwroot -->
   <Target Name="BuildFrontend" BeforeTargets="Build" Condition="!Exists('wwwroot\index.html')">
     <Message Text="Building frontend application..." Importance="high" />
-    
+
     <!-- Install npm dependencies -->
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
-    
+
     <!-- Build the frontend -->
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
-    
+
     <!-- Copy dist to wwwroot -->
     <ItemGroup>
       <DistFiles Include="$(SpaRoot)dist\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(DistFiles)" DestinationFolder="wwwroot\%(RecursiveDir)" />
-    
+
     <Message Text="Frontend build completed and copied to wwwroot" Importance="high" />
   </Target>
 
   <!-- Rebuild frontend on publish -->
   <Target Name="PublishFrontend" BeforeTargets="Publish">
     <Message Text="Building frontend for production..." Importance="high" />
-    
+
     <!-- Install npm dependencies -->
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
-    
+
     <!-- Build the frontend -->
     <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
-    
+
     <!-- Clean wwwroot -->
     <RemoveDir Directories="wwwroot" />
     <MakeDir Directories="wwwroot" />
-    
+
     <!-- Copy dist to wwwroot -->
     <ItemGroup>
       <DistFiles Include="$(SpaRoot)dist\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(DistFiles)" DestinationFolder="wwwroot\%(RecursiveDir)" />
-    
+
     <Message Text="Frontend published to wwwroot" Importance="high" />
   </Target>
 

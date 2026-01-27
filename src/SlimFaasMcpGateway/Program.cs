@@ -28,12 +28,12 @@ builder.Services.AddDbContext<GatewayDbContext>(opt =>
 {
     var cs = builder.Configuration.GetConnectionString("Sqlite") ?? "Data Source=slimfaas_mcp_gateway.db";
     opt.UseSqlite(cs);
-    
+
     // Use compiled model for NativeAOT compatibility
     #if RELEASE
     opt.UseModel(SlimFaasMcpGateway.Data.CompiledModels.GatewayDbContextModel.Instance);
     #endif
-    
+
     opt.EnableSensitiveDataLogging(false);
     opt.EnableDetailedErrors(false);
 });
@@ -250,6 +250,12 @@ cfgApi.MapGet("/{id:guid}/diff", async (IAuditService audit, Guid id, int from, 
     var diff = await audit.DiffAsync("configuration", id, from, to, ct);
     var redacted = SecretRedaction.RedactDiff(diff);
     return Results.Ok(redacted);
+});
+
+cfgApi.MapGet("/{id:guid}/textdiff", async (IAuditService audit, Guid id, int from, int to, CancellationToken ct) =>
+{
+    var diff = await audit.TextDiffAsync("configuration", id, from, to, ct);
+    return Results.Ok(diff);
 });
 
 cfgApi.MapGet("/{id:guid}/deployments", async (IDeploymentService svc, Guid id, CancellationToken ct) =>

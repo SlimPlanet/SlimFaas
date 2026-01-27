@@ -36,6 +36,16 @@ public static class JsonPatch
     public static IReadOnlyList<Op> Deserialize(string json)
         => JsonSerializer.Deserialize<List<Op>>(json, AppJsonOptions.Default) ?? new();
 
+    /// <summary>
+    /// Creates a text-based unified diff between two JSON nodes using DiffPlex
+    /// </summary>
+    public static TextDiff.UnifiedDiff CreateTextDiff(JsonNode? before, JsonNode? after)
+    {
+        var beforeText = before?.ToJsonString(AppJsonOptions.DefaultIndented) ?? "";
+        var afterText = after?.ToJsonString(AppJsonOptions.DefaultIndented) ?? "";
+        return TextDiff.Create(beforeText, afterText);
+    }
+
     private static void DiffInternal(List<Op> ops, string path, JsonNode? before, JsonNode? after)
     {
         if (JsonEquals(before, after))
@@ -161,6 +171,13 @@ public static class AppJsonOptions
     {
         PropertyNameCaseInsensitive = true,
         WriteIndented = false,
+        TypeInfoResolverChain = { SlimFaasMcpGateway.Serialization.ApiJsonContext.Default }
+    };
+
+    public static readonly JsonSerializerOptions DefaultIndented = new(System.Text.Json.JsonSerializerDefaults.Web)
+    {
+        PropertyNameCaseInsensitive = true,
+        WriteIndented = true,
         TypeInfoResolverChain = { SlimFaasMcpGateway.Serialization.ApiJsonContext.Default }
     };
 }

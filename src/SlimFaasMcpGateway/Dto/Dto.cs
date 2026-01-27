@@ -77,4 +77,6 @@ public sealed record AuditSideDto(int Index, long ModifiedAtUtc, string Author);
 
 public sealed record AuditDiffDto(AuditSideDto From, AuditSideDto To, IReadOnlyList<JsonPatch.Op> Patch);
 
+public sealed record AuditTextDiffDto(AuditSideDto From, AuditSideDto To, TextDiff.UnifiedDiff UnifiedDiff);
+
 public sealed record GatewayErrorDto(int StatusCode, string Error);
