@@ -13,12 +13,20 @@ export type ConfigurationListItemDto = {
   defaultDeploymentEnvironment: string;
 };
 
+export type UpstreamMcpServerDto = {
+  toolPrefix: string;
+  baseUrl: string;
+  discoveryJwtToken?: string | null;
+  hasDiscoveryJwtToken: boolean;
+};
+
 export type ConfigurationDto = {
   id: string;
   tenantId?: string | null;
   tenantName: string;
   name: string;
-  upstreamMcpUrl: string;
+  upstreamMcpUrl?: string | null;
+  upstreamServers?: UpstreamMcpServerDto[] | null;
   description?: string | null;
   hasDiscoveryJwtToken: boolean;
   catalogOverrideYaml?: string | null;

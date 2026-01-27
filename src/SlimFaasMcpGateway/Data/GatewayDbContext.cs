@@ -9,6 +9,7 @@ public sealed class GatewayDbContext : DbContext
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<GatewayConfiguration> Configurations => Set<GatewayConfiguration>();
+    public DbSet<UpstreamMcpServer> UpstreamServers => Set<UpstreamMcpServer>();
     public DbSet<EnvironmentDeploymentMapping> EnvironmentMappings => Set<EnvironmentDeploymentMapping>();
     public DbSet<AuditRecord> AuditRecords => Set<AuditRecord>();
 
@@ -40,6 +41,19 @@ public sealed class GatewayDbContext : DbContext
             b.Property(x => x.AuthPolicyYaml);
             b.Property(x => x.RateLimitPolicyYaml);
             b.HasIndex(x => new { x.TenantId, x.NormalizedName }).IsUnique();
+        });
+
+        modelBuilder.Entity<UpstreamMcpServer>(b =>
+        {
+            b.HasKey(x => x.Id);
+            b.Property(x => x.ToolPrefix).HasMaxLength(128).IsRequired();
+            b.Property(x => x.BaseUrl).HasMaxLength(2048).IsRequired();
+            b.Property(x => x.DiscoveryJwtTokenProtected);
+            b.HasIndex(x => new { x.ConfigurationId, x.ToolPrefix }).IsUnique();
+            b.HasOne(x => x.Configuration)
+                .WithMany()
+                .HasForeignKey(x => x.ConfigurationId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<EnvironmentDeploymentMapping>(b =>

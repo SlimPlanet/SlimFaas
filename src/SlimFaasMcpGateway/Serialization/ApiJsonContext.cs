@@ -15,6 +15,8 @@ namespace SlimFaasMcpGateway.Serialization;
 [JsonSerializable(typeof(TenantUpdateRequest))]
 [JsonSerializable(typeof(TenantDto))]
 [JsonSerializable(typeof(TenantListItemDto))]
+[JsonSerializable(typeof(UpstreamMcpServerDto))]
+[JsonSerializable(typeof(List<UpstreamMcpServerDto>))]
 [JsonSerializable(typeof(ConfigurationCreateOrUpdateRequest))]
 [JsonSerializable(typeof(ConfigurationDto))]
 [JsonSerializable(typeof(ConfigurationListItemDto))]

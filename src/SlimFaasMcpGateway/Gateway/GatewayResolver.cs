@@ -20,6 +20,7 @@ public sealed record ResolvedGateway(
 public interface IGatewayResolver
 {
     Task<ResolvedGateway> ResolveAsync(string tenantName, string environmentName, string configurationName, CancellationToken ct);
+    Task<List<Data.Entities.UpstreamMcpServer>> GetUpstreamsAsync(Guid configurationId, CancellationToken ct);
 }
 
 public sealed class GatewayResolver : IGatewayResolver
@@ -90,5 +91,14 @@ public sealed class GatewayResolver : IGatewayResolver
             deployedIndex,
             snapshot
         );
+    }
+
+    public async Task<List<Data.Entities.UpstreamMcpServer>> GetUpstreamsAsync(Guid configurationId, CancellationToken ct)
+    {
+        return await _db.UpstreamServers
+            .Where(x => x.ConfigurationId == configurationId)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.ToolPrefix)
+            .ToListAsync(ct);
     }
 }

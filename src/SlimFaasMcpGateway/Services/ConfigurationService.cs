@@ -101,7 +101,7 @@ public sealed class ConfigurationService : IConfigurationService
             TenantId = tenant.Id,
             Name = req.Name.Trim(),
             NormalizedName = norm,
-            UpstreamMcpUrl = req.UpstreamMcpUrl.Trim(),
+            UpstreamMcpUrl = req.UpstreamMcpUrl?.Trim() ?? string.Empty, // kept for backward compat
             Description = req.Description?.Trim(),
             CatalogOverrideYaml = req.CatalogOverrideYaml,
             EnforceAuthEnabled = req.EnforceAuthEnabled,
@@ -119,6 +119,9 @@ public sealed class ConfigurationService : IConfigurationService
 
         _db.Configurations.Add(cfg);
         await _db.SaveChangesAsync(ct);
+
+        // Create upstream servers
+        await UpsertUpstreamServersAsync(cfg.Id, req, ct);
 
         // Audit configuration snapshot
         var snapJson = System.Text.Json.JsonSerializer.Serialize(ToSnapshot(cfg, tenant), SlimFaasMcpGateway.Audit.AppJsonOptions.Default);
@@ -151,7 +154,7 @@ public sealed class ConfigurationService : IConfigurationService
         cfg.TenantId = tenant.Id;
         cfg.Name = req.Name.Trim();
         cfg.NormalizedName = norm;
-        cfg.UpstreamMcpUrl = req.UpstreamMcpUrl.Trim();
+        cfg.UpstreamMcpUrl = req.UpstreamMcpUrl?.Trim() ?? string.Empty; // kept for backward compat
         cfg.Description = req.Description?.Trim();
         cfg.CatalogOverrideYaml = req.CatalogOverrideYaml;
         cfg.EnforceAuthEnabled = req.EnforceAuthEnabled;
@@ -166,6 +169,9 @@ public sealed class ConfigurationService : IConfigurationService
 
         _db.Update(cfg);
         await _db.SaveChangesAsync(ct);
+
+        // Update upstream servers
+        await UpsertUpstreamServersAsync(cfg.Id, req, ct);
 
         var snapJson = System.Text.Json.JsonSerializer.Serialize(ToSnapshot(cfg, tenant), SlimFaasMcpGateway.Audit.AppJsonOptions.Default);
         var append = await _audit.AppendAsync("configuration", cfg.Id, author, snapJson, ct);
@@ -213,9 +219,37 @@ public sealed class ConfigurationService : IConfigurationService
     private static void Validate(ConfigurationCreateOrUpdateRequest req)
     {
         InputValidators.ValidateConfigurationName(req.Name);
-        InputValidators.ValidateAbsoluteHttpUrl(req.UpstreamMcpUrl, "UpstreamMcpUrl");
         InputValidators.ValidateDescription(req.Description);
         InputValidators.ValidateCatalogCacheTtl(req.CatalogCacheTtlMinutes);
+
+        // Support both legacy single URL and new multi-upstream approach
+        if (req.UpstreamServers is not null && req.UpstreamServers.Count > 0)
+        {
+            // New multi-upstream mode
+            var prefixes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var upstream in req.UpstreamServers)
+            {
+                if (string.IsNullOrWhiteSpace(upstream.ToolPrefix))
+                    throw new ApiException(400, "ToolPrefix is required for each upstream server.");
+
+                if (string.IsNullOrWhiteSpace(upstream.BaseUrl))
+                    throw new ApiException(400, "BaseUrl is required for each upstream server.");
+
+                InputValidators.ValidateAbsoluteHttpUrl(upstream.BaseUrl, $"UpstreamServer[{upstream.ToolPrefix}].BaseUrl");
+
+                if (!prefixes.Add(upstream.ToolPrefix))
+                    throw new ApiException(400, $"Duplicate tool prefix: {upstream.ToolPrefix}");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(req.UpstreamMcpUrl))
+        {
+            // Legacy single URL mode
+            InputValidators.ValidateAbsoluteHttpUrl(req.UpstreamMcpUrl, "UpstreamMcpUrl");
+        }
+        else
+        {
+            throw new ApiException(400, "Either UpstreamMcpUrl or UpstreamServers must be provided.");
+        }
 
         InputValidators.ValidateYamlIfPresent(req.CatalogOverrideYaml, "CatalogOverrideYaml");
         InputValidators.RequireYamlWhenEnabled(req.EnforceAuthEnabled, req.AuthPolicyYaml, "AuthPolicyYaml");
@@ -265,12 +299,27 @@ public sealed class ConfigurationService : IConfigurationService
     private ConfigurationDto ToDto(GatewayConfiguration cfg, Tenant tenant)
     {
         var isDefault = string.Equals(tenant.NormalizedName, TenantService.DefaultTenantName, StringComparison.OrdinalIgnoreCase);
+
+        // Load upstream servers synchronously (within transaction scope)
+        var upstreams = _db.UpstreamServers
+            .Where(x => x.ConfigurationId == cfg.Id)
+            .OrderBy(x => x.DisplayOrder)
+            .ThenBy(x => x.ToolPrefix)
+            .Select(x => new UpstreamMcpServerDto(
+                x.ToolPrefix,
+                x.BaseUrl,
+                null, // never return plaintext token
+                !string.IsNullOrWhiteSpace(x.DiscoveryJwtTokenProtected)
+            ))
+            .ToList();
+
         return new ConfigurationDto(
             cfg.Id,
             isDefault ? null : tenant.Id,
             tenant.Name,
             cfg.Name,
-            cfg.UpstreamMcpUrl,
+            cfg.UpstreamMcpUrl, // deprecated but kept for backward compat
+            upstreams.Count > 0 ? upstreams : null,
             cfg.Description,
             HasDiscoveryJwtToken: !string.IsNullOrWhiteSpace(cfg.DiscoveryJwtTokenProtected),
             cfg.CatalogOverrideYaml,
@@ -283,6 +332,64 @@ public sealed class ConfigurationService : IConfigurationService
             cfg.CreatedAtUtc,
             cfg.UpdatedAtUtc
         );
+    }
+
+    private async Task UpsertUpstreamServersAsync(Guid configurationId, ConfigurationCreateOrUpdateRequest req, CancellationToken ct)
+    {
+        // Remove all existing upstreams for this configuration
+        var existing = await _db.UpstreamServers
+            .Where(x => x.ConfigurationId == configurationId)
+            .ToListAsync(ct);
+
+        _db.UpstreamServers.RemoveRange(existing);
+
+        // If using new multi-upstream mode, add them
+        if (req.UpstreamServers is not null && req.UpstreamServers.Count > 0)
+        {
+            var now = _time.GetUtcNow().UtcDateTime;
+            var order = 0;
+
+            foreach (var upstream in req.UpstreamServers)
+            {
+                var entity = new UpstreamMcpServer
+                {
+                    Id = Guid.NewGuid(),
+                    ConfigurationId = configurationId,
+                    ToolPrefix = upstream.ToolPrefix.Trim(),
+                    BaseUrl = upstream.BaseUrl.Trim(),
+                    DisplayOrder = order++,
+                    CreatedAtUtc = now,
+                    UpdatedAtUtc = now
+                };
+
+                // Encrypt discovery token if provided
+                if (!string.IsNullOrWhiteSpace(upstream.DiscoveryJwtToken))
+                {
+                    entity.DiscoveryJwtTokenProtected = _protector.Protect(upstream.DiscoveryJwtToken.Trim());
+                }
+
+                _db.UpstreamServers.Add(entity);
+            }
+        }
+        // If using legacy single URL mode, create a single upstream with empty prefix
+        else if (!string.IsNullOrWhiteSpace(req.UpstreamMcpUrl))
+        {
+            var now = _time.GetUtcNow().UtcDateTime;
+            var entity = new UpstreamMcpServer
+            {
+                Id = Guid.NewGuid(),
+                ConfigurationId = configurationId,
+                ToolPrefix = "", // empty prefix for legacy mode
+                BaseUrl = req.UpstreamMcpUrl.Trim(),
+                DisplayOrder = 0,
+                CreatedAtUtc = now,
+                UpdatedAtUtc = now
+            };
+
+            _db.UpstreamServers.Add(entity);
+        }
+
+        await _db.SaveChangesAsync(ct);
     }
 
     private async Task UpsertDeploymentAsync(GatewayConfiguration cfg, Tenant tenant, string environmentName, int deployedAuditIndex, string author, CancellationToken ct)

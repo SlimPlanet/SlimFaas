@@ -13,12 +13,20 @@ public sealed record TenantDto(Guid Id, string Name, string? Description, DateTi
 
 public sealed record TenantListItemDto(Guid Id, string Name, string? Description);
 
+public sealed record UpstreamMcpServerDto(
+    string ToolPrefix,
+    string BaseUrl,
+    string? DiscoveryJwtToken, // plaintext for input, never returned
+    bool HasDiscoveryJwtToken  // output only
+);
+
 public sealed record ConfigurationCreateOrUpdateRequest(
     string Name,
     Guid? TenantId,
-    string UpstreamMcpUrl,
+    string? UpstreamMcpUrl, // deprecated, kept for backward compatibility
+    IReadOnlyList<UpstreamMcpServerDto>? UpstreamServers, // new multi-upstream support
     string? Description,
-    string? DiscoveryJwtToken, // plaintext; stored encrypted; never returned
+    string? DiscoveryJwtToken, // deprecated, kept for backward compatibility
     string? CatalogOverrideYaml,
     bool EnforceAuthEnabled,
     string? AuthPolicyYaml,
@@ -32,9 +40,10 @@ public sealed record ConfigurationDto(
     Guid? TenantId,
     string TenantName,
     string Name,
-    string UpstreamMcpUrl,
+    string? UpstreamMcpUrl, // deprecated, kept for backward compatibility
+    IReadOnlyList<UpstreamMcpServerDto>? UpstreamServers, // new multi-upstream support
     string? Description,
-    bool HasDiscoveryJwtToken,
+    bool HasDiscoveryJwtToken, // deprecated
     string? CatalogOverrideYaml,
     bool EnforceAuthEnabled,
     string? AuthPolicyYaml,

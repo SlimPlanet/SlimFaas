@@ -89,7 +89,42 @@ public sealed class GatewayProxyHandler : IGatewayProxyHandler
 
         // Determine target endpoint
         rest ??= "";
-        var upstreamBase = snap.UpstreamMcpUrl.TrimEnd('/');
+
+        // For MCP JSON-RPC calls, we need to route based on tool name prefix
+        string upstreamBase;
+        string? toolPrefix = null;
+
+        // Check if this is a tools/call or similar operation that needs routing
+        if (IsToolOperation(rest, ctx.Request.Method))
+        {
+            // Parse the request body to extract tool name
+            var toolName = await ExtractToolNameFromRequestAsync(ctx, ct);
+            if (!string.IsNullOrEmpty(toolName))
+            {
+                // Find the upstream that matches this tool's prefix
+                var upstream = await FindUpstreamForToolAsync(resolved.ConfigurationId, toolName, ct);
+                if (upstream != null)
+                {
+                    upstreamBase = upstream.BaseUrl.TrimEnd('/');
+                    toolPrefix = upstream.ToolPrefix;
+                }
+                else
+                {
+                    // Fallback to legacy single URL
+                    upstreamBase = snap.UpstreamMcpUrl.TrimEnd('/');
+                }
+            }
+            else
+            {
+                upstreamBase = snap.UpstreamMcpUrl.TrimEnd('/');
+            }
+        }
+        else
+        {
+            // For non-tool operations (like tools/list), use the legacy URL or merge
+            upstreamBase = snap.UpstreamMcpUrl.TrimEnd('/');
+        }
+
         var suffix = rest.StartsWith("/") ? rest : (rest.Length == 0 ? "" : "/" + rest);
         var upstreamUrl = upstreamBase + suffix + ctx.Request.QueryString.Value;
 
@@ -233,4 +268,82 @@ public sealed class GatewayProxyHandler : IGatewayProxyHandler
     }
 
     private static string EscapeJson(string s) => s.Replace("\\", "\\\\").Replace("\"", "\\\"");
+
+    private static bool IsToolOperation(string rest, string method)
+    {
+        if (!string.Equals(method, "POST", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        rest = (rest ?? "").Trim('/').ToLowerInvariant();
+
+        // MCP operations that reference tools/resources/prompts by name
+        return rest == "tools/call"
+            || rest == "resources/read"
+            || rest == "resources/subscribe"
+            || rest == "prompts/get"
+            || rest == "" // root endpoint for JSON-RPC
+            || rest == "mcp"; // alternative root
+    }
+
+    private async Task<string?> ExtractToolNameFromRequestAsync(HttpContext ctx, CancellationToken ct)
+    {
+        try
+        {
+            // We need to read the body to get the tool name, but we also need to preserve it for forwarding
+            ctx.Request.EnableBuffering();
+
+            using var reader = new System.IO.StreamReader(ctx.Request.Body, leaveOpen: true);
+            var body = await reader.ReadToEndAsync(ct);
+
+            // Reset the stream position for forwarding
+            ctx.Request.Body.Position = 0;
+
+            if (string.IsNullOrWhiteSpace(body))
+                return null;
+
+            // Parse JSON-RPC request to extract tool/resource/prompt name
+            using var doc = System.Text.Json.JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            // Check for "params" object
+            if (root.TryGetProperty("params", out var paramsObj))
+            {
+                // For tools/call: params.name
+                if (paramsObj.TryGetProperty("name", out var nameElem) && nameElem.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    return nameElem.GetString();
+                }
+
+                // For resources/read: params.uri
+                if (paramsObj.TryGetProperty("uri", out var uriElem) && uriElem.ValueKind == System.Text.Json.JsonValueKind.String)
+                {
+                    return uriElem.GetString();
+                }
+            }
+
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private async Task<Data.Entities.UpstreamMcpServer?> FindUpstreamForToolAsync(Guid configurationId, string toolName, CancellationToken ct)
+    {
+        // Load all upstreams for this configuration
+        var upstreams = await _resolver.GetUpstreamsAsync(configurationId, ct);
+
+        // Find the upstream whose prefix matches the tool name
+        foreach (var upstream in upstreams)
+        {
+            if (!string.IsNullOrEmpty(upstream.ToolPrefix) && toolName.StartsWith(upstream.ToolPrefix, StringComparison.Ordinal))
+            {
+                return upstream;
+            }
+        }
+
+        // If no prefix matches, check for an upstream with empty prefix (legacy mode)
+        return upstreams.FirstOrDefault(u => string.IsNullOrEmpty(u.ToolPrefix));
+    }
 }

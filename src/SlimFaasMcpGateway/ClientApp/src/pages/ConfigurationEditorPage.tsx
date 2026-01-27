@@ -1,9 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { apiJson } from "../lib/api";
-import type { ConfigurationDto, EnvironmentListDto, LoadCatalogResponseDto, TenantListItemDto } from "../lib/types";
+import type { ConfigurationDto, EnvironmentListDto, LoadCatalogResponseDto, TenantListItemDto, UpstreamMcpServerDto } from "../lib/types";
 
 type Mode = "create" | "edit";
+
+type UpstreamEntry = {
+  toolPrefix: string;
+  baseUrl: string;
+  discoveryJwtToken: string;
+  hasDiscoveryJwtToken: boolean;
+};
 
 const DEFAULT_AUTH_POLICY = `issuer:
   - "https://issuer.example.com"
@@ -46,6 +53,10 @@ export default function ConfigurationEditorPage({ mode }: { mode: Mode }) {
   const [discoveryJwtToken, setDiscoveryJwtToken] = useState<string>(""); // empty means clear, undefined means keep; UI uses checkbox
   const [changeDiscoveryToken, setChangeDiscoveryToken] = useState(false);
 
+  // Multi-upstream support
+  const [useMultiUpstream, setUseMultiUpstream] = useState(false);
+  const [upstreams, setUpstreams] = useState<UpstreamEntry[]>([]);
+
   const [catalogOverrideYaml, setCatalogOverrideYaml] = useState("");
   const [enforceAuthEnabled, setEnforceAuthEnabled] = useState(false);
   const [authPolicyYaml, setAuthPolicyYaml] = useState(DEFAULT_AUTH_POLICY);
@@ -70,7 +81,23 @@ export default function ConfigurationEditorPage({ mode }: { mode: Mode }) {
     const dto = await apiJson<ConfigurationDto>(`/api/configurations/${cfgId}`);
     setTenantId(dto.tenantId ?? null);
     setName(dto.name);
-    setUpstreamMcpUrl(dto.upstreamMcpUrl);
+
+    // Check if using multi-upstream mode
+    if (dto.upstreamServers && dto.upstreamServers.length > 0) {
+      setUseMultiUpstream(true);
+      setUpstreams(dto.upstreamServers.map(u => ({
+        toolPrefix: u.toolPrefix,
+        baseUrl: u.baseUrl,
+        discoveryJwtToken: "",
+        hasDiscoveryJwtToken: u.hasDiscoveryJwtToken
+      })));
+      setUpstreamMcpUrl(""); // Clear legacy URL
+    } else {
+      setUseMultiUpstream(false);
+      setUpstreamMcpUrl(dto.upstreamMcpUrl || "");
+      setUpstreams([]);
+    }
+
     setDescription(dto.description ?? "");
     setCatalogOverrideYaml(dto.catalogOverrideYaml ?? "");
     setEnforceAuthEnabled(dto.enforceAuthEnabled);
@@ -127,7 +154,13 @@ export default function ConfigurationEditorPage({ mode }: { mode: Mode }) {
       const payload = {
         name,
         tenantId: tenantId || null,
-        upstreamMcpUrl,
+        upstreamMcpUrl: useMultiUpstream ? null : upstreamMcpUrl,
+        upstreamServers: useMultiUpstream ? upstreams.map(u => ({
+          toolPrefix: u.toolPrefix,
+          baseUrl: u.baseUrl,
+          discoveryJwtToken: u.discoveryJwtToken || null,
+          hasDiscoveryJwtToken: u.hasDiscoveryJwtToken
+        })) : null,
         description: description || null,
         discoveryJwtToken: changeDiscoveryToken ? discoveryJwtToken : null,
         catalogOverrideYaml: catalogOverrideYaml || null,
@@ -167,6 +200,27 @@ export default function ConfigurationEditorPage({ mode }: { mode: Mode }) {
     }
   }
 
+  function addUpstream() {
+    setUpstreams([...upstreams, { toolPrefix: "", baseUrl: "", discoveryJwtToken: "", hasDiscoveryJwtToken: false }]);
+  }
+
+  function removeUpstream(index: number) {
+    setUpstreams(upstreams.filter((_, i) => i !== index));
+  }
+
+  function updateUpstream(index: number, field: keyof UpstreamEntry, value: string) {
+    const updated = [...upstreams];
+    updated[index] = { ...updated[index], [field]: value };
+    setUpstreams(updated);
+  }
+
+  const canSave = name.trim() && (
+    useMultiUpstream
+      ? upstreams.length > 0 && upstreams.every(u => u.toolPrefix.trim() && u.baseUrl.trim())
+      : upstreamMcpUrl.trim()
+  );
+
+
   return (
     <section className="page">
       <div className="page__header">
@@ -187,7 +241,7 @@ export default function ConfigurationEditorPage({ mode }: { mode: Mode }) {
               Delete
             </button>
           )}
-          <button className="button button--primary" onClick={() => void save()} disabled={loading || !name.trim() || !upstreamMcpUrl.trim()}>
+          <button className="button button--primary" onClick={() => void save()} disabled={loading || !canSave}>
             Save
           </button>
         </div>
@@ -223,10 +277,91 @@ export default function ConfigurationEditorPage({ mode }: { mode: Mode }) {
             <span className="field__hint">Used to generate the gateway URL path segment.</span>
           </label>
 
-          <label className="field">
-            <span className="field__label">Upstream MCP base URL</span>
-            <input className="input" value={upstreamMcpUrl} onChange={(e) => setUpstreamMcpUrl(e.target.value)} placeholder="https://mcp.example.com" />
-          </label>
+          <div className="divider" />
+
+          <div className="toggle">
+            <input
+              id="useMultiUpstream"
+              type="checkbox"
+              checked={useMultiUpstream}
+              onChange={(e) => setUseMultiUpstream(e.target.checked)}
+            />
+            <label htmlFor="useMultiUpstream" className="toggle__label">
+              Use multiple upstream servers (with tool prefixes)
+            </label>
+          </div>
+
+          {!useMultiUpstream ? (
+            <label className="field">
+              <span className="field__label">Upstream MCP base URL</span>
+              <input className="input" value={upstreamMcpUrl} onChange={(e) => setUpstreamMcpUrl(e.target.value)} placeholder="https://mcp.example.com" />
+              <span className="field__hint">Single upstream MCP server (legacy mode).</span>
+            </label>
+          ) : (
+            <div className="field">
+              <span className="field__label">Upstream servers</span>
+              <div className="field__hint" style={{ marginBottom: "0.5rem" }}>
+                Each upstream requires a tool prefix to avoid conflicts. Tools will be routed based on their name prefix.
+              </div>
+
+              {upstreams.map((upstream, index) => (
+                <div key={index} style={{ marginBottom: "1rem", padding: "1rem", border: "1px solid var(--border-color, #e1e4e8)", borderRadius: "6px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                    <strong>Upstream #{index + 1}</strong>
+                    <button
+                      className="button button--small button--danger"
+                      onClick={() => removeUpstream(index)}
+                      type="button"
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <label className="field">
+                    <span className="field__label">Tool prefix (e.g., "slack_", "github_")</span>
+                    <input
+                      className="input"
+                      value={upstream.toolPrefix}
+                      onChange={(e) => updateUpstream(index, "toolPrefix", e.target.value)}
+                      placeholder="slack_"
+                    />
+                  </label>
+
+                  <label className="field">
+                    <span className="field__label">Base URL</span>
+                    <input
+                      className="input"
+                      value={upstream.baseUrl}
+                      onChange={(e) => updateUpstream(index, "baseUrl", e.target.value)}
+                      placeholder="https://mcp-slack.example.com"
+                    />
+                  </label>
+
+                  <label className="field">
+                    <span className="field__label">Discovery JWT token (optional)</span>
+                    <input
+                      className="input"
+                      value={upstream.discoveryJwtToken}
+                      onChange={(e) => updateUpstream(index, "discoveryJwtToken", e.target.value)}
+                      placeholder="Leave empty to keep existing or no token"
+                    />
+                    {upstream.hasDiscoveryJwtToken && (
+                      <span className="badge">token stored</span>
+                    )}
+                  </label>
+                </div>
+              ))}
+
+              <button
+                className="button"
+                onClick={addUpstream}
+                type="button"
+                style={{ marginTop: "0.5rem" }}
+              >
+                + Add upstream server
+              </button>
+            </div>
+          )}
 
           <label className="field">
             <span className="field__label">Description</span>
