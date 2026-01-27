@@ -98,7 +98,7 @@ public static class EventEndpoints
                 string baseFunctionPodUrl = Environment.GetEnvironmentVariable(EnvironmentVariables.BaseFunctionPodUrl) ??
                                           EnvironmentVariables.BaseFunctionPodUrlDefault;
 
-                var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl);
+                var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl) + "/";
                 logger.LogDebug("Sending event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent}",
                     eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
 
