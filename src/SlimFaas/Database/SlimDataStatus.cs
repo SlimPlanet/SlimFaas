@@ -1,4 +1,5 @@
 ﻿using DotNext.Net.Cluster.Consensus.Raft;
+using Microsoft.Extensions.Logging;
 
 namespace SlimFaas.Database;
 
@@ -12,7 +13,7 @@ public class SlimDataMock : ISlimDataStatus
     public async Task WaitForReadyAsync() => await Task.CompletedTask;
 }
 
-public class SlimDataStatus(IRaftCluster cluster) : ISlimDataStatus
+public class SlimDataStatus(IRaftCluster cluster, ILogger<SlimDataStatus> logger) : ISlimDataStatus
 {
     public async Task WaitForReadyAsync()
     {
@@ -20,7 +21,7 @@ public class SlimDataStatus(IRaftCluster cluster) : ISlimDataStatus
 
         while (raftCluster.Leader == null)
         {
-            Console.WriteLine("Raft cluster has no leader");
+            logger.LogWarning("Raft cluster has no leader, waiting...");
             await Task.Delay(500);
         }
     }
