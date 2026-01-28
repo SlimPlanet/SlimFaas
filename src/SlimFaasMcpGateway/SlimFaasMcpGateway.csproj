@@ -1,0 +1,98 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <RuntimeIdentifiers>linux-x64;win-x64;osx-arm64</RuntimeIdentifiers>
+    <NoWarn>$(NoWarn);IL2026;IL3050</NoWarn>
+
+    <!-- SPA Configuration -->
+    <SpaRoot>ClientApp\</SpaRoot>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**</DefaultItemExcludes>
+    <RootNamespace>SlimFaasMcpGateway.Api</RootNamespace>
+  </PropertyGroup>
+
+  <!-- NativeAOT only for Release builds -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <PublishAot>true</PublishAot>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!-- EF Core Compiled Model for NativeAOT -->
+    <EntityFrameworkCoreGenerateCompiledModel>true</EntityFrameworkCoreGenerateCompiledModel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DiffPlex" Version="1.7.2" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.6.0" />
+    <PackageReference Include="YamlDotNet" Version="16.2.1" />
+
+    <!-- Observability -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.10.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.9.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.10.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
+
+    <!-- Prometheus endpoint -->
+    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+  </ItemGroup>
+
+  <!-- Build frontend and copy to wwwroot -->
+  <Target Name="BuildFrontend" BeforeTargets="Build" Condition="!Exists('wwwroot\index.html')">
+    <Message Text="Building frontend application..." Importance="high" />
+
+    <!-- Install npm dependencies -->
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
+
+    <!-- Build the frontend -->
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
+
+    <!-- Copy dist to wwwroot -->
+    <ItemGroup>
+      <DistFiles Include="$(SpaRoot)dist\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DistFiles)" DestinationFolder="wwwroot\%(RecursiveDir)" />
+
+    <Message Text="Frontend build completed and copied to wwwroot" Importance="high" />
+  </Target>
+
+  <!-- Rebuild frontend on publish -->
+  <Target Name="PublishFrontend" BeforeTargets="Publish">
+    <Message Text="Building frontend for production..." Importance="high" />
+
+    <!-- Install npm dependencies -->
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm install" />
+
+    <!-- Build the frontend -->
+    <Exec WorkingDirectory="$(SpaRoot)" Command="npm run build" />
+
+    <!-- Clean wwwroot -->
+    <RemoveDir Directories="wwwroot" />
+    <MakeDir Directories="wwwroot" />
+
+    <!-- Copy dist to wwwroot -->
+    <ItemGroup>
+      <DistFiles Include="$(SpaRoot)dist\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(DistFiles)" DestinationFolder="wwwroot\%(RecursiveDir)" />
+
+    <Message Text="Frontend published to wwwroot" Importance="high" />
+  </Target>
+
+  <!-- Clean frontend build artifacts -->
+  <Target Name="CleanFrontend" AfterTargets="Clean">
+    <RemoveDir Directories="$(SpaRoot)dist" />
+    <RemoveDir Directories="wwwroot" />
+  </Target>
+
+</Project>

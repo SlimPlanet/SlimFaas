@@ -7,7 +7,7 @@ import type { McpTool, UiTool } from "./types";
 import { fromBase64Utf8, isProbablyBase64, safeJsonParse, toBase64Utf8 } from "../../utils/encoding";
 import "./SwaggerToMcpPage.scss";
 
-const API_BASE = (import.meta.env.VITE_MCP_API_BASE_URL ?? "").replace(/\/+$/, "");
+const API_BASE = (import.meta.env.VITE_MCP_API_BASE_URL ?? "").replace(/[/.]+$/, "");
 const api = (path: string) => (API_BASE ? `${API_BASE}${path}` : path);
 
 function clampUrlBase(baseUrl: string): string {
@@ -140,7 +140,10 @@ export default function SwaggerToMcpPage() {
     let url = `${originBase}/mcp?openapi_url=${encodeURIComponent(swaggerUrl.trim())}`;
     const b = clampUrlBase(baseUrl.trim());
     if (b) url += `&base_url=${encodeURIComponent(b)}`;
-    if (promptB64 && isProbablyBase64(promptB64)) url += `&mcp_prompt=${encodeURIComponent(promptB64)}`;
+    // Ne pas ajouter mcp_prompt si c'est un objet JSON vide (e30= en base64)
+    if (promptB64 && isProbablyBase64(promptB64) && promptB64 !== 'e30=') {
+      url += `&mcp_prompt=${encodeURIComponent(promptB64)}`;
+    }
     if (includePrm && oauthB64 && isProbablyBase64(oauthB64)) url += `&oauth=${encodeURIComponent(oauthB64)}`;
     if (structuredContent) url += `&structured_content=true`;
     if (toolPrefix.trim()) url += `&tool_prefix=${encodeURIComponent(toolPrefix.trim())}`;
@@ -308,7 +311,7 @@ export default function SwaggerToMcpPage() {
 
     let endpoint = `/tools/${encodeURIComponent(toolName)}?openapi_url=${encodeURIComponent(swagger)}`;
     if (b) endpoint += `&base_url=${encodeURIComponent(b)}`;
-    if (promptB64) endpoint += `&mcp_prompt=${encodeURIComponent(promptB64)}`;
+    if (promptB64 && promptB64 !== 'e30=') endpoint += `&mcp_prompt=${encodeURIComponent(promptB64)}`;
     if (includePrm && oauthB64) endpoint += `&oauth=${encodeURIComponent(oauthB64)}`;
     if (structuredContent) endpoint += `&structured_content=true`;
     if (toolPrefix.trim()) endpoint += `&tool_prefix=${encodeURIComponent(toolPrefix.trim())}`;
