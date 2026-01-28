@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.60.7
+
+- [898828fe](https://github.com/SlimPlanet/SlimFaas/commit/898828fead773dd699803d936bce8545e21728b0) - fix(tests): repair commented tests (#228) (release), 2026-01-28 by *Guillaume Chervet*
+
+
+## 0.60.6
+
+
+
 ## v0.60.6
 
 - [b21cc754](https://github.com/SlimPlanet/SlimFaas/commit/b21cc7549f2a1f40301c35cb572d97c709d28b4a) - feature(mcp): better website (#223) (release), 2026-01-24 by *Guillaume Chervet*
@@ -265,15 +274,5 @@
 ## v0.50.1
 
 - [20d7a555](https://github.com/SlimPlanet/SlimFaas/commit/20d7a5555414ec4e007742bd8eea26c6dff1470d) - fix(slimfaas): scaling (#197) (release), 2025-12-03 by *Guillaume Chervet*
-
-
-## 0.50.0
-
-
-
-## v0.50.0
-
-- [14707cf5](https://github.com/SlimPlanet/SlimFaas/commit/14707cf5b5d34de3ad06dbb496dd60d0662766dc) - feat(mcp): add opentelemetry connector (#196) (release), 2025-12-03 by *Silthian*
-- [2e8193ce](https://github.com/SlimPlanet/SlimFaas/commit/2e8193cee6268519030f0c01d7dc7118316a35e7) - doc(mcp): enhance, 2025-12-01 by *Guillaume Chervet*
 
 
