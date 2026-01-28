@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.60.8
+
+- [768ca2f5](https://github.com/SlimPlanet/SlimFaas/commit/768ca2f54fda208f17e83e56286545ec86a71aed) - refactor(slimfaas): replace console.writeline to logger (#229) (release), 2026-01-28 by *Guillaume Chervet*
+
+
+## 0.60.7
+
+
+
 ## v0.60.7
 
 - [898828fe](https://github.com/SlimPlanet/SlimFaas/commit/898828fead773dd699803d936bce8545e21728b0) - fix(tests): repair commented tests (#228) (release), 2026-01-28 by *Guillaume Chervet*
@@ -265,14 +274,5 @@
 
 - [193c5e86](https://github.com/SlimPlanet/SlimFaas/commit/193c5e86620891fbcb54748c9f1a743f951c89dc) - feat(mcp): add console exporter to otel (#198) (release), 2025-12-04 by *Silthian*
 - [af5a92db](https://github.com/SlimPlanet/SlimFaas/commit/af5a92dbb773a6613dca2ac4acb1064dc3ba90c6) - fix(doc): add kafka env var description, 2025-12-04 by *Guillaume Chervet*
-
-
-## 0.50.1
-
-
-
-## v0.50.1
-
-- [20d7a555](https://github.com/SlimPlanet/SlimFaas/commit/20d7a5555414ec4e007742bd8eea26c6dff1470d) - fix(slimfaas): scaling (#197) (release), 2025-12-03 by *Guillaume Chervet*
 
 
