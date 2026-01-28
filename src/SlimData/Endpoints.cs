@@ -291,11 +291,6 @@ public class Endpoints
         return values;
     }
 
-    private static ListLeftPushBatchRequest DeserializeListLeftPushBatchRequest(byte[] value)
-    {
-        return MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
-    }
-
     public static async Task ListLeftPushBatchAsync(HttpContext context)
     {
         var task = DoAsync(context, async (cluster, provider, source) =>
@@ -303,9 +298,6 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
             var value = memoryStream.ToArray();
-
-            var req = DeserializeListLeftPushBatchRequest(value);
-            Console.WriteLine($"Count ListLeftPushBatchAsync: {req.Items.Length}");
 
             var resp = await ListLeftPushBatchCommand(cluster, value, source);
             var responseBytes = MemoryPackSerializer.Serialize(resp);
@@ -323,11 +315,7 @@ public class Endpoints
     public static async Task<ListLeftPushBatchResponse> ListLeftPushBatchCommand(IRaftCluster cluster, byte[] value,
         CancellationTokenSource source)
     {
-        double sizeInKo = value.Length / 1024.0;
-        Console.WriteLine($"Taille ListLeftPushBatchCommand : {sizeInKo:F2} Ko");
-
         var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
-        Console.WriteLine($" Count ListLeftPushBatchCommand: {listLeftPushBatchRequest.Items.Length}");
 
         List<ListLeftPushBatchCommand.BatchItem> batchItems = new(listLeftPushBatchRequest.Items.Length);
         foreach (var item in listLeftPushBatchRequest.Items)
@@ -426,13 +414,8 @@ public class Endpoints
             await using var memoryStream = new MemoryStream();
             await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
             var value = memoryStream.ToArray();
-
-            double sizeInKo = value.Length / 1024.0;
-            Console.WriteLine($"Taille ListCallbackAsync : {sizeInKo:F2} Ko");
-
+            
             var list = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(value);
-            Console.WriteLine($"Count ListCallbackAsync: {list.Items?.Count ?? 0}");
-
             await ListCallbackCommandAsync(provider, key, list, cluster, source);
         });
     }

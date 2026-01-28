@@ -224,10 +224,6 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
                    url = url.Replace($"{{pod_port_{index}}}", port.ToString());
                }
            }
-           else
-           {
-               Console.WriteLine("No ports available");
-           }
 
            return url;
         }

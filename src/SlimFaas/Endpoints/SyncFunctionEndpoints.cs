@@ -19,7 +19,8 @@ public static class SyncFunctionEndpoints
             HandleSyncFunction)
             .WithName("HandleSyncFunction")
             .DisableAntiforgery()
-            .AddEndpointFilter<HostPortEndpointFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>()
+            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
 
         app.MapMethods("/function/{functionName}",
             new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
@@ -32,7 +33,8 @@ public static class SyncFunctionEndpoints
                 HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService))
             .WithName("HandleSyncFunctionRoot")
             .DisableAntiforgery()
-            .AddEndpointFilter<HostPortEndpointFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>()
+            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
     }
 
     private static async Task<IResult> HandleSyncFunction(
