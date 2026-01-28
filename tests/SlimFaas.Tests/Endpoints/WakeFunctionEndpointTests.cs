@@ -1,4 +1,4 @@
-/*using System.Net;
+using System.Net;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -39,6 +39,9 @@ public class WakeFunctionEndpointTests
                         services.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddMemoryCache();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<WakeUpGate>();
                         services.AddRouting();
                     })
                     .Configure(app =>
@@ -55,4 +58,4 @@ public class WakeFunctionEndpointTests
         Assert.Equal(expectedHttpStatusCode, response.StatusCode);
     }
 }
-*/
+
