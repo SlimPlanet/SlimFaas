@@ -43,6 +43,9 @@ public class JobEndpointsTests
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddMemoryCache();
+                        s.AddSingleton<FunctionStatusCache>();
+                        s.AddSingleton<WakeUpGate>();
                         s.AddRouting();
                     })
                     .Configure(app =>

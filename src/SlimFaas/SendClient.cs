@@ -214,7 +214,7 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
                throw new Exception("Not port or IP available");
            }
 
-           string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), customRequestPath + customRequestQuery).ToString();
+           string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), customRequestPath + customRequestQuery);
            if (ports is { Count: > 0 })
            {
                url = url.Replace("{pod_port}", ports[0].ToString());
@@ -232,8 +232,8 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
            return url;
         }
 
-        return functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas) + customRequestPath +
-               customRequestQuery;
+        return CombinePaths(functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas), customRequestPath +
+               customRequestQuery);
     }
 
     public static string CombinePaths(string baseUrl, params string[] segments)

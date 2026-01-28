@@ -1,4 +1,4 @@
-﻿﻿using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -51,6 +51,9 @@ public class JobScheduleEndpointsTests
                         // Les dépendances inutilisées dans ces scénarios peuvent être omises
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddMemoryCache();
+                        s.AddSingleton<FunctionStatusCache>();
+                        s.AddSingleton<WakeUpGate>();
                         s.AddRouting();
                     })
                     .Configure(app =>
