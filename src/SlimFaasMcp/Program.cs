@@ -73,8 +73,31 @@ builder.Services.ConfigureHttpJsonOptions(o =>
 
 var app = builder.Build();
 
+app.Use((ctx, next) =>
+{
+    ctx.Response.OnStarting(() =>
+    {
+        // Toujours avant le début effectif de la réponse
+        ctx.Response.Headers.CacheControl = "no-store, no-cache, max-age=0, must-revalidate";
+        ctx.Response.Headers.Pragma = "no-cache";
+        ctx.Response.Headers.Expires = "0";
+        return Task.CompletedTask;
+    });
+
+    return next();
+});
+
+
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = static ctx =>
+    {
+        ctx.Context.Response.Headers.CacheControl = "no-store, no-cache, max-age=0, must-revalidate";
+        ctx.Context.Response.Headers.Pragma = "no-cache";
+        ctx.Context.Response.Headers.Expires = "0";
+    }
+});
 
 app.UseCors("SlimFaasMcpCors");
 app.UseMiddleware<RequestLoggingMiddleware>();
@@ -428,6 +451,8 @@ app.MapGet("/{oauth?}/.well-known/oauth-protected-resource",
 
 
 app.MapGet("/health", () => Results.Text("OK"));
+
+app.MapFallbackToFile("index.html");
 
 await app.RunAsync();
 

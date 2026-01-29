@@ -30,7 +30,8 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
 - `N → M` scaling powered by PromQL,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
-- temporary **Data Binary** endpoints to ingest and stage files (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
+- temporary **Data Files** endpoints to ingest and stage binaries (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
+- temporary **Data Sets** endpoints (`/data/sets`) to store small, Redis-like KV payloads (cache, JSON state, flags) with optional TTL — replicated through the cluster via a robust consensus layer.
 
 > **Looking for MCP integration?**
 > Check out **[SlimFaas MCP](https://slimfaas.dev/mcp)** — the companion runtime that converts *any* OpenAPI definition into MCP-ready tools on the fly.
@@ -102,15 +103,28 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - Synchronously send events to **every replica** of selected functions.
 - No additional event bus required — ideal for cluster-local fan-out, cache invalidation, configuration refresh, etc.
 
-### 📁 Data & Files (real-time ingestion + ephemeral caching)
+### 🧰 Data Files & Data Sets (real-time ingestion + ephemeral caching + robust KV)
 
-SlimFaas includes **Data Files** endpoints to **stream, store, and serve temporary files** — from tiny payloads to *very large* binaries.
+SlimFaas includes two complementary “data” APIs:
+
+#### 📁 Data Files (temporary binary artifacts)
+
+**Data Files** endpoints are designed to **stream, store, and serve temporary files** — from tiny payloads to *very large* binaries.
 Ideal for **agentic workflows** and **real-time ingestion**: upload once, get an `id`, then let tools/functions consume it when they’re ready.
 
 - Stream-first uploads (without buffering in memory or disk)
 - **Agentic-ready** attachments & multi-step flows
 - **Ephemeral caching** for intermediate artifacts
 - **TTL-based** lifecycle (auto-expiration)
+
+#### 🧠 Data Sets (Redis-like KV for small state)
+
+**Data Sets** endpoints provide a **small, Redis-like KV store** (raw bytes) replicated across the SlimFaas cluster.
+
+- Stream-first uploads
+- Store **anything small**: JSON, strings, flags, lightweight cache entries
+- Optional `ttl` in **milliseconds** (auto-expiration)
+- Hard limit: **1 MiB per value**
 
 ### 🧠 “Mind Changer” (Status & Wake-up API)
 
@@ -144,16 +158,17 @@ Check out:
 
 - [Get Started](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/get-started.md) – Learn how to deploy SlimFaas on Kubernetes or Docker Compose.
 - Scaling
-  - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
-  - [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.
-  - [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
+    - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
+    - [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.
+    - [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
 - Functions & Workloads
-  - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
-  - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
-  - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
-  - [OpenTelemetry](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/opentelemetry.md) – Enable distributed tracing, metrics, and logs with OpenTelemetry integration.
+    - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
+    - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
+    - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
+    - [OpenTelemetry](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/opentelemetry.md) – Enable distributed tracing, metrics, and logs with OpenTelemetry integration.
 - Data & Files
-  - [Data Files](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/data-files.md) - Understand how to ingest, store, and serve temporary binary artifacts.
+    - [Data Files](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/data-files.md) - Understand how to ingest, store, and serve temporary binary artifacts.
+    - [Data Sets](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/data-sets.md) - Store small, Redis-like KV payloads (cache, JSON state, flags) replicated across the cluster, with optional TTL.
 - [How It Works](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/how-it-works.md) – Dive into SlimFaas’s architecture and design.
 - [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP-ready tools on the fly.
 

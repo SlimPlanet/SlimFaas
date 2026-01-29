@@ -558,60 +558,76 @@ public class KubernetesService : IKubernetesService
 
         List<V1EnvVar>? envVars = createJob.Environments?.Select(e =>
         {
-            if (e.SecretRef != null)
+            if (e.SecretRef is not null)
             {
-                return new V1EnvVar(
-                    e.Name,
-                    valueFrom: new V1EnvVarSource
+                return new V1EnvVar
+                {
+                    Name = e.Name,
+                    ValueFrom = new V1EnvVarSource
                     {
-                        SecretKeyRef = new V1SecretKeySelector(
-                            name: e.SecretRef.Name,
-                            key: e.SecretRef.Key)
+                        SecretKeyRef = new V1SecretKeySelector
+                        {
+                            Name = e.SecretRef.Name,
+                            Key = e.SecretRef.Key
+                        }
                     }
-                );
+                };
             }
 
-            if (e.ConfigMapRef != null)
+            if (e.ConfigMapRef is not null)
             {
-                return new V1EnvVar(
-                    e.Name,
-                    valueFrom: new V1EnvVarSource
+                return new V1EnvVar
+                {
+                    Name = e.Name,
+                    ValueFrom = new V1EnvVarSource
                     {
-                        ConfigMapKeyRef = new V1ConfigMapKeySelector(
-                            name: e.ConfigMapRef.Name,
-                            key: e.ConfigMapRef.Key)
+                        ConfigMapKeyRef = new V1ConfigMapKeySelector
+                        {
+                            Name = e.ConfigMapRef.Name,
+                            Key = e.ConfigMapRef.Key
+                        }
                     }
-                );
+                };
             }
 
-            if (e.FieldRef != null)
+            if (e.FieldRef is not null)
             {
-                return new V1EnvVar(
-                    e.Name,
-                    valueFrom: new V1EnvVarSource
+                return new V1EnvVar
+                {
+                    Name = e.Name,
+                    ValueFrom = new V1EnvVarSource
                     {
-                        FieldRef = new V1ObjectFieldSelector(
-                            e.FieldRef.FieldPath)
+                        FieldRef = new V1ObjectFieldSelector
+                        {
+                            FieldPath = e.FieldRef.FieldPath
+                        }
                     }
-                );
+                };
             }
 
-            if (e.ResourceFieldRef != null)
+            if (e.ResourceFieldRef is not null)
             {
-                return new V1EnvVar(
-                    e.Name,
-                    valueFrom: new V1EnvVarSource
+                return new V1EnvVar
+                {
+                    Name = e.Name,
+                    ValueFrom = new V1EnvVarSource
                     {
-                        ResourceFieldRef = new V1ResourceFieldSelector(
-                            containerName: e.ResourceFieldRef.ContainerName,
-                            resource: e.ResourceFieldRef.Resource,
-                            divisor: new ResourceQuantity(e.ResourceFieldRef.Divisor)
-                        )
+                        ResourceFieldRef = new V1ResourceFieldSelector
+                        {
+                            ContainerName = e.ResourceFieldRef.ContainerName,
+                            Resource = e.ResourceFieldRef.Resource,
+                            Divisor = new ResourceQuantity(e.ResourceFieldRef.Divisor)
+                        }
                     }
-                );
+                };
             }
 
-            return new V1EnvVar(e.Name, e.Value);
+            // Valeur directe
+            return new V1EnvVar
+            {
+                Name = e.Name,
+                Value = e.Value
+            };
         }).ToList();
 
         var annotations = new Dictionary<string, string>();

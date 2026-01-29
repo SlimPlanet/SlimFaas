@@ -83,7 +83,7 @@ public static class Retry
                 await Task.Delay(delay * 1000);
             }
 
-            var responseMessage = await WrapRequestAction(action);
+            var responseMessage = await WrapRequestAction(action, logger);
             var statusCode = (int)responseMessage.StatusCode;
             if (!httpStatusRetries.Contains(statusCode))
             {
@@ -96,7 +96,7 @@ public static class Retry
         throw new AggregateException(exceptions);
     }
 
-    private static async Task<HttpResponseMessage> WrapRequestAction(Func<Task<HttpResponseMessage>> action)
+    private static async Task<HttpResponseMessage> WrapRequestAction(Func<Task<HttpResponseMessage>> action, ILogger logger)
     {
         try
         {
@@ -112,7 +112,7 @@ public static class Retry
         }
         catch (HttpRequestException ex)
         {
-            Console.WriteLine($"Network exception : {ex.Message}");
+            logger.LogError($"Network exception : {ex.Message}");
 
             var fallbackResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
             {

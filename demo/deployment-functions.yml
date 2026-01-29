@@ -42,13 +42,13 @@ spec:
               "ScaleUp": {
                 "StabilizationWindowSeconds": 0,
                 "Policies": [
-                  { "Type": "Pods",    "Value": 1,   "PeriodSeconds": 30 }
+                  { "Type": "Pods",    "Value": 1,   "PeriodSeconds": 10 }
                 ]
               },
               "ScaleDown": {
                 "StabilizationWindowSeconds": 20,
                 "Policies": [
-                  { "Type": "Pods", "Value": 1, "PeriodSeconds": 30 }
+                  { "Type": "Pods", "Value": 1, "PeriodSeconds": 10 }
                 ]
               }
             }
@@ -166,7 +166,7 @@ spec:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
         SlimFaas/SubscribeEvents: "fibo-public"
-        SlimFaas/ReplicasAtStart: "2"
+        SlimFaas/ReplicasAtStart: "1"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
         prometheus.io/scrape: 'true'

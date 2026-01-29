@@ -16,7 +16,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        Console.WriteLine("SlimDataSynchronizationWorker: Start");
+        logger.LogInformation("SlimDataSynchronizationWorker: Start");
         await slimDataStatus.WaitForReadyAsync();
         while (stoppingToken.IsCancellationRequested == false)
         {
@@ -39,7 +39,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                         continue;
                     }
 
-                    Console.WriteLine($"SlimDataSynchronizationWorker: SlimFaas pod {slimFaasPod.Name} has to be added in the cluster");
+                    logger.LogInformation($"SlimDataSynchronizationWorker: SlimFaas pod {slimFaasPod.Name} has to be added in the cluster");
                     await ((IRaftHttpCluster)cluster).AddMemberAsync(new Uri(url), stoppingToken);
 
                     // Add only one at once to let a synchronization time
@@ -67,7 +67,7 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                         continue;
                     }
 
-                    Console.WriteLine(
+                    logger.LogInformation(
                         $"SlimDataSynchronizationWorker: SlimFaas pod {endpoint} need to be remove from the cluster");
                     await ((IRaftHttpCluster)cluster).RemoveMemberAsync(
                         new Uri(endpoint ?? string.Empty), stoppingToken);
