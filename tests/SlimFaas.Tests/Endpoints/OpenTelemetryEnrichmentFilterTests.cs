@@ -43,8 +43,6 @@ public class OpenTelemetryEnrichmentFilterTests
         Assert.True(nextCalled);
         Assert.NotNull(activity);
         Assert.Equal("GET /function/fibonacci/compute", activity.DisplayName);
-        Assert.Equal("/function/fibonacci/compute?n=10", activity.GetTagItem("http.target"));
-        Assert.Equal("/function/fibonacci/compute", activity.GetTagItem("http.route.actual"));
     }
 
     [Fact]
@@ -156,38 +154,7 @@ public class OpenTelemetryEnrichmentFilterTests
         Assert.True(nextCalled);
         Assert.NotNull(activity);
         Assert.Equal($"{method} {path}", activity.DisplayName);
-        Assert.Equal(path, activity.GetTagItem("http.route.actual"));
-    }
-
-    [Fact]
-    public async Task InvokeAsync_ShouldPreserveQueryString_InHttpTarget()
-    {
-        // Arrange
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = _ => true,
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData
-        };
-        ActivitySource.AddActivityListener(listener);
-
-        using var activitySource = new ActivitySource("TestSource");
-        using var activity = activitySource.StartActivity();
-
-        var filter = new OpenTelemetryEnrichmentFilter();
-        var httpContext = new DefaultHttpContext();
-        httpContext.Request.Path = "/function/test";
-        httpContext.Request.QueryString = new QueryString("?param1=value1&param2=value2");
-        httpContext.Request.Method = "GET";
-
-        var context = new DefaultEndpointFilterInvocationContext(httpContext);
-        EndpointFilterDelegate next = _ => ValueTask.FromResult<object?>(Results.Ok());
-
-        // Act
-        await filter.InvokeAsync(context, next);
-
-        // Assert
-        Assert.NotNull(activity);
-        Assert.Equal("/function/test?param1=value1&param2=value2", activity.GetTagItem("http.target"));
+        Assert.Equal(path, activity.GetTagItem("http.route"));
     }
 
     [Fact]

@@ -15,17 +15,13 @@ public class OpenTelemetryEnrichmentFilter : IEndpointFilter
 
         if (activity != null)
         {
-            // Remplacer le display name par le chemin réel de la requête
             var actualPath = httpContext.Request.Path;
             var method = httpContext.Request.Method;
 
             activity.DisplayName = $"{method} {actualPath}";
 
-            // Ajouter des tags supplémentaires pour le debugging
-            activity.SetTag("http.target", actualPath + httpContext.Request.QueryString);
-            activity.SetTag("http.route.actual", actualPath.ToString());
+            activity.SetTag("http.route", actualPath.ToString());
 
-            // Conserver aussi le template de route si disponible
             var endpoint = httpContext.GetEndpoint();
             if (endpoint is RouteEndpoint routeEndpoint)
             {
