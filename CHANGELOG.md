@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.60.9
+
+- [7b8e89f3](https://github.com/SlimPlanet/SlimFaas/commit/7b8e89f3212f9c1b50e85a597c3943605ca2b115) - fix(slimfaas): override correct data (#231) (release), 2026-01-29 by *Guillaume Chervet*
+
+
+## 0.60.8
+
+
+
 ## v0.60.8
 
 - [768ca2f5](https://github.com/SlimPlanet/SlimFaas/commit/768ca2f54fda208f17e83e56286545ec86a71aed) - refactor(slimfaas): replace console.writeline to logger (#229) (release), 2026-01-28 by *Guillaume Chervet*
@@ -264,15 +273,5 @@
 
 - [5de9ec4e](https://github.com/SlimPlanet/SlimFaas/commit/5de9ec4e374a79980c0de6276993b89333b3109e) - doc(kafka): update demo (release), 2025-12-05 by *Guillaume Chervet*
 - [cd583bcc](https://github.com/SlimPlanet/SlimFaas/commit/cd583bcc83f1b483ea9d7488c66cdc54b8ee9a2c) - feat(mcp): Add flag to enable otel (#199), 2025-12-05 by *Silthian*
-
-
-## 0.51.0
-
-
-
-## v0.51.0
-
-- [193c5e86](https://github.com/SlimPlanet/SlimFaas/commit/193c5e86620891fbcb54748c9f1a743f951c89dc) - feat(mcp): add console exporter to otel (#198) (release), 2025-12-04 by *Silthian*
-- [af5a92db](https://github.com/SlimPlanet/SlimFaas/commit/af5a92dbb773a6613dca2ac4acb1064dc3ba90c6) - fix(doc): add kafka env var description, 2025-12-04 by *Guillaume Chervet*
 
 
