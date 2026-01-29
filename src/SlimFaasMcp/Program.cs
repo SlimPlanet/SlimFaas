@@ -102,6 +102,8 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseCors("SlimFaasMcpCors");
 app.UseMiddleware<RequestLoggingMiddleware>();
 
+app.MapPrometheusScrapingEndpoint();
+
 app.MapGet("/mcp", () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed));
 
 /* -------------------------------------------------------------------------
