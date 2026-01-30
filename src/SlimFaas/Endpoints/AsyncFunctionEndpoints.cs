@@ -24,8 +24,7 @@ public static class AsyncFunctionEndpoints
             .Produces(202)
             .Produces(404)
             .DisableAntiforgery()
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         app.MapMethods("/async-function/{functionName}",
             new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
@@ -40,8 +39,7 @@ public static class AsyncFunctionEndpoints
             .Produces(202)
             .Produces(404)
             .DisableAntiforgery()
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // POST /async-function-callback/{functionName}/{elementId}/{status}
         app.MapPost("/async-function-callback/{functionName}/{elementId}/{status}", HandleAsyncCallback)
@@ -49,8 +47,7 @@ public static class AsyncFunctionEndpoints
             .Produces(200)
             .Produces(400)
             .Produces(404)
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> HandleAsyncFunction(

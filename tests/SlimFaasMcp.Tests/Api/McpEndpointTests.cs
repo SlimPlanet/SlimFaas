@@ -6,8 +6,10 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
+using SlimFaasMcp.Configuration;
 using SlimFaasMcp.Models;
 using SlimFaasMcp.Services;
+using SlimFaasMcp.Extensions;
 using Xunit;
 
 namespace SlimFaasMcp.Tests.Api;
@@ -35,6 +37,10 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
                 builder.ConfigureServices(services =>
                 {
+                    services.AddOpenTelemetry(new OpenTelemetryConfig()
+                    {
+                        Enable = true
+                    });
                     // Remplace l'implémentation réelle par un mock Moq
                     var descriptor = services.Single(s => s.ServiceType == typeof(IToolProxyService));
                     services.Remove(descriptor);

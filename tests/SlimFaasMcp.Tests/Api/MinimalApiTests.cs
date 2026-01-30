@@ -4,8 +4,10 @@ using System.Net.Http.Json;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
+using SlimFaasMcp.Configuration;
 using SlimFaasMcp.Models;
 using SlimFaasMcp.Services;
+using SlimFaasMcp.Extensions;
 using Xunit;
 
 public class MinimalApiTests : IClassFixture<MinimalApiTests.TestAppFactory>
@@ -51,6 +53,10 @@ public class MinimalApiTests : IClassFixture<MinimalApiTests.TestAppFactory>
         {
             builder.ConfigureServices(services =>
             {
+                services.AddOpenTelemetry(new OpenTelemetryConfig()
+                {
+                    Enable = true
+                });
                 // remplace le vrai service par un stub
                 services.AddSingleton<IToolProxyService>(new FakeToolProxyService());
             });

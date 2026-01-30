@@ -22,29 +22,25 @@ public static class JobEndpoints
             .Produces<EnqueueJobResult>(202)
             .Produces(400)
             .DisableAntiforgery()
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // GET /job/{functionName} - Lister les jobs
         app.MapGet("/job/{functionName}", ListJobs)
             .WithName("ListJobs")
             .Produces<List<JobListResult>>(200)
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // DELETE /job/{functionName}/{elementId} - Supprimer un job
         app.MapDelete("/job/{functionName}/{elementId}", DeleteJob)
             .WithName("DeleteJob")
             .Produces(200)
             .Produces(404)
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // Bloquer PUT et PATCH
         app.MapMethods("/job/{functionName}", new[] { "PUT", "PATCH" },
             () => Results.StatusCode((int)HttpStatusCode.MethodNotAllowed))
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> CreateJob(
