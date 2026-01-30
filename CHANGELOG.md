@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.61.0
+
+- [8bec7d5c](https://github.com/SlimPlanet/SlimFaas/commit/8bec7d5cf203ca28819b235ea968771e934459b8) - fix(slimfaas): opentelemetry endpoint (#232) (release), 2026-01-30 by *Guillaume Chervet*
+- [3acb7934](https://github.com/SlimPlanet/SlimFaas/commit/3acb793447ed46bb152ed220d02ec0aaecc1c5c7) - feat(SlimfaasMcp): Add prometheus exporter (#213) (release), 2026-01-29 by *Silthian*
+
+
+## 0.60.9
+
+
+
 ## v0.60.9
 
 - [7b8e89f3](https://github.com/SlimPlanet/SlimFaas/commit/7b8e89f3212f9c1b50e85a597c3943605ca2b115) - fix(slimfaas): override correct data (#231) (release), 2026-01-29 by *Guillaume Chervet*
@@ -263,15 +273,5 @@
 ## v0.53.0
 
 - [c4028e1f](https://github.com/SlimPlanet/SlimFaas/commit/c4028e1f5226fd46b8129322efa4e42b06920345) - feat(mcp): MCP `_meta` → HTTP Header Mapping (#200) (release), 2025-12-08 by *Guillaume Chervet*
-
-
-## 0.52.0
-
-
-
-## v0.52.0
-
-- [5de9ec4e](https://github.com/SlimPlanet/SlimFaas/commit/5de9ec4e374a79980c0de6276993b89333b3109e) - doc(kafka): update demo (release), 2025-12-05 by *Guillaume Chervet*
-- [cd583bcc](https://github.com/SlimPlanet/SlimFaas/commit/cd583bcc83f1b483ea9d7488c66cdc54b8ee9a2c) - feat(mcp): Add flag to enable otel (#199), 2025-12-05 by *Silthian*
 
 
