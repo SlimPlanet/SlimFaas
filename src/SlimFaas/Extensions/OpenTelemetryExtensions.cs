@@ -3,6 +3,7 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using SlimFaas.Configuration;
+using SlimFaas.Endpoints;
 
 namespace SlimFaas.Extensions;
 
@@ -62,6 +63,7 @@ public static class OpenTelemetryExtensions
                 }
             })
             .AddHttpClientInstrumentation()
+            .AddProcessor(new OpenTelemetryGlobalRouteRewriteProcessor())
             .SetResourceBuilder(resourceBuilder);
 
         if (!string.IsNullOrWhiteSpace(config.ServiceName))

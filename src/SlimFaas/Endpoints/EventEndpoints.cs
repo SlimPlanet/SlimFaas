@@ -22,8 +22,7 @@ public static class EventEndpoints
             .Produces(204)
             .Produces(404)
             .DisableAntiforgery()
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         app.MapMethods("/publish-event/{eventName}",
             new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
@@ -39,8 +38,7 @@ public static class EventEndpoints
             .Produces(204)
             .Produces(404)
             .DisableAntiforgery()
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> PublishEvent(

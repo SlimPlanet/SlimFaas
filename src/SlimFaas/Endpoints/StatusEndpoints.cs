@@ -17,16 +17,14 @@ public static class StatusEndpoints
             .WithName("GetFunctionStatus")
             .Produces<SlimFaas.FunctionStatus>(200)
             .Produces(404)
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // POST /wake-function/{functionName} - Réveiller une fonction
         app.MapPost("/wake-function/{functionName}", WakeFunction)
             .WithName("WakeFunction")
             .Produces(204)
             .Produces(404)
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
 

@@ -23,15 +23,13 @@ public static class JobScheduleEndpoints
             .Produces(400)
             .Produces(500)
             .DisableAntiforgery()
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // GET /job-schedules/{functionName} - Lister les jobs planifiés
         app.MapGet("/job-schedules/{functionName}", ListScheduleJobs)
             .WithName("ListScheduleJobs")
             .Produces<IList<ListScheduleJob>>(200)
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // DELETE /job-schedules/{functionName}/{elementId} - Supprimer un job planifié
         app.MapDelete("/job-schedules/{functionName}/{elementId}", DeleteScheduleJob)
@@ -39,14 +37,12 @@ public static class JobScheduleEndpoints
             .Produces(204)
             .Produces(404)
             .Produces(400)
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
 
         // Bloquer PUT et PATCH
         app.MapMethods("/job-schedules/{functionName}", new[] { "PUT", "PATCH" },
             () => Results.StatusCode((int)HttpStatusCode.MethodNotAllowed))
-            .AddEndpointFilter<HostPortEndpointFilter>()
-            .AddEndpointFilter<OpenTelemetryEnrichmentFilter>();
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> CreateScheduleJob(
