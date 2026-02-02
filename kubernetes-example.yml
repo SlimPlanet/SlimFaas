@@ -1,0 +1,146 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: slimfaas-config
+  namespace: default
+data:
+  appsettings.Production.json: |
+    {
+      "Logging": {
+        "LogLevel": {
+          "Default": "Warning",
+          "Microsoft.AspNetCore": "Error",
+          "SlimData": "Warning",
+          "SlimFaas": "Warning"
+        }
+      },
+      "SlimFaas": {
+        "Namespace": "default",
+        "CorsAllowOrigin": "*",
+        "AllowUnsecureSsl": false,
+        "Orchestrator": "Kubernetes",
+        "BaseSlimDataUrl": "http://{pod_name}.slimfaas.{namespace}.svc:3262",
+        "BaseFunctionUrl": "http://{pod_ip}:{pod_port}",
+        "BaseFunctionPodUrl": "http://{pod_ip}:{pod_port}"
+      },
+      "SlimData": {
+        "AllowColdStart": false
+      },
+      "Workers": {
+        "DelayMilliseconds": 10,
+        "JobsDelayMilliseconds": 1000,
+        "ReplicasSynchronizationDelayMilliseconds": 3000,
+        "HistorySynchronizationDelayMilliseconds": 500,
+        "ScaleReplicasDelayMilliseconds": 1000,
+        "HealthDelayMilliseconds": 1000,
+        "HealthDelayToExitSeconds": 60,
+        "HealthDelayToStartHealthCheckSeconds": 20
+      },
+      "OpenTelemetry": {
+        "Enable": false,
+        "Endpoint": "",
+        "ServiceName": "SlimFaas",
+        "EnableConsoleExporter": false
+      }
+    }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: slimfaas
+  namespace: default
+spec:
+  serviceName: slimfaas
+  replicas: 3
+  selector:
+    matchLabels:
+      app: slimfaas
+  template:
+    metadata:
+      labels:
+        app: slimfaas
+    spec:
+      serviceAccountName: slimfaas
+      containers:
+      - name: slimfaas
+        image: slimfaas:latest
+        ports:
+        - containerPort: 3262
+          name: raft
+        - containerPort: 5000
+          name: http
+        volumeMounts:
+        - name: config
+          mountPath: /app/appsettings.Production.json
+          subPath: appsettings.Production.json
+          readOnly: true
+        - name: data
+          mountPath: /data
+        env:
+        # You can also override specific settings with environment variables
+        # Using the .NET format: Section__Property (double underscore)
+        - name: SlimFaas__Namespace
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        # HOSTNAME is automatically set by Kubernetes
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 3262
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: config
+        configMap:
+          name: slimfaas-config
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slimfaas
+  namespace: default
+spec:
+  clusterIP: None
+  selector:
+    app: slimfaas
+  ports:
+  - port: 3262
+    name: raft
+  - port: 5000
+    name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slimfaas-lb
+  namespace: default
+spec:
+  type: LoadBalancer
+  selector:
+    app: slimfaas
+  ports:
+  - port: 80
+    targetPort: 5000
+    name: http

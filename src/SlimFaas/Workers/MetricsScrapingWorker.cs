@@ -3,8 +3,10 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
+using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Workers;
 
@@ -19,9 +21,13 @@ public class MetricsScrapingWorker(
     ISlimDataStatus slimDataStatus,
     IMetricsScrapingGuard scrapingGuard,
     ILogger<MetricsScrapingWorker> logger,
+    IOptions<SlimFaasOptions> slimFaasOptions,
     int delay = 5_000)
     : BackgroundService
 {
+    private readonly string _baseSlimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
+    private readonly string _namespace = slimFaasOptions.Value.Namespace;
+
 // Remplace TOUTE la déclaration existante de MetricLine par celle-ci :
     private static readonly Regex MetricLine = new(
         // <metric_name><optional {labels}> <value> [optional_timestamp]
@@ -54,7 +60,7 @@ public class MetricsScrapingWorker(
                     continue;
                 }
 
-                if (!IsDesignatedScraperNode(replicasService, cluster, logger))
+                if (!IsDesignatedScraperNode(replicasService, cluster, logger, _baseSlimDataUrl, _namespace))
                 {
                     await TryHydrateMetricsFromDatabaseAsync(stoppingToken);
                     await Task.Delay(1000, stoppingToken);
@@ -162,7 +168,7 @@ public class MetricsScrapingWorker(
         return dict;
     }
 
-    private static bool IsDesignatedScraperNode(IReplicasService replicasService, IRaftCluster cluster, ILogger logger)
+    private static bool IsDesignatedScraperNode(IReplicasService replicasService, IRaftCluster cluster, ILogger logger, string baseSlimDataUrl, string namespace_)
     {
         var slimfaasPods = replicasService.Deployments.SlimFaas.Pods
             .Where(p => p.Started == true && !string.IsNullOrEmpty(p.Name))
@@ -188,7 +194,7 @@ public class MetricsScrapingWorker(
         string? smallestNonLeaderPodName = null;
         foreach (var t in ordered)
         {
-            var endpoint = SlimDataEndpoint.Get(t.pod);
+            var endpoint = SlimDataEndpoint.Get(t.pod, baseSlimDataUrl, namespace_);
             var key = SlimFaasPorts.RemoveLastPathSegment(endpoint);
             if (!string.Equals(key, leaderKey, StringComparison.Ordinal))
             {

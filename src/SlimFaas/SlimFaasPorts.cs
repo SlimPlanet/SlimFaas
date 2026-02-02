@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+﻿﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
@@ -11,10 +13,9 @@ public class SlimFaasPorts : ISlimFaasPorts
 {
     public IList<int> Ports { get; }
 
-    public SlimFaasPorts(IReplicasService replicasService, ILogger<SlimFaasPorts> logger)
+    public SlimFaasPorts(IReplicasService replicasService, ILogger<SlimFaasPorts> logger, IOptions<SlimFaasOptions> slimFaasOptions)
     {
-        string slimDataUrl = (Environment.GetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl) ??
-                              EnvironmentVariables.BaseSlimDataUrlDefault);
+        string slimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
         if(slimDataUrl.EndsWith("/"))
         {
             slimDataUrl = slimDataUrl.Substring(0, slimDataUrl.Length - 1);

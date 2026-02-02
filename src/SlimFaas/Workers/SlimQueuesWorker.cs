@@ -1,24 +1,28 @@
-﻿using MemoryPack;
+﻿﻿using MemoryPack;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
 internal record struct RequestToWait(Task<HttpResponseMessage> Task, CustomRequest CustomRequest, string Id);
 
-public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasService,
-        HistoryHttpMemoryService historyHttpService, ILogger<SlimQueuesWorker> logger,
-        IServiceProvider serviceProvider,
-        ISlimDataStatus slimDataStatus,
-        IMasterService masterService,
-        int delay = EnvironmentVariables.SlimWorkerDelayMillisecondsDefault)
+public class SlimQueuesWorker(
+    ISlimFaasQueue slimFaasQueue,
+    IReplicasService replicasService,
+    HistoryHttpMemoryService historyHttpService,
+    ILogger<SlimQueuesWorker> logger,
+    IServiceProvider serviceProvider,
+    ISlimDataStatus slimDataStatus,
+    IMasterService masterService,
+    IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
 
     public const string SlimfaasElementId = "SlimFaas-Element-Id";
-    private readonly int _delay =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.SlimWorkerDelayMilliseconds, delay);
+    private readonly int _delay = workersOptions.Value.DelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

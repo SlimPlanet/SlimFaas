@@ -1,8 +1,10 @@
-﻿using System.Collections;
+﻿﻿using System.Collections;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Tests;
 
@@ -137,11 +139,21 @@ public class ReplicasScaleWorkerShould
 
         await replicasService.SyncDeploymentsAsync("default");
 
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            ScaleReplicasDelayMilliseconds = 100
+        });
+        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            Namespace = "default"
+        });
+
         var service = new ScaleReplicasWorker(
             replicasService,
             masterService.Object,
             logger.Object,
-            delay: 100);
+            slimFaasOptions,
+            workersOptions);
 
         using var cts = new CancellationTokenSource();
         var task = service.StartAsync(cts.Token);
@@ -169,7 +181,16 @@ public class ReplicasScaleWorkerShould
         HistoryHttpMemoryService historyHttpService = new();
         historyHttpService.SetTickLastCall("fibonacci2", DateTime.UtcNow.Ticks);
 
-        ScaleReplicasWorker service = new(replicaService.Object, masterService.Object, logger.Object, 10);
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            ScaleReplicasDelayMilliseconds = 10
+        });
+        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            Namespace = "default"
+        });
+
+        ScaleReplicasWorker service = new(replicaService.Object, masterService.Object, logger.Object, slimFaasOptions, workersOptions);
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
         await Task.Delay(100);

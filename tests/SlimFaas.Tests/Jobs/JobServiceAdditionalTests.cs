@@ -1,9 +1,11 @@
-﻿using System.Reflection;
+﻿﻿using System.Reflection;
 using MemoryPack;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimData;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Tests;
 
@@ -19,8 +21,6 @@ public class JobServiceAdditionalTests
 
     public JobServiceAdditionalTests()
     {
-        Environment.SetEnvironmentVariable(EnvironmentVariables.Namespace, Ns);
-
         _kube = new Mock<IKubernetesService>();
         _queue = new Mock<IJobQueue>();
         _conf = new Mock<IJobConfiguration>();
@@ -41,7 +41,8 @@ public class JobServiceAdditionalTests
             }));
 
 
-        _svc = new JobService(_kube.Object, _conf.Object, _queue.Object);
+        _svc = new JobService(_kube.Object, _conf.Object, _queue.Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = Ns }));
     }
 
     private static Job FakeJob(string name, string id, JobStatus status = JobStatus.Running) =>

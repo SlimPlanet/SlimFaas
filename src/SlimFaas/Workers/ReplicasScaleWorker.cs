@@ -1,15 +1,18 @@
-﻿namespace SlimFaas;
+﻿﻿using Microsoft.Extensions.Options;
+using SlimFaas.Options;
 
-public class ScaleReplicasWorker(IReplicasService replicasService, IMasterService masterService,
-        ILogger<ScaleReplicasWorker> logger,
-        int delay = EnvironmentVariables.ScaleReplicasWorkerDelayMillisecondsDefault)
+namespace SlimFaas;
+
+public class ScaleReplicasWorker(
+    IReplicasService replicasService,
+    IMasterService masterService,
+    ILogger<ScaleReplicasWorker> logger,
+    IOptions<SlimFaasOptions> slimFaasOptions,
+    IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
-    private readonly int _delay =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.ScaleReplicasWorkerDelayMilliseconds, delay);
-
-    private readonly string _namespace = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
-                                         EnvironmentVariables.NamespaceDefault;
+    private readonly int _delay = workersOptions.Value.ScaleReplicasDelayMilliseconds;
+    private readonly string _namespace = slimFaasOptions.Value.Namespace;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

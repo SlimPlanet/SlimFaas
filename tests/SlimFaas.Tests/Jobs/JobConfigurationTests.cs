@@ -1,15 +1,26 @@
-﻿using SlimFaas.Jobs;
+﻿using Microsoft.Extensions.Options;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Tests;
 
 public class JobConfigurationTests
 {
+    private static IOptions<SlimFaasOptions> CreateDefaultOptions()
+    {
+        return Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            Namespace = "default",
+            JobsConfiguration = null
+        });
+    }
+
     [Fact]
     public void Constructeur_SansJson_DoitUtiliserValeursParDefaut()
     {
         // Arrange & Act
-        JobConfiguration jobConfiguration = new();
+        JobConfiguration jobConfiguration = new(CreateDefaultOptions());
 
         // Assert
         Assert.NotNull(jobConfiguration.Configuration);
@@ -37,7 +48,12 @@ public class JobConfigurationTests
         string jsonInvalide = "{ \"Configurations\": { \"MaFunction\": }"; // Manque des objets
 
         // Act
-        JobConfiguration jobConfiguration = new(jsonInvalide);
+        var options = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            Namespace = "default",
+            JobsConfiguration = jsonInvalide
+        });
+        JobConfiguration jobConfiguration = new(options);
 
         // Assert
         // Doit retomber sur la config par défaut
@@ -65,7 +81,12 @@ public class JobConfigurationTests
             }";
 
         // Act
-        JobConfiguration jobConfiguration = new(jsonValideSansDefault);
+        var options = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            Namespace = "default",
+            JobsConfiguration = jsonValideSansDefault
+        });
+        JobConfiguration jobConfiguration = new(options);
 
         // Assert
         // On doit retrouver la clé "MaFunction" ET la clé "Default"
@@ -100,7 +121,12 @@ public class JobConfigurationTests
             }";
 
         // Act
-        JobConfiguration jobConfiguration = new(jsonValide);
+        var options = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            Namespace = "default",
+            JobsConfiguration = jsonValide
+        });
+        JobConfiguration jobConfiguration = new(options);
 
         // Assert
         Assert.NotNull(jobConfiguration.Configuration);
@@ -131,7 +157,12 @@ public class JobConfigurationTests
             }";
 
         // Act
-        JobConfiguration jobConfiguration = new(jsonAvecDefaultSansRessources);
+        var options = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            Namespace = "default",
+            JobsConfiguration = jsonAvecDefaultSansRessources
+        });
+        JobConfiguration jobConfiguration = new(options);
 
         // Assert
         // On vérifie que la clé "Default" existe et que les ressources sont remplies par défaut

@@ -1,8 +1,10 @@
-﻿using System.Net;
+﻿﻿using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Tests;
 
@@ -32,8 +34,12 @@ public class SendClientShould
         }));
 
         var mockLogger = new Mock<ILogger<SendClient>>();
-        Environment.SetEnvironmentVariable("BASE_FUNCTION_URL", "http://{function_name}:8080/");
-        SendClient sendClient = new(httpClient, mockLogger.Object);
+        var options = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            BaseFunctionUrl = "http://{function_name}:8080/",
+            Namespace = "default"
+        });
+        SendClient sendClient = new(httpClient, mockLogger.Object, options);
         CustomRequest customRequest =
             new CustomRequest(new List<CustomHeader> { new() { Key = "key", Values = new[] { "value1" } } },
                 new byte[1], "fibonacci", "health", httpMethod, "");
@@ -67,9 +73,13 @@ public class SendClientShould
             sendedRequest = request;
             return await Task.FromResult(responseMessage);
         }));
-        Environment.SetEnvironmentVariable("BASE_FUNCTION_URL", "http://{function_name}:8080/");
         var mockLogger = new Mock<ILogger<SendClient>>();
-        SendClient sendClient = new(httpClient, mockLogger.Object);
+        var options = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            BaseFunctionUrl = "http://{function_name}:8080/",
+            Namespace = "default"
+        });
+        SendClient sendClient = new(httpClient, mockLogger.Object, options);
 
         DefaultHttpContext httpContext = new();
         HttpRequest httpContextRequest = httpContext.Request;

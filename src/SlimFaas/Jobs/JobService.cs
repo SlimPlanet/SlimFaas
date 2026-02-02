@@ -1,8 +1,10 @@
-﻿using System.Text.Json.Serialization;
+﻿﻿using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using MemoryPack;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Jobs;
 
@@ -41,11 +43,14 @@ public record JobListResult(string Name, string Status, string Id, int PositionI
 public partial class JobListResultSerializerContext : JsonSerializerContext;
 
 
-public class JobService(IKubernetesService kubernetesService, IJobConfiguration jobConfiguration, IJobQueue jobQueue) : IJobService
+public class JobService(
+    IKubernetesService kubernetesService,
+    IJobConfiguration jobConfiguration,
+    IJobQueue jobQueue,
+    IOptions<SlimFaasOptions> slimFaasOptions) : IJobService
 {
 
-    private readonly string _namespace = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
-                                         EnvironmentVariables.NamespaceDefault;
+    private readonly string _namespace = slimFaasOptions.Value.Namespace;
 
     public async Task CreateJobAsync(string name, CreateJob createJob, string elementId, string jobFullName, long inQueueTimestamp)
     {

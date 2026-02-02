@@ -1,22 +1,26 @@
-﻿using MemoryPack;
+﻿﻿using MemoryPack;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Jobs;
 
 
-public class SlimJobsWorker(IJobQueue jobQueue, IJobService jobService,
-    IJobConfiguration jobConfiguration, ILogger<SlimJobsWorker> logger,
+public class SlimJobsWorker(
+    IJobQueue jobQueue,
+    IJobService jobService,
+    IJobConfiguration jobConfiguration,
+    ILogger<SlimJobsWorker> logger,
     HistoryHttpMemoryService historyHttpService,
-        ISlimDataStatus slimDataStatus,
-        IMasterService masterService,
+    ISlimDataStatus slimDataStatus,
+    IMasterService masterService,
     IReplicasService replicasService,
-        int delay = EnvironmentVariables.SlimJobsWorkerDelayMillisecondsDefault)
+    IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
-    private readonly int _delay =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.SlimJobsWorkerDelayMilliseconds, delay);
+    private readonly int _delay = workersOptions.Value.JobsDelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

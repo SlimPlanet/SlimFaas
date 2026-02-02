@@ -1,5 +1,7 @@
-﻿using System.Text.Json;
+﻿﻿using System.Text.Json;
+using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Jobs;
 
@@ -15,7 +17,7 @@ public class JobConfiguration : IJobConfiguration
     public SlimFaasJobConfiguration Configuration { get; }
 
 
-    public JobConfiguration(string? json = null)
+    public JobConfiguration(IOptions<SlimFaasOptions> slimFaasOptions)
     {
         SlimFaasJobConfiguration? slimfaasJobConfiguration = null;
         Dictionary<string, string> resources = new();
@@ -25,7 +27,7 @@ public class JobConfiguration : IJobConfiguration
         SlimfaasJob defaultSlimfaasJob = new("", new List<string>(), createJobResources);
         try
         {
-            json ??= Environment.GetEnvironmentVariable(EnvironmentVariables.SlimFaasJobsConfiguration);
+            string? json = slimFaasOptions.Value.JobsConfiguration;
             if(!string.IsNullOrEmpty(json))
             {
                 json = JsonMinifier.MinifyJson(json);

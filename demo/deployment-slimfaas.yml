@@ -11,37 +11,23 @@ metadata:
   name: slimfaas-config
   namespace: slimfaas-demo
 data:
-  SLIMFAAS_JOBS_CONFIGURATION: |
+  appsettings.Production.json: |
     {
-      "Configurations": {
-        "fibonacci": {
-          "Image": "axaguildev/fibonacci-batch:latest",
-          "ImagesWhitelist": [],
-          "Resources": {
-            "Requests": {
-              "cpu": "400m",
-              "memory": "400Mi"
-            },
-            "Limits": {
-              "cpu": "400m",
-              "memory": "400Mi"
-            }
-          },
-          "DependsOn": ["fibonacci1"],
-          "Environments": [],
-          "BackoffLimit": 1,
-          "Visibility": "Public",
-          "NumberParallelJob": 2,
-          "TtlSecondsAfterFinished": 2,
-          "RestartPolicy": "Never"
+      "Logging": {
+        "LogLevel": {
+          "SlimFaas": "Debug",
+          "SlimData": "Warning"
         }
       },
-    "Schedules": {
-      "fibonacci": [
-        {
-            "Schedule": "0 0 * * *",
-            "Args": ["42", "43"]
-        }]
+      "SlimFaas": {
+        "Namespace": "slimfaas-demo",
+        "JobsConfiguration": "{\"Configurations\":{\"fibonacci\":{\"Image\":\"axaguildev/fibonacci-batch:latest\",\"ImagesWhitelist\":[],\"Resources\":{\"Requests\":{\"cpu\":\"400m\",\"memory\":\"400Mi\"},\"Limits\":{\"cpu\":\"400m\",\"memory\":\"400Mi\"}},\"DependsOn\":[\"fibonacci1\"],\"Environments\":[],\"BackoffLimit\":1,\"Visibility\":\"Public\",\"NumberParallelJob\":2,\"TtlSecondsAfterFinished\":2,\"RestartPolicy\":\"Never\"}},\"Schedules\":{\"fibonacci\":[{\"Schedule\":\"0 0 * * *\",\"Args\":[\"42\",\"43\"]}]}}"
+      },
+      "SlimData": {
+        "Directory": "/database"
+      },
+      "Data": {
+        "DefaultVisibility": "Public"
       }
     }
 ---
@@ -96,34 +82,25 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 8
           env:
-            #- name: BASE_FUNCTION_URL
-              #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
-            #  value: "http://{pod_ip}:{pod_port}"
-            #- name: BASE_FUNCTION_POD_URL # require for publish route
-            #  value: "http://{pod_ip}:{pod_port}"
-            #- name: BASE_SLIMDATA_URL
-            #  value: "http://{pod_name}.{service_name}.{namespace}.svc:3262"
-            #- name: NAMESPACE
-            #  value: "slimfaas-demo"
-            - name: SLIMDATA_DIRECTORY
-              value: "/database"
-            #- name: ASPNETCORE_URLS
-            #  value: http://+:5000
-            - name: Logging__LogLevel__SlimFaas
-              value: "Debug"
-            #- name: Logging__LogLevel__SlimData
-            #  value: "Debug"
-            #- name: "SLIMDATA_CONFIGURATION"
-            #  value: '{"lowerElectionTimeout":"150","upperElectionTimeout":"300","requestTimeout":"00:00:00.3000000","rpcTimeout":"00:00:00.1500000","heartbeatThreshold":"0.5"}'
-            #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
-            #  value: "500"
-            - name: SLIMFAAS_JOBS_CONFIGURATION
+            # Note: Most configuration is now in appsettings.Production.json mounted as volume
+            # You can still override specific values with environment variables using the format:
+            # Section__Property (double underscore)
+
+            # Example overrides (commented out - use appsettings.json instead):
+            # - name: SlimFaas__Namespace
+            #   value: "slimfaas-demo"
+            # - name: SlimFaas__BaseFunctionUrl
+            #   value: "http://{pod_ip}:{pod_port}"
+            # - name: SlimFaas__BaseSlimDataUrl
+            #   value: "http://{pod_name}.slimfaas.{namespace}.svc:3262"
+            # - name: Workers__DelayMilliseconds
+            #   value: "10"
+
+            # Namespace can be auto-detected from Kubernetes or set via config
+            - name: SlimFaas__Namespace
               valueFrom:
-                configMapKeyRef:
-                  name: slimfaas-config
-                  key: SLIMFAAS_JOBS_CONFIGURATION
-            - name: Data__DefaultVisibility
-              value: "Public"
+                fieldRef:
+                  fieldPath: metadata.namespace
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database

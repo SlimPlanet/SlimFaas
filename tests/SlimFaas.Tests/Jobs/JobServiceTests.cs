@@ -1,7 +1,9 @@
-﻿using MemoryPack;
+﻿﻿using MemoryPack;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 // pour vérifier éventuellement la sérialisation si besoin
 
@@ -52,7 +54,8 @@ public class JobServiceTests
         _jobService = new JobService(
             _kubernetesServiceMock.Object,
             _jobConfigurationMock.Object,
-            _jobQueueMock.Object
+            _jobQueueMock.Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = "default" })
         );
     }
 

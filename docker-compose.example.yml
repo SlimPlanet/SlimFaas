@@ -1,0 +1,41 @@
+# Example appsettings for Docker Compose
+
+version: '3.8'
+services:
+  slimfaas:
+    image: slimfaas:latest
+    environment:
+      # .NET Configuration format: Section__Property (double underscore)
+
+      # SlimFaas Configuration
+      - SlimFaas__Orchestrator=Docker
+      - SlimFaas__Namespace=default
+      - SlimFaas__CorsAllowOrigin=*
+      - SlimFaas__AllowUnsecureSsl=false
+      - SlimFaas__BaseFunctionUrl=http://{pod_ip}:{pod_port}
+      - SlimFaas__BaseSlimDataUrl=http://{pod_name}.{service_name}.{namespace}.svc:3262
+
+      # SlimData Configuration
+      - SlimData__AllowColdStart=false
+
+      # Workers Configuration
+      - Workers__DelayMilliseconds=10
+      - Workers__JobsDelayMilliseconds=1000
+      - Workers__ReplicasSynchronizationDelayMilliseconds=3000
+
+      # OpenTelemetry Configuration
+      - OpenTelemetry__Enable=false
+      - OpenTelemetry__Endpoint=
+
+    volumes:
+      # Or mount a full appsettings file
+      - ./appsettings.Production.json:/app/appsettings.Production.json:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "5000:5000"
+    networks:
+      - slimfaas
+
+networks:
+  slimfaas:
+    driver: bridge

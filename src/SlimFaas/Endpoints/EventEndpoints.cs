@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 using SlimFaas.Security;
 
 namespace SlimFaas.Endpoints;
@@ -32,8 +34,9 @@ public static class EventEndpoints
                 ISendClient sendClient,
                 IReplicasService replicasService,
                 IJobService jobService,
-                IFunctionAccessPolicy accessPolicy) =>
-                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy))
+                IFunctionAccessPolicy accessPolicy,
+                IOptions<SlimFaasOptions> slimFaasOptions) =>
+                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions))
             .WithName("PublishEventRoot")
             .Produces(204)
             .Produces(404)
@@ -50,7 +53,8 @@ public static class EventEndpoints
         [FromServices] ISendClient sendClient,
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
-        [FromServices] IFunctionAccessPolicy accessPolicy)
+        [FromServices] IFunctionAccessPolicy accessPolicy,
+        [FromServices] IOptions<SlimFaasOptions> slimFaasOptions)
     {
         functionPath ??= "";
 
@@ -95,10 +99,9 @@ public static class EventEndpoints
 
                 historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
 
-                string baseFunctionPodUrl = Environment.GetEnvironmentVariable(EnvironmentVariables.BaseFunctionPodUrl) ??
-                                          EnvironmentVariables.BaseFunctionPodUrlDefault;
+                string baseFunctionPodUrl = slimFaasOptions.Value.BaseFunctionPodUrl;
 
-                var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl);
+                var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl, slimFaasOptions.Value.Namespace);
                 logger.LogDebug("Sending event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent}",
                     eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
 

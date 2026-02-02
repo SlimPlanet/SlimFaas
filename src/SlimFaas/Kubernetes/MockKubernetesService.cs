@@ -1,8 +1,10 @@
-﻿using System.Configuration;
+﻿﻿using System.Configuration;
 using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
@@ -44,10 +46,10 @@ public class MockKubernetesService : IKubernetesService
 {
 
     private readonly DeploymentsInformations _deploymentInformations;
-    public MockKubernetesService()
+    public MockKubernetesService(IOptions<SlimFaasOptions> slimFaasOptions)
     {
 
-        var functionsJson = Environment.GetEnvironmentVariable(EnvironmentVariables.MockKubernetesFunctions) ?? EnvironmentVariables.MockKubernetesFunctionsDefault;
+        var functionsJson = slimFaasOptions.Value.MockKubernetesFunctions ?? "";
         var functions = JsonSerializer.Deserialize(functionsJson, FunctionsMockSerializerContext.Default.FunctionsMock);
         var slimfaasPods = new List<PodInformation>();
         foreach (var pod in functions.Slimfaas)

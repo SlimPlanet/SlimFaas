@@ -1,10 +1,12 @@
 ﻿using MemoryPack;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Tests.Jobs;
 
@@ -58,6 +60,11 @@ public class SlimJobsWorkerTests
             .Setup(s => s.SyncJobsAsync())
             .ReturnsAsync(new List<Job>());
 
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            JobsDelayMilliseconds = 10
+        });
+
         SlimJobsWorker worker = new(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
@@ -67,7 +74,7 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            10
+            workersOptions
         );
 
         using CancellationTokenSource cts = new();
@@ -126,6 +133,11 @@ public class SlimJobsWorkerTests
             .Setup(r => r.Deployments)
             .Returns(emptyDeployments);
 
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            JobsDelayMilliseconds = 10
+        });
+
         SlimJobsWorker worker = new(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
@@ -135,7 +147,7 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            10
+            workersOptions
         );
 
         using CancellationTokenSource cts = new();
@@ -214,6 +226,11 @@ public class SlimJobsWorkerTests
             .Setup(r => r.Deployments)
             .Returns(deployments);
 
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            JobsDelayMilliseconds = 10
+        });
+
         SlimJobsWorker worker = new(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
@@ -223,7 +240,7 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            10
+            workersOptions
         );
 
         using CancellationTokenSource cts = new();
@@ -310,6 +327,11 @@ public class SlimJobsWorkerTests
                 It.IsAny<long>()))
             .Returns(Task.CompletedTask);
 
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            JobsDelayMilliseconds = 10
+        });
+
         SlimJobsWorker worker = new(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
@@ -319,7 +341,7 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            10
+            workersOptions
         );
 
         using CancellationTokenSource cts = new();

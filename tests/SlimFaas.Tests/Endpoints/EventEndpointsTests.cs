@@ -5,11 +5,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 using SlimFaas.Security;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
@@ -17,6 +19,16 @@ namespace SlimFaas.Tests.Endpoints;
 
 public class EventEndpointsTests
 {
+    private static IOptions<SlimFaasOptions> CreateSlimFaasOptions()
+    {
+        return Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            Namespace = "default",
+            BaseFunctionPodUrl = "http://{pod_ip}:{pod_port}",
+            BaseSlimDataUrl = "http://{pod_name}.{service_name}.{namespace}.svc:3262"
+        });
+    }
+
     private static DeploymentsInformations CreateTestDeployments()
     {
         var function = new DeploymentInformation(
@@ -98,6 +110,7 @@ public class EventEndpointsTests
                         s.AddSingleton(jobServiceMock.Object);
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        s.AddSingleton(CreateSlimFaasOptions());
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -167,6 +180,7 @@ public class EventEndpointsTests
                         s.AddSingleton(jobServiceMock.Object);
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        s.AddSingleton(CreateSlimFaasOptions());
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -216,6 +230,7 @@ public class EventEndpointsTests
                         s.AddSingleton(jobServiceMock.Object);
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        s.AddSingleton(CreateSlimFaasOptions());
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -303,6 +318,7 @@ public class EventEndpointsTests
                         s.AddSingleton(jobServiceMock.Object);
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        s.AddSingleton(CreateSlimFaasOptions());
                         s.AddRouting();
                     })
                     .Configure(app =>

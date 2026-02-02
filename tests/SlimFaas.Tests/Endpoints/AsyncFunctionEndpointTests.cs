@@ -4,10 +4,12 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
+using SlimFaas.Options;
 using SlimFaas.Security;
 
 namespace SlimFaas.Tests.Endpoints;
@@ -37,6 +39,11 @@ public class AsyncFunctionEndpointTests
                         services.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+                        {
+                            Namespace = "default",
+                            BaseFunctionUrl = "http://{pod_ip}:{pod_port}"
+                        }));
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();
