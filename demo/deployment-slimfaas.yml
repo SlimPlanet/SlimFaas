@@ -11,23 +11,37 @@ metadata:
   name: slimfaas-config
   namespace: slimfaas-demo
 data:
-  appsettings.Production.json: |
+  SlimFaas__JobsConfiguration: |
     {
-      "Logging": {
-        "LogLevel": {
-          "SlimFaas": "Debug",
-          "SlimData": "Warning"
+      "Configurations": {
+        "fibonacci": {
+          "Image": "axaguildev/fibonacci-batch:latest",
+          "ImagesWhitelist": [],
+          "Resources": {
+            "Requests": {
+              "cpu": "400m",
+              "memory": "400Mi"
+            },
+            "Limits": {
+              "cpu": "400m",
+              "memory": "400Mi"
+            }
+          },
+          "DependsOn": ["fibonacci1"],
+          "Environments": [],
+          "BackoffLimit": 1,
+          "Visibility": "Public",
+          "NumberParallelJob": 2,
+          "TtlSecondsAfterFinished": 2,
+          "RestartPolicy": "Never"
         }
       },
-      "SlimFaas": {
-        "Namespace": "slimfaas-demo",
-        "JobsConfiguration": "{\"Configurations\":{\"fibonacci\":{\"Image\":\"axaguildev/fibonacci-batch:latest\",\"ImagesWhitelist\":[],\"Resources\":{\"Requests\":{\"cpu\":\"400m\",\"memory\":\"400Mi\"},\"Limits\":{\"cpu\":\"400m\",\"memory\":\"400Mi\"}},\"DependsOn\":[\"fibonacci1\"],\"Environments\":[],\"BackoffLimit\":1,\"Visibility\":\"Public\",\"NumberParallelJob\":2,\"TtlSecondsAfterFinished\":2,\"RestartPolicy\":\"Never\"}},\"Schedules\":{\"fibonacci\":[{\"Schedule\":\"0 0 * * *\",\"Args\":[\"42\",\"43\"]}]}}"
-      },
-      "SlimData": {
-        "Directory": "/database"
-      },
-      "Data": {
-        "DefaultVisibility": "Public"
+    "Schedules": {
+      "fibonacci": [
+        {
+            "Schedule": "0 0 * * *",
+            "Args": ["42", "43"]
+        }]
       }
     }
 ---
@@ -65,7 +79,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:latest
+          image: axaguildev/slimfaas:0.61.1-pr.233450
           livenessProbe:
             httpGet:
               path: /health
@@ -82,25 +96,15 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 8
           env:
-            # Note: Most configuration is now in appsettings.Production.json mounted as volume
-            # You can still override specific values with environment variables using the format:
-            # Section__Property (double underscore)
-
-            # Example overrides (commented out - use appsettings.json instead):
-            # - name: SlimFaas__Namespace
-            #   value: "slimfaas-demo"
-            # - name: SlimFaas__BaseFunctionUrl
-            #   value: "http://{pod_ip}:{pod_port}"
-            # - name: SlimFaas__BaseSlimDataUrl
-            #   value: "http://{pod_name}.slimfaas.{namespace}.svc:3262"
-            # - name: Workers__DelayMilliseconds
-            #   value: "10"
-
-            # Namespace can be auto-detected from Kubernetes or set via config
-            - name: SlimFaas__Namespace
+            - name: SlimData__Directory
+              value: "/database"
+            - name: Data__DefaultVisibility
+              value: "Public"
+            - name: SlimFaas__JobsConfiguration
               valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
+                configMapKeyRef:
+                  name: slimfaas-config
+                  key: appsettings.Production.json
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database
