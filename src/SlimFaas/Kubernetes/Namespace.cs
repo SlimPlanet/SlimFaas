@@ -1,4 +1,4 @@
-﻿﻿namespace SlimFaas.Kubernetes;
+﻿namespace SlimFaas.Kubernetes;
 
 public class Namespace
 {
@@ -14,13 +14,11 @@ public class Namespace
             if (File.Exists(namespaceFilePath))
             {
                 string namespaceName = File.ReadAllText(namespaceFilePath).Trim();
-                Console.WriteLine($"Namespace actuel : {namespaceName}");
+                Console.WriteLine($"Namespace file found : {namespaceName}");
                 return namespaceName;
             }
-            else
-            {
-                Console.WriteLine("Fichier de namespace introuvable.");
-            }
+
+            Console.WriteLine("Namespace file not found.");
         }
         catch (Exception ex)
         {

@@ -1,4 +1,4 @@
-﻿﻿using System.Text;
+﻿﻿﻿using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using SlimFaas.Kubernetes;
@@ -14,10 +14,10 @@ public interface ISendClient
         string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy? proxy = null);
 }
 
-public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions) : ISendClient
+public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions, INamespaceProvider namespaceProvider) : ISendClient
 {
     private readonly string _baseFunctionUrl = slimFaasOptions.Value.BaseFunctionUrl;
-    private readonly string _namespaceSlimFaas = slimFaasOptions.Value.Namespace;
+    private readonly string _namespaceSlimFaas = namespaceProvider.CurrentNamespace;
 
     public async Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest,
         SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null)

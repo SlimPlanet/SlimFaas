@@ -43,11 +43,6 @@ configurationRoot.GetSection(SlimDataOptions.SectionName).Bind(slimDataOptions);
 var workersOptions = new WorkersOptions();
 configurationRoot.GetSection(WorkersOptions.SectionName).Bind(workersOptions);
 
-// Try to get namespace from Kubernetes service account, fallback to config
-var namespace_ = Namespace.GetNamespace(slimFaasOptions.Namespace);
-// Update the option with the actual namespace (in case it was read from Kubernetes)
-slimFaasOptions.Namespace = namespace_;
-Console.WriteLine($"Starting in namespace {namespace_}");
 
 string slimDataDirectory = slimDataOptions.Directory ?? OptionsExtensions.GetTemporaryDirectory();
 
@@ -74,6 +69,9 @@ bool slimDataAllowColdStart =
                                                                 slimDataOptions.AllowColdStart.ToString());
 
 ServiceCollection serviceCollectionStarter = new();
+serviceCollectionStarter.AddOptions<SlimFaasOptions>()
+    .Bind(configurationRoot.GetSection(SlimFaasOptions.SectionName));
+serviceCollectionStarter.AddSingleton<INamespaceProvider, NamespaceProvider>();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
 serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
@@ -247,6 +245,10 @@ serviceCollectionSlimFaas.AddCors();
 string publicEndPoint = string.Empty;
 string podDataDirectoryPersistantStorage = string.Empty;
 
+var namespaceProvider = serviceProviderStarter.GetRequiredService<INamespaceProvider>();
+string namespace_ = namespaceProvider.CurrentNamespace;
+Console.WriteLine($"Using namespace: {namespace_}");
+
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? slimFaasOptions.Hostname;
 
@@ -283,7 +285,7 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
     {
         try
         {
-            string slimDataEndpoint = SlimDataEndpoint.Get(podInformation, slimFaasOptions.BaseSlimDataUrl, slimFaasOptions.Namespace);
+            string slimDataEndpoint = SlimDataEndpoint.Get(podInformation, slimFaasOptions.BaseSlimDataUrl, namespace_);
             if (!podInformation.Name.Contains(hostname))
             {
                 Console.WriteLine($"Adding node  {slimDataEndpoint} {hostname} {podInformation.Name}");
@@ -314,7 +316,7 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
         }
     }
 
-    publicEndPoint = SlimDataEndpoint.Get(currentPod, slimFaasOptions.BaseSlimDataUrl, slimFaasOptions.Namespace);
+    publicEndPoint = SlimDataEndpoint.Get(currentPod, slimFaasOptions.BaseSlimDataUrl, namespace_);
     Console.WriteLine($"Node started {currentPod.Name} {publicEndPoint}");
 }
 

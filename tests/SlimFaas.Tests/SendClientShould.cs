@@ -39,7 +39,9 @@ public class SendClientShould
             BaseFunctionUrl = "http://{function_name}:8080/",
             Namespace = "default"
         });
-        SendClient sendClient = new(httpClient, mockLogger.Object, options);
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+        SendClient sendClient = new(httpClient, mockLogger.Object, options, namespaceProviderMock.Object);
         CustomRequest customRequest =
             new CustomRequest(new List<CustomHeader> { new() { Key = "key", Values = new[] { "value1" } } },
                 new byte[1], "fibonacci", "health", httpMethod, "");
@@ -79,7 +81,9 @@ public class SendClientShould
             BaseFunctionUrl = "http://{function_name}:8080/",
             Namespace = "default"
         });
-        SendClient sendClient = new(httpClient, mockLogger.Object, options);
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+        SendClient sendClient = new(httpClient, mockLogger.Object, options, namespaceProviderMock.Object);
 
         DefaultHttpContext httpContext = new();
         HttpRequest httpContextRequest = httpContext.Request;

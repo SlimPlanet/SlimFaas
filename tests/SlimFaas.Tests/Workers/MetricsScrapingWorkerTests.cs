@@ -228,6 +228,10 @@ namespace SlimFaas.Tests.Workers
                 BaseSlimDataUrl = "http://{pod_name}.{service_name}.{namespace}.svc:3262"
             });
 
+            // INamespaceProvider
+            var namespaceProvider = new Mock<INamespaceProvider>();
+            namespaceProvider.SetupGet(n => n.CurrentNamespace).Returns("ns");
+
             return new MetricsScrapingWorker(
                 replicasService: replicas.Object,
                 cluster: cluster.Object,
@@ -238,6 +242,7 @@ namespace SlimFaas.Tests.Workers
                 scrapingGuard: guard,
                 logger: logger,
                 slimFaasOptions: slimFaasOptions,
+                namespaceProvider: namespaceProvider.Object,
                 delay: delayMs
             );
         }

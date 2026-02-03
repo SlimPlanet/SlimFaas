@@ -8,11 +8,12 @@ public class ReplicasSynchronizationWorker(
     IReplicasService replicasService,
     ILogger<ReplicasSynchronizationWorker> logger,
     IOptions<SlimFaasOptions> slimFaasOptions,
-    IOptions<WorkersOptions> workersOptions)
+    IOptions<WorkersOptions> workersOptions,
+    INamespaceProvider namespaceProvider)
     : BackgroundService
 {
     private readonly int _delay = workersOptions.Value.ReplicasSynchronizationDelayMilliseconds;
-    private readonly string _namespace = slimFaasOptions.Value.Namespace;
+    private readonly string _namespace = namespaceProvider.CurrentNamespace;
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (stoppingToken.IsCancellationRequested == false)

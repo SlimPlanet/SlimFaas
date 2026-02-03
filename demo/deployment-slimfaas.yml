@@ -46,7 +46,6 @@ data:
     }
 ---
 apiVersion: apps/v1
-
 kind: StatefulSet
 metadata:
   name: slimfaas
@@ -79,7 +78,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.61.1-pr.233450
+          image: axaguildev/slimfaas:0.61.1-pr.233451
           livenessProbe:
             httpGet:
               path: /health
@@ -104,7 +103,7 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: slimfaas-config
-                  key: appsettings.Production.json
+                  key: SlimFaas__JobsConfiguration
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database

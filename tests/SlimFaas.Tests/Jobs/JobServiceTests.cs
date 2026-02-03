@@ -51,11 +51,15 @@ public class JobServiceTests
             }));
 
         // Instanciation de la classe à tester
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+
         _jobService = new JobService(
             _kubernetesServiceMock.Object,
             _jobConfigurationMock.Object,
             _jobQueueMock.Object,
-            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = "default" })
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = "default" }),
+            namespaceProviderMock.Object
         );
     }
 

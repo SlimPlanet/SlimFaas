@@ -9,6 +9,7 @@ using Moq;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
+using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Security;
 
@@ -44,6 +45,9 @@ public class AsyncFunctionEndpointTests
                             Namespace = "default",
                             BaseFunctionUrl = "http://{pod_ip}:{pod_port}"
                         }));
+                        var namespaceProviderMock = new Mock<INamespaceProvider>();
+                        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+                        services.AddSingleton<INamespaceProvider>(namespaceProviderMock.Object);
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();

@@ -22,11 +22,12 @@ public class MetricsScrapingWorker(
     IMetricsScrapingGuard scrapingGuard,
     ILogger<MetricsScrapingWorker> logger,
     IOptions<SlimFaasOptions> slimFaasOptions,
+    INamespaceProvider namespaceProvider,
     int delay = 5_000)
     : BackgroundService
 {
     private readonly string _baseSlimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
-    private readonly string _namespace = slimFaasOptions.Value.Namespace;
+    private readonly string _namespace = namespaceProvider.CurrentNamespace;
 
 // Remplace TOUTE la déclaration existante de MetricLine par celle-ci :
     private static readonly Regex MetricLine = new(

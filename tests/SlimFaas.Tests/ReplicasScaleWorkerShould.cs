@@ -1,4 +1,4 @@
-﻿﻿using System.Collections;
+﻿﻿﻿using System.Collections;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -148,12 +148,16 @@ public class ReplicasScaleWorkerShould
             Namespace = "default"
         });
 
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+
         var service = new ScaleReplicasWorker(
             replicasService,
             masterService.Object,
             logger.Object,
             slimFaasOptions,
-            workersOptions);
+            workersOptions,
+            namespaceProviderMock.Object);
 
         using var cts = new CancellationTokenSource();
         var task = service.StartAsync(cts.Token);
@@ -190,7 +194,10 @@ public class ReplicasScaleWorkerShould
             Namespace = "default"
         });
 
-        ScaleReplicasWorker service = new(replicaService.Object, masterService.Object, logger.Object, slimFaasOptions, workersOptions);
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+
+        ScaleReplicasWorker service = new(replicaService.Object, masterService.Object, logger.Object, slimFaasOptions, workersOptions, namespaceProviderMock.Object);
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
         await Task.Delay(100);

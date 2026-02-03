@@ -35,8 +35,9 @@ public static class EventEndpoints
                 IReplicasService replicasService,
                 IJobService jobService,
                 IFunctionAccessPolicy accessPolicy,
-                IOptions<SlimFaasOptions> slimFaasOptions) =>
-                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions))
+                IOptions<SlimFaasOptions> slimFaasOptions,
+                INamespaceProvider namespaceProvider) =>
+                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions, namespaceProvider))
             .WithName("PublishEventRoot")
             .Produces(204)
             .Produces(404)
@@ -54,7 +55,8 @@ public static class EventEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
         [FromServices] IFunctionAccessPolicy accessPolicy,
-        [FromServices] IOptions<SlimFaasOptions> slimFaasOptions)
+        [FromServices] IOptions<SlimFaasOptions> slimFaasOptions,
+        [FromServices] INamespaceProvider namespaceProvider)
     {
         functionPath ??= "";
 
@@ -101,7 +103,7 @@ public static class EventEndpoints
 
                 string baseFunctionPodUrl = slimFaasOptions.Value.BaseFunctionPodUrl;
 
-                var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl, slimFaasOptions.Value.Namespace);
+                var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl, namespaceProvider.CurrentNamespace);
                 logger.LogDebug("Sending event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent}",
                     eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
 

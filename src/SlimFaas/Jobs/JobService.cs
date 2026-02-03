@@ -47,10 +47,11 @@ public class JobService(
     IKubernetesService kubernetesService,
     IJobConfiguration jobConfiguration,
     IJobQueue jobQueue,
-    IOptions<SlimFaasOptions> slimFaasOptions) : IJobService
+    IOptions<SlimFaasOptions> slimFaasOptions,
+    INamespaceProvider namespaceProvider) : IJobService
 {
 
-    private readonly string _namespace = slimFaasOptions.Value.Namespace;
+    private readonly string _namespace = namespaceProvider.CurrentNamespace;
 
     public async Task CreateJobAsync(string name, CreateJob createJob, string elementId, string jobFullName, long inQueueTimestamp)
     {

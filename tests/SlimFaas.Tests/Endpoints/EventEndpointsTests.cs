@@ -29,6 +29,13 @@ public class EventEndpointsTests
         });
     }
 
+    private static INamespaceProvider CreateNamespaceProvider()
+    {
+        var mock = new Mock<INamespaceProvider>();
+        mock.SetupGet(n => n.CurrentNamespace).Returns("default");
+        return mock.Object;
+    }
+
     private static DeploymentsInformations CreateTestDeployments()
     {
         var function = new DeploymentInformation(
@@ -111,6 +118,7 @@ public class EventEndpointsTests
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
+                        s.AddSingleton(CreateNamespaceProvider());
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -181,6 +189,7 @@ public class EventEndpointsTests
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
+                        s.AddSingleton(CreateNamespaceProvider());
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -231,6 +240,7 @@ public class EventEndpointsTests
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
+                        s.AddSingleton(CreateNamespaceProvider());
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -319,6 +329,7 @@ public class EventEndpointsTests
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
+                        s.AddSingleton(CreateNamespaceProvider());
                         s.AddRouting();
                     })
                     .Configure(app =>

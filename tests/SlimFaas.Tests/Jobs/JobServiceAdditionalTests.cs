@@ -1,4 +1,4 @@
-﻿﻿using System.Reflection;
+﻿﻿﻿using System.Reflection;
 using MemoryPack;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -40,9 +40,12 @@ public class JobServiceAdditionalTests
                 }
             }));
 
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns(Ns);
 
         _svc = new JobService(_kube.Object, _conf.Object, _queue.Object,
-            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = Ns }));
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = Ns }),
+            namespaceProviderMock.Object);
     }
 
     private static Job FakeJob(string name, string id, JobStatus status = JobStatus.Running) =>

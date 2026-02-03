@@ -45,7 +45,7 @@ var openTelemetryConfig = builder.Configuration
     .GetSection("OpenTelemetry")
     .Get<OpenTelemetryConfig>() ?? new OpenTelemetryConfig();
 
-builder.Services.AddOpenTelemetry(openTelemetryConfig);
+var isOpenTelemetryEnabled = builder.Services.AddOpenTelemetry(openTelemetryConfig);
 
 // Register CORS policy using the already present ConfigureCorsPolicyFromWildcard(...)
 builder.Services.AddCors(options =>
@@ -102,7 +102,10 @@ app.UseStaticFiles(new StaticFileOptions
 app.UseCors("SlimFaasMcpCors");
 app.UseMiddleware<RequestLoggingMiddleware>();
 
-app.MapPrometheusScrapingEndpoint("/metrics");
+if (isOpenTelemetryEnabled)
+{
+    app.MapPrometheusScrapingEndpoint("/metrics");
+}
 
 app.MapGet("/mcp", () => Results.StatusCode(StatusCodes.Status405MethodNotAllowed));
 

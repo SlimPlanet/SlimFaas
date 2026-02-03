@@ -13,12 +13,13 @@ public class SlimDataSynchronizationWorker(
     ILogger<SlimDataSynchronizationWorker> logger,
     ISlimDataStatus slimDataStatus,
     IOptions<SlimFaasOptions> slimFaasOptions,
-    IOptions<WorkersOptions> workersOptions)
+    IOptions<WorkersOptions> workersOptions,
+    INamespaceProvider namespaceProvider)
     : BackgroundService
 {
     private readonly int _delay = workersOptions.Value.ReplicasSynchronizationDelayMilliseconds;
     private readonly string _baseSlimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
-    private readonly string _namespace = slimFaasOptions.Value.Namespace;
+    private readonly string _namespace = namespaceProvider.CurrentNamespace;
 
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
