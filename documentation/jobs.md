@@ -1,4 +1,4 @@
-# SlimFaas Jobs
+    # SlimFaas Jobs
 
 
 SlimFaas lets you run **one‑off, batch, and scheduled (cron) jobs** either on‑demand via simple HTTP calls or automatically on a cron‑like cadence. Each job definition includes guard‑rails: cap concurrency with `NumberParallelJob`, enforce per‑pod CPU & memory limits, and decide whether the endpoint is **Public** (external) or **Private** (in‑cluster). You get a powerful REST API while keeping your cluster safe from resource spikes.
@@ -41,7 +41,7 @@ metadata:
   name: slimfaas-config
   namespace: slimfaas-demo
 data:
-  SLIMFAAS_JOBS_CONFIGURATION: |
+  SlimFaas__JobsConfiguration: |
     {
       "Configurations": {
         "fibonacci": {
@@ -115,11 +115,11 @@ spec:
             timeoutSeconds: 8
             terminationGracePeriodSeconds: 30
           env:
-            - name: SLIMFAAS_JOBS_CONFIGURATION
+            - name: SlimFaas__JobsConfiguration
               valueFrom:
                 configMapKeyRef:
                   name: slimfaas-config
-                  key: SLIMFAAS_JOBS_CONFIGURATION
+                  key: SlimFaas__JobsConfiguration
           resources:
             limits:
               memory: "76Mi"

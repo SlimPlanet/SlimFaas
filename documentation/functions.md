@@ -1,53 +1,7 @@
-﻿﻿# SlimFaas Functions (Sync & Async)
-
-> ⚠️ **Configuration Update**: SlimFaas now uses strongly-typed configuration via `appsettings.json` instead of environment variables. See [Configuration Notice](CONFIGURATION_NOTICE.md) for migration details.
+﻿# SlimFaas Functions (Sync & Async)
 
 SlimFaas offers **two main ways** to invoke functions: **synchronous** and **asynchronous** HTTP calls.
 Below is an overview of each.
-
----
-
-## Configuration
-
-SlimFaas configuration is now managed through `appsettings.json` or environment variables using the .NET format `Section__Property` (double underscore).
-
-### Key Configuration Sections
-
-#### SlimFaas Section
-```json
-{
-  "SlimFaas": {
-    "Namespace": "default",
-    "CorsAllowOrigin": "*",
-    "AllowUnsecureSsl": false,
-    "Orchestrator": "Kubernetes",
-    "BaseFunctionUrl": "http://{pod_ip}:{pod_port}",
-    "BaseSlimDataUrl": "http://{pod_name}.{service_name}.{namespace}.svc:3262",
-    "JobsConfiguration": "{...json...}"
-  }
-}
-```
-
-#### Workers Section
-```json
-{
-  "Workers": {
-    "DelayMilliseconds": 10,
-    "JobsDelayMilliseconds": 1000,
-    "HealthDelayMilliseconds": 1000
-  }
-}
-```
-
-### Environment Variable Override
-
-You can override any configuration value using environment variables:
-```bash
-export SlimFaas__Namespace=production
-export Workers__DelayMilliseconds=20
-```
-
-For complete configuration documentation, see `MIGRATION_CONFIGURATION.md` in the root directory.
 
 ---
 
