@@ -138,9 +138,6 @@ switch (envOrConfig)
         usePersistentConfigurationStorage = false;
         break;
 
-    case "Mock":
-        serviceCollectionStarter.AddSingleton<IKubernetesService, MockKubernetesService>();
-        break;
     default:
         serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>(sp =>
         {

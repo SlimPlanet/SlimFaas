@@ -47,20 +47,11 @@ public class SlimFaasOptions
     /// </summary>
     public string Orchestrator { get; set; } = "Kubernetes";
 
-    /// <summary>
-    /// Mock Kubernetes functions (comma separated)
-    /// </summary>
-    public string? MockKubernetesFunctions { get; set; }
 
     /// <summary>
     /// Hostname for the current pod
     /// </summary>
     public string Hostname { get; set; } = "slimfaas-1";
-
-    /// <summary>
-    /// Ports configuration
-    /// </summary>
-    public int[] Ports { get; set; } = Array.Empty<int>();
 
     /// <summary>
     /// Pod scaled up by default when infrastructure has never been called

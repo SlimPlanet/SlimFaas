@@ -124,7 +124,7 @@ environment:
 }
 ```
 
-### Après - Option 2 : Variables d'environnement (format .NET)
+### After - Option 2: Environment Variables (.NET format)
 
 ```yaml
 environment:
@@ -165,9 +165,9 @@ environment:
 
 ---
 
-## 🔧 Migration Kubernetes ConfigMap/Secrets
+## 🔧 Kubernetes ConfigMap/Secrets Migration
 
-### Avant
+### Before
 
 ```yaml
 apiVersion: v1
@@ -183,7 +183,7 @@ data:
   SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT: "2000"
 ```
 
-### Après
+### After
 
 ```yaml
 apiVersion: v1
@@ -208,7 +208,7 @@ data:
     }
 ```
 
-**OU** utiliser le format .NET avec double underscore :
+**OR** use the .NET format with double underscores:
 
 ```yaml
 apiVersion: v1
@@ -226,98 +226,98 @@ data:
 
 ---
 
-## 📂 Structure des classes d'options
+## 📂 Options Classes Structure
 
 ### SlimFaasOptions
-**Fichier** : `/src/SlimFaas/Options/SlimFaasOptions.cs`
-**Section** : `"SlimFaas"`
+**File**: `/src/SlimFaas/Options/SlimFaasOptions.cs`
+**Section**: `"SlimFaas"`
 
-| Propriété | Type | Défaut | Description |
+| Property | Type | Default | Description |
 |-----------|------|--------|-------------|
-| `AllowUnsecureSsl` | `bool` | `false` | Autoriser les connexions SSL non sécurisées |
-| `JobsConfiguration` | `string?` | `null` | Configuration des jobs au format JSON |
-| `CorsAllowOrigin` | `string` | `"*"` | Origines CORS autorisées |
-| `BaseSlimDataUrl` | `string` | `"http://{pod_name}.{service_name}.{namespace}.svc:3262"` | URL de base pour SlimData |
-| `BaseFunctionUrl` | `string` | `"http://{pod_ip}:{pod_port}"` | URL de base pour les fonctions |
-| `BaseFunctionPodUrl` | `string` | `"http://{pod_ip}:{pod_port}"` | URL de base pour les pods de fonctions |
-| `Namespace` | `string` | `"default"` | Namespace Kubernetes |
-| `Orchestrator` | `string` | `"Kubernetes"` | Type d'orchestrateur (Kubernetes, Docker, Mock) |
-| `MockKubernetesFunctions` | `string?` | `null` | Fonctions mockées (séparées par virgule) |
-| `Hostname` | `string` | `"slimfaas-1"` | Nom d'hôte du pod |
-| `Ports` | `int[]` | `[]` | Ports d'écoute |
-| `PodScaledUpByDefaultWhenInfrastructureHasNeverCalled` | `bool` | `false` | Démarrer les pods par défaut |
+| `AllowUnsecureSsl` | `bool` | `false` | Allow unsecure SSL connections |
+| `JobsConfiguration` | `string?` | `null` | Jobs configuration in JSON format |
+| `CorsAllowOrigin` | `string` | `"*"` | Allowed CORS origins |
+| `BaseSlimDataUrl` | `string` | `"http://{pod_name}.{service_name}.{namespace}.svc:3262"` | Base URL for SlimData |
+| `BaseFunctionUrl` | `string` | `"http://{pod_ip}:{pod_port}"` | Base URL for functions |
+| `BaseFunctionPodUrl` | `string` | `"http://{pod_ip}:{pod_port}"` | Base URL for function pods |
+| `Namespace` | `string` | `"default"` | Kubernetes namespace |
+| `Orchestrator` | `string` | `"Kubernetes"` | Orchestrator type (Kubernetes, Docker, Mock) |
+| `MockKubernetesFunctions` | `string?` | `null` | Mocked functions (comma-separated) |
+| `Hostname` | `string` | `"slimfaas-1"` | Pod hostname |
+| `Ports` | `int[]` | `[]` | Listening ports |
+| `PodScaledUpByDefaultWhenInfrastructureHasNeverCalled` | `bool` | `false` | Start pods by default |
 
 ### WorkersOptions
-**Fichier** : `/src/SlimFaas/Options/WorkersOptions.cs`
-**Section** : `"Workers"`
+**File**: `/src/SlimFaas/Options/WorkersOptions.cs`
+**Section**: `"Workers"`
 
-| Propriété | Type | Défaut | Description |
+| Property | Type | Default | Description |
 |-----------|------|--------|-------------|
-| `DelayMilliseconds` | `int` | `10` | Délai principal du worker (ms) |
-| `JobsDelayMilliseconds` | `int` | `1000` | Délai du worker de jobs (ms) |
-| `ReplicasSynchronizationDelayMilliseconds` | `int` | `3000` | Délai de synchronisation des replicas (ms) |
-| `HistorySynchronizationDelayMilliseconds` | `int` | `500` | Délai de synchronisation de l'historique (ms) |
-| `ScaleReplicasDelayMilliseconds` | `int` | `1000` | Délai de scaling des replicas (ms) |
-| `HealthDelayMilliseconds` | `int` | `1000` | Délai des health checks (ms) |
-| `HealthDelayToExitSeconds` | `int` | `60` | Délai avant sortie après problème de santé (s) |
-| `HealthDelayToStartHealthCheckSeconds` | `int` | `20` | Délai avant démarrage des health checks (s) |
+| `DelayMilliseconds` | `int` | `10` | Main worker delay (ms) |
+| `JobsDelayMilliseconds` | `int` | `1000` | Jobs worker delay (ms) |
+| `ReplicasSynchronizationDelayMilliseconds` | `int` | `3000` | Replicas synchronization delay (ms) |
+| `HistorySynchronizationDelayMilliseconds` | `int` | `500` | History synchronization delay (ms) |
+| `ScaleReplicasDelayMilliseconds` | `int` | `1000` | Replicas scaling delay (ms) |
+| `HealthDelayMilliseconds` | `int` | `1000` | Health checks delay (ms) |
+| `HealthDelayToExitSeconds` | `int` | `60` | Delay before exit after health issue (s) |
+| `HealthDelayToStartHealthCheckSeconds` | `int` | `20` | Delay before starting health checks (s) |
 
 ### SlimDataOptions
-**Fichier** : `/src/SlimFaas/Options/SlimDataOptions.cs`
-**Section** : `"SlimData"`
+**File**: `/src/SlimFaas/Options/SlimDataOptions.cs`
+**Section**: `"SlimData"`
 
-| Propriété | Type | Défaut | Description |
+| Property | Type | Default | Description |
 |-----------|------|--------|-------------|
-| `Directory` | `string?` | `null` | Répertoire de stockage persistant |
-| `Configuration` | `string?` | `null` | Configuration JSON pour SlimData |
-| `AllowColdStart` | `bool` | `false` | Autoriser le démarrage à froid |
+| `Directory` | `string?` | `null` | Persistent storage directory |
+| `Configuration` | `string?` | `null` | JSON configuration for SlimData |
+| `AllowColdStart` | `bool` | `false` | Allow cold start |
 
-### RaftClientHandlerOptions (nouveau)
-**Fichier** : `/src/SlimData/Options/RaftClientHandlerOptions.cs`
-**Section** : `"RaftClientHandler"`
+### RaftClientHandlerOptions (new)
+**File**: `/src/SlimData/Options/RaftClientHandlerOptions.cs`
+**Section**: `"RaftClientHandler"`
 
-| Propriété | Type | Défaut | Description |
+| Property | Type | Default | Description |
 |-----------|------|--------|-------------|
-| `ConnectTimeoutMilliseconds` | `int` | `2000` | Timeout de connexion TCP+TLS (ms) |
-| `PooledConnectionLifetimeMinutes` | `int` | `5` | Durée de vie des connexions poolées (min) |
-| `PooledConnectionIdleTimeoutSeconds` | `int` | `30` | Timeout d'inactivité des connexions (s) |
-| `MaxConnectionsPerServer` | `int` | `100` | Nombre max de connexions par serveur |
+| `ConnectTimeoutMilliseconds` | `int` | `2000` | TCP+TLS connection timeout (ms) |
+| `PooledConnectionLifetimeMinutes` | `int` | `5` | Pooled connection lifetime (min) |
+| `PooledConnectionIdleTimeoutSeconds` | `int` | `30` | Connection idle timeout (s) |
+| `MaxConnectionsPerServer` | `int` | `100` | Max connections per server |
 
 ---
 
-## 🔄 Exemples de migration
+## 🔄 Migration Examples
 
-### Exemple 1 : Configuration simple
+### Example 1: Simple configuration
 
-**Avant** :
+**Before**:
 ```bash
 export NAMESPACE=production
 export SLIMFAAS_ORCHESTRATOR=Kubernetes
 export SLIM_WORKER_DELAY_MILLISECONDS=50
 ```
 
-**Après** :
+**After**:
 ```bash
 export SlimFaas__Namespace=production
 export SlimFaas__Orchestrator=Kubernetes
 export Workers__DelayMilliseconds=50
 ```
 
-### Exemple 2 : Configuration avec tableau
+### Example 2: Configuration with array
 
-**Avant** :
+**Before**:
 ```bash
 export SLIMFAAS_PORTS=5000,5001,5002
 ```
 
-**Après** :
+**After**:
 ```bash
 export SlimFaas__Ports__0=5000
 export SlimFaas__Ports__1=5001
 export SlimFaas__Ports__2=5002
 ```
 
-**OU** dans appsettings.json :
+**OR** in appsettings.json:
 ```json
 {
   "SlimFaas": {
@@ -326,19 +326,19 @@ export SlimFaas__Ports__2=5002
 }
 ```
 
-### Exemple 3 : Configuration JSON complexe
+### Example 3: Complex JSON configuration
 
-**Avant** :
+**Before**:
 ```bash
 export SLIMDATA_CONFIGURATION='{"coldStart":"true","replica":3}'
 ```
 
-**Après** :
+**After**:
 ```bash
 export SlimData__Configuration='{"coldStart":"true","replica":3}'
 ```
 
-**OU** dans appsettings.json :
+**OR** in appsettings.json:
 ```json
 {
   "SlimData": {
@@ -349,58 +349,58 @@ export SlimData__Configuration='{"coldStart":"true","replica":3}'
 
 ---
 
-## 🎯 Avantages de la nouvelle approche
+## 🎯 Advantages of the New Approach
 
 ### 1. **Type Safety**
 ```csharp
-// AVANT : Parsing manuel avec risque d'erreur runtime
+// BEFORE: Manual parsing with runtime error risk
 int delay = int.Parse(Environment.GetEnvironmentVariable("DELAY") ?? "1000");
 
-// APRÈS : Type-safe à la compilation
+// AFTER: Type-safe at compile time
 int delay = workersOptions.Value.DelayMilliseconds;
 ```
 
-### 2. **Validation au démarrage**
+### 2. **Startup Validation**
 ```csharp
 services.AddOptions<WorkersOptions>()
     .Bind(configuration.GetSection(WorkersOptions.SectionName))
     .ValidateDataAnnotations()
-    .ValidateOnStart();  // ⚠️ Échoue au démarrage si la config est invalide
+    .ValidateOnStart();  // ⚠️ Fails at startup if config is invalid
 ```
 
-### 3. **IntelliSense et documentation**
-- Autocomplétion dans l'IDE
-- Commentaires XML sur chaque propriété
-- Pas besoin de chercher dans le code pour trouver les noms des variables
+### 3. **IntelliSense and documentation**
+- Auto-completion in IDE
+- XML comments on each property
+- No need to search in code to find variable names
 
-### 4. **Testabilité**
+### 4. **Testability**
 ```csharp
-// Créer des options mock pour les tests
+// Create mock options for tests
 var mockOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
 {
     DelayMilliseconds = 100
 });
 ```
 
-### 5. **Configuration hiérarchique**
-- Meilleure organisation de la configuration
-- Sections logiques regroupées
-- Support de multiples sources (JSON, XML, YAML, etc.)
+### 5. **Hierarchical configuration**
+- Better organization of configuration
+- Logical sections grouped together
+- Support for multiple sources (JSON, XML, YAML, etc.)
 
-### 6. **Hot Reload** (si nécessaire)
+### 6. **Hot Reload** (if needed)
 ```csharp
-// IOptions<T> : valeur figée
-// IOptionsSnapshot<T> : valeur par requête
-// IOptionsMonitor<T> : valeur avec notification de changement
+// IOptions<T>: frozen value
+// IOptionsSnapshot<T>: value per request
+// IOptionsMonitor<T>: value with change notification
 ```
 
 ---
 
-## 🚨 Notes importantes
+## 🚨 Important Notes
 
-### ⚠️ Format des variables d'environnement
+### ⚠️ Environment variable format
 
-**Double underscore** (`__`) est utilisé pour la hiérarchie :
+**Double underscore** (`__`) is used for hierarchy:
 
 ```bash
 # Correct ✅
@@ -411,59 +411,59 @@ SlimFaas_Namespace=default
 SLIMFAAS_NAMESPACE=default
 ```
 
-### ⚠️ Tableaux dans les variables d'environnement
+### ⚠️ Arrays in environment variables
 
 ```bash
-# Format à indices
+# Indexed format
 SlimFaas__Ports__0=5000
 SlimFaas__Ports__1=5001
 
-# OU dans appsettings.json
+# OR in appsettings.json
 "Ports": [5000, 5001]
 ```
 
-### ⚠️ Priorité de configuration
+### ⚠️ Configuration priority
 
-.NET applique la configuration dans cet ordre (le dernier gagne) :
+.NET applies configuration in this order (last one wins):
 
 1. `appsettings.json`
 2. `appsettings.{Environment}.json`
-3. Variables d'environnement
-4. Arguments en ligne de commande
+3. Environment variables
+4. Command-line arguments
 
 ---
 
-## 📚 Fichiers supprimés
+## 📚 Deleted Files
 
-- ❌ `/src/SlimData/EnvironmentVariables.cs` - **SUPPRIMÉ** (obsolète)
-- ⚠️ `/src/SlimFaas/EnvironmentVariables.cs` - **PEUT ÊTRE SUPPRIMÉ** (plus utilisé dans le code, seulement les constantes restent pour référence historique)
+- ❌ `/src/SlimData/EnvironmentVariables.cs` - **DELETED** (obsolete)
+- ⚠️ `/src/SlimFaas/EnvironmentVariables.cs` - **CAN BE DELETED** (no longer used in code, only constants remain for historical reference)
 
 ---
 
-## ✅ Checklist de migration pour les déploiements
+## ✅ Migration Checklist for Deployments
 
-- [ ] Mettre à jour les fichiers `docker-compose.yml`
-- [ ] Mettre à jour les Kubernetes Deployments/StatefulSets
-- [ ] Mettre à jour les ConfigMaps
-- [ ] Mettre à jour les Secrets (si applicable)
-- [ ] Mettre à jour la documentation
-- [ ] Tester en environnement de développement
-- [ ] Tester en environnement de staging
-- [ ] Déployer en production avec rollback plan
+- [ ] Update `docker-compose.yml` files
+- [ ] Update Kubernetes Deployments/StatefulSets
+- [ ] Update ConfigMaps
+- [ ] Update Secrets (if applicable)
+- [ ] Update documentation
+- [ ] Test in development environment
+- [ ] Test in staging environment
+- [ ] Deploy to production with rollback plan
 
 ---
 
 ## 🆘 Support
 
-Si vous rencontrez des problèmes lors de la migration :
+If you encounter issues during the migration:
 
-1. Vérifiez que les noms des variables suivent le format .NET (`Section__Property`)
-2. Vérifiez les logs au démarrage pour les erreurs de configuration
-3. Utilisez `dotnet run --environment Development` pour activer les logs détaillés
-4. Consultez la documentation officielle : https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/
+1. Check that variable names follow the .NET format (`Section__Property`)
+2. Check startup logs for configuration errors
+3. Use `dotnet run --environment Development` to enable detailed logs
+4. Refer to the official documentation: https://learn.microsoft.com/en-us/aspnet/core/fundamentals/configuration/
 
 ---
 
-**Date de la refactorisation** : Février 2026
-**Version** : .NET 10
-**Status** : ✅ Production Ready
+**Refactoring Date**: February 2026
+**Version**: .NET 10
+**Status**: ✅ Production Ready
