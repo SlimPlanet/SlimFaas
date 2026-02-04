@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Connections;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
 using SlimData.ClusterFiles.Http;
+using SlimData.Options;
 
 namespace SlimData;
 
@@ -64,14 +65,19 @@ public class Startup(IConfiguration configuration)
 
     public void ConfigureServices(IServiceCollection services)
     {
+        // Configure RaftClientHandler options
+        services.AddOptions<RaftClientHandlerOptions>()
+            .Bind(configuration.GetSection(RaftClientHandlerOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
         services.AddHttpClient("ClusterFilesTransfer", c =>
             {
-                // on gère les timeouts par chunk via CancellationToken dans HttpRangeReadStream
                 c.Timeout = Timeout.InfiniteTimeSpan;
             })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
-                AllowAutoRedirect = false // on gère nous-même pour conserver Range
+                AllowAutoRedirect = false 
             });
 
         services.AddHttpClient("RaftClient", c =>

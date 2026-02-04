@@ -88,7 +88,7 @@ public class SlimWorkerShould
 
         var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
         {
-            DelayMilliseconds = 10
+            QueuesDelayMilliseconds = 10
         });
 
         SlimQueuesWorker service = new SlimQueuesWorker(
@@ -129,7 +129,7 @@ public class SlimWorkerShould
 
         var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
         {
-            DelayMilliseconds = 10
+            QueuesDelayMilliseconds = 10
         });
 
         SlimQueuesWorker service = new SlimQueuesWorker(

@@ -8,9 +8,9 @@ public class WorkersOptions
     public const string SectionName = "Workers";
 
     /// <summary>
-    /// Delay in milliseconds for the main worker
+    /// Delay in milliseconds for the queues worker
     /// </summary>
-    public int DelayMilliseconds { get; set; } = 10;
+    public int QueuesDelayMilliseconds { get; set; } = 10;
 
     /// <summary>
     /// Delay in milliseconds for the jobs worker

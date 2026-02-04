@@ -1,5 +1,7 @@
 ﻿using DotNext.Net.Cluster.Consensus.Raft;
+using Microsoft.Extensions.Options;
 using SlimFaas.Database;
+using SlimFaas.Options;
 
 namespace SlimFaas.Workers;
 
@@ -9,11 +11,10 @@ public class MetricsWorker(
     DynamicGaugeService dynamicGaugeService,
     IRaftCluster raftCluster,
     ILogger<MetricsWorker> logger,
-    int delay = EnvironmentVariables.ScaleReplicasWorkerDelayMillisecondsDefault)
+    IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
-    private readonly int _delay =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.ScaleReplicasWorkerDelayMilliseconds, delay);
+    private readonly int _delay = workersOptions.Value.ScaleReplicasDelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

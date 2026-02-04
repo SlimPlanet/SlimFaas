@@ -68,7 +68,7 @@ public class SlimFaasOptionsTests
         var configurationBuilder = new ConfigurationBuilder();
         configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["Workers:DelayMilliseconds"] = "20",
+            ["Workers:QueuesDelayMilliseconds"] = "20",
             ["Workers:JobsDelayMilliseconds"] = "2000",
             ["Workers:HealthDelayMilliseconds"] = "500"
         });
@@ -85,7 +85,7 @@ public class SlimFaasOptionsTests
         var options = serviceProvider.GetRequiredService<IOptions<WorkersOptions>>().Value;
 
         // Assert
-        Assert.Equal(20, options.DelayMilliseconds);
+        Assert.Equal(20, options.QueuesDelayMilliseconds);
         Assert.Equal(2000, options.JobsDelayMilliseconds);
         Assert.Equal(500, options.HealthDelayMilliseconds);
     }

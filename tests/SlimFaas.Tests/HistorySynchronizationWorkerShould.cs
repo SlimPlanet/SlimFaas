@@ -66,12 +66,18 @@ public class HistorySynchronizationWorkerShould
         // Nouveau : registry pour coller à la signature de ReplicasService
         var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
 
+        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+        });
+
         var replicasService = new ReplicasService(
             kubernetesService.Object,
             historyHttpMemoryService,
             autoScaler,
             loggerReplicasService.Object,
-            metricsRegistry);
+            metricsRegistry,
+            slimFaasOptions);
 
         var slimDataStatus = new Mock<ISlimDataStatus>();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);

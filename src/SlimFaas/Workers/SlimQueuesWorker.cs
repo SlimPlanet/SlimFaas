@@ -22,7 +22,7 @@ public class SlimQueuesWorker(
 {
 
     public const string SlimfaasElementId = "SlimFaas-Element-Id";
-    private readonly int _delay = workersOptions.Value.DelayMilliseconds;
+    private readonly int _delay = workersOptions.Value.QueuesDelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

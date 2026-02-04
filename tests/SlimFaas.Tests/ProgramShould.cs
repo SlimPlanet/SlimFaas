@@ -1,16 +1,22 @@
-﻿using Microsoft.AspNetCore.Mvc.Testing;
+﻿﻿using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace SlimFaas.Tests;
 
 public class ProgramShould
 {
-    /*[Fact]
+    /*
+    /// <summary>
+    /// ⚠️ Test obsolète - utilise les anciennes variables d'environnement
+    /// Après migration vers IOptions<T>, utiliser le nouveau format :
+    /// SlimFaas__BaseSlimDataUrl, SlimData__Configuration, etc.
+    /// </summary>
+    [Fact]
     public async Task TestRootEndpoint()
     {
-        Environment.SetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl, "http://localhost:3262");
-        Environment.SetEnvironmentVariable(EnvironmentVariables.SlimDataConfiguration, "{\"coldStart\":\"true\"}");
-        Environment.SetEnvironmentVariable(EnvironmentVariables.SlimFaasOrchestrator, "Mock");
-        Environment.SetEnvironmentVariable(EnvironmentVariables.MockKubernetesFunctions,
+        Environment.SetEnvironmentVariable("SlimFaas__BaseSlimDataUrl", "http://localhost:3262");
+        Environment.SetEnvironmentVariable("SlimData__Configuration", "{\"coldStart\":\"true\"}");
+        Environment.SetEnvironmentVariable("SlimFaas__Orchestrator", "Mock");
+        Environment.SetEnvironmentVariable("SlimFaas__MockKubernetesFunctions",
             "{\"Functions\":[{\"Name\":\"fibonacci1\",\"NumberParallelRequest\":1},{\"Name\":\"fibonacci2\",\"NumberParallelRequest\":1}],\"Slimfaas\":[{\"Name\":\"slimfaas-1\"}]}");
         await using WebApplicationFactory<Program> application = new();
         using HttpClient client = application.CreateClient();

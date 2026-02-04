@@ -112,12 +112,18 @@ public class ReplicasScaleWorkerShould
         // Nouveau : registry dummy pour coller à la signature de ReplicasService
         var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
 
+        var slimFaasOptionsForReplicas = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+        });
+
         var replicasService = new ReplicasService(
             kubernetesService.Object,
             historyHttpService,
             autoScaler,
             loggerReplicasService.Object,
-            metricsRegistry);
+            metricsRegistry,
+            slimFaasOptionsForReplicas);
 
         masterService.Setup(ms => ms.IsMaster).Returns(true);
 
@@ -330,12 +336,18 @@ public class ReplicasScaleWorkerShould
         // Dernier appel HTTP "maintenant" => pas de scale down, on devrait sortir de 0 -> 1
         historyHttpService.SetTickLastCall("fibonacci-quota", DateTime.UtcNow.Ticks);
 
+        var slimFaasOptionsForReplicas = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+        });
+
         var replicasService = new ReplicasService(
             kubernetesService.Object,
             historyHttpService,
             autoScaler,
             loggerReplicasService.Object,
-            metricsRegistry);
+            metricsRegistry,
+            slimFaasOptionsForReplicas);
 
         await replicasService.SyncDeploymentsAsync("default");
         await replicasService.CheckScaleAsync("default");
@@ -382,12 +394,18 @@ public class ReplicasScaleWorkerShould
         // Dernier appel HTTP très ancien => on doit déclencher le scale down vers ReplicasMin (0)
         historyHttpService.SetTickLastCall("fibonacci-quota", DateTime.UtcNow.AddMinutes(-10).Ticks);
 
+        var slimFaasOptionsForReplicas = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+        });
+
         var replicasService = new ReplicasService(
             kubernetesService.Object,
             historyHttpService,
             autoScaler,
             loggerReplicasService.Object,
-            metricsRegistry);
+            metricsRegistry,
+            slimFaasOptionsForReplicas);
 
         var expectedRequest = new ReplicaRequest("fibonacci-quota", "default", 0, PodType.Deployment);
 
