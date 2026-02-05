@@ -49,11 +49,6 @@ public class SlimFaasOptions
 
 
     /// <summary>
-    /// Hostname for the current pod
-    /// </summary>
-    public string Hostname { get; set; } = "slimfaas-1";
-
-    /// <summary>
     /// Pod scaled up by default when infrastructure has never been called
     /// </summary>
     public bool PodScaledUpByDefaultWhenInfrastructureHasNeverCalled { get; set; }

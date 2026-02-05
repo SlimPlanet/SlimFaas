@@ -57,9 +57,9 @@ services:
     environment:
       DOCKER_HOST: "${DOCKER_HOST:-unix:///var/run/docker.sock}"
       ASPNETCORE_URLS: "http://0.0.0.0:30021"
+      HOTSNAME: "slimfaas-1"
       SlimFaas__BaseSlimDataUrl: "http://localhost:3262/"
       SlimFaas__Orchestrator: "Docker"
-      SlimFaas__Hostname: "slimfaas-1"
       SlimData__Directory: "/database"
       SlimFaas__JobsConfiguration: |
         {

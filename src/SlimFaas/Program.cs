@@ -255,8 +255,8 @@ string namespace_ = namespaceProvider.CurrentNamespace;
 startupLogger.LogInformation("Using namespace: {Namespace}", namespace_);
 
 replicasService?.SyncDeploymentsAsync(namespace_).Wait();
-string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? slimFaasOptions.Hostname;
-
+string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? Dns.GetHostName();
+startupLogger.LogInformation("Current hostname: {Hostname}", hostname);
 while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hostname)) == false)
 {
     foreach (PodInformation podInformation in replicasService?.Deployments?.SlimFaas?.Pods ?? Array.Empty<PodInformation>())
