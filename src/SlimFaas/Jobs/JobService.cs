@@ -1,6 +1,7 @@
-﻿﻿using System.Text.Json.Serialization;
+﻿﻿﻿using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using MemoryPack;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Kubernetes;
@@ -16,6 +17,7 @@ public interface IJobService
     IList<Job> Jobs { get; }
     Task<ResultWithError<EnqueueJobResult>> EnqueueJobAsync(string name, CreateJob createJob, bool isMessageComeFromNamespaceInternal);
     Task<IList<JobListResult>> ListJobAsync(string jobName);
+    bool IsImageAllowed(IList<string> imagesWhiteList, string image);
 }
 
 [MemoryPackable]
@@ -48,7 +50,8 @@ public class JobService(
     IJobConfiguration jobConfiguration,
     IJobQueue jobQueue,
     IOptions<SlimFaasOptions> slimFaasOptions,
-    INamespaceProvider namespaceProvider) : IJobService
+    INamespaceProvider namespaceProvider,
+    ILogger<JobService> logger) : IJobService
 {
 
     private readonly string _namespace = namespaceProvider.CurrentNamespace;
@@ -66,7 +69,7 @@ public class JobService(
                    + "$";
     }
 
-    private static bool IsPatternMatch(string pattern, string target)
+    private bool IsPatternMatch(string pattern, string target)
     {
         string regexPattern = ConvertPatternToRegex(pattern);
         TimeSpan timeout = TimeSpan.FromSeconds(2);
@@ -75,14 +78,14 @@ public class JobService(
         {
             return Regex.IsMatch(target, regexPattern, RegexOptions.None, timeout);
         }
-        catch (RegexMatchTimeoutException)
+        catch (RegexMatchTimeoutException ex)
         {
-            Console.WriteLine($"Error: regex job pattern {pattern} generate a timeout");
+            logger.LogError(ex, "Regex job pattern {Pattern} generated a timeout", pattern);
             return false;
         }
     }
 
-    public static bool IsImageAllowed(IList<string> imagesWhiteList, string image)
+    public bool IsImageAllowed(IList<string> imagesWhiteList, string image)
     {
         if (imagesWhiteList.Any(imageWhiteList => IsPatternMatch(imageWhiteList, image)))
         {

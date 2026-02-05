@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -16,11 +18,16 @@ public class JobConfigurationTests
         });
     }
 
+    private static ILogger<JobConfiguration> CreateLogger()
+    {
+        return NullLogger<JobConfiguration>.Instance;
+    }
+
     [Fact]
     public void Constructeur_SansJson_DoitUtiliserValeursParDefaut()
     {
         // Arrange & Act
-        JobConfiguration jobConfiguration = new(CreateDefaultOptions());
+        JobConfiguration jobConfiguration = new(CreateDefaultOptions(), CreateLogger());
 
         // Assert
         Assert.NotNull(jobConfiguration.Configuration);
@@ -53,7 +60,7 @@ public class JobConfigurationTests
             Namespace = "default",
             JobsConfiguration = jsonInvalide
         });
-        JobConfiguration jobConfiguration = new(options);
+        JobConfiguration jobConfiguration = new(options, CreateLogger());
 
         // Assert
         // Doit retomber sur la config par défaut
@@ -86,7 +93,7 @@ public class JobConfigurationTests
             Namespace = "default",
             JobsConfiguration = jsonValideSansDefault
         });
-        JobConfiguration jobConfiguration = new(options);
+        JobConfiguration jobConfiguration = new(options, CreateLogger());
 
         // Assert
         // On doit retrouver la clé "MaFunction" ET la clé "Default"
@@ -126,7 +133,7 @@ public class JobConfigurationTests
             Namespace = "default",
             JobsConfiguration = jsonValide
         });
-        JobConfiguration jobConfiguration = new(options);
+        JobConfiguration jobConfiguration = new(options, CreateLogger());
 
         // Assert
         Assert.NotNull(jobConfiguration.Configuration);
@@ -162,7 +169,7 @@ public class JobConfigurationTests
             Namespace = "default",
             JobsConfiguration = jsonAvecDefaultSansRessources
         });
-        JobConfiguration jobConfiguration = new(options);
+        JobConfiguration jobConfiguration = new(options, CreateLogger());
 
         // Assert
         // On vérifie que la clé "Default" existe et que les ressources sont remplies par défaut

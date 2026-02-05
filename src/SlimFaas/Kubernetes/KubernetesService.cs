@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+﻿﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -686,7 +686,7 @@ public class KubernetesService : IKubernetesService
 
         V1Job? jobResponse = await client.CreateNamespacedJobAsync(job, kubeNamespace);
 
-        Console.WriteLine($"Job created with name: {jobResponse.Metadata.Name}");
+        _logger.LogInformation("Job created with name: {JobName}", jobResponse.Metadata.Name);
     }
 
 

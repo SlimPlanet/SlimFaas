@@ -14,7 +14,7 @@ public class NamespaceProvider : INamespaceProvider
     public NamespaceProvider(IOptions<SlimFaasOptions> options, ILogger<NamespaceProvider> logger)
     {
         var configuredNamespace = options.Value.Namespace;
-        _namespace = Namespace.GetNamespace(configuredNamespace);
+        _namespace = Namespace.GetNamespace(logger, configuredNamespace);
 
         if (_namespace != configuredNamespace)
         {

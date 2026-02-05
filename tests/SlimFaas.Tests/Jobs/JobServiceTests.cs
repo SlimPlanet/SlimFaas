@@ -1,4 +1,6 @@
 ﻿﻿using MemoryPack;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Jobs;
@@ -59,7 +61,8 @@ public class JobServiceTests
             _jobConfigurationMock.Object,
             _jobQueueMock.Object,
             Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = "default" }),
-            namespaceProviderMock.Object
+            namespaceProviderMock.Object,
+            NullLogger<JobService>.Instance
         );
     }
 

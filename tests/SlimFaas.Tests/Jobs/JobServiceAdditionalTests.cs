@@ -1,5 +1,7 @@
-﻿﻿﻿using System.Reflection;
+﻿﻿﻿﻿using System.Reflection;
 using MemoryPack;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using SlimData;
@@ -45,7 +47,8 @@ public class JobServiceAdditionalTests
 
         _svc = new JobService(_kube.Object, _conf.Object, _queue.Object,
             Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = Ns }),
-            namespaceProviderMock.Object);
+            namespaceProviderMock.Object,
+            NullLogger<JobService>.Instance);
     }
 
     private static Job FakeJob(string name, string id, JobStatus status = JobStatus.Running) =>
@@ -98,12 +101,12 @@ public class JobServiceAdditionalTests
         IList<JobListResult> list = await _svc.ListJobAsync("Public");
 
         // Assert – 1er bloc : job actif
-        JobListResult active = Assert.Single(list.Where(l => l.Id == "run‑1"));
+        JobListResult active = list.First(l => l.Id == "run‑1");
         Assert.Equal(running.Name, active.Name);
         Assert.Equal(running.Status.ToString(), active.Status);
         Assert.Equal(-1, active.PositionInQueue);
 
-        // Assert – file d’attente
+        // Assert – file d'attente
         JobListResult q1 = list.Single(l => l.Id == "q‑1");
         JobListResult q2 = list.Single(l => l.Id == "q‑2");
 
@@ -169,7 +172,7 @@ public class JobServiceAdditionalTests
     }
 
     // ---------------------------------------------------------------------
-    // Helpers : filtrage d’image
+    // Helpers : filtrage d'image
     // ---------------------------------------------------------------------
     [Theory]
     [InlineData("pattern‑img:*", "pattern‑img:v1", true)]
@@ -177,9 +180,10 @@ public class JobServiceAdditionalTests
     [InlineData("exact‑img", "exact‑img", true)]
     public void IsPatternMatch_behaves_as_expected(string whitelist, string candidate, bool expected)
     {
-        object? allowed = typeof(JobService) // appel méthode privée via reflection
-            .GetMethod("IsPatternMatch", BindingFlags.NonPublic | BindingFlags.Static)!
-            .Invoke(null, [whitelist, candidate]);
+        // IsPatternMatch est maintenant une méthode d'instance privée (non-static)
+        object? allowed = typeof(JobService)
+            .GetMethod("IsPatternMatch", BindingFlags.NonPublic | BindingFlags.Instance)!
+            .Invoke(_svc, [whitelist, candidate]);
 
         Assert.Equal(expected, allowed);
     }

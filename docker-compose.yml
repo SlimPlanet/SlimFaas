@@ -47,10 +47,10 @@ services:
 
   slimfaas:
     container_name: slimfaas-1
-    image: axaguildev/slimfaas:latest
-   # build:
-   #   context: .
-      #dockerfile: ./Dockerfile
+    #image: axaguildev/slimfaas:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     ports:
       - "30021:30021"
     user: "0:0"
