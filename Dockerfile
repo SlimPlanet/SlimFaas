@@ -28,11 +28,10 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
      -p:DebugType=none \
      -p:DebugSymbols=false \
      -p:PublishAot=true \
-     -p:StripSymbols=true
+     -p:StripSymbols=true \
+     -p:IlcMultiThreaded=false
 
 FROM base AS final
 WORKDIR /app
 COPY --chown=appuser --from=publish /app/publish .
 ENTRYPOINT ["./SlimFaas"]
-
-
