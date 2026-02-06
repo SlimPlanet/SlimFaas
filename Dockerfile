@@ -18,16 +18,18 @@ ARG TARGETARCH
 # Map Docker's TARGETARCH to .NET RID for native compilation
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
         RUNTIME_ID="linux-musl-arm64"; \
+        PUBLISH_AOT="false"; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
         RUNTIME_ID="linux-musl-x64"; \
+        PUBLISH_AOT="true"; \
     else \
         echo "Unsupported architecture: $TARGETARCH" && exit 1; \
     fi && \
-    echo "Building NATIVE for architecture: $TARGETARCH, RID: $RUNTIME_ID" && \
+    echo "Building NATIVE for architecture: $TARGETARCH, RID: $RUNTIME_ID (PublishAot=$PUBLISH_AOT)" && \
     dotnet publish "./src/SlimFaas/SlimFaas.csproj" -c Release -r "$RUNTIME_ID" -o /app/publish \
      -p:DebugType=none \
      -p:DebugSymbols=false \
-     -p:PublishAot=true \
+     -p:PublishAot=$PUBLISH_AOT \
      -p:StripSymbols=true \
      -p:IlcMultiThreaded=false
 
