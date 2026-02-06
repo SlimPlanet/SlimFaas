@@ -8,8 +8,8 @@ USER appuser
 
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS build
 RUN apk update && apk upgrade
-RUN apk add --no-cache clang18 build-base zlib-dev
-# Use clang for better AOT compilation
+RUN apk add --no-cache clang18 build-base zlib-dev lld
+# Use clang for better AOT compilation and cross-compilation support
 ENV CC=clang-18
 ENV CXX=clang++-18
 WORKDIR /src
@@ -30,7 +30,9 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
      -p:DebugType=none \
      -p:DebugSymbols=false \
      -p:PublishAot=true \
-     -p:StripSymbols=true
+     -p:StripSymbols=true \
+     -p:CppCompilerAndLinker=clang-18 \
+     -p:LinkerFlavor=lld
 
 FROM base AS final
 WORKDIR /app
