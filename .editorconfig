@@ -186,3 +186,7 @@ end_of_line = lf
 [*.{cmd,bat}]
 end_of_line = crlf
 
+# Suppress AOT warnings that are handled
+[*.cs]
+# ASP0000: BuildServiceProvider called from application code (justified in Program.cs)
+dotnet_diagnostic.ASP0000.severity = none

@@ -172,7 +172,9 @@ serviceCollectionStarter.AddSingleton<IRequestedMetricsRegistry, RequestedMetric
 serviceCollectionStarter.AddSingleton<IMetricsScrapingGuard, MetricsScrapingGuard>();
 serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 
+#pragma warning disable ASP0000 // BuildServiceProvider is required here for early initialization
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
+#pragma warning restore ASP0000
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
