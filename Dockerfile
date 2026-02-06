@@ -8,10 +8,8 @@ USER appuser
 
 FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS build
 RUN apk update && apk upgrade
-# Install compilation tools
-RUN apk add --no-cache clang18 build-base zlib-dev musl-dev
-ENV CC=clang-18
-ENV CXX=clang++-18
+# Install compilation tools for native AOT
+RUN apk add --no-cache build-base zlib-dev musl-dev
 WORKDIR /src
 
 FROM build AS publish
