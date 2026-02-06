@@ -220,7 +220,7 @@ jobs:
       image_build_args: ""
       image_context: "."
       image_file: "./Dockerfile"
-      platforms: "linux/amd64"
+      platforms: "linux/amd64,linux/arm64"
       readme_url: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/README.md
       image_description: "SlimFaas: fast FaaS + jobs/cron, scalable amd simple."
       license: "Apache-2.0"
