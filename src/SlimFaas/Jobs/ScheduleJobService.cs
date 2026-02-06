@@ -40,7 +40,10 @@ public interface IScheduleJobService
     public Task<ResultWithError<string>> DeleteScheduleJobAsync(string name, string id, bool isMessageComeFromNamespaceInternal);
 }
 
-public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseService databaseService) : IScheduleJobService
+public class ScheduleJobService(
+    IJobConfiguration jobConfiguration,
+    IDatabaseService databaseService,
+    IJobService jobService) : IScheduleJobService
 {
 
     public const string ScheduleJob = "ScheduleJob:";
@@ -62,7 +65,7 @@ public class ScheduleJobService(IJobConfiguration jobConfiguration, IDatabaseSer
             return new ResultWithError<CreateScheduleJobResult>(null , new ErrorResult("visibility_private"));
         }
 
-        if (createJob.Image != string.Empty && !JobService.IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
+        if (createJob.Image != string.Empty && !jobService.IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
         {
             return new ResultWithError<CreateScheduleJobResult>(null , new ErrorResult("image_not_allowed"));
         }

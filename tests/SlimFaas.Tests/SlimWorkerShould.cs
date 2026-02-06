@@ -2,12 +2,13 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Kubernetes;
 using MemoryPack;
 using SlimFaas.Database;
 using SlimData;
-
+using SlimFaas.Options;
 namespace SlimFaas.Tests;
 
 public class SlimWorkerShould
@@ -85,13 +86,20 @@ public class SlimWorkerShould
         var jsonCustomNoReplicas = MemoryPackSerializer.Serialize(customRequestReplicas);
         await slimFaasQueue.EnqueueAsync("no-replicas", jsonCustomNoReplicas, retryInformation);
 
-        SlimQueuesWorker service = new SlimQueuesWorker(slimFaasQueue,
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            QueuesDelayMilliseconds = 10
+        });
+
+        SlimQueuesWorker service = new SlimQueuesWorker(
+            slimFaasQueue,
             replicasService.Object,
             historyHttpService,
             logger.Object,
             serviceProvider.Object,
             slimDataStatus.Object,
-            masterService.Object);
+            masterService.Object,
+            workersOptions);
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
 
@@ -119,26 +127,35 @@ public class SlimWorkerShould
         Mock<IMasterService> masterService = new Mock<IMasterService>();
         masterService.Setup(s => s.IsMaster).Returns(true);
 
-        SlimQueuesWorker service = new SlimQueuesWorker(redisQueue,
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            QueuesDelayMilliseconds = 10
+        });
+
+        SlimQueuesWorker service = new SlimQueuesWorker(
+            redisQueue,
             replicasService.Object,
             historyHttpService,
             logger.Object,
             serviceProvider.Object,
             slimDataStatus.Object,
-            masterService.Object);
+            masterService.Object,
+            workersOptions);
+
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
 
         await Task.Delay(100);
+
+        await cts.CancelAsync();
+        await task;
+
+        Assert.True(task.IsCompletedSuccessfully);
         logger.Verify(l => l.Log(
             LogLevel.Error,
             It.IsAny<EventId>(),
             It.IsAny<It.IsAnyType>(),
             It.IsAny<Exception>(),
             (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()), Times.AtLeastOnce);
-
-        await cts.CancelAsync();
-        await task;
-        Assert.True(task.IsCompletedSuccessfully);
     }
 }

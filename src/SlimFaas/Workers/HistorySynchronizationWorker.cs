@@ -1,18 +1,20 @@
-﻿using SlimFaas.Database;
+﻿﻿using Microsoft.Extensions.Options;
+using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
-public class HistorySynchronizationWorker(IReplicasService replicasService,
-        HistoryHttpMemoryService historyHttpMemoryService,
-        HistoryHttpDatabaseService historyHttpDatabaseService,
-        ILogger<HistorySynchronizationWorker> logger,
-        ISlimDataStatus slimDataStatus,
-        int delay = EnvironmentVariables.HistorySynchronizationWorkerDelayMillisecondsDefault)
+public class HistorySynchronizationWorker(
+    IReplicasService replicasService,
+    HistoryHttpMemoryService historyHttpMemoryService,
+    HistoryHttpDatabaseService historyHttpDatabaseService,
+    ILogger<HistorySynchronizationWorker> logger,
+    ISlimDataStatus slimDataStatus,
+    IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
-    private readonly int _delay = EnvironmentVariables.ReadInteger(logger,
-        EnvironmentVariables.HistorySynchronisationWorkerDelayMilliseconds, delay);
+    private readonly int _delay = workersOptions.Value.HistorySynchronizationDelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

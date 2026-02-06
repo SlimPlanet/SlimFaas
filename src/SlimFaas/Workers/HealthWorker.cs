@@ -1,21 +1,20 @@
-﻿using DotNext.Net.Cluster.Consensus.Raft;
+﻿﻿using DotNext.Net.Cluster.Consensus.Raft;
+using Microsoft.Extensions.Options;
 using SlimFaas.Database;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
-public class HealthWorker(IHostApplicationLifetime  hostApplicationLifetime, IRaftCluster raftCluster,
-        ILogger<HealthWorker> logger,
-        int delay = EnvironmentVariables.HealthWorkerDelayMillisecondsDefault,
-        int delayToExitSeconds = EnvironmentVariables.HealthWorkerDelayToExitSecondsDefault,
-        int delayToStartHealthCheck = EnvironmentVariables.HealthWorkerDelayToStartHealthCheckSecondsDefault)
+public class HealthWorker(
+    IHostApplicationLifetime hostApplicationLifetime,
+    IRaftCluster raftCluster,
+    ILogger<HealthWorker> logger,
+    IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
-    private readonly int _delay =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.HealthWorkerDelayMilliseconds, delay);
-    private readonly int _delayToExitSeconds =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.HealthWorkerDelayToExitSeconds, delayToExitSeconds);
-    private readonly int _delayToStartHealthCheck =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.HealthWorkerDelayToStartHealthCheckSeconds, delayToStartHealthCheck);
+    private readonly int _delay = workersOptions.Value.HealthDelayMilliseconds;
+    private readonly int _delayToExitSeconds = workersOptions.Value.HealthDelayToExitSeconds;
+    private readonly int _delayToStartHealthCheck = workersOptions.Value.HealthDelayToStartHealthCheckSeconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

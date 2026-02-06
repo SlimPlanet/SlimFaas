@@ -11,7 +11,7 @@ metadata:
   name: slimfaas-config
   namespace: slimfaas-demo
 data:
-  SLIMFAAS_JOBS_CONFIGURATION: |
+  SlimFaas__JobsConfiguration: |
     {
       "Configurations": {
         "fibonacci": {
@@ -46,7 +46,6 @@ data:
     }
 ---
 apiVersion: apps/v1
-
 kind: StatefulSet
 metadata:
   name: slimfaas
@@ -96,34 +95,15 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 8
           env:
-            #- name: BASE_FUNCTION_URL
-              #value: "http://{function_name}.{namespace}.svc.cluster.local:5000"
-            #  value: "http://{pod_ip}:{pod_port}"
-            #- name: BASE_FUNCTION_POD_URL # require for publish route
-            #  value: "http://{pod_ip}:{pod_port}"
-            #- name: BASE_SLIMDATA_URL
-            #  value: "http://{pod_name}.{service_name}.{namespace}.svc:3262"
-            #- name: NAMESPACE
-            #  value: "slimfaas-demo"
-            - name: SLIMDATA_DIRECTORY
+            - name: SlimData__Directory
               value: "/database"
-            #- name: ASPNETCORE_URLS
-            #  value: http://+:5000
-            - name: Logging__LogLevel__SlimFaas
-              value: "Debug"
-            #- name: Logging__LogLevel__SlimData
-            #  value: "Debug"
-            #- name: "SLIMDATA_CONFIGURATION"
-            #  value: '{"lowerElectionTimeout":"150","upperElectionTimeout":"300","requestTimeout":"00:00:00.3000000","rpcTimeout":"00:00:00.1500000","heartbeatThreshold":"0.5"}'
-            #- name: SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT
-            #  value: "500"
-            - name: SLIMFAAS_JOBS_CONFIGURATION
+            - name: Data__DefaultVisibility
+              value: "Public"
+            - name: SlimFaas__JobsConfiguration
               valueFrom:
                 configMapKeyRef:
                   name: slimfaas-config
-                  key: SLIMFAAS_JOBS_CONFIGURATION
-            - name: Data__DefaultVisibility
-              value: "Public"
+                  key: SlimFaas__JobsConfiguration
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database

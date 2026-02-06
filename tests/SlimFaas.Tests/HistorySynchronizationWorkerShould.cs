@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Tests;
 
@@ -64,12 +66,18 @@ public class HistorySynchronizationWorkerShould
         // Nouveau : registry pour coller à la signature de ReplicasService
         var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
 
+        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+        });
+
         var replicasService = new ReplicasService(
             kubernetesService.Object,
             historyHttpMemoryService,
             autoScaler,
             loggerReplicasService.Object,
-            metricsRegistry);
+            metricsRegistry,
+            slimFaasOptions);
 
         var slimDataStatus = new Mock<ISlimDataStatus>();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);
@@ -79,13 +87,18 @@ public class HistorySynchronizationWorkerShould
         long firstTicks = 1L;
         await historyHttpRedisService.SetTickLastCallAsync("fibonacci1", firstTicks);
 
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            HistorySynchronizationDelayMilliseconds = 100
+        });
+
         var service = new HistorySynchronizationWorker(
             replicasService,
             historyHttpMemoryService,
             historyHttpRedisService,
             logger.Object,
             slimDataStatus.Object,
-            delay: 100);
+            workersOptions);
 
         using var cts = new CancellationTokenSource();
         var task = service.StartAsync(cts.Token);
@@ -120,13 +133,18 @@ public class HistorySynchronizationWorkerShould
         var slimDataStatus = new Mock<ISlimDataStatus>();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);
 
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            HistorySynchronizationDelayMilliseconds = 10
+        });
+
         var service = new HistorySynchronizationWorker(
             replicasService.Object,
             historyHttpMemoryService,
             historyHttpRedisService,
             logger.Object,
             slimDataStatus.Object,
-            delay: 10);
+            workersOptions);
 
         using var cts = new CancellationTokenSource();
         var task = service.StartAsync(cts.Token);

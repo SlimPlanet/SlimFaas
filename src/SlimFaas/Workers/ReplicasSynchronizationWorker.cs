@@ -1,17 +1,19 @@
-﻿using SlimFaas.Kubernetes;
+﻿﻿using Microsoft.Extensions.Options;
+using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
-public class ReplicasSynchronizationWorker(IReplicasService replicasService,
-        ILogger<ReplicasSynchronizationWorker> logger,
-        int delay = EnvironmentVariables.ReplicasSynchronizationWorkerDelayMillisecondsDefault)
+public class ReplicasSynchronizationWorker(
+    IReplicasService replicasService,
+    ILogger<ReplicasSynchronizationWorker> logger,
+    IOptions<SlimFaasOptions> slimFaasOptions,
+    IOptions<WorkersOptions> workersOptions,
+    INamespaceProvider namespaceProvider)
     : BackgroundService
 {
-    private readonly int _delay = EnvironmentVariables.ReadInteger(logger,
-        EnvironmentVariables.ReplicasSynchronisationWorkerDelayMilliseconds, delay);
-
-    private readonly string _namespace = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace) ??
-                                         EnvironmentVariables.NamespaceDefault;
+    private readonly int _delay = workersOptions.Value.ReplicasSynchronizationDelayMilliseconds;
+    private readonly string _namespace = namespaceProvider.CurrentNamespace;
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (stoppingToken.IsCancellationRequested == false)

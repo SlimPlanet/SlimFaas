@@ -1,7 +1,11 @@
-﻿using MemoryPack;
+﻿﻿using MemoryPack;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 // pour vérifier éventuellement la sérialisation si besoin
 
@@ -49,10 +53,16 @@ public class JobServiceTests
             }));
 
         // Instanciation de la classe à tester
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+
         _jobService = new JobService(
             _kubernetesServiceMock.Object,
             _jobConfigurationMock.Object,
-            _jobQueueMock.Object
+            _jobQueueMock.Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = "default" }),
+            namespaceProviderMock.Object,
+            NullLogger<JobService>.Instance
         );
     }
 

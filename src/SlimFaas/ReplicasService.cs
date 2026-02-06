@@ -1,6 +1,8 @@
 ﻿using SlimFaas.Kubernetes;
 using NodaTime;
 using NodaTime.TimeZones;
+using Microsoft.Extensions.Options;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
@@ -17,12 +19,11 @@ public class ReplicasService(
     AutoScaler autoScaler,
     ILogger<ReplicasService> logger,
     IRequestedMetricsRegistry metricsRegistry,
+    IOptions<SlimFaasOptions> slimFaasOptions,
     Func<DateTime>? nowProvider = null)
     : IReplicasService
 {
-    private readonly bool _isTurnOnByDefault = EnvironmentVariables.ReadBoolean(logger,
-        EnvironmentVariables.PodScaledUpByDefaultWhenInfrastructureHasNeverCalled,
-        EnvironmentVariables.PodScaledUpByDefaultWhenInfrastructureHasNeverCalledDefault);
+    private readonly bool _isTurnOnByDefault = slimFaasOptions.Value.PodScaledUpByDefaultWhenInfrastructureHasNeverCalled;
 
     private readonly Func<DateTime> _nowProvider = nowProvider ?? (() => DateTime.UtcNow);
 

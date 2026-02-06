@@ -4,10 +4,13 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
+using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 using SlimFaas.Security;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
@@ -31,7 +34,6 @@ public class EventEndpointTests
             .Setup(k => k.SyncJobsAsync())
             .ReturnsAsync(new List<KubernetesJob>());
         jobServiceMock.Setup(k => k.Jobs).Returns(new List<KubernetesJob>());
-        Environment.SetEnvironmentVariable(EnvironmentVariables.BaseFunctionPodUrl, "http://{pod_name}.{function_name}:8080/");
 
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -48,6 +50,14 @@ public class EventEndpointTests
                         services.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+                        {
+                            Namespace = "default",
+                            BaseFunctionPodUrl = "http://{pod_name}.{function_name}:8080/"
+                        }));
+                        var namespaceProviderMock = new Mock<INamespaceProvider>();
+                        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+                        services.AddSingleton<INamespaceProvider>(namespaceProviderMock.Object);
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();
