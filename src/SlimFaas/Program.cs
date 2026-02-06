@@ -18,6 +18,7 @@ using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
+using SlimFaas.RateLimiting;
 using SlimFaas.Security;
 using SlimFaas.Workers;
 
@@ -246,6 +247,24 @@ builder.Services
     .BindConfiguration(DataOptions.SectionName)
     .Validate(o => o.DefaultVisibility is FunctionVisibility.Public or FunctionVisibility.Private,
         "Data:DefaultVisibility must be Public or Private.");
+
+var rateLimitingOptions = builder.Configuration
+    .GetSection(RateLimitingOptions.SectionName)
+    .Get<RateLimitingOptions>() ?? new RateLimitingOptions();
+
+if (rateLimitingOptions.Enabled)
+{
+    builder.Services
+        .AddOptions<RateLimitingOptions>()
+        .BindConfiguration(RateLimitingOptions.SectionName)
+        .Validate(options => !options.Enabled || options.IsValid(),
+            "Invalid RateLimiting configuration.");
+
+    Console.WriteLine($"CPU rate limiting enabled on port {rateLimitingOptions.PublicPort}");
+    builder.Services.AddSingleton<CpuUsageProvider>();
+    builder.Services.AddSingleton<ICpuUsageProvider>(sp => sp.GetRequiredService<CpuUsageProvider>());
+    builder.Services.AddHostedService<CpuMonitoringService>();
+}
 
 serviceCollectionSlimFaas.AddCors();
 
@@ -530,6 +549,11 @@ app.MapDebugRoutes();
 
 // Map SlimFaas endpoints (remplace SlimProxyMiddleware)
 app.MapSlimFaasEndpoints();
+
+if (rateLimitingOptions.Enabled)
+{
+    app.UseMiddleware<CpuRateLimitingMiddleware>();
+}
 
 app.Use(async (context, next) =>
 {
