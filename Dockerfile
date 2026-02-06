@@ -1,4 +1,4 @@
-﻿FROM alpine:3.23 AS base
+﻿FROM --platform=$TARGETPLATFORM alpine:3.23 AS base
 RUN apk update && apk upgrade
 RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
@@ -6,15 +6,15 @@ WORKDIR /app
 RUN adduser -u 1000 --disabled-password --gecos "" appuser && chown -R appuser /app
 USER appuser
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS build
+FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS build
 RUN apk update && apk upgrade
-RUN apk add --no-cache clang18 build-base zlib-dev lld
-# Use clang for better AOT compilation and cross-compilation support
+# Install compilation tools
+RUN apk add --no-cache clang18 build-base zlib-dev musl-dev
 ENV CC=clang-18
 ENV CXX=clang++-18
 WORKDIR /src
 
-FROM --platform=$BUILDPLATFORM build AS publish
+FROM build AS publish
 COPY . .
 ARG TARGETARCH
 # Map Docker's TARGETARCH to .NET RID for native compilation
@@ -25,14 +25,12 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
     else \
         echo "Unsupported architecture: $TARGETARCH" && exit 1; \
     fi && \
-    echo "Building for architecture: $TARGETARCH, RID: $RUNTIME_ID" && \
+    echo "Building NATIVE for architecture: $TARGETARCH, RID: $RUNTIME_ID" && \
     dotnet publish "./src/SlimFaas/SlimFaas.csproj" -c Release -r "$RUNTIME_ID" -o /app/publish \
      -p:DebugType=none \
      -p:DebugSymbols=false \
      -p:PublishAot=true \
-     -p:StripSymbols=true \
-     -p:CppCompilerAndLinker=clang-18 \
-     -p:LinkerFlavor=lld
+     -p:StripSymbols=true
 
 FROM base AS final
 WORKDIR /app
