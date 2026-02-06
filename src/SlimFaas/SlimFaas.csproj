@@ -33,6 +33,8 @@
     <IlcGenerateDgmlFile>true</IlcGenerateDgmlFile>
     <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
     <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <!-- Disable multi-threading to avoid InvalidCastException with QEMU emulation -->
+    <IlcMultiThreaded>false</IlcMultiThreaded>
   </PropertyGroup>
 
   <ItemGroup>
