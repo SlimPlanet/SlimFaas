@@ -32,7 +32,6 @@
     <IlcGenerateMstatFile>true</IlcGenerateMstatFile>
     <IlcGenerateDgmlFile>true</IlcGenerateDgmlFile>
     <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
-    <IlcInstructionSet>native</IlcInstructionSet>
     <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
   </PropertyGroup>
 
