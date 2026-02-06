@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.61.2
+
+- [288d0d20](https://github.com/SlimPlanet/SlimFaas/commit/288d0d2081af3a76439f78e27b32d9088f642c20) - fix(slimfaas): build dockerfile (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.1
+
+- [9193f0e4](https://github.com/SlimPlanet/SlimFaas/commit/9193f0e40720caae847249915f65ec2c189c6ca9) - refactor(slimfaas): env var to appsettings.json (#233) (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## 0.61.0
+
+
+
 ## v0.61.0
 
 - [8bec7d5c](https://github.com/SlimPlanet/SlimFaas/commit/8bec7d5cf203ca28819b235ea968771e934459b8) - fix(slimfaas): opentelemetry endpoint (#232) (release), 2026-01-30 by *Guillaume Chervet*
@@ -259,19 +273,5 @@
 
 ## 0.54.0
 
-
-
-## v0.54.0
-
-- [4922d09d](https://github.com/SlimPlanet/SlimFaas/commit/4922d09d044f9f9871de5c1bf0a4851e2bec527f) - feat(slimfaas): stop scale up when quota exceeded (#201) (release), 2025-12-08 by *Guillaume Chervet*
-
-
-## 0.53.0
-
-
-
-## v0.53.0
-
-- [c4028e1f](https://github.com/SlimPlanet/SlimFaas/commit/c4028e1f5226fd46b8129322efa4e42b06920345) - feat(mcp): MCP `_meta` → HTTP Header Mapping (#200) (release), 2025-12-08 by *Guillaume Chervet*
 
 
