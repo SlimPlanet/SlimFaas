@@ -6,7 +6,7 @@ WORKDIR /app
 RUN adduser -u 1000 --disabled-password --gecos "" appuser && chown -R appuser /app
 USER appuser
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS build
 RUN apk update && apk upgrade
 RUN apk add --no-cache clang18 build-base zlib-dev
 # Use clang for better AOT compilation
@@ -14,7 +14,7 @@ ENV CC=clang-18
 ENV CXX=clang++-18
 WORKDIR /src
 
-FROM build AS publish
+FROM --platform=$BUILDPLATFORM build AS publish
 COPY . .
 ARG TARGETARCH
 # Map Docker's TARGETARCH to .NET RID for native compilation

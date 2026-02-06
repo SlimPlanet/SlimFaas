@@ -34,8 +34,6 @@
     <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
     <IlcInstructionSet>native</IlcInstructionSet>
     <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
-    <!-- Désactiver le multi-threading du compilateur pour éviter InvalidCastException -->
-    <IlcMultiThreaded>false</IlcMultiThreaded>
   </PropertyGroup>
 
   <ItemGroup>
