@@ -575,7 +575,7 @@ jobs:
   change_log:
     runs-on: ubuntu-latest
     if: needs.tags.outputs.tag == 'release'
-    needs: [ tags,  build_slimfaas_planet_saver, build_slimfaas, deploy_website, build_fibonacci_mcp ]
+    needs: [ tags,  build_slimfaas_planet_saver, build_slimfaas_manifest, deploy_website, build_fibonacci_mcp ]
     steps:
       - uses: actions/checkout@v4
         with:
