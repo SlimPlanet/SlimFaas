@@ -1,5 +1,60 @@
 # Changelog
 
+## v0.61.12
+
+- [87f9236c](https://github.com/SlimPlanet/SlimFaas/commit/87f9236cf5da0a3373abc782edd295ad9d06d82e) - fix: test build (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.11
+
+- [753ccbbc](https://github.com/SlimPlanet/SlimFaas/commit/753ccbbce30fca0171f2d8718c52c3be7cfb8c4f) - fix build: test (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.10
+
+- [52b59c79](https://github.com/SlimPlanet/SlimFaas/commit/52b59c79a14da51bcce9640bc18481937dc4fd26) - fix: enable AOT multi-platform with QEMU emulation (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.9
+
+- [af4bacad](https://github.com/SlimPlanet/SlimFaas/commit/af4bacad70db00f026f8fbe410989c84ed710360) - chore: simplify Dockerfile dependencies for native AOT builds (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.8
+
+- [38c2259a](https://github.com/SlimPlanet/SlimFaas/commit/38c2259ab71a3cf8e235b2e48882f4de2400daa6) - fix: use native builds with QEMU emulation for AOT multi-platform (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.7
+
+- [c153a31b](https://github.com/SlimPlanet/SlimFaas/commit/c153a31baa1ed3bf91f1c03b676f0f2e5ebfaf47) - fix: enable AOT cross-compilation with Clang and LLD (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.6
+
+- [f22cfde0](https://github.com/SlimPlanet/SlimFaas/commit/f22cfde0d556933a8a61959cbb1ab0d033fb86c6) - fix: enable AOT cross-compilation for multi-platform builds (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.5
+
+- [7ff6e27c](https://github.com/SlimPlanet/SlimFaas/commit/7ff6e27c0532fab3b5b4cf94f1eb6971d1c678e2) - fix(build): docker arm64 (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.4
+
+- [4286a4a4](https://github.com/SlimPlanet/SlimFaas/commit/4286a4a4a252e910c837f1e91d56e54171f28faf) - fix(build):  docker arm on github (release), 2026-02-06 by *Guillaume Chervet*
+- [ea849e2e](https://github.com/SlimPlanet/SlimFaas/commit/ea849e2e0ba60b34428e56b60640ff1f81fd4458) - fix(build):  docker arm on github (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.3
+
+- [9e4f1330](https://github.com/SlimPlanet/SlimFaas/commit/9e4f13309ed159684382e0db25fad7b0c27f7212) - fix(ci): re-add slimfaas linux/arm64 docker build (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## 0.61.2
+
+
+
 ## v0.61.2
 
 - [288d0d20](https://github.com/SlimPlanet/SlimFaas/commit/288d0d2081af3a76439f78e27b32d9088f642c20) - fix(slimfaas): build dockerfile (release), 2026-02-06 by *Guillaume Chervet*
@@ -220,58 +275,5 @@
 ## v0.56.0
 
 - [35112f51](https://github.com/SlimPlanet/SlimFaas/commit/35112f51dfd76c0fcc2fa93ea0b282a3e4d3aec9) - feat(otel): Allow to exclude urls from tracing (#207) (release), 2025-12-12 by *Silthian*
-
-
-## 0.55.2
-
-
-
-## v0.55.2
-
-- [ff112e63](https://github.com/SlimPlanet/SlimFaas/commit/ff112e639cbcb4dfc8c7dd0a0c2641ce35ab12d1) - fix(slimfaas): start failure log (release), 2025-12-11 by *Guillaume Chervet*
-- [7d7606e7](https://github.com/SlimPlanet/SlimFaas/commit/7d7606e7831049f8a737a03b4564fb4a98f7a8e2) - fix(slimfaas): ReplicasService.cs more logs (release), 2025-12-11 by *Guillaume Chervet*
-- [6cb52cc7](https://github.com/SlimPlanet/SlimFaas/commit/6cb52cc7f07a241c1a058893d9f26bcd879732df) - fix(slimfaas): ReplicasService more detailed log, 2025-12-11 by *Guillaume Chervet*
-
-
-## 0.55.1
-
-
-
-## v0.55.1
-
-- [16f57781](https://github.com/SlimPlanet/SlimFaas/commit/16f5778120cfd2205c46f051bd979e4beb23b771) - fix(slimfaas): kubernete null source error (release), 2025-12-11 by *Guillaume Chervet*
-
-
-## 0.55.0
-
-
-
-## v0.55.0
-
-- [3a260b2f](https://github.com/SlimPlanet/SlimFaas/commit/3a260b2f049460e19fbfc5f2bd8d69acf959b80b) - feat(slimfaas): Add opentelemetry connector (#205) (release), 2025-12-11 by *Silthian*
-
-
-## 0.54.2
-
-
-
-## v0.54.2
-
-- [ce562ddb](https://github.com/SlimPlanet/SlimFaas/commit/ce562ddba061cf9367611b32c2717623151f5690) - fix(slimfaas): scale stopped on infra scale error only (#206) (release), 2025-12-11 by *Guillaume Chervet*
-
-
-## 0.54.1
-
-
-
-## v0.54.1
-
-- [228dbedb](https://github.com/SlimPlanet/SlimFaas/commit/228dbedb170586642d2c371bd4c65cc87fb9e1fa) - fix(slimfaas): cluster stability (#204) (release), 2025-12-11 by *Guillaume Chervet*
-- [90fb97be](https://github.com/SlimPlanet/SlimFaas/commit/90fb97bea349957bd55c118740974d9357f514c7) - fix(compose): add container_name (#203) (release), 2025-12-11 by *antoinelrnld*
-- [5a00e98a](https://github.com/SlimPlanet/SlimFaas/commit/5a00e98a641b153547ee90a9e3c469f5adaac7f3) - fix(podman): add compatibility with .sh (#202), 2025-12-10 by *Guillaume Chervet*
-
-
-## 0.54.0
-
 
 
