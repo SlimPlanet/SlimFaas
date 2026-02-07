@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.61.13
+
+- [bf82cbc5](https://github.com/SlimPlanet/SlimFaas/commit/bf82cbc52e4e5967b684052a45b7b78d5bb630a1) - Change PUBLISH_AOT to false for amd64 architecture (release), 2026-02-07 by *Guillaume Chervet*
+
+
+## 0.61.12
+
+
+
 ## v0.61.12
 
 - [87f9236c](https://github.com/SlimPlanet/SlimFaas/commit/87f9236cf5da0a3373abc782edd295ad9d06d82e) - fix: test build (release), 2026-02-06 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 ## v0.57.0
 
 - [cfe3c0a9](https://github.com/SlimPlanet/SlimFaas/commit/cfe3c0a99b045ba8cebed21dd68a5384456a5049) - feat(slimfaas): add data with time-to-live (#208) (release), 2025-12-13 by *Guillaume Chervet*
-
-
-## 0.56.0
-
-
-
-## v0.56.0
-
-- [35112f51](https://github.com/SlimPlanet/SlimFaas/commit/35112f51dfd76c0fcc2fa93ea0b282a3e4d3aec9) - feat(otel): Allow to exclude urls from tracing (#207) (release), 2025-12-12 by *Silthian*
 
 
