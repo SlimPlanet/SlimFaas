@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.61.14
+
+- [3a60b1fb](https://github.com/SlimPlanet/SlimFaas/commit/3a60b1fb23cda6297c24ccc1e7076e264bf3069d) - doc: fix jobs enb var (release), 2026-02-08 by *Guillaume Chervet*
+
+
+## 0.61.13
+
+
+
 ## v0.61.13
 
 - [bf82cbc5](https://github.com/SlimPlanet/SlimFaas/commit/bf82cbc52e4e5967b684052a45b7b78d5bb630a1) - Change PUBLISH_AOT to false for amd64 architecture (release), 2026-02-07 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 ## v0.57.1
 
 - [5a337469](https://github.com/SlimPlanet/SlimFaas/commit/5a337469c19e7e30d5487d4d1c79dbbe2b4d2f77) - fix(slimfaas): MaxRequestBodySize (release), 2025-12-16 by *Guillaume Chervet*
-
-
-## 0.57.0
-
-
-
-## v0.57.0
-
-- [cfe3c0a9](https://github.com/SlimPlanet/SlimFaas/commit/cfe3c0a99b045ba8cebed21dd68a5384456a5049) - feat(slimfaas): add data with time-to-live (#208) (release), 2025-12-13 by *Guillaume Chervet*
 
 
