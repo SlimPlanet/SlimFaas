@@ -21,7 +21,7 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
         PUBLISH_AOT="false"; \
     elif [ "$TARGETARCH" = "amd64" ]; then \
         RUNTIME_ID="linux-musl-x64"; \
-        PUBLISH_AOT="false"; \
+        PUBLISH_AOT="true"; \
     else \
         echo "Unsupported architecture: $TARGETARCH" && exit 1; \
     fi && \
