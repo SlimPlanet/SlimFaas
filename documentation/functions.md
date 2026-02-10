@@ -99,11 +99,6 @@ metadata:
 
 ```json
 {
-  "DefaultSync": {
-    "HttpTimeout": 120,
-    "TimeoutRetries": [2,4,8],
-    "HttpStatusRetries": [500,502,503]
-  },
   "DefaultAsync": {
     "HttpTimeout": 120,
     "TimeoutRetries": [2,4,8],
@@ -235,10 +230,17 @@ This pattern is well suited for long-running tasks, external system calls, or wo
    POST /async-function/<function-name>/<path>
    ```
 
-2. SlimFaas forwards the request to the function pod and attaches a header:
+2. SlimFaas forwards the request to the function pod and attaches multiple headers:
    ```http
    SlimFaas-Element-Id: <generated-id>
+   SlimfaasLastTry: true|false
+   SlimFaas-Try-Number: <attempt-number>
    ```
+
+   These headers provide important context to the function:
+   - **`SlimFaas-Element-Id`**: Unique identifier for this execution instance
+   - **`SlimfaasLastTry`**: Boolean (lowercase string) indicating if this is the final retry attempt (`"true"` or `"false"`)
+   - **`SlimFaas-Try-Number`**: Zero-based attempt number (e.g., `"0"` for first attempt, `"1"` for first retry, etc.)
 
 3. If the function wants to run control the callback, it must explicitly:
     - **Return `HTTP 202 Accepted`** instead of a final result.
@@ -285,12 +287,79 @@ sequenceDiagram
 
 ### Key Points
 
-| Element | Description |
-|--------|-------------|
-| **Returning HTTP 202** | This explicitly activates asynchronous callback mode |
-| **SlimFaas-Element-Id header** | Allows the function to reference the execution instance in its callback |
+| Element                          | Description |
+|----------------------------------|-------------|
+| **Returning HTTP 202**           | This explicitly activates asynchronous callback mode |
+| **SlimFaas-Element-Id header**   | Allows the function to reference the execution instance in its callback |
+| **Slimfaas-Last-Try header**     | Indicates if this is the final retry attempt (`"true"` or `"false"`) |
+| **SlimFaas-Try-Number header**   | Shows the current attempt number (starts at `"0"`) |
 | **Function controls completion** | The function decides when to send success/error notification |
-| **Timeout handling** | If no callback is received within the configured timeout, SlimFaas marks the execution as failed |
+| **Timeout handling**             | If no callback is received within the configured timeout, SlimFaas marks the execution as failed |
+
+### HTTP Headers Sent to Functions
+
+SlimFaas automatically injects the following headers when forwarding requests to your function pods:
+
+#### SlimFaas-Element-Id
+- **Type**: String (UUID)
+- **Purpose**: Unique identifier for this specific execution instance
+- **Usage**: Required when sending callbacks to SlimFaas
+- **Example**: `SlimFaas-Element-Id: 550e8400-e29b-41d4-a716-446655440000`
+
+#### SlimfaasLastTry
+- **Type**: String (`"true"` or `"false"`)
+- **Purpose**: Indicates whether this is the final retry attempt
+- **Usage**: Helps functions adjust their behavior on the last attempt (e.g., send alerts, use fallback logic)
+- **Example**:
+  - First attempt: `SlimfaasLastTry: false`
+  - After all retries exhausted: `SlimfaasLastTry: true`
+
+#### SlimFaas-Try-Number
+- **Type**: String (numeric)
+- **Purpose**: Zero-based counter of the current attempt
+- **Usage**: Track how many times the request has been retried
+- **Examples**:
+  - First attempt: `SlimFaas-Try-Number: 0`
+  - First retry: `SlimFaas-Try-Number: 1`
+  - Second retry: `SlimFaas-Try-Number: 2`
+
+**Example in Function Code (C#)**:
+```csharp
+app.MapPost("/process", (HttpContext context) =>
+{
+    var elementId = context.Request.Headers["SlimFaas-Element-Id"].FirstOrDefault();
+    var isLastTry = context.Request.Headers["SlimfaasLastTry"].FirstOrDefault() == "true";
+    var tryNumber = int.Parse(context.Request.Headers["SlimFaas-Try-Number"].FirstOrDefault() ?? "0");
+
+    if (isLastTry)
+    {
+        // Last attempt - maybe send an alert or use fallback logic
+        logger.LogWarning("Final retry attempt {TryNumber} for {ElementId}", tryNumber, elementId);
+    }
+
+    // Process the request...
+
+    return Results.Accepted();  // Enable callback mode
+});
+```
+
+**Example in Function Code (Node.js)**:
+```javascript
+app.post('/process', (req, res) => {
+    const elementId = req.headers['slimfaas-element-id'];
+    const isLastTry = req.headers['slimfaaslasttry'] === 'true';
+    const tryNumber = parseInt(req.headers['slimfaas-try-number'] || '0');
+
+    if (isLastTry) {
+        // Last attempt - adjust behavior accordingly
+        console.warn(`Final retry attempt ${tryNumber} for ${elementId}`);
+    }
+
+    // Process the request...
+
+    res.status(202).send();  // Enable callback mode
+});
+```
 
 ### When to Use
 

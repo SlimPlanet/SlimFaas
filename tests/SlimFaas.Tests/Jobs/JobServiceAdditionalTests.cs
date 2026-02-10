@@ -58,7 +58,7 @@ public class JobServiceAdditionalTests
     {
         JobInQueue createJobInQueue = new(new CreateJob(new List<string>()), "fullName", DateTime.UtcNow.Ticks);
         byte[] createJobSerialized = MemoryPackSerializer.Serialize(createJobInQueue);
-        return new QueueData(id, createJobSerialized);
+        return new QueueData(id, createJobSerialized, 0, true);
     }
 
     // ---------------------------------------------------------------------

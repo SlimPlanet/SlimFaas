@@ -79,7 +79,7 @@ public class DatabaseMockService : IDatabaseService
         }
 
         var elementId = Guid.NewGuid().ToString();
-        list.Add(new QueueData(elementId, field));
+        list.Add(new QueueData(elementId, field, 1, true));
         return Task.FromResult(elementId);
     }
 
