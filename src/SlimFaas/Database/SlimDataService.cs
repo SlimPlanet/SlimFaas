@@ -412,7 +412,7 @@ public class SlimDataService
         if (countTypes.Contains(CountType.WaitingForRetry))
             result.AddRange(value.GetQueueWaitingForRetryElement(nowTicks));
 
-        return result.Select(qe => new QueueData(qe.Id, qe.Value.ToArray())).ToList();
+        return result.Select(qe => new QueueData(qe.Id, qe.Value.ToArray(), qe.NumberOfTries(), qe.IsLastTry())).ToList();
     }
 
     private async Task MasterWaitForleaseToken(CancellationToken ct = default)

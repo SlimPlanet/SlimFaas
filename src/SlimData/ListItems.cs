@@ -3,7 +3,7 @@
 namespace SlimData;
 
 [MemoryPackable]
-public partial record QueueData(string Id, byte[] Data);
+public partial record QueueData(string Id, byte[] Data, int TryNumber, bool IsLastTry);
 
 [MemoryPackable]
 public partial record ListItems 
