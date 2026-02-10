@@ -4,7 +4,7 @@ namespace SlimFaas.RateLimiting;
 
 public class RateLimitingOptions
 {
-    public const string SectionName = "RateLimiting";
+    public const string SectionName = "SlimFaas:RateLimiting";
 
     public bool Enabled { get; set; }
 
