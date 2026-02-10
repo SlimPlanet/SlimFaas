@@ -550,7 +550,10 @@ app.MapDebugRoutes();
 // Map SlimFaas endpoints (remplace SlimProxyMiddleware)
 app.MapSlimFaasEndpoints();
 
-app.UseMiddleware<CpuRateLimitingMiddleware>();
+if (rateLimitingOptions.Enabled)
+{
+    app.UseMiddleware<CpuRateLimitingMiddleware>();
+}
 
 app.Use(async (context, next) =>
 {
