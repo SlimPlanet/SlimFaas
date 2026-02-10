@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **CPU-Aware Rate Limiting**: Native AOT-compatible load shedding mechanism to protect SlimFaas from overload during high traffic periods
+  - Configurable CPU thresholds with hysteresis support
+  - Port-specific filtering (only applies to public port, never affects internal cluster communication)
+  - Optional path exclusions for health checks and metrics endpoints
+  - Customizable HTTP response codes and Retry-After headers
+  - See [CPU Rate Limiting Documentation](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/cpu-rate-limiting.md) for details
+
 ## v0.61.2
 
 - [288d0d20](https://github.com/SlimPlanet/SlimFaas/commit/288d0d2081af3a76439f78e27b32d9088f642c20) - fix(slimfaas): build dockerfile (release), 2026-02-06 by *Guillaume Chervet*
