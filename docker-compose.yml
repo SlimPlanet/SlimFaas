@@ -86,6 +86,16 @@ services:
             ]
           }
         }
+      SlimFaas__RateLimiting__Enabled: "true"
+      SlimFaas__RateLimiting__PublicPort: "30021"
+      SlimFaas__RateLimiting__CpuHighThreshold: "80.0"
+      SlimFaas__RateLimiting__CpuLowThreshold: "60.0"
+      SlimFaas__RateLimiting__SampleIntervalMs: "1000"
+      SlimFaas__RateLimiting__StatusCode: "429"
+      SlimFaas__RateLimiting__RetryAfterSeconds: "5"
+      SlimFaas__RateLimiting__ExcludedPaths__0: "/health"
+      SlimFaas__RateLimiting__ExcludedPaths__1: "/metrics"
+      SlimFaas__RateLimiting__ExcludedPaths__2: "/ready"
     volumes:
       - slimfaas_data:/database
       - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
@@ -104,6 +114,8 @@ services:
       timeout: 3s
       retries: 10
       start_period: 5s
+
+
   fibonacci1:
     image: axaguildev/fibonacci:dev
     build:
