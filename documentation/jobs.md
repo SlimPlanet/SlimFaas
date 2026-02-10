@@ -1,4 +1,4 @@
-    # SlimFaas Jobs
+# SlimFaas Jobs
 
 
 SlimFaas lets you run **one‑off, batch, and scheduled (cron) jobs** either on‑demand via simple HTTP calls or automatically on a cron‑like cadence. Each job definition includes guard‑rails: cap concurrency with `NumberParallelJob`, enforce per‑pod CPU & memory limits, and decide whether the endpoint is **Public** (external) or **Private** (in‑cluster). You get a powerful REST API while keeping your cluster safe from resource spikes.
@@ -20,7 +20,7 @@ SlimFaas lets you run **one‑off, batch, and scheduled (cron) jobs** either on�
 ## 2. Defining Jobs via Configuration
 
 You configure SlimFaas jobs by providing a JSON configuration. The most common method is to store this JSON in a
-Kubernetes `ConfigMap` and pass it to SlimFaas via the `SLIMFAAS_JOBS_CONFIGURATION` environment variable.
+Kubernetes `ConfigMap` and pass it to SlimFaas via the `SlimFaas__JobsConfiguration` environment variable.
 
 ### Example `ConfigMap` + `StatefulSet`
 
@@ -150,7 +150,7 @@ spec:
 
 ### Explanation of Each Configuration Field
 
-In `SLIMFAAS_JOBS_CONFIGURATION`environment variable, you define jobs under the `"Configurations"` key and their schedules under the `"Schedules"` key. Here’s a breakdown of the configuration structure:
+In `SlimFaas__JobsConfiguration`environment variable, you define jobs under the `"Configurations"` key and their schedules under the `"Schedules"` key. Here’s a breakdown of the configuration structure:
 
 ```json
 {
@@ -239,7 +239,7 @@ You can also define **cron schedules** for jobs under the `"Schedules"` key. Eac
 
 ### Default configuration values
 
-If you trigger a job whose name does not exist in `SLIMFAAS_JOBS_CONFIGURATION`, SlimFaas falls back to a built‑in entry called `Default`. It ships with conservative resource requests/limits (`cpu: 100m`, `memory: 100Mi`), no dependencies, and the same visibility/retry defaults. You can customise these defaults by adding or overriding the `"Default"` key in your configuration map.
+If you trigger a job whose name does not exist in `SlimFaas__JobsConfiguration`, SlimFaas falls back to a built‑in entry called `Default`. It ships with conservative resource requests/limits (`cpu: 100m`, `memory: 100Mi`), no dependencies, and the same visibility/retry defaults. You can customise these defaults by adding or overriding the `"Default"` key in your configuration map.
 
 ---
 
@@ -433,7 +433,7 @@ Set the `Visibility` field inside `Configurations`.
 ## 8. Summary
 
 * **One‑off & batch jobs** — `POST /job/<jobName>`.
-* **Cron (scheduled) jobs** — attach them inside `SLIMFAAS_JOBS_CONFIGURATION > Schedules` **or** manage at runtime via `/job‑schedules` endpoints.
+* **Cron (scheduled) jobs** — attach them inside `SlimFaas__JobsConfiguration > Schedules` **or** manage at runtime via `/job‑schedules` endpoints.
 * **List** jobs: `GET /job/<queueName>`; **list** schedules: `GET /job‑schedules/<jobName>`.
 * **Delete** a (running, waiting, finished) job: `DELETE /job/<jobName>/{id}`; **delete** a schedule: `DELETE /job‑schedules/<jobName>/{id}`.
 * Visibility, overrides, resource limits, dependency checks, retries, and TTL behave **identically** for manual and scheduled executions.
