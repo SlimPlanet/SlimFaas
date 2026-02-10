@@ -124,6 +124,15 @@ SlimFaas includes two complementary data APIs:
 
 ![slim-faas-ram-cpu.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true)
 
+### 🛡️ CPU-Aware Rate Limiting
+
+- Built-in load shedding to protect your cluster during traffic spikes:
+    - Automatically reject requests when CPU usage exceeds configurable thresholds.
+    - Hysteresis support prevents rapid toggling between limited and normal states.
+    - Port-specific: only applies to public traffic, never affects internal cluster communication.
+    - Path exclusions for health checks and metrics endpoints.
+    - Native AOT compatible with minimal performance overhead.
+
 ---
 
 ## Ready to Get Started?
@@ -135,6 +144,7 @@ Dive into the documentation:
     - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
     - [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.
     - [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
+    - [CPU Rate Limiting](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/cpu-rate-limiting.md) – Protect your cluster from overload with CPU-aware load shedding.
 - Functions & Workloads
     - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
     - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
