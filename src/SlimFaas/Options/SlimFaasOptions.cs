@@ -1,3 +1,5 @@
+using SlimFaas.RateLimiting;
+
 namespace SlimFaas.Options;
 
 /// <summary>
@@ -47,9 +49,13 @@ public class SlimFaasOptions
     /// </summary>
     public string Orchestrator { get; set; } = "Kubernetes";
 
-
     /// <summary>
     /// Pod scaled up by default when infrastructure has never been called
     /// </summary>
     public bool PodScaledUpByDefaultWhenInfrastructureHasNeverCalled { get; set; }
+
+    /// <summary>
+    /// Rate limiting configuration
+    /// </summary>
+    public RateLimitingOptions RateLimiting { get; set; } = new();
 }
