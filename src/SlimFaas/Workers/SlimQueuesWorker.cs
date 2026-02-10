@@ -23,7 +23,7 @@ public class SlimQueuesWorker(
 
     public const string SlimfaasElementId = "SlimFaas-Element-Id";
     public const string SlimfaasTryNumber = "SlimFaas-Try-Number";
-    public const string SlimfaasLastTry = "SlimfaasLastTry";
+    public const string SlimfaasLastTry = "Slimfaas-Last-Try";
     private readonly int _delay = workersOptions.Value.QueuesDelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)

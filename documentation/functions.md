@@ -233,13 +233,13 @@ This pattern is well suited for long-running tasks, external system calls, or wo
 2. SlimFaas forwards the request to the function pod and attaches multiple headers:
    ```http
    SlimFaas-Element-Id: <generated-id>
-   SlimfaasLastTry: true|false
+   Slimfaas-Last-Try: true|false
    SlimFaas-Try-Number: <attempt-number>
    ```
 
    These headers provide important context to the function:
    - **`SlimFaas-Element-Id`**: Unique identifier for this execution instance
-   - **`SlimfaasLastTry`**: Boolean (lowercase string) indicating if this is the final retry attempt (`"true"` or `"false"`)
+   - **`Slimfaas-Last-Try`**: Boolean (lowercase string) indicating if this is the final retry attempt (`"true"` or `"false"`)
    - **`SlimFaas-Try-Number`**: Zero-based attempt number (e.g., `"0"` for first attempt, `"1"` for first retry, etc.)
 
 3. If the function wants to run control the callback, it must explicitly:
@@ -306,13 +306,13 @@ SlimFaas automatically injects the following headers when forwarding requests to
 - **Usage**: Required when sending callbacks to SlimFaas
 - **Example**: `SlimFaas-Element-Id: 550e8400-e29b-41d4-a716-446655440000`
 
-#### SlimfaasLastTry
+#### Slimfaas-Last-Try
 - **Type**: String (`"true"` or `"false"`)
 - **Purpose**: Indicates whether this is the final retry attempt
 - **Usage**: Helps functions adjust their behavior on the last attempt (e.g., send alerts, use fallback logic)
 - **Example**:
-  - First attempt: `SlimfaasLastTry: false`
-  - After all retries exhausted: `SlimfaasLastTry: true`
+  - First attempt: `Slimfaas-Last-Try: false`
+  - After all retries exhausted: `Slimfaas-Last-Try: true`
 
 #### SlimFaas-Try-Number
 - **Type**: String (numeric)
@@ -328,7 +328,7 @@ SlimFaas automatically injects the following headers when forwarding requests to
 app.MapPost("/process", (HttpContext context) =>
 {
     var elementId = context.Request.Headers["SlimFaas-Element-Id"].FirstOrDefault();
-    var isLastTry = context.Request.Headers["SlimfaasLastTry"].FirstOrDefault() == "true";
+    var isLastTry = context.Request.Headers["Slimfaas-Last-Try"].FirstOrDefault() == "true";
     var tryNumber = int.Parse(context.Request.Headers["SlimFaas-Try-Number"].FirstOrDefault() ?? "0");
 
     if (isLastTry)
@@ -347,7 +347,7 @@ app.MapPost("/process", (HttpContext context) =>
 ```javascript
 app.post('/process', (req, res) => {
     const elementId = req.headers['slimfaas-element-id'];
-    const isLastTry = req.headers['slimfaaslasttry'] === 'true';
+    const isLastTry = req.headers['slimfaas-last-try'] === 'true';
     const tryNumber = parseInt(req.headers['slimfaas-try-number'] || '0');
 
     if (isLastTry) {
