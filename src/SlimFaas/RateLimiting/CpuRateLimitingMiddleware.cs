@@ -8,23 +8,26 @@ public class CpuRateLimitingMiddleware
     private readonly RateLimitingOptions _options;
     private readonly ICpuUsageProvider _cpuUsageProvider;
     private readonly ILogger<CpuRateLimitingMiddleware> _logger;
+    private readonly int[] _excludedPorts;
     private bool _isLimiting;
 
     public CpuRateLimitingMiddleware(
         RequestDelegate next,
         IOptions<RateLimitingOptions> options,
         ICpuUsageProvider cpuUsageProvider,
-        ILogger<CpuRateLimitingMiddleware> logger)
+        ILogger<CpuRateLimitingMiddleware> logger,
+        int[] excludedPorts)
     {
         _next = next;
         _options = options.Value;
         _cpuUsageProvider = cpuUsageProvider;
         _logger = logger;
+        _excludedPorts = excludedPorts;
     }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        if (!_options.Enabled || context.Connection.LocalPort != _options.PublicPort)
+        if (!_options.Enabled || _excludedPorts.Contains(context.Connection.LocalPort))
         {
             await _next(context);
             return;
@@ -51,7 +54,7 @@ public class CpuRateLimitingMiddleware
 
         if (_isLimiting)
         {
-            context.Response.StatusCode = _options.StatusCode;
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
 
             if (_options.RetryAfterSeconds.HasValue)
             {

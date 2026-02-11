@@ -10,7 +10,6 @@ public class RateLimitingOptionsTests
         var options = new RateLimitingOptions
         {
             Enabled = true,
-            PublicPort = 5000,
             CpuHighThreshold = 80,
             CpuLowThreshold = 60,
             SampleIntervalMs = 1000
@@ -26,25 +25,8 @@ public class RateLimitingOptionsTests
     {
         var options = new RateLimitingOptions
         {
-            PublicPort = 5000,
             CpuHighThreshold = 60,
             CpuLowThreshold = 80,
-            SampleIntervalMs = 1000
-        };
-
-        bool isValid = options.IsValid();
-
-        Assert.False(isValid);
-    }
-
-    [Fact]
-    public void IsValid_WithInvalidPort_ReturnsFalse()
-    {
-        var options = new RateLimitingOptions
-        {
-            PublicPort = 0,
-            CpuHighThreshold = 80,
-            CpuLowThreshold = 60,
             SampleIntervalMs = 1000
         };
 
@@ -58,10 +40,69 @@ public class RateLimitingOptionsTests
     {
         var options = new RateLimitingOptions
         {
-            PublicPort = 5000,
             CpuHighThreshold = 80,
             CpuLowThreshold = 60,
             SampleIntervalMs = 50
+        };
+
+        bool isValid = options.IsValid();
+
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void IsValid_WithCpuHighThresholdGreaterThan100_ReturnsFalse()
+    {
+        var options = new RateLimitingOptions
+        {
+            CpuHighThreshold = 120,
+            CpuLowThreshold = 60,
+            SampleIntervalMs = 1000
+        };
+
+        bool isValid = options.IsValid();
+
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void IsValid_WithCpuLowThresholdLessThan0_ReturnsFalse()
+    {
+        var options = new RateLimitingOptions
+        {
+            CpuHighThreshold = 80,
+            CpuLowThreshold = -10,
+            SampleIntervalMs = 1000
+        };
+
+        bool isValid = options.IsValid();
+
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void IsValid_WithCpuHighThresholdLessThan0_ReturnsFalse()
+    {
+        var options = new RateLimitingOptions
+        {
+            CpuHighThreshold = -5,
+            CpuLowThreshold = 10,
+            SampleIntervalMs = 1000
+        };
+
+        bool isValid = options.IsValid();
+
+        Assert.False(isValid);
+    }
+
+    [Fact]
+    public void IsValid_WithCpuLowThresholdGreaterThan100_ReturnsFalse()
+    {
+        var options = new RateLimitingOptions
+        {
+            CpuHighThreshold = 90,
+            CpuLowThreshold = 120,
+            SampleIntervalMs = 1000
         };
 
         bool isValid = options.IsValid();

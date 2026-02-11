@@ -18,7 +18,6 @@ using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
-using SlimFaas.RateLimiting;
 using SlimFaas.Security;
 using SlimFaas.Workers;
 
@@ -248,23 +247,7 @@ builder.Services
     .Validate(o => o.DefaultVisibility is FunctionVisibility.Public or FunctionVisibility.Private,
         "Data:DefaultVisibility must be Public or Private.");
 
-var rateLimitingOptions = builder.Configuration
-    .GetSection(RateLimitingOptions.SectionName)
-    .Get<RateLimitingOptions>() ?? new RateLimitingOptions();
-
-if (rateLimitingOptions.Enabled)
-{
-    builder.Services
-        .AddOptions<RateLimitingOptions>()
-        .BindConfiguration(RateLimitingOptions.SectionName)
-        .Validate(options => !options.Enabled || options.IsValid(),
-            "Invalid RateLimiting configuration.");
-
-    Console.WriteLine($"CPU rate limiting enabled on port {rateLimitingOptions.PublicPort}");
-    builder.Services.AddSingleton<CpuUsageProvider>();
-    builder.Services.AddSingleton<ICpuUsageProvider>(sp => sp.GetRequiredService<CpuUsageProvider>());
-    builder.Services.AddHostedService<CpuMonitoringService>();
-}
+builder.Services.AddCpuRateLimiting(builder.Configuration);
 
 serviceCollectionSlimFaas.AddCors();
 
@@ -550,10 +533,24 @@ app.MapDebugRoutes();
 // Map SlimFaas endpoints (remplace SlimProxyMiddleware)
 app.MapSlimFaasEndpoints();
 
-if (rateLimitingOptions.Enabled)
+List<int> excludedPorts = [];
+
+if (!string.IsNullOrEmpty(publicEndPoint))
 {
-    app.UseMiddleware<CpuRateLimitingMiddleware>();
+    try
+    {
+        Uri slimDataUri = new(publicEndPoint);
+        int slimDataPort = slimDataUri.Port;
+        excludedPorts.Add(slimDataPort);
+        startupLogger.LogInformation("SlimData port {SlimDataPort} will be excluded from rate limiting", slimDataPort);
+    }
+    catch (Exception ex)
+    {
+        startupLogger.LogWarning(ex, "Failed to extract SlimData port from publicEndPoint: {PublicEndPoint}", publicEndPoint);
+    }
 }
+
+app.UseCpuRateLimiting(excludedPorts.ToArray());
 
 app.Use(async (context, next) =>
 {

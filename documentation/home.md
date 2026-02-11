@@ -124,15 +124,6 @@ SlimFaas includes two complementary data APIs:
 
 ![slim-faas-ram-cpu.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true)
 
-### 🛡️ CPU-Aware Rate Limiting
-
-- Built-in load shedding to protect your cluster during traffic spikes:
-    - Automatically reject requests when CPU usage exceeds configurable thresholds.
-    - Hysteresis support prevents rapid toggling between limited and normal states.
-    - Port-specific: only applies to public traffic, never affects internal cluster communication.
-    - Path exclusions for health checks and metrics endpoints.
-    - Native AOT compatible with minimal performance overhead.
-
 ---
 
 ## Ready to Get Started?
