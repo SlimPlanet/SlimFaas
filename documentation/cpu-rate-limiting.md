@@ -7,9 +7,9 @@ SlimFaas includes a CPU-aware rate limiting mechanism to protect the system from
 ## Key Features
 
 - **Native AOT Compatible**: Designed to work seamlessly with Native AOT compilation
-- **Port-Specific**: Only applies to public HTTP traffic, never affects internal cluster communication
+- **Port-Specific Exclusions**: Applies to all ports except internal SlimData and configured ports
 - **Hysteresis Support**: Prevents rapid toggling between limited and normal states
-- **Configurable Response**: Customizable HTTP status codes and retry headers
+- **Configurable Response**: Customizable retry headers
 - **Path Exclusions**: Optionally exclude health checks and metrics endpoints from rate limiting
 
 ## How It Works
@@ -19,12 +19,15 @@ The CPU rate limiting system monitors CPU usage at regular intervals and activat
 ### Behavior
 
 1. **Normal State**: When `CpuPercent < CpuHighThreshold`, all requests are processed normally
-2. **Rate Limited State**: When `CpuPercent >= CpuHighThreshold`, new requests receive a configured error response (default: 429 Too Many Requests)
+2. **Rate Limited State**: When `CpuPercent >= CpuHighThreshold`, new requests receive a 429 Too Many Requests error response
 3. **Recovery**: Rate limiting only deactivates when `CpuPercent <= CpuLowThreshold`
 
 ### Port Filtering
 
-The rate limiter only applies to requests on the configured public port. Requests on other ports, including the internal cluster port, are **never** rate limited, ensuring internal communication remains unaffected.
+The rate limiter applies to all HTTP traffic **except**:
+- The internal SlimData port (used for Raft cluster communication)
+
+This ensures internal cluster communication remains unaffected while protecting external-facing endpoints.
 
 ## Configuration
 
@@ -35,13 +38,11 @@ Add the `RateLimiting` section under `SlimFaas` in your `appsettings.json`:
   "SlimFaas": {
     "RateLimiting": {
       "Enabled": true,
-      "PublicPort": 5000,
       "CpuHighThreshold": 80.0,
       "CpuLowThreshold": 60.0,
       "SampleIntervalMs": 1000,
-      "StatusCode": 429,
       "RetryAfterSeconds": 5,
-      "ExcludedPaths": ["/health", "/metrics"]
+      "ExcludedPaths": ["/health", "/ready", "/metrics"]
     }
   }
 }
@@ -52,7 +53,6 @@ Add the `RateLimiting` section under `SlimFaas` in your `appsettings.json`:
 | Setting | Type | Description |
 |---------|------|-------------|
 | `Enabled` | bool | Enable or disable CPU rate limiting |
-| `PublicPort` | int | The public port to apply rate limiting (must be > 0) |
 | `CpuHighThreshold` | double | CPU percentage to activate rate limiting (0-100) |
 | `CpuLowThreshold` | double | CPU percentage to deactivate rate limiting (0-100, must be < CpuHighThreshold) |
 | `SampleIntervalMs` | int | How often to sample CPU usage in milliseconds (must be >= 100) |
@@ -61,7 +61,6 @@ Add the `RateLimiting` section under `SlimFaas` in your `appsettings.json`:
 
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
-| `StatusCode` | int | 429 | HTTP status code to return when rate limited |
 | `RetryAfterSeconds` | int | null | Seconds to wait before retrying (adds Retry-After header) |
 | `ExcludedPaths` | string[] | [] | Paths to exclude from rate limiting (e.g., health checks) |
 
@@ -69,7 +68,6 @@ Add the `RateLimiting` section under `SlimFaas` in your `appsettings.json`:
 
 The configuration is validated at startup with the following rules:
 
-- `PublicPort` must be greater than 0
 - `CpuLowThreshold` must be between 0 and 100
 - `CpuHighThreshold` must be between 0 and 100
 - `CpuLowThreshold` must be less than `CpuHighThreshold`
@@ -88,7 +86,6 @@ Minimal setup for production use:
   "SlimFaas": {
     "RateLimiting": {
       "Enabled": true,
-      "PublicPort": 5000,
       "CpuHighThreshold": 85.0,
       "CpuLowThreshold": 70.0,
       "SampleIntervalMs": 1000
@@ -99,18 +96,16 @@ Minimal setup for production use:
 
 ### Advanced Configuration
 
-With custom response codes and path exclusions:
+With custom retry headers and path exclusions:
 
 ```json
 {
   "SlimFaas": {
     "RateLimiting": {
       "Enabled": true,
-      "PublicPort": 5000,
       "CpuHighThreshold": 80.0,
       "CpuLowThreshold": 60.0,
       "SampleIntervalMs": 500,
-      "StatusCode": 503,
       "RetryAfterSeconds": 10,
       "ExcludedPaths": [
         "/health",
@@ -132,7 +127,6 @@ Disabled for local development:
   "SlimFaas": {
     "RateLimiting": {
       "Enabled": false,
-      "PublicPort": 5000,
       "CpuHighThreshold": 90.0,
       "CpuLowThreshold": 70.0,
       "SampleIntervalMs": 1000
@@ -141,12 +135,25 @@ Disabled for local development:
 }
 ```
 
+## Automatic Port Exclusions
+
+SlimFaas automatically excludes the following ports from rate limiting:
+
+- **SlimData Port**: The internal port used for Raft cluster communication
+
+This automatic exclusion ensures that:
+- Raft consensus operations continue uninterrupted
+- Leader elections are not affected by high CPU
+- State synchronization remains healthy
+- Only external-facing traffic is subject to rate limiting
+
 ## Monitoring
 
 When rate limiting is active, you'll see log messages indicating:
 
 - When the rate limiter activates (CPU exceeds high threshold)
 - When the rate limiter deactivates (CPU drops below low threshold)
+- Which ports are excluded from rate limiting at startup
 - Requests being rejected (429 responses)
 
 Monitor these metrics to tune your thresholds appropriately for your workload.
@@ -167,22 +174,26 @@ Monitor these metrics to tune your thresholds appropriately for your workload.
 ### Path Exclusions
 
 Always exclude:
-- Health check endpoints used by load balancers or orchestrators
-- Metrics endpoints used by monitoring systems
+- Health check endpoints used by load balancers or orchestrators (`/health`, `/ready`)
+- Metrics endpoints used by monitoring systems (`/metrics`)
 - Any critical internal endpoints
 
-### Port Configuration
+### Port Architecture
 
-Ensure the `PublicPort` matches your actual public-facing port. Internal cluster communication ports should never be configured here.
+The automatic exclusion of the SlimData port ensures your control plane remains stable:
+- Public-facing function endpoints can be rate limited
+- Internal cluster communication is never throttled
+- You can add additional port exclusions if needed for specific use cases
 
 ## Troubleshooting
 
 ### Rate Limiting Not Activating
 
 1. Verify `Enabled` is set to `true`
-2. Check that requests are coming to the configured `PublicPort`
+2. Check that requests are coming to non-excluded ports
 3. Verify CPU is actually reaching the `CpuHighThreshold`
 4. Check logs for any configuration validation errors
+5. Confirm the request path is not in `ExcludedPaths`
 
 ### Rate Limiting Too Aggressive
 
@@ -197,6 +208,13 @@ Ensure the `PublicPort` matches your actual public-facing port. Internal cluster
 2. Verify the gap between high and low thresholds is appropriate
 3. Look for background processes keeping CPU elevated
 
+### Internal Communication Issues
+
+If you experience issues with cluster communication:
+1. Check logs to confirm the SlimData port is being excluded
+2. Verify the `publicEndPoint` configuration is correct
+3. Ensure no firewall or network policies are blocking internal traffic
+
 ## Technical Details
 
 ### Implementation
@@ -207,6 +225,7 @@ The CPU rate limiting feature consists of:
 - **ICpuUsageProvider**: Interface providing cached CPU percentage values
 - **CpuRateLimitingMiddleware**: Middleware that checks CPU usage and rejects requests when threshold is exceeded
 - **RateLimitingOptions**: Strongly-typed configuration class with validation
+- **Automatic Port Detection**: Extracts the SlimData port from the cluster configuration
 
 ### Native AOT Compatibility
 
@@ -220,14 +239,14 @@ The implementation is fully compatible with Native AOT compilation:
 The CPU monitoring service runs on a background thread and caches the current CPU percentage. Checking whether to rate limit a request involves:
 1. Reading a cached double value (CPU percentage)
 2. A simple numeric comparison
-3. Checking if the port matches (optional)
+3. Checking if the port is in the excluded list (array contains check)
 4. Checking if the path is excluded (optional)
 
 This minimal overhead ensures the rate limiter itself doesn't contribute significantly to CPU usage.
 
 ## Related Documentation
 
+- [How It Works](how-it-works.md) - Detailed architecture and CPU rate limiting flow
 - [Autoscaling](autoscaling.md) - Learn about horizontal scaling options
 - [OpenTelemetry](opentelemetry.md) - Monitor CPU and performance metrics
 - [Getting Started](get-started.md) - Initial setup and configuration
-
