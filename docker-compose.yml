@@ -87,8 +87,8 @@ services:
           }
         }
       SlimFaas__RateLimiting__Enabled: "true"
-      SlimFaas__RateLimiting__CpuHighThreshold: "0.01"
-      SlimFaas__RateLimiting__CpuLowThreshold: "0"
+      SlimFaas__RateLimiting__CpuHighThreshold: "80.0"
+      SlimFaas__RateLimiting__CpuLowThreshold: "60.0"
       SlimFaas__RateLimiting__SampleIntervalMs: "1000"
       SlimFaas__RateLimiting__RetryAfterSeconds: "5"
       SlimFaas__RateLimiting__ExcludedPaths__0: "/health"
