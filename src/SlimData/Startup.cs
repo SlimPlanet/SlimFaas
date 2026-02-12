@@ -2,6 +2,7 @@
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
@@ -97,7 +98,7 @@ public class Startup(IConfiguration configuration)
                 UseProxy = false
             });
         var path = configuration[SlimPersistentState.LogLocation];
-        var usePersistentConfigurationStorage = bool.Parse(configuration[SlimPersistentState.UsePersistentConfigurationStorage] ?? "true");
+        var usePersistentConfigurationStorage = true;// bool.Parse(configuration[SlimPersistentState.UsePersistentConfigurationStorage] ?? "true");
         if (!string.IsNullOrWhiteSpace(path) && usePersistentConfigurationStorage)
             services.UsePersistentConfigurationStorage(path)
                 .ConfigureCluster<ClusterConfigurator>()
@@ -111,16 +112,16 @@ public class Startup(IConfiguration configuration)
                 .AddOptions()
                 .AddRouting();
         
-       /* if (!string.IsNullOrWhiteSpace(path))
+        if (!string.IsNullOrWhiteSpace(path))
         {
 #pragma warning disable DOTNEXT001
             services.AddSingleton(new WriteAheadLog.Options { Location = path });
             services.UseStateMachine<SlimPersistentState>();
 #pragma warning restore DOTNEXT001
-        }*/
+        }
        if (!string.IsNullOrWhiteSpace(path))
        {
-           services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
+           //services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
            services.AddSingleton<IFileRepository>(_ => new DiskFileRepository(Path.Combine(path, "files")));
            services.AddSingleton<ClusterFileAnnounceQueue>();
            services.AddHostedService<ClusterFileAnnounceWorker>();
