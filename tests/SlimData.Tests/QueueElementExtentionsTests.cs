@@ -1,11 +1,86 @@
 ﻿using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Xunit;
 
 namespace SlimData.Tests;
 
 public class QueueElementExtensionsTests
 {
+    [Theory]
+    [InlineData(0, 0)] // Aucun essai
+    [InlineData(1, 1)] // Un essai
+    [InlineData(3, 3)] // Trois essais
+    [InlineData(5, 5)] // Cinq essais
+    public static void NumberOfTries_ReturnsCorrectCount(int numberOfTries, int expectedCount)
+    {
+        // Arrange
+        long nowTicks = DateTime.UtcNow.Ticks;
+        var tries = numberOfTries == 0
+            ? ImmutableArray<QueueHttpTryElement>.Empty
+            : Enumerable.Range(0, numberOfTries)
+                .Select(i => new QueueHttpTryElement(nowTicks - (i * 100), "", 0, 0))
+                .ToImmutableArray();
+
+        var element = new QueueElement(
+            new ReadOnlyMemory<byte>(new byte[] { 1 }),
+            "test-id",
+            nowTicks,
+            30,
+            ImmutableArray<int>.Empty,
+            tries,
+            ImmutableHashSet<int>.Empty
+        );
+
+        // Act
+        var result = element.NumberOfTries();
+
+        // Assert
+        Assert.Equal(expectedCount, result);
+    }
+
+    [Theory]
+    [InlineData(0, 0, false)]  // Aucun essai, aucun retry configuré => False
+    [InlineData(0, 3, false)]  // Aucun essai, 3 retries configurés => False
+    [InlineData(1, 0, true)]   // 1 essai, aucun retry configuré => True (pas de limite)
+    [InlineData(1, 3, true)]   // 1 essai, 3 retries configurés => True (count <= retries.Length)
+    [InlineData(2, 3, true)]   // 2 essais, 3 retries configurés => True (count <= retries.Length)
+    [InlineData(3, 3, true)]   // 3 essais, 3 retries configurés => True (count == retries.Length)
+    [InlineData(4, 3, false)]  // 4 essais, 3 retries configurés => False (count > retries.Length)
+    public static void IsLastTry_ReturnsExpectedResult(int numberOfTries, int numberOfRetries, bool expectedResult)
+    {
+        // Arrange
+        long nowTicks = DateTime.UtcNow.Ticks;
+
+        var tries = numberOfTries == 0
+            ? ImmutableArray<QueueHttpTryElement>.Empty
+            : Enumerable.Range(0, numberOfTries)
+                .Select(i => new QueueHttpTryElement(nowTicks - (i * 100), "", 0, 0))
+                .ToImmutableArray();
+
+        var retries = numberOfRetries == 0
+            ? ImmutableArray<int>.Empty
+            : Enumerable.Range(1, numberOfRetries)
+                .Select(i => i * 2)
+                .ToImmutableArray();
+
+        var element = new QueueElement(
+            new ReadOnlyMemory<byte>(new byte[] { 1 }),
+            "test-id",
+            nowTicks,
+            30,
+            retries,
+            tries,
+            ImmutableHashSet<int>.Empty
+        );
+
+        // Act
+        var result = element.IsLastTry();
+
+        // Assert
+        Assert.Equal(expectedResult, result);
+    }
+
     [Fact]
     public static void QueueElementExtensions_GetQueueStates_WorkAsExpected()
     {
