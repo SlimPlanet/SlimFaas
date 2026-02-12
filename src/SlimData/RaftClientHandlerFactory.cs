@@ -1,37 +1,40 @@
 ﻿using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using SlimData.Options;
 
 namespace SlimData;
 
 internal sealed class RaftClientHandlerFactory : IHttpMessageHandlerFactory
 {
+    private readonly RaftClientHandlerOptions _options;
+    private readonly ILogger<RaftClientHandlerFactory> _logger;
+
+    public RaftClientHandlerFactory(IOptions<RaftClientHandlerOptions> options, ILogger<RaftClientHandlerFactory> logger)
+    {
+        _options = options.Value;
+        _logger = logger;
+    }
+
     public HttpMessageHandler CreateHandler(string name)
     {
-        var slimDataSocketsHttpHandlerTimeoutDefault =
-            Environment.GetEnvironmentVariable(EnvironmentVariables.SlimDataSocketsHttpHandlerTimeout) ??
-            EnvironmentVariables.SlimDataSocketsHttpHandlerTimeoutDefault;
-        if (!int.TryParse(slimDataSocketsHttpHandlerTimeoutDefault, out int electionTimeout))
-        {
-            throw new Exception("SLIMDATA_SOCKETS_HTTP_HANDLER_TIMEOUT is not an integer");
-        }
-        Console.WriteLine($"RaftClientHandlerFactory.CreateHandler({name}) with electionTimeout {electionTimeout}");
+        _logger.LogInformation("RaftClientHandlerFactory.CreateHandler({Name}) with ConnectTimeout {ConnectTimeout}ms", 
+            name, _options.ConnectTimeoutMilliseconds);
+        
         var handler = new SocketsHttpHandler
         {
-            // Etablissement TCP+TLS : vise 2s en prod K8s/mesh
-            ConnectTimeout = TimeSpan.FromSeconds(2),
+            ConnectTimeout = TimeSpan.FromMilliseconds(_options.ConnectTimeoutMilliseconds),
             AllowAutoRedirect = false,
             AutomaticDecompression = DecompressionMethods.None,
-            PooledConnectionLifetime = TimeSpan.FromMinutes(5),
-            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
-            MaxConnectionsPerServer = 100,
+            PooledConnectionLifetime = TimeSpan.FromMinutes(_options.PooledConnectionLifetimeMinutes),
+            PooledConnectionIdleTimeout = TimeSpan.FromSeconds(_options.PooledConnectionIdleTimeoutSeconds),
+            MaxConnectionsPerServer = _options.MaxConnectionsPerServer,
             EnableMultipleHttp2Connections = false,
-
             UseProxy = false
-            
         };
         handler.SslOptions.RemoteCertificateValidationCallback = AllowCertificate;
-        handler.UseProxy = false;
         return handler;
     }
 

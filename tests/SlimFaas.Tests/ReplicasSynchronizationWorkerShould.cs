@@ -1,8 +1,9 @@
-﻿using System.Collections;
+﻿﻿using System.Collections;
 using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Tests;
 
@@ -68,16 +69,27 @@ public class ReplicasSynchronizationWorkerShould
     {
         Mock<ILogger<ReplicasSynchronizationWorker>> logger = new Mock<ILogger<ReplicasSynchronizationWorker>>();
         Mock<IKubernetesService> kubernetesService = new Mock<IKubernetesService>();
-        kubernetesService.Setup(k => k.ListFunctionsAsync(It.IsAny<string>())).Throws(new Exception());
+        kubernetesService.Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>())).Throws(new Exception());
         Mock<IRaftCluster> raftCluster = new();
         raftCluster.Setup(ms => ms.LeadershipToken).Returns(() => new CancellationToken());
         raftCluster.Setup(ms => ms.Leader).Returns((new Mock<RaftClusterMember>()).Object);
         HistoryHttpMemoryService historyHttpService = new HistoryHttpMemoryService();
         Mock<ILogger<ReplicasService>> loggerReplicasService = new Mock<ILogger<ReplicasService>>();
+
+        var autoScaler = new AutoScaler(null, null, null);
+        var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
+        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+        });
+
         ReplicasService replicasService =
             new ReplicasService(kubernetesService.Object,
                 historyHttpService,
-                loggerReplicasService.Object);
+                autoScaler,
+                loggerReplicasService.Object,
+                metricsRegistry,
+                slimFaasOptions);
 
 
         Mock<IDatabaseService> databaseService = new Mock<IDatabaseService>();

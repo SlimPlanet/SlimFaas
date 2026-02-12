@@ -1,4 +1,4 @@
-﻿using DotNext.Net.Cluster.Consensus.Raft;
+﻿﻿using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -6,6 +6,7 @@ using SlimData;
 using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 using SlimFaas.Workers;
 
 namespace SlimFaas.Tests;
@@ -63,12 +64,18 @@ public class MetricsWorkerShould
         // Nouveau : registry pour coller à la nouvelle signature de ReplicasService
         var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
 
+        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+        });
+
         ReplicasService replicasService =
             new(kubernetesService.Object,
                 historyHttpService,
                 autoScaler,
                 loggerReplicasService.Object,
-                metricsRegistry);
+                metricsRegistry,
+                slimFaasOptions);
 
         masterService.Setup(ms => ms.IsMaster).Returns(true);
         kubernetesService
@@ -91,8 +98,14 @@ public class MetricsWorkerShould
         await slimFaasQueue.EnqueueAsync("fibonacci1", jsonCustomRequest, retryInformation);
 
         var dynamicGaugeService = new DynamicGaugeService();
+
+        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+        {
+            ScaleReplicasDelayMilliseconds = 100
+        });
+
         MetricsWorker service =
-            new(replicasService, slimFaasQueue, dynamicGaugeService, raftCluster.Object, logger.Object, 100);
+            new(replicasService, slimFaasQueue, dynamicGaugeService, raftCluster.Object, logger.Object, workersOptions);
 
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);

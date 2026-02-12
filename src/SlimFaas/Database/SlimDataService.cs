@@ -137,13 +137,14 @@ public class SlimDataService
         var req = new ListLeftPushBatchRequest(
             batch.Select(b => new ListLeftPushBatchItem(b.Key, b.SerializedPayload)).ToArray()
         );
-        Console.WriteLine("Push Item BatchHandlerAsync " + req.Items.Length);
+        _logger.LogDebug("ListLeftPush batch size={BatchSize}", req.Items.Length);
         var bin = MemoryPackSerializer.Serialize(req);
         var isLeader = !_cluster.LeadershipToken.IsCancellationRequested;
 
         if (isLeader)
         {
-            var result = await Endpoints.ListLeftPushBatchCommand(_cluster, bin, new CancellationTokenSource());
+            using var cancelToken = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var result = await SlimData.Endpoints.ListLeftPushBatchCommand(_cluster, bin, cancelToken);
             return result.ElementIds;
         }
 
@@ -203,7 +204,8 @@ public class SlimDataService
 
         if (isLeader)
         {
-            var respLeader = await Endpoints.ListCallbackBatchCommand(_cluster, bin, CancellationTokenSource.CreateLinkedTokenSource(ct));
+            using var cancelToken = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var respLeader = await SlimData.Endpoints.ListCallbackBatchCommand(_cluster, bin, cancelToken);
             if (respLeader.Acks.Length != batch.Count)
                 throw new DataException("Batch response count mismatch");
             return respLeader.Acks;
@@ -249,7 +251,7 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.AddKeyValueCommand(ps, key, value, expireAtUtcTicks, _cluster, new CancellationTokenSource());
+            await SlimData.Endpoints.AddKeyValueCommand(ps, key, value, expireAtUtcTicks, _cluster, new CancellationTokenSource());
         }
         else
         {
@@ -273,7 +275,8 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.AddHashSetCommand(ps, key, new Dictionary<string, byte[]>(values), expireAtUtcTicks, _cluster, new CancellationTokenSource());
+            using CancellationTokenSource source = new();
+            await SlimData.Endpoints.AddHashSetCommand(ps, key, new Dictionary<string, byte[]>(values), expireAtUtcTicks, _cluster, source);
         }
         else
         {
@@ -296,7 +299,8 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey, _cluster, new CancellationTokenSource());
+            using CancellationTokenSource source = new();
+            await SlimData.Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey, _cluster, source);
         }
         else
         {
@@ -321,7 +325,8 @@ public class SlimDataService
             if (!_cluster.LeadershipToken.IsCancellationRequested)
             {
                 var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-                await Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey: "", _cluster, new CancellationTokenSource());
+                using CancellationTokenSource source = new();
+                await SlimData.Endpoints.DeleteHashSetCommand(ps, key, dictionaryKey: "", _cluster, source);
             }
             return new Dictionary<string, byte[]>(0);
         }
@@ -344,7 +349,8 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await Endpoints.DeleteKeyValueCommand(ps, key, _cluster, new CancellationTokenSource());
+            using CancellationTokenSource source = new();
+            await SlimData.Endpoints.DeleteKeyValueCommand(ps, key, _cluster, source);
         }
         else
         {
@@ -363,7 +369,8 @@ public class SlimDataService
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            var result = await Endpoints.ListRightPopCommand(ps, key, transactionId, count, _cluster, new CancellationTokenSource());
+            using CancellationTokenSource source = new();
+            var result = await SlimData.Endpoints.ListRightPopCommand(ps, key, transactionId, count, _cluster, source);
             return result.Items;
         }
         else
@@ -405,21 +412,39 @@ public class SlimDataService
         if (countTypes.Contains(CountType.WaitingForRetry))
             result.AddRange(value.GetQueueWaitingForRetryElement(nowTicks));
 
-        return result.Select(qe => new QueueData(qe.Id, qe.Value.ToArray())).ToList();
+        return result.Select(qe => new QueueData(qe.Id, qe.Value.ToArray(), qe.NumberOfTries(), qe.IsLastTry())).ToList();
     }
 
-    private async Task MasterWaitForleaseToken()
+    private async Task MasterWaitForleaseToken(CancellationToken ct = default)
     {
-        var tryCount = 100;
+        // Backoff progressif: 10ms -> 20 -> 40 -> ... -> 500ms (cap)
+        var remaining = 100;
+        var delayMs = 10;
+        const int maxDelayMs = 500;
+
+        // Pour éviter de spammer les logs
+        var nextLogAt = 100;
+
         while (_cluster.TryGetLeaseToken(out var leaseToken) && leaseToken.IsCancellationRequested)
         {
-            Console.WriteLine($"Master node is waiting for lease token {tryCount}");
-            await Task.Delay(10);
-            tryCount--;
-            if (tryCount < 0)
+            remaining--;
+            if (remaining <= 0)
                 throw new Exception("Master node cannot have lease token");
+
+            if (remaining <= nextLogAt)
+            {
+                _logger.LogDebug("Master node waiting for lease token... remaining={Remaining}, nextDelayMs={DelayMs}",
+                    remaining, delayMs);
+
+                // log à ~100, 50, 25, 12, 6, 3...
+                nextLogAt = Math.Max(1, remaining / 2);
+            }
+
+            await Task.Delay(delayMs, ct).ConfigureAwait(false);
+            delayMs = Math.Min(maxDelayMs, delayMs * 2);
         }
     }
+
 
     private async Task<EndPoint> GetAndWaitForLeader()
     {

@@ -5,11 +5,13 @@ using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 using SlimData;
 using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 using SlimFaas.Workers;
 using Xunit;
 
@@ -219,6 +221,17 @@ namespace SlimFaas.Tests.Workers
 
             var db = database ?? new InMemoryDatabaseService();
 
+            // IOptions<SlimFaasOptions>
+            var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                Namespace = "ns",
+                BaseSlimDataUrl = "http://{pod_name}.{service_name}.{namespace}.svc:3262"
+            });
+
+            // INamespaceProvider
+            var namespaceProvider = new Mock<INamespaceProvider>();
+            namespaceProvider.SetupGet(n => n.CurrentNamespace).Returns("ns");
+
             return new MetricsScrapingWorker(
                 replicasService: replicas.Object,
                 cluster: cluster.Object,
@@ -228,6 +241,8 @@ namespace SlimFaas.Tests.Workers
                 slimDataStatus: status.Object,
                 scrapingGuard: guard,
                 logger: logger,
+                slimFaasOptions: slimFaasOptions,
+                namespaceProvider: namespaceProvider.Object,
                 delay: delayMs
             );
         }

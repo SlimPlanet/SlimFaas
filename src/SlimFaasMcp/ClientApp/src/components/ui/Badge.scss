@@ -1,0 +1,13 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--sf-border);
+  background: rgba(255,255,255,0.05);
+  color: var(--sf-text);
+}
+.badge--ok { border-color: rgba(45,212,191,0.35); background: rgba(45,212,191,0.12); }
+.badge--new { border-color: rgba(80,182,255,0.45); background: rgba(80,182,255,0.12); }
+.badge--off { border-color: rgba(251,113,133,0.45); background: rgba(251,113,133,0.12); }

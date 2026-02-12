@@ -1,22 +1,30 @@
-﻿using DotNext.Net.Cluster.Consensus.Raft;
+﻿﻿using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
-public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRaftCluster cluster,
-        ILogger<SlimDataSynchronizationWorker> logger, ISlimDataStatus slimDataStatus,
-        int delay = EnvironmentVariables.ReplicasSynchronizationWorkerDelayMillisecondsDefault)
+public class SlimDataSynchronizationWorker(
+    IReplicasService replicasService,
+    IRaftCluster cluster,
+    ILogger<SlimDataSynchronizationWorker> logger,
+    ISlimDataStatus slimDataStatus,
+    IOptions<SlimFaasOptions> slimFaasOptions,
+    IOptions<WorkersOptions> workersOptions,
+    INamespaceProvider namespaceProvider)
     : BackgroundService
 {
-    private readonly int _delay = EnvironmentVariables.ReadInteger(logger,
-        EnvironmentVariables.ReplicasSynchronisationWorkerDelayMilliseconds, delay);
+    private readonly int _delay = workersOptions.Value.ReplicasSynchronizationDelayMilliseconds;
+    private readonly string _baseSlimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
+    private readonly string _namespace = namespaceProvider.CurrentNamespace;
 
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        Console.WriteLine("SlimDataSynchronizationWorker: Start");
+        logger.LogInformation("SlimDataSynchronizationWorker: Start");
         await slimDataStatus.WaitForReadyAsync();
         while (stoppingToken.IsCancellationRequested == false)
         {
@@ -33,13 +41,13 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                 foreach (PodInformation slimFaasPod in replicasService.Deployments.SlimFaas.Pods.Where(p =>
                              p.Started == true && !string.IsNullOrEmpty(p.Ip)))
                 {
-                    string url = SlimDataEndpoint.Get(slimFaasPod);
+                    string url = SlimDataEndpoint.Get(slimFaasPod, _baseSlimDataUrl, _namespace);
                     if (cluster.Members.ToList().Exists(m => SlimFaasPorts.RemoveLastPathSegment(m.EndPoint.ToString()) == SlimFaasPorts.RemoveLastPathSegment(url)))
                     {
                         continue;
                     }
 
-                    Console.WriteLine($"SlimDataSynchronizationWorker: SlimFaas pod {slimFaasPod.Name} has to be added in the cluster");
+                    logger.LogInformation($"SlimDataSynchronizationWorker: SlimFaas pod {slimFaasPod.Name} has to be added in the cluster");
                     await ((IRaftHttpCluster)cluster).AddMemberAsync(new Uri(url), stoppingToken);
 
                     // Add only one at once to let a synchronization time
@@ -61,13 +69,13 @@ public class SlimDataSynchronizationWorker(IReplicasService replicasService, IRa
                 foreach (var endpoint in cluster.Members.Select(r => r.EndPoint.ToString()))
                 {
                     if (replicasService.Deployments.SlimFaas.Pods.ToList().Exists(slimFaasPod =>
-                            SlimFaasPorts.RemoveLastPathSegment(SlimDataEndpoint.Get(slimFaasPod)) ==
+                            SlimFaasPorts.RemoveLastPathSegment(SlimDataEndpoint.Get(slimFaasPod, _baseSlimDataUrl, _namespace)) ==
                             SlimFaasPorts.RemoveLastPathSegment(endpoint)))
                     {
                         continue;
                     }
 
-                    Console.WriteLine(
+                    logger.LogInformation(
                         $"SlimDataSynchronizationWorker: SlimFaas pod {endpoint} need to be remove from the cluster");
                     await ((IRaftHttpCluster)cluster).RemoveMemberAsync(
                         new Uri(endpoint ?? string.Empty), stoppingToken);

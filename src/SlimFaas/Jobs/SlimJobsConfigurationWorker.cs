@@ -8,11 +8,10 @@ namespace SlimFaas.Jobs;
 
 public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
     ILogger<SlimJobsConfigurationWorker> logger,
-    int delay = EnvironmentVariables.SlimJobsConfigurationWorkerDelayMillisecondsDefault)
+    int delay = 1000)
     : BackgroundService
 {
-    private readonly int _delay =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.SlimJobsConfigurationWorkerDelayMilliseconds, delay);
+    private readonly int _delay = delay;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

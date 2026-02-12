@@ -1,0 +1,31 @@
+.layout {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.layout__main {
+    flex: 1;
+    padding-top: 14px;
+    padding-bottom: 22px;
+}
+
+.layout__footer {
+    border-top: 0;
+    background: var(--sf-primary);
+}
+
+.layout__footer-inner {
+    padding: 14px 16px;
+    display: flex;
+    justify-content: center;
+}
+
+.layout__footer-text {
+    font-size: 13px;
+    color: rgba(255,255,255,0.92);
+}
+
+.layout__footer-text.sf-muted {
+    color: rgba(255,255,255,0.82);
+}

@@ -9,6 +9,7 @@ public class ScheduleJobServiceTests
 {
     private readonly Mock<IJobConfiguration> _jobConfigMock = new();
     private readonly Mock<IDatabaseService> _dbMock        = new();
+    private readonly Mock<IJobService> _jobServiceMock = new();
 
     private readonly SlimFaasJobConfiguration _defaultConfig;
     private readonly ScheduleJobService        _sut; // System Under Test
@@ -29,7 +30,13 @@ public class ScheduleJobServiceTests
 
         _jobConfigMock.SetupGet(c => c.Configuration).Returns(_defaultConfig);
 
-        _sut = new ScheduleJobService(_jobConfigMock.Object, _dbMock.Object);
+        // Setup IsImageAllowed to return true by default for allowed images
+        _jobServiceMock.Setup(s => s.IsImageAllowed(It.IsAny<IList<string>>(), "allowed:latest"))
+            .Returns(true);
+        _jobServiceMock.Setup(s => s.IsImageAllowed(It.IsAny<IList<string>>(), "not-allowed:latest"))
+            .Returns(false);
+
+        _sut = new ScheduleJobService(_jobConfigMock.Object, _dbMock.Object, _jobServiceMock.Object);
     }
 
     // ---------------- CreateScheduleJobAsync ----------------

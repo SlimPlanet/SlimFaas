@@ -1,5 +1,186 @@
 # Changelog
 
+## v0.61.14
+
+- [3a60b1fb](https://github.com/SlimPlanet/SlimFaas/commit/3a60b1fb23cda6297c24ccc1e7076e264bf3069d) - doc: fix jobs enb var (release), 2026-02-08 by *Guillaume Chervet*
+
+
+## 0.61.13
+
+
+
+## v0.61.13
+
+- [bf82cbc5](https://github.com/SlimPlanet/SlimFaas/commit/bf82cbc52e4e5967b684052a45b7b78d5bb630a1) - Change PUBLISH_AOT to false for amd64 architecture (release), 2026-02-07 by *Guillaume Chervet*
+
+
+## 0.61.12
+
+
+
+## v0.61.12
+
+- [87f9236c](https://github.com/SlimPlanet/SlimFaas/commit/87f9236cf5da0a3373abc782edd295ad9d06d82e) - fix: test build (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.11
+
+- [753ccbbc](https://github.com/SlimPlanet/SlimFaas/commit/753ccbbce30fca0171f2d8718c52c3be7cfb8c4f) - fix build: test (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.10
+
+- [52b59c79](https://github.com/SlimPlanet/SlimFaas/commit/52b59c79a14da51bcce9640bc18481937dc4fd26) - fix: enable AOT multi-platform with QEMU emulation (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.9
+
+- [af4bacad](https://github.com/SlimPlanet/SlimFaas/commit/af4bacad70db00f026f8fbe410989c84ed710360) - chore: simplify Dockerfile dependencies for native AOT builds (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.8
+
+- [38c2259a](https://github.com/SlimPlanet/SlimFaas/commit/38c2259ab71a3cf8e235b2e48882f4de2400daa6) - fix: use native builds with QEMU emulation for AOT multi-platform (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.7
+
+- [c153a31b](https://github.com/SlimPlanet/SlimFaas/commit/c153a31baa1ed3bf91f1c03b676f0f2e5ebfaf47) - fix: enable AOT cross-compilation with Clang and LLD (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.6
+
+- [f22cfde0](https://github.com/SlimPlanet/SlimFaas/commit/f22cfde0d556933a8a61959cbb1ab0d033fb86c6) - fix: enable AOT cross-compilation for multi-platform builds (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.5
+
+- [7ff6e27c](https://github.com/SlimPlanet/SlimFaas/commit/7ff6e27c0532fab3b5b4cf94f1eb6971d1c678e2) - fix(build): docker arm64 (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.4
+
+- [4286a4a4](https://github.com/SlimPlanet/SlimFaas/commit/4286a4a4a252e910c837f1e91d56e54171f28faf) - fix(build):  docker arm on github (release), 2026-02-06 by *Guillaume Chervet*
+- [ea849e2e](https://github.com/SlimPlanet/SlimFaas/commit/ea849e2e0ba60b34428e56b60640ff1f81fd4458) - fix(build):  docker arm on github (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.3
+
+- [9e4f1330](https://github.com/SlimPlanet/SlimFaas/commit/9e4f13309ed159684382e0db25fad7b0c27f7212) - fix(ci): re-add slimfaas linux/arm64 docker build (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## 0.61.2
+
+
+
+## v0.61.2
+
+- [288d0d20](https://github.com/SlimPlanet/SlimFaas/commit/288d0d2081af3a76439f78e27b32d9088f642c20) - fix(slimfaas): build dockerfile (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## v0.61.1
+
+- [9193f0e4](https://github.com/SlimPlanet/SlimFaas/commit/9193f0e40720caae847249915f65ec2c189c6ca9) - refactor(slimfaas): env var to appsettings.json (#233) (release), 2026-02-06 by *Guillaume Chervet*
+
+
+## 0.61.0
+
+
+
+## v0.61.0
+
+- [8bec7d5c](https://github.com/SlimPlanet/SlimFaas/commit/8bec7d5cf203ca28819b235ea968771e934459b8) - fix(slimfaas): opentelemetry endpoint (#232) (release), 2026-01-30 by *Guillaume Chervet*
+- [3acb7934](https://github.com/SlimPlanet/SlimFaas/commit/3acb793447ed46bb152ed220d02ec0aaecc1c5c7) - feat(SlimfaasMcp): Add prometheus exporter (#213) (release), 2026-01-29 by *Silthian*
+
+
+## 0.60.9
+
+
+
+## v0.60.9
+
+- [7b8e89f3](https://github.com/SlimPlanet/SlimFaas/commit/7b8e89f3212f9c1b50e85a597c3943605ca2b115) - fix(slimfaas): override correct data (#231) (release), 2026-01-29 by *Guillaume Chervet*
+
+
+## 0.60.8
+
+
+
+## v0.60.8
+
+- [768ca2f5](https://github.com/SlimPlanet/SlimFaas/commit/768ca2f54fda208f17e83e56286545ec86a71aed) - refactor(slimfaas): replace console.writeline to logger (#229) (release), 2026-01-28 by *Guillaume Chervet*
+
+
+## 0.60.7
+
+
+
+## v0.60.7
+
+- [898828fe](https://github.com/SlimPlanet/SlimFaas/commit/898828fead773dd699803d936bce8545e21728b0) - fix(tests): repair commented tests (#228) (release), 2026-01-28 by *Guillaume Chervet*
+
+
+## 0.60.6
+
+
+
+## v0.60.6
+
+- [b21cc754](https://github.com/SlimPlanet/SlimFaas/commit/b21cc7549f2a1f40301c35cb572d97c709d28b4a) - feature(mcp): better website (#223) (release), 2026-01-24 by *Guillaume Chervet*
+
+
+## 0.60.5
+
+
+
+## v0.60.5
+
+- [7d4bf1dd](https://github.com/SlimPlanet/SlimFaas/commit/7d4bf1dd4f4cbe3a3261fc57b179e76ad9b73ba5) - fix(slimfaas): cast invalid (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.4
+
+
+
+## v0.60.4
+
+- [ffe36aa8](https://github.com/SlimPlanet/SlimFaas/commit/ffe36aa8bf3fb3657d3be51c0800800170a8e78f) - fix(slimfaas): resolve dependency (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.3
+
+
+
+## v0.60.3
+
+- [2cfc20d5](https://github.com/SlimPlanet/SlimFaas/commit/2cfc20d50dbcf5d6930e0225ddeaea27b997a9ad) - fix(cpu): remove sync function retry temporaly (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.2
+
+
+
+## v0.60.2
+
+- [59fb280e](https://github.com/SlimPlanet/SlimFaas/commit/59fb280e035b60439e52db70e878ce94c70f4d40) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+- [fc8bc7dd](https://github.com/SlimPlanet/SlimFaas/commit/fc8bc7dd134ba1157633d0cb3d56c11b0f45f96b) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+- [aeede916](https://github.com/SlimPlanet/SlimFaas/commit/aeede91641dddeb4e72fa27ad5da4ca5eb091792) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
+
+
+## 0.60.1
+
+
+
+## v0.60.1
+
+- [cf04582a](https://github.com/SlimPlanet/SlimFaas/commit/cf04582a86c16475c2c649f80907615ad60eb6a2) - fix(slimfaas): upgrade kubernetes libraries (#224) (release), 2026-01-23 by *Guillaume Chervet*
+- [6595bf8a](https://github.com/SlimPlanet/SlimFaas/commit/6595bf8abb6c68b66272c7e79df4e3e57e1c33e4) - refactor(slimfaas): minimalapi (#219), 2026-01-20 by *Guillaume Chervet*
+
+
+## 0.60.0
+
+
+
 ## v0.60.0
 
 - [5245e5f9](https://github.com/SlimPlanet/SlimFaas/commit/5245e5f9b17864ab98d88adada616a652d213bf7) - feat(slimfaas): data set api (#216) (release), 2026-01-11 by *Guillaume Chervet*
@@ -94,183 +275,5 @@
 ## v0.57.1
 
 - [5a337469](https://github.com/SlimPlanet/SlimFaas/commit/5a337469c19e7e30d5487d4d1c79dbbe2b4d2f77) - fix(slimfaas): MaxRequestBodySize (release), 2025-12-16 by *Guillaume Chervet*
-
-
-## 0.57.0
-
-
-
-## v0.57.0
-
-- [cfe3c0a9](https://github.com/SlimPlanet/SlimFaas/commit/cfe3c0a99b045ba8cebed21dd68a5384456a5049) - feat(slimfaas): add data with time-to-live (#208) (release), 2025-12-13 by *Guillaume Chervet*
-
-
-## 0.56.0
-
-
-
-## v0.56.0
-
-- [35112f51](https://github.com/SlimPlanet/SlimFaas/commit/35112f51dfd76c0fcc2fa93ea0b282a3e4d3aec9) - feat(otel): Allow to exclude urls from tracing (#207) (release), 2025-12-12 by *Silthian*
-
-
-## 0.55.2
-
-
-
-## v0.55.2
-
-- [ff112e63](https://github.com/SlimPlanet/SlimFaas/commit/ff112e639cbcb4dfc8c7dd0a0c2641ce35ab12d1) - fix(slimfaas): start failure log (release), 2025-12-11 by *Guillaume Chervet*
-- [7d7606e7](https://github.com/SlimPlanet/SlimFaas/commit/7d7606e7831049f8a737a03b4564fb4a98f7a8e2) - fix(slimfaas): ReplicasService.cs more logs (release), 2025-12-11 by *Guillaume Chervet*
-- [6cb52cc7](https://github.com/SlimPlanet/SlimFaas/commit/6cb52cc7f07a241c1a058893d9f26bcd879732df) - fix(slimfaas): ReplicasService more detailed log, 2025-12-11 by *Guillaume Chervet*
-
-
-## 0.55.1
-
-
-
-## v0.55.1
-
-- [16f57781](https://github.com/SlimPlanet/SlimFaas/commit/16f5778120cfd2205c46f051bd979e4beb23b771) - fix(slimfaas): kubernete null source error (release), 2025-12-11 by *Guillaume Chervet*
-
-
-## 0.55.0
-
-
-
-## v0.55.0
-
-- [3a260b2f](https://github.com/SlimPlanet/SlimFaas/commit/3a260b2f049460e19fbfc5f2bd8d69acf959b80b) - feat(slimfaas): Add opentelemetry connector (#205) (release), 2025-12-11 by *Silthian*
-
-
-## 0.54.2
-
-
-
-## v0.54.2
-
-- [ce562ddb](https://github.com/SlimPlanet/SlimFaas/commit/ce562ddba061cf9367611b32c2717623151f5690) - fix(slimfaas): scale stopped on infra scale error only (#206) (release), 2025-12-11 by *Guillaume Chervet*
-
-
-## 0.54.1
-
-
-
-## v0.54.1
-
-- [228dbedb](https://github.com/SlimPlanet/SlimFaas/commit/228dbedb170586642d2c371bd4c65cc87fb9e1fa) - fix(slimfaas): cluster stability (#204) (release), 2025-12-11 by *Guillaume Chervet*
-- [90fb97be](https://github.com/SlimPlanet/SlimFaas/commit/90fb97bea349957bd55c118740974d9357f514c7) - fix(compose): add container_name (#203) (release), 2025-12-11 by *antoinelrnld*
-- [5a00e98a](https://github.com/SlimPlanet/SlimFaas/commit/5a00e98a641b153547ee90a9e3c469f5adaac7f3) - fix(podman): add compatibility with .sh (#202), 2025-12-10 by *Guillaume Chervet*
-
-
-## 0.54.0
-
-
-
-## v0.54.0
-
-- [4922d09d](https://github.com/SlimPlanet/SlimFaas/commit/4922d09d044f9f9871de5c1bf0a4851e2bec527f) - feat(slimfaas): stop scale up when quota exceeded (#201) (release), 2025-12-08 by *Guillaume Chervet*
-
-
-## 0.53.0
-
-
-
-## v0.53.0
-
-- [c4028e1f](https://github.com/SlimPlanet/SlimFaas/commit/c4028e1f5226fd46b8129322efa4e42b06920345) - feat(mcp): MCP `_meta` → HTTP Header Mapping (#200) (release), 2025-12-08 by *Guillaume Chervet*
-
-
-## 0.52.0
-
-
-
-## v0.52.0
-
-- [5de9ec4e](https://github.com/SlimPlanet/SlimFaas/commit/5de9ec4e374a79980c0de6276993b89333b3109e) - doc(kafka): update demo (release), 2025-12-05 by *Guillaume Chervet*
-- [cd583bcc](https://github.com/SlimPlanet/SlimFaas/commit/cd583bcc83f1b483ea9d7488c66cdc54b8ee9a2c) - feat(mcp): Add flag to enable otel (#199), 2025-12-05 by *Silthian*
-
-
-## 0.51.0
-
-
-
-## v0.51.0
-
-- [193c5e86](https://github.com/SlimPlanet/SlimFaas/commit/193c5e86620891fbcb54748c9f1a743f951c89dc) - feat(mcp): add console exporter to otel (#198) (release), 2025-12-04 by *Silthian*
-- [af5a92db](https://github.com/SlimPlanet/SlimFaas/commit/af5a92dbb773a6613dca2ac4acb1064dc3ba90c6) - fix(doc): add kafka env var description, 2025-12-04 by *Guillaume Chervet*
-
-
-## 0.50.1
-
-
-
-## v0.50.1
-
-- [20d7a555](https://github.com/SlimPlanet/SlimFaas/commit/20d7a5555414ec4e007742bd8eea26c6dff1470d) - fix(slimfaas): scaling (#197) (release), 2025-12-03 by *Guillaume Chervet*
-
-
-## 0.50.0
-
-
-
-## v0.50.0
-
-- [14707cf5](https://github.com/SlimPlanet/SlimFaas/commit/14707cf5b5d34de3ad06dbb496dd60d0662766dc) - feat(mcp): add opentelemetry connector (#196) (release), 2025-12-03 by *Silthian*
-- [2e8193ce](https://github.com/SlimPlanet/SlimFaas/commit/2e8193cee6268519030f0c01d7dc7118316a35e7) - doc(mcp): enhance, 2025-12-01 by *Guillaume Chervet*
-
-
-## 0.49.0
-
-
-
-## v0.49.0
-
-- [e95c9f61](https://github.com/SlimPlanet/SlimFaas/commit/e95c9f611364a65eb4d688f9e26eba60b8a4f95d) - feat(mcp): log http action input (release) (#193), 2025-12-01 by *Guillaume Chervet*
-
-
-## 0.48.1
-
-
-
-## v0.48.1
-
-- [ed6129fe](https://github.com/SlimPlanet/SlimFaas/commit/ed6129fe6d8acd678afb2ff20fe71ce84631925a) - fix(doc): update kafka.md (release), 2025-11-29 by *Guillaume Chervet*
-
-
-## 0.48.0
-
-
-
-## v0.48.0
-
-- [d4da9c27](https://github.com/SlimPlanet/SlimFaas/commit/d4da9c27ea3d7ca8ff7650adfaaa9406d70e1c51) - feat(slimfaas): autoscale down rule (#192) (release), 2025-11-29 by *Guillaume Chervet*
-
-
-## 0.47.1
-
-
-
-## v0.47.1
-
-- [baf622bf](https://github.com/SlimPlanet/SlimFaas/commit/baf622bf3ab8e8bcba638d8cb9dc2ce90031306b) - fix(slimfaas): startup node reboot raft (#191) (release), 2025-11-28 by *Guillaume Chervet*
-
-
-## 0.47.0
-
-
-
-## v0.47.0
-
-- [9d92252d](https://github.com/SlimPlanet/SlimFaas/commit/9d92252de5c41c632c4f1c69e4b2602e77fcb5ac) - feat(slimfaaskafka): add slimfaas kafka (#190) (release), 2025-11-27 by *Guillaume Chervet*
-
-
-## 0.46.0
-
-
-
-## v0.46.0
-
-- [072fd86b](https://github.com/SlimPlanet/SlimFaas/commit/072fd86bfae0527b969615a4ac3c6c851cd785d0) - feat(slimfaas): NumberParallelRequestPerPod (#189) (release), 2025-11-25 by *Guillaume Chervet*
 
 

@@ -8,13 +8,13 @@ namespace SlimFaasMcp.Extensions;
 
 public static class OpenTelemetryExtensions
 {
-    public static IServiceCollection AddOpenTelemetry(
+    public static bool AddOpenTelemetry(
         this IServiceCollection services,
         OpenTelemetryConfig config)
     {
         if (!config.Enable)
         {
-            return services;
+            return false;
         }
 
         var resourceBuilder = CreateResourceBuilder(config.ServiceName);
@@ -24,7 +24,7 @@ public static class OpenTelemetryExtensions
             .WithMetrics(meterProviderBuilder => ConfigureMetric(config, meterProviderBuilder, resourceBuilder))
             .WithLogging(loggerProviderBuilder => ConfigureLogging(config, loggerProviderBuilder, resourceBuilder));
 
-        return services;
+        return true;
     }
 
     private static ResourceBuilder CreateResourceBuilder(string? serviceName)
@@ -99,6 +99,8 @@ public static class OpenTelemetryExtensions
                 ? options => options.Endpoint = new Uri(config.Endpoint)
                 : _ => { }
         );
+
+        meterProviderBuilder.AddPrometheusExporter();
 
         if (config.EnableConsoleExporter)
         {

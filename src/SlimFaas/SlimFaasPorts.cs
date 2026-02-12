@@ -1,4 +1,8 @@
-﻿namespace SlimFaas;
+﻿﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using SlimFaas.Options;
+
+namespace SlimFaas;
 
 public interface ISlimFaasPorts
 {
@@ -9,10 +13,9 @@ public class SlimFaasPorts : ISlimFaasPorts
 {
     public IList<int> Ports { get; }
 
-    public SlimFaasPorts(IReplicasService replicasService)
+    public SlimFaasPorts(IReplicasService replicasService, ILogger<SlimFaasPorts> logger, IOptions<SlimFaasOptions> slimFaasOptions)
     {
-        string slimDataUrl = (Environment.GetEnvironmentVariable(EnvironmentVariables.BaseSlimDataUrl) ??
-                              EnvironmentVariables.BaseSlimDataUrlDefault);
+        string slimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
         if(slimDataUrl.EndsWith("/"))
         {
             slimDataUrl = slimDataUrl.Substring(0, slimDataUrl.Length - 1);
@@ -22,7 +25,7 @@ public class SlimFaasPorts : ISlimFaasPorts
 
         if(ports == null)
         {
-            Console.WriteLine($"Slimfaas no ports found");
+            logger.LogWarning("SlimFaas no ports found");
             Ports = new List<int>();
             return;
         }
@@ -30,7 +33,7 @@ public class SlimFaasPorts : ISlimFaasPorts
         Ports = mergedPorts.Where(p => p != slimDataUrlPort).ToList();
         foreach (int port in Ports)
         {
-            Console.WriteLine($"SlimFaasPorts: {port}");
+            logger.LogInformation("SlimFaasPorts: {Port}", port);
         }
     }
     public static string RemoveLastPathSegment(string? url)

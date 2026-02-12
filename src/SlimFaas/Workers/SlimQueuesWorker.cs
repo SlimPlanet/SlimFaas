@@ -1,24 +1,30 @@
-﻿using MemoryPack;
+﻿﻿using MemoryPack;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas;
 
 internal record struct RequestToWait(Task<HttpResponseMessage> Task, CustomRequest CustomRequest, string Id);
 
-public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService replicasService,
-        HistoryHttpMemoryService historyHttpService, ILogger<SlimQueuesWorker> logger,
-        IServiceProvider serviceProvider,
-        ISlimDataStatus slimDataStatus,
-        IMasterService masterService,
-        int delay = EnvironmentVariables.SlimWorkerDelayMillisecondsDefault)
+public class SlimQueuesWorker(
+    ISlimFaasQueue slimFaasQueue,
+    IReplicasService replicasService,
+    HistoryHttpMemoryService historyHttpService,
+    ILogger<SlimQueuesWorker> logger,
+    IServiceProvider serviceProvider,
+    ISlimDataStatus slimDataStatus,
+    IMasterService masterService,
+    IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
 
     public const string SlimfaasElementId = "SlimFaas-Element-Id";
-    private readonly int _delay =
-        EnvironmentVariables.ReadInteger(logger, EnvironmentVariables.SlimWorkerDelayMilliseconds, delay);
+    public const string SlimfaasTryNumber = "SlimFaas-Try-Number";
+    public const string SlimfaasLastTry = "Slimfaas-Last-Try";
+    private readonly int _delay = workersOptions.Value.QueuesDelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -115,7 +121,10 @@ public class SlimQueuesWorker(ISlimFaasQueue slimFaasQueue, IReplicasService rep
                 TimeoutRetries = [],
                 HttpStatusRetries = []
             };
-            customRequest.Headers.Add(new CustomHeader(SlimfaasElementId, [requestJson.Id]));
+            List<CustomHeader> customRequestHeaders = customRequest.Headers;
+            customRequestHeaders.Add(new CustomHeader(SlimfaasElementId, [requestJson.Id]));
+            customRequestHeaders.Add(new CustomHeader(SlimfaasLastTry, [requestJson.IsLastTry.ToString().ToLowerInvariant()]));
+            customRequestHeaders.Add(new CustomHeader(SlimfaasTryNumber, [requestJson.TryNumber.ToString()]));
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
                 .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, new Proxy(replicasService, functionDeployment));
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id));

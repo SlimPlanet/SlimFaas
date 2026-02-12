@@ -47,21 +47,21 @@ services:
 
   slimfaas:
     container_name: slimfaas-1
-    image: axaguildev/slimfaas:latest
-   # build:
-   #   context: .
-      #dockerfile: ./Dockerfile
+    #image: axaguildev/slimfaas:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     ports:
       - "30021:30021"
     user: "0:0"
     environment:
       DOCKER_HOST: "${DOCKER_HOST:-unix:///var/run/docker.sock}"
-      BASE_SLIMDATA_URL: "http://localhost:3262/"
       ASPNETCORE_URLS: "http://0.0.0.0:30021"
-      SLIMFAAS_ORCHESTRATOR: "Docker"
       HOSTNAME: "slimfaas-1"
-      SLIMDATA_DIRECTORY: "/database"
-      SLIMFAAS_JOBS_CONFIGURATION: |
+      SlimFaas__BaseSlimDataUrl: "http://localhost:3262/"
+      SlimFaas__Orchestrator: "Docker"
+      SlimData__Directory: "/database"
+      SlimFaas__JobsConfiguration: |
         {
           "Configurations": {
             "fibonacci": {

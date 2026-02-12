@@ -1,14 +1,14 @@
-﻿namespace SlimFaas.Kubernetes;
+﻿using Microsoft.Extensions.Logging;
+
+namespace SlimFaas.Kubernetes;
 
 public class Namespace
 {
-    public static string GetNamespace()
+    /// <summary>
+    /// Gets the namespace from Kubernetes service account or returns default
+    /// </summary>
+    public static string GetNamespace(ILogger logger, string defaultNamespace = "default")
     {
-        string? namespace_ = Environment.GetEnvironmentVariable(EnvironmentVariables.Namespace);
-        if (!string.IsNullOrEmpty(namespace_))
-        {
-            return namespace_;
-        }
         const string namespaceFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace";
 
         try
@@ -16,19 +16,16 @@ public class Namespace
             if (File.Exists(namespaceFilePath))
             {
                 string namespaceName = File.ReadAllText(namespaceFilePath).Trim();
-                Console.WriteLine($"Namespace actuel : {namespaceName}");
-                Environment.SetEnvironmentVariable(EnvironmentVariables.Namespace, namespaceName);
+                logger.LogInformation("Namespace file found: {NamespaceName}", namespaceName);
                 return namespaceName;
             }
-            else
-            {
-                Console.WriteLine("Fichier de namespace introuvable.");
-            }
+
+            logger.LogWarning("Namespace file not found");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Erreur lors de la lecture du namespace : {ex.Message}");
+            logger.LogError(ex, "Error reading namespace file");
         }
-        return EnvironmentVariables.NamespaceDefault;
+        return defaultNamespace;
     }
 }
