@@ -6,7 +6,7 @@ public class CpuRateLimitingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly RateLimitingOptions _options;
-    private readonly ICpuUsageProvider _cpuUsageProvider;
+    private readonly ICpuMetrics _cpuMetrics;
     private readonly ILogger<CpuRateLimitingMiddleware> _logger;
     private readonly int[] _excludedPorts;
     private bool _isLimiting;
@@ -14,13 +14,13 @@ public class CpuRateLimitingMiddleware
     public CpuRateLimitingMiddleware(
         RequestDelegate next,
         IOptions<RateLimitingOptions> options,
-        ICpuUsageProvider cpuUsageProvider,
+        ICpuMetrics cpuMetrics,
         ILogger<CpuRateLimitingMiddleware> logger,
         int[] excludedPorts)
     {
         _next = next;
         _options = options.Value;
-        _cpuUsageProvider = cpuUsageProvider;
+        _cpuMetrics = cpuMetrics;
         _logger = logger;
         _excludedPorts = excludedPorts;
     }
@@ -41,7 +41,7 @@ public class CpuRateLimitingMiddleware
             return;
         }
 
-        double currentCpu = _cpuUsageProvider.CurrentCpuPercent;
+        double currentCpu = _cpuMetrics.CurrentCpuPercent;
 
         if (currentCpu >= _options.CpuHighThreshold)
         {

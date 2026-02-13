@@ -21,7 +21,7 @@ public class CpuRateLimitingMiddlewareTests
     public async Task InvokeAsync_WhenDisabled_CallsNext()
     {
         var options = CreateOptions(new RateLimitingOptions { Enabled = false });
-        var cpuProvider = new Mock<ICpuUsageProvider>();
+        var cpuProvider = new Mock<ICpuMetrics>();
         var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
         bool nextCalled = false;
         RequestDelegate next = _ =>
@@ -45,7 +45,7 @@ public class CpuRateLimitingMiddlewareTests
         {
             Enabled = true, CpuHighThreshold = 80, CpuLowThreshold = 60
         });
-        var cpuProvider = new Mock<ICpuUsageProvider>();
+        var cpuProvider = new Mock<ICpuMetrics>();
         var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
         bool nextCalled = false;
         RequestDelegate next = _ =>
@@ -69,7 +69,7 @@ public class CpuRateLimitingMiddlewareTests
         {
             Enabled = true, CpuHighThreshold = 80, CpuLowThreshold = 60
         });
-        var cpuProvider = new Mock<ICpuUsageProvider>();
+        var cpuProvider = new Mock<ICpuMetrics>();
         var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
         bool nextCalled = false;
         RequestDelegate next = _ =>
@@ -96,7 +96,7 @@ public class CpuRateLimitingMiddlewareTests
             CpuLowThreshold = 60,
             ExcludedPaths = ["/health"]
         });
-        var cpuProvider = new Mock<ICpuUsageProvider>();
+        var cpuProvider = new Mock<ICpuMetrics>();
         cpuProvider.Setup(p => p.CurrentCpuPercent).Returns(90);
         var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
         bool nextCalled = false;
@@ -124,7 +124,7 @@ public class CpuRateLimitingMiddlewareTests
             CpuLowThreshold = 60,
             RetryAfterSeconds = 5
         });
-        var cpuProvider = new Mock<ICpuUsageProvider>();
+        var cpuProvider = new Mock<ICpuMetrics>();
         cpuProvider.Setup(p => p.CurrentCpuPercent).Returns(85);
         var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
         RequestDelegate next = _ => Task.CompletedTask;
@@ -151,7 +151,7 @@ public class CpuRateLimitingMiddlewareTests
         {
             Enabled = true, CpuHighThreshold = 80, CpuLowThreshold = 60
         });
-        var cpuProvider = new Mock<ICpuUsageProvider>();
+        var cpuProvider = new Mock<ICpuMetrics>();
         var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
         RequestDelegate next = _ => Task.CompletedTask;
 
@@ -196,7 +196,7 @@ public class CpuRateLimitingMiddlewareTests
             CpuHighThreshold = 80,
             CpuLowThreshold = 60
         });
-        var cpuProvider = new Mock<ICpuUsageProvider>();
+        var cpuProvider = new Mock<ICpuMetrics>();
         cpuProvider.Setup(p => p.CurrentCpuPercent).Returns(85);
         var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
         RequestDelegate next = _ => Task.CompletedTask;
@@ -220,7 +220,7 @@ public class CpuRateLimitingMiddlewareTests
         {
             Enabled = true, CpuHighThreshold = 80, CpuLowThreshold = 60
         });
-        var cpuProvider = new Mock<ICpuUsageProvider>();
+        var cpuProvider = new Mock<ICpuMetrics>();
         cpuProvider.Setup(p => p.CurrentCpuPercent).Returns(50);
         var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
         bool nextCalled = false;

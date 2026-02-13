@@ -21,8 +21,8 @@ public static class RateLimitingExtensions
             .Validate(options => !options.Enabled || options.IsValid(),
                 "Invalid RateLimiting configuration.");
 
-        services.AddSingleton<CpuUsageProvider>();
-        services.AddSingleton<ICpuUsageProvider>(sp => sp.GetRequiredService<CpuUsageProvider>());
+        services.AddSingleton<CpuMetrics>();
+        services.AddSingleton<ICpuMetrics>(sp => sp.GetRequiredService<CpuMetrics>());
         services.AddHostedService<CpuMonitoringWorker>();
 
         return services;

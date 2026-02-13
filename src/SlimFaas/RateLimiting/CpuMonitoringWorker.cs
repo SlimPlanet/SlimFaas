@@ -6,16 +6,16 @@ public class CpuMonitoringWorker : BackgroundService
 {
     private readonly ILogger<CpuMonitoringWorker> _logger;
     private readonly RateLimitingOptions _options;
-    private readonly CpuUsageProvider _cpuUsageProvider;
+    private readonly CpuMetrics _cpuMetrics;
 
     public CpuMonitoringWorker(
         IOptions<RateLimitingOptions> options,
-        CpuUsageProvider cpuUsageProvider,
+        CpuMetrics cpuMetrics,
         ILogger<CpuMonitoringWorker> logger)
     {
         _logger = logger;
         _options = options.Value;
-        _cpuUsageProvider = cpuUsageProvider;
+        _cpuMetrics = cpuMetrics;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -34,12 +34,18 @@ public class CpuMonitoringWorker : BackgroundService
 
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_options.SampleIntervalMs));
 
+        await timer.WaitForNextTickAsync(stoppingToken);
+
+        var previousSnapshot = CpuMetrics.GetCurrentCpuSnapshot();
+
         while (await timer.WaitForNextTickAsync(stoppingToken))
         {
+            var currentSnapshot = CpuMetrics.GetCurrentCpuSnapshot();
+
             try
             {
-                double cpuPercent = await CpuUsageProvider.GetCurrentCpuUsage();
-                _cpuUsageProvider.UpdateCpuUsage(cpuPercent);
+                double cpuPercent = CpuMetrics.CalculateCpuUsage(previousSnapshot, currentSnapshot);
+                _cpuMetrics.UpdateCpuUsage(cpuPercent);
 
                 if (_logger.IsEnabled(LogLevel.Warning) && cpuPercent >= _options.CpuHighThreshold)
                 {
@@ -49,6 +55,10 @@ public class CpuMonitoringWorker : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error monitoring CPU usage");
+            }
+            finally
+            {
+                previousSnapshot = currentSnapshot;
             }
         }
     }

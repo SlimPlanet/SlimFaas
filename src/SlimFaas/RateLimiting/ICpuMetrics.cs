@@ -1,6 +1,6 @@
 namespace SlimFaas.RateLimiting;
 
-public interface ICpuUsageProvider
+public interface ICpuMetrics
 {
     double CurrentCpuPercent { get; }
 }

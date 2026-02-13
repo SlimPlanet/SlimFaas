@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace SlimFaas.RateLimiting;
 
-public class CpuUsageProvider : ICpuUsageProvider
+public class CpuMetrics : ICpuMetrics
 {
     private double _currentCpuPercent;
     private readonly Lock _lock = new();
@@ -26,19 +26,23 @@ public class CpuUsageProvider : ICpuUsageProvider
         }
     }
 
-    public static async Task<double> GetCurrentCpuUsage()
+    public static (TimeSpan CpuTime, long TimestampTicks) GetCurrentCpuSnapshot()
     {
-        var startTime = DateTime.UtcNow;
-        var startCpuUsage = Process.GetCurrentProcess().TotalProcessorTime;
+        return (Process.GetCurrentProcess().TotalProcessorTime, Stopwatch.GetTimestamp());
+    }
 
-        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
-        await timer.WaitForNextTickAsync();
+    public static double CalculateCpuUsage(
+        (TimeSpan CpuTime, long TimestampTicks) start,
+        (TimeSpan CpuTime, long TimestampTicks) end)
+    {
+        double cpuUsedMs = (end.CpuTime - start.CpuTime).TotalMilliseconds;
+        double totalMsPassed = (end.TimestampTicks - start.TimestampTicks) * 1000.0 / Stopwatch.Frequency;
 
-        var endTime = DateTime.UtcNow;
-        var endCpuUsage = Process.GetCurrentProcess().TotalProcessorTime;
+        if (totalMsPassed <= 0)
+        {
+            return 0;
+        }
 
-        double cpuUsedMs = (endCpuUsage - startCpuUsage).TotalMilliseconds;
-        double totalMsPassed = (endTime - startTime).TotalMilliseconds;
         double cpuUsageTotal = cpuUsedMs / (Environment.ProcessorCount * totalMsPassed);
 
         return cpuUsageTotal * 100;
