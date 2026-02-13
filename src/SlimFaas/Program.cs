@@ -250,6 +250,8 @@ builder.Services
     .Validate(o => o.DefaultVisibility is FunctionVisibility.Public or FunctionVisibility.Private,
         "Data:DefaultVisibility must be Public or Private.");
 
+builder.Services.AddCpuRateLimiting(builder.Configuration);
+
 serviceCollectionSlimFaas.AddCors();
 
 string publicEndPoint = string.Empty;
@@ -533,6 +535,25 @@ app.MapDebugRoutes();
 
 // Map SlimFaas endpoints (remplace SlimProxyMiddleware)
 app.MapSlimFaasEndpoints();
+
+List<int> excludedPorts = [];
+
+if (!string.IsNullOrEmpty(publicEndPoint))
+{
+    try
+    {
+        Uri slimDataUri = new(publicEndPoint);
+        int slimDataPort = slimDataUri.Port;
+        excludedPorts.Add(slimDataPort);
+        startupLogger.LogInformation("SlimData port {SlimDataPort} will be excluded from rate limiting", slimDataPort);
+    }
+    catch (Exception ex)
+    {
+        startupLogger.LogWarning(ex, "Failed to extract SlimData port from publicEndPoint: {PublicEndPoint}", publicEndPoint);
+    }
+}
+
+app.UseCpuRateLimiting(excludedPorts.ToArray());
 
 app.Use(async (context, next) =>
 {
