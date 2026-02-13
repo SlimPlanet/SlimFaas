@@ -26,27 +26,21 @@ public class CpuUsageProvider : ICpuUsageProvider
         }
     }
 
-    public static double GetCurrentCpuUsage()
+    public static async Task<double> GetCurrentCpuUsage()
     {
-        try
-        {
-            var startTime = DateTime.UtcNow;
-            var startCpuUsage = Process.GetCurrentProcess().TotalProcessorTime;
+        var startTime = DateTime.UtcNow;
+        var startCpuUsage = Process.GetCurrentProcess().TotalProcessorTime;
 
-            Thread.Sleep(100);
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(100));
+        await timer.WaitForNextTickAsync();
 
-            var endTime = DateTime.UtcNow;
-            var endCpuUsage = Process.GetCurrentProcess().TotalProcessorTime;
+        var endTime = DateTime.UtcNow;
+        var endCpuUsage = Process.GetCurrentProcess().TotalProcessorTime;
 
-            double cpuUsedMs = (endCpuUsage - startCpuUsage).TotalMilliseconds;
-            double totalMsPassed = (endTime - startTime).TotalMilliseconds;
-            double cpuUsageTotal = cpuUsedMs / (Environment.ProcessorCount * totalMsPassed);
+        double cpuUsedMs = (endCpuUsage - startCpuUsage).TotalMilliseconds;
+        double totalMsPassed = (endTime - startTime).TotalMilliseconds;
+        double cpuUsageTotal = cpuUsedMs / (Environment.ProcessorCount * totalMsPassed);
 
-            return cpuUsageTotal * 100;
-        }
-        catch
-        {
-            return 0;
-        }
+        return cpuUsageTotal * 100;
     }
 }

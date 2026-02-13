@@ -23,9 +23,9 @@ public class CpuUsageProviderTests
     }
 
     [Fact]
-    public void GetCurrentCpuUsage_ReturnsNonNegativeValue()
+    public async Task GetCurrentCpuUsage_ReturnsNonNegativeValue()
     {
-        double cpuUsage = CpuUsageProvider.GetCurrentCpuUsage();
+        double cpuUsage = await CpuUsageProvider.GetCurrentCpuUsage();
 
         Assert.True(cpuUsage >= 0);
         Assert.True(cpuUsage <= 100 * Environment.ProcessorCount);

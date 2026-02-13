@@ -2,16 +2,16 @@ using Microsoft.Extensions.Options;
 
 namespace SlimFaas.RateLimiting;
 
-public class CpuMonitoringService : BackgroundService
+public class CpuMonitoringWorker : BackgroundService
 {
-    private readonly ILogger<CpuMonitoringService> _logger;
+    private readonly ILogger<CpuMonitoringWorker> _logger;
     private readonly RateLimitingOptions _options;
     private readonly CpuUsageProvider _cpuUsageProvider;
 
-    public CpuMonitoringService(
+    public CpuMonitoringWorker(
         IOptions<RateLimitingOptions> options,
         CpuUsageProvider cpuUsageProvider,
-        ILogger<CpuMonitoringService> logger)
+        ILogger<CpuMonitoringWorker> logger)
     {
         _logger = logger;
         _options = options.Value;
@@ -32,11 +32,13 @@ public class CpuMonitoringService : BackgroundService
             _options.CpuHighThreshold,
             _options.CpuLowThreshold);
 
-        while (!stoppingToken.IsCancellationRequested)
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_options.SampleIntervalMs));
+
+        while (await timer.WaitForNextTickAsync(stoppingToken))
         {
             try
             {
-                double cpuPercent = CpuUsageProvider.GetCurrentCpuUsage();
+                double cpuPercent = await CpuUsageProvider.GetCurrentCpuUsage();
                 _cpuUsageProvider.UpdateCpuUsage(cpuPercent);
 
                 if (_logger.IsEnabled(LogLevel.Warning) && cpuPercent >= _options.CpuHighThreshold)
@@ -48,8 +50,6 @@ public class CpuMonitoringService : BackgroundService
             {
                 _logger.LogError(ex, "Error monitoring CPU usage");
             }
-
-            await Task.Delay(_options.SampleIntervalMs, stoppingToken);
         }
     }
 }

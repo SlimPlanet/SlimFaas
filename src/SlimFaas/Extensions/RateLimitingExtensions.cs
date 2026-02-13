@@ -23,7 +23,7 @@ public static class RateLimitingExtensions
 
         services.AddSingleton<CpuUsageProvider>();
         services.AddSingleton<ICpuUsageProvider>(sp => sp.GetRequiredService<CpuUsageProvider>());
-        services.AddHostedService<CpuMonitoringService>();
+        services.AddHostedService<CpuMonitoringWorker>();
 
         return services;
     }
