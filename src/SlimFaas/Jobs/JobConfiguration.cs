@@ -1,4 +1,4 @@
-﻿﻿﻿using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
@@ -8,18 +8,29 @@ namespace SlimFaas.Jobs;
 
 public interface IJobConfiguration
 {
-    SlimFaasJobConfiguration Configuration { get; }
+    SlimFaasJobConfiguration Configuration { get; set; }
+
+    Task SyncJobsConfigurationAsync();
 }
 
 public class JobConfiguration : IJobConfiguration
 {
     public const string Default = "Default";
 
-    public SlimFaasJobConfiguration Configuration { get; }
 
-
-    public JobConfiguration(IOptions<SlimFaasOptions> slimFaasOptions, ILogger<JobConfiguration> logger)
+    private SlimFaasJobConfiguration _configuration;
+    public SlimFaasJobConfiguration Configuration
     {
+        get => _configuration;
+        set => _configuration = value;
+    }
+    private readonly IKubernetesService _service;
+
+    private readonly string _namespace;
+
+    public JobConfiguration(IOptions<SlimFaasOptions> slimFaasOptions, IKubernetesService kubernetesService, ILogger<JobConfiguration> logger, INamespaceProvider namespaceProvider)
+    {
+        _namespace = namespaceProvider.CurrentNamespace;
         SlimFaasJobConfiguration? slimfaasJobConfiguration = null;
         Dictionary<string, string> resources = new();
         resources.Add("cpu", "100m");
@@ -72,6 +83,15 @@ public class JobConfiguration : IJobConfiguration
             }
         }
 
-        Configuration = slimfaasJobConfiguration;
+        _configuration = slimfaasJobConfiguration;
+        _service = kubernetesService;
+    }
+
+    public async Task SyncJobsConfigurationAsync()
+    {
+        var configuration = await _service.ListJobsConfigurationAsync(_namespace);
+
+        if (configuration != null)
+            Interlocked.Exchange(ref _configuration, configuration);
     }
 }
