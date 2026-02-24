@@ -66,6 +66,14 @@ spec:
         resources:
           requests:
             storage: 2Gi
+    - metadata:
+        name: slimfaas-backup
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
   template:
     metadata:
       labels:
@@ -97,6 +105,8 @@ spec:
           env:
             - name: SlimData__Directory
               value: "/database"
+            - name: SlimData__BackupDirectory
+              value: "/backup"
             - name: Data__DefaultVisibility
               value: "Public"
             - name: SlimFaas__JobsConfiguration
@@ -107,6 +117,8 @@ spec:
           volumeMounts:
             - name: slimfaas-volume
               mountPath: /database
+            - name: slimfaas-backup
+              mountPath: /backup
           resources:
             limits:
               memory: "180Mi"

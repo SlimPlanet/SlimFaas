@@ -409,6 +409,77 @@ curl -X DELETE http://<slimfaas>/job-schedules/fibonacci/0
 > **Behaviour**
 > At the scheduled time, SlimFaas triggers the job exactly as if you had called `POST /job/<jobName>` with the provided overrides. Dependency checks, visibility rules, and concurrency limits all apply identically.
 
+### 5.1 Backup & Restore of Dynamic Schedules
+
+Dynamic schedules (created at runtime via `POST /job-schedules`) are stored in the internal SlimData Raft database. When nodes become desynchronised, you may need to delete the Raft volumes to recover — which also deletes your schedules.
+
+To prevent data loss, SlimFaas can **automatically back up** all dynamic schedule data to a **separate volume** and **restore** it on cold start when the database is empty.
+
+#### Enabling backup
+
+Set the `SlimData__BackupDirectory` environment variable to a path that points to a **dedicated persistent volume** (separate from the Raft database volume):
+
+| **Environment Variable**       | **Description**                                                                                              | **Default** |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------ | ----------- |
+| `SlimData__BackupDirectory`    | Directory path for schedule backup storage. When set, backup is enabled. When empty/null, backup is disabled. | `null`       |
+
+#### How it works
+
+1. **Backup** — Every time a schedule is created or deleted via the API, all `ScheduleJob:*` data is saved as a JSON file (`schedule-jobs-backup.json`) in the backup directory. All nodes perform the same backup.
+2. **Restore** — On cold start (`coldStart=true`) with an empty database, the **master node** checks the backup directory. If a backup file exists, it restores all schedule entries automatically.
+
+> **Important**: The backup volume must be **separate** from the Raft database volume. This way, when you delete the Raft volumes to fix desynchronisation, the backup volume is preserved.
+
+#### Kubernetes example
+
+```yaml
+volumeClaimTemplates:
+  - metadata:
+      name: slimfaas-volume        # Raft database
+    spec:
+      accessModes: [ ReadWriteOnce ]
+      resources:
+        requests:
+          storage: 2Gi
+  - metadata:
+      name: slimfaas-backup         # Schedule backup (separate volume)
+    spec:
+      accessModes: [ ReadWriteOnce ]
+      resources:
+        requests:
+          storage: 1Gi
+```
+
+```yaml
+env:
+  - name: SlimData__Directory
+    value: "/database"
+  - name: SlimData__BackupDirectory
+    value: "/backup"
+volumeMounts:
+  - name: slimfaas-volume
+    mountPath: /database
+  - name: slimfaas-backup
+    mountPath: /backup
+```
+
+#### Docker Compose example
+
+```yaml
+services:
+  slimfaas:
+    environment:
+      SlimData__Directory: "/database"
+      SlimData__BackupDirectory: "/backup"
+    volumes:
+      - slimfaas_data:/database
+      - slimfaas_backup:/backup
+
+volumes:
+  slimfaas_data:
+  slimfaas_backup:
+```
+
 ---
 
 ## 6. Visibility: Public vs. Private

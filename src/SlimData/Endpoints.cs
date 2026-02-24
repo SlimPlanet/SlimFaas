@@ -158,6 +158,8 @@ public class Endpoints
 
             var hashsetSet = MemoryPackSerializer.Deserialize<HashsetSet>(value);
             await AddHashSetCommand(provider, hashsetSet.Key, hashsetSet.Values, expireAtUtcTicks, cluster, source);
+
+            NotifyScheduleJobBackupIfNeeded(context, hashsetSet.Key);
         });
     }
 
@@ -202,6 +204,8 @@ public class Endpoints
             context.Request.Query.TryGetValue("dictionaryKey", out var dictionaryKey);
             await DeleteHashSetCommand(provider, key.ToString(), dictionaryKey.ToString(), cluster, source!);
             context.Response.StatusCode = StatusCodes.Status204NoContent;
+
+            NotifyScheduleJobBackupIfNeeded(context, key.ToString());
         });
         await task;
     }
@@ -607,6 +611,19 @@ public class Endpoints
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
+    }
+
+    public const string ScheduleJobPrefix = "ScheduleJob:";
+
+    private static void NotifyScheduleJobBackupIfNeeded(HttpContext context, string key)
+    {
+        if (!key.StartsWith(ScheduleJobPrefix, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        var notifier = context.RequestServices.GetService<IScheduleJobBackupNotifier>();
+        notifier?.NotifyChange();
     }
 }
 

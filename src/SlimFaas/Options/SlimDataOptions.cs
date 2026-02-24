@@ -21,4 +21,11 @@ public class SlimDataOptions
     /// Allow cold start for SlimData
     /// </summary>
     public bool AllowColdStart { get; set; }
+
+    /// <summary>
+    /// Directory path for ScheduleJob backup storage.
+    /// When set, ScheduleJob data is backed up to this directory as JSON.
+    /// On cold start with an empty database, data is restored from this backup.
+    /// </summary>
+    public string? BackupDirectory { get; set; }
 }

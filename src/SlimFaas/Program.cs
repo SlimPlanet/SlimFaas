@@ -373,7 +373,9 @@ Dictionary<string, string> slimDataDefaultConfiguration = new()
 
 var allowUnsecureSSL = slimFaasOptions.AllowUnsecureSsl;
 
+serviceCollectionSlimFaas.AddSingleton<IScheduleJobBackupNotifier, ScheduleJobBackupNotifier>();
 serviceCollectionSlimFaas.AddHostedService<SlimDataSynchronizationWorker>();
+serviceCollectionSlimFaas.AddHostedService<ScheduleJobBackupWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
 serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
