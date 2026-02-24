@@ -145,6 +145,7 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             _logger.LogInformation("ScheduleJobBackupWorker: restoring from backup file {Path}", BackupFilePath);
 
             var json = await File.ReadAllTextAsync(BackupFilePath, ct);
+            _logger.LogDebug("ScheduleJobBackupWorker: restore JSON content: {Json}", json);
             var backupData = JsonSerializer.Deserialize(json, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);
             if (backupData?.Hashsets == null || backupData.Hashsets.Count == 0)
             {
@@ -225,6 +226,7 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             // Write to a temp file then atomic rename for crash safety
             var tempPath = BackupFilePath + ".tmp";
             var json = JsonSerializer.Serialize(backupData, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);
+            _logger.LogDebug("ScheduleJobBackupWorker: backup JSON content: {Json}", json);
             await File.WriteAllTextAsync(tempPath, json, ct);
             File.Move(tempPath, BackupFilePath, overwrite: true);
 
