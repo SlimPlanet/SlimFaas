@@ -417,18 +417,20 @@ To prevent data loss, SlimFaas can **automatically back up** all dynamic schedul
 
 #### Enabling backup
 
-Set the `SlimData__BackupDirectory` environment variable to a path that points to a **dedicated persistent volume** (separate from the Raft database volume):
+Set the following environment variables. `SlimData__BackupDirectory` is required; `SlimData__BackupIntervalSeconds` is optional.
 
-| **Environment Variable**       | **Description**                                                                                              | **Default** |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------ | ----------- |
-| `SlimData__BackupDirectory`    | Directory path for schedule backup storage. When set, backup is enabled. When empty/null, backup is disabled. | `null`       |
+| **Environment Variable**            | **Description**                                                                                                                                                                   | **Default** |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `SlimData__BackupDirectory`         | Directory path for schedule backup storage. When set, backup is enabled. When empty/unset, backup is disabled.                                                                    | `null`      |
+| `SlimData__BackupIntervalSeconds`   | How often (in seconds) each node checks whether the schedule data has changed and writes a fresh backup. The file is only written when the content has actually changed (SHA-256 hash comparison). | `60`        |
 
 #### How it works
 
-1. **Backup** — Every time a schedule is created or deleted via the API, all `ScheduleJob:*` data is saved as a JSON file (`schedule-jobs-backup.json`) in the backup directory. All nodes perform the same backup.
-2. **Restore** — On cold start (`coldStart=true`) with an empty database, the **master node** checks the backup directory. If a backup file exists, it restores all schedule entries automatically.
+1. **Periodic backup** — Every `BackupIntervalSeconds` seconds, each node reads all `ScheduleJob:*` hashsets from its local Raft state and computes a SHA-256 hash. The backup file (`schedule-jobs-backup.json`) is written to the backup directory **only when the hash differs** from the previous write, avoiding unnecessary I/O. All nodes perform this backup independently on their own volume.
+2. **Startup sync** — When any node starts and the Raft state already contains schedule data (e.g., it joined an existing cluster), it immediately writes a backup before entering the periodic loop.
+3. **Restore** — On cold start (`coldStart=true`) with an **empty** database, the **master node** checks the backup directory. If a non-empty backup file exists, it restores all schedule entries into the Raft cluster automatically.
 
-> **Important**: The backup volume must be **separate** from the Raft database volume. This way, when you delete the Raft volumes to fix desynchronisation, the backup volume is preserved.
+> **Important**: The backup volume must be **separate** from the Raft database volume. This way, when you delete the Raft volumes to fix desynchronisation, the backup volume is preserved and the schedules can be restored on the next cold start.
 
 #### Kubernetes example
 
@@ -442,7 +444,7 @@ volumeClaimTemplates:
         requests:
           storage: 2Gi
   - metadata:
-      name: slimfaas-backup         # Schedule backup (separate volume)
+      name: slimfaas-backup        # Schedule backup (separate volume)
     spec:
       accessModes: [ ReadWriteOnce ]
       resources:
@@ -456,6 +458,8 @@ env:
     value: "/database"
   - name: SlimData__BackupDirectory
     value: "/backup"
+  - name: SlimData__BackupIntervalSeconds
+    value: "60"
 volumeMounts:
   - name: slimfaas-volume
     mountPath: /database
@@ -471,6 +475,7 @@ services:
     environment:
       SlimData__Directory: "/database"
       SlimData__BackupDirectory: "/backup"
+      SlimData__BackupIntervalSeconds: "60"
     volumes:
       - slimfaas_data:/database
       - slimfaas_backup:/backup
