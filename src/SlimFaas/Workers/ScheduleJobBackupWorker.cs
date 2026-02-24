@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using DotNext;
 using Microsoft.Extensions.Options;
@@ -9,25 +11,30 @@ using SlimFaas.Options;
 namespace SlimFaas.Workers;
 
 /// <summary>
-/// Background worker that:
-///   1. On startup in coldStart mode with an empty database, restores ScheduleJob data from the backup volume.
-///   2. Listens to <see cref="IScheduleJobBackupNotifier"/> signals and backs up all ScheduleJob hashsets to a JSON file.
-/// All nodes perform the same backup; only the master performs the restore.
+/// Background worker that periodically backs up all ScheduleJob hashsets to a JSON file.
+/// A SHA-256 hash of the serialized data is kept in memory to avoid writing the file
+/// when nothing has changed. The backup interval is configurable via SlimData:BackupIntervalSeconds.
+///
+/// On startup (coldStart + empty DB), the master node restores data from the backup file.
+/// On startup with existing state, every node refreshes its local backup immediately.
 /// </summary>
 public sealed class ScheduleJobBackupWorker : BackgroundService
 {
-    private readonly IScheduleJobBackupNotifier _notifier;
     private readonly IServiceProvider _serviceProvider;
     private readonly ISlimDataStatus _slimDataStatus;
     private readonly IMasterService _masterService;
     private readonly ILogger<ScheduleJobBackupWorker> _logger;
     private readonly string? _backupDirectory;
     private readonly bool _coldStart;
+    private readonly TimeSpan _backupInterval;
 
     private const string BackupFileName = "schedule-jobs-backup.json";
+    private const string ScheduleJobPrefix = "ScheduleJob:";
+
+    // Last hash of the serialized backup — avoids redundant file writes
+    private string? _lastBackupHash;
 
     public ScheduleJobBackupWorker(
-        IScheduleJobBackupNotifier notifier,
         IServiceProvider serviceProvider,
         ISlimDataStatus slimDataStatus,
         IMasterService masterService,
@@ -35,20 +42,19 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
         IOptions<SlimDataOptions> slimDataOptions,
         IConfiguration configuration)
     {
-        _notifier = notifier;
         _serviceProvider = serviceProvider;
         _slimDataStatus = slimDataStatus;
         _masterService = masterService;
         _logger = logger;
 
         _backupDirectory = slimDataOptions.Value.BackupDirectory;
+        _backupInterval = TimeSpan.FromSeconds(slimDataOptions.Value.BackupIntervalSeconds);
 
         var coldStartValue = configuration["coldStart"];
         _coldStart = string.Equals(coldStartValue, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private bool IsEnabled => !string.IsNullOrWhiteSpace(_backupDirectory);
-
     private string BackupFilePath => Path.Combine(_backupDirectory!, BackupFileName);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -59,34 +65,29 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             return;
         }
 
-        _logger.LogInformation("ScheduleJobBackupWorker: starting, backupDir={BackupDir}, coldStart={ColdStart}",
-            _backupDirectory, _coldStart);
+        _logger.LogInformation(
+            "ScheduleJobBackupWorker: starting — backupDir={BackupDir}, interval={Interval}s, coldStart={ColdStart}",
+            _backupDirectory, _backupInterval.TotalSeconds, _coldStart);
 
-        // Wait for the Raft cluster to be ready
         await _slimDataStatus.WaitForReadyAsync();
 
-        // --- Restore phase (only once at startup, only on coldStart, only if master) ---
+        // --- Phase 1: Restore (coldStart + master + empty DB only) ---
         if (_coldStart)
-        {
             await TryRestoreAsync(stoppingToken);
-        }
 
-        // --- Backup phase: listen for change notifications ---
-        _logger.LogInformation("ScheduleJobBackupWorker: entering backup loop");
+        // --- Phase 2: Initial backup sync (every node, in case state already exists) ---
+        await TryBackupAsync(stoppingToken);
+
+        // --- Phase 3: Periodic backup loop ---
+        _logger.LogInformation("ScheduleJobBackupWorker: entering periodic backup loop (interval={Interval}s)",
+            _backupInterval.TotalSeconds);
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                var hasSignal = await _notifier.WaitForChangeAsync(stoppingToken);
-                if (!hasSignal)
-                {
-                    break;
-                }
-
-                // Small debounce to coalesce rapid changes
-                await Task.Delay(500, stoppingToken);
-
-                await BackupAsync(stoppingToken);
+                await Task.Delay(_backupInterval, stoppingToken);
+                await TryBackupAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -94,153 +95,142 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "ScheduleJobBackupWorker: error during backup cycle");
-                await Task.Delay(2000, stoppingToken);
+                _logger.LogError(ex, "ScheduleJobBackupWorker: unexpected error in backup loop");
+                await Task.Delay(5000, stoppingToken);
             }
         }
 
         _logger.LogInformation("ScheduleJobBackupWorker: stopped");
     }
 
+    // ─── Restore ──────────────────────────────────────────────────────────────
+
     private async Task TryRestoreAsync(CancellationToken ct)
     {
         try
         {
-            // Wait a bit for master election to stabilize
-            await Task.Delay(2000, ct);
+            await Task.Delay(2000, ct); // wait for leader election
 
             if (!_masterService.IsMaster)
             {
-                _logger.LogInformation("ScheduleJobBackupWorker: not master, skipping restore");
+                _logger.LogInformation("ScheduleJobBackupWorker: not master — skipping restore");
                 return;
             }
 
             if (!File.Exists(BackupFilePath))
             {
-                _logger.LogInformation("ScheduleJobBackupWorker: no backup file found at {Path}, skipping restore", BackupFilePath);
+                _logger.LogInformation("ScheduleJobBackupWorker: no backup file found at {Path} — skipping restore", BackupFilePath);
                 return;
             }
 
-            // Check if the database already has ScheduleJob data (not empty)
             var provider = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            var supplier = (ISupplier<SlimDataPayload>)provider;
-            var payload = supplier.Invoke();
-            bool hasExistingScheduleData = false;
+            var payload = ((ISupplier<SlimDataPayload>)provider).Invoke();
+
             foreach (var kv in payload.Hashsets)
             {
-                if (kv.Key.StartsWith(SlimData.Endpoints.ScheduleJobPrefix, StringComparison.Ordinal) &&
-                    kv.Value.Count > 0)
+                if (kv.Key.StartsWith(ScheduleJobPrefix, StringComparison.Ordinal) && kv.Value.Count > 0)
                 {
-                    hasExistingScheduleData = true;
-                    break;
+                    _logger.LogInformation("ScheduleJobBackupWorker: DB already has ScheduleJob data — skipping restore");
+                    return;
                 }
             }
 
-            if (hasExistingScheduleData)
-            {
-                _logger.LogInformation("ScheduleJobBackupWorker: database already has ScheduleJob data, skipping restore");
-                return;
-            }
-
-            _logger.LogInformation("ScheduleJobBackupWorker: restoring from backup file {Path}", BackupFilePath);
-
+            _logger.LogInformation("ScheduleJobBackupWorker: restoring from {Path}", BackupFilePath);
             var json = await File.ReadAllTextAsync(BackupFilePath, ct);
             _logger.LogDebug("ScheduleJobBackupWorker: restore JSON content: {Json}", json);
+
             var backupData = JsonSerializer.Deserialize(json, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);
             if (backupData?.Hashsets == null || backupData.Hashsets.Count == 0)
             {
-                _logger.LogInformation("ScheduleJobBackupWorker: backup file is empty, nothing to restore");
+                _logger.LogInformation("ScheduleJobBackupWorker: backup file is empty — nothing to restore");
                 return;
             }
 
-            var databaseService = _serviceProvider.GetRequiredService<IDatabaseService>();
-
+            var db = _serviceProvider.GetRequiredService<IDatabaseService>();
             int restoredKeys = 0;
-            foreach (var hashsetEntry in backupData.Hashsets)
+            foreach (var entry in backupData.Hashsets)
             {
-                var hashsetKey = hashsetEntry.Key;
-                var dictionary = new Dictionary<string, byte[]>(hashsetEntry.Value.Count);
-                foreach (var kv in hashsetEntry.Value)
-                {
-                    dictionary[kv.Key] = Convert.FromBase64String(kv.Value);
-                }
+                var dict = new Dictionary<string, byte[]>(entry.Value.Count);
+                foreach (var kv in entry.Value)
+                    dict[kv.Key] = Convert.FromBase64String(kv.Value);
 
-                if (dictionary.Count > 0)
+                if (dict.Count > 0)
                 {
-                    await databaseService.HashSetAsync(hashsetKey, dictionary);
-                    restoredKeys += dictionary.Count;
+                    await db.HashSetAsync(entry.Key, dict);
+                    restoredKeys += dict.Count;
                 }
             }
 
-            _logger.LogInformation("ScheduleJobBackupWorker: restored {Count} schedule entries from backup", restoredKeys);
+            _logger.LogInformation("ScheduleJobBackupWorker: restored {Count} schedule entries", restoredKeys);
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // shutting down
-        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ScheduleJobBackupWorker: error during restore");
         }
     }
 
-    private async Task BackupAsync(CancellationToken ct)
+    // ─── Backup ───────────────────────────────────────────────────────────────
+
+    private async Task TryBackupAsync(CancellationToken ct)
     {
         try
         {
             var provider = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            var supplier = (ISupplier<SlimDataPayload>)provider;
-            var payload = supplier.Invoke();
+            var payload = ((ISupplier<SlimDataPayload>)provider).Invoke();
 
             var backupData = new ScheduleJobBackupData();
-
             foreach (var hashset in payload.Hashsets)
             {
-                if (!hashset.Key.StartsWith(SlimData.Endpoints.ScheduleJobPrefix, StringComparison.Ordinal))
-                {
+                if (!hashset.Key.StartsWith(ScheduleJobPrefix, StringComparison.Ordinal))
                     continue;
-                }
 
                 var dict = new Dictionary<string, string>(hashset.Value.Count);
                 foreach (var kv in hashset.Value)
                 {
-                    // Skip internal TTL fields
                     if (kv.Key == SlimDataInterpreter.HashsetTtlField)
-                    {
                         continue;
-                    }
                     dict[kv.Key] = Convert.ToBase64String(kv.Value.ToArray());
                 }
 
                 if (dict.Count > 0)
-                {
                     backupData.Hashsets[hashset.Key] = dict;
-                }
+            }
+
+            var json = JsonSerializer.Serialize(backupData, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);
+
+            // Skip write if nothing changed
+            var newHash = ComputeHash(json);
+            if (newHash == _lastBackupHash)
+            {
+                _logger.LogDebug("ScheduleJobBackupWorker: no change detected (hash={Hash}) — skipping write", newHash);
+                return;
             }
 
             if (!Directory.Exists(_backupDirectory!))
-            {
                 Directory.CreateDirectory(_backupDirectory!);
-            }
 
-            // Write to a temp file then atomic rename for crash safety
-            var tempPath = BackupFilePath + ".tmp";
-            var json = JsonSerializer.Serialize(backupData, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);
             _logger.LogDebug("ScheduleJobBackupWorker: backup JSON content: {Json}", json);
+
+            var tempPath = BackupFilePath + ".tmp";
             await File.WriteAllTextAsync(tempPath, json, ct);
             File.Move(tempPath, BackupFilePath, overwrite: true);
 
-            _logger.LogInformation("ScheduleJobBackupWorker: backup completed, {Count} hashsets saved to {Path}",
+            _lastBackupHash = newHash;
+            _logger.LogInformation("ScheduleJobBackupWorker: backup written — {Count} hashset(s) to {Path}",
                 backupData.Hashsets.Count, BackupFilePath);
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            // shutting down
-        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex)
         {
             _logger.LogError(ex, "ScheduleJobBackupWorker: error during backup");
         }
+    }
+
+    private static string ComputeHash(string content)
+    {
+        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(content));
+        return Convert.ToHexString(bytes);
     }
 }
 
