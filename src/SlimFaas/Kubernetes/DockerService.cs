@@ -551,8 +551,13 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
     return new DeploymentsInformations(deployments, slimfaasInfo, allPods);
 }
 
+public Task<SlimFaasJobConfiguration?> ListJobsConfigurationAsync(string kubeNamespace)
+{
+    return Task.FromResult<SlimFaasJobConfiguration?>(null);
+}
 
-        public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob createJob,
+
+public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob createJob,
             string elementId, string jobFullName, long inQueueTimestamp)
         {
             Dictionary<string, string> labels = new()
