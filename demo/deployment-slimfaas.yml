@@ -86,7 +86,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.64.0-pr.241499
+          image: axaguildev/slimfaas:latest
           livenessProbe:
             httpGet:
               path: /health
@@ -109,6 +109,9 @@ spec:
               value: "/backup"
             - name: Data__DefaultVisibility
               value: "Public"
+              # log level debug for testing
+            - name: Logging__LogLevel__SlimFaas
+              value: "Debug"
             - name: SlimFaas__JobsConfiguration
               valueFrom:
                 configMapKeyRef:
