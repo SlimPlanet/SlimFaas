@@ -5,12 +5,16 @@ metadata:
   namespace: slimfaas-demo
   annotations:
     SlimFaas/Job: "true"
-    SlimFaas/DefaultVisibility:  "Public"
+    SlimFaas/DefaultVisibility: "Public"
+    SlimFaas/NumberParallelJob: "1"
+    SlimFaas/DependsOn: "fibonacci1,fibonacci2"
 spec:
   schedule: "0 0 * * *"
   suspend: true
   jobTemplate:
     spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 60
       template:
         spec:
           containers:
