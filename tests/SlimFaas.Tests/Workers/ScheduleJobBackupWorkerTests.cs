@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -64,7 +64,8 @@ public class ScheduleJobBackupWorkerTests : IDisposable
     private IServiceProvider BuildServiceProvider()
     {
         var services = new ServiceCollection();
-        services.AddSingleton(_databaseService.Object);
+        services.AddSingleton<IDatabaseService>(_databaseService.Object);
+        services.AddSingleton<SlimPersistentState>();
         return services.BuildServiceProvider();
     }
 

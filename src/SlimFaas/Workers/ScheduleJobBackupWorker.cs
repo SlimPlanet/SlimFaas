@@ -145,7 +145,15 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
 
             _logger.LogInformation("ScheduleJobBackupWorker: restoring from {Path}", BackupFilePath);
             var json = await File.ReadAllTextAsync(BackupFilePath, ct);
-            _logger.LogDebug("ScheduleJobBackupWorker: restore JSON content: {Json}", json);
+            var jsonLength = json.Length;
+            string jsonHash;
+            using (var sha256 = SHA256.Create())
+            {
+                var jsonBytes = Encoding.UTF8.GetBytes(json);
+                var hashBytes = sha256.ComputeHash(jsonBytes);
+                jsonHash = Convert.ToHexString(hashBytes);
+            }
+            _logger.LogDebug("ScheduleJobBackupWorker: restore JSON metadata: length={Length}, sha256={Hash}", jsonLength, jsonHash);
 
             var backupData = JsonSerializer.Deserialize(json, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);
             if (backupData?.Hashsets == null || backupData.Hashsets.Count == 0)
@@ -218,7 +226,11 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             if (!Directory.Exists(_backupDirectory!))
                 Directory.CreateDirectory(_backupDirectory!);
 
-            _logger.LogDebug("ScheduleJobBackupWorker: backup JSON content: {Json}", json);
+            _logger.LogDebug(
+                "ScheduleJobBackupWorker: backup prepared — hash={Hash}, hashsetCount={Count}, jsonLength={Length}",
+                newHash,
+                backupData.Hashsets.Count,
+                json.Length);
 
             var tempPath = BackupFilePath + ".tmp";
             await File.WriteAllTextAsync(tempPath, json, ct);
