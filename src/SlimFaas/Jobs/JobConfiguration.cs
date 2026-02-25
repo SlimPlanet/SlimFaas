@@ -28,6 +28,9 @@ public class JobConfiguration : IJobConfiguration
 
     private readonly string _namespace;
 
+    private readonly CreateJobResources _createJobResources;
+    private readonly SlimfaasJob _defaultSlimfaasJob;
+
     public JobConfiguration(IOptions<SlimFaasOptions> slimFaasOptions, IKubernetesService kubernetesService, ILogger<JobConfiguration> logger, INamespaceProvider namespaceProvider)
     {
         _namespace = namespaceProvider.CurrentNamespace;
@@ -35,8 +38,9 @@ public class JobConfiguration : IJobConfiguration
         Dictionary<string, string> resources = new();
         resources.Add("cpu", "100m");
         resources.Add("memory", "100Mi");
-        CreateJobResources createJobResources = new(resources, resources);
-        SlimfaasJob defaultSlimfaasJob = new("", new List<string>(), createJobResources);
+        _createJobResources = new(resources, resources);
+        _defaultSlimfaasJob = new("", new List<string>(), _createJobResources);
+
         try
         {
             string? json = slimFaasOptions.Value.JobsConfiguration;
@@ -74,12 +78,12 @@ public class JobConfiguration : IJobConfiguration
             slimfaasJobConfiguration = new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase));
         }
 
-        if (!slimfaasJobConfiguration.Configurations.TryAdd(Default, defaultSlimfaasJob))
+        if (!slimfaasJobConfiguration.Configurations.TryAdd(Default, _defaultSlimfaasJob))
         {
             if (slimfaasJobConfiguration.Configurations[Default].Resources == null)
             {
                 var actualResources = slimfaasJobConfiguration.Configurations[Default];
-                slimfaasJobConfiguration.Configurations[Default] = actualResources with { Resources = createJobResources };
+                slimfaasJobConfiguration.Configurations[Default] = actualResources with { Resources = _createJobResources };
             }
         }
 
@@ -92,6 +96,18 @@ public class JobConfiguration : IJobConfiguration
         var configuration = await _service.ListJobsConfigurationAsync(_namespace);
 
         if (configuration != null)
+        {
+
+            if (!configuration.Configurations.TryAdd(Default, _defaultSlimfaasJob))
+            {
+                if (configuration.Configurations[Default].Resources == null)
+                {
+                    var actualResources = configuration.Configurations[Default];
+                    configuration.Configurations[Default] = actualResources with { Resources = _createJobResources };
+                }
+            }
+
             Interlocked.Exchange(ref _configuration, configuration);
+        }
     }
 }
