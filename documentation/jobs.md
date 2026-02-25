@@ -241,8 +241,71 @@ You can also define **cron schedules** for jobs under the `"Schedules"` key. Eac
 
 If you trigger a job whose name does not exist in `SlimFaas__JobsConfiguration`, SlimFaas falls back to a built‑in entry called `Default`. It ships with conservative resource requests/limits (`cpu: 100m`, `memory: 100Mi`), no dependencies, and the same visibility/retry defaults. You can customise these defaults by adding or overriding the `"Default"` key in your configuration map.
 
----
+## 2.3 Defining Jobs from Kubernetes CronJob resources
 
+SlimFaas can discover job definitions from Kubernetes CronJob resources when the CronJob carries the annotation:
+
+```
+SlimFaas/Job: "true"
+```
+
+When this annotation is present, SlimFaas's ExtractJobConfigurations scans the CronJob and converts parts of it into a SlimFaas job configuration (SlimfaasJob). Below you’ll find the exact demo CronJob (from demo/deployment-cron.yaml) followed by the annotation→configuration mapping derived from ExtractJobConfigurations.
+
+Example CronJob (exact content from demo/deployment-cron.yaml):
+
+```yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: fibonacci5
+  namespace: slimfaas-demo
+  annotations:
+    SlimFaas/Job: "true"
+    SlimFaas/DefaultVisibility: "Public"
+    SlimFaas/NumberParallelJob: "1"
+    SlimFaas/DependsOn: "fibonacci1,fibonacci2"
+spec:
+  schedule: "0 0 * * *"
+  suspend: true
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 60
+      template:
+        spec:
+          containers:
+            - name: fibonacci11
+              image: axaguildev/fibonacci-batch:latest
+              resources:
+                requests:
+                  cpu: "400m"
+                  memory: "400Mi"
+                limits:
+                  cpu: "400m"
+                  memory: "400Mi"
+          restartPolicy: Never
+```
+
+What ExtractJobConfigurations reads and how it maps to SlimFaas configuration
+
+- Selection:
+  - SlimFaas/Job -> parsed as bool; only CronJobs with this annotation set to "true" are processed.
+
+- Annotations → SlimfaasJob fields:
+  - SlimFaas/JobImagesWhitelist -> SlimfaasJob.ImagesWhitelist (comma-separated list)
+  - SlimFaas/DefaultVisibility -> SlimfaasJob.Visibility (string, e.g. "Public" or "Private")
+  - SlimFaas/NumberParallelJob -> SlimfaasJob.NumberParallelJob (parsed as int)
+  - SlimFaas/DependsOn -> SlimfaasJob.DependsOn (comma-separated list)
+
+- CronJob / Container fields → SlimfaasJob fields:
+  - jobTemplate.spec.template.spec.containers[0].image -> SlimfaasJob.Image
+  - jobTemplate.spec.template.spec.containers[0].resources.requests & limits -> SlimfaasJob.Resources
+  - jobTemplate.spec.template.spec.containers[0].env -> SlimfaasJob.Environments (EnvVarInput, supports SecretKeyRef, ConfigMapKeyRef, FieldRef, ResourceFieldRef)
+  - jobTemplate.spec.template.spec.restartPolicy -> SlimfaasJob.RestartPolicy
+  - jobTemplate.spec.backoffLimit -> SlimfaasJob.BackoffLimit
+  - jobTemplate.spec.ttlSecondsAfterFinished -> SlimfaasJob.TtlSecondsAfterFinished
+
+---
 
 ## 3. Invoking **and Managing** Jobs
 
