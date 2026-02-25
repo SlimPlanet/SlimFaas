@@ -26,4 +26,9 @@ public interface IFileRepository
     Task DeleteAsync(string id, CancellationToken ct);
 
     Task<Stream> OpenReadAsync(string id, CancellationToken ct);
+
+    /// <summary>
+    /// Deletes orphan .tmp files (interrupted uploads) that have not been modified for more than 10 minutes.
+    /// </summary>
+    Task<int> CleanupOrphanTempFilesAsync(CancellationToken ct);
 }
