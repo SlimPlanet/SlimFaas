@@ -1,13 +1,12 @@
 ﻿using System.Collections.Immutable;
 using DotNext;
 using DotNext.IO;
-using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using SlimData.Commands;
 
 namespace SlimData;
-/*
+
 #pragma warning disable DOTNEXT001
 public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimDataPayload>
 {
@@ -16,14 +15,14 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     private readonly SlimDataState _state = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
-        ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
+        ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
     );
 
     public CommandInterpreter Interpreter { get; }
 
     // Chemin vers un sous-dossier "db" (comme dans l'exemple DotNext)
     public SlimPersistentState(string location)
-        : this(new DirectoryInfo(Path.GetFullPath(Path.Combine(location ?? string.Empty, "db"))))
+        : this(new DirectoryInfo(Path.GetFullPath(Path.Combine(location, "db"))))
     {
     }
 
@@ -93,13 +92,13 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         // Lecture de ton format binaire existant
         var command = await LogSnapshotCommand.ReadFromAsync(reader, token).ConfigureAwait(false);
 
-        // Applique la commande de snapshot à l’état en mémoire
+        // Applique la commande de snapshot à l'état en mémoire
         // (équivalent à ton DoHandleSnapshotAsync)
         _state.KeyValues = command.keysValues.ToImmutableDictionary();
 
-        var queues = ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty;
+        var queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty;
         foreach (var q in command.queues)
-            queues = queues.SetItem(q.Key, q.Value.ToImmutableList());
+            queues = queues.SetItem(q.Key, q.Value.ToImmutableArray());
         _state.Queues = queues;
 
         var hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
@@ -108,9 +107,9 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         _state.Hashsets = hashsets;
     }
 }
-#pragma warning restore DOTNEXT001*/
+#pragma warning restore DOTNEXT001
 
-
+/*
 public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<SlimDataPayload>
 {
     public const string LogLocation = "SlimData:LogLocation";
@@ -208,4 +207,4 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
             await command.WriteToAsync(writer, token).ConfigureAwait(false);
         }
     }
-}
+}*/
