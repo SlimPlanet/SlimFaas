@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Options;
 using SlimFaas.Workers;
