@@ -608,6 +608,7 @@ public class Endpoints
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
+
 }
 
 public class TooManyRequestsException : Exception
