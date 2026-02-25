@@ -1283,7 +1283,7 @@ public class KubernetesService : IKubernetesService
         return result;
     }
 
-        private static SlimFaasJobConfiguration? ExtractJobConfigurations(V1CronJobList cronJobList)
+        private SlimFaasJobConfiguration? ExtractJobConfigurations(V1CronJobList cronJobList)
     {
         Dictionary<string, SlimfaasJob> jobs = new();
 
@@ -1302,8 +1302,16 @@ public class KubernetesService : IKubernetesService
             if (!isSlimfaasJob)
                 continue;
 
+            string name = cronJob.Metadata?.Name ?? "unknown";
+            bool suspend = cronJob.Spec.Suspend ?? false;
 
-            var name = cronJob.Metadata?.Name ?? "unknown";
+            if (!suspend)
+            {
+                _logger.LogWarning("CronJob {CronJobName} is not suspended, skipping it in the SlimFaas job configuration.", name);
+                continue;
+            }
+
+
             var image = container?.Image ?? "";
 
             var imagesWhitelist = annotations.TryGetValue(JobImagesWhitelist, out var whitelist)
@@ -1366,8 +1374,8 @@ public class KubernetesService : IKubernetesService
                 RestartPolicy: restartPolicy
             );
 
-            Console.WriteLine("JobConfiguration: ");
-            Console.WriteLine(jobs[name]);
+            _logger.LogDebug("JobConfiguration: ");
+            _logger.LogDebug(jobs[name].ToString());
         }
 
         if (jobs.Count != 0)
@@ -1375,7 +1383,7 @@ public class KubernetesService : IKubernetesService
             return new SlimFaasJobConfiguration(jobs);
         }
 
-        Console.WriteLine("No SlimFaas job configurations found in the cluster.");
+        _logger.LogDebug("No SlimFaas job configurations found in the cluster.");
         return null;
 
 

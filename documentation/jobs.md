@@ -305,6 +305,8 @@ What ExtractJobConfigurations reads and how it maps to SlimFaas configuration
   - jobTemplate.spec.backoffLimit -> SlimfaasJob.BackoffLimit
   - jobTemplate.spec.ttlSecondsAfterFinished -> SlimfaasJob.TtlSecondsAfterFinished
 
+Note: The job's suspend's field is required to be `true` to be considered a valid job definition for SlimFaas.
+This is because SlimFaas manages the scheduling and triggering of the job, so it needs the CronJob to be suspended to prevent Kubernetes from automatically creating Job resources outside of SlimFaas's control.
 ---
 
 ## 3. Invoking **and Managing** Jobs
