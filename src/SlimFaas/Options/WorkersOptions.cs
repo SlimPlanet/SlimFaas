@@ -18,6 +18,11 @@ public class WorkersOptions
     public int JobsDelayMilliseconds { get; set; } = 1000;
 
     /// <summary>
+    /// Delay in milliseconds for the jobs configuration worker
+    /// </summary>
+    public int JobsConfigurationDelayMilliseconds { get; set; } = 1000;
+
+    /// <summary>
     /// Delay in milliseconds for replicas synchronization
     /// </summary>
     public int ReplicasSynchronizationDelayMilliseconds { get; set; } = 3000;

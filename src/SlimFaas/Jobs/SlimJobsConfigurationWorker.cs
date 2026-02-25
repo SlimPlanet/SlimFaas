@@ -1,17 +1,19 @@
 ﻿using MemoryPack;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Jobs;
 
 
 public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
     ILogger<SlimJobsConfigurationWorker> logger,
-    int delay = 1000)
+    IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
-    private readonly int _delay = delay;
+    private readonly int _delay = workersOptions.Value.JobsConfigurationDelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
