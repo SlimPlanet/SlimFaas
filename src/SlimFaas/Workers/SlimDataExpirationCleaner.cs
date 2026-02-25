@@ -35,7 +35,7 @@ public sealed class SlimDataExpirationCleaner
 
         var nowTicks = DateTime.UtcNow.Ticks;
 
-        // 1) KeyValues TTL: keys finissant par suffix
+        // 1) KeyValues TTL: keys ending with the TTL postfix
         foreach (var kv in keyValues)
         {
             ct.ThrowIfCancellationRequested();
@@ -66,10 +66,10 @@ public sealed class SlimDataExpirationCleaner
 
             var key = hs.Key;
 
-            // TTL actuel: stocké dans le hashset principal sous le champ __ttl__
+            // Current TTL: stored in the hashset itself under the __ttl__ field
             long? expireAtTicks = TryReadHashsetExpireAt(hs.Value);
 
-            // Fallback legacy: TTL stocké dans hashsets[key+suffix][__ttl__]
+            // Legacy fallback: TTL stored in hashsets[key+suffix][__ttl__]
             if (expireAtTicks is null)
             {
                 continue;
@@ -81,7 +81,7 @@ public sealed class SlimDataExpirationCleaner
             try { await _db.HashSetDeleteAsync(key, "").ConfigureAwait(false); } // delete whole hashset
             catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired hashset. key={Key}", key); }
         }
-        // 3) Local disk TTL: chaque noeud supprime SES fichiers expirés en lisant .meta.json
+        // 3) Local disk TTL: each node deletes ITS own expired files by reading .meta.mp
         await foreach (var entry in _files.EnumerateAllMetadataAsync(ct).ConfigureAwait(false))
         {
             ct.ThrowIfCancellationRequested();
@@ -93,6 +93,20 @@ public sealed class SlimDataExpirationCleaner
             _logger.LogDebug("Deleting expired local file by disk metadata. id={Id} expireAt={ExpireAt}", entry.Id, t);
             try { await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false); }
             catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired local file. id={Id}", entry.Id); }
+        }
+
+        // 4) Cleanup orphan .tmp files (interrupted uploads)
+        try
+        {
+            var deleted = await _files.CleanupOrphanTempFilesAsync(ct).ConfigureAwait(false);
+            if (deleted > 0)
+                _logger.LogInformation("Cleaned up {Count} orphan .tmp file(s) from disk.", deleted);
+            else
+                _logger.LogDebug("No orphan .tmp files found during cleanup.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to cleanup orphan .tmp files.");
         }
     }
 

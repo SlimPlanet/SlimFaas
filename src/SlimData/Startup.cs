@@ -121,7 +121,9 @@ public class Startup(IConfiguration configuration)
        if (!string.IsNullOrWhiteSpace(path))
        {
            services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
-           services.AddSingleton<IFileRepository>(_ => new DiskFileRepository(Path.Combine(path, "files")));
+           services.AddSingleton<IFileRepository>(sp => new DiskFileRepository(
+               Path.Combine(path, "files"),
+               sp.GetRequiredService<ILogger<DiskFileRepository>>()));
            services.AddSingleton<ClusterFileAnnounceQueue>();
            services.AddHostedService<ClusterFileAnnounceWorker>();
 
