@@ -249,7 +249,7 @@ SlimFaas can discover job definitions from Kubernetes CronJob resources when the
 SlimFaas/Job: "true"
 ```
 
-When this annotation is present, SlimFaas's ExtractJobConfigurations scans the CronJob and converts parts of it into a SlimFaas job configuration (SlimfaasJob). Below you’ll find the exact demo CronJob (from demo/deployment-cron.yaml) followed by the annotation→configuration mapping derived from ExtractJobConfigurations.
+When this annotation is present, SlimFaas's ExtractJobConfigurations scans the CronJob and converts parts of it into a SlimFaas job configuration (SlimfaasJob). Below you’ll find the exact demo CronJob (from demo/deployment-cron.yaml) followed by a table showing how fields and annotations are mapped to SlimFaas configuration.
 
 Example CronJob (exact content from demo/deployment-cron.yaml):
 
@@ -286,27 +286,24 @@ spec:
           restartPolicy: Never
 ```
 
-What ExtractJobConfigurations reads and how it maps to SlimFaas configuration
+**CronJob → SlimFaas Job Configuration Mapping**
 
-- Selection:
-  - SlimFaas/Job -> parsed as bool; only CronJobs with this annotation set to "true" are processed.
+| **Source (CronJob/Annotation)**                                 | **SlimFaas Job Field**           | **Notes**                                                                                                   |
+| --------------------------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `metadata.annotations["SlimFaas/Job"]`                          | _Selection criteria_            | Only CronJobs with this annotation set to `"true"` are processed                                            |
+| `metadata.annotations["SlimFaas/JobImagesWhitelist"]`           | `ImagesWhitelist`               | Comma-separated list                                                                                        |
+| `metadata.annotations["SlimFaas/DefaultVisibility"]`            | `Visibility`                    | `"Public"` or `"Private"`                                                                                   |
+| `metadata.annotations["SlimFaas/NumberParallelJob"]`            | `NumberParallelJob`             | Parsed as integer                                                                                           |
+| `metadata.annotations["SlimFaas/DependsOn"]`                    | `DependsOn`                     | Comma-separated list                                                                                        |
+| `spec.jobTemplate.spec.template.spec.containers[0].image`        | `Image`                         |                                                                                                             |
+| `spec.jobTemplate.spec.template.spec.containers[0].resources`    | `Resources`                     | Requests & limits                                                                                           |
+| `spec.jobTemplate.spec.template.spec.containers[0].env`          | `Environments`                  | Supports SecretKeyRef, ConfigMapKeyRef, FieldRef, ResourceFieldRef                                          |
+| `spec.jobTemplate.spec.template.spec.restartPolicy`              | `RestartPolicy`                 |                                                                                                             |
+| `spec.jobTemplate.spec.backoffLimit`                             | `BackoffLimit`                  |                                                                                                             |
+| `spec.jobTemplate.spec.ttlSecondsAfterFinished`                  | `TtlSecondsAfterFinished`       |                                                                                                             |
+| `spec.suspend`                                                  | _Required: must be `true`_      | Ensures SlimFaas manages scheduling; disables native Kubernetes scheduling                                  |
 
-- Annotations → SlimfaasJob fields:
-  - SlimFaas/JobImagesWhitelist -> SlimfaasJob.ImagesWhitelist (comma-separated list)
-  - SlimFaas/DefaultVisibility -> SlimfaasJob.Visibility (string, e.g. "Public" or "Private")
-  - SlimFaas/NumberParallelJob -> SlimfaasJob.NumberParallelJob (parsed as int)
-  - SlimFaas/DependsOn -> SlimfaasJob.DependsOn (comma-separated list)
-
-- CronJob / Container fields → SlimfaasJob fields:
-  - jobTemplate.spec.template.spec.containers[0].image -> SlimfaasJob.Image
-  - jobTemplate.spec.template.spec.containers[0].resources.requests & limits -> SlimfaasJob.Resources
-  - jobTemplate.spec.template.spec.containers[0].env -> SlimfaasJob.Environments (EnvVarInput, supports SecretKeyRef, ConfigMapKeyRef, FieldRef, ResourceFieldRef)
-  - jobTemplate.spec.template.spec.restartPolicy -> SlimfaasJob.RestartPolicy
-  - jobTemplate.spec.backoffLimit -> SlimfaasJob.BackoffLimit
-  - jobTemplate.spec.ttlSecondsAfterFinished -> SlimfaasJob.TtlSecondsAfterFinished
-
-Note: The job's suspend's field is required to be `true` to be considered a valid job definition for SlimFaas.
-This is because SlimFaas manages the scheduling and triggering of the job, so it needs the CronJob to be suspended to prevent Kubernetes from automatically creating Job resources outside of SlimFaas's control.
+> **Note:** The CronJob's `suspend` field must be set to `true` for SlimFaas to consider it a valid job definition. This ensures SlimFaas manages the scheduling and triggering of the job, preventing Kubernetes from automatically creating Job resources outside of SlimFaas's control.
 ---
 
 ## 3. Invoking **and Managing** Jobs
