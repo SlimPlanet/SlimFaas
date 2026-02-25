@@ -268,6 +268,7 @@ public class KubernetesService : IKubernetesService
     private const string Scale = "SlimFaas/Scale";
     private const string Job = "SlimFaas/Job";
     private const string JobImagesWhitelist = "SlimFaas/JobImagesWhitelist";
+    private const string NumberParallelJob = "SlimFaas/NumberParallelJob";
 
     private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
         "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
@@ -1346,6 +1347,11 @@ public class KubernetesService : IKubernetesService
             }
 
             var visibility = annotations.TryGetValue(DefaultVisibility, out var vis) ? vis : nameof(FunctionVisibility.Private);
+            var numberParallel = Int32.TryParse(annotations.TryGetValue(NumberParallelJob, out var par) ? par : "1", out var result) ? result : 1;
+
+            var restartPolicy = cronJob.Spec.JobTemplate.Spec.Template.Spec.RestartPolicy ?? "Never";
+            var backOffLimit = cronJob.Spec.JobTemplate.Spec.BackoffLimit ?? 1;
+            var ttlSecondsAfterFinished = cronJob.Spec.JobTemplate.Spec.TtlSecondsAfterFinished ?? 60;
 
             jobs[name] = new SlimfaasJob(
                 Image: image,
@@ -1353,11 +1359,11 @@ public class KubernetesService : IKubernetesService
                 Resources: resources,
                 DependsOn: dependsOn,
                 Environments: environments,
-                BackoffLimit: 1,
+                BackoffLimit: backOffLimit,
                 Visibility: visibility,
-                NumberParallelJob: 1,
-                TtlSecondsAfterFinished: 60,
-                RestartPolicy: "Never"
+                NumberParallelJob: numberParallel,
+                TtlSecondsAfterFinished: ttlSecondsAfterFinished,
+                RestartPolicy: restartPolicy
             );
 
             Console.WriteLine("JobConfiguration: ");
