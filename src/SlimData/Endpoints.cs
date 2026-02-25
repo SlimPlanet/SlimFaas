@@ -609,7 +609,6 @@ public class Endpoints
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
 
-    public const string ScheduleJobPrefix = "ScheduleJob:";
 }
 
 public class TooManyRequestsException : Exception
