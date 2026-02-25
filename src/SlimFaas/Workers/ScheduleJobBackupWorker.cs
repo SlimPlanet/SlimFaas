@@ -48,7 +48,15 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
         _logger = logger;
 
         _backupDirectory = slimDataOptions.Value.BackupDirectory;
-        _backupInterval = TimeSpan.FromSeconds(slimDataOptions.Value.BackupIntervalSeconds);
+        var backupIntervalSeconds = slimDataOptions.Value.BackupIntervalSeconds;
+        if (backupIntervalSeconds <= 0)
+        {
+            _logger.LogWarning(
+                "ScheduleJobBackupWorker: invalid SlimData:BackupIntervalSeconds={BackupIntervalSeconds}, using 1 second instead.",
+                backupIntervalSeconds);
+            backupIntervalSeconds = 1;
+        }
+        _backupInterval = TimeSpan.FromSeconds(backupIntervalSeconds);
 
         var coldStartValue = configuration["coldStart"];
         _coldStart = string.Equals(coldStartValue, "true", StringComparison.OrdinalIgnoreCase);
