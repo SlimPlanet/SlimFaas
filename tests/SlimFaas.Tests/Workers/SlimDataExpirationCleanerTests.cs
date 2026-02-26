@@ -75,6 +75,9 @@ public sealed class SlimDataExpirationCleanerTests
         files.Setup(f => f.DeleteAsync("abc", It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask);
 
+        files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+             .ReturnsAsync(0);
+
         var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
 
         await sut.CleanupOnceAsync(CancellationToken.None);
@@ -82,7 +85,7 @@ public sealed class SlimDataExpirationCleanerTests
         db.VerifyAll();
         files.VerifyAll();
 
-        // non-expired ne doit pas être supprimé
+        // non-expired key must not be deleted
         db.Verify(d => d.DeleteAsync("k1"), Times.Never);
         db.VerifyNoOtherCalls();
     }
@@ -119,6 +122,9 @@ public sealed class SlimDataExpirationCleanerTests
 
         files.Setup(f => f.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
              .Returns(EmptyMeta());
+
+        files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+             .ReturnsAsync(0);
 
         var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
 
@@ -159,13 +165,16 @@ public sealed class SlimDataExpirationCleanerTests
         files.Setup(f => f.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
              .Returns(EmptyMeta());
 
+        files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+             .ReturnsAsync(0);
+
         var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
 
         await sut.CleanupOnceAsync(CancellationToken.None);
 
-        // aucun delete attendu
+        // no delete expected
         db.VerifyNoOtherCalls();
-        files.VerifyAll(); // EnumerateAllMetadataAsync doit être appelé
+        files.VerifyAll(); // EnumerateAllMetadataAsync must be called
         files.VerifyNoOtherCalls();
     }
 
@@ -199,6 +208,9 @@ public sealed class SlimDataExpirationCleanerTests
         files.Setup(f => f.DeleteAsync("file-expired", It.IsAny<CancellationToken>()))
              .Returns(Task.CompletedTask);
 
+        files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+             .ReturnsAsync(0);
+
         var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
 
         await sut.CleanupOnceAsync(CancellationToken.None);
@@ -206,7 +218,7 @@ public sealed class SlimDataExpirationCleanerTests
         files.VerifyAll();
         db.VerifyNoOtherCalls();
 
-        // ne doit supprimer que l'expiré
+        // must only delete the expired one
         files.Verify(f => f.DeleteAsync("file-future", It.IsAny<CancellationToken>()), Times.Never);
         files.Verify(f => f.DeleteAsync("file-no-ttl", It.IsAny<CancellationToken>()), Times.Never);
     }

@@ -471,6 +471,82 @@ curl -X DELETE http://<slimfaas>/job-schedules/fibonacci/0
 > **Behaviour**
 > At the scheduled time, SlimFaas triggers the job exactly as if you had called `POST /job/<jobName>` with the provided overrides. Dependency checks, visibility rules, and concurrency limits all apply identically.
 
+### 5.1 Backup & Restore of Dynamic Schedules
+
+Dynamic schedules (created at runtime via `POST /job-schedules`) are stored in the internal SlimData Raft database. When nodes become desynchronised, you may need to delete the Raft volumes to recover — which also deletes your schedules.
+
+To prevent data loss, SlimFaas can **automatically back up** all dynamic schedule data to a **separate volume** and **restore** it on cold start when the database is empty.
+
+#### Enabling backup
+
+Set the following environment variables. `SlimData__BackupDirectory` is required; `SlimData__BackupIntervalSeconds` is optional.
+
+| **Environment Variable**            | **Description**                                                                                                                                                                   | **Default** |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `SlimData__BackupDirectory`         | Directory path for schedule backup storage. When set, backup is enabled. When empty/unset, backup is disabled.                                                                    | `null`      |
+| `SlimData__BackupIntervalSeconds`   | How often (in seconds) each node checks whether the schedule data has changed and writes a fresh backup. The file is only written when the content has actually changed (SHA-256 hash comparison). | `60`        |
+
+#### How it works
+
+1. **Periodic backup** — Every `BackupIntervalSeconds` seconds, each node reads all `ScheduleJob:*` hashsets from its local Raft state and computes a SHA-256 hash. The backup file (`schedule-jobs-backup.json`) is written to the backup directory **only when the hash differs** from the previous write, avoiding unnecessary I/O. All nodes perform this backup independently on their own volume.
+2. **Startup sync** — When any node starts and the Raft state already contains schedule data (e.g., it joined an existing cluster), it immediately writes a backup before entering the periodic loop.
+3. **Restore** — On cold start (`coldStart=true`) with an **empty** database, the **master node** checks the backup directory. If a non-empty backup file exists, it restores all schedule entries into the Raft cluster automatically.
+
+> **Important**: The backup volume must be **separate** from the Raft database volume. This way, when you delete the Raft volumes to fix desynchronisation, the backup volume is preserved and the schedules can be restored on the next cold start.
+
+#### Kubernetes example
+
+```yaml
+volumeClaimTemplates:
+  - metadata:
+      name: slimfaas-volume        # Raft database
+    spec:
+      accessModes: [ ReadWriteOnce ]
+      resources:
+        requests:
+          storage: 2Gi
+  - metadata:
+      name: slimfaas-backup        # Schedule backup (separate volume)
+    spec:
+      accessModes: [ ReadWriteOnce ]
+      resources:
+        requests:
+          storage: 1Gi
+```
+
+```yaml
+env:
+  - name: SlimData__Directory
+    value: "/database"
+  - name: SlimData__BackupDirectory
+    value: "/backup"
+  - name: SlimData__BackupIntervalSeconds
+    value: "60"
+volumeMounts:
+  - name: slimfaas-volume
+    mountPath: /database
+  - name: slimfaas-backup
+    mountPath: /backup
+```
+
+#### Docker Compose example
+
+```yaml
+services:
+  slimfaas:
+    environment:
+      SlimData__Directory: "/database"
+      SlimData__BackupDirectory: "/backup"
+      SlimData__BackupIntervalSeconds: "60"
+    volumes:
+      - slimfaas_data:/database
+      - slimfaas_backup:/backup
+
+volumes:
+  slimfaas_data:
+  slimfaas_backup:
+```
+
 ---
 
 ## 6. Visibility: Public vs. Private

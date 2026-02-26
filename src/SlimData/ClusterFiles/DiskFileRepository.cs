@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using MemoryPack;
+using Microsoft.Extensions.Logging;
 
 namespace SlimData.ClusterFiles;
 
@@ -9,13 +10,15 @@ public sealed class DiskFileRepository : IFileRepository
 {
     private const string MetaExt = ".meta.mp";
     private readonly string _root;
+    private readonly ILogger<DiskFileRepository> _logger;
 
-    public DiskFileRepository(string pathDirectory)
+    public DiskFileRepository(string pathDirectory, ILogger<DiskFileRepository> logger)
     {
         if (string.IsNullOrWhiteSpace(pathDirectory))
             throw new ArgumentException("pathDirectory is required", nameof(pathDirectory));
 
         _root = pathDirectory;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         Directory.CreateDirectory(_root);
     }
 
@@ -63,7 +66,7 @@ public sealed class DiskFileRepository : IFileRepository
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
             var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks);
-            await WriteMetadataAsync(metaPath, meta, ct).ConfigureAwait(false);
+            await WriteMetadataAsync(metaPath, meta, ct, _logger).ConfigureAwait(false);
 
             return new FilePutResult(shaHex, contentType, total);
         }
@@ -87,15 +90,20 @@ public sealed class DiskFileRepository : IFileRepository
             var safe = file[..^MetaExt.Length];
             string id;
             try { id = Base64UrlCodec.Decode(safe); }
-            catch { continue; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to decode Base64 filename, skipping. path={Path}", metaPath);
+                continue;
+            }
 
             FileMetadata? meta;
             try
             {
                 meta = await ReadMetadataAsync(metaPath, ct).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogWarning(ex, "Failed to read metadata file, skipping. path={Path}", metaPath);
                 continue;
             }
 
@@ -162,20 +170,23 @@ public sealed class DiskFileRepository : IFileRepository
         File.Move(tmp, dst, overwrite);
     }
 
-    private static void TryDelete(string path)
+    private void TryDelete(string path) => TryDelete(path, _logger);
+
+    private static void TryDelete(string path, ILogger<DiskFileRepository> logger)
     {
-        try { if (File.Exists(path)) File.Delete(path); } catch { /* ignore */ }
+        try { if (File.Exists(path)) File.Delete(path); }
+        catch (Exception ex) { logger.LogWarning(ex, "Failed to delete temporary file. path={Path}", path); }
     }
 
     private static async Task<FileMetadata?> ReadMetadataAsync(string metaPath, CancellationToken ct)
     {
-        // Meta très petit => lecture complète OK, et cancellation supportée.
+        // Metadata is very small => full read is fine, and cancellation is supported.
         ct.ThrowIfCancellationRequested();
         var bytes = await File.ReadAllBytesAsync(metaPath, ct).ConfigureAwait(false);
         return MemoryPackSerializer.Deserialize<FileMetadata>(bytes);
     }
 
-    private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, CancellationToken ct)
+    private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, CancellationToken ct, ILogger<DiskFileRepository> logger)
     {
         var tmp = metaPath + ".tmp." + Guid.NewGuid().ToString("N");
         try
@@ -192,12 +203,56 @@ public sealed class DiskFileRepository : IFileRepository
         }
         catch
         {
-            TryDelete(tmp);
+            TryDelete(tmp, logger);
             throw;
         }
     }
 
     private static string ToLowerHex(byte[] bytes)
         => Convert.ToHexString(bytes).ToLowerInvariant();
-    
+
+    /// <summary>
+    /// Age threshold beyond which a .tmp file is considered orphaned (hard-coded, no need to make it configurable).
+    /// </summary>
+    private static readonly TimeSpan OrphanTmpThreshold = TimeSpan.FromMinutes(10);
+
+    public Task<int> CleanupOrphanTempFilesAsync(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        // Directory.EnumerateFiles, File.GetLastWriteTimeUtc and File.Delete have no
+        // natively async API in .NET. We offload the entire block to the ThreadPool
+        // via Task.Run to avoid blocking the caller thread (e.g. a BackgroundService
+        // on the thread pool) and stay consistent with the async/await style of the rest
+        // of the repository.
+        return Task.Run(() =>
+        {
+            ct.ThrowIfCancellationRequested();
+
+            var cutoff = DateTime.UtcNow - OrphanTmpThreshold;
+            var deleted = 0;
+
+        // Matches both generated patterns: "*.bin.tmp.*" and "*.meta.mp.tmp.*"
+            foreach (var tmp in Directory.EnumerateFiles(_root, "*.tmp.*", SearchOption.TopDirectoryOnly))
+            {
+                ct.ThrowIfCancellationRequested();
+
+                try
+                {
+                    var lastWrite = File.GetLastWriteTimeUtc(tmp);
+                    if (lastWrite > cutoff)
+                        continue;
+
+                    File.Delete(tmp);
+                    deleted++;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete orphan .tmp file. path={Path}", tmp);
+                }
+            }
+
+            return deleted;
+        }, ct);
+    }
 }

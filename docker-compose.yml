@@ -61,6 +61,7 @@ services:
       SlimFaas__BaseSlimDataUrl: "http://localhost:3262/"
       SlimFaas__Orchestrator: "Docker"
       SlimData__Directory: "/database"
+      SlimData__BackupDirectory: "/backup"
       SlimFaas__JobsConfiguration: |
         {
           "Configurations": {
@@ -96,6 +97,7 @@ services:
       SlimFaas__RateLimiting__ExcludedPaths__2: "/ready"
     volumes:
       - slimfaas_data:/database
+      - slimfaas_backup:/backup
       - ${DOCKER_SOCKET_PATH:-/var/run/docker.sock}:/var/run/docker.sock
     security_opt:
      - label=disable
@@ -234,3 +236,4 @@ services:
 
 volumes:
   slimfaas_data:
+  slimfaas_backup:
