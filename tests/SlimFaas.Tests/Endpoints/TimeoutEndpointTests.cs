@@ -12,6 +12,7 @@ using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
+using SlimFaas.WebSocket;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Endpoints;
@@ -160,6 +161,7 @@ public class TimeoutReadyEndpointTests
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         s.AddMemoryCache();
                         s.AddSingleton<FunctionStatusCache>();
                         s.AddSingleton<WakeUpGate>();
@@ -215,6 +217,7 @@ public class FlipReadyEndpointTests
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         s.AddMemoryCache();
                         s.AddSingleton<FunctionStatusCache>();
                         s.AddSingleton<WakeUpGate>();

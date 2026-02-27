@@ -11,6 +11,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
 using SlimFaas.Tests.Endpoints;
+using SlimFaas.WebSocket;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Endpoints;
@@ -54,6 +55,7 @@ public class SyncFunctionEndpointTests
                         services.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();

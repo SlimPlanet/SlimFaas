@@ -12,6 +12,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Security;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Tests.Endpoints;
 
@@ -40,6 +41,7 @@ public class AsyncFunctionEndpointTests
                         services.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
                         {
                             Namespace = "default",

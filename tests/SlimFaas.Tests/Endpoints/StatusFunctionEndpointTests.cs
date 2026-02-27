@@ -9,6 +9,7 @@ using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Security;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Tests.Endpoints;
 
@@ -39,6 +40,7 @@ public class StatusFunctionEndpointTests
                         services.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();
