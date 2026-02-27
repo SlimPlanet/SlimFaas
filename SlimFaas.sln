@@ -1,5 +1,4 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaas", "src\SlimFaas\SlimFaas.csproj", "{49E9C467-8F38-4D53-B803-0960FC44F690}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaas.Tests", "tests\SlimFaas.Tests\SlimFaas.Tests.csproj", "{A9BEA991-B9D5-4526-BD3A-63B8434FAC81}"
@@ -27,6 +26,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasKafka", "src\SlimFaasKafka\SlimFaasKafka.csproj", "{D771C816-4642-443B-A155-7DCA8C130864}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasKafka.Tests", "tests\SlimFaasKafka.Tests\SlimFaasKafka.Tests.csproj", "{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasClient", "client\dotnet\SlimFaasClient\src\SlimFaasClient\SlimFaasClient.csproj", "{3AAE085F-FB9D-48A6-A3C7-6EB672CDE11C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -90,5 +91,9 @@ Global
 		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{CE2BCA73-D7DB-4D9E-8902-4E88A6926CDB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3AAE085F-FB9D-48A6-A3C7-6EB672CDE11C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3AAE085F-FB9D-48A6-A3C7-6EB672CDE11C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3AAE085F-FB9D-48A6-A3C7-6EB672CDE11C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3AAE085F-FB9D-48A6-A3C7-6EB672CDE11C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

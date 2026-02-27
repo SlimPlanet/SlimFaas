@@ -1,10 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
-using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Security;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Endpoints;
 
@@ -36,8 +36,9 @@ public static class EventEndpoints
                 IJobService jobService,
                 IFunctionAccessPolicy accessPolicy,
                 IOptions<SlimFaasOptions> slimFaasOptions,
-                INamespaceProvider namespaceProvider) =>
-                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions, namespaceProvider))
+                INamespaceProvider namespaceProvider,
+                IWebSocketSendClient webSocketSendClient) =>
+                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions, namespaceProvider, webSocketSendClient))
             .WithName("PublishEventRoot")
             .Produces(204)
             .Produces(404)
@@ -56,7 +57,8 @@ public static class EventEndpoints
         [FromServices] IJobService jobService,
         [FromServices] IFunctionAccessPolicy accessPolicy,
         [FromServices] IOptions<SlimFaasOptions> slimFaasOptions,
-        [FromServices] INamespaceProvider namespaceProvider)
+        [FromServices] INamespaceProvider namespaceProvider,
+        [FromServices] IWebSocketSendClient webSocketSendClient)
     {
         functionPath ??= "";
 
@@ -81,6 +83,23 @@ public static class EventEndpoints
         {
             logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
 
+            // --- Fonctions WebSocket virtuelles (Namespace = "websocket-virtual") ---
+            if (function.Namespace == "websocket-virtual")
+            {
+                if (!calledFunctions.Contains(function))
+                    calledFunctions.Add(function);
+
+                historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
+                Task wsTask = webSocketSendClient.PublishEventAsync(
+                    function.Deployment,
+                    customRequest with { FunctionName = function.Deployment },
+                    eventName,
+                    context.RequestAborted);
+                tasks.Add(wsTask);
+                continue;
+            }
+
+            // --- Fonctions HTTP classiques ---
             foreach (var pod in function.Pods)
             {
                 logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}",

@@ -1,12 +1,14 @@
 using Microsoft.Extensions.Primitives;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Security;
 
 public sealed class DefaultFunctionAccessPolicy(
     IReplicasService replicasService,
     IJobService jobService,
+    IWebSocketFunctionRepository webSocketFunctionRepository,
     ILogger<DefaultFunctionAccessPolicy> logger)
     : IFunctionAccessPolicy
 {
@@ -90,7 +92,24 @@ public sealed class DefaultFunctionAccessPolicy(
     {
         var result = new List<DeploymentInformation>();
 
+        // Fonctions Kubernetes classiques
         foreach (var deployment in replicasService.Deployments.Functions)
+        {
+            var sub = deployment.SubscribeEvents?.FirstOrDefault(se => se.Name == eventName);
+            if (sub is null) continue;
+
+            if (sub.Visibility == FunctionVisibility.Public)
+            {
+                result.Add(deployment);
+                continue;
+            }
+
+            if (IsInternalRequest(context))
+                result.Add(deployment);
+        }
+
+        // Fonctions WebSocket virtuelles
+        foreach (var deployment in webSocketFunctionRepository.GetVirtualDeployments())
         {
             var sub = deployment.SubscribeEvents?.FirstOrDefault(se => se.Name == eventName);
             if (sub is null) continue;

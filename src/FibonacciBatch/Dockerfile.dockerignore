@@ -1,0 +1,51 @@
+# Exclusions pour le build Docker de fibonacci-batch
+# Le contexte de build est la racine du dépôt.
+# On exclut tout ce qui n'est pas nécessaire pour compiler
+# src/FibonacciBatch/ + client/dotnet/SlimFaasClient/
+
+# Artefacts de compilation
+**/bin/
+**/obj/
+
+# Autres projets src/ inutiles au build du batch
+src/Fibonacci/
+src/FibonacciKafkaListener/
+src/FibonacciKafkaProducer/
+src/FibonacciReact/
+src/GmailMailerApi/
+src/CalculatorApi/
+src/ConsoleApp1/
+src/SlimData/
+src/SlimFaas/
+src/SlimFaasBenchmark/
+src/SlimFaasClient/
+src/SlimFaasKafka/
+src/SlimFaasMcp/
+src/SlimFaasPlanetSaver/
+src/SlimFaasSite/
+
+# Client Python (inutile pour .NET)
+client/python/
+
+# Répertoires de tests
+tests/
+
+# Documentation et demo
+documentation/
+demo/
+
+# Fichiers git et CI
+.git/
+.github/
+.idea/
+.vs/
+.vscode/
+node_modules/
+
+# Fichiers divers
+**/*.md
+**/.dockerignore
+**/.gitignore
+**/.editorconfig
+docker-compose*.yml
+

@@ -8,4 +8,8 @@
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\..\client\dotnet\SlimFaasClient\src\SlimFaasClient\SlimFaasClient.csproj" />
+    </ItemGroup>
+
 </Project>

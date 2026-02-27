@@ -1,4 +1,4 @@
-﻿name: SlimFaas main CI
+name: SlimFaas main CI
 
 on:
   push:
@@ -319,7 +319,7 @@ jobs:
       image_name: "axaguildev/fibonacci-batch"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/FibonacciBatch"
+      image_context: "."
       image_file: "./src/FibonacciBatch/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:

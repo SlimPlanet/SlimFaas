@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Tests.Endpoints;
 
@@ -113,3 +114,21 @@ internal class SlimFaasPortsMock : ISlimFaasPorts
         get { return new List<int> { 5000, 9002 }; }
     }
 }
+
+internal class WebSocketFunctionRepositoryMock : IWebSocketFunctionRepository
+{
+    public IReadOnlyList<DeploymentInformation> GetVirtualDeployments() =>
+        Array.Empty<DeploymentInformation>();
+}
+
+internal class WebSocketSendClientMock : IWebSocketSendClient
+{
+    public Task<int> SendAsync(string functionName, CustomRequest customRequest, string elementId,
+        bool isLastTry, int tryNumber, CancellationToken ct = default) =>
+        Task.FromResult(200);
+
+    public Task PublishEventAsync(string functionName, CustomRequest customRequest,
+        string eventName, CancellationToken ct = default) =>
+        Task.CompletedTask;
+}
+

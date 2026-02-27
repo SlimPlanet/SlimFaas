@@ -311,3 +311,47 @@ spec:
   ports:
     - port: 5000
       targetPort: 5000
+---
+# Batch Fibonacci en mode WebSocket SlimFaas
+# Ce Deployment se connecte à SlimFaas via WebSocket et reçoit les évènements
+# publish/subscribe de type "fibo-public" (visibilité Public).
+# Il correspond conceptuellement à un replica virtuel géré côté client.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibonacci-batch-ws
+  namespace: slimfaas-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fibonacci-batch-ws
+  template:
+    metadata:
+      labels:
+        app: fibonacci-batch-ws
+    spec:
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      containers:
+        - name: fibonacci-batch-ws
+          image: axaguildev/fibonacci-batch:latest
+          args: ["--ws-mode"]
+          env:
+            # URL WebSocket interne de SlimFaas (port 5003)
+            - name: SLIMFAAS_WS_URL
+              value: "ws://slimfaas.slimfaas-demo.svc.cluster.local:5003/ws"
+            # Nom de la fonction virtuelle déclarée côté client
+            - name: SLIMFAAS_FUNCTION_NAME
+              value: "fibonacci-batch-ws"
+            # Abonnement à l'évènement fibo-public avec visibilité Public
+            # Equivalent à l'annotation SlimFaas/SubscribeEvents: "Public:fibo-public"
+            - name: SLIMFAAS_SUBSCRIBE_EVENTS
+              value: "Public:fibo-public"
+          resources:
+            limits:
+              memory: "128Mi"
+              cpu: "100m"
+            requests:
+              memory: "64Mi"
+              cpu: "10m"

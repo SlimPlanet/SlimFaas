@@ -28,7 +28,11 @@ data:
             }
           },
           "DependsOn": ["fibonacci1"],
-          "Environments": [],
+          "Environments": [
+            { "Name": "SLIMFAAS_WS_URL",          "Value": "ws://slimfaas.slimfaas-demo.svc.cluster.local:5003/ws" },
+            { "Name": "SLIMFAAS_FUNCTION_NAME",    "Value": "fibonacci-batch-ws" },
+            { "Name": "SLIMFAAS_SUBSCRIBE_EVENTS", "Value": "Public:fibo-public" }
+          ],
           "BackoffLimit": 1,
           "Visibility": "Public",
           "NumberParallelJob": 2,
@@ -132,6 +136,8 @@ spec:
           ports:
             - containerPort: 5000
               name: slimfaas
+            - containerPort: 5003
+              name: slimfaas-ws
             - containerPort: 3262
               name: slimdata
 ---
@@ -150,5 +156,7 @@ spec:
   ports:
     - name: "http"
       port: 5000
+    - name: "slimfaas-ws"
+      port: 5003
     - name: "slimdata"
       port: 3262
