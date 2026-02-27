@@ -72,7 +72,8 @@ public class ExtractJobConfigurationsTests
         string restartPolicy = "Never",
         int backoffLimit = 1,
         int ttlSeconds = 60,
-        IList<V1EnvVar>? envVars = null)
+        IList<V1EnvVar>? envVars = null,
+        IList<V1EnvFromSource>? envFrom = null)
     {
         var annotations = new Dictionary<string, string>();
         if (isSlimfaasJob)
@@ -91,6 +92,7 @@ public class ExtractJobConfigurationsTests
             Name = name,
             Image = image,
             Env = envVars,
+            EnvFrom = envFrom,
             Resources = new V1ResourceRequirements
             {
                 Requests = new Dictionary<string, ResourceQuantity>
@@ -306,5 +308,149 @@ public class ExtractJobConfigurationsTests
         Assert.NotNull(env.SecretRef);
         Assert.Equal("my-secret", env.SecretRef!.Name);
         Assert.Equal("my-key",    env.SecretRef.Key);
+    }
+
+    [Fact(DisplayName = "EnvFrom with SecretRef is mapped as wildcard entry")]
+    public async Task Extract_EnvFrom_SecretRef_IsMapped()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("envfrom-secret-job", envFrom: new List<V1EnvFromSource>
+            {
+                new()
+                {
+                    SecretRef = new V1SecretEnvSource { Name = "my-bulk-secret" }
+                }
+            })));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        var envs = result.Configurations["envfrom-secret-job"].Environments;
+        Assert.NotNull(envs);
+        Assert.Single(envs);
+
+        var entry = envs[0];
+        Assert.Equal("*",              entry.Name);
+        Assert.Equal("",               entry.Value);
+        Assert.NotNull(entry.SecretRef);
+        Assert.Equal("my-bulk-secret", entry.SecretRef!.Name);
+        Assert.Equal("*",              entry.SecretRef.Key);
+        Assert.Null(entry.ConfigMapRef);
+    }
+
+    [Fact(DisplayName = "EnvFrom with ConfigMapRef is mapped as wildcard entry")]
+    public async Task Extract_EnvFrom_ConfigMapRef_IsMapped()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("envfrom-cm-job", envFrom: new List<V1EnvFromSource>
+            {
+                new()
+                {
+                    ConfigMapRef = new V1ConfigMapEnvSource { Name = "my-bulk-config" }
+                }
+            })));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        var envs = result.Configurations["envfrom-cm-job"].Environments;
+        Assert.NotNull(envs);
+        Assert.Single(envs);
+
+        var entry = envs[0];
+        Assert.Equal("*",              entry.Name);
+        Assert.Equal("",               entry.Value);
+        Assert.NotNull(entry.ConfigMapRef);
+        Assert.Equal("my-bulk-config", entry.ConfigMapRef!.Name);
+        Assert.Equal("*",              entry.ConfigMapRef.Key);
+        Assert.Null(entry.SecretRef);
+    }
+
+    [Fact(DisplayName = "EnvFrom with prefix prepends prefix to the wildcard Name")]
+    public async Task Extract_EnvFrom_WithPrefix_NameContainsPrefix()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("prefix-job", envFrom: new List<V1EnvFromSource>
+            {
+                new()
+                {
+                    Prefix = "APP_",
+                    SecretRef = new V1SecretEnvSource { Name = "prefixed-secret" }
+                }
+            })));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        var envs = result.Configurations["prefix-job"].Environments;
+        Assert.NotNull(envs);
+        Assert.Single(envs);
+
+        var entry = envs[0];
+        Assert.Equal("APP_*", entry.Name);
+        Assert.NotNull(entry.SecretRef);
+        Assert.Equal("prefixed-secret", entry.SecretRef!.Name);
+        Assert.Equal("*", entry.SecretRef.Key);
+    }
+
+    [Fact(DisplayName = "EnvFrom entries are appended after regular env vars")]
+    public async Task Extract_EnvFrom_CombinedWithEnvVars_BothPresent()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("combined-job",
+                envVars: new List<V1EnvVar>
+                {
+                    new() { Name = "PLAIN_VAR", Value = "plain-value" }
+                },
+                envFrom: new List<V1EnvFromSource>
+                {
+                    new() { SecretRef  = new V1SecretEnvSource  { Name = "extra-secret" } },
+                    new() { ConfigMapRef = new V1ConfigMapEnvSource { Name = "extra-config" } }
+                })));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        var envs = result.Configurations["combined-job"].Environments;
+        Assert.NotNull(envs);
+        Assert.Equal(3, envs.Count);
+
+        // First entry is the plain env var
+        Assert.Equal("PLAIN_VAR",   envs[0].Name);
+        Assert.Equal("plain-value", envs[0].Value);
+        Assert.Null(envs[0].SecretRef);
+        Assert.Null(envs[0].ConfigMapRef);
+
+        // Second entry: EnvFrom SecretRef wildcard
+        Assert.Equal("*",            envs[1].Name);
+        Assert.NotNull(envs[1].SecretRef);
+        Assert.Equal("extra-secret", envs[1].SecretRef!.Name);
+        Assert.Equal("*",            envs[1].SecretRef!.Key);
+        Assert.Null(envs[1].ConfigMapRef);
+
+        // Third entry: EnvFrom ConfigMapRef wildcard
+        Assert.Equal("*",            envs[2].Name);
+        Assert.NotNull(envs[2].ConfigMapRef);
+        Assert.Equal("extra-config", envs[2].ConfigMapRef!.Name);
+        Assert.Equal("*",            envs[2].ConfigMapRef!.Key);
+        Assert.Null(envs[2].SecretRef);
+    }
+
+    [Fact(DisplayName = "EnvFrom entries without SecretRef or ConfigMapRef are ignored")]
+    public async Task Extract_EnvFrom_UnknownSource_IsIgnored()
+    {
+        // An EnvFromSource with neither SecretRef nor ConfigMapRef set should be skipped.
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("empty-envfrom-job", envFrom: new List<V1EnvFromSource>
+            {
+                new() // no SecretRef, no ConfigMapRef
+            })));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        var envs = result.Configurations["empty-envfrom-job"].Environments;
+        // The empty EnvFromSource yields null and gets filtered out, so the list is empty.
+        Assert.True(envs == null || envs.Count == 0);
     }
 }
