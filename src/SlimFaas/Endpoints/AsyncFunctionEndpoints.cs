@@ -5,6 +5,7 @@ using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Endpoints;
 
@@ -33,8 +34,9 @@ public static class AsyncFunctionEndpoints
                 IReplicasService replicasService,
                 IJobService jobService,
                 ISlimFaasQueue slimFaasQueue,
-                IFunctionAccessPolicy accessPolicy) =>
-                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy))
+                IFunctionAccessPolicy accessPolicy,
+                IWebSocketFunctionRepository webSocketFunctionRepository) =>
+                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository))
             .WithName("HandleAsyncFunctionRoot")
             .Produces(202)
             .Produces(404)
@@ -58,11 +60,21 @@ public static class AsyncFunctionEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
         [FromServices] ISlimFaasQueue slimFaasQueue,
-        [FromServices] IFunctionAccessPolicy accessPolicy)
+        [FromServices] IFunctionAccessPolicy accessPolicy,
+        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository)
     {
         functionPath ??= "";
 
+        // Chercher d'abord dans les fonctions Kubernetes classiques
         DeploymentInformation? function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
+
+        // Puis dans les fonctions WebSocket virtuelles
+        if (function == null)
+        {
+            function = webSocketFunctionRepository.GetVirtualDeployments()
+                .FirstOrDefault(d => string.Equals(d.Deployment, functionName, StringComparison.OrdinalIgnoreCase));
+        }
+
         if (function == null)
         {
             return Results.NotFound();

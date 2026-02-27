@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Mvc;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas;
 
@@ -30,6 +31,7 @@ int TotalPoints
 );
 
 
+
 [JsonSerializable(typeof(PromQlRequest))]
 [JsonSerializable(typeof(PromQlResponse))]
 [JsonSerializable(typeof(ErrorResponse))]
@@ -37,4 +39,11 @@ int TotalPoints
 [JsonSerializable(typeof(ProblemDetails))]
 [JsonSerializable(typeof(ValidationProblemDetails))]
 [JsonSerializable(typeof(HttpValidationProblemDetails))]
+[JsonSerializable(typeof(WebSocketEnvelope))]
+[JsonSerializable(typeof(RegisterPayload))]
+[JsonSerializable(typeof(RegisterResponsePayload))]
+[JsonSerializable(typeof(AsyncRequestPayload))]
+[JsonSerializable(typeof(AsyncCallbackPayload))]
+[JsonSerializable(typeof(PublishEventPayload))]
+[JsonSerializable(typeof(WebSocketFunctionConfiguration))]
 public partial class AppJsonContext : JsonSerializerContext;

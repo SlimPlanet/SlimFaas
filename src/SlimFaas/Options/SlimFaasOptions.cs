@@ -58,4 +58,10 @@ public class SlimFaasOptions
     /// Rate limiting configuration
     /// </summary>
     public RateLimitingOptions RateLimiting { get; set; } = new();
+
+    /// <summary>
+    /// Port dédié aux connexions WebSocket des clients virtuels (jobs, etc.).
+    /// 0 = désactivé.
+    /// </summary>
+    public int WebSocketPort { get; set; } = 5003;
 }
