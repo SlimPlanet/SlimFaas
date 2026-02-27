@@ -84,6 +84,7 @@ serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemor
 serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
 serviceCollectionStarter.AddSingleton<FunctionStatusCache>();
 serviceCollectionStarter.AddSingleton<WakeUpGate>();
+serviceCollectionStarter.AddSingleton<IJobConfiguration, JobConfiguration>();
 
 serviceCollectionStarter.AddLogging(loggingBuilder =>
 {
@@ -205,6 +206,7 @@ serviceCollectionSlimFaas.AddSingleton<AutoScaler>(sp =>
 serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimScheduleJobsWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimJobsWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimJobsConfigurationWorker>();
 serviceCollectionSlimFaas.AddHostedService<ScaleReplicasWorker>();
 
 serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
@@ -235,7 +237,8 @@ serviceCollectionSlimFaas.AddSingleton<INamespaceProvider>(sp =>
     serviceProviderStarter.GetRequiredService<INamespaceProvider>());
 serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();
 serviceCollectionSlimFaas.AddSingleton<IJobQueue, JobQueue>();
-serviceCollectionSlimFaas.AddSingleton<IJobConfiguration, JobConfiguration>();
+serviceCollectionSlimFaas.AddSingleton<IJobConfiguration>(sp =>
+    serviceProviderStarter.GetService<IJobConfiguration>()!);
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
 serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
 serviceCollectionSlimFaas.AddMemoryCache();

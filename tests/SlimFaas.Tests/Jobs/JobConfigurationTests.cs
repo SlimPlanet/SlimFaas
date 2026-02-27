@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -18,16 +19,29 @@ public class JobConfigurationTests
         });
     }
 
+    private readonly Mock<IKubernetesService> _kubernetesServiceMock;
+    private readonly Mock<INamespaceProvider> _namespaceProviderMock;
     private static ILogger<JobConfiguration> CreateLogger()
     {
         return NullLogger<JobConfiguration>.Instance;
+    }
+
+    public JobConfigurationTests()
+    {
+        _kubernetesServiceMock = new Mock<IKubernetesService>();
+        _namespaceProviderMock = new Mock<INamespaceProvider>();
+        _namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
     }
 
     [Fact]
     public void Constructeur_SansJson_DoitUtiliserValeursParDefaut()
     {
         // Arrange & Act
-        JobConfiguration jobConfiguration = new(CreateDefaultOptions(), CreateLogger());
+        JobConfiguration jobConfiguration = new(
+            CreateDefaultOptions(),
+            _kubernetesServiceMock.Object,
+            CreateLogger(),
+            _namespaceProviderMock.Object);
 
         // Assert
         Assert.NotNull(jobConfiguration.Configuration);
@@ -60,8 +74,11 @@ public class JobConfigurationTests
             Namespace = "default",
             JobsConfiguration = jsonInvalide
         });
-        JobConfiguration jobConfiguration = new(options, CreateLogger());
-
+        JobConfiguration jobConfiguration = new(
+            options,
+            _kubernetesServiceMock.Object,
+            CreateLogger(),
+            _namespaceProviderMock.Object);
         // Assert
         // Doit retomber sur la config par défaut
         Assert.NotNull(jobConfiguration.Configuration);
@@ -93,7 +110,11 @@ public class JobConfigurationTests
             Namespace = "default",
             JobsConfiguration = jsonValideSansDefault
         });
-        JobConfiguration jobConfiguration = new(options, CreateLogger());
+        JobConfiguration jobConfiguration = new(
+            options,
+            _kubernetesServiceMock.Object,
+            CreateLogger(),
+            _namespaceProviderMock.Object);
 
         // Assert
         // On doit retrouver la clé "MaFunction" ET la clé "Default"
@@ -133,7 +154,12 @@ public class JobConfigurationTests
             Namespace = "default",
             JobsConfiguration = jsonValide
         });
-        JobConfiguration jobConfiguration = new(options, CreateLogger());
+
+        JobConfiguration jobConfiguration = new(
+            options,
+            _kubernetesServiceMock.Object,
+            CreateLogger(),
+            _namespaceProviderMock.Object);
 
         // Assert
         Assert.NotNull(jobConfiguration.Configuration);
@@ -169,7 +195,11 @@ public class JobConfigurationTests
             Namespace = "default",
             JobsConfiguration = jsonAvecDefaultSansRessources
         });
-        JobConfiguration jobConfiguration = new(options, CreateLogger());
+        JobConfiguration jobConfiguration = new(
+            options,
+            _kubernetesServiceMock.Object,
+            CreateLogger(),
+            _namespaceProviderMock.Object);
 
         // Assert
         // On vérifie que la clé "Default" existe et que les ressources sont remplies par défaut

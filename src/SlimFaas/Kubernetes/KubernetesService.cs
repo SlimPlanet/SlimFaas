@@ -7,6 +7,7 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 using MemoryPack;
+using SlimFaas.Jobs;
 
 namespace SlimFaas.Kubernetes;
 
@@ -265,6 +266,9 @@ public class KubernetesService : IKubernetesService
     private const string DefaultVisibility = "SlimFaas/DefaultVisibility";
     private const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
     private const string Scale = "SlimFaas/Scale";
+    private const string Job = "SlimFaas/Job";
+    private const string JobImagesWhitelist = "SlimFaas/JobImagesWhitelist";
+    private const string NumberParallelJob = "SlimFaas/NumberParallelJob";
 
     private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
         "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
@@ -518,7 +522,6 @@ public class KubernetesService : IKubernetesService
                             podList.Where(p => p.DeploymentName == deploymentListItem.Metadata.Name).ToList()))
                 .FirstOrDefault();
 
-
             IEnumerable<PodInformation> podInformations = podList.ToArray();
             await AddDeployments(kubeNamespace, deploymentList, podInformations, deploymentInformationList, _logger,
                 client, previousDeployments.Functions);
@@ -533,6 +536,25 @@ public class KubernetesService : IKubernetesService
         {
             _logger.LogError(e, "Error while listing kubernetes functions");
             return previousDeployments;
+        }
+    }
+
+        public async Task<SlimFaasJobConfiguration?> ListJobsConfigurationAsync(string kubeNamespace)
+    {
+        try
+        {
+            k8s.Kubernetes client = _client;
+
+            Task<V1CronJobList>? cronJobListTask = client.ListNamespacedCronJobAsync(kubeNamespace);
+
+            V1CronJobList? cronJobList = await cronJobListTask;
+
+            return ExtractJobConfigurations(cronJobList);
+        }
+        catch (HttpOperationException e)
+        {
+            _logger.LogError(e, "Error while listing kubernetes cron jobs");
+            return null;
         }
     }
 
@@ -1129,7 +1151,6 @@ public class KubernetesService : IKubernetesService
             }
         }
     }
-
     private static IEnumerable<PodInformation> MapPodInformations(
         V1PodList v1PodList,
         V1ServiceList? serviceList,
@@ -1262,4 +1283,109 @@ public class KubernetesService : IKubernetesService
         return result;
     }
 
+        private SlimFaasJobConfiguration? ExtractJobConfigurations(V1CronJobList cronJobList)
+    {
+        Dictionary<string, SlimfaasJob> jobs = new();
+
+        foreach (V1CronJob? cronJob in cronJobList.Items)
+        {
+            if (cronJob is null)
+            {
+                continue;
+            }
+
+            var annotations = cronJob.Metadata?.Annotations ?? new Dictionary<string, string>();
+            V1Container? container = cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers.FirstOrDefault();
+
+            bool isSlimfaasJob = annotations.TryGetValue(Job, out var labelValue) &&
+                                 bool.TryParse(labelValue, out var isJob) && isJob;
+            if (!isSlimfaasJob)
+                continue;
+
+            string name = cronJob.Metadata?.Name ?? "unknown";
+            bool suspend = cronJob.Spec.Suspend ?? false;
+
+            if (!suspend)
+            {
+                _logger.LogWarning("CronJob {CronJobName} is not suspended, skipping it in the SlimFaas job configuration.", name);
+                continue;
+            }
+
+
+            var image = container?.Image ?? "";
+
+            var imagesWhitelist = annotations.TryGetValue(JobImagesWhitelist, out var whitelist)
+                ? whitelist.Split(',').Select(s => s.Trim()).ToList()
+                : new List<string>();
+
+            CreateJobResources? resources = new (
+                container?.Resources.Requests?.ToDictionary(kv => kv.Key, kv => kv.Value.ToString()) ??
+                new Dictionary<string, string> { { "cpu", "100m" }, { "memory", "100Mi" } },
+                container?.Resources.Limits?.ToDictionary(kv => kv.Key, kv => kv.Value.ToString()) ??
+                new Dictionary<string, string> { { "cpu", "100m" }, { "memory", "100Mi" } }
+            );
+
+            List<string>? dependsOn = annotations.TryGetValue(DependsOn, out var dependsOnValue)
+                ? dependsOnValue.Split(',').Select(s => s.Trim()).ToList()
+                : null;
+
+            List<EnvVarInput>? environments = null;
+
+            if (container?.Env != null)
+            {
+                environments = container.Env?.Select(e => new EnvVarInput(
+                    Name: e.Name,
+                    Value: e.Value ?? "",
+                    SecretRef: e.ValueFrom?.SecretKeyRef != null
+                        ? new SecretRef(e.ValueFrom.SecretKeyRef.Name, e.ValueFrom.SecretKeyRef.Key)
+                        : null,
+                    ConfigMapRef: e.ValueFrom?.ConfigMapKeyRef != null
+                        ? new ConfigMapRef(e.ValueFrom.ConfigMapKeyRef.Name, e.ValueFrom.ConfigMapKeyRef.Key)
+                        : null,
+                    FieldRef: e.ValueFrom?.FieldRef != null
+                        ? new FieldRef(e.ValueFrom.FieldRef.FieldPath)
+                        : null,
+                    ResourceFieldRef: e.ValueFrom?.ResourceFieldRef != null
+                        ? new ResourceFieldRef(
+                            e.ValueFrom.ResourceFieldRef.ContainerName,
+                            e.ValueFrom.ResourceFieldRef.Resource,
+                            e.ValueFrom.ResourceFieldRef.Divisor?.ToString() ?? "")
+                        : null
+                )).ToList();
+            }
+
+            var visibility = annotations.TryGetValue(DefaultVisibility, out var vis) ? vis : nameof(FunctionVisibility.Private);
+            var numberParallel = Int32.TryParse(annotations.TryGetValue(NumberParallelJob, out var par) ? par : "1", out var result) ? result : 1;
+
+            var restartPolicy = cronJob.Spec.JobTemplate.Spec.Template.Spec.RestartPolicy ?? "Never";
+            var backOffLimit = cronJob.Spec.JobTemplate.Spec.BackoffLimit ?? 1;
+            var ttlSecondsAfterFinished = cronJob.Spec.JobTemplate.Spec.TtlSecondsAfterFinished ?? 60;
+
+            jobs[name] = new SlimfaasJob(
+                Image: image,
+                ImagesWhitelist: imagesWhitelist,
+                Resources: resources,
+                DependsOn: dependsOn,
+                Environments: environments,
+                BackoffLimit: backOffLimit,
+                Visibility: visibility,
+                NumberParallelJob: numberParallel,
+                TtlSecondsAfterFinished: ttlSecondsAfterFinished,
+                RestartPolicy: restartPolicy
+            );
+
+            _logger.LogDebug("JobConfiguration: ");
+            _logger.LogDebug(jobs[name].ToString());
+        }
+
+        if (jobs.Count != 0)
+        {
+            return new SlimFaasJobConfiguration(jobs);
+        }
+
+        _logger.LogDebug("No SlimFaas job configurations found in the cluster.");
+        return null;
+
+
+    }
 }

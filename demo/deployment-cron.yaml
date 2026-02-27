@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: fibonacci5
+  namespace: slimfaas-demo
+  annotations:
+    SlimFaas/Job: "true"
+    SlimFaas/DefaultVisibility: "Public"
+    SlimFaas/NumberParallelJob: "1"
+    SlimFaas/DependsOn: "fibonacci1,fibonacci2"
+spec:
+  schedule: "0 0 * * *"
+  suspend: true
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 60
+      template:
+        spec:
+          containers:
+            - name: fibonacci11
+              image: axaguildev/fibonacci-batch:latest
+              resources:
+                  requests:
+                    cpu: "400m"
+                    memory: "400Mi"
+                  limits:
+                    cpu: "400m"
+                    memory: "400Mi"
+          restartPolicy: Never

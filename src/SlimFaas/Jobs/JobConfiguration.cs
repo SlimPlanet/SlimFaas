@@ -1,4 +1,4 @@
-﻿﻿﻿using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
@@ -8,18 +8,31 @@ namespace SlimFaas.Jobs;
 
 public interface IJobConfiguration
 {
-    SlimFaasJobConfiguration Configuration { get; }
+    SlimFaasJobConfiguration Configuration { get; set; }
+
+    Task SyncJobsConfigurationAsync();
 }
 
 public class JobConfiguration : IJobConfiguration
 {
     public const string Default = "Default";
 
-    public SlimFaasJobConfiguration Configuration { get; }
 
+    private SlimFaasJobConfiguration _configuration;
+    private readonly SlimFaasJobConfiguration _initialConfiguration;
 
-    public JobConfiguration(IOptions<SlimFaasOptions> slimFaasOptions, ILogger<JobConfiguration> logger)
+    public SlimFaasJobConfiguration Configuration
     {
+        get => _configuration;
+        set => _configuration = value;
+    }
+    private readonly IKubernetesService _service;
+
+    private readonly string _namespace;
+
+    public JobConfiguration(IOptions<SlimFaasOptions> slimFaasOptions, IKubernetesService kubernetesService, ILogger<JobConfiguration> logger, INamespaceProvider namespaceProvider)
+    {
+        _namespace = namespaceProvider.CurrentNamespace;
         SlimFaasJobConfiguration? slimfaasJobConfiguration = null;
         Dictionary<string, string> resources = new();
         resources.Add("cpu", "100m");
@@ -72,6 +85,55 @@ public class JobConfiguration : IJobConfiguration
             }
         }
 
-        Configuration = slimfaasJobConfiguration;
+        _configuration = slimfaasJobConfiguration;
+        _initialConfiguration = slimfaasJobConfiguration;
+        _service = kubernetesService;
+    }
+
+    private SlimFaasJobConfiguration MergeJobConfigurations(SlimFaasJobConfiguration configuration)
+    {
+        SlimFaasJobConfiguration defaultConfiguration = _initialConfiguration;
+
+        if (defaultConfiguration.Schedules == null)
+        {
+            defaultConfiguration = defaultConfiguration with { Schedules = new Dictionary<string, IList<ScheduleCreateJob>>(StringComparer.OrdinalIgnoreCase)};
+        }
+
+        foreach (var kvp in configuration.Configurations)
+        {
+            if (kvp.Key.Equals(Default, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            defaultConfiguration.Configurations[kvp.Key] = kvp.Value;
+        }
+
+        if (configuration.Schedules != null)
+        {
+            foreach (var kvp in configuration.Schedules)
+            {
+                if (kvp.Key.Equals(Default, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                if (!defaultConfiguration.Schedules.TryAdd(kvp.Key, kvp.Value))
+                {
+                    defaultConfiguration.Schedules[kvp.Key] = kvp.Value;
+                }
+            }
+        }
+
+
+        return defaultConfiguration;
+    }
+
+    public async Task SyncJobsConfigurationAsync()
+    {
+        var configuration = await _service.ListJobsConfigurationAsync(_namespace);
+
+        if (configuration != null)
+            Interlocked.Exchange(ref _configuration, MergeJobConfigurations(configuration));
     }
 }
