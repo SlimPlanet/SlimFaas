@@ -1354,6 +1354,38 @@ public class KubernetesService : IKubernetesService
                 )).ToList();
             }
 
+            if (container?.EnvFrom != null)
+            {
+                var envFromList = container.EnvFrom
+                    .Select(e =>
+                    {
+                        if (e.SecretRef != null)
+                        {
+                            return new EnvVarInput(
+                                Name: (e.Prefix ?? "") + "*",
+                                Value: "",
+                                SecretRef: new SecretRef(e.SecretRef.Name, "*")
+                            );
+                        }
+
+                        if (e.ConfigMapRef != null)
+                        {
+                            return new EnvVarInput(
+                                Name: (e.Prefix ?? "") + "*",
+                                Value: "",
+                                ConfigMapRef: new ConfigMapRef(e.ConfigMapRef.Name, "*")
+                            );
+                        }
+
+                        return null;
+                    })
+                    .Where(e => e != null)
+                    .Cast<EnvVarInput>()
+                    .ToList();
+
+                environments = (environments ?? new List<EnvVarInput>()).Concat(envFromList).ToList();
+            }
+
             var visibility = annotations.TryGetValue(DefaultVisibility, out var vis) ? vis : nameof(FunctionVisibility.Private);
             var numberParallel = Int32.TryParse(annotations.TryGetValue(NumberParallelJob, out var par) ? par : "1", out var result) ? result : 1;
 
