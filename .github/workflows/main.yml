@@ -1,4 +1,4 @@
-﻿﻿name: SlimFaas main CI
+name: SlimFaas main CI
 
 on:
   push:
