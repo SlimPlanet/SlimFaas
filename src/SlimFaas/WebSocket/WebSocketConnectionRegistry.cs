@@ -197,11 +197,13 @@ public class WebSocketConnectionRegistry
                && a.NumberParallelRequestPerPod == b.NumberParallelRequestPerPod
                && a.ReplicasStartAsSoonAsOneFunctionRetrieveARequest == b.ReplicasStartAsSoonAsOneFunctionRetrieveARequest
                && a.Configuration == b.Configuration
-               && a.SubscribeEvents.OrderBy(x => x).SequenceEqual(b.SubscribeEvents.OrderBy(x => x))
+               && a.SubscribeEvents.Count == b.SubscribeEvents.Count
+               && a.SubscribeEvents.OrderBy(x => x.Name).Zip(b.SubscribeEvents.OrderBy(x => x.Name))
+                   .All(pair => pair.First.Name == pair.Second.Name && pair.First.Visibility == pair.Second.Visibility)
                && a.DependsOn.OrderBy(x => x).SequenceEqual(b.DependsOn.OrderBy(x => x))
                && a.PathsStartWithVisibility.Count == b.PathsStartWithVisibility.Count
-               && a.PathsStartWithVisibility.All(kvp =>
-                   b.PathsStartWithVisibility.TryGetValue(kvp.Key, out var val) && val == kvp.Value);
+               && a.PathsStartWithVisibility.OrderBy(x => x.Path).Zip(b.PathsStartWithVisibility.OrderBy(x => x.Path))
+                   .All(pair => pair.First.Path == pair.Second.Path && pair.First.Visibility == pair.Second.Visibility);
     }
 }
 

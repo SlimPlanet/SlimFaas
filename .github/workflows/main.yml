@@ -230,7 +230,6 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
-
   build_slimfaas_kafka:
     needs: tags
     if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
@@ -522,7 +521,7 @@ jobs:
   change_log:
     runs-on: ubuntu-latest
     if: needs.tags.outputs.tag == 'release'
-    needs: [ tags,  build_slimfaas_planet_saver, build_slimfaas, deploy_website, build_fibonacci_mcp ]
+    needs: [ tags, build_slimfaas_planet_saver, build_slimfaas, deploy_website, build_fibonacci_mcp ]
     steps:
       - uses: actions/checkout@v4
         with:

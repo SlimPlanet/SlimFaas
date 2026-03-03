@@ -34,6 +34,39 @@ public class SlimFaasEnvelope
 }
 
 // ---------------------------------------------------------------------------
+// Structures pour SubscribeEvents et PathsStartWithVisibility
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Décrit un évènement auquel s'abonner, avec une visibilité optionnelle.
+/// Si <see cref="Visibility"/> est null, la visibilité par défaut (<c>DefaultVisibility</c>) est utilisée.
+/// Exemple : <c>new SubscribeEventConfig { Name = "fibo-public", Visibility = "Public" }</c>
+/// </summary>
+public class SubscribeEventConfig
+{
+    /// <summary>Nom de l'évènement (ex : "fibo-public").</summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Surcharge de visibilité : "Public", "Private" ou null pour hériter de <c>DefaultVisibility</c>.
+    /// </summary>
+    public string? Visibility { get; set; }
+}
+
+/// <summary>
+/// Décrit une règle de visibilité par préfixe de chemin.
+/// Exemple : <c>new PathVisibilityConfig { Path = "/admin", Visibility = "Private" }</c>
+/// </summary>
+public class PathVisibilityConfig
+{
+    /// <summary>Préfixe de chemin (ex : "/admin").</summary>
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>Visibilité : "Public" ou "Private".</summary>
+    public string Visibility { get; set; } = "Public";
+}
+
+// ---------------------------------------------------------------------------
 // Configuration de la fonction/job
 // ---------------------------------------------------------------------------
 
@@ -63,14 +96,21 @@ public class SlimFaasClientConfig
     /// <summary>SlimFaas/DependsOn</summary>
     public List<string> DependsOn { get; set; } = [];
 
-    /// <summary>SlimFaas/SubscribeEvents</summary>
-    public List<string> SubscribeEvents { get; set; } = [];
+    /// <summary>
+    /// SlimFaas/SubscribeEvents.
+    /// Chaque entrée peut surcharger la visibilité individuellement.
+    /// Si <see cref="SubscribeEventConfig.Visibility"/> est null, <see cref="DefaultVisibility"/> est utilisé.
+    /// </summary>
+    public List<SubscribeEventConfig> SubscribeEvents { get; set; } = [];
 
     /// <summary>SlimFaas/DefaultVisibility : "Public" ou "Private"</summary>
     public string DefaultVisibility { get; set; } = "Public";
 
-    /// <summary>SlimFaas/PathsStartWithVisibility</summary>
-    public Dictionary<string, string> PathsStartWithVisibility { get; set; } = [];
+    /// <summary>
+    /// SlimFaas/PathsStartWithVisibility.
+    /// Chaque entrée définit un préfixe de chemin et sa visibilité.
+    /// </summary>
+    public List<PathVisibilityConfig> PathsStartWithVisibility { get; set; } = [];
 
     /// <summary>SlimFaas/Configuration</summary>
     public string Configuration { get; set; } = string.Empty;
@@ -137,13 +177,13 @@ internal class RegisterConfigDto
     public List<string> DependsOn { get; set; } = [];
 
     [JsonPropertyName("subscribeEvents")]
-    public List<string> SubscribeEvents { get; set; } = [];
+    public List<SubscribeEventConfigDto> SubscribeEvents { get; set; } = [];
 
     [JsonPropertyName("defaultVisibility")]
     public string DefaultVisibility { get; set; } = "Public";
 
     [JsonPropertyName("pathsStartWithVisibility")]
-    public Dictionary<string, string> PathsStartWithVisibility { get; set; } = [];
+    public List<PathVisibilityConfigDto> PathsStartWithVisibility { get; set; } = [];
 
     [JsonPropertyName("configuration")]
     public string Configuration { get; set; } = string.Empty;
@@ -159,6 +199,24 @@ internal class RegisterConfigDto
 
     [JsonPropertyName("defaultTrust")]
     public string DefaultTrust { get; set; } = "Trusted";
+}
+
+internal class SubscribeEventConfigDto
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("visibility")]
+    public string? Visibility { get; set; }
+}
+
+internal class PathVisibilityConfigDto
+{
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = string.Empty;
+
+    [JsonPropertyName("visibility")]
+    public string Visibility { get; set; } = "Public";
 }
 
 internal class RegisterResponseDto
@@ -237,6 +295,10 @@ internal class AsyncCallbackDto
 [JsonSerializable(typeof(SlimFaasEnvelope))]
 [JsonSerializable(typeof(RegisterPayloadDto))]
 [JsonSerializable(typeof(RegisterConfigDto))]
+[JsonSerializable(typeof(SubscribeEventConfigDto))]
+[JsonSerializable(typeof(PathVisibilityConfigDto))]
+[JsonSerializable(typeof(List<SubscribeEventConfigDto>))]
+[JsonSerializable(typeof(List<PathVisibilityConfigDto>))]
 [JsonSerializable(typeof(RegisterResponseDto))]
 [JsonSerializable(typeof(AsyncRequestDto))]
 [JsonSerializable(typeof(PublishEventDto))]

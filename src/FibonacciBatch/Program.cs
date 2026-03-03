@@ -52,12 +52,25 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
                    ?? "ws://slimfaas:5003/ws";
     string functionName = Environment.GetEnvironmentVariable("SLIMFAAS_FUNCTION_NAME")
                           ?? "fibonacci-batch";
-    var subscribeEvents = new List<string>();
+    var subscribeEvents = new List<SubscribeEventConfig>();
 
     string? envEvents = Environment.GetEnvironmentVariable("SLIMFAAS_SUBSCRIBE_EVENTS");
     if (!string.IsNullOrWhiteSpace(envEvents))
     {
-        subscribeEvents.AddRange(envEvents.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        foreach (var token in envEvents.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var parts = token.Split(':', 2, StringSplitOptions.TrimEntries);
+            if (parts.Length == 2 &&
+                (parts[0].Equals("Public", StringComparison.OrdinalIgnoreCase) ||
+                 parts[0].Equals("Private", StringComparison.OrdinalIgnoreCase)))
+            {
+                subscribeEvents.Add(new SubscribeEventConfig { Name = parts[1], Visibility = parts[0] });
+            }
+            else
+            {
+                subscribeEvents.Add(new SubscribeEventConfig { Name = token });
+            }
+        }
     }
 
     for (int idx = 0; idx < remainingArgs.Length; idx++)
@@ -71,8 +84,21 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
                 functionName = remainingArgs[++idx];
                 break;
             case "--subscribe" when idx + 1 < remainingArgs.Length:
-                subscribeEvents.Add(remainingArgs[++idx]);
+            {
+                var token = remainingArgs[++idx];
+                var parts = token.Split(':', 2, StringSplitOptions.TrimEntries);
+                if (parts.Length == 2 &&
+                    (parts[0].Equals("Public", StringComparison.OrdinalIgnoreCase) ||
+                     parts[0].Equals("Private", StringComparison.OrdinalIgnoreCase)))
+                {
+                    subscribeEvents.Add(new SubscribeEventConfig { Name = parts[1], Visibility = parts[0] });
+                }
+                else
+                {
+                    subscribeEvents.Add(new SubscribeEventConfig { Name = token });
+                }
                 break;
+            }
         }
     }
 
@@ -81,7 +107,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
     Console.WriteLine("╚══════════════════════════════════════════════════════╝");
     Console.WriteLine($"  SlimFaas URL    : {wsUrl}");
     Console.WriteLine($"  Fonction        : {functionName}");
-    Console.WriteLine($"  SubscribeEvents : [{string.Join(", ", subscribeEvents)}]");
+    Console.WriteLine($"  SubscribeEvents : [{string.Join(", ", subscribeEvents.Select(e => e.Visibility != null ? $"{e.Visibility}:{e.Name}" : e.Name))}]");
     Console.WriteLine();
 
     // ── Configuration du client SlimFaas ─────────────────────────────────

@@ -46,4 +46,8 @@ int TotalPoints
 [JsonSerializable(typeof(AsyncCallbackPayload))]
 [JsonSerializable(typeof(PublishEventPayload))]
 [JsonSerializable(typeof(WebSocketFunctionConfiguration))]
+[JsonSerializable(typeof(SubscribeEventConfig))]
+[JsonSerializable(typeof(PathVisibilityConfig))]
+[JsonSerializable(typeof(List<SubscribeEventConfig>))]
+[JsonSerializable(typeof(List<PathVisibilityConfig>))]
 public partial class AppJsonContext : JsonSerializerContext;

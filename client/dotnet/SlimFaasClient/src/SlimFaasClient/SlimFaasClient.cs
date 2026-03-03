@@ -244,9 +244,13 @@ public sealed class SlimFaasClient : IAsyncDisposable
             Configuration = new RegisterConfigDto
             {
                 DependsOn = _config.DependsOn,
-                SubscribeEvents = _config.SubscribeEvents,
+                SubscribeEvents = _config.SubscribeEvents
+                    .Select(e => new SubscribeEventConfigDto { Name = e.Name, Visibility = e.Visibility })
+                    .ToList(),
                 DefaultVisibility = _config.DefaultVisibility,
-                PathsStartWithVisibility = _config.PathsStartWithVisibility,
+                PathsStartWithVisibility = _config.PathsStartWithVisibility
+                    .Select(p => new PathVisibilityConfigDto { Path = p.Path, Visibility = p.Visibility })
+                    .ToList(),
                 Configuration = _config.Configuration,
                 ReplicasStartAsSoonAsOneFunctionRetrieveARequest = _config.ReplicasStartAsSoonAsOneFunctionRetrieveARequest,
                 NumberParallelRequest = _config.NumberParallelRequest,

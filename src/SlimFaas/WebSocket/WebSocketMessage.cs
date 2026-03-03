@@ -60,6 +60,35 @@ public class RegisterPayload
 }
 
 /// <summary>
+/// Décrit un évènement auquel s'abonner, avec une visibilité optionnelle.
+/// Si <see cref="Visibility"/> est null, la visibilité par défaut (<c>DefaultVisibility</c>) est utilisée.
+/// </summary>
+public class SubscribeEventConfig
+{
+    /// <summary>Nom de l'évènement (ex : "fibo-public").</summary>
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>Surcharge de visibilité : "Public", "Private" ou null pour hériter de DefaultVisibility.</summary>
+    [JsonPropertyName("visibility")]
+    public string? Visibility { get; set; }
+}
+
+/// <summary>
+/// Décrit une règle de visibilité par préfixe de chemin.
+/// </summary>
+public class PathVisibilityConfig
+{
+    /// <summary>Préfixe de chemin (ex : "/admin").</summary>
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = string.Empty;
+
+    /// <summary>Visibilité : "Public" ou "Private".</summary>
+    [JsonPropertyName("visibility")]
+    public string Visibility { get; set; } = "Public";
+}
+
+/// <summary>
 /// Configuration de la fonction/job déclarée par le client WebSocket.
 /// Correspond aux annotations SlimFaas habituelles.
 /// </summary>
@@ -68,14 +97,21 @@ public class WebSocketFunctionConfiguration
     [JsonPropertyName("dependsOn")]
     public List<string> DependsOn { get; set; } = [];
 
+    /// <summary>
+    /// Évènements auxquels s'abonner.
+    /// Chaque entrée peut surcharger la visibilité individuellement.
+    /// </summary>
     [JsonPropertyName("subscribeEvents")]
-    public List<string> SubscribeEvents { get; set; } = [];
+    public List<SubscribeEventConfig> SubscribeEvents { get; set; } = [];
 
     [JsonPropertyName("defaultVisibility")]
     public string DefaultVisibility { get; set; } = "Public";
 
+    /// <summary>
+    /// Règles de visibilité par préfixe de chemin.
+    /// </summary>
     [JsonPropertyName("pathsStartWithVisibility")]
-    public Dictionary<string, string> PathsStartWithVisibility { get; set; } = [];
+    public List<PathVisibilityConfig> PathsStartWithVisibility { get; set; } = [];
 
     [JsonPropertyName("configuration")]
     public string Configuration { get; set; } = string.Empty;

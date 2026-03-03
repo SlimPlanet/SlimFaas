@@ -24,6 +24,48 @@ class MessageType(IntEnum):
 
 
 # ---------------------------------------------------------------------------
+# Structures pour SubscribeEvents et PathsStartWithVisibility
+# ---------------------------------------------------------------------------
+
+@dataclass
+class SubscribeEventConfig:
+    """
+    Décrit un évènement auquel s'abonner, avec une visibilité optionnelle.
+
+    Si ``visibility`` est ``None``, la visibilité par défaut (``default_visibility``)
+    du client est utilisée.
+
+    Exemple ::
+
+        SubscribeEventConfig(name="fibo-public", visibility="Public")
+        SubscribeEventConfig(name="fibo-private")  # hérite de default_visibility
+    """
+
+    name: str
+    """Nom de l'évènement (ex : "fibo-public")."""
+
+    visibility: Optional[str] = None
+    """Surcharge de visibilité : "Public", "Private" ou None pour hériter de default_visibility."""
+
+
+@dataclass
+class PathVisibilityConfig:
+    """
+    Décrit une règle de visibilité par préfixe de chemin.
+
+    Exemple ::
+
+        PathVisibilityConfig(path="/admin", visibility="Private")
+    """
+
+    path: str
+    """Préfixe de chemin (ex : "/admin")."""
+
+    visibility: str = "Public"
+    """Visibilité : "Public" ou "Private"."""
+
+
+# ---------------------------------------------------------------------------
 # Configuration du client
 # ---------------------------------------------------------------------------
 
@@ -50,14 +92,20 @@ class SlimFaasClientConfig:
     depends_on: list[str] = field(default_factory=list)
     """Noms des fonctions dont celle-ci dépend (SlimFaas/DependsOn)."""
 
-    subscribe_events: list[str] = field(default_factory=list)
-    """Noms des évènements auxquels s'abonner (SlimFaas/SubscribeEvents)."""
+    subscribe_events: list[SubscribeEventConfig] = field(default_factory=list)
+    """
+    Évènements auxquels s'abonner (SlimFaas/SubscribeEvents).
+    Chaque entrée peut surcharger la visibilité individuellement.
+    Si ``SubscribeEventConfig.visibility`` est None, ``default_visibility`` est utilisé.
+    """
 
     default_visibility: str = "Public"
     """Visibilité par défaut : "Public" ou "Private" (SlimFaas/DefaultVisibility)."""
 
-    paths_start_with_visibility: dict[str, str] = field(default_factory=dict)
-    """Visibilité par préfixe de chemin (SlimFaas/PathsStartWithVisibility)."""
+    paths_start_with_visibility: list[PathVisibilityConfig] = field(default_factory=list)
+    """
+    Règles de visibilité par préfixe de chemin (SlimFaas/PathsStartWithVisibility).
+    """
 
     configuration: str = ""
     """Configuration JSON libre de la fonction (SlimFaas/Configuration)."""
@@ -79,9 +127,15 @@ class SlimFaasClientConfig:
             "functionName": self.function_name,
             "configuration": {
                 "dependsOn": self.depends_on,
-                "subscribeEvents": self.subscribe_events,
+                "subscribeEvents": [
+                    {"name": e.name, **({"visibility": e.visibility} if e.visibility is not None else {})}
+                    for e in self.subscribe_events
+                ],
                 "defaultVisibility": self.default_visibility,
-                "pathsStartWithVisibility": self.paths_start_with_visibility,
+                "pathsStartWithVisibility": [
+                    {"path": p.path, "visibility": p.visibility}
+                    for p in self.paths_start_with_visibility
+                ],
                 "configuration": self.configuration,
                 "replicasStartAsSoonAsOneFunctionRetrieveARequest": self.replicas_start_as_soon_as_one_function_retrieve_a_request,
                 "numberParallelRequest": self.number_parallel_request,
@@ -172,4 +226,89 @@ class PublishEvent:
             headers={k: v for k, v in payload.get("headers", {}).items()},
             body=body,
         )
+
+
+
+# ---------------------------------------------------------------------------
+# Messages reçus par le client
+# ---------------------------------------------------------------------------
+
+@dataclass
+class AsyncRequest:
+    """Requête asynchrone envoyée par SlimFaas au client WebSocket."""
+
+    element_id: str
+    """Identifiant unique de l'élément de queue."""
+
+    method: str
+    """Méthode HTTP (GET, POST, PUT, DELETE, …)."""
+
+    path: str
+    """Chemin de la requête."""
+
+    query: str
+    """Query string (avec le '?' initial si non vide)."""
+
+    headers: dict[str, list[str]]
+    """En-têtes HTTP."""
+
+    body: Optional[bytes]
+    """Corps de la requête (décodé depuis base64)."""
+
+    is_last_try: bool
+    """True si c'est la dernière tentative."""
+
+    try_number: int
+    """Numéro de tentative (commence à 1)."""
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "AsyncRequest":
+        body_b64: Optional[str] = payload.get("body")
+        import base64
+        body = base64.b64decode(body_b64) if body_b64 else None
+        return cls(
+            element_id=payload["elementId"],
+            method=payload["method"],
+            path=payload["path"],
+            query=payload.get("query", ""),
+            headers={k: v for k, v in payload.get("headers", {}).items()},
+            body=body,
+            is_last_try=payload.get("isLastTry", False),
+            try_number=payload.get("tryNumber", 1),
+        )
+
+
+@dataclass
+class AsyncCallback:
+    """Réponse à envoyer à SlimFaas après traitement d'une AsyncRequest."""
+
+    element_id: str
+    status_code: int = 200
+
+
+@dataclass
+class PublishEvent:
+    """Évènement publish/subscribe reçu depuis SlimFaas."""
+
+    event_name: str
+    method: str
+    path: str
+    query: str
+    headers: dict[str, list[str]]
+    body: Optional[bytes]
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "PublishEvent":
+        body_b64: Optional[str] = payload.get("body")
+        import base64
+        body = base64.b64decode(body_b64) if body_b64 else None
+        return cls(
+            event_name=payload["eventName"],
+            method=payload["method"],
+            path=payload["path"],
+            query=payload.get("query", ""),
+            headers={k: v for k, v in payload.get("headers", {}).items()},
+            body=body,
+        )
+
 

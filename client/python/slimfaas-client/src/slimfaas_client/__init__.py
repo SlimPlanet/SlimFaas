@@ -11,7 +11,11 @@ publish/subscribe au lieu de faire des appels HTTP.
 Exemple d'utilisation :
 
     import asyncio
-    from slimfaas_client import SlimFaasClient, SlimFaasClientConfig, AsyncRequest, PublishEvent
+    from slimfaas_client import (
+        SlimFaasClient, SlimFaasClientConfig,
+        SubscribeEventConfig, PathVisibilityConfig,
+        AsyncRequest, PublishEvent,
+    )
 
     async def handle_request(req: AsyncRequest) -> int:
         print(f"Received async request: {req.method} {req.path}")
@@ -24,7 +28,10 @@ Exemple d'utilisation :
     async def main():
         config = SlimFaasClientConfig(
             function_name="my-job",
-            subscribe_events=["order-created"],
+            subscribe_events=[
+                SubscribeEventConfig(name="fibo-public", visibility="Public"),
+                SubscribeEventConfig(name="internal-event"),  # hérite de default_visibility
+            ],
             default_visibility="Public",
         )
         async with SlimFaasClient("ws://slimfaas:5003/ws", config) as client:
@@ -41,11 +48,15 @@ from slimfaas_client._models import (
     AsyncCallback,
     PublishEvent,
     SlimFaasClientConfig,
+    SubscribeEventConfig,
+    PathVisibilityConfig,
 )
 
 __all__ = [
     "SlimFaasClient",
     "SlimFaasClientConfig",
+    "SubscribeEventConfig",
+    "PathVisibilityConfig",
     "AsyncRequest",
     "AsyncCallback",
     "PublishEvent",

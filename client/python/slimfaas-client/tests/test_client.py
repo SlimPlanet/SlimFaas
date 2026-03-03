@@ -15,6 +15,8 @@ from slimfaas_client._models import (
     MessageType,
     PublishEvent,
     SlimFaasClientConfig,
+    SubscribeEventConfig,
+    PathVisibilityConfig,
 )
 from slimfaas_client._client import SlimFaasClient, SlimFaasRegistrationError
 
@@ -26,7 +28,7 @@ from slimfaas_client._client import SlimFaasClient, SlimFaasRegistrationError
 def make_config(**kwargs) -> SlimFaasClientConfig:
     defaults = dict(
         function_name="test-job",
-        subscribe_events=["my-event"],
+        subscribe_events=[SubscribeEventConfig(name="my-event")],
     )
     defaults.update(kwargs)
     return SlimFaasClientConfig(**defaults)
@@ -103,15 +105,39 @@ class TestSlimFaasClientConfig:
     def test_to_register_payload(self):
         config = make_config(
             function_name="my-job",
-            subscribe_events=["ev1"],
+            subscribe_events=[SubscribeEventConfig(name="ev1", visibility="Public")],
             default_visibility="Private",
             number_parallel_request=3,
         )
         p = config.to_register_payload()
         assert p["functionName"] == "my-job"
-        assert p["configuration"]["subscribeEvents"] == ["ev1"]
+        assert p["configuration"]["subscribeEvents"] == [{"name": "ev1", "visibility": "Public"}]
         assert p["configuration"]["defaultVisibility"] == "Private"
         assert p["configuration"]["numberParallelRequest"] == 3
+
+    def test_to_register_payload_no_visibility(self):
+        """Sans visibilité explicite, la clé 'visibility' ne doit pas apparaître dans le payload."""
+        config = make_config(
+            function_name="my-job",
+            subscribe_events=[SubscribeEventConfig(name="ev1")],
+        )
+        p = config.to_register_payload()
+        assert p["configuration"]["subscribeEvents"] == [{"name": "ev1"}]
+
+    def test_to_register_payload_paths(self):
+        config = make_config(
+            function_name="my-job",
+            subscribe_events=[],
+            paths_start_with_visibility=[
+                PathVisibilityConfig(path="/admin", visibility="Private"),
+                PathVisibilityConfig(path="/api"),
+            ],
+        )
+        p = config.to_register_payload()
+        assert p["configuration"]["pathsStartWithVisibility"] == [
+            {"path": "/admin", "visibility": "Private"},
+            {"path": "/api", "visibility": "Public"},
+        ]
 
 
 # ---------------------------------------------------------------------------

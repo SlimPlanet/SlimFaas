@@ -60,13 +60,23 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 : FunctionTrust.Trusted;
 
             var subscribeEvents = config.SubscribeEvents
-                .Select(e => new SubscribeEvent(e, visibility))
+                .Select(e =>
+                {
+                    FunctionVisibility evtVisibility = visibility; // hérite de DefaultVisibility par défaut
+                    if (!string.IsNullOrWhiteSpace(e.Visibility))
+                    {
+                        evtVisibility = e.Visibility.Equals("Private", StringComparison.OrdinalIgnoreCase)
+                            ? FunctionVisibility.Private
+                            : FunctionVisibility.Public;
+                    }
+                    return new SubscribeEvent(e.Name, evtVisibility);
+                })
                 .ToList();
 
             var pathsVisibility = config.PathsStartWithVisibility
-                .Select(kvp => new PathVisibility(
-                    kvp.Key,
-                    kvp.Value.Equals("Private", StringComparison.OrdinalIgnoreCase)
+                .Select(p => new PathVisibility(
+                    p.Path,
+                    p.Visibility.Equals("Private", StringComparison.OrdinalIgnoreCase)
                         ? FunctionVisibility.Private
                         : FunctionVisibility.Public))
                 .ToList();
