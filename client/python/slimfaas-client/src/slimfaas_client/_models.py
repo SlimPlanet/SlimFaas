@@ -4,9 +4,10 @@ Modèles de données pour le protocole WebSocket SlimFaas.
 
 from __future__ import annotations
 
+import struct
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Optional
+from typing import Optional, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -21,6 +22,15 @@ class MessageType(IntEnum):
     PUBLISH_EVENT = 4
     PING = 5
     PONG = 6
+
+    # Streaming synchrone (frames binaires)
+    SYNC_REQUEST_START = 0x10
+    SYNC_REQUEST_CHUNK = 0x11
+    SYNC_REQUEST_END = 0x12
+    SYNC_RESPONSE_START = 0x20
+    SYNC_RESPONSE_CHUNK = 0x21
+    SYNC_RESPONSE_END = 0x22
+    SYNC_CANCEL = 0x30
 
 
 # ---------------------------------------------------------------------------
@@ -228,17 +238,140 @@ class PublishEvent:
         )
 
 
+# ---------------------------------------------------------------------------
+# Streaming synchrone — frames binaires
+# ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Messages reçus par le client
-# ---------------------------------------------------------------------------
+class BinaryFrame:
+    """
+    Utilitaire pour encoder/décoder des frames binaires de streaming synchrone.
+
+    Format : [type 1B][correlationId 36B ASCII][flags 1B][length 4B BE][payload nB]
+    Header total : 42 octets.
+    """
+
+    HEADER_SIZE = 42
+    FLAG_END_OF_STREAM = 0x01
+
+    @staticmethod
+    def encode(msg_type: int, correlation_id: str, payload: bytes = b"", flags: int = 0) -> bytes:
+        corr = correlation_id.ljust(36)[:36].encode("ascii")
+        length = len(payload)
+        header = struct.pack(">B", msg_type) + corr + struct.pack(">BI", flags, length)
+        return header + payload
+
+    @staticmethod
+    def decode_header(data: bytes) -> Tuple[int, str, int, int]:
+        """Retourne (type, correlationId, flags, payloadLength)."""
+        if len(data) < BinaryFrame.HEADER_SIZE:
+            raise ValueError(f"Binary frame must be at least {BinaryFrame.HEADER_SIZE} bytes")
+        msg_type = data[0]
+        correlation_id = data[1:37].decode("ascii").strip()
+        flags = data[37]
+        length = struct.unpack(">I", data[38:42])[0]
+        return msg_type, correlation_id, flags, length
+
+
+class SyncBodyStream:
+    """
+    Stream asynchrone du body d'une requête synchrone reçue via WebSocket.
+
+    Expose les chunks binaires reçus au fil de l'eau comme un objet lisible
+    de trois façons :
+
+    1. **Lecture par chunk** (async for) ::
+
+        async for chunk in req.body:
+            process(chunk)
+
+    2. **Lecture d'un nombre d'octets précis** ::
+
+        data = await req.body.read(1024)   # retourne jusqu'à 1024 octets
+        data = await req.body.read()       # lit tout jusqu'à la fin
+
+    3. **Lecture complète** ::
+
+        all_bytes = await req.body.readall()
+
+    Le stream est terminé quand ``read()`` retourne ``b""`` ou quand
+    ``async for`` s'arrête naturellement.
+    """
+
+    def __init__(self, queue: asyncio.Queue) -> None:
+        self._queue = queue
+        self._buf = b""
+        self._eof = False
+
+    # ── async for chunk in stream ────────────────────────────────────────
+
+    def __aiter__(self) -> "SyncBodyStream":
+        return self
+
+    async def __anext__(self) -> bytes:
+        if self._buf:
+            chunk, self._buf = self._buf, b""
+            return chunk
+        if self._eof:
+            raise StopAsyncIteration
+        chunk = await self._queue.get()
+        if chunk is None:
+            self._eof = True
+            raise StopAsyncIteration
+        return chunk
+
+    # ── read(n=-1) ───────────────────────────────────────────────────────
+
+    async def read(self, n: int = -1) -> bytes:
+        """
+        Lit jusqu'à ``n`` octets depuis le stream.
+        Si ``n == -1`` (défaut), lit tout jusqu'à la fin du stream.
+        Retourne ``b""`` en fin de stream.
+        """
+        if n == -1:
+            return await self.readall()
+
+        # Accumuler jusqu'à avoir n octets ou EOF
+        while len(self._buf) < n and not self._eof:
+            chunk = await self._queue.get()
+            if chunk is None:
+                self._eof = True
+                break
+            self._buf += chunk
+
+        result, self._buf = self._buf[:n], self._buf[n:]
+        return result
+
+    # ── readall() ────────────────────────────────────────────────────────
+
+    async def readall(self) -> bytes:
+        """Lit tout le body jusqu'à la fin du stream et retourne les bytes."""
+        parts = [self._buf]
+        self._buf = b""
+        while not self._eof:
+            chunk = await self._queue.get()
+            if chunk is None:
+                self._eof = True
+                break
+            parts.append(chunk)
+        return b"".join(parts)
+
+    # ── Alimentation interne (appelé par le client) ───────────────────────
+
+    def _feed(self, chunk: bytes) -> None:
+        """Ajoute un chunk dans la queue (appelé par le driver)."""
+        self._queue.put_nowait(chunk)
+
+    def _close(self) -> None:
+        """Signale la fin du stream (sentinel None)."""
+        self._queue.put_nowait(None)
+
 
 @dataclass
-class AsyncRequest:
-    """Requête asynchrone envoyée par SlimFaas au client WebSocket."""
+class SyncRequest:
+    """Requête synchrone streamée reçue par le client WebSocket."""
 
-    element_id: str
-    """Identifiant unique de l'élément de queue."""
+    correlation_id: str
+    """Identifiant de corrélation du stream."""
 
     method: str
     """Méthode HTTP (GET, POST, PUT, DELETE, …)."""
@@ -247,68 +380,21 @@ class AsyncRequest:
     """Chemin de la requête."""
 
     query: str
-    """Query string (avec le '?' initial si non vide)."""
+    """Query string."""
 
     headers: dict[str, list[str]]
     """En-têtes HTTP."""
 
-    body: Optional[bytes]
-    """Corps de la requête (décodé depuis base64)."""
-
-    is_last_try: bool
-    """True si c'est la dernière tentative."""
-
-    try_number: int
-    """Numéro de tentative (commence à 1)."""
-
-    @classmethod
-    def from_payload(cls, payload: dict) -> "AsyncRequest":
-        body_b64: Optional[str] = payload.get("body")
-        import base64
-        body = base64.b64decode(body_b64) if body_b64 else None
-        return cls(
-            element_id=payload["elementId"],
-            method=payload["method"],
-            path=payload["path"],
-            query=payload.get("query", ""),
-            headers={k: v for k, v in payload.get("headers", {}).items()},
-            body=body,
-            is_last_try=payload.get("isLastTry", False),
-            try_number=payload.get("tryNumber", 1),
-        )
+    body: "SyncBodyStream" = field(default_factory=lambda: SyncBodyStream(asyncio.Queue()))
+    """
+    Stream asynchrone du body de la requête.
+    Lisible via ``async for``, ``await body.read(n)`` ou ``await body.readall()``.
+    """
 
 
 @dataclass
-class AsyncCallback:
-    """Réponse à envoyer à SlimFaas après traitement d'une AsyncRequest."""
+class SyncResponse:
+    """Réponse synchrone à envoyer pour une requête sync streamée."""
 
-    element_id: str
     status_code: int = 200
-
-
-@dataclass
-class PublishEvent:
-    """Évènement publish/subscribe reçu depuis SlimFaas."""
-
-    event_name: str
-    method: str
-    path: str
-    query: str
-    headers: dict[str, list[str]]
-    body: Optional[bytes]
-
-    @classmethod
-    def from_payload(cls, payload: dict) -> "PublishEvent":
-        body_b64: Optional[str] = payload.get("body")
-        import base64
-        body = base64.b64decode(body_b64) if body_b64 else None
-        return cls(
-            event_name=payload["eventName"],
-            method=payload["method"],
-            path=payload["path"],
-            query=payload.get("query", ""),
-            headers={k: v for k, v in payload.get("headers", {}).items()},
-            body=body,
-        )
-
-
+    headers: dict[str, list[str]] = field(default_factory=dict)

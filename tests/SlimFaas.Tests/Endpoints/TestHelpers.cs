@@ -130,5 +130,15 @@ internal class WebSocketSendClientMock : IWebSocketSendClient
     public Task PublishEventAsync(string functionName, CustomRequest customRequest,
         string eventName, CancellationToken ct = default) =>
         Task.CompletedTask;
+
+    public Task<(int StatusCode, Dictionary<string, string[]> Headers, System.Threading.Channels.ChannelReader<byte[]> BodyChunks, Func<Task> WaitForEnd)>
+        SendSyncRequestStreamAsync(string functionName, string method, string path, string query,
+            Dictionary<string, string[]> headers, Stream? requestBodyStream, CancellationToken ct = default)
+    {
+        var channel = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
+        channel.Writer.TryComplete();
+        return Task.FromResult<(int, Dictionary<string, string[]>, System.Threading.Channels.ChannelReader<byte[]>, Func<Task>)>(
+            (200, new Dictionary<string, string[]>(), channel.Reader, () => Task.CompletedTask));
+    }
 }
 

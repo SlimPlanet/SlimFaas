@@ -46,10 +46,14 @@ from slimfaas_client._client import SlimFaasClient
 from slimfaas_client._models import (
     AsyncRequest,
     AsyncCallback,
+    BinaryFrame,
     PublishEvent,
     SlimFaasClientConfig,
     SubscribeEventConfig,
     PathVisibilityConfig,
+    SyncBodyStream,
+    SyncRequest,
+    SyncResponse,
 )
 
 __all__ = [
@@ -59,6 +63,10 @@ __all__ = [
     "PathVisibilityConfig",
     "AsyncRequest",
     "AsyncCallback",
+    "BinaryFrame",
     "PublishEvent",
+    "SyncBodyStream",
+    "SyncRequest",
+    "SyncResponse",
 ]
 

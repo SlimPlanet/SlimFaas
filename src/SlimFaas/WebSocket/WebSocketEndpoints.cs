@@ -66,6 +66,16 @@ public static class WebSocketEndpoints
             {
                 tcs.TrySetResult(503);
             }
+
+            // Annuler tous les sync streams en cours
+            foreach (var (_, stream) in connection.PendingSyncStreams)
+            {
+                stream.Cts.Cancel();
+                stream.ResponseChunks.Writer.TryComplete(new OperationCanceledException("WebSocket disconnected"));
+                stream.ResponseStartTcs.TrySetCanceled();
+                stream.ResponseEndTcs.TrySetCanceled();
+            }
+            connection.PendingSyncStreams.Clear();
         }
     }
 
@@ -96,6 +106,14 @@ public static class WebSocketEndpoints
             }
             while (!result.EndOfMessage);
 
+            // ── Frame binaire → streaming synchrone ──
+            if (result.MessageType == System.Net.WebSockets.WebSocketMessageType.Binary)
+            {
+                HandleBinaryFrame(ms.ToArray(), connection, logger);
+                continue;
+            }
+
+            // ── Frame texte → message JSON classique ──
             string json = Encoding.UTF8.GetString(ms.ToArray());
 
             WebSocketEnvelope? envelope;
@@ -112,6 +130,74 @@ public static class WebSocketEndpoints
             if (envelope == null) continue;
 
             await HandleMessageAsync(envelope, connection, registry, replicasService, logger, ct);
+        }
+    }
+
+    /// <summary>
+    /// Traite une frame binaire de streaming synchrone (SyncResponseStart, SyncResponseChunk, SyncResponseEnd, SyncCancel).
+    /// </summary>
+    private static void HandleBinaryFrame(
+        byte[] data,
+        WebSocketClientConnection connection,
+        ILogger logger)
+    {
+        if (data.Length < BinaryFrame.HeaderSize)
+        {
+            logger.LogWarning("Received binary frame too short ({Length} bytes)", data.Length);
+            return;
+        }
+
+        var (type, correlationId, flags, payloadLength) = BinaryFrame.DecodeHeader(data);
+        var payload = data.AsSpan(BinaryFrame.HeaderSize, Math.Min(payloadLength, data.Length - BinaryFrame.HeaderSize));
+
+        if (!connection.PendingSyncStreams.TryGetValue(correlationId, out var pendingStream))
+        {
+            logger.LogWarning("Received binary frame for unknown correlationId={CorrelationId} type={Type}", correlationId, type);
+            return;
+        }
+
+        switch (type)
+        {
+            case WebSocketMessageType.SyncResponseStart:
+                try
+                {
+                    var responseStart = JsonSerializer.Deserialize(payload, AppJsonContext.Default.SyncResponseStartPayload);
+                    if (responseStart != null)
+                    {
+                        pendingStream.ResponseStartTcs.TrySetResult(responseStart);
+                        logger.LogDebug("SyncResponseStart received: correlationId={CorrelationId} status={StatusCode}",
+                            correlationId, responseStart.StatusCode);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogWarning(ex, "Failed to deserialize SyncResponseStart payload");
+                    pendingStream.ResponseStartTcs.TrySetException(ex);
+                }
+                break;
+
+            case WebSocketMessageType.SyncResponseChunk:
+                pendingStream.ResponseChunks.Writer.TryWrite(payload.ToArray());
+                break;
+
+            case WebSocketMessageType.SyncResponseEnd:
+                pendingStream.ResponseChunks.Writer.TryComplete();
+                pendingStream.ResponseEndTcs.TrySetResult();
+                logger.LogDebug("SyncResponseEnd received: correlationId={CorrelationId}", correlationId);
+                break;
+
+            case WebSocketMessageType.SyncCancel:
+                pendingStream.Cts.Cancel();
+                pendingStream.ResponseChunks.Writer.TryComplete(new OperationCanceledException());
+                pendingStream.ResponseStartTcs.TrySetCanceled();
+                pendingStream.ResponseEndTcs.TrySetCanceled();
+                connection.PendingSyncStreams.TryRemove(correlationId, out _);
+                logger.LogDebug("SyncCancel received: correlationId={CorrelationId}", correlationId);
+                break;
+
+            default:
+                logger.LogDebug("Unexpected binary frame type: {Type}", type);
+                break;
         }
     }
 

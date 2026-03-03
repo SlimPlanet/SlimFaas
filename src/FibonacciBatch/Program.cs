@@ -1,4 +1,7 @@
 ﻿
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using SlimFaasClient;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,7 +144,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
             Console.WriteLine($"[WS]   Query     : {req.Query}");
         if (req.Body is { Length: > 0 })
         {
-            var body = System.Text.Encoding.UTF8.GetString(req.Body);
+            var body = Encoding.UTF8.GetString(req.Body);
             Console.WriteLine($"[WS]   Corps     : {body}");
 
             // Si le corps contient un nombre, on calcule Fibonacci
@@ -169,11 +172,128 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
             Console.WriteLine($"[WS]   Query     : {evt.Query}");
         if (evt.Body is { Length: > 0 })
         {
-            var body = System.Text.Encoding.UTF8.GetString(evt.Body);
+            var body = Encoding.UTF8.GetString(evt.Body);
             Console.WriteLine($"[WS]   Corps     : {body}");
         }
         Console.WriteLine();
         await Task.CompletedTask;
+    };
+
+    // ── Callback : requête synchrone streamée ────────────────────────────
+    client.OnSyncRequest = async req =>
+    {
+        Console.WriteLine($"[WS] ── Requête synchrone streamée reçue ──────────────");
+        Console.WriteLine($"[WS]   CorrelationId : {req.CorrelationId}");
+        Console.WriteLine($"[WS]   Méthode       : {req.Method}");
+        Console.WriteLine($"[WS]   Chemin        : {req.Path}");
+        if (!string.IsNullOrEmpty(req.Query))
+            Console.WriteLine($"[WS]   Query         : {req.Query}");
+
+        // ── Affichage des headers ────────────────────────────────────────
+        if (req.Headers.Count > 0)
+        {
+            Console.WriteLine($"[WS]   Headers ({req.Headers.Count}) :");
+            foreach (var (key, values) in req.Headers)
+                Console.WriteLine($"[WS]     {key}: {string.Join(", ", values)}");
+        }
+
+        // ── Lecture complète du body depuis le stream ────────────────────
+        using var bodyStream = new MemoryStream();
+        await req.Body.CopyToAsync(bodyStream);
+        if (bodyStream.Length > 0)
+            Console.WriteLine($"[WS]   Body reçu — {bodyStream.Length} octet(s)");
+
+        // ── Parse et affichage JSON du body ──────────────────────────────
+        string responseJson;
+        int httpStatus = 200;
+
+        bodyStream.Position = 0;
+        var rawBody = Encoding.UTF8.GetString(bodyStream.ToArray());
+
+        if (!string.IsNullOrWhiteSpace(rawBody))
+        {
+            Console.WriteLine($"[WS]   Corps brut     : {rawBody}");
+            try
+            {
+                var parsed = JsonNode.Parse(rawBody);
+                var prettyBody = parsed?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? rawBody;
+                Console.WriteLine($"[WS]   Corps (JSON)  :\n{prettyBody}");
+
+                // Calcul Fibonacci si le JSON contient un champ "n" ou si c'est un entier direct
+                int? fibInput = null;
+                if (parsed is JsonValue val && val.TryGetValue(out int directInt))
+                    fibInput = directInt;
+                else if (parsed is JsonObject obj)
+                {
+                    foreach (var candidate in new[] { "n", "value", "input", "number" })
+                    {
+                        if (obj.TryGetPropertyValue(candidate, out var node) && node is JsonValue jv && jv.TryGetValue(out int v))
+                        {
+                            fibInput = v;
+                            break;
+                        }
+                    }
+                }
+
+                // Construction de la réponse JSON
+                var resultObj = new JsonObject { ["request"] = JsonNode.Parse(rawBody) };
+                if (fibInput.HasValue && fibInput.Value >= 0 && fibInput.Value <= 40)
+                {
+                    var fib = new Fibonacci();
+                    var fibResult = fib.Run(fibInput.Value);
+                    resultObj["fibonacci"] = JsonValue.Create(fibResult);
+                    resultObj["input"] = JsonValue.Create(fibInput.Value);
+                    Console.WriteLine($"[WS]   Fibonacci({fibInput.Value}) = {fibResult}");
+                }
+                resultObj["correlationId"] = req.CorrelationId;
+                resultObj["status"] = "processed";
+
+                responseJson = resultObj.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            }
+            catch (JsonException)
+            {
+                // Corps non-JSON : on le renvoie tel quel enveloppé
+                Console.WriteLine($"[WS]   (Corps non-JSON — renvoi brut)");
+                var fallback = new JsonObject
+                {
+                    ["correlationId"] = req.CorrelationId,
+                    ["rawBody"] = rawBody,
+                    ["status"] = "processed",
+                };
+                responseJson = fallback.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+            }
+        }
+        else
+        {
+            Console.WriteLine($"[WS]   (Corps vide)");
+            var empty = new JsonObject
+            {
+                ["correlationId"] = req.CorrelationId,
+                ["status"] = "processed",
+            };
+            responseJson = empty.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        }
+
+        Console.WriteLine($"[WS]   Réponse JSON  :\n{responseJson}");
+        Console.WriteLine();
+
+        // ── Envoi de la réponse streamée vers SlimFaas ───────────────────
+        var responseBytes = Encoding.UTF8.GetBytes(responseJson);
+
+        await client.SendSyncResponseStartAsync(req.CorrelationId, new SlimFaasSyncResponse
+        {
+            StatusCode = httpStatus,
+            Headers = new Dictionary<string, string[]>
+            {
+                ["Content-Type"] = ["application/json; charset=utf-8"],
+                ["Content-Length"] = [$"{responseBytes.Length}"],
+                ["X-Processed-By"] = ["fibonacci-batch"],
+            },
+        });
+
+        // Envoi en un seul chunk (ou découper si voulu)
+        await client.SendSyncResponseChunkAsync(req.CorrelationId, responseBytes);
+        await client.SendSyncResponseEndAsync(req.CorrelationId);
     };
 
     Console.WriteLine("[WS] Connexion à SlimFaas… (Ctrl+C pour quitter)");

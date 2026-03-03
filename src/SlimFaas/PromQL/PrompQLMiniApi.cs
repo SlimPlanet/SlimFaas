@@ -50,4 +50,6 @@ int TotalPoints
 [JsonSerializable(typeof(PathVisibilityConfig))]
 [JsonSerializable(typeof(List<SubscribeEventConfig>))]
 [JsonSerializable(typeof(List<PathVisibilityConfig>))]
+[JsonSerializable(typeof(SyncRequestStartPayload))]
+[JsonSerializable(typeof(SyncResponseStartPayload))]
 public partial class AppJsonContext : JsonSerializerContext;

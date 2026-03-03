@@ -15,6 +15,15 @@ public enum SlimFaasMessageType
     PublishEvent = 4,
     Ping = 5,
     Pong = 6,
+
+    // ── Streaming synchrone (frames binaires) ────────────────────────
+    SyncRequestStart = 0x10,
+    SyncRequestChunk = 0x11,
+    SyncRequestEnd = 0x12,
+    SyncResponseStart = 0x20,
+    SyncResponseChunk = 0x21,
+    SyncResponseEnd = 0x22,
+    SyncCancel = 0x30,
 }
 
 // ---------------------------------------------------------------------------
@@ -289,6 +298,175 @@ internal class AsyncCallbackDto
 }
 
 // ---------------------------------------------------------------------------
+// Streaming synchrone — frames binaires
+// ---------------------------------------------------------------------------
+
+/// <summary>
+/// Utilitaire pour encoder/décoder des frames binaires de streaming synchrone.
+///
+/// Format d'une frame binaire (42 octets de header fixe) :
+/// <code>
+/// ┌─────────────┬──────────────┬────────────┬────────────┬──────────────┐
+/// │  type (1B)  │ corrId (36B) │ flags (1B) │ length(4B) │ payload (nB) │
+/// └─────────────┴──────────────┴────────────┴────────────┴──────────────┘
+/// </code>
+/// </summary>
+public static class BinaryFrame
+{
+    /// <summary>Taille du header fixe d'une frame binaire.</summary>
+    public const int HeaderSize = 42;
+
+    /// <summary>Flag : fin du stream.</summary>
+    public const byte FlagEndOfStream = 0x01;
+
+    /// <summary>Encode une frame binaire.</summary>
+    public static byte[] Encode(SlimFaasMessageType type, string correlationId, ReadOnlySpan<byte> payload, byte flags = 0)
+    {
+        var frame = new byte[HeaderSize + payload.Length];
+        frame[0] = (byte)type;
+        var corrBytes = System.Text.Encoding.ASCII.GetBytes(correlationId.PadRight(36)[..36]);
+        Buffer.BlockCopy(corrBytes, 0, frame, 1, 36);
+        frame[37] = flags;
+        frame[38] = (byte)(payload.Length >> 24);
+        frame[39] = (byte)(payload.Length >> 16);
+        frame[40] = (byte)(payload.Length >> 8);
+        frame[41] = (byte)(payload.Length);
+        if (payload.Length > 0) payload.CopyTo(frame.AsSpan(HeaderSize));
+        return frame;
+    }
+
+    /// <summary>Encode une frame sans payload.</summary>
+    public static byte[] Encode(SlimFaasMessageType type, string correlationId, byte flags = 0)
+        => Encode(type, correlationId, ReadOnlySpan<byte>.Empty, flags);
+
+    /// <summary>Décode le header d'une frame binaire.</summary>
+    public static (SlimFaasMessageType Type, string CorrelationId, byte Flags, int PayloadLength) DecodeHeader(ReadOnlySpan<byte> header)
+    {
+        if (header.Length < HeaderSize)
+            throw new ArgumentException($"Binary frame header must be at least {HeaderSize} bytes.");
+        var type = (SlimFaasMessageType)header[0];
+        var correlationId = System.Text.Encoding.ASCII.GetString(header.Slice(1, 36)).Trim();
+        byte flags = header[37];
+        int length = (header[38] << 24) | (header[39] << 16) | (header[40] << 8) | header[41];
+        return (type, correlationId, flags, length);
+    }
+}
+
+/// <summary>
+/// Stream en lecture seule alimenté au fil de l'eau depuis un <see cref="Channel{T}"/>.
+/// Expose les chunks binaires reçus via WebSocket comme un <see cref="Stream"/> standard.
+/// Le stream se termine (retourne 0) quand le channel est complété (fin de body).
+/// </summary>
+public sealed class ChannelStream : Stream
+{
+    private readonly System.Threading.Channels.ChannelReader<byte[]> _reader;
+    private byte[]? _currentChunk;
+    private int _currentOffset;
+    private bool _completed;
+
+    internal ChannelStream(System.Threading.Channels.ChannelReader<byte[]> reader)
+    {
+        _reader = reader;
+    }
+
+    public override bool CanRead => true;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+    public override void Flush() { }
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    public override int Read(byte[] buffer, int offset, int count)
+        => ReadAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
+
+    public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+        => await ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+
+    public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+    {
+        if (_completed) return 0;
+
+        // Vider d'abord le chunk courant s'il en reste
+        while (_currentChunk == null || _currentOffset >= _currentChunk.Length)
+        {
+            // Attendre le prochain chunk depuis le channel
+            if (!await _reader.WaitToReadAsync(cancellationToken))
+            {
+                // Channel complété → fin du stream
+                _completed = true;
+                return 0;
+            }
+            if (!_reader.TryRead(out _currentChunk))
+            {
+                _currentChunk = null;
+                continue;
+            }
+            _currentOffset = 0;
+        }
+
+        // Copier ce qu'on peut dans le buffer demandé
+        int available = _currentChunk.Length - _currentOffset;
+        int toCopy = Math.Min(available, buffer.Length);
+        _currentChunk.AsSpan(_currentOffset, toCopy).CopyTo(buffer.Span);
+        _currentOffset += toCopy;
+
+        return toCopy;
+    }
+}
+
+/// <summary>Requête synchrone streamée reçue par le client WebSocket.</summary>
+public class SlimFaasSyncRequest
+{
+    /// <summary>Identifiant de corrélation du stream.</summary>
+    public string CorrelationId { get; set; } = string.Empty;
+    public string Method { get; set; } = "GET";
+    public string Path { get; set; } = string.Empty;
+    public string Query { get; set; } = string.Empty;
+    public Dictionary<string, string[]> Headers { get; set; } = [];
+
+    /// <summary>
+    /// Stream en lecture seule du body de la requête HTTP, alimenté au fil de l'eau.
+    /// Lit les chunks binaires tels qu'ils arrivent via WebSocket.
+    /// Se termine (Read retourne 0) quand tout le body a été reçu.
+    /// </summary>
+    public Stream Body { get; set; } = Stream.Null;
+}
+
+/// <summary>Réponse synchrone streamée envoyée par le client WebSocket.</summary>
+public class SlimFaasSyncResponse
+{
+    public int StatusCode { get; set; } = 200;
+    public Dictionary<string, string[]> Headers { get; set; } = [];
+}
+
+internal class SyncRequestStartDto
+{
+    [JsonPropertyName("method")]
+    public string Method { get; set; } = "GET";
+    [JsonPropertyName("path")]
+    public string Path { get; set; } = string.Empty;
+    [JsonPropertyName("query")]
+    public string Query { get; set; } = string.Empty;
+    [JsonPropertyName("headers")]
+    public Dictionary<string, string[]> Headers { get; set; } = [];
+}
+
+internal class SyncResponseStartDto
+{
+    [JsonPropertyName("statusCode")]
+    public int StatusCode { get; set; } = 200;
+    [JsonPropertyName("headers")]
+    public Dictionary<string, string[]> Headers { get; set; } = [];
+}
+
+// ---------------------------------------------------------------------------
 // Source-generated JSON context
 // ---------------------------------------------------------------------------
 
@@ -303,6 +481,8 @@ internal class AsyncCallbackDto
 [JsonSerializable(typeof(AsyncRequestDto))]
 [JsonSerializable(typeof(PublishEventDto))]
 [JsonSerializable(typeof(AsyncCallbackDto))]
+[JsonSerializable(typeof(SyncRequestStartDto))]
+[JsonSerializable(typeof(SyncResponseStartDto))]
 [JsonSourceGenerationOptions(
     WriteIndented = false,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

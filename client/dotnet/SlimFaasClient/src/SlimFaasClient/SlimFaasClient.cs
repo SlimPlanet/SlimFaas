@@ -1,6 +1,7 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -93,6 +94,19 @@ public sealed class SlimFaasClient : IAsyncDisposable
     /// Callback appelé pour chaque évènement publish/subscribe reçu.
     /// </summary>
     public Func<SlimFaasPublishEvent, Task>? OnPublishEvent { get; set; }
+
+    /// <summary>
+    /// Callback appelé pour chaque requête synchrone streamée reçue.
+    /// Le callback reçoit la requête (avec un ChannelReader pour le body stream).
+    /// Il doit :
+    /// 1. Appeler <see cref="SendSyncResponseStartAsync"/> pour envoyer status + headers.
+    /// 2. Appeler <see cref="SendSyncResponseChunkAsync"/> pour chaque chunk du body de réponse.
+    /// 3. Appeler <see cref="SendSyncResponseEndAsync"/> quand la réponse est terminée.
+    /// </summary>
+    public Func<SlimFaasSyncRequest, Task>? OnSyncRequest { get; set; }
+
+    // Pending sync request body channels (correlationId → channel de chunks entrants)
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Channel<byte[]>> _pendingSyncRequestBodies = new();
 
     // ---------------------------------------------------------------------------
     // Constructeur
@@ -301,8 +315,27 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
         while (ws.State == WebSocketState.Open && !ct.IsCancellationRequested)
         {
-            var message = await ReceiveFullMessageAsync(ws, buffer, ct);
-            if (message == null) continue;
+            using var ms = new MemoryStream();
+            WebSocketReceiveResult result;
+
+            do
+            {
+                result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                if (result.MessageType == WebSocketMessageType.Close)
+                    return;
+                ms.Write(buffer, 0, result.Count);
+            }
+            while (!result.EndOfMessage);
+
+            // ── Frame binaire → streaming synchrone ──
+            if (result.MessageType == WebSocketMessageType.Binary)
+            {
+                HandleBinaryFrame(ws, ms.ToArray(), ct);
+                continue;
+            }
+
+            // ── Frame texte → message JSON classique ──
+            var message = Encoding.UTF8.GetString(ms.ToArray());
 
             SlimFaasEnvelope? envelope;
             try
@@ -318,6 +351,84 @@ public sealed class SlimFaasClient : IAsyncDisposable
             if (envelope == null) continue;
 
             await HandleEnvelopeAsync(ws, envelope, ct);
+        }
+    }
+
+    /// <summary>
+    /// Traite une frame binaire de streaming synchrone (SyncRequestStart, SyncRequestChunk, SyncRequestEnd, SyncCancel).
+    /// </summary>
+    private void HandleBinaryFrame(ClientWebSocket ws, byte[] data, CancellationToken ct)
+    {
+        if (data.Length < BinaryFrame.HeaderSize)
+        {
+            _logger.LogWarning("Received binary frame too short ({Length} bytes)", data.Length);
+            return;
+        }
+
+        var (type, correlationId, flags, payloadLength) = BinaryFrame.DecodeHeader(data);
+        var payload = data.AsSpan(BinaryFrame.HeaderSize, Math.Min(payloadLength, data.Length - BinaryFrame.HeaderSize));
+
+        switch (type)
+        {
+            case SlimFaasMessageType.SyncRequestStart:
+            {
+                SyncRequestStartDto? startDto;
+                try
+                {
+                    startDto = JsonSerializer.Deserialize(payload, SlimFaasClientJsonContext.Default.SyncRequestStartDto);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to deserialize SyncRequestStart");
+                    return;
+                }
+                if (startDto == null) return;
+
+                var bodyChannel = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleReader = true });
+                _pendingSyncRequestBodies[correlationId] = bodyChannel;
+
+                var syncReq = new SlimFaasSyncRequest
+                {
+                    CorrelationId = correlationId,
+                    Method = startDto.Method,
+                    Path = startDto.Path,
+                    Query = startDto.Query,
+                    Headers = startDto.Headers,
+                    Body = new ChannelStream(bodyChannel.Reader),
+                };
+
+                // Dispatch dans une tâche séparée
+                _ = Task.Run(() => DispatchSyncRequestAsync(ws, syncReq, ct), ct);
+                break;
+            }
+
+            case SlimFaasMessageType.SyncRequestChunk:
+            {
+                if (_pendingSyncRequestBodies.TryGetValue(correlationId, out var ch))
+                    ch.Writer.TryWrite(payload.ToArray());
+                break;
+            }
+
+            case SlimFaasMessageType.SyncRequestEnd:
+            {
+                if (_pendingSyncRequestBodies.TryGetValue(correlationId, out var ch))
+                {
+                    ch.Writer.TryComplete();
+                    _pendingSyncRequestBodies.TryRemove(correlationId, out _);
+                }
+                break;
+            }
+
+            case SlimFaasMessageType.SyncCancel:
+            {
+                if (_pendingSyncRequestBodies.TryRemove(correlationId, out var ch))
+                    ch.Writer.TryComplete(new OperationCanceledException("Stream cancelled by server"));
+                break;
+            }
+
+            default:
+                _logger.LogDebug("Unexpected binary frame type: {Type}", type);
+                break;
         }
     }
 
@@ -399,6 +510,85 @@ public sealed class SlimFaasClient : IAsyncDisposable
         }
     }
 
+    private async Task DispatchSyncRequestAsync(ClientWebSocket ws, SlimFaasSyncRequest req, CancellationToken ct)
+    {
+        if (OnSyncRequest == null)
+        {
+            _logger.LogWarning("Received SyncRequest for {CorrelationId} but no handler registered. Returning 500.", req.CorrelationId);
+            await SendSyncResponseStartAsync(req.CorrelationId, new SlimFaasSyncResponse { StatusCode = 500 }, ct);
+            await SendSyncResponseEndAsync(req.CorrelationId, ct);
+            return;
+        }
+
+        try
+        {
+            await OnSyncRequest(req);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "SyncRequest handler threw an exception for {CorrelationId}", req.CorrelationId);
+            try
+            {
+                await SendSyncResponseStartAsync(req.CorrelationId, new SlimFaasSyncResponse { StatusCode = 500 }, ct);
+                await SendSyncResponseEndAsync(req.CorrelationId, ct);
+            }
+            catch { /* ignore */ }
+        }
+    }
+
+    /// <summary>
+    /// Envoie le début de la réponse synchrone (status + headers) pour un stream donné.
+    /// </summary>
+    public async Task SendSyncResponseStartAsync(string correlationId, SlimFaasSyncResponse response, CancellationToken ct = default)
+    {
+        if (_ws == null || _ws.State != WebSocketState.Open)
+            throw new InvalidOperationException("WebSocket is not connected.");
+
+        var dto = new SyncResponseStartDto
+        {
+            StatusCode = response.StatusCode,
+            Headers = response.Headers,
+        };
+        var json = JsonSerializer.SerializeToUtf8Bytes(dto, SlimFaasClientJsonContext.Default.SyncResponseStartDto);
+        var frame = BinaryFrame.Encode(SlimFaasMessageType.SyncResponseStart, correlationId, json);
+        await SendBinaryAsync(_ws, frame, ct);
+    }
+
+    /// <summary>
+    /// Envoie un chunk du body de la réponse synchrone.
+    /// </summary>
+    public async Task SendSyncResponseChunkAsync(string correlationId, ReadOnlyMemory<byte> chunk, CancellationToken ct = default)
+    {
+        if (_ws == null || _ws.State != WebSocketState.Open)
+            throw new InvalidOperationException("WebSocket is not connected.");
+
+        var frame = BinaryFrame.Encode(SlimFaasMessageType.SyncResponseChunk, correlationId, chunk.Span);
+        await SendBinaryAsync(_ws, frame, ct);
+    }
+
+    /// <summary>
+    /// Signale la fin du body de la réponse synchrone.
+    /// </summary>
+    public async Task SendSyncResponseEndAsync(string correlationId, CancellationToken ct = default)
+    {
+        if (_ws == null || _ws.State != WebSocketState.Open)
+            throw new InvalidOperationException("WebSocket is not connected.");
+
+        var frame = BinaryFrame.Encode(SlimFaasMessageType.SyncResponseEnd, correlationId, BinaryFrame.FlagEndOfStream);
+        await SendBinaryAsync(_ws, frame, ct);
+    }
+
+    /// <summary>
+    /// Annule un stream synchrone en cours.
+    /// </summary>
+    public async Task SendSyncCancelAsync(string correlationId, CancellationToken ct = default)
+    {
+        if (_ws == null || _ws.State != WebSocketState.Open) return;
+
+        var frame = BinaryFrame.Encode(SlimFaasMessageType.SyncCancel, correlationId);
+        await SendBinaryAsync(_ws, frame, ct);
+    }
+
     private async Task SendCallbackInternalAsync(ClientWebSocket ws, string elementId, int statusCode, CancellationToken ct)
     {
         var callback = new AsyncCallbackDto { ElementId = elementId, StatusCode = statusCode };
@@ -445,6 +635,23 @@ public sealed class SlimFaasClient : IAsyncDisposable
             await ws.SendAsync(
                 new ArraySegment<byte>(bytes),
                 WebSocketMessageType.Text,
+                endOfMessage: true,
+                ct);
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
+    }
+
+    private async Task SendBinaryAsync(ClientWebSocket ws, byte[] frame, CancellationToken ct)
+    {
+        await _sendLock.WaitAsync(ct);
+        try
+        {
+            await ws.SendAsync(
+                new ArraySegment<byte>(frame),
+                WebSocketMessageType.Binary,
                 endOfMessage: true,
                 ct);
         }

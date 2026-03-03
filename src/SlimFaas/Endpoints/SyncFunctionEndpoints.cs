@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Endpoints;
 
@@ -28,8 +29,9 @@ public static class SyncFunctionEndpoints
                 HistoryHttpMemoryService historyHttpService,
                 ISendClient sendClient,
                 IReplicasService replicasService,
-                IJobService jobService) =>
-                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService))
+                IJobService jobService,
+                IWebSocketSendClient webSocketSendClient) =>
+                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient))
             .WithName("HandleSyncFunctionRoot")
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
@@ -43,7 +45,8 @@ public static class SyncFunctionEndpoints
         [FromServices] HistoryHttpMemoryService historyHttpService,
         [FromServices] ISendClient sendClient,
         [FromServices] IReplicasService replicasService,
-        [FromServices] IJobService jobService)
+        [FromServices] IJobService jobService,
+        [FromServices] IWebSocketSendClient webSocketSendClient)
     {
         functionPath ??= "";
         var ct = context.RequestAborted;
@@ -63,6 +66,14 @@ public static class SyncFunctionEndpoints
             return Results.NotFound();
         }
 
+        // ── Fonction virtuelle WebSocket → streaming binaire ──
+        if (function.Namespace == "websocket-virtual")
+        {
+            return await HandleSyncFunctionViaWebSocket(
+                functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct);
+        }
+
+        // ── Fonction HTTP classique ──
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
         Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
@@ -111,6 +122,81 @@ public static class SyncFunctionEndpoints
 
     private static bool IsFunctionReady(DeploymentInformation f) =>
         (f?.Pods?.Any(p => p?.Ready == true) ?? false) && f?.EndpointReady == true;
+
+    /// <summary>
+    /// Gère une requête sync vers une fonction virtuelle WebSocket en mode streaming binaire.
+    /// </summary>
+    private static async Task<IResult> HandleSyncFunctionViaWebSocket(
+        string functionName,
+        string functionPath,
+        HttpContext context,
+        ILogger logger,
+        HistoryHttpMemoryService historyHttpService,
+        IWebSocketSendClient webSocketSendClient,
+        CancellationToken ct)
+    {
+        historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+
+        var headers = context.Request.Headers
+            .ToDictionary(h => h.Key, h => h.Value.ToArray().Where(v => v != null).Select(v => v!).ToArray());
+
+        // Le body stream est null pour GET/HEAD/DELETE/TRACE
+        Stream? bodyStream = null;
+        var method = context.Request.Method;
+        if (!HttpMethods.IsGet(method) &&
+            !HttpMethods.IsHead(method) &&
+            !HttpMethods.IsDelete(method) &&
+            !HttpMethods.IsTrace(method))
+        {
+            bodyStream = context.Request.Body;
+        }
+
+        try
+        {
+            var (statusCode, responseHeaders, bodyChunks, waitForEnd) =
+                await webSocketSendClient.SendSyncRequestStreamAsync(
+                    functionName,
+                    method,
+                    functionPath,
+                    context.Request.QueryString.ToUriComponent(),
+                    headers,
+                    bodyStream,
+                    ct);
+
+            // Écrire la réponse HTTP
+            context.Response.StatusCode = statusCode;
+
+            foreach (var (key, values) in responseHeaders)
+            {
+                context.Response.Headers[key] = values;
+            }
+            context.Response.Headers.Remove("transfer-encoding");
+
+            // Stream les chunks de réponse vers le body HTTP
+            await foreach (var chunk in bodyChunks.ReadAllAsync(ct))
+            {
+                await context.Response.Body.WriteAsync(chunk, ct);
+                await context.Response.Body.FlushAsync(ct);
+
+                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+            }
+
+            await waitForEnd();
+            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+
+            return Results.Empty;
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(ex, "No WebSocket client available for {FunctionName}", functionName);
+            return Results.StatusCode(503);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
+            return Results.StatusCode(499);
+        }
+    }
 
     private static async Task WaitForAnyPodStartedAsync(
         ILogger logger,

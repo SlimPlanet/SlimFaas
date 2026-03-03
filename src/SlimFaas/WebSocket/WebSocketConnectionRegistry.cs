@@ -2,9 +2,28 @@ using System.Collections.Concurrent;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
+using System.Threading.Channels;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.WebSocket;
+
+/// <summary>
+/// Données d'un stream synchrone en cours côté serveur.
+/// </summary>
+public class PendingSyncStream
+{
+    /// <summary>Résultat du SyncResponseStart (status + headers).</summary>
+    public TaskCompletionSource<SyncResponseStartPayload> ResponseStartTcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>Channel alimenté par les SyncResponseChunk du client.</summary>
+    public Channel<byte[]> ResponseChunks { get; } = Channel.CreateUnbounded<byte[]>(new UnboundedChannelOptions { SingleReader = true });
+
+    /// <summary>Signalé quand SyncResponseEnd est reçu.</summary>
+    public TaskCompletionSource ResponseEndTcs { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>CancellationTokenSource lié à l'annulation du stream.</summary>
+    public CancellationTokenSource Cts { get; } = new();
+}
 
 /// <summary>
 /// Représente une connexion WebSocket d'un client (job ou fonction virtuelle).
@@ -17,11 +36,14 @@ public class WebSocketClientConnection
     public WebSocketFunctionConfiguration Configuration { get; set; } = new();
     public System.Net.WebSockets.WebSocket Socket { get; set; } = null!;
 
-    /// <summary>Tâche en attente de callback (elementId -> TaskCompletionSource<int>).</summary>
+    /// <summary>Tâche en attente de callback (elementId -> TaskCompletionSource&lt;int&gt;).</summary>
     public ConcurrentDictionary<string, TaskCompletionSource<int>> PendingCallbacks { get; } = new();
 
+    /// <summary>Streams synchrones en cours (correlationId -> PendingSyncStream).</summary>
+    public ConcurrentDictionary<string, PendingSyncStream> PendingSyncStreams { get; } = new();
+
     /// <summary>Nombre de requêtes en cours de traitement par ce client.</summary>
-    public int ActiveRequests => PendingCallbacks.Count;
+    public int ActiveRequests => PendingCallbacks.Count + PendingSyncStreams.Count;
 
     public DateTime ConnectedAt { get; } = DateTime.UtcNow;
     public bool IsAlive => Socket.State == WebSocketState.Open;
@@ -38,6 +60,24 @@ public class WebSocketClientConnection
             await Socket.SendAsync(
                 new ArraySegment<byte>(bytes),
                 System.Net.WebSockets.WebSocketMessageType.Text,
+                endOfMessage: true,
+                ct);
+        }
+        finally
+        {
+            _sendLock.Release();
+        }
+    }
+
+    /// <summary>Envoie une frame binaire brute au client WebSocket.</summary>
+    public async Task SendBinaryAsync(byte[] frame, CancellationToken ct)
+    {
+        await _sendLock.WaitAsync(ct);
+        try
+        {
+            await Socket.SendAsync(
+                new ArraySegment<byte>(frame),
+                System.Net.WebSockets.WebSocketMessageType.Binary,
                 endOfMessage: true,
                 ct);
         }

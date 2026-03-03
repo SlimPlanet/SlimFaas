@@ -16,9 +16,13 @@ from websockets.asyncio.client import ClientConnection
 from slimfaas_client._models import (
     AsyncCallback,
     AsyncRequest,
+    BinaryFrame,
     MessageType,
     PublishEvent,
     SlimFaasClientConfig,
+    SyncBodyStream,
+    SyncRequest,
+    SyncResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -26,6 +30,7 @@ logger = logging.getLogger(__name__)
 # Type des callbacks
 AsyncRequestHandler = Callable[[AsyncRequest], Awaitable[int]]
 PublishEventHandler = Callable[[PublishEvent], Awaitable[None]]
+SyncRequestHandler = Callable[["SlimFaasClient", SyncRequest], Awaitable[None]]
 
 
 class SlimFaasRegistrationError(Exception):
@@ -85,11 +90,15 @@ class SlimFaasClient:
 
         self._async_request_handler: Optional[AsyncRequestHandler] = None
         self._publish_event_handler: Optional[PublishEventHandler] = None
+        self._sync_request_handler: Optional[SyncRequestHandler] = None
 
         self._connection_id: Optional[str] = None
         self._ws: Optional[ClientConnection] = None
         self._running = False
         self._stop_event = asyncio.Event()
+
+        # Pending sync request body streams: correlationId -> SyncBodyStream
+        self._pending_sync_bodies: dict[str, SyncBodyStream] = {}
 
     # ------------------------------------------------------------------
     # Gestionnaire de contexte asynchrone
@@ -124,6 +133,17 @@ class SlimFaasClient:
         Enregistre le callback appelé pour chaque évènement publish/subscribe.
         """
         self._publish_event_handler = handler
+
+    def on_sync_request(self, handler: SyncRequestHandler) -> None:
+        """
+        Enregistre le callback appelé pour chaque requête synchrone streamée.
+
+        Le handler reçoit ``(client, sync_request)`` et doit :
+        1. Appeler ``await client.send_sync_response_start(corr_id, response)``
+        2. Appeler ``await client.send_sync_response_chunk(corr_id, data)`` par chunk
+        3. Appeler ``await client.send_sync_response_end(corr_id)``
+        """
+        self._sync_request_handler = handler
 
     # ------------------------------------------------------------------
     # Boucle principale
@@ -199,11 +219,24 @@ class SlimFaasClient:
             try:
                 async for raw in ws:
                     if isinstance(raw, bytes):
-                        raw = raw.decode("utf-8")
-                    await self._handle_message(ws, raw)
+                        # Could be a binary sync frame
+                        if len(raw) >= BinaryFrame.HEADER_SIZE:
+                            self._handle_binary_frame(ws, raw)
+                        else:
+                            # Try to decode as UTF-8 text
+                            try:
+                                await self._handle_message(ws, raw.decode("utf-8"))
+                            except UnicodeDecodeError:
+                                logger.warning("Received unrecognized binary data (%d bytes)", len(raw))
+                    else:
+                        await self._handle_message(ws, raw)
             finally:
                 if ping_task is not None:
                     ping_task.cancel()
+                # Fermer tous les body streams en cours (connexion perdue)
+                for stream in self._pending_sync_bodies.values():
+                    stream._close()
+                self._pending_sync_bodies.clear()
                 self._ws = None
 
     async def _register(self, ws: ClientConnection) -> None:
@@ -325,6 +358,100 @@ class SlimFaasClient:
         if target is None:
             raise RuntimeError("WebSocket is not connected")
         await target.send(json.dumps(data))
+
+    async def _send_binary(self, data: bytes, *, ws: Optional[ClientConnection] = None) -> None:
+        target = ws or self._ws
+        if target is None:
+            raise RuntimeError("WebSocket is not connected")
+        await target.send(data)
+
+    # ------------------------------------------------------------------
+    # Streaming synchrone — frames binaires
+    # ------------------------------------------------------------------
+
+    def _handle_binary_frame(self, ws: ClientConnection, data: bytes) -> None:
+        """Route une frame binaire de streaming sync."""
+        msg_type, correlation_id, flags, payload_length = BinaryFrame.decode_header(data)
+        payload = data[BinaryFrame.HEADER_SIZE:BinaryFrame.HEADER_SIZE + payload_length]
+
+        if msg_type == MessageType.SYNC_REQUEST_START:
+            try:
+                start = json.loads(payload.decode("utf-8"))
+            except Exception as exc:
+                logger.warning("Failed to parse SyncRequestStart: %s", exc)
+                return
+            body_stream = SyncBodyStream(asyncio.Queue())
+            self._pending_sync_bodies[correlation_id] = body_stream
+            req = SyncRequest(
+                correlation_id=correlation_id,
+                method=start.get("method", "GET"),
+                path=start.get("path", ""),
+                query=start.get("query", ""),
+                headers=start.get("headers", {}),
+                body=body_stream,
+            )
+            asyncio.create_task(self._dispatch_sync_request(ws, req))
+
+        elif msg_type == MessageType.SYNC_REQUEST_CHUNK:
+            stream = self._pending_sync_bodies.get(correlation_id)
+            if stream is not None:
+                stream._feed(payload)
+
+        elif msg_type == MessageType.SYNC_REQUEST_END:
+            stream = self._pending_sync_bodies.pop(correlation_id, None)
+            if stream is not None:
+                stream._close()
+
+        elif msg_type == MessageType.SYNC_CANCEL:
+            stream = self._pending_sync_bodies.pop(correlation_id, None)
+            if stream is not None:
+                stream._close()
+
+        else:
+            logger.debug("Unhandled binary frame type: 0x%02x", msg_type)
+
+    async def _dispatch_sync_request(self, ws: ClientConnection, req: SyncRequest) -> None:
+        if self._sync_request_handler is None:
+            logger.warning(
+                "Received SyncRequest for %s but no handler registered. Returning 500.",
+                req.correlation_id,
+            )
+            await self.send_sync_response_start(req.correlation_id, SyncResponse(status_code=500))
+            await self.send_sync_response_end(req.correlation_id)
+            return
+        try:
+            await self._sync_request_handler(self, req)
+        except Exception as exc:
+            logger.error("SyncRequest handler raised: %s", exc, exc_info=True)
+            try:
+                await self.send_sync_response_start(req.correlation_id, SyncResponse(status_code=500))
+                await self.send_sync_response_end(req.correlation_id)
+            except Exception:
+                pass
+
+    async def send_sync_response_start(self, correlation_id: str, response: SyncResponse) -> None:
+        """Envoie le début de la réponse sync (status + headers)."""
+        payload_json = json.dumps({
+            "statusCode": response.status_code,
+            "headers": response.headers,
+        }).encode("utf-8")
+        frame = BinaryFrame.encode(MessageType.SYNC_RESPONSE_START, correlation_id, payload_json)
+        await self._send_binary(frame)
+
+    async def send_sync_response_chunk(self, correlation_id: str, chunk: bytes) -> None:
+        """Envoie un chunk du body de la réponse sync."""
+        frame = BinaryFrame.encode(MessageType.SYNC_RESPONSE_CHUNK, correlation_id, chunk)
+        await self._send_binary(frame)
+
+    async def send_sync_response_end(self, correlation_id: str) -> None:
+        """Signale la fin du body de la réponse sync."""
+        frame = BinaryFrame.encode(MessageType.SYNC_RESPONSE_END, correlation_id, flags=BinaryFrame.FLAG_END_OF_STREAM)
+        await self._send_binary(frame)
+
+    async def send_sync_cancel(self, correlation_id: str) -> None:
+        """Annule un stream sync en cours."""
+        frame = BinaryFrame.encode(MessageType.SYNC_CANCEL, correlation_id)
+        await self._send_binary(frame)
 
     # ------------------------------------------------------------------
     # Propriétés
