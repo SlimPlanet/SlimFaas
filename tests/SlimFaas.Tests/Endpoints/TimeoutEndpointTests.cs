@@ -162,6 +162,7 @@ public class TimeoutReadyEndpointTests
                         s.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                         s.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddMemoryCache();
                         s.AddSingleton<FunctionStatusCache>();
                         s.AddSingleton<WakeUpGate>();
@@ -218,6 +219,7 @@ public class FlipReadyEndpointTests
                         s.AddSingleton<IJobService>(_ => jobServiceMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                         s.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddMemoryCache();
                         s.AddSingleton<FunctionStatusCache>();
                         s.AddSingleton<WakeUpGate>();
