@@ -30,8 +30,9 @@ public static class SyncFunctionEndpoints
                 ISendClient sendClient,
                 IReplicasService replicasService,
                 IJobService jobService,
-                IWebSocketSendClient webSocketSendClient) =>
-                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient))
+                IWebSocketSendClient webSocketSendClient,
+                IWebSocketFunctionRepository webSocketFunctionRepository) =>
+                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository))
             .WithName("HandleSyncFunctionRoot")
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
@@ -46,12 +47,21 @@ public static class SyncFunctionEndpoints
         [FromServices] ISendClient sendClient,
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
-        [FromServices] IWebSocketSendClient webSocketSendClient)
+        [FromServices] IWebSocketSendClient webSocketSendClient,
+        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository)
     {
         functionPath ??= "";
         var ct = context.RequestAborted;
 
         var function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
+
+        // Puis dans les fonctions WebSocket virtuelles
+        if (function == null)
+        {
+            function = webSocketFunctionRepository.GetVirtualDeployments()
+                .FirstOrDefault(d => string.Equals(d.Deployment, functionName, StringComparison.OrdinalIgnoreCase));
+        }
+
         if (function is null)
         {
             logger.LogDebug("{FunctionName} not found 404", functionName);
