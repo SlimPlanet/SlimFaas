@@ -214,7 +214,7 @@ public class WebSocketSendClient : IWebSocketSendClient
                 functionName, connection.ConnectionId, correlationId);
 
             // 4. Attend SyncResponseStart du client (avec timeout)
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct, pendingStream.Cts.Token);
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct, pendingStream.Cts.Token);
             cts.CancelAfter(TimeSpan.FromSeconds(300));
 
             var responseStart = await pendingStream.ResponseStartTcs.Task.WaitAsync(cts.Token);
@@ -226,7 +226,11 @@ public class WebSocketSendClient : IWebSocketSendClient
                 async () =>
                 {
                     try { await pendingStream.ResponseEndTcs.Task.WaitAsync(cts.Token); }
-                    finally { connection.PendingSyncStreams.TryRemove(correlationId, out _); }
+                    finally
+                    {
+                        connection.PendingSyncStreams.TryRemove(correlationId, out _);
+                        cts.Dispose();
+                    }
                 }
             );
         }

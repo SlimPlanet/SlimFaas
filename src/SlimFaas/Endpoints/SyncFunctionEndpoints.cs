@@ -199,12 +199,20 @@ public static class SyncFunctionEndpoints
         catch (InvalidOperationException ex)
         {
             logger.LogWarning(ex, "No WebSocket client available for {FunctionName}", functionName);
-            return Results.StatusCode(503);
+            if (!context.Response.HasStarted)
+            {
+                return Results.StatusCode(503);
+            }
+            return Results.Empty;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
-            return Results.StatusCode(499);
+            if (!context.Response.HasStarted)
+            {
+                return Results.StatusCode(499);
+            }
+            return Results.Empty;
         }
     }
 
