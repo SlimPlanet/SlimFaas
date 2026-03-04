@@ -69,7 +69,8 @@ public class WebSocketSendClient : IWebSocketSendClient
         int tryNumber,
         CancellationToken ct = default)
     {
-        var connection = _registry.SelectLeastBusy(functionName);
+        int maxPerPod = _registry.GetConfiguration(functionName)?.NumberParallelRequestPerPod ?? int.MaxValue;
+        var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod);
         if (connection == null)
         {
             _logger.LogWarning("No WebSocket client available for function {FunctionName}", functionName);
@@ -162,7 +163,8 @@ public class WebSocketSendClient : IWebSocketSendClient
             Stream? requestBodyStream,
             CancellationToken ct = default)
     {
-        var connection = _registry.SelectLeastBusy(functionName);
+        int maxPerPod = _registry.GetConfiguration(functionName)?.NumberParallelRequestPerPod ?? int.MaxValue;
+        var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod);
         if (connection == null)
         {
             _logger.LogWarning("No WebSocket client available for sync stream to {FunctionName}", functionName);

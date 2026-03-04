@@ -213,10 +213,16 @@ public class WebSocketConnectionRegistry
         return config;
     }
 
+    // Round-robin index par functionName
+    private readonly ConcurrentDictionary<string, int> _roundRobinIndex = new();
+
     /// <summary>
-    /// Sélectionne le client le moins chargé (round-robin pondéré) pour une fonction donnée.
+    /// Sélectionne le prochain client WebSocket en round-robin pour une fonction donnée,
+    /// en respectant la limite <c>NumberParallelRequestPerPod</c>.
+    /// Un client dont <see cref="WebSocketClientConnection.ActiveRequests"/> a atteint
+    /// <paramref name="maxPerPod"/> est sauté. Si tous les clients sont saturés, retourne null.
     /// </summary>
-    public WebSocketClientConnection? SelectLeastBusy(string functionName)
+    public WebSocketClientConnection? SelectNextRoundRobin(string functionName, int maxPerPod = int.MaxValue)
     {
         var connections = GetConnections(functionName);
         if (connections.Count == 0)
@@ -224,7 +230,22 @@ public class WebSocketConnectionRegistry
             return null;
         }
 
-        return connections.OrderBy(c => c.ActiveRequests).First();
+        int startIndex = _roundRobinIndex.AddOrUpdate(functionName, 0, (_, prev) => prev + 1);
+
+        // Parcourir tous les clients à partir de l'index round-robin,
+        // sélectionner le premier qui n'a pas atteint la limite per-pod.
+        for (int i = 0; i < connections.Count; i++)
+        {
+            int index = Math.Abs(startIndex + i) % connections.Count;
+            var candidate = connections[index];
+            if (candidate.ActiveRequests < maxPerPod)
+            {
+                return candidate;
+            }
+        }
+
+        // Tous les clients sont saturés
+        return null;
     }
 
     private static bool ConfigurationsAreEqual(

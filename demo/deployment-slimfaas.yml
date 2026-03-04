@@ -15,7 +15,7 @@ data:
     {
       "Configurations": {
         "fibonacci": {
-          "Image": "axaguildev/fibonacci-batch:0.66.0-pr.244530",
+          "Image": "axaguildev/fibonacci-batch:0.66.0-pr.244532",
           "ImagesWhitelist": [],
           "Resources": {
             "Requests": {
@@ -90,7 +90,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.66.0-pr.244530
+          image: axaguildev/slimfaas:0.66.0-pr.244532
           livenessProbe:
             httpGet:
               path: /health
