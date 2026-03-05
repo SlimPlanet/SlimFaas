@@ -1,0 +1,112 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "slimfaas.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "slimfaas.labels" . | nindent 4 }}
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: {{ .Values.replicaCount }}
+  serviceName: {{ include "slimfaas.fullname" . }}
+  selector:
+    matchLabels:
+      {{- include "slimfaas.selectorLabels" . | nindent 6 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: slimfaas-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.persistence.database.size }}
+        {{- if .Values.persistence.database.storageClass }}
+        storageClassName: {{ .Values.persistence.database.storageClass }}
+        {{- end }}
+    - metadata:
+        name: slimfaas-backup
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: {{ .Values.persistence.backup.size }}
+        {{- if .Values.persistence.backup.storageClass }}
+        storageClassName: {{ .Values.persistence.backup.storageClass }}
+        {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "slimfaas.selectorLabels" . | nindent 8 }}
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "slimfaas.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: {{ include "slimfaas.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          env:
+            - name: SlimData__Directory
+              value: "/database"
+            - name: SlimData__BackupDirectory
+              value: "/backup"
+            - name: Data__DefaultVisibility
+              value: {{ .Values.defaultVisibility | quote }}
+            - name: Logging__LogLevel__SlimFaas
+              value: {{ .Values.logLevel | quote }}
+            {{- if .Values.jobsConfiguration }}
+            - name: SlimFaas__JobsConfiguration
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "slimfaas.fullname" . }}-config
+                  key: SlimFaas__JobsConfiguration
+            {{- end }}
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: slimfaas-volume
+              mountPath: /database
+            - name: slimfaas-backup
+              mountPath: /backup
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: http
+            - containerPort: {{ .Values.service.slimDataPort }}
+              name: slimdata
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
