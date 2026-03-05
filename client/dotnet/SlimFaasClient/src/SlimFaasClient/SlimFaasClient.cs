@@ -259,17 +259,25 @@ public sealed class SlimFaasClient : IAsyncDisposable
             {
                 DependsOn = _config.DependsOn,
                 SubscribeEvents = _config.SubscribeEvents
-                    .Select(e => new SubscribeEventConfigDto { Name = e.Name, Visibility = e.Visibility })
+                    .Select(e => new SubscribeEventConfigDto
+                    {
+                        Name = e.Name,
+                        Visibility = e.Visibility?.ToString(),
+                    })
                     .ToList(),
-                DefaultVisibility = _config.DefaultVisibility,
+                DefaultVisibility = _config.DefaultVisibility.ToString(),
                 PathsStartWithVisibility = _config.PathsStartWithVisibility
-                    .Select(p => new PathVisibilityConfigDto { Path = p.Path, Visibility = p.Visibility })
+                    .Select(p => new PathVisibilityConfigDto
+                    {
+                        Path = p.Path,
+                        Visibility = p.Visibility.ToString(),
+                    })
                     .ToList(),
                 Configuration = _config.Configuration,
                 ReplicasStartAsSoonAsOneFunctionRetrieveARequest = _config.ReplicasStartAsSoonAsOneFunctionRetrieveARequest,
                 NumberParallelRequest = _config.NumberParallelRequest,
                 NumberParallelRequestPerPod = _config.NumberParallelRequestPerPod,
-                DefaultTrust = _config.DefaultTrust,
+                DefaultTrust = _config.DefaultTrust.ToString(),
             },
         };
 

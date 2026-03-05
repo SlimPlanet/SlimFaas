@@ -14,6 +14,7 @@ Exemple d'utilisation :
     from slimfaas_client import (
         SlimFaasClient, SlimFaasClientConfig,
         SubscribeEventConfig, PathVisibilityConfig,
+        FunctionVisibility, FunctionTrust,
         AsyncRequest, PublishEvent,
     )
 
@@ -29,10 +30,10 @@ Exemple d'utilisation :
         config = SlimFaasClientConfig(
             function_name="my-job",
             subscribe_events=[
-                SubscribeEventConfig(name="fibo-public", visibility="Public"),
+                SubscribeEventConfig(name="fibo-public", visibility=FunctionVisibility.PUBLIC),
                 SubscribeEventConfig(name="internal-event"),  # hérite de default_visibility
             ],
-            default_visibility="Public",
+            default_visibility=FunctionVisibility.PUBLIC,
         )
         async with SlimFaasClient("ws://slimfaas:5003/ws", config) as client:
             client.on_async_request(handle_request)
@@ -47,6 +48,8 @@ from slimfaas_client._models import (
     AsyncRequest,
     AsyncCallback,
     BinaryFrame,
+    FunctionVisibility,
+    FunctionTrust,
     PublishEvent,
     SlimFaasClientConfig,
     SubscribeEventConfig,
@@ -59,6 +62,8 @@ from slimfaas_client._models import (
 __all__ = [
     "SlimFaasClient",
     "SlimFaasClientConfig",
+    "FunctionVisibility",
+    "FunctionTrust",
     "SubscribeEventConfig",
     "PathVisibilityConfig",
     "AsyncRequest",

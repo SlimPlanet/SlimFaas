@@ -64,10 +64,9 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
         {
             var parts = token.Split(':', 2, StringSplitOptions.TrimEntries);
             if (parts.Length == 2 &&
-                (parts[0].Equals("Public", StringComparison.OrdinalIgnoreCase) ||
-                 parts[0].Equals("Private", StringComparison.OrdinalIgnoreCase)))
+                Enum.TryParse<FunctionVisibility>(parts[0], ignoreCase: true, out var vis))
             {
-                subscribeEvents.Add(new SubscribeEventConfig { Name = parts[1], Visibility = parts[0] });
+                subscribeEvents.Add(new SubscribeEventConfig { Name = parts[1], Visibility = vis });
             }
             else
             {
@@ -91,10 +90,9 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
                 var token = remainingArgs[++idx];
                 var parts = token.Split(':', 2, StringSplitOptions.TrimEntries);
                 if (parts.Length == 2 &&
-                    (parts[0].Equals("Public", StringComparison.OrdinalIgnoreCase) ||
-                     parts[0].Equals("Private", StringComparison.OrdinalIgnoreCase)))
+                    Enum.TryParse<FunctionVisibility>(parts[0], ignoreCase: true, out var vis))
                 {
-                    subscribeEvents.Add(new SubscribeEventConfig { Name = parts[1], Visibility = parts[0] });
+                    subscribeEvents.Add(new SubscribeEventConfig { Name = parts[1], Visibility = vis });
                 }
                 else
                 {
@@ -118,7 +116,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
     {
         FunctionName = functionName,
         SubscribeEvents = subscribeEvents,
-        DefaultVisibility = "Public",
+        DefaultVisibility = FunctionVisibility.Public,
         NumberParallelRequest = 5,
         NumberParallelRequestPerPod = 5,
     };

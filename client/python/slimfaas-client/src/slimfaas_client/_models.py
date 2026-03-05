@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import struct
 from dataclasses import dataclass, field
-from enum import IntEnum
+from enum import IntEnum, Enum
 from typing import Optional, Tuple
 
 
@@ -34,6 +34,30 @@ class MessageType(IntEnum):
 
 
 # ---------------------------------------------------------------------------
+# Enums typés (remplacent les magic strings)
+# ---------------------------------------------------------------------------
+
+class FunctionVisibility(str, Enum):
+    """Visibilité d'une fonction, d'un évènement ou d'un path."""
+
+    PUBLIC = "Public"
+    """Accessible depuis l'extérieur du namespace."""
+
+    PRIVATE = "Private"
+    """Accessible uniquement depuis l'intérieur du namespace."""
+
+
+class FunctionTrust(str, Enum):
+    """Niveau de confiance d'une fonction."""
+
+    TRUSTED = "Trusted"
+    """Fonction de confiance (pas de restrictions supplémentaires)."""
+
+    UNTRUSTED = "Untrusted"
+    """Fonction non-fiable (restrictions de sécurité appliquées)."""
+
+
+# ---------------------------------------------------------------------------
 # Structures pour SubscribeEvents et PathsStartWithVisibility
 # ---------------------------------------------------------------------------
 
@@ -47,15 +71,15 @@ class SubscribeEventConfig:
 
     Exemple ::
 
-        SubscribeEventConfig(name="fibo-public", visibility="Public")
+        SubscribeEventConfig(name="fibo-public", visibility=FunctionVisibility.PUBLIC)
         SubscribeEventConfig(name="fibo-private")  # hérite de default_visibility
     """
 
     name: str
     """Nom de l'évènement (ex : "fibo-public")."""
 
-    visibility: Optional[str] = None
-    """Surcharge de visibilité : "Public", "Private" ou None pour hériter de default_visibility."""
+    visibility: Optional[FunctionVisibility] = None
+    """Surcharge de visibilité, ou None pour hériter de default_visibility."""
 
 
 @dataclass
@@ -65,14 +89,14 @@ class PathVisibilityConfig:
 
     Exemple ::
 
-        PathVisibilityConfig(path="/admin", visibility="Private")
+        PathVisibilityConfig(path="/admin", visibility=FunctionVisibility.PRIVATE)
     """
 
     path: str
     """Préfixe de chemin (ex : "/admin")."""
 
-    visibility: str = "Public"
-    """Visibilité : "Public" ou "Private"."""
+    visibility: FunctionVisibility = FunctionVisibility.PUBLIC
+    """Visibilité de ce préfixe de chemin."""
 
 
 # ---------------------------------------------------------------------------
@@ -109,8 +133,8 @@ class SlimFaasClientConfig:
     Si ``SubscribeEventConfig.visibility`` est None, ``default_visibility`` est utilisé.
     """
 
-    default_visibility: str = "Public"
-    """Visibilité par défaut : "Public" ou "Private" (SlimFaas/DefaultVisibility)."""
+    default_visibility: FunctionVisibility = FunctionVisibility.PUBLIC
+    """Visibilité par défaut (SlimFaas/DefaultVisibility)."""
 
     paths_start_with_visibility: list[PathVisibilityConfig] = field(default_factory=list)
     """
@@ -129,8 +153,8 @@ class SlimFaasClientConfig:
     number_parallel_request_per_pod: int = 10
     """Nombre maximum de requêtes parallèles par pod (SlimFaas/NumberParallelRequestPerPod)."""
 
-    default_trust: str = "Trusted"
-    """Niveau de confiance : "Trusted" ou "Untrusted" (SlimFaas/DefaultTrust)."""
+    default_trust: FunctionTrust = FunctionTrust.TRUSTED
+    """Niveau de confiance (SlimFaas/DefaultTrust)."""
 
     def to_register_payload(self) -> dict:
         return {
@@ -138,19 +162,19 @@ class SlimFaasClientConfig:
             "configuration": {
                 "dependsOn": self.depends_on,
                 "subscribeEvents": [
-                    {"name": e.name, **({"visibility": e.visibility} if e.visibility is not None else {})}
+                    {"name": e.name, **({"visibility": e.visibility.value} if e.visibility is not None else {})}
                     for e in self.subscribe_events
                 ],
-                "defaultVisibility": self.default_visibility,
+                "defaultVisibility": self.default_visibility.value,
                 "pathsStartWithVisibility": [
-                    {"path": p.path, "visibility": p.visibility}
+                    {"path": p.path, "visibility": p.visibility.value}
                     for p in self.paths_start_with_visibility
                 ],
                 "configuration": self.configuration,
                 "replicasStartAsSoonAsOneFunctionRetrieveARequest": self.replicas_start_as_soon_as_one_function_retrieve_a_request,
                 "numberParallelRequest": self.number_parallel_request,
                 "numberParallelRequestPerPod": self.number_parallel_request_per_pod,
-                "defaultTrust": self.default_trust,
+                "defaultTrust": self.default_trust.value,
             },
         }
 

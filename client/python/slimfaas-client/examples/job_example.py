@@ -14,7 +14,12 @@ import asyncio
 import json
 import logging
 
-from slimfaas_client import SlimFaasClient, SlimFaasClientConfig, AsyncRequest, PublishEvent
+from slimfaas_client import (
+    SlimFaasClient, SlimFaasClientConfig,
+    SubscribeEventConfig,
+    FunctionVisibility, FunctionTrust,
+    AsyncRequest, PublishEvent,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)-8s %(message)s")
 logger = logging.getLogger(__name__)
@@ -77,16 +82,19 @@ async def main() -> None:
         function_name="my-python-job",
 
         # SlimFaas/SubscribeEvents : écoute ces évènements publish-event
-        subscribe_events=["order-created", "order-updated"],
+        subscribe_events=[
+            SubscribeEventConfig(name="order-created"),
+            SubscribeEventConfig(name="order-updated"),
+        ],
 
         # SlimFaas/DefaultVisibility
-        default_visibility="Public",
+        default_visibility=FunctionVisibility.PUBLIC,
 
         # SlimFaas/NumberParallelRequest
         number_parallel_request=5,
 
         # SlimFaas/DefaultTrust
-        default_trust="Trusted",
+        default_trust=FunctionTrust.TRUSTED,
     )
 
     # URL du port WebSocket de SlimFaas (par défaut 5003)

@@ -14,11 +14,11 @@ internal static class TestHelpers
 {
     public static SlimFaasClientConfig MakeConfig(
         string functionName = "test-job",
-        List<string>? subscribeEvents = null)
+        List<SubscribeEventConfig>? subscribeEvents = null)
         => new()
         {
             FunctionName = functionName,
-            SubscribeEvents = subscribeEvents ?? ["my-event"],
+            SubscribeEvents = subscribeEvents ?? [new SubscribeEventConfig { Name = "my-event" }],
         };
 
     public static string MakeEnvelope(
@@ -51,10 +51,10 @@ public class SlimFaasModelsTests
         var config = new SlimFaasClientConfig
         {
             FunctionName = "my-job",
-            SubscribeEvents = ["ev1"],
-            DefaultVisibility = "Private",
+            SubscribeEvents = [new SubscribeEventConfig { Name = "ev1" }],
+            DefaultVisibility = FunctionVisibility.Private,
             NumberParallelRequest = 3,
-            DefaultTrust = "Untrusted",
+            DefaultTrust = FunctionTrust.Untrusted,
         };
 
         // Le payload est construit dans RegisterAsync, on valide via sérialisation
@@ -63,10 +63,12 @@ public class SlimFaasModelsTests
             FunctionName = config.FunctionName,
             Configuration = new RegisterConfigDto
             {
-                SubscribeEvents = config.SubscribeEvents,
-                DefaultVisibility = config.DefaultVisibility,
+                SubscribeEvents = config.SubscribeEvents
+                    .Select(e => new SubscribeEventConfigDto { Name = e.Name, Visibility = e.Visibility?.ToString() })
+                    .ToList(),
+                DefaultVisibility = config.DefaultVisibility.ToString(),
                 NumberParallelRequest = config.NumberParallelRequest,
-                DefaultTrust = config.DefaultTrust,
+                DefaultTrust = config.DefaultTrust.ToString(),
             },
         };
 
@@ -202,7 +204,10 @@ public class SerializationTests
             FunctionName = "test-fn",
             Configuration = new RegisterConfigDto
             {
-                SubscribeEvents = ["ev1", "ev2"],
+                SubscribeEvents = [
+                    new SubscribeEventConfigDto { Name = "ev1" },
+                    new SubscribeEventConfigDto { Name = "ev2" },
+                ],
                 DefaultVisibility = "Private",
                 NumberParallelRequest = 5,
             },
@@ -212,7 +217,7 @@ public class SerializationTests
         var round = JsonSerializer.Deserialize(json, SlimFaasClientJsonContext.Default.RegisterPayloadDto);
 
         round!.FunctionName.Should().Be("test-fn");
-        round.Configuration.SubscribeEvents.Should().BeEquivalentTo(["ev1", "ev2"]);
+        round.Configuration.SubscribeEvents.Select(e => e.Name).Should().BeEquivalentTo(["ev1", "ev2"]);
         round.Configuration.DefaultVisibility.Should().Be("Private");
         round.Configuration.NumberParallelRequest.Should().Be(5);
     }
@@ -229,8 +234,8 @@ public class SlimFaasClientConfigTests
     {
         var config = new SlimFaasClientConfig { FunctionName = "my-fn" };
 
-        config.DefaultVisibility.Should().Be("Public");
-        config.DefaultTrust.Should().Be("Trusted");
+        config.DefaultVisibility.Should().Be(FunctionVisibility.Public);
+        config.DefaultTrust.Should().Be(FunctionTrust.Trusted);
         config.NumberParallelRequest.Should().Be(10);
         config.NumberParallelRequestPerPod.Should().Be(10);
         config.ReplicasStartAsSoonAsOneFunctionRetrieveARequest.Should().BeFalse();

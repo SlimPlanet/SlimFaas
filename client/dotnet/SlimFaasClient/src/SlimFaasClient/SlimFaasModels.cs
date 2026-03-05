@@ -46,10 +46,36 @@ public class SlimFaasEnvelope
 // Structures pour SubscribeEvents et PathsStartWithVisibility
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Enums typés (remplacent les magic strings)
+// ---------------------------------------------------------------------------
+
+/// <summary>Visibilité d'une fonction, d'un évènement ou d'un path.</summary>
+public enum FunctionVisibility
+{
+    /// <summary>Accessible depuis l'extérieur du namespace.</summary>
+    Public,
+    /// <summary>Accessible uniquement depuis l'intérieur du namespace.</summary>
+    Private,
+}
+
+/// <summary>Niveau de confiance d'une fonction.</summary>
+public enum FunctionTrust
+{
+    /// <summary>Fonction de confiance (pas de restrictions supplémentaires).</summary>
+    Trusted,
+    /// <summary>Fonction non-fiable (restrictions de sécurité appliquées).</summary>
+    Untrusted,
+}
+
+// ---------------------------------------------------------------------------
+// Structures pour SubscribeEvents et PathsStartWithVisibility
+// ---------------------------------------------------------------------------
+
 /// <summary>
 /// Décrit un évènement auquel s'abonner, avec une visibilité optionnelle.
 /// Si <see cref="Visibility"/> est null, la visibilité par défaut (<c>DefaultVisibility</c>) est utilisée.
-/// Exemple : <c>new SubscribeEventConfig { Name = "fibo-public", Visibility = "Public" }</c>
+/// Exemple : <c>new SubscribeEventConfig { Name = "fibo-public", Visibility = FunctionVisibility.Public }</c>
 /// </summary>
 public class SubscribeEventConfig
 {
@@ -57,22 +83,22 @@ public class SubscribeEventConfig
     public string Name { get; set; } = string.Empty;
 
     /// <summary>
-    /// Surcharge de visibilité : "Public", "Private" ou null pour hériter de <c>DefaultVisibility</c>.
+    /// Surcharge de visibilité, ou null pour hériter de <c>DefaultVisibility</c>.
     /// </summary>
-    public string? Visibility { get; set; }
+    public FunctionVisibility? Visibility { get; set; }
 }
 
 /// <summary>
 /// Décrit une règle de visibilité par préfixe de chemin.
-/// Exemple : <c>new PathVisibilityConfig { Path = "/admin", Visibility = "Private" }</c>
+/// Exemple : <c>new PathVisibilityConfig { Path = "/admin", Visibility = FunctionVisibility.Private }</c>
 /// </summary>
 public class PathVisibilityConfig
 {
     /// <summary>Préfixe de chemin (ex : "/admin").</summary>
     public string Path { get; set; } = string.Empty;
 
-    /// <summary>Visibilité : "Public" ou "Private".</summary>
-    public string Visibility { get; set; } = "Public";
+    /// <summary>Visibilité de ce préfixe de chemin.</summary>
+    public FunctionVisibility Visibility { get; set; } = FunctionVisibility.Public;
 }
 
 // ---------------------------------------------------------------------------
@@ -112,8 +138,8 @@ public class SlimFaasClientConfig
     /// </summary>
     public List<SubscribeEventConfig> SubscribeEvents { get; set; } = [];
 
-    /// <summary>SlimFaas/DefaultVisibility : "Public" ou "Private"</summary>
-    public string DefaultVisibility { get; set; } = "Public";
+    /// <summary>SlimFaas/DefaultVisibility</summary>
+    public FunctionVisibility DefaultVisibility { get; set; } = FunctionVisibility.Public;
 
     /// <summary>
     /// SlimFaas/PathsStartWithVisibility.
@@ -133,8 +159,8 @@ public class SlimFaasClientConfig
     /// <summary>SlimFaas/NumberParallelRequestPerPod</summary>
     public int NumberParallelRequestPerPod { get; set; } = 10;
 
-    /// <summary>SlimFaas/DefaultTrust : "Trusted" ou "Untrusted"</summary>
-    public string DefaultTrust { get; set; } = "Trusted";
+    /// <summary>SlimFaas/DefaultTrust</summary>
+    public FunctionTrust DefaultTrust { get; set; } = FunctionTrust.Trusted;
 }
 
 // ---------------------------------------------------------------------------

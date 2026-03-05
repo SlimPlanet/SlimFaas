@@ -12,6 +12,8 @@ import pytest
 
 from slimfaas_client._models import (
     AsyncRequest,
+    FunctionVisibility,
+    FunctionTrust,
     MessageType,
     PublishEvent,
     SlimFaasClientConfig,
@@ -105,8 +107,8 @@ class TestSlimFaasClientConfig:
     def test_to_register_payload(self):
         config = make_config(
             function_name="my-job",
-            subscribe_events=[SubscribeEventConfig(name="ev1", visibility="Public")],
-            default_visibility="Private",
+            subscribe_events=[SubscribeEventConfig(name="ev1", visibility=FunctionVisibility.PUBLIC)],
+            default_visibility=FunctionVisibility.PRIVATE,
             number_parallel_request=3,
         )
         p = config.to_register_payload()
@@ -129,7 +131,7 @@ class TestSlimFaasClientConfig:
             function_name="my-job",
             subscribe_events=[],
             paths_start_with_visibility=[
-                PathVisibilityConfig(path="/admin", visibility="Private"),
+                PathVisibilityConfig(path="/admin", visibility=FunctionVisibility.PRIVATE),
                 PathVisibilityConfig(path="/api"),
             ],
         )
