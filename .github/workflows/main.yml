@@ -1,4 +1,4 @@
-﻿name: SlimFaas main CI
+name: SlimFaas main CI
 
 on:
   push:
@@ -230,7 +230,6 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
-
   build_slimfaas_kafka:
     needs: tags
     if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
@@ -319,7 +318,7 @@ jobs:
       image_name: "axaguildev/fibonacci-batch"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/FibonacciBatch"
+      image_context: "."
       image_file: "./src/FibonacciBatch/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:
@@ -522,7 +521,7 @@ jobs:
   change_log:
     runs-on: ubuntu-latest
     if: needs.tags.outputs.tag == 'release'
-    needs: [ tags,  build_slimfaas_planet_saver, build_slimfaas, deploy_website, build_fibonacci_mcp ]
+    needs: [ tags, build_slimfaas_planet_saver, build_slimfaas, deploy_website, build_fibonacci_mcp ]
     steps:
       - uses: actions/checkout@v4
         with:

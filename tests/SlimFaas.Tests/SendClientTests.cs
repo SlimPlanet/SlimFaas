@@ -1,4 +1,4 @@
-﻿using SlimFaas;
+﻿﻿using SlimFaas;
 
 namespace SlimFaas.Tests
 {
@@ -189,6 +189,12 @@ public class FakeProxy : IProxy
 
         return DefaultIp;
     }
+
+    public string GetNextIP(int maxPerPod) => GetNextIP();
+
+    public void IncrementActiveRequests(string ip) { }
+
+    public void DecrementActiveRequests(string ip) { }
 
     public IList<int>? GetPorts()
     {

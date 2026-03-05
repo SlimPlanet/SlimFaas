@@ -7,7 +7,7 @@ using SlimFaas.Options;
 
 namespace SlimFaas;
 
-internal record struct RequestToWait(Task<HttpResponseMessage> Task, CustomRequest CustomRequest, string Id);
+internal record struct RequestToWait(Task<HttpResponseMessage> Task, CustomRequest CustomRequest, string Id, string TargetIp);
 
 public class SlimQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
@@ -106,6 +106,9 @@ public class SlimQueuesWorker(
         {
             return;
         }
+
+        var proxy = new Proxy(replicasService, functionDeployment);
+
         foreach (var requestJson in jsons)
         {
             CustomRequest customRequest = MemoryPackSerializer.Deserialize<CustomRequest>(requestJson.Data);
@@ -125,9 +128,20 @@ public class SlimQueuesWorker(
             customRequestHeaders.Add(new CustomHeader(SlimfaasElementId, [requestJson.Id]));
             customRequestHeaders.Add(new CustomHeader(SlimfaasLastTry, [requestJson.IsLastTry.ToString().ToLowerInvariant()]));
             customRequestHeaders.Add(new CustomHeader(SlimfaasTryNumber, [requestJson.TryNumber.ToString()]));
+
+            // Sélectionner le pod en respectant la limite per-pod
+            string targetIp = proxy.GetNextIP(function.NumberParallelRequestPerPod);
+            if (string.IsNullOrEmpty(targetIp))
+            {
+                // Tous les pods sont saturés — remettre le message en queue sera géré au prochain cycle
+                logger.LogDebug("All pods saturated for {FunctionDeployment}, skipping remaining requests", functionDeployment);
+                break;
+            }
+            proxy.IncrementActiveRequests(targetIp);
+
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
-                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, new Proxy(replicasService, functionDeployment));
-            processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id));
+                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy);
+            processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp));
         }
     }
 
@@ -192,6 +206,11 @@ public class SlimQueuesWorker(
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
                 httpResponseMessagesToDelete.Add(processing);
+                // Libérer le slot per-pod
+                if (!string.IsNullOrEmpty(processing.TargetIp))
+                {
+                    Proxy.ActiveRequestsPerPod.AddOrUpdate(processing.TargetIp, 0, (_, count) => Math.Max(0, count - 1));
+                }
                 if (statusCode == 202)
                 {
                     logger.LogInformation("SlimFaas is waiting callback from {FunctionDeployment}", functionDeployment);
@@ -206,6 +225,11 @@ public class SlimQueuesWorker(
             {
                 queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
                 httpResponseMessagesToDelete.Add(processing);
+                // Libérer le slot per-pod en cas d'erreur
+                if (!string.IsNullOrEmpty(processing.TargetIp))
+                {
+                    Proxy.ActiveRequestsPerPod.AddOrUpdate(processing.TargetIp, 0, (_, count) => Math.Max(0, count - 1));
+                }
                 logger.LogWarning("Request Error: {Message} {StackTrace}", e.Message, e.StackTrace);
             }
         }

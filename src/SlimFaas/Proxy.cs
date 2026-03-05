@@ -6,7 +6,10 @@ namespace SlimFaas
     public interface IProxy
     {
         string GetNextIP();
+        string GetNextIP(int maxPerPod);
         IList<int>? GetPorts();
+        void IncrementActiveRequests(string ip);
+        void DecrementActiveRequests(string ip);
     }
     public class Proxy : IProxy
     {
@@ -15,6 +18,9 @@ namespace SlimFaas
 
         // Key: Nom du déploiement, Value: Dernière IP utilisée pour ce déploiement
         public static ConcurrentDictionary<string, string> IpAddresses { get; } = new();
+
+        // Key: IP du pod, Value: nombre de requêtes actives sur ce pod
+        public static ConcurrentDictionary<string, int> ActiveRequestsPerPod { get; } = new();
 
         public Proxy(IReplicasService replicasService, string functionName)
         {
@@ -41,7 +47,27 @@ namespace SlimFaas
             return readyPodsIps;
         }
 
-        public string GetNextIP()
+        public void IncrementActiveRequests(string ip)
+        {
+            ActiveRequestsPerPod.AddOrUpdate(ip, 1, (_, count) => count + 1);
+        }
+
+        public void DecrementActiveRequests(string ip)
+        {
+            ActiveRequestsPerPod.AddOrUpdate(ip, 0, (_, count) => Math.Max(0, count - 1));
+        }
+
+        /// <summary>
+        /// Sélectionne le prochain pod en round-robin sans limite per-pod.
+        /// </summary>
+        public string GetNextIP() => GetNextIP(int.MaxValue);
+
+        /// <summary>
+        /// Sélectionne le prochain pod en round-robin en respectant la limite
+        /// <paramref name="maxPerPod"/> de requêtes actives par pod.
+        /// Retourne "" si tous les pods sont saturés ou aucun pod n'est ready.
+        /// </summary>
+        public string GetNextIP(int maxPerPod)
         {
             var deploymentInformation = SearchFunction(_replicasService, _functionName);
 
@@ -50,52 +76,47 @@ namespace SlimFaas
                 return "";
             }
 
-            // On récupère toutes les IP des pods qui sont en état "Ready"
             var readyPodsIps = deploymentInformation.Pods
                 .Where(pod => pod.Ready == true)
                 .Select(pod => pod.Ip)
                 .ToList();
 
-            // Si aucun pod n'est en état "Ready", on peut décider de retourner une chaîne vide ou lever une exception
             if (!readyPodsIps.Any())
             {
-                return ""; // Ou lever une exception, selon le besoin
+                return "";
             }
 
-            // On essaie de récupérer la dernière IP utilisée pour ce déploiement
+            // Déterminer l'index de départ (round-robin)
+            int startIndex;
             if (!IpAddresses.TryGetValue(deploymentInformation.Deployment, out var lastIp)
                 || string.IsNullOrWhiteSpace(lastIp))
             {
-                // Si aucune IP n'existe pour ce déploiement, on en sélectionne une au hasard
-                var randomIndex = _random.Next(0, readyPodsIps.Count);
-                var randomIp = readyPodsIps[randomIndex];
-
-                // On sauvegarde cette IP comme dernière IP
-                IpAddresses[deploymentInformation.Deployment] = randomIp;
-                return randomIp;
+                startIndex = _random.Next(0, readyPodsIps.Count);
             }
-
-            // Sinon, on cherche la position de lastIp dans la liste des pods prêts
-            var currentIndex = readyPodsIps.IndexOf(lastIp);
-
-            // Si la dernière IP n'était pas dans la liste (par ex. si le pod a été supprimé),
-            // on prend un pod prêt au hasard.
-            if (currentIndex == -1)
+            else
             {
-                var randomIndex = _random.Next(0, readyPodsIps.Count);
-                var randomIp = readyPodsIps[randomIndex];
-
-                IpAddresses[deploymentInformation.Deployment] = randomIp;
-                return randomIp;
+                var currentIndex = readyPodsIps.IndexOf(lastIp);
+                startIndex = currentIndex == -1
+                    ? _random.Next(0, readyPodsIps.Count)
+                    : (currentIndex + 1) % readyPodsIps.Count;
             }
 
-            // On calcule l'index du "pod suivant" dans la liste
-            var nextIndex = (currentIndex + 1) % readyPodsIps.Count;
-            var nextIp = readyPodsIps[nextIndex];
+            // Parcourir tous les pods à partir de startIndex,
+            // sélectionner le premier qui n'a pas atteint la limite per-pod.
+            for (int i = 0; i < readyPodsIps.Count; i++)
+            {
+                int index = (startIndex + i) % readyPodsIps.Count;
+                string candidateIp = readyPodsIps[index];
+                int active = ActiveRequestsPerPod.GetValueOrDefault(candidateIp, 0);
+                if (active < maxPerPod)
+                {
+                    IpAddresses[deploymentInformation.Deployment] = candidateIp;
+                    return candidateIp;
+                }
+            }
 
-            // On met à jour la dernière IP dans le dictionnaire
-            IpAddresses[deploymentInformation.Deployment] = nextIp;
-            return nextIp;
+            // Tous les pods sont saturés — retourner "" pour signaler qu'il faut attendre
+            return "";
         }
     }
 }

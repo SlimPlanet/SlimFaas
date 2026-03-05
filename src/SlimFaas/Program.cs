@@ -19,6 +19,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Security;
+using SlimFaas.WebSocket;
 using SlimFaas.Workers;
 
 #pragma warning disable CA2252
@@ -243,6 +244,12 @@ serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAcc
 serviceCollectionSlimFaas.AddMemoryCache();
 serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
 serviceCollectionSlimFaas.AddSingleton<WakeUpGate>();
+
+// --- WebSocket virtual clients ---
+serviceCollectionSlimFaas.AddSingleton<WebSocketConnectionRegistry>();
+serviceCollectionSlimFaas.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepository>();
+serviceCollectionSlimFaas.AddSingleton<IWebSocketSendClient, WebSocketSendClient>();
+serviceCollectionSlimFaas.AddHostedService<WebSocketQueuesWorker>();
 
 builder.Services
     .AddOptions<DataOptions>()
@@ -496,6 +503,18 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
             listenOptions.KestrelServerOptions.Limits.MaxRequestBodySize = maxRequestBodySize;
         });
     }
+
+    // Port WebSocket dédié
+    int wsPort = slimFaasOptions.WebSocketPort;
+    if (wsPort > 0 && !slimfaasPorts.Ports.Contains(wsPort) && wsPort != uri.Port)
+    {
+        startupLogger.LogInformation("SlimFaas WebSocket listening on port {WsPort}", wsPort);
+        serverOptions.ListenAnyIP(wsPort, listenOptions =>
+        {
+            listenOptions.Protocols = HttpProtocols.Http1;
+            listenOptions.KestrelServerOptions.Limits.MaxRequestBodySize = maxRequestBodySize;
+        });
+    }
 });
 
 // AOT-friendly JSON (source generators)
@@ -506,6 +525,8 @@ builder.Services.ConfigureHttpJsonOptions(opt =>
     serializerOptionsTypeInfoResolverChain.Insert(1, DataFileRoutesJsonContext.Default);
     serializerOptionsTypeInfoResolverChain.Insert(2, DataSetFileRoutesRoutesJsonContext.Default);
     serializerOptionsTypeInfoResolverChain.Insert(3, DataHashsetFileRoutesJsonContext.Default);
+    // Note: WebSocketSerializerContext is used directly via .Default in WebSocket code,
+    // not via the HTTP pipeline, so it must NOT be added here to avoid hintName conflicts.
 });
 
 WebApplication app = builder.Build();
@@ -528,6 +549,15 @@ app.UseCors(builder =>
             .AllowAnyHeader();
     }
 });
+
+// --- WebSocket middleware (must be before routing) ---
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(30),
+});
+
+// --- WebSocket endpoint (port dédié uniquement) ---
+app.MapWebSocketEndpoints();
 
 //app.MapDataHashsetRoutes();
 app.MapDataSetRoutes();
