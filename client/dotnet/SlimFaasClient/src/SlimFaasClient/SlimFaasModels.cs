@@ -463,6 +463,107 @@ public class SlimFaasSyncRequest
     /// Se termine (Read retourne 0) quand tout le body a été reçu.
     /// </summary>
     public Stream Body { get; set; } = Stream.Null;
+
+    /// <summary>
+    /// Writer pour construire la réponse synchrone.
+    /// Utilisation :
+    /// <code>
+    /// await req.Response.StartAsync(200, new() { ["Content-Type"] = ["application/json"] });
+    /// await req.Response.WriteAsync(bytes, 0, bytes.Length);
+    /// await req.Response.CompleteAsync();
+    /// </code>
+    /// </summary>
+    public SyncResponseWriter Response { get; init; } = null!;
+}
+
+/// <summary>
+/// Stream en écriture seule qui envoie la réponse synchrone vers SlimFaas.
+/// Encapsule l'envoi de SyncResponseStart, SyncResponseChunk et SyncResponseEnd
+/// pour une corrélation donnée.
+/// </summary>
+public sealed class SyncResponseWriter : Stream
+{
+    private readonly Func<string, SlimFaasSyncResponse, CancellationToken, Task> _sendStart;
+    private readonly Func<string, ReadOnlyMemory<byte>, CancellationToken, Task> _sendChunk;
+    private readonly Func<string, CancellationToken, Task> _sendEnd;
+    private readonly string _correlationId;
+    private bool _started;
+    private bool _completed;
+
+    internal SyncResponseWriter(
+        string correlationId,
+        Func<string, SlimFaasSyncResponse, CancellationToken, Task> sendStart,
+        Func<string, ReadOnlyMemory<byte>, CancellationToken, Task> sendChunk,
+        Func<string, CancellationToken, Task> sendEnd)
+    {
+        _correlationId = correlationId;
+        _sendStart = sendStart;
+        _sendChunk = sendChunk;
+        _sendEnd = sendEnd;
+    }
+
+    /// <summary>
+    /// Envoie le début de la réponse (status code + headers).
+    /// Doit être appelé une seule fois, avant tout <see cref="WriteAsync(byte[], int, int, CancellationToken)"/>.
+    /// </summary>
+    public async Task StartAsync(int statusCode = 200, Dictionary<string, string[]>? headers = null, CancellationToken ct = default)
+    {
+        if (_started) throw new InvalidOperationException("Response already started.");
+        if (_completed) throw new InvalidOperationException("Response already completed.");
+        _started = true;
+        await _sendStart(_correlationId, new SlimFaasSyncResponse
+        {
+            StatusCode = statusCode,
+            Headers = headers ?? [],
+        }, ct);
+    }
+
+    /// <summary>
+    /// Signale la fin de la réponse. Aucun chunk ne peut être envoyé après cet appel.
+    /// Si <see cref="StartAsync"/> n'a pas été appelé, un status 200 est envoyé automatiquement.
+    /// </summary>
+    public async Task CompleteAsync(CancellationToken ct = default)
+    {
+        if (_completed) return;
+        if (!_started) await StartAsync(ct: ct);
+        _completed = true;
+        await _sendEnd(_correlationId, ct);
+    }
+
+    // ── Stream overrides ─────────────────────────────────────────────────
+
+    public override bool CanRead => false;
+    public override bool CanSeek => false;
+    public override bool CanWrite => true;
+    public override long Length => throw new NotSupportedException();
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+    public override void Flush() { }
+    public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+
+    public override void Write(byte[] buffer, int offset, int count)
+        => WriteAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
+
+    public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+    {
+        if (_completed) throw new InvalidOperationException("Response already completed.");
+        if (!_started) await StartAsync(ct: ct);
+        if (count > 0)
+            await _sendChunk(_correlationId, buffer.AsMemory(offset, count), ct);
+    }
+
+    public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
+    {
+        if (_completed) throw new InvalidOperationException("Response already completed.");
+        if (!_started) await StartAsync(ct: ct);
+        if (buffer.Length > 0)
+            await _sendChunk(_correlationId, buffer, ct);
+    }
 }
 
 /// <summary>Réponse synchrone streamée envoyée par le client WebSocket.</summary>

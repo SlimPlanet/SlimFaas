@@ -57,6 +57,7 @@ from slimfaas_client._models import (
     SyncBodyStream,
     SyncRequest,
     SyncResponse,
+    SyncResponseWriter,
 )
 
 __all__ = [
@@ -73,5 +74,6 @@ __all__ = [
     "SyncBodyStream",
     "SyncRequest",
     "SyncResponse",
+    "SyncResponseWriter",
 ]
 

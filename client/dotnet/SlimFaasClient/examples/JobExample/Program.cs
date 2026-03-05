@@ -16,16 +16,20 @@ var config = new SlimFaasClientConfig
     FunctionName = "my-dotnet-job",
 
     // SlimFaas/SubscribeEvents : écoute ces évènements publish-event
-    SubscribeEvents = ["order-created", "order-updated"],
+    SubscribeEvents =
+    [
+        new SubscribeEventConfig { Name = "order-created" },
+        new SubscribeEventConfig { Name = "order-updated" },
+    ],
 
     // SlimFaas/DefaultVisibility
-    DefaultVisibility = "Public",
+    DefaultVisibility = FunctionVisibility.Public,
 
     // SlimFaas/NumberParallelRequest
     NumberParallelRequest = 5,
 
     // SlimFaas/DefaultTrust
-    DefaultTrust = "Trusted",
+    DefaultTrust = FunctionTrust.Trusted,
 };
 
 var options = new SlimFaasClientOptions

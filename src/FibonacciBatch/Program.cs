@@ -278,20 +278,16 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
         // ── Envoi de la réponse streamée vers SlimFaas ───────────────────
         var responseBytes = Encoding.UTF8.GetBytes(responseJson);
 
-        await client.SendSyncResponseStartAsync(req.CorrelationId, new SlimFaasSyncResponse
+        await req.Response.StartAsync(httpStatus, new Dictionary<string, string[]>
         {
-            StatusCode = httpStatus,
-            Headers = new Dictionary<string, string[]>
-            {
-                ["Content-Type"] = ["application/json; charset=utf-8"],
-                ["Content-Length"] = [$"{responseBytes.Length}"],
-                ["X-Processed-By"] = ["fibonacci-batch"],
-            },
+            ["Content-Type"] = ["application/json; charset=utf-8"],
+            ["Content-Length"] = [$"{responseBytes.Length}"],
+            ["X-Processed-By"] = ["fibonacci-batch"],
         });
 
         // Envoi en un seul chunk (ou découper si voulu)
-        await client.SendSyncResponseChunkAsync(req.CorrelationId, responseBytes);
-        await client.SendSyncResponseEndAsync(req.CorrelationId);
+        await req.Response.WriteAsync(responseBytes, 0, responseBytes.Length);
+        await req.Response.CompleteAsync();
     };
 
     Console.WriteLine("[WS] Connexion à SlimFaas… (Ctrl+C pour quitter)");

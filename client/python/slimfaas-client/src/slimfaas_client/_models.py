@@ -7,7 +7,7 @@ from __future__ import annotations
 import struct
 from dataclasses import dataclass, field
 from enum import IntEnum, Enum
-from typing import Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 
 # ---------------------------------------------------------------------------
@@ -414,6 +414,86 @@ class SyncRequest:
     Stream asynchrone du body de la requête.
     Lisible via ``async for``, ``await body.read(n)`` ou ``await body.readall()``.
     """
+
+    response: "SyncResponseWriter" = field(default=None)  # type: ignore[assignment]
+    """
+    Writer pour construire la réponse synchrone.
+
+    Utilisation ::
+
+        await req.response.start(200, {"Content-Type": ["application/json"]})
+        await req.response.write(b'{"result": 42}')
+        await req.response.complete()
+    """
+
+
+class SyncResponseWriter:
+    """
+    Writer qui encapsule l'envoi de la réponse synchrone vers SlimFaas.
+
+    Utilisation typique dans un handler ``on_sync_request`` ::
+
+        await req.response.start(200, {"Content-Type": ["text/plain"]})
+        await req.response.write(b"Hello, world!")
+        await req.response.complete()
+
+    Ou de façon plus concise (``start`` est appelé automatiquement si omis) ::
+
+        await req.response.write(b"Hello")
+        await req.response.complete()
+
+    ``complete()`` est idempotent et peut être appelé plusieurs fois.
+    Si ``start()`` n'a pas été appelé avant ``write()`` ou ``complete()``,
+    un status 200 avec des headers vides sera envoyé automatiquement.
+    """
+
+    def __init__(
+        self,
+        correlation_id: str,
+        send_start: Callable,
+        send_chunk: Callable,
+        send_end: Callable,
+    ) -> None:
+        self._correlation_id = correlation_id
+        self._send_start = send_start
+        self._send_chunk = send_chunk
+        self._send_end = send_end
+        self._started = False
+        self._completed = False
+
+    async def start(
+        self,
+        status_code: int = 200,
+        headers: Optional[dict[str, list[str]]] = None,
+    ) -> None:
+        """Envoie le début de la réponse (status code + headers)."""
+        if self._started:
+            raise RuntimeError("Response already started.")
+        if self._completed:
+            raise RuntimeError("Response already completed.")
+        self._started = True
+        await self._send_start(
+            self._correlation_id,
+            SyncResponse(status_code=status_code, headers=headers or {}),
+        )
+
+    async def write(self, data: bytes) -> None:
+        """Envoie un chunk du body de la réponse."""
+        if self._completed:
+            raise RuntimeError("Response already completed.")
+        if not self._started:
+            await self.start()
+        if data:
+            await self._send_chunk(self._correlation_id, data)
+
+    async def complete(self) -> None:
+        """Signale la fin de la réponse. Idempotent."""
+        if self._completed:
+            return
+        if not self._started:
+            await self.start()
+        self._completed = True
+        await self._send_end(self._correlation_id)
 
 
 @dataclass

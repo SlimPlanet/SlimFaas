@@ -23,6 +23,7 @@ from slimfaas_client._models import (
     SyncBodyStream,
     SyncRequest,
     SyncResponse,
+    SyncResponseWriter,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ logger = logging.getLogger(__name__)
 # Type des callbacks
 AsyncRequestHandler = Callable[[AsyncRequest], Awaitable[int]]
 PublishEventHandler = Callable[[PublishEvent], Awaitable[None]]
-SyncRequestHandler = Callable[["SlimFaasClient", SyncRequest], Awaitable[None]]
+SyncRequestHandler = Callable[[SyncRequest], Awaitable[None]]
 
 
 class SlimFaasRegistrationError(Exception):
@@ -138,10 +139,15 @@ class SlimFaasClient:
         """
         Enregistre le callback appelé pour chaque requête synchrone streamée.
 
-        Le handler reçoit ``(client, sync_request)`` et doit :
-        1. Appeler ``await client.send_sync_response_start(corr_id, response)``
-        2. Appeler ``await client.send_sync_response_chunk(corr_id, data)`` par chunk
-        3. Appeler ``await client.send_sync_response_end(corr_id)``
+        Le handler reçoit ``sync_request`` qui contient un ``response``
+        (:class:`SyncResponseWriter`) pour construire la réponse ::
+
+            async def handle_sync(req):
+                await req.response.start(200, {"Content-Type": ["text/plain"]})
+                await req.response.write(b"Hello")
+                await req.response.complete()
+
+            client.on_sync_request(handle_sync)
         """
         self._sync_request_handler = handler
 
@@ -382,6 +388,12 @@ class SlimFaasClient:
                 return
             body_stream = SyncBodyStream(asyncio.Queue())
             self._pending_sync_bodies[correlation_id] = body_stream
+            response_writer = SyncResponseWriter(
+                correlation_id,
+                send_start=self.send_sync_response_start,
+                send_chunk=self.send_sync_response_chunk,
+                send_end=self.send_sync_response_end,
+            )
             req = SyncRequest(
                 correlation_id=correlation_id,
                 method=start.get("method", "GET"),
@@ -389,6 +401,7 @@ class SlimFaasClient:
                 query=start.get("query", ""),
                 headers=start.get("headers", {}),
                 body=body_stream,
+                response=response_writer,
             )
             asyncio.create_task(self._dispatch_sync_request(ws, req))
 
@@ -416,16 +429,18 @@ class SlimFaasClient:
                 "Received SyncRequest for %s but no handler registered. Returning 500.",
                 req.correlation_id,
             )
-            await self.send_sync_response_start(req.correlation_id, SyncResponse(status_code=500))
-            await self.send_sync_response_end(req.correlation_id)
+            await req.response.start(500)
+            await req.response.complete()
             return
         try:
-            await self._sync_request_handler(self, req)
+            await self._sync_request_handler(req)
+            # Auto-complete if the handler forgot to call complete()
+            await req.response.complete()
         except Exception as exc:
             logger.error("SyncRequest handler raised: %s", exc, exc_info=True)
             try:
-                await self.send_sync_response_start(req.correlation_id, SyncResponse(status_code=500))
-                await self.send_sync_response_end(req.correlation_id)
+                await req.response.start(500)
+                await req.response.complete()
             except Exception:
                 pass
 

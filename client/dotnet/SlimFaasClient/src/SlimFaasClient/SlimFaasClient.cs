@@ -97,11 +97,16 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
     /// <summary>
     /// Callback appelé pour chaque requête synchrone streamée reçue.
-    /// Le callback reçoit la requête (avec un ChannelReader pour le body stream).
-    /// Il doit :
-    /// 1. Appeler <see cref="SendSyncResponseStartAsync"/> pour envoyer status + headers.
-    /// 2. Appeler <see cref="SendSyncResponseChunkAsync"/> pour chaque chunk du body de réponse.
-    /// 3. Appeler <see cref="SendSyncResponseEndAsync"/> quand la réponse est terminée.
+    /// Le callback reçoit la requête qui contient un <see cref="SlimFaasSyncRequest.Response"/>
+    /// (<see cref="SyncResponseWriter"/>) pour construire la réponse :
+    /// <code>
+    /// client.OnSyncRequest = async req =>
+    /// {
+    ///     await req.Response.StartAsync(200, new() { ["Content-Type"] = ["text/plain"] });
+    ///     await req.Response.WriteAsync(Encoding.UTF8.GetBytes("Hello"));
+    ///     await req.Response.CompleteAsync();
+    /// };
+    /// </code>
     /// </summary>
     public Func<SlimFaasSyncRequest, Task>? OnSyncRequest { get; set; }
 
@@ -403,6 +408,11 @@ public sealed class SlimFaasClient : IAsyncDisposable
                     Query = startDto.Query,
                     Headers = startDto.Headers,
                     Body = new ChannelStream(bodyChannel.Reader),
+                    Response = new SyncResponseWriter(
+                        correlationId,
+                        SendSyncResponseStartAsync,
+                        SendSyncResponseChunkAsync,
+                        SendSyncResponseEndAsync),
                 };
 
                 // Dispatch dans une tâche séparée
@@ -523,24 +533,26 @@ public sealed class SlimFaasClient : IAsyncDisposable
         if (OnSyncRequest == null)
         {
             _logger.LogWarning("Received SyncRequest for {CorrelationId} but no handler registered. Returning 500.", req.CorrelationId);
-            await SendSyncResponseStartAsync(req.CorrelationId, new SlimFaasSyncResponse { StatusCode = 500 }, ct);
-            await SendSyncResponseEndAsync(req.CorrelationId, ct);
+            await req.Response.StartAsync(500, ct: ct);
+            await req.Response.CompleteAsync(ct);
             return;
         }
 
         try
         {
             await OnSyncRequest(req);
+            // Auto-complete if the handler forgot to call CompleteAsync
+            await req.Response.CompleteAsync(ct);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "SyncRequest handler threw an exception for {CorrelationId}", req.CorrelationId);
             try
             {
-                await SendSyncResponseStartAsync(req.CorrelationId, new SlimFaasSyncResponse { StatusCode = 500 }, ct);
-                await SendSyncResponseEndAsync(req.CorrelationId, ct);
+                await req.Response.StartAsync(500, ct: ct);
+                await req.Response.CompleteAsync(ct);
             }
-            catch { /* ignore */ }
+            catch { /* ignore — response may have been partially sent */ }
         }
     }
 
