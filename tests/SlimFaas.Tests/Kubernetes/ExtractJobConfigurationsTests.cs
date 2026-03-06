@@ -74,7 +74,7 @@ public class ExtractJobConfigurationsTests
         int ttlSeconds = 60,
         IList<V1EnvVar>? envVars = null,
         IList<V1EnvFromSource>? envFrom = null,
-        string? schedulesAnnotation = null)   // ← nouveau paramètre
+        string? schedulesAnnotation = null)
     {
         var annotations = new Dictionary<string, string>();
         if (isSlimfaasJob)
