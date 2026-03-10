@@ -1,9 +1,9 @@
-// Exemple ultra-simple de SlimFaasClient en C#.
+// Ultra-simple SlimFaasClient example in C#.
 //
-// Se connecte à SlimFaas via WebSocket, écoute un évènement "my-event"
-// et affiche chaque requête async / évènement / requête sync reçue.
+// Connects to SlimFaas via WebSocket, subscribes to "my-event"
+// and prints every async request / event / sync request received.
 //
-// Lancement :
+// Run:
 //   dotnet run
 
 using System.Text;
@@ -18,7 +18,7 @@ var config = new SlimFaasClientConfig
 await using var client = new SlimFaasClient.SlimFaasClient(
     new Uri("ws://localhost:5003/ws"), config);
 
-// Requête asynchrone → affiche et retourne 200
+// Async request → print and return 200
 client.OnAsyncRequest = async req =>
 {
     Console.WriteLine($"[Async] {req.Method} {req.Path} — {req.Body?.Length ?? 0} bytes");
@@ -26,14 +26,14 @@ client.OnAsyncRequest = async req =>
     return 200;
 };
 
-// Évènement publish/subscribe → affiche
+// Publish/subscribe event → print
 client.OnPublishEvent = async evt =>
 {
     Console.WriteLine($"[Event] {evt.EventName} — {evt.Body?.Length ?? 0} bytes");
     await Task.CompletedTask;
 };
 
-// Requête synchrone → répond "OK" en JSON
+// Sync request → respond with JSON "ok"
 client.OnSyncRequest = async req =>
 {
     var body = Encoding.UTF8.GetBytes("""{"status":"ok"}""");

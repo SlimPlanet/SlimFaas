@@ -1,5 +1,5 @@
-// Exemple d'utilisation de SlimFaasClient en C#.
-// Ce programme montre comment connecter un Job .NET à SlimFaas via WebSocket.
+// Example usage of SlimFaasClient in C#.
+// This program shows how to connect a .NET Job to SlimFaas via WebSocket.
 
 using Microsoft.Extensions.Logging;
 using SlimFaasClient;
@@ -12,10 +12,10 @@ var logger = loggerFactory.CreateLogger<SlimFaasClient.SlimFaasClient>();
 // --- Configuration ---
 var config = new SlimFaasClientConfig
 {
-    // Nom du job (ne doit PAS être le nom d'un Deployment Kubernetes existant)
+    // Job name (must NOT be the name of an existing Kubernetes Deployment)
     FunctionName = "my-dotnet-job",
 
-    // SlimFaas/SubscribeEvents : écoute ces évènements publish-event
+    // SlimFaas/SubscribeEvents: listen to these publish-event events
     SubscribeEvents =
     [
         new SubscribeEventConfig { Name = "order-created" },
@@ -51,7 +51,7 @@ Console.CancelKeyPress += (_, e) =>
 
 await using var client = new SlimFaasClient.SlimFaasClient(uri, config, options, logger);
 
-// --- Handler pour les requêtes asynchrones ---
+// --- Async request handler ---
 client.OnAsyncRequest = async req =>
 {
     Console.WriteLine($"[AsyncRequest] {req.Method} {req.Path}{req.Query} | elementId={req.ElementId}");
@@ -66,15 +66,15 @@ client.OnAsyncRequest = async req =>
             var doc = JsonDocument.Parse(text);
             Console.WriteLine($"  Payload: {doc.RootElement}");
         }
-        catch { /* pas du JSON */ }
+        catch { /* not JSON */ }
     }
 
-    // Traitement simulé
+    // Simulated processing
     await Task.Delay(100);
-    return 200; // Succès
+    return 200; // Success
 };
 
-// --- Handler pour les évènements publish/subscribe ---
+// --- Publish/subscribe event handler ---
 client.OnPublishEvent = async evt =>
 {
     Console.WriteLine($"[PublishEvent] '{evt.EventName}' | {evt.Method} {evt.Path}");

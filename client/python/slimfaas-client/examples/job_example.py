@@ -1,10 +1,10 @@
 """
-Exemple d'utilisation de slimfaas-client.
+Example usage of slimfaas-client.
 
-Ce script montre comment connecter un Job Python à SlimFaas via WebSocket
-pour recevoir des requêtes async-function et des évènements publish-event.
+This script shows how to connect a Python Job to SlimFaas via WebSocket
+to receive async-function requests and publish-event events.
 
-Lancement :
+Run:
     uv run examples/job_example.py
 """
 
@@ -31,11 +31,11 @@ logger = logging.getLogger(__name__)
 
 async def handle_request(req: AsyncRequest) -> int:
     """
-    Traite une requête asynchrone envoyée par SlimFaas.
+    Handle an asynchronous request sent by SlimFaas.
 
-    Retourner 200 = succès (SlimFaas acquittera la queue).
-    Retourner 500 = erreur (SlimFaas retentera si configuré).
-    Retourner 202 = traitement long en cours (le client appellera send_callback()).
+    Return 200 = success (SlimFaas acknowledges the queue entry).
+    Return 500 = error (SlimFaas will retry if configured).
+    Return 202 = long processing (the client must call send_callback() later).
     """
     logger.info(
         "AsyncRequest: %s %s%s | elementId=%s | body=%s bytes",
@@ -46,7 +46,7 @@ async def handle_request(req: AsyncRequest) -> int:
         len(req.body) if req.body else 0,
     )
 
-    # Exemple : parser le corps JSON
+    # Example: parse JSON body
     if req.body:
         try:
             data = json.loads(req.body)
@@ -54,14 +54,14 @@ async def handle_request(req: AsyncRequest) -> int:
         except json.JSONDecodeError:
             logger.warning("Body is not JSON")
 
-    # Traitement simulé
+    # Simulated processing
     await asyncio.sleep(0.1)
 
-    return 200  # Succès
+    return 200  # Success
 
 
 async def handle_event(evt: PublishEvent) -> None:
-    """Traite un évènement publish/subscribe."""
+    """Handle a publish/subscribe event."""
     logger.info(
         "PublishEvent: '%s' | %s %s%s | body=%s bytes",
         evt.event_name,
@@ -73,15 +73,15 @@ async def handle_event(evt: PublishEvent) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Point d'entrée
+# Entry point
 # ---------------------------------------------------------------------------
 
 async def main() -> None:
     config = SlimFaasClientConfig(
-        # Nom du job (ne doit PAS être le nom d'une fonction Kubernetes existante)
+        # Job name (must NOT be the name of an existing Kubernetes Deployment)
         function_name="my-python-job",
 
-        # SlimFaas/SubscribeEvents : écoute ces évènements publish-event
+        # SlimFaas/SubscribeEvents: listen to these publish-event events
         subscribe_events=[
             SubscribeEventConfig(name="order-created"),
             SubscribeEventConfig(name="order-updated"),
@@ -97,7 +97,7 @@ async def main() -> None:
         default_trust=FunctionTrust.TRUSTED,
     )
 
-    # URL du port WebSocket de SlimFaas (par défaut 5003)
+    # WebSocket port of SlimFaas (default 5003)
     ws_url = "ws://localhost:5003/ws"
 
     logger.info("Connecting to SlimFaas at %s with function '%s'…", ws_url, config.function_name)
@@ -112,4 +112,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
-

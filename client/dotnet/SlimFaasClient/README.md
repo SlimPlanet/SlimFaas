@@ -1,7 +1,9 @@
-
 # SlimFaasClient
 
-Librairie C# pour connecter des Jobs ou fonctions virtuelles à **SlimFaas** via WebSocket. Permet de recevoir des requêtes asynchrones et des évènements publish/subscribe sans exposer de port HTTP.
+C# library to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
+Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
+
+[![NuGet](https://img.shields.io/nuget/v/SlimFaasClient.svg)](https://www.nuget.org/packages/SlimFaasClient)
 
 ## Installation
 
@@ -9,7 +11,7 @@ Librairie C# pour connecter des Jobs ou fonctions virtuelles à **SlimFaas** via
 dotnet add package SlimFaasClient
 ```
 
-## Utilisation
+## Quick start
 
 ```csharp
 using SlimFaasClient;
@@ -17,56 +19,58 @@ using SlimFaasClient;
 var config = new SlimFaasClientConfig
 {
     FunctionName = "my-job",
-    SubscribeEvents = ["order-created"],
-    DefaultVisibility = "Public",
+    SubscribeEvents = [new SubscribeEventConfig { Name = "order-created" }],
+    DefaultVisibility = FunctionVisibility.Public,
     NumberParallelRequest = 5,
 };
 
-var options = new SlimFaasClientOptions
-{
-    ReconnectDelay = 5.0,
-    PingInterval = 30.0,
-};
+await using var client = new SlimFaasClient.SlimFaasClient(
+    new Uri("ws://slimfaas:5003/ws"), config);
 
-await using var client = new SlimFaasClient(
-    new Uri("ws://slimfaas:5003/ws"),
-    config,
-    options,
-    logger);
-
+// Async request handler — return the HTTP status code SlimFaas should record
 client.OnAsyncRequest = async req =>
 {
     Console.WriteLine($"Request: {req.Method} {req.Path}{req.Query}");
-    // Corps disponible dans req.Body (byte[]? décodé depuis base64)
-    // ...
-    return 200; // Code HTTP à renvoyer à SlimFaas
+    // Body is available as a byte[]? decoded from base64
+    return 200;
 };
 
+// Publish/subscribe event handler
 client.OnPublishEvent = async evt =>
-{
     Console.WriteLine($"Event: {evt.EventName}");
-    // ...
+
+// Sync streaming handler (HTTP-over-WebSocket)
+client.OnSyncRequest = async req =>
+{
+    await req.Response.StartAsync(200, new() { ["Content-Type"] = ["text/plain"] });
+    await req.Response.WriteAsync(System.Text.Encoding.UTF8.GetBytes("Hello"));
+    await req.Response.CompleteAsync();
 };
 
-await client.RunForeverAsync(CancellationToken.None);
+using var cts = new CancellationTokenSource();
+Console.CancelKeyPress += (_, e) => { e.Cancel = true; cts.Cancel(); };
+await client.RunForeverAsync(cts.Token);
 ```
 
-## Configuration complète
+## Full configuration
 
-| Propriété | Annotation Kubernetes | Description |
+| Property | Kubernetes annotation | Description |
 |---|---|---|
-| `FunctionName` | nom du Deployment | Nom unique (ne doit pas être un Deployment K8s existant) |
-| `DependsOn` | `SlimFaas/DependsOn` | Fonctions dont celle-ci dépend |
-| `SubscribeEvents` | `SlimFaas/SubscribeEvents` | Évènements auxquels s'abonner |
-| `DefaultVisibility` | `SlimFaas/DefaultVisibility` | `"Public"` ou `"Private"` |
-| `PathsStartWithVisibility` | `SlimFaas/PathsStartWithVisibility` | Visibilité par préfixe |
-| `Configuration` | `SlimFaas/Configuration` | Config JSON libre |
-| `ReplicasStartAsSoonAsOneFunctionRetrieveARequest` | `SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest` | Scale global |
-| `NumberParallelRequest` | `SlimFaas/NumberParallelRequest` | Max requêtes parallèles |
-| `NumberParallelRequestPerPod` | `SlimFaas/NumberParallelRequestPerPod` | Max par replica |
-| `DefaultTrust` | `SlimFaas/DefaultTrust` | `"Trusted"` ou `"Untrusted"` |
+| `FunctionName` | Deployment name | Unique name — must **not** match an existing K8s Deployment |
+| `DependsOn` | `SlimFaas/DependsOn` | Functions this one depends on |
+| `SubscribeEvents` | `SlimFaas/SubscribeEvents` | Events to subscribe to (each with optional visibility override) |
+| `DefaultVisibility` | `SlimFaas/DefaultVisibility` | `FunctionVisibility.Public` or `FunctionVisibility.Private` |
+| `PathsStartWithVisibility` | `SlimFaas/PathsStartWithVisibility` | Visibility per path prefix |
+| `Configuration` | `SlimFaas/Configuration` | Free-form JSON configuration |
+| `ReplicasStartAsSoonAsOneFunctionRetrieveARequest` | `SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest` | Global scale trigger |
+| `NumberParallelRequest` | `SlimFaas/NumberParallelRequest` | Max concurrent requests across all replicas |
+| `NumberParallelRequestPerPod` | `SlimFaas/NumberParallelRequestPerPod` | Max concurrent requests per replica |
+| `DefaultTrust` | `SlimFaas/DefaultTrust` | `FunctionTrust.Trusted` or `FunctionTrust.Untrusted` |
 
-## Traitement long (status 202)
+## Long-running requests (status 202)
+
+Return `202` from the handler to acknowledge the request without completing it yet,
+then call `SendCallbackAsync` when the work is done:
 
 ```csharp
 client.OnAsyncRequest = async req =>
@@ -76,18 +80,42 @@ client.OnAsyncRequest = async req =>
         await LongProcessAsync(req);
         await client.SendCallbackAsync(req.ElementId, 200);
     });
-    return 202; // "Je m'en occupe"
+    return 202; // "I'll handle it — will call back"
 };
 ```
 
-## Règles
+## Dependency injection
 
-1. Le `FunctionName` ne doit pas correspondre à un Deployment Kubernetes existant.
-2. Tous les clients avec le même `FunctionName` doivent avoir la **même configuration** (sinon `SlimFaasRegistrationException`).
+```csharp
+// Register in your DI container (e.g. ASP.NET Core)
+builder.Services.AddSingleton(sp =>
+{
+    var logger = sp.GetRequiredService<ILogger<SlimFaasClient.SlimFaasClient>>();
+    var config = new SlimFaasClientConfig { FunctionName = "my-job" };
+    return new SlimFaasClient.SlimFaasClient(
+        new Uri("ws://slimfaas:5003/ws"), config, logger: logger);
+});
 
-## Tests
+// Access other services inside handlers via a scoped service provider
+client.OnAsyncRequest = async req =>
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<IMyDatabase>();
+    await db.SaveAsync(req.Body);
+    return 200;
+};
+```
+
+## Important rules
+
+1. `FunctionName` must **not** match an existing Kubernetes Deployment name.
+   SlimFaas will reject the registration with a `SlimFaasRegistrationException`.
+
+2. All clients sharing the same `FunctionName` must use the **exact same configuration**.
+   Mismatches are rejected on connection.
+
+## Running the tests
 
 ```bash
 dotnet test
 ```
-

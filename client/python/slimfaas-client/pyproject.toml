@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "slimfaas-client"
 version = "0.1.0"
-description = "Client WebSocket pour SlimFaas - permet à des Jobs et fonctions virtuelles de recevoir des requêtes async et des évènements publish/subscribe."
+description = "WebSocket client for SlimFaas — lets Jobs and virtual functions receive async requests and publish/subscribe events without exposing an HTTP port."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

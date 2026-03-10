@@ -1,47 +1,52 @@
 # slimfaas-client
 
-Client Python pour se connecter à **SlimFaas** via WebSocket. Permet à des Jobs ou fonctions virtuelles de recevoir des requêtes asynchrones et des évènements publish/subscribe sans exposer de port HTTP.
+Python client to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
+Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
 
-## Prérequis
+[![PyPI](https://img.shields.io/pypi/v/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
+
+## Requirements
 
 - Python ≥ 3.10
-- [UV](https://docs.astral.sh/uv/) comme gestionnaire de packages
+- [UV](https://docs.astral.sh/uv/) as package manager
 
 ## Installation
 
 ```bash
 uv add slimfaas-client
-# ou depuis les sources
+# or from source
 uv pip install -e .
 ```
 
-## Utilisation
-
-### Connexion de base
+## Quick start
 
 ```python
 import asyncio
-from slimfaas_client import SlimFaasClient, SlimFaasClientConfig, AsyncRequest, PublishEvent
+from slimfaas_client import (
+    SlimFaasClient, SlimFaasClientConfig,
+    SubscribeEventConfig, FunctionVisibility,
+    AsyncRequest, PublishEvent,
+)
 
 async def handle_request(req: AsyncRequest) -> int:
-    """
-    Appelé quand SlimFaas envoie une requête async-function.
-    Retourne le code HTTP (200 = succès, 500 = erreur, 202 = long processing).
-    """
+    """Called when SlimFaas sends an async-function request.
+    Return an HTTP status code (200 = success, 500 = error, 202 = long processing)."""
     print(f"{req.method} {req.path}{req.query}")
     print(f"Body: {req.body}")
-    # ... traitement ...
     return 200
 
 async def handle_event(evt: PublishEvent) -> None:
-    """Appelé quand SlimFaas publie un évènement (publish-event)."""
+    """Called when SlimFaas publishes a publish-event."""
     print(f"Event '{evt.event_name}': {evt.body}")
 
 async def main():
     config = SlimFaasClientConfig(
         function_name="my-job",
-        subscribe_events=["order-created", "order-updated"],
-        default_visibility="Public",
+        subscribe_events=[
+            SubscribeEventConfig(name="order-created"),
+            SubscribeEventConfig(name="order-updated"),
+        ],
+        default_visibility=FunctionVisibility.PUBLIC,
         number_parallel_request=5,
     )
 
@@ -53,23 +58,33 @@ async def main():
 asyncio.run(main())
 ```
 
-### Configuration complète
+## Full configuration
 
 ```python
+from slimfaas_client import (
+    SlimFaasClientConfig, SubscribeEventConfig, PathVisibilityConfig,
+    FunctionVisibility, FunctionTrust,
+)
+
 config = SlimFaasClientConfig(
     function_name="my-job",
 
     # SlimFaas/DependsOn
     depends_on=["other-function"],
 
-    # SlimFaas/SubscribeEvents
-    subscribe_events=["my-event"],
+    # SlimFaas/SubscribeEvents — each entry may override visibility individually
+    subscribe_events=[
+        SubscribeEventConfig(name="my-event", visibility=FunctionVisibility.PUBLIC),
+        SubscribeEventConfig(name="internal-event"),  # inherits default_visibility
+    ],
 
     # SlimFaas/DefaultVisibility
-    default_visibility="Public",  # ou "Private"
+    default_visibility=FunctionVisibility.PUBLIC,  # or PRIVATE
 
     # SlimFaas/PathsStartWithVisibility
-    paths_start_with_visibility={"/admin": "Private"},
+    paths_start_with_visibility=[
+        PathVisibilityConfig(path="/admin", visibility=FunctionVisibility.PRIVATE),
+    ],
 
     # SlimFaas/Configuration
     configuration='{"key": "value"}',
@@ -84,42 +99,77 @@ config = SlimFaasClientConfig(
     number_parallel_request_per_pod=5,
 
     # SlimFaas/DefaultTrust
-    default_trust="Trusted",  # ou "Untrusted"
+    default_trust=FunctionTrust.TRUSTED,  # or UNTRUSTED
 )
 ```
 
-### Traitement long (status 202)
-
-Si le traitement prend du temps, retournez `202` et envoyez le résultat plus tard :
+## Sync streaming (HTTP-over-WebSocket)
 
 ```python
-async def handle_long_request(req: AsyncRequest) -> int:
-    asyncio.create_task(process_in_background(client, req))
-    return 202  # "Je m'en occupe, je rappellerai"
+from slimfaas_client import SyncRequest
 
-async def process_in_background(client: SlimFaasClient, req: AsyncRequest) -> None:
-    await asyncio.sleep(10)  # Traitement long...
+async def handle_sync(req: SyncRequest) -> None:
+    body = b'{"status": "ok"}'
+    await req.response.start(200, {"Content-Type": ["application/json"]})
+    await req.response.write(body)
+    await req.response.complete()
+
+client.on_sync_request(handle_sync)
+```
+
+## Long-running requests (status 202)
+
+Return `202` to acknowledge the request without completing it yet,
+then call `send_callback` when done:
+
+```python
+async def handle_long(req: AsyncRequest) -> int:
+    asyncio.create_task(process_in_background(req))
+    return 202  # "I'll handle it — will call back"
+
+async def process_in_background(req: AsyncRequest) -> None:
+    await asyncio.sleep(10)
     await client.send_callback(req.element_id, 200)
 ```
 
-## Règles importantes
+## Dependency injection
 
-1. **Un client ne peut pas utiliser le même `function_name` qu'une fonction Kubernetes existante.** SlimFaas refusera l'enregistrement avec une `SlimFaasRegistrationError`.
+The handlers are plain async functions, so you can close over any dependency
+you resolved from your DI framework:
 
-2. **Tous les clients avec le même `function_name` doivent avoir la même configuration.** Si deux instances se connectent avec des configurations différentes, la deuxième sera refusée.
+```python
+# Example with a database session from SQLAlchemy
+from sqlalchemy.ext.asyncio import AsyncSession
 
-## Reconnexion automatique
+async def make_handler(session: AsyncSession):
+    async def handle_request(req: AsyncRequest) -> int:
+        await session.execute(...)  # use the injected session
+        return 200
+    return handle_request
 
-Le client se reconnecte automatiquement après une déconnexion. Le délai entre reconnexions est configurable :
+client.on_async_request(await make_handler(db_session))
+```
+
+## Automatic reconnection
+
+The client reconnects automatically after a disconnection.
+Configure the delay between attempts:
 
 ```python
 client = SlimFaasClient("ws://...", config, reconnect_delay=10.0)
 ```
 
-## Développement
+## Important rules
+
+1. **`function_name` must not match an existing Kubernetes Deployment name.**
+   SlimFaas will reject the registration with a `SlimFaasRegistrationError`.
+
+2. **All clients sharing the same `function_name` must have the exact same configuration.**
+   Mismatches are rejected on connection.
+
+## Development
 
 ```bash
 uv sync --extra dev
 uv run pytest
 ```
-

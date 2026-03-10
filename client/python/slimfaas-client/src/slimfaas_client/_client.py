@@ -1,5 +1,5 @@
 """
-SlimFaasClient - connexion WebSocket principale.
+SlimFaasClient — main WebSocket connection.
 """
 
 from __future__ import annotations
@@ -35,45 +35,44 @@ SyncRequestHandler = Callable[[SyncRequest], Awaitable[None]]
 
 
 class SlimFaasRegistrationError(Exception):
-    """Levée quand SlimFaas refuse l'enregistrement du client."""
+    """Raised when SlimFaas rejects the client registration."""
 
 
 class SlimFaasClient:
     """
-    Client WebSocket SlimFaas.
+    SlimFaas WebSocket client.
 
-    Conceptuellement, chaque instance représente un "replica virtuel" d'une
-    fonction ou d'un job. SlimFaas lui achemine les requêtes asynchrones et
-    les évènements publish/subscribe au lieu de faire des appels HTTP.
+    Conceptually each instance represents a "virtual replica" of a function
+    or job. SlimFaas routes async requests and publish/subscribe events to it
+    instead of making HTTP calls.
 
-    Utilisation :
+    Usage:
 
     .. code-block:: python
 
         config = SlimFaasClientConfig(
             function_name="my-job",
-            subscribe_events=["order-created"],
+            subscribe_events=[SubscribeEventConfig(name="order-created")],
         )
         async with SlimFaasClient("ws://slimfaas:5003/ws", config) as client:
             client.on_async_request(handle_request)
             client.on_publish_event(handle_event)
             await client.run_forever()
 
-    Les callbacks enregistrés via :meth:`on_async_request` et
-    :meth:`on_publish_event` sont appelés dans des tâches asyncio séparées
-    afin de ne pas bloquer la boucle de lecture.
+    Callbacks registered via :meth:`on_async_request` and
+    :meth:`on_publish_event` are invoked in separate asyncio tasks so they
+    do not block the read loop.
 
-    Paramètres
+    Parameters
     ----------
     url:
-        URL WebSocket de SlimFaas, ex. ``ws://slimfaas:5003/ws``.
+        SlimFaas WebSocket URL, e.g. ``ws://slimfaas:5003/ws``.
     config:
-        Configuration de la fonction/job.
+        Function/job configuration.
     reconnect_delay:
-        Délai en secondes entre deux tentatives de reconnexion (défaut : 5 s).
+        Seconds between reconnection attempts (default: 5 s).
     ping_interval:
-        Intervalle en secondes entre deux pings keepalive (défaut : 30 s,
-        0 pour désactiver).
+        Seconds between keepalive pings (default: 30 s, 0 to disable).
     """
 
     def __init__(
@@ -102,7 +101,7 @@ class SlimFaasClient:
         self._pending_sync_bodies: dict[str, SyncBodyStream] = {}
 
     # ------------------------------------------------------------------
-    # Gestionnaire de contexte asynchrone
+    # Async context manager
     # ------------------------------------------------------------------
 
     async def __aenter__(self) -> "SlimFaasClient":
@@ -114,33 +113,30 @@ class SlimFaasClient:
         await self.close()
 
     # ------------------------------------------------------------------
-    # Enregistrement des callbacks
+    # Callback registration
     # ------------------------------------------------------------------
 
     def on_async_request(self, handler: AsyncRequestHandler) -> None:
         """
-        Enregistre le callback appelé pour chaque requête asynchrone.
+        Register the callback invoked for each asynchronous request.
 
-        Le callback doit retourner un entier représentant le code HTTP
-        (ex. 200, 500). SlimFaas utilise ce code pour gérer les retries.
-        Retourner 202 indique que le traitement continue en tâche de fond
-        et que le callback enverra lui-même le résultat via
-        :meth:`send_callback`.
+        The callback must return an integer HTTP status code (e.g. 200, 500).
+        SlimFaas uses this code to manage retries.
+        Returning 202 signals long-running processing: the callback is then
+        responsible for sending the final result via :meth:`send_callback`.
         """
         self._async_request_handler = handler
 
     def on_publish_event(self, handler: PublishEventHandler) -> None:
-        """
-        Enregistre le callback appelé pour chaque évènement publish/subscribe.
-        """
+        """Register the callback invoked for each publish/subscribe event."""
         self._publish_event_handler = handler
 
     def on_sync_request(self, handler: SyncRequestHandler) -> None:
         """
-        Enregistre le callback appelé pour chaque requête synchrone streamée.
+        Register the callback invoked for each synchronous streaming request.
 
-        Le handler reçoit ``sync_request`` qui contient un ``response``
-        (:class:`SyncResponseWriter`) pour construire la réponse ::
+        The handler receives a ``SyncRequest`` that contains a ``response``
+        (:class:`SyncResponseWriter`) to build the response::
 
             async def handle_sync(req):
                 await req.response.start(200, {"Content-Type": ["text/plain"]})
@@ -152,13 +148,13 @@ class SlimFaasClient:
         self._sync_request_handler = handler
 
     # ------------------------------------------------------------------
-    # Boucle principale
+    # Main loop
     # ------------------------------------------------------------------
 
     async def run_forever(self) -> None:
         """
-        Lance la boucle de connexion/reconnexion. Retourne quand :meth:`close`
-        est appelé.
+        Start the connection/reconnection loop. Returns when :meth:`close`
+        is called.
         """
         self._running = True
         self._stop_event.clear()
@@ -180,21 +176,21 @@ class SlimFaasClient:
                 await asyncio.sleep(self._reconnect_delay)
 
     async def close(self) -> None:
-        """Arrête proprement le client."""
+        """Shut down the client cleanly."""
         self._running = False
         self._stop_event.set()
         if self._ws is not None:
             await self._ws.close()
 
     # ------------------------------------------------------------------
-    # Envoi d'un callback manuel (pour les traitements longs - status 202)
+    # Manual callback (for long-running processing — status 202)
     # ------------------------------------------------------------------
 
     async def send_callback(self, element_id: str, status_code: int = 200) -> None:
         """
-        Envoie manuellement le résultat d'une requête asynchrone.
+        Manually send the result of an asynchronous request.
 
-        Utile quand le handler a retourné 202 pour indiquer un traitement long.
+        Use this when the handler returned 202 to indicate long-running processing.
         """
         if self._ws is None:
             raise RuntimeError("WebSocket is not connected")
@@ -208,7 +204,7 @@ class SlimFaasClient:
         })
 
     # ------------------------------------------------------------------
-    # Implémentation interne
+    # Internal implementation
     # ------------------------------------------------------------------
 
     async def _connect_and_loop(self) -> None:
@@ -239,7 +235,7 @@ class SlimFaasClient:
             finally:
                 if ping_task is not None:
                     ping_task.cancel()
-                # Fermer tous les body streams en cours (connexion perdue)
+                # Close all in-progress body streams (connection lost)
                 for stream in self._pending_sync_bodies.values():
                     stream._close()
                 self._pending_sync_bodies.clear()
@@ -255,7 +251,7 @@ class SlimFaasClient:
             "payload": payload,
         }, ws=ws)
 
-        # Attend la réponse d'enregistrement
+        # Wait for the registration response
         async for raw in ws:
             if isinstance(raw, bytes):
                 raw = raw.decode("utf-8")
@@ -271,7 +267,7 @@ class SlimFaasClient:
                     self._connection_id,
                 )
                 return
-            # On ignore les autres messages pendant l'enregistrement
+            # Ignore other messages during registration
             logger.debug("Ignoring message during registration: type=%s", msg.get("type"))
 
     async def _handle_message(self, ws: ClientConnection, raw: str) -> None:
@@ -302,7 +298,7 @@ class SlimFaasClient:
             logger.debug("Pong received")
 
         elif msg_type == MessageType.REGISTER_RESPONSE:
-            # Peut arriver si l'enregistrement a été re-tenté
+            # May arrive if registration was retried
             logger.debug("Unexpected RegisterResponse received after registration")
 
         else:
@@ -323,7 +319,7 @@ class SlimFaasClient:
             logger.error("AsyncRequest handler raised an exception: %s", exc, exc_info=True)
             status_code = 500
 
-        # 202 = le client gérera le callback lui-même
+        # 202 = the client will manage the callback itself
         if status_code != 202:
             await self._send_callback(ws, req.element_id, status_code)
 
@@ -372,11 +368,11 @@ class SlimFaasClient:
         await target.send(data)
 
     # ------------------------------------------------------------------
-    # Streaming synchrone — frames binaires
+    # Synchronous streaming — binary frames
     # ------------------------------------------------------------------
 
     def _handle_binary_frame(self, ws: ClientConnection, data: bytes) -> None:
-        """Route une frame binaire de streaming sync."""
+        """Route an incoming binary frame for synchronous streaming."""
         msg_type, correlation_id, flags, payload_length = BinaryFrame.decode_header(data)
         payload = data[BinaryFrame.HEADER_SIZE:BinaryFrame.HEADER_SIZE + payload_length]
 
@@ -445,7 +441,7 @@ class SlimFaasClient:
                 pass
 
     async def send_sync_response_start(self, correlation_id: str, response: SyncResponse) -> None:
-        """Envoie le début de la réponse sync (status + headers)."""
+        """Send the beginning of the sync response (status + headers)."""
         payload_json = json.dumps({
             "statusCode": response.status_code,
             "headers": response.headers,
@@ -454,31 +450,31 @@ class SlimFaasClient:
         await self._send_binary(frame)
 
     async def send_sync_response_chunk(self, correlation_id: str, chunk: bytes) -> None:
-        """Envoie un chunk du body de la réponse sync."""
+        """Send a chunk of the sync response body."""
         frame = BinaryFrame.encode(MessageType.SYNC_RESPONSE_CHUNK, correlation_id, chunk)
         await self._send_binary(frame)
 
     async def send_sync_response_end(self, correlation_id: str) -> None:
-        """Signale la fin du body de la réponse sync."""
+        """Signal end of the sync response body."""
         frame = BinaryFrame.encode(MessageType.SYNC_RESPONSE_END, correlation_id, flags=BinaryFrame.FLAG_END_OF_STREAM)
         await self._send_binary(frame)
 
     async def send_sync_cancel(self, correlation_id: str) -> None:
-        """Annule un stream sync en cours."""
+        """Cancel an in-progress sync stream."""
         frame = BinaryFrame.encode(MessageType.SYNC_CANCEL, correlation_id)
         await self._send_binary(frame)
 
     # ------------------------------------------------------------------
-    # Propriétés
+    # Properties
     # ------------------------------------------------------------------
 
     @property
     def connection_id(self) -> Optional[str]:
-        """Identifiant de connexion assigné par SlimFaas après enregistrement."""
+        """Connection ID assigned by SlimFaas after registration."""
         return self._connection_id
 
     @property
     def is_connected(self) -> bool:
-        """True si le WebSocket est actuellement connecté et enregistré."""
+        """True if the WebSocket is currently connected and registered."""
         return self._ws is not None and self._connection_id is not None
 

@@ -1,5 +1,5 @@
 """
-Modèles de données pour le protocole WebSocket SlimFaas.
+Data models for the SlimFaas WebSocket protocol.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from typing import Callable, Optional, Tuple
 
 
 # ---------------------------------------------------------------------------
-# Protocole (doit correspondre à WebSocketMessageType côté C#)
+# Protocol (must match WebSocketMessageType on the C# side)
 # ---------------------------------------------------------------------------
 
 class MessageType(IntEnum):
@@ -23,7 +23,7 @@ class MessageType(IntEnum):
     PING = 5
     PONG = 6
 
-    # Streaming synchrone (frames binaires)
+    # Synchronous streaming (binary frames)
     SYNC_REQUEST_START = 0x10
     SYNC_REQUEST_CHUNK = 0x11
     SYNC_REQUEST_END = 0x12
@@ -34,81 +34,80 @@ class MessageType(IntEnum):
 
 
 # ---------------------------------------------------------------------------
-# Enums typés (remplacent les magic strings)
+# Typed enums (replace magic strings)
 # ---------------------------------------------------------------------------
 
 class FunctionVisibility(str, Enum):
-    """Visibilité d'une fonction, d'un évènement ou d'un path."""
+    """Visibility of a function, event, or path."""
 
     PUBLIC = "Public"
-    """Accessible depuis l'extérieur du namespace."""
+    """Accessible from outside the namespace."""
 
     PRIVATE = "Private"
-    """Accessible uniquement depuis l'intérieur du namespace."""
+    """Accessible only from within the namespace."""
 
 
 class FunctionTrust(str, Enum):
-    """Niveau de confiance d'une fonction."""
+    """Trust level of a function."""
 
     TRUSTED = "Trusted"
-    """Fonction de confiance (pas de restrictions supplémentaires)."""
+    """Trusted function (no additional restrictions)."""
 
     UNTRUSTED = "Untrusted"
-    """Fonction non-fiable (restrictions de sécurité appliquées)."""
+    """Untrusted function (security restrictions applied)."""
 
 
 # ---------------------------------------------------------------------------
-# Structures pour SubscribeEvents et PathsStartWithVisibility
+# Structures for SubscribeEvents and PathsStartWithVisibility
 # ---------------------------------------------------------------------------
 
 @dataclass
 class SubscribeEventConfig:
     """
-    Décrit un évènement auquel s'abonner, avec une visibilité optionnelle.
+    Describes an event to subscribe to, with an optional visibility override.
 
-    Si ``visibility`` est ``None``, la visibilité par défaut (``default_visibility``)
-    du client est utilisée.
+    If ``visibility`` is ``None``, the client's ``default_visibility`` is used.
 
-    Exemple ::
+    Example::
 
         SubscribeEventConfig(name="fibo-public", visibility=FunctionVisibility.PUBLIC)
-        SubscribeEventConfig(name="fibo-private")  # hérite de default_visibility
+        SubscribeEventConfig(name="fibo-private")  # inherits default_visibility
     """
 
     name: str
-    """Nom de l'évènement (ex : "fibo-public")."""
+    """Event name (e.g. "fibo-public")."""
 
     visibility: Optional[FunctionVisibility] = None
-    """Surcharge de visibilité, ou None pour hériter de default_visibility."""
+    """Visibility override, or None to inherit default_visibility."""
 
 
 @dataclass
 class PathVisibilityConfig:
     """
-    Décrit une règle de visibilité par préfixe de chemin.
+    Describes a visibility rule for a path prefix.
 
-    Exemple ::
+    Example::
 
         PathVisibilityConfig(path="/admin", visibility=FunctionVisibility.PRIVATE)
     """
 
     path: str
-    """Préfixe de chemin (ex : "/admin")."""
+    """Path prefix (e.g. "/admin")."""
 
     visibility: FunctionVisibility = FunctionVisibility.PUBLIC
-    """Visibilité de ce préfixe de chemin."""
+    """Visibility for this path prefix."""
 
 
 # ---------------------------------------------------------------------------
-# Configuration du client
+# Client configuration
 # ---------------------------------------------------------------------------
 
 @dataclass
 class SlimFaasClientConfig:
     """
-    Configuration d'une fonction/job WebSocket.
+    Configuration for a WebSocket function or job.
 
-    Correspond aux annotations Kubernetes SlimFaas :
+    Maps to the following Kubernetes SlimFaas annotations:
     - ``SlimFaas/DependsOn``
     - ``SlimFaas/SubscribeEvents``
     - ``SlimFaas/DefaultVisibility``
@@ -121,40 +120,38 @@ class SlimFaasClientConfig:
     """
 
     function_name: str
-    """Nom unique de la fonction ou du job (équivalent au nom du Deployment Kubernetes)."""
+    """Unique name of the function or job (equivalent to the Kubernetes Deployment name)."""
 
     depends_on: list[str] = field(default_factory=list)
-    """Noms des fonctions dont celle-ci dépend (SlimFaas/DependsOn)."""
+    """Names of functions this one depends on (SlimFaas/DependsOn)."""
 
     subscribe_events: list[SubscribeEventConfig] = field(default_factory=list)
     """
-    Évènements auxquels s'abonner (SlimFaas/SubscribeEvents).
-    Chaque entrée peut surcharger la visibilité individuellement.
-    Si ``SubscribeEventConfig.visibility`` est None, ``default_visibility`` est utilisé.
+    Events to subscribe to (SlimFaas/SubscribeEvents).
+    Each entry may individually override visibility.
+    If ``SubscribeEventConfig.visibility`` is None, ``default_visibility`` is used.
     """
 
     default_visibility: FunctionVisibility = FunctionVisibility.PUBLIC
-    """Visibilité par défaut (SlimFaas/DefaultVisibility)."""
+    """Default visibility (SlimFaas/DefaultVisibility)."""
 
     paths_start_with_visibility: list[PathVisibilityConfig] = field(default_factory=list)
-    """
-    Règles de visibilité par préfixe de chemin (SlimFaas/PathsStartWithVisibility).
-    """
+    """Visibility rules per path prefix (SlimFaas/PathsStartWithVisibility)."""
 
     configuration: str = ""
-    """Configuration JSON libre de la fonction (SlimFaas/Configuration)."""
+    """Free-form JSON configuration for the function (SlimFaas/Configuration)."""
 
     replicas_start_as_soon_as_one_function_retrieve_a_request: bool = False
     """SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest."""
 
     number_parallel_request: int = 10
-    """Nombre maximum de requêtes parallèles (SlimFaas/NumberParallelRequest)."""
+    """Maximum number of parallel requests across all replicas (SlimFaas/NumberParallelRequest)."""
 
     number_parallel_request_per_pod: int = 10
-    """Nombre maximum de requêtes parallèles par pod (SlimFaas/NumberParallelRequestPerPod)."""
+    """Maximum number of parallel requests per pod (SlimFaas/NumberParallelRequestPerPod)."""
 
     default_trust: FunctionTrust = FunctionTrust.TRUSTED
-    """Niveau de confiance (SlimFaas/DefaultTrust)."""
+    """Trust level (SlimFaas/DefaultTrust)."""
 
     def to_register_payload(self) -> dict:
         return {
@@ -180,36 +177,36 @@ class SlimFaasClientConfig:
 
 
 # ---------------------------------------------------------------------------
-# Messages reçus par le client
+# Messages received by the client
 # ---------------------------------------------------------------------------
 
 @dataclass
 class AsyncRequest:
-    """Requête asynchrone envoyée par SlimFaas au client WebSocket."""
+    """Asynchronous request sent by SlimFaas to the WebSocket client."""
 
     element_id: str
-    """Identifiant unique de l'élément de queue."""
+    """Unique identifier of the queue entry."""
 
     method: str
-    """Méthode HTTP (GET, POST, PUT, DELETE, …)."""
+    """HTTP method (GET, POST, PUT, DELETE, …)."""
 
     path: str
-    """Chemin de la requête."""
+    """Request path."""
 
     query: str
-    """Query string (avec le '?' initial si non vide)."""
+    """Query string (including the leading '?' if non-empty)."""
 
     headers: dict[str, list[str]]
-    """En-têtes HTTP."""
+    """HTTP headers."""
 
     body: Optional[bytes]
-    """Corps de la requête (décodé depuis base64)."""
+    """Request body (decoded from base64)."""
 
     is_last_try: bool
-    """True si c'est la dernière tentative."""
+    """True if this is the last retry attempt."""
 
     try_number: int
-    """Numéro de tentative (commence à 1)."""
+    """Attempt number (starts at 1)."""
 
     @classmethod
     def from_payload(cls, payload: dict) -> "AsyncRequest":
@@ -230,7 +227,7 @@ class AsyncRequest:
 
 @dataclass
 class AsyncCallback:
-    """Réponse à envoyer à SlimFaas après traitement d'une AsyncRequest."""
+    """Callback response to send to SlimFaas after processing an AsyncRequest."""
 
     element_id: str
     status_code: int = 200
@@ -238,7 +235,7 @@ class AsyncCallback:
 
 @dataclass
 class PublishEvent:
-    """Évènement publish/subscribe reçu depuis SlimFaas."""
+    """Publish/subscribe event received from SlimFaas."""
 
     event_name: str
     method: str
@@ -263,15 +260,15 @@ class PublishEvent:
 
 
 # ---------------------------------------------------------------------------
-# Streaming synchrone — frames binaires
+# Synchronous streaming — binary frames
 # ---------------------------------------------------------------------------
 
 class BinaryFrame:
     """
-    Utilitaire pour encoder/décoder des frames binaires de streaming synchrone.
+    Utility for encoding/decoding binary frames for synchronous streaming.
 
-    Format : [type 1B][correlationId 36B ASCII][flags 1B][length 4B BE][payload nB]
-    Header total : 42 octets.
+    Format: [type 1B][correlationId 36B ASCII][flags 1B][length 4B BE][payload nB]
+    Total header: 42 bytes.
     """
 
     HEADER_SIZE = 42
@@ -286,7 +283,7 @@ class BinaryFrame:
 
     @staticmethod
     def decode_header(data: bytes) -> Tuple[int, str, int, int]:
-        """Retourne (type, correlationId, flags, payloadLength)."""
+        """Returns (type, correlationId, flags, payloadLength)."""
         if len(data) < BinaryFrame.HEADER_SIZE:
             raise ValueError(f"Binary frame must be at least {BinaryFrame.HEADER_SIZE} bytes")
         msg_type = data[0]
@@ -298,27 +295,26 @@ class BinaryFrame:
 
 class SyncBodyStream:
     """
-    Stream asynchrone du body d'une requête synchrone reçue via WebSocket.
+    Asynchronous stream of the body of a synchronous request received via WebSocket.
 
-    Expose les chunks binaires reçus au fil de l'eau comme un objet lisible
-    de trois façons :
+    Exposes the binary chunks received on the fly as a readable object in three ways:
 
-    1. **Lecture par chunk** (async for) ::
+    1. **Chunk-by-chunk** (async for)::
 
         async for chunk in req.body:
             process(chunk)
 
-    2. **Lecture d'un nombre d'octets précis** ::
+    2. **Read a specific number of bytes**::
 
-        data = await req.body.read(1024)   # retourne jusqu'à 1024 octets
-        data = await req.body.read()       # lit tout jusqu'à la fin
+        data = await req.body.read(1024)   # returns up to 1024 bytes
+        data = await req.body.read()       # reads until end
 
-    3. **Lecture complète** ::
+    3. **Read everything at once**::
 
         all_bytes = await req.body.readall()
 
-    Le stream est terminé quand ``read()`` retourne ``b""`` ou quand
-    ``async for`` s'arrête naturellement.
+    The stream is finished when ``read()`` returns ``b""`` or
+    when ``async for`` stops naturally.
     """
 
     def __init__(self, queue: asyncio.Queue) -> None:
@@ -347,14 +343,14 @@ class SyncBodyStream:
 
     async def read(self, n: int = -1) -> bytes:
         """
-        Lit jusqu'à ``n`` octets depuis le stream.
-        Si ``n == -1`` (défaut), lit tout jusqu'à la fin du stream.
-        Retourne ``b""`` en fin de stream.
+        Read up to ``n`` bytes from the stream.
+        If ``n == -1`` (default), reads until the end of the stream.
+        Returns ``b""`` at end of stream.
         """
         if n == -1:
             return await self.readall()
 
-        # Accumuler jusqu'à avoir n octets ou EOF
+        # Accumulate until we have n bytes or EOF
         while len(self._buf) < n and not self._eof:
             chunk = await self._queue.get()
             if chunk is None:
@@ -368,7 +364,7 @@ class SyncBodyStream:
     # ── readall() ────────────────────────────────────────────────────────
 
     async def readall(self) -> bytes:
-        """Lit tout le body jusqu'à la fin du stream et retourne les bytes."""
+        """Reads the entire body until end of stream and returns the bytes."""
         parts = [self._buf]
         self._buf = b""
         while not self._eof:
@@ -379,47 +375,47 @@ class SyncBodyStream:
             parts.append(chunk)
         return b"".join(parts)
 
-    # ── Alimentation interne (appelé par le client) ───────────────────────
+    # ── Internal feeding (called by the driver) ───────────────────────────
 
     def _feed(self, chunk: bytes) -> None:
-        """Ajoute un chunk dans la queue (appelé par le driver)."""
+        """Pushes a chunk into the queue (called by the driver)."""
         self._queue.put_nowait(chunk)
 
     def _close(self) -> None:
-        """Signale la fin du stream (sentinel None)."""
+        """Signals end of stream (sentinel None)."""
         self._queue.put_nowait(None)
 
 
 @dataclass
 class SyncRequest:
-    """Requête synchrone streamée reçue par le client WebSocket."""
+    """Synchronous streaming request received by the WebSocket client."""
 
     correlation_id: str
-    """Identifiant de corrélation du stream."""
+    """Correlation ID of the stream."""
 
     method: str
-    """Méthode HTTP (GET, POST, PUT, DELETE, …)."""
+    """HTTP method (GET, POST, PUT, DELETE, …)."""
 
     path: str
-    """Chemin de la requête."""
+    """Request path."""
 
     query: str
     """Query string."""
 
     headers: dict[str, list[str]]
-    """En-têtes HTTP."""
+    """HTTP headers."""
 
     body: "SyncBodyStream" = field(default_factory=lambda: SyncBodyStream(asyncio.Queue()))
     """
-    Stream asynchrone du body de la requête.
-    Lisible via ``async for``, ``await body.read(n)`` ou ``await body.readall()``.
+    Asynchronous stream of the request body.
+    Readable via ``async for``, ``await body.read(n)`` or ``await body.readall()``.
     """
 
     response: "SyncResponseWriter" = field(default=None)  # type: ignore[assignment]
     """
-    Writer pour construire la réponse synchrone.
+    Writer to build the synchronous response.
 
-    Utilisation ::
+    Usage::
 
         await req.response.start(200, {"Content-Type": ["application/json"]})
         await req.response.write(b'{"result": 42}')
@@ -429,22 +425,22 @@ class SyncRequest:
 
 class SyncResponseWriter:
     """
-    Writer qui encapsule l'envoi de la réponse synchrone vers SlimFaas.
+    Writer that encapsulates sending the synchronous response back to SlimFaas.
 
-    Utilisation typique dans un handler ``on_sync_request`` ::
+    Typical usage inside an ``on_sync_request`` handler::
 
         await req.response.start(200, {"Content-Type": ["text/plain"]})
         await req.response.write(b"Hello, world!")
         await req.response.complete()
 
-    Ou de façon plus concise (``start`` est appelé automatiquement si omis) ::
+    Shorthand (``start`` is called automatically if omitted)::
 
         await req.response.write(b"Hello")
         await req.response.complete()
 
-    ``complete()`` est idempotent et peut être appelé plusieurs fois.
-    Si ``start()`` n'a pas été appelé avant ``write()`` ou ``complete()``,
-    un status 200 avec des headers vides sera envoyé automatiquement.
+    ``complete()`` is idempotent and can be called multiple times.
+    If ``start()`` was not called before ``write()`` or ``complete()``,
+    a status 200 with empty headers is sent automatically.
     """
 
     def __init__(
@@ -466,7 +462,7 @@ class SyncResponseWriter:
         status_code: int = 200,
         headers: Optional[dict[str, list[str]]] = None,
     ) -> None:
-        """Envoie le début de la réponse (status code + headers)."""
+        """Send the beginning of the response (status code + headers)."""
         if self._started:
             raise RuntimeError("Response already started.")
         if self._completed:
@@ -478,7 +474,7 @@ class SyncResponseWriter:
         )
 
     async def write(self, data: bytes) -> None:
-        """Envoie un chunk du body de la réponse."""
+        """Send a chunk of the response body."""
         if self._completed:
             raise RuntimeError("Response already completed.")
         if not self._started:
@@ -487,7 +483,7 @@ class SyncResponseWriter:
             await self._send_chunk(self._correlation_id, data)
 
     async def complete(self) -> None:
-        """Signale la fin de la réponse. Idempotent."""
+        """Signal end of response. Idempotent."""
         if self._completed:
             return
         if not self._started:
@@ -498,7 +494,7 @@ class SyncResponseWriter:
 
 @dataclass
 class SyncResponse:
-    """Réponse synchrone à envoyer pour une requête sync streamée."""
+    """Synchronous response to send for a streaming sync request."""
 
     status_code: int = 200
     headers: dict[str, list[str]] = field(default_factory=dict)

@@ -2,13 +2,13 @@
 slimfaas-client
 ===============
 
-Librairie Python pour connecter des Jobs ou fonctions virtuelles à SlimFaas via WebSocket.
+Python library to connect Jobs or virtual functions to SlimFaas via WebSocket.
 
-Chaque instance de `SlimFaasClient` se connecte à SlimFaas et se déclare comme un "replica virtuel"
-d'une fonction donnée. SlimFaas peut ensuite lui envoyer des requêtes asynchrones et des évènements
-publish/subscribe au lieu de faire des appels HTTP.
+Each instance of `SlimFaasClient` connects to SlimFaas and registers itself
+as a "virtual replica" of a given function. SlimFaas can then route async
+requests and publish/subscribe events to it instead of making HTTP calls.
 
-Exemple d'utilisation :
+Quick start::
 
     import asyncio
     from slimfaas_client import (
@@ -20,8 +20,8 @@ Exemple d'utilisation :
 
     async def handle_request(req: AsyncRequest) -> int:
         print(f"Received async request: {req.method} {req.path}")
-        # Traitement ...
-        return 200  # code HTTP à renvoyer
+        # Processing ...
+        return 200  # HTTP status code to return
 
     async def handle_event(evt: PublishEvent) -> None:
         print(f"Received event: {evt.event_name}")
@@ -31,7 +31,7 @@ Exemple d'utilisation :
             function_name="my-job",
             subscribe_events=[
                 SubscribeEventConfig(name="fibo-public", visibility=FunctionVisibility.PUBLIC),
-                SubscribeEventConfig(name="internal-event"),  # hérite de default_visibility
+                SubscribeEventConfig(name="internal-event"),  # inherits default_visibility
             ],
             default_visibility=FunctionVisibility.PUBLIC,
         )

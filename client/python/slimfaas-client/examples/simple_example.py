@@ -1,10 +1,10 @@
 """
-Exemple ultra-simple de slimfaas-client en Python.
+Ultra-simple slimfaas-client example in Python.
 
-Se connecte à SlimFaas via WebSocket, écoute un évènement "my-event"
-et affiche chaque requête async / évènement / requête sync reçue.
+Connects to SlimFaas via WebSocket, subscribes to "my-event"
+and prints every async request / event / sync request received.
 
-Lancement :
+Run:
     uv run examples/simple_example.py
 """
 
@@ -52,4 +52,3 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
-
