@@ -407,7 +407,7 @@ jobs:
           if-no-files-found: error
 
   publish_slimfaas_mcp_release:
-    needs: [tags, build_slimfaas_mcp_aot, change_log]
+    needs: [tags, build_slimfaas_mcp_aot]
     if: needs.tags.outputs.tag == 'release'
     runs-on: ubuntu-latest
 
@@ -521,7 +521,7 @@ jobs:
   change_log:
     runs-on: ubuntu-latest
     if: needs.tags.outputs.tag == 'release'
-    needs: [ tags, build_slimfaas_planet_saver, build_slimfaas, deploy_website, build_fibonacci_mcp ]
+    needs: [ tags ]
     steps:
       - uses: actions/checkout@v4
         with:
