@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.66.5
+
+- [462c3af9](https://github.com/SlimPlanet/SlimFaas/commit/462c3af9b8c11d537329b27f4b183b2baecd722b) - fix(ci): publish client libs (release), 2026-03-12 by *Guillaume Chervet*
+
+
+## 0.66.4
+
+
+
 ## v0.66.4
 
 - [6241ba92](https://github.com/SlimPlanet/SlimFaas/commit/6241ba92789d175c887e411600be02cea08f7738) - fix(ci): dotnet client lib (release), 2026-03-12 by *Guillaume Chervet*
@@ -268,14 +277,5 @@
 ## v0.59.0
 
 - [bbc505b9](https://github.com/SlimPlanet/SlimFaas/commit/bbc505b90dc62a7d755afbddd025aecb78bc603f) - feat(otel): Do not filter out logs by path (#217) (release), 2026-01-06 by *Silthian*
-
-
-## 0.58.6
-
-
-
-## v0.58.6
-
-- [34de475c](https://github.com/SlimPlanet/SlimFaas/commit/34de475c510e1a3f55e63a55ff88ef52a39a2526) - fix(file): optim prefered node (release) (#215), 2025-12-31 by *Guillaume Chervet*
 
 
