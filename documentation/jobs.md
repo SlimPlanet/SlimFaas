@@ -316,12 +316,12 @@ annotations:
   SlimFaas/Job: "true"
   SlimFaas/Schedules: |
     [
-      { "Schedule": "0/2 * * * *", "Args": ["39"] },  # every 2 minutes
+      { "Schedule": "*/2 * * * *", "Args": ["39"] },  # every 2 minutes
       { "Schedule": "0 6 * * 1", "Args": ["99"], "DependsOn": ["fibonacci2"] }
     ]
 ```
 
-> **Note:** The schedule `0/2 * * * *` means the job will run every 2 minutes, every hour, every day.
+  > **Note:** The schedule `*/2 * * * *` means the job will run every 2 minutes, every hour, every day.
 
 Each entry is merged with the CronJob's own configuration, so fields you omit are **inherited** from the CronJob spec (image, resources, backoffLimit, ttlSecondsAfterFinished, restartPolicy, dependsOn, environments). Fields you provide explicitly override the inherited value.
 
