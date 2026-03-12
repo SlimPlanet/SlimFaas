@@ -13,6 +13,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Security;
+using SlimFaas.WebSocket;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Endpoints;
@@ -117,6 +118,7 @@ public class EventEndpointsTests
                         s.AddSingleton(jobServiceMock.Object);
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
                         s.AddRouting();
@@ -188,6 +190,7 @@ public class EventEndpointsTests
                         s.AddSingleton(jobServiceMock.Object);
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
                         s.AddRouting();
@@ -239,6 +242,7 @@ public class EventEndpointsTests
                         s.AddSingleton(jobServiceMock.Object);
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
                         s.AddRouting();
@@ -328,6 +332,7 @@ public class EventEndpointsTests
                         s.AddSingleton(jobServiceMock.Object);
                         s.AddSingleton(accessPolicyMock.Object);
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
                         s.AddRouting();
