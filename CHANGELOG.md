@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.66.3
+
+
+
+## 0.66.2
+
+- [3a19c5a3](https://github.com/SlimPlanet/SlimFaas/commit/3a19c5a3b09227f84bd4cf7775e1805a23d57ce6) - fix: package publish (release), 2026-03-12 by *Guillaume Chervet*
+
+
 ## v0.66.2
 
 - [5c81dcaf](https://github.com/SlimPlanet/SlimFaas/commit/5c81dcaf872d1bf6294ac6c2c57a414cfd1fc92d) - fix(ci): publish client packages (release), 2026-03-12 by *Guillaume Chervet*
@@ -268,14 +277,5 @@
 ## v0.58.5
 
 - [4bb51f2b](https://github.com/SlimPlanet/SlimFaas/commit/4bb51f2bb70bef21e647c75f9fcfa9ae976b1c16) - fic(doc): enhance mermaid (release), 2025-12-30 by *Guillaume Chervet*
-
-
-## 0.58.4
-
-
-
-## v0.58.4
-
-- [b3158a41](https://github.com/SlimPlanet/SlimFaas/commit/b3158a416e0220a1508e84c9a04169bae9117f6c) - fix(doc): enhance (release), 2025-12-30 by *Guillaume Chervet*
 
 
