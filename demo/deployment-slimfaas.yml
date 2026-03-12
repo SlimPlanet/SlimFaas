@@ -56,7 +56,7 @@ metadata:
   namespace: slimfaas-demo
 spec:
   podManagementPolicy: OrderedReady
-  replicas: 1
+  replicas: 3
   serviceName: slimfaas
   selector:
     matchLabels:
