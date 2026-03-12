@@ -1,0 +1,111 @@
+name: Publish SlimFaasClient to NuGet
+
+# Triggers:
+#   - Manually via workflow_dispatch (enter a version like "1.2.3")
+#   - Automatically when the main CI creates a release tag (vX.Y.Z)
+#     In that case the version is derived from the git tag.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version to publish (e.g. 1.2.3 or 1.2.3-beta.1)"
+        required: true
+        type: string
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Pack & publish to NuGet.org
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Resolve version ───────────────────────────────────────────────────
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Strip leading "v" from the tag (e.g. v1.2.3 → 1.2.3)
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      # ── .NET SDK ──────────────────────────────────────────────────────────
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      # ── Restore ───────────────────────────────────────────────────────────
+      - name: Restore
+        working-directory: client/dotnet/SlimFaasClient
+        run: dotnet restore
+
+      # ── Build ─────────────────────────────────────────────────────────────
+      - name: Build
+        working-directory: client/dotnet/SlimFaasClient
+        run: |
+          dotnet build src/SlimFaasClient/SlimFaasClient.csproj \
+            --configuration Release \
+            --no-restore \
+            -p:Version=${{ steps.version.outputs.VERSION }}
+
+      # ── Tests ─────────────────────────────────────────────────────────────
+      - name: Test
+        working-directory: client/dotnet/SlimFaasClient
+        run: |
+          dotnet test \
+            --configuration Release \
+            --no-build \
+            --verbosity normal
+
+      # ── Pack ──────────────────────────────────────────────────────────────
+      - name: Pack
+        working-directory: client/dotnet/SlimFaasClient
+        run: |
+          dotnet pack src/SlimFaasClient/SlimFaasClient.csproj \
+            --configuration Release \
+            --no-build \
+            --output ./nupkg \
+            -p:Version=${{ steps.version.outputs.VERSION }}
+
+      # ── Push to NuGet.org ─────────────────────────────────────────────────
+      - name: Push to NuGet.org
+        working-directory: client/dotnet/SlimFaasClient
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push ./nupkg/*.nupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+      # ── Push symbols (.snupkg) ────────────────────────────────────────────
+      - name: Push symbols to NuGet.org
+        working-directory: client/dotnet/SlimFaasClient
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          dotnet nuget push ./nupkg/*.snupkg \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate || true
+

@@ -12,6 +12,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
 using SlimFaas.Tests.Endpoints;
+using SlimFaas.WebSocket;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Jobs;
@@ -51,6 +52,7 @@ public class JobScheduleEndpointsTests
                         // Les dépendances inutilisées dans ces scénarios peuvent être omises
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         s.AddMemoryCache();
                         s.AddSingleton<FunctionStatusCache>();
                         s.AddSingleton<WakeUpGate>();
