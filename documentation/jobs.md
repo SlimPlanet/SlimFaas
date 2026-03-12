@@ -264,7 +264,7 @@ metadata:
     SlimFaas/DefaultVisibility: "Public"
     SlimFaas/NumberParallelJob: "1"
     SlimFaas/DependsOn: "fibonacci1,fibonacci2"
-    SlimFaas/Schedules: '[{"Schedule":"0 0 * * *","Args":["42","43"]}]'
+    SlimFaas/Schedules: '[{"Schedule":"0/2 * * * *","Args":["39"]}]'
 spec:
   schedule: "0 0 * * *"
   suspend: true
@@ -316,16 +316,18 @@ annotations:
   SlimFaas/Job: "true"
   SlimFaas/Schedules: |
     [
-      { "Schedule": "0 0 * * *", "Args": ["42", "43"] },
+      { "Schedule": "0/2 * * * *", "Args": ["39"] },  # every 2 minutes
       { "Schedule": "0 6 * * 1", "Args": ["99"], "DependsOn": ["fibonacci2"] }
     ]
 ```
+
+> **Note:** The schedule `0/2 * * * *` means the job will run every 2 minutes, every hour, every day.
 
 Each entry is merged with the CronJob's own configuration, so fields you omit are **inherited** from the CronJob spec (image, resources, backoffLimit, ttlSecondsAfterFinished, restartPolicy, dependsOn, environments). Fields you provide explicitly override the inherited value.
 
 | **Field**                   | **Required** | **Description**                                                                                  | **Default (if omitted)**                    |
 | --------------------------- | ------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------- |
-| **Schedule**                | ✅ Yes        | Standard 5-field cron expression (`m h dom mon dow`).                                            | —                                           |
+ | **Schedule**                | ✅ Yes        | Standard 5-field cron expression (`m h dom mon dow`). Example: `0/2 * * * *` runs every 2 minutes. | —                                           |
 | **Args**                    | ✅ Yes        | Arguments passed to the job container at runtime.                                                | —                                           |
 | **Image**                   | No           | Container image to use. Must be in `ImagesWhitelist` if set.                                     | Inherited from `containers[0].image`        |
 | **BackoffLimit**            | No           | Number of retries before the job is considered failed.                                           | Inherited from `spec.jobTemplate.spec.backoffLimit` |
