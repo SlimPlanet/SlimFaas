@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.66.4
+
+- [6241ba92](https://github.com/SlimPlanet/SlimFaas/commit/6241ba92789d175c887e411600be02cea08f7738) - fix(ci): dotnet client lib (release), 2026-03-12 by *Guillaume Chervet*
+
+
+## 0.66.3
+
+
+
 ## v0.66.3
 
 
@@ -268,14 +277,5 @@
 ## v0.58.6
 
 - [34de475c](https://github.com/SlimPlanet/SlimFaas/commit/34de475c510e1a3f55e63a55ff88ef52a39a2526) - fix(file): optim prefered node (release) (#215), 2025-12-31 by *Guillaume Chervet*
-
-
-## 0.58.5
-
-
-
-## v0.58.5
-
-- [4bb51f2b](https://github.com/SlimPlanet/SlimFaas/commit/4bb51f2bb70bef21e647c75f9fcfa9ae976b1c16) - fic(doc): enhance mermaid (release), 2025-12-30 by *Guillaume Chervet*
 
 
