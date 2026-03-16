@@ -1323,6 +1323,11 @@ public class KubernetesService : IKubernetesService
                 ? whitelist.Split(',').Select(s => s.Trim()).ToList()
                 : new List<string>();
 
+            if (!string.IsNullOrEmpty(image) && !imagesWhitelist.Contains(image))
+            {
+                imagesWhitelist.Add(image);
+            }
+
             CreateJobResources? resources = new (
                 container?.Resources.Requests?.ToDictionary(kv => kv.Key, kv => kv.Value.ToString()) ??
                 new Dictionary<string, string> { { "cpu", "100m" }, { "memory", "100Mi" } },
