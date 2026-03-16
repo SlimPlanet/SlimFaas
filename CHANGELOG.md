@@ -1,5 +1,89 @@
 # Changelog
 
+## v0.66.5
+
+- [462c3af9](https://github.com/SlimPlanet/SlimFaas/commit/462c3af9b8c11d537329b27f4b183b2baecd722b) - fix(ci): publish client libs (release), 2026-03-12 by *Guillaume Chervet*
+
+
+## 0.66.4
+
+
+
+## v0.66.4
+
+- [6241ba92](https://github.com/SlimPlanet/SlimFaas/commit/6241ba92789d175c887e411600be02cea08f7738) - fix(ci): dotnet client lib (release), 2026-03-12 by *Guillaume Chervet*
+
+
+## 0.66.3
+
+
+
+## v0.66.3
+
+
+
+## 0.66.2
+
+- [3a19c5a3](https://github.com/SlimPlanet/SlimFaas/commit/3a19c5a3b09227f84bd4cf7775e1805a23d57ce6) - fix: package publish (release), 2026-03-12 by *Guillaume Chervet*
+
+
+## v0.66.2
+
+- [5c81dcaf](https://github.com/SlimPlanet/SlimFaas/commit/5c81dcaf872d1bf6294ac6c2c57a414cfd1fc92d) - fix(ci): publish client packages (release), 2026-03-12 by *Guillaume Chervet*
+
+
+## 0.66.1
+
+
+
+## v0.66.1
+
+- [7af99ae3](https://github.com/SlimPlanet/SlimFaas/commit/7af99ae3f782125ed706476fe46c865d1b9a783a) - fix(ci): publish client packages (release), 2026-03-12 by *Guillaume Chervet*
+
+
+## v0.66.0
+
+
+
+## 0.66.0
+
+- [57a55d99](https://github.com/SlimPlanet/SlimFaas/commit/57a55d99a9ebbfe0f1d2362a6d680170ded5a4a9) - feat(slimfaas): add lib client C# and python (#244) (release), 2026-03-12 by *Guillaume Chervet*
+
+
+## v0.65.1
+
+- [f1d6260f](https://github.com/SlimPlanet/SlimFaas/commit/f1d6260f2eec77ac665f0ad9e72f20201250ee89) - fix: Extract environment from EnvFrom in cronjobs (#245) (release), 2026-02-27 by *Fares Ahmed*
+
+
+## v0.65.0
+
+- [99b0128c](https://github.com/SlimPlanet/SlimFaas/commit/99b0128c5e0cde7b7c61f9600b5be9d836eb05e6) - feat(slimfaas): job configuration from k8s cronjobs (release) (#242), 2026-02-26 by *Fares Ahmed*
+
+
+## v0.64.1
+
+- [92a189a3](https://github.com/SlimPlanet/SlimFaas/commit/92a189a3f38842857d35ac2352182cb0645d17b3) - fix(slimfaas): remove orphelan tmp files (#243) (release), 2026-02-25 by *Guillaume Chervet*
+
+
+## v0.64.0
+
+- [4934507e](https://github.com/SlimPlanet/SlimFaas/commit/4934507efabe11336514790bf7a7000113de005e) - feat(slimfaas): backup schedule (#241) (release), 2026-02-25 by *Guillaume Chervet*
+
+
+## v0.63.0
+
+- [a33f32e0](https://github.com/SlimPlanet/SlimFaas/commit/a33f32e04f4898d9533fa069786a5e4a45fc5a57) - feat(Resilience): add cpu rate limiting (#236) (release), 2026-02-13 by *Silthian*
+
+
+## v0.62.0
+
+- [0861ad12](https://github.com/SlimPlanet/SlimFaas/commit/0861ad12dc11d58ffb7a0be611e8f54224b09e2c) - feat(slimfaas): add async **SlimFaas-Try-Number header** **Slimfaas-L… (#237) (release), 2026-02-10 by *Guillaume Chervet*
+
+
+## 0.61.14
+
+
+
 ## v0.61.14
 
 - [3a60b1fb](https://github.com/SlimPlanet/SlimFaas/commit/3a60b1fb23cda6297c24ccc1e7076e264bf3069d) - doc: fix jobs enb var (release), 2026-02-08 by *Guillaume Chervet*
@@ -193,87 +277,5 @@
 ## v0.59.0
 
 - [bbc505b9](https://github.com/SlimPlanet/SlimFaas/commit/bbc505b90dc62a7d755afbddd025aecb78bc603f) - feat(otel): Do not filter out logs by path (#217) (release), 2026-01-06 by *Silthian*
-
-
-## 0.58.6
-
-
-
-## v0.58.6
-
-- [34de475c](https://github.com/SlimPlanet/SlimFaas/commit/34de475c510e1a3f55e63a55ff88ef52a39a2526) - fix(file): optim prefered node (release) (#215), 2025-12-31 by *Guillaume Chervet*
-
-
-## 0.58.5
-
-
-
-## v0.58.5
-
-- [4bb51f2b](https://github.com/SlimPlanet/SlimFaas/commit/4bb51f2bb70bef21e647c75f9fcfa9ae976b1c16) - fic(doc): enhance mermaid (release), 2025-12-30 by *Guillaume Chervet*
-
-
-## 0.58.4
-
-
-
-## v0.58.4
-
-- [b3158a41](https://github.com/SlimPlanet/SlimFaas/commit/b3158a416e0220a1508e84c9a04169bae9117f6c) - fix(doc): enhance (release), 2025-12-30 by *Guillaume Chervet*
-
-
-## 0.58.3
-
-
-
-## v0.58.3
-
-- [bcaaf14a](https://github.com/SlimPlanet/SlimFaas/commit/bcaaf14aa28d072bea57c8c8ec1834266d3a4ba2) - fix(website): add mermaid (release), 2025-12-30 by *Guillaume Chervet*
-
-
-## 0.58.2
-
-
-
-## v0.58.2
-
-- [fae01447](https://github.com/SlimPlanet/SlimFaas/commit/fae014478964f296cbbe093fcba111ce64ef55c2) - fix(slimfaas): add files limit cache ram (#214) (release), 2025-12-30 by *Guillaume Chervet*
-
-
-## 0.58.1
-
-
-
-## v0.58.1
-
-- [d28fc4fe](https://github.com/SlimPlanet/SlimFaas/commit/d28fc4fe50958df88fbf13ee63e4e380f02c0b48) - fix(slimfaas): files ttl (#212) (release), 2025-12-20 by *Guillaume Chervet*
-
-
-## 0.58.0
-
-
-
-## v0.58.0
-
-- [7faed1d8](https://github.com/SlimPlanet/SlimFaas/commit/7faed1d8cdec1c5e9d197de7243268eeda897fd7) - fix(slimfaas): data file redirect on correct port (#210) (release), 2025-12-18 by *Guillaume Chervet*
-- [4b9fb41d](https://github.com/SlimPlanet/SlimFaas/commit/4b9fb41d9e6e63dca5652e75f92479910dc778ca) - feat(otel): Allow to filter logs (#211) (release), 2025-12-18 by *Silthian*
-
-
-## 0.57.2
-
-
-
-## v0.57.2
-
-- [c806a40a](https://github.com/SlimPlanet/SlimFaas/commit/c806a40aa6a4d60a07a18ed510143b4d5b64175b) - slimfaas(data): data file (#209) (release), 2025-12-17 by *Guillaume Chervet*
-
-
-## 0.57.1
-
-
-
-## v0.57.1
-
-- [5a337469](https://github.com/SlimPlanet/SlimFaas/commit/5a337469c19e7e30d5487d4d1c79dbbe2b4d2f77) - fix(slimfaas): MaxRequestBodySize (release), 2025-12-16 by *Guillaume Chervet*
 
 

@@ -91,5 +91,5 @@ jobs:
         with:
           packages-dir: client/python/slimfaas-client/dist/
           # Uncomment the line below to use an API token instead of OIDC:
-          # password: ${{ secrets.PYPI_API_TOKEN }}
+          password: ${{ secrets.PYPI_API_TOKEN }}
 
