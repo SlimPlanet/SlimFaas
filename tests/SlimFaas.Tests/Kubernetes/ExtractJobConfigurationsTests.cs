@@ -197,7 +197,7 @@ public class ExtractJobConfigurationsTests
     public async Task Extract_ImagesWhitelist_IsParsedCorrectly()
     {
         var svc = BuildService(List(
-            MakeSlimfaasCronJob("wl-job", imagesWhitelist: "img1:latest, img2:v2 , img3:v3")));
+            MakeSlimfaasCronJob("wl-job", image: "img1:latest", imagesWhitelist: "img1:latest, img2:v2 , img3:v3")));
 
         var result = await svc.ListJobsConfigurationAsync("default");
 
@@ -207,6 +207,20 @@ public class ExtractJobConfigurationsTests
         Assert.Contains("img1:latest", whitelist);
         Assert.Contains("img2:v2",     whitelist);
         Assert.Contains("img3:v3",     whitelist);
+    }
+
+    [Fact(DisplayName = "Image is added to ImagesWhitelist if not present")]
+    public async Task Extract_ImagesWhitelist_AddImageBydDefaultIfNotPresent()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("wl-job", image: "img1:latest")));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        var whitelist = result.Configurations["wl-job"].ImagesWhitelist;
+        Assert.Single(whitelist);
+        Assert.Contains("img1:latest", whitelist);
     }
 
     [Fact(DisplayName = "DependsOn annotation is split on comma")]
