@@ -249,7 +249,7 @@ SlimFaas can discover job definitions from Kubernetes CronJob resources when the
 SlimFaas/Job: "true"
 ```
 
-When this annotation is present, SlimFaas's ExtractJobConfigurations scans the CronJob and converts parts of it into a SlimFaas job configuration (SlimfaasJob). Below you’ll find the exact demo CronJob (from demo/deployment-cron.yaml) followed by a table showing how fields and annotations are mapped to SlimFaas configuration.
+When this annotation is present, SlimFaas's ExtractJobConfigurations scans the CronJob and converts parts of it into a SlimFaas job configuration (SlimfaasJob). Below you'll find the exact demo CronJob (from demo/deployment-cron.yaml) followed by a table showing how fields and annotations are mapped to SlimFaas configuration.
 
 Example CronJob (exact content from demo/deployment-cron.yaml):
 
@@ -264,6 +264,7 @@ metadata:
     SlimFaas/DefaultVisibility: "Public"
     SlimFaas/NumberParallelJob: "1"
     SlimFaas/DependsOn: "fibonacci1,fibonacci2"
+    SlimFaas/Schedules: '[{"Schedule":"0/2 * * * *","Args":["39"]}]'
 spec:
   schedule: "0 0 * * *"
   suspend: true
@@ -295,6 +296,7 @@ spec:
 | `metadata.annotations["SlimFaas/DefaultVisibility"]`            | `Visibility`                    | `"Public"` or `"Private"`                                                                                   |
 | `metadata.annotations["SlimFaas/NumberParallelJob"]`            | `NumberParallelJob`             | Parsed as integer                                                                                           |
 | `metadata.annotations["SlimFaas/DependsOn"]`                    | `DependsOn`                     | Comma-separated list                                                                                        |
+| `metadata.annotations["SlimFaas/Schedules"]`                    | `Schedules`                     | JSON array of schedule entries — see table below                                                            |
 | `spec.jobTemplate.spec.template.spec.containers[0].image`        | `Image`                         |                                                                                                             |
 | `spec.jobTemplate.spec.template.spec.containers[0].resources`    | `Resources`                     | Requests & limits                                                                                           |
 | `spec.jobTemplate.spec.template.spec.containers[0].env`          | `Environments`                  | Supports SecretKeyRef, ConfigMapKeyRef, FieldRef, ResourceFieldRef                                          |
@@ -304,6 +306,39 @@ spec:
 | `spec.suspend`                                                  | _Required: must be `true`_      | Ensures SlimFaas manages scheduling; disables native Kubernetes scheduling                                  |
 
 > **Note:** The CronJob's `suspend` field must be set to `true` for SlimFaas to consider it a valid job definition. This ensures SlimFaas manages the scheduling and triggering of the job, preventing Kubernetes from automatically creating Job resources outside of SlimFaas's control.
+
+### 2.3.1 Declaring Schedules via `SlimFaas/Schedules` Annotation
+
+You can embed one or more cron schedules directly on the CronJob using the `SlimFaas/Schedules` annotation. Its value is a **JSON array** of schedule entries:
+
+```yaml
+annotations:
+  SlimFaas/Job: "true"
+  SlimFaas/Schedules: |
+    [
+      { "Schedule": "*/2 * * * *", "Args": ["39"] },  # every 2 minutes
+      { "Schedule": "0 6 * * 1", "Args": ["99"], "DependsOn": ["fibonacci2"] }
+    ]
+```
+
+  > **Note:** The schedule `*/2 * * * *` means the job will run every 2 minutes, every hour, every day.
+
+Each entry is merged with the CronJob's own configuration, so fields you omit are **inherited** from the CronJob spec (image, resources, backoffLimit, ttlSecondsAfterFinished, restartPolicy, dependsOn, environments). Fields you provide explicitly override the inherited value.
+
+| **Field**                   | **Required** | **Description**                                                                                  | **Default (if omitted)**                    |
+| --------------------------- | ------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------- |
+ | **Schedule**                | ✅ Yes        | Standard 5-field cron expression (`m h dom mon dow`). Example: `0/2 * * * *` runs every 2 minutes. | —                                           |
+| **Args**                    | ✅ Yes        | Arguments passed to the job container at runtime.                                                | —                                           |
+| **Image**                   | No           | Container image to use. Must be in `ImagesWhitelist` if set.                                     | Inherited from `containers[0].image`        |
+| **BackoffLimit**            | No           | Number of retries before the job is considered failed.                                           | Inherited from `spec.jobTemplate.spec.backoffLimit` |
+| **TtlSecondsAfterFinished** | No           | Seconds to retain finished job resources.                                                        | Inherited from `spec.jobTemplate.spec.ttlSecondsAfterFinished` |
+| **RestartPolicy**           | No           | Container restart policy (`Never`, `OnFailure`).                                                 | Inherited from `spec.template.spec.restartPolicy` |
+| **Resources**               | No           | CPU/memory requests and limits override.                                                         | Inherited from `containers[0].resources`    |
+| **Environments**            | No           | Environment variables to inject.                                                                 | Inherited from `containers[0].env`          |
+| **DependsOn**               | No           | Deployments/StatefulSets that must be ready before this schedule fires.                          | Inherited from `SlimFaas/DependsOn` annotation |
+
+> **Tip:** Schedules declared via the `SlimFaas/Schedules` annotation are merged at synchronisation time with any schedules defined in `SlimFaas__JobsConfiguration`. This lets you keep recurring schedules close to the workload definition (in the CronJob manifest) while still being able to add dynamic schedules at runtime via the `/job-schedules` API.
+
 ---
 
 ## 3. Invoking **and Managing** Jobs
@@ -469,7 +504,7 @@ curl -X DELETE http://<slimfaas>/job-schedules/fibonacci/0
 ```
 
 > **Behaviour**
-> At the scheduled time, SlimFaas triggers the job exactly as if you had called `POST /job/<jobName>` with the provided overrides. Dependency checks, visibility rules, and concurrency limits all apply identically.
+> At the scheduled time, SlimFaas triggers the job exactly as if you had called `POST /job/<jobName>` with the provided overrides. Dependency checks, visibility rules, and concurrency limits all apply identically for manual and scheduled executions.
 
 ### 5.1 Backup & Restore of Dynamic Schedules
 
