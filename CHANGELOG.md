@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.67.0
+
+- [af25e0c3](https://github.com/SlimPlanet/SlimFaas/commit/af25e0c3b1ea2ccbd49e7ad638e7ca4a72350ae2) - feat(Jobs): Allow to configure Schedules in kubernetes job configuration (#250) (release), 2026-03-17 by *Silthian*
+
+
+## 0.66.5
+
+
+
 ## v0.66.5
 
 - [462c3af9](https://github.com/SlimPlanet/SlimFaas/commit/462c3af9b8c11d537329b27f4b183b2baecd722b) - fix(ci): publish client libs (release), 2026-03-12 by *Guillaume Chervet*
@@ -268,14 +277,5 @@
 ## v0.60.0
 
 - [5245e5f9](https://github.com/SlimPlanet/SlimFaas/commit/5245e5f9b17864ab98d88adada616a652d213bf7) - feat(slimfaas): data set api (#216) (release), 2026-01-11 by *Guillaume Chervet*
-
-
-## 0.59.0
-
-
-
-## v0.59.0
-
-- [bbc505b9](https://github.com/SlimPlanet/SlimFaas/commit/bbc505b90dc62a7d755afbddd025aecb78bc603f) - feat(otel): Do not filter out logs by path (#217) (release), 2026-01-06 by *Silthian*
 
 
