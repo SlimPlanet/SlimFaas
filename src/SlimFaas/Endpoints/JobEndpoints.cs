@@ -1,9 +1,9 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
-using SlimFaas.Security;
 
 namespace SlimFaas.Endpoints;
 
@@ -12,8 +12,21 @@ public class Job
 
 }
 
-public static class JobEndpoints
+public static partial class JobEndpoints
 {
+    [GeneratedRegex(@"^[a-z\-]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex FunctionNamePattern();
+
+    private static bool IsValidFunctionName(string functionName, ILogger logger)
+    {
+        if (functionName.Length < 3 || functionName.Length > 12 || !FunctionNamePattern().IsMatch(functionName))
+        {
+            logger.LogWarning("Invalid function name: {FunctionName}. Must match pattern [a-z-] and be between 3 and 12 characters", functionName);
+            return false;
+        }
+        return true;
+    }
+
     public static void MapJobEndpoints(this IEndpointRouteBuilder app)
     {
         // POST /job/{functionName} - Créer un job
@@ -50,6 +63,13 @@ public static class JobEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] ILogger<Job> logger)
     {
+        functionName = functionName.ToLowerInvariant();
+
+        if (!IsValidFunctionName(functionName, logger))
+        {
+            return Results.BadRequest();
+        }
+
         CreateJob? createJob = await context.Request.ReadFromJsonAsync(
             CreateJobSerializerContext.Default.CreateJob);
 
@@ -100,6 +120,13 @@ public static class JobEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] ILogger<Job> logger)
     {
+        functionName = functionName.ToLowerInvariant();
+
+        if (!IsValidFunctionName(functionName, logger))
+        {
+            return Results.BadRequest();
+        }
+
         bool isMessageComeFromNamespaceInternal =
             FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
 

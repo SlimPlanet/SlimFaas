@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Mvc;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -12,8 +13,21 @@ public class JobSchedule
 
 }
 
-public static class JobScheduleEndpoints
+public static partial class JobScheduleEndpoints
 {
+    [GeneratedRegex(@"^[a-z\-]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex FunctionNamePattern();
+
+    private static bool IsValidFunctionName(string functionName, ILogger logger)
+    {
+        if (functionName.Length < 3 || functionName.Length > 12 || !FunctionNamePattern().IsMatch(functionName))
+        {
+            logger.LogWarning("Invalid function name: {FunctionName}. Must match pattern [a-z-] and be between 3 and 12 characters", functionName);
+            return false;
+        }
+        return true;
+    }
+
     public static void MapJobScheduleEndpoints(this IEndpointRouteBuilder app)
     {
         // POST /job-schedules/{functionName} - Créer un job planifié
@@ -52,6 +66,13 @@ public static class JobScheduleEndpoints
         [FromServices] IFunctionAccessPolicy accessPolicy,
         [FromServices] ILogger<JobSchedule> logger)
     {
+        functionName = functionName.ToLowerInvariant();
+
+        if (!IsValidFunctionName(functionName, logger))
+        {
+            return Results.BadRequest();
+        }
+
         if (scheduleJobService == null)
         {
             return Results.NotFound();
@@ -121,6 +142,13 @@ public static class JobScheduleEndpoints
         if (scheduleJobService == null)
         {
             return Results.NotFound();
+        }
+
+        functionName = functionName.ToLowerInvariant();
+
+        if (!IsValidFunctionName(functionName, logger))
+        {
+            return Results.BadRequest();
         }
 
         bool isMessageComeFromNamespaceInternal =
