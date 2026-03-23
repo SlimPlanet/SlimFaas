@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.69.0
+
+- [53c930f4](https://github.com/SlimPlanet/SlimFaas/commit/53c930f4cf13fe3d410f35ea12295a3f559b43b9) - feat(Job): Check that the name is valid (#257) (release), 2026-03-23 by *Silthian*
+
+
+## 0.68.0
+
+
+
 ## v0.68.0
 
 - [169337c4](https://github.com/SlimPlanet/SlimFaas/commit/169337c4b7361483848499b0c7c0606d1c5bc3ab) - feat(Cron): Improve compatibility with various cron syntaxes (#258) (release), 2026-03-23 by *Silthian*
@@ -267,15 +276,5 @@
 - [59fb280e](https://github.com/SlimPlanet/SlimFaas/commit/59fb280e035b60439e52db70e878ce94c70f4d40) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
 - [fc8bc7dd](https://github.com/SlimPlanet/SlimFaas/commit/fc8bc7dd134ba1157633d0cb3d56c11b0f45f96b) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
 - [aeede916](https://github.com/SlimPlanet/SlimFaas/commit/aeede91641dddeb4e72fa27ad5da4ca5eb091792) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
-
-
-## 0.60.1
-
-
-
-## v0.60.1
-
-- [cf04582a](https://github.com/SlimPlanet/SlimFaas/commit/cf04582a86c16475c2c649f80907615ad60eb6a2) - fix(slimfaas): upgrade kubernetes libraries (#224) (release), 2026-01-23 by *Guillaume Chervet*
-- [6595bf8a](https://github.com/SlimPlanet/SlimFaas/commit/6595bf8abb6c68b66272c7e79df4e3e57e1c33e4) - refactor(slimfaas): minimalapi (#219), 2026-01-20 by *Guillaume Chervet*
 
 
