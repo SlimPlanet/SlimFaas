@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.68.0
+
+- [169337c4](https://github.com/SlimPlanet/SlimFaas/commit/169337c4b7361483848499b0c7c0606d1c5bc3ab) - feat(Cron): Improve compatibility with various cron syntaxes (#258) (release), 2026-03-23 by *Silthian*
+
+
+## 0.67.0
+
+
+
 ## v0.67.0
 
 - [af25e0c3](https://github.com/SlimPlanet/SlimFaas/commit/af25e0c3b1ea2ccbd49e7ad638e7ca4a72350ae2) - feat(Jobs): Allow to configure Schedules in kubernetes job configuration (#250) (release), 2026-03-17 by *Silthian*
@@ -268,14 +277,5 @@
 
 - [cf04582a](https://github.com/SlimPlanet/SlimFaas/commit/cf04582a86c16475c2c649f80907615ad60eb6a2) - fix(slimfaas): upgrade kubernetes libraries (#224) (release), 2026-01-23 by *Guillaume Chervet*
 - [6595bf8a](https://github.com/SlimPlanet/SlimFaas/commit/6595bf8abb6c68b66272c7e79df4e3e57e1c33e4) - refactor(slimfaas): minimalapi (#219), 2026-01-20 by *Guillaume Chervet*
-
-
-## 0.60.0
-
-
-
-## v0.60.0
-
-- [5245e5f9](https://github.com/SlimPlanet/SlimFaas/commit/5245e5f9b17864ab98d88adada616a652d213bf7) - feat(slimfaas): data set api (#216) (release), 2026-01-11 by *Guillaume Chervet*
 
 
