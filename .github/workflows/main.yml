@@ -1,4 +1,4 @@
-﻿name: SlimFaas main CI
+name: SlimFaas main CI
 
 on:
   push:
@@ -172,14 +172,14 @@ jobs:
         if: steps.which_tag.outputs.tag == 'release'
         uses: mathieudutour/github-tag-action@v6.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN  }}
+          github_token: ${{ secrets.GIT_TOKEN  }}
 
       - name: Bump version and push tag
         id: tag_version
         if: steps.which_tag.outputs.tag != 'release'
         uses: mathieudutour/github-tag-action@v6.0
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN  }}
+          github_token: ${{ secrets.GIT_TOKEN  }}
           dry_run: true
 
       - name: Compute new version number to publish
@@ -229,7 +229,6 @@ jobs:
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
 
   build_slimfaas_kafka:
     needs: tags
@@ -319,7 +318,7 @@ jobs:
       image_name: "axaguildev/fibonacci-batch"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/FibonacciBatch"
+      image_context: "."
       image_file: "./src/FibonacciBatch/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:
@@ -408,7 +407,7 @@ jobs:
           if-no-files-found: error
 
   publish_slimfaas_mcp_release:
-    needs: [tags, build_slimfaas_mcp_aot, change_log]
+    needs: [tags, build_slimfaas_mcp_aot]
     if: needs.tags.outputs.tag == 'release'
     runs-on: ubuntu-latest
 
@@ -476,7 +475,7 @@ jobs:
         working-directory: ./src/SlimFaasPlanetSaver
 
       - id: Publish
-        uses: JS-DevTools/npm-publish@v1
+        uses: JS-DevTools/npm-publish@v3
         with:
           token: ${{ secrets.NPM_TOKEN }}
           package: ./src/SlimFaasPlanetSaver/package.json
@@ -522,7 +521,7 @@ jobs:
   change_log:
     runs-on: ubuntu-latest
     if: needs.tags.outputs.tag == 'release'
-    needs: [ tags,  build_slimfaas_planet_saver, build_slimfaas, deploy_website, build_fibonacci_mcp ]
+    needs: [ tags ]
     steps:
       - uses: actions/checkout@v4
         with:

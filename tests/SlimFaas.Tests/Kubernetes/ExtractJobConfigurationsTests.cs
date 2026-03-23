@@ -73,7 +73,8 @@ public class ExtractJobConfigurationsTests
         int backoffLimit = 1,
         int ttlSeconds = 60,
         IList<V1EnvVar>? envVars = null,
-        IList<V1EnvFromSource>? envFrom = null)
+        IList<V1EnvFromSource>? envFrom = null,
+        string? schedulesAnnotation = null)
     {
         var annotations = new Dictionary<string, string>();
         if (isSlimfaasJob)
@@ -86,6 +87,8 @@ public class ExtractJobConfigurationsTests
             annotations["SlimFaas/DefaultVisibility"] = visibility;
         if (numberParallel != null)
             annotations["SlimFaas/NumberParallelJob"] = numberParallel;
+        if (schedulesAnnotation != null)
+            annotations["SlimFaas/Schedules"] = schedulesAnnotation;
 
         var container = new V1Container
         {
@@ -194,7 +197,7 @@ public class ExtractJobConfigurationsTests
     public async Task Extract_ImagesWhitelist_IsParsedCorrectly()
     {
         var svc = BuildService(List(
-            MakeSlimfaasCronJob("wl-job", imagesWhitelist: "img1:latest, img2:v2 , img3:v3")));
+            MakeSlimfaasCronJob("wl-job", image: "img1:latest", imagesWhitelist: "img1:latest, img2:v2 , img3:v3")));
 
         var result = await svc.ListJobsConfigurationAsync("default");
 
@@ -204,6 +207,20 @@ public class ExtractJobConfigurationsTests
         Assert.Contains("img1:latest", whitelist);
         Assert.Contains("img2:v2",     whitelist);
         Assert.Contains("img3:v3",     whitelist);
+    }
+
+    [Fact(DisplayName = "Image is added to ImagesWhitelist if not present")]
+    public async Task Extract_ImagesWhitelist_AddImageBydDefaultIfNotPresent()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("wl-job", image: "img1:latest")));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        var whitelist = result.Configurations["wl-job"].ImagesWhitelist;
+        Assert.Single(whitelist);
+        Assert.Contains("img1:latest", whitelist);
     }
 
     [Fact(DisplayName = "DependsOn annotation is split on comma")]
@@ -452,5 +469,149 @@ public class ExtractJobConfigurationsTests
         var envs = result.Configurations["empty-envfrom-job"].Environments;
         // The empty EnvFromSource yields null and gets filtered out, so the list is empty.
         Assert.True(envs == null || envs.Count == 0);
+    }
+
+    // ── schedule tests ────────────────────────────────────────────────────────
+
+    [Fact(DisplayName = "Valid Schedules annotation is extracted and inherits job defaults")]
+    public async Task Extract_Schedules_InheritsJobDefaults()
+    {
+        const string json = """[{"Schedule":"0 0 * * *","Args":["42","43"]}]""";
+
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("sched-job",
+                image: "worker:v1",
+                backoffLimit: 3,
+                ttlSeconds: 120,
+                restartPolicy: "OnFailure",
+                schedulesAnnotation: json)));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        Assert.NotNull(result.Schedules);
+        Assert.True(result.Schedules!.ContainsKey("sched-job"));
+
+        var schedules = result.Schedules["sched-job"];
+        Assert.Single(schedules);
+
+        var s = schedules[0];
+        Assert.Equal("0 0 * * *",  s.Schedule);
+        Assert.Equal(new List<string> { "42", "43" }, s.Args);
+
+        // Values not specified in the annotation → inherited from the CronJob
+        Assert.Equal("worker:v1",  s.Image);
+        Assert.Equal(3,            s.BackoffLimit);
+        Assert.Equal(120,          s.TtlSecondsAfterFinished);
+        Assert.Equal("OnFailure",  s.RestartPolicy);
+    }
+
+    [Fact(DisplayName = "Schedules annotation with explicit image overrides job image")]
+    public async Task Extract_Schedules_ExplicitImageOverridesJobImage()
+    {
+        const string json = """[{"Schedule":"0 6 * * *","Args":[],"Image":"override:v2"}]""";
+
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("img-sched-job", image: "default:v1", schedulesAnnotation: json)));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result?.Schedules);
+        var s = result!.Schedules!["img-sched-job"][0];
+        Assert.Equal("override:v2", s.Image);
+    }
+
+    [Fact(DisplayName = "Multiple schedules in annotation are all extracted")]
+    public async Task Extract_Schedules_MultipleEntries_AllExtracted()
+    {
+        const string json = """
+        [
+            {"Schedule":"0 6 * * *","Args":["a"]},
+            {"Schedule":"0 18 * * *","Args":["b"]},
+            {"Schedule":"0 12 * * 1","Args":["c"]}
+        ]
+        """;
+
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("multi-sched-job", schedulesAnnotation: json)));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result?.Schedules);
+        var schedules = result!.Schedules!["multi-sched-job"];
+        Assert.Equal(3, schedules.Count);
+        Assert.Equal("0 6 * * *",   schedules[0].Schedule);
+        Assert.Equal("0 18 * * *",  schedules[1].Schedule);
+        Assert.Equal("0 12 * * 1",  schedules[2].Schedule);
+    }
+
+    [Fact(DisplayName = "Invalid Schedules JSON annotation is ignored, job is still extracted")]
+    public async Task Extract_Schedules_InvalidJson_JobStillExtracted()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("bad-sched-job", schedulesAnnotation: "NOT_VALID_JSON")));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        // Job must still be present
+        Assert.NotNull(result);
+        Assert.True(result.Configurations.ContainsKey("bad-sched-job"));
+
+        // No schedule must have been added
+        Assert.True(result.Schedules == null || !result.Schedules.ContainsKey("bad-sched-job"));
+    }
+
+    [Fact(DisplayName = "Empty Schedules annotation produces no schedule entry")]
+    public async Task Extract_Schedules_EmptyAnnotation_NoScheduleEntry()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("empty-sched-job", schedulesAnnotation: "   ")));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        Assert.True(result.Schedules == null || !result.Schedules.ContainsKey("empty-sched-job"));
+    }
+
+    [Fact(DisplayName = "Schedules annotation with empty array produces no schedule entry")]
+    public async Task Extract_Schedules_EmptyArray_NoScheduleEntry()
+    {
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("empty-arr-job", schedulesAnnotation: "[]")));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        Assert.True(result.Schedules == null || !result.Schedules.ContainsKey("empty-arr-job"));
+    }
+
+    [Fact(DisplayName = "Schedules annotation inherits DependsOn from CronJob")]
+    public async Task Extract_Schedules_InheritsDependsOn()
+    {
+        const string json = """[{"Schedule":"0 0 * * *","Args":[]}]""";
+
+        var svc = BuildService(List(
+            MakeSlimfaasCronJob("dep-sched-job",
+                dependsOn: "jobA, jobB",
+                schedulesAnnotation: json)));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result?.Schedules);
+        var s = result!.Schedules!["dep-sched-job"][0];
+        Assert.NotNull(s.DependsOn);
+        Assert.Contains("jobA", s.DependsOn!);
+        Assert.Contains("jobB", s.DependsOn!);
+    }
+
+    [Fact(DisplayName = "CronJob without Schedules annotation has no schedule entry")]
+    public async Task Extract_NoSchedulesAnnotation_NoScheduleEntry()
+    {
+        var svc = BuildService(List(MakeSlimfaasCronJob("no-sched-job")));
+
+        var result = await svc.ListJobsConfigurationAsync("default");
+
+        Assert.NotNull(result);
+        Assert.True(result.Schedules == null || !result.Schedules.ContainsKey("no-sched-job"));
     }
 }

@@ -12,6 +12,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Security;
 using SlimFaas.Tests.Endpoints;
+using SlimFaas.WebSocket;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Jobs;
@@ -51,6 +52,7 @@ public class JobScheduleEndpointsTests
                         // Les dépendances inutilisées dans ces scénarios peuvent être omises
                         s.AddSingleton<IWakeUpFunction>(_ => wakeUpFunctionMock.Object);
                         s.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        s.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         s.AddMemoryCache();
                         s.AddSingleton<FunctionStatusCache>();
                         s.AddSingleton<WakeUpGate>();
@@ -130,6 +132,74 @@ public class JobScheduleEndpointsTests
 
     #endregion
 
+    #region POST /job-schedules/{name} - Validation du nom de fonction
+
+    [Theory(DisplayName = "POST /job-schedules/{name} – retourne 400 si le nom de fonction est invalide")]
+    [InlineData("/job-schedules/ab")]
+    [InlineData("/job-schedules/ab1")]
+    [InlineData("/job-schedules/abcdefghijklm")]
+    [InlineData("/job-schedules/test_func")]
+    [InlineData("/job-schedules/test.func")]
+    [InlineData("/job-schedules/test func")]
+    [InlineData("/job-schedules/test@func")]
+    public async Task CreateSchedule_Returns_400_When_FunctionName_Invalid(string path)
+    {
+        (IHost host, Mock<IScheduleJobService> schedSvc, _) =
+            await BuildHostAsync(svc =>
+            {
+                // Le service ne devrait jamais être appelé
+            });
+
+        var body = new ScheduleCreateJob("* * * * *", new() { "arg1" });
+        HttpResponseMessage resp = await host.GetTestClient()
+            .PostAsync($"http://localhost:5000{path}",
+                       JsonContent.Create(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+
+        schedSvc.Verify(s => s.CreateScheduleJobAsync(
+                It.IsAny<string>(),
+                It.IsAny<ScheduleCreateJob>(),
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName = "POST /job-schedules/{name} – accepte les noms valides")]
+    [InlineData("/job-schedules/abc")]
+    [InlineData("/job-schedules/abcdefghijkl")]
+    [InlineData("/job-schedules/test-func")]
+    [InlineData("/job-schedules/my-app")]
+    [InlineData("/job-schedules/daisy")]
+    public async Task CreateSchedule_Accepts_Valid_FunctionNames(string path)
+    {
+        var schedResult = new CreateScheduleJobResult("new-id");
+
+        (IHost host, Mock<IScheduleJobService> schedSvc, _) =
+            await BuildHostAsync(svc =>
+            {
+                svc.Setup(s => s.CreateScheduleJobAsync(
+                        It.IsAny<string>(),
+                        It.IsAny<ScheduleCreateJob>(),
+                        It.IsAny<bool>()))
+                   .ReturnsAsync(new ResultWithError<CreateScheduleJobResult>(schedResult));
+            });
+
+        var body = new ScheduleCreateJob("* * * * *", new() { "arg1" });
+        HttpResponseMessage resp = await host.GetTestClient()
+            .PostAsync($"http://localhost:5000{path}",
+                       JsonContent.Create(body));
+
+        Assert.Equal(HttpStatusCode.Created, resp.StatusCode);
+
+        schedSvc.Verify(s => s.CreateScheduleJobAsync(
+                It.IsAny<string>(),
+                It.IsAny<ScheduleCreateJob>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    #endregion
+
     #region GET /job-schedules/{name} ------------------------------------------------------------
 
     [Fact(DisplayName = "GET /job-schedules/{name} – retourne la liste")]
@@ -196,6 +266,62 @@ public class JobScheduleEndpointsTests
 
         Assert.Equal(expectedStatus, resp.StatusCode);
         schedSvc.Verify(s => s.DeleteScheduleJobAsync("daisy", scheduleId, false), Times.Once);
+    }
+
+    #endregion
+
+    #region DELETE /job-schedules/{name}/{id} - Validation du nom de fonction
+
+    [Theory(DisplayName = "DELETE /job-schedules/{name}/{id} – retourne 400 si le nom de fonction est invalide")]
+    [InlineData("/job-schedules/ab/sid")]
+    [InlineData("/job-schedules/ab1/sid")]
+    [InlineData("/job-schedules/abcdefghijklm/sid")]
+    [InlineData("/job-schedules/test_func/sid")]
+    public async Task DeleteSchedule_Returns_400_When_FunctionName_Invalid(string path)
+    {
+        (IHost host, Mock<IScheduleJobService> schedSvc, _) =
+            await BuildHostAsync(svc =>
+            {
+                // Le service ne devrait jamais être appelé
+            });
+
+        HttpResponseMessage resp = await host.GetTestClient()
+            .DeleteAsync($"http://localhost:5000{path}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+
+        schedSvc.Verify(s => s.DeleteScheduleJobAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName = "DELETE /job-schedules/{name}/{id} – accepte les noms valides")]
+    [InlineData("/job-schedules/abc/sid")]
+    [InlineData("/job-schedules/test-func/sid")]
+    public async Task DeleteSchedule_Accepts_Valid_FunctionNames(string path)
+    {
+        string scheduleId = path.Split('/').Last();
+
+        (IHost host, Mock<IScheduleJobService> schedSvc, _) =
+            await BuildHostAsync(svc =>
+            {
+                svc.Setup(s => s.DeleteScheduleJobAsync(It.IsAny<string>(), scheduleId, false))
+                   .ReturnsAsync(new ResultWithError<string>(null,
+                       new ErrorResult(ScheduleJobService.NotFound)));
+            });
+
+        HttpResponseMessage resp = await host.GetTestClient()
+            .DeleteAsync($"http://localhost:5000{path}");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+
+        schedSvc.Verify(s => s.DeleteScheduleJobAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>()),
+            Times.Once);
     }
 
     #endregion

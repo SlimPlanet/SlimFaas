@@ -1,4 +1,4 @@
-﻿﻿using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Text;
 using System.Text.Json;
@@ -7,7 +7,6 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 using MemoryPack;
-using SlimFaas.Jobs;
 
 namespace SlimFaas.Kubernetes;
 
@@ -253,6 +252,10 @@ public partial class CreateJobSerializerContext : JsonSerializerContext;
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class ScheduleCreateJobSerializerContext : JsonSerializerContext;
 
+[JsonSerializable(typeof(List<ScheduleCreateJob>))]
+[JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+public partial class ScheduleCreateJobListSerializerContext : JsonSerializerContext;
+
 [ExcludeFromCodeCoverage]
 public class KubernetesService : IKubernetesService
 {
@@ -269,6 +272,7 @@ public class KubernetesService : IKubernetesService
     private const string Job = "SlimFaas/Job";
     private const string JobImagesWhitelist = "SlimFaas/JobImagesWhitelist";
     private const string NumberParallelJob = "SlimFaas/NumberParallelJob";
+    private const string JobSchedules = "SlimFaas/Schedules";
 
     private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
         "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
@@ -1283,9 +1287,10 @@ public class KubernetesService : IKubernetesService
         return result;
     }
 
-        private SlimFaasJobConfiguration? ExtractJobConfigurations(V1CronJobList cronJobList)
+    private SlimFaasJobConfiguration? ExtractJobConfigurations(V1CronJobList cronJobList)
     {
         Dictionary<string, SlimfaasJob> jobs = new();
+        Dictionary<string, IList<ScheduleCreateJob>> schedules = new(StringComparer.OrdinalIgnoreCase);
 
         foreach (V1CronJob? cronJob in cronJobList.Items)
         {
@@ -1317,6 +1322,11 @@ public class KubernetesService : IKubernetesService
             var imagesWhitelist = annotations.TryGetValue(JobImagesWhitelist, out var whitelist)
                 ? whitelist.Split(',').Select(s => s.Trim()).ToList()
                 : new List<string>();
+
+            if (!string.IsNullOrEmpty(image) && !imagesWhitelist.Contains(image))
+            {
+                imagesWhitelist.Add(image);
+            }
 
             CreateJobResources? resources = new (
                 container?.Resources.Requests?.ToDictionary(kv => kv.Key, kv => kv.Value.ToString()) ??
@@ -1406,18 +1416,47 @@ public class KubernetesService : IKubernetesService
                 RestartPolicy: restartPolicy
             );
 
+            if (annotations.TryGetValue(JobSchedules, out var schedulesJson) && !string.IsNullOrWhiteSpace(schedulesJson))
+            {
+                try
+                {
+                    schedulesJson = JsonMinifier.MinifyJson(schedulesJson)!;
+                    var parsedSchedules = JsonSerializer.Deserialize(
+                        schedulesJson,
+                        ScheduleCreateJobListSerializerContext.Default.ListScheduleCreateJob);
+
+                    if (parsedSchedules is { Count: > 0 })
+                    {
+                        schedules[name] = parsedSchedules.Select(s => new ScheduleCreateJob(
+                            Schedule: s.Schedule,
+                            Args: s.Args,
+                            Image: string.IsNullOrEmpty(s.Image) ? image : s.Image,
+                            BackoffLimit: s.BackoffLimit == 1 ? backOffLimit : s.BackoffLimit,
+                            TtlSecondsAfterFinished: s.TtlSecondsAfterFinished == 60 ? ttlSecondsAfterFinished : s.TtlSecondsAfterFinished,
+                            RestartPolicy: s.RestartPolicy == "Never" ? restartPolicy : s.RestartPolicy,
+                            Resources: s.Resources ?? resources,
+                            Environments: s.Environments ?? environments,
+                            DependsOn: s.DependsOn ?? dependsOn
+                        )).ToList();
+                    }
+                }
+                catch (Exception e)
+                {
+                    _logger.LogError(e, "Error parsing SlimFaas/Schedules annotation for CronJob {CronJobName}", name);
+                }
+            }
+
             _logger.LogDebug("JobConfiguration: ");
             _logger.LogDebug(jobs[name].ToString());
         }
 
         if (jobs.Count != 0)
         {
-            return new SlimFaasJobConfiguration(jobs);
+            return new SlimFaasJobConfiguration(jobs, schedules.Count > 0 ? schedules : null);
         }
 
         _logger.LogDebug("No SlimFaas job configurations found in the cluster.");
+
         return null;
-
-
     }
 }

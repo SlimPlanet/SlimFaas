@@ -8,6 +8,7 @@ metadata:
     SlimFaas/DefaultVisibility: "Public"
     SlimFaas/NumberParallelJob: "1"
     SlimFaas/DependsOn: "fibonacci1,fibonacci2"
+    SlimFaas/Schedules: '[{"Schedule":"*/2 * * * *","Args":["39"]}]'
 spec:
   schedule: "0 0 * * *"
   suspend: true

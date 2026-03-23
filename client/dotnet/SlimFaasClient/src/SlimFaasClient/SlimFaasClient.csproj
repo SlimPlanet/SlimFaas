@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>SlimFaasClient</RootNamespace>
+    <AssemblyName>SlimFaasClient</AssemblyName>
+
+    <!-- NuGet package metadata -->
+    <PackageId>SlimFaasClient</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>SlimFaas Contributors</Authors>
+    <Company>SlimPlanet</Company>
+    <Product>SlimFaasClient</Product>
+    <Description>WebSocket client for SlimFaas — lets Jobs and virtual functions receive async requests and publish/subscribe events without exposing an HTTP port.</Description>
+    <Summary>Connect Jobs or virtual functions to SlimFaas via WebSocket (async requests, publish/subscribe events, sync streaming).</Summary>
+    <PackageTags>slimfaas;websocket;faas;jobs;async;pubsub;streaming</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/SlimPlanet/SlimFaas</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/SlimPlanet/SlimFaas</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageIcon>icon.png</PackageIcon>
+
+    <!-- Source Link / deterministic build -->
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' != ''">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlimFaasClient.Tests" />
+  </ItemGroup>
+
+  <!-- Files included in the NuGet package -->
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\..\icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
+</Project>
+

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "slimfaas-client"
+version = "0.1.0"
+description = "WebSocket client for SlimFaas — lets Jobs and virtual functions receive async requests and publish/subscribe events without exposing an HTTP port."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["slimfaas", "websocket", "faas", "jobs"]
+authors = [{ name = "SlimFaas Contributors" }]
+
+dependencies = [
+    "websockets>=12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "anyio>=4.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/slimfaas_client"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+

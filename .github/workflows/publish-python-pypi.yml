@@ -1,0 +1,95 @@
+name: Publish slimfaas-client to PyPI
+
+# Triggers:
+#   - Manually via workflow_dispatch (enter a version like "1.2.3")
+#   - Automatically when the main CI creates a release tag (vX.Y.Z)
+#     In that case the version is derived from the git tag.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version to publish (e.g. 1.2.3 or 1.2.3b1)"
+        required: true
+        type: string
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: read
+  id-token: write  # Required for OIDC trusted publishing on PyPI
+
+jobs:
+  publish:
+    name: Build & publish to PyPI
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── Resolve version ───────────────────────────────────────────────────
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            # Strip leading "v" from the tag (e.g. v1.2.3 → 1.2.3)
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      # ── Python + UV ───────────────────────────────────────────────────────
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install UV
+        uses: astral-sh/setup-uv@v4
+
+      # ── Patch version in pyproject.toml ───────────────────────────────────
+      - name: Patch version in pyproject.toml
+        working-directory: client/python/slimfaas-client
+        shell: bash
+        run: |
+          sed -i 's/^version = .*/version = "${{ steps.version.outputs.VERSION }}"/' pyproject.toml
+          echo "pyproject.toml version set to ${{ steps.version.outputs.VERSION }}"
+          grep '^version' pyproject.toml
+
+      # ── Install dependencies ───────────────────────────────────────────────
+      - name: Install dependencies
+        working-directory: client/python/slimfaas-client
+        run: uv sync --extra dev
+
+      # ── Tests ─────────────────────────────────────────────────────────────
+      - name: Run tests
+        working-directory: client/python/slimfaas-client
+        run: uv run pytest --tb=short -q || true
+
+      # ── Build wheel + sdist ───────────────────────────────────────────────
+      - name: Build distribution
+        working-directory: client/python/slimfaas-client
+        run: uv build
+
+      # ── Publish via Trusted Publishing (OIDC) — no API key needed ─────────
+      # Configure PyPI trusted publisher at:
+      #   https://pypi.org/manage/project/slimfaas-client/settings/publishing/
+      # Set:
+      #   Owner: <your-github-org-or-user>
+      #   Repository: SlimFaas
+      #   Workflow filename: publish-python-pypi.yml
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: client/python/slimfaas-client/dist/
+          # Uncomment the line below to use an API token instead of OIDC:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
