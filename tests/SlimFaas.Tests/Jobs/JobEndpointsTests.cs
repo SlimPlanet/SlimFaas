@@ -1,4 +1,4 @@
-﻿﻿using System.Net;
+﻿using System.Net;
 using System.Net.Http.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -97,6 +97,71 @@ public class JobEndpointsTests
 
     #endregion
 
+    #region POST /job/{name} - Validation du nom de fonction
+
+    [Theory(DisplayName = "POST /job/{name} – retourne 400 si le nom de fonction est invalide")]
+    [InlineData("/job/ab")]
+    [InlineData("/job/ab1")]
+    [InlineData("/job/abcdefghijklm")]
+    [InlineData("/job/test_func")]
+    [InlineData("/job/test.func")]
+    [InlineData("/job/test func")]
+    [InlineData("/job/test@func")]
+    public async Task CreateJob_Returns_400_When_FunctionName_Invalid(string path)
+    {
+        (IHost host, Mock<IJobService> jobSvc, _) = await BuildHostAsync(jobServiceMock =>
+        {
+            jobServiceMock.SetupGet(s => s.Jobs)
+                .Returns(new List<KubernetesJob>());
+        });
+
+        HttpResponseMessage resp = await host.GetTestClient()
+            .PostAsync($"http://localhost:5000{path}",
+                JsonContent.Create(new CreateJob(new List<string>(), "image")));
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+
+        jobSvc.Verify(s => s.EnqueueJobAsync(
+                It.IsAny<string>(),
+                It.IsAny<CreateJob>(),
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName = "POST /job/{name} – accepte les noms valides")]
+    [InlineData("/job/abc")]
+    [InlineData("/job/abcdefghijkl")]
+    [InlineData("/job/test-func")]
+    [InlineData("/job/my-app")]
+    [InlineData("/job/daisy")]
+    public async Task CreateJob_Accepts_Valid_FunctionNames(string path)
+    {
+        (IHost host, Mock<IJobService> jobSvc, _) = await BuildHostAsync(jobServiceMock =>
+        {
+            jobServiceMock.Setup(s => s.EnqueueJobAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<CreateJob>(),
+                    It.IsAny<bool>()))
+                .ReturnsAsync(new ResultWithError<EnqueueJobResult>(null, new ErrorResult("key")));
+            jobServiceMock.SetupGet(s => s.Jobs)
+                .Returns(new List<KubernetesJob>());
+        });
+
+        HttpResponseMessage resp = await host.GetTestClient()
+            .PostAsync($"http://localhost:5000{path}",
+                JsonContent.Create(new CreateJob(new List<string>(), "image")));
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+
+        jobSvc.Verify(s => s.EnqueueJobAsync(
+                It.IsAny<string>(),
+                It.IsAny<CreateJob>(),
+                It.IsAny<bool>()),
+            Times.Once);
+    }
+
+    #endregion
+
     #region GET /job/{name}
 
     [Theory]
@@ -150,6 +215,58 @@ public class JobEndpointsTests
 
         Assert.Equal(expectedStatus, resp.StatusCode);
         jobSvc.Verify(s => s.DeleteJobAsync("daisy", jobId, false), Times.Once);
+    }
+
+    #endregion
+
+    #region DELETE /job/{name}/{id} - Validation du nom de fonction
+
+    [Theory(DisplayName = "DELETE /job/{name}/{id} – retourne 400 si le nom de fonction est invalide")]
+    [InlineData("/job/ab/123")]
+    [InlineData("/job/ab1/123")]
+    [InlineData("/job/abcdefghijklm/123")]
+    [InlineData("/job/test_func/123")]
+    public async Task DeleteJob_Returns_400_When_FunctionName_Invalid(string path)
+    {
+        (IHost host, Mock<IJobService> jobSvc, _) = await BuildHostAsync(jobServiceMock =>
+        {
+            jobServiceMock.Setup(s => s.Jobs).Returns(new List<KubernetesJob>());
+        });
+
+        HttpResponseMessage resp = await host.GetTestClient()
+            .DeleteAsync($"http://localhost:5000{path}");
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+
+        jobSvc.Verify(s => s.DeleteJobAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>()),
+            Times.Never);
+    }
+
+    [Theory(DisplayName = "DELETE /job/{name}/{id} – accepte les noms valides")]
+    [InlineData("/job/abc/123")]
+    [InlineData("/job/test-func/123")]
+    public async Task DeleteJob_Accepts_Valid_FunctionNames(string path)
+    {
+        (IHost host, Mock<IJobService> jobSvc, _) = await BuildHostAsync(jobServiceMock =>
+        {
+            jobServiceMock.Setup(s => s.DeleteJobAsync(It.IsAny<string>(), It.IsAny<string>(), false))
+                .ReturnsAsync(false);
+            jobServiceMock.Setup(s => s.Jobs).Returns(new List<KubernetesJob>());
+        });
+
+        HttpResponseMessage resp = await host.GetTestClient()
+            .DeleteAsync($"http://localhost:5000{path}");
+
+        Assert.Equal(HttpStatusCode.NotFound, resp.StatusCode);
+
+        jobSvc.Verify(s => s.DeleteJobAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<bool>()),
+            Times.Once);
     }
 
     #endregion
