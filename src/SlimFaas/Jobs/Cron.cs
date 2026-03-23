@@ -82,7 +82,8 @@ public static class Cron
                 var step = int.Parse(split[1], CultureInfo.InvariantCulture);
 
                 int rangeStart = min, rangeEnd = max;
-                if (range != "*")
+                // Treat "0" as "*" for step expressions (e.g., "0/15" = "*/15")
+                if (range != "*" && range != "0")
                 {
                     if (range.Contains("-"))
                     {
