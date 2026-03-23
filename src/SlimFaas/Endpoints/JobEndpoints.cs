@@ -67,7 +67,7 @@ public static partial class JobEndpoints
 
         if (!IsValidFunctionName(functionName, logger))
         {
-            return Results.BadRequest();
+            return Results.BadRequest("Function name must match pattern [a-z-] and be between 3 and 12 c∫haracters");
         }
 
         CreateJob? createJob = await context.Request.ReadFromJsonAsync(
@@ -124,7 +124,7 @@ public static partial class JobEndpoints
 
         if (!IsValidFunctionName(functionName, logger))
         {
-            return Results.BadRequest();
+            return Results.BadRequest("Function name must match pattern [a-z-] and be between 3 and 12 characters");
         }
 
         bool isMessageComeFromNamespaceInternal =

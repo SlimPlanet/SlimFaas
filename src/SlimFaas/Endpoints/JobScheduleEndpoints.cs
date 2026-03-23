@@ -70,7 +70,7 @@ public static partial class JobScheduleEndpoints
 
         if (!IsValidFunctionName(functionName, logger))
         {
-            return Results.BadRequest();
+            return Results.BadRequest("Function name must match pattern [a-z-] and be between 3 and 12 characters");
         }
 
         if (scheduleJobService == null)
@@ -148,7 +148,7 @@ public static partial class JobScheduleEndpoints
 
         if (!IsValidFunctionName(functionName, logger))
         {
-            return Results.BadRequest();
+            return Results.BadRequest("Function name must match pattern [a-z-] and be between 3 and 12 characters");
         }
 
         bool isMessageComeFromNamespaceInternal =
