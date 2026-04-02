@@ -190,6 +190,7 @@ namespace SlimFaas.Tests
             Assert.Contains(result, new[] { "10.0.0.1", "10.0.0.2" });
         }
 
+                string ip = proxy.GetNextIP(10);
         [Fact]
         public void GetPorts_WhenFunctionNotFound_ReturnsNull()
         {

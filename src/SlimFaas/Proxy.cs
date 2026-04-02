@@ -63,7 +63,8 @@ namespace SlimFaas
         public string GetNextIP() => GetNextIP(int.MaxValue);
 
         /// <summary>
-        /// Sélectionne le prochain pod en round-robin en respectant la limite
+        /// Sélectionne le prochain pod en utilisant une stratégie "least-connections"
+        /// avec round-robin comme tie-breaker, en respectant la limite
         /// <paramref name="maxPerPod"/> de requêtes actives par pod.
         /// Retourne "" si tous les pods sont saturés ou aucun pod n'est ready.
         /// </summary>
@@ -101,18 +102,30 @@ namespace SlimFaas
                     : (currentIndex + 1) % readyPodsIps.Count;
             }
 
-            // Parcourir tous les pods à partir de startIndex,
-            // sélectionner le premier qui n'a pas atteint la limite per-pod.
+            // Stratégie "least-connections" : parmi les pods non saturés,
+            // choisir celui qui a le moins de requêtes actives.
+            // En cas d'égalité, le premier rencontré dans l'ordre round-robin gagne.
+            string? bestIp = null;
+            int bestActive = int.MaxValue;
             for (int i = 0; i < readyPodsIps.Count; i++)
             {
                 int index = (startIndex + i) % readyPodsIps.Count;
                 string candidateIp = readyPodsIps[index];
                 int active = ActiveRequestsPerPod.GetValueOrDefault(candidateIp, 0);
-                if (active < maxPerPod)
+
+                if (active >= maxPerPod || active >= bestActive)
                 {
-                    IpAddresses[deploymentInformation.Deployment] = candidateIp;
-                    return candidateIp;
+                    continue;
                 }
+
+                bestIp = candidateIp;
+                bestActive = active;
+            }
+
+            if (bestIp != null)
+            {
+                IpAddresses[deploymentInformation.Deployment] = bestIp;
+                return bestIp;
             }
 
             // Tous les pods sont saturés — retourner "" pour signaler qu'il faut attendre
