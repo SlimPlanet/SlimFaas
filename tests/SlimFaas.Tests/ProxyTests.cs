@@ -190,7 +190,265 @@ namespace SlimFaas.Tests
             Assert.Contains(result, new[] { "10.0.0.1", "10.0.0.2" });
         }
 
+        [Fact]
+        public void GetNextIP_LeastConnections_DistributesEvenly_TwoPodsWithTenRequests()
+        {
+            // Arrange: 2 pods, maxPerPod = 10, on envoie 10 requêtes
+            // Chaque pod doit recevoir exactement 5 requêtes
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions = new List<DeploymentInformation>
+                    {
+                        new(
+                            Deployment: "my-deployment",
+                            Namespace: "default",
+                            Pods: new List<PodInformation>
+                            {
+                                new("pod1", true, true, "10.0.0.1", "my-deployment"),
+                                new("pod2", true, true, "10.0.0.2", "my-deployment")
+                            },
+                            Configuration: new SlimFaasConfiguration(),
+                            Replicas: 2
+                        )
+                    }
+                }
+            };
+
+            // Forcer un startIndex déterministe en fixant la dernière IP
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.2";
+
+            var proxy = new Proxy(replicasService, "my-deployment");
+            var distribution = new Dictionary<string, int>
+            {
+                ["10.0.0.1"] = 0,
+                ["10.0.0.2"] = 0
+            };
+
+            // Act: simuler 10 requêtes avec IncrementActiveRequests
+            for (int i = 0; i < 10; i++)
+            {
                 string ip = proxy.GetNextIP(10);
+                Assert.NotEqual("", ip);
+                proxy.IncrementActiveRequests(ip);
+                distribution[ip]++;
+            }
+
+            // Assert: chaque pod reçoit exactement 5 requêtes
+            Assert.Equal(5, distribution["10.0.0.1"]);
+            Assert.Equal(5, distribution["10.0.0.2"]);
+        }
+
+        [Fact]
+        public void GetNextIP_LeastConnections_PrefersLeastLoadedPod()
+        {
+            // Arrange: 3 pods, pod1 a déjà 5 requêtes actives, pod2 en a 2, pod3 en a 0
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions = new List<DeploymentInformation>
+                    {
+                        new(
+                            Deployment: "my-deployment",
+                            Namespace: "default",
+                            Pods: new List<PodInformation>
+                            {
+                                new("pod1", true, true, "10.0.0.1", "my-deployment"),
+                                new("pod2", true, true, "10.0.0.2", "my-deployment"),
+                                new("pod3", true, true, "10.0.0.3", "my-deployment")
+                            },
+                            Configuration: new SlimFaasConfiguration(),
+                            Replicas: 3
+                        )
+                    }
+                }
+            };
+
+            // Simuler les requêtes actives existantes
+            Proxy.ActiveRequestsPerPod["10.0.0.1"] = 5;
+            Proxy.ActiveRequestsPerPod["10.0.0.2"] = 2;
+            Proxy.ActiveRequestsPerPod["10.0.0.3"] = 0;
+
+            // Forcer le startIndex pour que le round-robin commencerait par pod1
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.3";
+
+            var proxy = new Proxy(replicasService, "my-deployment");
+
+            // Act: le pod avec le moins de requêtes actives devrait être choisi
+            string ip = proxy.GetNextIP(10);
+
+            // Assert: pod3 (0 requêtes actives) doit être choisi, pas pod1 (5 requêtes)
+            Assert.Equal("10.0.0.3", ip);
+        }
+
+        [Fact]
+        public void GetNextIP_LeastConnections_SkipsSaturatedPods()
+        {
+            // Arrange: 2 pods, pod1 est saturé (10/10), pod2 n'est pas saturé (3/10)
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions = new List<DeploymentInformation>
+                    {
+                        new(
+                            Deployment: "my-deployment",
+                            Namespace: "default",
+                            Pods: new List<PodInformation>
+                            {
+                                new("pod1", true, true, "10.0.0.1", "my-deployment"),
+                                new("pod2", true, true, "10.0.0.2", "my-deployment")
+                            },
+                            Configuration: new SlimFaasConfiguration(),
+                            Replicas: 2
+                        )
+                    }
+                }
+            };
+
+            Proxy.ActiveRequestsPerPod["10.0.0.1"] = 10;
+            Proxy.ActiveRequestsPerPod["10.0.0.2"] = 3;
+
+            // Le round-robin pointerait vers pod1
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.2";
+
+            var proxy = new Proxy(replicasService, "my-deployment");
+
+            // Act
+            string ip = proxy.GetNextIP(10);
+
+            // Assert: pod1 est saturé, pod2 doit être choisi
+            Assert.Equal("10.0.0.2", ip);
+        }
+
+        [Fact]
+        public void GetNextIP_LeastConnections_AllSaturated_ReturnsEmpty()
+        {
+            // Arrange: 2 pods, les deux sont saturés
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions = new List<DeploymentInformation>
+                    {
+                        new(
+                            Deployment: "my-deployment",
+                            Namespace: "default",
+                            Pods: new List<PodInformation>
+                            {
+                                new("pod1", true, true, "10.0.0.1", "my-deployment"),
+                                new("pod2", true, true, "10.0.0.2", "my-deployment")
+                            },
+                            Configuration: new SlimFaasConfiguration(),
+                            Replicas: 2
+                        )
+                    }
+                }
+            };
+
+            Proxy.ActiveRequestsPerPod["10.0.0.1"] = 10;
+            Proxy.ActiveRequestsPerPod["10.0.0.2"] = 10;
+
+            var proxy = new Proxy(replicasService, "my-deployment");
+
+            // Act
+            string ip = proxy.GetNextIP(10);
+
+            // Assert
+            Assert.Equal("", ip);
+        }
+
+        [Fact]
+        public void GetNextIP_LeastConnections_TieBreaker_UsesRoundRobin()
+        {
+            // Arrange: 3 pods, tous avec 0 requêtes actives — le round-robin décide
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions = new List<DeploymentInformation>
+                    {
+                        new(
+                            Deployment: "my-deployment",
+                            Namespace: "default",
+                            Pods: new List<PodInformation>
+                            {
+                                new("pod1", true, true, "10.0.0.1", "my-deployment"),
+                                new("pod2", true, true, "10.0.0.2", "my-deployment"),
+                                new("pod3", true, true, "10.0.0.3", "my-deployment")
+                            },
+                            Configuration: new SlimFaasConfiguration(),
+                            Replicas: 3
+                        )
+                    }
+                }
+            };
+
+            // Forcer le round-robin à commencer par pod2
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.1";
+
+            var proxy = new Proxy(replicasService, "my-deployment");
+
+            // Act: tous les pods ont 0 requêtes — le premier dans l'ordre round-robin gagne
+            string ip = proxy.GetNextIP(10);
+
+            // Assert: le round-robin commence à pod2 (index après pod1), tous à 0 → pod2 gagne
+            Assert.Equal("10.0.0.2", ip);
+        }
+
+        [Fact]
+        public void GetNextIP_LeastConnections_ThreePodsWithSixRequests_DistributesEvenly()
+        {
+            // Arrange: 3 pods, maxPerPod = 10, on envoie 6 requêtes → chaque pod doit recevoir 2
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions = new List<DeploymentInformation>
+                    {
+                        new(
+                            Deployment: "my-deployment",
+                            Namespace: "default",
+                            Pods: new List<PodInformation>
+                            {
+                                new("pod1", true, true, "10.0.0.1", "my-deployment"),
+                                new("pod2", true, true, "10.0.0.2", "my-deployment"),
+                                new("pod3", true, true, "10.0.0.3", "my-deployment")
+                            },
+                            Configuration: new SlimFaasConfiguration(),
+                            Replicas: 3
+                        )
+                    }
+                }
+            };
+
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.3";
+
+            var proxy = new Proxy(replicasService, "my-deployment");
+            var distribution = new Dictionary<string, int>
+            {
+                ["10.0.0.1"] = 0,
+                ["10.0.0.2"] = 0,
+                ["10.0.0.3"] = 0
+            };
+
+            // Act
+            for (int i = 0; i < 6; i++)
+            {
+                string ip = proxy.GetNextIP(10);
+                Assert.NotEqual("", ip);
+                proxy.IncrementActiveRequests(ip);
+                distribution[ip]++;
+            }
+
+            // Assert: chaque pod reçoit exactement 2 requêtes
+            Assert.Equal(2, distribution["10.0.0.1"]);
+            Assert.Equal(2, distribution["10.0.0.2"]);
+            Assert.Equal(2, distribution["10.0.0.3"]);
+        }
+
         [Fact]
         public void GetPorts_WhenFunctionNotFound_ReturnsNull()
         {
