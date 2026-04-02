@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.70.0
+
+- [bcb14b2d](https://github.com/SlimPlanet/SlimFaas/commit/bcb14b2d9b5194bc0a65a1da54bb83206a609f8d) - feat(slimfaas): proxy least connections (#260) (release), 2026-04-02 by *Guillaume Chervet*
+
+
+## 0.69.0
+
+
+
 ## v0.69.0
 
 - [53c930f4](https://github.com/SlimPlanet/SlimFaas/commit/53c930f4cf13fe3d410f35ea12295a3f559b43b9) - feat(Job): Check that the name is valid (#257) (release), 2026-03-23 by *Silthian*
@@ -265,16 +274,5 @@
 ## v0.60.3
 
 - [2cfc20d5](https://github.com/SlimPlanet/SlimFaas/commit/2cfc20d50dbcf5d6930e0225ddeaea27b997a9ad) - fix(cpu): remove sync function retry temporaly (release), 2026-01-23 by *Guillaume Chervet*
-
-
-## 0.60.2
-
-
-
-## v0.60.2
-
-- [59fb280e](https://github.com/SlimPlanet/SlimFaas/commit/59fb280e035b60439e52db70e878ce94c70f4d40) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
-- [fc8bc7dd](https://github.com/SlimPlanet/SlimFaas/commit/fc8bc7dd134ba1157633d0cb3d56c11b0f45f96b) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
-- [aeede916](https://github.com/SlimPlanet/SlimFaas/commit/aeede91641dddeb4e72fa27ad5da4ca5eb091792) - fix(slimfaas): cpu protection (#225) (release), 2026-01-23 by *Guillaume Chervet*
 
 
