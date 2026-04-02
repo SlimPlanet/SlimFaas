@@ -25,6 +25,7 @@ namespace SlimFaas.Tests
         public ProxyTests()
         {
             Proxy.IpAddresses.Clear();
+            Proxy.ActiveRequestsPerPod.Clear();
         }
 
         [Fact]
