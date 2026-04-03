@@ -1,6 +1,10 @@
 @use './variables' as *;
 
 .dashboard {
+  &--jobs {
+    margin-top: $spacing-xl * 2;
+  }
+
   &__header {
     display: flex;
     flex-wrap: wrap;

@@ -34,8 +34,8 @@ const PodStatusList: React.FC<Props> = ({ pods }) => {
           <span className="pod-list__name" title={pod.name}>
             {pod.name}
           </span>
-          <span className={`pod-list__status pod-list__status--${pod.status.toLowerCase()}`}>
-            {pod.status}
+          <span className={`pod-list__status pod-list__status--${(pod.status ?? '').toLowerCase()}`}>
+            {pod.status ?? 'Unknown'}
           </span>
         </div>
       ))}

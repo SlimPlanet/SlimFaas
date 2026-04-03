@@ -184,10 +184,13 @@ public static class FunctionEndpointsHelpers
             ReplicasMin: f.ReplicasMin,
             ReplicasAtStart: f.ReplicasAtStart,
             TimeoutSecondBeforeSetReplicasMin: f.TimeoutSecondBeforeSetReplicasMin,
+            NumberParallelRequest: f.NumberParallelRequest,
+            NumberParallelRequestPerPod: f.NumberParallelRequestPerPod,
             Resources: f.Resources,
             Schedule: f.Schedule,
             SubscribeEvents: f.SubscribeEvents,
             PathsStartWithVisibility: f.PathsStartWithVisibility,
+            DependsOn: f.DependsOn,
             Pods: pods
         );
     }

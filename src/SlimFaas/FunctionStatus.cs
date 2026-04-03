@@ -33,10 +33,13 @@ public record FunctionStatusDetailed(
     int ReplicasMin,
     int ReplicasAtStart,
     int TimeoutSecondBeforeSetReplicasMin,
+    int NumberParallelRequest,
+    int NumberParallelRequestPerPod,
     ResourcesConfiguration? Resources,
     ScheduleConfig? Schedule,
     IList<SubscribeEvent>? SubscribeEvents,
     IList<PathVisibility>? PathsStartWithVisibility,
+    IList<string>? DependsOn,
     IList<PodStatus> Pods);
 
 /// <summary>

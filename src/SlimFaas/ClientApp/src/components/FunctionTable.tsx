@@ -25,9 +25,11 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
             <th className="function-table__th">CPU Req / Limit</th>
             <th className="function-table__th">Memory Req / Limit</th>
             <th className="function-table__th">Scale Down (s)</th>
+            <th className="function-table__th">Parallel Req</th>
             <th className="function-table__th">Schedule</th>
             <th className="function-table__th">Events</th>
             <th className="function-table__th">Private Paths</th>
+            <th className="function-table__th">Depends On</th>
             <th className="function-table__th">Actions</th>
           </tr>
         </thead>
@@ -57,9 +59,9 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                   </td>
                   <td className="function-table__td">
                     <span
-                      className={`function-table__badge function-table__badge--${fn.visibility.toLowerCase()}`}
+                      className={`function-table__badge function-table__badge--${(fn.visibility ?? '').toLowerCase()}`}
                     >
-                      {fn.visibility}
+                      {fn.visibility ?? '-'}
                     </span>
                   </td>
                   <td className="function-table__td">{fn.podType}</td>
@@ -85,6 +87,14 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                     {fn.timeoutSecondBeforeSetReplicasMin}s
                   </td>
                   <td className="function-table__td">
+                    <span className="function-table__replicas">
+                      {fn.numberParallelRequest}
+                    </span>
+                    <span className="function-table__replicas-info">
+                      ({fn.numberParallelRequestPerPod}/pod)
+                    </span>
+                  </td>
+                  <td className="function-table__td">
                     {fn.schedule?.default?.wakeUp?.length
                       ? fn.schedule.default.wakeUp.join(', ')
                       : '-'}
@@ -94,10 +104,10 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                       ? fn.subscribeEvents.map((e) => (
                           <span
                             key={e.name}
-                            className={`function-table__event function-table__event--${e.visibility.toLowerCase()}`}
+                            className={`function-table__event function-table__event--${(e.visibility ?? '').toLowerCase()}`}
                           >
                             {e.name}
-                            <small>({e.visibility})</small>
+                            <small>({e.visibility ?? '-'})</small>
                           </span>
                         ))
                       : '-'}
@@ -107,10 +117,19 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                       ? fn.pathsStartWithVisibility.map((p) => (
                           <span
                             key={p.path}
-                            className={`function-table__path function-table__path--${p.visibility.toLowerCase()}`}
+                            className={`function-table__path function-table__path--${(p.visibility ?? '').toLowerCase()}`}
                           >
                             {p.path}
-                            <small>({p.visibility})</small>
+                            <small>({p.visibility ?? '-'})</small>
+                          </span>
+                        ))
+                      : '-'}
+                  </td>
+                  <td className="function-table__td">
+                    {fn.dependsOn?.length
+                      ? fn.dependsOn.map((dep) => (
+                          <span key={dep} className="function-table__dep">
+                            {dep}
                           </span>
                         ))
                       : '-'}
@@ -131,7 +150,7 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                   <tr className="function-table__row function-table__row--pods">
                     <td
                       className="function-table__td function-table__td--pods"
-                      colSpan={11}
+                      colSpan={13}
                     >
                       <PodStatusList pods={fn.pods} />
                     </td>
