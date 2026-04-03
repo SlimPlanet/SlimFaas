@@ -44,7 +44,6 @@ export function useFunctionStatus() {
   const wakeUp = useCallback(async (functionName: string) => {
     try {
       await fetch(`/wake-function/${functionName}`, { method: 'POST' });
-      // Trigger immediate refresh
       await fetchStatus();
     } catch {
       // ignore
@@ -52,11 +51,10 @@ export function useFunctionStatus() {
   }, [fetchStatus]);
 
   const wakeUpAll = useCallback(async () => {
-    const sleeping = functions.filter((f) => f.numberReady === 0);
-    await Promise.all(sleeping.map((f) => fetch(`/wake-function/${f.name}`, { method: 'POST' })));
+    const sleeping = functions.filter((f) => f.NumberReady === 0);
+    await Promise.all(sleeping.map((f) => fetch(`/wake-function/${f.Name}`, { method: 'POST' })));
     await fetchStatus();
   }, [functions, fetchStatus]);
 
   return { functions, loading, error, wakeUp, wakeUpAll };
 }
-

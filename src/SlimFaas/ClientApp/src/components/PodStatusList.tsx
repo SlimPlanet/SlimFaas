@@ -27,15 +27,15 @@ const PodStatusList: React.FC<Props> = ({ pods }) => {
   return (
     <div className="pod-list">
       {pods.map((pod) => (
-        <div key={pod.name} className="pod-list__item">
-          <span className="pod-list__icon" title={pod.status}>
-            {getStatusIcon(pod.status)}
+        <div key={pod.Name} className="pod-list__item">
+          <span className="pod-list__icon" title={pod.Status}>
+            {getStatusIcon(pod.Status)}
           </span>
-          <span className="pod-list__name" title={pod.name}>
-            {pod.name}
+          <span className="pod-list__name" title={pod.Name}>
+            {pod.Name}
           </span>
-          <span className={`pod-list__status pod-list__status--${(pod.status ?? '').toLowerCase()}`}>
-            {pod.status ?? 'Unknown'}
+          <span className={`pod-list__status pod-list__status--${(pod.Status ?? '').toLowerCase()}`}>
+            {pod.Status ?? 'Unknown'}
           </span>
         </div>
       ))}

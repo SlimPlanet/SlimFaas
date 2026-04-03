@@ -60,4 +60,3 @@ public class StatusFunctionEndpointTests
         Assert.Equal(expectedHttpStatusCode, response.StatusCode);
     }
 }
-

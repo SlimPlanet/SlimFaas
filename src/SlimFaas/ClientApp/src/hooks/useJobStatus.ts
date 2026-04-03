@@ -10,11 +10,11 @@ export function useJobStatus() {
   const isFetching = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const fetchStatus = useCallback(async () => {
+  const fetchJobs = useCallback(async () => {
     if (isFetching.current) return;
     isFetching.current = true;
     try {
-      const res = await fetch('/jobs/status');
+      const res = await fetch('/status-jobs');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: JobConfigurationStatus[] = await res.json();
       setJobs(data);
@@ -28,10 +28,10 @@ export function useJobStatus() {
   }, []);
 
   useEffect(() => {
-    fetchStatus();
+    fetchJobs();
     const tick = () => {
       timerRef.current = setTimeout(async () => {
-        await fetchStatus();
+        await fetchJobs();
         tick();
       }, POLL_INTERVAL);
     };
@@ -39,8 +39,7 @@ export function useJobStatus() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [fetchStatus]);
+  }, [fetchJobs]);
 
   return { jobs, loading, error };
 }
-

@@ -76,4 +76,3 @@ public partial class FunctionStatusDetailedSerializerContext : JsonSerializerCon
 public partial class ListFunctionStatusDetailedSerializerContext : JsonSerializerContext
 {
 }
-

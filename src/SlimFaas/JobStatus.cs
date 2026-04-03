@@ -34,4 +34,3 @@ public record JobConfigurationStatus(
 public partial class ListJobConfigurationStatusSerializerContext : JsonSerializerContext
 {
 }
-
