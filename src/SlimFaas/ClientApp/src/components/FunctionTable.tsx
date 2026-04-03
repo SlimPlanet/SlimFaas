@@ -5,9 +5,10 @@ import PodStatusList from './PodStatusList';
 interface Props {
   functions: FunctionStatusDetailed[];
   onWakeUp: (name: string) => void;
+  coolingDown?: Set<string>;
 }
 
-const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
+const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new Set() }) => {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const toggle = (name: string) =>
@@ -35,18 +36,16 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
         </thead>
         <tbody className="function-table__body">
           {functions.map((fn) => {
-            const isDown = fn.numberReady === 0;
-            const isExpanded = expanded[fn.name] ?? false;
+            const isDown = (fn.NumberReady ?? 0) === 0;
+            const isExpanded = expanded[fn.Name] ?? false;
 
             return (
-              <React.Fragment key={fn.name}>
-                <tr
-                  className={`function-table__row ${isDown ? 'function-table__row--down' : 'function-table__row--up'}`}
-                >
+              <React.Fragment key={fn.Name}>
+                <tr className={`function-table__row ${isDown ? 'function-table__row--down' : 'function-table__row--up'}`}>
                   <td className="function-table__td function-table__td--name">
                     <button
                       className="function-table__expand-btn"
-                      onClick={() => toggle(fn.name)}
+                      onClick={() => toggle(fn.Name)}
                       title="Show pods"
                       type="button"
                     >
@@ -55,104 +54,90 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                     <span className="function-table__fn-icon">
                       {isDown ? '🔴' : '🟢'}
                     </span>
-                    {fn.name}
+                    {fn.Name}
                   </td>
                   <td className="function-table__td">
-                    <span
-                      className={`function-table__badge function-table__badge--${(fn.visibility ?? '').toLowerCase()}`}
-                    >
-                      {fn.visibility ?? '-'}
+                    <span className={`function-table__badge function-table__badge--${(fn.Visibility ?? '').toLowerCase()}`}>
+                      {fn.Visibility ?? '-'}
                     </span>
                   </td>
-                  <td className="function-table__td">{fn.podType}</td>
+                  <td className="function-table__td">{fn.PodType}</td>
                   <td className="function-table__td">
                     <span className="function-table__replicas">
-                      {fn.numberReady} / {fn.numberRequested}
+                      {fn.NumberReady ?? 0} / {fn.NumberRequested ?? 0}
                     </span>
                     <span className="function-table__replicas-info">
-                      (min: {fn.replicasMin}, start: {fn.replicasAtStart})
+                      (min: {fn.ReplicasMin ?? 0}, start: {fn.ReplicasAtStart ?? 0})
                     </span>
                   </td>
                   <td className="function-table__td">
-                    {fn.resources
-                      ? `${fn.resources.cpuRequest ?? '-'} / ${fn.resources.cpuLimit ?? '-'}`
+                    {fn.Resources
+                      ? `${fn.Resources.CpuRequest ?? '-'} / ${fn.Resources.CpuLimit ?? '-'}`
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.resources
-                      ? `${fn.resources.memoryRequest ?? '-'} / ${fn.resources.memoryLimit ?? '-'}`
+                    {fn.Resources
+                      ? `${fn.Resources.MemoryRequest ?? '-'} / ${fn.Resources.MemoryLimit ?? '-'}`
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.timeoutSecondBeforeSetReplicasMin}s
+                    {fn.TimeoutSecondBeforeSetReplicasMin}s
                   </td>
                   <td className="function-table__td">
                     <span className="function-table__replicas">
-                      {fn.numberParallelRequest}
+                      {fn.NumberParallelRequest}
                     </span>
                     <span className="function-table__replicas-info">
-                      ({fn.numberParallelRequestPerPod}/pod)
+                      ({fn.NumberParallelRequestPerPod}/pod)
                     </span>
                   </td>
                   <td className="function-table__td">
-                    {fn.schedule?.default?.wakeUp?.length
-                      ? fn.schedule.default.wakeUp.join(', ')
+                    {fn.Schedule?.Default?.WakeUp?.length
+                      ? fn.Schedule.Default.WakeUp.join(', ')
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.subscribeEvents?.length
-                      ? fn.subscribeEvents.map((e) => (
-                          <span
-                            key={e.name}
-                            className={`function-table__event function-table__event--${(e.visibility ?? '').toLowerCase()}`}
-                          >
-                            {e.name}
-                            <small>({e.visibility ?? '-'})</small>
+                    {fn.SubscribeEvents?.length
+                      ? fn.SubscribeEvents.map((e) => (
+                          <span key={e.Name} className={`function-table__event function-table__event--${String(e.Visibility ?? '').toLowerCase()}`}>
+                            {e.Name}<small>({e.Visibility ?? '-'})</small>
                           </span>
                         ))
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.pathsStartWithVisibility?.length
-                      ? fn.pathsStartWithVisibility.map((p) => (
-                          <span
-                            key={p.path}
-                            className={`function-table__path function-table__path--${(p.visibility ?? '').toLowerCase()}`}
-                          >
-                            {p.path}
-                            <small>({p.visibility ?? '-'})</small>
+                    {fn.PathsStartWithVisibility?.length
+                      ? fn.PathsStartWithVisibility.map((p) => (
+                          <span key={p.Path} className={`function-table__path function-table__path--${(p.Visibility ?? '').toLowerCase()}`}>
+                            {p.Path}<small>({p.Visibility ?? '-'})</small>
                           </span>
                         ))
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.dependsOn?.length
-                      ? fn.dependsOn.map((dep) => (
-                          <span key={dep} className="function-table__dep">
-                            {dep}
-                          </span>
+                    {fn.DependsOn?.length
+                      ? fn.DependsOn.map((dep) => (
+                          <span key={dep} className="function-table__dep">{dep}</span>
                         ))
                       : '-'}
                   </td>
                   <td className="function-table__td">
                     {isDown && (
                       <button
-                        className="function-table__wake-btn"
-                        onClick={() => onWakeUp(fn.name)}
+                        className={`function-table__wake-btn${coolingDown.has(fn.Name) ? ' function-table__wake-btn--cooling' : ''}`}
+                        disabled={coolingDown.has(fn.Name)}
+                        onClick={() => onWakeUp(fn.Name)}
                         type="button"
                       >
-                        ⚡ Wake Up
+                        {coolingDown.has(fn.Name) ? '⏳' : '⚡ Wake Up'}
                       </button>
                     )}
                   </td>
                 </tr>
                 {isExpanded && (
                   <tr className="function-table__row function-table__row--pods">
-                    <td
-                      className="function-table__td function-table__td--pods"
-                      colSpan={13}
-                    >
-                      <PodStatusList pods={fn.pods} />
+                    <td className="function-table__td function-table__td--pods" colSpan={13}>
+                      <PodStatusList pods={fn.Pods ?? []} />
                     </td>
                   </tr>
                 )}

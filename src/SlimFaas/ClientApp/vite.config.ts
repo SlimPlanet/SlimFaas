@@ -11,7 +11,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/status-functions': 'http://localhost:5000',
+      '/status-jobs': 'http://localhost:5000',
       '/wake-function': 'http://localhost:5000',
+      '/wake-functions': 'http://localhost:5000',
       '/jobs': 'http://localhost:5000',
     },
   },

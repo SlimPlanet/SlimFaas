@@ -1,93 +1,93 @@
 export interface PodStatus {
-  name: string;
-  status: string;
-  ready: boolean;
-  ip: string;
+  Name: string;
+  Status: string;
+  Ready: boolean;
+  Ip: string;
 }
 
 export interface ResourcesConfiguration {
-  cpuRequest: string | null;
-  cpuLimit: string | null;
-  memoryRequest: string | null;
-  memoryLimit: string | null;
+  CpuRequest: string | null;
+  CpuLimit: string | null;
+  MemoryRequest: string | null;
+  MemoryLimit: string | null;
 }
 
 export interface ScaleDownTimeout {
-  time: string;
-  value: number;
+  Time: string;
+  Value: number;
 }
 
 export interface DefaultSchedule {
-  wakeUp: string[];
-  scaleDownTimeout: ScaleDownTimeout[];
+  WakeUp: string[];
+  ScaleDownTimeout: ScaleDownTimeout[];
 }
 
 export interface ScheduleConfig {
-  timeZoneID: string;
-  default: DefaultSchedule | null;
+  TimeZoneID: string;
+  Default: DefaultSchedule | null;
 }
 
 export interface SubscribeEvent {
-  name: string;
-  visibility: string;
+  Name: string;
+  Visibility: string | number;
 }
 
 export interface PathVisibility {
-  path: string;
-  visibility: string;
+  Path: string;
+  Visibility: string;
 }
 
 export interface FunctionStatusDetailed {
-  name: string;
-  numberReady: number;
-  numberRequested: number;
-  podType: string;
-  visibility: string;
-  replicasMin: number;
-  replicasAtStart: number;
-  timeoutSecondBeforeSetReplicasMin: number;
-  numberParallelRequest: number;
-  numberParallelRequestPerPod: number;
-  resources: ResourcesConfiguration | null;
-  schedule: ScheduleConfig | null;
-  subscribeEvents: SubscribeEvent[] | null;
-  pathsStartWithVisibility: PathVisibility[] | null;
-  dependsOn: string[] | null;
-  pods: PodStatus[];
+  Name: string;
+  NumberReady: number;
+  NumberRequested: number;
+  PodType: string;
+  Visibility: string;
+  ReplicasMin: number;
+  ReplicasAtStart: number;
+  TimeoutSecondBeforeSetReplicasMin: number;
+  NumberParallelRequest: number;
+  NumberParallelRequestPerPod: number;
+  Resources: ResourcesConfiguration | null;
+  Schedule: ScheduleConfig | null;
+  SubscribeEvents: SubscribeEvent[] | null;
+  PathsStartWithVisibility: PathVisibility[] | null;
+  DependsOn: string[] | null;
+  Pods: PodStatus[] | null;
 }
 
 // ---- Jobs ----
 
 export interface CreateJobResources {
-  requests: Record<string, string> | null;
-  limits: Record<string, string> | null;
+  Requests: Record<string, string> | null;
+  Limits: Record<string, string> | null;
 }
 
 export interface RunningJobStatus {
-  name: string;
-  status: string;
-  elementId: string;
-  inQueueTimestamp: number;
-  startTimestamp: number;
+  Name: string;
+  Status: string;
+  ElementId: string;
+  InQueueTimestamp: number;
+  StartTimestamp: number;
 }
 
 export interface ScheduledJobInfo {
-  id: string;
-  schedule: string;
-  image: string;
-  nextExecutionTimestamp: number | null;
-  resources: CreateJobResources | null;
-  dependsOn: string[] | null;
+  Id: string;
+  Schedule: string;
+  Image: string;
+  NextExecutionTimestamp: number | null;
+  Resources: CreateJobResources | null;
+  DependsOn: string[] | null;
 }
 
 export interface JobConfigurationStatus {
-  name: string;
-  visibility: string;
-  image: string;
-  imagesWhitelist: string[];
-  numberParallelJob: number;
-  resources: CreateJobResources | null;
-  dependsOn: string[] | null;
-  schedules: ScheduledJobInfo[];
-  runningJobs: RunningJobStatus[];
+  Name: string;
+  Visibility: string;
+  Image: string;
+  ImagesWhitelist: string[];
+  NumberParallelJob: number;
+  Resources: CreateJobResources | null;
+  DependsOn: string[] | null;
+  Schedules: ScheduledJobInfo[];
+  RunningJobs: RunningJobStatus[];
 }

@@ -13,6 +13,12 @@ public static class JobStatusEndpoints
             .WithName("GetAllJobStatuses")
             .Produces<List<JobConfigurationStatus>>(200)
             .AddEndpointFilter<HostPortEndpointFilter>();
+
+        // Alias pour compatibilité ascendante
+        app.MapGet("/status-jobs", GetAllJobStatuses)
+            .WithName("GetAllJobStatusesAlias")
+            .Produces<List<JobConfigurationStatus>>(200)
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
     private static async Task<IResult> GetAllJobStatuses(

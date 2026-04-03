@@ -15,12 +15,23 @@ export function useJobStatus() {
     isFetching.current = true;
     try {
       const res = await fetch('/jobs/status');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data: JobConfigurationStatus[] = await res.json();
+      if (!res.ok) {
+        setError(`HTTP ${res.status}`);
+        return;
+      }
+      let data: JobConfigurationStatus[];
+      try {
+        const json = await res.json();
+        data = Array.isArray(json) ? json : [];
+      } catch {
+        setError('Invalid JSON response');
+        return;
+      }
       setJobs(data);
       setError(null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error');
+      // Erreur réseau ou autre : on affiche un message mais on ne crash pas
+      setError(e instanceof Error ? e.message : 'Unavailable');
     } finally {
       isFetching.current = false;
       setLoading(false);

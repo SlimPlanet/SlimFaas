@@ -5,16 +5,69 @@ import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import FunctionTable from './components/FunctionTable';
 import JobTable from './components/JobTable';
+import ErrorBoundary from './components/ErrorBoundary';
+import type { JobConfigurationStatus } from './types';
+
+interface JobsSectionProps {
+  jobs: JobConfigurationStatus[];
+  jobsLoading: boolean;
+  jobsError: string | null;
+  totalRunningJobs: number;
+  totalSchedules: number;
+}
+
+const JobsSection: React.FC<JobsSectionProps> = ({
+  jobs,
+  jobsLoading,
+  jobsError,
+  totalRunningJobs,
+  totalSchedules,
+}) => (
+  <div className="dashboard dashboard--jobs">
+    <div className="dashboard__header">
+      <h1 className="dashboard__title">Jobs Overview</h1>
+      <div className="dashboard__summary">
+        <span className="dashboard__stat">
+          <span className="dashboard__stat-icon">📋</span>
+          <strong>{jobs.length}</strong> configuration(s)
+        </span>
+        <span className="dashboard__stat">
+          <span className="dashboard__stat-icon">⚙️</span>
+          <strong>{totalRunningJobs}</strong> running
+        </span>
+        <span className="dashboard__stat">
+          <span className="dashboard__stat-icon">🗓️</span>
+          <strong>{totalSchedules}</strong> scheduled
+        </span>
+      </div>
+    </div>
+
+    {jobsLoading && <div className="dashboard__loading">Loading jobs...</div>}
+
+    {jobsError && (
+      <div className="dashboard__error">
+        <span className="dashboard__error-icon">⚠️</span>
+        Jobs unavailable: {jobsError}
+      </div>
+    )}
+
+    {!jobsLoading && !jobsError && jobs.length === 0 && (
+      <div className="dashboard__empty">No job configurations found.</div>
+    )}
+
+    {jobs.length > 0 && <JobTable jobs={jobs} />}
+  </div>
+);
 
 const App: React.FC = () => {
-  const { functions, loading, error, wakeUp, wakeUpAll } = useFunctionStatus();
+  const { functions, loading, error, wakeUp, wakeUpAll, coolingDown, wakeAllCooling } = useFunctionStatus();
   const { jobs, loading: jobsLoading, error: jobsError } = useJobStatus();
 
-  const allUp = functions.length > 0 && functions.every((f) => f.numberReady > 0);
-  const totalReady = functions.reduce((sum, f) => sum + f.numberReady, 0);
-  const totalRequested = functions.reduce((sum, f) => sum + f.numberRequested, 0);
-  const totalRunningJobs = jobs.reduce((sum, j) => sum + (j.runningJobs ?? []).length, 0);
-  const totalSchedules = jobs.reduce((sum, j) => sum + (j.schedules ?? []).length, 0);
+  const allUp = functions.length > 0 && functions.every((f) => f.NumberReady > 0);
+  const totalReady = functions.reduce((sum, f) => sum + (f.NumberReady ?? 0), 0);
+  const totalRequested = functions.reduce((sum, f) => sum + (f.NumberRequested ?? 0), 0);
+  const totalRunningJobs = jobs.reduce((sum, j) => sum + (j.RunningJobs ?? []).length, 0);
+  const totalSchedules = jobs.reduce((sum, j) => sum + (j.Schedules ?? []).length, 0);
 
   return (
     <div className="layout">
@@ -36,12 +89,12 @@ const App: React.FC = () => {
               </span>
             </div>
             <button
-              className={`dashboard__wake-all ${allUp ? 'dashboard__wake-all--disabled' : ''}`}
-              disabled={allUp || functions.length === 0}
+              className={`dashboard__wake-all ${(allUp || wakeAllCooling) ? 'dashboard__wake-all--disabled' : ''}`}
+              disabled={allUp || functions.length === 0 || wakeAllCooling}
               onClick={wakeUpAll}
               type="button"
             >
-              ⚡ Wake Up All Functions
+              {wakeAllCooling ? '⏳ Waking up…' : '⚡ Wake Up All Functions'}
             </button>
           </div>
 
@@ -61,47 +114,15 @@ const App: React.FC = () => {
           )}
 
           {functions.length > 0 && (
-            <FunctionTable functions={functions} onWakeUp={wakeUp} />
+            <FunctionTable functions={functions} onWakeUp={wakeUp} coolingDown={coolingDown} />
           )}
         </div>
 
         {/* Jobs section */}
-        <div className="dashboard dashboard--jobs">
-          <div className="dashboard__header">
-            <h1 className="dashboard__title">Jobs Overview</h1>
-            <div className="dashboard__summary">
-              <span className="dashboard__stat">
-                <span className="dashboard__stat-icon">📋</span>
-                <strong>{jobs.length}</strong> configuration(s)
-              </span>
-              <span className="dashboard__stat">
-                <span className="dashboard__stat-icon">⚙️</span>
-                <strong>{totalRunningJobs}</strong> running
-              </span>
-              <span className="dashboard__stat">
-                <span className="dashboard__stat-icon">🗓️</span>
-                <strong>{totalSchedules}</strong> scheduled
-              </span>
-            </div>
-          </div>
-
-          {jobsLoading && <div className="dashboard__loading">Loading jobs...</div>}
-
-          {jobsError && (
-            <div className="dashboard__error">
-              <span className="dashboard__error-icon">⚠️</span>
-              Failed to fetch jobs: {jobsError}
-            </div>
-          )}
-
-          {!jobsLoading && jobs.length === 0 && !jobsError && (
-            <div className="dashboard__empty">
-              No job configurations found.
-            </div>
-          )}
-
-          {jobs.length > 0 && <JobTable jobs={jobs} />}
-        </div>
+        <ErrorBoundary>
+          <JobsSection jobs={jobs} jobsLoading={jobsLoading} jobsError={jobsError}
+            totalRunningJobs={totalRunningJobs} totalSchedules={totalSchedules} />
+        </ErrorBoundary>
       </main>
 
       <Footer />

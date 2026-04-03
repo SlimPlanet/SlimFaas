@@ -176,17 +176,25 @@
     border: none;
     border-radius: $radius-md;
     cursor: pointer;
-    transition: transform 0.12s ease, box-shadow 0.12s ease;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.2s ease;
     box-shadow: 0 2px 6px rgba($color-warning, 0.3);
     white-space: nowrap;
 
-    &:hover {
+    &:hover:not(:disabled) {
       transform: translateY(-1px);
       box-shadow: 0 4px 10px rgba($color-warning, 0.4);
     }
 
-    &:active {
+    &:active:not(:disabled) {
       transform: translateY(0);
+    }
+
+    &--cooling,
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
     }
   }
 }
