@@ -1,0 +1,112 @@
+@use './variables' as *;
+
+.dashboard {
+  &__header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: $spacing-lg;
+    margin-bottom: $spacing-xl;
+    padding: $spacing-lg;
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+  }
+
+  &__title {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: $color-text;
+    margin: 0;
+  }
+
+  &__summary {
+    display: flex;
+    gap: $spacing-lg;
+    flex-wrap: wrap;
+  }
+
+  &__stat {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-xs;
+    font-size: 0.95rem;
+    color: $color-text-light;
+    background: $color-bg;
+    padding: $spacing-xs $spacing-md;
+    border-radius: $radius-md;
+
+    strong {
+      color: $color-text;
+    }
+  }
+
+  &__stat-icon {
+    font-size: 1.1rem;
+  }
+
+  &__wake-all {
+    margin-left: auto;
+    padding: $spacing-sm $spacing-lg;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, $color-warning 0%, #ff8b00 100%);
+    border: none;
+    border-radius: $radius-md;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.2s ease;
+    box-shadow: 0 2px 8px rgba($color-warning, 0.3);
+
+    &:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba($color-warning, 0.4);
+    }
+
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    &--disabled,
+    &:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+  }
+
+  &__loading {
+    text-align: center;
+    padding: $spacing-xl;
+    font-size: 1.1rem;
+    color: $color-text-light;
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+    padding: $spacing-md $spacing-lg;
+    background: #fff3f0;
+    border: 1px solid #ffc5b8;
+    border-radius: $radius-md;
+    color: $color-danger;
+    font-size: 0.95rem;
+    margin-bottom: $spacing-lg;
+  }
+
+  &__error-icon {
+    font-size: 1.2rem;
+  }
+
+  &__empty {
+    text-align: center;
+    padding: $spacing-xl * 2;
+    color: $color-text-light;
+    font-size: 1rem;
+    background: $color-bg-card;
+    border-radius: $radius-lg;
+    box-shadow: $shadow-sm;
+  }
+}
+

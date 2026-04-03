@@ -153,6 +153,44 @@ public static class FunctionEndpointsHelpers
             functionDeploymentInformation.Visibility.ToString(),
             functionDeploymentInformation.Deployment);
     }
+
+    public static FunctionStatusDetailed MapToFunctionStatusDetailed(DeploymentInformation f)
+    {
+        int numberReady = f.Pods.Count(p => p.Ready.HasValue && p.Ready.Value);
+
+        var pods = f.Pods.Select(p =>
+        {
+            string status;
+            if (p.Ready is true)
+                status = "Running";
+            else if (!string.IsNullOrEmpty(p.StartFailureReason))
+                status = p.StartFailureReason;
+            else if (!string.IsNullOrEmpty(p.AppFailureReason))
+                status = p.AppFailureReason;
+            else if (p.Started is true)
+                status = "Starting";
+            else
+                status = "Pending";
+
+            return new PodStatus(p.Name, status, p.Ready is true, p.Ip);
+        }).ToList();
+
+        return new FunctionStatusDetailed(
+            Name: f.Deployment,
+            NumberReady: numberReady,
+            NumberRequested: f.Replicas,
+            PodType: f.PodType.ToString(),
+            Visibility: f.Visibility.ToString(),
+            ReplicasMin: f.ReplicasMin,
+            ReplicasAtStart: f.ReplicasAtStart,
+            TimeoutSecondBeforeSetReplicasMin: f.TimeoutSecondBeforeSetReplicasMin,
+            Resources: f.Resources,
+            Schedule: f.Schedule,
+            SubscribeEvents: f.SubscribeEvents,
+            PathsStartWithVisibility: f.PathsStartWithVisibility,
+            Pods: pods
+        );
+    }
 }
 
 

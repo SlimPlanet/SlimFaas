@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Endpoints;
 
@@ -21,6 +22,18 @@ public sealed class FunctionStatusCache
             // Evite ToList si tu peux (array direct)
             return deployments.Functions
                 .Select(FunctionEndpointsHelpers.MapToFunctionStatus)
+                .ToList();
+        })!;
+    }
+
+    public IReadOnlyList<FunctionStatusDetailed> GetAllDetailed(IReplicasService replicasService)
+    {
+        return _cache.GetOrCreate("status-all-detailed", entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(300);
+            var deployments = replicasService.Deployments;
+            return deployments.Functions
+                .Select(FunctionEndpointsHelpers.MapToFunctionStatusDetailed)
                 .ToList();
         })!;
     }

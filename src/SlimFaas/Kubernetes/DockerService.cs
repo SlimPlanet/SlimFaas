@@ -516,6 +516,38 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         // endpointReady = au moins un pod exposant des ports
         bool endpointReady = pods.Any(p => (p.Ports?.Count ?? 0) > 0);
 
+        // Extract resources from first container inspect
+        ResourcesConfiguration? resources = null;
+        {
+            ContainerSummary firstRunning = runningNonTemplate.FirstOrDefault() ?? first;
+            InspectContainerResponse? resInsp = await TryInspectContainerAsync(firstRunning.ID);
+            if (resInsp?.HostConfig is not null)
+            {
+                var hc = resInsp.HostConfig;
+                string? cpuLimit = null;
+                string? memLimit = null;
+                string? memReq = null;
+
+                if (hc.NanoCpus is > 0)
+                    cpuLimit = $"{hc.NanoCpus.Value / 1_000_000}m";
+                else if (hc.CpuQuota is > 0 && hc.CpuPeriod is > 0)
+                    cpuLimit = $"{hc.CpuQuota.Value * 1000 / hc.CpuPeriod.Value}m";
+
+                if (hc.Memory is > 0)
+                    memLimit = $"{hc.Memory.Value / (1024 * 1024)}Mi";
+
+                if (hc.MemoryReservation is > 0)
+                    memReq = $"{hc.MemoryReservation.Value / (1024 * 1024)}Mi";
+
+                resources = new ResourcesConfiguration(
+                    CpuRequest: cpuLimit,
+                    CpuLimit: cpuLimit,
+                    MemoryRequest: memReq ?? memLimit,
+                    MemoryLimit: memLimit
+                );
+            }
+        }
+
         DeploymentInformation di = new(
             deploymentName,
             kubeNamespace,
@@ -537,7 +569,8 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             GetPathsStartWithVisibility(labels),
             $"{replicas}-{pods.Count}-{endpointReady}",
             endpointReady,
-            ParseEnum(labels, DefaultTrust, FunctionTrust.Trusted)
+            ParseEnum(labels, DefaultTrust, FunctionTrust.Trusted),
+            Resources: resources
         );
 
         deployments.Add(di);
@@ -1902,7 +1935,17 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("Config")] Inspect_Config? Config,
         [property: JsonPropertyName("State")] Inspect_State? State,
         [property: JsonPropertyName("NetworkSettings")]
-        Inspect_NetworkSettings? NetworkSettings
+        Inspect_NetworkSettings? NetworkSettings,
+        [property: JsonPropertyName("HostConfig")]
+        Inspect_HostConfig? HostConfig = null
+    );
+
+    public record Inspect_HostConfig(
+        [property: JsonPropertyName("Memory")] long? Memory = null,
+        [property: JsonPropertyName("CpuPeriod")] long? CpuPeriod = null,
+        [property: JsonPropertyName("CpuQuota")] long? CpuQuota = null,
+        [property: JsonPropertyName("NanoCpus")] long? NanoCpus = null,
+        [property: JsonPropertyName("MemoryReservation")] long? MemoryReservation = null
     );
 
     public record Inspect_Config(
@@ -2022,6 +2065,7 @@ namespace SlimFaas.Kubernetes
     [JsonSerializable(typeof(DockerVersionResponse))]
     [JsonSerializable(typeof(List<ContainerSummary>))]
     [JsonSerializable(typeof(InspectContainerResponse))]
+    [JsonSerializable(typeof(Inspect_HostConfig))]
     [JsonSerializable(typeof(CreateContainerRequest))]
     [JsonSerializable(typeof(CreateContainerResponse))]
     [JsonSerializable(typeof(FiltersLabel))]

@@ -1,0 +1,69 @@
+import React from 'react';
+import { useFunctionStatus } from './hooks/useFunctionStatus';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
+import FunctionTable from './components/FunctionTable';
+
+const App: React.FC = () => {
+  const { functions, loading, error, wakeUp, wakeUpAll } = useFunctionStatus();
+
+  const allUp = functions.length > 0 && functions.every((f) => f.numberReady > 0);
+  const totalReady = functions.reduce((sum, f) => sum + f.numberReady, 0);
+  const totalRequested = functions.reduce((sum, f) => sum + f.numberRequested, 0);
+
+  return (
+    <div className="layout">
+      <Navbar />
+
+      <main className="layout__content">
+        <div className="dashboard">
+          <div className="dashboard__header">
+            <h1 className="dashboard__title">Infrastructure Overview</h1>
+            <div className="dashboard__summary">
+              <span className="dashboard__stat">
+                <span className="dashboard__stat-icon">📦</span>
+                <strong>{functions.length}</strong> function(s)
+              </span>
+              <span className="dashboard__stat">
+                <span className="dashboard__stat-icon">🟢</span>
+                <strong>{totalReady}</strong> / {totalRequested} pods ready
+              </span>
+            </div>
+            <button
+              className={`dashboard__wake-all ${allUp ? 'dashboard__wake-all--disabled' : ''}`}
+              disabled={allUp || functions.length === 0}
+              onClick={wakeUpAll}
+              type="button"
+            >
+              ⚡ Wake Up All Functions
+            </button>
+          </div>
+
+          {loading && <div className="dashboard__loading">Loading...</div>}
+
+          {error && (
+            <div className="dashboard__error">
+              <span className="dashboard__error-icon">⚠️</span>
+              Failed to fetch status: {error}
+            </div>
+          )}
+
+          {!loading && functions.length === 0 && !error && (
+            <div className="dashboard__empty">
+              No functions found. Deploy a function with SlimFaas annotations to see it here.
+            </div>
+          )}
+
+          {functions.length > 0 && (
+            <FunctionTable functions={functions} onWakeUp={wakeUp} />
+          )}
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+};
+
+export default App;
+

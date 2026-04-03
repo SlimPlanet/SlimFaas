@@ -29,9 +29,19 @@ public static class StatusEndpoints
 
 
     private static IResult GetAllFunctionStatuses(
+        HttpContext context,
         [FromServices] IReplicasService replicasService,
         [FromServices] FunctionStatusCache cache)
     {
+        string? level = context.Request.Query["level"].FirstOrDefault();
+
+        if (string.Equals(level, "detailed", StringComparison.OrdinalIgnoreCase))
+        {
+            var detailed = cache.GetAllDetailed(replicasService);
+            return Results.Json(detailed,
+                SlimFaas.ListFunctionStatusDetailedSerializerContext.Default.ListFunctionStatusDetailed);
+        }
+
         var statuses = cache.GetAll(replicasService);
 
         return Results.Json(statuses,
