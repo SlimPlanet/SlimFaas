@@ -132,9 +132,9 @@
   &__path {
     display: inline-flex;
     align-items: center;
-    gap: 3px;
+    gap: 4px;
     background: $color-bg;
-    padding: 2px 8px;
+    padding: 2px 6px 2px 3px;
     border-radius: 10px;
     font-size: 0.75rem;
     margin: 2px;
@@ -154,6 +154,13 @@
       background: rgba($color-public, 0.1);
       color: color.adjust($color-public, $lightness: -10%);
     }
+  }
+
+  &__path-code {
+    font-family: monospace;
+    font-size: 0.78rem;
+    color: $color-text;
+    background: none;
   }
 
   &__dep {

@@ -29,7 +29,7 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new
             <th className="function-table__th">Parallel Req</th>
             <th className="function-table__th">Schedule</th>
             <th className="function-table__th">Events</th>
-            <th className="function-table__th">Private Paths</th>
+            <th className="function-table__th">Path Visibility</th>
             <th className="function-table__th">Depends On</th>
             <th className="function-table__th">Actions</th>
           </tr>
@@ -108,8 +108,11 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new
                   <td className="function-table__td">
                     {fn.PathsStartWithVisibility?.length
                       ? fn.PathsStartWithVisibility.map((p) => (
-                          <span key={p.Path} className={`function-table__path function-table__path--${(p.Visibility ?? '').toLowerCase()}`}>
-                            {p.Path}<small>({p.Visibility ?? '-'})</small>
+                          <span key={p.Path} className="function-table__path">
+                            <span className={`function-table__badge function-table__badge--${(p.Visibility ?? '').toLowerCase()}`}>
+                              {p.Visibility ?? '-'}
+                            </span>
+                            <code className="function-table__path-code">{p.Path}</code>
                           </span>
                         ))
                       : '-'}
