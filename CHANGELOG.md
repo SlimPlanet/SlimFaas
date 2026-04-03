@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.70.1
+
+- [be514c3d](https://github.com/SlimPlanet/SlimFaas/commit/be514c3d27d8ea1a3235743bacfcaefc947af580) - chore: update all JS library versions across all package.json files (#261) (release), 2026-04-03 by *Copilot*
+
+
+## 0.70.0
+
+
+
 ## v0.70.0
 
 - [bcb14b2d](https://github.com/SlimPlanet/SlimFaas/commit/bcb14b2d9b5194bc0a65a1da54bb83206a609f8d) - feat(slimfaas): proxy least connections (#260) (release), 2026-04-02 by *Guillaume Chervet*
@@ -265,14 +274,5 @@
 ## v0.60.4
 
 - [ffe36aa8](https://github.com/SlimPlanet/SlimFaas/commit/ffe36aa8bf3fb3657d3be51c0800800170a8e78f) - fix(slimfaas): resolve dependency (release), 2026-01-23 by *Guillaume Chervet*
-
-
-## 0.60.3
-
-
-
-## v0.60.3
-
-- [2cfc20d5](https://github.com/SlimPlanet/SlimFaas/commit/2cfc20d50dbcf5d6930e0225ddeaea27b997a9ad) - fix(cpu): remove sync function retry temporaly (release), 2026-01-23 by *Guillaume Chervet*
 
 
