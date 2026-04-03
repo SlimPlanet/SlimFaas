@@ -58,13 +58,14 @@
   <!-- Build Vite/React dashboard into wwwroot -->
   <PropertyGroup>
     <ClientAppDir>ClientApp</ClientAppDir>
+    <SkipClientAppBuild Condition="'$(SkipClientAppBuild)' == ''">false</SkipClientAppBuild>
   </PropertyGroup>
 
-  <Target Name="NpmInstall" BeforeTargets="NpmBuild" Condition="!Exists('$(ClientAppDir)/node_modules')">
+  <Target Name="NpmInstall" BeforeTargets="NpmBuild" Condition="'$(SkipClientAppBuild)' != 'true' AND !Exists('$(ClientAppDir)/node_modules')">
     <Exec WorkingDirectory="$(ClientAppDir)" Command="npm install" />
   </Target>
 
-  <Target Name="NpmBuild" BeforeTargets="BeforeBuild">
+  <Target Name="NpmBuild" BeforeTargets="BeforeBuild" Condition="'$(SkipClientAppBuild)' != 'true'">
     <Exec WorkingDirectory="$(ClientAppDir)" Command="npm run build" />
   </Target>
 

@@ -1,8 +1,8 @@
 @use './variables' as *;
 
 .footer {
-  background-color: #1a1a2e;
-  color: #a0a0b8;
+  background-color: $color-primary;
+  color: #ffffff;
   padding: $spacing-xl;
   margin-top: auto;
 
@@ -37,7 +37,7 @@
 
   &__copyright {
     font-size: 0.8rem;
-    color: #6b6b80;
+    color: rgba(255, 255, 255, 0.7);
   }
 }
 
