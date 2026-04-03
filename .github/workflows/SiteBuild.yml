@@ -6,7 +6,7 @@ on:
       node_version:
         required: false
         type: string
-        default: "20"
+        default: "24"
       pnpm_version:
         required: false
         type: string

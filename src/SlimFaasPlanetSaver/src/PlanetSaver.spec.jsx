@@ -19,7 +19,7 @@ describe('PlanetSaver Component', () => {
         document.dispatchEvent(new Event('visibilitychange'));
     }
 
-    it('Should display SlimFaasPlanetSaver', async () => {
+    it('Should display SlimFaasPlanetSaver', { timeout: 40000 }, async () => {
         const handleVisibilityChange = vi.fn();
         const { unmount } = render(
             <PlanetSaver baseUrl={baseUrl} fetch={mockFetch(false)} noActivityTimeout={5000}>
@@ -56,9 +56,9 @@ describe('PlanetSaver Component', () => {
         screen.debug();
 
         unmount();
-    }, { timeout: 40000 });
+    });
 
-    it('Should display SlimFaasPlanetSaver Error', async () => {
+    it('Should display SlimFaasPlanetSaver Error', { timeout: 20000 }, async () => {
         const { unmount } = render(
             <PlanetSaver baseUrl={baseUrl} fetch={mockFetch(true, 1)} noActivityTimeout={10000}>
                 Child Component
@@ -75,12 +75,12 @@ describe('PlanetSaver Component', () => {
         screen.debug();
 
         unmount();
-    }, { timeout: 20000 });
+    });
 
     //
     // NEW TEST: checks that a function with "None" behavior does NOT block the UI
     //
-    it('Should skip blocking UI if function has behavior=None', async () => {
+    it('Should skip blocking UI if function has behavior=None', { timeout: 15000 }, async () => {
         // Suppose we only switch fibonacci2 to 'None'; the rest remain default
         // (i.e., 'WakeUp+BlockUI' if not specified).
         // We'll configure our environment so that fibonacci1 is ready, but fibonacci2 is NOT.
@@ -109,5 +109,5 @@ describe('PlanetSaver Component', () => {
         screen.debug();
 
         unmount();
-    }, { timeout: 15000 });
+    });
 });
