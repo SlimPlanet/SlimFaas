@@ -9,7 +9,8 @@
 
   &__table {
     width: 100%;
-    min-width: 900px;
+    min-width: 700px;
+    border-collapse: collapse;
   }
 
   &__head {
@@ -17,7 +18,7 @@
   }
 
   &__th {
-    padding: $spacing-md $spacing-md;
+    padding: $spacing-md;
     text-align: left;
     font-size: 0.8rem;
     font-weight: 600;
@@ -27,36 +28,20 @@
     white-space: nowrap;
   }
 
-  &__body {
-    // rows alternate
-  }
-
   &__row {
     border-bottom: 1px solid $color-border;
     transition: background-color 0.15s ease;
 
-    &:hover {
-      background-color: #f0f4ff;
-    }
+    &:hover { background-color: #f0f4ff; }
 
     &--down {
       background-color: #fffbf0;
-
-      &:hover {
-        background-color: #fff5e0;
-      }
-    }
-
-    &--up {
-      // default
+      &:hover { background-color: #fff5e0; }
     }
 
     &--pods {
       background-color: #f8f9fc;
-
-      &:hover {
-        background-color: #f8f9fc;
-      }
+      &:hover { background-color: #f8f9fc; }
     }
   }
 
@@ -64,20 +49,25 @@
     padding: $spacing-sm $spacing-md;
     font-size: 0.88rem;
     color: $color-text;
-    vertical-align: middle;
+    vertical-align: top;
 
     &--name {
       font-weight: 600;
+      white-space: nowrap;
+      vertical-align: middle;
       display: flex;
       align-items: center;
       gap: $spacing-sm;
     }
 
-    &--pods {
-      padding: $spacing-md $spacing-lg;
-    }
+    &--pods { padding: $spacing-md $spacing-lg; }
+
+    &--scale { min-width: 200px; }
+
+    &--resources { min-width: 160px; white-space: nowrap; }
   }
 
+  // ── Expand button ──────────────────────────────────────────
   &__expand-btn {
     background: none;
     border: none;
@@ -87,16 +77,33 @@
     padding: 2px 4px;
     border-radius: $radius-sm;
     transition: color 0.15s;
-
-    &:hover {
-      color: $color-primary;
-    }
+    &:hover { color: $color-primary; }
   }
 
-  &__fn-icon {
-    font-size: 0.75rem;
+  &__fn-icon { font-size: 0.75rem; }
+
+  &__fn-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
+  &__fn-type {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.70rem;
+    font-weight: 500;
+    color: $color-text-light;
+    margin-top: 1px;
+  }
+
+  &__fn-type-label {
+    font-size: 0.68rem;
+    font-style: italic;
+  }
+
+  // ── Badges ────────────────────────────────────────────────
   &__badge {
     display: inline-block;
     padding: 2px 10px;
@@ -105,64 +112,142 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.02em;
+    white-space: nowrap;
+
+    &--sm {
+      padding: 1px 7px;
+      font-size: 0.68rem;
+    }
 
     &--public {
       background-color: rgba($color-public, 0.12);
       color: color.adjust($color-public, $lightness: -10%);
     }
-
     &--private {
       background-color: rgba($color-private, 0.12);
       color: color.adjust($color-private, $lightness: -10%);
     }
+    // fallback pour valeurs numériques (e.g. Visibility: 0)
+    &--0 {
+      background-color: rgba($color-public, 0.12);
+      color: color.adjust($color-public, $lightness: -10%);
+    }
+
+    &--trusted {
+      background-color: rgba($color-success, 0.10);
+      color: color.adjust($color-success, $lightness: -12%);
+    }
+
+    &--untrusted {
+      background-color: rgba($color-danger, 0.10);
+      color: color.adjust($color-danger, $lightness: -8%);
+    }
   }
 
-  &__replicas {
+  // ── Visibility cell ────────────────────────────────────────
+  &__vis-group {
+    margin-top: $spacing-xs;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__vis-label {
+    font-size: 0.68rem;
     font-weight: 700;
-    font-size: 0.95rem;
-  }
-
-  &__replicas-info {
-    display: block;
-    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: $color-text-light;
+    margin-top: 4px;
   }
 
-  &__event,
-  &__path {
+  &__vis-item {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: $color-bg;
-    padding: 2px 6px 2px 3px;
-    border-radius: 10px;
-    font-size: 0.75rem;
-    margin: 2px;
-    white-space: nowrap;
-
-    small {
-      color: $color-text-light;
-      font-size: 0.65rem;
-    }
-
-    &--private {
-      background: rgba($color-private, 0.1);
-      color: color.adjust($color-private, $lightness: -10%);
-    }
-
-    &--public {
-      background: rgba($color-public, 0.1);
-      color: color.adjust($color-public, $lightness: -10%);
-    }
+    flex-wrap: wrap;
   }
 
   &__path-code {
     font-family: monospace;
     font-size: 0.78rem;
     color: $color-text;
-    background: none;
+    background: $color-bg;
+    padding: 1px 5px;
+    border-radius: $radius-sm;
   }
 
+  &__event-name {
+    font-size: 0.78rem;
+    color: $color-text;
+  }
+
+  // ── Scale / Resources cell ─────────────────────────────────
+  &__scale-row,
+  &__res-row {
+    display: flex;
+    align-items: baseline;
+    gap: $spacing-sm;
+    line-height: 1.7;
+  }
+
+  &__scale-row--top { align-items: flex-start; }
+
+  &__trigger-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: 3px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  &__trigger-code {
+    font-family: monospace;
+    font-size: 0.76rem;
+    color: $color-primary;
+    background: rgba($color-primary, 0.06);
+    padding: 1px 5px;
+    border-radius: $radius-sm;
+    word-break: break-all;
+  }
+
+  &__behavior-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: 3px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  &__scale-label {
+    font-size: 0.70rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $color-text-light;
+    white-space: nowrap;
+    min-width: 72px;
+  }
+
+  &__scale-val {
+    font-size: 0.85rem;
+    color: $color-text;
+    font-weight: 600;
+
+    &--mono {
+      font-family: monospace;
+      font-weight: 400;
+      font-size: 0.78rem;
+    }
+  }
+
+  &__replicas-info {
+    font-size: 0.75rem;
+    color: $color-text-light;
+    font-weight: 400;
+  }
+
+  // ── Dep tags ───────────────────────────────────────────────
   &__dep {
     display: inline-block;
     background: rgba($color-info, 0.12);
@@ -174,6 +259,7 @@
     white-space: nowrap;
   }
 
+  // ── Wake button ────────────────────────────────────────────
   &__wake-btn {
     padding: $spacing-xs $spacing-md;
     font-size: 0.85rem;
@@ -191,10 +277,7 @@
       transform: translateY(-1px);
       box-shadow: 0 4px 10px rgba($color-warning, 0.4);
     }
-
-    &:active:not(:disabled) {
-      transform: translateY(0);
-    }
+    &:active:not(:disabled) { transform: translateY(0); }
 
     &--cooling,
     &:disabled {
@@ -205,5 +288,3 @@
     }
   }
 }
-
-

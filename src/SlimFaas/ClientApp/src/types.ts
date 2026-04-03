@@ -37,12 +37,42 @@ export interface PathVisibility {
   Visibility: string;
 }
 
+export interface ScaleTrigger {
+  MetricType: string;
+  MetricName: string;
+  Query: string;
+  Threshold: number;
+}
+
+export interface ScalePolicy {
+  Type: string;
+  Value: number;
+  PeriodSeconds: number;
+}
+
+export interface ScaleDirectionBehavior {
+  StabilizationWindowSeconds: number;
+  Policies: ScalePolicy[];
+}
+
+export interface ScaleBehavior {
+  ScaleUp: ScaleDirectionBehavior;
+  ScaleDown: ScaleDirectionBehavior;
+}
+
+export interface ScaleConfig {
+  ReplicaMax: number | null;
+  Triggers: ScaleTrigger[];
+  Behavior: ScaleBehavior;
+}
+
 export interface FunctionStatusDetailed {
   Name: string;
   NumberReady: number;
   NumberRequested: number;
   PodType: string;
   Visibility: string;
+  Trust: string;
   ReplicasMin: number;
   ReplicasAtStart: number;
   TimeoutSecondBeforeSetReplicasMin: number;
@@ -50,6 +80,7 @@ export interface FunctionStatusDetailed {
   NumberParallelRequestPerPod: number;
   Resources: ResourcesConfiguration | null;
   Schedule: ScheduleConfig | null;
+  Scale: ScaleConfig | null;
   SubscribeEvents: SubscribeEvent[] | null;
   PathsStartWithVisibility: PathVisibility[] | null;
   DependsOn: string[] | null;

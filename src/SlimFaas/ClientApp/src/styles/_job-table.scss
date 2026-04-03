@@ -9,7 +9,8 @@
 
   &__table {
     width: 100%;
-    min-width: 800px;
+    min-width: 600px;
+    border-collapse: collapse;
   }
 
   &__head {
@@ -30,25 +31,16 @@
   &__row {
     border-bottom: 1px solid $color-border;
     transition: background-color 0.15s ease;
-
-    &:hover {
-      background-color: #f5f3ff;
-    }
+    &:hover { background-color: #f5f3ff; }
 
     &--active {
       background-color: #f0fdf4;
-
-      &:hover {
-        background-color: #e6fae9;
-      }
+      &:hover { background-color: #e6fae9; }
     }
 
     &--details {
       background-color: #fafbfe;
-
-      &:hover {
-        background-color: #fafbfe;
-      }
+      &:hover { background-color: #fafbfe; }
     }
   }
 
@@ -56,25 +48,23 @@
     padding: $spacing-sm $spacing-md;
     font-size: 0.88rem;
     color: $color-text;
-    vertical-align: middle;
+    vertical-align: top;
 
     &--name {
       font-weight: 600;
+      white-space: nowrap;
+      vertical-align: middle;
       display: flex;
       align-items: center;
       gap: $spacing-sm;
     }
 
-    &--mono {
-      font-family: 'Fira Code', 'Cascadia Code', Consolas, monospace;
-      font-size: 0.8rem;
-    }
-
-    &--details {
-      padding: $spacing-md $spacing-lg;
-    }
+    &--scale   { min-width: 220px; }
+    &--resources { min-width: 160px; white-space: nowrap; }
+    &--details { padding: $spacing-md $spacing-lg; }
   }
 
+  // ── Expand button ───────────────────────────────────────────
   &__expand-btn {
     background: none;
     border: none;
@@ -83,16 +73,17 @@
     color: $color-text-light;
     padding: 2px 4px;
     border-radius: $radius-sm;
-
-    &:hover {
-      color: #6c5ce7;
-    }
+    transition: color 0.15s;
+    &:hover { color: #6c5ce7; }
   }
 
-  &__fn-icon {
-    font-size: 0.85rem;
+  &__fn-name {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
+  // ── Badges ─────────────────────────────────────────────────
   &__badge {
     display: inline-block;
     padding: 2px 10px;
@@ -100,18 +91,101 @@
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
 
     &--public {
       background-color: rgba($color-public, 0.12);
       color: color.adjust($color-public, $lightness: -10%);
     }
-
     &--private {
       background-color: rgba($color-private, 0.12);
       color: color.adjust($color-private, $lightness: -10%);
     }
   }
 
+  // ── Visibility cell ─────────────────────────────────────────
+  &__vis-group {
+    margin-top: $spacing-xs;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  &__vis-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: $color-text-light;
+    margin-top: 4px;
+  }
+
+  &__image-code {
+    display: inline-block;
+    font-family: monospace;
+    font-size: 0.75rem;
+    color: #4a3db5;
+    background: rgba(#6c5ce7, 0.07);
+    padding: 1px 6px;
+    border-radius: $radius-sm;
+    word-break: break-all;
+  }
+
+  // ── Scale / Resources cell ──────────────────────────────────
+  &__scale-row {
+    display: flex;
+    align-items: baseline;
+    gap: $spacing-sm;
+    line-height: 1.7;
+
+    &--top { align-items: flex-start; }
+  }
+
+  &__scale-label {
+    font-size: 0.70rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $color-text-light;
+    white-space: nowrap;
+    min-width: 72px;
+  }
+
+  &__scale-val {
+    font-size: 0.85rem;
+    color: $color-text;
+    font-weight: 600;
+
+    &--running {
+      color: $color-success;
+    }
+  }
+
+  &__scale-info {
+    font-size: 0.75rem;
+    color: $color-text-light;
+    font-weight: 400;
+  }
+
+  &__schedule-item {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    margin-bottom: 4px;
+    &:last-child { margin-bottom: 0; }
+  }
+
+  &__cron {
+    font-family: monospace;
+    font-size: 0.78rem;
+    background: rgba(#6c5ce7, 0.07);
+    color: #4a3db5;
+    padding: 1px 6px;
+    border-radius: $radius-sm;
+  }
+
+  // ── Dep tags ────────────────────────────────────────────────
   &__dep {
     display: inline-block;
     background: rgba($color-info, 0.12);
@@ -120,33 +194,11 @@
     border-radius: 10px;
     font-size: 0.75rem;
     margin: 2px;
+    white-space: nowrap;
   }
 
-  &__schedule-count {
-    font-weight: 600;
-    font-size: 0.88rem;
-  }
-
-  &__running-count {
-    font-weight: 700;
-    color: $color-success;
-    font-size: 0.88rem;
-  }
-
-  &__idle {
-    color: $color-text-light;
-    font-style: italic;
-    font-size: 0.85rem;
-  }
-
-  // Expanded details
-  &__section {
-    margin-bottom: $spacing-lg;
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-  }
+  // ── Expanded running jobs ───────────────────────────────────
+  &__section { margin-bottom: $spacing-lg; &:last-child { margin-bottom: 0; } }
 
   &__section-title {
     font-size: 0.9rem;
@@ -159,6 +211,7 @@
     width: 100%;
     border: 1px solid $color-border;
     border-radius: $radius-sm;
+    border-collapse: collapse;
     overflow: hidden;
 
     th {
@@ -176,27 +229,6 @@
       font-size: 0.82rem;
       border-top: 1px solid $color-border;
     }
-
-    code {
-      background: #f3f4f6;
-      padding: 1px 6px;
-      border-radius: 3px;
-      font-size: 0.78rem;
-      color: #6c5ce7;
-    }
-  }
-
-  &__time-until {
-    font-size: 0.75rem;
-    color: $color-text-light;
-    font-style: italic;
-  }
-
-  &__job-status {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.82rem;
   }
 
   &__empty {
@@ -205,21 +237,4 @@
     font-size: 0.85rem;
     padding: $spacing-sm 0;
   }
-
-  &__image-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: $spacing-xs;
-  }
-
-  &__image-tag {
-    display: inline-block;
-    background: rgba(#6c5ce7, 0.08);
-    color: #6c5ce7;
-    padding: 2px 10px;
-    border-radius: 10px;
-    font-family: 'Fira Code', Consolas, monospace;
-    font-size: 0.75rem;
-  }
 }
-
