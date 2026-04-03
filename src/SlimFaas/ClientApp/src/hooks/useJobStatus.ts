@@ -14,7 +14,7 @@ export function useJobStatus() {
     if (isFetching.current) return;
     isFetching.current = true;
     try {
-      const res = await fetch('/status-jobs');
+      const res = await fetch('/jobs/status');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: JobConfigurationStatus[] = await res.json();
       setJobs(data);

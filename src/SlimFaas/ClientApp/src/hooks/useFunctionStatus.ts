@@ -51,8 +51,8 @@ export function useFunctionStatus() {
   }, [fetchStatus]);
 
   const wakeUpAll = useCallback(async () => {
-    const sleeping = functions.filter((f) => f.NumberReady === 0);
-    await Promise.all(sleeping.map((f) => fetch(`/wake-function/${f.Name}`, { method: 'POST' })));
+    const sleeping = functions.filter((f) => f.numberReady === 0);
+    await Promise.all(sleeping.map((f) => fetch(`/wake-function/${f.name}`, { method: 'POST' })));
     await fetchStatus();
   }, [functions, fetchStatus]);
 

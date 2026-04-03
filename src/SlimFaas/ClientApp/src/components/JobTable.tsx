@@ -32,36 +32,36 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
         </thead>
         <tbody className="job-table__body">
           {jobs.map((job) => {
-            const isExpanded = expanded[job.Name] ?? false;
-            const runningCount = (job.RunningJobs ?? []).length;
-            const schedulesCount = (job.Schedules ?? []).length;
+            const isExpanded = expanded[job.name] ?? false;
+            const runningCount = (job.runningJobs ?? []).length;
+            const schedulesCount = (job.schedules ?? []).length;
 
             return (
-              <React.Fragment key={job.Name}>
+              <React.Fragment key={job.name}>
                 <tr className="job-table__row">
                   <td className="job-table__td job-table__td--name">
                     <button
                       className="job-table__expand-btn"
-                      onClick={() => toggle(job.Name)}
+                      onClick={() => toggle(job.name)}
                       title="Show details"
                       type="button"
                     >
                       {isExpanded ? '▾' : '▸'}
                     </button>
                     <span className="job-table__icon">📋</span>
-                    {job.Name}
+                    {job.name}
                   </td>
                   <td className="job-table__td">
                     <span
-                      className={`job-table__badge job-table__badge--${(job.Visibility ?? '').toLowerCase()}`}
+                      className={`job-table__badge job-table__badge--${(job.visibility ?? '').toLowerCase()}`}
                     >
-                      {job.Visibility ?? '-'}
+                      {job.visibility ?? '-'}
                     </span>
                   </td>
                   <td className="job-table__td job-table__td--image">
-                    {job.Image ?? '-'}
+                    {job.image ?? '-'}
                   </td>
-                  <td className="job-table__td">{job.NumberParallelJob}</td>
+                  <td className="job-table__td">{job.numberParallelJob}</td>
                   <td className="job-table__td">
                     <span
                       className={`job-table__running ${runningCount > 0 ? 'job-table__running--active' : ''}`}
@@ -71,8 +71,8 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
                   </td>
                   <td className="job-table__td">{schedulesCount}</td>
                   <td className="job-table__td">
-                    {job.DependsOn?.length
-                      ? job.DependsOn.map((dep) => (
+                    {job.dependsOn?.length
+                      ? job.dependsOn.map((dep) => (
                           <span key={dep} className="job-table__dep">
                             {dep}
                           </span>
@@ -101,13 +101,13 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {(job.RunningJobs ?? []).map((rj) => (
-                                  <tr key={rj.ElementId}>
-                                    <td>{rj.Name}</td>
-                                    <td>{rj.Status}</td>
-                                    <td>{rj.ElementId}</td>
-                                    <td>{formatTimestamp(rj.InQueueTimestamp)}</td>
-                                    <td>{formatTimestamp(rj.StartTimestamp)}</td>
+                                {(job.runningJobs ?? []).map((rj) => (
+                                  <tr key={rj.elementId}>
+                                    <td>{rj.name}</td>
+                                    <td>{rj.status}</td>
+                                    <td>{rj.elementId}</td>
+                                    <td>{formatTimestamp(rj.inQueueTimestamp)}</td>
+                                    <td>{formatTimestamp(rj.startTimestamp)}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -131,14 +131,14 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
                                 </tr>
                               </thead>
                               <tbody>
-                                {(job.Schedules ?? []).map((s) => (
-                                  <tr key={s.Id}>
-                                    <td>{s.Id}</td>
+                                {(job.schedules ?? []).map((s) => (
+                                  <tr key={s.id}>
+                                    <td>{s.id}</td>
                                     <td>
-                                      <code>{s.Schedule}</code>
+                                      <code>{s.schedule}</code>
                                     </td>
-                                    <td>{s.Image ?? '-'}</td>
-                                    <td>{formatTimestamp(s.NextExecutionTimestamp)}</td>
+                                    <td>{s.image ?? '-'}</td>
+                                    <td>{formatTimestamp(s.nextExecutionTimestamp)}</td>
                                   </tr>
                                 ))}
                               </tbody>

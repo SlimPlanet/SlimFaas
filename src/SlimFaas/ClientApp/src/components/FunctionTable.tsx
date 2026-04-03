@@ -35,18 +35,18 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
         </thead>
         <tbody className="function-table__body">
           {functions.map((fn) => {
-            const isDown = fn.NumberReady === 0;
-            const isExpanded = expanded[fn.Name] ?? false;
+            const isDown = fn.numberReady === 0;
+            const isExpanded = expanded[fn.name] ?? false;
 
             return (
-              <React.Fragment key={fn.Name}>
+              <React.Fragment key={fn.name}>
                 <tr
                   className={`function-table__row ${isDown ? 'function-table__row--down' : 'function-table__row--up'}`}
                 >
                   <td className="function-table__td function-table__td--name">
                     <button
                       className="function-table__expand-btn"
-                      onClick={() => toggle(fn.Name)}
+                      onClick={() => toggle(fn.name)}
                       title="Show pods"
                       type="button"
                     >
@@ -55,79 +55,79 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                     <span className="function-table__fn-icon">
                       {isDown ? '🔴' : '🟢'}
                     </span>
-                    {fn.Name}
+                    {fn.name}
                   </td>
                   <td className="function-table__td">
                     <span
-                      className={`function-table__badge function-table__badge--${(fn.Visibility ?? '').toLowerCase()}`}
+                      className={`function-table__badge function-table__badge--${(fn.visibility ?? '').toLowerCase()}`}
                     >
-                      {fn.Visibility ?? '-'}
+                      {fn.visibility ?? '-'}
                     </span>
                   </td>
-                  <td className="function-table__td">{fn.PodType}</td>
+                  <td className="function-table__td">{fn.podType}</td>
                   <td className="function-table__td">
                     <span className="function-table__replicas">
-                      {fn.NumberReady} / {fn.NumberRequested}
+                      {fn.numberReady} / {fn.numberRequested}
                     </span>
                     <span className="function-table__replicas-info">
-                      (min: {fn.ReplicasMin}, start: {fn.ReplicasAtStart})
+                      (min: {fn.replicasMin}, start: {fn.replicasAtStart})
                     </span>
                   </td>
                   <td className="function-table__td">
-                    {fn.Resources
-                      ? `${fn.Resources.CpuRequest ?? '-'} / ${fn.Resources.CpuLimit ?? '-'}`
+                    {fn.resources
+                      ? `${fn.resources.cpuRequest ?? '-'} / ${fn.resources.cpuLimit ?? '-'}`
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.Resources
-                      ? `${fn.Resources.MemoryRequest ?? '-'} / ${fn.Resources.MemoryLimit ?? '-'}`
+                    {fn.resources
+                      ? `${fn.resources.memoryRequest ?? '-'} / ${fn.resources.memoryLimit ?? '-'}`
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.TimeoutSecondBeforeSetReplicasMin}s
+                    {fn.timeoutSecondBeforeSetReplicasMin}s
                   </td>
                   <td className="function-table__td">
                     <span className="function-table__replicas">
-                      {fn.NumberParallelRequest}
+                      {fn.numberParallelRequest}
                     </span>
                     <span className="function-table__replicas-info">
-                      ({fn.NumberParallelRequestPerPod}/pod)
+                      ({fn.numberParallelRequestPerPod}/pod)
                     </span>
                   </td>
                   <td className="function-table__td">
-                    {fn.Schedule?.Default?.WakeUp?.length
-                      ? fn.Schedule.Default.WakeUp.join(', ')
+                    {fn.schedule?.default?.wakeUp?.length
+                      ? fn.schedule.default.wakeUp.join(', ')
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.SubscribeEvents?.length
-                      ? fn.SubscribeEvents.map((e) => (
+                    {fn.subscribeEvents?.length
+                      ? fn.subscribeEvents.map((e) => (
                           <span
-                            key={e.Name}
-                            className={`function-table__event function-table__event--${(e.Visibility ?? '').toLowerCase()}`}
+                            key={e.name}
+                            className={`function-table__event function-table__event--${(e.visibility ?? '').toLowerCase()}`}
                           >
-                            {e.Name}
-                            <small>({e.Visibility ?? '-'})</small>
+                            {e.name}
+                            <small>({e.visibility ?? '-'})</small>
                           </span>
                         ))
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.PathsStartWithVisibility?.length
-                      ? fn.PathsStartWithVisibility.map((p) => (
+                    {fn.pathsStartWithVisibility?.length
+                      ? fn.pathsStartWithVisibility.map((p) => (
                           <span
-                            key={p.Path}
-                            className={`function-table__path function-table__path--${(p.Visibility ?? '').toLowerCase()}`}
+                            key={p.path}
+                            className={`function-table__path function-table__path--${(p.visibility ?? '').toLowerCase()}`}
                           >
-                            {p.Path}
-                            <small>({p.Visibility ?? '-'})</small>
+                            {p.path}
+                            <small>({p.visibility ?? '-'})</small>
                           </span>
                         ))
                       : '-'}
                   </td>
                   <td className="function-table__td">
-                    {fn.DependsOn?.length
-                      ? fn.DependsOn.map((dep) => (
+                    {fn.dependsOn?.length
+                      ? fn.dependsOn.map((dep) => (
                           <span key={dep} className="function-table__dep">
                             {dep}
                           </span>
@@ -138,7 +138,7 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                     {isDown && (
                       <button
                         className="function-table__wake-btn"
-                        onClick={() => onWakeUp(fn.Name)}
+                        onClick={() => onWakeUp(fn.name)}
                         type="button"
                       >
                         ⚡ Wake Up
@@ -152,7 +152,7 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp }) => {
                       className="function-table__td function-table__td--pods"
                       colSpan={13}
                     >
-                      <PodStatusList pods={fn.Pods} />
+                      <PodStatusList pods={fn.pods} />
                     </td>
                   </tr>
                 )}
