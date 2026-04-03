@@ -38,11 +38,6 @@
       background-color: #fffbf0;
       &:hover { background-color: #fff5e0; }
     }
-
-    &--pods {
-      background-color: #f8f9fc;
-      &:hover { background-color: #f8f9fc; }
-    }
   }
 
   &__td {
@@ -65,19 +60,11 @@
     &--scale { min-width: 200px; }
 
     &--resources { min-width: 160px; white-space: nowrap; }
-  }
 
-  // ── Expand button ──────────────────────────────────────────
-  &__expand-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    color: $color-text-light;
-    padding: 2px 4px;
-    border-radius: $radius-sm;
-    transition: color 0.15s;
-    &:hover { color: $color-primary; }
+    &--replicas {
+      min-width: 180px;
+      vertical-align: middle;
+    }
   }
 
   &__fn-icon { font-size: 0.75rem; }
@@ -101,6 +88,29 @@
   &__fn-type-label {
     font-size: 0.68rem;
     font-style: italic;
+  }
+
+  &__fn-urls {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+  }
+
+  &__url {
+    font-family: monospace;
+    font-size: 0.72rem;
+    font-weight: 400;
+    padding: 2px 6px;
+    border-radius: $radius-sm;
+    background: rgba($color-success, 0.10);
+    color: color.adjust($color-success, $lightness: -12%);
+    white-space: nowrap;
+
+    &--async {
+      background: rgba($color-info, 0.10);
+      color: color.adjust($color-info, $lightness: -12%);
+    }
   }
 
   // ── Badges ────────────────────────────────────────────────
@@ -203,7 +213,7 @@
 
   &__trigger-code {
     font-family: monospace;
-    font-size: 0.76rem;
+    font-size: 0.70rem;
     color: $color-primary;
     background: rgba($color-primary, 0.06);
     padding: 1px 5px;
@@ -220,7 +230,7 @@
   }
 
   &__scale-label {
-    font-size: 0.70rem;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -230,19 +240,19 @@
   }
 
   &__scale-val {
-    font-size: 0.85rem;
+    font-size: 0.78rem;
     color: $color-text;
     font-weight: 600;
 
     &--mono {
       font-family: monospace;
       font-weight: 400;
-      font-size: 0.78rem;
+      font-size: 0.72rem;
     }
   }
 
   &__replicas-info {
-    font-size: 0.75rem;
+    font-size: 0.68rem;
     color: $color-text-light;
     font-weight: 400;
   }

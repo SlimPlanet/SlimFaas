@@ -1,4 +1,5 @@
 import React from 'react';
+import 'react-tooltip/dist/react-tooltip.css';
 import { useFunctionStatus } from './hooks/useFunctionStatus';
 import { useJobStatus } from './hooks/useJobStatus';
 import Navbar from './components/Navbar';

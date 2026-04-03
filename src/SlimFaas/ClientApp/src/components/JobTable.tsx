@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import type { JobConfigurationStatus } from '../types';
+import Tip from './Tip';
+import { JOB } from '../tooltips';
 
 interface Props {
   jobs: JobConfigurationStatus[];
@@ -11,10 +13,6 @@ function formatTimestamp(ts: number | null | undefined): string {
 }
 
 const JobTable: React.FC<Props> = ({ jobs }) => {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const toggle = (name: string) =>
-    setExpanded((prev) => ({ ...prev, [name]: !prev[name] }));
-
   return (
     <div className="job-table">
       <table className="job-table__table">
@@ -28,8 +26,8 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
         </thead>
         <tbody className="job-table__body">
           {jobs.map((job) => {
-            const isExpanded = expanded[job.Name] ?? false;
-            const runningCount = (job.RunningJobs ?? []).length;
+            const runningJobs = job.RunningJobs ?? [];
+            const runningCount = runningJobs.length;
             const schedules = job.Schedules ?? [];
 
             return (
@@ -38,33 +36,27 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
 
                   {/* ── Name ── */}
                   <td className="job-table__td job-table__td--name">
-                    <button
-                      className="job-table__expand-btn"
-                      onClick={() => toggle(job.Name)}
-                      title="Show running jobs"
-                      type="button"
-                    >
-                      {isExpanded ? '▾' : '▸'}
-                    </button>
                     <span className="job-table__fn-name">
-                      <span>📋 {job.Name}</span>
+                      <Tip text={JOB.name}><span>📋 {job.Name}</span></Tip>
                     </span>
                   </td>
 
                   {/* ── Visibility + Image ── */}
                   <td className="job-table__td">
-                    <span className={`job-table__badge job-table__badge--${(job.Visibility ?? '').toLowerCase()}`}>
-                      {job.Visibility ?? '-'}
-                    </span>
+                    <Tip text={JOB.visibility}>
+                      <span className={`job-table__badge job-table__badge--${(job.Visibility ?? '').toLowerCase()}`}>
+                        {job.Visibility ?? '-'}
+                      </span>
+                    </Tip>
                     {job.Image ? (
                       <div className="job-table__vis-group">
-                        <span className="job-table__vis-label">Image</span>
+                        <Tip text={JOB.image}><span className="job-table__vis-label">Image</span></Tip>
                         <code className="job-table__image-code">{job.Image}</code>
                       </div>
                     ) : null}
                     {job.ImagesWhitelist?.length ? (
                       <div className="job-table__vis-group">
-                        <span className="job-table__vis-label">Whitelist</span>
+                        <Tip text={JOB.whitelist}><span className="job-table__vis-label">Whitelist</span></Tip>
                         {job.ImagesWhitelist.map((img) => (
                           <code key={img} className="job-table__image-code">{img}</code>
                         ))}
@@ -72,43 +64,37 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
                     ) : null}
                   </td>
 
-                  {/* ── Scale : parallel + schedules + depends on + running ── */}
+                  {/* ── Scale ── */}
                   <td className="job-table__td job-table__td--scale">
-                    {/* Parallel */}
                     <div className="job-table__scale-row">
-                      <span className="job-table__scale-label">Parallel</span>
+                      <Tip text={JOB.parallel}><span className="job-table__scale-label">Parallel</span></Tip>
                       <span className="job-table__scale-val">{job.NumberParallelJob}</span>
                     </div>
 
-                    {/* Running jobs */}
                     <div className="job-table__scale-row">
-                      <span className="job-table__scale-label">Running</span>
+                      <Tip text={JOB.running}><span className="job-table__scale-label">Running</span></Tip>
                       <span className={`job-table__scale-val${runningCount > 0 ? ' job-table__scale-val--running' : ''}`}>
                         {runningCount > 0 ? `${runningCount} job${runningCount > 1 ? 's' : ''}` : 'Idle'}
                       </span>
                     </div>
 
-                    {/* Schedules */}
                     {schedules.length > 0 ? (
                       <div className="job-table__scale-row job-table__scale-row--top">
-                        <span className="job-table__scale-label">Schedules</span>
+                        <Tip text={JOB.schedules}><span className="job-table__scale-label">Schedules</span></Tip>
                         <span className="job-table__scale-val">
                           {schedules.map((s) => (
                             <span key={s.Id} className="job-table__schedule-item">
                               <code className="job-table__cron">{s.Schedule}</code>
-                              <span className="job-table__scale-info">
-                                next: {formatTimestamp(s.NextExecutionTimestamp)}
-                              </span>
+                              <span className="job-table__scale-info">next: {formatTimestamp(s.NextExecutionTimestamp)}</span>
                             </span>
                           ))}
                         </span>
                       </div>
                     ) : null}
 
-                    {/* Depends on */}
                     {job.DependsOn?.length ? (
                       <div className="job-table__scale-row">
-                        <span className="job-table__scale-label">Depends&nbsp;on</span>
+                        <Tip text={JOB.dependsOn}><span className="job-table__scale-label">Depends&nbsp;on</span></Tip>
                         <span className="job-table__scale-val">
                           {job.DependsOn.map((dep) => (
                             <span key={dep} className="job-table__dep">{dep}</span>
@@ -123,13 +109,13 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
                     {job.Resources ? (
                       <>
                         <div className="job-table__scale-row">
-                          <span className="job-table__scale-label">CPU</span>
+                          <Tip text={JOB.cpuResources}><span className="job-table__scale-label">CPU</span></Tip>
                           <span className="job-table__scale-val">
                             {job.Resources.Requests?.['cpu'] ?? '-'}&nbsp;/&nbsp;{job.Resources.Limits?.['cpu'] ?? '-'}
                           </span>
                         </div>
                         <div className="job-table__scale-row">
-                          <span className="job-table__scale-label">Mem</span>
+                          <Tip text={JOB.memResources}><span className="job-table__scale-label">Mem</span></Tip>
                           <span className="job-table__scale-val">
                             {job.Resources.Requests?.['memory'] ?? '-'}&nbsp;/&nbsp;{job.Resources.Limits?.['memory'] ?? '-'}
                           </span>
@@ -141,36 +127,26 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
                   </td>
                 </tr>
 
-                {/* ── Expanded: running jobs detail ── */}
-                {isExpanded && runningCount > 0 && (
+                {/* ── Running jobs always visible ── */}
+                {runningCount > 0 && (
                   <tr className="job-table__row job-table__row--details">
                     <td className="job-table__td job-table__td--details" colSpan={4}>
-                      <div className="job-table__section">
-                        <h4 className="job-table__section-title">⚙️ Running Jobs ({runningCount})</h4>
-                        <table className="job-table__sub-table">
-                          <thead>
-                            <tr><th>Name</th><th>Status</th><th>Element</th><th>Queued</th><th>Started</th></tr>
-                          </thead>
-                          <tbody>
-                            {(job.RunningJobs ?? []).map((rj) => (
-                              <tr key={rj.ElementId}>
-                                <td>{rj.Name}</td>
-                                <td>{rj.Status}</td>
-                                <td>{rj.ElementId}</td>
-                                <td>{formatTimestamp(rj.InQueueTimestamp)}</td>
-                                <td>{formatTimestamp(rj.StartTimestamp)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-                {isExpanded && runningCount === 0 && (
-                  <tr className="job-table__row job-table__row--details">
-                    <td className="job-table__td job-table__td--details" colSpan={4}>
-                      <span className="job-table__empty">No running jobs.</span>
+                      <table className="job-table__sub-table">
+                        <thead>
+                          <tr><th>Name</th><th>Status</th><th>Element</th><th>Queued</th><th>Started</th></tr>
+                        </thead>
+                        <tbody>
+                          {runningJobs.map((rj) => (
+                            <tr key={rj.ElementId}>
+                              <td>{rj.Name}</td>
+                              <td>{rj.Status}</td>
+                              <td>{rj.ElementId}</td>
+                              <td>{formatTimestamp(rj.InQueueTimestamp)}</td>
+                              <td>{formatTimestamp(rj.StartTimestamp)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </td>
                   </tr>
                 )}

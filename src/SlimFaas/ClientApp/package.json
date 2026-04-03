@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "react-tooltip": "^5.30.0"
   },
   "devDependencies": {
     "@storybook/addon-essentials": "^8.6.14",
