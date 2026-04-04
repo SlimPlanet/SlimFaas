@@ -11,7 +11,7 @@ namespace SlimFaas.Endpoints;
 /// </summary>
 public record NetworkActivityEvent(
     string Id,
-    string Type,          // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish"
+    string Type,          // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish", "request_waiting", "request_started", "request_end"
     string Source,        // e.g. "external", function name, "slimfaas"
     string Target,        // e.g. "slimfaas", function name, "external"
     string? QueueName,    // the queue name if relevant
@@ -68,7 +68,7 @@ public sealed class NetworkActivityTracker
     private const int MaxKnownIds = 1000;
 
     /// <summary>Record a local activity event and broadcast to all SSE subscribers.</summary>
-    public void Record(string type, string source, string target, string? queueName = null)
+    public string Record(string type, string source, string target, string? queueName = null)
     {
         var evt = new NetworkActivityEvent(
             Id: $"{NodeId}-{Interlocked.Increment(ref _counter)}",
@@ -80,6 +80,7 @@ public sealed class NetworkActivityTracker
             NodeId: NodeId);
 
         Enqueue(evt);
+        return evt.Id;
     }
 
     /// <summary>

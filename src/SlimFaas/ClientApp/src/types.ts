@@ -93,7 +93,7 @@ export interface FunctionStatusDetailed {
 
 export interface NetworkActivityEvent {
   Id: string;
-  Type: string; // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish"
+  Type: string; // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish", "request_waiting", "request_started", "request_end"
   Source: string;
   Target: string;
   QueueName: string | null;

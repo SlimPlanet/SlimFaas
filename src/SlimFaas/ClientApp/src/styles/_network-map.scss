@@ -16,15 +16,22 @@
 
   &__svg {
     width: 100%;
-    max-height: 560px;
+    height: 500px;
     border-radius: $radius-md;
     border: 1px solid $color-border;
+    cursor: grab;
+    user-select: none;
+    touch-action: none;   // let d3-zoom handle touch
+
+    &:active {
+      cursor: grabbing;
+    }
   }
 
   &__legend {
     display: flex;
     flex-wrap: wrap;
-    gap: $spacing-sm $spacing-md;
+    gap: $spacing-xs $spacing-sm;
     margin-top: $spacing-md;
     padding-top: $spacing-sm;
     border-top: 1px solid $color-border;
@@ -34,8 +41,9 @@
     display: inline-flex;
     align-items: center;
     gap: $spacing-xs;
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     color: $color-text-light;
+    white-space: nowrap;
   }
 
   &__legend-dot {

@@ -127,23 +127,32 @@ export const LiveAnimation: Story = {
         counter++;
         const targetFn = fnNames[counter % fnNames.length];
 
-        // Alternate between different event types to showcase the queue flow
+        // Alternate between different event types to showcase all flows
         let type: string;
-        if (counter % 5 === 0) {
+        const mod = counter % 8;
+        if (mod === 0) {
           type = 'request_in';
-        } else if (counter % 5 === 1) {
+        } else if (mod === 1) {
           type = 'enqueue';
           qLens[targetFn] = (qLens[targetFn] || 0) + 1;
-        } else if (counter % 5 === 2) {
+        } else if (mod === 2) {
           type = 'dequeue';
           qLens[targetFn] = Math.max(0, (qLens[targetFn] || 0) - 1);
-        } else if (counter % 5 === 3) {
+        } else if (mod === 3) {
           type = 'request_out';
-        } else {
+        } else if (mod === 4) {
           type = 'event_publish';
+        } else if (mod === 5) {
+          type = 'request_waiting';
+        } else if (mod === 6) {
+          type = 'request_started';
+        } else {
+          type = 'request_end';
         }
 
-        const source = type === 'request_in' ? 'external' : 'slimfaas';
+        const source = type === 'request_in' ? 'external'
+          : type === 'request_end' ? targetFn
+          : 'slimfaas';
         const target = type === 'request_in' ? 'slimfaas' : targetFn;
 
         // Track queue activity
@@ -174,5 +183,3 @@ export const LiveAnimation: Story = {
     return <NetworkMap functions={FUNCTIONS} queues={dynamicQueues} activity={act} functionsWithQueueActivity={liveQueueFns} />;
   },
 };
-
-
