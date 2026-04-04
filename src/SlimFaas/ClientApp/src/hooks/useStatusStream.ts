@@ -11,6 +11,7 @@ export function useStatusStream() {
   const [error, setError] = useState<string | null>(null);
   const [coolingDown, setCoolingDown] = useState<Set<string>>(new Set());
   const [wakeAllCooling, setWakeAllCooling] = useState(false);
+  const [functionsWithQueueActivity, setFunctionsWithQueueActivity] = useState<Set<string>>(new Set());
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -31,6 +32,26 @@ export function useStatusStream() {
         setActivity(payload.RecentActivity ?? []);
         setError(null);
         setLoading(false);
+
+        // Detect functions that have queue activity from initial recent activity or non-zero queue length
+        const queueFns = new Set<string>();
+        for (const evt of (payload.RecentActivity ?? [])) {
+          if (evt.Type === 'enqueue' || evt.Type === 'dequeue') {
+            queueFns.add(evt.Target);
+          }
+        }
+        for (const q of (payload.Queues ?? [])) {
+          if (q.Length > 0) {
+            queueFns.add(q.Name);
+          }
+        }
+        if (queueFns.size > 0) {
+          setFunctionsWithQueueActivity(prev => {
+            const next = new Set(prev);
+            queueFns.forEach(name => next.add(name));
+            return next.size !== prev.size ? next : prev;
+          });
+        }
       } catch {
         // ignore parse errors
       }
@@ -44,6 +65,15 @@ export function useStatusStream() {
           // Keep only the last 200 events
           return next.length > 200 ? next.slice(-200) : next;
         });
+        // Track queue activity
+        if (evt.Type === 'enqueue' || evt.Type === 'dequeue') {
+          setFunctionsWithQueueActivity(prev => {
+            if (prev.has(evt.Target)) return prev;
+            const next = new Set(prev);
+            next.add(evt.Target);
+            return next;
+          });
+        }
       } catch {
         // ignore
       }
@@ -108,7 +138,11 @@ export function useStatusStream() {
     wakeUpAll,
     coolingDown,
     wakeAllCooling,
+    functionsWithQueueActivity,
   };
 }
+
+
+
 
 

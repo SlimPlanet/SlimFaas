@@ -79,6 +79,14 @@ const ACTIVITY: NetworkActivityEvent[] = [
   { Id: 'evt-6', Type: 'event_publish', Source: 'slimfaas', Target: 'ws-handler', QueueName: null, TimestampMs: now - 500, NodeId: 'slimfaas-1' },
 ];
 
+// Set of functions that have had queue activity (based on ACTIVITY events and non-zero queue lengths)
+const FUNCTIONS_WITH_QUEUE_ACTIVITY = new Set(
+  [
+    ...ACTIVITY.filter(e => e.Type === 'enqueue' || e.Type === 'dequeue').map(e => e.Target),
+    ...QUEUES.filter(q => q.Length > 0).map(q => q.Name),
+  ]
+);
+
 const meta: Meta<typeof NetworkMap> = {
   title: 'Dashboard/NetworkMap',
   component: NetworkMap,
@@ -90,17 +98,17 @@ type Story = StoryObj<typeof NetworkMap>;
 
 export const Default: Story = {
   name: 'With functions, queues and activity',
-  args: { functions: FUNCTIONS, queues: QUEUES, activity: ACTIVITY },
+  args: { functions: FUNCTIONS, queues: QUEUES, activity: ACTIVITY, functionsWithQueueActivity: FUNCTIONS_WITH_QUEUE_ACTIVITY },
 };
 
 export const NoActivity: Story = {
   name: 'No recent activity',
-  args: { functions: FUNCTIONS, queues: QUEUES, activity: [] },
+  args: { functions: FUNCTIONS, queues: QUEUES, activity: [], functionsWithQueueActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)) },
 };
 
 export const Empty: Story = {
   name: 'No functions',
-  args: { functions: [], queues: [], activity: [] },
+  args: { functions: [], queues: [], activity: [], functionsWithQueueActivity: new Set<string>() },
 };
 
 // Story with animated messages spawning over time — demonstrates enqueue/dequeue flows
@@ -109,6 +117,7 @@ export const LiveAnimation: Story = {
   render: () => {
     const [act, setAct] = React.useState<NetworkActivityEvent[]>([]);
     const [dynamicQueues, setDynamicQueues] = React.useState<QueueInfo[]>(QUEUES);
+    const [liveQueueFns, setLiveQueueFns] = React.useState<Set<string>>(new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)));
     React.useEffect(() => {
       let counter = 100;
       const fnNames = ['fibonacci1', 'fibonacci2', 'kafka', 'mysql', 'ws-handler'];
@@ -137,6 +146,16 @@ export const LiveAnimation: Story = {
         const source = type === 'request_in' ? 'external' : 'slimfaas';
         const target = type === 'request_in' ? 'slimfaas' : targetFn;
 
+        // Track queue activity
+        if (type === 'enqueue' || type === 'dequeue') {
+          setLiveQueueFns(prev => {
+            if (prev.has(targetFn)) return prev;
+            const next = new Set(prev);
+            next.add(targetFn);
+            return next;
+          });
+        }
+
         setAct(prev => [...prev.slice(-50), {
           Id: `live-${counter}`,
           Type: type,
@@ -152,6 +171,8 @@ export const LiveAnimation: Story = {
       }, 800);
       return () => clearInterval(timer);
     }, []);
-    return <NetworkMap functions={FUNCTIONS} queues={dynamicQueues} activity={act} />;
+    return <NetworkMap functions={FUNCTIONS} queues={dynamicQueues} activity={act} functionsWithQueueActivity={liveQueueFns} />;
   },
 };
+
+

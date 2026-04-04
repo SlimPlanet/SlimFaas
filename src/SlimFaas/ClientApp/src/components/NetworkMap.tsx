@@ -6,6 +6,7 @@ interface Props {
   functions: FunctionStatusDetailed[];
   queues: QueueInfo[];
   activity: NetworkActivityEvent[];
+  functionsWithQueueActivity: Set<string>;
 }
 
 // Generate a deterministic color from a name
@@ -63,7 +64,7 @@ const EXTERNAL_OUT_Y = 0.22;
 const QUEUE_W = 0.07;
 const QUEUE_H_REL = 22; // px height of queue box
 
-const NetworkMap: React.FC<Props> = ({ functions, queues, activity }) => {
+const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWithQueueActivity }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const animRef = useRef<AnimatedMessage[]>([]);
   const lastActivityLen = useRef(0);
@@ -86,19 +87,21 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity }) => {
     return positions;
   }, [functions]);
 
-  // Queue center positions (midpoint between SlimFaas and function)
+  // Queue center positions (midpoint between SlimFaas and function) — only for functions with queue activity
   const queuePositions = useMemo(() => {
     const positions: Record<string, { x: number; y: number }> = {};
     functions.forEach((fn) => {
       const pos = fnPositions[fn.Name];
       if (!pos) return;
+      const qLen = queues.find(q => q.Name === fn.Name)?.Length ?? 0;
+      if (!functionsWithQueueActivity.has(fn.Name) && qLen === 0) return;
       positions[fn.Name] = {
         x: (SLIMFAAS_X + pos.x) / 2,
         y: (SLIMFAAS_Y + pos.y) / 2,
       };
     });
     return positions;
-  }, [functions, fnPositions]);
+  }, [functions, fnPositions, functionsWithQueueActivity, queues]);
 
   // Queue map
   const queueMap = useMemo(() => {
@@ -346,7 +349,17 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity }) => {
       const qLen = queueMap[fn.Name] ?? 0;
       const color = nameColor(fn.Name);
       const qCenter = queuePositions[fn.Name];
-      if (!qCenter) return;
+
+      // If no queue activity for this function, draw a direct line from SlimFaas to the function
+      if (!qCenter) {
+        sel.append('line')
+          .attr('x1', sfX).attr('y1', sfY + 25)
+          .attr('x2', pos.x * w).attr('y2', pos.y * h - 30)
+          .attr('stroke', color).attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3')
+          .attr('opacity', 0.35)
+          .attr('marker-end', 'url(#arrow-in)');
+        return;
+      }
 
       const qCX = qCenter.x * w;
       const qCY = qCenter.y * h;
@@ -486,7 +499,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity }) => {
     return () => {
       cancelAnimationFrame(frameRef.current);
     };
-  }, [functions, queues, fnPositions, queueMap, queuePositions, animate]);
+  }, [functions, queues, fnPositions, queueMap, queuePositions, animate, functionsWithQueueActivity]);
 
   return (
     <div className="network-map">
@@ -524,4 +537,9 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity }) => {
 };
 
 export default NetworkMap;
+
+
+
+
+
 
