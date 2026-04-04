@@ -132,6 +132,24 @@ const FUNCTIONS_ALL_DOWN: FunctionStatusDetailed[] = [
     Scale: null,
     SubscribeEvents: [], PathsStartWithVisibility: [], DependsOn: [], Pods: [],
   },
+  {
+    Name: 'ws-chat-handler',
+    NumberReady: 2, NumberRequested: 2,
+    PodType: 'WebSocket', Visibility: 'Public', Trust: 'Trusted',
+    ReplicasMin: 0, ReplicasAtStart: 2,
+    TimeoutSecondBeforeSetReplicasMin: 0,
+    NumberParallelRequest: 10, NumberParallelRequestPerPod: 10,
+    Resources: null,
+    Schedule: null,
+    Scale: null,
+    SubscribeEvents: [{ Name: 'chat-msg', Visibility: 'Public' }],
+    PathsStartWithVisibility: [],
+    DependsOn: ['kafka'],
+    Pods: [
+      { Name: 'ws-abc12345', Status: 'Running', Ready: true, Ip: 'abc12345' },
+      { Name: 'ws-def67890', Status: 'Running', Ready: true, Ip: 'def67890' },
+    ],
+  },
 ];
 
 const FUNCTIONS_SOME_UP: FunctionStatusDetailed[] = FUNCTIONS_ALL_DOWN.map((fn, i) =>

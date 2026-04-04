@@ -4,10 +4,10 @@
 
 export const FN = {
   name:
-    'Name of the Kubernetes Deployment or StatefulSet registered as a SlimFaas function (SlimFaas/Function: "true").',
+    'Name of the Kubernetes Deployment, StatefulSet, or WebSocket function registered as a SlimFaas function (SlimFaas/Function: "true" or WebSocket-registered).',
 
   podType:
-    'Kubernetes workload type: Deployment (stateless) or StatefulSet (persistent storage).',
+    'Workload type: Deployment (stateless), StatefulSet (persistent storage), or WebSocket (virtual function connected via WebSocket).',
 
   visibility:
     'Default visibility of the function. Public = accessible from anywhere. Private = restricted to trusted pods within the namespace.',

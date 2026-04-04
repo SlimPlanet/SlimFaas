@@ -83,7 +83,8 @@ public enum FunctionTrust
 public enum PodType
 {
     Deployment,
-    StatefulSet
+    StatefulSet,
+    WebSocket
 }
 
 public record SubscribeEvent(string Name, FunctionVisibility Visibility);

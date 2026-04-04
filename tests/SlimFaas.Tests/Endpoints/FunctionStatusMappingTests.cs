@@ -144,5 +144,67 @@ public class FunctionStatusMappingTests
         Assert.Equal("Unschedulable", result.Pods[2].Status);
         Assert.Equal(0, result.NumberReady);
     }
+
+    [Fact(DisplayName = "MapToFunctionStatusDetailed maps WebSocket PodType correctly")]
+    public void MapToFunctionStatusDetailed_MapsWebSocketPodType()
+    {
+        var deployment = new DeploymentInformation(
+            Deployment: "ws-func",
+            Namespace: "websocket-virtual",
+            Pods: new List<PodInformation>
+            {
+                new("ws-abc12345", true, true, "abc12345", "ws-func"),
+                new("ws-def67890", true, true, "def67890", "ws-func"),
+            },
+            Configuration: new SlimFaasConfiguration(),
+            Replicas: 2,
+            ReplicasAtStart: 2,
+            ReplicasMin: 0,
+            PodType: PodType.WebSocket,
+            Visibility: FunctionVisibility.Public,
+            DependsOn: new List<string> { "kafka" },
+            SubscribeEvents: new List<SubscribeEvent>
+            {
+                new("chat-msg", FunctionVisibility.Public)
+            }
+        );
+
+        var result = FunctionEndpointsHelpers.MapToFunctionStatusDetailed(deployment);
+
+        Assert.Equal("ws-func", result.Name);
+        Assert.Equal("WebSocket", result.PodType);
+        Assert.Equal(2, result.NumberReady);
+        Assert.Equal(2, result.NumberRequested);
+        Assert.Equal("Public", result.Visibility);
+        Assert.NotNull(result.DependsOn);
+        Assert.Contains("kafka", result.DependsOn);
+        Assert.NotNull(result.SubscribeEvents);
+        Assert.Single(result.SubscribeEvents);
+        Assert.Equal(2, result.Pods.Count);
+        Assert.All(result.Pods, p => Assert.Equal("Running", p.Status));
+    }
+
+    [Fact(DisplayName = "MapToFunctionStatus maps WebSocket PodType correctly")]
+    public void MapToFunctionStatus_MapsWebSocketPodType()
+    {
+        var deployment = new DeploymentInformation(
+            Deployment: "ws-func",
+            Namespace: "websocket-virtual",
+            Pods: new List<PodInformation>
+            {
+                new("ws-abc12345", true, true, "abc12345", "ws-func"),
+            },
+            Configuration: new SlimFaasConfiguration(),
+            Replicas: 1,
+            PodType: PodType.WebSocket
+        );
+
+        var result = FunctionEndpointsHelpers.MapToFunctionStatus(deployment);
+
+        Assert.Equal("ws-func", result.Name);
+        Assert.Equal("WebSocket", result.PodType);
+        Assert.Equal(1, result.NumberReady);
+        Assert.Equal(1, result.NumberRequested);
+    }
 }
 

@@ -15,6 +15,7 @@ const POD_TYPE_ICON: Record<string, string> = {
   Deployment:  '🚀',
   StatefulSet: '🗄️',
   DaemonSet:   '⚙️',
+  WebSocket:   '🔌',
 };
 
 const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new Set() }) => {
