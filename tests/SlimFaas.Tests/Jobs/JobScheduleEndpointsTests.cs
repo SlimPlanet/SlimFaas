@@ -56,6 +56,7 @@ public class JobScheduleEndpointsTests
                         s.AddMemoryCache();
                         s.AddSingleton<FunctionStatusCache>();
                         s.AddSingleton<WakeUpGate>();
+                        s.AddSingleton<NetworkActivityTracker>();
                         s.AddRouting();
                     })
                     .Configure(app =>

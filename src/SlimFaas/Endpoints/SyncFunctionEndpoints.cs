@@ -31,8 +31,9 @@ public static class SyncFunctionEndpoints
                 IReplicasService replicasService,
                 IJobService jobService,
                 IWebSocketSendClient webSocketSendClient,
-                IWebSocketFunctionRepository webSocketFunctionRepository) =>
-                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository))
+                IWebSocketFunctionRepository webSocketFunctionRepository,
+                NetworkActivityTracker activityTracker) =>
+                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository, activityTracker))
             .WithName("HandleSyncFunctionRoot")
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
@@ -48,7 +49,8 @@ public static class SyncFunctionEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
         [FromServices] IWebSocketSendClient webSocketSendClient,
-        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository)
+        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository,
+        [FromServices] NetworkActivityTracker activityTracker)
     {
         functionPath ??= "";
         var ct = context.RequestAborted;
@@ -76,6 +78,9 @@ public static class SyncFunctionEndpoints
             return Results.NotFound();
         }
 
+        activityTracker.Record("request_in", "external", "slimfaas");
+        activityTracker.Record("request_out", "slimfaas", functionName);
+
         // ── Fonction virtuelle WebSocket → streaming binaire ──
         if (function.Namespace == "websocket-virtual")
         {
@@ -84,7 +89,19 @@ public static class SyncFunctionEndpoints
         }
 
         // ── Fonction HTTP classique ──
+        // Signal that SlimFaas is waiting for a pod to start (for UI visualization)
+        bool functionWasReady = IsFunctionReady(function);
+        if (!functionWasReady)
+        {
+            activityTracker.Record("request_waiting", "slimfaas", functionName);
+        }
+
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
+
+        if (!functionWasReady)
+        {
+            activityTracker.Record("request_started", "slimfaas", functionName);
+        }
 
         Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
             context,
@@ -113,6 +130,7 @@ public static class SyncFunctionEndpoints
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            activityTracker.Record("request_end", functionName, "slimfaas");
             logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
             return Results.StatusCode(499); // Client Closed Request
         }
@@ -126,6 +144,7 @@ public static class SyncFunctionEndpoints
         await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
 
         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+        activityTracker.Record("request_end", functionName, "slimfaas");
 
         return Results.Empty;
     }

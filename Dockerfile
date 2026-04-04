@@ -6,6 +6,14 @@ WORKDIR /app
 RUN adduser -u 1000 --disabled-password --gecos "" appuser && chown -R appuser /app
 USER appuser
 
+# ---- Node stage: build the Vite/React dashboard ----
+FROM --platform=$TARGETPLATFORM node:24-alpine AS clientapp
+WORKDIR /clientapp
+COPY src/SlimFaas/ClientApp/package.json src/SlimFaas/ClientApp/package-lock.json* ./
+RUN npm install
+COPY src/SlimFaas/ClientApp/ ./
+RUN npm run build
+
 FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS build
 RUN apk update && apk upgrade
 # Install compilation tools for native AOT
@@ -14,6 +22,8 @@ WORKDIR /src
 
 FROM build AS publish
 COPY . .
+# Copy pre-built wwwroot from the Node stage
+COPY --from=clientapp /wwwroot src/SlimFaas/wwwroot
 ARG TARGETARCH
 # Map Docker's TARGETARCH to .NET RID for native compilation
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
@@ -31,7 +41,8 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
      -p:DebugSymbols=false \
      -p:PublishAot=$PUBLISH_AOT \
      -p:StripSymbols=true \
-     -p:IlcMultiThreaded=false
+     -p:IlcMultiThreaded=false \
+     -p:SkipClientAppBuild=true
 
 FROM base AS final
 WORKDIR /app

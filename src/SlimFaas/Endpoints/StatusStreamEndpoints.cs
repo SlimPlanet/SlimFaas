@@ -1,0 +1,132 @@
+using System.Text.Json;
+using Microsoft.AspNetCore.Mvc;
+using SlimFaas.Database;
+using SlimFaas.Kubernetes;
+
+namespace SlimFaas.Endpoints;
+
+public static class StatusStreamEndpoints
+{
+    public static void MapStatusStreamEndpoints(this IEndpointRouteBuilder app)
+    {
+        app.MapGet("/status-functions-stream", HandleStream)
+            .WithName("StatusFunctionsStream")
+            .AddEndpointFilter<HostPortEndpointFilter>();
+
+        // Internal endpoint used by peer SlimFaas nodes to scrape local activity events.
+        // Query param: since (unix ms timestamp) — only returns events after that timestamp.
+        app.MapGet("/internal/activity-events", HandleActivityEvents)
+            .WithName("InternalActivityEvents")
+            .AddEndpointFilter<HostPortEndpointFilter>();
+    }
+
+    /// <summary>
+    /// Returns the local activity events since a given timestamp.
+    /// Used by peer nodes to aggregate a global view.
+    /// </summary>
+    private static IResult HandleActivityEvents(
+        HttpContext context,
+        [FromServices] NetworkActivityTracker tracker)
+    {
+        long since = 0;
+        if (context.Request.Query.TryGetValue("since", out var sinceVal)
+            && long.TryParse(sinceVal.FirstOrDefault(), out var parsed))
+        {
+            since = parsed;
+        }
+
+        var events = tracker.GetLocalSince(since);
+        return Results.Json(events, StatusStreamSerializerContext.Default.ListNetworkActivityEvent);
+    }
+
+    private static async Task HandleStream(
+        HttpContext context,
+        [FromServices] IReplicasService replicasService,
+        [FromServices] FunctionStatusCache cache,
+        [FromServices] NetworkActivityTracker tracker,
+        [FromServices] ISlimFaasQueue slimFaasQueue)
+    {
+        // ...existing code...
+        context.Response.ContentType = "text/event-stream";
+        context.Response.Headers.CacheControl = "no-cache";
+        context.Response.Headers.Connection = "keep-alive";
+        context.Response.Headers["X-Accel-Buffering"] = "no";
+
+        var ct = context.RequestAborted;
+        var (reader, channel) = tracker.Subscribe();
+
+        try
+        {
+            // Send initial full state
+            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, ct);
+
+            // Then send periodic full state + activity events
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+
+            while (!ct.IsCancellationRequested)
+            {
+                // Drain any activity events that arrived
+                while (reader.TryRead(out var evt))
+                {
+                    string json = JsonSerializer.Serialize(evt, StatusStreamSerializerContext.Default.NetworkActivityEvent);
+                    await context.Response.WriteAsync($"event: activity\ndata: {json}\n\n", ct);
+                }
+
+                await context.Response.Body.FlushAsync(ct);
+
+                // Wait for next tick
+                if (!await timer.WaitForNextTickAsync(ct))
+                    break;
+
+                // Send full state periodically
+                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, ct);
+            }
+        }
+        catch (OperationCanceledException) { /* client disconnected */ }
+        finally
+        {
+            tracker.Unsubscribe(channel);
+        }
+    }
+
+    private static async Task SendFullState(
+        HttpContext context,
+        IReplicasService replicasService,
+        FunctionStatusCache cache,
+        NetworkActivityTracker tracker,
+        ISlimFaasQueue slimFaasQueue,
+        CancellationToken ct)
+    {
+        // ...existing code...
+        var functions = cache.GetAllDetailed(replicasService);
+
+        // Gather queue lengths
+        var queues = new List<QueueInfo>();
+        foreach (var fn in functions)
+        {
+            try
+            {
+                long length = await slimFaasQueue.CountElementAsync(
+                    fn.Name,
+                    new List<CountType> { CountType.Available, CountType.Running, CountType.WaitingForRetry },
+                    int.MaxValue);
+                queues.Add(new QueueInfo(fn.Name, length));
+            }
+            catch
+            {
+                queues.Add(new QueueInfo(fn.Name, 0));
+            }
+        }
+
+        var payload = new StatusStreamPayload(
+            Functions: functions,
+            Queues: queues,
+            RecentActivity: tracker.GetRecent());
+
+        string json = JsonSerializer.Serialize(payload, StatusStreamSerializerContext.Default.StatusStreamPayload);
+        await context.Response.WriteAsync($"event: state\ndata: {json}\n\n", ct);
+        await context.Response.Body.FlushAsync(ct);
+    }
+}
+
+

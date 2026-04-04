@@ -35,8 +35,9 @@ public static class AsyncFunctionEndpoints
                 IJobService jobService,
                 ISlimFaasQueue slimFaasQueue,
                 IFunctionAccessPolicy accessPolicy,
-                IWebSocketFunctionRepository webSocketFunctionRepository) =>
-                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository))
+                IWebSocketFunctionRepository webSocketFunctionRepository,
+                NetworkActivityTracker activityTracker) =>
+                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker))
             .WithName("HandleAsyncFunctionRoot")
             .Produces(202)
             .Produces(404)
@@ -61,7 +62,8 @@ public static class AsyncFunctionEndpoints
         [FromServices] IJobService jobService,
         [FromServices] ISlimFaasQueue slimFaasQueue,
         [FromServices] IFunctionAccessPolicy accessPolicy,
-        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository)
+        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository,
+        [FromServices] NetworkActivityTracker activityTracker)
     {
         functionPath ??= "";
 
@@ -90,6 +92,7 @@ public static class AsyncFunctionEndpoints
 
         var bin = MemoryPackSerializer.Serialize(customRequest);
         var defaultAsync = function.Configuration.DefaultAsync;
+        activityTracker.Record("request_in", "external", "slimfaas");
         var id = await slimFaasQueue.EnqueueAsync(
             functionName,
             bin,
@@ -97,6 +100,7 @@ public static class AsyncFunctionEndpoints
                 defaultAsync.TimeoutRetries,
                 defaultAsync.HttpTimeout,
                 defaultAsync.HttpStatusRetries));
+        activityTracker.Record("enqueue", "slimfaas", functionName, functionName);
 
         context.Response.Headers.Append(SlimQueuesWorker.SlimfaasElementId, id);
         return Results.Accepted();

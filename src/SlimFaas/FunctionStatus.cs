@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
 
@@ -16,6 +17,32 @@ public record FunctionStatus(
     string PodType,
     string Visibility,
     string Name);
+
+public record PodStatus(
+    string Name,
+    string Status,
+    bool Ready,
+    string Ip);
+
+public record FunctionStatusDetailed(
+    string Name,
+    int NumberReady,
+    int NumberRequested,
+    string PodType,
+    string Visibility,
+    string Trust,
+    int ReplicasMin,
+    int ReplicasAtStart,
+    int TimeoutSecondBeforeSetReplicasMin,
+    int NumberParallelRequest,
+    int NumberParallelRequestPerPod,
+    ResourcesConfiguration? Resources,
+    ScheduleConfig? Schedule,
+    ScaleConfig? Scale,
+    IList<SubscribeEvent>? SubscribeEvents,
+    IList<PathVisibility>? PathsStartWithVisibility,
+    IList<string>? DependsOn,
+    IList<PodStatus> Pods);
 
 /// <summary>
 /// Contexte de sérialisation JSON pour FunctionStatus (compatible AOT)
@@ -36,3 +63,18 @@ public partial class ListFunctionStatusSerializerContext : JsonSerializerContext
 {
 }
 
+/// <summary>
+/// Contexte de sérialisation JSON pour FunctionStatusDetailed (compatible AOT)
+/// </summary>
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(FunctionStatusDetailed))]
+[JsonSerializable(typeof(List<FunctionStatusDetailed>))]
+public partial class FunctionStatusDetailedSerializerContext : JsonSerializerContext
+{
+}
+
+[JsonSourceGenerationOptions(WriteIndented = false)]
+[JsonSerializable(typeof(List<FunctionStatusDetailed>))]
+public partial class ListFunctionStatusDetailedSerializerContext : JsonSerializerContext
+{
+}

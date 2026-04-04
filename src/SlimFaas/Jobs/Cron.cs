@@ -5,6 +5,55 @@ namespace SlimFaas.Jobs;
 
 public static class Cron
 {
+    public static ResultWithError<long> GetNextJobExecutionTimestamp(string cronDefinition, long currentTimestamp)
+    {
+        if (string.IsNullOrWhiteSpace(cronDefinition))
+            return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must not be empty"));
+
+        var parts = cronDefinition.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 5)
+            return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
+
+        var minuteSet      = ParseCronField(parts[0], 0, 59);
+        var hourSet        = ParseCronField(parts[1], 0, 23);
+        var dayOfMonthSet  = ParseCronField(parts[2], 1, 31);
+        var monthSet       = ParseCronField(parts[3], 1, 12);
+        var dayOfWeekSet   = ParseCronField(parts[4], 0, 6);
+
+        var now = DateTimeOffset.FromUnixTimeSeconds(currentTimestamp).UtcDateTime;
+        now = now.AddSeconds(-now.Second).AddMinutes(1); // start from next minute
+
+        for (int i = 0; i < 366 * 24 * 60; i++)
+        {
+            var candidate = now.AddMinutes(i);
+
+            if (!monthSet.Contains(candidate.Month)) continue;
+
+            bool domMatch = dayOfMonthSet.Contains(candidate.Day);
+            bool dowMatch = dayOfWeekSet.Contains((int)candidate.DayOfWeek);
+            bool domStar = parts[2] == "*";
+            bool dowStar = parts[4] == "*";
+            bool dayMatch;
+            if (!domStar && !dowStar)
+                dayMatch = domMatch || dowMatch;
+            else if (!domStar)
+                dayMatch = domMatch;
+            else if (!dowStar)
+                dayMatch = dowMatch;
+            else
+                dayMatch = true;
+
+            if (!dayMatch) continue;
+            if (!hourSet.Contains(candidate.Hour)) continue;
+            if (!minuteSet.Contains(candidate.Minute)) continue;
+
+            return new ResultWithError<long>(new DateTimeOffset(candidate, TimeSpan.Zero).ToUnixTimeSeconds());
+        }
+
+        return new ResultWithError<long>(0,
+            new ErrorResult("cron_definition", "No next cron occurrence found in the next year."));
+    }
+
     public static ResultWithError<long> GetLatestJobExecutionTimestamp(string cronDefinition, long currentTimestamp)
     {
 
