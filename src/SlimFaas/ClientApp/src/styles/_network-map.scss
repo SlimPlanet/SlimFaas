@@ -1,0 +1,50 @@
+@use './variables' as *;
+
+.network-map {
+  margin-top: $spacing-xl;
+  background: $color-bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
+  padding: $spacing-lg;
+
+  &__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: $color-text;
+    margin: 0 0 $spacing-md 0;
+  }
+
+  &__svg {
+    width: 100%;
+    max-height: 560px;
+    border-radius: $radius-md;
+    border: 1px solid $color-border;
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-sm $spacing-md;
+    margin-top: $spacing-md;
+    padding-top: $spacing-sm;
+    border-top: 1px solid $color-border;
+  }
+
+  &__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: $spacing-xs;
+    font-size: 0.8rem;
+    color: $color-text-light;
+  }
+
+  &__legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+}
+
+

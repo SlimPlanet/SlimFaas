@@ -44,6 +44,7 @@ public class StatusFunctionEndpointTests
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();
+                        services.AddSingleton<NetworkActivityTracker>();
                         services.AddRouting();
                     })
                     .Configure(app =>

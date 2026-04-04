@@ -244,6 +244,8 @@ serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAcc
 serviceCollectionSlimFaas.AddMemoryCache();
 serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
 serviceCollectionSlimFaas.AddSingleton<WakeUpGate>();
+serviceCollectionSlimFaas.AddSingleton<NetworkActivityTracker>();
+serviceCollectionSlimFaas.AddHostedService<SlimFaas.Workers.NetworkActivitySyncWorker>();
 
 // --- WebSocket virtual clients ---
 serviceCollectionSlimFaas.AddSingleton<WebSocketConnectionRegistry>();

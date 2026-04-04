@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
@@ -17,7 +18,8 @@ public class SlimQueuesWorker(
     IServiceProvider serviceProvider,
     ISlimDataStatus slimDataStatus,
     IMasterService masterService,
-    IOptions<WorkersOptions> workersOptions)
+    IOptions<WorkersOptions> workersOptions,
+    NetworkActivityTracker activityTracker)
     : BackgroundService
 {
 
@@ -142,6 +144,7 @@ public class SlimQueuesWorker(
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
                 .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy);
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp));
+            activityTracker.Record("dequeue", "slimfaas", functionDeployment, functionDeployment);
         }
     }
 

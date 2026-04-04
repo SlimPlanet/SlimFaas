@@ -37,8 +37,9 @@ public static class EventEndpoints
                 IFunctionAccessPolicy accessPolicy,
                 IOptions<SlimFaasOptions> slimFaasOptions,
                 INamespaceProvider namespaceProvider,
-                IWebSocketSendClient webSocketSendClient) =>
-                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions, namespaceProvider, webSocketSendClient))
+                IWebSocketSendClient webSocketSendClient,
+                NetworkActivityTracker activityTracker) =>
+                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions, namespaceProvider, webSocketSendClient, activityTracker))
             .WithName("PublishEventRoot")
             .Produces(204)
             .Produces(404)
@@ -58,11 +59,13 @@ public static class EventEndpoints
         [FromServices] IFunctionAccessPolicy accessPolicy,
         [FromServices] IOptions<SlimFaasOptions> slimFaasOptions,
         [FromServices] INamespaceProvider namespaceProvider,
-        [FromServices] IWebSocketSendClient webSocketSendClient)
+        [FromServices] IWebSocketSendClient webSocketSendClient,
+        [FromServices] NetworkActivityTracker activityTracker)
     {
         functionPath ??= "";
 
         logger.LogDebug("Receiving event: {EventName}", eventName);
+        activityTracker.Record("event_publish", "external", "slimfaas");
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
 
         if (functions.Count <= 0)
@@ -82,6 +85,7 @@ public static class EventEndpoints
         foreach (DeploymentInformation function in functions)
         {
             logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
+            activityTracker.Record("event_publish", "slimfaas", function.Deployment);
 
             // --- Fonctions WebSocket virtuelles (Namespace = "websocket-virtual") ---
             if (function.Namespace == "websocket-virtual")

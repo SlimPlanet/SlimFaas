@@ -1,11 +1,12 @@
 import React from 'react';
 import 'react-tooltip/dist/react-tooltip.css';
-import { useFunctionStatus } from './hooks/useFunctionStatus';
+import { useStatusStream } from './hooks/useStatusStream';
 import { useJobStatus } from './hooks/useJobStatus';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import FunctionTable from './components/FunctionTable';
 import JobTable from './components/JobTable';
+import NetworkMap from './components/NetworkMap';
 import ErrorBoundary from './components/ErrorBoundary';
 import type { JobConfigurationStatus } from './types';
 
@@ -61,7 +62,10 @@ const JobsSection: React.FC<JobsSectionProps> = ({
 );
 
 const App: React.FC = () => {
-  const { functions, loading, error, wakeUp, wakeUpAll, coolingDown, wakeAllCooling } = useFunctionStatus();
+  const {
+    functions, queues, activity,
+    loading, error, wakeUp, wakeUpAll, coolingDown, wakeAllCooling,
+  } = useStatusStream();
   const { jobs, loading: jobsLoading, error: jobsError } = useJobStatus();
 
   const allUp = functions.length > 0 && functions.every((f) => f.NumberReady > 0);
@@ -116,6 +120,13 @@ const App: React.FC = () => {
 
           {functions.length > 0 && (
             <FunctionTable functions={functions} onWakeUp={wakeUp} coolingDown={coolingDown} />
+          )}
+
+          {/* Network visualization below the functions table */}
+          {functions.length > 0 && (
+            <ErrorBoundary>
+              <NetworkMap functions={functions} queues={queues} activity={activity} />
+            </ErrorBoundary>
           )}
         </div>
 

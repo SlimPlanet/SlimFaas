@@ -6,6 +6,7 @@ using SlimFaas.Kubernetes;
 using MemoryPack;
 using SlimFaas.Database;
 using SlimData;
+using SlimFaas.Endpoints;
 using SlimFaas.Options;
 namespace SlimFaas.Tests;
 
@@ -99,7 +100,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
-            workersOptions);
+            workersOptions,
+            new NetworkActivityTracker());
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
 
@@ -159,7 +161,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
-            workersOptions);
+            workersOptions,
+            new NetworkActivityTracker());
 
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
@@ -263,7 +266,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
-            workersOptions);
+            workersOptions,
+            new NetworkActivityTracker());
 
         // Act
         using var cts = new CancellationTokenSource();

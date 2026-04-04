@@ -89,6 +89,31 @@ export interface FunctionStatusDetailed {
 
 // ---- Jobs ----
 
+// ---- Network Activity / Stream ----
+
+export interface NetworkActivityEvent {
+  Id: string;
+  Type: string; // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish"
+  Source: string;
+  Target: string;
+  QueueName: string | null;
+  TimestampMs: number;
+  NodeId: string;
+}
+
+export interface QueueInfo {
+  Name: string;
+  Length: number;
+}
+
+export interface StatusStreamPayload {
+  Functions: FunctionStatusDetailed[];
+  Queues: QueueInfo[];
+  RecentActivity: NetworkActivityEvent[];
+}
+
+// ---- Jobs ----
+
 export interface CreateJobResources {
   Requests: Record<string, string> | null;
   Limits: Record<string, string> | null;

@@ -88,6 +88,7 @@ public class JobStatusEndpointTests
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();
+                        services.AddSingleton<NetworkActivityTracker>();
                         services.AddRouting();
                     })
                     .Configure(app =>
@@ -163,6 +164,7 @@ public class JobStatusEndpointTests
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();
+                        services.AddSingleton<NetworkActivityTracker>();
                         services.AddRouting();
                     })
                     .Configure(app =>
@@ -227,6 +229,7 @@ public class JobStatusEndpointTests
                         services.AddMemoryCache();
                         services.AddSingleton<FunctionStatusCache>();
                         services.AddSingleton<WakeUpGate>();
+                        services.AddSingleton<NetworkActivityTracker>();
                         services.AddRouting();
                     })
                     .Configure(app =>

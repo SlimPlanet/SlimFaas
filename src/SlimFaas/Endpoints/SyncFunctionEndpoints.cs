@@ -31,8 +31,9 @@ public static class SyncFunctionEndpoints
                 IReplicasService replicasService,
                 IJobService jobService,
                 IWebSocketSendClient webSocketSendClient,
-                IWebSocketFunctionRepository webSocketFunctionRepository) =>
-                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository))
+                IWebSocketFunctionRepository webSocketFunctionRepository,
+                NetworkActivityTracker activityTracker) =>
+                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository, activityTracker))
             .WithName("HandleSyncFunctionRoot")
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
@@ -48,7 +49,8 @@ public static class SyncFunctionEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
         [FromServices] IWebSocketSendClient webSocketSendClient,
-        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository)
+        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository,
+        [FromServices] NetworkActivityTracker activityTracker)
     {
         functionPath ??= "";
         var ct = context.RequestAborted;
@@ -75,6 +77,9 @@ public static class SyncFunctionEndpoints
             logger.LogDebug("{FunctionName} not found 404 because is private 404", functionName);
             return Results.NotFound();
         }
+
+        activityTracker.Record("request_in", "external", "slimfaas");
+        activityTracker.Record("request_out", "slimfaas", functionName);
 
         // ── Fonction virtuelle WebSocket → streaming binaire ──
         if (function.Namespace == "websocket-virtual")
