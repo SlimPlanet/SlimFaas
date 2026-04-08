@@ -78,7 +78,8 @@ public static class SyncFunctionEndpoints
             return Results.NotFound();
         }
 
-        activityTracker.Record("request_in", "external", "slimfaas");
+        activityTracker.Record("request_in", "external", "slimfaas",
+            sourcePod: context.Connection.RemoteIpAddress?.ToString());
         activityTracker.Record("request_out", "slimfaas", functionName);
 
         // ── Fonction virtuelle WebSocket → streaming binaire ──
@@ -90,19 +91,21 @@ public static class SyncFunctionEndpoints
 
         // ── Fonction HTTP classique ──
         // Signal that SlimFaas is waiting for a pod to start (for UI visualization)
+        string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
         bool functionWasReady = IsFunctionReady(function);
         if (!functionWasReady)
         {
-            activityTracker.Record("request_waiting", "slimfaas", functionName);
+            activityTracker.Record("request_waiting", "slimfaas", functionName, sourcePod: callerIp);
         }
 
         await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
         if (!functionWasReady)
         {
-            activityTracker.Record("request_started", "slimfaas", functionName);
+            activityTracker.Record("request_started", "slimfaas", functionName, sourcePod: callerIp);
         }
 
+        var proxy = new Proxy(replicasService, functionName);
         Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
             context,
             functionName,
@@ -110,7 +113,10 @@ public static class SyncFunctionEndpoints
             context.Request.QueryString.ToUriComponent(),
             function.Configuration.DefaultSync,
             null,
-            new Proxy(replicasService, functionName));
+            proxy);
+
+        // Capture the target pod IP that the proxy selected (last used IP for this function)
+        string? targetPodIp = Proxy.IpAddresses.GetValueOrDefault(functionName);
 
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         try
@@ -130,7 +136,7 @@ public static class SyncFunctionEndpoints
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            activityTracker.Record("request_end", functionName, "slimfaas");
+            activityTracker.Record("request_end", functionName, "slimfaas", sourcePod: targetPodIp);
             logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
             return Results.StatusCode(499); // Client Closed Request
         }
@@ -144,7 +150,7 @@ public static class SyncFunctionEndpoints
         await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
 
         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-        activityTracker.Record("request_end", functionName, "slimfaas");
+        activityTracker.Record("request_end", functionName, "slimfaas", sourcePod: targetPodIp);
 
         return Results.Empty;
     }

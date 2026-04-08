@@ -99,6 +99,8 @@ export interface NetworkActivityEvent {
   QueueName: string | null;
   TimestampMs: number;
   NodeId: string;
+  SourcePod: string | null;  // source pod name or IP (e.g. the caller pod)
+  TargetPod: string | null;  // target pod name or IP (e.g. the downstream pod receiving the request)
 }
 
 export interface QueueInfo {

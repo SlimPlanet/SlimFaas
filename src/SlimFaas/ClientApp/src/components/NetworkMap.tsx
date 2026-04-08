@@ -46,12 +46,14 @@ interface AnimatedMessage {
   shape: 'circle' | 'rect';
   startTime: number;
   duration: number;
+  label?: string; // pod-level label shown on hover or next to the dot
 }
 
 interface ActiveTrace {
   functionName: string;
   type: 'sync' | 'waiting';
   startTime: number;
+  podLabel?: string; // target pod label
 }
 
 /* ── Constants ── */
@@ -91,6 +93,53 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const frameRef = useRef(0);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const worldGRef = useRef<SVGGElement | null>(null);
+
+  /* ── IP → Pod lookup (function + pod name) ── */
+
+  const ipToPod = useMemo(() => {
+    const map: Record<string, { functionName: string; podName: string }> = {};
+    for (const fn of functions) {
+      for (const pod of fn.Pods ?? []) {
+        if (pod.Ip) {
+          map[pod.Ip] = { functionName: fn.Name, podName: pod.Name };
+        }
+      }
+    }
+    return map;
+  }, [functions]);
+
+  /** Resolve a pod IP (or name) to a short label like "fibonacci1/pod-0" */
+  const resolvePodLabel = useCallback((ip: string | null | undefined): string | undefined => {
+    if (!ip) return undefined;
+    const entry = ipToPod[ip];
+    if (entry) {
+      // Shorten: use only last segment of pod name (after last '-')
+      const shortPod = entry.podName.includes('-')
+        ? entry.podName.slice(entry.podName.lastIndexOf('-') + 1)
+        : entry.podName;
+      return `${entry.functionName}/${shortPod}`;
+    }
+    // If IP starts with "::ffff:", strip it
+    const clean = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+    // Try again with cleaned IP
+    const entry2 = ipToPod[clean];
+    if (entry2) {
+      const shortPod = entry2.podName.includes('-')
+        ? entry2.podName.slice(entry2.podName.lastIndexOf('-') + 1)
+        : entry2.podName;
+      return `${entry2.functionName}/${shortPod}`;
+    }
+    return clean; // fallback: show the raw IP
+  }, [ipToPod]);
+
+  /** Resolve a pod IP to just the function name (for source resolution) */
+  const resolveFunction = useCallback((ip: string | null | undefined): string | undefined => {
+    if (!ip) return undefined;
+    const entry = ipToPod[ip];
+    if (entry) return entry.functionName;
+    const clean = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
+    return ipToPod[clean]?.functionName;
+  }, [ipToPod]);
 
   /* ── Positions in world coordinates (px, center=0,0) ── */
 
@@ -170,35 +219,46 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const fp = (name: string) => fnPositions[name] || null;
       const qp = (name: string) => queuePositions[name] || null;
 
+      // Resolve pod labels for this event
+      const srcLabel = resolvePodLabel(evt.SourcePod);
+      const tgtLabel = resolvePodLabel(evt.TargetPod);
+      // Resolve the source function (e.g. the pod that called SlimFaas)
+      const srcFn = resolveFunction(evt.SourcePod);
+
       if (evt.Type === 'enqueue') {
         const q = qp(evt.Target);
         if (!q) continue;
-        animRef.current.push({ id: evt.Id, waypoints: [CENTER, { x: q.x - QUEUE_BOX_W / 2, y: q.y }, q], color: nameColor(evt.Target), shape: 'rect', startTime: performance.now(), duration: ANIM_DURATION });
+        // If we know which function originated this, start from that function's position
+        const startPos = srcFn && fp(srcFn) ? fp(srcFn)! : CENTER;
+        animRef.current.push({ id: evt.Id, waypoints: [startPos, CENTER, { x: q.x - QUEUE_BOX_W / 2, y: q.y }, q], color: nameColor(evt.Target), shape: 'rect', startTime: performance.now(), duration: ANIM_DURATION, label: srcLabel || tgtLabel });
       } else if (evt.Type === 'dequeue') {
         const q = qp(evt.Target); const f = fp(evt.Target);
         if (!q || !f) continue;
-        animRef.current.push({ id: evt.Id, waypoints: [q, { x: q.x + QUEUE_BOX_W / 2, y: q.y }, f], color: nameColor(evt.Target), shape: 'rect', startTime: performance.now(), duration: ANIM_DURATION });
+        animRef.current.push({ id: evt.Id, waypoints: [q, { x: q.x + QUEUE_BOX_W / 2, y: q.y }, f], color: nameColor(evt.Target), shape: 'rect', startTime: performance.now(), duration: ANIM_DURATION, label: tgtLabel || `→ ${evt.Target}` });
       } else if (evt.Type === 'request_in') {
-        animRef.current.push({ id: evt.Id, waypoints: [EXTERNAL_OFFSET, CENTER], color: '#6b778c', shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION });
+        // If we can resolve the source to a known function, animate from that function
+        const startPos = srcFn && fp(srcFn) ? fp(srcFn)! : EXTERNAL_OFFSET;
+        const sourceColor = srcFn ? nameColor(srcFn) : '#6b778c';
+        animRef.current.push({ id: evt.Id, waypoints: [startPos, CENTER], color: sourceColor, shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION, label: srcLabel });
       } else if (evt.Type === 'request_out' || evt.Type === 'response') {
         const f = fp(evt.Target); if (!f) continue;
-        animRef.current.push({ id: evt.Id, waypoints: [CENTER, f], color: nameColor(evt.Target), shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION });
+        animRef.current.push({ id: evt.Id, waypoints: [CENTER, f], color: nameColor(evt.Target), shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION, label: tgtLabel || srcLabel });
       } else if (evt.Type === 'request_waiting') {
-        tracesRef.current.set(evt.Target, { functionName: evt.Target, type: 'waiting', startTime: performance.now() });
+        tracesRef.current.set(evt.Target, { functionName: evt.Target, type: 'waiting', startTime: performance.now(), podLabel: tgtLabel || srcLabel });
       } else if (evt.Type === 'request_started') {
         const ex = tracesRef.current.get(evt.Target);
-        if (ex) { ex.type = 'sync'; ex.startTime = performance.now(); }
+        if (ex) { ex.type = 'sync'; ex.startTime = performance.now(); ex.podLabel = tgtLabel || srcLabel; }
       } else if (evt.Type === 'request_end') {
         tracesRef.current.delete(evt.Source);
       } else if (evt.Type === 'event_publish') {
         const f = fp(evt.Target); if (!f) continue;
-        animRef.current.push({ id: evt.Id, waypoints: [CENTER, f], color: '#fab005', shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION });
+        animRef.current.push({ id: evt.Id, waypoints: [CENTER, f], color: '#fab005', shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION, label: tgtLabel });
       }
     }
     if (seenIdsRef.current.size > 500) {
       seenIdsRef.current = new Set(Array.from(seenIdsRef.current).slice(-300));
     }
-  }, [activity, fnPositions, queuePositions]);
+  }, [activity, fnPositions, queuePositions, resolvePodLabel, resolveFunction]);
 
   /* ── Interpolate along waypoints ── */
 
@@ -247,6 +307,23 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       .attr('opacity', d => 0.5 + 0.4 * Math.sin((now - d.startTime) / 600 * Math.PI));
     wdSel.exit().remove();
 
+    // ── Trace pod labels ──
+    const traceLabelData = traceData.filter(d => !!d.podLabel);
+    const tlLabels = traceG.selectAll<SVGTextElement, ActiveTrace>('text.trace-pod-label').data(traceLabelData, d => d.functionName);
+    tlLabels.enter().append('text').attr('class', 'trace-pod-label').attr('font-size', 7).attr('fill', '#6b778c').attr('font-weight', 600).attr('pointer-events', 'none')
+      .merge(tlLabels)
+      .attr('x', d => {
+        const f = fnPositions[d.functionName];
+        return CENTER.x + ((f?.x ?? 0) - CENTER.x) * 0.5 + 6;
+      })
+      .attr('y', d => {
+        const f = fnPositions[d.functionName];
+        return CENTER.y + ((f?.y ?? 0) - CENTER.y) * 0.5 - 6;
+      })
+      .attr('opacity', d => d.type === 'waiting' ? 0.6 : 0.5)
+      .text(d => d.podLabel ?? '');
+    tlLabels.exit().remove();
+
     // ── Rect messages ──
     const rd = animRef.current.filter(m => m.shape === 'rect');
     const rs = g.selectAll<SVGRectElement, AnimatedMessage>('rect.msg-rect').data(rd, d => d.id);
@@ -257,6 +334,17 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       .attr('opacity', d => { const t = (now - d.startTime) / d.duration; return t > 0.85 ? Math.max(0, 1 - (t - 0.85) / 0.15) : 0.95; });
     rs.exit().remove();
 
+    // ── Rect message labels ──
+    const rdLabeled = rd.filter(m => !!m.label);
+    const rls = g.selectAll<SVGTextElement, AnimatedMessage>('text.msg-label-rect').data(rdLabeled, d => d.id);
+    rls.enter().append('text').attr('class', 'msg-label-rect').attr('font-size', 7).attr('fill', '#495057').attr('font-weight', 600).attr('pointer-events', 'none')
+      .merge(rls)
+      .attr('x', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).x + 8)
+      .attr('y', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).y + 2)
+      .attr('opacity', d => { const t = (now - d.startTime) / d.duration; return t > 0.7 ? Math.max(0, 1 - (t - 0.7) / 0.3) : 0.85; })
+      .text(d => d.label ?? '');
+    rls.exit().remove();
+
     // ── Circle messages ──
     const cd = animRef.current.filter(m => m.shape === 'circle');
     const cs = g.selectAll<SVGCircleElement, AnimatedMessage>('circle.msg-circle').data(cd, d => d.id);
@@ -266,6 +354,17 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       .attr('cy', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).y)
       .attr('opacity', d => { const t = (now - d.startTime) / d.duration; return t > 0.8 ? Math.max(0, 1 - (t - 0.8) / 0.2) : 0.9; });
     cs.exit().remove();
+
+    // ── Circle message labels ──
+    const cdLabeled = cd.filter(m => !!m.label);
+    const cls = g.selectAll<SVGTextElement, AnimatedMessage>('text.msg-label-circle').data(cdLabeled, d => d.id);
+    cls.enter().append('text').attr('class', 'msg-label-circle').attr('font-size', 7).attr('fill', '#495057').attr('font-weight', 600).attr('pointer-events', 'none')
+      .merge(cls)
+      .attr('x', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).x + 8)
+      .attr('y', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).y + 2)
+      .attr('opacity', d => { const t = (now - d.startTime) / d.duration; return t > 0.7 ? Math.max(0, 1 - (t - 0.7) / 0.3) : 0.85; })
+      .text(d => d.label ?? '');
+    cls.exit().remove();
 
     frameRef.current = requestAnimationFrame(animate);
   }, [interp, fnPositions]);
@@ -418,10 +517,25 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         const podRing = r * 0.55;
         pods.forEach((pod, pi) => {
           const a = podStep * pi - Math.PI / 2;
-          world.append('circle')
+          const podG = world.append('g').style('cursor', 'pointer');
+          podG.append('circle')
             .attr('cx', cx + Math.cos(a) * podRing)
             .attr('cy', cy + Math.sin(a) * podRing + 4)
             .attr('r', 4).attr('fill', podColor(pod.Status)).attr('stroke', '#fff').attr('stroke-width', 1);
+          // Pod name label (only if a few pods, to avoid clutter)
+          if (pods.length <= 6) {
+            podG.append('text')
+              .attr('x', cx + Math.cos(a) * (podRing + 10))
+              .attr('y', cy + Math.sin(a) * (podRing + 10) + 4 + 3)
+              .attr('text-anchor', 'middle')
+              .attr('font-size', 6)
+              .attr('fill', '#6b778c')
+              .attr('pointer-events', 'none')
+              .text(pod.Name.length > 20 ? '…' + pod.Name.slice(-12) : pod.Name);
+          }
+          // Tooltip with full details
+          podG.append('title')
+            .text(`${pod.Name}\nIP: ${pod.Ip || 'N/A'}\nStatus: ${pod.Status}\nReady: ${pod.Ready}`);
         });
       }
     });
@@ -489,6 +603,19 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         </span>
         <span className="network-map__legend-item">
           <svg width="24" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#4c6ef5" strokeWidth="3" strokeDasharray="6 3" opacity="0.35" /></svg> In-flight
+        </span>
+        <span className="network-map__legend-separator" />
+        <span className="network-map__legend-item" title="Running pod">
+          <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="#36b37e" stroke="#fff" strokeWidth="1" /></svg> Running
+        </span>
+        <span className="network-map__legend-item" title="Starting pod">
+          <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="#fab005" stroke="#fff" strokeWidth="1" /></svg> Starting
+        </span>
+        <span className="network-map__legend-item" title="Pending pod">
+          <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="#adb5bd" stroke="#fff" strokeWidth="1" /></svg> Pending
+        </span>
+        <span className="network-map__legend-item network-network-map__legend-item--hint" style={{ fontSize: '0.7rem', color: '#868e96', fontStyle: 'italic' }}>
+          Labels show source/target pod per message
         </span>
       </div>
     </div>

@@ -61,7 +61,7 @@ public static class StatusStreamEndpoints
             await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, ct);
 
             // Then send periodic full state + activity events
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
 
             while (!ct.IsCancellationRequested)
             {

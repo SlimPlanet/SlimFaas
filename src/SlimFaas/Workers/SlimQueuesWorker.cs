@@ -144,7 +144,7 @@ public class SlimQueuesWorker(
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
                 .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy);
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp));
-            activityTracker.Record("dequeue", "slimfaas", functionDeployment, functionDeployment);
+            activityTracker.Record("dequeue", "slimfaas", functionDeployment, functionDeployment, targetPod: targetIp);
         }
     }
 

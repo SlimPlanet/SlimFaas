@@ -16,7 +16,9 @@ public record NetworkActivityEvent(
     string Target,        // e.g. "slimfaas", function name, "external"
     string? QueueName,    // the queue name if relevant
     long TimestampMs,
-    string NodeId);       // hostname of the SlimFaas node that recorded the event
+    string NodeId,        // hostname of the SlimFaas node that recorded the event
+    string? SourcePod = null,   // source pod name or IP (e.g. the caller pod)
+    string? TargetPod = null);  // target pod name or IP (e.g. the downstream pod receiving the request)
 
 /// <summary>
 /// Represents the full stream payload sent via SSE.
@@ -68,7 +70,7 @@ public sealed class NetworkActivityTracker
     private const int MaxKnownIds = 1000;
 
     /// <summary>Record a local activity event and broadcast to all SSE subscribers.</summary>
-    public string Record(string type, string source, string target, string? queueName = null)
+    public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null)
     {
         var evt = new NetworkActivityEvent(
             Id: $"{NodeId}-{Interlocked.Increment(ref _counter)}",
@@ -77,7 +79,9 @@ public sealed class NetworkActivityTracker
             Target: target,
             QueueName: queueName,
             TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            NodeId: NodeId);
+            NodeId: NodeId,
+            SourcePod: sourcePod,
+            TargetPod: targetPod);
 
         Enqueue(evt);
         return evt.Id;

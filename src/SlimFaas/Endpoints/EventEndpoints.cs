@@ -65,7 +65,8 @@ public static class EventEndpoints
         functionPath ??= "";
 
         logger.LogDebug("Receiving event: {EventName}", eventName);
-        activityTracker.Record("event_publish", "external", "slimfaas");
+        activityTracker.Record("event_publish", "external", "slimfaas",
+            sourcePod: context.Connection.RemoteIpAddress?.ToString());
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
 
         if (functions.Count <= 0)
@@ -85,7 +86,8 @@ public static class EventEndpoints
         foreach (DeploymentInformation function in functions)
         {
             logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
-            activityTracker.Record("event_publish", "slimfaas", function.Deployment);
+            activityTracker.Record("event_publish", "slimfaas", function.Deployment,
+                targetPod: function.Pods?.FirstOrDefault(p => p.Ready == true)?.Ip);
 
             // --- Fonctions WebSocket virtuelles (Namespace = "websocket-virtual") ---
             if (function.Namespace == "websocket-virtual")
@@ -104,7 +106,7 @@ public static class EventEndpoints
             }
 
             // --- Fonctions HTTP classiques ---
-            foreach (var pod in function.Pods)
+            foreach (var pod in function.Pods ?? Enumerable.Empty<PodInformation>())
             {
                 logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}",
                     pod.Ready, function.EndpointReady, pod.Ip);

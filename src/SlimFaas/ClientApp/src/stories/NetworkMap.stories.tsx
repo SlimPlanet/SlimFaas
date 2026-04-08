@@ -71,12 +71,12 @@ const QUEUES: QueueInfo[] = [
 
 const now = Date.now();
 const ACTIVITY: NetworkActivityEvent[] = [
-  { Id: 'evt-1', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 5000, NodeId: 'slimfaas-0' },
-  { Id: 'evt-2', Type: 'enqueue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 4500, NodeId: 'slimfaas-0' },
-  { Id: 'evt-3', Type: 'dequeue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 3000, NodeId: 'slimfaas-1' },
-  { Id: 'evt-4', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 2000, NodeId: 'slimfaas-1' },
-  { Id: 'evt-5', Type: 'request_out', Source: 'slimfaas', Target: 'fibonacci2', QueueName: null, TimestampMs: now - 1500, NodeId: 'slimfaas-0' },
-  { Id: 'evt-6', Type: 'event_publish', Source: 'slimfaas', Target: 'ws-handler', QueueName: null, TimestampMs: now - 500, NodeId: 'slimfaas-1' },
+  { Id: 'evt-1', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 5000, NodeId: 'slimfaas-0', SourcePod: '192.168.1.50', TargetPod: null },
+  { Id: 'evt-2', Type: 'enqueue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 4500, NodeId: 'slimfaas-0', SourcePod: '192.168.1.50', TargetPod: null },
+  { Id: 'evt-3', Type: 'dequeue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 3000, NodeId: 'slimfaas-1', SourcePod: null, TargetPod: '10.0.0.1' },
+  { Id: 'evt-4', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 2000, NodeId: 'slimfaas-1', SourcePod: '10.0.0.3', TargetPod: null },
+  { Id: 'evt-5', Type: 'request_out', Source: 'slimfaas', Target: 'fibonacci2', QueueName: null, TimestampMs: now - 1500, NodeId: 'slimfaas-0', SourcePod: null, TargetPod: '10.0.0.3' },
+  { Id: 'evt-6', Type: 'event_publish', Source: 'slimfaas', Target: 'ws-handler', QueueName: null, TimestampMs: now - 500, NodeId: 'slimfaas-1', SourcePod: null, TargetPod: 'aaa' },
 ];
 
 // Set of functions that have had queue activity (based on ACTIVITY events and non-zero queue lengths)
@@ -165,6 +165,15 @@ export const LiveAnimation: Story = {
           });
         }
 
+        // Pod IPs per function (from FUNCTIONS mock data)
+        const podIps: Record<string, string[]> = {
+          fibonacci1: ['10.0.0.1', '10.0.0.2'],
+          fibonacci2: ['10.0.0.3'],
+          kafka: [],
+          mysql: ['10.0.0.5'],
+          'ws-handler': ['aaa', 'bbb'],
+        };
+
         setAct(prev => [...prev.slice(-50), {
           Id: `live-${counter}`,
           Type: type,
@@ -173,6 +182,10 @@ export const LiveAnimation: Story = {
           QueueName: (type === 'enqueue' || type === 'dequeue') ? targetFn : null,
           TimestampMs: Date.now(),
           NodeId: counter % 2 === 0 ? 'slimfaas-0' : 'slimfaas-1',
+          SourcePod: type === 'request_in' ? (podIps[fnNames[(counter + 1) % fnNames.length]]?.[0] ?? null) : null,
+          TargetPod: (type === 'dequeue' || type === 'request_out' || type === 'event_publish')
+            ? (podIps[targetFn]?.[counter % (podIps[targetFn]?.length || 1)] ?? null)
+            : null,
         }]);
 
         // Update queue lengths dynamically

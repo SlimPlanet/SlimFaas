@@ -53,6 +53,15 @@
     border-radius: 50%;
     flex-shrink: 0;
   }
+
+  &__legend-separator {
+    display: inline-block;
+    width: 1px;
+    height: 14px;
+    background: $color-border;
+    margin: 0 $spacing-xs;
+    vertical-align: middle;
+  }
 }
 
 

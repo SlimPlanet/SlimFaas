@@ -199,6 +199,59 @@ public class NetworkActivityTrackerTests
         Assert.Equal(0, nodeB.IngestRemote(foreignEvents));  // nodeB already has these
         Assert.Equal(0, nodeA.IngestRemote(foreignFromB));   // nodeA already has these
     }
+
+    [Fact(DisplayName = "Record stores SourcePod and TargetPod")]
+    public void Record_StoresSourceAndTargetPod()
+    {
+        var tracker = new NetworkActivityTracker();
+
+        tracker.Record("request_in", "external", "slimfaas", sourcePod: "10.0.0.42");
+        tracker.Record("request_out", "slimfaas", "fibonacci", targetPod: "10.0.0.5");
+        tracker.Record("dequeue", "slimfaas", "fibonacci", "fibonacci", sourcePod: null, targetPod: "10.0.0.5");
+
+        var recent = tracker.GetRecent();
+        Assert.Equal(3, recent.Count);
+
+        Assert.Equal("10.0.0.42", recent[0].SourcePod);
+        Assert.Null(recent[0].TargetPod);
+
+        Assert.Null(recent[1].SourcePod);
+        Assert.Equal("10.0.0.5", recent[1].TargetPod);
+
+        Assert.Null(recent[2].SourcePod);
+        Assert.Equal("10.0.0.5", recent[2].TargetPod);
+    }
+
+    [Fact(DisplayName = "IngestRemote preserves SourcePod and TargetPod")]
+    public void IngestRemote_PreservesSourceAndTargetPod()
+    {
+        var tracker = new NetworkActivityTracker();
+
+        var remote = new NetworkActivityEvent(
+            "peer-pod-1", "request_out", "slimfaas", "fibonacci", null, 500, "peer-node",
+            SourcePod: "10.0.0.1", TargetPod: "10.0.0.99");
+
+        tracker.IngestRemote(new[] { remote });
+        var recent = tracker.GetRecent();
+
+        Assert.Single(recent);
+        Assert.Equal("10.0.0.1", recent[0].SourcePod);
+        Assert.Equal("10.0.0.99", recent[0].TargetPod);
+    }
+
+    [Fact(DisplayName = "Record with both SourcePod and TargetPod")]
+    public void Record_BothSourceAndTargetPod()
+    {
+        var tracker = new NetworkActivityTracker();
+
+        tracker.Record("request_out", "slimfaas", "fibonacci",
+            sourcePod: "10.0.0.1", targetPod: "10.0.0.5");
+
+        var recent = tracker.GetRecent();
+        Assert.Single(recent);
+        Assert.Equal("10.0.0.1", recent[0].SourcePod);
+        Assert.Equal("10.0.0.5", recent[0].TargetPod);
+    }
 }
 
 
