@@ -108,10 +108,17 @@ export interface QueueInfo {
   Length: number;
 }
 
+export interface SlimFaasNodeInfo {
+  Name: string;
+  Status: string;  // "Running", "Starting", "Pending"
+}
+
 export interface StatusStreamPayload {
   Functions: FunctionStatusDetailed[];
   Queues: QueueInfo[];
   RecentActivity: NetworkActivityEvent[];
+  SlimFaasReplicas: number;
+  SlimFaasNodes: SlimFaasNodeInfo[] | null;
 }
 
 // ---- Jobs ----

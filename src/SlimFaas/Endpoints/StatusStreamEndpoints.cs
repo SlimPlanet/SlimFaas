@@ -118,10 +118,19 @@ public static class StatusStreamEndpoints
             }
         }
 
+        var slimFaasInfo = replicasService.Deployments.SlimFaas;
+        var slimFaasNodes = slimFaasInfo.Pods
+            .Select(p => new SlimFaasNodeInfo(
+                p.Name,
+                p.Ready == true ? "Running" : (p.Started == true ? "Starting" : "Pending")))
+            .ToList();
+
         var payload = new StatusStreamPayload(
             Functions: functions,
             Queues: queues,
-            RecentActivity: tracker.GetRecent());
+            RecentActivity: tracker.GetRecent(),
+            SlimFaasReplicas: slimFaasInfo.Replicas,
+            SlimFaasNodes: slimFaasNodes);
 
         string json = JsonSerializer.Serialize(payload, StatusStreamSerializerContext.Default.StatusStreamPayload);
         await context.Response.WriteAsync($"event: state\ndata: {json}\n\n", ct);

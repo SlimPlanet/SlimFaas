@@ -193,6 +193,6 @@ export const LiveAnimation: Story = {
       }, 800);
       return () => clearInterval(timer);
     }, []);
-    return <NetworkMap functions={FUNCTIONS} queues={dynamicQueues} activity={act} functionsWithQueueActivity={liveQueueFns} />;
+    return <NetworkMap functions={FUNCTIONS} queues={dynamicQueues} activity={act} functionsWithQueueActivity={liveQueueFns} slimFaasReplicas={3} slimFaasNodes={[{ Name: 'slimfaas-0', Status: 'Running' }, { Name: 'slimfaas-1', Status: 'Running' }, { Name: 'slimfaas-2', Status: 'Starting' }]} />;
   },
 };

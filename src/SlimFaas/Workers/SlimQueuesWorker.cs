@@ -209,6 +209,7 @@ public class SlimQueuesWorker(
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
                 httpResponseMessagesToDelete.Add(processing);
+                activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment, targetPod: processing.TargetIp);
                 // Libérer le slot per-pod
                 if (!string.IsNullOrEmpty(processing.TargetIp))
                 {
@@ -228,6 +229,7 @@ public class SlimQueuesWorker(
             {
                 queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
                 httpResponseMessagesToDelete.Add(processing);
+                activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment, targetPod: processing.TargetIp);
                 // Libérer le slot per-pod en cas d'erreur
                 if (!string.IsNullOrEmpty(processing.TargetIp))
                 {

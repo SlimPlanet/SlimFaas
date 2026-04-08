@@ -23,10 +23,14 @@ public record NetworkActivityEvent(
 /// <summary>
 /// Represents the full stream payload sent via SSE.
 /// </summary>
+public record SlimFaasNodeInfo(string Name, string Status);
+
 public record StatusStreamPayload(
     IReadOnlyList<FunctionStatusDetailed> Functions,
     IList<QueueInfo> Queues,
-    IList<NetworkActivityEvent> RecentActivity);
+    IList<NetworkActivityEvent> RecentActivity,
+    int SlimFaasReplicas = 1,
+    IList<SlimFaasNodeInfo>? SlimFaasNodes = null);
 
 public record QueueInfo(string Name, long Length);
 
@@ -36,6 +40,8 @@ public record QueueInfo(string Name, long Length);
 [JsonSerializable(typeof(List<NetworkActivityEvent>))]
 [JsonSerializable(typeof(QueueInfo))]
 [JsonSerializable(typeof(List<QueueInfo>))]
+[JsonSerializable(typeof(SlimFaasNodeInfo))]
+[JsonSerializable(typeof(List<SlimFaasNodeInfo>))]
 [JsonSerializable(typeof(FunctionStatusDetailed))]
 [JsonSerializable(typeof(List<FunctionStatusDetailed>))]
 [JsonSerializable(typeof(PodStatus))]

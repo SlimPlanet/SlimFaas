@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload } from '../types';
+import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo } from '../types';
 
 const COOLDOWN_MS = 3000;
 
@@ -12,6 +12,8 @@ export function useStatusStream() {
   const [coolingDown, setCoolingDown] = useState<Set<string>>(new Set());
   const [wakeAllCooling, setWakeAllCooling] = useState(false);
   const [functionsWithQueueActivity, setFunctionsWithQueueActivity] = useState<Set<string>>(new Set());
+  const [slimFaasReplicas, setSlimFaasReplicas] = useState(1);
+  const [slimFaasNodes, setSlimFaasNodes] = useState<SlimFaasNodeInfo[]>([]);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -30,6 +32,8 @@ export function useStatusStream() {
         setFunctions(payload.Functions ?? []);
         setQueues(payload.Queues ?? []);
         setActivity(payload.RecentActivity ?? []);
+        setSlimFaasReplicas(payload.SlimFaasReplicas ?? 1);
+        setSlimFaasNodes(payload.SlimFaasNodes ?? []);
         setError(null);
         setLoading(false);
 
@@ -139,6 +143,8 @@ export function useStatusStream() {
     coolingDown,
     wakeAllCooling,
     functionsWithQueueActivity,
+    slimFaasReplicas,
+    slimFaasNodes,
   };
 }
 

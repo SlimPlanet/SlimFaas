@@ -65,7 +65,7 @@ const App: React.FC = () => {
   const {
     functions, queues, activity,
     loading, error, wakeUp, wakeUpAll, coolingDown, wakeAllCooling,
-    functionsWithQueueActivity,
+    functionsWithQueueActivity, slimFaasReplicas, slimFaasNodes,
   } = useStatusStream();
   const { jobs, loading: jobsLoading, error: jobsError } = useJobStatus();
 
@@ -126,7 +126,7 @@ const App: React.FC = () => {
           {/* Network visualization below the functions table */}
           {functions.length > 0 && (
             <ErrorBoundary>
-              <NetworkMap functions={functions} queues={queues} activity={activity} functionsWithQueueActivity={functionsWithQueueActivity} />
+              <NetworkMap functions={functions} queues={queues} activity={activity} functionsWithQueueActivity={functionsWithQueueActivity} slimFaasReplicas={slimFaasReplicas} slimFaasNodes={slimFaasNodes} />
             </ErrorBoundary>
           )}
         </div>

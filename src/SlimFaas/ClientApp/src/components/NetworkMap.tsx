@@ -1,12 +1,14 @@
 import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
-import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent } from '../types';
+import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types';
 
 interface Props {
   functions: FunctionStatusDetailed[];
   queues: QueueInfo[];
   activity: NetworkActivityEvent[];
   functionsWithQueueActivity: Set<string>;
+  slimFaasReplicas: number;
+  slimFaasNodes: SlimFaasNodeInfo[];
 }
 
 /* ── Helpers ── */
@@ -39,42 +41,51 @@ function lightenColor(hex: string, amount: number): string {
 
 /* ── Types ── */
 
+/** A single leg of a chained animation. */
+interface AnimSegment {
+  from: { x: number; y: number };
+  to: { x: number; y: number };
+}
+
+/**
+ * A message that travels through chained segments.
+ * Each segment must complete before the next one starts.
+ */
 interface AnimatedMessage {
   id: string;
-  waypoints: { x: number; y: number }[];
+  segments: AnimSegment[];
+  currentSeg: number;       // index of the segment currently being animated
   color: string;
   shape: 'circle' | 'rect';
-  startTime: number;
-  duration: number;
-  label?: string; // pod-level label shown on hover or next to the dot
+  startTime: number;         // start of the *current* segment
+  segDuration: number;       // ms per segment
+  label?: string;
+  direction: 'forward' | 'return';
+  sourceNode?: string;       // node key for counter tracking
 }
 
 interface ActiveTrace {
   functionName: string;
   type: 'sync' | 'waiting';
   startTime: number;
-  podLabel?: string; // target pod label
+  podLabel?: string;
 }
 
 /* ── Constants ── */
 
-const ANIM_DURATION = 1200;
+const SEG_DURATION = 800;
 const BUBBLE_R = 32;
 const QUEUE_BOX_W = 60;
 const QUEUE_BOX_H = 20;
-const CENTER = { x: 0, y: 0 }; // SlimFaas at world origin
-const EXTERNAL_OFFSET = { x: -300, y: 0 }; // "IN" well to the left
+const CENTER = { x: 0, y: 0 };
+const EXTERNAL_OFFSET = { x: -300, y: 0 };
 const SVG_VIEW_H = 500;
 
-/**
- * Radial layout: place n items around (0,0).
- * Ring radius grows with n so items don't overlap.
- */
 function radialPositions(n: number): { x: number; y: number }[] {
   if (n === 0) return [];
   if (n === 1) return [{ x: 0, y: 260 }];
   const baseR = 250;
-  const perItem = 120; // px spacing per item around circumference
+  const perItem = 120;
   const radius = Math.max(baseR, (n * perItem) / (2 * Math.PI));
   return Array.from({ length: n }, (_, i) => {
     const angle = (2 * Math.PI * i) / n - Math.PI / 2;
@@ -84,7 +95,7 @@ function radialPositions(n: number): { x: number; y: number }[] {
 
 /* ── Component ── */
 
-const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWithQueueActivity }) => {
+const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWithQueueActivity, slimFaasReplicas, slimFaasNodes }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<AnimatedMessage[]>([]);
@@ -93,8 +104,13 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const frameRef = useRef(0);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const worldGRef = useRef<SVGGElement | null>(null);
+  const userHasZoomedRef = useRef(false);
+  const initialFitDoneRef = useRef(false);
 
-  /* ── IP → Pod lookup (function + pod name) ── */
+  // ── Active request counters per node ──
+  const activeCountersRef = useRef<Record<string, number>>({});
+
+  /* ── IP → Pod lookup ── */
 
   const ipToPod = useMemo(() => {
     const map: Record<string, { functionName: string; podName: string }> = {};
@@ -108,20 +124,16 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     return map;
   }, [functions]);
 
-  /** Resolve a pod IP (or name) to a short label like "fibonacci1/pod-0" */
   const resolvePodLabel = useCallback((ip: string | null | undefined): string | undefined => {
     if (!ip) return undefined;
     const entry = ipToPod[ip];
     if (entry) {
-      // Shorten: use only last segment of pod name (after last '-')
       const shortPod = entry.podName.includes('-')
         ? entry.podName.slice(entry.podName.lastIndexOf('-') + 1)
         : entry.podName;
       return `${entry.functionName}/${shortPod}`;
     }
-    // If IP starts with "::ffff:", strip it
     const clean = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-    // Try again with cleaned IP
     const entry2 = ipToPod[clean];
     if (entry2) {
       const shortPod = entry2.podName.includes('-')
@@ -129,10 +141,9 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         : entry2.podName;
       return `${entry2.functionName}/${shortPod}`;
     }
-    return clean; // fallback: show the raw IP
+    return clean;
   }, [ipToPod]);
 
-  /** Resolve a pod IP to just the function name (for source resolution) */
   const resolveFunction = useCallback((ip: string | null | undefined): string | undefined => {
     if (!ip) return undefined;
     const entry = ipToPod[ip];
@@ -141,26 +152,43 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     return ipToPod[clean]?.functionName;
   }, [ipToPod]);
 
-  /* ── Positions in world coordinates (px, center=0,0) ── */
+  /* ── Positions ── */
+
+  // Structural key: only the sorted list of function names
+  const fnNamesKey = useMemo(() => functions.map(f => f.Name).sort().join(','), [functions]);
 
   const fnPositions = useMemo(() => {
+    const names = fnNamesKey.split(',').filter(Boolean);
     const pos: Record<string, { x: number; y: number }> = {};
-    const pts = radialPositions(functions.length);
-    functions.forEach((fn, i) => { pos[fn.Name] = pts[i]; });
+    const pts = radialPositions(names.length);
+    names.forEach((name, i) => { pos[name] = pts[i]; });
     return pos;
-  }, [functions]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fnNamesKey]);
+
+  // Queue positions only depend on which functions HAVE had queue activity (structural)
+  const queueFnKey = useMemo(() => {
+    const names: string[] = [];
+    for (const fn of functions) {
+      const qLen = queues.find(q => q.Name === fn.Name)?.Length ?? 0;
+      if (functionsWithQueueActivity.has(fn.Name) || qLen > 0) {
+        names.push(fn.Name);
+      }
+    }
+    return names.sort().join(',');
+  }, [functions, queues, functionsWithQueueActivity]);
 
   const queuePositions = useMemo(() => {
     const pos: Record<string, { x: number; y: number }> = {};
-    functions.forEach((fn) => {
-      const fp = fnPositions[fn.Name];
-      if (!fp) return;
-      const qLen = queues.find(q => q.Name === fn.Name)?.Length ?? 0;
-      if (!functionsWithQueueActivity.has(fn.Name) && qLen === 0) return;
-      pos[fn.Name] = { x: (CENTER.x + fp.x) / 2, y: (CENTER.y + fp.y) / 2 };
-    });
+    const names = queueFnKey.split(',').filter(Boolean);
+    for (const name of names) {
+      const fp = fnPositions[name];
+      if (!fp) continue;
+      pos[name] = { x: (CENTER.x + fp.x) / 2, y: (CENTER.y + fp.y) / 2 };
+    }
     return pos;
-  }, [functions, fnPositions, functionsWithQueueActivity, queues]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fnNamesKey, queueFnKey]);
 
   const queueMap = useMemo(() => {
     const m: Record<string, number> = {};
@@ -168,7 +196,17 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     return m;
   }, [queues]);
 
-  /* ── Auto zoom-to-fit — only called on resize or structural changes ── */
+  /* ── Counter helpers ── */
+
+  const incCounter = useCallback((node: string) => {
+    activeCountersRef.current[node] = (activeCountersRef.current[node] || 0) + 1;
+  }, []);
+
+  const decCounter = useCallback((node: string) => {
+    activeCountersRef.current[node] = Math.max(0, (activeCountersRef.current[node] || 0) - 1);
+  }, []);
+
+  /* ── Auto zoom-to-fit ── */
 
   const zoomToFit = useCallback((animated = true) => {
     const svg = svgRef.current;
@@ -209,7 +247,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     }
   }, [fnPositions, queuePositions]);
 
-  /* ── Spawn animated messages (ID-based dedup) ── */
+  /* ── Spawn animated messages (chained segments) ── */
 
   useEffect(() => {
     for (const evt of activity) {
@@ -219,59 +257,97 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const fp = (name: string) => fnPositions[name] || null;
       const qp = (name: string) => queuePositions[name] || null;
 
-      // Resolve pod labels for this event
       const srcLabel = resolvePodLabel(evt.SourcePod);
       const tgtLabel = resolvePodLabel(evt.TargetPod);
-      // Resolve the source function (e.g. the pod that called SlimFaas)
       const srcFn = resolveFunction(evt.SourcePod);
 
+      const now = performance.now();
+
       if (evt.Type === 'enqueue') {
+        // External/Source → SlimFaas → Queue (2 chained segments)
         const q = qp(evt.Target);
         if (!q) continue;
-        // If we know which function originated this, start from that function's position
-        const startPos = srcFn && fp(srcFn) ? fp(srcFn)! : CENTER;
-        animRef.current.push({ id: evt.Id, waypoints: [startPos, CENTER, { x: q.x - QUEUE_BOX_W / 2, y: q.y }, q], color: nameColor(evt.Target), shape: 'rect', startTime: performance.now(), duration: ANIM_DURATION, label: srcLabel || tgtLabel });
+        const startPos = srcFn && fp(srcFn) ? fp(srcFn)! : EXTERNAL_OFFSET;
+        incCounter('slimfaas');
+        animRef.current.push({
+          id: evt.Id, segments: [
+            { from: startPos, to: CENTER },
+            { from: CENTER, to: q },
+          ], currentSeg: 0, color: nameColor(evt.Target), shape: 'rect',
+          startTime: now, segDuration: SEG_DURATION,
+          label: srcLabel || tgtLabel, direction: 'forward', sourceNode: 'slimfaas',
+        });
+
       } else if (evt.Type === 'dequeue') {
-        const q = qp(evt.Target); const f = fp(evt.Target);
+        // Queue → Function (1 segment) — counter on the queue (sender)
+        const q = qp(evt.Target);
+        const f = fp(evt.Target);
         if (!q || !f) continue;
-        animRef.current.push({ id: evt.Id, waypoints: [q, { x: q.x + QUEUE_BOX_W / 2, y: q.y }, f], color: nameColor(evt.Target), shape: 'rect', startTime: performance.now(), duration: ANIM_DURATION, label: tgtLabel || `→ ${evt.Target}` });
+        incCounter(`queue:${evt.Target}`);
+        animRef.current.push({
+          id: evt.Id, segments: [
+            { from: q, to: f },
+          ], currentSeg: 0, color: nameColor(evt.Target), shape: 'rect',
+          startTime: now, segDuration: SEG_DURATION,
+          label: tgtLabel, direction: 'forward', sourceNode: `queue:${evt.Target}`,
+        });
+
       } else if (evt.Type === 'request_in') {
-        // If we can resolve the source to a known function, animate from that function
+        // External → SlimFaas (1 segment)
         const startPos = srcFn && fp(srcFn) ? fp(srcFn)! : EXTERNAL_OFFSET;
         const sourceColor = srcFn ? nameColor(srcFn) : '#6b778c';
-        animRef.current.push({ id: evt.Id, waypoints: [startPos, CENTER], color: sourceColor, shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION, label: srcLabel });
-      } else if (evt.Type === 'request_out' || evt.Type === 'response') {
-        const f = fp(evt.Target); if (!f) continue;
-        animRef.current.push({ id: evt.Id, waypoints: [CENTER, f], color: nameColor(evt.Target), shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION, label: tgtLabel || srcLabel });
+        incCounter('external');
+        animRef.current.push({
+          id: evt.Id, segments: [
+            { from: startPos, to: CENTER },
+          ], currentSeg: 0, color: sourceColor, shape: 'circle',
+          startTime: now, segDuration: SEG_DURATION,
+          label: srcLabel, direction: 'forward', sourceNode: 'external',
+        });
+
+      } else if (evt.Type === 'request_out') {
+        // SlimFaas → Function (sync, 1 segment)
+        const f = fp(evt.Target);
+        if (!f) continue;
+        incCounter('slimfaas');
+        animRef.current.push({
+          id: evt.Id, segments: [
+            { from: CENTER, to: f },
+          ], currentSeg: 0, color: nameColor(evt.Target), shape: 'circle',
+          startTime: now, segDuration: SEG_DURATION,
+          label: tgtLabel || srcLabel, direction: 'forward', sourceNode: 'slimfaas',
+        });
+
       } else if (evt.Type === 'request_waiting') {
-        tracesRef.current.set(evt.Target, { functionName: evt.Target, type: 'waiting', startTime: performance.now(), podLabel: tgtLabel || srcLabel });
+        tracesRef.current.set(evt.Target, { functionName: evt.Target, type: 'waiting', startTime: now, podLabel: tgtLabel || srcLabel });
+        incCounter('slimfaas');
+
       } else if (evt.Type === 'request_started') {
         const ex = tracesRef.current.get(evt.Target);
-        if (ex) { ex.type = 'sync'; ex.startTime = performance.now(); ex.podLabel = tgtLabel || srcLabel; }
+        if (ex) { ex.type = 'sync'; ex.startTime = now; ex.podLabel = tgtLabel || srcLabel; }
+
       } else if (evt.Type === 'request_end') {
         tracesRef.current.delete(evt.Source);
+        decCounter('slimfaas');
+        decCounter(`queue:${evt.Source}`);
+
       } else if (evt.Type === 'event_publish') {
-        const f = fp(evt.Target); if (!f) continue;
-        animRef.current.push({ id: evt.Id, waypoints: [CENTER, f], color: '#fab005', shape: 'circle', startTime: performance.now(), duration: ANIM_DURATION, label: tgtLabel });
+        const f = fp(evt.Target);
+        if (!f) continue;
+        incCounter('slimfaas');
+        animRef.current.push({
+          id: evt.Id, segments: [
+            { from: CENTER, to: f },
+          ], currentSeg: 0, color: '#fab005', shape: 'circle',
+          startTime: now, segDuration: SEG_DURATION,
+          label: tgtLabel, direction: 'forward', sourceNode: 'slimfaas',
+        });
       }
     }
     if (seenIdsRef.current.size > 500) {
       seenIdsRef.current = new Set(Array.from(seenIdsRef.current).slice(-300));
     }
-  }, [activity, fnPositions, queuePositions, resolvePodLabel, resolveFunction]);
-
-  /* ── Interpolate along waypoints ── */
-
-  const interp = useCallback((wp: { x: number; y: number }[], t: number) => {
-    if (wp.length < 2) return wp[0];
-    const segs = wp.length - 1;
-    const sl = 1 / segs;
-    const si = Math.min(Math.floor(t / sl), segs - 1);
-    const st = (t - si * sl) / sl;
-    const e = d3.easeCubicInOut(st);
-    const a = wp[si], b = wp[si + 1];
-    return { x: a.x + (b.x - a.x) * e, y: a.y + (b.y - a.y) * e };
-  }, []);
+  }, [activity, fnPositions, queuePositions, resolvePodLabel, resolveFunction, incCounter, decCounter]);
 
   /* ── Animation loop ── */
 
@@ -280,9 +356,42 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     if (!wg) { frameRef.current = requestAnimationFrame(animate); return; }
     const g = d3.select(wg).select<SVGGElement>('.nw-messages');
     const traceG = d3.select(wg).select<SVGGElement>('.nw-traces');
+    const counterG = d3.select(wg).select<SVGGElement>('.nw-counters');
     const now = performance.now();
 
-    animRef.current = animRef.current.filter(m => now - m.startTime < m.duration);
+    // ── Advance chained messages: advance segment or remove if done ──
+    const alive: AnimatedMessage[] = [];
+    for (const m of animRef.current) {
+      const t = (now - m.startTime) / m.segDuration;
+      if (t >= 1) {
+        // Current segment complete
+        if (m.currentSeg < m.segments.length - 1) {
+          // Advance to next segment
+          m.currentSeg++;
+          m.startTime = now;
+          alive.push(m);
+        } else {
+          // All segments done — decrement counter if tracked
+          if (m.sourceNode) decCounter(m.sourceNode);
+        }
+      } else {
+        alive.push(m);
+      }
+    }
+    animRef.current = alive;
+
+    // ── Compute current position for each message ──
+    interface MsgRender { id: string; cx: number; cy: number; color: string; shape: string; direction: string; opacity: number; label?: string }
+    const msgData: MsgRender[] = animRef.current.map(m => {
+      const seg = m.segments[m.currentSeg];
+      const t = Math.min(1, (now - m.startTime) / m.segDuration);
+      const e = d3.easeCubicInOut(t);
+      const cx = seg.from.x + (seg.to.x - seg.from.x) * e;
+      const cy = seg.from.y + (seg.to.y - seg.from.y) * e;
+      const isLast = m.currentSeg === m.segments.length - 1;
+      const opacity = (t > 0.9 && isLast) ? Math.max(0.15, 1 - (t - 0.9) / 0.1) : 0.92;
+      return { id: m.id, cx, cy, color: m.color, shape: m.shape, direction: m.direction, opacity, label: m.label };
+    });
 
     // ── Traces ──
     const traceData = Array.from(tracesRef.current.values());
@@ -302,74 +411,98 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     const wdSel = traceG.selectAll<SVGCircleElement, ActiveTrace>('circle.wait-dot').data(wd, d => d.functionName);
     wdSel.enter().append('circle').attr('class', 'wait-dot').attr('r', 5)
       .merge(wdSel).attr('fill', '#fab005')
-      .attr('cx', d => { const f = fnPositions[d.functionName]; const t = ((now - d.startTime) / 2000) % 1; return CENTER.x + ((f?.x ?? 0) - CENTER.x) * t; })
-      .attr('cy', d => { const f = fnPositions[d.functionName]; const t = ((now - d.startTime) / 2000) % 1; return CENTER.y + ((f?.y ?? 0) - CENTER.y) * t; })
+      .attr('cx', d => { const f = fnPositions[d.functionName]; const tt = ((now - d.startTime) / 2000) % 1; return CENTER.x + ((f?.x ?? 0) - CENTER.x) * tt; })
+      .attr('cy', d => { const f = fnPositions[d.functionName]; const tt = ((now - d.startTime) / 2000) % 1; return CENTER.y + ((f?.y ?? 0) - CENTER.y) * tt; })
       .attr('opacity', d => 0.5 + 0.4 * Math.sin((now - d.startTime) / 600 * Math.PI));
     wdSel.exit().remove();
 
-    // ── Trace pod labels ──
+    // Trace pod labels
     const traceLabelData = traceData.filter(d => !!d.podLabel);
     const tlLabels = traceG.selectAll<SVGTextElement, ActiveTrace>('text.trace-pod-label').data(traceLabelData, d => d.functionName);
     tlLabels.enter().append('text').attr('class', 'trace-pod-label').attr('font-size', 7).attr('fill', '#6b778c').attr('font-weight', 600).attr('pointer-events', 'none')
       .merge(tlLabels)
-      .attr('x', d => {
-        const f = fnPositions[d.functionName];
-        return CENTER.x + ((f?.x ?? 0) - CENTER.x) * 0.5 + 6;
-      })
-      .attr('y', d => {
-        const f = fnPositions[d.functionName];
-        return CENTER.y + ((f?.y ?? 0) - CENTER.y) * 0.5 - 6;
-      })
+      .attr('x', d => { const f = fnPositions[d.functionName]; return CENTER.x + ((f?.x ?? 0) - CENTER.x) * 0.5 + 6; })
+      .attr('y', d => { const f = fnPositions[d.functionName]; return CENTER.y + ((f?.y ?? 0) - CENTER.y) * 0.5 - 6; })
       .attr('opacity', d => d.type === 'waiting' ? 0.6 : 0.5)
       .text(d => d.podLabel ?? '');
     tlLabels.exit().remove();
 
     // ── Rect messages ──
-    const rd = animRef.current.filter(m => m.shape === 'rect');
-    const rs = g.selectAll<SVGRectElement, AnimatedMessage>('rect.msg-rect').data(rd, d => d.id);
-    rs.enter().append('rect').attr('class', 'msg-rect').attr('width', 8).attr('height', 6).attr('rx', 1.5).attr('opacity', 0.95)
-      .merge(rs).attr('fill', d => d.color)
-      .attr('x', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).x - 4)
-      .attr('y', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).y - 3)
-      .attr('opacity', d => { const t = (now - d.startTime) / d.duration; return t > 0.85 ? Math.max(0, 1 - (t - 0.85) / 0.15) : 0.95; });
+    const rectData = msgData.filter(m => m.shape === 'rect');
+    const rs = g.selectAll<SVGRectElement, MsgRender>('rect.msg-rect').data(rectData, d => d.id);
+    rs.enter().append('rect').attr('class', 'msg-rect').attr('width', 8).attr('height', 6).attr('rx', 1.5)
+      .merge(rs)
+      .attr('fill', d => d.direction === 'return' ? lightenColor(d.color, 0.25) : d.color)
+      .attr('stroke', d => d.direction === 'return' ? d.color : 'none')
+      .attr('stroke-width', d => d.direction === 'return' ? 1 : 0)
+      .attr('x', d => d.cx - 4).attr('y', d => d.cy - 3)
+      .attr('opacity', d => d.opacity);
     rs.exit().remove();
 
-    // ── Rect message labels ──
-    const rdLabeled = rd.filter(m => !!m.label);
-    const rls = g.selectAll<SVGTextElement, AnimatedMessage>('text.msg-label-rect').data(rdLabeled, d => d.id);
-    rls.enter().append('text').attr('class', 'msg-label-rect').attr('font-size', 7).attr('fill', '#495057').attr('font-weight', 600).attr('pointer-events', 'none')
-      .merge(rls)
-      .attr('x', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).x + 8)
-      .attr('y', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).y + 2)
-      .attr('opacity', d => { const t = (now - d.startTime) / d.duration; return t > 0.7 ? Math.max(0, 1 - (t - 0.7) / 0.3) : 0.85; })
-      .text(d => d.label ?? '');
-    rls.exit().remove();
-
     // ── Circle messages ──
-    const cd = animRef.current.filter(m => m.shape === 'circle');
-    const cs = g.selectAll<SVGCircleElement, AnimatedMessage>('circle.msg-circle').data(cd, d => d.id);
-    cs.enter().append('circle').attr('class', 'msg-circle').attr('r', 5).attr('opacity', 0.9)
-      .merge(cs).attr('fill', d => d.color)
-      .attr('cx', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).x)
-      .attr('cy', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).y)
-      .attr('opacity', d => { const t = (now - d.startTime) / d.duration; return t > 0.8 ? Math.max(0, 1 - (t - 0.8) / 0.2) : 0.9; });
+    const circData = msgData.filter(m => m.shape === 'circle');
+    const cs = g.selectAll<SVGCircleElement, MsgRender>('circle.msg-circle').data(circData, d => d.id);
+    cs.enter().append('circle').attr('class', 'msg-circle').attr('r', 5)
+      .merge(cs)
+      .attr('fill', d => d.direction === 'return' ? lightenColor(d.color, 0.25) : d.color)
+      .attr('stroke', d => d.direction === 'return' ? d.color : 'none')
+      .attr('stroke-width', d => d.direction === 'return' ? 1.5 : 0)
+      .attr('cx', d => d.cx).attr('cy', d => d.cy)
+      .attr('opacity', d => d.opacity);
     cs.exit().remove();
 
-    // ── Circle message labels ──
-    const cdLabeled = cd.filter(m => !!m.label);
-    const cls = g.selectAll<SVGTextElement, AnimatedMessage>('text.msg-label-circle').data(cdLabeled, d => d.id);
-    cls.enter().append('text').attr('class', 'msg-label-circle').attr('font-size', 7).attr('fill', '#495057').attr('font-weight', 600).attr('pointer-events', 'none')
-      .merge(cls)
-      .attr('x', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).x + 8)
-      .attr('y', d => interp(d.waypoints, Math.min(1, (now - d.startTime) / d.duration)).y + 2)
-      .attr('opacity', d => { const t = (now - d.startTime) / d.duration; return t > 0.7 ? Math.max(0, 1 - (t - 0.7) / 0.3) : 0.85; })
+    // ── Message labels ──
+    const labelData = msgData.filter(m => !!m.label);
+    const mls = g.selectAll<SVGTextElement, MsgRender>('text.msg-label').data(labelData, d => d.id);
+    mls.enter().append('text').attr('class', 'msg-label').attr('font-size', 7).attr('fill', '#495057').attr('font-weight', 600).attr('pointer-events', 'none')
+      .merge(mls)
+      .attr('x', d => d.cx + 8).attr('y', d => d.cy + 2)
+      .attr('opacity', d => d.opacity * 0.85)
       .text(d => d.label ?? '');
-    cls.exit().remove();
+    mls.exit().remove();
+
+    // ── Active request counter badges ──
+    const counters = activeCountersRef.current;
+    type CDatum = { key: string; x: number; y: number; count: number };
+    const cData: CDatum[] = [];
+    const sfC = counters['slimfaas'] || 0;
+    if (sfC > 0) cData.push({ key: 'slimfaas', x: CENTER.x + 55, y: CENTER.y - 18, count: sfC });
+    const exC = counters['external'] || 0;
+    if (exC > 0) cData.push({ key: 'external', x: EXTERNAL_OFFSET.x + 20, y: EXTERNAL_OFFSET.y - 18, count: exC });
+    for (const fnName of Object.keys(fnPositions)) {
+      const c = counters[fnName] || 0;
+      if (c > 0) {
+        const p = fnPositions[fnName];
+        cData.push({ key: fnName, x: p.x + BUBBLE_R + 4, y: p.y - BUBBLE_R + 2, count: c });
+      }
+      // Queue node counter (sender badge on queue box)
+      const qc = counters[`queue:${fnName}`] || 0;
+      if (qc > 0) {
+        const qp = queuePositions[fnName];
+        if (qp) {
+          cData.push({ key: `queue:${fnName}`, x: qp.x + QUEUE_BOX_W / 2 + 4, y: qp.y - QUEUE_BOX_H / 2, count: qc });
+        }
+      }
+    }
+
+    const cSel = counterG.selectAll<SVGGElement, CDatum>('g.counter-badge').data(cData, d => d.key);
+    const cEnter = cSel.enter().append('g').attr('class', 'counter-badge');
+    cEnter.append('rect').attr('rx', 7).attr('ry', 7).attr('height', 14).attr('fill', '#ff6b6b').attr('stroke', '#fff').attr('stroke-width', 1);
+    cEnter.append('text').attr('text-anchor', 'middle').attr('font-size', 8).attr('font-weight', 'bold').attr('fill', '#fff').attr('dy', 10.5);
+    const cMerge = cEnter.merge(cSel);
+    cMerge.attr('transform', d => `translate(${d.x},${d.y})`);
+    cMerge.select('text').text(d => `${d.count}`);
+    cMerge.select('rect')
+      .attr('width', d => Math.max(16, `${d.count}`.length * 7 + 8))
+      .attr('x', d => -Math.max(16, `${d.count}`.length * 7 + 8) / 2);
+    cSel.exit().remove();
 
     frameRef.current = requestAnimationFrame(animate);
-  }, [interp, fnPositions]);
+  }, [fnPositions, queuePositions, decCounter]);
 
-  /* ── Draw static elements + setup zoom ── */
+  /* ── Draw static structure ── */
+
+  const structuralKey = `${fnNamesKey}|${queueFnKey}`;
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -377,204 +510,270 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     const sel = d3.select(svg);
     sel.selectAll('*').remove();
 
-    // Defs (outside the world group so they aren't transformed)
+    userHasZoomedRef.current = false;
+    initialFitDoneRef.current = false;
+    activeCountersRef.current = {};
+
+    // Defs
     const defs = sel.append('defs');
     const ds = defs.append('filter').attr('id', 'shadow').attr('x', '-20%').attr('y', '-20%').attr('width', '140%').attr('height', '140%');
     ds.append('feDropShadow').attr('dx', 0).attr('dy', 2).attr('stdDeviation', 3).attr('flood-opacity', 0.15);
-    defs.append('marker').attr('id', 'arrow-in').attr('viewBox', '0 0 10 10')
-      .attr('refX', 5).attr('refY', 5).attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto-start-reverse')
-      .append('path').attr('d', 'M 0 0 L 10 5 L 0 10 z').attr('fill', '#adb5bd');
 
-    // Background rect (will be big enough; zoom handles viewport)
+    // Background
     sel.append('rect').attr('class', 'nw-bg').attr('width', '100%').attr('height', '100%').attr('fill', '#f8f9fa');
 
-    // World group — everything zoomable
+    // World group
     const world = sel.append('g').attr('class', 'nw-world');
     worldGRef.current = world.node()!;
 
     // Setup d3-zoom
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.15, 5])
-      .on('zoom', (event) => { world.attr('transform', event.transform); });
+      .on('zoom', (event) => {
+        world.attr('transform', event.transform);
+        if (event.sourceEvent) userHasZoomedRef.current = true;
+      });
     zoomRef.current = zoom;
     sel.call(zoom);
-    // Disable double-click zoom
     sel.on('dblclick.zoom', null);
+    sel.on('dblclick', () => { userHasZoomedRef.current = false; zoomToFit(true); });
 
-    // ── External IN ──
+    // ── External bubble ──
     const exX = EXTERNAL_OFFSET.x, exY = EXTERNAL_OFFSET.y;
-    world.append('polygon')
-      .attr('points', `${exX - 14},${exY} ${exX + 10},${exY - 12} ${exX + 10},${exY + 12}`)
-      .attr('fill', '#adb5bd').attr('opacity', 0.7);
-    world.append('text').attr('x', exX).attr('y', exY + 22)
-      .attr('text-anchor', 'middle').attr('fill', '#6b778c').attr('font-size', 10).text('IN');
+    const exR = BUBBLE_R;
+    world.append('circle')
+      .attr('cx', exX).attr('cy', exY).attr('r', exR)
+      .attr('fill', '#adb5bd').attr('stroke', '#adb5bd').attr('stroke-width', 2.5)
+      .attr('opacity', 0.85).attr('filter', 'url(#shadow)');
+    world.append('text').attr('x', exX).attr('y', exY + 4)
+      .attr('text-anchor', 'middle').attr('fill', '#fff').attr('font-weight', 'bold').attr('font-size', 10)
+      .text('External');
 
     // ── SlimFaas ──
     const sfW = 100, sfH = 44;
     world.append('rect').attr('x', CENTER.x - sfW / 2).attr('y', CENTER.y - sfH / 2)
       .attr('width', sfW).attr('height', sfH).attr('rx', 10)
       .attr('fill', '#0000ff').attr('filter', 'url(#shadow)');
-    world.append('text').attr('x', CENTER.x).attr('y', CENTER.y + 5)
+    world.append('text').attr('x', CENTER.x).attr('y', CENTER.y - 2)
       .attr('text-anchor', 'middle').attr('fill', '#fff').attr('font-weight', 'bold').attr('font-size', 14)
       .text('SlimFaas');
+    // SlimFaas replica mini-bubbles group (updated dynamically)
+    world.append('g').attr('class', 'sf-replicas');
 
-    // ── Traces layer ──
+    // ── Layers ──
     world.append('g').attr('class', 'nw-traces');
 
-    // ── Queues + Connection lines ──
-    functions.forEach((fn) => {
-      const pos = fnPositions[fn.Name];
-      if (!pos) return;
-      const qLen = queueMap[fn.Name] ?? 0;
-      const color = nameColor(fn.Name);
-      const qCenter = queuePositions[fn.Name];
+    // ── Queue boxes only (NO connection lines) ──
+    const fnNames = fnNamesKey.split(',').filter(Boolean);
+    const queueFnNames = new Set(queueFnKey.split(',').filter(Boolean));
 
-      if (!qCenter) {
-        // Direct line
-        world.append('line')
-          .attr('x1', CENTER.x).attr('y1', CENTER.y + sfH / 2)
-          .attr('x2', pos.x).attr('y2', pos.y - BUBBLE_R)
-          .attr('stroke', color).attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3')
-          .attr('opacity', 0.25).attr('marker-end', 'url(#arrow-in)');
-        return;
-      }
-
+    fnNames.forEach((fnName) => {
+      if (!queueFnNames.has(fnName)) return;
+      const qCenter = queuePositions[fnName];
+      if (!qCenter) return;
+      const color = nameColor(fnName);
       const qCX = qCenter.x, qCY = qCenter.y;
       const qW = QUEUE_BOX_W, qH = QUEUE_BOX_H;
-      const qLeft = qCX - qW / 2, qRight = qCX + qW / 2;
-
-      // SlimFaas → Queue
-      world.append('line')
-        .attr('x1', CENTER.x).attr('y1', CENTER.y + sfH / 2)
-        .attr('x2', qLeft).attr('y2', qCY)
-        .attr('stroke', color).attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3')
-        .attr('opacity', 0.25).attr('marker-end', 'url(#arrow-in)');
-      // Queue → Function
-      world.append('line')
-        .attr('x1', qRight).attr('y1', qCY)
-        .attr('x2', pos.x).attr('y2', pos.y - BUBBLE_R)
-        .attr('stroke', color).attr('stroke-width', 1.5).attr('stroke-dasharray', '4 3')
-        .attr('opacity', 0.25).attr('marker-end', 'url(#arrow-in)');
+      const qLeft = qCX - qW / 2;
 
       // Queue body
-      world.append('rect').attr('x', qLeft).attr('y', qCY - qH / 2)
+      world.append('rect').attr('class', `q-box-${fnName}`).attr('x', qLeft).attr('y', qCY - qH / 2)
         .attr('width', qW).attr('height', qH).attr('rx', 4).attr('ry', 4)
         .attr('fill', '#fff').attr('stroke', color).attr('stroke-width', 1.5).attr('filter', 'url(#shadow)');
-
-      if (qLen > 0) {
-        const fillRatio = Math.min(1, qLen / 20);
-        world.append('rect').attr('x', qLeft + 1).attr('y', qCY - qH / 2 + 1)
-          .attr('width', Math.max(0, (qW - 2) * fillRatio)).attr('height', qH - 2)
-          .attr('rx', 3).attr('fill', lightenColor(color, 0.3)).attr('opacity', 0.6);
-
-        const maxBlocks = Math.min(qLen, Math.floor(qW / 8));
-        const blockW = 5, blockH = qH - 8;
-        const blockSpacing = Math.min(7, (qW - 4) / maxBlocks);
-        for (let bi = 0; bi < maxBlocks; bi++) {
-          world.append('rect')
-            .attr('x', qLeft + 3 + bi * blockSpacing).attr('y', qCY - blockH / 2)
-            .attr('width', blockW).attr('height', blockH).attr('rx', 1)
-            .attr('fill', color).attr('opacity', 0.5 + 0.3 * (bi / maxBlocks));
-        }
-      }
-
-      world.append('text').attr('x', qLeft - 2).attr('y', qCY + 4).attr('text-anchor', 'end').attr('font-size', 10).attr('fill', color).text('▶');
-      world.append('text').attr('x', qRight + 2).attr('y', qCY + 4).attr('text-anchor', 'start').attr('font-size', 10).attr('fill', color).text('▶');
+      world.append('g').attr('class', `q-fill-${fnName}`);
       world.append('text').attr('x', qCX).attr('y', qCY - qH / 2 - 4)
         .attr('text-anchor', 'middle').attr('font-size', 9).attr('fill', '#6b778c').attr('font-weight', '600')
-        .text(fn.Name.length > 14 ? fn.Name.slice(0, 12) + '…' : fn.Name);
-      world.append('text').attr('x', qCX).attr('y', qCY + qH / 2 + 12)
-        .attr('text-anchor', 'middle').attr('font-size', 9)
-        .attr('fill', qLen > 0 ? color : '#adb5bd').attr('font-weight', 'bold')
-        .text(`📥 ${qLen}`);
+        .text(fnName.length > 14 ? fnName.slice(0, 12) + '\u2026' : fnName);
+      world.append('text').attr('class', `q-count-${fnName}`).attr('x', qCX).attr('y', qCY + qH / 2 + 12)
+        .attr('text-anchor', 'middle').attr('font-size', 9).attr('font-weight', 'bold');
     });
 
-    // ── Function bubbles ──
+    // ── Function bubbles (NO connection lines) ──
+    fnNames.forEach((fnName) => {
+      const pos = fnPositions[fnName];
+      if (!pos) return;
+      const color = nameColor(fnName);
+
+      world.append('g').attr('class', `fn-group-${CSS.escape(fnName)}`);
+      world.append('circle').attr('class', `fn-bubble-${CSS.escape(fnName)}`)
+        .attr('cx', pos.x).attr('cy', pos.y).attr('r', BUBBLE_R)
+        .attr('fill', color).attr('stroke', color).attr('stroke-width', 2.5)
+        .attr('opacity', 0.85).attr('filter', 'url(#shadow)');
+      world.append('text').attr('class', `fn-name-${CSS.escape(fnName)}`)
+        .attr('x', pos.x).attr('y', pos.y - 5)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('font-weight', 'bold').attr('fill', '#fff')
+        .text(fnName.length > 14 ? fnName.slice(0, 12) + '\u2026' : fnName);
+      world.append('text').attr('class', `fn-count-${CSS.escape(fnName)}`)
+        .attr('x', pos.x).attr('y', pos.y + 8)
+        .attr('text-anchor', 'middle').attr('font-size', 9);
+      world.append('g').attr('class', `fn-pods-${CSS.escape(fnName)}`);
+    });
+
+    // ── Messages + Counters layers ──
+    world.append('g').attr('class', 'nw-messages');
+    world.append('g').attr('class', 'nw-counters');
+
+    // Start animation
+    frameRef.current = requestAnimationFrame(animate);
+
+    const fitTimer = setTimeout(() => {
+      if (!userHasZoomedRef.current) {
+        zoomToFit(false);
+        initialFitDoneRef.current = true;
+      }
+    }, 80);
+
+    return () => {
+      cancelAnimationFrame(frameRef.current);
+      clearTimeout(fitTimer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [structuralKey]);
+
+  /* ── Update dynamic data ── */
+
+  useEffect(() => {
+    const wg = worldGRef.current;
+    if (!wg) return;
+    const world = d3.select(wg);
+
     functions.forEach((fn) => {
       const pos = fnPositions[fn.Name];
       if (!pos) return;
-      const cx = pos.x, cy = pos.y;
       const color = nameColor(fn.Name);
       const isDown = (fn.NumberReady ?? 0) === 0;
-      const r = BUBBLE_R + Math.min((fn.Pods ?? []).length * 3, 14);
-
-      world.append('circle').attr('cx', cx).attr('cy', cy).attr('r', r)
-        .attr('fill', isDown ? '#f8f9fa' : color)
-        .attr('stroke', color).attr('stroke-width', 2.5)
-        .attr('opacity', isDown ? 0.5 : 0.85).attr('filter', 'url(#shadow)');
-
-      world.append('text').attr('x', cx).attr('y', cy - 5)
-        .attr('text-anchor', 'middle').attr('fill', isDown ? '#6b778c' : '#fff')
-        .attr('font-size', 10).attr('font-weight', 'bold')
-        .text(fn.Name.length > 14 ? fn.Name.slice(0, 12) + '…' : fn.Name);
-      world.append('text').attr('x', cx).attr('y', cy + 8)
-        .attr('text-anchor', 'middle').attr('fill', isDown ? '#adb5bd' : 'rgba(255,255,255,0.8)')
-        .attr('font-size', 9).text(`${fn.NumberReady}/${fn.NumberRequested}`);
-
       const pods = fn.Pods ?? [];
+      const r = BUBBLE_R + Math.min(pods.length * 3, 14);
+
+      // Update bubble
+      const escaped = CSS.escape(fn.Name);
+      world.select(`.fn-bubble-${escaped}`)
+        .attr('r', r)
+        .attr('fill', isDown ? '#f8f9fa' : color)
+        .attr('opacity', isDown ? 0.5 : 0.85);
+
+      // Update name color
+      world.select(`.fn-name-${escaped}`)
+        .attr('fill', isDown ? '#6b778c' : '#fff');
+
+      // Update count
+      world.select(`.fn-count-${escaped}`)
+        .attr('fill', isDown ? '#adb5bd' : 'rgba(255,255,255,0.8)')
+        .text(`${fn.NumberReady}/${fn.NumberRequested}`);
+
+      // Update pods
+      const podGroup = world.select<SVGGElement>(`.fn-pods-${escaped}`);
+      podGroup.selectAll('*').remove();
+
       if (pods.length > 0) {
         const podStep = (2 * Math.PI) / pods.length;
         const podRing = r * 0.55;
         pods.forEach((pod, pi) => {
           const a = podStep * pi - Math.PI / 2;
-          const podG = world.append('g').style('cursor', 'pointer');
+          const podG = podGroup.append('g').style('cursor', 'pointer');
           podG.append('circle')
-            .attr('cx', cx + Math.cos(a) * podRing)
-            .attr('cy', cy + Math.sin(a) * podRing + 4)
+            .attr('cx', pos.x + Math.cos(a) * podRing)
+            .attr('cy', pos.y + Math.sin(a) * podRing + 4)
             .attr('r', 4).attr('fill', podColor(pod.Status)).attr('stroke', '#fff').attr('stroke-width', 1);
-          // Pod name label (only if a few pods, to avoid clutter)
           if (pods.length <= 6) {
             podG.append('text')
-              .attr('x', cx + Math.cos(a) * (podRing + 10))
-              .attr('y', cy + Math.sin(a) * (podRing + 10) + 4 + 3)
-              .attr('text-anchor', 'middle')
-              .attr('font-size', 6)
-              .attr('fill', '#6b778c')
-              .attr('pointer-events', 'none')
+              .attr('x', pos.x + Math.cos(a) * (podRing + 10))
+              .attr('y', pos.y + Math.sin(a) * (podRing + 10) + 4 + 3)
+              .attr('text-anchor', 'middle').attr('font-size', 6).attr('fill', '#6b778c').attr('pointer-events', 'none')
               .text(pod.Name.length > 20 ? '…' + pod.Name.slice(-12) : pod.Name);
           }
-          // Tooltip with full details
           podG.append('title')
             .text(`${pod.Name}\nIP: ${pod.Ip || 'N/A'}\nStatus: ${pod.Status}\nReady: ${pod.Ready}`);
         });
       }
+
+      // Update queue count
+      const qLen = queueMap[fn.Name] ?? 0;
+      const qCenter = queuePositions[fn.Name];
+      if (qCenter) {
+        const qCX = qCenter.x, qCY = qCenter.y;
+        const qW = QUEUE_BOX_W, qH = QUEUE_BOX_H;
+        const qLeft = qCX - qW / 2;
+
+        // Update count text
+        world.select(`.q-count-${CSS.escape(fn.Name)}`)
+          .attr('fill', qLen > 0 ? color : '#adb5bd')
+          .text(`📥 ${qLen}`);
+
+        // Update fill
+        const fillGroup = world.select<SVGGElement>(`.q-fill-${CSS.escape(fn.Name)}`);
+        fillGroup.selectAll('*').remove();
+
+        if (qLen > 0) {
+          const fillRatio = Math.min(1, qLen / 20);
+          fillGroup.append('rect').attr('x', qLeft + 1).attr('y', qCY - qH / 2 + 1)
+            .attr('width', Math.max(0, (qW - 2) * fillRatio)).attr('height', qH - 2)
+            .attr('rx', 3).attr('fill', lightenColor(color, 0.3)).attr('opacity', 0.6);
+
+          const maxBlocks = Math.min(qLen, Math.floor(qW / 8));
+          const blockW = 5, blockH = qH - 8;
+          const blockSpacing = Math.min(7, (qW - 4) / maxBlocks);
+          for (let bi = 0; bi < maxBlocks; bi++) {
+            fillGroup.append('rect')
+              .attr('x', qLeft + 3 + bi * blockSpacing).attr('y', qCY - blockH / 2)
+              .attr('width', blockW).attr('height', blockH).attr('rx', 1)
+              .attr('fill', color).attr('opacity', 0.5 + 0.3 * (bi / maxBlocks));
+          }
+        }
+      }
     });
 
-    // ── Messages layer ──
-    world.append('g').attr('class', 'nw-messages');
+    // ── Update SlimFaas replica mini-bubbles ──
+    const sfGroup = world.select<SVGGElement>('.sf-replicas');
+    sfGroup.selectAll('*').remove();
+    const nodes = slimFaasNodes.length > 0 ? slimFaasNodes : Array.from({ length: slimFaasReplicas }, (_, i) => ({ Name: `sf-${i}`, Status: 'Running' }));
+    if (nodes.length > 0) {
+      const miniR = 5;
+      const totalW = nodes.length * (miniR * 2 + 4) - 4;
+      const startX = CENTER.x - totalW / 2 + miniR;
+      const baseY = CENTER.y + 14;
+      nodes.forEach((node, i) => {
+        const nx = startX + i * (miniR * 2 + 4);
+        const color = node.Status === 'Running' ? '#36b37e' : (node.Status === 'Starting' ? '#fab005' : '#adb5bd');
+        sfGroup.append('circle')
+          .attr('cx', nx).attr('cy', baseY).attr('r', miniR)
+          .attr('fill', color).attr('stroke', '#fff').attr('stroke-width', 1);
+        sfGroup.append('title').text(`${node.Name} — ${node.Status}`);
+      });
+    }
+  }, [functions, fnPositions, queuePositions, queueMap, slimFaasReplicas, slimFaasNodes]);
 
-    // Start animation
-    frameRef.current = requestAnimationFrame(animate);
+  /* ── Zoom-to-fit ── */
 
-    return () => { cancelAnimationFrame(frameRef.current); };
-  }, [functions, queues, fnPositions, queueMap, queuePositions, animate, functionsWithQueueActivity]);
-
-  /* ── Zoom-to-fit only on structural changes (function list) and resize ── */
-
-  // Track function names as a stable string key
-  const fnNamesKey = useMemo(() => functions.map(f => f.Name).sort().join(','), [functions]);
-
-  // Zoom on first render and when the set of functions changes
   useEffect(() => {
-    // Small delay to let the SVG render first
+    if (!initialFitDoneRef.current) return;
+    if (userHasZoomedRef.current) return;
     const t = setTimeout(() => zoomToFit(true), 50);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fnNamesKey]);
+  }, [structuralKey]);
 
-  // Re-fit on container resize (no animation to avoid flicker)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const ro = new ResizeObserver(() => { zoomToFit(false); });
+    const ro = new ResizeObserver(() => { if (!userHasZoomedRef.current) zoomToFit(false); });
     ro.observe(container);
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fnNamesKey]);
+  }, [zoomToFit]);
 
   return (
     <div className="network-map" ref={containerRef}>
-      <h2 className="network-map__title">🔄 Live Network Map</h2>
+      <h2 className="network-map__title">
+        🔄 Live Network Map
+        <button
+          className="network-map__reset-btn"
+          type="button"
+          title="Reset zoom to fit all elements"
+          onClick={() => { userHasZoomedRef.current = false; zoomToFit(true); }}
+        >
+          ⟳
+        </button>
+      </h2>
       <svg ref={svgRef} className="network-map__svg" />
       <div className="network-map__legend">
         <span className="network-map__legend-item">
@@ -593,7 +792,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
           <span className="network-map__legend-item" style={{ fontStyle: 'italic' }}>+{functions.length - 8} more</span>
         )}
         <span className="network-map__legend-item" style={{ marginLeft: 12 }}>
-          <svg width="14" height="10"><circle cx="5" cy="5" r="4" fill="#6b778c" /></svg> Sync
+          <svg width="14" height="10"><circle cx="5" cy="5" r="4" fill="#4c6ef5" /></svg> Request
         </span>
         <span className="network-map__legend-item">
           <svg width="14" height="10"><rect x="1" y="2" width="10" height="6" rx="1.5" fill="#6b778c" /></svg> Async
@@ -601,8 +800,9 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         <span className="network-map__legend-item">
           <svg width="24" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#fab005" strokeWidth="3" strokeDasharray="8 4" /></svg> Waiting
         </span>
-        <span className="network-map__legend-item">
-          <svg width="24" height="10"><line x1="0" y1="5" x2="20" y2="5" stroke="#4c6ef5" strokeWidth="3" strokeDasharray="6 3" opacity="0.35" /></svg> In-flight
+        <span className="network-map__legend-separator" />
+        <span className="network-map__legend-item" title="Active requests badge">
+          <svg width="18" height="14"><rect x="1" y="0" width="16" height="14" rx="7" fill="#ff6b6b" stroke="#fff" strokeWidth="1" /><text x="9" y="10.5" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#fff">3</text></svg> Active
         </span>
         <span className="network-map__legend-separator" />
         <span className="network-map__legend-item" title="Running pod">
@@ -614,8 +814,8 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         <span className="network-map__legend-item" title="Pending pod">
           <svg width="10" height="10"><circle cx="5" cy="5" r="4" fill="#adb5bd" stroke="#fff" strokeWidth="1" /></svg> Pending
         </span>
-        <span className="network-map__legend-item network-network-map__legend-item--hint" style={{ fontSize: '0.7rem', color: '#868e96', fontStyle: 'italic' }}>
-          Labels show source/target pod per message
+        <span className="network-map__legend-item" style={{ fontSize: '0.7rem', color: '#868e96', fontStyle: 'italic' }}>
+          Double-click to reset view
         </span>
       </div>
     </div>
@@ -623,7 +823,4 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 };
 
 export default NetworkMap;
-
-
-
 
