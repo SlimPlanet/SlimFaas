@@ -116,6 +116,7 @@ export interface SlimFaasNodeInfo {
 export interface StatusStreamPayload {
   Functions: FunctionStatusDetailed[];
   Queues: QueueInfo[];
+  Jobs: JobConfigurationStatus[];
   RecentActivity: NetworkActivityEvent[];
   SlimFaasReplicas: number;
   SlimFaasNodes: SlimFaasNodeInfo[] | null;

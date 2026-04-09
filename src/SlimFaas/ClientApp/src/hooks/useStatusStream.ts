@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo } from '../types';
+import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
 
 const COOLDOWN_MS = 3000;
 
 export function useStatusStream() {
   const [functions, setFunctions] = useState<FunctionStatusDetailed[]>([]);
   const [queues, setQueues] = useState<QueueInfo[]>([]);
+  const [jobs, setJobs] = useState<JobConfigurationStatus[]>([]);
   const [activity, setActivity] = useState<NetworkActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export function useStatusStream() {
         const payload: StatusStreamPayload = JSON.parse(e.data);
         setFunctions(payload.Functions ?? []);
         setQueues(payload.Queues ?? []);
+        setJobs(payload.Jobs ?? []);
         setActivity(payload.RecentActivity ?? []);
         setSlimFaasReplicas(payload.SlimFaasReplicas ?? 1);
         setSlimFaasNodes(payload.SlimFaasNodes ?? []);
@@ -139,6 +141,7 @@ export function useStatusStream() {
   return {
     functions,
     queues,
+    jobs,
     activity,
     loading,
     error,

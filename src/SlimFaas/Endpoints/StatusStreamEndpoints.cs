@@ -2,6 +2,7 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
@@ -47,7 +48,11 @@ public static class StatusStreamEndpoints
         [FromServices] FunctionStatusCache cache,
         [FromServices] NetworkActivityTracker tracker,
         [FromServices] ISlimFaasQueue slimFaasQueue,
-        [FromServices] IOptions<SlimFaasOptions> slimFaasOptions)
+        [FromServices] IOptions<SlimFaasOptions> slimFaasOptions,
+        [FromServices] INamespaceProvider? namespaceProvider,
+        [FromServices] IJobConfiguration? jobConfiguration,
+        [FromServices] IJobService? jobService,
+        [FromServices] IScheduleJobService? scheduleJobService)
     {
         // ...existing code...
         context.Response.ContentType = "text/event-stream";
@@ -61,7 +66,8 @@ public static class StatusStreamEndpoints
         try
         {
             // Send initial full state
-            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, ct);
+            var currentNamespace = namespaceProvider?.CurrentNamespace ?? slimFaasOptions.Value.Namespace ?? "default";
+            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, currentNamespace, jobConfiguration, jobService, scheduleJobService, ct);
 
             // Then send periodic full state + activity events
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -82,7 +88,8 @@ public static class StatusStreamEndpoints
                     break;
 
                 // Send full state periodically
-                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, ct);
+                var currentNamespaceTick = namespaceProvider?.CurrentNamespace ?? slimFaasOptions.Value.Namespace ?? "default";
+                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, currentNamespaceTick, jobConfiguration, jobService, scheduleJobService, ct);
             }
         }
         catch (OperationCanceledException) { /* client disconnected */ }
@@ -99,10 +106,30 @@ public static class StatusStreamEndpoints
         NetworkActivityTracker tracker,
         ISlimFaasQueue slimFaasQueue,
         bool frontEnabled,
+        string kubeNamespace,
+        IJobConfiguration? jobConfiguration,
+        IJobService? jobService,
+        IScheduleJobService? scheduleJobService,
         CancellationToken ct)
     {
-        // ...existing code...
+        try
+        {
+            // Keep the stream state fresh for add/remove operations.
+            await replicasService.SyncDeploymentsAsync(kubeNamespace);
+        }
+        catch
+        {
+            // Keep streaming with the latest known snapshot if a sync attempt fails.
+        }
+
         var functions = cache.GetAllDetailed(replicasService);
+        var jobs = new List<JobConfigurationStatus>();
+        if (jobConfiguration != null && jobService != null)
+        {
+            await jobConfiguration.SyncJobsConfigurationAsync();
+            await jobService.SyncJobsAsync();
+            jobs = await JobStatusEndpoints.BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
+        }
 
         // Gather queue lengths
         var queues = new List<QueueInfo>();
@@ -132,6 +159,7 @@ public static class StatusStreamEndpoints
         var payload = new StatusStreamPayload(
             Functions: functions,
             Queues: queues,
+            Jobs: jobs,
             RecentActivity: tracker.GetRecent(),
             SlimFaasReplicas: slimFaasInfo.Replicas,
             SlimFaasNodes: slimFaasNodes,

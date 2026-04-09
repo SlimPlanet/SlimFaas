@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Microsoft.Extensions.Options;
+using SlimFaas;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
@@ -30,6 +31,7 @@ public record SlimFaasNodeInfo(string Name, string Status);
 public record StatusStreamPayload(
     IReadOnlyList<FunctionStatusDetailed> Functions,
     IList<QueueInfo> Queues,
+    IList<JobConfigurationStatus> Jobs,
     IList<NetworkActivityEvent> RecentActivity,
     int SlimFaasReplicas = 1,
     IList<SlimFaasNodeInfo>? SlimFaasNodes = null,
@@ -48,6 +50,12 @@ public record QueueInfo(string Name, long Length);
 [JsonSerializable(typeof(List<SlimFaasNodeInfo>))]
 [JsonSerializable(typeof(FunctionStatusDetailed))]
 [JsonSerializable(typeof(List<FunctionStatusDetailed>))]
+[JsonSerializable(typeof(JobConfigurationStatus))]
+[JsonSerializable(typeof(List<JobConfigurationStatus>))]
+[JsonSerializable(typeof(RunningJobStatus))]
+[JsonSerializable(typeof(List<RunningJobStatus>))]
+[JsonSerializable(typeof(ScheduledJobInfo))]
+[JsonSerializable(typeof(List<ScheduledJobInfo>))]
 [JsonSerializable(typeof(PodStatus))]
 [JsonSerializable(typeof(ResourcesConfiguration))]
 [JsonSerializable(typeof(ScheduleConfig))]

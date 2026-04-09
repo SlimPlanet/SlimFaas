@@ -8,8 +8,25 @@ interface Props {
 }
 
 function formatTimestamp(ts: number | null | undefined): string {
-  if (!ts) return '-';
-  return new Date(ts * 1000).toLocaleString();
+  if (ts == null || ts <= 0) return '-';
+
+  let ms: number;
+
+  // .NET ticks (100ns since 0001-01-01)
+  if (ts > 1_000_000_000_000_000) {
+    ms = (ts - 621355968000000000) / 10_000;
+  }
+  // Unix milliseconds
+  else if (ts > 1_000_000_000_000) {
+    ms = ts;
+  }
+  // Unix seconds
+  else {
+    ms = ts * 1000;
+  }
+
+  const d = new Date(ms);
+  return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString();
 }
 
 const JobTable: React.FC<Props> = ({ jobs }) => {

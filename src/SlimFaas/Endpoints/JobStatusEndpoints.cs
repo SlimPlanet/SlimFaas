@@ -28,6 +28,17 @@ public static class JobStatusEndpoints
         [FromServices] IScheduleJobService? scheduleJobService,
         [FromServices] IDatabaseService databaseService)
     {
+        var result = await BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
+
+        return Results.Json(result,
+            ListJobConfigurationStatusSerializerContext.Default.ListJobConfigurationStatus);
+    }
+
+    public static async Task<List<JobConfigurationStatus>> BuildJobStatusesAsync(
+        IJobConfiguration jobConfiguration,
+        IJobService jobService,
+        IScheduleJobService? scheduleJobService)
+    {
         var configurations = jobConfiguration.Configuration.Configurations;
         var schedules = jobConfiguration.Configuration.Schedules;
         var currentJobs = jobService.Jobs;
@@ -37,7 +48,6 @@ public static class JobStatusEndpoints
 
         foreach (var (name, conf) in configurations)
         {
-            // Running / queued jobs for this configuration
             var running = currentJobs
                 .Where(j => j.Name.StartsWith(name + KubernetesService.SlimfaasJobKey, StringComparison.OrdinalIgnoreCase)
                             || j.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase))
@@ -49,10 +59,8 @@ public static class JobStatusEndpoints
                     j.StartTimestamp))
                 .ToList();
 
-            // Scheduled jobs: from Kubernetes annotations + from API (database)
             var scheduledInfos = new List<ScheduledJobInfo>();
 
-            // 1) Kubernetes-configured schedules
             if (schedules != null && schedules.TryGetValue(name, out var k8sSchedules))
             {
                 foreach (var s in k8sSchedules)
@@ -67,7 +75,6 @@ public static class JobStatusEndpoints
                 }
             }
 
-            // 2) API-configured schedules (database)
             if (scheduleJobService != null)
             {
                 var apiSchedules = await scheduleJobService.ListScheduleJobAsync(name);
@@ -94,8 +101,7 @@ public static class JobStatusEndpoints
                 RunningJobs: running));
         }
 
-        return Results.Json(result,
-            ListJobConfigurationStatusSerializerContext.Default.ListJobConfigurationStatus);
+        return result;
     }
 }
 

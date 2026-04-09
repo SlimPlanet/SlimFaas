@@ -1,7 +1,6 @@
 import React from 'react';
 import 'react-tooltip/dist/react-tooltip.css';
 import { useStatusStream } from './hooks/useStatusStream';
-import { useJobStatus } from './hooks/useJobStatus';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import FunctionTable from './components/FunctionTable';
@@ -63,12 +62,13 @@ const JobsSection: React.FC<JobsSectionProps> = ({
 
 const App: React.FC = () => {
   const {
-    functions, queues, activity,
+    functions, queues, jobs, activity,
     loading, error, wakeUp, wakeUpAll, coolingDown, wakeAllCooling,
     functionsWithQueueActivity, slimFaasReplicas, slimFaasNodes,
     frontEnabled, frontMessage,
   } = useStatusStream();
-  const { jobs, loading: jobsLoading, error: jobsError } = useJobStatus();
+  const jobsLoading = loading;
+  const jobsError = error;
 
   const allUp = functions.length > 0 && functions.every((f) => f.NumberReady > 0);
   const totalReady = functions.reduce((sum, f) => sum + (f.NumberReady ?? 0), 0);

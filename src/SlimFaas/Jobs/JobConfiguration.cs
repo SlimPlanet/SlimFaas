@@ -92,11 +92,17 @@ public class JobConfiguration : IJobConfiguration
 
     private SlimFaasJobConfiguration MergeJobConfigurations(SlimFaasJobConfiguration configuration)
     {
-        SlimFaasJobConfiguration defaultConfiguration = _initialConfiguration;
+        var mergedConfigurations = new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase);
+        var mergedSchedules = new Dictionary<string, IList<ScheduleCreateJob>>(StringComparer.OrdinalIgnoreCase);
 
-        if (defaultConfiguration.Schedules == null)
+        if (_initialConfiguration.Configurations.TryGetValue(Default, out var defaultJob))
         {
-            defaultConfiguration = defaultConfiguration with { Schedules = new Dictionary<string, IList<ScheduleCreateJob>>(StringComparer.OrdinalIgnoreCase)};
+            mergedConfigurations[Default] = defaultJob;
+        }
+
+        if (_initialConfiguration.Schedules != null && _initialConfiguration.Schedules.TryGetValue(Default, out var defaultSchedule))
+        {
+            mergedSchedules[Default] = defaultSchedule;
         }
 
         foreach (var kvp in configuration.Configurations)
@@ -106,7 +112,7 @@ public class JobConfiguration : IJobConfiguration
                 continue;
             }
 
-            defaultConfiguration.Configurations[kvp.Key] = kvp.Value;
+            mergedConfigurations[kvp.Key] = kvp.Value;
         }
 
         if (configuration.Schedules != null)
@@ -118,15 +124,11 @@ public class JobConfiguration : IJobConfiguration
                     continue;
                 }
 
-                if (!defaultConfiguration.Schedules.TryAdd(kvp.Key, kvp.Value))
-                {
-                    defaultConfiguration.Schedules[kvp.Key] = kvp.Value;
-                }
+                mergedSchedules[kvp.Key] = kvp.Value;
             }
         }
 
-
-        return defaultConfiguration;
+        return new SlimFaasJobConfiguration(mergedConfigurations, mergedSchedules);
     }
 
     public async Task SyncJobsConfigurationAsync()
