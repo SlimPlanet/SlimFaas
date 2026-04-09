@@ -102,5 +102,27 @@ public class CronNextExecutionTests
         long expected = new DateTimeOffset(2026, 1, 15, 12, 15, 0, TimeSpan.Zero).ToUnixTimeSeconds();
         Assert.Equal(expected, result.Data);
     }
+
+    [Fact(DisplayName = "GetNextJobExecutionTimestamp – next slots for */2")]
+    public void NextSlots_EveryTwoMinutes()
+    {
+        // Start at 12:01:10 UTC; next slots should be 12:02, 12:04, 12:06.
+        long ts = new DateTimeOffset(2026, 1, 15, 12, 1, 10, TimeSpan.Zero).ToUnixTimeSeconds();
+
+        var first = Cron.GetNextJobExecutionTimestamp("*/2 * * * *", ts);
+        Assert.True(first.IsSuccess);
+        long expectedFirst = new DateTimeOffset(2026, 1, 15, 12, 2, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+        Assert.Equal(expectedFirst, first.Data);
+
+        var second = Cron.GetNextJobExecutionTimestamp("*/2 * * * *", first.Data);
+        Assert.True(second.IsSuccess);
+        long expectedSecond = new DateTimeOffset(2026, 1, 15, 12, 4, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+        Assert.Equal(expectedSecond, second.Data);
+
+        var third = Cron.GetNextJobExecutionTimestamp("*/2 * * * *", second.Data);
+        Assert.True(third.IsSuccess);
+        long expectedThird = new DateTimeOffset(2026, 1, 15, 12, 6, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+        Assert.Equal(expectedThird, third.Data);
+    }
 }
 

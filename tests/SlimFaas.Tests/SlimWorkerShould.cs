@@ -2,10 +2,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SlimData;
+using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using MemoryPack;
-using SlimFaas.Database;
-using SlimData;
 using SlimFaas.Endpoints;
 using SlimFaas.Options;
 namespace SlimFaas.Tests;
@@ -101,7 +101,8 @@ public class SlimWorkerShould
             slimDataStatus.Object,
             masterService.Object,
             workersOptions,
-            new NetworkActivityTracker());
+            new NetworkActivityTracker(),
+            new CallbackCompletionTracker());
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
 
@@ -162,7 +163,8 @@ public class SlimWorkerShould
             slimDataStatus.Object,
             masterService.Object,
             workersOptions,
-            new NetworkActivityTracker());
+            new NetworkActivityTracker(),
+            new CallbackCompletionTracker());
 
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
@@ -239,7 +241,7 @@ public class SlimWorkerShould
             new List<CustomHeader> { new() { Key = "original-header", Values = new[] { "value" } } },
             new byte[1], "test-function", "/test", "GET", "");
 
-        var queueData = new QueueData("test-id", MemoryPackSerializer.Serialize(customRequest), expectedTryNumber, isLastTry);
+        var queueData = new QueueData("test-id", MemoryPackSerializer.Serialize(customRequest), expectedTryNumber, isLastTry, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond);
 
         // Créer une queue mockée qui retourne un élément avec les propriétés spécifiées
         Mock<ISlimFaasQueue> mockQueue = new Mock<ISlimFaasQueue>();
@@ -267,7 +269,8 @@ public class SlimWorkerShould
             slimDataStatus.Object,
             masterService.Object,
             workersOptions,
-            new NetworkActivityTracker());
+            new NetworkActivityTracker(),
+            new CallbackCompletionTracker());
 
         // Act
         using var cts = new CancellationTokenSource();

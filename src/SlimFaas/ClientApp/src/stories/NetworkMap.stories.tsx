@@ -98,17 +98,46 @@ type Story = StoryObj<typeof NetworkMap>;
 
 export const Default: Story = {
   name: 'With functions, queues and activity',
-  args: { functions: FUNCTIONS, queues: QUEUES, activity: ACTIVITY, functionsWithQueueActivity: FUNCTIONS_WITH_QUEUE_ACTIVITY },
+  args: {
+    functions: FUNCTIONS,
+    queues: QUEUES,
+    activity: ACTIVITY,
+    functionsWithQueueActivity: FUNCTIONS_WITH_QUEUE_ACTIVITY,
+    slimFaasReplicas: 3,
+    slimFaasNodes: [
+      { Name: 'slimfaas-0', Status: 'Running' },
+      { Name: 'slimfaas-1', Status: 'Running' },
+      { Name: 'slimfaas-2', Status: 'Starting' },
+    ],
+  },
 };
 
 export const NoActivity: Story = {
   name: 'No recent activity',
-  args: { functions: FUNCTIONS, queues: QUEUES, activity: [], functionsWithQueueActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)) },
+  args: {
+    functions: FUNCTIONS,
+    queues: QUEUES,
+    activity: [],
+    functionsWithQueueActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)),
+    slimFaasReplicas: 3,
+    slimFaasNodes: [
+      { Name: 'slimfaas-0', Status: 'Running' },
+      { Name: 'slimfaas-1', Status: 'Running' },
+      { Name: 'slimfaas-2', Status: 'Starting' },
+    ],
+  },
 };
 
 export const Empty: Story = {
   name: 'No functions',
-  args: { functions: [], queues: [], activity: [], functionsWithQueueActivity: new Set<string>() },
+  args: {
+    functions: [],
+    queues: [],
+    activity: [],
+    functionsWithQueueActivity: new Set<string>(),
+    slimFaasReplicas: 1,
+    slimFaasNodes: [{ Name: 'slimfaas-0', Status: 'Running' }],
+  },
 };
 
 // Story with animated messages spawning over time — demonstrates enqueue/dequeue flows
@@ -193,6 +222,19 @@ export const LiveAnimation: Story = {
       }, 800);
       return () => clearInterval(timer);
     }, []);
-    return <NetworkMap functions={FUNCTIONS} queues={dynamicQueues} activity={act} functionsWithQueueActivity={liveQueueFns} slimFaasReplicas={3} slimFaasNodes={[{ Name: 'slimfaas-0', Status: 'Running' }, { Name: 'slimfaas-1', Status: 'Running' }, { Name: 'slimfaas-2', Status: 'Starting' }]} />;
+    return (
+      <NetworkMap
+        functions={FUNCTIONS}
+        queues={dynamicQueues}
+        activity={act}
+        functionsWithQueueActivity={liveQueueFns}
+        slimFaasReplicas={3}
+        slimFaasNodes={[
+          { Name: 'slimfaas-0', Status: 'Running' },
+          { Name: 'slimfaas-1', Status: 'Running' },
+          { Name: 'slimfaas-2', Status: 'Starting' },
+        ]}
+      />
+    );
   },
 };

@@ -92,8 +92,9 @@ public static class AsyncFunctionEndpoints
 
         var bin = MemoryPackSerializer.Serialize(customRequest);
         var defaultAsync = function.Configuration.DefaultAsync;
+        string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
         activityTracker.Record("request_in", "external", "slimfaas",
-            sourcePod: context.Connection.RemoteIpAddress?.ToString());
+            sourcePod: callerIp);
         var id = await slimFaasQueue.EnqueueAsync(
             functionName,
             bin,
@@ -102,7 +103,7 @@ public static class AsyncFunctionEndpoints
                 defaultAsync.HttpTimeout,
                 defaultAsync.HttpStatusRetries));
         activityTracker.Record("enqueue", "slimfaas", functionName, functionName,
-            sourcePod: context.Connection.RemoteIpAddress?.ToString());
+            sourcePod: callerIp);
 
         context.Response.Headers.Append(SlimQueuesWorker.SlimfaasElementId, id);
         return Results.Accepted();
@@ -116,7 +117,8 @@ public static class AsyncFunctionEndpoints
         [FromServices] ILogger<AsyncFunction> logger,
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
-        [FromServices] ISlimFaasQueue slimFaasQueue)
+        [FromServices] ISlimFaasQueue slimFaasQueue,
+        [FromServices] CallbackCompletionTracker callbackTracker)
     {
         DeploymentInformation? function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
         if (function == null)
@@ -136,15 +138,19 @@ public static class AsyncFunctionEndpoints
             return Results.BadRequest();
         }
 
+        int statusCode = status.ToLowerInvariant() == "success" ? 200 : 500;
+
         var items = new ListQueueItemStatus
         {
             Items =
             [
-                new QueueItemStatus(elementId, status.ToLowerInvariant() == "success" ? 200 : 500)
+                new QueueItemStatus(elementId, statusCode)
             ]
         };
 
         await slimFaasQueue.ListCallbackAsync(function.Deployment, items);
+        // Signal the Worker that this element's callback has arrived
+        callbackTracker.SignalCompleted(elementId, statusCode);
         return Results.Ok();
     }
 }

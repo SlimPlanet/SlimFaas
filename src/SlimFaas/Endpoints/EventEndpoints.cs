@@ -65,12 +65,17 @@ public static class EventEndpoints
         functionPath ??= "";
 
         logger.LogDebug("Receiving event: {EventName}", eventName);
+        string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
+        string callerIdentity = string.IsNullOrWhiteSpace(callerIp) ? "external" : callerIp;
+        activityTracker.Record("request_in", "external", "slimfaas", sourcePod: callerIp);
+        activityTracker.Record("request_out", "slimfaas", eventName);
         activityTracker.Record("event_publish", "external", "slimfaas",
             sourcePod: context.Connection.RemoteIpAddress?.ToString());
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
 
         if (functions.Count <= 0)
         {
+            activityTracker.Record("request_end", eventName, "slimfaas", targetPod: callerIdentity);
             logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
             return Results.NotFound();
         }
@@ -155,6 +160,7 @@ public static class EventEndpoints
             }
         }
 
+        activityTracker.Record("request_end", eventName, "slimfaas", targetPod: callerIdentity);
         return Results.NoContent();
     }
 

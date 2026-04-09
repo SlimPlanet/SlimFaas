@@ -80,79 +80,102 @@ public static class SyncFunctionEndpoints
 
         activityTracker.Record("request_in", "external", "slimfaas",
             sourcePod: context.Connection.RemoteIpAddress?.ToString());
-        activityTracker.Record("request_out", "slimfaas", functionName);
-
-        // ── Fonction virtuelle WebSocket → streaming binaire ──
-        if (function.Namespace == "websocket-virtual")
-        {
-            return await HandleSyncFunctionViaWebSocket(
-                functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct);
-        }
-
-        // ── Fonction HTTP classique ──
-        // Signal that SlimFaas is waiting for a pod to start (for UI visualization)
         string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-        bool functionWasReady = IsFunctionReady(function);
-        if (!functionWasReady)
+        string callerIdentity = string.IsNullOrWhiteSpace(callerIp) ? "external" : callerIp;
+        string? targetPodIp = null;
+        bool requestEndRecorded = false;
+
+        void RecordRequestEndOnce(string? sourcePod = null)
         {
-            activityTracker.Record("request_waiting", "slimfaas", functionName, sourcePod: callerIp);
+            if (requestEndRecorded) return;
+            requestEndRecorded = true;
+            activityTracker.Record("request_end", functionName, "slimfaas", sourcePod: sourcePod, targetPod: callerIdentity);
         }
 
-        await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
-
-        if (!functionWasReady)
-        {
-            activityTracker.Record("request_started", "slimfaas", functionName, sourcePod: callerIp);
-        }
-
-        var proxy = new Proxy(replicasService, functionName);
-        Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
-            context,
-            functionName,
-            functionPath,
-            context.Request.QueryString.ToUriComponent(),
-            function.Configuration.DefaultSync,
-            null,
-            proxy);
-
-        // Capture the target pod IP that the proxy selected (last used IP for this function)
-        string? targetPodIp = Proxy.IpAddresses.GetValueOrDefault(functionName);
-
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         try
         {
-            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-
-            while (true)
+            // ── Fonction virtuelle WebSocket → streaming binaire ──
+            if (function.Namespace == "websocket-virtual")
             {
-                var nextTickTask = timer.WaitForNextTickAsync(ct).AsTask();
-                var completed = await Task.WhenAny(responseTask, nextTickTask);
-
-                if (completed == responseTask)
-                    break;
-
-                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+                activityTracker.Record("request_out", "slimfaas", functionName);
+                var wsResult = await HandleSyncFunctionViaWebSocket(
+                    functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct);
+                RecordRequestEndOnce();
+                return wsResult;
             }
+
+            // ── Fonction HTTP classique ──
+            // Signal that SlimFaas is waiting for a pod to start (for UI visualization)
+            bool functionWasReady = IsFunctionReady(function);
+            if (!functionWasReady)
+            {
+                activityTracker.Record("request_waiting", "slimfaas", functionName, sourcePod: callerIp);
+            }
+
+            await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
+
+            if (!functionWasReady)
+            {
+                activityTracker.Record("request_started", "slimfaas", functionName, sourcePod: callerIp);
+            }
+
+            var proxy = new Proxy(replicasService, functionName);
+            Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
+                context,
+                functionName,
+                functionPath,
+                context.Request.QueryString.ToUriComponent(),
+                function.Configuration.DefaultSync,
+                null,
+                proxy);
+
+            // Capture the target pod IP that the proxy selected (last used IP for this function)
+            targetPodIp = Proxy.IpAddresses.GetValueOrDefault(functionName);
+            activityTracker.Record("request_out", "slimfaas", functionName, targetPod: targetPodIp);
+
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            try
+            {
+                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+
+                while (true)
+                {
+                    var nextTickTask = timer.WaitForNextTickAsync(ct).AsTask();
+                    var completed = await Task.WhenAny(responseTask, nextTickTask);
+
+                    if (completed == responseTask)
+                        break;
+
+                    historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                RecordRequestEndOnce(targetPodIp);
+                logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
+                return Results.StatusCode(499); // Client Closed Request
+            }
+
+            using var responseMessage = await responseTask.ConfigureAwait(false);
+
+            context.Response.StatusCode = (int)responseMessage.StatusCode;
+            CopyFromTargetResponseHeaders(context, responseMessage);
+
+            var stream = await responseMessage.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
+
+            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+            RecordRequestEndOnce(targetPodIp);
+
+            return Results.Empty;
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (Exception ex)
         {
-            activityTracker.Record("request_end", functionName, "slimfaas", sourcePod: targetPodIp);
-            logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
-            return Results.StatusCode(499); // Client Closed Request
+            // Covers failures before/while sending (e.g., no IP/port available) to avoid leaked in-flight counters.
+            RecordRequestEndOnce(targetPodIp);
+            logger.LogError(ex, "Unhandled sync error for {FunctionName}", functionName);
+            return Results.StatusCode(503);
         }
-
-        using var responseMessage = await responseTask.ConfigureAwait(false);
-
-        context.Response.StatusCode = (int)responseMessage.StatusCode;
-        CopyFromTargetResponseHeaders(context, responseMessage);
-
-        var stream = await responseMessage.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
-
-        historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-        activityTracker.Record("request_end", functionName, "slimfaas", sourcePod: targetPodIp);
-
-        return Results.Empty;
     }
 
     private static bool IsFunctionReady(DeploymentInformation f) =>

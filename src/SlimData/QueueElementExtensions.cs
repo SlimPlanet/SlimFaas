@@ -18,6 +18,15 @@ public static class QueueElementExtensions
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
     private static long SecondsToTicks(int seconds) => (long)seconds * TimeSpan.TicksPerSecond;
 
+    public static long GetHttpTimeoutTicks(this QueueElement e) => e.HttpTimeoutTicks;
+
+    public static long GetLastRetryTimeTicks(this QueueElement e)
+    {
+        var arr = e.RetryQueueElements;
+        if (arr.IsDefaultOrEmpty) return 0;
+        return arr[^1].StartTimeStamp;
+    }
+
     public static int NumberOfTries(this QueueElement e)
     {
         var arr = e.RetryQueueElements;

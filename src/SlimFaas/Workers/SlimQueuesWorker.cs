@@ -1,4 +1,4 @@
-﻿﻿using MemoryPack;
+﻿using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
@@ -8,7 +8,13 @@ using SlimFaas.Options;
 
 namespace SlimFaas;
 
-internal record struct RequestToWait(Task<HttpResponseMessage> Task, CustomRequest CustomRequest, string Id, string TargetIp);
+internal record struct RequestToWait(
+    Task<HttpResponseMessage> Task,
+    CustomRequest CustomRequest,
+    string Id,
+    string TargetIp,
+    bool AwaitingCallback = false,
+    DateTime? CallbackDeadline = null);
 
 public class SlimQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
@@ -19,7 +25,8 @@ public class SlimQueuesWorker(
     ISlimDataStatus slimDataStatus,
     IMasterService masterService,
     IOptions<WorkersOptions> workersOptions,
-    NetworkActivityTracker activityTracker)
+    NetworkActivityTracker activityTracker,
+    CallbackCompletionTracker callbackTracker)
     : BackgroundService
 {
 
@@ -139,7 +146,6 @@ public class SlimQueuesWorker(
                 logger.LogDebug("All pods saturated for {FunctionDeployment}, skipping remaining requests", functionDeployment);
                 break;
             }
-            proxy.IncrementActiveRequests(targetIp);
 
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
                 .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy);
@@ -197,6 +203,38 @@ public class SlimQueuesWorker(
             try
             {
                 historyHttpService.SetTickLastCall(functionDeployment, DateTime.UtcNow.Ticks);
+
+                // ── Callback-awaiting entries (202 returned, waiting for callback or timeout) ──
+                if (processing.AwaitingCallback)
+                {
+                    // Check if the callback has arrived via the tracker
+                    if (callbackTracker.TryConsumeCompletion(processing.Id, out int callbackStatus))
+                    {
+                        logger.LogInformation(
+                            "Callback received for {FunctionDeployment} element {ElementId} with status {Status}",
+                            functionDeployment, processing.Id, callbackStatus);
+                        httpResponseMessagesToDelete.Add(processing);
+                        activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment,
+                            targetPod: processing.TargetIp);
+                        // The callback already resolved the element via ListCallbackAsync,
+                        // no need to add to queueItemStatusList again.
+                    }
+                    // Check if the deadline has been exceeded (timeout, no callback received)
+                    else if (processing.CallbackDeadline.HasValue && DateTime.UtcNow >= processing.CallbackDeadline.Value)
+                    {
+                        logger.LogWarning(
+                            "Callback timeout for {FunctionDeployment} element {ElementId}, releasing resources",
+                            functionDeployment, processing.Id);
+                        httpResponseMessagesToDelete.Add(processing);
+                        activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment,
+                            targetPod: processing.TargetIp);
+                        // Mark as failed so the queue can retry
+                        queueItemStatusList.Add(new QueueItemStatus(processing.Id, 504));
+                    }
+                    // Otherwise keep waiting — the callback will arrive or we'll timeout next cycle
+                    continue;
+                }
+
                 if (!processing.Task.IsCompleted)
                 {
                     continue;
@@ -208,33 +246,46 @@ public class SlimQueuesWorker(
                     "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
-                httpResponseMessagesToDelete.Add(processing);
-                activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment, targetPod: processing.TargetIp);
-                // Libérer le slot per-pod
-                if (!string.IsNullOrEmpty(processing.TargetIp))
-                {
-                    Proxy.ActiveRequestsPerPod.AddOrUpdate(processing.TargetIp, 0, (_, count) => Math.Max(0, count - 1));
-                }
+
                 if (statusCode == 202)
                 {
-                    logger.LogInformation("SlimFaas is waiting callback from {FunctionDeployment}", functionDeployment);
+                    // The function accepted the request and will call back.
+                    // Keep the Proxy slot occupied and do NOT emit request_end yet.
+                    // Compute a deadline based on the configured async timeout.
+                    var function = replicasService.Deployments.Functions
+                        .FirstOrDefault(f => f.Deployment == functionDeployment);
+                    int timeoutSeconds = function?.Configuration.DefaultAsync.HttpTimeout ?? 120;
+                    var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+
+                    logger.LogInformation(
+                        "SlimFaas is waiting callback from {FunctionDeployment}, deadline {Deadline}",
+                        functionDeployment, deadline);
+
+                    // Replace the entry with an awaiting-callback version
+                    // (records are immutable, so we remove + re-add)
+                    httpResponseMessagesToDelete.Add(processing);
+                    requestToWaits.Add(new RequestToWait(
+                        Task.FromResult(httpResponseMessage),
+                        processing.CustomRequest,
+                        processing.Id,
+                        processing.TargetIp,
+                        AwaitingCallback: true,
+                        CallbackDeadline: deadline));
                 }
                 else
                 {
+                    httpResponseMessagesToDelete.Add(processing);
+                    activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment,
+                        targetPod: processing.TargetIp);
                     queueItemStatusList.Add(new QueueItemStatus(processing.Id, statusCode));
+                    httpResponseMessage.Dispose();
                 }
-                httpResponseMessage.Dispose();
             }
             catch (Exception e)
             {
                 queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
                 httpResponseMessagesToDelete.Add(processing);
                 activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment, targetPod: processing.TargetIp);
-                // Libérer le slot per-pod en cas d'erreur
-                if (!string.IsNullOrEmpty(processing.TargetIp))
-                {
-                    Proxy.ActiveRequestsPerPod.AddOrUpdate(processing.TargetIp, 0, (_, count) => Math.Max(0, count - 1));
-                }
                 logger.LogWarning("Request Error: {Message} {StackTrace}", e.Message, e.StackTrace);
             }
         }
@@ -252,4 +303,5 @@ public class SlimQueuesWorker(
         int numberProcessingTasks = requestToWaits.Count;
         return numberProcessingTasks;
     }
+
 }
