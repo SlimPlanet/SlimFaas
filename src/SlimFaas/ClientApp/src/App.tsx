@@ -66,6 +66,7 @@ const App: React.FC = () => {
     functions, queues, activity,
     loading, error, wakeUp, wakeUpAll, coolingDown, wakeAllCooling,
     functionsWithQueueActivity, slimFaasReplicas, slimFaasNodes,
+    frontEnabled, frontMessage,
   } = useStatusStream();
   const { jobs, loading: jobsLoading, error: jobsError } = useJobStatus();
 
@@ -124,7 +125,14 @@ const App: React.FC = () => {
           )}
 
           {/* Network visualization below the functions table */}
-          {functions.length > 0 && (
+          {!frontEnabled && (
+            <div className="dashboard__error" role="status">
+              <span className="dashboard__error-icon">ℹ️</span>
+              {frontMessage ?? 'SlimFaas front is disabled by configuration.'}
+            </div>
+          )}
+
+          {functions.length > 0 && frontEnabled && (
             <ErrorBoundary>
               <NetworkMap functions={functions} queues={queues} activity={activity} functionsWithQueueActivity={functionsWithQueueActivity} slimFaasReplicas={slimFaasReplicas} slimFaasNodes={slimFaasNodes} />
             </ErrorBoundary>

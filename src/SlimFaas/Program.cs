@@ -246,7 +246,10 @@ serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
 serviceCollectionSlimFaas.AddSingleton<WakeUpGate>();
 serviceCollectionSlimFaas.AddSingleton<NetworkActivityTracker>();
 serviceCollectionSlimFaas.AddSingleton<SlimFaas.Database.CallbackCompletionTracker>();
-serviceCollectionSlimFaas.AddHostedService<SlimFaas.Workers.NetworkActivitySyncWorker>();
+if (slimFaasOptions.EnableFront)
+{
+    serviceCollectionSlimFaas.AddHostedService<SlimFaas.Workers.NetworkActivitySyncWorker>();
+}
 
 // --- WebSocket virtual clients ---
 serviceCollectionSlimFaas.AddSingleton<WebSocketConnectionRegistry>();

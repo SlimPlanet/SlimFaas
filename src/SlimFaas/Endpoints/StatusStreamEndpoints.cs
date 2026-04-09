@@ -1,7 +1,9 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Endpoints;
 
@@ -44,7 +46,8 @@ public static class StatusStreamEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] FunctionStatusCache cache,
         [FromServices] NetworkActivityTracker tracker,
-        [FromServices] ISlimFaasQueue slimFaasQueue)
+        [FromServices] ISlimFaasQueue slimFaasQueue,
+        [FromServices] IOptions<SlimFaasOptions> slimFaasOptions)
     {
         // ...existing code...
         context.Response.ContentType = "text/event-stream";
@@ -58,7 +61,7 @@ public static class StatusStreamEndpoints
         try
         {
             // Send initial full state
-            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, ct);
+            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, ct);
 
             // Then send periodic full state + activity events
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -79,7 +82,7 @@ public static class StatusStreamEndpoints
                     break;
 
                 // Send full state periodically
-                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, ct);
+                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, ct);
             }
         }
         catch (OperationCanceledException) { /* client disconnected */ }
@@ -95,6 +98,7 @@ public static class StatusStreamEndpoints
         FunctionStatusCache cache,
         NetworkActivityTracker tracker,
         ISlimFaasQueue slimFaasQueue,
+        bool frontEnabled,
         CancellationToken ct)
     {
         // ...existing code...
@@ -130,7 +134,9 @@ public static class StatusStreamEndpoints
             Queues: queues,
             RecentActivity: tracker.GetRecent(),
             SlimFaasReplicas: slimFaasInfo.Replicas,
-            SlimFaasNodes: slimFaasNodes);
+            SlimFaasNodes: slimFaasNodes,
+            FrontEnabled: frontEnabled,
+            FrontMessage: frontEnabled ? null : "SlimFaas front is disabled by configuration (SlimFaas:EnableFront=false).");
 
         string json = JsonSerializer.Serialize(payload, StatusStreamSerializerContext.Default.StatusStreamPayload);
         await context.Response.WriteAsync($"event: state\ndata: {json}\n\n", ct);

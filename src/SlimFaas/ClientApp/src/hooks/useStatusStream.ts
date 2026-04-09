@@ -14,6 +14,8 @@ export function useStatusStream() {
   const [functionsWithQueueActivity, setFunctionsWithQueueActivity] = useState<Set<string>>(new Set());
   const [slimFaasReplicas, setSlimFaasReplicas] = useState(1);
   const [slimFaasNodes, setSlimFaasNodes] = useState<SlimFaasNodeInfo[]>([]);
+  const [frontEnabled, setFrontEnabled] = useState(true);
+  const [frontMessage, setFrontMessage] = useState<string | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -34,6 +36,8 @@ export function useStatusStream() {
         setActivity(payload.RecentActivity ?? []);
         setSlimFaasReplicas(payload.SlimFaasReplicas ?? 1);
         setSlimFaasNodes(payload.SlimFaasNodes ?? []);
+        setFrontEnabled(payload.FrontEnabled ?? true);
+        setFrontMessage(payload.FrontMessage ?? null);
         setError(null);
         setLoading(false);
 
@@ -145,6 +149,8 @@ export function useStatusStream() {
     functionsWithQueueActivity,
     slimFaasReplicas,
     slimFaasNodes,
+    frontEnabled,
+    frontMessage,
   };
 }
 

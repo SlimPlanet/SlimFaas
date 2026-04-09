@@ -91,8 +91,6 @@ public static class EventEndpoints
         foreach (DeploymentInformation function in functions)
         {
             logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
-            activityTracker.Record("event_publish", "slimfaas", function.Deployment,
-                targetPod: function.Pods?.FirstOrDefault(p => p.Ready == true)?.Ip);
 
             // --- Fonctions WebSocket virtuelles (Namespace = "websocket-virtual") ---
             if (function.Namespace == "websocket-virtual")
@@ -128,6 +126,9 @@ public static class EventEndpoints
 
                 logger.LogInformation("Publish-event {EventName} : Deployment {Deployment} Pod {PodName} is ready: {PodReady}",
                     eventName, function.Deployment, pod.Name, pod.Ready);
+
+                activityTracker.Record("event_publish", "slimfaas", function.Deployment,
+                    targetPod: pod.Ip);
 
                 historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
 

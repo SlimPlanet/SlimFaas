@@ -119,6 +119,8 @@ export interface StatusStreamPayload {
   RecentActivity: NetworkActivityEvent[];
   SlimFaasReplicas: number;
   SlimFaasNodes: SlimFaasNodeInfo[] | null;
+  FrontEnabled?: boolean;
+  FrontMessage?: string | null;
 }
 
 // ---- Jobs ----

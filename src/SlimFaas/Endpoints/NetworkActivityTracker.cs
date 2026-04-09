@@ -2,7 +2,9 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
+using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 
 namespace SlimFaas.Endpoints;
 
@@ -30,7 +32,9 @@ public record StatusStreamPayload(
     IList<QueueInfo> Queues,
     IList<NetworkActivityEvent> RecentActivity,
     int SlimFaasReplicas = 1,
-    IList<SlimFaasNodeInfo>? SlimFaasNodes = null);
+    IList<SlimFaasNodeInfo>? SlimFaasNodes = null,
+    bool FrontEnabled = true,
+    string? FrontMessage = null);
 
 public record QueueInfo(string Name, long Length);
 
@@ -66,18 +70,31 @@ public sealed class NetworkActivityTracker
     private readonly ConcurrentBag<Channel<NetworkActivityEvent>> _subscribers = new();
     private readonly ConcurrentDictionary<string, byte> _knownIds = new();
     private int _counter;
+    private readonly bool _enabled;
+
+    public NetworkActivityTracker()
+    {
+        _enabled = true;
+    }
+
+    public NetworkActivityTracker(IOptions<SlimFaasOptions> slimFaasOptions)
+    {
+        _enabled = slimFaasOptions.Value.EnableFront;
+    }
 
     /// <summary>Hostname of the current node (set once at startup).</summary>
     public string NodeId { get; } = Environment.GetEnvironmentVariable("HOSTNAME")
                                     ?? Environment.MachineName
                                     ?? Guid.NewGuid().ToString("N")[..8];
 
-    private const int MaxRecentEvents = 200;
-    private const int MaxKnownIds = 1000;
+    private const int MaxRecentEvents = 1000;
+    private const int MaxKnownIds = 10000;
 
     /// <summary>Record a local activity event and broadcast to all SSE subscribers.</summary>
     public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null)
     {
+        if (!_enabled) return string.Empty;
+
         var evt = new NetworkActivityEvent(
             Id: $"{NodeId}-{Interlocked.Increment(ref _counter)}",
             Type: type,
@@ -99,6 +116,8 @@ public sealed class NetworkActivityTracker
     /// </summary>
     public int IngestRemote(IEnumerable<NetworkActivityEvent> remoteEvents)
     {
+        if (!_enabled) return 0;
+
         int count = 0;
         foreach (var evt in remoteEvents)
         {
@@ -114,12 +133,15 @@ public sealed class NetworkActivityTracker
     /// <summary>Get a snapshot of all recent events (local + remote).</summary>
     public IList<NetworkActivityEvent> GetRecent()
     {
+        if (!_enabled) return Array.Empty<NetworkActivityEvent>();
         return _recentEvents.ToArray();
     }
 
     /// <summary>Get only local events recorded since a given timestamp.</summary>
     public List<NetworkActivityEvent> GetLocalSince(long sinceTimestampMs)
     {
+        if (!_enabled) return new List<NetworkActivityEvent>();
+
         return _recentEvents
             .Where(e => e.NodeId == NodeId && e.TimestampMs > sinceTimestampMs)
             .ToList();
@@ -130,6 +152,8 @@ public sealed class NetworkActivityTracker
     {
         var channel = System.Threading.Channels.Channel.CreateBounded<NetworkActivityEvent>(
             new BoundedChannelOptions(500) { FullMode = BoundedChannelFullMode.DropOldest });
+        if (!_enabled) return (channel.Reader, channel);
+
         _subscribers.Add(channel);
         return (channel.Reader, channel);
     }

@@ -64,4 +64,9 @@ public class SlimFaasOptions
     /// 0 = désactivé.
     /// </summary>
     public int WebSocketPort { get; set; } = 5003;
+
+    /// <summary>
+    /// Enables the SlimFaas dashboard/network front features.
+    /// </summary>
+    public bool EnableFront { get; set; } = true;
 }

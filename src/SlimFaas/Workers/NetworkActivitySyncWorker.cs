@@ -28,6 +28,12 @@ public class NetworkActivitySyncWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        if (!slimFaasOptions.Value.EnableFront)
+        {
+            logger.LogInformation("NetworkActivitySyncWorker disabled because SlimFaas:EnableFront=false");
+            return;
+        }
+
         // Small initial delay to let the cluster form
         await Task.Delay(5000, stoppingToken);
 
