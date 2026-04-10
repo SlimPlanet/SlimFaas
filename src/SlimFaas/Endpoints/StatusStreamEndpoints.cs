@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
@@ -52,8 +53,10 @@ public static class StatusStreamEndpoints
         [FromServices] INamespaceProvider? namespaceProvider,
         [FromServices] IJobConfiguration? jobConfiguration,
         [FromServices] IJobService? jobService,
-        [FromServices] IScheduleJobService? scheduleJobService)
+        [FromServices] IScheduleJobService? scheduleJobService,
+        [FromServices] ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger("StatusStreamEndpoints");
         // ...existing code...
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers.CacheControl = "no-cache";
@@ -67,7 +70,7 @@ public static class StatusStreamEndpoints
         {
             // Send initial full state
             var currentNamespace = namespaceProvider?.CurrentNamespace ?? slimFaasOptions.Value.Namespace ?? "default";
-            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, currentNamespace, jobConfiguration, jobService, scheduleJobService, ct);
+            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, currentNamespace, jobConfiguration, jobService, scheduleJobService, logger, ct);
 
             // Then send periodic full state + activity events
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -89,10 +92,13 @@ public static class StatusStreamEndpoints
 
                 // Send full state periodically
                 var currentNamespaceTick = namespaceProvider?.CurrentNamespace ?? slimFaasOptions.Value.Namespace ?? "default";
-                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, currentNamespaceTick, jobConfiguration, jobService, scheduleJobService, ct);
+                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, currentNamespaceTick, jobConfiguration, jobService, scheduleJobService, logger, ct);
             }
         }
-        catch (OperationCanceledException) { /* client disconnected */ }
+        catch (OperationCanceledException ex)
+        {
+            logger.LogDebug(ex, "Status stream client disconnected.");
+        }
         finally
         {
             tracker.Unsubscribe(channel);
@@ -110,6 +116,7 @@ public static class StatusStreamEndpoints
         IJobConfiguration? jobConfiguration,
         IJobService? jobService,
         IScheduleJobService? scheduleJobService,
+        ILogger logger,
         CancellationToken ct)
     {
         try
@@ -117,18 +124,28 @@ public static class StatusStreamEndpoints
             // Keep the stream state fresh for add/remove operations.
             await replicasService.SyncDeploymentsAsync(kubeNamespace);
         }
-        catch
+        catch (Exception ex)
         {
             // Keep streaming with the latest known snapshot if a sync attempt fails.
+            logger.LogWarning(ex, "Unable to refresh deployments for status stream in namespace {Namespace}.", kubeNamespace);
         }
 
         var functions = cache.GetAllDetailed(replicasService);
         var jobs = new List<JobConfigurationStatus>();
         if (jobConfiguration != null && jobService != null)
         {
-            await jobConfiguration.SyncJobsConfigurationAsync();
-            await jobService.SyncJobsAsync();
-            jobs = await JobStatusEndpoints.BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
+            try
+            {
+                await jobConfiguration.SyncJobsConfigurationAsync();
+                await jobService.SyncJobsAsync();
+                jobs = await JobStatusEndpoints.BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
+            }
+            catch (Exception ex)
+            {
+                // Keep stream alive even if jobs refresh temporarily fails.
+                logger.LogWarning(ex, "Unable to refresh jobs snapshot for status stream.");
+                jobs = new List<JobConfigurationStatus>();
+            }
         }
 
         // Gather queue lengths
@@ -143,8 +160,9 @@ public static class StatusStreamEndpoints
                     int.MaxValue);
                 queues.Add(new QueueInfo(fn.Name, length));
             }
-            catch
+            catch (Exception ex)
             {
+                logger.LogWarning(ex, "Unable to read queue length for function {FunctionName}.", fn.Name);
                 queues.Add(new QueueInfo(fn.Name, 0));
             }
         }

@@ -7,22 +7,30 @@ interface Props {
   jobs: JobConfigurationStatus[];
 }
 
-function formatTimestamp(ts: number | null | undefined): string {
-  if (ts == null || ts <= 0) return '-';
+function formatTimestamp(ts: number | string | null | undefined): string {
+  if (ts == null) return '-';
+
+  const numeric = typeof ts === 'number' ? ts : Number(ts);
+  if (!Number.isFinite(numeric) || numeric <= 0) return '-';
 
   let ms: number;
 
   // .NET ticks (100ns since 0001-01-01)
-  if (ts > 1_000_000_000_000_000) {
-    ms = (ts - 621355968000000000) / 10_000;
+  if (numeric > 1_000_000_000_000_000) {
+    ms = (numeric - 621355968000000000) / 10_000;
   }
   // Unix milliseconds
-  else if (ts > 1_000_000_000_000) {
-    ms = ts;
+  else if (numeric > 1_000_000_000_000) {
+    ms = numeric;
   }
   // Unix seconds
   else {
-    ms = ts * 1000;
+    ms = numeric * 1000;
+  }
+
+  // JS Date range guard
+  if (!Number.isFinite(ms) || Math.abs(ms) > 8_640_000_000_000_000) {
+    return '-';
   }
 
   const d = new Date(ms);

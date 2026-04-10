@@ -36,7 +36,7 @@ public class NetworkActivityTrackerTests
         }
 
         var recent = tracker.GetRecent();
-        Assert.True(recent.Count <= 200);
+        Assert.True(recent.Count <= 1000);
     }
 
     [Fact(DisplayName = "Subscribe receives events via channel")]

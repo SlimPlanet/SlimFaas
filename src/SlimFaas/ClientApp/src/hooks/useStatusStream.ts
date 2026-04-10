@@ -3,6 +3,155 @@ import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStr
 
 const COOLDOWN_MS = 3000;
 
+function pick<T = unknown>(obj: unknown, pascal: string, camel: string): T | undefined {
+  if (!obj || typeof obj !== 'object') return undefined;
+  const rec = obj as Record<string, unknown>;
+  return (rec[pascal] ?? rec[camel]) as T | undefined;
+}
+
+function asString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function asNullableNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function asArray<T = unknown>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
+  return asArray(raw).map((entry) => {
+    const resources = pick<Record<string, unknown>>(entry, 'Resources', 'resources');
+    const schedule = pick<Record<string, unknown>>(entry, 'Schedule', 'schedule');
+    const scheduleDefault = (schedule?.Default ?? schedule?.default) as Record<string, unknown> | null | undefined;
+    const scale = pick<Record<string, unknown>>(entry, 'Scale', 'scale');
+
+    return {
+      Name: asString(pick(entry, 'Name', 'name')),
+      NumberReady: asNumber(pick(entry, 'NumberReady', 'numberReady')),
+      NumberRequested: asNumber(pick(entry, 'NumberRequested', 'numberRequested')),
+      PodType: asString(pick(entry, 'PodType', 'podType')),
+      Visibility: asString(pick(entry, 'Visibility', 'visibility')),
+      Trust: asString(pick(entry, 'Trust', 'trust')),
+      ReplicasMin: asNumber(pick(entry, 'ReplicasMin', 'replicasMin')),
+      ReplicasAtStart: asNumber(pick(entry, 'ReplicasAtStart', 'replicasAtStart')),
+      TimeoutSecondBeforeSetReplicasMin: asNumber(pick(entry, 'TimeoutSecondBeforeSetReplicasMin', 'timeoutSecondBeforeSetReplicasMin')),
+      NumberParallelRequest: asNumber(pick(entry, 'NumberParallelRequest', 'numberParallelRequest')),
+      NumberParallelRequestPerPod: asNumber(pick(entry, 'NumberParallelRequestPerPod', 'numberParallelRequestPerPod')),
+      Resources: resources ? {
+        CpuRequest: asString(resources.CpuRequest ?? resources.cpuRequest ?? null, '') || null,
+        CpuLimit: asString(resources.CpuLimit ?? resources.cpuLimit ?? null, '') || null,
+        MemoryRequest: asString(resources.MemoryRequest ?? resources.memoryRequest ?? null, '') || null,
+        MemoryLimit: asString(resources.MemoryLimit ?? resources.memoryLimit ?? null, '') || null,
+      } : null,
+      Schedule: schedule ? {
+        TimeZoneID: asString(schedule.TimeZoneID ?? schedule.timeZoneID),
+        Default: scheduleDefault ? {
+          WakeUp: asArray<string>(scheduleDefault.WakeUp ?? scheduleDefault.wakeUp),
+          ScaleDownTimeout: asArray(scheduleDefault.ScaleDownTimeout ?? scheduleDefault.scaleDownTimeout) as { Time: string; Value: number }[],
+        } : null,
+      } : null,
+      Scale: (scale ?? null) as FunctionStatusDetailed['Scale'],
+      SubscribeEvents: asArray(pick(entry, 'SubscribeEvents', 'subscribeEvents')).map((evt) => ({
+        Name: asString(pick(evt, 'Name', 'name')),
+        Visibility: pick(evt, 'Visibility', 'visibility') as string | number,
+      })),
+      PathsStartWithVisibility: asArray(pick(entry, 'PathsStartWithVisibility', 'pathsStartWithVisibility')).map((path) => ({
+        Path: asString(pick(path, 'Path', 'path')),
+        Visibility: asString(pick(path, 'Visibility', 'visibility')),
+      })),
+      DependsOn: asArray<string>(pick(entry, 'DependsOn', 'dependsOn')),
+      Pods: asArray(pick(entry, 'Pods', 'pods')).map((pod) => ({
+        Name: asString(pick(pod, 'Name', 'name')),
+        Status: asString(pick(pod, 'Status', 'status')),
+        Ready: Boolean(pick(pod, 'Ready', 'ready')),
+        Ip: asString(pick(pod, 'Ip', 'ip')),
+      })),
+    };
+  });
+}
+
+function normalizeJobs(raw: unknown): JobConfigurationStatus[] {
+  return asArray(raw).map((entry) => ({
+    Name: asString(pick(entry, 'Name', 'name')),
+    Visibility: asString(pick(entry, 'Visibility', 'visibility')),
+    Image: asString(pick(entry, 'Image', 'image')),
+    ImagesWhitelist: asArray<string>(pick(entry, 'ImagesWhitelist', 'imagesWhitelist')),
+    NumberParallelJob: asNumber(pick(entry, 'NumberParallelJob', 'numberParallelJob')),
+    Resources: (pick(entry, 'Resources', 'resources') ?? null) as JobConfigurationStatus['Resources'],
+    DependsOn: asArray<string>(pick(entry, 'DependsOn', 'dependsOn')),
+    Schedules: asArray(pick(entry, 'Schedules', 'schedules')).map((s) => ({
+      Id: asString(pick(s, 'Id', 'id')),
+      Schedule: asString(pick(s, 'Schedule', 'schedule')),
+      Image: asString(pick(s, 'Image', 'image')),
+      NextExecutionTimestamp: asNullableNumber(pick(s, 'NextExecutionTimestamp', 'nextExecutionTimestamp')),
+      Resources: (pick(s, 'Resources', 'resources') ?? null) as JobConfigurationStatus['Schedules'][number]['Resources'],
+      DependsOn: asArray<string>(pick(s, 'DependsOn', 'dependsOn')),
+    })),
+    RunningJobs: asArray(pick(entry, 'RunningJobs', 'runningJobs')).map((rj) => ({
+      Name: asString(pick(rj, 'Name', 'name')),
+      Status: asString(pick(rj, 'Status', 'status')),
+      ElementId: asString(pick(rj, 'ElementId', 'elementId')),
+      InQueueTimestamp: asNumber(pick(rj, 'InQueueTimestamp', 'inQueueTimestamp')),
+      StartTimestamp: asNumber(pick(rj, 'StartTimestamp', 'startTimestamp')),
+    })),
+  }));
+}
+
+function normalizeQueues(raw: unknown): QueueInfo[] {
+  return asArray(raw).map((entry) => ({
+    Name: asString(pick(entry, 'Name', 'name')),
+    Length: asNumber(pick(entry, 'Length', 'length')),
+  }));
+}
+
+function normalizeActivity(raw: unknown): NetworkActivityEvent[] {
+  return asArray(raw).map((entry) => ({
+    Id: asString(pick(entry, 'Id', 'id')),
+    Type: asString(pick(entry, 'Type', 'type')),
+    Source: asString(pick(entry, 'Source', 'source')),
+    Target: asString(pick(entry, 'Target', 'target')),
+    QueueName: asString(pick(entry, 'QueueName', 'queueName'), '') || null,
+    TimestampMs: asNumber(pick(entry, 'TimestampMs', 'timestampMs')),
+    NodeId: asString(pick(entry, 'NodeId', 'nodeId')),
+    SourcePod: asString(pick(entry, 'SourcePod', 'sourcePod'), '') || null,
+    TargetPod: asString(pick(entry, 'TargetPod', 'targetPod'), '') || null,
+  }));
+}
+
+function normalizeSlimFaasNodes(raw: unknown): SlimFaasNodeInfo[] {
+  return asArray(raw).map((entry) => ({
+    Name: asString(pick(entry, 'Name', 'name')),
+    Status: asString(pick(entry, 'Status', 'status')),
+  }));
+}
+
+function normalizePayload(raw: unknown): StatusStreamPayload {
+  return {
+    Functions: normalizeFunctions(pick(raw, 'Functions', 'functions')),
+    Queues: normalizeQueues(pick(raw, 'Queues', 'queues')),
+    Jobs: normalizeJobs(pick(raw, 'Jobs', 'jobs')),
+    RecentActivity: normalizeActivity(pick(raw, 'RecentActivity', 'recentActivity')),
+    SlimFaasReplicas: asNumber(pick(raw, 'SlimFaasReplicas', 'slimFaasReplicas'), 1),
+    SlimFaasNodes: normalizeSlimFaasNodes(pick(raw, 'SlimFaasNodes', 'slimFaasNodes')),
+    FrontEnabled: pick(raw, 'FrontEnabled', 'frontEnabled') as boolean | undefined,
+    FrontMessage: pick(raw, 'FrontMessage', 'frontMessage') as string | null | undefined,
+  };
+}
+
 export function useStatusStream() {
   const [functions, setFunctions] = useState<FunctionStatusDetailed[]>([]);
   const [queues, setQueues] = useState<QueueInfo[]>([]);
@@ -31,7 +180,7 @@ export function useStatusStream() {
 
     es.addEventListener('state', (e: MessageEvent) => {
       try {
-        const payload: StatusStreamPayload = JSON.parse(e.data);
+        const payload = normalizePayload(JSON.parse(e.data));
         setFunctions(payload.Functions ?? []);
         setQueues(payload.Queues ?? []);
         setJobs(payload.Jobs ?? []);
@@ -62,14 +211,15 @@ export function useStatusStream() {
             return next.size !== prev.size ? next : prev;
           });
         }
-      } catch {
-        // ignore parse errors
+      } catch (err) {
+        console.warn('Unable to parse status stream state event.', err);
       }
     });
 
     es.addEventListener('activity', (e: MessageEvent) => {
       try {
-        const evt: NetworkActivityEvent = JSON.parse(e.data);
+        const evt = normalizeActivity([JSON.parse(e.data)])[0];
+        if (!evt) return;
         setActivity(prev => {
           const next = [...prev, evt];
           // Keep only the last 200 events
@@ -84,8 +234,8 @@ export function useStatusStream() {
             return next;
           });
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        console.warn('Unable to parse status stream activity event.', err);
       }
     });
 
@@ -122,8 +272,8 @@ export function useStatusStream() {
     startCooldown(functionName);
     try {
       await fetch(`/wake-function/${functionName}`, { method: 'POST' });
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn(`Unable to wake function ${functionName}.`, err);
     }
   }, [coolingDown, startCooldown]);
 
@@ -133,8 +283,8 @@ export function useStatusStream() {
     setTimeout(() => setWakeAllCooling(false), COOLDOWN_MS);
     try {
       await fetch('/wake-functions', { method: 'POST' });
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Unable to wake all functions.', err);
     }
   }, [wakeAllCooling]);
 

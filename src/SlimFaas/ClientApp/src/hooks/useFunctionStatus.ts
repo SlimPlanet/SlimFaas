@@ -64,8 +64,8 @@ export function useFunctionStatus() {
     try {
       await fetch(`/wake-function/${functionName}`, { method: 'POST' });
       await fetchStatus();
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn(`Unable to wake function ${functionName}.`, err);
     }
   }, [coolingDown, startCooldown, fetchStatus]);
 
@@ -76,8 +76,8 @@ export function useFunctionStatus() {
     try {
       await fetch('/wake-functions', { method: 'POST' });
       await fetchStatus();
-    } catch {
-      // ignore
+    } catch (err) {
+      console.warn('Unable to wake all functions.', err);
     }
   }, [wakeAllCooling, fetchStatus]);
 

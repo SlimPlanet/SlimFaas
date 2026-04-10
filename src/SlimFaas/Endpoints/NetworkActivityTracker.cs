@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Microsoft.Extensions.Options;
-using SlimFaas;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
