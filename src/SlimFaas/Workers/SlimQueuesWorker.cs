@@ -150,7 +150,7 @@ public class SlimQueuesWorker(
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
                 .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy);
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp));
-            activityTracker.Record("dequeue", "slimfaas", functionDeployment, functionDeployment, targetPod: targetIp);
+            activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
         }
     }
 
@@ -214,7 +214,7 @@ public class SlimQueuesWorker(
                             "Callback received for {FunctionDeployment} element {ElementId} with status {Status}",
                             functionDeployment, processing.Id, callbackStatus);
                         httpResponseMessagesToDelete.Add(processing);
-                        activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment,
+                        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment,
                             targetPod: processing.TargetIp);
                         // The callback already resolved the element via ListCallbackAsync,
                         // no need to add to queueItemStatusList again.
@@ -226,7 +226,7 @@ public class SlimQueuesWorker(
                             "Callback timeout for {FunctionDeployment} element {ElementId}, releasing resources",
                             functionDeployment, processing.Id);
                         httpResponseMessagesToDelete.Add(processing);
-                        activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment,
+                        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment,
                             targetPod: processing.TargetIp);
                         // Mark as failed so the queue can retry
                         queueItemStatusList.Add(new QueueItemStatus(processing.Id, 504));
@@ -275,7 +275,7 @@ public class SlimQueuesWorker(
                 else
                 {
                     httpResponseMessagesToDelete.Add(processing);
-                    activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment,
+                    activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment,
                         targetPod: processing.TargetIp);
                     queueItemStatusList.Add(new QueueItemStatus(processing.Id, statusCode));
                     httpResponseMessage.Dispose();
@@ -285,7 +285,7 @@ public class SlimQueuesWorker(
             {
                 queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
                 httpResponseMessagesToDelete.Add(processing);
-                activityTracker.Record("request_end", functionDeployment, "slimfaas", functionDeployment, targetPod: processing.TargetIp);
+                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, targetPod: processing.TargetIp);
                 logger.LogWarning("Request Error: {Message} {StackTrace}", e.Message, e.StackTrace);
             }
         }

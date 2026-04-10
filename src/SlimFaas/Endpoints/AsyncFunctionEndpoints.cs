@@ -93,7 +93,7 @@ public static class AsyncFunctionEndpoints
         var bin = MemoryPackSerializer.Serialize(customRequest);
         var defaultAsync = function.Configuration.DefaultAsync;
         string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-        activityTracker.Record("request_in", "external", "slimfaas",
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
             sourcePod: callerIp);
         var id = await slimFaasQueue.EnqueueAsync(
             functionName,
@@ -102,7 +102,7 @@ public static class AsyncFunctionEndpoints
                 defaultAsync.TimeoutRetries,
                 defaultAsync.HttpTimeout,
                 defaultAsync.HttpStatusRetries));
-        activityTracker.Record("enqueue", "slimfaas", functionName, functionName,
+        activityTracker.Record(NetworkActivityTracker.EventTypes.Enqueue, NetworkActivityTracker.Actors.SlimFaas, functionName, functionName,
             sourcePod: callerIp);
 
         context.Response.Headers.Append(SlimQueuesWorker.SlimfaasElementId, id);

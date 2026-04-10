@@ -73,6 +73,25 @@ public partial class StatusStreamSerializerContext : JsonSerializerContext
 /// </summary>
 public sealed class NetworkActivityTracker
 {
+    public static class EventTypes
+    {
+        public const string RequestIn = "request_in";
+        public const string Enqueue = "enqueue";
+        public const string Dequeue = "dequeue";
+        public const string RequestOut = "request_out";
+        public const string Response = "response";
+        public const string EventPublish = "event_publish";
+        public const string RequestWaiting = "request_waiting";
+        public const string RequestStarted = "request_started";
+        public const string RequestEnd = "request_end";
+    }
+
+    public static class Actors
+    {
+        public const string External = "external";
+        public const string SlimFaas = "slimfaas";
+    }
+
     private readonly ConcurrentQueue<NetworkActivityEvent> _recentEvents = new();
     private readonly ConcurrentBag<Channel<NetworkActivityEvent>> _subscribers = new();
     private readonly ConcurrentDictionary<string, byte> _knownIds = new();

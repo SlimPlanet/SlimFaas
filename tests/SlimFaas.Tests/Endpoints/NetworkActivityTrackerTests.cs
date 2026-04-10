@@ -9,9 +9,9 @@ public class NetworkActivityTrackerTests
     {
         var tracker = new NetworkActivityTracker();
 
-        tracker.Record("request_in", "external", "slimfaas");
-        tracker.Record("enqueue", "slimfaas", "fibonacci", "fibonacci");
-        tracker.Record("dequeue", "slimfaas", "fibonacci", "fibonacci");
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+        tracker.Record(NetworkActivityTracker.EventTypes.Enqueue, NetworkActivityTracker.Actors.SlimFaas, "fibonacci", "fibonacci");
+        tracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, "fibonacci", "fibonacci");
 
         var recent = tracker.GetRecent();
 
@@ -32,7 +32,7 @@ public class NetworkActivityTrackerTests
 
         for (int i = 0; i < 250; i++)
         {
-            tracker.Record("request_in", "external", "slimfaas");
+            tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
         }
 
         var recent = tracker.GetRecent();
@@ -45,7 +45,7 @@ public class NetworkActivityTrackerTests
         var tracker = new NetworkActivityTracker();
         var (reader, channel) = tracker.Subscribe();
 
-        tracker.Record("request_in", "external", "slimfaas");
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
 
         var hasItem = await reader.WaitToReadAsync(new CancellationTokenSource(1000).Token);
         Assert.True(hasItem);
@@ -75,8 +75,8 @@ public class NetworkActivityTrackerTests
     {
         var tracker = new NetworkActivityTracker();
 
-        tracker.Record("request_in", "external", "slimfaas");
-        tracker.Record("enqueue", "slimfaas", "fibonacci");
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+        tracker.Record(NetworkActivityTracker.EventTypes.Enqueue, NetworkActivityTracker.Actors.SlimFaas, "fibonacci");
 
         var recent = tracker.GetRecent();
         Assert.Equal(2, recent.Count);
@@ -134,7 +134,7 @@ public class NetworkActivityTrackerTests
         var tracker = new NetworkActivityTracker();
 
         // Record a local event
-        tracker.Record("request_in", "external", "slimfaas");
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
 
         var all = tracker.GetRecent();
         Assert.Single(all);
@@ -161,15 +161,15 @@ public class NetworkActivityTrackerTests
         var nodeB = new NetworkActivityTracker();
 
         // Simulate Node A recording events
-        nodeA.Record("request_in", "external", "slimfaas");
-        nodeA.Record("enqueue", "slimfaas", "fibonacci", "fibonacci");
+        nodeA.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+        nodeA.Record(NetworkActivityTracker.EventTypes.Enqueue, NetworkActivityTracker.Actors.SlimFaas, "fibonacci", "fibonacci");
 
         // Node A local events
         var nodeALocal = nodeA.GetLocalSince(0);
         Assert.Equal(2, nodeALocal.Count);
 
         // Simulate Node B recording its own event
-        nodeB.Record("request_in", "external", "slimfaas");
+        nodeB.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
 
         // Simulate peer scrape: create "foreign" events as if they came from a different node
         var foreignEvents = nodeALocal.Select(e => e with { NodeId = "node-a-remote", Id = "remote-" + e.Id }).ToList();
@@ -205,9 +205,9 @@ public class NetworkActivityTrackerTests
     {
         var tracker = new NetworkActivityTracker();
 
-        tracker.Record("request_in", "external", "slimfaas", sourcePod: "10.0.0.42");
-        tracker.Record("request_out", "slimfaas", "fibonacci", targetPod: "10.0.0.5");
-        tracker.Record("dequeue", "slimfaas", "fibonacci", "fibonacci", sourcePod: null, targetPod: "10.0.0.5");
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas, sourcePod: "10.0.0.42");
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, "fibonacci", targetPod: "10.0.0.5");
+        tracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, "fibonacci", "fibonacci", sourcePod: null, targetPod: "10.0.0.5");
 
         var recent = tracker.GetRecent();
         Assert.Equal(3, recent.Count);
@@ -244,7 +244,7 @@ public class NetworkActivityTrackerTests
     {
         var tracker = new NetworkActivityTracker();
 
-        tracker.Record("request_out", "slimfaas", "fibonacci",
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, "fibonacci",
             sourcePod: "10.0.0.1", targetPod: "10.0.0.5");
 
         var recent = tracker.GetRecent();

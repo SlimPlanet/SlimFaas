@@ -262,7 +262,7 @@ public class WebSocketSendClient : IWebSocketSendClient
     {
         try
         {
-            _activityTracker.Record("event_publish", "slimfaas", functionName, targetPod: connection.ConnectionId);
+            _activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, functionName, targetPod: connection.ConnectionId);
             await connection.SendAsync(envelope, ct);
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Failed to send WebSocket message to {ConnectionId}", connection.ConnectionId); }

@@ -64,8 +64,8 @@ public class StatusStreamEndpointTests
     public async Task InternalActivityEvents_ReturnsLocalEvents()
     {
         var tracker = new NetworkActivityTracker();
-        tracker.Record("request_in", "external", "slimfaas");
-        tracker.Record("enqueue", "slimfaas", "fibonacci", "fibonacci");
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+        tracker.Record(NetworkActivityTracker.EventTypes.Enqueue, NetworkActivityTracker.Actors.SlimFaas, "fibonacci", "fibonacci");
 
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -107,14 +107,14 @@ public class StatusStreamEndpointTests
     public async Task InternalActivityEvents_FiltersBySince()
     {
         var tracker = new NetworkActivityTracker();
-        tracker.Record("old_event", "external", "slimfaas");
+        tracker.Record("old_event", NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
 
         var recent = tracker.GetRecent();
         long afterFirstEvent = recent[0].TimestampMs;
 
         // Small delay to ensure timestamp difference
         await Task.Delay(10);
-        tracker.Record("new_event", "slimfaas", "fibonacci");
+        tracker.Record("new_event", NetworkActivityTracker.Actors.SlimFaas, "fibonacci");
 
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -181,7 +181,7 @@ public class StatusStreamEndpointTests
             .StartAsync();
 
         // Record an event so it shows up in the initial state
-        tracker.Record("request_in", "external", "slimfaas");
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
 
         var client = host.GetTestClient();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));

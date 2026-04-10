@@ -78,10 +78,10 @@ public static class SyncFunctionEndpoints
             return Results.NotFound();
         }
 
-        activityTracker.Record("request_in", "external", "slimfaas",
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
             sourcePod: context.Connection.RemoteIpAddress?.ToString());
         string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-        string callerIdentity = string.IsNullOrWhiteSpace(callerIp) ? "external" : callerIp;
+        string callerIdentity = string.IsNullOrWhiteSpace(callerIp) ? NetworkActivityTracker.Actors.External : callerIp;
         string? targetPodIp = null;
         bool requestEndRecorded = false;
 
@@ -89,7 +89,7 @@ public static class SyncFunctionEndpoints
         {
             if (requestEndRecorded) return;
             requestEndRecorded = true;
-            activityTracker.Record("request_end", functionName, "slimfaas", sourcePod: sourcePod, targetPod: callerIdentity);
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionName, NetworkActivityTracker.Actors.SlimFaas, sourcePod: sourcePod, targetPod: callerIdentity);
         }
 
         try
@@ -97,7 +97,7 @@ public static class SyncFunctionEndpoints
             // ── Fonction virtuelle WebSocket → streaming binaire ──
             if (function.Namespace == "websocket-virtual")
             {
-                activityTracker.Record("request_out", "slimfaas", functionName);
+                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, functionName);
                 var wsResult = await HandleSyncFunctionViaWebSocket(
                     functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct);
                 RecordRequestEndOnce();
@@ -109,14 +109,14 @@ public static class SyncFunctionEndpoints
             bool functionWasReady = IsFunctionReady(function);
             if (!functionWasReady)
             {
-                activityTracker.Record("request_waiting", "slimfaas", functionName, sourcePod: callerIp);
+                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestWaiting, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: callerIp);
             }
 
             await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
             if (!functionWasReady)
             {
-                activityTracker.Record("request_started", "slimfaas", functionName, sourcePod: callerIp);
+                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestStarted, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: callerIp);
             }
 
             var proxy = new Proxy(replicasService, functionName);
@@ -131,7 +131,7 @@ public static class SyncFunctionEndpoints
 
             // Capture the target pod IP that the proxy selected (last used IP for this function)
             targetPodIp = Proxy.IpAddresses.GetValueOrDefault(functionName);
-            activityTracker.Record("request_out", "slimfaas", functionName, targetPod: targetPodIp);
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, functionName, targetPod: targetPodIp);
 
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             try

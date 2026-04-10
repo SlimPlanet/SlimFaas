@@ -22,6 +22,9 @@ namespace SlimFaas
         // Key: IP du pod, Value: nombre de requêtes actives sur ce pod
         public static ConcurrentDictionary<string, int> ActiveRequestsPerPod { get; } = new();
 
+        // Key: IP du pod, Value: timestamp (UTC ticks) de la dernière sélection
+        public static ConcurrentDictionary<string, long> LastRequestTicksPerPod { get; } = new();
+
         public Proxy(IReplicasService replicasService, string functionName)
         {
             _replicasService = replicasService;
@@ -107,24 +110,38 @@ namespace SlimFaas
             // En cas d'égalité, le premier rencontré dans l'ordre round-robin gagne.
             string? bestIp = null;
             int bestActive = int.MaxValue;
+            long bestLastRequestTick = long.MaxValue;
             for (int i = 0; i < readyPodsIps.Count; i++)
             {
                 int index = (startIndex + i) % readyPodsIps.Count;
                 string candidateIp = readyPodsIps[index];
                 int active = ActiveRequestsPerPod.GetValueOrDefault(candidateIp, 0);
 
-                if (active >= maxPerPod || active >= bestActive)
+                if (active >= maxPerPod)
+                {
+                    continue;
+                }
+
+                // Un pod jamais sélectionné est prioritaire (tick=0) pour favoriser la rotation.
+                long lastTick = LastRequestTicksPerPod.GetValueOrDefault(candidateIp, 0);
+
+                bool isBetter = active < bestActive
+                                || (active == bestActive && lastTick < bestLastRequestTick);
+
+                if (!isBetter)
                 {
                     continue;
                 }
 
                 bestIp = candidateIp;
                 bestActive = active;
+                bestLastRequestTick = lastTick;
             }
 
             if (bestIp != null)
             {
                 IpAddresses[deploymentInformation.Deployment] = bestIp;
+                LastRequestTicksPerPod[bestIp] = DateTime.UtcNow.Ticks;
                 return bestIp;
             }
 

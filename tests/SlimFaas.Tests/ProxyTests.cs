@@ -26,6 +26,7 @@ namespace SlimFaas.Tests
         {
             Proxy.IpAddresses.Clear();
             Proxy.ActiveRequestsPerPod.Clear();
+            Proxy.LastRequestTicksPerPod.Clear();
         }
 
         [Fact]
@@ -362,9 +363,10 @@ namespace SlimFaas.Tests
         }
 
         [Fact]
-        public void GetNextIP_LeastConnections_TieBreaker_UsesRoundRobin()
+        public void GetNextIP_LeastConnections_TieBreaker_PrefersLeastRecentlyUsedPod()
         {
-            // Arrange: 3 pods, tous avec 0 requêtes actives — le round-robin décide
+            // Arrange: 3 pods, mêmes requêtes actives; le tie-breaker doit choisir
+            // le pod le moins récemment servi (tick le plus ancien).
             var replicasService = new FakeReplicasService
             {
                 Deployments = new FakeDeploymentCollection
@@ -387,16 +389,61 @@ namespace SlimFaas.Tests
                 }
             };
 
-            // Forcer le round-robin à commencer par pod2
+            // Le round-robin partirait de pod2, mais pod3 est le moins récemment servi.
             Proxy.IpAddresses["my-deployment"] = "10.0.0.1";
+            Proxy.LastRequestTicksPerPod["10.0.0.1"] = 300;
+            Proxy.LastRequestTicksPerPod["10.0.0.2"] = 200;
+            Proxy.LastRequestTicksPerPod["10.0.0.3"] = 100;
 
             var proxy = new Proxy(replicasService, "my-deployment");
 
-            // Act: tous les pods ont 0 requêtes — le premier dans l'ordre round-robin gagne
+            // Act
             string ip = proxy.GetNextIP(10);
 
-            // Assert: le round-robin commence à pod2 (index après pod1), tous à 0 → pod2 gagne
-            Assert.Equal("10.0.0.2", ip);
+            // Assert: pod3 gagne car le moins récemment servi
+            Assert.Equal("10.0.0.3", ip);
+        }
+
+        [Fact]
+        public void GetNextIP_WhenActiveCountsStayZero_RotatesAcrossReplicas()
+        {
+            // Arrange: aucune incrémentation des requêtes actives entre les sélections.
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions = new List<DeploymentInformation>
+                    {
+                        new(
+                            Deployment: "my-deployment",
+                            Namespace: "default",
+                            Pods: new List<PodInformation>
+                            {
+                                new("pod1", true, true, "10.0.0.1", "my-deployment"),
+                                new("pod2", true, true, "10.0.0.2", "my-deployment"),
+                                new("pod3", true, true, "10.0.0.3", "my-deployment")
+                            },
+                            Configuration: new SlimFaasConfiguration(),
+                            Replicas: 3
+                        )
+                    }
+                }
+            };
+
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.3";
+            var proxy = new Proxy(replicasService, "my-deployment");
+
+            // Act
+            var selected = new List<string>
+            {
+                proxy.GetNextIP(10),
+                proxy.GetNextIP(10),
+                proxy.GetNextIP(10)
+            };
+
+            // Assert: les 3 premières sélections couvrent tous les pods
+            Assert.DoesNotContain("", selected);
+            Assert.Equal(3, selected.Distinct().Count());
         }
 
         [Fact]
