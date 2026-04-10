@@ -177,6 +177,8 @@ export function useStatusStream() {
 
     const es = new EventSource('/status-functions-stream');
     eventSourceRef.current = es;
+    // Start each SSE session with live-only activity (no historical replay).
+    setActivity([]);
 
     es.addEventListener('state', (e: MessageEvent) => {
       try {
@@ -184,7 +186,8 @@ export function useStatusStream() {
         setFunctions(payload.Functions ?? []);
         setQueues(payload.Queues ?? []);
         setJobs(payload.Jobs ?? []);
-        setActivity(payload.RecentActivity ?? []);
+        // Keep activity feed live-only from `activity` SSE events.
+        // Do not hydrate from state snapshots to avoid replaying history.
         setSlimFaasReplicas(payload.SlimFaasReplicas ?? 1);
         setSlimFaasNodes(payload.SlimFaasNodes ?? []);
         setFrontEnabled(payload.FrontEnabled ?? true);
@@ -192,13 +195,8 @@ export function useStatusStream() {
         setError(null);
         setLoading(false);
 
-        // Detect functions that have queue activity from initial recent activity or non-zero queue length
+        // Detect queue usage from current queue lengths only (live view).
         const queueFns = new Set<string>();
-        for (const evt of (payload.RecentActivity ?? [])) {
-          if (evt.Type === 'enqueue' || evt.Type === 'dequeue') {
-            queueFns.add(evt.Target);
-          }
-        }
         for (const q of (payload.Queues ?? [])) {
           if (q.Length > 0) {
             queueFns.add(q.Name);

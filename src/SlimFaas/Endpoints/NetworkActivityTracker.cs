@@ -177,7 +177,9 @@ public sealed class NetworkActivityTracker
     public (ChannelReader<NetworkActivityEvent> Reader, Channel<NetworkActivityEvent> Channel) Subscribe()
     {
         var channel = System.Threading.Channels.Channel.CreateBounded<NetworkActivityEvent>(
-            new BoundedChannelOptions(500) { FullMode = BoundedChannelFullMode.DropOldest });
+            // Large buffer to absorb short traffic spikes and avoid dropping paired
+            // request_out/request_end events that drive in-flight counters on the UI.
+            new BoundedChannelOptions(10000) { FullMode = BoundedChannelFullMode.DropOldest });
         if (!_enabled) return (channel.Reader, channel);
 
         _subscribers.Add(channel);

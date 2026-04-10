@@ -39,6 +39,8 @@ const SEG_DURATION = 800;
 const SEG_GAP = 120;
 const CHAIN_GAP_MIN = 80;
 const CHAIN_GAP_MAX = 240;
+const COUNTER_STALE_MS = 30000;
+const COUNTER_SWEEP_MS = 1000;
 const BUBBLE_R = 34;
 const REPLICA_R = 9;
 const QUEUE_BOX_W = 60;
@@ -101,6 +103,9 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const initialFitDoneRef = useRef(false);
   const activeCountersRef = useRef<Record<string, number>>({});
   const activeReplicaCountersRef = useRef<Record<string, number>>({});
+  const activeCounterTouchedRef = useRef<Record<string, number>>({});
+  const activeReplicaCounterTouchedRef = useRef<Record<string, number>>({});
+  const lastCounterSweepRef = useRef(0);
   const lastScheduledUtcRef = useRef(0);
   const lastScheduledPerfRef = useRef(0);
   const fnPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
@@ -290,19 +295,27 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   }, [slimReplicaPositions]);
 
   const incCounter = useCallback((node: string) => {
+    activeCounterTouchedRef.current[node] = performance.now();
     activeCountersRef.current[node] = (activeCountersRef.current[node] || 0) + 1;
   }, []);
 
   const decCounter = useCallback((node: string) => {
-    activeCountersRef.current[node] = Math.max(0, (activeCountersRef.current[node] || 0) - 1);
+    activeCounterTouchedRef.current[node] = performance.now();
+    const next = Math.max(0, (activeCountersRef.current[node] || 0) - 1);
+    activeCountersRef.current[node] = next;
+    if (next === 0) delete activeCounterTouchedRef.current[node];
   }, []);
 
   const incReplicaCounter = useCallback((key: string) => {
+    activeReplicaCounterTouchedRef.current[key] = performance.now();
     activeReplicaCountersRef.current[key] = (activeReplicaCountersRef.current[key] || 0) + 1;
   }, []);
 
   const decReplicaCounter = useCallback((key: string) => {
-    activeReplicaCountersRef.current[key] = Math.max(0, (activeReplicaCountersRef.current[key] || 0) - 1);
+    activeReplicaCounterTouchedRef.current[key] = performance.now();
+    const next = Math.max(0, (activeReplicaCountersRef.current[key] || 0) - 1);
+    activeReplicaCountersRef.current[key] = next;
+    if (next === 0) delete activeReplicaCounterTouchedRef.current[key];
   }, []);
 
   const fnReplicaKey = useCallback((functionName: string, podName: string) => `fn:${functionName}:${podName}`, []);
@@ -510,6 +523,27 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
     const now = performance.now();
 
+    // Safety net: if an end event is lost under burst traffic, clear stale in-flight counters.
+    if (now - lastCounterSweepRef.current >= COUNTER_SWEEP_MS) {
+      lastCounterSweepRef.current = now;
+      for (const [key, count] of Object.entries(activeCountersRef.current)) {
+        if (count <= 0) continue;
+        const touched = activeCounterTouchedRef.current[key] ?? now;
+        if (now - touched >= COUNTER_STALE_MS) {
+          activeCountersRef.current[key] = 0;
+          delete activeCounterTouchedRef.current[key];
+        }
+      }
+      for (const [key, count] of Object.entries(activeReplicaCountersRef.current)) {
+        if (count <= 0) continue;
+        const touched = activeReplicaCounterTouchedRef.current[key] ?? now;
+        if (now - touched >= COUNTER_STALE_MS) {
+          activeReplicaCountersRef.current[key] = 0;
+          delete activeReplicaCounterTouchedRef.current[key];
+        }
+      }
+    }
+
     const alive: AnimatedMessage[] = [];
     for (const m of animRef.current) {
       if (now < m.startTime) {
@@ -667,6 +701,9 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     initialFitDoneRef.current = false;
     activeCountersRef.current = {};
     activeReplicaCountersRef.current = {};
+    activeCounterTouchedRef.current = {};
+    activeReplicaCounterTouchedRef.current = {};
+    lastCounterSweepRef.current = 0;
 
     const defs = sel.append('defs');
     const ds = defs.append('filter').attr('id', 'shadow').attr('x', '-20%').attr('y', '-20%').attr('width', '140%').attr('height', '140%');
