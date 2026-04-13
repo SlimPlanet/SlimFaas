@@ -55,7 +55,8 @@ public class SlimQueuesWorker(
             await Task.Delay(_delay, stoppingToken);
             if (!masterService.IsMaster)
             {
-                ReleaseReservationsForLeadershipLoss(processingTasks, awaiting202Tasks);
+                ReleaseProcessingReservationsForLeadershipLoss(processingTasks);
+                await ManageAllAwaiting202TasksAsync(awaiting202Tasks);
                 return;
             }
             DeploymentsInformations deployments = replicasService.Deployments;
@@ -317,22 +318,19 @@ public class SlimQueuesWorker(
         }
     }
 
-    private void ReleaseReservationsForLeadershipLoss(
-        Dictionary<string, IList<RequestToWait>> processingTasks,
+    private async Task ManageAllAwaiting202TasksAsync(
         Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
     {
-        foreach (var kv in processingTasks)
+        foreach (var functionDeployment in awaiting202Tasks.Keys.ToList())
         {
-            var proxy = new Proxy(replicasService, kv.Key);
-            foreach (var item in kv.Value)
-            {
-                proxy.ReleaseElementReservation(item.Id, out _);
-            }
-
-            kv.Value.Clear();
+            await ManageAwaiting202TasksAsync(awaiting202Tasks, functionDeployment);
         }
+    }
 
-        foreach (var kv in awaiting202Tasks)
+    private void ReleaseProcessingReservationsForLeadershipLoss(
+        Dictionary<string, IList<RequestToWait>> processingTasks)
+    {
+        foreach (var kv in processingTasks)
         {
             var proxy = new Proxy(replicasService, kv.Key);
             foreach (var item in kv.Value)
