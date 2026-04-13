@@ -8,6 +8,11 @@ namespace SlimFaas
         string GetNextIP();
         string GetNextIP(int maxPerPod);
         IList<int>? GetPorts();
+        IList<int>? GetPorts(string? ip);
+        IList<string> ReserveNextIPs(int maxPerPod, int count);
+        void ReleaseReservedIPs(IList<string> ips);
+        bool BindElementToIp(string elementId, string ip);
+        bool ReleaseElementReservation(string elementId, out string ip);
         void IncrementActiveRequests(string ip);
         void DecrementActiveRequests(string ip);
     }
@@ -24,6 +29,9 @@ namespace SlimFaas
 
         // Key: IP du pod, Value: timestamp (UTC ticks) de la dernière sélection
         public static ConcurrentDictionary<string, long> LastRequestTicksPerPod { get; } = new();
+
+        // Key: ElementId, Value: IP du pod réservé
+        public static ConcurrentDictionary<string, string> ElementToPodIp { get; } = new();
 
         public Proxy(IReplicasService replicasService, string functionName)
         {
@@ -50,6 +58,19 @@ namespace SlimFaas
             return readyPodsIps;
         }
 
+        public IList<int>? GetPorts(string? ip)
+        {
+            if (string.IsNullOrWhiteSpace(ip))
+            {
+                return GetPorts();
+            }
+
+            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            return deploymentInformation?.Pods
+                .FirstOrDefault(pod => pod.Ready == true && string.Equals(pod.Ip, ip, StringComparison.OrdinalIgnoreCase))
+                ?.Ports;
+        }
+
         public void IncrementActiveRequests(string ip)
         {
             ActiveRequestsPerPod.AddOrUpdate(ip, 1, (_, count) => count + 1);
@@ -58,6 +79,65 @@ namespace SlimFaas
         public void DecrementActiveRequests(string ip)
         {
             ActiveRequestsPerPod.AddOrUpdate(ip, 0, (_, count) => Math.Max(0, count - 1));
+        }
+
+        public IList<string> ReserveNextIPs(int maxPerPod, int count)
+        {
+            var reserved = new List<string>(Math.Max(0, count));
+            for (var i = 0; i < count; i++)
+            {
+                var ip = GetNextIP(maxPerPod);
+                if (string.IsNullOrWhiteSpace(ip))
+                {
+                    break;
+                }
+
+                IncrementActiveRequests(ip);
+                reserved.Add(ip);
+            }
+
+            return reserved;
+        }
+
+        public void ReleaseReservedIPs(IList<string> ips)
+        {
+            if (ips.Count == 0)
+            {
+                return;
+            }
+
+            foreach (var ip in ips)
+            {
+                if (string.IsNullOrWhiteSpace(ip))
+                {
+                    continue;
+                }
+
+                DecrementActiveRequests(ip);
+            }
+        }
+
+        public bool BindElementToIp(string elementId, string ip)
+        {
+            if (string.IsNullOrWhiteSpace(elementId) || string.IsNullOrWhiteSpace(ip))
+            {
+                return false;
+            }
+
+            ElementToPodIp[elementId] = ip;
+            return true;
+        }
+
+        public bool ReleaseElementReservation(string elementId, out string ip)
+        {
+            if (ElementToPodIp.TryRemove(elementId, out ip!))
+            {
+                DecrementActiveRequests(ip);
+                return true;
+            }
+
+            ip = string.Empty;
+            return false;
         }
 
         /// <summary>

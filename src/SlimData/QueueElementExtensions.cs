@@ -20,6 +20,15 @@ public static class QueueElementExtensions
 
     public static long GetHttpTimeoutTicks(this QueueElement e) => e.HttpTimeoutTicks;
 
+    public static string GetLastReservedIp(this QueueElement e)
+    {
+        var arr = e.RetryQueueElements;
+        if (arr.IsDefaultOrEmpty)
+            return string.Empty;
+
+        return arr[^1].ReservedIp ?? string.Empty;
+    }
+
     public static long GetLastRetryTimeTicks(this QueueElement e)
     {
         var arr = e.RetryQueueElements;

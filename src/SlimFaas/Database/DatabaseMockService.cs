@@ -83,7 +83,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.FromResult(elementId);
     }
 
-    public Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1)
+    public Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1, IList<string>? reservedIps = null)
     {
         if (!queue.TryGetValue(key, out List<QueueData>? list))
         {
@@ -91,6 +91,13 @@ public class DatabaseMockService : IDatabaseService
         }
 
         var listToReturn = list.TakeLast(count).ToList();
+        if (reservedIps is { Count: > 0 })
+        {
+            for (var i = 0; i < listToReturn.Count && i < reservedIps.Count; i++)
+            {
+                listToReturn[i] = listToReturn[i] with { ReservedIp = reservedIps[i] };
+            }
+        }
         if (listToReturn.Count > 0)
         {
             list.RemoveRange(listToReturn.Count - 1, listToReturn.Count);

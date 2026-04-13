@@ -245,7 +245,6 @@ serviceCollectionSlimFaas.AddMemoryCache();
 serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
 serviceCollectionSlimFaas.AddSingleton<WakeUpGate>();
 serviceCollectionSlimFaas.AddSingleton<NetworkActivityTracker>();
-serviceCollectionSlimFaas.AddSingleton<SlimFaas.Database.CallbackCompletionTracker>();
 if (slimFaasOptions.EnableFront)
 {
     serviceCollectionSlimFaas.AddHostedService<SlimFaas.Workers.NetworkActivitySyncWorker>();

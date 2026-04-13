@@ -8,7 +8,7 @@ namespace SlimFaas;
 
 public interface ISendClient
 {
-    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null);
+    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
         string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy? proxy = null);
@@ -20,7 +20,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     private readonly string _namespaceSlimFaas = namespaceProvider.CurrentNamespace;
 
     public async Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null)
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null)
     {
         try
         {
@@ -38,7 +38,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
             return await Retry.DoRequestAsync(async () =>
                     {
-                        string targetUrl = await ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy);
+                        string targetUrl = await ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy, reservedPodIp);
                         logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
                         HttpRequestMessage targetRequestMessage = CreateTargetMessage(customRequest, new Uri(targetUrl));
                         return await httpClient.SendAsync(targetRequestMessage,
@@ -193,17 +193,17 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
 
     public static async Task<string> ComputeTargetUrlAsync(string functionUrl, string customRequestFunctionName,
         string customRequestPath,
-        string customRequestQuery, string namespaceSlimFaas, IProxy? proxy = null)
+        string customRequestQuery, string namespaceSlimFaas, IProxy? proxy = null, string? reservedPodIp = null)
     {
         if (functionUrl.Contains("{pod_ip}") && proxy != null)
         {
-           var ip = proxy.GetNextIP();
-           var ports = proxy.GetPorts();
+           var ip = reservedPodIp;
+           var ports = proxy.GetPorts(ip);
            var count = 10;
-           while((ports == null || ports.Count == 0 || string.IsNullOrEmpty(ip))  && count > 0)
+           while ((ports == null || ports.Count == 0 || string.IsNullOrEmpty(ip)) && count > 0)
            {
                ip = proxy.GetNextIP();
-               ports = proxy.GetPorts();
+               ports = proxy.GetPorts(ip);
                count--;
                await Task.Delay(100);
            }

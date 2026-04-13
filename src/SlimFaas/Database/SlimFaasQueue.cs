@@ -11,14 +11,17 @@ public class SlimFaasQueue(IDatabaseService databaseService) : ISlimFaasQueue
     public async Task<string> EnqueueAsync(string key, byte[] data, RetryInformation retryInformation) =>
         await databaseService.ListLeftPushAsync($"{KeyPrefix}{key}", data, retryInformation);
 
-    public async Task<IList<QueueData>?> DequeueAsync(string key, int count = 1)
+    public async Task<IList<QueueData>?> DequeueAsync(string key, int count = 1, IList<string>? reservedIps = null)
     {
-        var data = await databaseService.ListRightPopAsync($"{KeyPrefix}{key}", Guid.NewGuid().ToString(), count);
+        var data = await databaseService.ListRightPopAsync($"{KeyPrefix}{key}", Guid.NewGuid().ToString(), count, reservedIps);
         return data;
     }
 
     public async Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus) => await databaseService.ListCallbackAsync($"{KeyPrefix}{key}", queueItemStatus);
 
     public async Task<long> CountElementAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) => (await databaseService.ListCountElementAsync($"{KeyPrefix}{key}", countTypes, maximum)).Count;
+
+    public async Task<IList<QueueData>> ListElementsAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) =>
+        await databaseService.ListCountElementAsync($"{KeyPrefix}{key}", countTypes, maximum);
 
 }

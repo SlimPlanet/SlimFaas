@@ -117,8 +117,7 @@ public static class AsyncFunctionEndpoints
         [FromServices] ILogger<AsyncFunction> logger,
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
-        [FromServices] ISlimFaasQueue slimFaasQueue,
-        [FromServices] CallbackCompletionTracker callbackTracker)
+        [FromServices] ISlimFaasQueue slimFaasQueue)
     {
         DeploymentInformation? function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
         if (function == null)
@@ -149,8 +148,6 @@ public static class AsyncFunctionEndpoints
         };
 
         await slimFaasQueue.ListCallbackAsync(function.Deployment, items);
-        // Signal the Worker that this element's callback has arrived
-        callbackTracker.SignalCompleted(elementId, statusCode);
         return Results.Ok();
     }
 }

@@ -172,9 +172,9 @@ public class SlimDataService
         await _batcher.DisposeAsync();
     }
 
-    public async Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1)
+    public async Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1, IList<string>? reservedIps = null)
     {
-        return await Retry.DoAsync(() => DoListRightPopAsync(key, transactionId, count), _logger, _retryInterval);
+        return await Retry.DoAsync(() => DoListRightPopAsync(key, transactionId, count, reservedIps), _logger, _retryInterval);
     }
 
     public Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes,
@@ -363,19 +363,23 @@ public class SlimDataService
         }
     }
 
-    private async Task<IList<QueueData>?> DoListRightPopAsync(string key, string transactionId, int count = 1)
+    private async Task<IList<QueueData>?> DoListRightPopAsync(string key, string transactionId, int count = 1, IList<string>? reservedIps = null)
     {
         var endpoint = await GetAndWaitForLeader();
+        var reserved = reservedIps ?? [];
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
             using CancellationTokenSource source = new();
-            var result = await SlimData.Endpoints.ListRightPopCommand(ps, key, transactionId, count, _cluster, source);
+            var result = await SlimData.Endpoints.ListRightPopCommand(ps, key, transactionId, count, reserved.ToList(), _cluster, source);
             return result.Items;
         }
         else
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListRightPop?transactionId={transactionId}"));
+            var reservedIpsQuery = reserved.Count == 0
+                ? string.Empty
+                : $"&reservedIps={string.Join(',', reserved.Select(Uri.EscapeDataString))}";
+            using var request = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/ListRightPop?transactionId={transactionId}{reservedIpsQuery}"));
             var multipart = new MultipartFormDataContent();
             multipart.Add(new StringContent(count.ToString()), key);
 
@@ -412,7 +416,7 @@ public class SlimDataService
         if (countTypes.Contains(CountType.WaitingForRetry))
             result.AddRange(value.GetQueueWaitingForRetryElement(nowTicks));
 
-        return result.Select(qe => new QueueData(qe.Id, qe.Value.ToArray(), qe.NumberOfTries(), qe.IsLastTry(), qe.GetLastRetryTimeTicks(), qe.GetHttpTimeoutTicks())).ToList();
+        return result.Select(qe => new QueueData(qe.Id, qe.Value.ToArray(), qe.NumberOfTries(), qe.IsLastTry(), qe.GetLastRetryTimeTicks(), qe.GetHttpTimeoutTicks(), qe.GetLastReservedIp())).ToList();
     }
 
     private async Task MasterWaitForleaseToken(CancellationToken ct = default)

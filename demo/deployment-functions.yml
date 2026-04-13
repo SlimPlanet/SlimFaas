@@ -165,8 +165,10 @@ spec:
       annotations:
         SlimFaas/Function: "true"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
+        SlimFaas/NumberParallelRequest: "40"
+        SlimFaas/NumberParallelRequestPerPod: "10"
         SlimFaas/SubscribeEvents: "fibo-public"
-        SlimFaas/ReplicasAtStart: "1"
+        SlimFaas/ReplicasAtStart: "2"
         prometheus.io/path: /metrics
         prometheus.io/port: '5000'
         prometheus.io/scrape: 'true'
