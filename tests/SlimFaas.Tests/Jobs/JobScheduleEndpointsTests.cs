@@ -137,9 +137,7 @@ public class JobScheduleEndpointsTests
 
     [Theory(DisplayName = "POST /job-schedules/{name} – retourne 400 si le nom de fonction est invalide")]
     [InlineData("/job-schedules/ab")]
-    [InlineData("/job-schedules/ab1")]
     [InlineData("/job-schedules/abcdefghijklm")]
-    [InlineData("/job-schedules/test_func")]
     [InlineData("/job-schedules/test.func")]
     [InlineData("/job-schedules/test func")]
     [InlineData("/job-schedules/test@func")]
@@ -171,6 +169,9 @@ public class JobScheduleEndpointsTests
     [InlineData("/job-schedules/test-func")]
     [InlineData("/job-schedules/my-app")]
     [InlineData("/job-schedules/daisy")]
+    [InlineData("/job-schedules/ab1")]
+    [InlineData("/job-schedules/test_func")]
+    [InlineData("/job-schedules/abc_123")]
     public async Task CreateSchedule_Accepts_Valid_FunctionNames(string path)
     {
         var schedResult = new CreateScheduleJobResult("new-id");
@@ -275,9 +276,7 @@ public class JobScheduleEndpointsTests
 
     [Theory(DisplayName = "DELETE /job-schedules/{name}/{id} – retourne 400 si le nom de fonction est invalide")]
     [InlineData("/job-schedules/ab/sid")]
-    [InlineData("/job-schedules/ab1/sid")]
     [InlineData("/job-schedules/abcdefghijklm/sid")]
-    [InlineData("/job-schedules/test_func/sid")]
     public async Task DeleteSchedule_Returns_400_When_FunctionName_Invalid(string path)
     {
         (IHost host, Mock<IScheduleJobService> schedSvc, _) =
@@ -301,6 +300,8 @@ public class JobScheduleEndpointsTests
     [Theory(DisplayName = "DELETE /job-schedules/{name}/{id} – accepte les noms valides")]
     [InlineData("/job-schedules/abc/sid")]
     [InlineData("/job-schedules/test-func/sid")]
+    [InlineData("/job-schedules/ab1/sid")]
+    [InlineData("/job-schedules/test_func/sid")]
     public async Task DeleteSchedule_Accepts_Valid_FunctionNames(string path)
     {
         string scheduleId = path.Split('/').Last();

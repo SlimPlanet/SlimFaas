@@ -15,14 +15,14 @@ public class JobSchedule
 
 public static partial class JobScheduleEndpoints
 {
-    [GeneratedRegex(@"^[a-z\-]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
+    [GeneratedRegex(@"^[a-z0-9_\-]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex FunctionNamePattern();
 
     private static bool IsValidFunctionName(string functionName, ILogger logger)
     {
         if (functionName.Length < 3 || functionName.Length > 12 || !FunctionNamePattern().IsMatch(functionName))
         {
-            logger.LogWarning("Invalid function name: {FunctionName}. Must match pattern [a-z-] and be between 3 and 12 characters", functionName);
+            logger.LogWarning("Invalid function name: {FunctionName}. Must match pattern [a-z0-9_-] and be between 3 and 12 characters", functionName);
             return false;
         }
         return true;
@@ -70,7 +70,7 @@ public static partial class JobScheduleEndpoints
 
         if (!IsValidFunctionName(functionName, logger))
         {
-            return Results.BadRequest("Function name must match pattern [a-z-] and be between 3 and 12 characters");
+            return Results.BadRequest("Function name must match pattern [a-z0-9_-] and be between 3 and 12 characters");
         }
 
         if (scheduleJobService == null)
@@ -148,7 +148,7 @@ public static partial class JobScheduleEndpoints
 
         if (!IsValidFunctionName(functionName, logger))
         {
-            return Results.BadRequest("Function name must match pattern [a-z-] and be between 3 and 12 characters");
+            return Results.BadRequest("Function name must match pattern [a-z0-9_-] and be between 3 and 12 characters");
         }
 
         bool isMessageComeFromNamespaceInternal =

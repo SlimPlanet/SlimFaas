@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.70.2
+
+- [85bdb0f3](https://github.com/SlimPlanet/SlimFaas/commit/85bdb0f390fe714c780022df39149829891509a5) - fix(slimfaas): Allow numbers and underscores in job names (#264) (release), 2026-04-14 by *Copilot*
+
+
+## 0.70.1
+
+
+
 ## v0.70.1
 
 - [be514c3d](https://github.com/SlimPlanet/SlimFaas/commit/be514c3d27d8ea1a3235743bacfcaefc947af580) - chore: update all JS library versions across all package.json files (#261) (release), 2026-04-03 by *Copilot*
@@ -265,14 +274,5 @@
 ## v0.60.5
 
 - [7d4bf1dd](https://github.com/SlimPlanet/SlimFaas/commit/7d4bf1dd4f4cbe3a3261fc57b179e76ad9b73ba5) - fix(slimfaas): cast invalid (release), 2026-01-23 by *Guillaume Chervet*
-
-
-## 0.60.4
-
-
-
-## v0.60.4
-
-- [ffe36aa8](https://github.com/SlimPlanet/SlimFaas/commit/ffe36aa8bf3fb3657d3be51c0800800170a8e78f) - fix(slimfaas): resolve dependency (release), 2026-01-23 by *Guillaume Chervet*
 
 
