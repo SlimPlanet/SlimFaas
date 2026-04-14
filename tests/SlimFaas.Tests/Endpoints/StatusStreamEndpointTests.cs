@@ -5,8 +5,10 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Moq;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
+using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.WebSocket;
 
@@ -53,6 +55,54 @@ public class StatusStreamEndpointTests
         _ = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
 
         Assert.Equal(0, replicasService.SyncDeploymentsCallCount);
+    }
+
+    [Fact(DisplayName = "GET /status-functions-stream n'appelle pas les sync jobs")]
+    public async Task StatusStream_DoesNotCallJobSyncMethods()
+    {
+        var jobConfigMock = new Mock<IJobConfiguration>();
+        var jobServiceMock = new Mock<IJobService>();
+
+        jobConfigMock.SetupGet(c => c.Configuration)
+            .Returns(new SlimFaasJobConfiguration(new Dictionary<string, SlimfaasJob>()));
+        jobServiceMock.SetupGet(s => s.Jobs).Returns(new List<SlimFaas.Kubernetes.Job>());
+
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
+                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        services.AddSingleton<IJobConfiguration>(jobConfigMock.Object);
+                        services.AddSingleton<IJobService>(jobServiceMock.Object);
+                        services.AddMemoryCache();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<NetworkActivityTracker>();
+                        services.AddRouting();
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
+                    });
+            })
+            .StartAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var response = await host.GetTestClient()
+            .SendAsync(new HttpRequestMessage(HttpMethod.Get, "http://localhost:5000/status-functions-stream"), HttpCompletionOption.ResponseHeadersRead, cts.Token);
+
+        var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+        var buffer = new byte[4096];
+        _ = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+
+        jobConfigMock.Verify(c => c.SyncJobsConfigurationAsync(), Times.Never);
+        jobServiceMock.Verify(s => s.SyncJobsAsync(), Times.Never);
     }
 
     [Fact(DisplayName = "GET /status-functions-stream returns text/event-stream")]

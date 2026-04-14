@@ -122,14 +122,12 @@ public static class StatusStreamEndpoints
         {
             try
             {
-                await jobConfiguration.SyncJobsConfigurationAsync();
-                await jobService.SyncJobsAsync();
                 jobs = await JobStatusEndpoints.BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
             }
             catch (Exception ex)
             {
-                // Keep stream alive even if jobs refresh temporarily fails.
-                logger.LogWarning(ex, "Unable to refresh jobs snapshot for status stream.");
+                // Keep stream alive even if jobs snapshot build temporarily fails.
+                logger.LogWarning(ex, "Unable to build jobs snapshot for status stream.");
                 jobs = new List<JobConfigurationStatus>();
             }
         }
