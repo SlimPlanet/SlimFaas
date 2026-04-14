@@ -7,12 +7,54 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
+using SlimFaas.Kubernetes;
 using SlimFaas.WebSocket;
 
 namespace SlimFaas.Tests.Endpoints;
 
 public class StatusStreamEndpointTests
 {
+    [Fact(DisplayName = "GET /status-functions-stream n'appelle pas SyncDeploymentsAsync")]
+    public async Task StatusStream_DoesNotCallSyncDeploymentsAsync()
+    {
+        var replicasService = new CountingReplicasService();
+
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<IReplicasService>(replicasService);
+                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        services.AddMemoryCache();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<NetworkActivityTracker>();
+                        services.AddRouting();
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
+                    });
+            })
+            .StartAsync();
+
+        var client = host.GetTestClient();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var request = new HttpRequestMessage(HttpMethod.Get, "http://localhost:5000/status-functions-stream");
+
+        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
+        var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+        var buffer = new byte[4096];
+        _ = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+
+        Assert.Equal(0, replicasService.SyncDeploymentsCallCount);
+    }
+
     [Fact(DisplayName = "GET /status-functions-stream returns text/event-stream")]
     public async Task StatusStream_ReturnsEventStream()
     {
@@ -195,6 +237,29 @@ public class StatusStreamEndpointTests
 
         Assert.Contains("NodeId", text);
         Assert.Contains(tracker.NodeId, text);
+    }
+
+    private sealed class CountingReplicasService : IReplicasService
+    {
+        public int SyncDeploymentsCallCount;
+
+        public DeploymentsInformations Deployments =>
+            new(
+                new List<DeploymentInformation>
+                {
+                    new(Replicas: 0, Deployment: "fibonacci", Namespace: "default",
+                        Pods: new List<PodInformation> { new("", true, true, "", "", new List<int>() { 5000 }) }, Configuration: new SlimFaasConfiguration())
+                },
+                new SlimFaasDeploymentInformation(1, new List<PodInformation> { new("", true, true, "", "", new List<int>() { 5000 }) }),
+                new List<PodInformation>());
+
+        public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace)
+        {
+            Interlocked.Increment(ref SyncDeploymentsCallCount);
+            return Task.FromResult(Deployments);
+        }
+
+        public Task CheckScaleAsync(string kubeNamespace) => Task.CompletedTask;
     }
 }
 

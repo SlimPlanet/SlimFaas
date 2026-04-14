@@ -1,6 +1,5 @@
 using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
@@ -25,21 +24,8 @@ public static class JobStatusEndpoints
     private static async Task<IResult> GetAllJobStatuses(
         [FromServices] IJobConfiguration jobConfiguration,
         [FromServices] IJobService jobService,
-        [FromServices] IScheduleJobService? scheduleJobService,
-        [FromServices] ILoggerFactory loggerFactory)
+        [FromServices] IScheduleJobService? scheduleJobService)
     {
-        var logger = loggerFactory.CreateLogger("JobStatusEndpoints");
-        try
-        {
-            // Keep endpoint output fresh when jobs/config are added or removed.
-            await jobConfiguration.SyncJobsConfigurationAsync();
-            await jobService.SyncJobsAsync();
-        }
-        catch (Exception ex)
-        {
-            // Do not fail the whole route if a sync attempt fails.
-            logger.LogWarning(ex, "Unable to sync job configuration/status before returning /jobs/status.");
-        }
 
         var result = await BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
 

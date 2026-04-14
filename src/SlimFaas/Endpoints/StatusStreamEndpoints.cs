@@ -50,7 +50,6 @@ public static class StatusStreamEndpoints
         [FromServices] NetworkActivityTracker tracker,
         [FromServices] ISlimFaasQueue slimFaasQueue,
         [FromServices] IOptions<SlimFaasOptions> slimFaasOptions,
-        [FromServices] INamespaceProvider? namespaceProvider,
         [FromServices] IJobConfiguration? jobConfiguration,
         [FromServices] IJobService? jobService,
         [FromServices] IScheduleJobService? scheduleJobService,
@@ -69,8 +68,7 @@ public static class StatusStreamEndpoints
         try
         {
             // Send initial full state
-            var currentNamespace = namespaceProvider?.CurrentNamespace ?? slimFaasOptions.Value.Namespace ?? "default";
-            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, currentNamespace, jobConfiguration, jobService, scheduleJobService, logger, ct);
+            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, jobConfiguration, jobService, scheduleJobService, logger, ct);
 
             // Then send periodic full state + activity events
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
@@ -91,8 +89,7 @@ public static class StatusStreamEndpoints
                     break;
 
                 // Send full state periodically
-                var currentNamespaceTick = namespaceProvider?.CurrentNamespace ?? slimFaasOptions.Value.Namespace ?? "default";
-                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, currentNamespaceTick, jobConfiguration, jobService, scheduleJobService, logger, ct);
+                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, jobConfiguration, jobService, scheduleJobService, logger, ct);
             }
         }
         catch (OperationCanceledException ex)
@@ -112,23 +109,12 @@ public static class StatusStreamEndpoints
         NetworkActivityTracker tracker,
         ISlimFaasQueue slimFaasQueue,
         bool frontEnabled,
-        string kubeNamespace,
         IJobConfiguration? jobConfiguration,
         IJobService? jobService,
         IScheduleJobService? scheduleJobService,
         ILogger logger,
         CancellationToken ct)
     {
-        try
-        {
-            // Keep the stream state fresh for add/remove operations.
-            await replicasService.SyncDeploymentsAsync(kubeNamespace);
-        }
-        catch (Exception ex)
-        {
-            // Keep streaming with the latest known snapshot if a sync attempt fails.
-            logger.LogWarning(ex, "Unable to refresh deployments for status stream in namespace {Namespace}.", kubeNamespace);
-        }
 
         var functions = cache.GetAllDetailed(replicasService);
         var jobs = new List<JobConfigurationStatus>();

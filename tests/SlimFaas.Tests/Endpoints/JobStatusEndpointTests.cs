@@ -128,6 +128,9 @@ public class JobStatusEndpointTests
         // Should have one running job
         Assert.Single(jobStatus.RunningJobs);
         Assert.Equal("Running", jobStatus.RunningJobs[0].Status);
+
+        jobConfigMock.Verify(c => c.SyncJobsConfigurationAsync(), Times.Never);
+        jobServiceMock.Verify(s => s.SyncJobsAsync(), Times.Never);
     }
 
     [Fact(DisplayName = "GET /jobs/status returns empty list when no configurations")]
