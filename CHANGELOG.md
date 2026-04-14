@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.71.0
+
+- [eb130e6d](https://github.com/SlimPlanet/SlimFaas/commit/eb130e6dc27ab451b1591b89dfd86d8558794427) - feat(slimfaas): add dashboard (#262) (release), 2026-04-14 by *Guillaume Chervet*
+
+
+## 0.70.2
+
+
+
 ## v0.70.2
 
 - [85bdb0f3](https://github.com/SlimPlanet/SlimFaas/commit/85bdb0f390fe714c780022df39149829891509a5) - fix(slimfaas): Allow numbers and underscores in job names (#264) (release), 2026-04-14 by *Copilot*
@@ -265,14 +274,5 @@
 ## v0.60.6
 
 - [b21cc754](https://github.com/SlimPlanet/SlimFaas/commit/b21cc7549f2a1f40301c35cb572d97c709d28b4a) - feature(mcp): better website (#223) (release), 2026-01-24 by *Guillaume Chervet*
-
-
-## 0.60.5
-
-
-
-## v0.60.5
-
-- [7d4bf1dd](https://github.com/SlimPlanet/SlimFaas/commit/7d4bf1dd4f4cbe3a3261fc57b179e76ad9b73ba5) - fix(slimfaas): cast invalid (release), 2026-01-23 by *Guillaume Chervet*
 
 
