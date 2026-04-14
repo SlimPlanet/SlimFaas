@@ -20,8 +20,16 @@ public class SlimWorkerShould
 
         CustomRequest? capturedRequest = null;
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
-        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?, string?>((req, _, _, _, _, _) => capturedRequest = req)
+        sendClientMock.Setup(s => s.SendHttpRequestAsync(
+                It.IsAny<CustomRequest>(),
+                It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationTokenSource?>(),
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?, string?, string?, string?>((req, _, _, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
@@ -110,7 +118,15 @@ public class SlimWorkerShould
         await cts.CancelAsync();
         await task;
         Assert.True(task.IsCompletedSuccessfully);
-        sendClientMock.Verify(v => v.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>()),
+        sendClientMock.Verify(v => v.SendHttpRequestAsync(
+                It.IsAny<CustomRequest>(),
+                It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationTokenSource?>(),
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()),
             Times.Once());
 
         // Vérification que les headers ont été ajoutés
@@ -193,8 +209,16 @@ public class SlimWorkerShould
 
         CustomRequest? capturedRequest = null;
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
-        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?, string?>((req, _, _, _, _, _) => capturedRequest = req)
+        sendClientMock.Setup(s => s.SendHttpRequestAsync(
+                It.IsAny<CustomRequest>(),
+                It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationTokenSource?>(),
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?, string?, string?, string?>((req, _, _, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
