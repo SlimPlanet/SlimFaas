@@ -170,6 +170,20 @@ namespace SlimFaas
                 return "";
             }
 
+            // Prune per-pod tracking for IPs that are no longer ready, to prevent unbounded growth.
+            var readySet = new HashSet<string>(readyPodsIps, StringComparer.OrdinalIgnoreCase);
+            foreach (var key in LastRequestTicksPerPod.Keys.ToList())
+            {
+                if (!readySet.Contains(key))
+                    LastRequestTicksPerPod.TryRemove(key, out _);
+            }
+            foreach (var key in ActiveRequestsPerPod.Keys.ToList())
+            {
+                // Only remove zero-count entries; in-flight entries may still have count > 0.
+                if (!readySet.Contains(key) && ActiveRequestsPerPod.GetValueOrDefault(key) == 0)
+                    ActiveRequestsPerPod.TryRemove(key, out _);
+            }
+
             // Déterminer l'index de départ (round-robin)
             int startIndex;
             if (!IpAddresses.TryGetValue(deploymentInformation.Deployment, out var lastIp)
