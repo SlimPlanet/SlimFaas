@@ -66,16 +66,13 @@ public static class EventEndpoints
 
         logger.LogDebug("Receiving event: {EventName}", eventName);
         string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-        string callerIdentity = string.IsNullOrWhiteSpace(callerIp) ? NetworkActivityTracker.Actors.External : callerIp;
         activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas, sourcePod: callerIp);
-        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, eventName);
         activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
             sourcePod: context.Connection.RemoteIpAddress?.ToString());
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
 
         if (functions.Count <= 0)
         {
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, eventName, NetworkActivityTracker.Actors.SlimFaas, targetPod: callerIdentity);
             logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
             return Results.NotFound();
         }
@@ -161,7 +158,6 @@ public static class EventEndpoints
             }
         }
 
-        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, eventName, NetworkActivityTracker.Actors.SlimFaas, targetPod: callerIdentity);
         return Results.NoContent();
     }
 
@@ -177,7 +173,13 @@ public static class EventEndpoints
         try
         {
             using HttpResponseMessage responseMessage = await sendClient.SendHttpRequestAsync(
-                customRequest, slimFaasDefaultConfiguration, baseUrl);
+                customRequest,
+                slimFaasDefaultConfiguration,
+                baseUrl,
+                null,
+                null,
+                null,
+                NetworkActivityTracker.Actors.SlimFaas);
 
             logger.LogDebug(
                 "Response from event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent} is {StatusCode}",

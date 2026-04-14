@@ -375,12 +375,6 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const link = resolvePodLink(evt.SourcePod);
       const startPos = link ? getFunctionTargetPosition(link.functionName, link.podName) : externalPos;
       const sourceColor = link?.functionName ? nameColor(link.functionName) : '#6b778c';
-      if (link) {
-        incCounter(link.functionName);
-        incReplicaCounter(fnReplicaKey(link.functionName, link.podName));
-      } else {
-        incCounter('external');
-      }
       queueMessage({
         id: `${evt.Id}|request_in`,
         segments: [{ from: startPos, to: slim }],
@@ -398,11 +392,24 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     if (evt.Type === 'request_out') {
       const f = fp(evt.Target);
       if (!f) return;
-      incCounter('slimfaas');
-      if (evt.NodeId) incReplicaCounter(sfReplicaKey(evt.NodeId));
+      const sourceActor = evt.Source || 'slimfaas';
+      incCounter(sourceActor);
+      if (sourceActor === 'slimfaas') {
+        if (evt.NodeId) incReplicaCounter(sfReplicaKey(evt.NodeId));
+      } else {
+        const srcLink = resolvePodLink(evt.SourcePod);
+        if (srcLink) {
+          incReplicaCounter(fnReplicaKey(srcLink.functionName, srcLink.podName));
+        }
+      }
+      const sourcePos = sourceActor === 'external'
+        ? externalPos
+        : sourceActor === 'slimfaas'
+          ? slim
+          : getFunctionTargetPosition(sourceActor, evt.SourcePod) || (fp(sourceActor) ?? slim);
       queueMessage({
         id: `${evt.Id}|request_out`,
-        segments: [{ from: slim, to: getFunctionTargetPosition(evt.Target, evt.TargetPod) || f }],
+        segments: [{ from: sourcePos, to: getFunctionTargetPosition(evt.Target, evt.TargetPod) || f }],
         currentSeg: 0,
         color: nameColor(evt.Target),
         shape: 'circle',
@@ -425,19 +432,15 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         return;
       }
 
-      decCounter('slimfaas');
-      if (evt.NodeId) decReplicaCounter(sfReplicaKey(evt.NodeId));
-      const caller = resolvePodLink(evt.TargetPod);
-      if (caller) {
-        decCounter(caller.functionName);
-        decReplicaCounter(fnReplicaKey(caller.functionName, caller.podName));
-      } else if (evt.TargetPod) {
-        decCounter('external');
-      }
-      // Decrement the target pod replica counter
-      const srcLink = resolvePodLink(evt.SourcePod);
-      if (srcLink) {
-        decReplicaCounter(fnReplicaKey(srcLink.functionName, srcLink.podName));
+      const sourceActor = evt.Source || 'slimfaas';
+      decCounter(sourceActor);
+      if (sourceActor === 'slimfaas') {
+        if (evt.NodeId) decReplicaCounter(sfReplicaKey(evt.NodeId));
+      } else {
+        const srcLink = resolvePodLink(evt.SourcePod);
+        if (srcLink) {
+          decReplicaCounter(fnReplicaKey(srcLink.functionName, srcLink.podName));
+        }
       }
       return;
     }

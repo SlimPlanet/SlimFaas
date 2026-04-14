@@ -41,7 +41,8 @@ public class SendClientShould
         });
         var namespaceProviderMock = new Mock<INamespaceProvider>();
         namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
-        SendClient sendClient = new(httpClient, mockLogger.Object, options, namespaceProviderMock.Object);
+        var tracker = new SlimFaas.Endpoints.NetworkActivityTracker();
+        SendClient sendClient = new(httpClient, mockLogger.Object, options, namespaceProviderMock.Object, tracker);
         CustomRequest customRequest =
             new CustomRequest(new List<CustomHeader> { new() { Key = "key", Values = new[] { "value1" } } },
                 new byte[1], "fibonacci", "health", httpMethod, "");
@@ -51,6 +52,11 @@ public class SendClientShould
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.NotNull(sendedRequest);
         Assert.Equal(sendedRequest.RequestUri, expectedUri);
+        var events = tracker.GetRecent();
+        Assert.Equal(2, events.Count);
+        Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestOut, events[0].Type);
+        Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestEnd, events[1].Type);
+        Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.Actors.SlimFaas, events[0].Source);
     }
 
 
@@ -83,7 +89,8 @@ public class SendClientShould
         });
         var namespaceProviderMock = new Mock<INamespaceProvider>();
         namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
-        SendClient sendClient = new(httpClient, mockLogger.Object, options, namespaceProviderMock.Object);
+        var tracker = new SlimFaas.Endpoints.NetworkActivityTracker();
+        SendClient sendClient = new(httpClient, mockLogger.Object, options, namespaceProviderMock.Object, tracker);
 
         DefaultHttpContext httpContext = new();
         HttpRequest httpContextRequest = httpContext.Request;
@@ -108,6 +115,11 @@ public class SendClientShould
         Assert.Equal(sendedRequest.RequestUri, expectedUri);
         Assert.Equal(authorization, sendedRequest?.Headers?.Authorization?.ToString());
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var events = tracker.GetRecent();
+        Assert.Equal(2, events.Count);
+        Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestOut, events[0].Type);
+        Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestEnd, events[1].Type);
+        Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.Actors.SlimFaas, events[0].Source);
     }
 }
 
