@@ -23,11 +23,9 @@ public static class JobStatusEndpoints
     }
 
     private static async Task<IResult> GetAllJobStatuses(
-        HttpContext context,
         [FromServices] IJobConfiguration jobConfiguration,
         [FromServices] IJobService jobService,
         [FromServices] IScheduleJobService? scheduleJobService,
-        [FromServices] IDatabaseService databaseService,
         [FromServices] ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger("JobStatusEndpoints");

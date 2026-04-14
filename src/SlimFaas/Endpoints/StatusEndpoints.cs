@@ -35,7 +35,6 @@ public static class StatusEndpoints
 
 
     private static IResult GetAllFunctionStatuses(
-        HttpContext context,
         [FromServices] IReplicasService replicasService,
         [FromServices] FunctionStatusCache cache)
     {

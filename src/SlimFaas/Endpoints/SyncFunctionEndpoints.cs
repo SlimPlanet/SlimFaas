@@ -85,11 +85,11 @@ public static class SyncFunctionEndpoints
         string? targetPodIp = null;
         bool requestEndRecorded = false;
 
-        void RecordRequestEndOnce(string? sourcePod = null)
+        void RecordRequestEndOnce(string? podIp = null)
         {
             if (requestEndRecorded) return;
             requestEndRecorded = true;
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionName, NetworkActivityTracker.Actors.SlimFaas, sourcePod: sourcePod, targetPod: callerIdentity);
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.SlimFaas, callerIdentity, sourcePod: callerIp, targetPod: podIp);
         }
 
         try
