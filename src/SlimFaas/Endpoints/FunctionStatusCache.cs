@@ -1,12 +1,25 @@
 using Microsoft.Extensions.Caching.Memory;
+using SlimFaas.Kubernetes;
+using SlimFaas.WebSocket;
 
 namespace SlimFaas.Endpoints;
 
 public sealed class FunctionStatusCache
 {
     private readonly IMemoryCache _cache;
+    private readonly IWebSocketFunctionRepository _webSocketFunctionRepository;
 
-    public FunctionStatusCache(IMemoryCache cache) => _cache = cache;
+    public FunctionStatusCache(IMemoryCache cache, IWebSocketFunctionRepository webSocketFunctionRepository)
+    {
+        _cache = cache;
+        _webSocketFunctionRepository = webSocketFunctionRepository;
+    }
+
+    private IEnumerable<DeploymentInformation> AllFunctions(IReplicasService replicasService)
+    {
+        return replicasService.Deployments.Functions
+            .Concat(_webSocketFunctionRepository.GetVirtualDeployments());
+    }
 
     public IReadOnlyList<FunctionStatus> GetAll(IReplicasService replicasService)
     {
@@ -15,12 +28,19 @@ public sealed class FunctionStatusCache
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(300);
 
-            // IMPORTANT: lis une seule fois
-            var deployments = replicasService.Deployments;
-
-            // Evite ToList si tu peux (array direct)
-            return deployments.Functions
+            return AllFunctions(replicasService)
                 .Select(FunctionEndpointsHelpers.MapToFunctionStatus)
+                .ToList();
+        })!;
+    }
+
+    public IReadOnlyList<FunctionStatusDetailed> GetAllDetailed(IReplicasService replicasService)
+    {
+        return _cache.GetOrCreate("status-all-detailed", entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(300);
+            return AllFunctions(replicasService)
+                .Select(FunctionEndpointsHelpers.MapToFunctionStatusDetailed)
                 .ToList();
         })!;
     }
@@ -31,9 +51,8 @@ public sealed class FunctionStatusCache
         var dict = _cache.GetOrCreate("status-byname", entry =>
         {
             entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMilliseconds(1000);
-            var deployments = replicasService.Deployments;
 
-            return deployments.Functions.ToDictionary(
+            return AllFunctions(replicasService).ToDictionary(
                 f => f.Deployment,
                 FunctionEndpointsHelpers.MapToFunctionStatus,
                 StringComparer.Ordinal

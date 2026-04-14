@@ -125,7 +125,7 @@ namespace SlimFaas.Tests
             // Assert
             // => "http://9.9.9.9:7777/some/7777/path?dbg=ok"
             Assert.Equal("http://9.9.9.9:7777/some/7777/path?dbg=ok", result);
-            Assert.True(fakeProxy.GetNextIpCallsCount >= 3,
+            Assert.True(fakeProxy.GetNextIpCallsCount >= 2,
                 "On doit avoir appelé GetNextIP plusieurs fois avant d'obtenir un résultat valide.");
         }
 
@@ -196,6 +196,18 @@ public class FakeProxy : IProxy
 
     public void DecrementActiveRequests(string ip) { }
 
+    public IList<string> ReserveNextIPs(int maxPerPod, int count) => new List<string>();
+
+    public void ReleaseReservedIPs(IList<string> ips) { }
+
+    public bool BindElementToIp(string elementId, string ip) => true;
+
+    public bool ReleaseElementReservation(string elementId, out string ip)
+    {
+        ip = string.Empty;
+        return true;
+    }
+
     public IList<int>? GetPorts()
     {
         // Ex : on consomme réellement la queue ici en .Dequeue()
@@ -208,4 +220,6 @@ public class FakeProxy : IProxy
 
         return DefaultPorts;
     }
+
+    public IList<int>? GetPorts(string? ip) => GetPorts();
 }

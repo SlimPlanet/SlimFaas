@@ -1,0 +1,29 @@
+@use './variables' as *;
+
+.tip-anchor {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  cursor: help;
+}
+
+.tip-icon {
+  font-size: 0.7rem;
+  color: $color-text-light;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+
+  .tip-anchor:hover & {
+    opacity: 1;
+    color: $color-primary;
+  }
+}
+
+.tip-popup {
+  max-width: 360px !important;
+  font-size: 0.78rem !important;
+  line-height: 1.5 !important;
+  z-index: 9999 !important;
+  white-space: pre-wrap;
+}
+

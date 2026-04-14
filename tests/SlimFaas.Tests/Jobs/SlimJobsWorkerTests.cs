@@ -205,7 +205,7 @@ public class SlimJobsWorkerTests
         // CountElement => 1 élément dispo
         _jobQueueMock
             .Setup(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(new List<QueueData> { new("1", [byte.MinValue], 0, true) });
+            .ReturnsAsync(new List<QueueData> { new("1", [byte.MinValue], 0, true, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond) });
 
         // "dependencyA" à 0 réplicas => skip
         DeploymentsInformations deployments = new(
@@ -289,7 +289,7 @@ public class SlimJobsWorkerTests
         // 1 élément dispo dans la queue
         _jobQueueMock
             .Setup(q => q.CountElementAsync("myjob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(new List<QueueData> { new("fakeId", dataBytes, 0, true), new("fakeId", dataBytes, 0, true) });
+            .ReturnsAsync(new List<QueueData> { new("fakeId", dataBytes, 0, true, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond), new("fakeId", dataBytes, 0, true, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond) });
 
         // "dependencyA" a 1 réplique => c'est prêt
         DeploymentsInformations deployments = new(
@@ -310,7 +310,7 @@ public class SlimJobsWorkerTests
             .Setup(r => r.Deployments)
             .Returns(deployments);
 
-        List<QueueData> queueDataList = new() { new QueueData("fakeId", dataBytes, 0,false) };
+        List<QueueData> queueDataList = new() { new QueueData("fakeId", dataBytes, 0, false, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond) };
 
         _jobQueueMock
             .Setup(q => q.DequeueAsync("myjob", It.IsAny<int>()))

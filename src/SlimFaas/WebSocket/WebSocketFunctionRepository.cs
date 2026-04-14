@@ -92,7 +92,7 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 TimeoutSecondBeforeSetReplicasMin: 0,
                 NumberParallelRequest: config.NumberParallelRequest,
                 ReplicasStartAsSoonAsOneFunctionRetrieveARequest: config.ReplicasStartAsSoonAsOneFunctionRetrieveARequest,
-                PodType: PodType.Deployment,
+                PodType: PodType.WebSocket,
                 DependsOn: config.DependsOn,
                 SubscribeEvents: subscribeEvents,
                 Visibility: visibility,

@@ -37,8 +37,9 @@ public static class EventEndpoints
                 IFunctionAccessPolicy accessPolicy,
                 IOptions<SlimFaasOptions> slimFaasOptions,
                 INamespaceProvider namespaceProvider,
-                IWebSocketSendClient webSocketSendClient) =>
-                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions, namespaceProvider, webSocketSendClient))
+                IWebSocketSendClient webSocketSendClient,
+                NetworkActivityTracker activityTracker) =>
+                PublishEvent(eventName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, accessPolicy, slimFaasOptions, namespaceProvider, webSocketSendClient, activityTracker))
             .WithName("PublishEventRoot")
             .Produces(204)
             .Produces(404)
@@ -58,15 +59,23 @@ public static class EventEndpoints
         [FromServices] IFunctionAccessPolicy accessPolicy,
         [FromServices] IOptions<SlimFaasOptions> slimFaasOptions,
         [FromServices] INamespaceProvider namespaceProvider,
-        [FromServices] IWebSocketSendClient webSocketSendClient)
+        [FromServices] IWebSocketSendClient webSocketSendClient,
+        [FromServices] NetworkActivityTracker activityTracker)
     {
         functionPath ??= "";
 
         logger.LogDebug("Receiving event: {EventName}", eventName);
+        string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
+        string callerIdentity = string.IsNullOrWhiteSpace(callerIp) ? NetworkActivityTracker.Actors.External : callerIp;
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas, sourcePod: callerIp);
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, eventName);
+        activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
+            sourcePod: context.Connection.RemoteIpAddress?.ToString());
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
 
         if (functions.Count <= 0)
         {
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, eventName, NetworkActivityTracker.Actors.SlimFaas, targetPod: callerIdentity);
             logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
             return Results.NotFound();
         }
@@ -100,7 +109,7 @@ public static class EventEndpoints
             }
 
             // --- Fonctions HTTP classiques ---
-            foreach (var pod in function.Pods)
+            foreach (var pod in function.Pods ?? Enumerable.Empty<PodInformation>())
             {
                 logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}",
                     pod.Ready, function.EndpointReady, pod.Ip);
@@ -117,6 +126,9 @@ public static class EventEndpoints
 
                 logger.LogInformation("Publish-event {EventName} : Deployment {Deployment} Pod {PodName} is ready: {PodReady}",
                     eventName, function.Deployment, pod.Name, pod.Ready);
+
+                activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, function.Deployment,
+                    targetPod: pod.Ip);
 
                 historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
 
@@ -149,6 +161,7 @@ public static class EventEndpoints
             }
         }
 
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, eventName, NetworkActivityTracker.Actors.SlimFaas, targetPod: callerIdentity);
         return Results.NoContent();
     }
 

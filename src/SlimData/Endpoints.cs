@@ -226,6 +226,12 @@ public class Endpoints
 
             var (key, value) = GetKeyValue(form);
             context.Request.Query.TryGetValue("transactionId", out var transactionId);
+            var reservedIps = context.Request.Query.TryGetValue("reservedIps", out var reservedIpsRaw)
+                ? reservedIpsRaw.ToString()
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(Uri.UnescapeDataString)
+                    .ToList()
+                : new List<string>();
 
             if (string.IsNullOrEmpty(key) || !int.TryParse(value, out var count) || string.IsNullOrEmpty(transactionId))
             {
@@ -234,13 +240,13 @@ public class Endpoints
                 return;
             }
 
-            var values = await ListRightPopCommand(provider, key, transactionId, count, cluster, source);
+            var values = await ListRightPopCommand(provider, key, transactionId, count, reservedIps, cluster, source);
             var bin = MemoryPackSerializer.Serialize(values);
             await context.Response.Body.WriteAsync(bin, context.RequestAborted);
         });
     }
 
-    public static async Task<ListItems> ListRightPopCommand(SlimPersistentState provider, string key, string transactionId, int count, IRaftCluster cluster,
+    public static async Task<ListItems> ListRightPopCommand(SlimPersistentState provider, string key, string transactionId, int count, List<string>? reservedIps, IRaftCluster cluster,
         CancellationTokenSource source)
     {
         var values = new ListItems();
@@ -250,7 +256,14 @@ public class Endpoints
         var logEntry = new LogEntry<ListRightPopCommand>()
         {
             Term = cluster.Term,
-            Command = new() { Key = key, Count = count, NowTicks = nowTicks, IdTransaction = transactionId },
+            Command = new()
+            {
+                Key = key,
+                Count = count,
+                NowTicks = nowTicks,
+                IdTransaction = transactionId,
+                ReservedIps = reservedIps ?? []
+            },
         };
         await SafeReplicateAsync(cluster, logEntry, source.Token);
         await Task.Delay(2, source.Token);
@@ -271,7 +284,7 @@ public class Endpoints
                         var last = qe.RetryQueueElements[^1];
                         if (last.IdTransaction != transactionId) continue;
                         
-                        values.Items.Add(new QueueData(qe.Id, qe.Value.ToArray(), qe.NumberOfTries(), qe.IsLastTry()));
+                        values.Items.Add(new QueueData(qe.Id, qe.Value.ToArray(), qe.NumberOfTries(), qe.IsLastTry(), qe.GetLastRetryTimeTicks(), qe.GetHttpTimeoutTicks(), qe.GetLastReservedIp()));
                     }
                 }
 

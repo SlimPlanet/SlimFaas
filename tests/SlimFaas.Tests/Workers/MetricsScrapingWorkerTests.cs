@@ -57,7 +57,7 @@ namespace SlimFaas.Tests.Workers
 
             public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation) => throw new NotImplementedException();
 
-            public Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1) => throw new NotImplementedException();
+            public Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1, IList<string>? reservedIps = null) => throw new NotImplementedException();
 
             public Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes, int maximum = Int32.MaxValue) => throw new NotImplementedException();
 

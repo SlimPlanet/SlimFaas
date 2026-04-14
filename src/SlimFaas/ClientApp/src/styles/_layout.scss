@@ -1,0 +1,20 @@
+@use './variables' as *;
+
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+
+  &__content {
+    flex: 1;
+    padding: $spacing-xl;
+    max-width: 1600px;
+    margin: 0 auto;
+    width: 100%;
+
+    @media screen and (max-width: $bp-tablet) {
+      padding: $spacing-md;
+    }
+  }
+}
+

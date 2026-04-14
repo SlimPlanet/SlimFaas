@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Threading.Channels;
+using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 // AppJsonContext est dans namespace SlimFaas - accessible via using implicite (même assembly)
 
@@ -52,13 +53,16 @@ public class WebSocketSendClient : IWebSocketSendClient
 {
     private readonly WebSocketConnectionRegistry _registry;
     private readonly ILogger<WebSocketSendClient> _logger;
+    private readonly NetworkActivityTracker _activityTracker;
 
     public WebSocketSendClient(
         WebSocketConnectionRegistry registry,
-        ILogger<WebSocketSendClient> logger)
+        ILogger<WebSocketSendClient> logger,
+        NetworkActivityTracker activityTracker)
     {
         _registry = registry;
         _logger = logger;
+        _activityTracker = activityTracker;
     }
 
     public async Task<int> SendAsync(
@@ -150,7 +154,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             Payload = JsonSerializer.SerializeToElement(payload, AppJsonContext.Default.PublishEventPayload),
         };
 
-        await Task.WhenAll(connections.Select(c => SafeSendAsync(c, envelope, ct)));
+        await Task.WhenAll(connections.Select(c => SafeSendPublishEventAsync(functionName, c, envelope, ct)));
     }
 
     public async Task<(int StatusCode, Dictionary<string, string[]> Headers, ChannelReader<byte[]> BodyChunks, Func<Task> WaitForEnd)>
@@ -250,12 +254,17 @@ public class WebSocketSendClient : IWebSocketSendClient
         }
     }
 
-    private async Task SafeSendAsync(
+    private async Task SafeSendPublishEventAsync(
+        string functionName,
         WebSocketClientConnection connection,
         WebSocketEnvelope envelope,
         CancellationToken ct)
     {
-        try { await connection.SendAsync(envelope, ct); }
+        try
+        {
+            _activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, functionName, targetPod: connection.ConnectionId);
+            await connection.SendAsync(envelope, ct);
+        }
         catch (Exception ex) { _logger.LogWarning(ex, "Failed to send WebSocket message to {ConnectionId}", connection.ConnectionId); }
     }
 }

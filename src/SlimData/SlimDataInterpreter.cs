@@ -50,18 +50,20 @@ public sealed class QueueElement
 
 public sealed class QueueHttpTryElement
 {
-    public QueueHttpTryElement(long startTimeStamp = 0, string idTransaction = "", long endTimeStamp = 0, int httpCode = 0)
+    public QueueHttpTryElement(long startTimeStamp = 0, string idTransaction = "", long endTimeStamp = 0, int httpCode = 0, string reservedIp = "")
     {
         StartTimeStamp = startTimeStamp;
         IdTransaction = idTransaction;
         EndTimeStamp = endTimeStamp;
         HttpCode = httpCode;
+        ReservedIp = reservedIp;
     }
 
     public long StartTimeStamp { get; set; }
     public long EndTimeStamp { get; set; }
     public int HttpCode { get; set; }
     public string IdTransaction { get; set; }
+    public string ReservedIp { get; set; }
 }
 
 #pragma warning disable CA2252
@@ -82,6 +84,17 @@ public class SlimDataInterpreter : CommandInterpreter
     [CommandHandler]
     public ValueTask ListRightPopAsync(ListRightPopCommand addHashSetCommand, CancellationToken token)
         => DoListRightPopAsync(addHashSetCommand, SlimDataState);
+
+    [CommandHandler]
+    public ValueTask ListRightPopLegacyAsync(ListRightPopCommandLegacy command, CancellationToken token)
+        => DoListRightPopAsync(new ListRightPopCommand
+        {
+            Key = command.Key,
+            Count = command.Count,
+            NowTicks = command.NowTicks,
+            IdTransaction = command.IdTransaction,
+            ReservedIps = []
+        }, SlimDataState);
 
     internal static ValueTask DoListRightPopAsync(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
     {
@@ -140,7 +153,12 @@ public class SlimDataInterpreter : CommandInterpreter
                 {
                     var e = available[i];
                     var b = e.RetryQueueElements.IsDefault ? ImmutableArray.CreateBuilder<QueueHttpTryElement>() : e.RetryQueueElements.ToBuilder();
-                    b.Add(new QueueHttpTryElement(listRightPopCommand.NowTicks, listRightPopCommand.IdTransaction));
+                    b.Add(new QueueHttpTryElement(
+                        listRightPopCommand.NowTicks,
+                        listRightPopCommand.IdTransaction,
+                        reservedIp: (listRightPopCommand.ReservedIps is { Count: > 0 } && i < listRightPopCommand.ReservedIps.Count)
+                            ? listRightPopCommand.ReservedIps[i]
+                            : string.Empty));
                     e.RetryQueueElements = b.ToImmutable();
                 }
             }
@@ -511,6 +529,14 @@ public class SlimDataInterpreter : CommandInterpreter
     public static CommandInterpreter InitInterpreter(SlimDataState state)
     {
         ValueTask ListRightPopHandler(ListRightPopCommand c, CancellationToken t) => DoListRightPopAsync(c, state);
+        ValueTask ListRightPopLegacyHandler(ListRightPopCommandLegacy c, CancellationToken t) => DoListRightPopAsync(new ListRightPopCommand
+        {
+            Key = c.Key,
+            Count = c.Count,
+            NowTicks = c.NowTicks,
+            IdTransaction = c.IdTransaction,
+            ReservedIps = []
+        }, state);
         ValueTask ListLeftPushHandler(ListLeftPushCommand c, CancellationToken t) => DoListLeftPushAsync(c, state);
         ValueTask ListLeftPushBatchHandler(ListLeftPushBatchCommand c, CancellationToken t) => DoListLeftPushBatchAsync(c, state);
         ValueTask AddHashSetHandler(AddHashSetCommand c, CancellationToken t) => DoAddHashSetAsync(c, state);
@@ -523,6 +549,7 @@ public class SlimDataInterpreter : CommandInterpreter
 
         var interpreter = new Builder()
             .Add(new Func<ListRightPopCommand, CancellationToken, ValueTask>(ListRightPopHandler))
+            .Add(new Func<ListRightPopCommandLegacy, CancellationToken, ValueTask>(ListRightPopLegacyHandler))
             .Add(new Func<ListLeftPushCommand, CancellationToken, ValueTask>(ListLeftPushHandler))
             .Add(new Func<ListLeftPushBatchCommand, CancellationToken, ValueTask>(ListLeftPushBatchHandler))
             .Add(new Func<AddHashSetCommand, CancellationToken, ValueTask>(AddHashSetHandler))

@@ -121,6 +121,7 @@ public class EventEndpointsTests
                         s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
+                        s.AddSingleton<NetworkActivityTracker>();
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -193,6 +194,7 @@ public class EventEndpointsTests
                         s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
+                        s.AddSingleton<NetworkActivityTracker>();
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -245,6 +247,7 @@ public class EventEndpointsTests
                         s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
+                        s.AddSingleton<NetworkActivityTracker>();
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -335,6 +338,7 @@ public class EventEndpointsTests
                         s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
+                        s.AddSingleton<NetworkActivityTracker>();
                         s.AddRouting();
                     })
                     .Configure(app =>

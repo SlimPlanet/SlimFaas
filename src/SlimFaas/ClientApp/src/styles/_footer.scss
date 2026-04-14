@@ -1,0 +1,43 @@
+@use './variables' as *;
+
+.footer {
+  background-color: $color-primary;
+  color: #ffffff;
+  padding: $spacing-xl;
+  margin-top: auto;
+
+  &__container {
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $spacing-md;
+  }
+
+  &__origin {
+    font-size: 0.9rem;
+  }
+
+  &__cncf {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $spacing-sm;
+  }
+
+  &__cncf-text {
+    font-size: 0.85rem;
+  }
+
+  &__cncf-logo {
+    display: block;
+  }
+
+  &__copyright {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+

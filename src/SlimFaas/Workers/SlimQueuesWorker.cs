@@ -1,13 +1,18 @@
-﻿﻿using MemoryPack;
+﻿using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
 namespace SlimFaas;
 
-internal record struct RequestToWait(Task<HttpResponseMessage> Task, CustomRequest CustomRequest, string Id, string TargetIp);
+internal record struct RequestToWait(
+    Task<HttpResponseMessage> Task,
+    CustomRequest CustomRequest,
+    string Id,
+    string TargetIp);
 
 public class SlimQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
@@ -17,7 +22,9 @@ public class SlimQueuesWorker(
     IServiceProvider serviceProvider,
     ISlimDataStatus slimDataStatus,
     IMasterService masterService,
-    IOptions<WorkersOptions> workersOptions)
+    IOptions<WorkersOptions> workersOptions,
+    NetworkActivityTracker activityTracker
+    )
     : BackgroundService
 {
 
@@ -30,22 +37,25 @@ public class SlimQueuesWorker(
     {
         await slimDataStatus.WaitForReadyAsync();
         Dictionary<string, IList<RequestToWait>> processingTasks = new();
+        Dictionary<string, IList<RequestToWait>> awaiting202Tasks = new();
         Dictionary<string, int> setTickLastCallCounterDictionary = new();
         while (stoppingToken.IsCancellationRequested == false)
         {
-            await DoOneCycle(stoppingToken, setTickLastCallCounterDictionary, processingTasks);
+            await DoOneCycle(stoppingToken, setTickLastCallCounterDictionary, processingTasks, awaiting202Tasks);
         }
     }
 
     private async Task DoOneCycle(CancellationToken stoppingToken,
         Dictionary<string, int> setTickLastCallCounterDictionary,
-        Dictionary<string, IList<RequestToWait>> processingTasks)
+        Dictionary<string, IList<RequestToWait>> processingTasks,
+        Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
     {
         try
         {
             await Task.Delay(_delay, stoppingToken);
             if (!masterService.IsMaster)
             {
+                ReleaseProcessingReservationsForLeadershipLoss(processingTasks, awaiting202Tasks);
                 return;
             }
             DeploymentsInformations deployments = replicasService.Deployments;
@@ -54,7 +64,8 @@ public class SlimQueuesWorker(
             {
                 string functionDeployment = function.Deployment;
                 setTickLastCallCounterDictionary.TryAdd(functionDeployment, 0);
-                int numberProcessingTasks = await ManageProcessingTasksAsync(slimFaasQueue, processingTasks, functionDeployment);
+                await ManageAwaiting202TasksAsync(awaiting202Tasks, functionDeployment);
+                int numberProcessingTasks = await ManageProcessingTasksAsync(slimFaasQueue, processingTasks, awaiting202Tasks, functionDeployment);
 
                 var numberPodsReady = function.Pods?.Count(p  => p.Ready.HasValue && p.Ready.Value && !string.IsNullOrEmpty(p.Ip)) ?? 1;
 
@@ -100,17 +111,30 @@ public class SlimQueuesWorker(
         DeploymentInformation function)
     {
         string functionDeployment = function.Deployment;
-        var jsons = await slimFaasQueue.DequeueAsync(functionDeployment, numberLimitProcessingTasks);
-
-        if (jsons == null)
+        var proxy = new Proxy(replicasService, functionDeployment);
+        var reservedIps = proxy.ReserveNextIPs(function.NumberParallelRequestPerPod, numberLimitProcessingTasks);
+        if (reservedIps.Count == 0)
         {
+            logger.LogDebug("All pods saturated for {FunctionDeployment}, skipping dequeue", functionDeployment);
             return;
         }
 
-        var proxy = new Proxy(replicasService, functionDeployment);
+        var jsons = await slimFaasQueue.DequeueAsync(functionDeployment, reservedIps.Count, reservedIps);
 
-        foreach (var requestJson in jsons)
+        if (jsons == null)
         {
+            proxy.ReleaseReservedIPs(reservedIps);
+            return;
+        }
+
+        if (jsons.Count < reservedIps.Count)
+        {
+            proxy.ReleaseReservedIPs(reservedIps.Skip(jsons.Count).ToList());
+        }
+
+        for (var i = 0; i < jsons.Count; i++)
+        {
+            var requestJson = jsons[i];
             CustomRequest customRequest = MemoryPackSerializer.Deserialize<CustomRequest>(requestJson.Data);
 
             logger.LogDebug("{CustomRequestMethod}: {CustomRequestPath}{CustomRequestQuery} Sending",
@@ -128,20 +152,21 @@ public class SlimQueuesWorker(
             customRequestHeaders.Add(new CustomHeader(SlimfaasElementId, [requestJson.Id]));
             customRequestHeaders.Add(new CustomHeader(SlimfaasLastTry, [requestJson.IsLastTry.ToString().ToLowerInvariant()]));
             customRequestHeaders.Add(new CustomHeader(SlimfaasTryNumber, [requestJson.TryNumber.ToString()]));
+            var reservedIp = !string.IsNullOrWhiteSpace(requestJson.ReservedIp)
+                ? requestJson.ReservedIp
+                : (i < reservedIps.Count ? reservedIps[i] : string.Empty);
 
-            // Sélectionner le pod en respectant la limite per-pod
-            string targetIp = proxy.GetNextIP(function.NumberParallelRequestPerPod);
-            if (string.IsNullOrEmpty(targetIp))
+            if (!string.IsNullOrWhiteSpace(reservedIp))
             {
-                // Tous les pods sont saturés — remettre le message en queue sera géré au prochain cycle
-                logger.LogDebug("All pods saturated for {FunctionDeployment}, skipping remaining requests", functionDeployment);
-                break;
+                proxy.BindElementToIp(requestJson.Id, reservedIp);
             }
-            proxy.IncrementActiveRequests(targetIp);
+
+            string targetIp = reservedIp;
 
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
-                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy);
+                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy, reservedIp);
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp));
+            activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
         }
     }
 
@@ -178,22 +203,29 @@ public class SlimQueuesWorker(
 
     private async Task<int> ManageProcessingTasksAsync(ISlimFaasQueue slimFaasQueue,
         Dictionary<string, IList<RequestToWait>> processingTasks,
+        Dictionary<string, IList<RequestToWait>> awaiting202Tasks,
         string functionDeployment)
     {
         if (processingTasks.ContainsKey(functionDeployment) == false)
         {
             processingTasks.Add(functionDeployment, new List<RequestToWait>());
         }
+        if (awaiting202Tasks.ContainsKey(functionDeployment) == false)
+        {
+            awaiting202Tasks.Add(functionDeployment, new List<RequestToWait>());
+        }
         var listQueueItemStatus = new ListQueueItemStatus();
         var queueItemStatusList = new List<QueueItemStatus>();
         listQueueItemStatus.Items = queueItemStatusList;
         List<RequestToWait> httpResponseMessagesToDelete = new();
         IList<RequestToWait> requestToWaits = processingTasks[functionDeployment];
+        var proxy = new Proxy(replicasService, functionDeployment);
         foreach (RequestToWait processing in requestToWaits)
         {
             try
             {
                 historyHttpService.SetTickLastCall(functionDeployment, DateTime.UtcNow.Ticks);
+
                 if (!processing.Task.IsCompleted)
                 {
                     continue;
@@ -205,31 +237,29 @@ public class SlimQueuesWorker(
                     "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
-                httpResponseMessagesToDelete.Add(processing);
-                // Libérer le slot per-pod
-                if (!string.IsNullOrEmpty(processing.TargetIp))
-                {
-                    Proxy.ActiveRequestsPerPod.AddOrUpdate(processing.TargetIp, 0, (_, count) => Math.Max(0, count - 1));
-                }
+
                 if (statusCode == 202)
                 {
-                    logger.LogInformation("SlimFaas is waiting callback from {FunctionDeployment}", functionDeployment);
+                    httpResponseMessage.Dispose();
+                    httpResponseMessagesToDelete.Add(processing);
+                    awaiting202Tasks[functionDeployment].Add(processing);
                 }
                 else
                 {
+                    httpResponseMessagesToDelete.Add(processing);
+                    proxy.ReleaseElementReservation(processing.Id, out _);
+                    activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment,
+                        targetPod: processing.TargetIp);
                     queueItemStatusList.Add(new QueueItemStatus(processing.Id, statusCode));
+                    httpResponseMessage.Dispose();
                 }
-                httpResponseMessage.Dispose();
             }
             catch (Exception e)
             {
                 queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
                 httpResponseMessagesToDelete.Add(processing);
-                // Libérer le slot per-pod en cas d'erreur
-                if (!string.IsNullOrEmpty(processing.TargetIp))
-                {
-                    Proxy.ActiveRequestsPerPod.AddOrUpdate(processing.TargetIp, 0, (_, count) => Math.Max(0, count - 1));
-                }
+                proxy.ReleaseElementReservation(processing.Id, out _);
+                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, targetPod: processing.TargetIp);
                 logger.LogWarning("Request Error: {Message} {StackTrace}", e.Message, e.StackTrace);
             }
         }
@@ -247,4 +277,80 @@ public class SlimQueuesWorker(
         int numberProcessingTasks = requestToWaits.Count;
         return numberProcessingTasks;
     }
+
+    private async Task ManageAwaiting202TasksAsync(
+        Dictionary<string, IList<RequestToWait>> awaiting202Tasks,
+        string functionDeployment)
+    {
+        if (!awaiting202Tasks.ContainsKey(functionDeployment))
+        {
+            awaiting202Tasks[functionDeployment] = new List<RequestToWait>();
+        }
+
+        IList<RequestToWait> pending = awaiting202Tasks[functionDeployment];
+        if (pending.Count == 0)
+        {
+            return;
+        }
+
+        var running = await slimFaasQueue.ListElementsAsync(functionDeployment, [CountType.Running]);
+        var runningByElementId = running.Select(r => r.Id).ToHashSet(StringComparer.Ordinal);
+        var proxy = new Proxy(replicasService, functionDeployment);
+        List<RequestToWait> completed = new();
+
+        foreach (var item in pending)
+        {
+            if (runningByElementId.Contains(item.Id))
+            {
+                continue;
+            }
+
+            completed.Add(item);
+            proxy.ReleaseElementReservation(item.Id, out _);
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment,
+                targetPod: item.TargetIp);
+        }
+
+        foreach (var item in completed)
+        {
+            pending.Remove(item);
+        }
+    }
+
+    private async Task ManageAllAwaiting202TasksAsync(
+        Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
+    {
+        foreach (var functionDeployment in awaiting202Tasks.Keys.ToList())
+        {
+            await ManageAwaiting202TasksAsync(awaiting202Tasks, functionDeployment);
+        }
+    }
+
+    private void ReleaseProcessingReservationsForLeadershipLoss(
+        Dictionary<string, IList<RequestToWait>> processingTasks,
+        Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
+    {
+        foreach (var kv in processingTasks)
+        {
+            var proxy = new Proxy(replicasService, kv.Key);
+            foreach (var item in kv.Value)
+            {
+                proxy.ReleaseElementReservation(item.Id, out _);
+            }
+
+            kv.Value.Clear();
+        }
+
+        foreach (var kv in awaiting202Tasks)
+        {
+            var proxy = new Proxy(replicasService, kv.Key);
+            foreach (var item in kv.Value)
+            {
+                proxy.ReleaseElementReservation(item.Id, out _);
+            }
+
+            kv.Value.Clear();
+        }
+    }
+
 }

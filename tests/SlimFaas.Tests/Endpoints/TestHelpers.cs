@@ -68,9 +68,11 @@ internal class MemoryReplicas2ReplicasService : IReplicasService
 
 internal class MemorySlimFaasQueue : ISlimFaasQueue
 {
-    public Task<IList<QueueData>?> DequeueAsync(string key, int count = 1) => Task.FromResult<IList<QueueData>?>(null);
+    public Task<IList<QueueData>?> DequeueAsync(string key, int count = 1, IList<string>? reservedIps = null) => Task.FromResult<IList<QueueData>?>(null);
 
     public Task<long> CountElementAsync(string key, IList<CountType> countTypes, int maximum) => Task.FromResult(0L);
+
+    public Task<IList<QueueData>> ListElementsAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) => Task.FromResult<IList<QueueData>>(new List<QueueData>());
 
     public Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus) => Task.CompletedTask;
 
@@ -87,7 +89,7 @@ internal class SendClientMock : ISendClient
 {
     public IList<SendData> SendDatas = new List<SendData>();
 
-    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null)
+    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null)
     {
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         responseMessage.StatusCode = HttpStatusCode.OK;

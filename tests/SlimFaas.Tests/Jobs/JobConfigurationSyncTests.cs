@@ -82,8 +82,8 @@ public class JobConfigurationSyncTests
         Assert.Equal("k8s-image:v1", sut.Configuration.Configurations["k8s-job"].Image);
     }
 
-    [Fact(DisplayName = "Sync: initial (env-based) jobs are preserved alongside k8s jobs")]
-    public async Task SyncAsync_PreservesInitialJobs()
+    [Fact(DisplayName = "Sync: only initial Default job is preserved, non-default jobs come from k8s")]
+    public async Task SyncAsync_PreservesOnlyInitialDefaultJob()
     {
         // Arrange – initial config has "env-job"
         string initialJson = """
@@ -117,8 +117,8 @@ public class JobConfigurationSyncTests
         // Act
         await sut.SyncJobsConfigurationAsync();
 
-        // Assert – both jobs present
-        Assert.True(sut.Configuration.Configurations.ContainsKey("env-job"));
+        // Assert – non-default initial jobs are replaced by synced k8s jobs
+        Assert.False(sut.Configuration.Configurations.ContainsKey("env-job"));
         Assert.True(sut.Configuration.Configurations.ContainsKey("k8s-job"));
         Assert.True(sut.Configuration.Configurations.ContainsKey("Default"));
     }

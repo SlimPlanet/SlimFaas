@@ -83,7 +83,8 @@ public enum FunctionTrust
 public enum PodType
 {
     Deployment,
-    StatefulSet
+    StatefulSet,
+    WebSocket
 }
 
 public record SubscribeEvent(string Name, FunctionVisibility Visibility);
@@ -102,6 +103,12 @@ public record DeploymentsInformations(
 [JsonSerializable(typeof(DeploymentsInformations))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class DeploymentsInformationsSerializerContext : JsonSerializerContext;
+
+public record ResourcesConfiguration(
+    string? CpuRequest = null,
+    string? CpuLimit = null,
+    string? MemoryRequest = null,
+    string? MemoryLimit = null);
 
 public record DeploymentInformation(
     string Deployment,
@@ -124,7 +131,8 @@ public record DeploymentInformation(
     bool EndpointReady = false,
     FunctionTrust Trust = FunctionTrust.Trusted,
     ScaleConfig? Scale = null,
-    int NumberParallelRequestPerPod = 10
+    int NumberParallelRequestPerPod = 10,
+    ResourcesConfiguration? Resources = null
 );
 
 public record PodInformation(
@@ -814,6 +822,20 @@ public class KubernetesService : IKubernetesService
         }
     }
 
+    private static ResourcesConfiguration? ExtractResources(IList<V1Container>? containers)
+    {
+        if (containers is null || containers.Count == 0) return null;
+        var c = containers[0];
+        var req = c.Resources?.Requests;
+        var lim = c.Resources?.Limits;
+        return new ResourcesConfiguration(
+            CpuRequest: req?.TryGetValue("cpu", out var cpuReq) == true ? cpuReq.ToString() : null,
+            CpuLimit: lim?.TryGetValue("cpu", out var cpuLim) == true ? cpuLim.ToString() : null,
+            MemoryRequest: req?.TryGetValue("memory", out var memReq) == true ? memReq.ToString() : null,
+            MemoryLimit: lim?.TryGetValue("memory", out var memLim) == true ? memLim.ToString() : null
+        );
+    }
+
     private static async Task AddDeployments(string kubeNamespace, V1DeploymentList deploymentList,
         IEnumerable<PodInformation> podList,
         IList<DeploymentInformation> deploymentInformationList, ILogger<KubernetesService> logger,
@@ -855,6 +877,7 @@ public class KubernetesService : IKubernetesService
                         annotations.TryGetValue(DefaultVisibility, out string? visibility)
                             ? Enum.Parse<FunctionVisibility>(visibility)
                             : FunctionVisibility.Public;
+                    ResourcesConfiguration? resources = ExtractResources(deploymentListItem.Spec.Template?.Spec?.Containers);
 
                     DeploymentInformation deploymentInformation = new(
                         name,
@@ -892,7 +915,8 @@ public class KubernetesService : IKubernetesService
                         annotations.TryGetValue(NumberParallelRequestPerPod,
                             out string? annotationNumberParallelRequestPerPod)
                             ? int.Parse(annotationNumberParallelRequestPerPod)
-                            : 10
+                            : 10,
+                        resources
                     );
                     deploymentInformationList.Add(deploymentInformation);
                 }
@@ -1108,6 +1132,7 @@ public class KubernetesService : IKubernetesService
                             ? Enum.Parse<FunctionVisibility>(visibility)
                             : FunctionVisibility.Public;
                     ScaleConfig? scaleConfig = GetScaleConfig(annotations, name, logger);
+                    ResourcesConfiguration? resources = ExtractResources(deploymentListItem.Spec.Template?.Spec?.Containers);
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
@@ -1144,7 +1169,8 @@ public class KubernetesService : IKubernetesService
                         annotations.TryGetValue(NumberParallelRequestPerPod,
                             out string? annotationNumberParallelRequestPerPod)
                             ? int.Parse(annotationNumberParallelRequestPerPod)
-                            : 10);
+                            : 10,
+                        resources);
 
                     deploymentInformationList.Add(deploymentInformation);
                 }

@@ -16,6 +16,8 @@ public class CronUtilsTests
     [InlineData("*/15 * * * *", "2024-06-09T12:45:00Z",  "2024-06-09T12:45:00Z")] // toutes les 15 min, sur
     [InlineData("*/15 * * * *", "2024-06-09T12:46:00Z",  "2024-06-09T12:45:00Z")] // toutes les 15 min, après
     [InlineData("*/15 * * * *", "2024-06-09T12:14:00Z",  "2024-06-09T12:00:00Z")] // toutes les 15 min, avant
+    [InlineData("*/2 * * * *",  "2024-06-09T12:04:00Z",  "2024-06-09T12:04:00Z")] // toutes les 2 min, sur
+    [InlineData("*/2 * * * *",  "2024-06-09T12:05:00Z",  "2024-06-09T12:04:00Z")] // toutes les 2 min, entre deux slots
 
     [InlineData("0/15 * * * *", "2024-06-09T12:45:00Z",  "2024-06-09T12:45:00Z")] // 0/15 = */15, toutes les 15 min, sur
     [InlineData("0/15 * * * *", "2024-06-09T12:46:00Z",  "2024-06-09T12:45:00Z")] // 0/15 = */15, toutes les 15 min, après

@@ -2,10 +2,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
+using SlimData;
+using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using MemoryPack;
-using SlimFaas.Database;
-using SlimData;
+using SlimFaas.Endpoints;
 using SlimFaas.Options;
 namespace SlimFaas.Tests;
 
@@ -19,8 +20,8 @@ public class SlimWorkerShould
 
         CustomRequest? capturedRequest = null;
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
-        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?>((req, _, _, _, _) => capturedRequest = req)
+        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>()))
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?, string?>((req, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
@@ -99,7 +100,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
-            workersOptions);
+            workersOptions,
+            new NetworkActivityTracker());
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
 
@@ -108,7 +110,7 @@ public class SlimWorkerShould
         await cts.CancelAsync();
         await task;
         Assert.True(task.IsCompletedSuccessfully);
-        sendClientMock.Verify(v => v.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>()),
+        sendClientMock.Verify(v => v.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>()),
             Times.Once());
 
         // Vérification que les headers ont été ajoutés
@@ -159,7 +161,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
-            workersOptions);
+            workersOptions,
+            new NetworkActivityTracker());
 
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
@@ -190,8 +193,8 @@ public class SlimWorkerShould
 
         CustomRequest? capturedRequest = null;
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
-        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?>((req, _, _, _, _) => capturedRequest = req)
+        sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(), It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>()))
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?, string?>((req, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
@@ -236,16 +239,18 @@ public class SlimWorkerShould
             new List<CustomHeader> { new() { Key = "original-header", Values = new[] { "value" } } },
             new byte[1], "test-function", "/test", "GET", "");
 
-        var queueData = new QueueData("test-id", MemoryPackSerializer.Serialize(customRequest), expectedTryNumber, isLastTry);
+        var queueData = new QueueData("test-id", MemoryPackSerializer.Serialize(customRequest), expectedTryNumber, isLastTry, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond);
 
         // Créer une queue mockée qui retourne un élément avec les propriétés spécifiées
         Mock<ISlimFaasQueue> mockQueue = new Mock<ISlimFaasQueue>();
-        mockQueue.Setup(q => q.DequeueAsync("test-function", It.IsAny<int>()))
+        mockQueue.Setup(q => q.DequeueAsync("test-function", It.IsAny<int>(), It.IsAny<IList<string>?>()))
             .ReturnsAsync(new List<QueueData> { queueData });
         mockQueue.Setup(q => q.CountElementAsync(It.IsAny<string>(), It.IsAny<List<CountType>>(), It.IsAny<int>()))
             .ReturnsAsync(1);
         mockQueue.Setup(q => q.CountElementAsync(It.IsAny<string>(), It.IsAny<List<CountType>>()))
             .ReturnsAsync(1);
+        mockQueue.Setup(q => q.ListElementsAsync(It.IsAny<string>(), It.IsAny<List<CountType>>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<QueueData> { queueData });
         mockQueue.Setup(q => q.ListCallbackAsync(It.IsAny<string>(), It.IsAny<ListQueueItemStatus>()))
             .Returns(Task.CompletedTask);
 
@@ -263,7 +268,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
-            workersOptions);
+            workersOptions,
+            new NetworkActivityTracker());
 
         // Act
         using var cts = new CancellationTokenSource();

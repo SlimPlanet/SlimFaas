@@ -31,8 +31,9 @@ public static class SyncFunctionEndpoints
                 IReplicasService replicasService,
                 IJobService jobService,
                 IWebSocketSendClient webSocketSendClient,
-                IWebSocketFunctionRepository webSocketFunctionRepository) =>
-                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository))
+                IWebSocketFunctionRepository webSocketFunctionRepository,
+                NetworkActivityTracker activityTracker) =>
+                HandleSyncFunction(functionName, "", context, logger, historyHttpService, sendClient, replicasService, jobService, webSocketSendClient, webSocketFunctionRepository, activityTracker))
             .WithName("HandleSyncFunctionRoot")
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
@@ -48,7 +49,8 @@ public static class SyncFunctionEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] IJobService jobService,
         [FromServices] IWebSocketSendClient webSocketSendClient,
-        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository)
+        [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository,
+        [FromServices] NetworkActivityTracker activityTracker)
     {
         functionPath ??= "";
         var ct = context.RequestAborted;
@@ -76,58 +78,104 @@ public static class SyncFunctionEndpoints
             return Results.NotFound();
         }
 
-        // ── Fonction virtuelle WebSocket → streaming binaire ──
-        if (function.Namespace == "websocket-virtual")
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
+            sourcePod: context.Connection.RemoteIpAddress?.ToString());
+        string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
+        string callerIdentity = string.IsNullOrWhiteSpace(callerIp) ? NetworkActivityTracker.Actors.External : callerIp;
+        string? targetPodIp = null;
+        bool requestEndRecorded = false;
+
+        void RecordRequestEndOnce(string? podIp = null)
         {
-            return await HandleSyncFunctionViaWebSocket(
-                functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct);
+            if (requestEndRecorded) return;
+            requestEndRecorded = true;
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.SlimFaas, target: callerIdentity, sourcePod: callerIp, targetPod: podIp);
         }
 
-        // ── Fonction HTTP classique ──
-        await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
-
-        Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
-            context,
-            functionName,
-            functionPath,
-            context.Request.QueryString.ToUriComponent(),
-            function.Configuration.DefaultSync,
-            null,
-            new Proxy(replicasService, functionName));
-
-        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
         try
         {
-            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-
-            while (true)
+            // ── Fonction virtuelle WebSocket → streaming binaire ──
+            if (function.Namespace == "websocket-virtual")
             {
-                var nextTickTask = timer.WaitForNextTickAsync(ct).AsTask();
-                var completed = await Task.WhenAny(responseTask, nextTickTask);
-
-                if (completed == responseTask)
-                    break;
-
-                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, functionName);
+                var wsResult = await HandleSyncFunctionViaWebSocket(
+                    functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct);
+                RecordRequestEndOnce();
+                return wsResult;
             }
+
+            // ── Fonction HTTP classique ──
+            // Signal that SlimFaas is waiting for a pod to start (for UI visualization)
+            bool functionWasReady = IsFunctionReady(function);
+            if (!functionWasReady)
+            {
+                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestWaiting, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: callerIp);
+            }
+
+            await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
+
+            if (!functionWasReady)
+            {
+                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestStarted, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: callerIp);
+            }
+
+            var proxy = new Proxy(replicasService, functionName);
+            Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
+                context,
+                functionName,
+                functionPath,
+                context.Request.QueryString.ToUriComponent(),
+                function.Configuration.DefaultSync,
+                null,
+                proxy);
+
+            // Capture the target pod IP that the proxy selected (last used IP for this function)
+            targetPodIp = Proxy.IpAddresses.GetValueOrDefault(functionName);
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, functionName, targetPod: targetPodIp);
+
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            try
+            {
+                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+
+                while (true)
+                {
+                    var nextTickTask = timer.WaitForNextTickAsync(ct).AsTask();
+                    var completed = await Task.WhenAny(responseTask, nextTickTask);
+
+                    if (completed == responseTask)
+                        break;
+
+                    historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                RecordRequestEndOnce(targetPodIp);
+                logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
+                return Results.StatusCode(499); // Client Closed Request
+            }
+
+            using var responseMessage = await responseTask.ConfigureAwait(false);
+
+            context.Response.StatusCode = (int)responseMessage.StatusCode;
+            CopyFromTargetResponseHeaders(context, responseMessage);
+
+            var stream = await responseMessage.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
+
+            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+            RecordRequestEndOnce(targetPodIp);
+
+            return Results.Empty;
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        catch (Exception ex)
         {
-            logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
-            return Results.StatusCode(499); // Client Closed Request
+            // Covers failures before/while sending (e.g., no IP/port available) to avoid leaked in-flight counters.
+            RecordRequestEndOnce(targetPodIp);
+            logger.LogError(ex, "Unhandled sync error for {FunctionName}", functionName);
+            return Results.StatusCode(503);
         }
-
-        using var responseMessage = await responseTask.ConfigureAwait(false);
-
-        context.Response.StatusCode = (int)responseMessage.StatusCode;
-        CopyFromTargetResponseHeaders(context, responseMessage);
-
-        var stream = await responseMessage.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
-
-        historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-
-        return Results.Empty;
     }
 
     private static bool IsFunctionReady(DeploymentInformation f) =>

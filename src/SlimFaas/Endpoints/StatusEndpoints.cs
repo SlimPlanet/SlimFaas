@@ -25,6 +25,12 @@ public static class StatusEndpoints
             .Produces(204)
             .Produces(404)
             .AddEndpointFilter<HostPortEndpointFilter>();
+
+        // POST /wake-functions - Réveiller toutes les fonctions en un seul appel
+        app.MapPost("/wake-functions", WakeAllFunctions)
+            .WithName("WakeAllFunctions")
+            .Produces(204)
+            .AddEndpointFilter<HostPortEndpointFilter>();
     }
 
 
@@ -32,6 +38,7 @@ public static class StatusEndpoints
         [FromServices] IReplicasService replicasService,
         [FromServices] FunctionStatusCache cache)
     {
+
         var statuses = cache.GetAll(replicasService);
 
         return Results.Json(statuses,
@@ -48,6 +55,34 @@ public static class StatusEndpoints
 
         return Results.Json(status,
             SlimFaas.FunctionStatusSerializerContext.Default.FunctionStatus);
+    }
+
+    private static IResult WakeAllFunctions(
+        [FromServices] IReplicasService replicasService,
+        [FromServices] WakeUpGate gate,
+        [FromServices] IWakeUpFunction wakeUpFunction,
+        [FromServices] ILoggerFactory loggerFactory)
+    {
+        var logger = loggerFactory.CreateLogger("SlimFaas.WakeAll");
+        var functions = replicasService.Deployments?.Functions ?? [];
+
+        foreach (var function in functions)
+        {
+            var name = function.Deployment;
+            if (!gate.TryEnter(name)) continue; // déjà en cours
+
+#pragma warning disable CS4014
+            var t = wakeUpFunction.FireAndForgetWakeUpAsync(name);
+            _ = t.ContinueWith(task =>
+            {
+                gate.Exit(name);
+                if (task.IsFaulted && task.Exception is not null)
+                    logger.LogError(task.Exception, "WakeAll failed for {FunctionName}", name);
+            }, TaskScheduler.Default);
+#pragma warning restore CS4014
+        }
+
+        return Results.NoContent();
     }
 
     private static IResult WakeFunction(
