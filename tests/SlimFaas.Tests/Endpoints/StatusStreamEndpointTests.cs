@@ -156,6 +156,9 @@ public class StatusStreamEndpointTests
     public async Task InternalActivityEvents_ReturnsLocalEvents()
     {
         var tracker = new NetworkActivityTracker();
+        var replicasService = new InternalAccessReplicasService();
+        var jobServiceMock = new Mock<IJobService>();
+        jobServiceMock.SetupGet(s => s.Jobs).Returns(new List<SlimFaas.Kubernetes.Job>());
         tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
         tracker.Record(NetworkActivityTracker.EventTypes.Enqueue, NetworkActivityTracker.Actors.SlimFaas, "fibonacci", "fibonacci");
 
@@ -166,7 +169,8 @@ public class StatusStreamEndpointTests
                     .UseTestServer()
                     .ConfigureServices(services =>
                     {
-                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
+                        services.AddSingleton<IReplicasService>(replicasService);
+                        services.AddSingleton<IJobService>(jobServiceMock.Object);
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
@@ -184,6 +188,7 @@ public class StatusStreamEndpointTests
             .StartAsync();
 
         var client = host.GetTestClient();
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", InternalAccessReplicasService.InternalPodIp);
         var response = await client.GetAsync("http://localhost:5000/internal/activity-events?since=0");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -199,6 +204,9 @@ public class StatusStreamEndpointTests
     public async Task InternalActivityEvents_FiltersBySince()
     {
         var tracker = new NetworkActivityTracker();
+        var replicasService = new InternalAccessReplicasService();
+        var jobServiceMock = new Mock<IJobService>();
+        jobServiceMock.SetupGet(s => s.Jobs).Returns(new List<SlimFaas.Kubernetes.Job>());
         tracker.Record("old_event", NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
 
         var recent = tracker.GetRecent();
@@ -215,7 +223,8 @@ public class StatusStreamEndpointTests
                     .UseTestServer()
                     .ConfigureServices(services =>
                     {
-                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
+                        services.AddSingleton<IReplicasService>(replicasService);
+                        services.AddSingleton<IJobService>(jobServiceMock.Object);
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
@@ -233,6 +242,7 @@ public class StatusStreamEndpointTests
             .StartAsync();
 
         var client = host.GetTestClient();
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", InternalAccessReplicasService.InternalPodIp);
         var response = await client.GetAsync($"http://localhost:5000/internal/activity-events?since={afterFirstEvent}");
 
         var json = await response.Content.ReadAsStringAsync();
@@ -241,6 +251,42 @@ public class StatusStreamEndpointTests
         Assert.NotNull(events);
         Assert.Single(events);
         Assert.Equal("new_event", events[0].Type);
+    }
+
+    [Fact(DisplayName = "GET /internal/activity-events refuse les appels externes")]
+    public async Task InternalActivityEvents_ExternalCall_ReturnsForbidden()
+    {
+        var tracker = new NetworkActivityTracker();
+        var jobServiceMock = new Mock<IJobService>();
+        jobServiceMock.SetupGet(s => s.Jobs).Returns(new List<SlimFaas.Kubernetes.Job>());
+
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
+                        services.AddSingleton<IJobService>(jobServiceMock.Object);
+                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        services.AddSingleton(tracker);
+                        services.AddMemoryCache();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddRouting();
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
+                    });
+            })
+            .StartAsync();
+
+        var response = await host.GetTestClient().GetAsync("http://localhost:5000/internal/activity-events?since=0");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact(DisplayName = "SSE stream includes NodeId in events")]
@@ -308,6 +354,25 @@ public class StatusStreamEndpointTests
             Interlocked.Increment(ref SyncDeploymentsCallCount);
             return Task.FromResult(Deployments);
         }
+
+        public Task CheckScaleAsync(string kubeNamespace) => Task.CompletedTask;
+    }
+
+    private sealed class InternalAccessReplicasService : IReplicasService
+    {
+        public const string InternalPodIp = "10.0.0.10";
+
+        public DeploymentsInformations Deployments =>
+            new(
+                new List<DeploymentInformation>(),
+                new SlimFaasDeploymentInformation(2, new List<PodInformation>
+                {
+                    new("slimfaas-1", true, true, InternalPodIp, "slimfaas", new List<int>() { 5000 }),
+                    new("slimfaas-2", true, true, "10.0.0.11", "slimfaas", new List<int>() { 5000 })
+                }),
+                new List<PodInformation>());
+
+        public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => Task.FromResult(Deployments);
 
         public Task CheckScaleAsync(string kubeNamespace) => Task.CompletedTask;
     }

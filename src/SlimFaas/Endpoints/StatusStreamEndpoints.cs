@@ -30,8 +30,17 @@ public static class StatusStreamEndpoints
     /// </summary>
     private static IResult HandleActivityEvents(
         HttpContext context,
-        [FromServices] NetworkActivityTracker tracker)
+        [FromServices] NetworkActivityTracker tracker,
+        [FromServices] IReplicasService replicasService,
+        [FromServices] IJobService jobService,
+        [FromServices] ILoggerFactory loggerFactory)
     {
+        var logger = loggerFactory.CreateLogger("StatusStreamEndpoints");
+        if (!FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService))
+        {
+            return Results.StatusCode(StatusCodes.Status403Forbidden);
+        }
+
         long since = 0;
         if (context.Request.Query.TryGetValue("since", out var sinceVal)
             && long.TryParse(sinceVal.FirstOrDefault(), out var parsed))

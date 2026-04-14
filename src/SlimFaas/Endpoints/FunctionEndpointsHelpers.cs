@@ -58,6 +58,8 @@ public static class FunctionEndpointsHelpers
             .Select(p => p.Ip)
             .ToList();
 
+        podIps.AddRange(replicasService.Deployments.SlimFaas.Pods.Select(p => p.Ip));
+
         podIps.AddRange(jobService.Jobs.SelectMany(job => job.Ips));
 
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
