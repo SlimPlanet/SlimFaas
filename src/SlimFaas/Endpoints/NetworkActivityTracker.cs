@@ -93,7 +93,7 @@ public sealed class NetworkActivityTracker
     }
 
     private readonly ConcurrentQueue<NetworkActivityEvent> _recentEvents = new();
-    private readonly ConcurrentBag<Channel<NetworkActivityEvent>> _subscribers = new();
+    private readonly ConcurrentDictionary<Channel<NetworkActivityEvent>, byte> _subscribers = new();
     private readonly ConcurrentDictionary<string, byte> _knownIds = new();
     private int _counter;
     private readonly bool _enabled;
@@ -182,13 +182,14 @@ public sealed class NetworkActivityTracker
             new BoundedChannelOptions(10000) { FullMode = BoundedChannelFullMode.DropOldest });
         if (!_enabled) return (channel.Reader, channel);
 
-        _subscribers.Add(channel);
+        _subscribers.TryAdd(channel, 0);
         return (channel.Reader, channel);
     }
 
     /// <summary>Unsubscribe from live events.</summary>
     public void Unsubscribe(Channel<NetworkActivityEvent> channel)
     {
+        _subscribers.TryRemove(channel, out _);
         channel.Writer.TryComplete();
     }
 
@@ -210,8 +211,13 @@ public sealed class NetworkActivityTracker
         }
 
         // Broadcast to SSE subscribers
-        foreach (var channel in _subscribers)
+        foreach (var channel in _subscribers.Keys)
         {
+            if (channel.Reader.Completion.IsCompleted)
+            {
+                _subscribers.TryRemove(channel, out _);
+                continue;
+            }
             channel.Writer.TryWrite(evt);
         }
     }
