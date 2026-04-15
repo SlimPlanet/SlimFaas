@@ -1,6 +1,7 @@
 ﻿﻿﻿using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
@@ -8,20 +9,26 @@ namespace SlimFaas;
 
 public interface ISendClient
 {
-    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null);
+    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
-        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy? proxy = null);
+        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy? proxy = null, string? activitySource = null, string? activitySourcePod = null);
 }
 
-public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions, INamespaceProvider namespaceProvider) : ISendClient
+public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions, INamespaceProvider namespaceProvider, NetworkActivityTracker activityTracker) : ISendClient
 {
     private readonly string _baseFunctionUrl = slimFaasOptions.Value.BaseFunctionUrl;
     private readonly string _namespaceSlimFaas = namespaceProvider.CurrentNamespace;
 
     public async Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null)
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null)
     {
+        string source = string.IsNullOrWhiteSpace(activitySource)
+            ? NetworkActivityTracker.Actors.SlimFaas
+            : activitySource;
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, customRequest.FunctionName,
+            sourcePod: activitySourcePod, targetPod: reservedPodIp);
+
         try
         {
             string functionUrl = baseUrl ?? _baseFunctionUrl;
@@ -53,6 +60,11 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             logger.LogError(e, "Error in SendHttpRequestAsync to {FunctionName} to {FunctionPath} ", customRequest.FunctionName, customRequest.Path);
             throw;
         }
+        finally
+        {
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, customRequest.FunctionName,
+                sourcePod: activitySourcePod, targetPod: reservedPodIp);
+        }
     }
 
 public async Task<HttpResponseMessage> SendHttpRequestSync(
@@ -62,8 +74,16 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
     string functionQuery,
     SlimFaasDefaultConfiguration slimFaasDefaultConfiguration,
     string? baseUrl = null,
-    Proxy? proxy = null)
+    Proxy? proxy = null,
+    string? activitySource = null,
+    string? activitySourcePod = null)
 {
+    string source = string.IsNullOrWhiteSpace(activitySource)
+        ? NetworkActivityTracker.Actors.SlimFaas
+        : activitySource;
+    activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, functionName,
+        sourcePod: activitySourcePod);
+
     try
     {
         logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}",
@@ -108,6 +128,11 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
     {
         logger.LogError(e, "Error in SendHttpRequestSync to {FunctionName} to {FunctionPath} ", functionName, functionPath);
         throw;
+    }
+    finally
+    {
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, functionName,
+            sourcePod: activitySourcePod);
     }
 }
 

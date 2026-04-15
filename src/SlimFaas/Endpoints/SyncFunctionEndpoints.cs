@@ -81,26 +81,14 @@ public static class SyncFunctionEndpoints
         activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
             sourcePod: context.Connection.RemoteIpAddress?.ToString());
         string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-        string callerIdentity = string.IsNullOrWhiteSpace(callerIp) ? NetworkActivityTracker.Actors.External : callerIp;
-        string? targetPodIp = null;
-        bool requestEndRecorded = false;
-
-        void RecordRequestEndOnce(string? podIp = null)
-        {
-            if (requestEndRecorded) return;
-            requestEndRecorded = true;
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.SlimFaas, target: callerIdentity, sourcePod: callerIp, targetPod: podIp);
-        }
 
         try
         {
             // ── Fonction virtuelle WebSocket → streaming binaire ──
             if (function.Namespace == "websocket-virtual")
             {
-                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, functionName);
                 var wsResult = await HandleSyncFunctionViaWebSocket(
                     functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct);
-                RecordRequestEndOnce();
                 return wsResult;
             }
 
@@ -127,11 +115,8 @@ public static class SyncFunctionEndpoints
                 context.Request.QueryString.ToUriComponent(),
                 function.Configuration.DefaultSync,
                 null,
-                proxy);
-
-            // Capture the target pod IP that the proxy selected (last used IP for this function)
-            targetPodIp = Proxy.IpAddresses.GetValueOrDefault(functionName);
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, NetworkActivityTracker.Actors.SlimFaas, functionName, targetPod: targetPodIp);
+                proxy,
+                NetworkActivityTracker.Actors.SlimFaas);
 
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             try
@@ -151,7 +136,6 @@ public static class SyncFunctionEndpoints
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                RecordRequestEndOnce(targetPodIp);
                 logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
                 return Results.StatusCode(499); // Client Closed Request
             }
@@ -165,14 +149,11 @@ public static class SyncFunctionEndpoints
             await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
 
             historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-            RecordRequestEndOnce(targetPodIp);
 
             return Results.Empty;
         }
         catch (Exception ex)
         {
-            // Covers failures before/while sending (e.g., no IP/port available) to avoid leaked in-flight counters.
-            RecordRequestEndOnce(targetPodIp);
             logger.LogError(ex, "Unhandled sync error for {FunctionName}", functionName);
             return Results.StatusCode(503);
         }

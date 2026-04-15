@@ -229,6 +229,22 @@
     &:last-child { margin-bottom: 0; }
   }
 
+  &__schedule-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    white-space: normal;
+  }
+
+  &__schedule-item {
+    display: block;
+    line-height: 1.4;
+  }
+
+  &__schedule-rule {
+    margin-left: 4px;
+  }
+
   &__scale-label {
     font-size: 0.65rem;
     font-weight: 700;

@@ -91,6 +91,70 @@ function radialPositions(n: number): { x: number; y: number }[] {
   });
 }
 
+function splitLabelLines(label: string, maxCharsPerLine: number): string[] {
+  const clean = (label || '').trim();
+  if (!clean) return [''];
+
+  const words = clean.split(/([\s_.-]+)/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+
+  const pushChunked = (text: string) => {
+    let rest = text;
+    while (rest.length > maxCharsPerLine) {
+      lines.push(rest.slice(0, maxCharsPerLine));
+      rest = rest.slice(maxCharsPerLine);
+    }
+    if (rest.length > 0) {
+      if (current.length > 0) lines.push(current.trim());
+      current = rest;
+    }
+  };
+
+  for (const part of words) {
+    const candidate = `${current}${part}`;
+    if (candidate.length <= maxCharsPerLine) {
+      current = candidate;
+      continue;
+    }
+
+    if (current.trim().length > 0) {
+      lines.push(current.trim());
+      current = '';
+    }
+
+    if (part.length > maxCharsPerLine && !/^[\s_.-]+$/.test(part)) {
+      pushChunked(part);
+    } else {
+      current = part;
+    }
+  }
+
+  if (current.trim().length > 0) {
+    lines.push(current.trim());
+  }
+
+  return lines.length > 0 ? lines : [clean];
+}
+
+function applyMultilineSvgText(
+  textSelection: d3.Selection<SVGTextElement, unknown, any, any>,
+  lines: string[],
+  x: number,
+  y: number,
+  lineHeight: number,
+) {
+  textSelection.attr('x', x).attr('y', y).text('');
+  const offset = ((lines.length - 1) * lineHeight) / 2;
+  lines.forEach((line, index) => {
+    textSelection
+      .append('tspan')
+      .attr('x', x)
+      .attr('dy', index === 0 ? -offset : lineHeight)
+      .text(line);
+  });
+}
+
 const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWithQueueActivity, slimFaasReplicas, slimFaasNodes }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -101,17 +165,19 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const worldGRef = useRef<SVGGElement | null>(null);
   const userHasZoomedRef = useRef(false);
   const initialFitDoneRef = useRef(false);
-  const activeCountersRef = useRef<Record<string, number>>({});
   const activeReplicaCountersRef = useRef<Record<string, number>>({});
-  const activeCounterTouchedRef = useRef<Record<string, number>>({});
   const activeReplicaCounterTouchedRef = useRef<Record<string, number>>({});
+  const activeQueueCountersRef = useRef<Record<string, number>>({});
+  const activeQueueCounterTouchedRef = useRef<Record<string, number>>({});
+  const activeExternalCounterRef = useRef(0);
+  const activeExternalCounterTouchedRef = useRef(0);
+  const requestInSenderRef = useRef<Record<string, { senderReplicaKey?: string; isExternal: boolean }>>({});
+  const lastPublishByNodeAndTargetRef = useRef<Record<string, number>>({});
   const lastCounterSweepRef = useRef(0);
   const lastScheduledUtcRef = useRef(0);
   const lastScheduledPerfRef = useRef(0);
-  const fnPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
   const slimReplicaPositionsRef = useRef<Record<string, ReplicaPosition>>({});
   const functionReplicaPositionsRef = useRef<Record<string, Record<string, ReplicaPosition>>>({});
-  const queuePositionsRef = useRef<Record<string, { x: number; y: number }>>({});
 
   const fnNamesKey = useMemo(() => functions.map(f => f.Name).sort().join(','), [functions]);
 
@@ -232,20 +298,12 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   }, [functions, fnPositions]);
 
   useEffect(() => {
-    fnPositionsRef.current = fnPositions;
-  }, [fnPositions]);
-
-  useEffect(() => {
     slimReplicaPositionsRef.current = slimReplicaPositions;
   }, [slimReplicaPositions]);
 
   useEffect(() => {
     functionReplicaPositionsRef.current = functionReplicaPositions;
   }, [functionReplicaPositions]);
-
-  useEffect(() => {
-    queuePositionsRef.current = queuePositions;
-  }, [queuePositions]);
 
   const ipToPod = useMemo(() => {
     const map: Record<string, { functionName: string; podName: string }> = {};
@@ -275,36 +333,25 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
   }, [resolvePodLink]);
 
-  const getFunctionTargetPosition = useCallback((functionName: string, podIpOrName: string | null | undefined) => {
-    const center = fnPositions[functionName] ?? CENTER;
-    if (!podIpOrName) return center;
+  const getFunctionReplicaPosition = useCallback((functionName: string, podIpOrName: string | null | undefined) => {
     const link = resolvePodLink(podIpOrName);
     const resolvedFn = link?.functionName ?? functionName;
     const podName = link?.podName ?? podIpOrName;
     const replicas = functionReplicaPositions[resolvedFn];
-    if (replicas && replicas[podName]) return { x: replicas[podName].x, y: replicas[podName].y };
-    return center;
-  }, [fnPositions, functionReplicaPositions, resolvePodLink]);
+    if (!replicas || Object.keys(replicas).length === 0) return null;
+    if (podName && replicas[podName]) return { x: replicas[podName].x, y: replicas[podName].y };
+    const firstReplica = Object.values(replicas)[0];
+    return firstReplica ? { x: firstReplica.x, y: firstReplica.y } : null;
+  }, [functionReplicaPositions, resolvePodLink]);
 
   const getSlimPosition = useCallback((nodeId: string | null | undefined) => {
     if (nodeId && slimReplicaPositions[nodeId]) {
       const p = slimReplicaPositions[nodeId];
       return { x: p.x, y: p.y };
     }
-    return CENTER;
+    const firstReplica = Object.values(slimReplicaPositions)[0];
+    return firstReplica ? { x: firstReplica.x, y: firstReplica.y } : null;
   }, [slimReplicaPositions]);
-
-  const incCounter = useCallback((node: string) => {
-    activeCounterTouchedRef.current[node] = performance.now();
-    activeCountersRef.current[node] = (activeCountersRef.current[node] || 0) + 1;
-  }, []);
-
-  const decCounter = useCallback((node: string) => {
-    activeCounterTouchedRef.current[node] = performance.now();
-    const next = Math.max(0, (activeCountersRef.current[node] || 0) - 1);
-    activeCountersRef.current[node] = next;
-    if (next === 0) delete activeCounterTouchedRef.current[node];
-  }, []);
 
   const incReplicaCounter = useCallback((key: string) => {
     activeReplicaCounterTouchedRef.current[key] = performance.now();
@@ -318,29 +365,102 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     if (next === 0) delete activeReplicaCounterTouchedRef.current[key];
   }, []);
 
+  const incQueueCounter = useCallback((key: string) => {
+    activeQueueCounterTouchedRef.current[key] = performance.now();
+    activeQueueCountersRef.current[key] = (activeQueueCountersRef.current[key] || 0) + 1;
+  }, []);
+
+  const decQueueCounter = useCallback((key: string) => {
+    activeQueueCounterTouchedRef.current[key] = performance.now();
+    const next = Math.max(0, (activeQueueCountersRef.current[key] || 0) - 1);
+    activeQueueCountersRef.current[key] = next;
+    if (next === 0) delete activeQueueCounterTouchedRef.current[key];
+  }, []);
+
+  const incExternalCounter = useCallback(() => {
+    activeExternalCounterTouchedRef.current = performance.now();
+    activeExternalCounterRef.current += 1;
+  }, []);
+
+  const decExternalCounter = useCallback(() => {
+    activeExternalCounterTouchedRef.current = performance.now();
+    activeExternalCounterRef.current = Math.max(0, activeExternalCounterRef.current - 1);
+    if (activeExternalCounterRef.current === 0) {
+      activeExternalCounterTouchedRef.current = 0;
+    }
+  }, []);
+
   const fnReplicaKey = useCallback((functionName: string, podName: string) => `fn:${functionName}:${podName}`, []);
   const sfReplicaKey = useCallback((nodeName: string) => `sf:${nodeName}`, []);
+
+  const resolveFunctionReplicaCounterKey = useCallback((functionName: string | null | undefined, podIpOrName: string | null | undefined): string | null => {
+    if (!functionName) return null;
+
+    const link = resolvePodLink(podIpOrName);
+    if (link) {
+      return fnReplicaKey(link.functionName, link.podName);
+    }
+
+    const replicas = functionReplicaPositions[functionName];
+    if (!replicas || Object.keys(replicas).length === 0) return null;
+    if (podIpOrName && replicas[podIpOrName]) {
+      return fnReplicaKey(functionName, podIpOrName);
+    }
+
+    const firstReplica = Object.keys(replicas)[0];
+    return firstReplica ? fnReplicaKey(functionName, firstReplica) : null;
+  }, [fnReplicaKey, functionReplicaPositions, resolvePodLink]);
+
+  const resolveSenderReplicaCounterKey = useCallback((evt: NetworkActivityEvent): string | null => {
+    const sourceActor = (evt.Source || 'slimfaas').toLowerCase();
+    if ((sourceActor === 'external' || sourceActor === 'slimfaas') && evt.NodeId) {
+      return sfReplicaKey(evt.NodeId);
+    }
+
+    if (sourceActor !== 'external' && sourceActor !== 'slimfaas') {
+      const functionReplica = resolveFunctionReplicaCounterKey(evt.Source, evt.SourcePod);
+      if (functionReplica) return functionReplica;
+    }
+
+    const srcLink = resolvePodLink(evt.SourcePod);
+    if (srcLink) {
+      return fnReplicaKey(srcLink.functionName, srcLink.podName);
+    }
+
+    // Async worker emits source=functionName from a SlimFaas replica.
+    if (evt.NodeId) {
+      return sfReplicaKey(evt.NodeId);
+    }
+
+    return null;
+  }, [fnReplicaKey, resolveFunctionReplicaCounterKey, resolvePodLink, sfReplicaKey]);
+
 
   const queueMessage = useCallback((message: AnimatedMessage) => {
     animRef.current.push(message);
   }, []);
 
   const spawnEvent = useCallback((evt: NetworkActivityEvent, startAt: number) => {
-    const fp = (name: string) => fnPositions[name] || null;
-    const qp = (name: string) => queuePositions[name] || null;
+    const replicaOf = (name: string, pod: string | null | undefined) => getFunctionReplicaPosition(name, pod);
     const srcLabel = resolvePodLabel(evt.SourcePod);
     const tgtLabel = resolvePodLabel(evt.TargetPod);
     const slim = getSlimPosition(evt.NodeId);
+    if (!slim) return;
 
     if (evt.Type === 'enqueue') {
-      const q = qp(evt.Target);
-      if (!q) return;
-      // Async flow: once queued, the external in-flight request is considered completed.
-      decCounter('external');
-      const startPos = evt.Source === 'external' ? externalPos : slim;
+      const queueName = evt.QueueName || evt.Target;
+      const queuePos = queuePositions[queueName];
+      if (!queuePos) return;
+
+      // Async ingress from unknown source is considered done once persisted in queue.
+      const sourceIsKnownInternal = !!resolvePodLink(evt.SourcePod);
+      if (!sourceIsKnownInternal) {
+        decExternalCounter();
+      }
+
       queueMessage({
         id: `${evt.Id}|enqueue`,
-        segments: [{ from: startPos, to: slim }, { from: slim, to: q }],
+        segments: [{ from: slim, to: queuePos }],
         currentSeg: 0,
         color: nameColor(evt.Target),
         shape: 'rect',
@@ -353,13 +473,14 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     }
 
     if (evt.Type === 'dequeue') {
-      const q = qp(evt.Target);
-      const f = fp(evt.Target);
-      if (!q || !f) return;
-      incCounter(`queue:${evt.Target}`);
+      const queueName = evt.QueueName || evt.Target;
+      const queuePos = queuePositions[queueName];
+      const targetPos = replicaOf(evt.Target, evt.TargetPod);
+      if (!queuePos || !targetPos) return;
+      incQueueCounter(`queue:${queueName}`);
       queueMessage({
         id: `${evt.Id}|dequeue`,
-        segments: [{ from: q, to: getFunctionTargetPosition(evt.Target, evt.TargetPod) || f }],
+        segments: [{ from: queuePos, to: targetPos }],
         currentSeg: 0,
         color: nameColor(evt.Target),
         shape: 'rect',
@@ -373,14 +494,31 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
     if (evt.Type === 'request_in') {
       const link = resolvePodLink(evt.SourcePod);
-      const startPos = link ? getFunctionTargetPosition(link.functionName, link.podName) : externalPos;
-      const sourceColor = link?.functionName ? nameColor(link.functionName) : '#6b778c';
-      if (link) {
-        incCounter(link.functionName);
-        incReplicaCounter(fnReplicaKey(link.functionName, link.podName));
+      const sourceName = (evt.Source || '').trim();
+      const sourceActor = sourceName.toLowerCase();
+      const sourceIsFunction = sourceActor.length > 0 && sourceActor !== 'external' && sourceActor !== 'slimfaas';
+
+      const functionStartPos = sourceIsFunction
+        ? replicaOf(sourceName, evt.SourcePod)
+        : (link ? replicaOf(link.functionName, link.podName) : null);
+      const senderReplicaKey = sourceIsFunction
+        ? resolveFunctionReplicaCounterKey(sourceName, evt.SourcePod)
+        : (link ? fnReplicaKey(link.functionName, link.podName) : null);
+
+      if (senderReplicaKey) {
+        incReplicaCounter(senderReplicaKey);
       } else {
-        incCounter('external');
+        incExternalCounter();
       }
+
+      requestInSenderRef.current[evt.Id] = {
+        senderReplicaKey: senderReplicaKey ?? undefined,
+        isExternal: !senderReplicaKey,
+      };
+
+      const startPos = functionStartPos ?? externalPos;
+      if (!startPos) return;
+      const sourceColor = link?.functionName ? nameColor(link.functionName) : '#6b778c';
       queueMessage({
         id: `${evt.Id}|request_in`,
         segments: [{ from: startPos, to: slim }],
@@ -396,13 +534,43 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     }
 
     if (evt.Type === 'request_out') {
-      const f = fp(evt.Target);
-      if (!f) return;
-      incCounter('slimfaas');
-      if (evt.NodeId) incReplicaCounter(sfReplicaKey(evt.NodeId));
+      const isAsyncQueueHop = evt.Source === evt.Target && !evt.SourcePod;
+      if (isAsyncQueueHop) {
+        return;
+      }
+
+      const publishKey = `${evt.NodeId}|${evt.Target}`;
+      const lastPublishTs = lastPublishByNodeAndTargetRef.current[publishKey] || 0;
+      const isTransportDuplicateOfPublish =
+        (evt.Source || '').toLowerCase() === 'slimfaas'
+        && !evt.SourcePod
+        && !evt.TargetPod
+        && !evt.QueueName
+        && lastPublishTs > 0
+        && Math.abs(utcMs(evt.TimestampMs) - lastPublishTs) <= 3000;
+
+      if (isTransportDuplicateOfPublish) {
+        return;
+      }
+
+      const targetPos = replicaOf(evt.Target, evt.TargetPod);
+      if (!targetPos) return;
+      const sourceActor = evt.Source || 'slimfaas';
+      const senderReplicaKey = resolveSenderReplicaCounterKey(evt);
+      if (senderReplicaKey) incReplicaCounter(senderReplicaKey);
+
+      const sourceReplicaPos = sourceActor === 'external'
+        ? null
+        : sourceActor === 'slimfaas'
+          ? slim
+          : replicaOf(sourceActor, evt.SourcePod);
+
+      const sourcePos = sourceActor === 'external'
+        ? externalPos
+        : (sourceReplicaPos ?? slim);
       queueMessage({
         id: `${evt.Id}|request_out`,
-        segments: [{ from: slim, to: getFunctionTargetPosition(evt.Target, evt.TargetPod) || f }],
+        segments: [{ from: sourcePos, to: targetPos }],
         currentSeg: 0,
         color: nameColor(evt.Target),
         shape: 'circle',
@@ -419,35 +587,38 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     }
 
     if (evt.Type === 'request_end') {
-      // Async queue flow ends here: external request closes when queue processing completes.
       if (evt.QueueName) {
-        decCounter(`queue:${evt.QueueName}`);
+        decQueueCounter(`queue:${evt.QueueName}`);
         return;
       }
 
-      decCounter('slimfaas');
-      if (evt.NodeId) decReplicaCounter(sfReplicaKey(evt.NodeId));
-      const caller = resolvePodLink(evt.TargetPod);
-      if (caller) {
-        decCounter(caller.functionName);
-        decReplicaCounter(fnReplicaKey(caller.functionName, caller.podName));
-      } else if (evt.TargetPod) {
-        decCounter('external');
+      const trackedSender = requestInSenderRef.current[evt.Id];
+      delete requestInSenderRef.current[evt.Id];
+
+      if (trackedSender?.isExternal) {
+        decExternalCounter();
       }
-      // Decrement the target pod replica counter
-      const srcLink = resolvePodLink(evt.SourcePod);
-      if (srcLink) {
-        decReplicaCounter(fnReplicaKey(srcLink.functionName, srcLink.podName));
+
+      if (trackedSender?.senderReplicaKey) {
+        decReplicaCounter(trackedSender.senderReplicaKey);
+        return;
+      }
+
+      const fallbackSenderReplicaKey = resolveSenderReplicaCounterKey(evt);
+      if (fallbackSenderReplicaKey) {
+        decReplicaCounter(fallbackSenderReplicaKey);
       }
       return;
     }
 
     if (evt.Type === 'event_publish') {
-      const f = fp(evt.Target);
-      if (!f) return;
+      const targetPos = replicaOf(evt.Target, evt.TargetPod);
+      if (!targetPos) return;
+      const publishKey = `${evt.NodeId}|${evt.Target}`;
+      lastPublishByNodeAndTargetRef.current[publishKey] = utcMs(evt.TimestampMs);
       queueMessage({
         id: `${evt.Id}|event_publish`,
-        segments: [{ from: slim, to: getFunctionTargetPosition(evt.Target, evt.TargetPod) || f }],
+        segments: [{ from: slim, to: targetPos }],
         currentSeg: 0,
         color: '#fab005',
         shape: 'circle',
@@ -461,7 +632,8 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
     if (evt.Type === 'response') {
       const fromFn = evt.Source !== 'slimfaas' ? evt.Source : evt.Target;
-      const fromPos = getFunctionTargetPosition(fromFn, evt.SourcePod) || (fp(fromFn) ?? CENTER);
+      const fromPos = replicaOf(fromFn, evt.SourcePod);
+      if (!fromPos) return;
       const toPos = evt.Target === 'external' ? externalPos : slim;
       queueMessage({
         id: `${evt.Id}|response`,
@@ -475,7 +647,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         label: srcLabel,
       });
     }
-  }, [decCounter, decReplicaCounter, externalPos, fnPositions, fnReplicaKey, getFunctionTargetPosition, getSlimPosition, incCounter, incReplicaCounter, queueMessage, queuePositions, resolvePodLabel, resolvePodLink, sfReplicaKey]);
+  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, fnReplicaKey, getFunctionReplicaPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, queueMessage, queuePositions, resolveFunctionReplicaCounterKey, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
 
   useEffect(() => {
     const fresh: NetworkActivityEvent[] = [];
@@ -526,20 +698,27 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     // Safety net: if an end event is lost under burst traffic, clear stale in-flight counters.
     if (now - lastCounterSweepRef.current >= COUNTER_SWEEP_MS) {
       lastCounterSweepRef.current = now;
-      for (const [key, count] of Object.entries(activeCountersRef.current)) {
-        if (count <= 0) continue;
-        const touched = activeCounterTouchedRef.current[key] ?? now;
-        if (now - touched >= COUNTER_STALE_MS) {
-          activeCountersRef.current[key] = 0;
-          delete activeCounterTouchedRef.current[key];
-        }
-      }
       for (const [key, count] of Object.entries(activeReplicaCountersRef.current)) {
         if (count <= 0) continue;
         const touched = activeReplicaCounterTouchedRef.current[key] ?? now;
         if (now - touched >= COUNTER_STALE_MS) {
           activeReplicaCountersRef.current[key] = 0;
           delete activeReplicaCounterTouchedRef.current[key];
+        }
+      }
+      for (const [key, count] of Object.entries(activeQueueCountersRef.current)) {
+        if (count <= 0) continue;
+        const touched = activeQueueCounterTouchedRef.current[key] ?? now;
+        if (now - touched >= COUNTER_STALE_MS) {
+          activeQueueCountersRef.current[key] = 0;
+          delete activeQueueCounterTouchedRef.current[key];
+        }
+      }
+      if (activeExternalCounterRef.current > 0) {
+        const touched = activeExternalCounterTouchedRef.current || now;
+        if (now - touched >= COUNTER_STALE_MS) {
+          activeExternalCounterRef.current = 0;
+          activeExternalCounterTouchedRef.current = 0;
         }
       }
     }
@@ -620,34 +799,14 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       .text(d => d.label ?? '');
     mls.exit().remove();
 
-    const counters = activeCountersRef.current;
     const replicaCounters = activeReplicaCountersRef.current;
-    const liveFnPositions = fnPositionsRef.current;
+    const queueCounters = activeQueueCountersRef.current;
+    const externalCounter = activeExternalCounterRef.current;
     const liveSlimReplicaPositions = slimReplicaPositionsRef.current;
     const liveFunctionReplicaPositions = functionReplicaPositionsRef.current;
     type CDatum = { key: string; x: number; y: number; count: number };
     const cData: CDatum[] = [];
 
-    const sfC = counters.slimfaas || 0;
-    if (sfC > 0) cData.push({ key: 'slimfaas', x: CENTER.x + 55, y: CENTER.y - 18, count: sfC });
-    const exC = counters.external || 0;
-    if (exC > 0) cData.push({ key: 'external', x: externalPos.x + BUBBLE_R + 6, y: externalPos.y - BUBBLE_R + 2, count: exC });
-
-    for (const fnName of Object.keys(liveFnPositions)) {
-      const c = counters[fnName] || 0;
-      if (c > 0) {
-        const p = liveFnPositions[fnName];
-        cData.push({ key: fnName, x: p.x + BUBBLE_R + 4, y: p.y - BUBBLE_R + 2, count: c });
-      }
-      // Queue in-flight counter badge (positioned near the queue box)
-      const qc = counters[`queue:${fnName}`] || 0;
-      if (qc > 0) {
-        const qpRef = queuePositionsRef.current[fnName];
-        if (qpRef) {
-          cData.push({ key: `queue:${fnName}`, x: qpRef.x + QUEUE_BOX_W / 2 + 6, y: qpRef.y - QUEUE_BOX_H / 2, count: qc });
-        }
-      }
-    }
 
     const slimEntries = Object.entries(liveSlimReplicaPositions).sort((a, b) => a[0].localeCompare(b[0]));
     slimEntries.forEach(([nodeName, rp], idx) => {
@@ -673,9 +832,26 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       });
     }
 
+    for (const [queueName, qp] of Object.entries(queuePositions)) {
+      const key = `queue:${queueName}`;
+      const c = queueCounters[key] || 0;
+      if (c > 0) {
+        cData.push({ key, x: qp.x + QUEUE_BOX_W / 2 + 6, y: qp.y - QUEUE_BOX_H / 2, count: c });
+      }
+    }
+
+    if (externalCounter > 0) {
+      cData.push({
+        key: 'external',
+        x: externalPos.x + BUBBLE_R + 6,
+        y: externalPos.y - BUBBLE_R + 2,
+        count: externalCounter,
+      });
+    }
+
     const cSel = counterG.selectAll<SVGGElement, CDatum>('g.counter-badge').data(cData, d => d.key);
     const cEnter = cSel.enter().append('g').attr('class', 'counter-badge');
-    cEnter.append('rect').attr('rx', 7).attr('ry', 7).attr('height', 14).attr('fill', '#ff6b6b').attr('stroke', '#fff').attr('stroke-width', 1);
+    cEnter.append('rect').attr('rx', 7).attr('ry', 7).attr('height', 14).attr('fill', '#f08c00').attr('stroke', '#fff').attr('stroke-width', 1);
     cEnter.append('text').attr('text-anchor', 'middle').attr('font-size', 8).attr('font-weight', 'bold').attr('fill', '#fff').attr('dy', 10.5);
     const cMerge = cEnter.merge(cSel);
     cMerge.attr('transform', d => `translate(${d.x},${d.y})`);
@@ -686,7 +862,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     cSel.exit().remove();
 
     frameRef.current = requestAnimationFrame(animate);
-  }, [externalPos, fnReplicaKey, sfReplicaKey]);
+  }, [externalPos, fnReplicaKey, queuePositions, sfReplicaKey]);
 
   const structuralKey = `${fnNamesKey}|${queueFnKey}`;
 
@@ -699,10 +875,14 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
     userHasZoomedRef.current = false;
     initialFitDoneRef.current = false;
-    activeCountersRef.current = {};
     activeReplicaCountersRef.current = {};
-    activeCounterTouchedRef.current = {};
     activeReplicaCounterTouchedRef.current = {};
+    activeQueueCountersRef.current = {};
+    activeQueueCounterTouchedRef.current = {};
+    activeExternalCounterRef.current = 0;
+    activeExternalCounterTouchedRef.current = 0;
+    requestInSenderRef.current = {};
+    lastPublishByNodeAndTargetRef.current = {};
     lastCounterSweepRef.current = 0;
 
     const defs = sel.append('defs');
@@ -735,6 +915,10 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       .attr('filter', 'url(#shadow)');
     world.append('text').attr('x', externalPos.x).attr('y', externalPos.y + 4)
       .attr('text-anchor', 'middle').attr('fill', '#fff').attr('font-weight', 'bold').attr('font-size', 10)
+      .attr('paint-order', 'stroke')
+      .attr('stroke', 'rgba(0,0,0,0.8)')
+      .attr('stroke-width', 1.3)
+      .attr('stroke-linejoin', 'round')
       .text('External');
 
     const sfW = 100;
@@ -744,6 +928,10 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       .attr('fill', '#0000ff').attr('filter', 'url(#shadow)');
     world.append('text').attr('x', CENTER.x).attr('y', CENTER.y - 2)
       .attr('text-anchor', 'middle').attr('fill', '#fff').attr('font-weight', 'bold').attr('font-size', 14)
+      .attr('paint-order', 'stroke')
+      .attr('stroke', 'rgba(0,0,0,0.8)')
+      .attr('stroke-width', 1.3)
+      .attr('stroke-linejoin', 'round')
       .text('SlimFaas');
     world.append('g').attr('class', 'sf-replicas');
 
@@ -763,9 +951,9 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         .attr('width', QUEUE_BOX_W).attr('height', QUEUE_BOX_H).attr('rx', 4).attr('ry', 4)
         .attr('fill', '#fff').attr('stroke', color).attr('stroke-width', 1.5).attr('filter', 'url(#shadow)');
       world.append('g').attr('class', `q-fill-${fnName}`);
-      world.append('text').attr('x', qCX).attr('y', qCY - QUEUE_BOX_H / 2 - 4)
-        .attr('text-anchor', 'middle').attr('font-size', 9).attr('fill', '#6b778c').attr('font-weight', '600')
-        .text(fnName.length > 14 ? `${fnName.slice(0, 12)}...` : fnName);
+      const queueLabel = world.append('text').attr('class', `q-name-${fnName}`).attr('x', qCX).attr('y', qCY - QUEUE_BOX_H / 2 - 4)
+        .attr('text-anchor', 'middle').attr('font-size', 8.5).attr('fill', '#6b778c').attr('font-weight', '700');
+      applyMultilineSvgText(queueLabel, splitLabelLines(fnName, 12), qCX, qCY - QUEUE_BOX_H / 2 - 6, 9);
       world.append('text').attr('class', `q-count-${fnName}`).attr('x', qCX).attr('y', qCY + QUEUE_BOX_H / 2 + 12)
         .attr('text-anchor', 'middle').attr('font-size', 9).attr('font-weight', 'bold');
     });
@@ -782,8 +970,11 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         .attr('opacity', 0.85).attr('filter', 'url(#shadow)');
       world.append('text').attr('class', `fn-name-${escaped}`)
         .attr('x', pos.x).attr('y', pos.y - 5)
-        .attr('text-anchor', 'middle').attr('font-size', 10).attr('font-weight', 'bold').attr('fill', '#fff')
-        .text(fnName.length > 14 ? `${fnName.slice(0, 12)}...` : fnName);
+        .attr('text-anchor', 'middle').attr('font-size', 9).attr('font-weight', 'bold').attr('fill', '#fff')
+        .attr('paint-order', 'stroke')
+        .attr('stroke', 'rgba(0,0,0,0.85)')
+        .attr('stroke-width', 1.5)
+        .attr('stroke-linejoin', 'round');
       world.append('text').attr('class', `fn-count-${escaped}`)
         .attr('x', pos.x).attr('y', pos.y + 8)
         .attr('text-anchor', 'middle').attr('font-size', 9);
@@ -822,7 +1013,11 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const escaped = CSS.escape(fn.Name);
 
       world.select(`.fn-bubble-${escaped}`).attr('r', r).attr('fill', isDown ? '#f8f9fa' : color).attr('opacity', isDown ? 0.5 : 0.85);
-      world.select(`.fn-name-${escaped}`).attr('fill', isDown ? '#6b778c' : '#fff');
+      const fnNameSelection = world.select<SVGTextElement>(`.fn-name-${escaped}`)
+        .attr('fill', isDown ? '#6b778c' : '#fff')
+        .attr('stroke', isDown ? 'rgba(255,255,255,0)' : 'rgba(0,0,0,0.85)')
+        .attr('stroke-width', isDown ? 0 : 1.5);
+      applyMultilineSvgText(fnNameSelection, splitLabelLines(fn.Name, 12), pos.x, pos.y - 7, 10);
       world.select(`.fn-count-${escaped}`).attr('fill', isDown ? '#adb5bd' : 'rgba(255,255,255,0.8)').text(`${fn.NumberReady}/${fn.NumberRequested}`);
 
       const podGroup = world.select<SVGGElement>(`.fn-pods-${escaped}`);
@@ -939,7 +1134,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         <span className="network-map__legend-item"><svg width="14" height="10"><rect x="1" y="2" width="10" height="6" rx="1.5" fill="#6b778c" /></svg> Async</span>
         <span className="network-map__legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#36b37e" /></svg> Replica</span>
         <span className="network-map__legend-separator" />
-        <span className="network-map__legend-item" title="Active requests badge"><svg width="18" height="14"><rect x="1" y="0" width="16" height="14" rx="7" fill="#ff6b6b" stroke="#fff" strokeWidth="1" /><text x="9" y="10.5" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#fff">3</text></svg> Active</span>
+        <span className="network-map__legend-item" title="Active requests badge"><svg width="18" height="14"><rect x="1" y="0" width="16" height="14" rx="7" fill="#f08c00" stroke="#fff" strokeWidth="1" /><text x="9" y="10.5" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#fff">3</text></svg> Active</span>
       </div>
     </div>
   );

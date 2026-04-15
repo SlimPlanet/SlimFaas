@@ -94,7 +94,10 @@ public class EventEndpointsTests
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>()))
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -144,7 +147,10 @@ public class EventEndpointsTests
             It.IsAny<SlimFaasDefaultConfiguration>(),
             It.IsAny<string?>(),
             It.IsAny<CancellationTokenSource?>(),
-            It.IsAny<Proxy?>()), Times.Once);
+            It.IsAny<Proxy?>(),
+            It.IsAny<string?>(),
+            NetworkActivityTracker.Actors.SlimFaas,
+            It.IsAny<string?>()), Times.Once);
     }
 
     [Theory]
@@ -167,7 +173,10 @@ public class EventEndpointsTests
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>()))
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -311,7 +320,10 @@ public class EventEndpointsTests
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>()))
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -361,7 +373,10 @@ public class EventEndpointsTests
             It.IsAny<SlimFaasDefaultConfiguration>(),
             It.IsAny<string?>(),
             It.IsAny<CancellationTokenSource?>(),
-            It.IsAny<Proxy?>()), Times.Exactly(2));
+            It.IsAny<Proxy?>(),
+            It.IsAny<string?>(),
+            NetworkActivityTracker.Actors.SlimFaas,
+            It.IsAny<string?>()), Times.Exactly(2));
     }
 }
 

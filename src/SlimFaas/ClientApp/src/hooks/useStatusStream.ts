@@ -32,6 +32,13 @@ function asArray<T = unknown>(value: unknown): T[] {
   return Array.isArray(value) ? value as T[] : [];
 }
 
+function normalizeScaleDownTimeout(raw: unknown): { Time: string; Value: number }[] {
+  return asArray(raw).map((item) => ({
+    Time: asString(pick(item, 'Time', 'time')),
+    Value: asNumber(pick(item, 'Value', 'value')),
+  }));
+}
+
 function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
   return asArray(raw).map((entry) => {
     const resources = pick<Record<string, unknown>>(entry, 'Resources', 'resources');
@@ -61,7 +68,7 @@ function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
         TimeZoneID: asString(schedule.TimeZoneID ?? schedule.timeZoneID),
         Default: scheduleDefault ? {
           WakeUp: asArray<string>(scheduleDefault.WakeUp ?? scheduleDefault.wakeUp),
-          ScaleDownTimeout: asArray(scheduleDefault.ScaleDownTimeout ?? scheduleDefault.scaleDownTimeout) as { Time: string; Value: number }[],
+          ScaleDownTimeout: normalizeScaleDownTimeout(scheduleDefault.ScaleDownTimeout ?? scheduleDefault.scaleDownTimeout),
         } : null,
       } : null,
       Scale: (scale ?? null) as FunctionStatusDetailed['Scale'],
