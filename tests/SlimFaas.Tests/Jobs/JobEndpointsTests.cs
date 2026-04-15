@@ -102,7 +102,7 @@ public class JobEndpointsTests
 
     [Theory(DisplayName = "POST /job/{name} – retourne 400 si le nom de fonction est invalide")]
     [InlineData("/job/ab")]
-    [InlineData("/job/abcdefghijklm")]
+    [InlineData("/job/abcdefghijklmnopqrstuvwxyz12345")]
     [InlineData("/job/test.func")]
     [InlineData("/job/test func")]
     [InlineData("/job/test@func")]
@@ -130,6 +130,7 @@ public class JobEndpointsTests
     [Theory(DisplayName = "POST /job/{name} – accepte les noms valides")]
     [InlineData("/job/abc")]
     [InlineData("/job/abcdefghijkl")]
+    [InlineData("/job/abcdefghijklmnopqrstuvwxyz1234")]
     [InlineData("/job/test-func")]
     [InlineData("/job/my-app")]
     [InlineData("/job/daisy")]
@@ -225,7 +226,7 @@ public class JobEndpointsTests
 
     [Theory(DisplayName = "DELETE /job/{name}/{id} – retourne 400 si le nom de fonction est invalide")]
     [InlineData("/job/ab/123")]
-    [InlineData("/job/abcdefghijklm/123")]
+    [InlineData("/job/abcdefghijklmnopqrstuvwxyz12345/123")]
     public async Task DeleteJob_Returns_400_When_FunctionName_Invalid(string path)
     {
         (IHost host, Mock<IJobService> jobSvc, _) = await BuildHostAsync(jobServiceMock =>

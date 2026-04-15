@@ -137,7 +137,7 @@ public class JobScheduleEndpointsTests
 
     [Theory(DisplayName = "POST /job-schedules/{name} – retourne 400 si le nom de fonction est invalide")]
     [InlineData("/job-schedules/ab")]
-    [InlineData("/job-schedules/abcdefghijklm")]
+    [InlineData("/job-schedules/abcdefghijklmnopqrstuvwxyz12345")]
     [InlineData("/job-schedules/test.func")]
     [InlineData("/job-schedules/test func")]
     [InlineData("/job-schedules/test@func")]
@@ -166,6 +166,7 @@ public class JobScheduleEndpointsTests
     [Theory(DisplayName = "POST /job-schedules/{name} – accepte les noms valides")]
     [InlineData("/job-schedules/abc")]
     [InlineData("/job-schedules/abcdefghijkl")]
+    [InlineData("/job-schedules/abcdefghijklmnopqrstuvwxyz1234")]
     [InlineData("/job-schedules/test-func")]
     [InlineData("/job-schedules/my-app")]
     [InlineData("/job-schedules/daisy")]
@@ -276,7 +277,7 @@ public class JobScheduleEndpointsTests
 
     [Theory(DisplayName = "DELETE /job-schedules/{name}/{id} – retourne 400 si le nom de fonction est invalide")]
     [InlineData("/job-schedules/ab/sid")]
-    [InlineData("/job-schedules/abcdefghijklm/sid")]
+    [InlineData("/job-schedules/abcdefghijklmnopqrstuvwxyz12345/sid")]
     public async Task DeleteSchedule_Returns_400_When_FunctionName_Invalid(string path)
     {
         (IHost host, Mock<IScheduleJobService> schedSvc, _) =
