@@ -171,6 +171,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const activeQueueCounterTouchedRef = useRef<Record<string, number>>({});
   const activeExternalCounterRef = useRef(0);
   const activeExternalCounterTouchedRef = useRef(0);
+  const requestInSenderRef = useRef<Record<string, { senderReplicaKey?: string; isExternal: boolean }>>({});
   const lastPublishByNodeAndTargetRef = useRef<Record<string, number>>({});
   const lastCounterSweepRef = useRef(0);
   const lastScheduledUtcRef = useRef(0);
@@ -392,10 +393,33 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const fnReplicaKey = useCallback((functionName: string, podName: string) => `fn:${functionName}:${podName}`, []);
   const sfReplicaKey = useCallback((nodeName: string) => `sf:${nodeName}`, []);
 
+  const resolveFunctionReplicaCounterKey = useCallback((functionName: string | null | undefined, podIpOrName: string | null | undefined): string | null => {
+    if (!functionName) return null;
+
+    const link = resolvePodLink(podIpOrName);
+    if (link) {
+      return fnReplicaKey(link.functionName, link.podName);
+    }
+
+    const replicas = functionReplicaPositions[functionName];
+    if (!replicas || Object.keys(replicas).length === 0) return null;
+    if (podIpOrName && replicas[podIpOrName]) {
+      return fnReplicaKey(functionName, podIpOrName);
+    }
+
+    const firstReplica = Object.keys(replicas)[0];
+    return firstReplica ? fnReplicaKey(functionName, firstReplica) : null;
+  }, [fnReplicaKey, functionReplicaPositions, resolvePodLink]);
+
   const resolveSenderReplicaCounterKey = useCallback((evt: NetworkActivityEvent): string | null => {
     const sourceActor = (evt.Source || 'slimfaas').toLowerCase();
     if ((sourceActor === 'external' || sourceActor === 'slimfaas') && evt.NodeId) {
       return sfReplicaKey(evt.NodeId);
+    }
+
+    if (sourceActor !== 'external' && sourceActor !== 'slimfaas') {
+      const functionReplica = resolveFunctionReplicaCounterKey(evt.Source, evt.SourcePod);
+      if (functionReplica) return functionReplica;
     }
 
     const srcLink = resolvePodLink(evt.SourcePod);
@@ -409,7 +433,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     }
 
     return null;
-  }, [fnReplicaKey, resolvePodLink, sfReplicaKey]);
+  }, [fnReplicaKey, resolveFunctionReplicaCounterKey, resolvePodLink, sfReplicaKey]);
 
 
   const queueMessage = useCallback((message: AnimatedMessage) => {
@@ -469,14 +493,30 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     }
 
     if (evt.Type === 'request_in') {
-      const sourceIsExternal = (evt.Source || '').toLowerCase() === 'external';
       const link = resolvePodLink(evt.SourcePod);
-      if (!link) {
+      const sourceName = (evt.Source || '').trim();
+      const sourceActor = sourceName.toLowerCase();
+      const sourceIsFunction = sourceActor.length > 0 && sourceActor !== 'external' && sourceActor !== 'slimfaas';
+
+      const functionStartPos = sourceIsFunction
+        ? replicaOf(sourceName, evt.SourcePod)
+        : (link ? replicaOf(link.functionName, link.podName) : null);
+      const senderReplicaKey = sourceIsFunction
+        ? resolveFunctionReplicaCounterKey(sourceName, evt.SourcePod)
+        : (link ? fnReplicaKey(link.functionName, link.podName) : null);
+
+      if (senderReplicaKey) {
+        incReplicaCounter(senderReplicaKey);
+      } else {
         incExternalCounter();
       }
-      const startPos = (!sourceIsExternal && link)
-        ? replicaOf(link.functionName, link.podName)
-        : externalPos;
+
+      requestInSenderRef.current[evt.Id] = {
+        senderReplicaKey: senderReplicaKey ?? undefined,
+        isExternal: !senderReplicaKey,
+      };
+
+      const startPos = functionStartPos ?? externalPos;
       if (!startPos) return;
       const sourceColor = link?.functionName ? nameColor(link.functionName) : '#6b778c';
       queueMessage({
@@ -552,11 +592,22 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         return;
       }
 
-      // For sync flows coming from unknown external callers, close the External in-flight badge.
-      decExternalCounter();
+      const trackedSender = requestInSenderRef.current[evt.Id];
+      delete requestInSenderRef.current[evt.Id];
 
-      const senderReplicaKey = resolveSenderReplicaCounterKey(evt);
-      if (senderReplicaKey) decReplicaCounter(senderReplicaKey);
+      if (trackedSender?.isExternal) {
+        decExternalCounter();
+      }
+
+      if (trackedSender?.senderReplicaKey) {
+        decReplicaCounter(trackedSender.senderReplicaKey);
+        return;
+      }
+
+      const fallbackSenderReplicaKey = resolveSenderReplicaCounterKey(evt);
+      if (fallbackSenderReplicaKey) {
+        decReplicaCounter(fallbackSenderReplicaKey);
+      }
       return;
     }
 
@@ -596,7 +647,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         label: srcLabel,
       });
     }
-  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, getFunctionReplicaPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, queueMessage, queuePositions, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
+  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, fnReplicaKey, getFunctionReplicaPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, queueMessage, queuePositions, resolveFunctionReplicaCounterKey, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
 
   useEffect(() => {
     const fresh: NetworkActivityEvent[] = [];
@@ -830,6 +881,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     activeQueueCounterTouchedRef.current = {};
     activeExternalCounterRef.current = 0;
     activeExternalCounterTouchedRef.current = 0;
+    requestInSenderRef.current = {};
     lastPublishByNodeAndTargetRef.current = {};
     lastCounterSweepRef.current = 0;
 
