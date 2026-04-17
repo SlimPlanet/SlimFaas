@@ -75,7 +75,9 @@ public static class EventEndpoints
 
         if (functions.Count <= 0)
         {
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, eventName, NetworkActivityTracker.Actors.SlimFaas, targetPod: callerIdentity);
+            // Convention partagée avec SyncFunctionEndpoints :
+            // source = SlimFaas, target = callerIdentity, sourcePod = callerIp.
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.SlimFaas, callerIdentity, sourcePod: callerIp);
             logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
             return Results.NotFound();
         }
@@ -161,7 +163,7 @@ public static class EventEndpoints
             }
         }
 
-        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, eventName, NetworkActivityTracker.Actors.SlimFaas, targetPod: callerIdentity);
+        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.SlimFaas, callerIdentity, sourcePod: callerIp);
         return Results.NoContent();
     }
 

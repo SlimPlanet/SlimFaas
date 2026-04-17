@@ -39,7 +39,7 @@ const SEG_DURATION = 800;
 const SEG_GAP = 120;
 const CHAIN_GAP_MIN = 80;
 const CHAIN_GAP_MAX = 240;
-const COUNTER_STALE_MS = 10 * 60 * 1000;
+const COUNTER_STALE_MS = 60 * 1000;
 const COUNTER_SWEEP_MS = 1000;
 const BUBBLE_R = 34;
 const REPLICA_R = 9;
@@ -425,19 +425,23 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         return;
       }
 
+      // Convention C# (Sync + Event endpoints) :
+      //   Source = "slimfaas", Target = callerIdentity,
+      //   SourcePod = caller IP, TargetPod = downstream pod IP (peut être null).
+      // Le sender (caller) est donc identifié par evt.SourcePod (et NON evt.TargetPod
+      // qui désigne le pod aval ayant traité la requête).
       decCounter('slimfaas');
       if (evt.NodeId) decReplicaCounter(sfReplicaKey(evt.NodeId));
-      const caller = resolvePodLink(evt.TargetPod);
+
+      const caller = resolvePodLink(evt.SourcePod);
       if (caller) {
         decCounter(caller.functionName);
         decReplicaCounter(fnReplicaKey(caller.functionName, caller.podName));
-      } else if (evt.TargetPod) {
+      } else {
+        // Caller externe (IP inconnue ou absente, ex. chemin WebSocket / exception
+        // avant sélection du pod) → toujours décrémenter "external" pour rester
+        // symétrique avec l'incrément de request_in.
         decCounter('external');
-      }
-      // Decrement the target pod replica counter
-      const srcLink = resolvePodLink(evt.SourcePod);
-      if (srcLink) {
-        decReplicaCounter(fnReplicaKey(srcLink.functionName, srcLink.podName));
       }
       return;
     }
