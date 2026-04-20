@@ -5,57 +5,61 @@ namespace SlimFaas
 {
     public interface IProxy
     {
+        /// <summary>
+        /// Sélection round-robin simple, sans contrainte de charge per-pod.
+        /// Utilisée par le proxy synchrone HTTP.
+        /// </summary>
         string GetNextIP();
-        string GetNextIP(int maxPerPod);
+
+        /// <summary>
+        /// Sélection "least-connections" + round-robin tie-breaker, en respectant
+        /// <paramref name="maxPerPod"/>. La charge actuelle de chaque pod est
+        /// dérivée de <paramref name="alreadyUsedIps"/> (par ex. les IPs réservées
+        /// par les éléments "Running" actuellement présents en base).
+        /// Retourne "" si tous les pods sont saturés ou si aucun pod n'est ready.
+        /// </summary>
+        string GetNextIP(int maxPerPod, IReadOnlyCollection<string> alreadyUsedIps);
+
         IList<int>? GetPorts();
         IList<int>? GetPorts(string? ip);
-        IList<string> ReserveNextIPs(int maxPerPod, int count);
-        void ReleaseReservedIPs(IList<string> ips);
-        bool BindElementToIp(string elementId, string ip);
-        bool ReleaseElementReservation(string elementId, out string ip);
-        void IncrementActiveRequests(string ip);
-        void DecrementActiveRequests(string ip);
+
+        /// <summary>
+        /// Réserve <paramref name="count"/> IPs en simulant l'ajout progressif des
+        /// IPs choisies à <paramref name="alreadyUsedIps"/>. Aucune mutation d'état
+        /// global n'est effectuée : le caller est responsable du suivi (via la DB).
+        /// </summary>
+        IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps);
     }
+
     public class Proxy : IProxy
     {
         private readonly IReplicasService _replicasService;
         private readonly string _functionName;
 
-        // Key: Nom du déploiement, Value: Dernière IP utilisée pour ce déploiement
+        // Seul état conservé : indice round-robin par déploiement (pure heuristique,
+        // pas de correctness impact si désynchronisé entre instances).
         public static ConcurrentDictionary<string, string> IpAddresses { get; } = new();
-
-        // Key: IP du pod, Value: nombre de requêtes actives sur ce pod
-        public static ConcurrentDictionary<string, int> ActiveRequestsPerPod { get; } = new();
-
-        // Key: IP du pod, Value: timestamp (UTC ticks) de la dernière sélection
-        public static ConcurrentDictionary<string, long> LastRequestTicksPerPod { get; } = new();
-
-        // Key: ElementId, Value: IP du pod réservé
-        public static ConcurrentDictionary<string, string> ElementToPodIp { get; } = new();
 
         public Proxy(IReplicasService replicasService, string functionName)
         {
             _replicasService = replicasService;
             _functionName = functionName;
         }
+
         private readonly Random _random = new();
 
         private static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
         {
-            DeploymentInformation? function =
-                replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
-            return function;
+            return replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
         }
 
         public IList<int>? GetPorts()
         {
             var deploymentInformation = SearchFunction(_replicasService, _functionName);
-            var readyPodsIps = deploymentInformation?.Pods
+            return deploymentInformation?.Pods
                 .Where(pod => pod.Ready == true)
                 .Select(pod => pod.Ports)
                 .FirstOrDefault();
-
-            return readyPodsIps;
         }
 
         public IList<int>? GetPorts(string? ip)
@@ -71,90 +75,35 @@ namespace SlimFaas
                 ?.Ports;
         }
 
-        public void IncrementActiveRequests(string ip)
-        {
-            ActiveRequestsPerPod.AddOrUpdate(ip, 1, (_, count) => count + 1);
-        }
-
-        public void DecrementActiveRequests(string ip)
-        {
-            ActiveRequestsPerPod.AddOrUpdate(ip, 0, (_, count) => Math.Max(0, count - 1));
-        }
-
-        public IList<string> ReserveNextIPs(int maxPerPod, int count)
+        public IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps)
         {
             var reserved = new List<string>(Math.Max(0, count));
+            // Copie mutable que l'on enrichit au fur et à mesure pour simuler la réservation.
+            var working = new List<string>(alreadyUsedIps ?? Array.Empty<string>());
+
             for (var i = 0; i < count; i++)
             {
-                var ip = GetNextIP(maxPerPod);
+                var ip = GetNextIP(maxPerPod, working);
                 if (string.IsNullOrWhiteSpace(ip))
                 {
                     break;
                 }
 
-                IncrementActiveRequests(ip);
                 reserved.Add(ip);
+                working.Add(ip);
             }
 
             return reserved;
         }
 
-        public void ReleaseReservedIPs(IList<string> ips)
-        {
-            if (ips.Count == 0)
-            {
-                return;
-            }
+        public string GetNextIP() => GetNextIPInternal(int.MaxValue, null);
 
-            foreach (var ip in ips)
-            {
-                if (string.IsNullOrWhiteSpace(ip))
-                {
-                    continue;
-                }
+        public string GetNextIP(int maxPerPod, IReadOnlyCollection<string> alreadyUsedIps)
+            => GetNextIPInternal(maxPerPod, alreadyUsedIps);
 
-                DecrementActiveRequests(ip);
-            }
-        }
-
-        public bool BindElementToIp(string elementId, string ip)
-        {
-            if (string.IsNullOrWhiteSpace(elementId) || string.IsNullOrWhiteSpace(ip))
-            {
-                return false;
-            }
-
-            ElementToPodIp[elementId] = ip;
-            return true;
-        }
-
-        public bool ReleaseElementReservation(string elementId, out string ip)
-        {
-            if (ElementToPodIp.TryRemove(elementId, out ip!))
-            {
-                DecrementActiveRequests(ip);
-                return true;
-            }
-
-            ip = string.Empty;
-            return false;
-        }
-
-        /// <summary>
-        /// Sélectionne le prochain pod en round-robin sans limite per-pod.
-        /// </summary>
-        public string GetNextIP() => GetNextIP(int.MaxValue);
-
-        /// <summary>
-        /// Sélectionne le prochain pod en utilisant une stratégie "least-connections"
-        /// avec round-robin comme tie-breaker, en respectant la limite
-        /// <paramref name="maxPerPod"/> de requêtes actives par pod.
-        /// Retourne "" si tous les pods sont saturés ou aucun pod n'est ready.
-        /// </summary>
-        public string GetNextIP(int maxPerPod)
+        private string GetNextIPInternal(int maxPerPod, IReadOnlyCollection<string>? alreadyUsedIps)
         {
             var deploymentInformation = SearchFunction(_replicasService, _functionName);
-
             if (deploymentInformation == null)
             {
                 return "";
@@ -165,23 +114,24 @@ namespace SlimFaas
                 .Select(pod => pod.Ip)
                 .ToList();
 
-            if (!readyPodsIps.Any())
+            if (readyPodsIps.Count == 0)
             {
                 return "";
             }
 
-            // Prune per-pod tracking for IPs that are no longer ready, to prevent unbounded growth.
-            var readySet = new HashSet<string>(readyPodsIps, StringComparer.OrdinalIgnoreCase);
-            foreach (var key in LastRequestTicksPerPod.Keys.ToList())
+            // Comptage des requêtes actives par pod, dérivé directement de l'état fourni
+            // (ex: IPs réservées par les éléments "Running" en DB).
+            var activeByIp = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (alreadyUsedIps != null)
             {
-                if (!readySet.Contains(key))
-                    LastRequestTicksPerPod.TryRemove(key, out _);
-            }
-            foreach (var key in ActiveRequestsPerPod.Keys.ToList())
-            {
-                // Only remove zero-count entries; in-flight entries may still have count > 0.
-                if (!readySet.Contains(key) && ActiveRequestsPerPod.GetValueOrDefault(key) == 0)
-                    ActiveRequestsPerPod.TryRemove(key, out _);
+                foreach (var ip in alreadyUsedIps)
+                {
+                    if (string.IsNullOrWhiteSpace(ip))
+                    {
+                        continue;
+                    }
+                    activeByIp[ip] = activeByIp.TryGetValue(ip, out var c) ? c + 1 : 1;
+                }
             }
 
             // Déterminer l'index de départ (round-robin)
@@ -199,47 +149,36 @@ namespace SlimFaas
                     : (currentIndex + 1) % readyPodsIps.Count;
             }
 
-            // Stratégie "least-connections" : parmi les pods non saturés,
-            // choisir celui qui a le moins de requêtes actives.
-            // En cas d'égalité, le premier rencontré dans l'ordre round-robin gagne.
+            // Stratégie "least-connections" : parmi les pods non saturés, choisir
+            // celui qui a le moins de requêtes actives. En cas d'égalité,
+            // le premier rencontré dans l'ordre round-robin gagne.
             string? bestIp = null;
             int bestActive = int.MaxValue;
-            long bestLastRequestTick = long.MaxValue;
             for (int i = 0; i < readyPodsIps.Count; i++)
             {
                 int index = (startIndex + i) % readyPodsIps.Count;
                 string candidateIp = readyPodsIps[index];
-                int active = ActiveRequestsPerPod.GetValueOrDefault(candidateIp, 0);
+                int active = activeByIp.TryGetValue(candidateIp, out var c) ? c : 0;
 
                 if (active >= maxPerPod)
                 {
                     continue;
                 }
 
-                // Un pod jamais sélectionné est prioritaire (tick=0) pour favoriser la rotation.
-                long lastTick = LastRequestTicksPerPod.GetValueOrDefault(candidateIp, 0);
-
-                bool isBetter = active < bestActive
-                                || (active == bestActive && lastTick < bestLastRequestTick);
-
-                if (!isBetter)
+                if (active < bestActive)
                 {
-                    continue;
+                    bestIp = candidateIp;
+                    bestActive = active;
                 }
-
-                bestIp = candidateIp;
-                bestActive = active;
-                bestLastRequestTick = lastTick;
             }
 
             if (bestIp != null)
             {
                 IpAddresses[deploymentInformation.Deployment] = bestIp;
-                LastRequestTicksPerPod[bestIp] = DateTime.UtcNow.Ticks;
                 return bestIp;
             }
 
-            // Tous les pods sont saturés — retourner "" pour signaler qu'il faut attendre
+            // Tous les pods sont saturés
             return "";
         }
     }

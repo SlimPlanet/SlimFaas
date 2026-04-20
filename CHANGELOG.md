@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.71.1
+
+- [9780c1be](https://github.com/SlimPlanet/SlimFaas/commit/9780c1be154b0b1ad0ea574bfcdb58232cda1498) - fix(slimfaas): Increase job name max length from 12 to 30 characters (#267) (release), 2026-04-15 by *Copilot*
+
+
+## 0.71.0
+
+
+
 ## v0.71.0
 
 - [eb130e6d](https://github.com/SlimPlanet/SlimFaas/commit/eb130e6dc27ab451b1591b89dfd86d8558794427) - feat(slimfaas): add dashboard (#262) (release), 2026-04-14 by *Guillaume Chervet*
@@ -265,14 +274,5 @@
 ## v0.60.7
 
 - [898828fe](https://github.com/SlimPlanet/SlimFaas/commit/898828fead773dd699803d936bce8545e21728b0) - fix(tests): repair commented tests (#228) (release), 2026-01-28 by *Guillaume Chervet*
-
-
-## 0.60.6
-
-
-
-## v0.60.6
-
-- [b21cc754](https://github.com/SlimPlanet/SlimFaas/commit/b21cc7549f2a1f40301c35cb572d97c709d28b4a) - feature(mcp): better website (#223) (release), 2026-01-24 by *Guillaume Chervet*
 
 

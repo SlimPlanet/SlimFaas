@@ -190,23 +190,9 @@ public class FakeProxy : IProxy
         return DefaultIp;
     }
 
-    public string GetNextIP(int maxPerPod) => GetNextIP();
+    public string GetNextIP(int maxPerPod, IReadOnlyCollection<string> alreadyUsedIps) => GetNextIP();
 
-    public void IncrementActiveRequests(string ip) { }
-
-    public void DecrementActiveRequests(string ip) { }
-
-    public IList<string> ReserveNextIPs(int maxPerPod, int count) => new List<string>();
-
-    public void ReleaseReservedIPs(IList<string> ips) { }
-
-    public bool BindElementToIp(string elementId, string ip) => true;
-
-    public bool ReleaseElementReservation(string elementId, out string ip)
-    {
-        ip = string.Empty;
-        return true;
-    }
+    public IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps) => new List<string>();
 
     public IList<int>? GetPorts()
     {
