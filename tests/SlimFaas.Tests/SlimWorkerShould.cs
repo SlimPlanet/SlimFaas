@@ -25,11 +25,11 @@ public class SlimWorkerShould
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>(),
+                It.IsAny<IProxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?, string?, string?, string?>((req, _, _, _, _, _, _, _) => capturedRequest = req)
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?>((req, _, _, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
@@ -123,7 +123,7 @@ public class SlimWorkerShould
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>(),
+                It.IsAny<IProxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>()),
@@ -214,11 +214,11 @@ public class SlimWorkerShould
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>(),
+                It.IsAny<IProxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, Proxy?, string?, string?, string?>((req, _, _, _, _, _, _, _) => capturedRequest = req)
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?>((req, _, _, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();

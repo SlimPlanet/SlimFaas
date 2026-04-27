@@ -29,6 +29,17 @@ namespace SlimFaas
         /// global n'est effectuée : le caller est responsable du suivi (via la DB).
         /// </summary>
         IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps);
+
+        /// <summary>
+        /// Réserve une IP pour un appel synchrone en tenant compte des requêtes locales en cours.
+        /// Le caller doit appeler <see cref="ReleaseSyncIP"/> lorsque la réponse a été entièrement consommée.
+        /// </summary>
+        string AcquireNextIPForSync(int maxPerPod = int.MaxValue);
+
+        /// <summary>
+        /// Libère une IP précédemment réservée par <see cref="AcquireNextIPForSync"/>.
+        /// </summary>
+        void ReleaseSyncIP(string? ip);
     }
 
     public class Proxy : IProxy

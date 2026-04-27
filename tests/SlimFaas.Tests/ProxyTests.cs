@@ -364,6 +364,70 @@ namespace SlimFaas.Tests
         }
 
         [Fact]
+        public void AcquireNextIPForSync_DistributesInFlightReservationsByLeastConnections()
+        {
+            // Arrange
+            var replicasService = BuildThreePods();
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.3";
+            var proxy = new Proxy(replicasService, "my-deployment");
+            var reserved = new List<string>();
+
+            try
+            {
+                // Act
+                for (int i = 0; i < 6; i++)
+                {
+                    reserved.Add(proxy.AcquireNextIPForSync(maxPerPod: 10));
+                }
+
+                // Assert
+                Assert.DoesNotContain("", reserved);
+                Assert.Equal(2, reserved.Count(x => x == "10.0.0.1"));
+                Assert.Equal(2, reserved.Count(x => x == "10.0.0.2"));
+                Assert.Equal(2, reserved.Count(x => x == "10.0.0.3"));
+            }
+            finally
+            {
+                foreach (var ip in reserved)
+                {
+                    proxy.ReleaseSyncIP(ip);
+                }
+            }
+        }
+
+        [Fact]
+        public void AcquireNextIPForSync_RespectsMaxPerPodAndReusesReleasedSlots()
+        {
+            // Arrange
+            var replicasService = BuildThreePods();
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.3";
+            var proxy = new Proxy(replicasService, "my-deployment");
+            var reserved = new List<string>();
+
+            try
+            {
+                // Act
+                reserved.Add(proxy.AcquireNextIPForSync(maxPerPod: 1));
+                reserved.Add(proxy.AcquireNextIPForSync(maxPerPod: 1));
+                reserved.Add(proxy.AcquireNextIPForSync(maxPerPod: 1));
+
+                // Assert: les trois pods sont saturés à 1 requête chacun.
+                Assert.Equal(3, reserved.Distinct().Count());
+                Assert.Equal("", proxy.AcquireNextIPForSync(maxPerPod: 1));
+
+                proxy.ReleaseSyncIP(reserved[0]);
+                Assert.Equal(reserved[0], proxy.AcquireNextIPForSync(maxPerPod: 1));
+            }
+            finally
+            {
+                foreach (var ip in reserved)
+                {
+                    proxy.ReleaseSyncIP(ip);
+                }
+            }
+        }
+
+        [Fact]
         public void GetPorts_WhenFunctionNotFound_ReturnsNull()
         {
             // Arrange

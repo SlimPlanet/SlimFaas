@@ -116,7 +116,8 @@ public static class SyncFunctionEndpoints
                 function.Configuration.DefaultSync,
                 null,
                 proxy,
-                NetworkActivityTracker.Actors.SlimFaas);
+                NetworkActivityTracker.Actors.SlimFaas,
+                maxParallelRequestPerPod: function.NumberParallelRequestPerPod);
 
             using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
             try

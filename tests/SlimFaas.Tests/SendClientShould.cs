@@ -1,7 +1,6 @@
 ﻿﻿using System.Net;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Moq;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -121,6 +120,93 @@ public class SendClientShould
         Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestEnd, events[1].Type);
         Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.Actors.SlimFaas, events[0].Source);
     }
+
+    [Fact]
+    public async Task KeepSyncPodReservationUntilResponseIsDisposed()
+    {
+        List<string> requestedHosts = new();
+        HttpClient httpClient = new(new HttpMessageHandlerStub(request =>
+        {
+            requestedHosts.Add(request.RequestUri!.Host);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("This is a reply")
+            });
+        }));
+
+        var mockLogger = new Mock<ILogger<SendClient>>();
+        var options = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            BaseFunctionUrl = "http://{pod_ip}:{pod_port}/",
+            Namespace = "default"
+        });
+        var namespaceProviderMock = new Mock<INamespaceProvider>();
+        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+        var tracker = new SlimFaas.Endpoints.NetworkActivityTracker();
+        SendClient sendClient = new(httpClient, mockLogger.Object, options, namespaceProviderMock.Object, tracker);
+
+        var replicasService = new FakeReplicasService
+        {
+            Deployments = new FakeDeploymentCollection
+            {
+                Functions = new List<DeploymentInformation>
+                {
+                    new(
+                        Deployment: "fibonacci",
+                        Namespace: "default",
+                        Pods: new List<PodInformation>
+                        {
+                            new("pod1", true, true, "10.0.0.1", "fibonacci", new List<int> { 8080 }),
+                            new("pod2", true, true, "10.0.0.2", "fibonacci", new List<int> { 8080 })
+                        },
+                        Configuration: new SlimFaasConfiguration(),
+                        Replicas: 2,
+                        EndpointReady: true,
+                        NumberParallelRequestPerPod: 1)
+                }
+            }
+        };
+        var proxy = new Proxy(replicasService, "fibonacci");
+
+        HttpResponseMessage? firstResponse = null;
+        HttpResponseMessage? secondResponse = null;
+        try
+        {
+            firstResponse = await sendClient.SendHttpRequestSync(
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy, maxParallelRequestPerPod: 1);
+            secondResponse = await sendClient.SendHttpRequestSync(
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy, maxParallelRequestPerPod: 1);
+
+            Assert.Equal(2, requestedHosts.Distinct().Count());
+
+            await Assert.ThrowsAsync<Exception>(() => sendClient.SendHttpRequestSync(
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy, maxParallelRequestPerPod: 1));
+
+            firstResponse.Dispose();
+            firstResponse = null;
+
+            using HttpResponseMessage thirdResponse = await sendClient.SendHttpRequestSync(
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy, maxParallelRequestPerPod: 1);
+
+            Assert.Equal(HttpStatusCode.OK, thirdResponse.StatusCode);
+        }
+        finally
+        {
+            firstResponse?.Dispose();
+            secondResponse?.Dispose();
+        }
+    }
+
+    private static DefaultHttpContext BuildHttpContext()
+    {
+        DefaultHttpContext httpContext = new();
+        httpContext.Request.Method = "GET";
+        httpContext.Request.Path = "/fibonacci/health";
+        httpContext.Request.Host = new HostString("fibonacci");
+        httpContext.Request.Scheme = "http";
+        httpContext.Request.Body = new MemoryStream();
+        return httpContext;
+    }
 }
 
 public class HttpMessageHandlerStub : HttpMessageHandler
@@ -129,6 +215,9 @@ public class HttpMessageHandlerStub : HttpMessageHandler
 
     public HttpMessageHandlerStub(Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> sendAsync) =>
         _sendAsync = sendAsync;
+
+    public HttpMessageHandlerStub(Func<HttpRequestMessage, Task<HttpResponseMessage>> sendAsync) =>
+        _sendAsync = (request, _) => sendAsync(request);
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request,
         CancellationToken cancellationToken) => await _sendAsync(request, cancellationToken);
