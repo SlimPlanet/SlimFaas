@@ -70,6 +70,7 @@ public class SlimFaasOptionsTests
         Assert.Equal(10000, options.StatusStream.KnownIdsLimit);
         Assert.Equal(0, options.StatusStream.MaxLiveEventsPerSecond);
         Assert.Equal(1.0, options.StatusStream.LiveEventSamplingRatio);
+        Assert.Equal(100, options.StatusStream.LiveActivityBatchSize);
     }
 
     [Fact]
@@ -88,7 +89,8 @@ public class SlimFaasOptionsTests
             ["SlimFaas:StatusStream:RecentActivityLimit"] = "90",
             ["SlimFaas:StatusStream:KnownIdsLimit"] = "100",
             ["SlimFaas:StatusStream:MaxLiveEventsPerSecond"] = "11",
-            ["SlimFaas:StatusStream:LiveEventSamplingRatio"] = "0.5"
+            ["SlimFaas:StatusStream:LiveEventSamplingRatio"] = "0.5",
+            ["SlimFaas:StatusStream:LiveActivityBatchSize"] = "25"
         });
         var configuration = configurationBuilder.Build();
 
@@ -111,6 +113,7 @@ public class SlimFaasOptionsTests
         Assert.Equal(100, options.KnownIdsLimit);
         Assert.Equal(11, options.MaxLiveEventsPerSecond);
         Assert.Equal(0.5, options.LiveEventSamplingRatio);
+        Assert.Equal(25, options.LiveActivityBatchSize);
     }
 
     [Fact]

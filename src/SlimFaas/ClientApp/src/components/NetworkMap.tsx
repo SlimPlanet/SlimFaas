@@ -39,6 +39,10 @@ const SEG_DURATION = 800;
 const SEG_GAP = 120;
 const CHAIN_GAP_MIN = 80;
 const CHAIN_GAP_MAX = 240;
+const MAX_VISUAL_LAG_MS = 2500;
+const MAX_ANIMATED_EVENTS_PER_BATCH = 120;
+const MAX_IN_FLIGHT_ANIMATIONS = 260;
+const OVERLOAD_GAP_MS = 16;
 const COUNTER_STALE_MS = 10 * 60 * 1000;
 const COUNTER_SWEEP_MS = 1000;
 const BUBBLE_R = 34;
@@ -471,9 +475,15 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
   const queueMessage = useCallback((message: AnimatedMessage) => {
     animRef.current.push(message);
+    if (animRef.current.length > MAX_IN_FLIGHT_ANIMATIONS) {
+      animRef.current.splice(0, animRef.current.length - MAX_IN_FLIGHT_ANIMATIONS);
+    }
   }, []);
 
-  const spawnEvent = useCallback((evt: NetworkActivityEvent, startAt: number) => {
+  const spawnEvent = useCallback((evt: NetworkActivityEvent, startAt: number, shouldAnimate = true) => {
+    const enqueueVisualMessage = (message: AnimatedMessage) => {
+      if (shouldAnimate) queueMessage(message);
+    };
     const replicaOf = (name: string, pod: string | null | undefined) => getFunctionReplicaPosition(name, pod);
     const srcLabel = resolvePodLabel(evt.SourcePod);
     const tgtLabel = resolvePodLabel(evt.TargetPod);
@@ -491,7 +501,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         decExternalCounter();
       }
 
-      queueMessage({
+      enqueueVisualMessage({
         id: `${evt.Id}|enqueue`,
         segments: [{ from: slim, to: queuePos }],
         currentSeg: 0,
@@ -511,7 +521,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const targetPos = replicaOf(evt.Target, evt.TargetPod);
       if (!queuePos || !targetPos) return;
       incQueueCounter(`queue:${queueName}`);
-      queueMessage({
+      enqueueVisualMessage({
         id: `${evt.Id}|dequeue`,
         segments: [{ from: queuePos, to: targetPos }],
         currentSeg: 0,
@@ -552,7 +562,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const startPos = functionStartPos ?? externalPos;
       if (!startPos) return;
       const sourceColor = link?.functionName ? nameColor(link.functionName) : '#6b778c';
-      queueMessage({
+      enqueueVisualMessage({
         id: `${evt.Id}|request_in`,
         segments: [{ from: startPos, to: slim }],
         currentSeg: 0,
@@ -601,7 +611,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const sourcePos = sourceActor === 'external'
         ? externalPos
         : (sourceReplicaPos ?? slim);
-      queueMessage({
+      enqueueVisualMessage({
         id: `${evt.Id}|request_out`,
         segments: [{ from: sourcePos, to: targetPos }],
         currentSeg: 0,
@@ -653,7 +663,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       if (!targetPos) return;
       const publishKey = `${evt.NodeId}|${evt.Target}`;
       lastPublishByNodeAndTargetRef.current[publishKey] = utcMs(evt.TimestampMs);
-      queueMessage({
+      enqueueVisualMessage({
         id: `${evt.Id}|event_publish`,
         segments: [{ from: slim, to: targetPos }],
         currentSeg: 0,
@@ -672,7 +682,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const fromPos = replicaOf(fromFn, evt.SourcePod);
       if (!fromPos) return;
       const toPos = evt.Target === 'external' ? externalPos : slim;
-      queueMessage({
+      enqueueVisualMessage({
         id: `${evt.Id}|response`,
         segments: [{ from: fromPos, to: toPos }],
         currentSeg: 0,
@@ -704,19 +714,28 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       return a.Id.localeCompare(b.Id);
     });
 
+    const now = performance.now();
+    const scheduleLimit = now + MAX_VISUAL_LAG_MS;
     let cursorUtc = lastScheduledUtcRef.current || utcMs(fresh[0].TimestampMs);
-    let cursorPerf = Math.max(lastScheduledPerfRef.current, performance.now());
+    let cursorPerf = Math.min(Math.max(lastScheduledPerfRef.current, now), scheduleLimit);
+    const animationStride = Math.max(1, Math.ceil(fresh.length / MAX_ANIMATED_EVENTS_PER_BATCH));
+    let animatedCount = 0;
 
-    for (const evt of fresh) {
+    fresh.forEach((evt, index) => {
       const evtUtc = utcMs(evt.TimestampMs);
-      const gap = Math.max(CHAIN_GAP_MIN, Math.min(CHAIN_GAP_MAX, evtUtc - cursorUtc));
-      cursorPerf += gap;
+      const rawGap = Math.max(CHAIN_GAP_MIN, Math.min(CHAIN_GAP_MAX, evtUtc - cursorUtc));
+      const backlogMs = Math.max(0, cursorPerf - now);
+      const gap = backlogMs > MAX_VISUAL_LAG_MS / 2 ? Math.min(rawGap, OVERLOAD_GAP_MS) : rawGap;
+      cursorPerf = Math.min(cursorPerf + gap, scheduleLimit);
       cursorUtc = Math.max(cursorUtc, evtUtc);
-      spawnEvent(evt, cursorPerf);
-    }
+      const shouldAnimate = fresh.length <= MAX_ANIMATED_EVENTS_PER_BATCH
+        || (index % animationStride === 0 && animatedCount < MAX_ANIMATED_EVENTS_PER_BATCH);
+      if (shouldAnimate) animatedCount += 1;
+      spawnEvent(evt, cursorPerf, shouldAnimate);
+    });
 
     lastScheduledUtcRef.current = cursorUtc;
-    lastScheduledPerfRef.current = cursorPerf;
+    lastScheduledPerfRef.current = Math.min(cursorPerf, performance.now() + MAX_VISUAL_LAG_MS);
 
     if (seenEventsRef.current.size > 1200) {
       seenEventsRef.current = new Set(Array.from(seenEventsRef.current).slice(-800));

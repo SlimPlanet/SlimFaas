@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SlimFaas.Jobs;
@@ -77,28 +78,52 @@ public static class StatusStreamEndpoints
             await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: true, ct), ct);
             await context.Response.Body.FlushAsync(ct);
 
-            // Then send periodic full state + activity events
+            // Then send periodic full state + activity events.
+            // Activity is event-driven to avoid waiting for the next state tick under bursts.
             using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(
                 slimFaasOptions.Value.StatusStream.StateIntervalMilliseconds));
+            int activityBatchSize = Math.Max(1, slimFaasOptions.Value.StatusStream.LiveActivityBatchSize);
+            var activityAvailableTask = reader.WaitToReadAsync(ct).AsTask();
+            var stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
 
             while (!ct.IsCancellationRequested)
             {
-                // Drain any activity events that arrived
-                while (reader.TryRead(out var evt))
+                var completedTask = await Task.WhenAny(activityAvailableTask, stateTickTask);
+
+                if (completedTask == activityAvailableTask)
                 {
-                    string json = JsonSerializer.Serialize(evt, StatusStreamSerializerContext.Default.NetworkActivityEvent);
-                    await context.Response.WriteAsync($"event: activity\ndata: {json}\n\n", ct);
+                    if (!await activityAvailableTask)
+                    {
+                        break;
+                    }
+
+                    await WritePendingActivityAsync(context, reader, activityBatchSize, ct);
+
+                    if (stateTickTask.IsCompleted)
+                    {
+                        if (!await stateTickTask)
+                        {
+                            break;
+                        }
+
+                        await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: false, ct), ct);
+                        stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
+                    }
+
+                    await context.Response.Body.FlushAsync(ct);
+                    activityAvailableTask = reader.WaitToReadAsync(ct).AsTask();
+                    continue;
                 }
 
-                await context.Response.Body.FlushAsync(ct);
-
-                // Wait for next tick
-                if (!await timer.WaitForNextTickAsync(ct))
+                if (!await stateTickTask)
+                {
                     break;
+                }
 
                 // Send full state periodically
                 await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: false, ct), ct);
                 await context.Response.Body.FlushAsync(ct);
+                stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
             }
         }
         catch (OperationCanceledException ex)
@@ -108,6 +133,39 @@ public static class StatusStreamEndpoints
         finally
         {
             tracker.Unsubscribe(channel);
+        }
+    }
+
+    private static async Task WritePendingActivityAsync(
+        HttpContext context,
+        ChannelReader<NetworkActivityEvent> reader,
+        int activityBatchSize,
+        CancellationToken ct)
+    {
+        int maxEventsPerWake = activityBatchSize * 10;
+        int writtenEvents = 0;
+
+        while (writtenEvents < maxEventsPerWake && reader.TryRead(out var firstEvent))
+        {
+            var batch = new List<NetworkActivityEvent>(activityBatchSize) { firstEvent };
+            while (batch.Count < activityBatchSize
+                   && writtenEvents + batch.Count < maxEventsPerWake
+                   && reader.TryRead(out var nextEvent))
+            {
+                batch.Add(nextEvent);
+            }
+
+            writtenEvents += batch.Count;
+
+            if (batch.Count == 1)
+            {
+                string json = JsonSerializer.Serialize(batch[0], StatusStreamSerializerContext.Default.NetworkActivityEvent);
+                await context.Response.WriteAsync($"event: activity\ndata: {json}\n\n", ct);
+                continue;
+            }
+
+            string batchJson = JsonSerializer.Serialize(batch, StatusStreamSerializerContext.Default.ListNetworkActivityEvent);
+            await context.Response.WriteAsync($"event: activity_batch\ndata: {batchJson}\n\n", ct);
         }
     }
 }

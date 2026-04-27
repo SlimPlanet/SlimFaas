@@ -45,7 +45,8 @@ public static class OptionsExtensions
                && s.KnownIdsLimit > 0
                && s.MaxLiveEventsPerSecond >= 0
                && s.LiveEventSamplingRatio >= 0
-               && s.LiveEventSamplingRatio <= 1;
+               && s.LiveEventSamplingRatio <= 1
+               && s.LiveActivityBatchSize > 0;
     }
 
     /// <summary>

@@ -2,6 +2,9 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
 
 const COOLDOWN_MS = 3000;
+const ACTIVITY_FLUSH_MS = 100;
+const ACTIVITY_STATE_LIMIT = 200;
+const ACTIVITY_IMMEDIATE_FLUSH_SIZE = 200;
 
 function pick<T = unknown>(obj: unknown, pascal: string, camel: string): T | undefined {
   if (!obj || typeof obj !== 'object') return undefined;
@@ -177,11 +180,69 @@ export function useStatusStream() {
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const activityBufferRef = useRef<NetworkActivityEvent[]>([]);
+  const activityFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushActivityBuffer = useCallback(() => {
+    if (activityFlushTimerRef.current) {
+      clearTimeout(activityFlushTimerRef.current);
+      activityFlushTimerRef.current = null;
+    }
+
+    const batch = activityBufferRef.current;
+    if (batch.length === 0) return;
+    activityBufferRef.current = [];
+
+    setActivity(prev => {
+      const next = [...prev, ...batch];
+      return next.length > ACTIVITY_STATE_LIMIT ? next.slice(-ACTIVITY_STATE_LIMIT) : next;
+    });
+
+    const queueTargets = new Set<string>();
+    for (const evt of batch) {
+      if (evt.Type === 'enqueue' || evt.Type === 'dequeue') {
+        queueTargets.add(evt.Target);
+      }
+    }
+
+    if (queueTargets.size > 0) {
+      setFunctionsWithQueueActivity(prev => {
+        let changed = false;
+        const next = new Set(prev);
+        queueTargets.forEach(target => {
+          if (!next.has(target)) {
+            next.add(target);
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, []);
+
+  const enqueueActivityBatch = useCallback((events: NetworkActivityEvent[]) => {
+    if (events.length === 0) return;
+    activityBufferRef.current.push(...events);
+
+    if (activityBufferRef.current.length >= ACTIVITY_IMMEDIATE_FLUSH_SIZE) {
+      flushActivityBuffer();
+      return;
+    }
+
+    if (!activityFlushTimerRef.current) {
+      activityFlushTimerRef.current = setTimeout(flushActivityBuffer, ACTIVITY_FLUSH_MS);
+    }
+  }, [flushActivityBuffer]);
 
   const connect = useCallback(() => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
+    if (activityFlushTimerRef.current) {
+      clearTimeout(activityFlushTimerRef.current);
+      activityFlushTimerRef.current = null;
+    }
+    activityBufferRef.current = [];
 
     const es = new EventSource('/status-functions-stream');
     eventSourceRef.current = es;
@@ -226,22 +287,17 @@ export function useStatusStream() {
       try {
         const evt = normalizeActivity([JSON.parse(e.data)])[0];
         if (!evt) return;
-        setActivity(prev => {
-          const next = [...prev, evt];
-          // Keep only the last 200 events
-          return next.length > 200 ? next.slice(-200) : next;
-        });
-        // Track queue activity
-        if (evt.Type === 'enqueue' || evt.Type === 'dequeue') {
-          setFunctionsWithQueueActivity(prev => {
-            if (prev.has(evt.Target)) return prev;
-            const next = new Set(prev);
-            next.add(evt.Target);
-            return next;
-          });
-        }
+        enqueueActivityBatch([evt]);
       } catch (err) {
         console.warn('Unable to parse status stream activity event.', err);
+      }
+    });
+
+    es.addEventListener('activity_batch', (e: MessageEvent) => {
+      try {
+        enqueueActivityBatch(normalizeActivity(JSON.parse(e.data)));
+      } catch (err) {
+        console.warn('Unable to parse status stream activity_batch event.', err);
       }
     });
 
@@ -259,6 +315,7 @@ export function useStatusStream() {
     return () => {
       if (eventSourceRef.current) eventSourceRef.current.close();
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+      if (activityFlushTimerRef.current) clearTimeout(activityFlushTimerRef.current);
     };
   }, [connect]);
 

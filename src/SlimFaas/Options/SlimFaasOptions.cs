@@ -133,4 +133,10 @@ public class StatusStreamOptions
     /// Stored events and peer synchronization are not sampled.
     /// </summary>
     public double LiveEventSamplingRatio { get; set; } = 1.0;
+
+    /// <summary>
+    /// Maximum number of live activity events grouped in a single SSE activity_batch frame.
+    /// Batching lowers dashboard latency and browser overhead during bursts.
+    /// </summary>
+    public int LiveActivityBatchSize { get; set; } = 100;
 }
