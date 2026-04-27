@@ -84,6 +84,8 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
     activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, functionName,
         sourcePod: activitySourcePod);
 
+    string? reservedSyncIp = null;
+
     try
     {
         logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}",
@@ -98,16 +100,44 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
 
         var finalToken = linkedTokenSource.Token;
 
-        //HttpResponseMessage responseMessage = await Retry.DoRequestAsync(async () =>
-           // {
+                string functionUrl = baseUrl ?? _baseFunctionUrl;
+                string targetUrl;
+                if (functionUrl.Contains("{pod_ip}") && proxy != null)
+                {
+                    const int maxAttempts = 10;
+                    IList<int>? ports = null;
 
-                string targetUrl = await ComputeTargetUrlAsync(
-                    baseUrl ?? _baseFunctionUrl,
-                    functionName,
-                    functionPath,
-                    functionQuery,
-                    _namespaceSlimFaas,
-                    proxy);
+                    for (var attempt = 0; attempt < maxAttempts; attempt++)
+                    {
+                        reservedSyncIp = proxy.AcquireNextIPForSync();
+                        ports = proxy.GetPorts(reservedSyncIp);
+                        if (!string.IsNullOrWhiteSpace(reservedSyncIp) && ports is { Count: > 0 })
+                        {
+                            break;
+                        }
+
+                        proxy.ReleaseSyncIP(reservedSyncIp);
+                        reservedSyncIp = null;
+                        await Task.Delay(100, finalToken);
+                    }
+
+                    if (string.IsNullOrWhiteSpace(reservedSyncIp) || ports is null || ports.Count == 0)
+                    {
+                        throw new Exception("Not port or IP available");
+                    }
+
+                    targetUrl = BuildPodTargetUrl(functionUrl, functionPath + functionQuery, reservedSyncIp, ports);
+                }
+                else
+                {
+                    targetUrl = await ComputeTargetUrlAsync(
+                        functionUrl,
+                        functionName,
+                        functionPath,
+                        functionQuery,
+                        _namespaceSlimFaas,
+                        proxy);
+                }
 
                 logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
 
@@ -131,6 +161,7 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
     }
     finally
     {
+        proxy?.ReleaseSyncIP(reservedSyncIp);
         activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, functionName,
             sourcePod: activitySourcePod);
     }
@@ -238,18 +269,7 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
                throw new Exception("Not port or IP available");
            }
 
-           string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), customRequestPath + customRequestQuery);
-           if (ports is { Count: > 0 })
-           {
-               url = url.Replace("{pod_port}", ports[0].ToString());
-               foreach (int port in ports)
-               {
-                   var index = ports.IndexOf(port);
-                   url = url.Replace($"{{pod_port_{index}}}", port.ToString());
-               }
-           }
-
-           return url;
+           return BuildPodTargetUrl(functionUrl, customRequestPath + customRequestQuery, ip, ports);
         }
 
         return CombinePaths(functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas), customRequestPath +
@@ -274,6 +294,22 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
         }
 
         return builder.ToString();
+    }
+
+    private static string BuildPodTargetUrl(string functionUrl, string pathAndQuery, string ip, IList<int> ports)
+    {
+        string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), pathAndQuery);
+        if (ports is { Count: > 0 })
+        {
+            url = url.Replace("{pod_port}", ports[0].ToString());
+            foreach (int port in ports)
+            {
+                var index = ports.IndexOf(port);
+                url = url.Replace($"{{pod_port_{index}}}", port.ToString());
+            }
+        }
+
+        return url;
     }
 
 
