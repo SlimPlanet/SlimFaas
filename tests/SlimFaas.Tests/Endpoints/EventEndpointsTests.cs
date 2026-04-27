@@ -234,6 +234,7 @@ public class EventEndpointsTests
         var sendClientMock = new Mock<ISendClient>();
         var jobServiceMock = new Mock<IJobService>();
         jobServiceMock.Setup(j => j.Jobs).Returns(new List<KubernetesJob>());
+        var activityTracker = new NetworkActivityTracker();
 
         var accessPolicyMock = new Mock<IFunctionAccessPolicy>();
         accessPolicyMock
@@ -256,7 +257,7 @@ public class EventEndpointsTests
                         s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
-                        s.AddSingleton<NetworkActivityTracker>();
+                        s.AddSingleton(activityTracker);
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -273,6 +274,10 @@ public class EventEndpointsTests
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var events = activityTracker.GetRecent();
+        var requestIn = Assert.Single(events, e => e.Type == NetworkActivityTracker.EventTypes.RequestIn);
+        var requestEnd = Assert.Single(events, e => e.Type == NetworkActivityTracker.EventTypes.RequestEnd);
+        Assert.Equal(requestIn.Id, requestEnd.CorrelationId);
     }
 
     [Fact]

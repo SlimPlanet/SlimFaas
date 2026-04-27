@@ -43,10 +43,13 @@ const MAX_VISUAL_LAG_MS = 2500;
 const MAX_ANIMATED_EVENTS_PER_BATCH = 120;
 const MAX_IN_FLIGHT_ANIMATIONS = 260;
 const OVERLOAD_GAP_MS = 16;
-const COUNTER_STALE_MS = 10 * 60 * 1000;
+const COUNTER_STALE_MS = 2 * 60 * 1000;
 const COUNTER_SWEEP_MS = 1000;
 const BUBBLE_R = 34;
+const SLIMFAAS_R = 42;
 const REPLICA_R = 9;
+const SLIM_REPLICA_MIN_RING = SLIMFAAS_R + 34;
+const SLIM_REPLICA_ARC_SPACING = 58;
 const QUEUE_BOX_W = 60;
 const QUEUE_BOX_H = 20;
 const CENTER = { x: 0, y: 0 };
@@ -186,7 +189,9 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const activeQueueCounterTouchedRef = useRef<Record<string, number>>({});
   const activeExternalCounterRef = useRef(0);
   const activeExternalCounterTouchedRef = useRef(0);
-  const requestInSenderRef = useRef<Record<string, { senderReplicaKey?: string; isExternal: boolean }>>({});
+  const requestInSenderRef = useRef<Record<string, { senderReplicaKey?: string; isExternal: boolean; touchedAt: number }>>({});
+  const requestOutSenderRef = useRef<Record<string, { senderReplicaKey: string; touchedAt: number }>>({});
+  const ignoredRequestOutRef = useRef<Set<string>>(new Set());
   const lastPublishByNodeAndTargetRef = useRef<Record<string, number>>({});
   const lastCounterSweepRef = useRef(0);
   const lastScheduledUtcRef = useRef(0);
@@ -249,7 +254,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
     const svgW = svg.clientWidth || 800;
     const svgH = svg.clientHeight || SVG_VIEW_H;
-    const allPts: { x: number; y: number }[] = [CENTER, externalPos, ...Object.values(fnPositions), ...Object.values(queuePositions)];
+    const allPts: { x: number; y: number }[] = [CENTER, externalPos, ...Object.values(slimReplicaPositionsRef.current), ...Object.values(fnPositions), ...Object.values(queuePositions)];
     if (allPts.length === 0) return;
 
     const pad = BUBBLE_R + 140;
@@ -281,12 +286,15 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     const nodes = slimNodeList;
     const positions: Record<string, ReplicaPosition> = {};
     if (nodes.length === 0) return positions;
-    const totalW = nodes.length * (REPLICA_R * 2 + 6) - 6;
-    const startX = CENTER.x - totalW / 2 + REPLICA_R;
-    const y = CENTER.y + 14;
+    const ring = Math.max(SLIM_REPLICA_MIN_RING, (nodes.length * SLIM_REPLICA_ARC_SPACING) / (2 * Math.PI));
     nodes.forEach((node, i) => {
-      const x = startX + i * (REPLICA_R * 2 + 6);
-      positions[node.Name] = { x, y, status: node.Status, name: node.Name };
+      const angle = (2 * Math.PI * i) / nodes.length - Math.PI / 2;
+      positions[node.Name] = {
+        x: CENTER.x + Math.cos(angle) * ring,
+        y: CENTER.y + Math.sin(angle) * ring,
+        status: node.Status,
+        name: node.Name,
+      };
     });
     return positions;
   }, [slimNodeList]);
@@ -557,6 +565,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       requestInSenderRef.current[activityCorrelationKey(evt)] = {
         senderReplicaKey: senderReplicaKey ?? undefined,
         isExternal: !senderReplicaKey,
+        touchedAt: performance.now(),
       };
 
       const startPos = functionStartPos ?? externalPos;
@@ -579,6 +588,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     if (evt.Type === 'request_out') {
       const isAsyncQueueHop = evt.Source === evt.Target && !evt.SourcePod;
       if (isAsyncQueueHop) {
+        ignoredRequestOutRef.current.add(activityCorrelationKey(evt));
         return;
       }
 
@@ -593,14 +603,24 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         && Math.abs(utcMs(evt.TimestampMs) - lastPublishTs) <= 3000;
 
       if (isTransportDuplicateOfPublish) {
+        ignoredRequestOutRef.current.add(activityCorrelationKey(evt));
         return;
       }
 
       const targetPos = replicaOf(evt.Target, evt.TargetPod);
-      if (!targetPos) return;
+      if (!targetPos) {
+        ignoredRequestOutRef.current.add(activityCorrelationKey(evt));
+        return;
+      }
       const sourceActor = evt.Source || 'slimfaas';
       const senderReplicaKey = resolveSenderReplicaCounterKey(evt);
-      if (senderReplicaKey) incReplicaCounter(senderReplicaKey);
+      if (senderReplicaKey) {
+        incReplicaCounter(senderReplicaKey);
+        requestOutSenderRef.current[activityCorrelationKey(evt)] = {
+          senderReplicaKey,
+          touchedAt: performance.now(),
+        };
+      }
 
       const sourceReplicaPos = sourceActor === 'external'
         ? null
@@ -648,6 +668,24 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
           decReplicaCounter(trackedSender.senderReplicaKey);
         }
 
+        return;
+      }
+
+      const trackedRequestOut = requestOutSenderRef.current[correlationKey];
+      delete requestOutSenderRef.current[correlationKey];
+
+      if (trackedRequestOut) {
+        decReplicaCounter(trackedRequestOut.senderReplicaKey);
+        return;
+      }
+
+      if (ignoredRequestOutRef.current.delete(correlationKey)) {
+        return;
+      }
+
+      const sourceActor = (evt.Source || '').toLowerCase();
+      const targetActor = (evt.Target || '').toLowerCase();
+      if (sourceActor === 'external' && targetActor === 'slimfaas') {
         return;
       }
 
@@ -737,8 +775,8 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     lastScheduledUtcRef.current = cursorUtc;
     lastScheduledPerfRef.current = Math.min(cursorPerf, performance.now() + MAX_VISUAL_LAG_MS);
 
-    if (seenEventsRef.current.size > 1200) {
-      seenEventsRef.current = new Set(Array.from(seenEventsRef.current).slice(-800));
+    if (seenEventsRef.current.size > 10000) {
+      seenEventsRef.current = new Set(Array.from(seenEventsRef.current).slice(-8000));
     }
   }, [activity, spawnEvent]);
 
@@ -776,6 +814,19 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
           activeExternalCounterRef.current = 0;
           activeExternalCounterTouchedRef.current = 0;
         }
+      }
+      for (const [key, tracked] of Object.entries(requestInSenderRef.current)) {
+        if (now - tracked.touchedAt >= COUNTER_STALE_MS) {
+          delete requestInSenderRef.current[key];
+        }
+      }
+      for (const [key, tracked] of Object.entries(requestOutSenderRef.current)) {
+        if (now - tracked.touchedAt >= COUNTER_STALE_MS) {
+          delete requestOutSenderRef.current[key];
+        }
+      }
+      if (ignoredRequestOutRef.current.size > 10000) {
+        ignoredRequestOutRef.current = new Set(Array.from(ignoredRequestOutRef.current).slice(-8000));
       }
     }
 
@@ -938,6 +989,8 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     activeExternalCounterRef.current = 0;
     activeExternalCounterTouchedRef.current = 0;
     requestInSenderRef.current = {};
+    requestOutSenderRef.current = {};
+    ignoredRequestOutRef.current = new Set();
     lastPublishByNodeAndTargetRef.current = {};
     lastCounterSweepRef.current = 0;
 
@@ -977,11 +1030,12 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       .attr('stroke-linejoin', 'round')
       .text('External');
 
-    const sfW = 100;
-    const sfH = 44;
-    world.append('rect').attr('x', CENTER.x - sfW / 2).attr('y', CENTER.y - sfH / 2)
-      .attr('width', sfW).attr('height', sfH).attr('rx', 10)
-      .attr('fill', '#0000ff').attr('filter', 'url(#shadow)');
+    world.append('circle')
+      .attr('cx', CENTER.x)
+      .attr('cy', CENTER.y)
+      .attr('r', SLIMFAAS_R)
+      .attr('fill', '#0000ff')
+      .attr('filter', 'url(#shadow)');
     world.append('text').attr('x', CENTER.x).attr('y', CENTER.y - 2)
       .attr('text-anchor', 'middle').attr('fill', '#fff').attr('font-weight', 'bold').attr('font-size', 14)
       .attr('paint-order', 'stroke')
@@ -1096,7 +1150,12 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
             .attr('y', rp.y + REPLICA_R + 8)
             .attr('text-anchor', 'middle')
             .attr('font-size', 7)
-            .attr('fill', '#495057')
+            .attr('fill', '#212529')
+            .attr('font-weight', 700)
+            .attr('paint-order', 'stroke')
+            .attr('stroke', 'rgba(255,255,255,0.9)')
+            .attr('stroke-width', 1.8)
+            .attr('stroke-linejoin', 'round')
             .text(pod.Name);
           podG.append('title').text(`${pod.Name}\nIP: ${pod.Ip || 'N/A'}\nStatus: ${pod.Status}\nReady: ${pod.Ready}`);
         }
@@ -1127,6 +1186,12 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       const rp = slimReplicaPositions[node.Name];
       if (!rp) continue;
       const c = podColor(node.Status);
+      const vx = rp.x - CENTER.x;
+      const vy = rp.y - CENTER.y;
+      const distance = Math.max(1, Math.hypot(vx, vy));
+      const labelX = rp.x + (vx / distance) * 12;
+      const labelY = rp.y + (vy / distance) * 12 + 2;
+      const labelAnchor = Math.abs(vx / distance) < 0.25 ? 'middle' : (vx > 0 ? 'start' : 'end');
       sfGroup.append('circle')
         .attr('cx', rp.x)
         .attr('cy', rp.y)
@@ -1135,12 +1200,16 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         .attr('stroke', '#fff')
         .attr('stroke-width', 1.5);
       sfGroup.append('text')
-        .attr('x', rp.x)
-        .attr('y', rp.y + REPLICA_R + 8)
-        .attr('text-anchor', 'middle')
+        .attr('x', labelX)
+        .attr('y', labelY)
+        .attr('text-anchor', labelAnchor)
         .attr('font-size', 7)
         .attr('fill', '#212529')
         .attr('font-weight', 600)
+        .attr('paint-order', 'stroke')
+        .attr('stroke', 'rgba(255,255,255,0.9)')
+        .attr('stroke-width', 1.8)
+        .attr('stroke-linejoin', 'round')
         .text(node.Name);
       sfGroup.append('title').text(`${node.Name} - ${node.Status}`);
     }

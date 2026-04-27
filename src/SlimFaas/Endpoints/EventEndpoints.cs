@@ -66,99 +66,108 @@ public static class EventEndpoints
 
         logger.LogDebug("Receiving event: {EventName}", eventName);
         string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas, sourcePod: callerIp);
-        activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
-            sourcePod: context.Connection.RemoteIpAddress?.ToString());
-        var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
+        var requestInId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas, sourcePod: callerIp);
 
-        if (functions.Count <= 0)
+        try
         {
-            logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
-            return Results.NotFound();
-        }
+            activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
+                sourcePod: context.Connection.RemoteIpAddress?.ToString());
+            var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
 
-        var lastSetTicks = DateTime.UtcNow.Ticks;
-        List<DeploymentInformation> calledFunctions = new();
-        CustomRequest customRequest = await FunctionEndpointsHelpers.InitCustomRequest(
-            context, context.Request, "", functionPath);
-
-        List<Task> tasks = new();
-        var queryString = context.Request.QueryString.ToUriComponent();
-
-        foreach (DeploymentInformation function in functions)
-        {
-            logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
-
-            // --- Fonctions WebSocket virtuelles (Namespace = "websocket-virtual") ---
-            if (function.Namespace == "websocket-virtual")
+            if (functions.Count <= 0)
             {
-                if (!calledFunctions.Contains(function))
-                    calledFunctions.Add(function);
-
-                historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
-                Task wsTask = webSocketSendClient.PublishEventAsync(
-                    function.Deployment,
-                    customRequest with { FunctionName = function.Deployment },
-                    eventName,
-                    context.RequestAborted);
-                tasks.Add(wsTask);
-                continue;
+                logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
+                return Results.NotFound();
             }
 
-            // --- Fonctions HTTP classiques ---
-            foreach (var pod in function.Pods ?? Enumerable.Empty<PodInformation>())
-            {
-                logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}",
-                    pod.Ready, function.EndpointReady, pod.Ip);
+            var lastSetTicks = DateTime.UtcNow.Ticks;
+            List<DeploymentInformation> calledFunctions = new();
+            CustomRequest customRequest = await FunctionEndpointsHelpers.InitCustomRequest(
+                context, context.Request, "", functionPath);
 
-                if (pod.Ready is not true || !function.EndpointReady)
+            List<Task> tasks = new();
+            var queryString = context.Request.QueryString.ToUriComponent();
+
+            foreach (DeploymentInformation function in functions)
+            {
+                logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
+
+                // --- Fonctions WebSocket virtuelles (Namespace = "websocket-virtual") ---
+                if (function.Namespace == "websocket-virtual")
+                {
+                    if (!calledFunctions.Contains(function))
+                        calledFunctions.Add(function);
+
+                    historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
+                    Task wsTask = webSocketSendClient.PublishEventAsync(
+                        function.Deployment,
+                        customRequest with { FunctionName = function.Deployment },
+                        eventName,
+                        context.RequestAborted);
+                    tasks.Add(wsTask);
+                    continue;
+                }
+
+                // --- Fonctions HTTP classiques ---
+                foreach (var pod in function.Pods ?? Enumerable.Empty<PodInformation>())
+                {
+                    logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}",
+                        pod.Ready, function.EndpointReady, pod.Ip);
+
+                    if (pod.Ready is not true || !function.EndpointReady)
+                    {
+                        continue;
+                    }
+
+                    if (!calledFunctions.Contains(function))
+                    {
+                        calledFunctions.Add(function);
+                    }
+
+                    logger.LogInformation("Publish-event {EventName} : Deployment {Deployment} Pod {PodName} is ready: {PodReady}",
+                        eventName, function.Deployment, pod.Name, pod.Ready);
+
+                    activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, function.Deployment,
+                        targetPod: pod.Ip);
+
+                    historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
+
+                    string baseFunctionPodUrl = slimFaasOptions.Value.BaseFunctionPodUrl;
+
+                    var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl, namespaceProvider.CurrentNamespace);
+                    logger.LogDebug("Sending event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent}",
+                        eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
+
+                    Task task = SendRequestAsync(queryString, sendClient, customRequest with { FunctionName = function.Deployment },
+                        baseUrl, logger, eventName, function.Configuration.DefaultPublish);
+                    tasks.Add(task);
+                }
+            }
+
+            while (tasks.Any(t => !t.IsCompleted) && !context.RequestAborted.IsCancellationRequested)
+            {
+                await Task.Delay(20, context.RequestAborted);
+                bool isOneSecondElapsed = new DateTime(lastSetTicks, DateTimeKind.Utc) < DateTime.UtcNow.AddSeconds(-1);
+
+                if (!isOneSecondElapsed)
                 {
                     continue;
                 }
 
-                if (!calledFunctions.Contains(function))
+                lastSetTicks = DateTime.UtcNow.Ticks;
+                foreach (DeploymentInformation function in calledFunctions)
                 {
-                    calledFunctions.Add(function);
+                    historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
                 }
-
-                logger.LogInformation("Publish-event {EventName} : Deployment {Deployment} Pod {PodName} is ready: {PodReady}",
-                    eventName, function.Deployment, pod.Name, pod.Ready);
-
-                activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, function.Deployment,
-                    targetPod: pod.Ip);
-
-                historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
-
-                string baseFunctionPodUrl = slimFaasOptions.Value.BaseFunctionPodUrl;
-
-                var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl, namespaceProvider.CurrentNamespace);
-                logger.LogDebug("Sending event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent}",
-                    eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
-
-                Task task = SendRequestAsync(queryString, sendClient, customRequest with { FunctionName = function.Deployment },
-                    baseUrl, logger, eventName, function.Configuration.DefaultPublish);
-                tasks.Add(task);
             }
-        }
 
-        while (tasks.Any(t => !t.IsCompleted) && !context.RequestAborted.IsCancellationRequested)
+            return Results.NoContent();
+        }
+        finally
         {
-            await Task.Delay(20, context.RequestAborted);
-            bool isOneSecondElapsed = new DateTime(lastSetTicks, DateTimeKind.Utc) < DateTime.UtcNow.AddSeconds(-1);
-
-            if (!isOneSecondElapsed)
-            {
-                continue;
-            }
-
-            lastSetTicks = DateTime.UtcNow.Ticks;
-            foreach (DeploymentInformation function in calledFunctions)
-            {
-                historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
-            }
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
+                sourcePod: callerIp, correlationId: requestInId);
         }
-
-        return Results.NoContent();
     }
 
     private static async Task SendRequestAsync(

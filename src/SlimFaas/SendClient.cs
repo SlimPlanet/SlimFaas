@@ -27,7 +27,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         string source = string.IsNullOrWhiteSpace(activitySource)
             ? NetworkActivityTracker.Actors.SlimFaas
             : activitySource;
-        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, customRequest.FunctionName,
+        var requestOutId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, customRequest.FunctionName,
             sourcePod: activitySourcePod, targetPod: reservedPodIp);
 
         try
@@ -64,7 +64,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         finally
         {
             activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, customRequest.FunctionName,
-                sourcePod: activitySourcePod, targetPod: reservedPodIp);
+                sourcePod: activitySourcePod, targetPod: reservedPodIp, correlationId: requestOutId);
         }
     }
 

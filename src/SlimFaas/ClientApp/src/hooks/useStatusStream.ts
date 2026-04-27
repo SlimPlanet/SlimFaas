@@ -3,7 +3,7 @@ import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStr
 
 const COOLDOWN_MS = 3000;
 const ACTIVITY_FLUSH_MS = 100;
-const ACTIVITY_STATE_LIMIT = 200;
+const ACTIVITY_STATE_LIMIT = 5000;
 const ACTIVITY_IMMEDIATE_FLUSH_SIZE = 200;
 
 function pick<T = unknown>(obj: unknown, pascal: string, camel: string): T | undefined {
