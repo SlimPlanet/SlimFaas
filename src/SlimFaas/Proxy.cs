@@ -34,7 +34,7 @@ namespace SlimFaas
         /// Réserve une IP pour un appel synchrone en tenant compte des requêtes locales en cours.
         /// Le caller doit appeler <see cref="ReleaseSyncIP"/> lorsque la réponse a été entièrement consommée.
         /// </summary>
-        string AcquireNextIPForSync(int maxPerPod = int.MaxValue);
+        string AcquireNextIPForSync();
 
         /// <summary>
         /// Libère une IP précédemment réservée par <see cref="AcquireNextIPForSync"/>.
@@ -124,7 +124,7 @@ namespace SlimFaas
         /// Réserve une IP pour un appel sync en incrémentant un compteur local in-flight.
         /// Le caller doit appeler <see cref="ReleaseSyncIP"/> dans un finally.
         /// </summary>
-        public string AcquireNextIPForSync(int maxPerPod = int.MaxValue)
+        public string AcquireNextIPForSync()
         {
             var deploymentInformation = SearchFunction(_replicasService, _functionName);
             if (deploymentInformation == null)
@@ -150,7 +150,7 @@ namespace SlimFaas
                 var inFlight = GetOrCreateInFlight(deployment);
                 var activeByIp = inFlight.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
 
-                var selected = SelectBestIp(deployment, readyPodsIps, maxPerPod, activeByIp);
+                var selected = SelectBestIp(deployment, readyPodsIps, int.MaxValue, activeByIp);
                 if (string.IsNullOrWhiteSpace(selected))
                 {
                     return "";

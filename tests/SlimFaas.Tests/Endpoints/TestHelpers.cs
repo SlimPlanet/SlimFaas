@@ -99,7 +99,7 @@ internal class SendClientMock : ISendClient
     }
 
     public Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName,
-        string functionPath, string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null, int maxParallelRequestPerPod = int.MaxValue)
+        string functionPath, string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null)
     {
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         responseMessage.StatusCode = HttpStatusCode.OK;

@@ -377,7 +377,7 @@ namespace SlimFaas.Tests
                 // Act
                 for (int i = 0; i < 6; i++)
                 {
-                    reserved.Add(proxy.AcquireNextIPForSync(maxPerPod: 10));
+                    reserved.Add(proxy.AcquireNextIPForSync());
                 }
 
                 // Assert
@@ -396,7 +396,7 @@ namespace SlimFaas.Tests
         }
 
         [Fact]
-        public void AcquireNextIPForSync_RespectsMaxPerPodAndReusesReleasedSlots()
+        public void AcquireNextIPForSync_DoesNotApplyPerPodLimit()
         {
             // Arrange
             var replicasService = BuildThreePods();
@@ -407,16 +407,14 @@ namespace SlimFaas.Tests
             try
             {
                 // Act
-                reserved.Add(proxy.AcquireNextIPForSync(maxPerPod: 1));
-                reserved.Add(proxy.AcquireNextIPForSync(maxPerPod: 1));
-                reserved.Add(proxy.AcquireNextIPForSync(maxPerPod: 1));
+                reserved.Add(proxy.AcquireNextIPForSync());
+                reserved.Add(proxy.AcquireNextIPForSync());
+                reserved.Add(proxy.AcquireNextIPForSync());
+                reserved.Add(proxy.AcquireNextIPForSync());
 
-                // Assert: les trois pods sont saturés à 1 requête chacun.
+                // Assert: les appels sync restent load-balancés mais ne saturent pas à 1 par pod.
+                Assert.DoesNotContain("", reserved);
                 Assert.Equal(3, reserved.Distinct().Count());
-                Assert.Equal("", proxy.AcquireNextIPForSync(maxPerPod: 1));
-
-                proxy.ReleaseSyncIP(reserved[0]);
-                Assert.Equal(reserved[0], proxy.AcquireNextIPForSync(maxPerPod: 1));
             }
             finally
             {

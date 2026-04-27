@@ -194,7 +194,7 @@ public class FakeProxy : IProxy
 
     public IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps) => new List<string>();
 
-    public string AcquireNextIPForSync(int maxPerPod = int.MaxValue) => GetNextIP();
+    public string AcquireNextIPForSync() => GetNextIP();
 
     public void ReleaseSyncIP(string? ip)
     {

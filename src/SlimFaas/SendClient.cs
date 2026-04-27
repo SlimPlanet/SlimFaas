@@ -13,7 +13,7 @@ public interface ISendClient
     Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
-        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null, int maxParallelRequestPerPod = int.MaxValue);
+        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null);
 }
 
 public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions, INamespaceProvider namespaceProvider, NetworkActivityTracker activityTracker) : ISendClient
@@ -77,8 +77,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         string? baseUrl = null,
         IProxy? proxy = null,
         string? activitySource = null,
-        string? activitySourcePod = null,
-        int maxParallelRequestPerPod = int.MaxValue)
+        string? activitySourcePod = null)
     {
         string source = string.IsNullOrWhiteSpace(activitySource)
             ? NetworkActivityTracker.Actors.SlimFaas
@@ -111,7 +110,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
                 for (var attempt = 0; attempt < maxAttempts; attempt++)
                 {
-                    reservedSyncIp = proxy.AcquireNextIPForSync(maxParallelRequestPerPod);
+                    reservedSyncIp = proxy.AcquireNextIPForSync();
                     ports = proxy.GetPorts(reservedSyncIp);
                     if (!string.IsNullOrWhiteSpace(reservedSyncIp) && ports is { Count: > 0 })
                     {

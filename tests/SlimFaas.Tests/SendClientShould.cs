@@ -122,7 +122,7 @@ public class SendClientShould
     }
 
     [Fact]
-    public async Task KeepSyncPodReservationUntilResponseIsDisposed()
+    public async Task LoadBalanceSyncRequestsWithoutPerPodLimit()
     {
         List<string> requestedHosts = new();
         HttpClient httpClient = new(new HttpMessageHandlerStub(request =>
@@ -161,8 +161,7 @@ public class SendClientShould
                         },
                         Configuration: new SlimFaasConfiguration(),
                         Replicas: 2,
-                        EndpointReady: true,
-                        NumberParallelRequestPerPod: 1)
+                        EndpointReady: true)
                 }
             }
         };
@@ -173,22 +172,18 @@ public class SendClientShould
         try
         {
             firstResponse = await sendClient.SendHttpRequestSync(
-                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy, maxParallelRequestPerPod: 1);
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy);
             secondResponse = await sendClient.SendHttpRequestSync(
-                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy, maxParallelRequestPerPod: 1);
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy);
 
             Assert.Equal(2, requestedHosts.Distinct().Count());
 
-            await Assert.ThrowsAsync<Exception>(() => sendClient.SendHttpRequestSync(
-                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy, maxParallelRequestPerPod: 1));
-
-            firstResponse.Dispose();
-            firstResponse = null;
-
             using HttpResponseMessage thirdResponse = await sendClient.SendHttpRequestSync(
-                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy, maxParallelRequestPerPod: 1);
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy);
 
             Assert.Equal(HttpStatusCode.OK, thirdResponse.StatusCode);
+            Assert.Equal(3, requestedHosts.Count);
+            Assert.Equal(2, requestedHosts.Distinct().Count());
         }
         finally
         {
