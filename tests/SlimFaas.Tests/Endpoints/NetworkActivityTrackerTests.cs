@@ -306,6 +306,22 @@ public class NetworkActivityTrackerTests
         Assert.Equal("10.0.0.5", recent[2].TargetPod);
     }
 
+    [Fact(DisplayName = "Record stores CorrelationId")]
+    public void Record_StoresCorrelationId()
+    {
+        var tracker = new NetworkActivityTracker();
+
+        var requestInId = tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
+            correlationId: requestInId);
+
+        var recent = tracker.GetRecent();
+        Assert.Equal(2, recent.Count);
+        Assert.Null(recent[0].CorrelationId);
+        Assert.Equal(requestInId, recent[1].CorrelationId);
+        Assert.NotEqual(recent[0].Id, recent[1].Id);
+    }
+
     [Fact(DisplayName = "IngestRemote preserves SourcePod and TargetPod")]
     public void IngestRemote_PreservesSourceAndTargetPod()
     {

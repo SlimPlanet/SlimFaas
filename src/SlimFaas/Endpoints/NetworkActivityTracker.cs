@@ -19,7 +19,8 @@ public record NetworkActivityEvent(
     long TimestampMs,
     string NodeId,        // hostname of the SlimFaas node that recorded the event
     string? SourcePod = null,   // source pod name or IP (e.g. the caller pod)
-    string? TargetPod = null);  // target pod name or IP (e.g. the downstream pod receiving the request)
+    string? TargetPod = null,   // target pod name or IP (e.g. the downstream pod receiving the request)
+    string? CorrelationId = null); // shared id used to pair related start/end events while keeping Id unique
 
 /// <summary>
 /// Represents the full stream payload sent via SSE.
@@ -125,7 +126,7 @@ public sealed class NetworkActivityTracker
     public bool HasSubscribers => _enabled && !_subscribers.IsEmpty;
 
     /// <summary>Record a local activity event and broadcast to all SSE subscribers.</summary>
-    public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null)
+    public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null, string? correlationId = null)
     {
         if (!_enabled) return string.Empty;
 
@@ -138,7 +139,8 @@ public sealed class NetworkActivityTracker
             TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             NodeId: NodeId,
             SourcePod: sourcePod,
-            TargetPod: targetPod);
+            TargetPod: targetPod,
+            CorrelationId: correlationId);
 
         Enqueue(evt);
         return evt.Id;

@@ -85,6 +85,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             : activitySource;
 
         string? reservedSyncIp = null;
+        string? requestOutId = null;
         var releaseReservedSyncIpOnError = true;
 
         try
@@ -140,7 +141,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                     proxy);
             }
 
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, functionName,
+            requestOutId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, functionName,
                 sourcePod: activitySourcePod, targetPod: reservedSyncIp);
 
             logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
@@ -173,7 +174,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         finally
         {
             activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, functionName,
-                sourcePod: activitySourcePod, targetPod: reservedSyncIp);
+                sourcePod: activitySourcePod, targetPod: reservedSyncIp, correlationId: requestOutId);
         }
     }
 

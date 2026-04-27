@@ -78,7 +78,7 @@ public static class SyncFunctionEndpoints
             return Results.NotFound();
         }
 
-        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
+        var requestInId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
             sourcePod: context.Connection.RemoteIpAddress?.ToString());
         string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
 
@@ -157,6 +157,11 @@ public static class SyncFunctionEndpoints
         {
             logger.LogError(ex, "Unhandled sync error for {FunctionName}", functionName);
             return Results.StatusCode(503);
+        }
+        finally
+        {
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
+                sourcePod: callerIp, correlationId: requestInId);
         }
     }
 

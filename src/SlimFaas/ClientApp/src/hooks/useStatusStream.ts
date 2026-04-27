@@ -136,6 +136,7 @@ function normalizeActivity(raw: unknown): NetworkActivityEvent[] {
     NodeId: asString(pick(entry, 'NodeId', 'nodeId')),
     SourcePod: asString(pick(entry, 'SourcePod', 'sourcePod'), '') || null,
     TargetPod: asString(pick(entry, 'TargetPod', 'targetPod'), '') || null,
+    CorrelationId: asString(pick(entry, 'CorrelationId', 'correlationId'), '') || null,
   }));
 }
 

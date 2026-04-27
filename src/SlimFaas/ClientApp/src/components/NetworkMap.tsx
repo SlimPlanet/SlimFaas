@@ -48,6 +48,8 @@ const QUEUE_BOX_H = 20;
 const CENTER = { x: 0, y: 0 };
 const EXTERNAL_ANGLE = -Math.PI * 0.88;
 const SVG_VIEW_H = 680;
+const REPLICA_SLOT_COUNT = 16;
+const REPLICA_SLOT_ORDER = [0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15];
 
 function nameColor(name: string): string {
   const colors = ['#4c6ef5', '#7950f2', '#e64980', '#f76707', '#36b37e', '#00b8d9', '#fab005', '#e8590c', '#ae3ec9', '#0ca678', '#2f9e44', '#1098ad', '#f08c00', '#d6336c', '#6741d9'];
@@ -75,6 +77,10 @@ function eventKey(evt: NetworkActivityEvent): string {
   return `${evt.Id}|${evt.Type}|${evt.Source}|${evt.Target}|${evt.TimestampMs}|${evt.NodeId}`;
 }
 
+function activityCorrelationKey(evt: NetworkActivityEvent): string {
+  return evt.CorrelationId || evt.Id;
+}
+
 function utcMs(ts: number): number {
   return Number.isFinite(ts) && ts > 0 ? Math.trunc(ts) : Date.now();
 }
@@ -89,6 +95,11 @@ function radialPositions(n: number): { x: number; y: number }[] {
     const angle = (2 * Math.PI * i) / n - Math.PI / 2;
     return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
   });
+}
+
+function replicaSlotAngle(slotIndex: number): number {
+  const ringSlot = REPLICA_SLOT_ORDER[slotIndex % REPLICA_SLOT_COUNT] ?? (slotIndex % REPLICA_SLOT_COUNT);
+  return (2 * Math.PI * ringSlot) / REPLICA_SLOT_COUNT - Math.PI / 2;
 }
 
 function splitLabelLines(label: string, maxCharsPerLine: number): string[] {
@@ -178,6 +189,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const lastScheduledPerfRef = useRef(0);
   const slimReplicaPositionsRef = useRef<Record<string, ReplicaPosition>>({});
   const functionReplicaPositionsRef = useRef<Record<string, Record<string, ReplicaPosition>>>({});
+  const functionReplicaSlotsRef = useRef<Record<string, Record<string, number>>>({});
 
   const fnNamesKey = useMemo(() => functions.map(f => f.Name).sort().join(','), [functions]);
 
@@ -277,15 +289,36 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
   const functionReplicaPositions = useMemo(() => {
     const result: Record<string, Record<string, ReplicaPosition>> = {};
+    const liveFunctionNames = new Set(functions.map(fn => fn.Name));
+    for (const functionName of Object.keys(functionReplicaSlotsRef.current)) {
+      if (!liveFunctionNames.has(functionName)) delete functionReplicaSlotsRef.current[functionName];
+    }
+
     for (const fn of functions) {
       const pods = fn.Pods ?? [];
       const center = fnPositions[fn.Name];
       if (!center || pods.length === 0) continue;
-      const step = (2 * Math.PI) / pods.length;
-      const ring = BUBBLE_R + 18;
+      const slots = functionReplicaSlotsRef.current[fn.Name] ?? {};
+      functionReplicaSlotsRef.current[fn.Name] = slots;
+      const livePodNames = new Set(pods.map(pod => pod.Name));
+      for (const podName of Object.keys(slots)) {
+        if (!livePodNames.has(podName)) delete slots[podName];
+      }
+
+      const usedSlots = new Set(Object.values(slots));
+      const newPods = pods.filter(pod => slots[pod.Name] === undefined).sort((a, b) => a.Name.localeCompare(b.Name));
+      for (const pod of newPods) {
+        let slot = 0;
+        while (usedSlots.has(slot)) slot += 1;
+        slots[pod.Name] = slot;
+        usedSlots.add(slot);
+      }
+
       result[fn.Name] = {};
-      pods.forEach((pod, idx) => {
-        const a = step * idx - Math.PI / 2;
+      pods.forEach((pod) => {
+        const slot = slots[pod.Name] ?? 0;
+        const a = replicaSlotAngle(slot);
+        const ring = BUBBLE_R + 18 + Math.floor(slot / REPLICA_SLOT_COUNT) * (REPLICA_R * 2 + 8);
         result[fn.Name][pod.Name] = {
           x: center.x + Math.cos(a) * ring,
           y: center.y + Math.sin(a) * ring,
@@ -511,7 +544,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         incExternalCounter();
       }
 
-      requestInSenderRef.current[evt.Id] = {
+      requestInSenderRef.current[activityCorrelationKey(evt)] = {
         senderReplicaKey: senderReplicaKey ?? undefined,
         isExternal: !senderReplicaKey,
       };
@@ -592,15 +625,19 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         return;
       }
 
-      const trackedSender = requestInSenderRef.current[evt.Id];
-      delete requestInSenderRef.current[evt.Id];
+      const correlationKey = activityCorrelationKey(evt);
+      const trackedSender = requestInSenderRef.current[correlationKey];
+      delete requestInSenderRef.current[correlationKey];
 
-      if (trackedSender?.isExternal) {
-        decExternalCounter();
-      }
+      if (trackedSender) {
+        if (trackedSender.isExternal) {
+          decExternalCounter();
+        }
 
-      if (trackedSender?.senderReplicaKey) {
-        decReplicaCounter(trackedSender.senderReplicaKey);
+        if (trackedSender.senderReplicaKey) {
+          decReplicaCounter(trackedSender.senderReplicaKey);
+        }
+
         return;
       }
 
@@ -1083,7 +1120,8 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         .attr('y', rp.y + REPLICA_R + 8)
         .attr('text-anchor', 'middle')
         .attr('font-size', 7)
-        .attr('fill', '#e9ecef')
+        .attr('fill', '#212529')
+        .attr('font-weight', 600)
         .text(node.Name);
       sfGroup.append('title').text(`${node.Name} - ${node.Status}`);
     }
