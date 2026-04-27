@@ -1,8 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -54,33 +52,34 @@ public static class StatusStreamEndpoints
 
     private static async Task HandleStream(
         HttpContext context,
-        [FromServices] IReplicasService replicasService,
-        [FromServices] FunctionStatusCache cache,
         [FromServices] NetworkActivityTracker tracker,
-        [FromServices] ISlimFaasQueue slimFaasQueue,
+        [FromServices] IStatusStreamSnapshotCache snapshotCache,
         [FromServices] IOptions<SlimFaasOptions> slimFaasOptions,
-        [FromServices] IJobConfiguration? jobConfiguration,
-        [FromServices] IJobService? jobService,
-        [FromServices] IScheduleJobService? scheduleJobService,
         [FromServices] ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger("StatusStreamEndpoints");
-        // ...existing code...
+        var ct = context.RequestAborted;
+        if (!tracker.TrySubscribe(out var reader, out var channel))
+        {
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            await context.Response.WriteAsync("Too many status stream clients.", ct);
+            return;
+        }
+
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers.CacheControl = "no-cache";
         context.Response.Headers.Connection = "keep-alive";
         context.Response.Headers["X-Accel-Buffering"] = "no";
 
-        var ct = context.RequestAborted;
-        var (reader, channel) = tracker.Subscribe();
-
         try
         {
             // Send initial full state
-            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, jobConfiguration, jobService, scheduleJobService, logger, ct);
+            await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: true, ct), ct);
+            await context.Response.Body.FlushAsync(ct);
 
             // Then send periodic full state + activity events
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(
+                slimFaasOptions.Value.StatusStream.StateIntervalMilliseconds));
 
             while (!ct.IsCancellationRequested)
             {
@@ -98,7 +97,8 @@ public static class StatusStreamEndpoints
                     break;
 
                 // Send full state periodically
-                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, jobConfiguration, jobService, scheduleJobService, logger, ct);
+                await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: false, ct), ct);
+                await context.Response.Body.FlushAsync(ct);
             }
         }
         catch (OperationCanceledException ex)
@@ -109,77 +109,6 @@ public static class StatusStreamEndpoints
         {
             tracker.Unsubscribe(channel);
         }
-    }
-
-    private static async Task SendFullState(
-        HttpContext context,
-        IReplicasService replicasService,
-        FunctionStatusCache cache,
-        NetworkActivityTracker tracker,
-        ISlimFaasQueue slimFaasQueue,
-        bool frontEnabled,
-        IJobConfiguration? jobConfiguration,
-        IJobService? jobService,
-        IScheduleJobService? scheduleJobService,
-        ILogger logger,
-        CancellationToken ct)
-    {
-
-        var functions = cache.GetAllDetailed(replicasService);
-        var jobs = new List<JobConfigurationStatus>();
-        if (jobConfiguration != null && jobService != null)
-        {
-            try
-            {
-                jobs = await JobStatusEndpoints.BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
-            }
-            catch (Exception ex)
-            {
-                // Keep stream alive even if jobs snapshot build temporarily fails.
-                logger.LogWarning(ex, "Unable to build jobs snapshot for status stream.");
-                jobs = new List<JobConfigurationStatus>();
-            }
-        }
-
-        // Gather queue lengths
-        var queues = new List<QueueInfo>();
-        foreach (var fn in functions)
-        {
-            try
-            {
-                long length = await slimFaasQueue.CountElementAsync(
-                    fn.Name,
-                    new List<CountType> { CountType.Available, CountType.Running, CountType.WaitingForRetry },
-                    int.MaxValue);
-                queues.Add(new QueueInfo(fn.Name, length));
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Unable to read queue length for function {FunctionName}.", fn.Name);
-                queues.Add(new QueueInfo(fn.Name, 0));
-            }
-        }
-
-        var slimFaasInfo = replicasService.Deployments.SlimFaas;
-        var slimFaasNodes = slimFaasInfo.Pods
-            .Select(p => new SlimFaasNodeInfo(
-                p.Name,
-                p.Ready == true ? "Running" : (p.Started == true ? "Starting" : "Pending")))
-            .ToList();
-
-        var payload = new StatusStreamPayload(
-            Functions: functions,
-            Queues: queues,
-            Jobs: jobs,
-            RecentActivity: tracker.GetRecent(),
-            SlimFaasReplicas: slimFaasInfo.Replicas,
-            SlimFaasNodes: slimFaasNodes,
-            FrontEnabled: frontEnabled,
-            FrontMessage: frontEnabled ? null : "SlimFaas front is disabled by configuration (SlimFaas:EnableFront=false).");
-
-        string json = JsonSerializer.Serialize(payload, StatusStreamSerializerContext.Default.StatusStreamPayload);
-        await context.Response.WriteAsync($"event: state\ndata: {json}\n\n", ct);
-        await context.Response.Body.FlushAsync(ct);
     }
 }
 

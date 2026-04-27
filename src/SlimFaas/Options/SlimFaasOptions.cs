@@ -69,4 +69,68 @@ public class SlimFaasOptions
     /// Enables the SlimFaas dashboard/network front features.
     /// </summary>
     public bool EnableFront { get; set; } = true;
+
+    /// <summary>
+    /// Typed configuration for the dashboard status stream and live network activity events.
+    /// </summary>
+    public StatusStreamOptions StatusStream { get; set; } = new();
+}
+
+public class StatusStreamOptions
+{
+    /// <summary>
+    /// Interval between periodic SSE state snapshots.
+    /// </summary>
+    public int StateIntervalMilliseconds { get; set; } = 1000;
+
+    /// <summary>
+    /// Cache duration for expensive queue length reads used by state snapshots.
+    /// </summary>
+    public int QueueLengthsCacheMilliseconds { get; set; } = 1000;
+
+    /// <summary>
+    /// Cache duration for job status snapshots used by state snapshots.
+    /// </summary>
+    public int JobsCacheMilliseconds { get; set; } = 1000;
+
+    /// <summary>
+    /// Interval between peer activity scrapes in multi-node deployments.
+    /// </summary>
+    public int PeerSyncIntervalMilliseconds { get; set; } = 2000;
+
+    /// <summary>
+    /// Initial delay before the first peer activity scrape.
+    /// </summary>
+    public int PeerSyncInitialDelayMilliseconds { get; set; } = 5000;
+
+    /// <summary>
+    /// Maximum concurrent SSE clients per SlimFaas pod. 0 means unlimited.
+    /// </summary>
+    public int MaxSseClients { get; set; }
+
+    /// <summary>
+    /// Bounded channel capacity per SSE subscriber for live activity events.
+    /// </summary>
+    public int SubscriberChannelCapacity { get; set; } = 10000;
+
+    /// <summary>
+    /// Maximum number of recent activity events retained in memory for snapshots and peer sync.
+    /// </summary>
+    public int RecentActivityLimit { get; set; } = 1000;
+
+    /// <summary>
+    /// Maximum number of event ids retained for peer de-duplication.
+    /// </summary>
+    public int KnownIdsLimit { get; set; } = 10000;
+
+    /// <summary>
+    /// Maximum live activity events broadcast per second per SlimFaas pod. 0 disables rate limiting.
+    /// </summary>
+    public int MaxLiveEventsPerSecond { get; set; }
+
+    /// <summary>
+    /// Live activity sampling ratio applied before broadcasting to SSE clients. 1.0 sends all events, 0 sends none.
+    /// Stored events and peer synchronization are not sampled.
+    /// </summary>
+    public double LiveEventSamplingRatio { get; set; } = 1.0;
 }
