@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.71.3
+
+- [c7c32aea](https://github.com/SlimPlanet/SlimFaas/commit/c7c32aea9d27b46aba931132650fcb3b82748991) - doc(slimfaas): add client driver .NET and Python (#270) (release), 2026-04-28 by *Guillaume Chervet*
+
+
+## 0.71.2
+
+
+
 ## v0.71.2
 
 - [547da85e](https://github.com/SlimPlanet/SlimFaas/commit/547da85e0d0926f05ae1d2c8031b8438a73cdb43) - fix(slimfass): live events + load balancing (release) (#265), 2026-04-28 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 ## v0.60.9
 
 - [7b8e89f3](https://github.com/SlimPlanet/SlimFaas/commit/7b8e89f3212f9c1b50e85a597c3943605ca2b115) - fix(slimfaas): override correct data (#231) (release), 2026-01-29 by *Guillaume Chervet*
-
-
-## 0.60.8
-
-
-
-## v0.60.8
-
-- [768ca2f5](https://github.com/SlimPlanet/SlimFaas/commit/768ca2f54fda208f17e83e56286545ec86a71aed) - refactor(slimfaas): replace console.writeline to logger (#229) (release), 2026-01-28 by *Guillaume Chervet*
 
 
