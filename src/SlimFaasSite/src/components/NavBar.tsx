@@ -128,6 +128,15 @@ const Navbar: React.FC = () => {
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
+                                    href="/clients"
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    Clients
+                                </Link>
+                            </li>
+                            <li className="navbar__submenu-item">
+                                <Link
                                     href="/events"
                                     className="navbar__submenu-link"
                                     onClick={closeAll}

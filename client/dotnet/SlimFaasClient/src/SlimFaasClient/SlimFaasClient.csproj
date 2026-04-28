@@ -18,7 +18,7 @@
     <PackageTags>slimfaas;websocket;faas;jobs;async;pubsub;streaming</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageProjectUrl>https://github.com/SlimPlanet/SlimFaas</PackageProjectUrl>
+    <PackageProjectUrl>https://slimfaas.dev/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/SlimPlanet/SlimFaas</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageIcon>icon.png</PackageIcon>
@@ -48,4 +48,3 @@
   </ItemGroup>
 
 </Project>
-
