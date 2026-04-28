@@ -1,8 +1,7 @@
 using System.Text.Json;
+using System.Threading.Channels;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -54,51 +53,77 @@ public static class StatusStreamEndpoints
 
     private static async Task HandleStream(
         HttpContext context,
-        [FromServices] IReplicasService replicasService,
-        [FromServices] FunctionStatusCache cache,
         [FromServices] NetworkActivityTracker tracker,
-        [FromServices] ISlimFaasQueue slimFaasQueue,
+        [FromServices] IStatusStreamSnapshotCache snapshotCache,
         [FromServices] IOptions<SlimFaasOptions> slimFaasOptions,
-        [FromServices] IJobConfiguration? jobConfiguration,
-        [FromServices] IJobService? jobService,
-        [FromServices] IScheduleJobService? scheduleJobService,
         [FromServices] ILoggerFactory loggerFactory)
     {
         var logger = loggerFactory.CreateLogger("StatusStreamEndpoints");
-        // ...existing code...
+        var ct = context.RequestAborted;
+        if (!tracker.TrySubscribe(out var reader, out var channel))
+        {
+            context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+            await context.Response.WriteAsync("Too many status stream clients.", ct);
+            return;
+        }
+
         context.Response.ContentType = "text/event-stream";
         context.Response.Headers.CacheControl = "no-cache";
         context.Response.Headers.Connection = "keep-alive";
         context.Response.Headers["X-Accel-Buffering"] = "no";
 
-        var ct = context.RequestAborted;
-        var (reader, channel) = tracker.Subscribe();
-
         try
         {
             // Send initial full state
-            await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, jobConfiguration, jobService, scheduleJobService, logger, ct);
+            await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: true, ct), ct);
+            await context.Response.Body.FlushAsync(ct);
 
-            // Then send periodic full state + activity events
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            // Then send periodic full state + activity events.
+            // Activity is event-driven to avoid waiting for the next state tick under bursts.
+            using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(
+                slimFaasOptions.Value.StatusStream.StateIntervalMilliseconds));
+            int activityBatchSize = Math.Max(1, slimFaasOptions.Value.StatusStream.LiveActivityBatchSize);
+            var activityAvailableTask = reader.WaitToReadAsync(ct).AsTask();
+            var stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
 
             while (!ct.IsCancellationRequested)
             {
-                // Drain any activity events that arrived
-                while (reader.TryRead(out var evt))
+                var completedTask = await Task.WhenAny(activityAvailableTask, stateTickTask);
+
+                if (completedTask == activityAvailableTask)
                 {
-                    string json = JsonSerializer.Serialize(evt, StatusStreamSerializerContext.Default.NetworkActivityEvent);
-                    await context.Response.WriteAsync($"event: activity\ndata: {json}\n\n", ct);
+                    if (!await activityAvailableTask)
+                    {
+                        break;
+                    }
+
+                    await WritePendingActivityAsync(context, reader, activityBatchSize, ct);
+
+                    if (stateTickTask.IsCompleted)
+                    {
+                        if (!await stateTickTask)
+                        {
+                            break;
+                        }
+
+                        await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: false, ct), ct);
+                        stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
+                    }
+
+                    await context.Response.Body.FlushAsync(ct);
+                    activityAvailableTask = reader.WaitToReadAsync(ct).AsTask();
+                    continue;
                 }
 
-                await context.Response.Body.FlushAsync(ct);
-
-                // Wait for next tick
-                if (!await timer.WaitForNextTickAsync(ct))
+                if (!await stateTickTask)
+                {
                     break;
+                }
 
                 // Send full state periodically
-                await SendFullState(context, replicasService, cache, tracker, slimFaasQueue, slimFaasOptions.Value.EnableFront, jobConfiguration, jobService, scheduleJobService, logger, ct);
+                await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: false, ct), ct);
+                await context.Response.Body.FlushAsync(ct);
+                stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
             }
         }
         catch (OperationCanceledException ex)
@@ -111,75 +136,37 @@ public static class StatusStreamEndpoints
         }
     }
 
-    private static async Task SendFullState(
+    private static async Task WritePendingActivityAsync(
         HttpContext context,
-        IReplicasService replicasService,
-        FunctionStatusCache cache,
-        NetworkActivityTracker tracker,
-        ISlimFaasQueue slimFaasQueue,
-        bool frontEnabled,
-        IJobConfiguration? jobConfiguration,
-        IJobService? jobService,
-        IScheduleJobService? scheduleJobService,
-        ILogger logger,
+        ChannelReader<NetworkActivityEvent> reader,
+        int activityBatchSize,
         CancellationToken ct)
     {
+        int maxEventsPerWake = activityBatchSize * 10;
+        int writtenEvents = 0;
 
-        var functions = cache.GetAllDetailed(replicasService);
-        var jobs = new List<JobConfigurationStatus>();
-        if (jobConfiguration != null && jobService != null)
+        while (writtenEvents < maxEventsPerWake && reader.TryRead(out var firstEvent))
         {
-            try
+            var batch = new List<NetworkActivityEvent>(activityBatchSize) { firstEvent };
+            while (batch.Count < activityBatchSize
+                   && writtenEvents + batch.Count < maxEventsPerWake
+                   && reader.TryRead(out var nextEvent))
             {
-                jobs = await JobStatusEndpoints.BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
+                batch.Add(nextEvent);
             }
-            catch (Exception ex)
+
+            writtenEvents += batch.Count;
+
+            if (batch.Count == 1)
             {
-                // Keep stream alive even if jobs snapshot build temporarily fails.
-                logger.LogWarning(ex, "Unable to build jobs snapshot for status stream.");
-                jobs = new List<JobConfigurationStatus>();
+                string json = JsonSerializer.Serialize(batch[0], StatusStreamSerializerContext.Default.NetworkActivityEvent);
+                await context.Response.WriteAsync($"event: activity\ndata: {json}\n\n", ct);
+                continue;
             }
+
+            string batchJson = JsonSerializer.Serialize(batch, StatusStreamSerializerContext.Default.ListNetworkActivityEvent);
+            await context.Response.WriteAsync($"event: activity_batch\ndata: {batchJson}\n\n", ct);
         }
-
-        // Gather queue lengths
-        var queues = new List<QueueInfo>();
-        foreach (var fn in functions)
-        {
-            try
-            {
-                long length = await slimFaasQueue.CountElementAsync(
-                    fn.Name,
-                    new List<CountType> { CountType.Available, CountType.Running, CountType.WaitingForRetry },
-                    int.MaxValue);
-                queues.Add(new QueueInfo(fn.Name, length));
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(ex, "Unable to read queue length for function {FunctionName}.", fn.Name);
-                queues.Add(new QueueInfo(fn.Name, 0));
-            }
-        }
-
-        var slimFaasInfo = replicasService.Deployments.SlimFaas;
-        var slimFaasNodes = slimFaasInfo.Pods
-            .Select(p => new SlimFaasNodeInfo(
-                p.Name,
-                p.Ready == true ? "Running" : (p.Started == true ? "Starting" : "Pending")))
-            .ToList();
-
-        var payload = new StatusStreamPayload(
-            Functions: functions,
-            Queues: queues,
-            Jobs: jobs,
-            RecentActivity: tracker.GetRecent(),
-            SlimFaasReplicas: slimFaasInfo.Replicas,
-            SlimFaasNodes: slimFaasNodes,
-            FrontEnabled: frontEnabled,
-            FrontMessage: frontEnabled ? null : "SlimFaas front is disabled by configuration (SlimFaas:EnableFront=false).");
-
-        string json = JsonSerializer.Serialize(payload, StatusStreamSerializerContext.Default.StatusStreamPayload);
-        await context.Response.WriteAsync($"event: state\ndata: {json}\n\n", ct);
-        await context.Response.Body.FlushAsync(ct);
     }
 }
 

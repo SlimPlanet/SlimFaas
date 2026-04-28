@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { readFile } from 'fs/promises';
+import path from 'path';
 import { remark } from 'remark';
 import gfm from 'remark-gfm'
 import html from 'remark-html';
@@ -18,6 +20,14 @@ export interface MarkdownData {
     metadata: MarkdownMetadata;
 }
 
+async function parseMarkdownContent(fileContent: string): Promise<MarkdownData> {
+    const { content, data } = matter(fileContent);
+    const processedContent = await remark().use(gfm).use(html).process(content);
+    const contentHtml = processedContent.toString();
+
+    return { contentHtml, metadata: data };
+}
+
 /**
  * Récupère et convertit un fichier Markdown en HTML
  * @param filename - Chemin du fichier Markdown (ex: "docs/intro.md")
@@ -30,17 +40,16 @@ export async function fetchMarkdownFile(filename: string): Promise<MarkdownData>
         const response = await axios.get<string>(url);
         const fileContent = response.data;
 
-        // Extraction du frontmatter et du contenu Markdown
-        const { content, data } = matter(fileContent);
-
-        // Conversion Markdown -> HTML
-        const processedContent = await remark().use(gfm).use(html).process(content);
-        const contentHtml = processedContent.toString();
-
-        return { contentHtml, metadata: data };
+        return await parseMarkdownContent(fileContent);
     } catch (error) {
-        console.error(`Erreur lors du chargement du fichier ${filename}:`, error);
-        return { contentHtml: '', metadata: {} };
+        try {
+            const localPath = path.resolve(process.cwd(), '..', '..', filename);
+            const fileContent = await readFile(localPath, 'utf8');
+            return await parseMarkdownContent(fileContent);
+        } catch (localError) {
+            console.error(`Erreur lors du chargement du fichier ${filename}:`, error, localError);
+            return { contentHtml: '', metadata: {} };
+        }
     }
 }
 

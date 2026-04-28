@@ -1,4 +1,5 @@
 using SlimFaas.Endpoints;
+using SlimFaas.Options;
 
 namespace SlimFaas.Tests.Endpoints;
 
@@ -25,18 +26,18 @@ public class NetworkActivityTrackerTests
         Assert.Equal("fibonacci", recent[1].QueueName);
     }
 
-    [Fact(DisplayName = "Record trims to MaxRecentEvents (200)")]
+    [Fact(DisplayName = "Record trims to MaxRecentEvents (1000)")]
     public void Record_TrimsToMax()
     {
         var tracker = new NetworkActivityTracker();
 
-        for (int i = 0; i < 250; i++)
+        for (int i = 0; i < 1250; i++)
         {
             tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
         }
 
         var recent = tracker.GetRecent();
-        Assert.True(recent.Count <= 1000);
+        Assert.Equal(1000, recent.Count);
     }
 
     [Fact(DisplayName = "Subscribe receives events via channel")]
@@ -68,6 +69,89 @@ public class NetworkActivityTrackerTests
 
         // After unsubscribe, the channel writer should be completed
         Assert.True(channel.Writer.TryComplete() || reader.Completion.IsCompleted);
+    }
+
+    [Fact(DisplayName = "HasSubscribers reflects active subscriptions")]
+    public void HasSubscribers_ReflectsSubscriptions()
+    {
+        var tracker = new NetworkActivityTracker();
+
+        Assert.False(tracker.HasSubscribers);
+
+        var (_, channel) = tracker.Subscribe();
+        Assert.True(tracker.HasSubscribers);
+
+        tracker.Unsubscribe(channel);
+        Assert.False(tracker.HasSubscribers);
+    }
+
+    [Fact(DisplayName = "TrySubscribe respects MaxSseClients")]
+    public void TrySubscribe_RespectsMaxSseClients()
+    {
+        var tracker = CreateTracker(new StatusStreamOptions { MaxSseClients = 1 });
+
+        Assert.True(tracker.TrySubscribe(out _, out var firstChannel));
+        Assert.True(tracker.HasSubscribers);
+
+        Assert.False(tracker.TrySubscribe(out _, out var rejectedChannel));
+        Assert.True(rejectedChannel.Reader.Completion.IsCompleted || rejectedChannel.Writer.TryComplete());
+
+        tracker.Unsubscribe(firstChannel);
+        Assert.True(tracker.TrySubscribe(out _, out var secondChannel));
+        tracker.Unsubscribe(secondChannel);
+    }
+
+    [Fact(DisplayName = "LiveEventSamplingRatio only affects subscriber broadcast")]
+    public async Task LiveEventSamplingRatio_DropsBroadcastButKeepsRecentEvents()
+    {
+        var tracker = CreateTracker(new StatusStreamOptions { LiveEventSamplingRatio = 0 });
+        var (reader, channel) = tracker.Subscribe();
+
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+
+        Assert.Single(tracker.GetRecent());
+        await Task.Delay(50);
+        Assert.False(reader.TryRead(out _));
+
+        tracker.Unsubscribe(channel);
+    }
+
+    [Fact(DisplayName = "MaxLiveEventsPerSecond limits subscriber broadcast")]
+    public void MaxLiveEventsPerSecond_LimitsBroadcast()
+    {
+        var tracker = CreateTracker(new StatusStreamOptions { MaxLiveEventsPerSecond = 2 });
+        var (reader, channel) = tracker.Subscribe();
+
+        for (int i = 0; i < 5; i++)
+        {
+            tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+        }
+
+        var broadcastCount = 0;
+        while (reader.TryRead(out _))
+        {
+            broadcastCount++;
+        }
+
+        Assert.Equal(5, tracker.GetRecent().Count);
+        Assert.Equal(2, broadcastCount);
+        tracker.Unsubscribe(channel);
+    }
+
+    [Fact(DisplayName = "RecentActivityLimit trims using configured value")]
+    public void RecentActivityLimit_TrimsUsingConfiguredValue()
+    {
+        var tracker = CreateTracker(new StatusStreamOptions { RecentActivityLimit = 3 });
+
+        for (int i = 0; i < 5; i++)
+        {
+            tracker.Record($"event-{i}", NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+        }
+
+        var recent = tracker.GetRecent();
+        Assert.Equal(3, recent.Count);
+        Assert.Equal("event-2", recent[0].Type);
+        Assert.Equal("event-4", recent[^1].Type);
     }
 
     [Fact(DisplayName = "Events have unique IDs, timestamps, and NodeId")]
@@ -222,6 +306,22 @@ public class NetworkActivityTrackerTests
         Assert.Equal("10.0.0.5", recent[2].TargetPod);
     }
 
+    [Fact(DisplayName = "Record stores CorrelationId")]
+    public void Record_StoresCorrelationId()
+    {
+        var tracker = new NetworkActivityTracker();
+
+        var requestInId = tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
+            correlationId: requestInId);
+
+        var recent = tracker.GetRecent();
+        Assert.Equal(2, recent.Count);
+        Assert.Null(recent[0].CorrelationId);
+        Assert.Equal(requestInId, recent[1].CorrelationId);
+        Assert.NotEqual(recent[0].Id, recent[1].Id);
+    }
+
     [Fact(DisplayName = "IngestRemote preserves SourcePod and TargetPod")]
     public void IngestRemote_PreservesSourceAndTargetPod()
     {
@@ -251,6 +351,15 @@ public class NetworkActivityTrackerTests
         Assert.Single(recent);
         Assert.Equal("10.0.0.1", recent[0].SourcePod);
         Assert.Equal("10.0.0.5", recent[0].TargetPod);
+    }
+
+    private static NetworkActivityTracker CreateTracker(StatusStreamOptions statusStreamOptions)
+    {
+        return new NetworkActivityTracker(Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        {
+            EnableFront = true,
+            StatusStream = statusStreamOptions
+        }));
     }
 }
 

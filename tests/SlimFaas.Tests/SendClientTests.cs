@@ -194,6 +194,12 @@ public class FakeProxy : IProxy
 
     public IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps) => new List<string>();
 
+    public string AcquireNextIPForSync() => GetNextIP();
+
+    public void ReleaseSyncIP(string? ip)
+    {
+    }
+
     public IList<int>? GetPorts()
     {
         // Ex : on consomme réellement la queue ici en .Dequeue()

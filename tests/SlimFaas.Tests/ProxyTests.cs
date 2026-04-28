@@ -364,6 +364,68 @@ namespace SlimFaas.Tests
         }
 
         [Fact]
+        public void AcquireNextIPForSync_DistributesInFlightReservationsByLeastConnections()
+        {
+            // Arrange
+            var replicasService = BuildThreePods();
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.3";
+            var proxy = new Proxy(replicasService, "my-deployment");
+            var reserved = new List<string>();
+
+            try
+            {
+                // Act
+                for (int i = 0; i < 6; i++)
+                {
+                    reserved.Add(proxy.AcquireNextIPForSync());
+                }
+
+                // Assert
+                Assert.DoesNotContain("", reserved);
+                Assert.Equal(2, reserved.Count(x => x == "10.0.0.1"));
+                Assert.Equal(2, reserved.Count(x => x == "10.0.0.2"));
+                Assert.Equal(2, reserved.Count(x => x == "10.0.0.3"));
+            }
+            finally
+            {
+                foreach (var ip in reserved)
+                {
+                    proxy.ReleaseSyncIP(ip);
+                }
+            }
+        }
+
+        [Fact]
+        public void AcquireNextIPForSync_DoesNotApplyPerPodLimit()
+        {
+            // Arrange
+            var replicasService = BuildThreePods();
+            Proxy.IpAddresses["my-deployment"] = "10.0.0.3";
+            var proxy = new Proxy(replicasService, "my-deployment");
+            var reserved = new List<string>();
+
+            try
+            {
+                // Act
+                reserved.Add(proxy.AcquireNextIPForSync());
+                reserved.Add(proxy.AcquireNextIPForSync());
+                reserved.Add(proxy.AcquireNextIPForSync());
+                reserved.Add(proxy.AcquireNextIPForSync());
+
+                // Assert: les appels sync restent load-balancés mais ne saturent pas à 1 par pod.
+                Assert.DoesNotContain("", reserved);
+                Assert.Equal(3, reserved.Distinct().Count());
+            }
+            finally
+            {
+                foreach (var ip in reserved)
+                {
+                    proxy.ReleaseSyncIP(ip);
+                }
+            }
+        }
+
+        [Fact]
         public void GetPorts_WhenFunctionNotFound_ReturnsNull()
         {
             // Arrange

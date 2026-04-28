@@ -94,7 +94,10 @@ public class EventEndpointsTests
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>()))
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -144,7 +147,10 @@ public class EventEndpointsTests
             It.IsAny<SlimFaasDefaultConfiguration>(),
             It.IsAny<string?>(),
             It.IsAny<CancellationTokenSource?>(),
-            It.IsAny<Proxy?>()), Times.Once);
+            It.IsAny<Proxy?>(),
+            It.IsAny<string?>(),
+            NetworkActivityTracker.Actors.SlimFaas,
+            It.IsAny<string?>()), Times.Once);
     }
 
     [Theory]
@@ -167,7 +173,10 @@ public class EventEndpointsTests
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>()))
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -225,6 +234,7 @@ public class EventEndpointsTests
         var sendClientMock = new Mock<ISendClient>();
         var jobServiceMock = new Mock<IJobService>();
         jobServiceMock.Setup(j => j.Jobs).Returns(new List<KubernetesJob>());
+        var activityTracker = new NetworkActivityTracker();
 
         var accessPolicyMock = new Mock<IFunctionAccessPolicy>();
         accessPolicyMock
@@ -247,7 +257,7 @@ public class EventEndpointsTests
                         s.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
                         s.AddSingleton(CreateSlimFaasOptions());
                         s.AddSingleton(CreateNamespaceProvider());
-                        s.AddSingleton<NetworkActivityTracker>();
+                        s.AddSingleton(activityTracker);
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -264,6 +274,10 @@ public class EventEndpointsTests
 
         // Assert
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        var events = activityTracker.GetRecent();
+        var requestIn = Assert.Single(events, e => e.Type == NetworkActivityTracker.EventTypes.RequestIn);
+        var requestEnd = Assert.Single(events, e => e.Type == NetworkActivityTracker.EventTypes.RequestEnd);
+        Assert.Equal(requestIn.Id, requestEnd.CorrelationId);
     }
 
     [Fact]
@@ -311,7 +325,10 @@ public class EventEndpointsTests
                 It.IsAny<SlimFaasDefaultConfiguration>(),
                 It.IsAny<string?>(),
                 It.IsAny<CancellationTokenSource?>(),
-                It.IsAny<Proxy?>()))
+                It.IsAny<Proxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -361,7 +378,10 @@ public class EventEndpointsTests
             It.IsAny<SlimFaasDefaultConfiguration>(),
             It.IsAny<string?>(),
             It.IsAny<CancellationTokenSource?>(),
-            It.IsAny<Proxy?>()), Times.Exactly(2));
+            It.IsAny<Proxy?>(),
+            It.IsAny<string?>(),
+            NetworkActivityTracker.Actors.SlimFaas,
+            It.IsAny<string?>()), Times.Exactly(2));
     }
 }
 

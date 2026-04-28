@@ -29,6 +29,17 @@ namespace SlimFaas
         /// global n'est effectuée : le caller est responsable du suivi (via la DB).
         /// </summary>
         IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps);
+
+        /// <summary>
+        /// Réserve une IP pour un appel synchrone en tenant compte des requêtes locales en cours.
+        /// Le caller doit appeler <see cref="ReleaseSyncIP"/> lorsque la réponse a été entièrement consommée.
+        /// </summary>
+        string AcquireNextIPForSync();
+
+        /// <summary>
+        /// Libère une IP précédemment réservée par <see cref="AcquireNextIPForSync"/>.
+        /// </summary>
+        void ReleaseSyncIP(string? ip);
     }
 
     public class Proxy : IProxy
@@ -36,9 +47,10 @@ namespace SlimFaas
         private readonly IReplicasService _replicasService;
         private readonly string _functionName;
 
-        // Seul état conservé : indice round-robin par déploiement (pure heuristique,
-        // pas de correctness impact si désynchronisé entre instances).
+        // Etat local du load-balancer (heuristique locale au process).
         public static ConcurrentDictionary<string, string> IpAddresses { get; } = new();
+        private static ConcurrentDictionary<string, ConcurrentDictionary<string, int>> InFlightSyncByDeployment { get; } = new();
+        private static ConcurrentDictionary<string, object> DeploymentLocks { get; } = new();
 
         public Proxy(IReplicasService replicasService, string functionName)
         {
@@ -47,6 +59,13 @@ namespace SlimFaas
         }
 
         private readonly Random _random = new();
+
+        private static object GetDeploymentLock(string deployment)
+            => DeploymentLocks.GetOrAdd(deployment, static _ => new object());
+
+        private static ConcurrentDictionary<string, int> GetOrCreateInFlight(string deployment)
+            => InFlightSyncByDeployment.GetOrAdd(deployment,
+                static _ => new ConcurrentDictionary<string, int>(StringComparer.OrdinalIgnoreCase));
 
         private static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
         {
@@ -79,7 +98,7 @@ namespace SlimFaas
         {
             var reserved = new List<string>(Math.Max(0, count));
             // Copie mutable que l'on enrichit au fur et à mesure pour simuler la réservation.
-            var working = new List<string>(alreadyUsedIps ?? Array.Empty<string>());
+            var working = new List<string>(alreadyUsedIps);
 
             for (var i = 0; i < count; i++)
             {
@@ -100,6 +119,84 @@ namespace SlimFaas
 
         public string GetNextIP(int maxPerPod, IReadOnlyCollection<string> alreadyUsedIps)
             => GetNextIPInternal(maxPerPod, alreadyUsedIps);
+
+        /// <summary>
+        /// Réserve une IP pour un appel sync en incrémentant un compteur local in-flight.
+        /// Le caller doit appeler <see cref="ReleaseSyncIP"/> dans un finally.
+        /// </summary>
+        public string AcquireNextIPForSync()
+        {
+            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            if (deploymentInformation == null)
+            {
+                return "";
+            }
+
+            var deployment = deploymentInformation.Deployment;
+            var lockObject = GetDeploymentLock(deployment);
+
+            lock (lockObject)
+            {
+                var readyPodsIps = deploymentInformation.Pods
+                    .Where(pod => pod.Ready == true)
+                    .Select(pod => pod.Ip)
+                    .ToList();
+
+                if (readyPodsIps.Count == 0)
+                {
+                    return "";
+                }
+
+                var inFlight = GetOrCreateInFlight(deployment);
+                var activeByIp = inFlight.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+
+                var selected = SelectBestIp(deployment, readyPodsIps, int.MaxValue, activeByIp);
+                if (string.IsNullOrWhiteSpace(selected))
+                {
+                    return "";
+                }
+
+                inFlight.AddOrUpdate(selected, 1, static (_, current) => current + 1);
+                return selected;
+            }
+        }
+
+        /// <summary>
+        /// Libère l'IP précédemment réservée par <see cref="AcquireNextIPForSync"/>.
+        /// </summary>
+        public void ReleaseSyncIP(string? ip)
+        {
+            if (string.IsNullOrWhiteSpace(ip))
+            {
+                return;
+            }
+
+            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            var deployment = deploymentInformation?.Deployment ?? _functionName;
+            var lockObject = GetDeploymentLock(deployment);
+
+            lock (lockObject)
+            {
+                if (!InFlightSyncByDeployment.TryGetValue(deployment, out var inFlight))
+                {
+                    return;
+                }
+
+                if (!inFlight.TryGetValue(ip, out var current))
+                {
+                    return;
+                }
+
+                if (current <= 1)
+                {
+                    inFlight.TryRemove(ip, out _);
+                }
+                else
+                {
+                    inFlight[ip] = current - 1;
+                }
+            }
+        }
 
         private string GetNextIPInternal(int maxPerPod, IReadOnlyCollection<string>? alreadyUsedIps)
         {
@@ -134,9 +231,23 @@ namespace SlimFaas
                 }
             }
 
+            return SelectBestIp(deploymentInformation.Deployment, readyPodsIps, maxPerPod, activeByIp);
+        }
+
+        private string SelectBestIp(
+            string deployment,
+            IList<string> readyPodsIps,
+            int maxPerPod,
+            IReadOnlyDictionary<string, int> activeByIp)
+        {
+            if (readyPodsIps.Count == 0)
+            {
+                return "";
+            }
+
             // Déterminer l'index de départ (round-robin)
             int startIndex;
-            if (!IpAddresses.TryGetValue(deploymentInformation.Deployment, out var lastIp)
+            if (!IpAddresses.TryGetValue(deployment, out var lastIp)
                 || string.IsNullOrWhiteSpace(lastIp))
             {
                 startIndex = _random.Next(0, readyPodsIps.Count);
@@ -153,7 +264,7 @@ namespace SlimFaas
             // celui qui a le moins de requêtes actives. En cas d'égalité,
             // le premier rencontré dans l'ordre round-robin gagne.
             string? bestIp = null;
-            int bestActive = int.MaxValue;
+            double bestScore = double.MaxValue;
             for (int i = 0; i < readyPodsIps.Count; i++)
             {
                 int index = (startIndex + i) % readyPodsIps.Count;
@@ -165,16 +276,25 @@ namespace SlimFaas
                     continue;
                 }
 
-                if (active < bestActive)
+                // Pénalité légère sur le dernier pod choisi pour éviter le "sticky"
+                // lorsque plusieurs pods ont la même charge.
+                double score = active;
+                if (!string.IsNullOrWhiteSpace(lastIp)
+                    && string.Equals(candidateIp, lastIp, StringComparison.OrdinalIgnoreCase))
+                {
+                    score += 0.25;
+                }
+
+                if (score < bestScore)
                 {
                     bestIp = candidateIp;
-                    bestActive = active;
+                    bestScore = score;
                 }
             }
 
             if (bestIp != null)
             {
-                IpAddresses[deploymentInformation.Deployment] = bestIp;
+                IpAddresses[deployment] = bestIp;
                 return bestIp;
             }
 

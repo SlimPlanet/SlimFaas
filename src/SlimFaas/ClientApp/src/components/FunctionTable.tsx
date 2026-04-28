@@ -35,6 +35,8 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new
           {functions.map((fn) => {
             const isDown = (fn.NumberReady ?? 0) === 0;
             const podIcon = POD_TYPE_ICON[fn.PodType ?? ''] ?? '📦';
+            const schedule = fn.Schedule;
+            const scheduleDefault = schedule?.Default;
 
             return (
               <tr key={fn.Name} className={`function-table__row ${isDown ? 'function-table__row--down' : 'function-table__row--up'}`}>
@@ -120,11 +122,32 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new
                       </span>
                     </span>
                   </div>
-                  {fn.Schedule?.Default?.WakeUp?.length ? (
-                    <div className="function-table__scale-row">
+                  {schedule ? (
+                    <div className="function-table__scale-row function-table__scale-row--top">
                       <Tip text={FN.schedule}><span className="function-table__scale-label">Schedule</span></Tip>
-                      <span className="function-table__scale-val function-table__scale-val--mono">
-                        {fn.Schedule.Default.WakeUp.join(', ')}
+                      <span className="function-table__scale-val function-table__scale-val--mono function-table__schedule-group">
+                        <span className="function-table__schedule-item">
+                          <strong>TZ:</strong>&nbsp;{schedule.TimeZoneID || '-'}
+                        </span>
+                        <span className="function-table__schedule-item">
+                          <strong>WakeUp:</strong>&nbsp;
+                          {scheduleDefault?.WakeUp?.length ? scheduleDefault.WakeUp.join(', ') : '-'}
+                        </span>
+                        <span className="function-table__schedule-item">
+                          <strong>ScaleDownTimeout:</strong>
+                          {scheduleDefault?.ScaleDownTimeout?.length ? (
+                            <>
+                              {' '}
+                              {scheduleDefault.ScaleDownTimeout.map((rule, idx) => (
+                                <span key={`${rule.Time}-${rule.Value}-${idx}`} className="function-table__schedule-rule">
+                                  {rule.Time}{' -> '}{rule.Value}s{idx < scheduleDefault.ScaleDownTimeout.length - 1 ? ',' : ''}
+                                </span>
+                              ))}
+                            </>
+                          ) : (
+                            ' -'
+                          )}
+                        </span>
                       </span>
                     </div>
                   ) : null}

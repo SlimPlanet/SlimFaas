@@ -20,9 +20,6 @@ public class NetworkActivitySyncWorker(
     ILogger<NetworkActivitySyncWorker> logger)
     : BackgroundService
 {
-    // Scrape peers every 2 seconds (same cadence as the SSE state push)
-    private const int DelayMs = 2000;
-
     // Track the last timestamp we fetched per peer to ask only for newer events
     private readonly Dictionary<string, long> _peerLastTimestamp = new(StringComparer.Ordinal);
 
@@ -34,8 +31,10 @@ public class NetworkActivitySyncWorker(
             return;
         }
 
+        var statusStreamOptions = slimFaasOptions.Value.StatusStream;
+
         // Small initial delay to let the cluster form
-        await Task.Delay(5000, stoppingToken);
+        await Task.Delay(TimeSpan.FromMilliseconds(statusStreamOptions.PeerSyncInitialDelayMilliseconds), stoppingToken);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -48,12 +47,15 @@ public class NetworkActivitySyncWorker(
                 logger.LogDebug(ex, "NetworkActivitySyncWorker: error during peer scrape");
             }
 
-            await Task.Delay(DelayMs, stoppingToken);
+            await Task.Delay(TimeSpan.FromMilliseconds(statusStreamOptions.PeerSyncIntervalMilliseconds), stoppingToken);
         }
     }
 
     private async Task ScrapeAllPeersAsync(CancellationToken ct)
     {
+        if (!tracker.HasSubscribers)
+            return; // No local SSE client needs a cluster-wide activity view right now.
+
         var slimFaasPods = replicasService.Deployments?.SlimFaas?.Pods;
         if (slimFaasPods == null || slimFaasPods.Count <= 1)
             return; // Single node — nothing to sync

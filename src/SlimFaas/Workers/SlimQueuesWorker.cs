@@ -162,7 +162,7 @@ public class SlimQueuesWorker(
             string targetIp = reservedIp;
 
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
-                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy, reservedIp);
+                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy, reservedIp, functionDeployment);
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp));
             activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
         }

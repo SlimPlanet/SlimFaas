@@ -1,6 +1,8 @@
-﻿﻿﻿using System.Text;
+﻿﻿using System.Net;
+using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
+using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
@@ -8,20 +10,26 @@ namespace SlimFaas;
 
 public interface ISendClient
 {
-    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null);
+    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
-        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, Proxy? proxy = null);
+        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null);
 }
 
-public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions, INamespaceProvider namespaceProvider) : ISendClient
+public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions, INamespaceProvider namespaceProvider, NetworkActivityTracker activityTracker) : ISendClient
 {
     private readonly string _baseFunctionUrl = slimFaasOptions.Value.BaseFunctionUrl;
     private readonly string _namespaceSlimFaas = namespaceProvider.CurrentNamespace;
 
     public async Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, Proxy? proxy = null, string? reservedPodIp = null)
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null)
     {
+        string source = string.IsNullOrWhiteSpace(activitySource)
+            ? NetworkActivityTracker.Actors.SlimFaas
+            : activitySource;
+        var requestOutId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, customRequest.FunctionName,
+            sourcePod: activitySourcePod, targetPod: reservedPodIp);
+
         try
         {
             string functionUrl = baseUrl ?? _baseFunctionUrl;
@@ -53,63 +61,121 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             logger.LogError(e, "Error in SendHttpRequestAsync to {FunctionName} to {FunctionPath} ", customRequest.FunctionName, customRequest.Path);
             throw;
         }
+        finally
+        {
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, customRequest.FunctionName,
+                sourcePod: activitySourcePod, targetPod: reservedPodIp, correlationId: requestOutId);
+        }
     }
 
-public async Task<HttpResponseMessage> SendHttpRequestSync(
-    HttpContext httpContext,
-    string functionName,
-    string functionPath,
-    string functionQuery,
-    SlimFaasDefaultConfiguration slimFaasDefaultConfiguration,
-    string? baseUrl = null,
-    Proxy? proxy = null)
-{
-    try
+    public async Task<HttpResponseMessage> SendHttpRequestSync(
+        HttpContext httpContext,
+        string functionName,
+        string functionPath,
+        string functionQuery,
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration,
+        string? baseUrl = null,
+        IProxy? proxy = null,
+        string? activitySource = null,
+        string? activitySourcePod = null)
     {
-        logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}",
-            functionName, functionPath, functionQuery);
+        string source = string.IsNullOrWhiteSpace(activitySource)
+            ? NetworkActivityTracker.Actors.SlimFaas
+            : activitySource;
 
-        using var localCancellationToken = new CancellationTokenSource(
-            TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout));
+        string? reservedSyncIp = null;
+        string? requestOutId = null;
+        var releaseReservedSyncIpOnError = true;
 
-        var cancellationToken = httpContext.RequestAborted;
-        using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
-            localCancellationToken.Token, cancellationToken);
+        try
+        {
+            logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}",
+                functionName, functionPath, functionQuery);
 
-        var finalToken = linkedTokenSource.Token;
+            using var localCancellationToken = new CancellationTokenSource(
+                TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout));
 
-        //HttpResponseMessage responseMessage = await Retry.DoRequestAsync(async () =>
-           // {
+            var cancellationToken = httpContext.RequestAborted;
+            using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(
+                localCancellationToken.Token, cancellationToken);
 
-                string targetUrl = await ComputeTargetUrlAsync(
-                    baseUrl ?? _baseFunctionUrl,
+            var finalToken = linkedTokenSource.Token;
+
+            string functionUrl = baseUrl ?? _baseFunctionUrl;
+            string targetUrl;
+            if (functionUrl.Contains("{pod_ip}") && proxy != null)
+            {
+                const int maxAttempts = 10;
+                IList<int>? ports = null;
+
+                for (var attempt = 0; attempt < maxAttempts; attempt++)
+                {
+                    reservedSyncIp = proxy.AcquireNextIPForSync();
+                    ports = proxy.GetPorts(reservedSyncIp);
+                    if (!string.IsNullOrWhiteSpace(reservedSyncIp) && ports is { Count: > 0 })
+                    {
+                        break;
+                    }
+
+                    proxy.ReleaseSyncIP(reservedSyncIp);
+                    reservedSyncIp = null;
+                    await Task.Delay(100, finalToken);
+                }
+
+                if (string.IsNullOrWhiteSpace(reservedSyncIp) || ports is null || ports.Count == 0)
+                {
+                    throw new Exception("Not port or IP available");
+                }
+
+                targetUrl = BuildPodTargetUrl(functionUrl, functionPath + functionQuery, reservedSyncIp, ports);
+            }
+            else
+            {
+                targetUrl = await ComputeTargetUrlAsync(
+                    functionUrl,
                     functionName,
                     functionPath,
                     functionQuery,
                     _namespaceSlimFaas,
                     proxy);
+            }
 
-                logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
+            requestOutId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, functionName,
+                sourcePod: activitySourcePod, targetPod: reservedSyncIp);
 
-                using var targetRequestMessage = CreateTargetMessage(httpContext, new Uri(targetUrl));
+            logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
 
-                return await httpClient.SendAsync(
-                    targetRequestMessage,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    finalToken);
-           // },
-           // logger,
-           // slimFaasDefaultConfiguration.TimeoutRetries,
-           // slimFaasDefaultConfiguration.HttpStatusRetries).ConfigureAwait(false);
+            using var targetRequestMessage = CreateTargetMessage(httpContext, new Uri(targetUrl));
 
-       // return responseMessage;
+            HttpResponseMessage responseMessage = await httpClient.SendAsync(
+                targetRequestMessage,
+                HttpCompletionOption.ResponseHeadersRead,
+                finalToken);
+
+            if (!string.IsNullOrWhiteSpace(reservedSyncIp) && proxy != null)
+            {
+                releaseReservedSyncIpOnError = false;
+                return ReleaseSyncIPWhenResponseIsDisposed(responseMessage, proxy, reservedSyncIp);
+            }
+
+            return responseMessage;
+        }
+        catch (Exception e)
+        {
+            if (releaseReservedSyncIpOnError)
+            {
+                proxy?.ReleaseSyncIP(reservedSyncIp);
+            }
+
+            logger.LogError(e, "Error in SendHttpRequestSync to {FunctionName} to {FunctionPath} ", functionName, functionPath);
+            throw;
+        }
+        finally
+        {
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, functionName,
+                sourcePod: activitySourcePod, targetPod: reservedSyncIp, correlationId: requestOutId);
+        }
     }
-    catch (Exception e)
-    {
-        logger.LogError(e, "Error in SendHttpRequestSync to {FunctionName} to {FunctionPath} ", functionName, functionPath);
-        throw;
-    }
-}
 
 
     private void CopyFromOriginalRequestContentAndHeaders(CustomRequest context, HttpRequestMessage requestMessage)
@@ -213,18 +279,7 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
                throw new Exception("Not port or IP available");
            }
 
-           string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), customRequestPath + customRequestQuery);
-           if (ports is { Count: > 0 })
-           {
-               url = url.Replace("{pod_port}", ports[0].ToString());
-               foreach (int port in ports)
-               {
-                   var index = ports.IndexOf(port);
-                   url = url.Replace($"{{pod_port_{index}}}", port.ToString());
-               }
-           }
-
-           return url;
+           return BuildPodTargetUrl(functionUrl, customRequestPath + customRequestQuery, ip, ports);
         }
 
         return CombinePaths(functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas), customRequestPath +
@@ -249,6 +304,83 @@ public async Task<HttpResponseMessage> SendHttpRequestSync(
         }
 
         return builder.ToString();
+    }
+
+    private static string BuildPodTargetUrl(string functionUrl, string pathAndQuery, string ip, IList<int> ports)
+    {
+        string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), pathAndQuery);
+        if (ports is { Count: > 0 })
+        {
+            url = url.Replace("{pod_port}", ports[0].ToString());
+            foreach (int port in ports)
+            {
+                var index = ports.IndexOf(port);
+                url = url.Replace($"{{pod_port_{index}}}", port.ToString());
+            }
+        }
+
+        return url;
+    }
+
+    private static HttpResponseMessage ReleaseSyncIPWhenResponseIsDisposed(HttpResponseMessage responseMessage, IProxy proxy, string reservedSyncIp)
+    {
+        responseMessage.Content = new ReleaseOnDisposeHttpContent(
+            responseMessage.Content,
+            () => proxy.ReleaseSyncIP(reservedSyncIp));
+        return responseMessage;
+    }
+
+    private sealed class ReleaseOnDisposeHttpContent : HttpContent
+    {
+        private readonly HttpContent _inner;
+        private readonly Action _release;
+        private int _released;
+
+        public ReleaseOnDisposeHttpContent(HttpContent inner, Action release)
+        {
+            _inner = inner;
+            _release = release;
+
+            foreach (var header in _inner.Headers)
+            {
+                Headers.TryAddWithoutValidation(header.Key, header.Value);
+            }
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+            => _inner.CopyToAsync(stream);
+
+        protected override Task<Stream> CreateContentReadStreamAsync()
+            => _inner.ReadAsStreamAsync();
+
+        protected override Task<Stream> CreateContentReadStreamAsync(CancellationToken cancellationToken)
+            => _inner.ReadAsStreamAsync(cancellationToken);
+
+        protected override bool TryComputeLength(out long length)
+        {
+            if (_inner.Headers.ContentLength.HasValue)
+            {
+                length = _inner.Headers.ContentLength.Value;
+                return true;
+            }
+
+            length = 0;
+            return false;
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _inner.Dispose();
+                if (Interlocked.Exchange(ref _released, 1) == 0)
+                {
+                    _release();
+                }
+            }
+
+            base.Dispose(disposing);
+        }
     }
 
 

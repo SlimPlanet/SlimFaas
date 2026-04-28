@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Options;
 
 namespace SlimFaas.Options;
 
@@ -15,6 +14,8 @@ public static class OptionsExtensions
         services.AddOptions<SlimFaasOptions>()
             .BindConfiguration(SlimFaasOptions.SectionName)
             .ValidateDataAnnotations()
+            .Validate(ValidateStatusStreamOptions,
+                "SlimFaas:StatusStream values are invalid.")
             .ValidateOnStart();
 
         services.AddOptions<SlimDataOptions>()
@@ -28,6 +29,24 @@ public static class OptionsExtensions
             .ValidateOnStart();
 
         return services;
+    }
+
+    private static bool ValidateStatusStreamOptions(SlimFaasOptions options)
+    {
+        var s = options.StatusStream;
+        return s.StateIntervalMilliseconds > 0
+               && s.QueueLengthsCacheMilliseconds >= 0
+               && s.JobsCacheMilliseconds >= 0
+               && s.PeerSyncIntervalMilliseconds > 0
+               && s.PeerSyncInitialDelayMilliseconds >= 0
+               && s.MaxSseClients >= 0
+               && s.SubscriberChannelCapacity > 0
+               && s.RecentActivityLimit > 0
+               && s.KnownIdsLimit > 0
+               && s.MaxLiveEventsPerSecond >= 0
+               && s.LiveEventSamplingRatio >= 0
+               && s.LiveEventSamplingRatio <= 1
+               && s.LiveActivityBatchSize > 0;
     }
 
     /// <summary>

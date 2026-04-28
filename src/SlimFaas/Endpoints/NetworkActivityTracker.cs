@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Channels;
 using Microsoft.Extensions.Options;
@@ -20,7 +19,8 @@ public record NetworkActivityEvent(
     long TimestampMs,
     string NodeId,        // hostname of the SlimFaas node that recorded the event
     string? SourcePod = null,   // source pod name or IP (e.g. the caller pod)
-    string? TargetPod = null);  // target pod name or IP (e.g. the downstream pod receiving the request)
+    string? TargetPod = null,   // target pod name or IP (e.g. the downstream pod receiving the request)
+    string? CorrelationId = null); // shared id used to pair related start/end events while keeping Id unique
 
 /// <summary>
 /// Represents the full stream payload sent via SSE.
@@ -96,16 +96,26 @@ public sealed class NetworkActivityTracker
     private readonly ConcurrentDictionary<Channel<NetworkActivityEvent>, byte> _subscribers = new();
     private readonly ConcurrentDictionary<string, byte> _knownIds = new();
     private int _counter;
+    private int _recentEventsCount;
+    private int _knownIdsCount;
+    private int _knownIdsTrimInProgress;
+    private int _subscriberCount;
+    private readonly object _liveRateLimitLock = new();
+    private long _liveRateLimitWindowSecond;
+    private int _liveRateLimitWindowCount;
     private readonly bool _enabled;
+    private readonly StatusStreamOptions _options;
 
     public NetworkActivityTracker()
     {
         _enabled = true;
+        _options = new StatusStreamOptions();
     }
 
     public NetworkActivityTracker(IOptions<SlimFaasOptions> slimFaasOptions)
     {
         _enabled = slimFaasOptions.Value.EnableFront;
+        _options = slimFaasOptions.Value.StatusStream;
     }
 
     /// <summary>Hostname of the current node (set once at startup).</summary>
@@ -113,11 +123,10 @@ public sealed class NetworkActivityTracker
                                     ?? Environment.MachineName
                                     ?? Guid.NewGuid().ToString("N")[..8];
 
-    private const int MaxRecentEvents = 1000;
-    private const int MaxKnownIds = 10000;
+    public bool HasSubscribers => _enabled && !_subscribers.IsEmpty;
 
     /// <summary>Record a local activity event and broadcast to all SSE subscribers.</summary>
-    public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null)
+    public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null, string? correlationId = null)
     {
         if (!_enabled) return string.Empty;
 
@@ -130,7 +139,8 @@ public sealed class NetworkActivityTracker
             TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             NodeId: NodeId,
             SourcePod: sourcePod,
-            TargetPod: targetPod);
+            TargetPod: targetPod,
+            CorrelationId: correlationId);
 
         Enqueue(evt);
         return evt.Id;
@@ -149,7 +159,8 @@ public sealed class NetworkActivityTracker
         {
             if (_knownIds.TryAdd(evt.Id, 0))
             {
-                Enqueue(evt);
+                Interlocked.Increment(ref _knownIdsCount);
+                Enqueue(evt, knownIdAlreadyAdded: true);
                 count++;
             }
         }
@@ -176,49 +187,194 @@ public sealed class NetworkActivityTracker
     /// <summary>Subscribe to live events. Returns a ChannelReader.</summary>
     public (ChannelReader<NetworkActivityEvent> Reader, Channel<NetworkActivityEvent> Channel) Subscribe()
     {
-        var channel = System.Threading.Channels.Channel.CreateBounded<NetworkActivityEvent>(
+        if (TrySubscribe(out var reader, out var channel))
+        {
+            return (reader, channel);
+        }
+
+        return (reader, channel);
+    }
+
+    /// <summary>Try to subscribe to live events, respecting the configured SSE client limit.</summary>
+    public bool TrySubscribe(out ChannelReader<NetworkActivityEvent> reader, out Channel<NetworkActivityEvent> channel)
+    {
+        channel = Channel.CreateBounded<NetworkActivityEvent>(
             // Large buffer to absorb short traffic spikes and avoid dropping paired
             // request_out/request_end events that drive in-flight counters on the UI.
-            new BoundedChannelOptions(10000) { FullMode = BoundedChannelFullMode.DropOldest });
-        if (!_enabled) return (channel.Reader, channel);
+            new BoundedChannelOptions(Math.Max(1, _options.SubscriberChannelCapacity))
+            {
+                FullMode = BoundedChannelFullMode.DropOldest
+            });
+        reader = channel.Reader;
 
-        _subscribers.TryAdd(channel, 0);
-        return (channel.Reader, channel);
+        if (!_enabled)
+        {
+            return true;
+        }
+
+        int maxSseClients = _options.MaxSseClients;
+        if (maxSseClients > 0)
+        {
+            while (true)
+            {
+                int current = Volatile.Read(ref _subscriberCount);
+                if (current >= maxSseClients)
+                {
+                    channel.Writer.TryComplete();
+                    return false;
+                }
+
+                if (Interlocked.CompareExchange(ref _subscriberCount, current + 1, current) == current)
+                {
+                    break;
+                }
+            }
+        }
+
+        if (_subscribers.TryAdd(channel, 0))
+        {
+            if (maxSseClients <= 0)
+            {
+                Interlocked.Increment(ref _subscriberCount);
+            }
+
+            return true;
+        }
+
+        Interlocked.Decrement(ref _subscriberCount);
+        channel.Writer.TryComplete();
+        return false;
     }
 
     /// <summary>Unsubscribe from live events.</summary>
     public void Unsubscribe(Channel<NetworkActivityEvent> channel)
     {
-        _subscribers.TryRemove(channel, out _);
+        if (_subscribers.TryRemove(channel, out _))
+        {
+            Interlocked.Decrement(ref _subscriberCount);
+        }
+
         channel.Writer.TryComplete();
     }
 
-    private void Enqueue(NetworkActivityEvent evt)
+    private void Enqueue(NetworkActivityEvent evt, bool knownIdAlreadyAdded = false)
     {
-        _knownIds.TryAdd(evt.Id, 0);
-        _recentEvents.Enqueue(evt);
-
-        while (_recentEvents.Count > MaxRecentEvents)
-            _recentEvents.TryDequeue(out _);
-
-        // Trim the dedup set
-        if (_knownIds.Count > MaxKnownIds)
+        if (!knownIdAlreadyAdded && _knownIds.TryAdd(evt.Id, 0))
         {
-            // Remove oldest half (arbitrary, cheap enough)
-            int toRemove = _knownIds.Count - MaxKnownIds / 2;
-            foreach (var key in _knownIds.Keys.Take(toRemove))
-                _knownIds.TryRemove(key, out _);
+            Interlocked.Increment(ref _knownIdsCount);
         }
 
-        // Broadcast to SSE subscribers
-        foreach (var channel in _subscribers.Keys)
+        _recentEvents.Enqueue(evt);
+        Interlocked.Increment(ref _recentEventsCount);
+
+        int recentActivityLimit = Math.Max(1, _options.RecentActivityLimit);
+        while (Volatile.Read(ref _recentEventsCount) > recentActivityLimit && _recentEvents.TryDequeue(out _))
         {
+            Interlocked.Decrement(ref _recentEventsCount);
+        }
+
+        TrimKnownIdsIfNeeded();
+
+        if (_subscribers.IsEmpty || !ShouldBroadcastLiveEvent())
+        {
+            return;
+        }
+
+        // Broadcast to SSE subscribers. Enumerating the dictionary directly avoids
+        // allocating/enumerating a Keys collection on every activity event.
+        foreach (var subscriber in _subscribers)
+        {
+            var channel = subscriber.Key;
             if (channel.Reader.Completion.IsCompleted)
             {
-                _subscribers.TryRemove(channel, out _);
+                if (_subscribers.TryRemove(channel, out _))
+                {
+                    Interlocked.Decrement(ref _subscriberCount);
+                }
+
                 continue;
             }
+
             channel.Writer.TryWrite(evt);
+        }
+    }
+
+    private void TrimKnownIdsIfNeeded()
+    {
+        int knownIdsLimit = Math.Max(1, _options.KnownIdsLimit);
+        if (Volatile.Read(ref _knownIdsCount) <= knownIdsLimit)
+        {
+            return;
+        }
+
+        if (Interlocked.CompareExchange(ref _knownIdsTrimInProgress, 1, 0) != 0)
+        {
+            return;
+        }
+
+        try
+        {
+            int toRemove = Volatile.Read(ref _knownIdsCount) - knownIdsLimit / 2;
+            if (toRemove <= 0)
+            {
+                return;
+            }
+
+            foreach (var knownId in _knownIds)
+            {
+                if (toRemove <= 0)
+                {
+                    break;
+                }
+
+                if (_knownIds.TryRemove(knownId.Key, out _))
+                {
+                    Interlocked.Decrement(ref _knownIdsCount);
+                    toRemove--;
+                }
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref _knownIdsTrimInProgress, 0);
+        }
+    }
+
+    private bool ShouldBroadcastLiveEvent()
+    {
+        double samplingRatio = _options.LiveEventSamplingRatio;
+        if (samplingRatio <= 0)
+        {
+            return false;
+        }
+
+        if (samplingRatio < 1 && Random.Shared.NextDouble() >= samplingRatio)
+        {
+            return false;
+        }
+
+        int maxLiveEventsPerSecond = _options.MaxLiveEventsPerSecond;
+        if (maxLiveEventsPerSecond <= 0)
+        {
+            return true;
+        }
+
+        long currentSecond = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        lock (_liveRateLimitLock)
+        {
+            if (_liveRateLimitWindowSecond != currentSecond)
+            {
+                _liveRateLimitWindowSecond = currentSecond;
+                _liveRateLimitWindowCount = 0;
+            }
+
+            if (_liveRateLimitWindowCount >= maxLiveEventsPerSecond)
+            {
+                return false;
+            }
+
+            _liveRateLimitWindowCount++;
+            return true;
         }
     }
 }

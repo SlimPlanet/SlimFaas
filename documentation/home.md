@@ -19,6 +19,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
 - `N → M` scaling powered by PromQL,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
+- built-in **User Interface** at the SlimFaas root address to see functions, jobs, queues, and real-time messages.
 - temporary **Data Sets** endpoints (Redis-like KV) to store small blobs/JSON with **TTL (milliseconds)** — perfect for cache & agentic state.
 - temporary **Data Files** endpoints to ingest and stage files (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 
@@ -137,6 +138,7 @@ Dive into the documentation:
     - [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
 - Functions & Workloads
     - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
+    - [User Interface](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/user-interface.md) – Use the built-in UI to monitor functions, queues, jobs, and real-time messages.
     - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
     - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
     - [OpenTelemetry](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/opentelemetry.md) – Enable distributed tracing, metrics, and logs with OpenTelemetry integration.

@@ -6,10 +6,12 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
+using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Options;
 using SlimFaas.WebSocket;
 
 namespace SlimFaas.Tests.Endpoints;
@@ -33,7 +35,9 @@ public class StatusStreamEndpointTests
                         services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
                         services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
                         services.AddSingleton<NetworkActivityTracker>();
                         services.AddRouting();
                     })
@@ -81,7 +85,9 @@ public class StatusStreamEndpointTests
                         services.AddSingleton<IJobConfiguration>(jobConfigMock.Object);
                         services.AddSingleton<IJobService>(jobServiceMock.Object);
                         services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
                         services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
                         services.AddSingleton<NetworkActivityTracker>();
                         services.AddRouting();
                     })
@@ -120,7 +126,9 @@ public class StatusStreamEndpointTests
                         services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
                         services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
                         services.AddSingleton<NetworkActivityTracker>();
                         services.AddRouting();
                     })
@@ -176,7 +184,9 @@ public class StatusStreamEndpointTests
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddSingleton(tracker);
                         services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
                         services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
                         services.AddRouting();
                     })
                     .Configure(app =>
@@ -230,7 +240,9 @@ public class StatusStreamEndpointTests
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddSingleton(tracker);
                         services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
                         services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
                         services.AddRouting();
                     })
                     .Configure(app =>
@@ -274,7 +286,9 @@ public class StatusStreamEndpointTests
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddSingleton(tracker);
                         services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
                         services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
                         services.AddRouting();
                     })
                     .Configure(app =>
@@ -307,7 +321,9 @@ public class StatusStreamEndpointTests
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddSingleton(tracker);
                         services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
                         services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
                         services.AddRouting();
                     })
                     .Configure(app =>
@@ -333,6 +349,190 @@ public class StatusStreamEndpointTests
 
         Assert.Contains("NodeId", text);
         Assert.Contains(tracker.NodeId, text);
+    }
+
+    [Fact(DisplayName = "SSE stream only includes RecentActivity in initial state")]
+    public async Task StatusStream_OnlyInitialStateContainsRecentActivity()
+    {
+        var tracker = new NetworkActivityTracker();
+        tracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas);
+
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
+                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        services.AddSingleton(tracker);
+                        services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
+                        services.AddRouting();
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
+                    });
+            })
+            .StartAsync();
+
+        var client = host.GetTestClient();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var response = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "http://localhost:5000/status-functions-stream"),
+            HttpCompletionOption.ResponseHeadersRead,
+            cts.Token);
+
+        var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+        var buffer = new byte[4096];
+        var text = "";
+        while (CountOccurrences(text, "event: state") < 2)
+        {
+            var read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+            Assert.True(read > 0, "The SSE stream ended before sending two state events.");
+            text += System.Text.Encoding.UTF8.GetString(buffer, 0, read);
+        }
+
+        var states = ExtractStatePayloads(text);
+        Assert.True(states.Count >= 2);
+
+        using var initialState = JsonDocument.Parse(states[0]);
+        using var periodicState = JsonDocument.Parse(states[1]);
+
+        Assert.Equal(1, initialState.RootElement.GetProperty("RecentActivity").GetArrayLength());
+        Assert.Equal(0, periodicState.RootElement.GetProperty("RecentActivity").GetArrayLength());
+    }
+
+    [Fact(DisplayName = "GET /status-functions-stream returns 429 when MaxSseClients is reached")]
+    public async Task StatusStream_ReturnsTooManyRequests_WhenMaxSseClientsReached()
+    {
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
+                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        services.AddOptions<SlimFaasOptions>().Configure(o => o.StatusStream.MaxSseClients = 1);
+                        services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
+                        services.AddSingleton<NetworkActivityTracker>();
+                        services.AddRouting();
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
+                    });
+            })
+            .StartAsync();
+
+        var client = host.GetTestClient();
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var firstResponse = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "http://localhost:5000/status-functions-stream"),
+            HttpCompletionOption.ResponseHeadersRead,
+            cts.Token);
+
+        Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
+
+        using var secondResponse = await client.SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "http://localhost:5000/status-functions-stream"),
+            HttpCompletionOption.ResponseHeadersRead,
+            cts.Token);
+
+        Assert.Equal((HttpStatusCode)429, secondResponse.StatusCode);
+    }
+
+    [Fact(DisplayName = "Status stream reuses queue length cache across state snapshots")]
+    public async Task StatusStream_ReusesQueueLengthCache()
+    {
+        var queue = new CountingSlimFaasQueue();
+
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<IReplicasService, CountingReplicasService>();
+                        services.AddSingleton<ISlimFaasQueue>(queue);
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        services.AddOptions<SlimFaasOptions>().Configure(o =>
+                        {
+                            o.StatusStream.StateIntervalMilliseconds = 100;
+                            o.StatusStream.QueueLengthsCacheMilliseconds = 10_000;
+                        });
+                        services.AddMemoryCache();
+                        services.AddOptions<SlimFaasOptions>();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
+                        services.AddSingleton<NetworkActivityTracker>();
+                        services.AddRouting();
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
+                    });
+            })
+            .StartAsync();
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        using var response = await host.GetTestClient().SendAsync(
+            new HttpRequestMessage(HttpMethod.Get, "http://localhost:5000/status-functions-stream"),
+            HttpCompletionOption.ResponseHeadersRead,
+            cts.Token);
+
+        var stream = await response.Content.ReadAsStreamAsync(cts.Token);
+        var buffer = new byte[4096];
+        var text = "";
+        while (CountOccurrences(text, "event: state") < 2)
+        {
+            var read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+            Assert.True(read > 0, "The SSE stream ended before sending two state events.");
+            text += System.Text.Encoding.UTF8.GetString(buffer, 0, read);
+        }
+
+        Assert.Equal(1, queue.CountElementCallCount);
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
+    }
+
+    private static List<string> ExtractStatePayloads(string sseText)
+    {
+        return sseText
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
+            .Where(block => block.StartsWith("event: state\n", StringComparison.Ordinal))
+            .Select(block => block.Split('\n').First(line => line.StartsWith("data: ", StringComparison.Ordinal))["data: ".Length..])
+            .ToList();
     }
 
     private sealed class CountingReplicasService : IReplicasService
@@ -375,6 +575,27 @@ public class StatusStreamEndpointTests
         public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => Task.FromResult(Deployments);
 
         public Task CheckScaleAsync(string kubeNamespace) => Task.CompletedTask;
+    }
+
+    private sealed class CountingSlimFaasQueue : ISlimFaasQueue
+    {
+        public int CountElementCallCount;
+
+        public Task<string> EnqueueAsync(string key, byte[] message, RetryInformation retryInformation) => Task.FromResult("id");
+
+        public Task<IList<QueueData>?> DequeueAsync(string key, int count = 1, IList<string>? reservedIps = null) =>
+            Task.FromResult<IList<QueueData>?>(Array.Empty<QueueData>());
+
+        public Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus) => Task.CompletedTask;
+
+        public Task<long> CountElementAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue)
+        {
+            Interlocked.Increment(ref CountElementCallCount);
+            return Task.FromResult(0L);
+        }
+
+        public Task<IList<QueueData>> ListElementsAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) =>
+            Task.FromResult<IList<QueueData>>(Array.Empty<QueueData>());
     }
 }
 

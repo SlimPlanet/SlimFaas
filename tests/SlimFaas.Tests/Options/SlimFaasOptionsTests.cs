@@ -59,6 +59,61 @@ public class SlimFaasOptionsTests
         Assert.Equal("*", options.CorsAllowOrigin);
         Assert.False(options.AllowUnsecureSsl);
         Assert.Equal("Kubernetes", options.Orchestrator);
+        Assert.Equal(1000, options.StatusStream.StateIntervalMilliseconds);
+        Assert.Equal(1000, options.StatusStream.QueueLengthsCacheMilliseconds);
+        Assert.Equal(1000, options.StatusStream.JobsCacheMilliseconds);
+        Assert.Equal(2000, options.StatusStream.PeerSyncIntervalMilliseconds);
+        Assert.Equal(5000, options.StatusStream.PeerSyncInitialDelayMilliseconds);
+        Assert.Equal(0, options.StatusStream.MaxSseClients);
+        Assert.Equal(10000, options.StatusStream.SubscriberChannelCapacity);
+        Assert.Equal(1000, options.StatusStream.RecentActivityLimit);
+        Assert.Equal(10000, options.StatusStream.KnownIdsLimit);
+        Assert.Equal(0, options.StatusStream.MaxLiveEventsPerSecond);
+        Assert.Equal(1.0, options.StatusStream.LiveEventSamplingRatio);
+        Assert.Equal(100, options.StatusStream.LiveActivityBatchSize);
+    }
+
+    [Fact]
+    public void SlimFaasOptions_StatusStream_ShouldBindFromConfiguration()
+    {
+        var configurationBuilder = new ConfigurationBuilder();
+        configurationBuilder.AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["SlimFaas:StatusStream:StateIntervalMilliseconds"] = "2500",
+            ["SlimFaas:StatusStream:QueueLengthsCacheMilliseconds"] = "3000",
+            ["SlimFaas:StatusStream:JobsCacheMilliseconds"] = "4000",
+            ["SlimFaas:StatusStream:PeerSyncIntervalMilliseconds"] = "5000",
+            ["SlimFaas:StatusStream:PeerSyncInitialDelayMilliseconds"] = "6000",
+            ["SlimFaas:StatusStream:MaxSseClients"] = "7",
+            ["SlimFaas:StatusStream:SubscriberChannelCapacity"] = "800",
+            ["SlimFaas:StatusStream:RecentActivityLimit"] = "90",
+            ["SlimFaas:StatusStream:KnownIdsLimit"] = "100",
+            ["SlimFaas:StatusStream:MaxLiveEventsPerSecond"] = "11",
+            ["SlimFaas:StatusStream:LiveEventSamplingRatio"] = "0.5",
+            ["SlimFaas:StatusStream:LiveActivityBatchSize"] = "25"
+        });
+        var configuration = configurationBuilder.Build();
+
+        var services = new ServiceCollection();
+        services.AddOptions<SlimFaasOptions>()
+            .BindConfiguration(SlimFaasOptions.SectionName);
+        services.AddSingleton<IConfiguration>(configuration);
+
+        var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<IOptions<SlimFaasOptions>>().Value.StatusStream;
+
+        Assert.Equal(2500, options.StateIntervalMilliseconds);
+        Assert.Equal(3000, options.QueueLengthsCacheMilliseconds);
+        Assert.Equal(4000, options.JobsCacheMilliseconds);
+        Assert.Equal(5000, options.PeerSyncIntervalMilliseconds);
+        Assert.Equal(6000, options.PeerSyncInitialDelayMilliseconds);
+        Assert.Equal(7, options.MaxSseClients);
+        Assert.Equal(800, options.SubscriberChannelCapacity);
+        Assert.Equal(90, options.RecentActivityLimit);
+        Assert.Equal(100, options.KnownIdsLimit);
+        Assert.Equal(11, options.MaxLiveEventsPerSecond);
+        Assert.Equal(0.5, options.LiveEventSamplingRatio);
+        Assert.Equal(25, options.LiveActivityBatchSize);
     }
 
     [Fact]
