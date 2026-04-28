@@ -1,9 +1,25 @@
+<div align="center">
+  <a href="https://slimfaas.dev/">
+    <img src="https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/src/SlimFaasSite/public/slimfaas.svg" alt="SlimFaas" width="96" />
+  </a>
+</div>
+
 # slimfaas-client
 
 Python client to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
 
 [![PyPI](https://img.shields.io/pypi/v/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
+[![PyPI Downloads](https://img.shields.io/pypi/dm/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
+[![Python Versions](https://img.shields.io/pypi/pyversions/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
+[![GitHub](https://img.shields.io/badge/GitHub-SlimFaas-181717?logo=github)](https://github.com/SlimPlanet/SlimFaas)
+[![Website](https://img.shields.io/badge/Website-slimfaas.dev-blue)](https://slimfaas.dev/)
+
+Links:
+
+- PyPI package: <https://pypi.org/project/slimfaas-client>
+- GitHub repository: <https://github.com/SlimPlanet/SlimFaas>
+- SlimFaas website: <https://slimfaas.dev/>
 
 ## Requirements
 
@@ -153,10 +169,15 @@ client.on_async_request(await make_handler(db_session))
 ## Automatic reconnection
 
 The client reconnects automatically after a disconnection.
-Configure the delay between attempts:
+Configure the delay between attempts and the keepalive ping interval:
 
 ```python
-client = SlimFaasClient("ws://...", config, reconnect_delay=10.0)
+client = SlimFaasClient(
+    "ws://...",
+    config,
+    reconnect_delay=10.0,
+    ping_interval=30.0,  # use 0 to disable keepalive pings
+)
 ```
 
 ## Important rules

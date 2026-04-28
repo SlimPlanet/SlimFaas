@@ -1,9 +1,24 @@
+<div align="center">
+  <a href="https://slimfaas.dev/">
+    <img src="https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/src/SlimFaasSite/public/slimfaas.svg" alt="SlimFaas" width="96" />
+  </a>
+</div>
+
 # SlimFaasClient
 
 C# library to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
 
 [![NuGet](https://img.shields.io/nuget/v/SlimFaasClient.svg)](https://www.nuget.org/packages/SlimFaasClient)
+[![NuGet Downloads](https://img.shields.io/nuget/dt/SlimFaasClient.svg)](https://www.nuget.org/packages/SlimFaasClient)
+[![GitHub](https://img.shields.io/badge/GitHub-SlimFaas-181717?logo=github)](https://github.com/SlimPlanet/SlimFaas)
+[![Website](https://img.shields.io/badge/Website-slimfaas.dev-blue)](https://slimfaas.dev/)
+
+Links:
+
+- NuGet package: <https://www.nuget.org/packages/SlimFaasClient>
+- GitHub repository: <https://github.com/SlimPlanet/SlimFaas>
+- SlimFaas website: <https://slimfaas.dev/>
 
 ## Installation
 
@@ -66,6 +81,26 @@ await client.RunForeverAsync(cts.Token);
 | `NumberParallelRequest` | `SlimFaas/NumberParallelRequest` | Max concurrent requests across all replicas |
 | `NumberParallelRequestPerPod` | `SlimFaas/NumberParallelRequestPerPod` | Max concurrent requests per replica |
 | `DefaultTrust` | `SlimFaas/DefaultTrust` | `FunctionTrust.Trusted` or `FunctionTrust.Untrusted` |
+
+## Connection options
+
+| Property | Default | Description |
+|---|---:|---|
+| `ReconnectDelay` | `5.0` | Seconds to wait before reconnecting after a disconnection |
+| `PingInterval` | `30.0` | Keepalive ping interval in seconds, `0` disables pings |
+| `ReceiveBufferSize` | `65536` | WebSocket receive buffer size in bytes |
+
+```csharp
+var options = new SlimFaasClientOptions
+{
+    ReconnectDelay = 5.0,
+    PingInterval = 30.0,
+    ReceiveBufferSize = 64 * 1024,
+};
+
+await using var client = new SlimFaasClient.SlimFaasClient(
+    new Uri("ws://slimfaas:5003/ws"), config, options);
+```
 
 ## Long-running requests (status 202)
 
