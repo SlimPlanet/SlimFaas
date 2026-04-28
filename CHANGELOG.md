@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.71.2
+
+- [547da85e](https://github.com/SlimPlanet/SlimFaas/commit/547da85e0d0926f05ae1d2c8031b8438a73cdb43) - fix(slimfass): live events + load balancing (release) (#265), 2026-04-28 by *Guillaume Chervet*
+- [e00b3be4](https://github.com/SlimPlanet/SlimFaas/commit/e00b3be4e8dad3e916fe2562f4ea3676f6a3b7bd) - s, 2026-04-18 by *Guillaume Chervet*
+
+
+## 0.71.1
+
+
+
 ## v0.71.1
 
 - [9780c1be](https://github.com/SlimPlanet/SlimFaas/commit/9780c1be154b0b1ad0ea574bfcdb58232cda1498) - fix(slimfaas): Increase job name max length from 12 to 30 characters (#267) (release), 2026-04-15 by *Copilot*
@@ -265,14 +275,5 @@
 ## v0.60.8
 
 - [768ca2f5](https://github.com/SlimPlanet/SlimFaas/commit/768ca2f54fda208f17e83e56286545ec86a71aed) - refactor(slimfaas): replace console.writeline to logger (#229) (release), 2026-01-28 by *Guillaume Chervet*
-
-
-## 0.60.7
-
-
-
-## v0.60.7
-
-- [898828fe](https://github.com/SlimPlanet/SlimFaas/commit/898828fead773dd699803d936bce8545e21728b0) - fix(tests): repair commented tests (#228) (release), 2026-01-28 by *Guillaume Chervet*
 
 
