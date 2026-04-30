@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.72.0
+
+- [04cf9cd6](https://github.com/SlimPlanet/SlimFaas/commit/04cf9cd65a3b29fa92750aca32f7aade37d71d83) - feat(slimfaas): web stream live job (#272) (release), 2026-04-30 by *Guillaume Chervet*
+
+
+## 0.71.3
+
+
+
 ## v0.71.3
 
 - [c7c32aea](https://github.com/SlimPlanet/SlimFaas/commit/c7c32aea9d27b46aba931132650fcb3b82748991) - doc(slimfaas): add client driver .NET and Python (#270) (release), 2026-04-28 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 
 - [8bec7d5c](https://github.com/SlimPlanet/SlimFaas/commit/8bec7d5cf203ca28819b235ea968771e934459b8) - fix(slimfaas): opentelemetry endpoint (#232) (release), 2026-01-30 by *Guillaume Chervet*
 - [3acb7934](https://github.com/SlimPlanet/SlimFaas/commit/3acb793447ed46bb152ed220d02ec0aaecc1c5c7) - feat(SlimfaasMcp): Add prometheus exporter (#213) (release), 2026-01-29 by *Silthian*
-
-
-## 0.60.9
-
-
-
-## v0.60.9
-
-- [7b8e89f3](https://github.com/SlimPlanet/SlimFaas/commit/7b8e89f3212f9c1b50e85a597c3943605ca2b115) - fix(slimfaas): override correct data (#231) (release), 2026-01-29 by *Guillaume Chervet*
 
 
