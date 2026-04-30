@@ -1223,7 +1223,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
         .attr('opacity', 0.88)
         .attr('filter', 'url(#shadow)');
       world.append('text').attr('class', `job-kind-${escaped}`)
-        .attr('x', pos.x).attr('y', pos.y + 3)
+        .attr('x', pos.x).attr('y', pos.y - 14)
         .attr('text-anchor', 'middle').attr('font-size', 10).attr('font-weight', 900).attr('fill', 'rgba(255,255,255,0.95)')
         .attr('letter-spacing', 0.8)
         .attr('paint-order', 'stroke')
@@ -1232,15 +1232,15 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
         .attr('stroke-linejoin', 'round')
         .text('JOB');
       world.append('text').attr('class', `job-name-${escaped}`)
-        .attr('x', pos.x).attr('y', pos.y + JOB_BUBBLE_R + 16)
-        .attr('text-anchor', 'middle').attr('font-size', 9).attr('font-weight', 'bold').attr('fill', '#7a4f01')
+        .attr('x', pos.x).attr('y', pos.y)
+        .attr('text-anchor', 'middle').attr('font-size', 8).attr('font-weight', 'bold').attr('fill', '#fff')
         .attr('paint-order', 'stroke')
-        .attr('stroke', 'rgba(255,255,255,0.95)')
-        .attr('stroke-width', 2)
+        .attr('stroke', 'rgba(0,0,0,0.72)')
+        .attr('stroke-width', 1.2)
         .attr('stroke-linejoin', 'round');
       world.append('text').attr('class', `job-count-${escaped}`)
-        .attr('x', pos.x).attr('y', pos.y + JOB_BUBBLE_R + 31)
-        .attr('text-anchor', 'middle').attr('font-size', 8.5).attr('font-weight', 700);
+        .attr('x', pos.x).attr('y', pos.y + 20)
+        .attr('text-anchor', 'middle').attr('font-size', 11).attr('font-weight', 900);
       world.append('g').attr('class', `job-runs-${escaped}`);
     });
 
@@ -1339,7 +1339,6 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
       const escaped = CSS.escape(job.Name);
       const color = nameColor(`job:${job.Name}`);
       const runs = job.RunningJobs ?? [];
-      const schedules = job.Schedules ?? [];
       const r = JOB_BUBBLE_R + Math.min(runs.length * 3, 14);
 
       world.select(`.job-bubble-${escaped}`)
@@ -1352,22 +1351,26 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
 
       world.select(`.job-kind-${escaped}`)
         .attr('x', pos.x)
-        .attr('y', pos.y + 3)
+        .attr('y', pos.y - Math.min(14, r * 0.45))
         .attr('fill', runs.length > 0 ? 'rgba(255,255,255,0.92)' : '#f08c00')
         .attr('stroke', runs.length > 0 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.85)')
         .text('JOB');
 
       const jobNameSelection = world.select<SVGTextElement>(`.job-name-${escaped}`)
         .attr('fill', '#7a4f01')
-        .attr('stroke', 'rgba(255,255,255,0.95)')
-        .attr('stroke-width', 2);
-      applyMultilineSvgText(jobNameSelection, splitLabelLines(job.Name, 16).slice(0, 2), pos.x, pos.y + r + 16, 10);
+        .attr('stroke', runs.length > 0 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.9)')
+        .attr('stroke-width', 1.2);
+      applyMultilineSvgText(jobNameSelection, splitLabelLines(job.Name, 10).slice(0, 2), pos.x, pos.y + 1, 8);
 
       world.select(`.job-count-${escaped}`)
         .attr('x', pos.x)
-        .attr('y', pos.y + r + 33)
-        .attr('fill', '#f08c00')
-        .text(`${runs.length} running • ${schedules.length} sched`);
+        .attr('y', pos.y + Math.min(20, r * 0.62))
+        .attr('fill', runs.length > 0 ? 'rgba(255,255,255,0.95)' : '#f08c00')
+        .attr('paint-order', 'stroke')
+        .attr('stroke', runs.length > 0 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.85)')
+        .attr('stroke-width', 1.2)
+        .attr('stroke-linejoin', 'round')
+        .text(`${runs.length}`);
 
       const runGroup = world.select<SVGGElement>(`.job-runs-${escaped}`);
       runGroup.selectAll('*').remove();
@@ -1377,7 +1380,6 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
           const runName = run.Name || run.ElementId;
           const rp = replicas[runName];
           if (!rp) continue;
-          const shortName = runName.length > 18 ? `...${runName.slice(-15)}` : runName;
           const runG = runGroup.append('g').style('cursor', 'pointer');
           runG.append('circle')
             .attr('cx', rp.x)
@@ -1397,7 +1399,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
             .attr('stroke', 'rgba(255,255,255,0.9)')
             .attr('stroke-width', 1.8)
             .attr('stroke-linejoin', 'round')
-            .text(shortName);
+            .text(runName);
           runG.append('title').text(`${run.Name || 'Job run'}\nType: Job\nStatus: ${run.Status}\nElementId: ${run.ElementId || 'N/A'}\nStarted: ${run.StartTimestamp || 'N/A'}`);
         }
       }
