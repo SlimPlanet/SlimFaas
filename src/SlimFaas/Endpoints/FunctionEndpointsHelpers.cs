@@ -1,10 +1,7 @@
-using System.Collections.Immutable;
-using System.Net;
 using MemoryPack;
-using SlimFaas.Database;
+using SlimData.ClusterFiles;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
-using SlimFaas.Security;
 
 namespace SlimFaas.Endpoints;
 
@@ -33,8 +30,7 @@ public static class FunctionEndpointsHelpers
         return function.Visibility;
     }
 
-
-    public static string GetPathWithoutPrefix(string functionPath, string prefix)
+    private static string GetPathWithoutPrefix(string functionPath, string prefix)
     {
         if (functionPath.StartsWith(prefix, StringComparison.InvariantCultureIgnoreCase))
         {
@@ -42,8 +38,6 @@ public static class FunctionEndpointsHelpers
         }
         return functionPath;
     }
-
-
 
     public static bool MessageComeFromNamespaceInternal(
         ILogger logger,
@@ -111,36 +105,75 @@ public static class FunctionEndpointsHelpers
         HttpContext context,
         HttpRequest contextRequest,
         string functionName,
-        string functionPath)
+        string functionPath,
+        long bodyOffloadThresholdBytes = 0,
+        IClusterFileSync? fileSync = null,
+        IDatabaseService? db = null,
+        CancellationToken ct = default)
     {
         List<CustomHeader> customHeaders = contextRequest.Headers
             .Select(headers => new CustomHeader(headers.Key, headers.Value.ToArray())).ToList();
 
         string requestMethod = contextRequest.Method;
         byte[]? requestBodyBytes = null;
+        string? offloadedFileId = null;
 
-        if (!HttpMethods.IsGet(requestMethod) &&
-            !HttpMethods.IsHead(requestMethod) &&
-            !HttpMethods.IsDelete(requestMethod) &&
-            !HttpMethods.IsTrace(requestMethod))
+        bool hasBody = !HttpMethods.IsGet(requestMethod) &&
+                       !HttpMethods.IsHead(requestMethod) &&
+                       !HttpMethods.IsDelete(requestMethod) &&
+                       !HttpMethods.IsTrace(requestMethod);
+
+        if (hasBody)
         {
-            using StreamContent streamContent = new(context.Request.Body);
-            using MemoryStream memoryStream = new();
-            await streamContent.CopyToAsync(memoryStream);
-            requestBodyBytes = memoryStream.ToArray();
+            bool shouldOffload = bodyOffloadThresholdBytes > 0
+                && fileSync != null
+                && db != null
+                && (contextRequest.ContentLength == null
+                    || contextRequest.ContentLength > bodyOffloadThresholdBytes);
+
+            if (shouldOffload)
+            {
+                offloadedFileId = Guid.NewGuid().ToString("N");
+                var contentType = contextRequest.ContentType ?? "application/octet-stream";
+                var contentLength = contextRequest.ContentLength ?? 20L * 1024L * 1024L;
+
+                var put = await fileSync!.BroadcastFilePutAsync(
+                    id: offloadedFileId,
+                    content: contextRequest.Body,
+                    contentType: contentType,
+                    contentLengthBytes: contentLength,
+                    overwrite: false,
+                    ttl: null,
+                    ct: ct);
+
+                var meta = new DataSetMetadata(
+                    Sha256Hex: put.Sha256Hex,
+                    Length: put.Length,
+                    ContentType: put.ContentType,
+                    FileName: offloadedFileId);
+                var metaKey = $"data:file:{offloadedFileId}:meta";
+                var metaBytes = MemoryPackSerializer.Serialize(meta);
+                await db!.SetAsync(metaKey, metaBytes);
+            }
+            else
+            {
+                using StreamContent streamContent = new(context.Request.Body);
+                using MemoryStream memoryStream = new();
+                await streamContent.CopyToAsync(memoryStream, ct);
+                requestBodyBytes = memoryStream.ToArray();
+            }
         }
 
-        QueryString requestQueryString = contextRequest.QueryString;
-        CustomRequest customRequest = new()
+        return new CustomRequest
         {
             Headers = customHeaders,
             FunctionName = functionName,
             Path = functionPath,
             Body = requestBodyBytes,
-            Query = requestQueryString.ToUriComponent(),
-            Method = requestMethod
+            Query = contextRequest.QueryString.ToUriComponent(),
+            Method = requestMethod,
+            OffloadedFileId = offloadedFileId
         };
-        return customRequest;
     }
 
     public static FunctionStatus MapToFunctionStatus(DeploymentInformation functionDeploymentInformation)

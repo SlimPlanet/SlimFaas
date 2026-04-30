@@ -4,7 +4,7 @@ namespace SlimFaas;
 
 [MemoryPackable]
 public partial record struct CustomRequest(List<CustomHeader> Headers, byte[]? Body, string FunctionName, string Path,
-    string Method, string Query);
+    string Method, string Query, string? OffloadedFileId = null);
 
 [MemoryPackable]
 public partial record struct CustomHeader(string Key, string?[] Values);

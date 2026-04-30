@@ -7,6 +7,7 @@ using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using MemoryPack;
 using SlimFaas.Endpoints;
+using SlimData.ClusterFiles;
 using SlimFaas.Options;
 namespace SlimFaas.Tests;
 
@@ -29,7 +30,7 @@ public class SlimWorkerShould
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?>((req, _, _, _, _, _, _, _) => capturedRequest = req)
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?>((req, _, _, _, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
@@ -100,6 +101,9 @@ public class SlimWorkerShould
             QueuesDelayMilliseconds = 10
         });
 
+        Mock<IClusterFileSync> clusterFileSync = new Mock<IClusterFileSync>();
+        Mock<IDatabaseService> databaseService = new Mock<IDatabaseService>();
+
         SlimQueuesWorker service = new SlimQueuesWorker(
             slimFaasQueue,
             replicasService.Object,
@@ -108,6 +112,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
+            clusterFileSync.Object,
+            databaseService.Object,
             workersOptions,
             new NetworkActivityTracker());
         using var cts = new CancellationTokenSource();
@@ -126,7 +132,8 @@ public class SlimWorkerShould
                 It.IsAny<IProxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<string?>()),
+                It.IsAny<string?>(),
+                It.IsAny<Stream?>()),
             Times.Once());
 
         // Vérification que les headers ont été ajoutés
@@ -169,6 +176,9 @@ public class SlimWorkerShould
             QueuesDelayMilliseconds = 10
         });
 
+        Mock<IClusterFileSync> clusterFileSync = new Mock<IClusterFileSync>();
+        Mock<IDatabaseService> databaseService = new Mock<IDatabaseService>();
+
         SlimQueuesWorker service = new SlimQueuesWorker(
             redisQueue,
             replicasService.Object,
@@ -177,6 +187,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
+            clusterFileSync.Object,
+            databaseService.Object,
             workersOptions,
             new NetworkActivityTracker());
 
@@ -217,8 +229,9 @@ public class SlimWorkerShould
                 It.IsAny<IProxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?>((req, _, _, _, _, _, _, _) => capturedRequest = req)
+                It.IsAny<string?>(),
+                It.IsAny<Stream?>()))
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?>((req, _, _, _, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
@@ -284,6 +297,9 @@ public class SlimWorkerShould
             QueuesDelayMilliseconds = 10
         });
 
+        Mock<IClusterFileSync> clusterFileSyncForHeaders = new Mock<IClusterFileSync>();
+        Mock<IDatabaseService> databaseServiceForHeaders = new Mock<IDatabaseService>();
+
         SlimQueuesWorker service = new SlimQueuesWorker(
             mockQueue.Object,
             replicasService.Object,
@@ -292,6 +308,8 @@ public class SlimWorkerShould
             serviceProvider.Object,
             slimDataStatus.Object,
             masterService.Object,
+            clusterFileSyncForHeaders.Object,
+            databaseServiceForHeaders.Object,
             workersOptions,
             new NetworkActivityTracker());
 
