@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import * as d3 from 'd3';
-import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types';
+import type { FunctionStatusDetailed, JobConfigurationStatus, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types';
 
 interface Props {
   functions: FunctionStatusDetailed[];
+  jobs: JobConfigurationStatus[];
   queues: QueueInfo[];
   activity: NetworkActivityEvent[];
   functionsWithQueueActivity: Set<string>;
@@ -46,14 +47,18 @@ const OVERLOAD_GAP_MS = 16;
 const COUNTER_STALE_MS = 2 * 60 * 1000;
 const COUNTER_SWEEP_MS = 1000;
 const BUBBLE_R = 34;
+const JOB_BUBBLE_R = 32;
 const SLIMFAAS_R = 42;
 const REPLICA_R = 9;
+const JOB_RUN_R = 8;
 const SLIM_REPLICA_MIN_RING = SLIMFAAS_R + 34;
 const SLIM_REPLICA_ARC_SPACING = 58;
 const QUEUE_BOX_W = 60;
 const QUEUE_BOX_H = 20;
 const CENTER = { x: 0, y: 0 };
 const EXTERNAL_ANGLE = -Math.PI * 0.88;
+const JOBS_ARC_START = -Math.PI * 0.58;
+const JOBS_ARC_END = Math.PI * 0.58;
 const SVG_VIEW_H = 680;
 const REPLICA_SLOT_COUNT = 16;
 const REPLICA_SLOT_ORDER = [0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15];
@@ -70,6 +75,15 @@ function podColor(status: string): string {
   if (status === 'Starting') return '#fab005';
   if (status === 'Pending') return '#adb5bd';
   return '#ff5630';
+}
+
+function jobRunColor(status: string): string {
+  if (status === 'Running') return '#36b37e';
+  if (status === 'Succeeded') return '#2f9e44';
+  if (status === 'Pending') return '#fab005';
+  if (status === 'ImagePullBackOff') return '#f76707';
+  if (status === 'Failed') return '#ff5630';
+  return '#adb5bd';
 }
 
 function lightenColor(hex: string, amount: number): string {
@@ -102,6 +116,11 @@ function radialPositions(n: number): { x: number; y: number }[] {
     const angle = (2 * Math.PI * i) / n - Math.PI / 2;
     return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
   });
+}
+
+function jobAndExternalRadius(fnPositions: Record<string, { x: number; y: number }>, jobCount: number): number {
+  const functionRadius = Math.max(280, ...Object.values(fnPositions).map(p => Math.hypot(p.x - CENTER.x, p.y - CENTER.y)));
+  return Math.max(functionRadius + 190, 420, (Math.max(1, jobCount) * 120) / Math.PI);
 }
 
 function replicaSlotAngle(slotIndex: number): number {
@@ -173,7 +192,7 @@ function applyMultilineSvgText(
   });
 }
 
-const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWithQueueActivity, slimFaasReplicas, slimFaasNodes }) => {
+const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functionsWithQueueActivity, slimFaasReplicas, slimFaasNodes }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animRef = useRef<AnimatedMessage[]>([]);
@@ -199,8 +218,11 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   const slimReplicaPositionsRef = useRef<Record<string, ReplicaPosition>>({});
   const functionReplicaPositionsRef = useRef<Record<string, Record<string, ReplicaPosition>>>({});
   const functionReplicaSlotsRef = useRef<Record<string, Record<string, number>>>({});
+  const jobRunPositionsRef = useRef<Record<string, Record<string, ReplicaPosition>>>({});
+  const jobRunSlotsRef = useRef<Record<string, Record<string, number>>>({});
 
   const fnNamesKey = useMemo(() => functions.map(f => f.Name).sort().join(','), [functions]);
+  const jobNamesKey = useMemo(() => jobs.map(j => j.Name).sort().join(','), [jobs]);
 
   const fnPositions = useMemo(() => {
     const names = fnNamesKey.split(',').filter(Boolean);
@@ -210,16 +232,28 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     return pos;
   }, [fnNamesKey]);
 
+  const jobPositions = useMemo(() => {
+    const names = jobNamesKey.split(',').filter(Boolean);
+    const pos: Record<string, { x: number; y: number }> = {};
+    if (names.length === 0) return pos;
+
+    const radius = jobAndExternalRadius(fnPositions, names.length);
+    names.forEach((name, i) => {
+      const angle = names.length === 1
+        ? 0
+        : JOBS_ARC_START + ((JOBS_ARC_END - JOBS_ARC_START) * i) / (names.length - 1);
+      pos[name] = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+    });
+    return pos;
+  }, [fnPositions, jobNamesKey]);
+
   const externalPos = useMemo(() => {
-    const pts = Object.values(fnPositions);
-    const baseRadius = pts.length === 0
-      ? 420
-      : Math.max(...pts.map(p => Math.hypot(p.x - CENTER.x, p.y - CENTER.y))) + 190;
+    const baseRadius = jobAndExternalRadius(fnPositions, jobNamesKey.split(',').filter(Boolean).length);
     return {
       x: CENTER.x + Math.cos(EXTERNAL_ANGLE) * baseRadius,
       y: CENTER.y + Math.sin(EXTERNAL_ANGLE) * baseRadius,
     };
-  }, [fnPositions]);
+  }, [fnPositions, jobNamesKey]);
 
   const queueFnKey = useMemo(() => {
     const names: string[] = [];
@@ -254,7 +288,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
     const svgW = svg.clientWidth || 800;
     const svgH = svg.clientHeight || SVG_VIEW_H;
-    const allPts: { x: number; y: number }[] = [CENTER, externalPos, ...Object.values(slimReplicaPositionsRef.current), ...Object.values(fnPositions), ...Object.values(queuePositions)];
+    const allPts: { x: number; y: number }[] = [CENTER, externalPos, ...Object.values(slimReplicaPositionsRef.current), ...Object.values(fnPositions), ...Object.values(jobPositions), ...Object.values(queuePositions)];
     if (allPts.length === 0) return;
 
     const pad = BUBBLE_R + 140;
@@ -275,7 +309,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 
     if (animated) d3.select(svg).transition().duration(400).call(zoom.transform, transform);
     else d3.select(svg).call(zoom.transform, transform);
-  }, [externalPos, fnPositions, queuePositions]);
+  }, [externalPos, fnPositions, jobPositions, queuePositions]);
 
   const slimNodeList = useMemo(() => {
     if (slimFaasNodes.length > 0) return slimFaasNodes;
@@ -342,6 +376,52 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     return result;
   }, [functions, fnPositions]);
 
+  const jobRunPositions = useMemo(() => {
+    const result: Record<string, Record<string, ReplicaPosition>> = {};
+    const liveJobNames = new Set(jobs.map(job => job.Name));
+    for (const jobName of Object.keys(jobRunSlotsRef.current)) {
+      if (!liveJobNames.has(jobName)) delete jobRunSlotsRef.current[jobName];
+    }
+
+    for (const job of jobs) {
+      const runs = job.RunningJobs ?? [];
+      const center = jobPositions[job.Name];
+      if (!center || runs.length === 0) continue;
+      const slots = jobRunSlotsRef.current[job.Name] ?? {};
+      jobRunSlotsRef.current[job.Name] = slots;
+      const liveRunNames = new Set(runs.map(run => run.Name || run.ElementId));
+      for (const runName of Object.keys(slots)) {
+        if (!liveRunNames.has(runName)) delete slots[runName];
+      }
+
+      const usedSlots = new Set(Object.values(slots));
+      const newRuns = runs
+        .filter(run => slots[run.Name || run.ElementId] === undefined)
+        .sort((a, b) => (a.StartTimestamp || 0) - (b.StartTimestamp || 0) || (a.Name || a.ElementId).localeCompare(b.Name || b.ElementId));
+      for (const run of newRuns) {
+        let slot = 0;
+        while (usedSlots.has(slot)) slot += 1;
+        slots[run.Name || run.ElementId] = slot;
+        usedSlots.add(slot);
+      }
+
+      result[job.Name] = {};
+      runs.forEach((run) => {
+        const runName = run.Name || run.ElementId;
+        const slot = slots[runName] ?? 0;
+        const a = replicaSlotAngle(slot);
+        const ring = JOB_BUBBLE_R + 17 + Math.floor(slot / REPLICA_SLOT_COUNT) * (JOB_RUN_R * 2 + 8);
+        result[job.Name][runName] = {
+          x: center.x + Math.cos(a) * ring,
+          y: center.y + Math.sin(a) * ring,
+          status: run.Status,
+          name: runName,
+        };
+      });
+    }
+    return result;
+  }, [jobs, jobPositions]);
+
   useEffect(() => {
     slimReplicaPositionsRef.current = slimReplicaPositions;
   }, [slimReplicaPositions]);
@@ -349,6 +429,10 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
   useEffect(() => {
     functionReplicaPositionsRef.current = functionReplicaPositions;
   }, [functionReplicaPositions]);
+
+  useEffect(() => {
+    jobRunPositionsRef.current = jobRunPositions;
+  }, [jobRunPositions]);
 
   const ipToPod = useMemo(() => {
     const map: Record<string, { functionName: string; podName: string }> = {};
@@ -388,6 +472,23 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     const firstReplica = Object.values(replicas)[0];
     return firstReplica ? { x: firstReplica.x, y: firstReplica.y } : null;
   }, [functionReplicaPositions, resolvePodLink]);
+
+  const getJobPosition = useCallback((jobName: string, runNameOrElementId: string | null | undefined) => {
+    const runs = jobRunPositions[jobName];
+    if (runs && Object.keys(runs).length > 0) {
+      if (runNameOrElementId && runs[runNameOrElementId]) return { x: runs[runNameOrElementId].x, y: runs[runNameOrElementId].y };
+      const firstRun = Object.values(runs)[0];
+      if (firstRun) return { x: firstRun.x, y: firstRun.y };
+    }
+
+    return jobPositions[jobName] ?? null;
+  }, [jobPositions, jobRunPositions]);
+
+  const getActorPosition = useCallback((actorName: string, podIpOrName: string | null | undefined) => {
+    const jobPos = getJobPosition(actorName, podIpOrName);
+    if (jobPos) return jobPos;
+    return getFunctionReplicaPosition(actorName, podIpOrName);
+  }, [getFunctionReplicaPosition, getJobPosition]);
 
   const getSlimPosition = useCallback((nodeId: string | null | undefined) => {
     if (nodeId && slimReplicaPositions[nodeId]) {
@@ -492,7 +593,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     const enqueueVisualMessage = (message: AnimatedMessage) => {
       if (shouldAnimate) queueMessage(message);
     };
-    const replicaOf = (name: string, pod: string | null | undefined) => getFunctionReplicaPosition(name, pod);
+    const replicaOf = (name: string, pod: string | null | undefined) => getActorPosition(name, pod);
     const srcLabel = resolvePodLabel(evt.SourcePod);
     const tgtLabel = resolvePodLabel(evt.TargetPod);
     const slim = getSlimPosition(evt.NodeId);
@@ -732,7 +833,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         label: srcLabel,
       });
     }
-  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, fnReplicaKey, getFunctionReplicaPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, queueMessage, queuePositions, resolveFunctionReplicaCounterKey, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
+  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, fnReplicaKey, getActorPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, queueMessage, queuePositions, resolveFunctionReplicaCounterKey, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
 
   useEffect(() => {
     const fresh: NetworkActivityEvent[] = [];
@@ -911,6 +1012,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     const externalCounter = activeExternalCounterRef.current;
     const liveSlimReplicaPositions = slimReplicaPositionsRef.current;
     const liveFunctionReplicaPositions = functionReplicaPositionsRef.current;
+    const liveJobRunPositions = jobRunPositionsRef.current;
     type CDatum = { key: string; x: number; y: number; count: number };
     const cData: CDatum[] = [];
 
@@ -935,6 +1037,19 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
           const dx = 6 + (idx % 2) * 4;
           const dy = -6 - (idx % 3) * 3;
           cData.push({ key, x: rp.x + REPLICA_R + dx, y: rp.y - REPLICA_R + dy, count: c });
+        }
+      });
+    }
+
+    for (const [jobName, runs] of Object.entries(liveJobRunPositions)) {
+      const runEntries = Object.entries(runs).sort((a, b) => a[0].localeCompare(b[0]));
+      runEntries.forEach(([runName, rp], idx) => {
+        const key = fnReplicaKey(`job:${jobName}`, runName);
+        const c = replicaCounters[key] || 0;
+        if (c > 0) {
+          const dx = 6 + (idx % 2) * 4;
+          const dy = -6 - (idx % 3) * 3;
+          cData.push({ key, x: rp.x + JOB_RUN_R + dx, y: rp.y - JOB_RUN_R + dy, count: c });
         }
       });
     }
@@ -971,7 +1086,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
     frameRef.current = requestAnimationFrame(animate);
   }, [externalPos, fnReplicaKey, queuePositions, sfReplicaKey]);
 
-  const structuralKey = `${fnNamesKey}|${queueFnKey}`;
+  const structuralKey = `${fnNamesKey}|${jobNamesKey}|${queueFnKey}`;
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -1091,6 +1206,44 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       world.append('g').attr('class', `fn-pods-${escaped}`);
     });
 
+    const jobNames = jobNamesKey.split(',').filter(Boolean);
+    jobNames.forEach((jobName) => {
+      const pos = jobPositions[jobName];
+      if (!pos) return;
+      const color = nameColor(`job:${jobName}`);
+      const escaped = CSS.escape(jobName);
+      world.append('g').attr('class', `job-group-${escaped}`);
+      world.append('circle').attr('class', `job-bubble-${escaped}`)
+        .attr('cx', pos.x)
+        .attr('cy', pos.y)
+        .attr('r', JOB_BUBBLE_R)
+        .attr('fill', color)
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 2.5)
+        .attr('opacity', 0.88)
+        .attr('filter', 'url(#shadow)');
+      world.append('text').attr('class', `job-kind-${escaped}`)
+        .attr('x', pos.x).attr('y', pos.y - 14)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('font-weight', 900).attr('fill', 'rgba(255,255,255,0.95)')
+        .attr('letter-spacing', 0.8)
+        .attr('paint-order', 'stroke')
+        .attr('stroke', 'rgba(0,0,0,0.72)')
+        .attr('stroke-width', 1.2)
+        .attr('stroke-linejoin', 'round')
+        .text('JOB');
+      world.append('text').attr('class', `job-name-${escaped}`)
+        .attr('x', pos.x).attr('y', pos.y)
+        .attr('text-anchor', 'middle').attr('font-size', 8).attr('font-weight', 'bold').attr('fill', '#fff')
+        .attr('paint-order', 'stroke')
+        .attr('stroke', 'rgba(0,0,0,0.72)')
+        .attr('stroke-width', 1.2)
+        .attr('stroke-linejoin', 'round');
+      world.append('text').attr('class', `job-count-${escaped}`)
+        .attr('x', pos.x).attr('y', pos.y + 20)
+        .attr('text-anchor', 'middle').attr('font-size', 11).attr('font-weight', 900);
+      world.append('g').attr('class', `job-runs-${escaped}`);
+    });
+
     world.append('g').attr('class', 'nw-messages');
     world.append('g').attr('class', 'nw-counters');
 
@@ -1106,7 +1259,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       cancelAnimationFrame(frameRef.current);
       clearTimeout(fitTimer);
     };
-  }, [animate, externalPos, fnNamesKey, fnPositions, queueFnKey, queuePositions, structuralKey, zoomToFit]);
+  }, [animate, externalPos, fnNamesKey, fnPositions, jobNamesKey, jobPositions, queueFnKey, queuePositions, structuralKey, zoomToFit]);
 
   useEffect(() => {
     const wg = worldGRef.current;
@@ -1180,6 +1333,78 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
       }
     });
 
+    jobs.forEach((job) => {
+      const pos = jobPositions[job.Name];
+      if (!pos) return;
+      const escaped = CSS.escape(job.Name);
+      const color = nameColor(`job:${job.Name}`);
+      const runs = job.RunningJobs ?? [];
+      const r = JOB_BUBBLE_R + Math.min(runs.length * 3, 14);
+
+      world.select(`.job-bubble-${escaped}`)
+        .attr('cx', pos.x)
+        .attr('cy', pos.y)
+        .attr('r', r)
+        .attr('fill', runs.length > 0 ? color : '#fff7e6')
+        .attr('stroke', color)
+        .attr('opacity', runs.length > 0 ? 0.9 : 0.72);
+
+      world.select(`.job-kind-${escaped}`)
+        .attr('x', pos.x)
+        .attr('y', pos.y - Math.min(14, r * 0.45))
+        .attr('fill', runs.length > 0 ? 'rgba(255,255,255,0.92)' : '#f08c00')
+        .attr('stroke', runs.length > 0 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.85)')
+        .text('JOB');
+
+      const jobNameSelection = world.select<SVGTextElement>(`.job-name-${escaped}`)
+        .attr('fill', '#7a4f01')
+        .attr('stroke', runs.length > 0 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.9)')
+        .attr('stroke-width', 1.2);
+      applyMultilineSvgText(jobNameSelection, splitLabelLines(job.Name, 10).slice(0, 2), pos.x, pos.y + 1, 8);
+
+      world.select(`.job-count-${escaped}`)
+        .attr('x', pos.x)
+        .attr('y', pos.y + Math.min(20, r * 0.62))
+        .attr('fill', runs.length > 0 ? 'rgba(255,255,255,0.95)' : '#f08c00')
+        .attr('paint-order', 'stroke')
+        .attr('stroke', runs.length > 0 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.85)')
+        .attr('stroke-width', 1.2)
+        .attr('stroke-linejoin', 'round')
+        .text(`${runs.length}`);
+
+      const runGroup = world.select<SVGGElement>(`.job-runs-${escaped}`);
+      runGroup.selectAll('*').remove();
+      if (runs.length > 0) {
+        const replicas = jobRunPositions[job.Name] || {};
+        for (const run of runs) {
+          const runName = run.Name || run.ElementId;
+          const rp = replicas[runName];
+          if (!rp) continue;
+          const runG = runGroup.append('g').style('cursor', 'pointer');
+          runG.append('circle')
+            .attr('cx', rp.x)
+            .attr('cy', rp.y)
+            .attr('r', JOB_RUN_R)
+            .attr('fill', jobRunColor(run.Status))
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1.5);
+          runG.append('text')
+            .attr('x', rp.x)
+            .attr('y', rp.y + JOB_RUN_R + 8)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', 7)
+            .attr('fill', '#212529')
+            .attr('font-weight', 700)
+            .attr('paint-order', 'stroke')
+            .attr('stroke', 'rgba(255,255,255,0.9)')
+            .attr('stroke-width', 1.8)
+            .attr('stroke-linejoin', 'round')
+            .text(runName);
+          runG.append('title').text(`${run.Name || 'Job run'}\nType: Job\nStatus: ${run.Status}\nElementId: ${run.ElementId || 'N/A'}\nStarted: ${run.StartTimestamp || 'N/A'}`);
+        }
+      }
+    });
+
     const sfGroup = world.select<SVGGElement>('.sf-replicas');
     sfGroup.selectAll('*').remove();
     for (const node of slimNodeList) {
@@ -1213,7 +1438,7 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
         .text(node.Name);
       sfGroup.append('title').text(`${node.Name} - ${node.Status}`);
     }
-  }, [functionReplicaPositions, functions, fnPositions, queueMap, queuePositions, slimNodeList, slimReplicaPositions]);
+  }, [functionReplicaPositions, functions, fnPositions, jobPositions, jobRunPositions, jobs, queueMap, queuePositions, slimNodeList, slimReplicaPositions]);
 
   useEffect(() => {
     if (!initialFitDoneRef.current) return;
@@ -1256,9 +1481,17 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
           </span>
         ))}
         {functions.length > 8 && <span className="network-map__legend-item" style={{ fontStyle: 'italic' }}>+{functions.length - 8} more</span>}
+        {jobs.slice(0, 6).map(job => (
+          <span key={`job-${job.Name}`} className="network-map__legend-item">
+            <span className="network-map__legend-dot" style={{ backgroundColor: nameColor(`job:${job.Name}`) }} />
+            Job: {job.Name}
+          </span>
+        ))}
+        {jobs.length > 6 && <span className="network-map__legend-item" style={{ fontStyle: 'italic' }}>+{jobs.length - 6} jobs</span>}
         <span className="network-map__legend-item" style={{ marginLeft: 12 }}><svg width="14" height="10"><circle cx="5" cy="5" r="4" fill="#4c6ef5" /></svg> Request</span>
         <span className="network-map__legend-item"><svg width="14" height="10"><rect x="1" y="2" width="10" height="6" rx="1.5" fill="#6b778c" /></svg> Async</span>
         <span className="network-map__legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#36b37e" /></svg> Replica</span>
+        <span className="network-map__legend-item"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#f08c00" /></svg> Job</span>
         <span className="network-map__legend-separator" />
         <span className="network-map__legend-item" title="Active requests badge"><svg width="18" height="14"><rect x="1" y="0" width="16" height="14" rx="7" fill="#f08c00" stroke="#fff" strokeWidth="1" /><text x="9" y="10.5" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#fff">3</text></svg> Active</span>
       </div>
@@ -1267,4 +1500,3 @@ const NetworkMap: React.FC<Props> = ({ functions, queues, activity, functionsWit
 };
 
 export default NetworkMap;
-

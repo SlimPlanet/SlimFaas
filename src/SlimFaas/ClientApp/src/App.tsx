@@ -132,9 +132,9 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {functions.length > 0 && frontEnabled && (
+          {(functions.length > 0 || jobs.length > 0) && frontEnabled && (
             <ErrorBoundary>
-              <NetworkMap functions={functions} queues={queues} activity={activity} functionsWithQueueActivity={functionsWithQueueActivity} slimFaasReplicas={slimFaasReplicas} slimFaasNodes={slimFaasNodes} />
+              <NetworkMap functions={functions} jobs={jobs} queues={queues} activity={activity} functionsWithQueueActivity={functionsWithQueueActivity} slimFaasReplicas={slimFaasReplicas} slimFaasNodes={slimFaasNodes} />
             </ErrorBoundary>
           )}
         </div>

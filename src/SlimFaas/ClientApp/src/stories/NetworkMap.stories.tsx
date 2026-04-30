@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
 import NetworkMap from '../components/NetworkMap';
-import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent } from '../types';
+import type { FunctionStatusDetailed, JobConfigurationStatus, QueueInfo, NetworkActivityEvent } from '../types';
+
+const now = Date.now();
 
 const FUNCTIONS: FunctionStatusDetailed[] = [
   {
@@ -69,7 +71,36 @@ const QUEUES: QueueInfo[] = [
   { Name: 'ws-handler', Length: 1 },
 ];
 
-const now = Date.now();
+const JOBS: JobConfigurationStatus[] = [
+  {
+    Name: 'daily-report',
+    Visibility: 'Private',
+    Image: 'ghcr.io/slimplanet/report:latest',
+    ImagesWhitelist: ['ghcr.io/slimplanet/*'],
+    NumberParallelJob: 2,
+    Resources: null,
+    DependsOn: ['mysql'],
+    Schedules: [
+      { Id: 'schedule-1', Schedule: '0 7 * * *', Image: 'ghcr.io/slimplanet/report:latest', NextExecutionTimestamp: Math.floor(Date.now() / 1000) + 3600, Resources: null, DependsOn: ['mysql'] },
+    ],
+    RunningJobs: [
+      { Name: 'daily-report-slimfaas-job-a1', Status: 'Running', ElementId: 'job-1', InQueueTimestamp: now - 30_000, StartTimestamp: now - 20_000 },
+      { Name: 'daily-report-slimfaas-job-b2', Status: 'Pending', ElementId: 'job-2', InQueueTimestamp: now - 18_000, StartTimestamp: now - 5_000 },
+    ],
+  },
+  {
+    Name: 'image-cleanup',
+    Visibility: 'Public',
+    Image: 'ghcr.io/slimplanet/cleanup:latest',
+    ImagesWhitelist: ['ghcr.io/slimplanet/*'],
+    NumberParallelJob: 1,
+    Resources: null,
+    DependsOn: [],
+    Schedules: [],
+    RunningJobs: [],
+  },
+];
+
 const ACTIVITY: NetworkActivityEvent[] = [
   { Id: 'evt-1', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 5000, NodeId: 'slimfaas-0', SourcePod: '192.168.1.50', TargetPod: null },
   { Id: 'evt-2', Type: 'enqueue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 4500, NodeId: 'slimfaas-0', SourcePod: '192.168.1.50', TargetPod: null },
@@ -100,6 +131,7 @@ export const Default: Story = {
   name: 'With functions, queues and activity',
   args: {
     functions: FUNCTIONS,
+    jobs: JOBS,
     queues: QUEUES,
     activity: ACTIVITY,
     functionsWithQueueActivity: FUNCTIONS_WITH_QUEUE_ACTIVITY,
@@ -116,6 +148,7 @@ export const NoActivity: Story = {
   name: 'No recent activity',
   args: {
     functions: FUNCTIONS,
+    jobs: JOBS,
     queues: QUEUES,
     activity: [],
     functionsWithQueueActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)),
@@ -132,6 +165,7 @@ export const Empty: Story = {
   name: 'No functions',
   args: {
     functions: [],
+    jobs: [],
     queues: [],
     activity: [],
     functionsWithQueueActivity: new Set<string>(),
@@ -225,6 +259,7 @@ export const LiveAnimation: Story = {
     return (
       <NetworkMap
         functions={FUNCTIONS}
+        jobs={JOBS}
         queues={dynamicQueues}
         activity={act}
         functionsWithQueueActivity={liveQueueFns}
