@@ -57,6 +57,8 @@ const QUEUE_BOX_W = 60;
 const QUEUE_BOX_H = 20;
 const CENTER = { x: 0, y: 0 };
 const EXTERNAL_ANGLE = -Math.PI * 0.88;
+const JOBS_ARC_START = -Math.PI * 0.58;
+const JOBS_ARC_END = Math.PI * 0.58;
 const SVG_VIEW_H = 680;
 const REPLICA_SLOT_COUNT = 16;
 const REPLICA_SLOT_ORDER = [0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15];
@@ -114,6 +116,11 @@ function radialPositions(n: number): { x: number; y: number }[] {
     const angle = (2 * Math.PI * i) / n - Math.PI / 2;
     return { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
   });
+}
+
+function jobAndExternalRadius(fnPositions: Record<string, { x: number; y: number }>, jobCount: number): number {
+  const functionRadius = Math.max(280, ...Object.values(fnPositions).map(p => Math.hypot(p.x - CENTER.x, p.y - CENTER.y)));
+  return Math.max(functionRadius + 190, 420, (Math.max(1, jobCount) * 120) / Math.PI);
 }
 
 function replicaSlotAngle(slotIndex: number): number {
@@ -230,25 +237,23 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     const pos: Record<string, { x: number; y: number }> = {};
     if (names.length === 0) return pos;
 
-    const functionRadius = Math.max(280, ...Object.values(fnPositions).map(p => Math.hypot(p.x - CENTER.x, p.y - CENTER.y)));
-    const radius = Math.max(functionRadius + 260, (names.length * 150) / (2 * Math.PI), 520);
+    const radius = jobAndExternalRadius(fnPositions, names.length);
     names.forEach((name, i) => {
-      const angle = (2 * Math.PI * i) / names.length - Math.PI / 2 + (names.length > 1 ? Math.PI / names.length : 0);
+      const angle = names.length === 1
+        ? 0
+        : JOBS_ARC_START + ((JOBS_ARC_END - JOBS_ARC_START) * i) / (names.length - 1);
       pos[name] = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
     });
     return pos;
   }, [fnPositions, jobNamesKey]);
 
   const externalPos = useMemo(() => {
-    const pts = [...Object.values(fnPositions), ...Object.values(jobPositions)];
-    const baseRadius = pts.length === 0
-      ? 420
-      : Math.max(...pts.map(p => Math.hypot(p.x - CENTER.x, p.y - CENTER.y))) + 190;
+    const baseRadius = jobAndExternalRadius(fnPositions, jobNamesKey.split(',').filter(Boolean).length);
     return {
       x: CENTER.x + Math.cos(EXTERNAL_ANGLE) * baseRadius,
       y: CENTER.y + Math.sin(EXTERNAL_ANGLE) * baseRadius,
     };
-  }, [fnPositions, jobPositions]);
+  }, [fnPositions, jobNamesKey]);
 
   const queueFnKey = useMemo(() => {
     const names: string[] = [];
@@ -468,6 +473,23 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     return firstReplica ? { x: firstReplica.x, y: firstReplica.y } : null;
   }, [functionReplicaPositions, resolvePodLink]);
 
+  const getJobPosition = useCallback((jobName: string, runNameOrElementId: string | null | undefined) => {
+    const runs = jobRunPositions[jobName];
+    if (runs && Object.keys(runs).length > 0) {
+      if (runNameOrElementId && runs[runNameOrElementId]) return { x: runs[runNameOrElementId].x, y: runs[runNameOrElementId].y };
+      const firstRun = Object.values(runs)[0];
+      if (firstRun) return { x: firstRun.x, y: firstRun.y };
+    }
+
+    return jobPositions[jobName] ?? null;
+  }, [jobPositions, jobRunPositions]);
+
+  const getActorPosition = useCallback((actorName: string, podIpOrName: string | null | undefined) => {
+    const jobPos = getJobPosition(actorName, podIpOrName);
+    if (jobPos) return jobPos;
+    return getFunctionReplicaPosition(actorName, podIpOrName);
+  }, [getFunctionReplicaPosition, getJobPosition]);
+
   const getSlimPosition = useCallback((nodeId: string | null | undefined) => {
     if (nodeId && slimReplicaPositions[nodeId]) {
       const p = slimReplicaPositions[nodeId];
@@ -571,7 +593,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     const enqueueVisualMessage = (message: AnimatedMessage) => {
       if (shouldAnimate) queueMessage(message);
     };
-    const replicaOf = (name: string, pod: string | null | undefined) => getFunctionReplicaPosition(name, pod);
+    const replicaOf = (name: string, pod: string | null | undefined) => getActorPosition(name, pod);
     const srcLabel = resolvePodLabel(evt.SourcePod);
     const tgtLabel = resolvePodLabel(evt.TargetPod);
     const slim = getSlimPosition(evt.NodeId);
@@ -811,7 +833,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
         label: srcLabel,
       });
     }
-  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, fnReplicaKey, getFunctionReplicaPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, queueMessage, queuePositions, resolveFunctionReplicaCounterKey, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
+  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, fnReplicaKey, getActorPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, queueMessage, queuePositions, resolveFunctionReplicaCounterKey, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
 
   useEffect(() => {
     const fresh: NetworkActivityEvent[] = [];
@@ -1191,21 +1213,18 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
       const color = nameColor(`job:${jobName}`);
       const escaped = CSS.escape(jobName);
       world.append('g').attr('class', `job-group-${escaped}`);
-      world.append('rect').attr('class', `job-bubble-${escaped}`)
-        .attr('x', pos.x - JOB_BUBBLE_R)
-        .attr('y', pos.y - JOB_BUBBLE_R)
-        .attr('width', JOB_BUBBLE_R * 2)
-        .attr('height', JOB_BUBBLE_R * 2)
-        .attr('rx', 12)
-        .attr('ry', 12)
+      world.append('circle').attr('class', `job-bubble-${escaped}`)
+        .attr('cx', pos.x)
+        .attr('cy', pos.y)
+        .attr('r', JOB_BUBBLE_R)
         .attr('fill', color)
         .attr('stroke', '#fff')
         .attr('stroke-width', 2.5)
         .attr('opacity', 0.88)
         .attr('filter', 'url(#shadow)');
       world.append('text').attr('class', `job-kind-${escaped}`)
-        .attr('x', pos.x).attr('y', pos.y - 12)
-        .attr('text-anchor', 'middle').attr('font-size', 7.5).attr('font-weight', 800).attr('fill', 'rgba(255,255,255,0.9)')
+        .attr('x', pos.x).attr('y', pos.y + 3)
+        .attr('text-anchor', 'middle').attr('font-size', 10).attr('font-weight', 900).attr('fill', 'rgba(255,255,255,0.95)')
         .attr('letter-spacing', 0.8)
         .attr('paint-order', 'stroke')
         .attr('stroke', 'rgba(0,0,0,0.72)')
@@ -1213,14 +1232,14 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
         .attr('stroke-linejoin', 'round')
         .text('JOB');
       world.append('text').attr('class', `job-name-${escaped}`)
-        .attr('x', pos.x).attr('y', pos.y + 1)
-        .attr('text-anchor', 'middle').attr('font-size', 9).attr('font-weight', 'bold').attr('fill', '#fff')
+        .attr('x', pos.x).attr('y', pos.y + JOB_BUBBLE_R + 16)
+        .attr('text-anchor', 'middle').attr('font-size', 9).attr('font-weight', 'bold').attr('fill', '#7a4f01')
         .attr('paint-order', 'stroke')
-        .attr('stroke', 'rgba(0,0,0,0.85)')
-        .attr('stroke-width', 1.5)
+        .attr('stroke', 'rgba(255,255,255,0.95)')
+        .attr('stroke-width', 2)
         .attr('stroke-linejoin', 'round');
       world.append('text').attr('class', `job-count-${escaped}`)
-        .attr('x', pos.x).attr('y', pos.y + 17)
+        .attr('x', pos.x).attr('y', pos.y + JOB_BUBBLE_R + 31)
         .attr('text-anchor', 'middle').attr('font-size', 8.5).attr('font-weight', 700);
       world.append('g').attr('class', `job-runs-${escaped}`);
     });
@@ -1324,29 +1343,30 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
       const r = JOB_BUBBLE_R + Math.min(runs.length * 3, 14);
 
       world.select(`.job-bubble-${escaped}`)
-        .attr('x', pos.x - r)
-        .attr('y', pos.y - r)
-        .attr('width', r * 2)
-        .attr('height', r * 2)
+        .attr('cx', pos.x)
+        .attr('cy', pos.y)
+        .attr('r', r)
         .attr('fill', runs.length > 0 ? color : '#fff7e6')
         .attr('stroke', color)
         .attr('opacity', runs.length > 0 ? 0.9 : 0.72);
 
       world.select(`.job-kind-${escaped}`)
         .attr('x', pos.x)
-        .attr('y', pos.y - 13)
+        .attr('y', pos.y + 3)
         .attr('fill', runs.length > 0 ? 'rgba(255,255,255,0.92)' : '#f08c00')
         .attr('stroke', runs.length > 0 ? 'rgba(0,0,0,0.72)' : 'rgba(255,255,255,0.85)')
         .text('JOB');
 
       const jobNameSelection = world.select<SVGTextElement>(`.job-name-${escaped}`)
-        .attr('fill', runs.length > 0 ? '#fff' : '#7a4f01')
-        .attr('stroke', runs.length > 0 ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)')
-        .attr('stroke-width', 1.5);
-      applyMultilineSvgText(jobNameSelection, splitLabelLines(job.Name, 12), pos.x, pos.y + 1, 10);
+        .attr('fill', '#7a4f01')
+        .attr('stroke', 'rgba(255,255,255,0.95)')
+        .attr('stroke-width', 2);
+      applyMultilineSvgText(jobNameSelection, splitLabelLines(job.Name, 16).slice(0, 2), pos.x, pos.y + r + 16, 10);
 
       world.select(`.job-count-${escaped}`)
-        .attr('fill', runs.length > 0 ? 'rgba(255,255,255,0.86)' : '#f08c00')
+        .attr('x', pos.x)
+        .attr('y', pos.y + r + 33)
+        .attr('fill', '#f08c00')
         .text(`${runs.length} running • ${schedules.length} sched`);
 
       const runGroup = world.select<SVGGElement>(`.job-runs-${escaped}`);
@@ -1461,7 +1481,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
         {functions.length > 8 && <span className="network-map__legend-item" style={{ fontStyle: 'italic' }}>+{functions.length - 8} more</span>}
         {jobs.slice(0, 6).map(job => (
           <span key={`job-${job.Name}`} className="network-map__legend-item">
-            <span className="network-map__legend-dot" style={{ backgroundColor: nameColor(`job:${job.Name}`), borderRadius: 3 }} />
+            <span className="network-map__legend-dot" style={{ backgroundColor: nameColor(`job:${job.Name}`) }} />
             Job: {job.Name}
           </span>
         ))}
@@ -1469,7 +1489,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
         <span className="network-map__legend-item" style={{ marginLeft: 12 }}><svg width="14" height="10"><circle cx="5" cy="5" r="4" fill="#4c6ef5" /></svg> Request</span>
         <span className="network-map__legend-item"><svg width="14" height="10"><rect x="1" y="2" width="10" height="6" rx="1.5" fill="#6b778c" /></svg> Async</span>
         <span className="network-map__legend-item"><svg width="10" height="10"><circle cx="5" cy="5" r="5" fill="#36b37e" /></svg> Replica</span>
-        <span className="network-map__legend-item"><svg width="14" height="12"><rect x="2" y="1" width="10" height="10" rx="3" fill="#f08c00" /></svg> Job</span>
+        <span className="network-map__legend-item"><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#f08c00" /></svg> Job</span>
         <span className="network-map__legend-separator" />
         <span className="network-map__legend-item" title="Active requests badge"><svg width="18" height="14"><rect x="1" y="0" width="16" height="14" rx="7" fill="#f08c00" stroke="#fff" strokeWidth="1" /><text x="9" y="10.5" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#fff">3</text></svg> Active</span>
       </div>
