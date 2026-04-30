@@ -62,6 +62,7 @@ public record SlimFaasDefaultConfiguration
     public int HttpTimeout { get; init; } = 120;
     public List<int> TimeoutRetries { get; init; } = [2, 4, 8];
     public List<int> HttpStatusRetries { get; init; } = [500, 502, 503];
+    public long AsyncBodyOffloadThresholdBytes { get; init; } = 1 * 1024L * 1024L;
 }
 
 [JsonSerializable(typeof(SlimFaasConfiguration))]

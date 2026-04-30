@@ -1,6 +1,7 @@
 using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
 using SlimData;
+using SlimData.ClusterFiles;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -36,8 +37,10 @@ public static class AsyncFunctionEndpoints
                 ISlimFaasQueue slimFaasQueue,
                 IFunctionAccessPolicy accessPolicy,
                 IWebSocketFunctionRepository webSocketFunctionRepository,
-                NetworkActivityTracker activityTracker) =>
-                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker))
+                NetworkActivityTracker activityTracker,
+                IClusterFileSync fileSync,
+                IDatabaseService db) =>
+                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker, fileSync, db))
             .WithName("HandleAsyncFunctionRoot")
             .Produces(202)
             .Produces(404)
@@ -63,7 +66,9 @@ public static class AsyncFunctionEndpoints
         [FromServices] ISlimFaasQueue slimFaasQueue,
         [FromServices] IFunctionAccessPolicy accessPolicy,
         [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository,
-        [FromServices] NetworkActivityTracker activityTracker)
+        [FromServices] NetworkActivityTracker activityTracker,
+        [FromServices] IClusterFileSync fileSync,
+        [FromServices] IDatabaseService db)
     {
         functionPath ??= "";
 
@@ -87,11 +92,19 @@ public static class AsyncFunctionEndpoints
             return Results.NotFound();
         }
 
+        var defaultAsync = function.Configuration.DefaultAsync;
+
         CustomRequest customRequest = await FunctionEndpointsHelpers.InitCustomRequest(
-            context, context.Request, functionName, functionPath);
+            context,
+            context.Request,
+            functionName,
+            functionPath ?? "",
+            bodyOffloadThresholdBytes: defaultAsync.AsyncBodyOffloadThresholdBytes,
+            fileSync: fileSync,
+            db: db,
+            ct: context.RequestAborted);
 
         var bin = MemoryPackSerializer.Serialize(customRequest);
-        var defaultAsync = function.Configuration.DefaultAsync;
         string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
         activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
             sourcePod: callerIp);

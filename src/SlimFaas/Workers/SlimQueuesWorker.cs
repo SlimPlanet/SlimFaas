@@ -1,6 +1,7 @@
 ﻿using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
+using SlimData.ClusterFiles;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
@@ -12,7 +13,8 @@ internal record struct RequestToWait(
     Task<HttpResponseMessage> Task,
     CustomRequest CustomRequest,
     string Id,
-    string TargetIp);
+    string TargetIp,
+    Stream? OffloadedStream = null);
 
 public class SlimQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
@@ -22,9 +24,10 @@ public class SlimQueuesWorker(
     IServiceProvider serviceProvider,
     ISlimDataStatus slimDataStatus,
     IMasterService masterService,
+    IClusterFileSync fileSync,
+    IDatabaseService db,
     IOptions<WorkersOptions> workersOptions,
-    NetworkActivityTracker activityTracker
-    )
+    NetworkActivityTracker activityTracker)
     : BackgroundService
 {
 
@@ -142,7 +145,33 @@ public class SlimQueuesWorker(
 
             logger.LogDebug("{CustomRequestMethod}: {CustomRequestPath}{CustomRequestQuery} Sending",
                 customRequest.Method, customRequest.Path, customRequest.Query);
-            logger.LogDebug("{RequestJson}", requestJson);
+
+            Stream? offloadedStream = null;
+            if (!string.IsNullOrEmpty(customRequest.OffloadedFileId))
+            {
+                var metaKey = $"data:file:{customRequest.OffloadedFileId}:meta";
+                var metaBytes = await db.GetAsync(metaKey);
+                if (metaBytes != null && metaBytes.Length > 0)
+                {
+                    var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(metaBytes);
+                    var pulled = await fileSync.PullFileIfMissingAsync(
+                        customRequest.OffloadedFileId,
+                        meta?.Sha256Hex ?? "",
+                        null,
+                        CancellationToken.None);
+                    offloadedStream = pulled.Stream;
+                }
+                else
+                {
+                    logger.LogWarning("Offloaded file metadata not found for id={FileId}, request will have empty body",
+                        customRequest.OffloadedFileId);
+                }
+            }
+            else
+            {
+                logger.LogDebug("{RequestJson}", requestJson);
+            }
+
             historyHttpService.SetTickLastCall(functionDeployment, DateTime.UtcNow.Ticks);
             using IServiceScope scope = serviceProvider.CreateScope();
             var slimfaasDefaultConfiguration = new SlimFaasDefaultConfiguration()
@@ -162,8 +191,8 @@ public class SlimQueuesWorker(
             string targetIp = reservedIp;
 
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
-                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy, reservedIp, functionDeployment);
-            processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp));
+                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy, reservedIp, functionDeployment, null, offloadedStream);
+            processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp, offloadedStream));
             activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
         }
     }
@@ -234,6 +263,8 @@ public class SlimQueuesWorker(
                     "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
+                httpResponseMessagesToDelete.Add(processing);
+                await CleanOffloadedStream(processing);
 
                 if (statusCode == 202)
                 {
@@ -255,6 +286,7 @@ public class SlimQueuesWorker(
                 queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
                 httpResponseMessagesToDelete.Add(processing);
                 activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, targetPod: processing.TargetIp);
+                await CleanOffloadedStream(processing);
                 logger.LogWarning("Request Error: {Message} {StackTrace}", e.Message, e.StackTrace);
             }
         }
@@ -335,4 +367,16 @@ public class SlimQueuesWorker(
         }
     }
 
+    private async Task CleanOffloadedStream(RequestToWait processing)
+    {
+        if (processing.OffloadedStream != null)
+        {
+            await processing.OffloadedStream.DisposeAsync();
+        }
+        if (!string.IsNullOrEmpty(processing.CustomRequest.OffloadedFileId))
+        {
+            string metaKey = $"data:file:{processing.CustomRequest.OffloadedFileId}:meta";
+            await db.DeleteAsync(metaKey);
+        }
+    }
 }
