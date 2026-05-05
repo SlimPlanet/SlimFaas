@@ -47,7 +47,7 @@ const Footer: React.FC = () => {
                 </p>
 
                 <p className="footer__copyright">
-                    Copyright SlimFaas A Series of LF Projects, LLC. &nbsp;|&nbsp;
+                    Copyright SlimFaas, A Series of LF Projects, LLC. &nbsp;|&nbsp;
                     <a
                         href="#"
                         className="footer__trademark-link"
