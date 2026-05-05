@@ -38,17 +38,16 @@ const Footer: React.FC = () => {
                 </p>
 
                 <p className="footer__trademark">
-                    The Linux Foundation® (TLF) has registered trademarks and uses trademarks.
-                    For a list of TLF trademarks, see <a
-                    href="https://www.linuxfoundation.org/trademark-usage"
+                    For website terms of use, trademark policy and other project policies please see <a
+                    href="https://lfprojects.org/policies/"
                     className="footer__trademark-link"
                 >
-                    Trademark Usage
+                    https://lfprojects.org/policies/
                 </a>.
                 </p>
 
                 <p className="footer__copyright">
-                    © SlimFaas a Series of LF Projects, LLC. All rights reserved. &nbsp;|&nbsp;
+                    Copyright SlimFaas A Series of LF Projects, LLC. &nbsp;|&nbsp;
                     <a
                         href="#"
                         className="footer__trademark-link"

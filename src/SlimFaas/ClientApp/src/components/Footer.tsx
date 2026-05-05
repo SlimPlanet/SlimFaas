@@ -19,8 +19,14 @@ const Footer: React.FC = () => {
             height={120}
           />
         </div>
+        <p className="footer__policy">
+          For website terms of use, trademark policy and other project policies please see{' '}
+          <a href="https://lfprojects.org/policies/" className="footer__policy-link">
+            https://lfprojects.org/policies/
+          </a>.
+        </p>
         <p className="footer__copyright">
-          © SlimFaas a Series of LF Projects, LLC. All rights reserved.
+          Copyright SlimFaas A Series of LF Projects, LLC.
         </p>
       </div>
     </footer>
@@ -28,4 +34,3 @@ const Footer: React.FC = () => {
 };
 
 export default Footer;
-
