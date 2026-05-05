@@ -35,9 +35,18 @@
     display: block;
   }
 
+  &__policy {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__policy-link {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: underline;
+  }
+
   &__copyright {
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.7);
   }
 }
-
