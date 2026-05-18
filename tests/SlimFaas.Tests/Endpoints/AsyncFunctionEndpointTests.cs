@@ -125,7 +125,7 @@ public class AsyncFunctionEndpointTests
         // ReplicasService configuré avec AsyncBodyOffloadThresholdBytes = 1 Mo
         var fibonacciConfig = new SlimFaasConfiguration
         {
-            DefaultAsync = new SlimFaasDefaultConfiguration
+            DefaultAsync = new SlimFaasDefaultAsyncConfiguration
             {
                 AsyncBodyOffloadThresholdBytes = 1 * 1024L * 1024L
             }
@@ -248,7 +248,7 @@ public class AsyncFunctionEndpointTests
 
         var fibonacciConfig = new SlimFaasConfiguration
         {
-            DefaultAsync = new SlimFaasDefaultConfiguration
+            DefaultAsync = new SlimFaasDefaultAsyncConfiguration
             {
                 AsyncBodyOffloadThresholdBytes = 1 * 1024L * 1024L  // seuil 1 Mo
             }

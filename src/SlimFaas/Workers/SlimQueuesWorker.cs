@@ -286,7 +286,6 @@ public class SlimQueuesWorker(
                 queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
                 httpResponseMessagesToDelete.Add(processing);
                 activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, targetPod: processing.TargetIp);
-                await CleanOffloadedStream(processing);
                 logger.LogWarning("Request Error: {Message} {StackTrace}", e.Message, e.StackTrace);
             }
         }

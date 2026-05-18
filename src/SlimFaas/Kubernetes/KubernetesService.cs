@@ -53,7 +53,7 @@ public partial class ScheduleConfigSerializerContext : JsonSerializerContext;
 public record SlimFaasConfiguration
 {
     public SlimFaasDefaultConfiguration DefaultSync { get; init; } = new();
-    public SlimFaasDefaultConfiguration DefaultAsync { get; init; } = new();
+    public SlimFaasDefaultAsyncConfiguration DefaultAsync { get; init; } = new();
     public SlimFaasDefaultConfiguration DefaultPublish { get; init; } = new();
 }
 
@@ -62,10 +62,15 @@ public record SlimFaasDefaultConfiguration
     public int HttpTimeout { get; init; } = 120;
     public List<int> TimeoutRetries { get; init; } = [2, 4, 8];
     public List<int> HttpStatusRetries { get; init; } = [500, 502, 503];
+}
+
+public record SlimFaasDefaultAsyncConfiguration : SlimFaasDefaultConfiguration
+{
     public long AsyncBodyOffloadThresholdBytes { get; init; } = 1 * 1024L * 1024L;
 }
 
 [JsonSerializable(typeof(SlimFaasConfiguration))]
+[JsonSerializable(typeof(SlimFaasDefaultAsyncConfiguration))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 public partial class SlimFaasConfigurationSerializerContext : JsonSerializerContext;
 

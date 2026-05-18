@@ -7,6 +7,8 @@ namespace SlimFaas.Endpoints;
 
 public static class FunctionEndpointsHelpers
 {
+    private const int OffloadedFileTtlMs = 10000;
+
     public static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
     {
         return replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
@@ -143,7 +145,7 @@ public static class FunctionEndpointsHelpers
                     contentType: contentType,
                     contentLengthBytes: contentLength,
                     overwrite: false,
-                    ttl: null,
+                    ttl: OffloadedFileTtlMs,
                     ct: ct);
 
                 var meta = new DataSetMetadata(
