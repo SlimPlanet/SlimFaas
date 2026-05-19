@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.72.1
+
+- [dd633753](https://github.com/SlimPlanet/SlimFaas/commit/dd6337536b174019f8886182e600ceff7586013a) - fix(jobs): preserve initial env-var job configurations after k8s sync (#277) (release), 2026-05-19 by *Silthian*
+- [7230c898](https://github.com/SlimPlanet/SlimFaas/commit/7230c8986e0f62fea7ec861fbb98eef58e554b4b) - Update pnpm and npm libraries (#276), 2026-05-15 by *Copilot*
+- [b06371a3](https://github.com/SlimPlanet/SlimFaas/commit/b06371a3972cdda9413ad9c81dcfd79534d4ca3a) - dox: Update footer LF Projects trademark disclaimer (#274), 2026-05-05 by *Copilot*
+
+
+## 0.72.0
+
+
+
 ## v0.72.0
 
 - [04cf9cd6](https://github.com/SlimPlanet/SlimFaas/commit/04cf9cd65a3b29fa92750aca32f7aade37d71d83) - feat(slimfaas): web stream live job (#272) (release), 2026-04-30 by *Guillaume Chervet*
@@ -265,15 +276,5 @@
 ## v0.61.1
 
 - [9193f0e4](https://github.com/SlimPlanet/SlimFaas/commit/9193f0e40720caae847249915f65ec2c189c6ca9) - refactor(slimfaas): env var to appsettings.json (#233) (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## 0.61.0
-
-
-
-## v0.61.0
-
-- [8bec7d5c](https://github.com/SlimPlanet/SlimFaas/commit/8bec7d5cf203ca28819b235ea968771e934459b8) - fix(slimfaas): opentelemetry endpoint (#232) (release), 2026-01-30 by *Guillaume Chervet*
-- [3acb7934](https://github.com/SlimPlanet/SlimFaas/commit/3acb793447ed46bb152ed220d02ec0aaecc1c5c7) - feat(SlimfaasMcp): Add prometheus exporter (#213) (release), 2026-01-29 by *Silthian*
 
 
