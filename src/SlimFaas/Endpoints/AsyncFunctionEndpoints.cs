@@ -100,6 +100,7 @@ public static class AsyncFunctionEndpoints
             functionName,
             functionPath ?? "",
             bodyOffloadThresholdBytes: defaultAsync.AsyncBodyOffloadThresholdBytes,
+            offloadedFileTtlMs: defaultAsync.OffloadedFileTtlMs,
             fileSync: fileSync,
             db: db,
             ct: context.RequestAborted);
