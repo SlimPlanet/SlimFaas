@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.72.2
+
+- [0fac74e7](https://github.com/SlimPlanet/SlimFaas/commit/0fac74e732dae2cccf11176939f1b75dda163269) - fix(slimfaas): async callback (#279) (release), 2026-05-21 by *Guillaume Chervet*
+
+
+## 0.72.1
+
+
+
 ## v0.72.1
 
 - [dd633753](https://github.com/SlimPlanet/SlimFaas/commit/dd6337536b174019f8886182e600ceff7586013a) - fix(jobs): preserve initial env-var job configurations after k8s sync (#277) (release), 2026-05-19 by *Silthian*
@@ -266,15 +275,5 @@
 
 ## 0.61.2
 
-
-
-## v0.61.2
-
-- [288d0d20](https://github.com/SlimPlanet/SlimFaas/commit/288d0d2081af3a76439f78e27b32d9088f642c20) - fix(slimfaas): build dockerfile (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.1
-
-- [9193f0e4](https://github.com/SlimPlanet/SlimFaas/commit/9193f0e40720caae847249915f65ec2c189c6ca9) - refactor(slimfaas): env var to appsettings.json (#233) (release), 2026-02-06 by *Guillaume Chervet*
 
 
