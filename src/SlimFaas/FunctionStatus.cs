@@ -39,10 +39,20 @@ public record FunctionStatusDetailed(
     ResourcesConfiguration? Resources,
     ScheduleConfig? Schedule,
     ScaleConfig? Scale,
+    RetryConfig? Retry,
     IList<SubscribeEvent>? SubscribeEvents,
     IList<PathVisibility>? PathsStartWithVisibility,
     IList<string>? DependsOn,
     IList<PodStatus> Pods);
+
+public record RetryConfig(
+    RetryConfigEntry? DefaultAsync,
+    RetryConfigEntry? DefaultPublish);
+
+public record RetryConfigEntry(
+    int HttpTimeout,
+    IList<int> TimeoutRetries,
+    IList<int> HttpStatusRetries);
 
 /// <summary>
 /// Contexte de sérialisation JSON pour FunctionStatus (compatible AOT)

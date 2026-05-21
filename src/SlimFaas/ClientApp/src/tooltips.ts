@@ -45,6 +45,9 @@ export const FN = {
   dependsOn:
     'Functions or services that must be ready before this function can scale up (SlimFaas/DependsOn).',
 
+  retry:
+    'Async retry configuration: HTTP timeout per attempt, retry delays in seconds between attempts, and HTTP status codes that trigger a retry (SlimFaas/DefaultAsync).',
+
   maxReplicas:
     'Upper bound for the Prometheus-based N→M autoscaler (SlimFaas/Scale → ReplicaMax).',
 
