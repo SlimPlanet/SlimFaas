@@ -82,7 +82,7 @@ public class JobConfigurationSyncTests
         Assert.Equal("k8s-image:v1", sut.Configuration.Configurations["k8s-job"].Image);
     }
 
-    [Fact(DisplayName = "Sync: only initial Default job is preserved, non-default jobs come from k8s")]
+    [Fact(DisplayName = "Sync: initial env jobs are preserved and k8s jobs are added (true merge)")]
     public async Task SyncAsync_PreservesOnlyInitialDefaultJob()
     {
         // Arrange – initial config has "env-job"
@@ -117,9 +117,12 @@ public class JobConfigurationSyncTests
         // Act
         await sut.SyncJobsConfigurationAsync();
 
-        // Assert – non-default initial jobs are replaced by synced k8s jobs
-        Assert.False(sut.Configuration.Configurations.ContainsKey("env-job"));
-        Assert.True(sut.Configuration.Configurations.ContainsKey("k8s-job"));
+        // Assert – initial env jobs are preserved AND k8s jobs are added
+        Assert.True(sut.Configuration.Configurations.ContainsKey("env-job"),
+            "env-job from initial config (env var) must be preserved after sync");
+        Assert.Equal("env-image:v1", sut.Configuration.Configurations["env-job"].Image);
+        Assert.True(sut.Configuration.Configurations.ContainsKey("k8s-job"),
+            "k8s-job from Kubernetes must be added during sync");
         Assert.True(sut.Configuration.Configurations.ContainsKey("Default"));
     }
 

@@ -1,5 +1,4 @@
 ﻿using System.Text.Json;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -95,23 +94,17 @@ public class JobConfiguration : IJobConfiguration
         var mergedConfigurations = new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase);
         var mergedSchedules = new Dictionary<string, IList<ScheduleCreateJob>>(StringComparer.OrdinalIgnoreCase);
 
-        if (_initialConfiguration.Configurations.TryGetValue(Default, out var defaultJob))
-        {
-            mergedConfigurations[Default] = defaultJob;
-        }
+        foreach (var kvp in _initialConfiguration.Configurations)
+            mergedConfigurations[kvp.Key] = kvp.Value;
 
-        if (_initialConfiguration.Schedules != null && _initialConfiguration.Schedules.TryGetValue(Default, out var defaultSchedule))
-        {
-            mergedSchedules[Default] = defaultSchedule;
-        }
+        if (_initialConfiguration.Schedules != null)
+            foreach (var kvp in _initialConfiguration.Schedules)
+                mergedSchedules[kvp.Key] = kvp.Value;
 
         foreach (var kvp in configuration.Configurations)
         {
             if (kvp.Key.Equals(Default, StringComparison.OrdinalIgnoreCase))
-            {
                 continue;
-            }
-
             mergedConfigurations[kvp.Key] = kvp.Value;
         }
 
@@ -120,15 +113,12 @@ public class JobConfiguration : IJobConfiguration
             foreach (var kvp in configuration.Schedules)
             {
                 if (kvp.Key.Equals(Default, StringComparison.OrdinalIgnoreCase))
-                {
                     continue;
-                }
-
                 mergedSchedules[kvp.Key] = kvp.Value;
             }
         }
 
-        return new SlimFaasJobConfiguration(mergedConfigurations, mergedSchedules);
+        return new SlimFaasJobConfiguration(mergedConfigurations, mergedSchedules.Count > 0 ? mergedSchedules : null);
     }
 
     public async Task SyncJobsConfigurationAsync()
