@@ -342,6 +342,7 @@ public class Endpoints
             batchItem.Value = new ArraySegment<byte>(listLeftPushInput.Value);
             batchItem.HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries;
             batchItem.RetryTimeout = retryInformation.RetryTimeoutSeconds;
+            batchItem.Retries = retryInformation.Retries;
             batchItem.Identifier = Guid.NewGuid().ToString();
             batchItem.NowTicks = DateTime.UtcNow.Ticks;
 

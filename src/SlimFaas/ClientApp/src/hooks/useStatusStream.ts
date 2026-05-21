@@ -75,6 +75,23 @@ function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
         } : null,
       } : null,
       Scale: (scale ?? null) as FunctionStatusDetailed['Scale'],
+      Retry: (() => {
+        const retry = pick<Record<string, unknown>>(entry, 'Retry', 'retry');
+        if (!retry) return null;
+        const normalizeEntry = (raw: unknown) => {
+          if (!raw || typeof raw !== 'object') return null;
+          const r = raw as Record<string, unknown>;
+          return {
+            HttpTimeout: asNumber(r.HttpTimeout ?? r.httpTimeout),
+            TimeoutRetries: asArray<number>(r.TimeoutRetries ?? r.timeoutRetries),
+            HttpStatusRetries: asArray<number>(r.HttpStatusRetries ?? r.httpStatusRetries),
+          };
+        };
+        return {
+          DefaultAsync: normalizeEntry(retry.DefaultAsync ?? retry.defaultAsync),
+          DefaultPublish: normalizeEntry(retry.DefaultPublish ?? retry.defaultPublish),
+        };
+      })(),
       SubscribeEvents: asArray(pick(entry, 'SubscribeEvents', 'subscribeEvents')).map((evt) => ({
         Name: asString(pick(evt, 'Name', 'name')),
         Visibility: pick(evt, 'Visibility', 'visibility') as string | number,
