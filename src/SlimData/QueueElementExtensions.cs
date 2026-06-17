@@ -78,6 +78,13 @@ public static class QueueElementExtensions
         if (last.EndTimeStamp > 0 && !e.HttpStatusRetries.Contains(last.HttpCode))
             return true;
 
+        // Si pas de retries configurés, terminé dès le premier End ou timeout
+        if (retries.IsDefaultOrEmpty)
+        {
+            if (last.EndTimeStamp > 0 || e.IsTimeout(nowTicks))
+                return true;
+        }
+
         // Si on a consommé tous les retries, on termine au premier timeout ou fin
         if (!retries.IsDefaultOrEmpty && retries.Length < count)
         {

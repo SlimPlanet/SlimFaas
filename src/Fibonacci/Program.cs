@@ -270,10 +270,15 @@ app.MapPost("/computeWithCallback", async (
         {
             await Task.Delay(10000);
             var client = factory.CreateClient("internal");
+            var status = "success";
+            if (body.GetRawText() == "{}")
+            {
+                status = "error";
+            }
 
             using var req = new HttpRequestMessage(
                 HttpMethod.Post,
-                $"http://slimfaas.slimfaas-demo.svc:5000/async-function-callback/fibonacci1/{elementId}/success")
+                $"http://slimfaas.slimfaas-demo.svc:5000/async-function-callback/fibonacci1/{elementId}/{status}")
             {
                 Content = JsonContent.Create(new { })
             };

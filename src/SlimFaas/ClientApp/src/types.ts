@@ -66,6 +66,17 @@ export interface ScaleConfig {
   Behavior: ScaleBehavior;
 }
 
+export interface RetryConfigEntry {
+  HttpTimeout: number;
+  TimeoutRetries: number[];
+  HttpStatusRetries: number[];
+}
+
+export interface RetryConfig {
+  DefaultAsync: RetryConfigEntry | null;
+  DefaultPublish: RetryConfigEntry | null;
+}
+
 export interface FunctionStatusDetailed {
   Name: string;
   NumberReady: number;
@@ -81,6 +92,7 @@ export interface FunctionStatusDetailed {
   Resources: ResourcesConfiguration | null;
   Schedule: ScheduleConfig | null;
   Scale: ScaleConfig | null;
+  Retry: RetryConfig | null;
   SubscribeEvents: SubscribeEvent[] | null;
   PathsStartWithVisibility: PathVisibility[] | null;
   DependsOn: string[] | null;

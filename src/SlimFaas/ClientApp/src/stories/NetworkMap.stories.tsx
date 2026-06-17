@@ -12,7 +12,7 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     ReplicasMin: 0, ReplicasAtStart: 2, TimeoutSecondBeforeSetReplicasMin: 10,
     NumberParallelRequest: 10, NumberParallelRequestPerPod: 10,
     Resources: { CpuRequest: '10m', CpuLimit: '50m', MemoryRequest: '96Mi', MemoryLimit: '96Mi' },
-    Schedule: null, Scale: null, SubscribeEvents: [], PathsStartWithVisibility: [],
+    Schedule: null, Scale: null, Retry: null, SubscribeEvents: [], PathsStartWithVisibility: [],
     DependsOn: [], Pods: [
       { Name: 'fib1-pod-0', Status: 'Running', Ready: true, Ip: '10.0.0.1' },
       { Name: 'fib1-pod-1', Status: 'Running', Ready: true, Ip: '10.0.0.2' },
@@ -24,7 +24,7 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     ReplicasMin: 0, ReplicasAtStart: 1, TimeoutSecondBeforeSetReplicasMin: 8,
     NumberParallelRequest: 2, NumberParallelRequestPerPod: 10,
     Resources: { CpuRequest: '10m', CpuLimit: '50m', MemoryRequest: '96Mi', MemoryLimit: '96Mi' },
-    Schedule: null, Scale: null, SubscribeEvents: [], PathsStartWithVisibility: [],
+    Schedule: null, Scale: null, Retry: null, SubscribeEvents: [], PathsStartWithVisibility: [],
     DependsOn: ['fibonacci1'], Pods: [
       { Name: 'fib2-pod-0', Status: 'Running', Ready: true, Ip: '10.0.0.3' },
     ],
@@ -34,7 +34,7 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     PodType: 'Deployment', Visibility: 'Public', Trust: 'Trusted',
     ReplicasMin: 0, ReplicasAtStart: 1, TimeoutSecondBeforeSetReplicasMin: 300,
     NumberParallelRequest: 10, NumberParallelRequestPerPod: 10,
-    Resources: null, Schedule: null, Scale: null, SubscribeEvents: [],
+    Resources: null, Schedule: null, Scale: null, Retry: null, SubscribeEvents: [],
     PathsStartWithVisibility: [], DependsOn: [], Pods: [],
   },
   {
@@ -43,7 +43,7 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     ReplicasMin: 0, ReplicasAtStart: 1, TimeoutSecondBeforeSetReplicasMin: 8,
     NumberParallelRequest: 10, NumberParallelRequestPerPod: 10,
     Resources: { CpuRequest: '300m', CpuLimit: '600m', MemoryRequest: '512Mi', MemoryLimit: '1Gi' },
-    Schedule: null, Scale: null, SubscribeEvents: [], PathsStartWithVisibility: [],
+    Schedule: null, Scale: null, Retry: null, SubscribeEvents: [], PathsStartWithVisibility: [],
     DependsOn: [], Pods: [
       { Name: 'mysql-0', Status: 'Running', Ready: true, Ip: '10.0.0.5' },
     ],
@@ -53,7 +53,7 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     PodType: 'WebSocket', Visibility: 'Public', Trust: 'Trusted',
     ReplicasMin: 0, ReplicasAtStart: 2, TimeoutSecondBeforeSetReplicasMin: 0,
     NumberParallelRequest: 10, NumberParallelRequestPerPod: 10,
-    Resources: null, Schedule: null, Scale: null,
+    Resources: null, Schedule: null, Scale: null, Retry: null,
     SubscribeEvents: [{ Name: 'chat', Visibility: 'Public' }],
     PathsStartWithVisibility: [], DependsOn: [],
     Pods: [

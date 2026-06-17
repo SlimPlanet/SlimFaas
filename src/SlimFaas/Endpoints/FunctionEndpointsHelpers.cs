@@ -226,6 +226,15 @@ public static class FunctionEndpointsHelpers
             Resources: f.Resources,
             Schedule: f.Schedule,
             Scale: f.Scale,
+            Retry: new RetryConfig(
+                new RetryConfigEntry(
+                    f.Configuration.DefaultAsync.HttpTimeout,
+                    f.Configuration.DefaultAsync.TimeoutRetries,
+                    f.Configuration.DefaultAsync.HttpStatusRetries),
+                new RetryConfigEntry(
+                    f.Configuration.DefaultPublish.HttpTimeout,
+                    f.Configuration.DefaultPublish.TimeoutRetries,
+                    f.Configuration.DefaultPublish.HttpStatusRetries)),
             SubscribeEvents: f.SubscribeEvents,
             PathsStartWithVisibility: f.PathsStartWithVisibility,
             DependsOn: f.DependsOn,

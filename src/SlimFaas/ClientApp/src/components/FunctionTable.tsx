@@ -122,6 +122,39 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new
                       </span>
                     </span>
                   </div>
+                  {fn.Retry ? (
+                    <div className="function-table__scale-row function-table__scale-row--top">
+                      <Tip text={FN.retry}><span className="function-table__scale-label">Retry</span></Tip>
+                      <span className="function-table__scale-val function-table__scale-val--mono">
+                        {fn.Retry.DefaultAsync ? (
+                          <span className="function-table__schedule-item">
+                            <strong>Async:</strong>&nbsp;timeout&nbsp;{fn.Retry.DefaultAsync.HttpTimeout}s
+                            {fn.Retry.DefaultAsync.TimeoutRetries?.length ? (
+                              <>&nbsp;retries&nbsp;[{fn.Retry.DefaultAsync.TimeoutRetries.join(', ')}]s</>
+                            ) : null}
+                            {fn.Retry.DefaultAsync.HttpStatusRetries?.length ? (
+                              <span className="function-table__replicas-info">
+                                &nbsp;on&nbsp;{fn.Retry.DefaultAsync.HttpStatusRetries.join(', ')}
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : null}
+                        {fn.Retry.DefaultPublish ? (
+                          <span className="function-table__schedule-item">
+                            <strong>Publish:</strong>&nbsp;timeout&nbsp;{fn.Retry.DefaultPublish.HttpTimeout}s
+                            {fn.Retry.DefaultPublish.TimeoutRetries?.length ? (
+                              <>&nbsp;retries&nbsp;[{fn.Retry.DefaultPublish.TimeoutRetries.join(', ')}]s</>
+                            ) : null}
+                            {fn.Retry.DefaultPublish.HttpStatusRetries?.length ? (
+                              <span className="function-table__replicas-info">
+                                &nbsp;on&nbsp;{fn.Retry.DefaultPublish.HttpStatusRetries.join(', ')}
+                              </span>
+                            ) : null}
+                          </span>
+                        ) : null}
+                      </span>
+                    </div>
+                  ) : null}
                   {schedule ? (
                     <div className="function-table__scale-row function-table__scale-row--top">
                       <Tip text={FN.schedule}><span className="function-table__scale-label">Schedule</span></Tip>
