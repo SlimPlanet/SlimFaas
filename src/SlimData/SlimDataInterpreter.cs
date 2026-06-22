@@ -255,20 +255,6 @@ public class SlimDataInterpreter : CommandInterpreter
 
         state.Queues = queues;
 
-        int totalQueueElements = 0;
-        long totalQueueBytes = 0;
-        foreach (var kv in state.Queues)
-        {
-            var arr1 = kv.Value;
-            int count = arr.Length;
-            totalQueueElements += count;
-
-            long sizeBytes = 0;
-            for (int i = 0; i < arr1.Length; i++) sizeBytes += arr1[i].Value.Length;
-            totalQueueBytes += sizeBytes;
-            
-        }
-
         return default;
     }
 

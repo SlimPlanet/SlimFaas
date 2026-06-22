@@ -46,8 +46,7 @@ public static class DataFileRoutes
         {
             var payload = state.Invoke();
 
-            var keyValues = payload.KeyValues
-                ?? ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty;
+            var keyValues = payload.KeyValues;
 
             var list = new List<DataFileEntry>(capacity: 128);
             var nowTicks = DateTime.UtcNow.Ticks;
@@ -74,7 +73,6 @@ public static class DataFileRoutes
 
                 if (expireAtUtcTicks > 0 && expireAtUtcTicks <= nowTicks)
                     continue;
-
 
                 list.Add(new DataFileEntry(
                     Id: id,
@@ -224,7 +222,8 @@ public partial record DataSetMetadata(
     string Sha256Hex,
     long Length,
     string ContentType,
-    string FileName);
+    string FileName,
+    string? QueueElementId=null);
 
 public sealed record DataFileEntry(
     string Id,

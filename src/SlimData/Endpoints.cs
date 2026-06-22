@@ -7,7 +7,7 @@ using SlimData.Commands;
 namespace SlimData;
 
 [MemoryPackable]
-public partial record ListLeftPushInput(byte[] Value, byte[] RetryInformation);
+public partial record ListLeftPushInput(byte[] Value, byte[] RetryInformation, string? NewElementId = null);
 
 [MemoryPackable]
 public partial record ListLeftPushBatchItem(string Key, byte[] Payload); // Payload = serialize de ListLeftPushInput
@@ -55,6 +55,13 @@ public class Endpoints
 
     // Taille: 2–4 × (nombre de followers) est un bon départ
     private static readonly SemaphoreSlim Inflight = new(initialCount: 8);
+
+    private static string ResolveElementId(string? bodyElementId)
+    {
+        if (!string.IsNullOrWhiteSpace(bodyElementId))
+            return bodyElementId;
+        return Guid.NewGuid().ToString();
+    }
 
     private static long? ToExpireAtUtcTicksFromQuery(HttpContext ctx)
     {
@@ -343,7 +350,7 @@ public class Endpoints
             batchItem.HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries;
             batchItem.RetryTimeout = retryInformation.RetryTimeoutSeconds;
             batchItem.Retries = retryInformation.Retries;
-            batchItem.Identifier = Guid.NewGuid().ToString();
+            batchItem.Identifier = ResolveElementId(listLeftPushInput.NewElementId);
             batchItem.NowTicks = DateTime.UtcNow.Ticks;
 
             batchItems.Add(batchItem);
@@ -392,7 +399,7 @@ public class Endpoints
     {
         var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
         var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
-        var id = Guid.NewGuid().ToString();
+        var id = ResolveElementId(input.NewElementId);
 
         var logEntry = new LogEntry<ListLeftPushCommand>()
         {

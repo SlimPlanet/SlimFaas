@@ -7,6 +7,9 @@ namespace SlimFaas.Endpoints;
 
 public static class FunctionEndpointsHelpers
 {
+    private const long DefaultFileOffloadContentLengthBytes = 20L * 1024L * 1024L;
+    private const long LengthBytes = 512L * 1024L;
+
     public static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
     {
         return replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
@@ -106,8 +109,9 @@ public static class FunctionEndpointsHelpers
         HttpRequest contextRequest,
         string functionName,
         string functionPath,
-        long bodyOffloadThresholdBytes = 0,
+        long bodyOffloadThresholdBytes = LengthBytes,
         int offloadedFileTtlMs = 10000,
+        string queueElementId = "",
         IClusterFileSync? fileSync = null,
         IDatabaseService? db = null,
         CancellationToken ct = default)
@@ -136,7 +140,7 @@ public static class FunctionEndpointsHelpers
             {
                 offloadedFileId = Guid.NewGuid().ToString("N");
                 var contentType = contextRequest.ContentType ?? "application/octet-stream";
-                var contentLength = contextRequest.ContentLength ?? 20L * 1024L * 1024L;
+                var contentLength = contextRequest.ContentLength ?? DefaultFileOffloadContentLengthBytes;
 
                 var put = await fileSync!.BroadcastFilePutAsync(
                     id: offloadedFileId,
@@ -151,10 +155,11 @@ public static class FunctionEndpointsHelpers
                     Sha256Hex: put.Sha256Hex,
                     Length: put.Length,
                     ContentType: put.ContentType,
-                    FileName: offloadedFileId);
+                    FileName: offloadedFileId,
+                    QueueElementId: queueElementId);
                 var metaKey = $"data:file:{offloadedFileId}:meta";
                 var metaBytes = MemoryPackSerializer.Serialize(meta);
-                await db!.SetAsync(metaKey, metaBytes);
+                await db!.SetAsync(metaKey, metaBytes, offloadedFileTtlMs);
             }
             else
             {

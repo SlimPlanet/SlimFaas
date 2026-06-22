@@ -118,8 +118,8 @@ public class AsyncFunctionEndpointTests
         // La queue capture le message enqueué pour pouvoir l'inspecter
         byte[]? enqueuedPayload = null;
         queueMock
-            .Setup(q => q.EnqueueAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<RetryInformation>()))
-            .Callback<string, byte[], RetryInformation>((_, data, _) => enqueuedPayload = data)
+            .Setup(q => q.EnqueueAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<RetryInformation>(), It.IsAny<string?>()))
+            .Callback<string, byte[], RetryInformation, string?>((_, data, _, _) => enqueuedPayload = data)
             .ReturnsAsync(Guid.NewGuid().ToString());
 
         // ReplicasService configuré avec AsyncBodyOffloadThresholdBytes = 1 Mo
@@ -242,8 +242,8 @@ public class AsyncFunctionEndpointTests
         Mock<ISlimFaasQueue> queueMock = new();
         byte[]? enqueuedPayload = null;
         queueMock
-            .Setup(q => q.EnqueueAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<RetryInformation>()))
-            .Callback<string, byte[], RetryInformation>((_, data, _) => enqueuedPayload = data)
+            .Setup(q => q.EnqueueAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<RetryInformation>(), It.IsAny<string?>()))
+            .Callback<string, byte[], RetryInformation, string?>((_, data, _, _) => enqueuedPayload = data)
             .ReturnsAsync(Guid.NewGuid().ToString());
 
         var fibonacciConfig = new SlimFaasConfiguration

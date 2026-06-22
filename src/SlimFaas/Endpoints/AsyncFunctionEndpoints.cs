@@ -94,6 +94,8 @@ public static class AsyncFunctionEndpoints
 
         var defaultAsync = function.Configuration.DefaultAsync;
 
+        string queueElementId = Guid.NewGuid().ToString();
+        Console.WriteLine($"========== Starting async function {functionName} with element id {queueElementId}");
         CustomRequest customRequest = await FunctionEndpointsHelpers.InitCustomRequest(
             context,
             context.Request,
@@ -115,9 +117,10 @@ public static class AsyncFunctionEndpoints
             new RetryInformation(
                 defaultAsync.TimeoutRetries,
                 defaultAsync.HttpTimeout,
-                defaultAsync.HttpStatusRetries));
+                defaultAsync.HttpStatusRetries), queueElementId);
         activityTracker.Record(NetworkActivityTracker.EventTypes.Enqueue, NetworkActivityTracker.Actors.SlimFaas, functionName, functionName,
             sourcePod: callerIp);
+        Console.WriteLine($"========== Enqueued async request for function {functionName} with element id {id}");
 
         context.Response.Headers.Append(SlimQueuesWorker.SlimfaasElementId, id);
         return Results.Accepted();

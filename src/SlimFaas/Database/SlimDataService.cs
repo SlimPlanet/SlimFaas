@@ -117,11 +117,11 @@ public class SlimDataService
     public async Task<IDictionary<string, byte[]>> HashGetAllAsync(string key) =>
         await Retry.DoAsync(() => DoHashGetAllAsync(key), _logger, _retryInterval);
 
-    public async Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
+    public async Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation, string? newElementId = null)
     {
         return await Retry.DoAsync(async () =>
         {
-            var input = new ListLeftPushInput(field, MemoryPackSerializer.Serialize(retryInformation));
+            var input = new ListLeftPushInput(field, MemoryPackSerializer.Serialize(retryInformation), newElementId);
             var payload = MemoryPackSerializer.Serialize(input);
             return await _batcher.EnqueueAsync<ListLeftPushReq, string>(
                 "llp",
