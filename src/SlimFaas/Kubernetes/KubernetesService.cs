@@ -67,7 +67,6 @@ public record SlimFaasDefaultConfiguration
 public record SlimFaasDefaultAsyncConfiguration : SlimFaasDefaultConfiguration
 {
     public long AsyncBodyOffloadThresholdBytes { get; init; } = 1 * 1024L * 1024L;
-    public int OffloadedFileTtlMs { get; init; } = 10000;
 }
 
 [JsonSerializable(typeof(SlimFaasConfiguration))]

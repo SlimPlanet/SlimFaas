@@ -72,7 +72,7 @@ public static class SyncFunctionEndpoints
 
         var visibility = FunctionEndpointsHelpers.GetFunctionVisibility(logger, function, functionPath);
         if (visibility == FunctionVisibility.Private &&
-            !FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
+            !FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService))
         {
             logger.LogDebug("{FunctionName} not found 404 because is private 404", functionName);
             return Results.NotFound();

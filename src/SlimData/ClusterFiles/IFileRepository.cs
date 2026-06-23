@@ -3,7 +3,7 @@ using MemoryPack;
 
 namespace SlimData.ClusterFiles;
 [MemoryPackable]
-public partial record FileMetadata(string ContentType, string Sha256Hex, long Length, long? ExpireAtUtcTicks);
+public partial record FileMetadata(string ContentType, string Sha256Hex, long Length, long? ExpireAtUtcTicks, IDictionary<string, string>? Tags=null);
 public sealed record FileMetadataEntry(string Id, FileMetadata Metadata);
 
 public interface IFileRepository
@@ -14,7 +14,8 @@ public interface IFileRepository
         string contentType,
         bool overwrite,
         long? expireAtUtcTicks,
-        CancellationToken ct);
+        CancellationToken ct,
+        IDictionary<string, string>? tags = null);
     
 
     Task<bool> ExistsAsync(string id, string sha256Hex, CancellationToken ct);

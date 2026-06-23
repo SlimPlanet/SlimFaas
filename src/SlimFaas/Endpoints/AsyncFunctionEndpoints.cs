@@ -102,7 +102,6 @@ public static class AsyncFunctionEndpoints
             functionName,
             functionPath ?? "",
             bodyOffloadThresholdBytes: defaultAsync.AsyncBodyOffloadThresholdBytes,
-            offloadedFileTtlMs: defaultAsync.OffloadedFileTtlMs,
             fileSync: fileSync,
             db: db,
             ct: context.RequestAborted);
@@ -144,7 +143,7 @@ public static class AsyncFunctionEndpoints
 
         var visibility = FunctionEndpointsHelpers.GetFunctionVisibility(logger, function, "");
         if (visibility == FunctionVisibility.Private &&
-            !FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService, function))
+            !FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService))
         {
             return Results.NotFound();
         }

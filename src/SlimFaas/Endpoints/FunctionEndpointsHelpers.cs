@@ -46,8 +46,7 @@ public static class FunctionEndpointsHelpers
         ILogger logger,
         HttpContext context,
         IReplicasService replicasService,
-        IJobService jobService,
-        DeploymentInformation? currentFunction = null)
+        IJobService jobService)
     {
         List<string> podIps = replicasService.Deployments.Functions
             .Where(f => f.Trust == FunctionTrust.Trusted)
@@ -110,7 +109,6 @@ public static class FunctionEndpointsHelpers
         string functionName,
         string functionPath,
         long bodyOffloadThresholdBytes = LengthBytes,
-        int offloadedFileTtlMs = 10000,
         string queueElementId = "",
         IClusterFileSync? fileSync = null,
         IDatabaseService? db = null,
@@ -142,24 +140,31 @@ public static class FunctionEndpointsHelpers
                 var contentType = contextRequest.ContentType ?? "application/octet-stream";
                 var contentLength = contextRequest.ContentLength ?? DefaultFileOffloadContentLengthBytes;
 
+                var tags = new Dictionary<string, string>
+                {
+                    { "QueueElementId", queueElementId },
+                    { "FunctionName", functionName }
+                };
+
                 var put = await fileSync!.BroadcastFilePutAsync(
                     id: offloadedFileId,
                     content: contextRequest.Body,
                     contentType: contentType,
                     contentLengthBytes: contentLength,
                     overwrite: false,
-                    ttl: offloadedFileTtlMs,
-                    ct: ct);
+                    ttl: null,
+                    ct: ct,
+                    tags);
 
                 var meta = new DataSetMetadata(
                     Sha256Hex: put.Sha256Hex,
                     Length: put.Length,
                     ContentType: put.ContentType,
                     FileName: offloadedFileId,
-                    QueueElementId: queueElementId);
+                    Tags: tags);
                 var metaKey = $"data:file:{offloadedFileId}:meta";
                 var metaBytes = MemoryPackSerializer.Serialize(meta);
-                await db!.SetAsync(metaKey, metaBytes, offloadedFileTtlMs);
+                await db!.SetAsync(metaKey, metaBytes);
             }
             else
             {

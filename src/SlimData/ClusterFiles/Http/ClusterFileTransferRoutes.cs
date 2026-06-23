@@ -44,6 +44,9 @@ public static class ClusterFileTransferRoutes
         ctx.Response.Headers.ETag = $"\"{meta.Sha256Hex}\"";
         if (meta.ExpireAtUtcTicks is { } exp && exp > 0)
             ctx.Response.Headers["X-SlimFaas-ExpireAtUtcTicks"] = exp.ToString();
+        var tagsHeader = FileSyncProtocol.BuildTagsHeaderValue(meta.Tags);
+        if (!string.IsNullOrWhiteSpace(tagsHeader))
+            ctx.Response.Headers[FileSyncProtocol.TagsHeaderName] = tagsHeader;
 
         log.LogDebug("HEAD ok. Id={Id} Len={Len}", id, meta.Length);
         return Results.Ok();
@@ -78,6 +81,9 @@ public static class ClusterFileTransferRoutes
         ctx.Response.Headers.ETag = $"\"{meta.Sha256Hex}\"";
         if (meta.ExpireAtUtcTicks is { } exp && exp > 0)
             ctx.Response.Headers["X-SlimFaas-ExpireAtUtcTicks"] = exp.ToString();
+        var tagsHeader = FileSyncProtocol.BuildTagsHeaderValue(meta.Tags);
+        if (!string.IsNullOrWhiteSpace(tagsHeader))
+            ctx.Response.Headers[FileSyncProtocol.TagsHeaderName] = tagsHeader;
 
         log.LogDebug("GET streaming (range enabled). Id={Id} Len={Len}", id, meta.Length);
 

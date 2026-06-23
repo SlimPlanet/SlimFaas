@@ -27,10 +27,13 @@ public static class Base64UrlCodec
 public static class FileSyncProtocol
 {
     private const char Sep = '|';
+    private const char TagPairSep = ';';
+    private const char TagKvSep = '=';
 
     public const string AnnouncePrefix   = "slimfaas.file.announce";
     public const string FetchPrefix      = "slimfaas.file.fetch";
     public const string FetchOkPrefix    = "slimfaas.file.fetch.ok";
+    public const string TagsHeaderName    = "X-SlimFaas-Tags";
 
     // announce|idEnc|sha|len|contentTypeEnc|overwrite(0/1)
     public static string BuildAnnounceName(string idEncoded, string sha256Hex, long length, string contentType, bool overwrite)
@@ -60,4 +63,53 @@ public static class FileSyncProtocol
         return true;
     }
 
+    public static string? BuildTagsHeaderValue(IDictionary<string, string>? tags)
+    {
+        if (tags is null || tags.Count == 0)
+            return null;
+
+        var parts = tags
+            .OrderBy(kv => kv.Key, StringComparer.Ordinal)
+            .Select(kv => $"{Base64UrlCodec.Encode(kv.Key)}{TagKvSep}{Base64UrlCodec.Encode(kv.Value)}");
+
+        return string.Join(TagPairSep, parts);
+    }
+
+    public static bool TryParseTagsHeaderValue(string? value, out IDictionary<string, string>? tags)
+    {
+        tags = null;
+
+        if (string.IsNullOrWhiteSpace(value))
+            return false;
+
+        var result = new Dictionary<string, string>(StringComparer.Ordinal);
+        var pairs = value.Split(TagPairSep, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        foreach (var pair in pairs)
+        {
+            var idx = pair.IndexOf(TagKvSep);
+            if (idx <= 0 || idx == pair.Length - 1)
+                return false;
+
+            var keyEncoded = pair[..idx];
+            var valueEncoded = pair[(idx + 1)..];
+
+            string key;
+            string tagValue;
+            try
+            {
+                key = Base64UrlCodec.Decode(keyEncoded);
+                tagValue = Base64UrlCodec.Decode(valueEncoded);
+            }
+            catch
+            {
+                return false;
+            }
+
+            result[key] = tagValue;
+        }
+
+        tags = result;
+        return true;
+    }
 }

@@ -223,7 +223,7 @@ public partial record DataSetMetadata(
     long Length,
     string ContentType,
     string FileName,
-    string? QueueElementId=null);
+    IDictionary<string, string>? Tags = null);
 
 public sealed record DataFileEntry(
     string Id,
