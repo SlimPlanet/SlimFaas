@@ -32,6 +32,7 @@ Asynchronous calls return immediately (HTTP 202 or 201), while SlimFaas queues t
 
 - **Limiting parallel requests** via annotations (e.g., `SlimFaas/NumberParallelRequest`).
 - **Retry pattern** on timeouts or specific HTTP status codes.
+- **Large body offload** via `DefaultAsync.AsyncBodyOffloadThresholdBytes`: when the request body exceeds this threshold, SlimFaas stores it as a cluster file so Async methods can handle large payloads without keeping everything inline.
 
 ---
 
@@ -101,6 +102,7 @@ metadata:
 {
   "DefaultAsync": {
     "HttpTimeout": 120,
+    "AsyncBodyOffloadThresholdBytes": 524288,
     "TimeoutRetries": [2,4,8],
     "HttpStatusRetries": [500,502,503]
   },
@@ -112,6 +114,8 @@ metadata:
 }
 ```
 These settings let you define how aggressively to retry failing calls, which statuses to retry, and more.
+
+`AsyncBodyOffloadThresholdBytes` controls when Async request bodies are offloaded to SlimData cluster storage. Use it to raise the practical payload size for async invocations without buffering the whole request in memory.
 
 ---
 
