@@ -98,9 +98,10 @@ public class AsyncFunctionEndpointTests
                 It.IsAny<long>(),
                 false,
                 It.IsAny<long?>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<string, Stream, string, long, bool, long?, CancellationToken>(
-                (id, _, _, _, _, _, _) => capturedFileId = id)
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IDictionary<string, string>?>()))
+            .Callback<string, Stream, string, long, bool, long?, CancellationToken, IDictionary<string, string>?>(
+                (id, _, _, _, _, _, _, _) => capturedFileId = id)
             .ReturnsAsync(new FilePutResult("abc123sha", "application/octet-stream", 2 * 1024 * 1024));
 
         // db.SetAsync doit être appelé pour stocker les métadonnées
@@ -206,7 +207,8 @@ public class AsyncFunctionEndpointTests
             It.IsAny<long>(),
             false,
             It.IsAny<long?>(),
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<IDictionary<string, string>?>()), Times.Once);
 
         // db.SetAsync doit avoir été appelé avec la clé de métadonnées
         Assert.NotNull(capturedMetaKey);
@@ -324,7 +326,8 @@ public class AsyncFunctionEndpointTests
             It.IsAny<long>(),
             It.IsAny<bool>(),
             It.IsAny<long?>(),
-            It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<CancellationToken>(),
+            It.IsAny<IDictionary<string, string>?>()), Times.Never);
 
         // La CustomRequest enqueued doit avoir Body non null et OffloadedFileId null
         Assert.NotNull(enqueuedPayload);

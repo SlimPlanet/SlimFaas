@@ -174,6 +174,7 @@ public static class FunctionEndpointsHelpers
                 ContentType: put.ContentType,
                 FileName: offloadedFileId,
                 Tags: tags);
+
             var metaKey = $"data:file:{offloadedFileId}:meta";
             var metaBytes = MemoryPackSerializer.Serialize(meta);
             await db!.SetAsync(metaKey, metaBytes);
