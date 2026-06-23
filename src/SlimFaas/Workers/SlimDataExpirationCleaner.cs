@@ -57,7 +57,10 @@ public sealed class SlimDataExpirationCleaner
             {
                 await _db.DeleteAsync(baseKey).ConfigureAwait(false);
             }
-            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired keyvalue. key={Key}", baseKey); }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete expired keyvalue. key={Key}", baseKey);
+            }
         }
 
         foreach (var hs in hashsets)
@@ -78,8 +81,14 @@ public sealed class SlimDataExpirationCleaner
             if (expireAtTicks.Value > nowTicks)
                 continue;
 
-            try { await _db.HashSetDeleteAsync(key, "").ConfigureAwait(false); } // delete whole hashset
-            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired hashset. key={Key}", key); }
+            try
+            {
+                await _db.HashSetDeleteAsync(key, "").ConfigureAwait(false);
+            } // delete whole hashset
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete expired hashset. key={Key}", key);
+            }
         }
         // 3) Local disk TTL: each node deletes ITS own expired files by reading .meta.mp
         await foreach (var entry in _files.EnumerateAllMetadataAsync(ct).ConfigureAwait(false))
@@ -91,8 +100,14 @@ public sealed class SlimDataExpirationCleaner
                 continue;
 
             _logger.LogDebug("Deleting expired local file by disk metadata. id={Id} expireAt={ExpireAt}", entry.Id, t);
-            try { await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false); }
-            catch (Exception ex) { _logger.LogWarning(ex, "Failed to delete expired local file. id={Id}", entry.Id); }
+            try
+            {
+                await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to delete expired local file. id={Id}", entry.Id);
+            }
         }
 
         // 4) Cleanup orphan .tmp files (interrupted uploads)

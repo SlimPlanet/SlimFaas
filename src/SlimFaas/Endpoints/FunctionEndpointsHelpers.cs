@@ -126,53 +126,64 @@ public static class FunctionEndpointsHelpers
                        !HttpMethods.IsDelete(requestMethod) &&
                        !HttpMethods.IsTrace(requestMethod);
 
-        if (hasBody)
+        if (!hasBody)
         {
-            bool shouldOffload = bodyOffloadThresholdBytes > 0
-                && fileSync != null
-                && db != null
-                && (contextRequest.ContentLength == null
-                    || contextRequest.ContentLength > bodyOffloadThresholdBytes);
-
-            if (shouldOffload)
+            return new CustomRequest
             {
-                offloadedFileId = Guid.NewGuid().ToString("N");
-                var contentType = contextRequest.ContentType ?? "application/octet-stream";
-                var contentLength = contextRequest.ContentLength ?? DefaultFileOffloadContentLengthBytes;
+                Headers = customHeaders,
+                FunctionName = functionName,
+                Path = functionPath,
+                Body = requestBodyBytes,
+                Query = contextRequest.QueryString.ToUriComponent(),
+                Method = requestMethod,
+                OffloadedFileId = offloadedFileId
+            };
+        }
 
-                var tags = new Dictionary<string, string>
-                {
-                    { "QueueElementId", queueElementId },
-                    { "FunctionName", functionName }
-                };
+        bool shouldOffload = bodyOffloadThresholdBytes > 0
+                             && fileSync != null
+                             && db != null
+                             && (contextRequest.ContentLength == null
+                                 || contextRequest.ContentLength > bodyOffloadThresholdBytes);
 
-                var put = await fileSync!.BroadcastFilePutAsync(
-                    id: offloadedFileId,
-                    content: contextRequest.Body,
-                    contentType: contentType,
-                    contentLengthBytes: contentLength,
-                    overwrite: false,
-                    ttl: null,
-                    ct: ct,
-                    tags);
+        if (shouldOffload)
+        {
+            offloadedFileId = Guid.NewGuid().ToString("N");
+            var contentType = contextRequest.ContentType ?? "application/octet-stream";
+            var contentLength = contextRequest.ContentLength ?? DefaultFileOffloadContentLengthBytes;
 
-                var meta = new DataSetMetadata(
-                    Sha256Hex: put.Sha256Hex,
-                    Length: put.Length,
-                    ContentType: put.ContentType,
-                    FileName: offloadedFileId,
-                    Tags: tags);
-                var metaKey = $"data:file:{offloadedFileId}:meta";
-                var metaBytes = MemoryPackSerializer.Serialize(meta);
-                await db!.SetAsync(metaKey, metaBytes);
-            }
-            else
+            var tags = new Dictionary<string, string>
             {
-                using StreamContent streamContent = new(context.Request.Body);
-                using MemoryStream memoryStream = new();
-                await streamContent.CopyToAsync(memoryStream, ct);
-                requestBodyBytes = memoryStream.ToArray();
-            }
+                { "QueueElementId", queueElementId },
+                { "FunctionName", functionName }
+            };
+
+            var put = await fileSync!.BroadcastFilePutAsync(
+                id: offloadedFileId,
+                content: contextRequest.Body,
+                contentType: contentType,
+                contentLengthBytes: contentLength,
+                overwrite: false,
+                ttl: null,
+                ct: ct,
+                tags);
+
+            var meta = new DataSetMetadata(
+                Sha256Hex: put.Sha256Hex,
+                Length: put.Length,
+                ContentType: put.ContentType,
+                FileName: offloadedFileId,
+                Tags: tags);
+            var metaKey = $"data:file:{offloadedFileId}:meta";
+            var metaBytes = MemoryPackSerializer.Serialize(meta);
+            await db!.SetAsync(metaKey, metaBytes);
+        }
+        else
+        {
+            using StreamContent streamContent = new(context.Request.Body);
+            using MemoryStream memoryStream = new();
+            await streamContent.CopyToAsync(memoryStream, ct);
+            requestBodyBytes = memoryStream.ToArray();
         }
 
         return new CustomRequest
