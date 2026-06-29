@@ -24,6 +24,10 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
     private static readonly TimeSpan s_slidingExpiration = TimeSpan.FromMinutes(20);
+    private static readonly JsonSerializerOptions s_yamlJsonOptions = new()
+    {
+        TypeInfoResolver = AppJsonContext.Default
+    };
 
     public async Task<JsonDocument> GetSwaggerAsync(
         string swaggerUrl,
@@ -57,9 +61,9 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         }
         else
         {
-            JsonNode node = YamlSerializer.Deserialize<JsonNode>(swaggerStr);
-            var bytes = JsonSerializer.SerializeToUtf8Bytes(node);
-            doc = JsonDocument.Parse(bytes);
+            JsonNode node = YamlSerializer.Deserialize<JsonNode>(swaggerStr, s_yamlJsonOptions)
+                            ?? throw new JsonException("Unable to deserialize Swagger YAML into JsonNode.");
+            doc = JsonDocument.Parse(node.ToJsonString());
         }
 
         var cacheExpiration = slidingExpiration == null ? s_slidingExpiration : TimeSpan.FromMinutes(slidingExpiration.Value);

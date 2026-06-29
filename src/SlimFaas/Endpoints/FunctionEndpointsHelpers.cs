@@ -1,7 +1,9 @@
 using MemoryPack;
+using Microsoft.Extensions.DependencyInjection;
 using SlimData.ClusterFiles;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas;
 
 namespace SlimFaas.Endpoints;
 
@@ -175,7 +177,13 @@ public static class FunctionEndpointsHelpers
                 FileName: offloadedFileId,
                 Tags: tags);
 
-            var metaKey = $"data:file:{offloadedFileId}:meta";
+            var metaKey = DataFileKeys.MetaKey(offloadedFileId);
+            var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger(nameof(FunctionEndpointsHelpers));
+            logger.LogDebug(
+                "Offloading request metadata. MetaKey={MetaKey} Tags={Tags}",
+                metaKey,
+                string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
             var metaBytes = MemoryPackSerializer.Serialize(meta);
             await db!.SetAsync(metaKey, metaBytes);
         }
@@ -264,5 +272,3 @@ public static class FunctionEndpointsHelpers
         );
     }
 }
-
-

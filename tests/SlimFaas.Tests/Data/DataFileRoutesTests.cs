@@ -53,11 +53,11 @@ public sealed class DataFileRoutesTests
         var expired = DateTime.UtcNow.AddMinutes(-10).Ticks;
 
         var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
-            .Add("data:file:abc:meta", new byte[] { 0x01 })
-            .Add("data:file:abc:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(ticks1))
-            .Add("data:file:no-ttl:meta", new byte[] { 0x02 }) // pas de ttl => expiration null
-            .Add("data:file:old:meta", new byte[] { 0x03 })
-            .Add("data:file:old:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(expired))
+            .Add(DataFileKeys.MetaKey("abc"), new byte[] { 0x01 })
+            .Add(DataFileKeys.MetaKey("abc")+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(ticks1))
+            .Add(DataFileKeys.MetaKey("no-ttl"), new byte[] { 0x02 }) // pas de ttl => expiration null
+            .Add(DataFileKeys.MetaKey("old"), new byte[] { 0x03 })
+            .Add(DataFileKeys.MetaKey("old")+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(expired))
             .Add("something:else", new byte[] { 0xFF });       // ignoré
 
         var data = new SlimDataPayload
@@ -93,10 +93,10 @@ public sealed class DataFileRoutesTests
         var t2 = DateTime.UtcNow.AddMinutes(15).Ticks;
 
         var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
-            .Add("data:file:b:meta", new byte[] { 0x01 })
-            .Add("data:file:b:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t2))
-            .Add("data:file:a:meta", new byte[] { 0x01 })
-            .Add("data:file:a:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t1));
+            .Add(DataFileKeys.MetaKey("b"), new byte[] { 0x01 })
+            .Add(DataFileKeys.MetaKey("b")+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t2))
+            .Add(DataFileKeys.MetaKey("a"), new byte[] { 0x01 })
+            .Add(DataFileKeys.MetaKey("a")+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t1));
 
         var data = new SlimDataPayload
         {
@@ -184,7 +184,7 @@ public sealed class DataFileRoutesTests
         Assert.Equal(capturedId, elementId);
         Assert.Equal("application/octet-stream", capturedContentType);
 
-        Assert.Equal($"data:file:{elementId}:meta", storedMetaKey);
+        Assert.Equal(DataFileKeys.MetaKey(elementId), storedMetaKey);
         Assert.Equal(ttlMs, storedTtl);
 
         var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(storedMetaBytes!);
@@ -206,7 +206,7 @@ public sealed class DataFileRoutesTests
         var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);
 
-        db.Setup(d => d.GetAsync("data:file:id1:meta"))
+        db.Setup(d => d.GetAsync(DataFileKeys.MetaKey("id1")))
           .ReturnsAsync((byte[]?)null);
 
         var result = await DataFileRoutes.DataFileHandlers.GetAsync("id1", fileSync.Object, db.Object, CancellationToken.None);
@@ -229,7 +229,7 @@ public sealed class DataFileRoutesTests
         var meta = new DataSetMetadata("sha", 5, "application/octet-stream", "x.bin");
         var metaBytes = MemoryPackSerializer.Serialize(meta);
 
-        db.Setup(d => d.GetAsync("data:file:id1:meta"))
+        db.Setup(d => d.GetAsync(DataFileKeys.MetaKey("id1")))
           .ReturnsAsync(metaBytes);
 
         var payload = Encoding.UTF8.GetBytes("abcde");
@@ -257,7 +257,7 @@ public sealed class DataFileRoutesTests
     {
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);
 
-        db.Setup(d => d.DeleteAsync("data:file:id1:meta"))
+        db.Setup(d => d.DeleteAsync(DataFileKeys.MetaKey("id1")))
           .Returns(Task.CompletedTask);
 
         var result = await DataFileRoutes.DataFileHandlers.DeleteAsync("id1", db.Object, CancellationToken.None);

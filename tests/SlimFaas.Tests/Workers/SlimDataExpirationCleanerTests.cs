@@ -40,7 +40,7 @@ public sealed class SlimDataExpirationCleanerTests
         var files = new Mock<IFileRepository>(MockBehavior.Strict);
         var logger = new Mock<ILogger<SlimDataExpirationCleaner>>();
 
-        var metaKey = "data:file:abc:meta";
+        var metaKey = DataFileKeys.MetaKey("abc");
         var ttlKey = metaKey + SlimDataInterpreter.TimeToLivePostfix;
 
         var nowTicks = DateTime.UtcNow.Ticks;
@@ -257,7 +257,7 @@ public sealed class SlimDataExpirationCleanerTests
         var logger = new Mock<ILogger<SlimDataExpirationCleaner>>();
 
         const string fileId = "orphan-raft-file";
-        const string metaKey = "data:file:" + fileId + ":meta";
+        var metaKey = DataFileKeys.MetaKey(fileId);
         const string queueElementId = "elem-orphan";
 
         var data = new SlimDataPayload
@@ -294,7 +294,7 @@ public sealed class SlimDataExpirationCleanerTests
         var logger = new Mock<ILogger<SlimDataExpirationCleaner>>();
 
         const string fileId = "active-raft-file";
-        const string metaKey = "data:file:" + fileId + ":meta";
+        var metaKey = DataFileKeys.MetaKey(fileId);
         const string queueElementId = "elem-active";
 
         var data = new SlimDataPayload

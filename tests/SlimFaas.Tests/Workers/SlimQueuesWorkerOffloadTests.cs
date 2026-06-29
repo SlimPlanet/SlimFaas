@@ -155,7 +155,7 @@ public class SlimQueuesWorkerOffloadTests
         // --- db mock : retourne les métadonnées pour la clé correspondante ---
         Mock<IDatabaseService> dbMock = new();
         dbMock
-            .Setup(d => d.GetAsync($"data:file:{fileId}:meta"))
+            .Setup(d => d.GetAsync(DataFileKeys.MetaKey(fileId)))
             .ReturnsAsync(metaBytes);
         // DeleteAsync sera appelé après la complétion pour nettoyage
         dbMock
@@ -196,7 +196,7 @@ public class SlimQueuesWorkerOffloadTests
         // --- Assert ---
 
         // 1. db.GetAsync doit avoir été appelé avec la clé de métadonnées
-        dbMock.Verify(d => d.GetAsync($"data:file:{fileId}:meta"), Times.AtLeastOnce);
+        dbMock.Verify(d => d.GetAsync(DataFileKeys.MetaKey(fileId)), Times.AtLeastOnce);
 
         // 2. PullFileIfMissingAsync doit avoir été appelé avec les bons paramètres
         fileSyncMock.Verify(f => f.PullFileIfMissingAsync(fileId, sha256, null, It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -280,7 +280,7 @@ public class SlimQueuesWorkerOffloadTests
         // db retourne null → métadonnées introuvables
         Mock<IDatabaseService> dbMock = new();
         dbMock
-            .Setup(d => d.GetAsync($"data:file:{fileId}:meta"))
+            .Setup(d => d.GetAsync(DataFileKeys.MetaKey(fileId)))
             .ReturnsAsync((byte[]?)null);
         dbMock
             .Setup(d => d.DeleteAsync(It.IsAny<string>()))
@@ -363,7 +363,7 @@ public class SlimQueuesWorkerOffloadTests
         await task;
 
         // db.GetAsync doit avoir été appelé
-        dbMock.Verify(d => d.GetAsync($"data:file:{fileId}:meta"), Times.AtLeastOnce);
+        dbMock.Verify(d => d.GetAsync(DataFileKeys.MetaKey(fileId)), Times.AtLeastOnce);
 
         // Un warning doit avoir été loggué
         loggerMock.Verify(l => l.Log(
@@ -386,6 +386,5 @@ public class SlimQueuesWorkerOffloadTests
             It.Is<Stream?>(stream => stream == null)), Times.AtLeastOnce);
     }
 }
-
 
 

@@ -149,11 +149,15 @@ public class SlimQueuesWorker(
             Stream? offloadedStream = null;
             if (!string.IsNullOrEmpty(customRequest.OffloadedFileId))
             {
-                var metaKey = $"data:file:{customRequest.OffloadedFileId}:meta";
+                var metaKey = DataFileKeys.MetaKey(customRequest.OffloadedFileId);
                 var metaBytes = await db.GetAsync(metaKey);
                 if (metaBytes != null && metaBytes.Length > 0)
                 {
                     var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(metaBytes);
+                    logger.LogDebug(
+                        "Loaded offloaded metadata. MetaKey={MetaKey} Tags={Tags}",
+                        metaKey,
+                        FormatTags(meta?.Tags));
                     var pulled = await fileSync.PullFileIfMissingAsync(
                         customRequest.OffloadedFileId,
                         meta?.Sha256Hex ?? "",
@@ -195,6 +199,14 @@ public class SlimQueuesWorker(
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp, offloadedStream));
             activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
         }
+    }
+
+    private object? FormatTags(IDictionary<string, string>? metaTags)
+    {
+        if (metaTags == null || metaTags.Count == 0)
+            return null;
+
+        return string.Join(", ", metaTags.Select(kv => $"{kv.Key}={kv.Value}"));
     }
 
     private async Task<long> UpdateTickLastCallIfRequestStillInProgress(int? functionReplicas,
@@ -366,6 +378,7 @@ public class SlimQueuesWorker(
         }
     }
 
+
     private async Task CleanOffloadedStream(RequestToWait processing)
     {
         if (processing.OffloadedStream != null)
@@ -374,7 +387,7 @@ public class SlimQueuesWorker(
         }
         if (!string.IsNullOrEmpty(processing.CustomRequest.OffloadedFileId))
         {
-            string metaKey = $"data:file:{processing.CustomRequest.OffloadedFileId}:meta";
+            string metaKey = DataFileKeys.MetaKey(processing.CustomRequest.OffloadedFileId);
             await db.DeleteAsync(metaKey);
         }
     }

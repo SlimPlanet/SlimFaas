@@ -9,8 +9,6 @@ namespace SlimData.Expiration;
 
 public sealed class SlimDataExpirationCleaner
 {
-    private const string OffloadMetaPrefix = "data:file:";
-    private const string OffloadMetaSuffix = ":meta";
     private const string QueueElementIdTagKey = "QueueElementId";
 
     private readonly ISupplier<SlimDataPayload> _state;
@@ -141,8 +139,8 @@ public sealed class SlimDataExpirationCleaner
             ct.ThrowIfCancellationRequested();
 
             var key = kv.Key;
-            if (!key.StartsWith(OffloadMetaPrefix, StringComparison.Ordinal) ||
-                !key.EndsWith(OffloadMetaSuffix, StringComparison.Ordinal))
+            if (!key.StartsWith(DataFileKeys.MetaPrefix, StringComparison.Ordinal) ||
+                !key.EndsWith(DataFileKeys.MetaSuffix, StringComparison.Ordinal))
                 continue;
 
             DataSetMetadata? meta;

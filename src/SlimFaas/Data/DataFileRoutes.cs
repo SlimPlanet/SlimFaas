@@ -38,10 +38,6 @@ public static class DataFileRoutes
     // ------------------------------------------------------------
     public static class DataFileHandlers
     {
-
-        private const string MetaPrefix = "data:file:";
-        private const string MetaSuffix = ":meta";
-
         public static IResult ListFilesAsync(ISupplier<SlimDataPayload> state)
         {
             var payload = state.Invoke();
@@ -54,13 +50,13 @@ public static class DataFileRoutes
             {
                 var metaKey = kv.Key;
 
-                if (!metaKey.StartsWith(MetaPrefix, StringComparison.Ordinal) ||
-                    !metaKey.EndsWith(MetaSuffix, StringComparison.Ordinal))
+                if (!metaKey.StartsWith(DataFileKeys.MetaPrefix, StringComparison.Ordinal) ||
+                    !metaKey.EndsWith(DataFileKeys.MetaSuffix, StringComparison.Ordinal))
                     continue;
 
                 var id = metaKey.Substring(
-                    MetaPrefix.Length,
-                    metaKey.Length - MetaPrefix.Length - MetaSuffix.Length);
+                    DataFileKeys.MetaPrefix.Length,
+                    metaKey.Length - DataFileKeys.MetaPrefix.Length - DataFileKeys.MetaSuffix.Length);
 
                 if (string.IsNullOrWhiteSpace(id))
                     continue;
@@ -138,7 +134,7 @@ public static class DataFileRoutes
                 ContentType: put.ContentType,
                 FileName: finalFileName);
 
-            var metaKey = MetaKey(elementId);
+            var metaKey = DataFileKeys.MetaKey(elementId);
             var metaBytes = MemoryPackSerializer.Serialize(meta);
 
             await db.SetAsync(metaKey, metaBytes, ttl);
@@ -158,7 +154,7 @@ public static class DataFileRoutes
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
 
-            var metaKey = MetaKey(elementId);
+            var metaKey = DataFileKeys.MetaKey(elementId);
             var metaBytes = await db.GetAsync(metaKey);
             if (metaBytes is null || metaBytes.Length == 0)
                 return Results.NotFound();
@@ -191,11 +187,9 @@ public static class DataFileRoutes
         {
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
-            await db.DeleteAsync(MetaKey(elementId));
+            await db.DeleteAsync(DataFileKeys.MetaKey(elementId));
             return Results.NoContent();
         }
-
-        private static string MetaKey(string elementId) => $"data:file:{elementId}:meta";
 
         private static string? TryGetFileName(string? contentDisposition)
         {

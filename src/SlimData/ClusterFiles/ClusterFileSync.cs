@@ -183,6 +183,8 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                         length.Value,
                         RangeChunkSizeBytes,
                         PerChunkTimeout);
+                    
+                    _logger.LogDebug("GET {FileUri} {StatusCode}", fileUri, id);
 
                     var put = await _repo.SaveAsync(
                         id: id,

@@ -213,7 +213,7 @@ public class AsyncFunctionEndpointTests
         // db.SetAsync doit avoir été appelé avec la clé de métadonnées
         Assert.NotNull(capturedMetaKey);
         Assert.NotNull(capturedFileId);
-        Assert.Equal($"data:file:{capturedFileId}:meta", capturedMetaKey);
+        Assert.Equal(DataFileKeys.MetaKey(capturedFileId), capturedMetaKey);
 
         // Les métadonnées doivent être désérialisables et cohérentes
         Assert.NotNull(capturedMetaBytes);
