@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.73.0
+
+- [d41acb3b](https://github.com/SlimPlanet/SlimFaas/commit/d41acb3b50359d913f883754b10136f1366d95e5) - feat(slimfaas): Allow async function to stream big payload (#273) (release), 2026-07-01 by *Silthian*
+
+
+## 0.72.2
+
+
+
 ## v0.72.2
 
 - [0fac74e7](https://github.com/SlimPlanet/SlimFaas/commit/0fac74e732dae2cccf11176939f1b75dda163269) - fix(slimfaas): async callback (#279) (release), 2026-05-21 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 
 - [4286a4a4](https://github.com/SlimPlanet/SlimFaas/commit/4286a4a4a252e910c837f1e91d56e54171f28faf) - fix(build):  docker arm on github (release), 2026-02-06 by *Guillaume Chervet*
 - [ea849e2e](https://github.com/SlimPlanet/SlimFaas/commit/ea849e2e0ba60b34428e56b60640ff1f81fd4458) - fix(build):  docker arm on github (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.3
-
-- [9e4f1330](https://github.com/SlimPlanet/SlimFaas/commit/9e4f13309ed159684382e0db25fad7b0c27f7212) - fix(ci): re-add slimfaas linux/arm64 docker build (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## 0.61.2
-
 
 
