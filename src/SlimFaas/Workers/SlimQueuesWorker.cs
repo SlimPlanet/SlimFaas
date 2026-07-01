@@ -276,7 +276,11 @@ public class SlimQueuesWorker(
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
                 httpResponseMessagesToDelete.Add(processing);
-                await CleanOffloadedStream(processing);
+
+                if (processing.OffloadedStream != null)
+                {
+                    await processing.OffloadedStream.DisposeAsync();
+                }
 
                 if (statusCode == 202)
                 {
@@ -369,17 +373,4 @@ public class SlimQueuesWorker(
         }
     }
 
-
-    private async Task CleanOffloadedStream(RequestToWait processing)
-    {
-        if (processing.OffloadedStream != null)
-        {
-            await processing.OffloadedStream.DisposeAsync();
-        }
-        if (!string.IsNullOrEmpty(processing.CustomRequest.OffloadedFileId))
-        {
-            string metaKey = DataFileKeys.MetaKey(processing.CustomRequest.OffloadedFileId);
-            await db.DeleteAsync(metaKey);
-        }
-    }
 }
