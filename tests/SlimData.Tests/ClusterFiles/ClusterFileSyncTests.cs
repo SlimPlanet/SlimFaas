@@ -90,8 +90,8 @@ public sealed class ClusterFileSyncTests
         bus.Setup(b => b.RemoveListener(It.IsAny<IInputChannel>()));
 
         long? capturedExpireAt = null;
-        repo.Setup(r => r.SaveAsync("id1", It.IsAny<Stream>(), "text/plain", true, It.IsAny<long?>(), It.IsAny<CancellationToken>()))
-            .Callback<string, Stream, string, bool, long?, CancellationToken>((_, _, _, _, exp, _) => capturedExpireAt = exp)
+        repo.Setup(r => r.SaveAsync("id1", It.IsAny<Stream>(), "text/plain", true, It.IsAny<long?>(), It.IsAny<CancellationToken>(), It.IsAny<IDictionary<string, string>?>()))
+            .Callback<string, Stream, string, bool, long?, CancellationToken, IDictionary<string, string>?>((_, _, _, _, exp, _, _) => capturedExpireAt = exp)
             .ReturnsAsync(new FilePutResult("deadbeef", "text/plain", 4));
 
         var sut = new ClusterFileSync(bus.Object, repo.Object, queue, loggerMock.Object, httpFactory);
@@ -238,6 +238,7 @@ public sealed class ClusterFileSyncTests
         byte[] savedBytes = Array.Empty<byte>();
         string? savedContentType = null;
         long? savedExpireAt = null;
+        IDictionary<string, string>? savedTags = null;
 
         repo.Setup(r => r.SaveAsync(
                 "id1",
@@ -245,26 +246,35 @@ public sealed class ClusterFileSyncTests
                 It.IsAny<string>(),
                 true,
                 It.IsAny<long?>(),
-                It.IsAny<CancellationToken>()))
-            .Returns<string, Stream, string, bool, long?, CancellationToken>(async (_, stream, ct, _, exp, token) =>
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IDictionary<string, string>?>()))
+            .Returns<string, Stream, string, bool, long?, CancellationToken, IDictionary<string, string>?>(async (_, stream, contentType, _, exp, token, tagsArg) =>
             {
-                savedContentType = ct;
+                savedContentType = contentType;
                 savedExpireAt = exp;
+                savedTags = tagsArg is null ? null : new Dictionary<string, string>(tagsArg);
                 using var ms = new MemoryStream();
                 await stream.CopyToAsync(ms, token);
                 savedBytes = ms.ToArray();
                 var sh = Convert.ToHexString(SHA256.HashData(savedBytes)).ToLowerInvariant();
-                return new FilePutResult(sh, ct, savedBytes.Length);
+                return new FilePutResult(sh, contentType, savedBytes.Length);
             });
 
         repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(() => new MemoryStream(savedBytes, writable: false));
 
+        var tags = new Dictionary<string, string>
+        {
+            ["QueueElementId"] = "queue-42",
+            ["FunctionName"] = "demo-worker"
+        };
+
         var handler = new ClusterFilesHttpHandler(
             sha: sha,
             payload: payload,
             expireAtUtcTicks: expireAt,
-            portWithFile: 5002);
+            portWithFile: 5002,
+            tags: tags);
 
         var httpFactory = new TestHttpClientFactory(new HttpClient(handler)
         {
@@ -284,6 +294,9 @@ public sealed class ClusterFileSyncTests
 
         Assert.Equal("application/octet-stream", savedContentType);
         Assert.Equal(expireAt, savedExpireAt);
+        Assert.NotNull(savedTags);
+        Assert.Equal("queue-42", savedTags!["QueueElementId"]);
+        Assert.Equal("demo-worker", savedTags["FunctionName"]);
     }
 
     [Fact]
@@ -356,13 +369,15 @@ public sealed class ClusterFileSyncTests
         private readonly byte[] _payload;
         private readonly long _expireAt;
         private readonly int _portWithFile;
+        private readonly IDictionary<string, string>? _tags;
 
-        public ClusterFilesHttpHandler(string sha, byte[] payload, long expireAtUtcTicks, int portWithFile)
+        public ClusterFilesHttpHandler(string sha, byte[] payload, long expireAtUtcTicks, int portWithFile, IDictionary<string, string>? tags = null)
         {
             _sha = sha;
             _payload = payload;
             _expireAt = expireAtUtcTicks;
             _portWithFile = portWithFile;
+            _tags = tags;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
@@ -383,6 +398,9 @@ public sealed class ClusterFileSyncTests
                 resp.Content.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
                 resp.Headers.TryAddWithoutValidation("Accept-Ranges", "bytes");
                 resp.Headers.TryAddWithoutValidation("X-SlimFaas-ExpireAtUtcTicks", _expireAt.ToString());
+                var tagsHeader = FileSyncProtocol.BuildTagsHeaderValue(_tags);
+                if (!string.IsNullOrWhiteSpace(tagsHeader))
+                    resp.Headers.TryAddWithoutValidation(FileSyncProtocol.TagsHeaderName, tagsHeader);
                 return Task.FromResult(resp);
             }
 
@@ -413,6 +431,9 @@ public sealed class ClusterFileSyncTests
                 resp.Content.Headers.ContentRange = new ContentRangeHeaderValue(from, to, _payload.Length);
                 resp.Headers.TryAddWithoutValidation("Accept-Ranges", "bytes");
                 resp.Headers.TryAddWithoutValidation("X-SlimFaas-ExpireAtUtcTicks", _expireAt.ToString());
+                var tagsHeader = FileSyncProtocol.BuildTagsHeaderValue(_tags);
+                if (!string.IsNullOrWhiteSpace(tagsHeader))
+                    resp.Headers.TryAddWithoutValidation(FileSyncProtocol.TagsHeaderName, tagsHeader);
                 return Task.FromResult(resp);
             }
 

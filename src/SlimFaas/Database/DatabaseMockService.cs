@@ -65,7 +65,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.FromResult<IDictionary<string, byte[]>>(new Dictionary<string, byte[]>());
     }
 
-    public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation)
+    public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation, string? newElementId = null)
     {
         List<QueueData> list;
         if (queue.TryGetValue(key, out List<QueueData>? value))
@@ -78,7 +78,7 @@ public class DatabaseMockService : IDatabaseService
             queue.TryAdd(key, list);
         }
 
-        var elementId = Guid.NewGuid().ToString();
+        var elementId = string.IsNullOrWhiteSpace(newElementId) ? Guid.NewGuid().ToString() : newElementId;
         list.Add(new QueueData(elementId, field, 1, true, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond));
         return Task.FromResult(elementId);
     }

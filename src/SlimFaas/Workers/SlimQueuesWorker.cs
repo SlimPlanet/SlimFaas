@@ -1,6 +1,7 @@
 ﻿using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
+using SlimData.ClusterFiles;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
@@ -12,7 +13,8 @@ internal record struct RequestToWait(
     Task<HttpResponseMessage> Task,
     CustomRequest CustomRequest,
     string Id,
-    string TargetIp);
+    string TargetIp,
+    Stream? OffloadedStream = null);
 
 public class SlimQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
@@ -22,9 +24,10 @@ public class SlimQueuesWorker(
     IServiceProvider serviceProvider,
     ISlimDataStatus slimDataStatus,
     IMasterService masterService,
+    IClusterFileSync fileSync,
+    IDatabaseService db,
     IOptions<WorkersOptions> workersOptions,
-    NetworkActivityTracker activityTracker
-    )
+    NetworkActivityTracker activityTracker)
     : BackgroundService
 {
 
@@ -142,7 +145,40 @@ public class SlimQueuesWorker(
 
             logger.LogDebug("{CustomRequestMethod}: {CustomRequestPath}{CustomRequestQuery} Sending",
                 customRequest.Method, customRequest.Path, customRequest.Query);
-            logger.LogDebug("{RequestJson}", requestJson);
+
+            Stream? offloadedStream = null;
+            if (!string.IsNullOrEmpty(customRequest.OffloadedFileId))
+            {
+                var metaKey = DataFileKeys.MetaKey(customRequest.OffloadedFileId);
+                var metaBytes = await db.GetAsync(metaKey);
+                if (metaBytes != null && metaBytes.Length > 0)
+                {
+                    var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(metaBytes);
+                    if(logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.LogDebug(
+                            "Loaded offloaded metadata. MetaKey={MetaKey} Tags={Tags}",
+                            metaKey,
+                            FormatTags(meta?.Tags));
+                    }
+                    var pulled = await fileSync.PullFileIfMissingAsync(
+                        customRequest.OffloadedFileId,
+                        meta?.Sha256Hex ?? "",
+                        null,
+                        CancellationToken.None);
+                    offloadedStream = pulled.Stream;
+                }
+                else
+                {
+                    logger.LogWarning("Offloaded file metadata not found for id={FileId}, request will have empty body",
+                        customRequest.OffloadedFileId);
+                }
+            }
+            else
+            {
+                logger.LogDebug("{RequestJson}", requestJson);
+            }
+
             historyHttpService.SetTickLastCall(functionDeployment, DateTime.UtcNow.Ticks);
             using IServiceScope scope = serviceProvider.CreateScope();
             var slimfaasDefaultConfiguration = new SlimFaasDefaultConfiguration()
@@ -162,10 +198,18 @@ public class SlimQueuesWorker(
             string targetIp = reservedIp;
 
             Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
-                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy, reservedIp, functionDeployment);
-            processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp));
+                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy, reservedIp, functionDeployment, null, offloadedStream);
+            processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp, offloadedStream));
             activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
         }
+    }
+
+    private object? FormatTags(IDictionary<string, string>? metaTags)
+    {
+        if (metaTags == null || metaTags.Count == 0)
+            return null;
+
+        return string.Join(", ", metaTags.Select(kv => $"{kv.Key}={kv.Value}"));
     }
 
     private async Task<long> UpdateTickLastCallIfRequestStillInProgress(int? functionReplicas,
@@ -234,6 +278,12 @@ public class SlimQueuesWorker(
                     "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
+                httpResponseMessagesToDelete.Add(processing);
+
+                if (processing.OffloadedStream != null)
+                {
+                    await processing.OffloadedStream.DisposeAsync();
+                }
 
                 if (statusCode == 202)
                 {
@@ -307,15 +357,6 @@ public class SlimQueuesWorker(
         foreach (var item in completed)
         {
             pending.Remove(item);
-        }
-    }
-
-    private async Task ManageAllAwaiting202TasksAsync(
-        Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
-    {
-        foreach (var functionDeployment in awaiting202Tasks.Keys.ToList())
-        {
-            await ManageAwaiting202TasksAsync(awaiting202Tasks, functionDeployment);
         }
     }
 

@@ -266,6 +266,18 @@ public class RaftClusterTests
         hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
         Assert.Empty(hashGet);
 
+       const string customElementId = "custom-list-element-id";
+       var customElementIdReturned = await databaseServiceSlave.ListLeftPushAsync(
+           "listKeyCustom",
+           MemoryPackSerializer.Serialize("value-custom"),
+           new RetryInformation([], 30, []),
+           customElementId);
+       Assert.Equal(customElementId, customElementIdReturned);
+       await GetLocalClusterView(host1).ForceReplicationAsync();
+       var customElementList = await databaseServiceSlave.ListCountElementAsync("listKeyCustom", new List<CountType> { CountType.Available });
+       Assert.Single(customElementList);
+       Assert.Equal(customElementId, customElementList[0].Id);
+
        await databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value1"), new RetryInformation([], 30, []));
        await GetLocalClusterView(host1).ForceReplicationAsync();
        var listLength = await databaseServiceSlave.ListCountElementAsync("listKey1" , new List<CountType>()

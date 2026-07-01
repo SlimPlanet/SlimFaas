@@ -76,10 +76,10 @@ internal class MemorySlimFaasQueue : ISlimFaasQueue
 
     public Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus) => Task.CompletedTask;
 
-    public async Task<string> EnqueueAsync(string key, byte[] message, RetryInformation retryInformation)
+    public async Task<string> EnqueueAsync(string key, byte[] message, RetryInformation retryInformation, string? newElementId = null)
     {
         await Task.Delay(100);
-        return Guid.NewGuid().ToString();
+        return newElementId ?? Guid.NewGuid().ToString();
     }
 }
 
@@ -89,7 +89,7 @@ internal class SendClientMock : ISendClient
 {
     public IList<SendData> SendDatas = new List<SendData>();
 
-    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null)
+    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null)
     {
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         responseMessage.StatusCode = HttpStatusCode.OK;
@@ -143,4 +143,3 @@ internal class WebSocketSendClientMock : IWebSocketSendClient
             (200, new Dictionary<string, string[]>(), channel.Reader, () => Task.CompletedTask));
     }
 }
-

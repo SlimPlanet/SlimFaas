@@ -55,7 +55,7 @@ namespace SlimFaas.Tests.Workers
 
             public Task<IDictionary<string, byte[]>> HashGetAllAsync(string key) => throw new NotImplementedException();
 
-            public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation) => throw new NotImplementedException();
+            public Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation, string? newElementId = null) => throw new NotImplementedException();
 
             public Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1, IList<string>? reservedIps = null) => throw new NotImplementedException();
 

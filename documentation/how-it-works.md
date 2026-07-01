@@ -46,7 +46,8 @@ It handles scaling, routing, and state management.
    `GET /async-function/<functionName>/...` (returns immediately with `202 Accepted`).
 2. **SlimFaas** enqueues the request in SlimData.
 3. **SlimWorker** processes requests in the background, respecting concurrency limits.
-4. **Function** handles each request. SlimFaas logs outcomes in SlimData.
+4. If the body is larger than `DefaultAsync.AsyncBodyOffloadThresholdBytes`, SlimFaas offloads it to cluster file storage and the worker pulls it back when needed.
+5. **Function** handles each request. SlimFaas logs outcomes in SlimData.
 
 ![async_http_call.PNG](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/async_http_call.PNG?raw=true)
 

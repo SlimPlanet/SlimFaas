@@ -2,7 +2,6 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using MemoryPack;
-using Microsoft.Extensions.Logging;
 
 namespace SlimData.ClusterFiles;
 
@@ -28,7 +27,8 @@ public sealed class DiskFileRepository : IFileRepository
         string contentType,
         bool overwrite,
         long? expireAtUtcTicks,
-        CancellationToken ct)
+        CancellationToken ct,
+        IDictionary<string, string>? tags=null)
     {
         var (filePath, metaPath) = GetPaths(id);
         var tmp = filePath + ".tmp." + Guid.NewGuid().ToString("N");
@@ -65,7 +65,7 @@ public sealed class DiskFileRepository : IFileRepository
             MoveIntoPlace(tmp, filePath, overwrite);
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
-            var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks);
+            var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks, tags);
             await WriteMetadataAsync(metaPath, meta, ct, _logger).ConfigureAwait(false);
 
             return new FilePutResult(shaHex, contentType, total);

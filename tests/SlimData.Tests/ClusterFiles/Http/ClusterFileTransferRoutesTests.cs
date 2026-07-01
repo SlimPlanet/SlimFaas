@@ -19,12 +19,14 @@ public sealed class ClusterFileTransferRoutesTests
         string sha,
         long length = 4,
         string? contentType = "text/plain",
-        long? expireAtUtcTicks = 123)
+        long? expireAtUtcTicks = 123,
+        IDictionary<string, string>? tags = null)
         => new FileMetadata(
-            contentType,
+            contentType!,
             sha,
             length,
-             expireAtUtcTicks
+             expireAtUtcTicks,
+             tags
         );
 
     private static async Task<WebApplication> CreateAppAsync(Mock<IFileRepository> repoMock)
@@ -115,7 +117,11 @@ public sealed class ClusterFileTransferRoutesTests
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
         repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Meta("deadbeef", length: 42, contentType: "application/pdf", expireAtUtcTicks: 999));
+            .ReturnsAsync(Meta("deadbeef", length: 42, contentType: "application/pdf", expireAtUtcTicks: 999, tags: new Dictionary<string, string>
+            {
+                ["QueueElementId"] = "q-1",
+                ["FunctionName"] = "worker-a"
+            }));
 
         await using var app = await CreateAppAsync(repo);
         var client = app.GetTestClient();
@@ -133,6 +139,8 @@ public sealed class ClusterFileTransferRoutesTests
 
         Assert.True(resp.Headers.TryGetValues("X-SlimFaas-ExpireAtUtcTicks", out var exp));
         Assert.Equal("999", Assert.Single(exp));
+
+        AssertTags(resp, ("QueueElementId", "q-1"), ("FunctionName", "worker-a"));
 
         Assert.Equal(42, resp.Content.Headers.ContentLength);
         Assert.Equal("application/pdf", resp.Content.Headers.ContentType?.MediaType);
@@ -217,7 +225,10 @@ public sealed class ClusterFileTransferRoutesTests
 
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);
         repo.Setup(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(Meta("deadbeef", length: payload.Length, contentType: "text/plain", expireAtUtcTicks: 777));
+            .ReturnsAsync(Meta("deadbeef", length: payload.Length, contentType: "text/plain", expireAtUtcTicks: 777, tags: new Dictionary<string, string>
+            {
+                ["kind"] = "text"
+            }));
 
         repo.Setup(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new MemoryStream(payload));
@@ -238,6 +249,8 @@ public sealed class ClusterFileTransferRoutesTests
         Assert.True(resp.Headers.TryGetValues("X-SlimFaas-ExpireAtUtcTicks", out var exp));
         Assert.Equal("777", Assert.Single(exp));
 
+        AssertTags(resp, ("kind", "text"));
+
         Assert.Equal("text/plain", resp.Content.Headers.ContentType?.MediaType);
 
         var body = await resp.Content.ReadAsByteArrayAsync();
@@ -246,6 +259,21 @@ public sealed class ClusterFileTransferRoutesTests
         repo.Verify(r => r.TryGetMetadataAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.OpenReadAsync("id1", It.IsAny<CancellationToken>()), Times.Once);
         repo.VerifyNoOtherCalls();
+    }
+
+    private static void AssertTags(HttpResponseMessage resp, params (string Key, string Value)[] expected)
+    {
+        Assert.True(resp.Headers.TryGetValues(FileSyncProtocol.TagsHeaderName, out var tagsHeader));
+        var encoded = Assert.Single(tagsHeader);
+        Assert.True(FileSyncProtocol.TryParseTagsHeaderValue(encoded, out var parsedTags));
+
+        Assert.NotNull(parsedTags);
+        Assert.Equal(expected.Length, parsedTags!.Count);
+        foreach (var (key, value) in expected)
+        {
+            Assert.True(parsedTags.TryGetValue(key, out var actual));
+            Assert.Equal(value, actual);
+        }
     }
 
     [Fact]

@@ -53,11 +53,11 @@ public sealed class DataFileRoutesTests
         var expired = DateTime.UtcNow.AddMinutes(-10).Ticks;
 
         var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
-            .Add("data:file:abc:meta", new byte[] { 0x01 })
-            .Add("data:file:abc:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(ticks1))
-            .Add("data:file:no-ttl:meta", new byte[] { 0x02 }) // pas de ttl => expiration null
-            .Add("data:file:old:meta", new byte[] { 0x03 })
-            .Add("data:file:old:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(expired))
+            .Add(DataFileKeys.MetaKey("abc"), new byte[] { 0x01 })
+            .Add(DataFileKeys.MetaKey("abc")+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(ticks1))
+            .Add(DataFileKeys.MetaKey("no-ttl"), new byte[] { 0x02 }) // pas de ttl => expiration null
+            .Add(DataFileKeys.MetaKey("old"), new byte[] { 0x03 })
+            .Add(DataFileKeys.MetaKey("old")+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(expired))
             .Add("something:else", new byte[] { 0xFF });       // ignoré
 
         var data = new SlimDataPayload
@@ -85,6 +85,34 @@ public sealed class DataFileRoutesTests
     }
 
     [Fact]
+    public void ListFilesAsync_excludes_internal_ids()
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
+
+        var internalId = DataFileKeys.CreateInternalOffloadId();
+
+        var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add(DataFileKeys.MetaKey("public-id"), new byte[] { 0x01 })
+            .Add(DataFileKeys.MetaKey(internalId), new byte[] { 0x02 });
+
+        var data = new SlimDataPayload
+        {
+            KeyValues = kv,
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+
+        state.Setup(s => s.Invoke()).Returns(data);
+
+        var result = DataFileRoutes.DataFileHandlers.ListFilesAsync(state.Object);
+        var ok = Assert.IsType<Ok<List<DataFileEntry>>>(result);
+
+        var list = ok.Value!;
+        Assert.Single(list);
+        Assert.Equal("public-id", list[0].Id);
+    }
+
+    [Fact]
     public void ListFilesAsync_sorts_by_expiration_then_id()
     {
         var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
@@ -93,10 +121,10 @@ public sealed class DataFileRoutesTests
         var t2 = DateTime.UtcNow.AddMinutes(15).Ticks;
 
         var kv = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
-            .Add("data:file:b:meta", new byte[] { 0x01 })
-            .Add("data:file:b:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t2))
-            .Add("data:file:a:meta", new byte[] { 0x01 })
-            .Add("data:file:a:meta"+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t1));
+            .Add(DataFileKeys.MetaKey("b"), new byte[] { 0x01 })
+            .Add(DataFileKeys.MetaKey("b")+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t2))
+            .Add(DataFileKeys.MetaKey("a"), new byte[] { 0x01 })
+            .Add(DataFileKeys.MetaKey("a")+SlimDataInterpreter.TimeToLivePostfix, BitConverter.GetBytes(t1));
 
         var data = new SlimDataPayload
         {
@@ -144,13 +172,13 @@ public sealed class DataFileRoutesTests
                 It.IsAny<long>(),
                 true,
                 It.IsAny<long?>(),
-                It.IsAny<CancellationToken>()))
-            .Callback((string id, Stream content, string ctType, long contentLengthBytes, bool overwrite, long? ttl, CancellationToken ct) =>
+                It.IsAny<CancellationToken>(),
+                It.IsAny<IDictionary<string, string>?>()))
+            .Callback((string id, Stream content, string ctType, long contentLengthBytes, bool overwrite, long? ttl, CancellationToken ct, IDictionary<string, string>? tags) =>
             {
                 capturedId = id;
                 capturedContentType = ctType;
                 storedTtl = ttl;
-                // (optionnel) tu peux aussi capturer contentLengthBytes si tu veux l’asserter
             })
             .ReturnsAsync(new FilePutResult("sha1", "application/octet-stream", payload.Length));
 
@@ -184,7 +212,7 @@ public sealed class DataFileRoutesTests
         Assert.Equal(capturedId, elementId);
         Assert.Equal("application/octet-stream", capturedContentType);
 
-        Assert.Equal($"data:file:{elementId}:meta", storedMetaKey);
+        Assert.Equal(DataFileKeys.MetaKey(elementId), storedMetaKey);
         Assert.Equal(ttlMs, storedTtl);
 
         var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(storedMetaBytes!);
@@ -197,6 +225,26 @@ public sealed class DataFileRoutesTests
         db.VerifyAll();
     }
 
+    [Fact]
+    public async Task Post_returns_badrequest_when_id_is_internal_pattern()
+    {
+        var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var ctx = NewHttpContext();
+        ctx.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("hello"));
+        ctx.Request.ContentType = "application/octet-stream";
+
+        var internalId = DataFileKeys.CreateInternalOffloadId();
+
+        var result = await DataFileRoutes.DataFileHandlers.PostAsync(
+            ctx, internalId, 10L, fileSync.Object, db.Object, CancellationToken.None);
+
+        var badRequest = Assert.IsType<BadRequest<string>>(result);
+        Assert.Equal("Invalid id.", badRequest.Value);
+        fileSync.VerifyNoOtherCalls();
+        db.VerifyNoOtherCalls();
+    }
+
     // ------------------------------------------------------------
     // GET tests
     // ------------------------------------------------------------
@@ -206,7 +254,7 @@ public sealed class DataFileRoutesTests
         var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);
 
-        db.Setup(d => d.GetAsync("data:file:id1:meta"))
+        db.Setup(d => d.GetAsync(DataFileKeys.MetaKey("id1")))
           .ReturnsAsync((byte[]?)null);
 
         var result = await DataFileRoutes.DataFileHandlers.GetAsync("id1", fileSync.Object, db.Object, CancellationToken.None);
@@ -229,7 +277,7 @@ public sealed class DataFileRoutesTests
         var meta = new DataSetMetadata("sha", 5, "application/octet-stream", "x.bin");
         var metaBytes = MemoryPackSerializer.Serialize(meta);
 
-        db.Setup(d => d.GetAsync("data:file:id1:meta"))
+        db.Setup(d => d.GetAsync(DataFileKeys.MetaKey("id1")))
           .ReturnsAsync(metaBytes);
 
         var payload = Encoding.UTF8.GetBytes("abcde");
@@ -249,6 +297,23 @@ public sealed class DataFileRoutesTests
         fileSync.VerifyAll();
     }
 
+    [Fact]
+    public async Task Get_returns_notfound_when_id_is_internal_pattern()
+    {
+        var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var internalId = DataFileKeys.CreateInternalOffloadId();
+
+        var result = await DataFileRoutes.DataFileHandlers.GetAsync(internalId, fileSync.Object, db.Object, CancellationToken.None);
+
+        var ctx = NewHttpContext();
+        var (status, _, _) = await ExecuteAsync(result, ctx);
+
+        Assert.Equal(404, status);
+        db.VerifyNoOtherCalls();
+        fileSync.VerifyNoOtherCalls();
+    }
+
     // ------------------------------------------------------------
     // DELETE tests
     // ------------------------------------------------------------
@@ -257,7 +322,7 @@ public sealed class DataFileRoutesTests
     {
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);
 
-        db.Setup(d => d.DeleteAsync("data:file:id1:meta"))
+        db.Setup(d => d.DeleteAsync(DataFileKeys.MetaKey("id1")))
           .Returns(Task.CompletedTask);
 
         var result = await DataFileRoutes.DataFileHandlers.DeleteAsync("id1", db.Object, CancellationToken.None);
@@ -267,6 +332,21 @@ public sealed class DataFileRoutesTests
 
         Assert.Equal(204, status);
         db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task Delete_returns_notfound_when_id_is_internal_pattern()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var internalId = DataFileKeys.CreateInternalOffloadId();
+
+        var result = await DataFileRoutes.DataFileHandlers.DeleteAsync(internalId, db.Object, CancellationToken.None);
+
+        var ctx = NewHttpContext();
+        var (status, _, _) = await ExecuteAsync(result, ctx);
+
+        Assert.Equal(404, status);
+        db.VerifyNoOtherCalls();
     }
 
     private sealed class TestInvocationContext : EndpointFilterInvocationContext

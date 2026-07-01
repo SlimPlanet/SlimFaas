@@ -13,7 +13,8 @@ public interface IClusterFileSync
         long contentLengthBytes,
         bool overwrite,
         long? ttl,
-        CancellationToken ct);
+        CancellationToken ct,
+        IDictionary<string, string>? tags = null);
 
     Task<FilePullResult> PullFileIfMissingAsync(
         string id,

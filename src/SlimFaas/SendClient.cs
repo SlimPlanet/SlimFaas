@@ -1,4 +1,4 @@
-﻿﻿using System.Net;
+﻿using System.Net;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
@@ -10,7 +10,7 @@ namespace SlimFaas;
 
 public interface ISendClient
 {
-    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null);
+    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
         string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null);
@@ -22,7 +22,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     private readonly string _namespaceSlimFaas = namespaceProvider.CurrentNamespace;
 
     public async Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null)
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null)
     {
         string source = string.IsNullOrWhiteSpace(activitySource)
             ? NetworkActivityTracker.Actors.SlimFaas
@@ -48,7 +48,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                     {
                         string targetUrl = await ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy, reservedPodIp);
                         logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
-                        HttpRequestMessage targetRequestMessage = CreateTargetMessage(customRequest, new Uri(targetUrl));
+                        HttpRequestMessage targetRequestMessage = CreateTargetMessage(customRequest, new Uri(targetUrl), bodyOverrideStream);
                         return await httpClient.SendAsync(targetRequestMessage,
                             HttpCompletionOption.ResponseHeadersRead,
                             finalToken);
@@ -178,18 +178,19 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     }
 
 
-    private void CopyFromOriginalRequestContentAndHeaders(CustomRequest context, HttpRequestMessage requestMessage)
+    private void CopyFromOriginalRequestContentAndHeaders(CustomRequest context, HttpRequestMessage requestMessage, Stream? bodyOverrideStream = null)
     {
         string requestMethod = context.Method;
 
         if (!HttpMethods.IsGet(requestMethod) &&
             !HttpMethods.IsHead(requestMethod) &&
             !HttpMethods.IsDelete(requestMethod) &&
-            !HttpMethods.IsTrace(requestMethod) &&
-            context.Body != null)
+            !HttpMethods.IsTrace(requestMethod))
         {
-            StreamContent streamContent = new(new MemoryStream(context.Body));
-            requestMessage.Content = streamContent;
+            if (bodyOverrideStream != null)
+                requestMessage.Content = new StreamContent(bodyOverrideStream);
+            else if (context.Body != null)
+                requestMessage.Content = new StreamContent(new MemoryStream(context.Body));
         }
 
         foreach (var header in context.Headers.Where(header => header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase) ||
@@ -205,10 +206,10 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         }
     }
 
-    private HttpRequestMessage CreateTargetMessage(CustomRequest context, Uri targetUri)
+    private HttpRequestMessage CreateTargetMessage(CustomRequest context, Uri targetUri, Stream? bodyOverrideStream = null)
     {
         HttpRequestMessage requestMessage = new();
-        CopyFromOriginalRequestContentAndHeaders(context, requestMessage);
+        CopyFromOriginalRequestContentAndHeaders(context, requestMessage, bodyOverrideStream);
 
         requestMessage.RequestUri = targetUri;
         requestMessage.Headers.Host = targetUri.Host;

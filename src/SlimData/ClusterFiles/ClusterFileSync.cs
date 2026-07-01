@@ -39,7 +39,8 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         long contentLengthBytes,
         bool overwrite,
         long? ttl,
-        CancellationToken ct)
+        CancellationToken ct,
+        IDictionary<string, string>? tags = null)
     {
         await using var _ = await _idLock.AcquireAsync(id, contentLengthBytes, ct);
         
@@ -47,7 +48,8 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         if (ttl.HasValue && ttl.Value > 0)
              expireAtUtcTicks = DateTime.UtcNow.AddMilliseconds(ttl.Value).Ticks;
         // 1) Sauvegarde locale + SHA256
-        var put = await _repo.SaveAsync(id, content, contentType, overwrite, expireAtUtcTicks, ct).ConfigureAwait(false);
+        var put = await _repo.SaveAsync(id, content, contentType, overwrite, expireAtUtcTicks, ct, tags)
+            .ConfigureAwait(false);
 
         // 2) Broadcast "announce-only" (pas de stream envoyé)
         var idEnc = Base64UrlCodec.Encode(id);
@@ -145,6 +147,23 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                     if (long.TryParse(s, out var v) && v > 0) expireAtUtcTicks = v;
                 }
 
+                IDictionary<string, string>? tags = null;
+                if (headResp.Headers.TryGetValues(FileSyncProtocol.TagsHeaderName, out var tagVals))
+                {
+                    var rawTags = tagVals.FirstOrDefault();
+                    if (!string.IsNullOrWhiteSpace(rawTags))
+                    {
+                        if (FileSyncProtocol.TryParseTagsHeaderValue(rawTags, out var parsedTags))
+                        {
+                            tags = parsedTags;
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Invalid tags header from node {Node}. Id={Id}", fileUri, id);
+                        }
+                    }
+                }
+
                 // URL finale (si redirect 307/308 etc.)
                 var finalUri = headResp.RequestMessage?.RequestUri ?? fileUri;
 
@@ -165,12 +184,21 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                         RangeChunkSizeBytes,
                         PerChunkTimeout);
 
+                    if (_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        _logger.LogDebug(
+                            "GET {FileUri} {StatusCode}. Length={Len} ContentType={ContentType} ExpireAtUtcTicks={ExpireAtUtcTicks} Tags={Tags}",
+                            fileUri, headResp.StatusCode, length.Value, contentType, expireAtUtcTicks,
+                            tags == null ? "null" : string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
+                    }
+
                     var put = await _repo.SaveAsync(
                         id: id,
                         content: rangeStream,
                         contentType: contentType,
                         overwrite: true,
                         expireAtUtcTicks: expireAtUtcTicks,
+                        tags: tags,
                         ct: ct).ConfigureAwait(false);
 
                     // Vérif intégrité

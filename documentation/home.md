@@ -75,6 +75,7 @@ SlimFaas puts autoscaling at the center of the design:
     - Limit parallelism per function.
     - Configure retries and backoff strategies.
     - Drive scaling decisions based on queue metrics.
+    - Offload large request bodies with `DefaultAsync.AsyncBodyOffloadThresholdBytes` so Async methods can safely process bigger payloads.
 
 ### ⏱ Jobs
 

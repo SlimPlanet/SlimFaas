@@ -4,7 +4,7 @@ namespace SlimFaas.Database;
 
 public interface ISlimFaasQueue
 {
-    Task<string> EnqueueAsync(string key, byte[] message, RetryInformation retryInformation);
+    Task<string> EnqueueAsync(string key, byte[] message, RetryInformation retryInformation, string? newElementId = null);
     Task<IList<QueueData>?> DequeueAsync(string key, int count = 1, IList<string>? reservedIps = null);
     Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus);
     public Task<long> CountElementAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue);

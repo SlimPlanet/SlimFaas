@@ -19,7 +19,7 @@ public interface IDatabaseService
     Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveMilliseconds = null);
     Task HashSetDeleteAsync(string key, string dictionaryKey = "");
     Task<IDictionary<string, byte[]>> HashGetAllAsync(string key);
-    Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation);
+    Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation, string? newElementId = null);
     Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1, IList<string>? reservedIps = null);
     Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue);
     Task ListCallbackAsync(string key, ListQueueItemStatus queueItemStatus);

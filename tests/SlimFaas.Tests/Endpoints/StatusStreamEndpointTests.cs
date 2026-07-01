@@ -581,7 +581,8 @@ public class StatusStreamEndpointTests
     {
         public int CountElementCallCount;
 
-        public Task<string> EnqueueAsync(string key, byte[] message, RetryInformation retryInformation) => Task.FromResult("id");
+        public Task<string> EnqueueAsync(string key, byte[] message, RetryInformation retryInformation, string? newElementId = null) =>
+            Task.FromResult(newElementId ?? "id");
 
         public Task<IList<QueueData>?> DequeueAsync(string key, int count = 1, IList<string>? reservedIps = null) =>
             Task.FromResult<IList<QueueData>?>(Array.Empty<QueueData>());
@@ -598,4 +599,3 @@ public class StatusStreamEndpointTests
             Task.FromResult<IList<QueueData>>(Array.Empty<QueueData>());
     }
 }
-

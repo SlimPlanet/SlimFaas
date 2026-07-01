@@ -114,7 +114,11 @@ spec:
             - name: Data__DefaultVisibility
               value: "Public"
               # log level debug for testing
+            - name: Logging__LogLevel__Default
+              value: "Debug"
             - name: Logging__LogLevel__SlimFaas
+              value: "Debug"
+            - name: Logging__LogLevel__SlimData
               value: "Debug"
             - name: SlimFaas__JobsConfiguration
               valueFrom:
