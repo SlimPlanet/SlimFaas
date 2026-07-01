@@ -183,10 +183,14 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                         length.Value,
                         RangeChunkSizeBytes,
                         PerChunkTimeout);
-                    
-                    // add formatted tags
-                    _logger.LogDebug("GET {FileUri} {StatusCode}. Length={Len} ContentType={ContentType} ExpireAtUtcTicks={ExpireAtUtcTicks} Tags={Tags}",
-                        fileUri, headResp.StatusCode, length.Value, contentType, expireAtUtcTicks, tags == null ? "null" : string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
+
+                    if (_logger.IsEnabled(LogLevel.Debug))
+                    {
+                        _logger.LogDebug(
+                            "GET {FileUri} {StatusCode}. Length={Len} ContentType={ContentType} ExpireAtUtcTicks={ExpireAtUtcTicks} Tags={Tags}",
+                            fileUri, headResp.StatusCode, length.Value, contentType, expireAtUtcTicks,
+                            tags == null ? "null" : string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
+                    }
 
                     var put = await _repo.SaveAsync(
                         id: id,

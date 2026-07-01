@@ -154,10 +154,13 @@ public class SlimQueuesWorker(
                 if (metaBytes != null && metaBytes.Length > 0)
                 {
                     var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(metaBytes);
-                    logger.LogDebug(
-                        "Loaded offloaded metadata. MetaKey={MetaKey} Tags={Tags}",
-                        metaKey,
-                        FormatTags(meta?.Tags));
+                    if(logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.LogDebug(
+                            "Loaded offloaded metadata. MetaKey={MetaKey} Tags={Tags}",
+                            metaKey,
+                            FormatTags(meta?.Tags));
+                    }
                     var pulled = await fileSync.PullFileIfMissingAsync(
                         customRequest.OffloadedFileId,
                         meta?.Sha256Hex ?? "",

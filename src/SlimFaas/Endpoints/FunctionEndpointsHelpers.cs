@@ -184,11 +184,12 @@ public static class FunctionEndpointsHelpers
                 Tags: tags);
 
             var metaKey = DataFileKeys.MetaKey(offloadedFileId);
-
-            logger.LogDebug(
-                "Offloading request metadata. MetaKey={MetaKey} Tags={Tags}",
-                metaKey,
-                string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
+            if(logger.IsEnabled(LogLevel.Debug)) {
+                logger.LogDebug(
+                    "Offloading request metadata. MetaKey={MetaKey} Tags={Tags}",
+                    metaKey,
+                    string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
+            }
             var metaBytes = MemoryPackSerializer.Serialize(meta);
             await db!.SetAsync(metaKey, metaBytes);
         }

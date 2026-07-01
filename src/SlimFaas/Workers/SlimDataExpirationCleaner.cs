@@ -86,6 +86,7 @@ public sealed class SlimDataExpirationCleaner
 
             try
             {
+                _logger.LogDebug("Deleting expired keyvalue. key={Key}", key);
                 await _db.HashSetDeleteAsync(key, "").ConfigureAwait(false);
             }
             catch (Exception ex)
