@@ -353,15 +353,6 @@ public class SlimQueuesWorker(
         }
     }
 
-    private async Task ManageAllAwaiting202TasksAsync(
-        Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
-    {
-        foreach (var functionDeployment in awaiting202Tasks.Keys.ToList())
-        {
-            await ManageAwaiting202TasksAsync(awaiting202Tasks, functionDeployment);
-        }
-    }
-
     private void ClearLocalTrackingOnLeadershipLoss(
         Dictionary<string, IList<RequestToWait>> processingTasks,
         Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
