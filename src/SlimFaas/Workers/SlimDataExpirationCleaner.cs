@@ -137,7 +137,6 @@ public sealed class SlimDataExpirationCleaner
         foreach (var kv in keyValues)
         {
             ct.ThrowIfCancellationRequested();
-            _logger.LogDebug("Checking offload metadata key. key={Key}", kv.Key);
             var key = kv.Key;
             if (!key.StartsWith(DataFileKeys.MetaPrefix, StringComparison.Ordinal) ||
                 !key.EndsWith(DataFileKeys.MetaSuffix, StringComparison.Ordinal))
@@ -156,7 +155,7 @@ public sealed class SlimDataExpirationCleaner
 
             if (meta?.Tags is null)
                 continue;
-            _logger.LogDebug("Found offload metadata. key={Key} Tags={Tags}", key, string.Join(", ", meta.Tags.Select(tag => $"{tag.Key}={tag.Value}")));
+
             if (!meta.Tags.TryGetValue(QueueElementIdTagKey, out var queueElementId) ||
                 string.IsNullOrEmpty(queueElementId))
                 continue;

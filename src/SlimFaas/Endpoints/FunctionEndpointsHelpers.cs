@@ -156,7 +156,7 @@ public static class FunctionEndpointsHelpers
             bodyOffloadThresholdBytes);
         if (shouldOffload)
         {
-            offloadedFileId = Guid.NewGuid().ToString("N");
+            offloadedFileId = DataFileKeys.CreateInternalOffloadId();
             var contentType = contextRequest.ContentType ?? "application/octet-stream";
             var contentLength = contextRequest.ContentLength ?? DefaultFileOffloadContentLengthBytes;
 

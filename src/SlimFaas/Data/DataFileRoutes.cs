@@ -61,6 +61,9 @@ public static class DataFileRoutes
                 if (string.IsNullOrWhiteSpace(id))
                     continue;
 
+                if (DataFileKeys.IsInternalElementId(id))
+                    continue;
+
                 var ttlKey = metaKey + SlimDataInterpreter.TimeToLivePostfix;
 
                 long expireAtUtcTicks = -1;
@@ -94,6 +97,8 @@ public static class DataFileRoutes
             var elementId = string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("N") : id;
 
             if (!IdValidator.IsSafeId(elementId))
+                return Results.BadRequest("Invalid id.");
+            if (DataFileKeys.IsInternalElementId(elementId))
                 return Results.BadRequest("Invalid id.");
 
             // Snippet demandé
@@ -153,6 +158,8 @@ public static class DataFileRoutes
 
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
+            if (DataFileKeys.IsInternalElementId(elementId))
+                return Results.NotFound();
 
             var metaKey = DataFileKeys.MetaKey(elementId);
             var metaBytes = await db.GetAsync(metaKey);
@@ -187,6 +194,8 @@ public static class DataFileRoutes
         {
             if (!IdValidator.IsSafeId(elementId))
                 return Results.BadRequest("Invalid id.");
+            if (DataFileKeys.IsInternalElementId(elementId))
+                return Results.NotFound();
             await db.DeleteAsync(DataFileKeys.MetaKey(elementId));
             return Results.NoContent();
         }
