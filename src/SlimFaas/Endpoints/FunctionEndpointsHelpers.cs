@@ -116,6 +116,8 @@ public static class FunctionEndpointsHelpers
         IDatabaseService? db = null,
         CancellationToken ct = default)
     {
+        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+            .CreateLogger(nameof(FunctionEndpointsHelpers));
         List<CustomHeader> customHeaders = contextRequest.Headers
             .Select(headers => new CustomHeader(headers.Key, headers.Value.ToArray())).ToList();
 
@@ -147,7 +149,11 @@ public static class FunctionEndpointsHelpers
                              && db != null
                              && (contextRequest.ContentLength == null
                                  || contextRequest.ContentLength > bodyOffloadThresholdBytes);
-
+        logger.LogDebug(
+            "Request body offload check. ShouldOffload={ShouldOffload} ContentLength={ContentLength} Threshold={Threshold}",
+            shouldOffload,
+            contextRequest.ContentLength,
+            bodyOffloadThresholdBytes);
         if (shouldOffload)
         {
             offloadedFileId = Guid.NewGuid().ToString("N");
@@ -178,8 +184,7 @@ public static class FunctionEndpointsHelpers
                 Tags: tags);
 
             var metaKey = DataFileKeys.MetaKey(offloadedFileId);
-            var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
-                .CreateLogger(nameof(FunctionEndpointsHelpers));
+
             logger.LogDebug(
                 "Offloading request metadata. MetaKey={MetaKey} Tags={Tags}",
                 metaKey,
