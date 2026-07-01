@@ -29,6 +29,7 @@ public sealed class SlimDataExpirationCleanupWorker : BackgroundService
         {
             try
             {
+                _logger.LogDebug("SlimData TTL cleanup cycle started.");
                 await _cleaner.CleanupOnceAsync(stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
