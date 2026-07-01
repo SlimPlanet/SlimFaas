@@ -31,8 +31,6 @@ public static class FileSyncProtocol
     private const char TagKvSep = '=';
 
     public const string AnnouncePrefix   = "slimfaas.file.announce";
-    public const string FetchPrefix      = "slimfaas.file.fetch";
-    public const string FetchOkPrefix    = "slimfaas.file.fetch.ok";
     public const string TagsHeaderName    = "X-SlimFaas-Tags";
 
     // announce|idEnc|sha|len|contentTypeEnc|overwrite(0/1)
