@@ -16,6 +16,8 @@ public class AsyncFunction
 
 public static class AsyncFunctionEndpoints
 {
+    private const long AsyncBodyOffloadThresholdBytes = 1 * 1024L * 1024L;
+
     public static void MapAsyncFunctionEndpoints(this IEndpointRouteBuilder app)
     {
         // POST /async-function/{functionName}/**
@@ -101,7 +103,7 @@ public static class AsyncFunctionEndpoints
             context.Request,
             functionName,
             functionPath ?? "",
-            bodyOffloadThresholdBytes: defaultAsync.AsyncBodyOffloadThresholdBytes,
+            bodyOffloadThresholdBytes: AsyncBodyOffloadThresholdBytes,
             queueElementId: queueElementId,
             fileSync: fileSync,
             db: db,

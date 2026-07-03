@@ -123,13 +123,9 @@ public class AsyncFunctionEndpointTests
             .Callback<string, byte[], RetryInformation, string?>((_, data, _, _) => enqueuedPayload = data)
             .ReturnsAsync(Guid.NewGuid().ToString());
 
-        // ReplicasService configuré avec AsyncBodyOffloadThresholdBytes = 1 Mo
         var fibonacciConfig = new SlimFaasConfiguration
         {
-            DefaultAsync = new SlimFaasDefaultAsyncConfiguration
-            {
-                AsyncBodyOffloadThresholdBytes = 1 * 1024L * 1024L
-            }
+            DefaultAsync = new SlimFaasDefaultConfiguration()
         };
 
         Mock<IReplicasService> replicasServiceMock = new();
@@ -250,10 +246,7 @@ public class AsyncFunctionEndpointTests
 
         var fibonacciConfig = new SlimFaasConfiguration
         {
-            DefaultAsync = new SlimFaasDefaultAsyncConfiguration
-            {
-                AsyncBodyOffloadThresholdBytes = 1 * 1024L * 1024L  // seuil 1 Mo
-            }
+            DefaultAsync = new SlimFaasDefaultConfiguration()
         };
 
         Mock<IReplicasService> replicasServiceMock = new();
