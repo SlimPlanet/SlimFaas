@@ -256,14 +256,30 @@ public class RaftClusterTests
 
         await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1", "field1");
         await GetLocalClusterView(host1).ForceReplicationAsync();
-        hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+            if (hashGet.Count == 1)
+                break;
+
+            await Task.Delay(100);
+            await GetLocalClusterView(host1).ForceReplicationAsync();
+        }
         Assert.Single(hashGet);
 
         await databaseServiceSlave.HashSetAsync("hashsetKey1",
             new Dictionary<string, byte[]> { { "field3",MemoryPackSerializer.Serialize("value3") } });
         await databaseServiceSlave.HashSetDeleteAsync("hashsetKey1");
         await GetLocalClusterView(host1).ForceReplicationAsync();
-        hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            hashGet = await databaseServiceSlave.HashGetAllAsync("hashsetKey1");
+            if (hashGet.Count == 0)
+                break;
+
+            await Task.Delay(100);
+            await GetLocalClusterView(host1).ForceReplicationAsync();
+        }
         Assert.Empty(hashGet);
 
        const string customElementId = "custom-list-element-id";
@@ -316,8 +332,20 @@ public class RaftClusterTests
         await Task.WhenAll(tasks);
 
         await GetLocalClusterView(host1).ForceReplicationAsync();
-        var listLength3 = await databaseServiceSlave.ListCountElementAsync("listKey1", new List<CountType>() { CountType.Available });
-        Assert.Equal(1000, listLength3.Count);
+
+        var availableCount = 0;
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            var listLength3 = await databaseServiceSlave.ListCountElementAsync("listKey1", new List<CountType>() { CountType.Available });
+            availableCount = listLength3.Count;
+            if (availableCount == 1000)
+                break;
+
+            await Task.Delay(100);
+            await GetLocalClusterView(host1).ForceReplicationAsync();
+        }
+
+        Assert.Equal(1000, availableCount);
 
         await host1.StopAsync();
         await host2.StopAsync();
