@@ -76,7 +76,6 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
     - 30-minute metrics retention window for predictable memory usage.
     - Native scale-to-zero and schedules to keep non-critical workloads cold when they’re not needed.
     - Slim control-plane footprint to avoid burning resources in your autoscaling logic itself.
-    - Offload large async request bodies with `DefaultAsync.AsyncBodyOffloadThresholdBytes` so handlers can accept bigger payloads without keeping everything in memory.
 
 ### 🧵 Synchronous and Asynchronous Functions
 
