@@ -2,6 +2,7 @@
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
@@ -33,9 +34,14 @@ public class Startup(IConfiguration configuration)
         const string ListCallBackBatch = "/SlimData/ListCallbackBatch";
         const string HealthResource = "/health";
 #pragma warning disable DOTNEXT001
-     //   app.RestoreStateAsync<SlimPersistentState>(new CancellationToken());
+        // Replay the latest local snapshot into the SimpleStateMachine before joining consensus
+        // (in 6.x this replaces the implicit restore that used to happen inside PersistentState).
+        if (app.ApplicationServices.GetService<SlimPersistentState>() is not null)
+        {
+            app.RestoreStateAsync<SlimPersistentState>().AsTask().GetAwaiter().GetResult();
+        }
 #pragma warning restore DOTNEXT001
-       
+
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
@@ -99,11 +105,18 @@ public class Startup(IConfiguration configuration)
         var path = configuration[SlimPersistentState.LogLocation];
         var usePersistentConfigurationStorage = bool.Parse(configuration[SlimPersistentState.UsePersistentConfigurationStorage] ?? "true");
         if (!string.IsNullOrWhiteSpace(path) && usePersistentConfigurationStorage)
-            services.UsePersistentConfigurationStorage(path)
+        {
+            // In DotNext 6.x, PersistentClusterConfigurationStorage now takes a *file* path
+            // (previously a directory path in 5.x). Point it at a dedicated file located inside
+            // the LogLocation directory, ensuring the parent directory exists.
+            Directory.CreateDirectory(path);
+            var configFile = Path.Combine(path, "cluster-config.bin");
+            services.UsePersistentConfigurationStorage(configFile)
                 .ConfigureCluster<ClusterConfigurator>()
                 .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()
                 .AddOptions()
                 .AddRouting();
+        }
         else
             services.UseInMemoryConfigurationStorage(AddClusterMembers)
                 .ConfigureCluster<ClusterConfigurator>()
@@ -111,16 +124,17 @@ public class Startup(IConfiguration configuration)
                 .AddOptions()
                 .AddRouting();
         
-       /* if (!string.IsNullOrWhiteSpace(path))
-        {
-#pragma warning disable DOTNEXT001
-            services.AddSingleton(new WriteAheadLog.Options { Location = path });
-            services.UseStateMachine<SlimPersistentState>();
-#pragma warning restore DOTNEXT001
-        }*/
        if (!string.IsNullOrWhiteSpace(path))
        {
-           services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
+#pragma warning disable DOTNEXT001
+           // The WAL and the SimpleStateMachine snapshots must live in distinct sub-directories:
+           // - `wal/` holds the Raft write-ahead log (WriteAheadLog format, 6.x layout).
+           // - `db/`  holds the state-machine snapshots (managed by SimpleStateMachine).
+           //   The `db/` sub-directory is derived internally by SlimPersistentState from LogLocation.
+           var walOptions = new WriteAheadLog.Options { Location = Path.Combine(path, "wal") };
+           services.UseStateMachine<SlimPersistentState>(walOptions);
+           services.AddSingleton<ISupplier<SlimDataPayload>>(sp => sp.GetRequiredService<SlimPersistentState>());
+#pragma warning restore DOTNEXT001
            services.AddSingleton<IFileRepository>(sp => new DiskFileRepository(
                Path.Combine(path, "files"),
                sp.GetRequiredService<ILogger<DiskFileRepository>>()));

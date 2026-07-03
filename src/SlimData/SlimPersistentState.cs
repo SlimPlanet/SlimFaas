@@ -1,29 +1,39 @@
-﻿using System.Collections.Immutable;
+﻿using System.Buffers;
+using System.Collections.Immutable;
 using DotNext;
 using DotNext.IO;
-using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using SlimData.Commands;
 
 namespace SlimData;
-/*
+
 #pragma warning disable DOTNEXT001
 public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimDataPayload>
 {
-    public const string LogLocation = "logLocation";
+    public const string LogLocation = "SlimData:LogLocation";
+    public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
+
+    // Snapshot cadence: request a snapshot every N applied entries.
+    // Uses a running counter rather than entry.Index modulo, because Index is monotonically
+    // increasing and modulo-based cadence would misbehave after log truncation.
+    private const long SnapshotEvery = 1000L;
+
+    internal const string SnapshotSubDirectory = "db";
 
     private readonly SlimDataState _state = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
-        ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty
-    );
+        ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
+
+    private long _entriesSinceSnapshot;
 
     public CommandInterpreter Interpreter { get; }
 
-    // Chemin vers un sous-dossier "db" (comme dans l'exemple DotNext)
+    public SlimDataState SlimDataState => _state;
+
     public SlimPersistentState(string location)
-        : this(new DirectoryInfo(Path.GetFullPath(Path.Combine(location ?? string.Empty, "db"))))
+        : this(new DirectoryInfo(Path.GetFullPath(Path.Combine(location ?? string.Empty, SnapshotSubDirectory))))
     {
     }
 
@@ -38,68 +48,78 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         Interpreter = SlimDataInterpreter.InitInterpreter(_state);
     }
 
-    public SlimDataState SlimDataState => _state;
-
     SlimDataPayload ISupplier<SlimDataPayload>.Invoke()
         => new()
         {
             KeyValues = _state.KeyValues,
             Hashsets = _state.Hashsets,
-            Queues  = _state.Queues
+            Queues = _state.Queues
         };
 
-    // Applique les entrées de log via l'interpréteur existant.
-    // On force un snapshot toutes les 10 entrées pour rester simple (modifiable selon ton besoin).
     protected override async ValueTask<bool> ApplyAsync(LogEntry entry, CancellationToken token)
     {
         if (entry.Length == 0L)
             return false;
 
         await Interpreter.InterpretAsync(entry, token).ConfigureAwait(false);
-        return entry.Index % 1000L is 0; // snapshot périodique simple
+
+        if (++_entriesSinceSnapshot < SnapshotEvery)
+            return false;
+
+        _entriesSinceSnapshot = 0;
+        return true;
     }
 
-    // Persiste un snapshot en sérialisant un LogSnapshotCommand (réutilise ta sérialisation existante).
     protected override async ValueTask PersistAsync(IAsyncBinaryWriter writer, CancellationToken token)
     {
-        // Construction d’un LogSnapshotCommand à partir de l’état courant
-        var keysValues = new Dictionary<string, ReadOnlyMemory<byte>>(_state.KeyValues.ToDictionary(kv => kv.Key, kv => kv.Value));
+        var keysValues = _state.KeyValues.ToDictionary(kv => kv.Key, kv => kv.Value);
 
-        var newQueues = new Dictionary<string, List<QueueElement>>();
-        foreach (var queue in _state.Queues)
-            newQueues[queue.Key] = queue.Value.ToList();
-
-        var newHashsets = new Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>>();
+        var hashsets = new Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>>(_state.Hashsets.Count);
         foreach (var hs in _state.Hashsets)
-            newHashsets[hs.Key] = hs.Value.ToDictionary(kv => kv.Key, kv => kv.Value);
+            hashsets[hs.Key] = hs.Value.ToDictionary(kv => kv.Key, kv => kv.Value);
 
-        var snapshotCommand = new LogSnapshotCommand(keysValues, newHashsets, newQueues);
+        var queues = new Dictionary<string, List<QueueElement>>(_state.Queues.Count);
+        foreach (var q in _state.Queues)
+            queues[q.Key] = q.Value.ToList();
 
-        // Écrit le snapshot via ton format binaire existant
-        await snapshotCommand.WriteToAsync(writer, token).ConfigureAwait(false);
+        var snapshot = new LogSnapshotCommand(keysValues, hashsets, queues);
+        await snapshot.WriteToAsync(writer, token).ConfigureAwait(false);
     }
 
-    // Restaure l’état depuis un fichier de snapshot en relisant le LogSnapshotCommand
     protected override async ValueTask RestoreAsync(FileInfo snapshotFile, CancellationToken token)
     {
-        await using var stream = snapshotFile.Open(FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        await using var stream = new FileStream(
+            snapshotFile.FullName,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete,
+            bufferSize: 4096,
+            FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-        // Crée un PipeReader depuis le Stream
-        var pipeReader = System.IO.Pipelines.PipeReader.Create(stream);
+        var buffer = ArrayPool<byte>.Shared.Rent(4096);
+        try
+        {
+            var reader = IAsyncBinaryReader.Create(stream, buffer);
+            var command = await LogSnapshotCommand.ReadFromAsync(reader, token).ConfigureAwait(false);
 
-        // Utilise le PipeReader pour créer l'IAsyncBinaryReader
-        var reader = IAsyncBinaryReader.Create(pipeReader);
+            ApplySnapshot(command);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
 
-        // Lecture de ton format binaire existant
-        var command = await LogSnapshotCommand.ReadFromAsync(reader, token).ConfigureAwait(false);
+        _entriesSinceSnapshot = 0;
+    }
 
-        // Applique la commande de snapshot à l’état en mémoire
-        // (équivalent à ton DoHandleSnapshotAsync)
+    private void ApplySnapshot(LogSnapshotCommand command)
+    {
+
         _state.KeyValues = command.keysValues.ToImmutableDictionary();
 
-        var queues = ImmutableDictionary<string, ImmutableList<QueueElement>>.Empty;
+        var queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty;
         foreach (var q in command.queues)
-            queues = queues.SetItem(q.Key, q.Value.ToImmutableList());
+            queues = queues.SetItem(q.Key, q.Value.ToImmutableArray());
         _state.Queues = queues;
 
         var hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
@@ -108,104 +128,4 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         _state.Hashsets = hashsets;
     }
 }
-#pragma warning restore DOTNEXT001*/
-
-
-public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<SlimDataPayload>
-{
-    public const string LogLocation = "SlimData:LogLocation";
-    public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
-
-    private readonly SlimDataState _state = new(
-        ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
-        ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
-        ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
-        );
-    public CommandInterpreter Interpreter { get; }
-
-    public  SlimPersistentState(string path)
-        : base(path, 50, new Options { InitialPartitionSize = 50 * 80, UseCaching = true, UseLegacyBinaryFormat = false })
-    {
-        Interpreter = SlimDataInterpreter.InitInterpreter(_state);
-    }
-
-    public SlimPersistentState(IConfiguration configuration)
-        : this(configuration[LogLocation])
-    {
-    }
-
-    public SlimDataState SlimDataState
-    {
-        get
-        {
-            return _state;
-        }
-    }
-    SlimDataPayload ISupplier<SlimDataPayload>.Invoke()
-    {
-        return new SlimDataPayload()
-        {
-            KeyValues = _state.KeyValues,
-            Hashsets = _state.Hashsets,
-            Queues = _state.Queues
-        };
-    }
-
-    private async ValueTask UpdateValue(LogEntry entry)
-    {
-        await Interpreter.InterpretAsync(entry);
-    }
-
-    protected override ValueTask ApplyAsync(LogEntry entry)
-    {
-        return entry.Length == 0L ? new ValueTask() : UpdateValue(entry);
-    }
-
-    protected override SnapshotBuilder CreateSnapshotBuilder(in SnapshotBuilderContext context)
-    {
-        return new SimpleSnapshotBuilder(context);
-    }
-
-    private sealed class SimpleSnapshotBuilder : IncrementalSnapshotBuilder
-    {
-        private readonly SlimDataState _state =  new(
-            ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
-            ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
-            ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
-            );
-        private readonly CommandInterpreter _interpreter;
-
-        public SimpleSnapshotBuilder(in SnapshotBuilderContext context)
-            : base(context)
-        {
-            _interpreter = SlimDataInterpreter.InitInterpreter(_state);
-        }
-
-        protected override async ValueTask ApplyAsync(LogEntry entry)
-        {
-            await _interpreter.InterpretAsync(entry);
-        }
-
-        public override async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
-        {
-            var keysValues = new Dictionary<string, ReadOnlyMemory<byte>>(_state.KeyValues.ToDictionary(kv => kv.Key, kv => kv.Value));
-            var queues =  _state.Queues;
-            var newQueues = new Dictionary<string, List<QueueElement>>();
-            var hashsets = _state.Hashsets;
-            var newHashsets = new Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>>();
-            
-            foreach (var hashset in hashsets)
-            {
-                newHashsets[hashset.Key] = hashset.Value.ToDictionary(kv => kv.Key, kv => kv.Value);
-            }
-            
-            foreach (var queue in queues)
-            {
-                newQueues[queue.Key] = queue.Value.ToList();
-            }
-            
-            LogSnapshotCommand command = new(keysValues, newHashsets, newQueues);
-            await command.WriteToAsync(writer, token).ConfigureAwait(false);
-        }
-    }
-}
+#pragma warning restore DOTNEXT001

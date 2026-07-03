@@ -88,7 +88,10 @@ public class Endpoints
             var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
             if (!isLeader)
                 throw new AbandonedMutexException("Node is not leader anymore");
-            return await cluster.ReplicateAsync(cmd, ct);
+            // In DotNext 6.x, ReplicateAsync returns a plain ValueTask; a successful completion means
+            // the entry has been committed. Failures surface as exceptions (e.g. NotLeaderException).
+            await cluster.ReplicateAsync(cmd, ct);
+            return true;
         }
         finally
         {
