@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.73.1
+
+- [36efd0dc](https://github.com/SlimPlanet/SlimFaas/commit/36efd0dc38884bf42056a72a5d3f2706f6c33667) - fix(#281): Remove AsyncBodyOffloadThresholdBytes configurability and clean up related code (#282) (release), 2026-07-03 by *Guillaume Chervet*
+- [aef91008](https://github.com/SlimPlanet/SlimFaas/commit/aef91008957b64c9ed5469f4ef09f7787ea99672) - add agent.md, 2026-07-03 by *Guillaume Chervet*
+
+
+## 0.73.0
+
+
+
 ## v0.73.0
 
 - [d41acb3b](https://github.com/SlimPlanet/SlimFaas/commit/d41acb3b50359d913f883754b10136f1366d95e5) - feat(slimfaas): Allow async function to stream big payload (#273) (release), 2026-07-01 by *Silthian*
@@ -264,16 +274,5 @@
 ## v0.61.6
 
 - [f22cfde0](https://github.com/SlimPlanet/SlimFaas/commit/f22cfde0d556933a8a61959cbb1ab0d033fb86c6) - fix: enable AOT cross-compilation for multi-platform builds (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.5
-
-- [7ff6e27c](https://github.com/SlimPlanet/SlimFaas/commit/7ff6e27c0532fab3b5b4cf94f1eb6971d1c678e2) - fix(build): docker arm64 (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.4
-
-- [4286a4a4](https://github.com/SlimPlanet/SlimFaas/commit/4286a4a4a252e910c837f1e91d56e54171f28faf) - fix(build):  docker arm on github (release), 2026-02-06 by *Guillaume Chervet*
-- [ea849e2e](https://github.com/SlimPlanet/SlimFaas/commit/ea849e2e0ba60b34428e56b60640ff1f81fd4458) - fix(build):  docker arm on github (release), 2026-02-06 by *Guillaume Chervet*
 
 
