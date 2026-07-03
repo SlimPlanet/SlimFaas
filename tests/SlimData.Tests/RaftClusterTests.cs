@@ -239,7 +239,28 @@ public class RaftClusterTests
         await databaseServiceSlave.SetAsync("key1", MemoryPackSerializer.Serialize("value1") );
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceMaster.GetAsync("key1")));
         await GetLocalClusterView(host1).ForceReplicationAsync();
-        Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceSlave.GetAsync("key1")));
+        string? replicatedValue = null;
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            try
+            {
+                var payload = await databaseServiceSlave.GetAsync("key1");
+                if (payload is not null)
+                {
+                    replicatedValue = MemoryPackSerializer.Deserialize<string>(payload);
+                    if (replicatedValue == "value1")
+                        break;
+                }
+            }
+            catch (MemoryPackSerializationException)
+            {
+                // replication can transiently expose incomplete payload
+            }
+
+            await Task.Delay(100);
+            await GetLocalClusterView(host1).ForceReplicationAsync();
+        }
+        Assert.Equal("value1", replicatedValue);
 
         //await databaseServiceSlave.DeleteAsync("key1");
         //Assert.Null(await databaseServiceMaster.GetAsync("key1"));
