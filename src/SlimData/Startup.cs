@@ -25,9 +25,8 @@ public class Startup(IConfiguration configuration)
         const string AddHashSetResource = "/SlimData/AddHashset";
         const string DeleteHashSetResource = "/SlimData/DeleteHashset";
         const string ListRightPopResource = "/SlimData/ListRightPop";
-        const string ListLeftPushResource = "/SlimData/ListLeftPush";
         const string ListLeftPushBatchResource = "/SlimData/ListLeftPushBatch";
-        const string AddKeyValueResource = "/SlimData/AddKeyValue";
+        const string AddKeyValueBatchResource = "/SlimData/AddKeyValueBatch";
         const string ListLengthResource = "/SlimData/ListLength";
         const string ListCallback = "/SlimData/ListCallback";
         const string ListCallBackBatch = "/SlimData/ListCallbackBatch";
@@ -39,10 +38,9 @@ public class Startup(IConfiguration configuration)
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
-            .RedirectToLeader(ListLeftPushResource)
             .RedirectToLeader(ListLeftPushBatchResource)
             .RedirectToLeader(ListRightPopResource)
-            .RedirectToLeader(AddKeyValueResource)
+            .RedirectToLeader(AddKeyValueBatchResource)
             .RedirectToLeader(AddHashSetResource)
             .RedirectToLeader(ListCallback)
             .RedirectToLeader(ListCallBackBatch)
@@ -52,12 +50,11 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapClusterFileTransferRoutes();
                 endpoints.MapGet(LeaderResource, Endpoints.RedirectToLeaderAsync);
                 endpoints.MapGet(HealthResource, async context => { await context.Response.WriteAsync("OK"); });
-                endpoints.MapPost(ListLeftPushResource,  Endpoints.ListLeftPushAsync);
                 endpoints.MapPost(ListLeftPushBatchResource,  Endpoints.ListLeftPushBatchAsync);
                 endpoints.MapPost(ListRightPopResource,  Endpoints.ListRightPopAsync);
                 endpoints.MapPost(AddHashSetResource,  Endpoints.AddHashSetAsync);
                 endpoints.MapPost(DeleteHashSetResource,  Endpoints.DeleteHashSetAsync);
-                endpoints.MapPost(AddKeyValueResource,  Endpoints.AddKeyValueAsync);
+                endpoints.MapPost(AddKeyValueBatchResource,  Endpoints.AddKeyValueBatchAsync);
                 endpoints.MapPost(ListCallback,  Endpoints.ListCallbackAsync);
                 endpoints.MapPost(ListCallBackBatch,  Endpoints.ListCallbackBatchAsync);
             });

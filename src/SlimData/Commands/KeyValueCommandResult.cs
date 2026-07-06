@@ -48,3 +48,13 @@ public partial class KeyValueCommandResult
         ErrorMessage = message;
     }
 }
+
+public sealed class KeyValueCommandBatchContext
+{
+    public KeyValueCommandBatchContext(KeyValueCommandResult[] results)
+    {
+        Results = results;
+    }
+
+    public KeyValueCommandResult[] Results { get; }
+}

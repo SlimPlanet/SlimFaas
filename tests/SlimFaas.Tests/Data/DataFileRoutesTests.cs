@@ -196,7 +196,7 @@ public sealed class DataFileRoutesTests
                 It.IsAny<string>(),
                 It.IsAny<byte[]>(),
                 It.IsAny<long?>()))
-          .Callback<string, byte[], long?>((k, v, ttl) =>
+          .Callback<string, byte[], long?, KeyValueOperation, long, decimal>((k, v, ttl, _, _, _) =>
           {
               storedMetaKey = k;
               storedMetaBytes = v;

@@ -2,7 +2,6 @@
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using MemoryPack;
-using System.Globalization;
 using SlimData.Commands;
 
 namespace SlimData;
@@ -42,6 +41,22 @@ public partial record struct ListCallbackBatchRequest(ListCallbackBatchItem[] It
 
 [MemoryPackable]
 public partial record struct ListCallbackBatchResponse(bool[] Acks);
+
+[MemoryPackable]
+public partial record struct KeyValueBatchItem(
+    KeyValueOperation Operation,
+    string Key,
+    byte[] Value,
+    long? ExpireAtUtcTicks,
+    long IntegerDelta,
+    decimal FloatDelta,
+    long NowTicks);
+
+[MemoryPackable]
+public partial record struct KeyValueBatchRequest(KeyValueBatchItem[] Items);
+
+[MemoryPackable]
+public partial record struct KeyValueBatchResponse(KeyValueCommandResult[] Results);
 
 public sealed record LpReq(
     IRaftCluster Cluster,
@@ -372,55 +387,6 @@ public class Endpoints
         return listLeftPushBatchResponse;
     }
 
-    public static async Task ListLeftPushAsync(HttpContext context)
-    {
-        var task = DoAsync(context, async (cluster, provider, source) =>
-        {
-            context.Request.Query.TryGetValue("key", out var key);
-            if (string.IsNullOrEmpty(key))
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("not data found", context.RequestAborted);
-                return;
-            }
-
-            await using var memoryStream = new MemoryStream();
-            await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
-            var value = memoryStream.ToArray();
-
-            string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
-            context.Response.StatusCode = StatusCodes.Status201Created;
-            await context.Response.WriteAsync(elementId, context.RequestAborted);
-        });
-        await task;
-    }
-
-    public static async Task<string> ListLeftPushCommand(SlimPersistentState provider, string key, byte[] value,
-        IRaftCluster cluster, CancellationTokenSource source)
-    {
-        var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
-        var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
-        var id = ResolveElementId(input.NewElementId);
-
-        var logEntry = new LogEntry<ListLeftPushCommand>()
-        {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Key = key,
-                Identifier = id,
-                Value = input.Value,
-                NowTicks = DateTime.UtcNow.Ticks,
-                Retries = retryInformation.Retries,
-                RetryTimeout = retryInformation.RetryTimeoutSeconds,
-                HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
-            },
-        };
-
-        var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
-        return success ? id : "";
-    }
-
     public static Task ListCallbackAsync(HttpContext context)
     {
         return DoAsync(context, async (cluster, provider, source) =>
@@ -560,66 +526,16 @@ public class Endpoints
         return (key, value);
     }
 
-    public static Task AddKeyValueAsync(HttpContext context)
+    public static Task AddKeyValueBatchAsync(HttpContext context)
     {
         return DoAsync(context, async (cluster, provider, source) =>
         {
-            context.Request.Query.TryGetValue("key", out var key);
-            if (string.IsNullOrEmpty(key))
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("not data found", context.RequestAborted);
-                return;
-            }
-
-            var expireAtUtcTicks = ToExpireAtUtcTicksFromQuery(context);
-            var operation = KeyValueOperation.Set;
-            if (context.Request.Query.TryGetValue("operation", out var operationValue) &&
-                !Enum.TryParse(operationValue.ToString(), ignoreCase: true, out operation))
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("invalid operation", context.RequestAborted);
-                return;
-            }
-
-            var integerDelta = 0L;
-            if (context.Request.Query.TryGetValue("integerDelta", out var integerDeltaValue) &&
-                !long.TryParse(integerDeltaValue.ToString(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out integerDelta))
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("invalid integerDelta", context.RequestAborted);
-                return;
-            }
-
-            var floatDelta = 0m;
-            if (context.Request.Query.TryGetValue("floatDelta", out var floatDeltaValue) &&
-                !decimal.TryParse(
-                    floatDeltaValue.ToString(),
-                    NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent,
-                    CultureInfo.InvariantCulture,
-                    out floatDelta))
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("invalid floatDelta", context.RequestAborted);
-                return;
-            }
-
             await using var memoryStream = new MemoryStream();
             await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
-            var value = memoryStream.ToArray();
+            var request = MemoryPackSerializer.Deserialize<KeyValueBatchRequest>(memoryStream.ToArray());
 
-            var result = await AddKeyValueCommand(
-                provider,
-                key!,
-                value,
-                expireAtUtcTicks,
-                cluster,
-                source,
-                operation,
-                integerDelta,
-                floatDelta);
-
-            var responseBytes = MemoryPackSerializer.Serialize(result);
+            var response = await AddKeyValueBatchCommand(request, cluster, source);
+            var responseBytes = MemoryPackSerializer.Serialize(response);
             context.Response.StatusCode = StatusCodes.Status200OK;
             context.Response.ContentType = "application/octet-stream";
             context.Response.ContentLength = responseBytes.Length;
@@ -627,53 +543,65 @@ public class Endpoints
         });
     }
 
-    public static async Task<KeyValueCommandResult> AddKeyValueCommand(
-        SlimPersistentState provider,
-        string key,
-        byte[]? value,
-        long? expireAtUtcTicks,
+    public static async Task<KeyValueBatchResponse> AddKeyValueBatchCommand(
+        KeyValueBatchRequest request,
         IRaftCluster cluster,
-        CancellationTokenSource source,
-        KeyValueOperation operation = KeyValueOperation.Set,
-        long integerDelta = 0,
-        decimal floatDelta = 0,
-        long? nowTicks = null)
+        CancellationTokenSource source)
     {
-        var result = new KeyValueCommandResult();
+        var requestItems = request.Items ?? Array.Empty<KeyValueBatchItem>();
+        if (requestItems.Length == 0)
+            return new KeyValueBatchResponse(Array.Empty<KeyValueCommandResult>());
+
+        var results = Enumerable.Range(0, requestItems.Length)
+            .Select(_ => new KeyValueCommandResult())
+            .ToArray();
+
         var logEntry = new LogEntry<AddKeyValueCommand>()
         {
             Term = cluster.Term,
             Command = new()
             {
-                Operation = operation,
-                Key = key,
-                Value = value ?? Array.Empty<byte>(),
-                ExpireAtUtcTicks = operation == KeyValueOperation.Set ? expireAtUtcTicks : null,
-                IntegerDelta = integerDelta,
-                FloatDelta = floatDelta,
-                NowTicks = nowTicks ?? DateTime.UtcNow.Ticks
+                Items = requestItems
+                    .Select(item => new AddKeyValueCommand.BatchItem
+                    {
+                        Operation = item.Operation,
+                        Key = item.Key,
+                        Value = item.Value ?? Array.Empty<byte>(),
+                        ExpireAtUtcTicks = item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
+                        IntegerDelta = item.IntegerDelta,
+                        FloatDelta = item.FloatDelta,
+                        NowTicks = item.NowTicks
+                    })
+                    .ToList()
             },
-            Context = result
+            Context = new KeyValueCommandBatchContext(results)
         };
 
         var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
         if (!success)
         {
-            result.SetError(KeyValueCommandStatus.NotCommitted, "Command was not committed by the Raft quorum.");
-            return result;
+            SetNotCommitted(results, "Command was not committed by the Raft quorum.");
+            return new KeyValueBatchResponse(results);
         }
 
         var delayMs = 1;
-        for (var i = 0; i < 10 && result.Status == KeyValueCommandStatus.None; i++)
+        for (var i = 0; i < 10 && results.Any(result => result.Status == KeyValueCommandStatus.None); i++)
         {
             await Task.Delay(delayMs, source.Token);
             delayMs = Math.Min(32, delayMs * 2);
         }
 
-        if (result.Status == KeyValueCommandStatus.None)
-            result.SetError(KeyValueCommandStatus.NotCommitted, "Command result was not produced by the local state machine.");
+        SetNotCommitted(results, "Command result was not produced by the local state machine.");
+        return new KeyValueBatchResponse(results);
+    }
 
-        return result;
+    private static void SetNotCommitted(KeyValueCommandResult[] results, string message)
+    {
+        foreach (var result in results)
+        {
+            if (result.Status == KeyValueCommandStatus.None)
+                result.SetError(KeyValueCommandStatus.NotCommitted, message);
+        }
     }
 
     public static async Task DeleteKeyValueAsync(HttpContext context)

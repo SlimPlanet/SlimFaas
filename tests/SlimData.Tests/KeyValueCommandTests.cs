@@ -1,6 +1,8 @@
 using System.Collections.Immutable;
 using System.Globalization;
+using System.Reflection;
 using System.Text;
+using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using SlimData.Commands;
 
@@ -28,6 +30,50 @@ public sealed class KeyValueCommandTests
         await interpreter.InterpretAsync(entry, result, CancellationToken.None);
         return result;
     }
+
+    private static async Task<KeyValueCommandResult[]> ApplyBatchAsync(
+        SlimDataState state,
+        params AddKeyValueCommand.BatchItem[] items)
+    {
+        var results = items.Select(_ => new KeyValueCommandResult()).ToArray();
+        var command = new AddKeyValueCommand { Items = items.ToList() };
+        var context = new KeyValueCommandBatchContext(results);
+        var method = typeof(SlimDataInterpreter).GetMethod(
+            "DoAddKeyValueAsync",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        Assert.NotNull(method);
+        var valueTask = (ValueTask)method.Invoke(null, [command, state, context])!;
+        await valueTask;
+        return results;
+    }
+
+    private static async Task<byte[]> SerializeCommandAsync(AddKeyValueCommand command)
+    {
+        await using var stream = new MemoryStream();
+        var writer = IAsyncBinaryWriter.Create(stream, new byte[256]);
+        await command.WriteToAsync(writer, CancellationToken.None);
+        return stream.ToArray();
+    }
+
+    private static AddKeyValueCommand.BatchItem SetItem(string key, string value, long? expireAtUtcTicks = null) =>
+        new()
+        {
+            Operation = KeyValueOperation.Set,
+            Key = key,
+            Value = Encoding.UTF8.GetBytes(value),
+            ExpireAtUtcTicks = expireAtUtcTicks,
+            NowTicks = DateTime.UtcNow.Ticks
+        };
+
+    private static AddKeyValueCommand.BatchItem IncrementIntegerItem(string key, long delta, long nowTicks = 0) =>
+        new()
+        {
+            Operation = KeyValueOperation.IncrementInteger,
+            Key = key,
+            IntegerDelta = delta,
+            NowTicks = nowTicks > 0 ? nowTicks : DateTime.UtcNow.Ticks
+        };
 
     private static AddKeyValueCommand IncrementInteger(string key, long delta, long nowTicks = 0) =>
         new()
@@ -145,5 +191,87 @@ public sealed class KeyValueCommandTests
         Assert.Equal(KeyValueCommandStatus.Applied, result.Status);
         Assert.Equal(2m, result.DecimalValue);
         Assert.Equal("2", Encoding.UTF8.GetString(state.KeyValues["counter"].Span));
+    }
+
+    [Fact]
+    public async Task Batch_applies_items_in_order_and_returns_one_result_per_item()
+    {
+        var state = NewState();
+
+        var results = await ApplyBatchAsync(
+            state,
+            SetItem("counter", "1"),
+            IncrementIntegerItem("counter", 1),
+            IncrementIntegerItem("counter", 3));
+
+        Assert.All(results, result => Assert.Equal(KeyValueCommandStatus.Applied, result.Status));
+        Assert.Equal("1", Encoding.UTF8.GetString(results[0].Value!));
+        Assert.Equal("5", Encoding.UTF8.GetString(state.KeyValues["counter"].Span));
+        Assert.Equal(2L, results[1].IntegerValue);
+        Assert.Equal(5L, results[2].IntegerValue);
+    }
+
+    [Fact]
+    public async Task Batch_numeric_error_does_not_stop_other_items()
+    {
+        var state = NewState(ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("bad", Encoding.UTF8.GetBytes("nope")));
+
+        var results = await ApplyBatchAsync(
+            state,
+            IncrementIntegerItem("bad", 1),
+            SetItem("ok", "yes"),
+            IncrementIntegerItem("fresh", 2));
+
+        Assert.Equal(KeyValueCommandStatus.InvalidNumber, results[0].Status);
+        Assert.Equal(KeyValueCommandStatus.Applied, results[1].Status);
+        Assert.Equal(KeyValueCommandStatus.Applied, results[2].Status);
+        Assert.Equal("nope", Encoding.UTF8.GetString(state.KeyValues["bad"].Span));
+        Assert.Equal("yes", Encoding.UTF8.GetString(state.KeyValues["ok"].Span));
+        Assert.Equal("2", Encoding.UTF8.GetString(state.KeyValues["fresh"].Span));
+    }
+
+    [Fact]
+    public async Task Batch_increment_preserves_ttl_written_by_previous_item()
+    {
+        var ttl = DateTime.UtcNow.AddMinutes(1).Ticks;
+        var state = NewState();
+
+        var results = await ApplyBatchAsync(
+            state,
+            SetItem("counter", "1", ttl),
+            IncrementIntegerItem("counter", 1));
+
+        Assert.All(results, result => Assert.Equal(KeyValueCommandStatus.Applied, result.Status));
+        Assert.Equal(2L, results[1].IntegerValue);
+        Assert.Equal("2", Encoding.UTF8.GetString(state.KeyValues["counter"].Span));
+        Assert.Equal(ttl, BitConverter.ToInt64(state.KeyValues[SlimDataInterpreter.TtlKey("counter")].Span));
+    }
+
+    [Fact]
+    public async Task AddKeyValueCommand_roundtrips_batch_items()
+    {
+        var command = new AddKeyValueCommand
+        {
+            Items =
+            [
+                SetItem("counter", "1"),
+                IncrementIntegerItem("counter", 1),
+                IncrementIntegerItem("counter", 3)
+            ]
+        };
+
+        var bytes = await DataTransferObject.ToByteArrayAsync(command, null, CancellationToken.None);
+        await using var stream = new MemoryStream(bytes);
+        var reader = IAsyncBinaryReader.Create(stream, new byte[256]);
+        var roundtripped = await AddKeyValueCommand.ReadFromAsync(reader, CancellationToken.None);
+        var items = roundtripped.EffectiveItems();
+
+        Assert.Equal(3, items.Count);
+        Assert.Equal(KeyValueOperation.Set, items[0].Operation);
+        Assert.Equal(KeyValueOperation.IncrementInteger, items[1].Operation);
+        Assert.Equal(1L, items[1].IntegerDelta);
+        Assert.Equal(KeyValueOperation.IncrementInteger, items[2].Operation);
+        Assert.Equal(3L, items[2].IntegerDelta);
     }
 }

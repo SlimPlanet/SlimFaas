@@ -1,7 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Data;
-using System.Globalization;
 using System.Net;
+using System.Text;
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
@@ -13,6 +13,15 @@ namespace SlimFaas.Database;
 public readonly record struct ListLeftPushReq(string Key, byte[] SerializedPayload, byte[] Field, RetryInformation RetryInfo);
 
 public readonly record struct ListCallbackReq(string Key, byte[] SerializedStatus);
+
+public readonly record struct KeyValueReq(
+    string Key,
+    byte[] SerializedValue,
+    long? ExpireAtUtcTicks,
+    KeyValueOperation Operation,
+    long IntegerDelta,
+    decimal FloatDelta,
+    long NowTicks);
 
 #pragma warning disable CA2252
 public class SlimDataService
@@ -55,6 +64,15 @@ public class SlimDataService
             batchHandler: BatchListCallbackHandlerAsync,
             maxBatchSize: 512,
             sizeEstimatorBytes: r => r.SerializedStatus?.Length ?? 0
+        );
+
+        _batcher.RegisterKind<KeyValueReq, KeyValueCommandResult>(
+            kind: "kv",
+            batchHandler: BatchKeyValueHandlerAsync,
+            maxBatchSize: 256,
+            maxBatchBytes: 4 * 1024 * 1024,
+            sizeEstimatorBytes: r => Encoding.UTF8.GetByteCount(r.Key ?? string.Empty) + (r.SerializedValue?.Length ?? 0) + 64,
+            coalesceWindow: TimeSpan.FromMilliseconds(3)
         );
     }
 
@@ -263,49 +281,71 @@ public class SlimDataService
         long integerDelta,
         decimal floatDelta)
     {
-        var endpoint = await GetAndWaitForLeader();
+        var serializedValue = value ?? Array.Empty<byte>();
         var expireAtUtcTicks = operation == KeyValueOperation.Set ? ToExpireAtUtcTicks(ttlMs) : null;
 
-        if (!_cluster.LeadershipToken.IsCancellationRequested)
-        {
-            var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            using var source = new CancellationTokenSource();
-            return await SlimData.Endpoints.AddKeyValueCommand(
-                ps,
+        return await _batcher.EnqueueAsync<KeyValueReq, KeyValueCommandResult>(
+            "kv",
+            new KeyValueReq(
                 key,
-                value,
+                serializedValue,
                 expireAtUtcTicks,
-                _cluster,
-                source,
                 operation,
                 integerDelta,
-                floatDelta);
-        }
-        else
-        {
-            var uri = new Uri($"{endpoint}SlimData/AddKeyValue?key={Escape(key)}{BuildTtlQuery(operation == KeyValueOperation.Set ? ttlMs : null)}{BuildOperationQuery(operation, integerDelta, floatDelta)}");
-            using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(value ?? Array.Empty<byte>()) };
-            using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
-            using var response = await httpClient.SendAsync(request);
-            if ((int)response.StatusCode >= 500)
-                throw new DataException("Error in calling SlimData HTTP Service");
-
-            var bytes = await response.Content.ReadAsByteArrayAsync();
-            var result = MemoryPackSerializer.Deserialize<KeyValueCommandResult>(bytes);
-            return result ?? throw new DataException("Null key/value command response");
-        }
+                floatDelta,
+                DateTime.UtcNow.Ticks)).ConfigureAwait(false);
     }
 
-    private static string BuildOperationQuery(KeyValueOperation operation, long integerDelta, decimal floatDelta)
+    private async Task<IReadOnlyList<KeyValueCommandResult>> BatchKeyValueHandlerAsync(
+        IReadOnlyList<KeyValueReq> batch,
+        CancellationToken ct)
     {
-        if (operation == KeyValueOperation.Set)
-            return string.Empty;
+        var endpoint = await GetAndWaitForLeader();
+        var request = new KeyValueBatchRequest(
+            batch.Select(item => new KeyValueBatchItem(
+                    item.Operation,
+                    item.Key,
+                    item.SerializedValue,
+                    item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
+                    item.IntegerDelta,
+                    item.FloatDelta,
+                    item.NowTicks))
+                .ToArray());
 
-        var query = $"&operation={operation}";
-        if (operation == KeyValueOperation.IncrementInteger)
-            return $"{query}&integerDelta={integerDelta.ToString(CultureInfo.InvariantCulture)}";
+        _logger.LogDebug("KeyValue batch size={BatchSize}", request.Items.Length);
+        if (!_cluster.LeadershipToken.IsCancellationRequested)
+        {
+            using var source = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var response = await SlimData.Endpoints.AddKeyValueBatchCommand(
+                request,
+                _cluster,
+                source);
 
-        return $"{query}&floatDelta={floatDelta.ToString("G29", CultureInfo.InvariantCulture)}";
+            if (response.Results.Length != batch.Count)
+                throw new DataException("Key/value batch response count mismatch");
+
+            return response.Results;
+        }
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/AddKeyValueBatch"))
+        {
+            Content = new ByteArrayContent(MemoryPackSerializer.Serialize(request))
+        };
+
+        using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+        using var responseMessage = await httpClient.SendAsync(requestMessage, ct);
+        if ((int)responseMessage.StatusCode >= 500)
+            throw new DataException("Error in calling SlimData HTTP Service (key/value batch)");
+
+        var bytes = await responseMessage.Content.ReadAsByteArrayAsync(ct);
+        var batchResponse = MemoryPackSerializer.Deserialize<KeyValueBatchResponse>(bytes);
+        if (batchResponse.Results is null)
+            throw new DataException("Null key/value batch response");
+
+        if (batchResponse.Results.Length != batch.Count)
+            throw new DataException("Key/value batch response count mismatch");
+
+        return batchResponse.Results;
     }
 
     private async Task DoHashSetAsync(string key, IDictionary<string, byte[]> values, long? ttlMs)

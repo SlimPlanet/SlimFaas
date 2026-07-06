@@ -117,7 +117,7 @@ public class AsyncFunctionEndpointTests
         byte[]? capturedMetaBytes = null;
         dbMock
             .Setup(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()))
-            .Callback<string, byte[], long?>((k, v, _) =>
+            .Callback<string, byte[], long?, KeyValueOperation, long, decimal>((k, v, _, _, _, _) =>
             {
                 capturedMetaKey = k;
                 capturedMetaBytes = v;
