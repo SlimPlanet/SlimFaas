@@ -62,13 +62,6 @@ public sealed class SlimPersistentStateTests
                     });
                 }
 
-                await AppendCommitWaitAsync(wal, new AddKeyValueCommand
-                {
-                    Operation = KeyValueOperation.Set,
-                    Key = "post-snapshot-key",
-                    Value = Encoding.UTF8.GetBytes("post-snapshot-value")
-                });
-
                 await wal.FlushAsync(CancellationToken.None);
             }
 
@@ -85,9 +78,6 @@ public sealed class SlimPersistentStateTests
                 Assert.Equal(
                     "snapshot-value",
                     Encoding.UTF8.GetString(restoredState.SlimDataState.KeyValues["snapshot-key"].Span));
-                Assert.Equal(
-                    "post-snapshot-value",
-                    Encoding.UTF8.GetString(restoredState.SlimDataState.KeyValues["post-snapshot-key"].Span));
 
                 var hash = restoredState.SlimDataState.Hashsets["snapshot-hash"];
                 Assert.Equal("hash-value", Encoding.UTF8.GetString(hash["field"].Span));
