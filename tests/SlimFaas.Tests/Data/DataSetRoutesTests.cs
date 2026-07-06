@@ -13,6 +13,34 @@ public sealed class DataSetRoutesTests
 {
     private const string TtlSuffix = "${slimfaas-timetolive}$";
 
+    private static KeyValueCommandResult Applied(byte[]? value = null)
+    {
+        var result = new KeyValueCommandResult();
+        result.SetApplied(value ?? Array.Empty<byte>());
+        return result;
+    }
+
+    private static KeyValueCommandResult AppliedInteger(long value)
+    {
+        var result = new KeyValueCommandResult();
+        result.SetApplied(Encoding.UTF8.GetBytes(value.ToString()), integerValue: value);
+        return result;
+    }
+
+    private static KeyValueCommandResult AppliedDecimal(decimal value)
+    {
+        var result = new KeyValueCommandResult();
+        result.SetApplied(Encoding.UTF8.GetBytes(value.ToString(System.Globalization.CultureInfo.InvariantCulture)), decimalValue: value);
+        return result;
+    }
+
+    private static KeyValueCommandResult InvalidNumber()
+    {
+        var result = new KeyValueCommandResult();
+        result.SetError(KeyValueCommandStatus.InvalidNumber, "Value is not numeric.");
+        return result;
+    }
+
     [Fact]
     public async Task Post_sets_value_and_returns_id()
     {
@@ -23,13 +51,93 @@ public sealed class DataSetRoutesTests
         ctx.Request.Body = new MemoryStream(body);
 
         db.Setup(d => d.SetAsync("data:set:element1", It.Is<byte[]>(b => b.SequenceEqual(body)), 123L))
-          .Returns(Task.CompletedTask);
+          .ReturnsAsync(Applied(body));
 
         var res = await DataSetRoutes.Handlers.PostAsync(ctx, db.Object, "element1", 123L, CancellationToken.None);
 
         var ok = Assert.IsType<Ok<string>>(res);
         Assert.Equal("element1", ok.Value);
 
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task Incr_calls_set_with_integer_increment_and_returns_new_value()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                null,
+                KeyValueOperation.IncrementInteger,
+                1,
+                0m))
+          .ReturnsAsync(AppliedInteger(3));
+
+        var res = await DataSetRoutes.Handlers.IncrAsync(db.Object, "counter");
+
+        var text = Assert.IsType<ContentHttpResult>(res);
+        Assert.Equal("3", text.ResponseContent);
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task DecrBy_negates_delta()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                null,
+                KeyValueOperation.IncrementInteger,
+                -5,
+                0m))
+          .ReturnsAsync(AppliedInteger(7));
+
+        var res = await DataSetRoutes.Handlers.DecrByAsync(db.Object, "counter", 5);
+
+        var text = Assert.IsType<ContentHttpResult>(res);
+        Assert.Equal("7", text.ResponseContent);
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task IncrByFloat_calls_set_with_decimal_increment_and_returns_new_value()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                null,
+                KeyValueOperation.IncrementFloat,
+                0,
+                1.5m))
+          .ReturnsAsync(AppliedDecimal(2.5m));
+
+        var res = await DataSetRoutes.Handlers.IncrByFloatAsync(db.Object, "counter", 1.5m);
+
+        var text = Assert.IsType<ContentHttpResult>(res);
+        Assert.Equal("2.5", text.ResponseContent);
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task Incr_returns_conflict_when_command_rejects_value()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                null,
+                KeyValueOperation.IncrementInteger,
+                1,
+                0m))
+          .ReturnsAsync(InvalidNumber());
+
+        var res = await DataSetRoutes.Handlers.IncrAsync(db.Object, "counter");
+
+        var problem = Assert.IsType<ProblemHttpResult>(res);
+        Assert.Equal(StatusCodes.Status409Conflict, problem.StatusCode);
         db.VerifyAll();
     }
 

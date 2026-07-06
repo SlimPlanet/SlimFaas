@@ -153,7 +153,7 @@ public sealed class SlimPersistentState : MemoryBasedStateMachine, ISupplier<Sli
 
     private async ValueTask UpdateValue(LogEntry entry)
     {
-        await Interpreter.InterpretAsync(entry);
+        await Interpreter.InterpretAsync(entry, entry.Context);
     }
 
     protected override ValueTask ApplyAsync(LogEntry entry)

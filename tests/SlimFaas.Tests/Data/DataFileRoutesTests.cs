@@ -19,6 +19,13 @@ using SlimFaas.Security;
 
 public sealed class DataFileRoutesTests
 {
+    private static KeyValueCommandResult Applied(byte[]? value = null)
+    {
+        var result = new KeyValueCommandResult();
+        result.SetApplied(value ?? Array.Empty<byte>());
+        return result;
+    }
+
     // ------------------------------------------------------------
     // Helpers
     // ------------------------------------------------------------
@@ -195,7 +202,7 @@ public sealed class DataFileRoutesTests
               storedMetaBytes = v;
               storedTtl = ttl;
           })
-          .Returns(Task.CompletedTask);
+          .ReturnsAsync(() => Applied(storedMetaBytes));
 
         var ttlMs = 12345L;
 

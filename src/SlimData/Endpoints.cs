@@ -2,6 +2,7 @@
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using MemoryPack;
+using System.Globalization;
 using SlimData.Commands;
 
 namespace SlimData;
@@ -572,30 +573,107 @@ public class Endpoints
             }
 
             var expireAtUtcTicks = ToExpireAtUtcTicksFromQuery(context);
+            var operation = KeyValueOperation.Set;
+            if (context.Request.Query.TryGetValue("operation", out var operationValue) &&
+                !Enum.TryParse(operationValue.ToString(), ignoreCase: true, out operation))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("invalid operation", context.RequestAborted);
+                return;
+            }
+
+            var integerDelta = 0L;
+            if (context.Request.Query.TryGetValue("integerDelta", out var integerDeltaValue) &&
+                !long.TryParse(integerDeltaValue.ToString(), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out integerDelta))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("invalid integerDelta", context.RequestAborted);
+                return;
+            }
+
+            var floatDelta = 0m;
+            if (context.Request.Query.TryGetValue("floatDelta", out var floatDeltaValue) &&
+                !decimal.TryParse(
+                    floatDeltaValue.ToString(),
+                    NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent,
+                    CultureInfo.InvariantCulture,
+                    out floatDelta))
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("invalid floatDelta", context.RequestAborted);
+                return;
+            }
 
             await using var memoryStream = new MemoryStream();
             await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
             var value = memoryStream.ToArray();
 
-            await AddKeyValueCommand(provider, key!, value, expireAtUtcTicks, cluster, source);
+            var result = await AddKeyValueCommand(
+                provider,
+                key!,
+                value,
+                expireAtUtcTicks,
+                cluster,
+                source,
+                operation,
+                integerDelta,
+                floatDelta);
+
+            var responseBytes = MemoryPackSerializer.Serialize(result);
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = "application/octet-stream";
+            context.Response.ContentLength = responseBytes.Length;
+            await context.Response.Body.WriteAsync(responseBytes, source.Token);
         });
     }
 
-    public static async Task AddKeyValueCommand(
+    public static async Task<KeyValueCommandResult> AddKeyValueCommand(
         SlimPersistentState provider,
         string key,
-        byte[] value,
+        byte[]? value,
         long? expireAtUtcTicks,
         IRaftCluster cluster,
-        CancellationTokenSource source)
+        CancellationTokenSource source,
+        KeyValueOperation operation = KeyValueOperation.Set,
+        long integerDelta = 0,
+        decimal floatDelta = 0,
+        long? nowTicks = null)
     {
+        var result = new KeyValueCommandResult();
         var logEntry = new LogEntry<AddKeyValueCommand>()
         {
             Term = cluster.Term,
-            Command = new() { Key = key, Value = value, ExpireAtUtcTicks = expireAtUtcTicks },
+            Command = new()
+            {
+                Operation = operation,
+                Key = key,
+                Value = value ?? Array.Empty<byte>(),
+                ExpireAtUtcTicks = operation == KeyValueOperation.Set ? expireAtUtcTicks : null,
+                IntegerDelta = integerDelta,
+                FloatDelta = floatDelta,
+                NowTicks = nowTicks ?? DateTime.UtcNow.Ticks
+            },
+            Context = result
         };
 
-        await SafeReplicateAsync(cluster, logEntry, source.Token);
+        var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
+        if (!success)
+        {
+            result.SetError(KeyValueCommandStatus.NotCommitted, "Command was not committed by the Raft quorum.");
+            return result;
+        }
+
+        var delayMs = 1;
+        for (var i = 0; i < 10 && result.Status == KeyValueCommandStatus.None; i++)
+        {
+            await Task.Delay(delayMs, source.Token);
+            delayMs = Math.Min(32, delayMs * 2);
+        }
+
+        if (result.Status == KeyValueCommandStatus.None)
+            result.SetError(KeyValueCommandStatus.NotCommitted, "Command result was not produced by the local state machine.");
+
+        return result;
     }
 
     public static async Task DeleteKeyValueAsync(HttpContext context)

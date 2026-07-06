@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Data;
+using System.Globalization;
 using System.Net;
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
@@ -108,8 +109,19 @@ public class SlimDataService
     public async Task<byte[]?> GetAsync(string key) =>
         await Retry.DoAsync(() => DoGetAsync(key), _logger, _retryInterval);
 
-    public async Task SetAsync(string key, byte[] value, long? timeToLiveMs = null) =>
-        await Retry.DoAsync(() => DoSetAsync(key, value, timeToLiveMs), _logger, _retryInterval);
+    public async Task<KeyValueCommandResult> SetAsync(
+        string key,
+        byte[]? value = null,
+        long? timeToLiveMs = null,
+        KeyValueOperation operation = KeyValueOperation.Set,
+        long integerDelta = 0,
+        decimal floatDelta = 0)
+    {
+        if (operation == KeyValueOperation.Set)
+            return await Retry.DoAsync(() => DoSetAsync(key, value, timeToLiveMs, operation, integerDelta, floatDelta), _logger, _retryInterval);
+
+        return await DoSetAsync(key, value, timeToLiveMs, operation, integerDelta, floatDelta);
+    }
 
     public async Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveMs = null) =>
         await Retry.DoAsync(() => DoHashSetAsync(key, values, timeToLiveMs), _logger, _retryInterval);
@@ -243,25 +255,57 @@ public class SlimDataService
         return data.KeyValues.TryGetValue(key, out var value) ? value.ToArray() : null;
     }
 
-    private async Task DoSetAsync(string key, byte[] value, long? ttlMs)
+    private async Task<KeyValueCommandResult> DoSetAsync(
+        string key,
+        byte[]? value,
+        long? ttlMs,
+        KeyValueOperation operation,
+        long integerDelta,
+        decimal floatDelta)
     {
         var endpoint = await GetAndWaitForLeader();
-        var expireAtUtcTicks = ToExpireAtUtcTicks(ttlMs);
+        var expireAtUtcTicks = operation == KeyValueOperation.Set ? ToExpireAtUtcTicks(ttlMs) : null;
 
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
             var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await SlimData.Endpoints.AddKeyValueCommand(ps, key, value, expireAtUtcTicks, _cluster, new CancellationTokenSource());
+            using var source = new CancellationTokenSource();
+            return await SlimData.Endpoints.AddKeyValueCommand(
+                ps,
+                key,
+                value,
+                expireAtUtcTicks,
+                _cluster,
+                source,
+                operation,
+                integerDelta,
+                floatDelta);
         }
         else
         {
-            var uri = new Uri($"{endpoint}SlimData/AddKeyValue?key={Escape(key)}{BuildTtlQuery(ttlMs)}");
-            using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(value) };
+            var uri = new Uri($"{endpoint}SlimData/AddKeyValue?key={Escape(key)}{BuildTtlQuery(operation == KeyValueOperation.Set ? ttlMs : null)}{BuildOperationQuery(operation, integerDelta, floatDelta)}");
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(value ?? Array.Empty<byte>()) };
             using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await httpClient.SendAsync(request);
             if ((int)response.StatusCode >= 500)
                 throw new DataException("Error in calling SlimData HTTP Service");
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var result = MemoryPackSerializer.Deserialize<KeyValueCommandResult>(bytes);
+            return result ?? throw new DataException("Null key/value command response");
         }
+    }
+
+    private static string BuildOperationQuery(KeyValueOperation operation, long integerDelta, decimal floatDelta)
+    {
+        if (operation == KeyValueOperation.Set)
+            return string.Empty;
+
+        var query = $"&operation={operation}";
+        if (operation == KeyValueOperation.IncrementInteger)
+            return $"{query}&integerDelta={integerDelta.ToString(CultureInfo.InvariantCulture)}";
+
+        return $"{query}&floatDelta={floatDelta.ToString("G29", CultureInfo.InvariantCulture)}";
     }
 
     private async Task DoHashSetAsync(string key, IDictionary<string, byte[]> values, long? ttlMs)

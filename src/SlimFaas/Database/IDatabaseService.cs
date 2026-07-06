@@ -1,4 +1,5 @@
 ﻿using SlimData;
+using SlimData.Commands;
 using SlimFaas.Database;
 
 namespace SlimFaas;
@@ -15,7 +16,13 @@ public interface IDatabaseService
 {
     Task DeleteAsync(string key);
     Task<byte[]?> GetAsync(string key);
-    Task SetAsync(string key,  byte[] value, long? timeToLiveMilliseconds = null);
+    Task<KeyValueCommandResult> SetAsync(
+        string key,
+        byte[]? value = null,
+        long? timeToLiveMilliseconds = null,
+        KeyValueOperation operation = KeyValueOperation.Set,
+        long integerDelta = 0,
+        decimal floatDelta = 0);
     Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveMilliseconds = null);
     Task HashSetDeleteAsync(string key, string dictionaryKey = "");
     Task<IDictionary<string, byte[]>> HashGetAllAsync(string key);

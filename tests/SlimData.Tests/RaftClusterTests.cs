@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using DotNext;
 using DotNext.Buffers;
 using DotNext.Diagnostics;
@@ -16,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SlimFaas.Database;
 using SlimFaas;
+using SlimData.Commands;
 
 namespace SlimData.Tests;
 
@@ -240,6 +242,15 @@ public class RaftClusterTests
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceMaster.GetAsync("key1")));
         await GetLocalClusterView(host1).ForceReplicationAsync();
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceSlave.GetAsync("key1")));
+
+        var incrementResult = await databaseServiceSlave.SetAsync(
+            "counter1",
+            operation: KeyValueOperation.IncrementInteger,
+            integerDelta: 1);
+        Assert.Equal(KeyValueCommandStatus.Applied, incrementResult.Status);
+        Assert.Equal(1L, incrementResult.IntegerValue);
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        Assert.Equal("1", Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync("counter1") ?? []));
 
         //await databaseServiceSlave.DeleteAsync("key1");
         //Assert.Null(await databaseServiceMaster.GetAsync("key1"));

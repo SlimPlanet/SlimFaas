@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Moq;
 using SlimData;
 using SlimData.ClusterFiles;
+using SlimData.Commands;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
@@ -21,6 +22,13 @@ namespace SlimFaas.Tests.Endpoints;
 
 public class AsyncFunctionEndpointTests
 {
+    private static KeyValueCommandResult Applied(byte[]? value = null)
+    {
+        var result = new KeyValueCommandResult();
+        result.SetApplied(value ?? Array.Empty<byte>());
+        return result;
+    }
+
     [Theory]
     [InlineData("/async-function/fibonacci/download", HttpStatusCode.Accepted)]
     [InlineData("/async-function/wrong/download", HttpStatusCode.NotFound)]
@@ -114,7 +122,7 @@ public class AsyncFunctionEndpointTests
                 capturedMetaKey = k;
                 capturedMetaBytes = v;
             })
-            .Returns(Task.CompletedTask);
+            .ReturnsAsync(() => Applied(capturedMetaBytes));
 
         // La queue capture le message enqueué pour pouvoir l'inspecter
         byte[]? enqueuedPayload = null;

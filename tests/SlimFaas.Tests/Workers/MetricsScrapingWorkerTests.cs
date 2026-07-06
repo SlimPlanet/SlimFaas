@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 using SlimData;
+using SlimData.Commands;
 using SlimFaas;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
@@ -43,10 +44,19 @@ namespace SlimFaas.Tests.Workers
         {
             private readonly ConcurrentDictionary<string, byte[]> _storage = new(StringComparer.Ordinal);
 
-            public Task SetAsync(string key, byte[] value, long? timeToLiveSeconds = null)
+            public Task<KeyValueCommandResult> SetAsync(
+                string key,
+                byte[]? value = null,
+                long? timeToLiveSeconds = null,
+                KeyValueOperation operation = KeyValueOperation.Set,
+                long integerDelta = 0,
+                decimal floatDelta = 0)
             {
-                _storage[key] = value;
-                return Task.CompletedTask;
+                var result = new KeyValueCommandResult();
+                var bytes = value ?? Array.Empty<byte>();
+                _storage[key] = bytes;
+                result.SetApplied(bytes);
+                return Task.FromResult(result);
             }
 
             public Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveSeconds = null) => throw new NotImplementedException();
