@@ -31,15 +31,7 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
     public long? ExpireAtUtcTicks { get; set; }
     public long NowTicks { get; set; }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            var items = EffectiveItems();
-            var payloadLength = GetItemsPayloadLength(items);
-            return sizeof(byte) + Get7BitEncodedIntSize((int)payloadLength) + payloadLength;
-        }
-    }
+    long? IDataTransferObject.Length => null;
 
     public List<BatchItem> EffectiveItems()
     {

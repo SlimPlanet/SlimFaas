@@ -12,16 +12,7 @@ public struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
 
     public string Key { get; set; }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            var key = Key ?? string.Empty;
-
-            // Key is encoded as: [int32 length][utf8 bytes] with LengthFormat.LittleEndian
-            return sizeof(int) + Encoding.UTF8.GetByteCount(key);
-        }
-    }
+    long? IDataTransferObject.Length => null;
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter

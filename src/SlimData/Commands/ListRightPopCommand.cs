@@ -16,35 +16,7 @@ public struct ListRightPopCommand : ICommand<ListRightPopCommand>
     public string IdTransaction { get; set; }
     public List<string> ReservedIps { get; set; }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            var key = Key ?? string.Empty;
-            var tx = IdTransaction ?? string.Empty;
-
-            // Key: [int32 length][utf8 bytes]
-            // Count: int32
-            // NowTicks: int64
-            // IdTransaction: [int32 length][utf8 bytes]
-            long total = 0;
-            total += sizeof(int) + Encoding.UTF8.GetByteCount(key);
-            total += sizeof(int);
-            total += sizeof(long);
-            total += sizeof(int) + Encoding.UTF8.GetByteCount(tx);
-            var reservedIpsCount = ReservedIps?.Count ?? 0;
-            total += sizeof(int);
-            if (reservedIpsCount > 0)
-            {
-                for (var i = 0; i < reservedIpsCount; i++)
-                {
-                    var ip = ReservedIps[i] ?? string.Empty;
-                    total += sizeof(int) + Encoding.UTF8.GetByteCount(ip);
-                }
-            }
-            return total;
-        }
-    }
+    long? IDataTransferObject.Length => null;
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
@@ -132,21 +104,7 @@ public struct ListRightPopCommandLegacy : ICommand<ListRightPopCommandLegacy>
     public long NowTicks { get; set; }
     public string IdTransaction { get; set; }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            var key = Key ?? string.Empty;
-            var tx = IdTransaction ?? string.Empty;
-
-            long total = 0;
-            total += sizeof(int) + Encoding.UTF8.GetByteCount(key);
-            total += sizeof(int);
-            total += sizeof(long);
-            total += sizeof(int) + Encoding.UTF8.GetByteCount(tx);
-            return total;
-        }
-    }
+    long? IDataTransferObject.Length => null;
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
@@ -196,4 +154,3 @@ public struct ListRightPopCommandLegacy : ICommand<ListRightPopCommandLegacy>
         };
     }
 }
-

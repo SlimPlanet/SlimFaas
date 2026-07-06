@@ -13,21 +13,7 @@ public struct DeleteHashSetCommand : ICommand<DeleteHashSetCommand>
     public string Key { get; set; }
     public string DictionaryKey { get; set; }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            var key = Key ?? string.Empty;
-            var dictKey = DictionaryKey ?? string.Empty;
-
-            // Each string is encoded as: [int32 length][utf8 bytes] with LengthFormat.LittleEndian
-            long result = 0;
-            result += sizeof(int) + Encoding.UTF8.GetByteCount(key);
-            result += sizeof(int) + Encoding.UTF8.GetByteCount(dictKey);
-
-            return result;
-        }
-    }
+    long? IDataTransferObject.Length => null;
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter

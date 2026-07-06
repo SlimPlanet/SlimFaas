@@ -19,42 +19,7 @@ public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
         public List<CallbackElement> CallbackElements { get; set; }
     }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            long total = sizeof(int); // count Items
-            if (Items is null) return total;
-
-            foreach (var it in Items)
-            {
-                // Key: [int32 length][utf8 bytes]
-                var key = it.Key ?? string.Empty;
-                total += sizeof(int) + Encoding.UTF8.GetByteCount(key);
-
-                // NowTicks
-                total += sizeof(long);
-
-                // count CallbackElements
-                total += sizeof(int);
-
-                if (it.CallbackElements is { Count: > 0 })
-                {
-                    foreach (var el in it.CallbackElements)
-                    {
-                        // Identifier: [int32 length][utf8 bytes]
-                        var id = el.Identifier ?? string.Empty;
-                        total += sizeof(int) + Encoding.UTF8.GetByteCount(id);
-
-                        // HttpCode
-                        total += sizeof(int);
-                    }
-                }
-            }
-
-            return total;
-        }
-    }
+    long? IDataTransferObject.Length => null;
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter

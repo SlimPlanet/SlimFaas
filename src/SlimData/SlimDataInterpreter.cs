@@ -642,12 +642,10 @@ public class SlimDataInterpreter : CommandInterpreter
     {
         state.KeyValues = command.keysValues.ToImmutableDictionary();
 
+        var newQueues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty;
         foreach (var q in command.queues)
-        {
-            var builder = ImmutableArray.CreateBuilder<QueueElement>();
-            var arr = builder.ToImmutable();
-            state.Queues = state.Queues.SetItem(q.Key, arr);
-        }
+            newQueues = newQueues.SetItem(q.Key, q.Value.ToImmutableArray());
+        state.Queues = newQueues;
 
         var newHashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
         foreach (var hs in command.hashsets)

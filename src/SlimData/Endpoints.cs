@@ -104,7 +104,10 @@ public class Endpoints
             var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
             if (!isLeader)
                 throw new AbandonedMutexException("Node is not leader anymore");
-            return await cluster.ReplicateAsync(cmd, ct);
+            await cluster.ReplicateAsync(cmd, ct);
+            if (cmd.Context is CommandApplyContext applyContext)
+                await applyContext.WaitAsync(ct);
+            return true;
         }
         finally
         {
@@ -205,6 +208,7 @@ public class Endpoints
                 Value = value,
                 ExpireAtUtcTicks = expireAtUtcTicks
             },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -235,7 +239,8 @@ public class Endpoints
         var logEntry = new LogEntry<DeleteHashSetCommand>()
         {
             Term = cluster.Term,
-            Command = new() { Key = key, DictionaryKey = dictionaryKey }
+            Command = new() { Key = key, DictionaryKey = dictionaryKey },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -287,6 +292,7 @@ public class Endpoints
                 IdTransaction = transactionId,
                 ReservedIps = reservedIps ?? []
             },
+            Context = new CommandApplyContext()
         };
         await SafeReplicateAsync(cluster, logEntry, source.Token);
         await Task.Delay(2, source.Token);
@@ -379,6 +385,7 @@ public class Endpoints
             {
                 Items = batchItems,
             },
+            Context = new CommandApplyContext()
         };
 
         bool success = await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -431,6 +438,7 @@ public class Endpoints
                 NowTicks = nowTicks,
                 CallbackElements = callbackElements
             },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -485,6 +493,7 @@ public class Endpoints
             {
                 Items = items
             },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -630,7 +639,8 @@ public class Endpoints
         var logEntry = new LogEntry<DeleteKeyValueCommand>
         {
             Term = cluster.Term,
-            Command = new() { Key = key }
+            Command = new() { Key = key },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);

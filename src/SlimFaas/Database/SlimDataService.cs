@@ -100,6 +100,13 @@ public class SlimDataService
 
     private static string TtlKey(string key) => key + SlimDataInterpreter.TimeToLivePostfix;
 
+    private async Task WaitForLocalApplyAsync(CancellationToken ct = default)
+    {
+        var committedIndex = _cluster.AuditTrail.LastCommittedEntryIndex;
+        if (committedIndex > 0L)
+            await _cluster.AuditTrail.WaitForApplyAsync(committedIndex, ct).ConfigureAwait(false);
+    }
+
     private static bool TryReadExpireAtFromKeyValues(SlimDataPayload data, string key, out long expireAtTicks)
     {
         expireAtTicks = 0;
@@ -261,6 +268,7 @@ public class SlimDataService
     private async Task<byte[]?> DoGetAsync(string key)
     {
         await GetAndWaitForLeader();
+        await WaitForLocalApplyAsync();
         await MasterWaitForleaseToken();
 
         var data = SimplePersistentState.Invoke();
@@ -400,6 +408,7 @@ public class SlimDataService
     private async Task<IDictionary<string, byte[]>> DoHashGetAllAsync(string key)
     {
         await GetAndWaitForLeader();
+        await WaitForLocalApplyAsync();
         await MasterWaitForleaseToken();
 
         var data = SimplePersistentState.Invoke();
@@ -482,6 +491,7 @@ public class SlimDataService
     private async Task<IList<QueueData>> DoListCountElementAsync(string key, IList<CountType> countTypes, int maximum)
     {
         await GetAndWaitForLeader();
+        await WaitForLocalApplyAsync();
 
         var data = SimplePersistentState.Invoke();
 
