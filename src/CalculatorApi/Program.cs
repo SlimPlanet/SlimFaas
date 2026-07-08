@@ -1,7 +1,7 @@
 using System.Net.Mime;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Models;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -135,9 +135,11 @@ app.Run();
 // Helper to mutate/initialize RequestBody (because OpenApiRequestBody is a class, not a record)
 static void EnsureRequestBody(OpenApiOperation op, string description, bool required = true)
 {
-    op.RequestBody ??= new OpenApiRequestBody();
-    op.RequestBody.Description = description;
-    op.RequestBody.Required = required;
+    var requestBody = op.RequestBody as OpenApiRequestBody ?? new OpenApiRequestBody();
+
+    requestBody.Description = description;
+    requestBody.Required = required;
+    op.RequestBody = requestBody;
 
 }
 static ProblemDetails CreateProblem(string title, string detail, string instance, int status = StatusCodes.Status400BadRequest)
