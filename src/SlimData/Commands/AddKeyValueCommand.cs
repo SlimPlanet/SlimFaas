@@ -146,10 +146,83 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        var version = await reader.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
-        if (version != SerializationVersion)
-            throw new InvalidDataException($"Unsupported AddKeyValueCommand version {version}.");
+        var versionOrOperation = await reader.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
+        try
+        {
+            if (versionOrOperation == SerializationVersion)
+                return await ReadVersion3Async(reader, token).ConfigureAwait(false);
 
+            if (versionOrOperation == 2)
+            {
+                if (reader.TryGetRemainingBytesCount(out var remainingBytes) && remainingBytes <= int.MaxValue)
+                    return await ReadVersion2OrOperationFirstAsync(reader, remainingBytes, token)
+                        .ConfigureAwait(false);
+
+                return ToCommand(await ReadItemAsync(reader, token).ConfigureAwait(false));
+            }
+
+            if (IsKnownOperation(versionOrOperation))
+                return ToCommand(await ReadItemAfterOperationAsync(
+                        reader,
+                        (KeyValueOperation)versionOrOperation,
+                        token)
+                    .ConfigureAwait(false));
+        }
+        catch (Exception ex) when (IsParseException(ex))
+        {
+            throw new InvalidDataException(
+                $"Failed to parse AddKeyValueCommand payload with leading byte {versionOrOperation}.",
+                ex);
+        }
+
+        throw new InvalidDataException($"Unsupported AddKeyValueCommand version or operation byte {versionOrOperation}.");
+    }
+
+#pragma warning disable CA2252
+    private static async ValueTask<AddKeyValueCommand> ReadVersion2OrOperationFirstAsync<TReader>(
+        TReader reader,
+        long remainingBytes,
+        CancellationToken token)
+#pragma warning restore CA2252
+        where TReader : notnull, IAsyncBinaryReader
+    {
+        var payload = new byte[(int)remainingBytes];
+        await reader.ReadAsync(payload, token).ConfigureAwait(false);
+
+        Exception? version2Exception = null;
+        try
+        {
+            return ToCommand(await ReadBufferedVersion2ItemAsync(payload, token).ConfigureAwait(false));
+        }
+        catch (Exception ex) when (IsParseException(ex))
+        {
+            version2Exception = ex;
+        }
+
+        try
+        {
+            return ToCommand(await ReadBufferedOperationFirstItemAsync(
+                    payload,
+                    KeyValueOperation.IncrementFloat,
+                    token)
+                .ConfigureAwait(false));
+        }
+        catch (Exception ex) when (IsParseException(ex))
+        {
+            throw new InvalidDataException(
+                "Failed to parse AddKeyValueCommand payload with leading byte 2 as legacy v2 or operation-first IncrementFloat.",
+                new AggregateException(version2Exception!, ex));
+        }
+    }
+
+    private static bool IsParseException(Exception ex)
+        => ex is InvalidDataException or IOException or ArgumentException;
+
+#pragma warning disable CA2252
+    private static async ValueTask<AddKeyValueCommand> ReadVersion3Async<TReader>(TReader reader, CancellationToken token)
+#pragma warning restore CA2252
+        where TReader : notnull, IAsyncBinaryReader
+    {
         using var payloadOwner = await reader.ReadAsync(
             LengthFormat.Compressed,
             token: token).ConfigureAwait(false);
@@ -164,6 +237,17 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         for (var i = 0; i < count; i++)
             items.Add(await ReadItemAsync(payloadReader, token).ConfigureAwait(false));
 
+        return ToCommand(items);
+    }
+
+    private static bool IsKnownOperation(byte value)
+        => Enum.IsDefined((KeyValueOperation)value);
+
+    private static AddKeyValueCommand ToCommand(BatchItem item)
+        => ToCommand(new List<BatchItem>(1) { item });
+
+    private static AddKeyValueCommand ToCommand(List<BatchItem> items)
+    {
         var command = new AddKeyValueCommand { Items = items };
         if (items.Count > 0)
         {
@@ -180,12 +264,54 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         return command;
     }
 
+    private static async ValueTask<BatchItem> ReadBufferedVersion2ItemAsync(
+        byte[] payload,
+        CancellationToken token)
+    {
+        await using var stream = new MemoryStream(payload, writable: false);
+        var payloadReader = IAsyncBinaryReader.Create(stream, new byte[8192]);
+        var item = await ReadItemAsync(payloadReader, token).ConfigureAwait(false);
+        EnsureFullyConsumed(payloadReader);
+        return item;
+    }
+
+    private static async ValueTask<BatchItem> ReadBufferedOperationFirstItemAsync(
+        byte[] payload,
+        KeyValueOperation operation,
+        CancellationToken token)
+    {
+        await using var stream = new MemoryStream(payload, writable: false);
+        var payloadReader = IAsyncBinaryReader.Create(stream, new byte[8192]);
+        var item = await ReadItemAfterOperationAsync(payloadReader, operation, token).ConfigureAwait(false);
+        EnsureFullyConsumed(payloadReader);
+        return item;
+    }
+
+    private static void EnsureFullyConsumed(IAsyncBinaryReader reader)
+    {
+        if (reader.TryGetRemainingBytesCount(out var remainingBytes) && remainingBytes != 0L)
+            throw new InvalidDataException($"Unexpected trailing bytes in AddKeyValueCommand payload: {remainingBytes}.");
+    }
+
 #pragma warning disable CA2252
     private static async ValueTask<BatchItem> ReadItemAsync<TReader>(TReader reader, CancellationToken token)
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
         var operation = (KeyValueOperation)await reader.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
+        return await ReadItemAfterOperationAsync(reader, operation, token).ConfigureAwait(false);
+    }
+
+#pragma warning disable CA2252
+    private static async ValueTask<BatchItem> ReadItemAfterOperationAsync<TReader>(
+        TReader reader,
+        KeyValueOperation operation,
+        CancellationToken token)
+#pragma warning restore CA2252
+        where TReader : notnull, IAsyncBinaryReader
+    {
+        if (!IsKnownOperation((byte)operation))
+            throw new InvalidDataException($"Unsupported AddKeyValueCommand operation byte {(byte)operation}.");
 
         using var keyOwner = await reader.DecodeAsync(
             new DecodingContext(Encoding.UTF8, false),

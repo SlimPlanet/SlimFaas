@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text;
 using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
+using DotNext.Text;
 using SlimData.Commands;
 
 namespace SlimData.Tests;
@@ -53,6 +54,48 @@ public sealed class KeyValueCommandTests
         await using var stream = new MemoryStream();
         var writer = IAsyncBinaryWriter.Create(stream, new byte[256]);
         await command.WriteToAsync(writer, CancellationToken.None);
+        return stream.ToArray();
+    }
+
+    private static async Task<AddKeyValueCommand> DeserializeCommandAsync(byte[] bytes)
+    {
+        await using var stream = new MemoryStream(bytes);
+        var reader = IAsyncBinaryReader.Create(stream, new byte[256]);
+        return await AddKeyValueCommand.ReadFromAsync(reader, CancellationToken.None);
+    }
+
+    private static async Task<byte[]> SerializeLegacySingleItemAsync(
+        AddKeyValueCommand.BatchItem item,
+        byte? version = null)
+    {
+        await using var stream = new MemoryStream();
+        var writer = IAsyncBinaryWriter.Create(stream, new byte[256]);
+
+        if (version.HasValue)
+            await writer.WriteLittleEndianAsync(version.Value, CancellationToken.None);
+
+        await writer.WriteLittleEndianAsync((byte)item.Operation, CancellationToken.None);
+        await writer.EncodeAsync(
+                item.Key.AsMemory(),
+                new EncodingContext(Encoding.UTF8, false),
+                LengthFormat.LittleEndian,
+                CancellationToken.None)
+            .ConfigureAwait(false);
+
+        await writer.WriteLittleEndianAsync(item.NowTicks, CancellationToken.None);
+
+        byte hasTtl = (byte)(item.ExpireAtUtcTicks.HasValue ? 1 : 0);
+        await writer.WriteLittleEndianAsync(hasTtl, CancellationToken.None);
+        if (item.ExpireAtUtcTicks.HasValue)
+            await writer.WriteLittleEndianAsync(item.ExpireAtUtcTicks.Value, CancellationToken.None);
+
+        await writer.WriteLittleEndianAsync(item.IntegerDelta, CancellationToken.None);
+
+        var decimalBits = decimal.GetBits(item.FloatDelta);
+        foreach (var bit in decimalBits)
+            await writer.WriteLittleEndianAsync(bit, CancellationToken.None);
+
+        await writer.WriteAsync(item.Value, LengthFormat.Compressed, CancellationToken.None);
         return stream.ToArray();
     }
 
@@ -273,5 +316,80 @@ public sealed class KeyValueCommandTests
         Assert.Equal(1L, items[1].IntegerDelta);
         Assert.Equal(KeyValueOperation.IncrementInteger, items[2].Operation);
         Assert.Equal(3L, items[2].IntegerDelta);
+    }
+
+    [Fact]
+    public async Task AddKeyValueCommand_reads_legacy_v2_single_item()
+    {
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var expireAtTicks = DateTime.UtcNow.AddMinutes(5).Ticks;
+        var bytes = await SerializeLegacySingleItemAsync(
+            new AddKeyValueCommand.BatchItem
+            {
+                Operation = KeyValueOperation.IncrementInteger,
+                Key = "legacy-v2-counter",
+                IntegerDelta = 7,
+                ExpireAtUtcTicks = expireAtTicks,
+                NowTicks = nowTicks
+            },
+            version: 2);
+
+        var command = await DeserializeCommandAsync(bytes);
+        var item = Assert.Single(command.EffectiveItems());
+
+        Assert.Equal(KeyValueOperation.IncrementInteger, item.Operation);
+        Assert.Equal("legacy-v2-counter", item.Key);
+        Assert.Equal(7L, item.IntegerDelta);
+        Assert.Equal(expireAtTicks, item.ExpireAtUtcTicks);
+        Assert.Equal(nowTicks, item.NowTicks);
+    }
+
+    [Fact]
+    public async Task AddKeyValueCommand_reads_legacy_operation_first_set_item()
+    {
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var bytes = await SerializeLegacySingleItemAsync(
+            new AddKeyValueCommand.BatchItem
+            {
+                Operation = KeyValueOperation.Set,
+                Key = "legacy-set",
+                Value = Encoding.UTF8.GetBytes("legacy-value"),
+                NowTicks = nowTicks
+            });
+
+        Assert.Equal((byte)KeyValueOperation.Set, bytes[0]);
+
+        var command = await DeserializeCommandAsync(bytes);
+        var item = Assert.Single(command.EffectiveItems());
+
+        Assert.Equal(KeyValueOperation.Set, item.Operation);
+        Assert.Equal("legacy-set", item.Key);
+        Assert.Equal("legacy-value", Encoding.UTF8.GetString(item.Value.Span));
+        Assert.Null(item.ExpireAtUtcTicks);
+        Assert.Equal(nowTicks, item.NowTicks);
+    }
+
+    [Fact]
+    public async Task AddKeyValueCommand_reads_legacy_operation_first_increment_float_item()
+    {
+        var nowTicks = DateTime.UtcNow.Ticks;
+        var bytes = await SerializeLegacySingleItemAsync(
+            new AddKeyValueCommand.BatchItem
+            {
+                Operation = KeyValueOperation.IncrementFloat,
+                Key = "legacy-float-counter",
+                FloatDelta = 1.25m,
+                NowTicks = nowTicks
+            });
+
+        Assert.Equal((byte)KeyValueOperation.IncrementFloat, bytes[0]);
+
+        var command = await DeserializeCommandAsync(bytes);
+        var item = Assert.Single(command.EffectiveItems());
+
+        Assert.Equal(KeyValueOperation.IncrementFloat, item.Operation);
+        Assert.Equal("legacy-float-counter", item.Key);
+        Assert.Equal(1.25m, item.FloatDelta);
+        Assert.Equal(nowTicks, item.NowTicks);
     }
 }

@@ -4,6 +4,7 @@ using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
+using DotNext.Text;
 using SlimData.Commands;
 
 namespace SlimData.Tests;
@@ -125,6 +126,39 @@ public sealed class SlimPersistentStateTests
         }
     }
 
+    [Fact]
+    public async Task WriteAheadLog_applies_legacy_operation_first_key_value_command()
+    {
+        var root = GetTemporaryDirectory();
+        var walPath = Path.Combine(root, "wal");
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+
+            var payload = await SerializeLegacyOperationFirstSetAsync(
+                "legacy-wal-key",
+                "legacy-wal-value");
+            Assert.Equal((byte)KeyValueOperation.Set, payload[0]);
+
+            var index = await wal.AppendAsync(
+                new LegacyAddKeyValueLogEntry(payload),
+                CancellationToken.None);
+            await wal.CommitAsync(index, CancellationToken.None);
+            await wal.WaitForApplyAsync(index, CancellationToken.None);
+
+            Assert.Equal(
+                "legacy-wal-value",
+                Encoding.UTF8.GetString(state.SlimDataState.KeyValues["legacy-wal-key"].Span));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static async Task AppendCommitWaitAsync<TCommand>(WriteAheadLog wal, TCommand command)
         where TCommand : struct, ICommand<TCommand>
     {
@@ -166,6 +200,35 @@ public sealed class SlimPersistentStateTests
         return await (ValueTask<bool>)method.Invoke(state, [entry, CancellationToken.None])!;
     }
 
+    private static async Task<byte[]> SerializeLegacyOperationFirstSetAsync(string key, string value)
+    {
+        await using var stream = new MemoryStream();
+        var writer = IAsyncBinaryWriter.Create(stream, new byte[256]);
+
+        await writer.WriteLittleEndianAsync((byte)KeyValueOperation.Set, CancellationToken.None);
+        await writer.EncodeAsync(
+                key.AsMemory(),
+                new EncodingContext(Encoding.UTF8, false),
+                LengthFormat.LittleEndian,
+                CancellationToken.None)
+            .ConfigureAwait(false);
+
+        await writer.WriteLittleEndianAsync(DateTime.UtcNow.Ticks, CancellationToken.None);
+        await writer.WriteLittleEndianAsync((byte)0, CancellationToken.None);
+        await writer.WriteLittleEndianAsync(0L, CancellationToken.None);
+
+        var decimalBits = decimal.GetBits(0m);
+        foreach (var bit in decimalBits)
+            await writer.WriteLittleEndianAsync(bit, CancellationToken.None);
+
+        await writer.WriteAsync(
+            Encoding.UTF8.GetBytes(value),
+            LengthFormat.Compressed,
+            CancellationToken.None);
+
+        return stream.ToArray();
+    }
+
     private sealed class InvalidConfigurationLogEntry : IRaftLogEntry
     {
         private static readonly byte[] Payload = [0];
@@ -180,6 +243,20 @@ public sealed class SlimPersistentStateTests
         public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
             where TWriter : notnull, IAsyncBinaryWriter
             => writer.Invoke(Payload, token);
+    }
+
+    private sealed class LegacyAddKeyValueLogEntry(byte[] payload) : IRaftLogEntry
+    {
+        public long Term => 1L;
+        public int? CommandId => AddKeyValueCommand.Id;
+        public bool IsConfiguration => false;
+        public bool IsSnapshot => false;
+        public bool IsReusable => true;
+        public long? Length => payload.Length;
+
+        public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
+            where TWriter : notnull, IAsyncBinaryWriter
+            => writer.Invoke(payload, token);
     }
 
     private static string GetTemporaryDirectory()
