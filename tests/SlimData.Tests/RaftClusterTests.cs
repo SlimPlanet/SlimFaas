@@ -232,11 +232,26 @@ public class RaftClusterTests
         Assert.True(await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host2).LocalMemberAddress));
         await GetLocalClusterView(host2).Readiness.WaitAsync(DefaultTimeout);
 
-        Assert.True(await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host3).LocalMemberAddress));
+        IDatabaseService databaseServiceMaster = host1.Services.GetRequiredService<IDatabaseService>();
+        async Task<bool> AddThirdMemberAsync() =>
+            await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host3).LocalMemberAddress);
+
+        var addThirdMemberTask = AddThirdMemberAsync();
+        var concurrentWritesDuringMemberAdd = Enumerable.Range(0, 5)
+            .Select(i => databaseServiceMaster.SetAsync(
+                $"member-add-kv-{i}",
+                Encoding.UTF8.GetBytes(i.ToString())))
+            .ToArray();
+
+        Assert.True(await addThirdMemberTask);
+        await Task.WhenAll(concurrentWritesDuringMemberAdd);
         await GetLocalClusterView(host3).Readiness.WaitAsync(DefaultTimeout);
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+
+        for (var i = 0; i < concurrentWritesDuringMemberAdd.Length; i++)
+            Assert.Equal(i.ToString(), Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync($"member-add-kv-{i}") ?? []));
 
         IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
-        IDatabaseService databaseServiceMaster = host1.Services.GetRequiredService<IDatabaseService>();
 
         await databaseServiceSlave.SetAsync("key1", MemoryPackSerializer.Serialize("value1") );
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceMaster.GetAsync("key1")));

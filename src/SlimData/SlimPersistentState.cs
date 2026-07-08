@@ -53,10 +53,20 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
 
     protected override async ValueTask<bool> ApplyAsync(LogEntry entry, CancellationToken token)
     {
-        if (entry.Length == 0L)
+        if (entry.Length == 0L || entry.IsConfiguration || entry.IsSnapshot)
             return false;
 
-        await Interpreter.InterpretAsync(entry, entry.Context, token).ConfigureAwait(false);
+        try
+        {
+            await Interpreter.InterpretAsync(entry, entry.Context, token).ConfigureAwait(false);
+        }
+        catch (InvalidDataException ex)
+        {
+            throw new InvalidDataException(
+                $"Failed to interpret SlimData Raft log entry. Index={entry.Index}, Term={entry.Term}, CommandId={entry.CommandId?.ToString() ?? "null"}, IsConfiguration={entry.IsConfiguration}, IsSnapshot={entry.IsSnapshot}, Length={entry.Length?.ToString() ?? "null"}.",
+                ex);
+        }
+
         if (entry.Context is CommandApplyContext applyContext)
             applyContext.SetApplied();
 

@@ -1,4 +1,6 @@
 using System.Text;
+using System.Reflection;
+using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
@@ -8,6 +10,31 @@ namespace SlimData.Tests;
 
 public sealed class SlimPersistentStateTests
 {
+    [Fact]
+    public async Task ApplyAsync_ignores_configuration_entries()
+    {
+        var root = GetTemporaryDirectory();
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            var entry = CreateStateMachineEntry(new InvalidConfigurationLogEntry(), index: 1L, isConfiguration: true);
+            Assert.True(entry.IsConfiguration);
+
+            var shouldSnapshot = await InvokeApplyAsync(state, entry);
+
+            Assert.False(shouldSnapshot);
+            Assert.Empty(state.SlimDataState.KeyValues);
+            Assert.Empty(state.SlimDataState.Hashsets);
+            Assert.Empty(state.SlimDataState.Queues);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task WriteAheadLog_restores_key_values_hashsets_and_queues_from_snapshot()
     {
@@ -104,6 +131,55 @@ public sealed class SlimPersistentStateTests
         var index = await wal.AppendAsync(command, token: CancellationToken.None);
         await wal.CommitAsync(index, CancellationToken.None);
         await wal.WaitForApplyAsync(index, CancellationToken.None);
+    }
+
+    private static LogEntry CreateStateMachineEntry(IRaftLogEntry entry, long index, bool isConfiguration = false)
+    {
+        var constructor = typeof(LogEntry).GetConstructor(
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            types: [typeof(IRaftLogEntry), typeof(long)],
+            modifiers: null);
+
+        Assert.NotNull(constructor);
+        var stateMachineEntry = (LogEntry)constructor.Invoke([entry, index]);
+        if (!isConfiguration)
+            return stateMachineEntry;
+
+        var boxedEntry = (object)stateMachineEntry;
+        var configurationField = typeof(LogEntry).GetField(
+            "<IsConfiguration>k__BackingField",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(configurationField);
+        configurationField.SetValue(boxedEntry, true);
+        return (LogEntry)boxedEntry;
+    }
+
+    private static async ValueTask<bool> InvokeApplyAsync(SlimPersistentState state, LogEntry entry)
+    {
+        var method = typeof(SlimPersistentState).GetMethod(
+            "ApplyAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic);
+
+        Assert.NotNull(method);
+        return await (ValueTask<bool>)method.Invoke(state, [entry, CancellationToken.None])!;
+    }
+
+    private sealed class InvalidConfigurationLogEntry : IRaftLogEntry
+    {
+        private static readonly byte[] Payload = [0];
+
+        public long Term => 1L;
+        public int? CommandId => AddKeyValueCommand.Id;
+        public bool IsConfiguration => true;
+        public bool IsSnapshot => false;
+        public bool IsReusable => true;
+        public long? Length => Payload.Length;
+
+        public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
+            where TWriter : notnull, IAsyncBinaryWriter
+            => writer.Invoke(Payload, token);
     }
 
     private static string GetTemporaryDirectory()
