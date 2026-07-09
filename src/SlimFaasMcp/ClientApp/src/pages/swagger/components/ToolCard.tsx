@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import YAML from "js-yaml";
+import * as YAML from "js-yaml";
 import Badge from "../../../components/ui/Badge";
 import Field from "../../../components/ui/Field";
 import type { UiTool } from "../types";

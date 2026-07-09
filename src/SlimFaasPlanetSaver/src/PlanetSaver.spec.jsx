@@ -1,4 +1,4 @@
-﻿import { describe, it, expect, beforeEach, vi } from 'vitest';
+﻿import { describe, it, expect } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import PlanetSaver from './PlanetSaver.jsx';
 import mockFetch, {
@@ -6,7 +6,6 @@ import mockFetch, {
     alternateStatusFunctionsBodyOn,
     alternateStatusFunctionsBodyOff
 } from './mockFetch.js';
-import React from 'react';
 
 describe('PlanetSaver Component', () => {
     const baseUrl = 'https://slimfaas/';
@@ -20,7 +19,6 @@ describe('PlanetSaver Component', () => {
     }
 
     it('Should display SlimFaasPlanetSaver', { timeout: 40000 }, async () => {
-        const handleVisibilityChange = vi.fn();
         const { unmount } = render(
             <PlanetSaver baseUrl={baseUrl} fetch={mockFetch(false)} noActivityTimeout={5000}>
                 Child Component

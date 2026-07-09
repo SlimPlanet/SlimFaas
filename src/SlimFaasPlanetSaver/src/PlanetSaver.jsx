@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
+import PropTypes from 'prop-types';
 import SlimFaasPlanetSaver from "./SlimFaasPlanetSaver.js";
 
 const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavior={} }) => {
@@ -54,6 +55,7 @@ const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavi
                 instanceRef.current = null;
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [baseUrl]);
 
     if (isFirstStart) {
@@ -61,6 +63,14 @@ const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=60000, behavi
     }
 
     return <>{children}</>;
+};
+
+PlanetSaver.propTypes = {
+    children: PropTypes.node,
+    baseUrl: PropTypes.string,
+    fetch: PropTypes.func,
+    noActivityTimeout: PropTypes.number,
+    behavior: PropTypes.object,
 };
 
 export default PlanetSaver;

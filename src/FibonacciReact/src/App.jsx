@@ -5,13 +5,6 @@ import './App.css'
 const slimFaasLogoUrl =
     'https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true';
 
-// Petite fonction pour formater la durée en "Xs Yms"
-function formatDuration(durationMs) {
-    const seconds = Math.floor(durationMs / 1000);
-    const ms = Math.floor(durationMs % 1000);
-    return `${seconds}s ${ms}ms`;
-}
-
 /**
  * Hook personnalisé pour exécuter un callback à intervalle régulier
  */
@@ -215,14 +208,6 @@ function Deployment({ data, url, doRequest }) {
         doRequest({
             fullUrl: `${url}/wake-function/${data.name}`,
             method: 'POST',
-        });
-    };
-
-    const eventFibonacciAsync = (method = 'fibonacci', eventName = 'fibo-public') => {
-        doRequest({
-            fullUrl: `${url}/publish-event/${eventName}/${method}`,
-            method: 'POST',
-            body: { input: 10 },
         });
     };
 

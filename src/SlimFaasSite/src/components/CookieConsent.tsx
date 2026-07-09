@@ -55,6 +55,7 @@ export default function CookieConsent() {
         }
 
         const stored = loadPrefs();
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (stored) { setPrefs(stored); updateConsent(stored); setShowBanner(false); }
         else { setShowBanner(true); }
     }, []);
