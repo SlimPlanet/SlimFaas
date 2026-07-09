@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import SlimFaasPlanetSaver from '@axa-fr/slimfaas-planet-saver';
 
 const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=10000, interval=2000, wakeUpTimeout=1000, behavior={} }) => {
@@ -57,6 +57,7 @@ const PlanetSaver = ({ children, baseUrl, fetch, noActivityTimeout=10000, interv
                 instanceRef.current = null;
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [baseUrl]);
 
     if (isFirstStart) {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import YAML from "js-yaml";
+import * as YAML from "js-yaml";
 import Toggle from "../../components/ui/Toggle";
 import Field from "../../components/ui/Field";
 import ToolCard from "./components/ToolCard";
