@@ -20,7 +20,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - `N → M` scaling powered by PromQL,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
 - built-in **User Interface** at the SlimFaas root address to see functions, jobs, queues, and real-time messages.
-- temporary **Data Sets** endpoints (Redis-like KV) to store small blobs/JSON with **TTL (milliseconds)** — perfect for cache & agentic state.
+- temporary **Data Sets** endpoints (Redis-like KV) to store small blobs/JSON with **TTL (milliseconds)** and atomic counters — perfect for cache & agentic state.
 - temporary **Data Files** endpoints to ingest and stage files (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 
 > **Looking for MCP integration?**
@@ -99,7 +99,7 @@ SlimFaas puts autoscaling at the center of the design:
 
 SlimFaas includes two complementary data APIs:
 
-- **Data Sets** (`/data/sets`): a Redis-like, cluster-consistent **KV store** for small payloads (cache, JSON state, flags, checkpoints) with optional **TTL in milliseconds** and a **1 MiB** payload limit.
+- **Data Sets** (`/data/sets`): a Redis-like, cluster-consistent **KV store** for small payloads (cache, JSON state, flags, checkpoints) with optional **TTL in milliseconds**, atomic counter commands, and a **1 MiB** payload limit.
 - **Data Files** (`/data/files`): stream-first endpoints to ingest, store, and serve temporary files — from tiny payloads to *very large* binaries — ideal for **agentic workflows** and **real-time ingestion** (upload once, get an `id`, then let tools/functions consume it when they’re ready).
 
 ### 🧠 “Mind Changer” (Status & Wake-up API)
@@ -143,7 +143,7 @@ Dive into the documentation:
     - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
     - [OpenTelemetry](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/opentelemetry.md) – Enable distributed tracing, metrics, and logs with OpenTelemetry integration.
 - Data & Files
-    - [Data Sets](https://slimfaas.dev/data-sets) - Store small blobs/JSON in a Redis-like KV store with TTL (milliseconds).
+    - [Data Sets](https://slimfaas.dev/data-sets) - Store small blobs/JSON in a Redis-like KV store with TTL (milliseconds) and atomic counters.
     - [Data Files](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/data-files.md) - Understand how to ingest, store, and serve temporary binary artifacts.
 - [How It Works](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/how-it-works.md) – Dive into SlimFaas’s architecture and design.
 - [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP-ready tools on the fly.

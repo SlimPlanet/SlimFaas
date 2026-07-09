@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Data;
 using System.Net;
+using System.Text;
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
@@ -12,6 +13,15 @@ namespace SlimFaas.Database;
 public readonly record struct ListLeftPushReq(string Key, byte[] SerializedPayload, byte[] Field, RetryInformation RetryInfo);
 
 public readonly record struct ListCallbackReq(string Key, byte[] SerializedStatus);
+
+public readonly record struct KeyValueReq(
+    string Key,
+    byte[] SerializedValue,
+    long? ExpireAtUtcTicks,
+    KeyValueOperation Operation,
+    long IntegerDelta,
+    decimal FloatDelta,
+    long NowTicks);
 
 #pragma warning disable CA2252
 public class SlimDataService
@@ -55,6 +65,15 @@ public class SlimDataService
             maxBatchSize: 512,
             sizeEstimatorBytes: r => r.SerializedStatus?.Length ?? 0
         );
+
+        _batcher.RegisterKind<KeyValueReq, KeyValueCommandResult>(
+            kind: "kv",
+            batchHandler: BatchKeyValueHandlerAsync,
+            maxBatchSize: 256,
+            maxBatchBytes: 4 * 1024 * 1024,
+            sizeEstimatorBytes: r => Encoding.UTF8.GetByteCount(r.Key ?? string.Empty) + (r.SerializedValue?.Length ?? 0) + 64,
+            coalesceWindow: TimeSpan.FromMilliseconds(3)
+        );
     }
 
     private ISupplier<SlimDataPayload> SimplePersistentState =>
@@ -80,6 +99,13 @@ public class SlimDataService
         => ttlMs.HasValue ? $"&ttl={ttlMs.Value}" : string.Empty;
 
     private static string TtlKey(string key) => key + SlimDataInterpreter.TimeToLivePostfix;
+
+    private async Task WaitForLocalApplyAsync(CancellationToken ct = default)
+    {
+        var committedIndex = _cluster.AuditTrail.LastCommittedEntryIndex;
+        if (committedIndex > 0L)
+            await _cluster.AuditTrail.WaitForApplyAsync(committedIndex, ct).ConfigureAwait(false);
+    }
 
     private static bool TryReadExpireAtFromKeyValues(SlimDataPayload data, string key, out long expireAtTicks)
     {
@@ -108,8 +134,19 @@ public class SlimDataService
     public async Task<byte[]?> GetAsync(string key) =>
         await Retry.DoAsync(() => DoGetAsync(key), _logger, _retryInterval);
 
-    public async Task SetAsync(string key, byte[] value, long? timeToLiveMs = null) =>
-        await Retry.DoAsync(() => DoSetAsync(key, value, timeToLiveMs), _logger, _retryInterval);
+    public async Task<KeyValueCommandResult> SetAsync(
+        string key,
+        byte[]? value = null,
+        long? timeToLiveMs = null,
+        KeyValueOperation operation = KeyValueOperation.Set,
+        long integerDelta = 0,
+        decimal floatDelta = 0)
+    {
+        if (operation == KeyValueOperation.Set)
+            return await Retry.DoAsync(() => DoSetAsync(key, value, timeToLiveMs, operation, integerDelta, floatDelta), _logger, _retryInterval);
+
+        return await DoSetAsync(key, value, timeToLiveMs, operation, integerDelta, floatDelta);
+    }
 
     public async Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveMs = null) =>
         await Retry.DoAsync(() => DoHashSetAsync(key, values, timeToLiveMs), _logger, _retryInterval);
@@ -231,6 +268,7 @@ public class SlimDataService
     private async Task<byte[]?> DoGetAsync(string key)
     {
         await GetAndWaitForLeader();
+        await WaitForLocalApplyAsync();
         await MasterWaitForleaseToken();
 
         var data = SimplePersistentState.Invoke();
@@ -243,25 +281,79 @@ public class SlimDataService
         return data.KeyValues.TryGetValue(key, out var value) ? value.ToArray() : null;
     }
 
-    private async Task DoSetAsync(string key, byte[] value, long? ttlMs)
+    private async Task<KeyValueCommandResult> DoSetAsync(
+        string key,
+        byte[]? value,
+        long? ttlMs,
+        KeyValueOperation operation,
+        long integerDelta,
+        decimal floatDelta)
+    {
+        var serializedValue = value ?? Array.Empty<byte>();
+        var expireAtUtcTicks = operation == KeyValueOperation.Set ? ToExpireAtUtcTicks(ttlMs) : null;
+
+        return await _batcher.EnqueueAsync<KeyValueReq, KeyValueCommandResult>(
+            "kv",
+            new KeyValueReq(
+                key,
+                serializedValue,
+                expireAtUtcTicks,
+                operation,
+                integerDelta,
+                floatDelta,
+                DateTime.UtcNow.Ticks)).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyList<KeyValueCommandResult>> BatchKeyValueHandlerAsync(
+        IReadOnlyList<KeyValueReq> batch,
+        CancellationToken ct)
     {
         var endpoint = await GetAndWaitForLeader();
-        var expireAtUtcTicks = ToExpireAtUtcTicks(ttlMs);
+        var request = new KeyValueBatchRequest(
+            batch.Select(item => new KeyValueBatchItem(
+                    item.Operation,
+                    item.Key,
+                    item.SerializedValue,
+                    item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
+                    item.IntegerDelta,
+                    item.FloatDelta,
+                    item.NowTicks))
+                .ToArray());
 
+        _logger.LogDebug("KeyValue batch size={BatchSize}", request.Items.Length);
         if (!_cluster.LeadershipToken.IsCancellationRequested)
         {
-            var ps = _serviceProvider.GetRequiredService<SlimPersistentState>();
-            await SlimData.Endpoints.AddKeyValueCommand(ps, key, value, expireAtUtcTicks, _cluster, new CancellationTokenSource());
+            using var source = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var response = await SlimData.Endpoints.AddKeyValueBatchCommand(
+                request,
+                _cluster,
+                source);
+
+            if (response.Results.Length != batch.Count)
+                throw new DataException("Key/value batch response count mismatch");
+
+            return response.Results;
         }
-        else
+
+        using var requestMessage = new HttpRequestMessage(HttpMethod.Post, new Uri($"{endpoint}SlimData/AddKeyValueBatch"))
         {
-            var uri = new Uri($"{endpoint}SlimData/AddKeyValue?key={Escape(key)}{BuildTtlQuery(ttlMs)}");
-            using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(value) };
-            using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
-            using var response = await httpClient.SendAsync(request);
-            if ((int)response.StatusCode >= 500)
-                throw new DataException("Error in calling SlimData HTTP Service");
-        }
+            Content = new ByteArrayContent(MemoryPackSerializer.Serialize(request))
+        };
+
+        using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+        using var responseMessage = await httpClient.SendAsync(requestMessage, ct);
+        if ((int)responseMessage.StatusCode >= 500)
+            throw new DataException("Error in calling SlimData HTTP Service (key/value batch)");
+
+        var bytes = await responseMessage.Content.ReadAsByteArrayAsync(ct);
+        var batchResponse = MemoryPackSerializer.Deserialize<KeyValueBatchResponse>(bytes);
+        if (batchResponse.Results is null)
+            throw new DataException("Null key/value batch response");
+
+        if (batchResponse.Results.Length != batch.Count)
+            throw new DataException("Key/value batch response count mismatch");
+
+        return batchResponse.Results;
     }
 
     private async Task DoHashSetAsync(string key, IDictionary<string, byte[]> values, long? ttlMs)
@@ -316,6 +408,7 @@ public class SlimDataService
     private async Task<IDictionary<string, byte[]>> DoHashGetAllAsync(string key)
     {
         await GetAndWaitForLeader();
+        await WaitForLocalApplyAsync();
         await MasterWaitForleaseToken();
 
         var data = SimplePersistentState.Invoke();
@@ -398,6 +491,7 @@ public class SlimDataService
     private async Task<IList<QueueData>> DoListCountElementAsync(string key, IList<CountType> countTypes, int maximum)
     {
         await GetAndWaitForLeader();
+        await WaitForLocalApplyAsync();
 
         var data = SimplePersistentState.Invoke();
 

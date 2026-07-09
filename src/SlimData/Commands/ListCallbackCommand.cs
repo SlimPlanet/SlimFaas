@@ -16,41 +16,7 @@ public struct ListCallbackCommand() : ICommand<ListCallbackCommand>
     public long NowTicks { get; set; }
     public IList<CallbackElement> CallbackElements { get; set; }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            var key = Key ?? string.Empty;
-
-            long result = 0;
-
-            // Key: [int32 length][utf8 bytes]
-            result += sizeof(int) + Encoding.UTF8.GetByteCount(key);
-
-            // NowTicks
-            result += sizeof(long);
-
-            // CallbackElements.Count
-            int count = CallbackElements?.Count ?? 0;
-            result += sizeof(int);
-
-            if (count > 0)
-            {
-                foreach (var element in CallbackElements!)
-                {
-                    var id = element?.Identifier ?? string.Empty;
-
-                    // Identifier: [int32 length][utf8 bytes]
-                    result += sizeof(int) + Encoding.UTF8.GetByteCount(id);
-
-                    // HttpCode
-                    result += sizeof(int);
-                }
-            }
-
-            return result;
-        }
-    }
+    long? IDataTransferObject.Length => null;
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter

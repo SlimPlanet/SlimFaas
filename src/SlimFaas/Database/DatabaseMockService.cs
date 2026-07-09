@@ -1,5 +1,8 @@
 ﻿using System.Collections.Concurrent;
+using System.Globalization;
+using System.Text;
 using SlimData;
+using SlimData.Commands;
 
 namespace SlimFaas;
 
@@ -25,18 +28,78 @@ public class DatabaseMockService : IDatabaseService
         return Task.FromResult<byte[]?>(null);
     }
 
-    public Task SetAsync(string key, byte[] value, long? timeToLiveSeconds = null)
+    public Task<KeyValueCommandResult> SetAsync(
+        string key,
+        byte[]? value = null,
+        long? timeToLiveSeconds = null,
+        KeyValueOperation operation = KeyValueOperation.Set,
+        long integerDelta = 0,
+        decimal floatDelta = 0)
     {
-        if (keys.ContainsKey(key))
+        var result = new KeyValueCommandResult();
+
+        if (operation == KeyValueOperation.IncrementInteger)
         {
-            keys[key] = value;
-        }
-        else
-        {
-            keys.TryAdd(key, value);
+            var current = 0L;
+            if (keys.TryGetValue(key, out var existing) &&
+                !long.TryParse(Encoding.UTF8.GetString(existing), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out current))
+            {
+                result.SetError(KeyValueCommandStatus.InvalidNumber, "Value is not an integer.");
+                return Task.FromResult(result);
+            }
+
+            long next;
+            try
+            {
+                next = checked(current + integerDelta);
+            }
+            catch (OverflowException)
+            {
+                result.SetError(KeyValueCommandStatus.Overflow, "Integer increment overflow.");
+                return Task.FromResult(result);
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(next.ToString(CultureInfo.InvariantCulture));
+            keys[key] = bytes;
+            result.SetApplied(bytes, integerValue: next);
+            return Task.FromResult(result);
         }
 
-        return Task.CompletedTask;
+        if (operation == KeyValueOperation.IncrementFloat)
+        {
+            var current = 0m;
+            if (keys.TryGetValue(key, out var existing) &&
+                !decimal.TryParse(
+                    Encoding.UTF8.GetString(existing),
+                    NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent,
+                    CultureInfo.InvariantCulture,
+                    out current))
+            {
+                result.SetError(KeyValueCommandStatus.InvalidNumber, "Value is not a decimal number.");
+                return Task.FromResult(result);
+            }
+
+            decimal next;
+            try
+            {
+                next = checked(current + floatDelta);
+            }
+            catch (OverflowException)
+            {
+                result.SetError(KeyValueCommandStatus.Overflow, "Decimal increment overflow.");
+                return Task.FromResult(result);
+            }
+
+            var bytes = Encoding.UTF8.GetBytes(next.ToString("G29", CultureInfo.InvariantCulture));
+            keys[key] = bytes;
+            result.SetApplied(bytes, decimalValue: next);
+            return Task.FromResult(result);
+        }
+
+        var setValue = value ?? Array.Empty<byte>();
+        keys[key] = setValue;
+        result.SetApplied(setValue);
+        return Task.FromResult(result);
     }
 
     public Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveSeconds = null)

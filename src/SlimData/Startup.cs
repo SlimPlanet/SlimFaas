@@ -2,10 +2,11 @@
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
 using SlimData.ClusterFiles;
-using SlimData.Commands;
 using SlimData.ClusterFiles.Http;
+using SlimData.Commands;
 using SlimData.Options;
 
 namespace SlimData;
@@ -25,24 +26,20 @@ public class Startup(IConfiguration configuration)
         const string AddHashSetResource = "/SlimData/AddHashset";
         const string DeleteHashSetResource = "/SlimData/DeleteHashset";
         const string ListRightPopResource = "/SlimData/ListRightPop";
-        const string ListLeftPushResource = "/SlimData/ListLeftPush";
         const string ListLeftPushBatchResource = "/SlimData/ListLeftPushBatch";
-        const string AddKeyValueResource = "/SlimData/AddKeyValue";
+        const string AddKeyValueBatchResource = "/SlimData/AddKeyValueBatch";
         const string ListLengthResource = "/SlimData/ListLength";
         const string ListCallback = "/SlimData/ListCallback";
         const string ListCallBackBatch = "/SlimData/ListCallbackBatch";
         const string HealthResource = "/health";
-#pragma warning disable DOTNEXT001
-     //   app.RestoreStateAsync<SlimPersistentState>(new CancellationToken());
-#pragma warning restore DOTNEXT001
+        app.RestoreStateAsync<SlimPersistentState>().GetAwaiter().GetResult();
        
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
-            .RedirectToLeader(ListLeftPushResource)
             .RedirectToLeader(ListLeftPushBatchResource)
             .RedirectToLeader(ListRightPopResource)
-            .RedirectToLeader(AddKeyValueResource)
+            .RedirectToLeader(AddKeyValueBatchResource)
             .RedirectToLeader(AddHashSetResource)
             .RedirectToLeader(ListCallback)
             .RedirectToLeader(ListCallBackBatch)
@@ -52,12 +49,11 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapClusterFileTransferRoutes();
                 endpoints.MapGet(LeaderResource, Endpoints.RedirectToLeaderAsync);
                 endpoints.MapGet(HealthResource, async context => { await context.Response.WriteAsync("OK"); });
-                endpoints.MapPost(ListLeftPushResource,  Endpoints.ListLeftPushAsync);
                 endpoints.MapPost(ListLeftPushBatchResource,  Endpoints.ListLeftPushBatchAsync);
                 endpoints.MapPost(ListRightPopResource,  Endpoints.ListRightPopAsync);
                 endpoints.MapPost(AddHashSetResource,  Endpoints.AddHashSetAsync);
                 endpoints.MapPost(DeleteHashSetResource,  Endpoints.DeleteHashSetAsync);
-                endpoints.MapPost(AddKeyValueResource,  Endpoints.AddKeyValueAsync);
+                endpoints.MapPost(AddKeyValueBatchResource,  Endpoints.AddKeyValueBatchAsync);
                 endpoints.MapPost(ListCallback,  Endpoints.ListCallbackAsync);
                 endpoints.MapPost(ListCallBackBatch,  Endpoints.ListCallbackBatchAsync);
             });
@@ -97,9 +93,14 @@ public class Startup(IConfiguration configuration)
                 UseProxy = false
             });
         var path = configuration[SlimPersistentState.LogLocation];
+        var stateRoot = string.IsNullOrWhiteSpace(path)
+            ? Path.Combine(Path.GetTempPath(), "SlimData", Guid.NewGuid().ToString("N"))
+            : path;
+        var walPath = Path.Combine(stateRoot, "wal");
+        var configPath = Path.Combine(stateRoot, "config");
         var usePersistentConfigurationStorage = bool.Parse(configuration[SlimPersistentState.UsePersistentConfigurationStorage] ?? "true");
         if (!string.IsNullOrWhiteSpace(path) && usePersistentConfigurationStorage)
-            services.UsePersistentConfigurationStorage(path)
+            services.UsePersistentConfigurationStorage(configPath)
                 .ConfigureCluster<ClusterConfigurator>()
                 .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()
                 .AddOptions()
@@ -110,26 +111,22 @@ public class Startup(IConfiguration configuration)
                 .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()
                 .AddOptions()
                 .AddRouting();
-        
-       /* if (!string.IsNullOrWhiteSpace(path))
+
+        services
+            .UseStateMachine<SlimPersistentState>(new WriteAheadLog.Options { Location = walPath })
+            .AddSingleton<ISupplier<SlimDataPayload>>(sp => sp.GetRequiredService<SlimPersistentState>());
+
+        if (!string.IsNullOrWhiteSpace(path))
         {
-#pragma warning disable DOTNEXT001
-            services.AddSingleton(new WriteAheadLog.Options { Location = path });
-            services.UseStateMachine<SlimPersistentState>();
-#pragma warning restore DOTNEXT001
-        }*/
-       if (!string.IsNullOrWhiteSpace(path))
-       {
-           services.UsePersistenceEngine<ISupplier<SlimDataPayload>, SlimPersistentState>();
            services.AddSingleton<IFileRepository>(sp => new DiskFileRepository(
-               Path.Combine(path, "files"),
+               Path.Combine(stateRoot, "files"),
                sp.GetRequiredService<ILogger<DiskFileRepository>>()));
            services.AddSingleton<ClusterFileAnnounceQueue>();
            services.AddHostedService<ClusterFileAnnounceWorker>();
 
            services.AddSingleton<IClusterFileSync, ClusterFileSync>(); 
            services.AddHostedService<ClusterFileSyncBootstrapper>();
-       }
+        }
            
         var endpoint = configuration["publicEndPoint"];
         if (!string.IsNullOrEmpty(endpoint))

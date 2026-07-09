@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Text.Json.Serialization;
 using DotNext;
 using Microsoft.AspNetCore.Builder;
@@ -22,6 +23,11 @@ public static class DataSetRoutes
         var group = endpoints.MapGroup("/data/sets")
             .AddEndpointFilter<DataVisibilityEndpointFilter>();
         group.MapPost("", Handlers.PostAsync);
+        group.MapPost("/{id}/incr", Handlers.IncrAsync);
+        group.MapPost("/{id}/incrby", Handlers.IncrByAsync);
+        group.MapPost("/{id}/incrbyfloat", Handlers.IncrByFloatAsync);
+        group.MapPost("/{id}/decr", Handlers.DecrAsync);
+        group.MapPost("/{id}/decrby", Handlers.DecrByAsync);
         group.MapGet("/{id}", Handlers.GetAsync);
         group.MapGet("", Handlers.ListAsync);
         group.MapDelete("/{id}", Handlers.DeleteAsync);
@@ -88,6 +94,87 @@ public static class DataSetRoutes
 
             return Results.Ok(elementId);
         }
+
+        public static Task<IResult> IncrAsync(IDatabaseService db, string id) =>
+            IntegerMutationAsync(db, id, 1);
+
+        public static async Task<IResult> IncrByAsync(IDatabaseService db, string id, long? by)
+        {
+            if (!by.HasValue)
+                return Results.BadRequest("Missing by.");
+
+            return await IntegerMutationAsync(db, id, by.Value).ConfigureAwait(false);
+        }
+
+        public static async Task<IResult> DecrAsync(IDatabaseService db, string id) =>
+            await IntegerMutationAsync(db, id, -1).ConfigureAwait(false);
+
+        public static async Task<IResult> DecrByAsync(IDatabaseService db, string id, long? by)
+        {
+            if (!by.HasValue)
+                return Results.BadRequest("Missing by.");
+
+            long delta;
+            try
+            {
+                delta = checked(-by.Value);
+            }
+            catch (OverflowException)
+            {
+                return Conflict("Integer decrement overflow.");
+            }
+
+            return await IntegerMutationAsync(db, id, delta).ConfigureAwait(false);
+        }
+
+        public static async Task<IResult> IncrByFloatAsync(IDatabaseService db, string id, decimal? by)
+        {
+            if (!by.HasValue)
+                return Results.BadRequest("Missing by.");
+
+            if (!IdValidator.IsSafeId(id))
+                return Results.BadRequest("Invalid id.");
+
+            var result = await db.SetAsync(
+                DataKey(id),
+                operation: KeyValueOperation.IncrementFloat,
+                floatDelta: by.Value).ConfigureAwait(false);
+
+            return ToNumericResult(result, isFloat: true);
+        }
+
+        private static async Task<IResult> IntegerMutationAsync(IDatabaseService db, string id, long delta)
+        {
+            if (!IdValidator.IsSafeId(id))
+                return Results.BadRequest("Invalid id.");
+
+            var result = await db.SetAsync(
+                DataKey(id),
+                operation: KeyValueOperation.IncrementInteger,
+                integerDelta: delta).ConfigureAwait(false);
+
+            return ToNumericResult(result, isFloat: false);
+        }
+
+        private static IResult ToNumericResult(KeyValueCommandResult result, bool isFloat)
+        {
+            if (result.Status == KeyValueCommandStatus.Applied)
+            {
+                var text = isFloat
+                    ? (result.DecimalValue ?? 0m).ToString("G29", CultureInfo.InvariantCulture)
+                    : (result.IntegerValue ?? 0L).ToString(CultureInfo.InvariantCulture);
+
+                return Results.Text(text, "text/plain");
+            }
+
+            return Conflict(result.ErrorMessage ?? "Key/value command failed.");
+        }
+
+        private static IResult Conflict(string detail) =>
+            Results.Problem(
+                title: "Key/value command failed",
+                detail: detail,
+                statusCode: StatusCodes.Status409Conflict);
 
         public static async Task<IResult> GetAsync(IDatabaseService db, string id)
         {
@@ -164,4 +251,3 @@ public sealed record DataSetEntry(string Id, long? ExpireAtUtcTicks);
 public partial class DataSetFileRoutesRoutesJsonContext : JsonSerializerContext
 {
 }
-

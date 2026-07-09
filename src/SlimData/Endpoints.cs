@@ -42,6 +42,22 @@ public partial record struct ListCallbackBatchRequest(ListCallbackBatchItem[] It
 [MemoryPackable]
 public partial record struct ListCallbackBatchResponse(bool[] Acks);
 
+[MemoryPackable]
+public partial record struct KeyValueBatchItem(
+    KeyValueOperation Operation,
+    string Key,
+    byte[] Value,
+    long? ExpireAtUtcTicks,
+    long IntegerDelta,
+    decimal FloatDelta,
+    long NowTicks);
+
+[MemoryPackable]
+public partial record struct KeyValueBatchRequest(KeyValueBatchItem[] Items);
+
+[MemoryPackable]
+public partial record struct KeyValueBatchResponse(KeyValueCommandResult[] Results);
+
 public sealed record LpReq(
     IRaftCluster Cluster,
     ListLeftPushBatchRequest Request,
@@ -88,7 +104,10 @@ public class Endpoints
             var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
             if (!isLeader)
                 throw new AbandonedMutexException("Node is not leader anymore");
-            return await cluster.ReplicateAsync(cmd, ct);
+            await cluster.ReplicateAsync(cmd, ct);
+            if (cmd.Context is CommandApplyContext applyContext)
+                await applyContext.WaitAsync(ct);
+            return true;
         }
         finally
         {
@@ -189,6 +208,7 @@ public class Endpoints
                 Value = value,
                 ExpireAtUtcTicks = expireAtUtcTicks
             },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -219,7 +239,8 @@ public class Endpoints
         var logEntry = new LogEntry<DeleteHashSetCommand>()
         {
             Term = cluster.Term,
-            Command = new() { Key = key, DictionaryKey = dictionaryKey }
+            Command = new() { Key = key, DictionaryKey = dictionaryKey },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -271,6 +292,7 @@ public class Endpoints
                 IdTransaction = transactionId,
                 ReservedIps = reservedIps ?? []
             },
+            Context = new CommandApplyContext()
         };
         await SafeReplicateAsync(cluster, logEntry, source.Token);
         await Task.Delay(2, source.Token);
@@ -363,61 +385,13 @@ public class Endpoints
             {
                 Items = batchItems,
             },
+            Context = new CommandApplyContext()
         };
 
         bool success = await SafeReplicateAsync(cluster, logEntry, source.Token);
         var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => success ? b.Identifier : "").ToArray());
 
         return listLeftPushBatchResponse;
-    }
-
-    public static async Task ListLeftPushAsync(HttpContext context)
-    {
-        var task = DoAsync(context, async (cluster, provider, source) =>
-        {
-            context.Request.Query.TryGetValue("key", out var key);
-            if (string.IsNullOrEmpty(key))
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("not data found", context.RequestAborted);
-                return;
-            }
-
-            await using var memoryStream = new MemoryStream();
-            await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
-            var value = memoryStream.ToArray();
-
-            string elementId = await ListLeftPushCommand(provider, key, value, cluster, source);
-            context.Response.StatusCode = StatusCodes.Status201Created;
-            await context.Response.WriteAsync(elementId, context.RequestAborted);
-        });
-        await task;
-    }
-
-    public static async Task<string> ListLeftPushCommand(SlimPersistentState provider, string key, byte[] value,
-        IRaftCluster cluster, CancellationTokenSource source)
-    {
-        var input = MemoryPackSerializer.Deserialize<ListLeftPushInput>(value);
-        var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(input.RetryInformation);
-        var id = ResolveElementId(input.NewElementId);
-
-        var logEntry = new LogEntry<ListLeftPushCommand>()
-        {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Key = key,
-                Identifier = id,
-                Value = input.Value,
-                NowTicks = DateTime.UtcNow.Ticks,
-                Retries = retryInformation.Retries,
-                RetryTimeout = retryInformation.RetryTimeoutSeconds,
-                HttpStatusCodesWorthRetrying = retryInformation.HttpStatusRetries
-            },
-        };
-
-        var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
-        return success ? id : "";
     }
 
     public static Task ListCallbackAsync(HttpContext context)
@@ -464,6 +438,7 @@ public class Endpoints
                 NowTicks = nowTicks,
                 CallbackElements = callbackElements
             },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -518,6 +493,7 @@ public class Endpoints
             {
                 Items = items
             },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
@@ -559,43 +535,82 @@ public class Endpoints
         return (key, value);
     }
 
-    public static Task AddKeyValueAsync(HttpContext context)
+    public static Task AddKeyValueBatchAsync(HttpContext context)
     {
         return DoAsync(context, async (cluster, provider, source) =>
         {
-            context.Request.Query.TryGetValue("key", out var key);
-            if (string.IsNullOrEmpty(key))
-            {
-                context.Response.StatusCode = StatusCodes.Status400BadRequest;
-                await context.Response.WriteAsync("not data found", context.RequestAborted);
-                return;
-            }
-
-            var expireAtUtcTicks = ToExpireAtUtcTicksFromQuery(context);
-
             await using var memoryStream = new MemoryStream();
             await context.Request.Body.CopyToAsync(memoryStream, source!.Token);
-            var value = memoryStream.ToArray();
+            var request = MemoryPackSerializer.Deserialize<KeyValueBatchRequest>(memoryStream.ToArray());
 
-            await AddKeyValueCommand(provider, key!, value, expireAtUtcTicks, cluster, source);
+            var response = await AddKeyValueBatchCommand(request, cluster, source);
+            var responseBytes = MemoryPackSerializer.Serialize(response);
+            context.Response.StatusCode = StatusCodes.Status200OK;
+            context.Response.ContentType = "application/octet-stream";
+            context.Response.ContentLength = responseBytes.Length;
+            await context.Response.Body.WriteAsync(responseBytes, source.Token);
         });
     }
 
-    public static async Task AddKeyValueCommand(
-        SlimPersistentState provider,
-        string key,
-        byte[] value,
-        long? expireAtUtcTicks,
+    public static async Task<KeyValueBatchResponse> AddKeyValueBatchCommand(
+        KeyValueBatchRequest request,
         IRaftCluster cluster,
         CancellationTokenSource source)
     {
+        var requestItems = request.Items ?? Array.Empty<KeyValueBatchItem>();
+        if (requestItems.Length == 0)
+            return new KeyValueBatchResponse(Array.Empty<KeyValueCommandResult>());
+
+        var results = Enumerable.Range(0, requestItems.Length)
+            .Select(_ => new KeyValueCommandResult())
+            .ToArray();
+
         var logEntry = new LogEntry<AddKeyValueCommand>()
         {
             Term = cluster.Term,
-            Command = new() { Key = key, Value = value, ExpireAtUtcTicks = expireAtUtcTicks },
+            Command = new()
+            {
+                Items = requestItems
+                    .Select(item => new AddKeyValueCommand.BatchItem
+                    {
+                        Operation = item.Operation,
+                        Key = item.Key,
+                        Value = item.Value ?? Array.Empty<byte>(),
+                        ExpireAtUtcTicks = item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
+                        IntegerDelta = item.IntegerDelta,
+                        FloatDelta = item.FloatDelta,
+                        NowTicks = item.NowTicks
+                    })
+                    .ToList()
+            },
+            Context = new KeyValueCommandBatchContext(results)
         };
 
-        await SafeReplicateAsync(cluster, logEntry, source.Token);
+        var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
+        if (!success)
+        {
+            SetNotCommitted(results, "Command was not committed by the Raft quorum.");
+            return new KeyValueBatchResponse(results);
+        }
+
+        var delayMs = 1;
+        for (var i = 0; i < 10 && results.Any(result => result.Status == KeyValueCommandStatus.None); i++)
+        {
+            await Task.Delay(delayMs, source.Token);
+            delayMs = Math.Min(32, delayMs * 2);
+        }
+
+        SetNotCommitted(results, "Command result was not produced by the local state machine.");
+        return new KeyValueBatchResponse(results);
+    }
+
+    private static void SetNotCommitted(KeyValueCommandResult[] results, string message)
+    {
+        foreach (var result in results)
+        {
+            if (result.Status == KeyValueCommandStatus.None)
+                result.SetError(KeyValueCommandStatus.NotCommitted, message);
+        }
     }
 
     public static async Task DeleteKeyValueAsync(HttpContext context)
@@ -624,7 +639,8 @@ public class Endpoints
         var logEntry = new LogEntry<DeleteKeyValueCommand>
         {
             Term = cluster.Term,
-            Command = new() { Key = key }
+            Command = new() { Key = key },
+            Context = new CommandApplyContext()
         };
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);

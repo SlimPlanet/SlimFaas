@@ -15,57 +15,7 @@ public struct AddHashSetCommand : ICommand<AddHashSetCommand>
 
     public long? ExpireAtUtcTicks { get; set; }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            var key = Key ?? string.Empty;
-
-            long result = 0;
-
-            // Key: [int32 length][utf8 bytes]
-            result += sizeof(int) + Encoding.UTF8.GetByteCount(key);
-
-            // hasTTL: byte
-            result += sizeof(byte);
-
-            // ExpireAtUtcTicks: int64 if present
-            if (ExpireAtUtcTicks.HasValue)
-                result += sizeof(long);
-
-            // count: int32
-            int count = Value?.Count ?? 0;
-            result += sizeof(int);
-
-            if (count > 0)
-            {
-                foreach (var kv in Value!)
-                {
-                    // entry key: [int32 length][utf8 bytes]
-                    var entryKey = kv.Key ?? string.Empty;
-                    result += sizeof(int) + Encoding.UTF8.GetByteCount(entryKey);
-
-                    // entry value: [7-bit length][bytes] (LengthFormat.Compressed)
-                    int valueLen = kv.Value.Length;
-                    result += Get7BitEncodedIntSize(valueLen) + valueLen;
-                }
-            }
-
-            return result;
-        }
-    }
-
-    private static int Get7BitEncodedIntSize(int value)
-    {
-        uint v = (uint)value;
-        int size = 1;
-        while (v >= 0x80)
-        {
-            size++;
-            v >>= 7;
-        }
-        return size;
-    }
+    long? IDataTransferObject.Length => null;
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter

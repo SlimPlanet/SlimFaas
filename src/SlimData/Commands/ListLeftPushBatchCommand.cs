@@ -23,55 +23,7 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
         public ReadOnlyMemory<byte> Value { get; set; }
     }
 
-    long? IDataTransferObject.Length
-    {
-        get
-        {
-            long total = sizeof(int); // count Items
-            if (Items is null) return total;
-
-            foreach (var it in Items)
-            {
-                // Strings: [int32 length][utf8 bytes] (LengthFormat.LittleEndian)
-                var key = it.Key ?? string.Empty;
-                total += sizeof(int) + Encoding.UTF8.GetByteCount(key);
-
-                var identifier = it.Identifier ?? string.Empty;
-                total += sizeof(int) + Encoding.UTF8.GetByteCount(identifier);
-
-                // Scalars
-                total += sizeof(long); // NowTicks
-                total += sizeof(int);  // RetryTimeout
-
-                // Payload: [7-bit length][bytes] (LengthFormat.Compressed)
-                int valueLen = it.Value.Length;
-                total += Get7BitEncodedIntSize(valueLen) + valueLen;
-
-                // Retries: [int32 count][int32...]
-                int retriesCount = it.Retries?.Count ?? 0;
-                total += sizeof(int) + (long)retriesCount * sizeof(int);
-
-                // HttpStatusCodesWorthRetrying: [int32 count][int32...]
-                int httpCount = it.HttpStatusCodesWorthRetrying?.Count ?? 0;
-                total += sizeof(int) + (long)httpCount * sizeof(int);
-            }
-
-            return total;
-        }
-    }
-
-    private static int Get7BitEncodedIntSize(int value)
-    {
-        // Length is non-negative, but we cast to uint for safety.
-        uint v = (uint)value;
-        int size = 1;
-        while (v >= 0x80)
-        {
-            size++;
-            v >>= 7;
-        }
-        return size;
-    }
+    long? IDataTransferObject.Length => null;
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : IAsyncBinaryWriter

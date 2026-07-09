@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Text;
 using DotNext;
 using DotNext.Buffers;
 using DotNext.Diagnostics;
@@ -16,6 +17,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using SlimFaas.Database;
 using SlimFaas;
+using SlimData.Commands;
 
 namespace SlimData.Tests;
 
@@ -230,16 +232,99 @@ public class RaftClusterTests
         Assert.True(await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host2).LocalMemberAddress));
         await GetLocalClusterView(host2).Readiness.WaitAsync(DefaultTimeout);
 
-        Assert.True(await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host3).LocalMemberAddress));
+        IDatabaseService databaseServiceMaster = host1.Services.GetRequiredService<IDatabaseService>();
+        async Task<bool> AddThirdMemberAsync() =>
+            await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host3).LocalMemberAddress);
+
+        var addThirdMemberTask = AddThirdMemberAsync();
+        var concurrentWritesDuringMemberAdd = Enumerable.Range(0, 5)
+            .Select(i => databaseServiceMaster.SetAsync(
+                $"member-add-kv-{i}",
+                Encoding.UTF8.GetBytes(i.ToString())))
+            .ToArray();
+
+        Assert.True(await addThirdMemberTask);
+        await Task.WhenAll(concurrentWritesDuringMemberAdd);
         await GetLocalClusterView(host3).Readiness.WaitAsync(DefaultTimeout);
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+
+        for (var i = 0; i < concurrentWritesDuringMemberAdd.Length; i++)
+            Assert.Equal(i.ToString(), Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync($"member-add-kv-{i}") ?? []));
 
         IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
-        IDatabaseService databaseServiceMaster = host1.Services.GetRequiredService<IDatabaseService>();
 
         await databaseServiceSlave.SetAsync("key1", MemoryPackSerializer.Serialize("value1") );
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceMaster.GetAsync("key1")));
         await GetLocalClusterView(host1).ForceReplicationAsync();
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceSlave.GetAsync("key1")));
+
+        var incrementResult = await databaseServiceSlave.SetAsync(
+            "counter1",
+            operation: KeyValueOperation.IncrementInteger,
+            integerDelta: 1);
+        Assert.Equal(KeyValueCommandStatus.Applied, incrementResult.Status);
+        Assert.Equal(1L, incrementResult.IntegerValue);
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        Assert.Equal("1", Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync("counter1") ?? []));
+
+        const int parallelIncrements = 20;
+        var incrementTasks = Enumerable.Range(0, parallelIncrements)
+            .Select(_ => databaseServiceSlave.SetAsync(
+                "counter-batch",
+                operation: KeyValueOperation.IncrementInteger,
+                integerDelta: 1))
+            .ToArray();
+
+        var batchResults = await Task.WhenAll(incrementTasks);
+        Assert.All(batchResults, result => Assert.Equal(KeyValueCommandStatus.Applied, result.Status));
+        Assert.Equal(
+            Enumerable.Range(1, parallelIncrements).Select(i => (long)i),
+            batchResults.Select(result => result.IntegerValue!.Value).OrderBy(value => value));
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        Assert.Equal(parallelIncrements.ToString(), Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync("counter-batch") ?? []));
+
+        using (var source = new CancellationTokenSource(DefaultTimeout))
+        {
+            var leaderCluster = host1.Services.GetRequiredService<IRaftCluster>();
+            var nowTicks = DateTime.UtcNow.Ticks;
+            var mixedResponse = await Endpoints.AddKeyValueBatchCommand(
+                new KeyValueBatchRequest([
+                    new KeyValueBatchItem(
+                        KeyValueOperation.Set,
+                        "kv-batch-a",
+                        Encoding.UTF8.GetBytes("a"),
+                        null,
+                        0,
+                        0,
+                        nowTicks),
+                    new KeyValueBatchItem(
+                        KeyValueOperation.IncrementInteger,
+                        "kv-batch-b",
+                        Array.Empty<byte>(),
+                        null,
+                        7,
+                        0,
+                        nowTicks),
+                    new KeyValueBatchItem(
+                        KeyValueOperation.Set,
+                        "kv-batch-c",
+                        Encoding.UTF8.GetBytes("c"),
+                        null,
+                        0,
+                        0,
+                        nowTicks)
+                ]),
+                leaderCluster,
+                source);
+
+            Assert.All(mixedResponse.Results, result => Assert.Equal(KeyValueCommandStatus.Applied, result.Status));
+            Assert.Equal(7L, mixedResponse.Results[1].IntegerValue);
+        }
+
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        Assert.Equal("a", Encoding.UTF8.GetString(await databaseServiceSlave.GetAsync("kv-batch-a") ?? []));
+        Assert.Equal("7", Encoding.UTF8.GetString(await databaseServiceSlave.GetAsync("kv-batch-b") ?? []));
+        Assert.Equal("c", Encoding.UTF8.GetString(await databaseServiceSlave.GetAsync("kv-batch-c") ?? []));
 
         //await databaseServiceSlave.DeleteAsync("key1");
         //Assert.Null(await databaseServiceMaster.GetAsync("key1"));

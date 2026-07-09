@@ -1,5 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
+using System.Text;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using SlimData.Commands;
 
@@ -217,48 +219,6 @@ public class SlimDataInterpreter : CommandInterpreter
     }
 
     [CommandHandler]
-    public ValueTask ListLeftPushAsync(ListLeftPushCommand listLeftPushCommand, CancellationToken token)
-        => DoListLeftPushAsync(listLeftPushCommand, SlimDataState);
-
-    internal static ValueTask DoListLeftPushAsync(ListLeftPushCommand cmd, SlimDataState state)
-    {
-        var queues = state.Queues;
-
-        var qe = new QueueElement(
-            cmd.Value,
-            cmd.Identifier,
-            cmd.NowTicks,
-            cmd.RetryTimeout,
-            cmd.Retries is null ? ImmutableArray<int>.Empty : cmd.Retries.ToImmutableArray(),
-            ImmutableArray<QueueHttpTryElement>.Empty,
-            cmd.HttpStatusCodesWorthRetrying is null ? ImmutableHashSet<int>.Empty : cmd.HttpStatusCodesWorthRetrying.ToImmutableHashSet()
-        );
-
-        if (queues.TryGetValue(cmd.Key, out var arr))
-        {
-            bool exists = false;
-            for (int i = 0; i < arr.Length; i++)
-            {
-                if (arr[i].Id == cmd.Identifier) { exists = true; break; }
-            }
-            if (!exists)
-            {
-                var b = arr.ToBuilder();
-                b.Add(qe);
-                queues = queues.SetItem(cmd.Key, b.ToImmutable());
-            }
-        }
-        else
-        {
-            queues = queues.Add(cmd.Key, ImmutableArray.Create(qe));
-        }
-
-        state.Queues = queues;
-
-        return default;
-    }
-
-    [CommandHandler]
     public ValueTask ListCallbackAsync(ListCallbackCommand addHashSetCommand, CancellationToken token)
         => DoListCallbackAsync(addHashSetCommand, SlimDataState);
 
@@ -423,16 +383,64 @@ public class SlimDataInterpreter : CommandInterpreter
     public ValueTask AddKeyValueAsync(AddKeyValueCommand valueCommand, CancellationToken token)
         => DoAddKeyValueAsync(valueCommand, SlimDataState);
 
-    internal static ValueTask DoAddKeyValueAsync(AddKeyValueCommand cmd, SlimDataState state)
+    internal static ValueTask DoAddKeyValueAsync(AddKeyValueCommand cmd, SlimDataState state, object? context = null)
+    {
+        var items = cmd.EffectiveItems();
+        for (var i = 0; i < items.Count; i++)
+        {
+            var result = ResolveKeyValueResult(context, i) ?? new KeyValueCommandResult();
+            ApplyKeyValueItem(items[i], state, result);
+        }
+
+        return default;
+    }
+
+    private static KeyValueCommandResult? ResolveKeyValueResult(object? context, int index)
+    {
+        return context switch
+        {
+            KeyValueCommandResult single when index == 0 => single,
+            KeyValueCommandBatchContext batch when index < batch.Results.Length => batch.Results[index],
+            IReadOnlyList<KeyValueCommandResult> results when index < results.Count => results[index],
+            _ => null
+        };
+    }
+
+    private static void ApplyKeyValueItem(
+        AddKeyValueCommand.BatchItem item,
+        SlimDataState state,
+        KeyValueCommandResult result)
+    {
+        switch (item.Operation)
+        {
+            case KeyValueOperation.Set:
+                DoSetKeyValue(item, state, result);
+                break;
+            case KeyValueOperation.IncrementInteger:
+                DoIncrementInteger(item, state, result);
+                break;
+            case KeyValueOperation.IncrementFloat:
+                DoIncrementFloat(item, state, result);
+                break;
+            default:
+                DoInvalidKeyValueOperation(result);
+                break;
+        }
+    }
+
+    private static void DoSetKeyValue(
+        AddKeyValueCommand.BatchItem item,
+        SlimDataState state,
+        KeyValueCommandResult result)
     {
         var keyValues = state.KeyValues;
 
-        keyValues = keyValues.SetItem(cmd.Key, cmd.Value);
+        keyValues = keyValues.SetItem(item.Key, item.Value);
         
-        var ttlKey = TtlKey(cmd.Key);
-        if (cmd.ExpireAtUtcTicks.HasValue)
+        var ttlKey = TtlKey(item.Key);
+        if (item.ExpireAtUtcTicks.HasValue)
         {
-            var bytes = BitConverter.GetBytes(cmd.ExpireAtUtcTicks.Value);
+            var bytes = BitConverter.GetBytes(item.ExpireAtUtcTicks.Value);
             keyValues = keyValues.SetItem(ttlKey, bytes);
         }
         else if (keyValues.ContainsKey(ttlKey)) {
@@ -440,8 +448,145 @@ public class SlimDataInterpreter : CommandInterpreter
         }
 
         state.KeyValues = keyValues;
-        return default;
+        result.SetApplied(item.Value);
     }
+
+    private static void DoIncrementInteger(
+        AddKeyValueCommand.BatchItem item,
+        SlimDataState state,
+        KeyValueCommandResult result)
+    {
+        var keyValues = state.KeyValues;
+        var current = 0L;
+
+        if (TryGetActiveValue(ref keyValues, item.Key, item.NowTicks, out var existing) &&
+            !TryParseInteger(existing, out current))
+        {
+            state.KeyValues = keyValues;
+            result.SetError(KeyValueCommandStatus.InvalidNumber, "Value is not an integer.");
+            return;
+        }
+
+        long next;
+        try
+        {
+            next = checked(current + item.IntegerDelta);
+        }
+        catch (OverflowException)
+        {
+            state.KeyValues = keyValues;
+            result.SetError(KeyValueCommandStatus.Overflow, "Integer increment overflow.");
+            return;
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(next.ToString(CultureInfo.InvariantCulture));
+        state.KeyValues = keyValues.SetItem(item.Key, bytes);
+        result.SetApplied(bytes, integerValue: next);
+    }
+
+    private static void DoIncrementFloat(
+        AddKeyValueCommand.BatchItem item,
+        SlimDataState state,
+        KeyValueCommandResult result)
+    {
+        var keyValues = state.KeyValues;
+        var current = 0m;
+
+        if (TryGetActiveValue(ref keyValues, item.Key, item.NowTicks, out var existing) &&
+            !TryParseDecimal(existing, out current))
+        {
+            state.KeyValues = keyValues;
+            result.SetError(KeyValueCommandStatus.InvalidNumber, "Value is not a decimal number.");
+            return;
+        }
+
+        decimal next;
+        try
+        {
+            next = checked(current + item.FloatDelta);
+        }
+        catch (OverflowException)
+        {
+            state.KeyValues = keyValues;
+            result.SetError(KeyValueCommandStatus.Overflow, "Decimal increment overflow.");
+            return;
+        }
+
+        var bytes = Encoding.UTF8.GetBytes(next.ToString("G29", CultureInfo.InvariantCulture));
+        state.KeyValues = keyValues.SetItem(item.Key, bytes);
+        result.SetApplied(bytes, decimalValue: next);
+    }
+
+    private static void DoInvalidKeyValueOperation(KeyValueCommandResult result)
+    {
+        result.SetError(KeyValueCommandStatus.InvalidNumber, "Unsupported key/value operation.");
+    }
+
+    private static bool TryGetActiveValue(
+        ref ImmutableDictionary<string, ReadOnlyMemory<byte>> keyValues,
+        string key,
+        long nowTicks,
+        out ReadOnlyMemory<byte> value)
+    {
+        var effectiveNowTicks = nowTicks > 0 ? nowTicks : DateTime.UtcNow.Ticks;
+        var ttlKey = TtlKey(key);
+        if (keyValues.TryGetValue(ttlKey, out var ttlBytes) &&
+            TryReadInt64(ttlBytes, out var expireAtTicks) &&
+            expireAtTicks <= effectiveNowTicks)
+        {
+            keyValues = keyValues.Remove(key).Remove(ttlKey);
+            value = default;
+            return false;
+        }
+
+        return keyValues.TryGetValue(key, out value);
+    }
+
+    private static bool TryReadInt64(ReadOnlyMemory<byte> bytes, out long value)
+    {
+        value = 0;
+        if (bytes.Length < sizeof(long))
+            return false;
+
+        value = BitConverter.ToInt64(bytes.Span);
+        return true;
+    }
+
+    private static bool TryParseInteger(ReadOnlyMemory<byte> bytes, out long value)
+    {
+        value = 0;
+        try
+        {
+            var text = StrictUtf8.GetString(bytes.Span);
+            return !string.IsNullOrEmpty(text) &&
+                   long.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out value);
+        }
+        catch (DecoderFallbackException)
+        {
+            return false;
+        }
+    }
+
+    private static bool TryParseDecimal(ReadOnlyMemory<byte> bytes, out decimal value)
+    {
+        value = 0;
+        try
+        {
+            var text = StrictUtf8.GetString(bytes.Span);
+            return !string.IsNullOrEmpty(text) &&
+                   decimal.TryParse(
+                       text,
+                       NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent,
+                       CultureInfo.InvariantCulture,
+                       out value);
+        }
+        catch (DecoderFallbackException)
+        {
+            return false;
+        }
+    }
+
+    private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     [CommandHandler]
     public ValueTask DeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, CancellationToken token)
@@ -497,12 +642,10 @@ public class SlimDataInterpreter : CommandInterpreter
     {
         state.KeyValues = command.keysValues.ToImmutableDictionary();
 
+        var newQueues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty;
         foreach (var q in command.queues)
-        {
-            var builder = ImmutableArray.CreateBuilder<QueueElement>();
-            var arr = builder.ToImmutable();
-            state.Queues = state.Queues.SetItem(q.Key, arr);
-        }
+            newQueues = newQueues.SetItem(q.Key, q.Value.ToImmutableArray());
+        state.Queues = newQueues;
 
         var newHashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
         foreach (var hs in command.hashsets)
@@ -523,11 +666,11 @@ public class SlimDataInterpreter : CommandInterpreter
             IdTransaction = c.IdTransaction,
             ReservedIps = []
         }, state);
-        ValueTask ListLeftPushHandler(ListLeftPushCommand c, CancellationToken t) => DoListLeftPushAsync(c, state);
         ValueTask ListLeftPushBatchHandler(ListLeftPushBatchCommand c, CancellationToken t) => DoListLeftPushBatchAsync(c, state);
         ValueTask AddHashSetHandler(AddHashSetCommand c, CancellationToken t) => DoAddHashSetAsync(c, state);
         ValueTask DeleteHashSetHandler(DeleteHashSetCommand c, CancellationToken t) => DoDeleteHashSetAsync(c, state);
-        ValueTask AddKeyValueHandler(AddKeyValueCommand c, CancellationToken t) => DoAddKeyValueAsync(c, state);
+        ValueTask AddKeyValueHandler(AddKeyValueCommand c, object? context, CancellationToken t) =>
+            DoAddKeyValueAsync(c, state, context);
         ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand c, CancellationToken t) => DoDeleteKeyValueAsync(c, state);
         ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand c, CancellationToken t) => DoListCallbackAsync(c, state);
         ValueTask ListCallbackBatchHandler(ListCallbackBatchCommand c, CancellationToken t) => DoListCallbackBatchAsync(c, state);
@@ -536,11 +679,10 @@ public class SlimDataInterpreter : CommandInterpreter
         var interpreter = new Builder()
             .Add(new Func<ListRightPopCommand, CancellationToken, ValueTask>(ListRightPopHandler))
             .Add(new Func<ListRightPopCommandLegacy, CancellationToken, ValueTask>(ListRightPopLegacyHandler))
-            .Add(new Func<ListLeftPushCommand, CancellationToken, ValueTask>(ListLeftPushHandler))
             .Add(new Func<ListLeftPushBatchCommand, CancellationToken, ValueTask>(ListLeftPushBatchHandler))
             .Add(new Func<AddHashSetCommand, CancellationToken, ValueTask>(AddHashSetHandler))
             .Add(new Func<DeleteHashSetCommand, CancellationToken, ValueTask>(DeleteHashSetHandler))
-            .Add(new Func<AddKeyValueCommand, CancellationToken, ValueTask>(AddKeyValueHandler))
+            .Add(new Func<AddKeyValueCommand, object?, CancellationToken, ValueTask>(AddKeyValueHandler))
             .Add(new Func<DeleteKeyValueCommand, CancellationToken, ValueTask>(DeleteKeyValueHandler))
             .Add(new Func<ListCallbackCommand, CancellationToken, ValueTask>(ListSetQueueItemStatusAsync))
             .Add(new Func<ListCallbackBatchCommand, CancellationToken, ValueTask>(ListCallbackBatchHandler))
