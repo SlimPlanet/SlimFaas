@@ -4,7 +4,6 @@ using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
-using DotNext.Text;
 using SlimData.Commands;
 
 namespace SlimData.Tests;
@@ -127,7 +126,58 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
-    public async Task WriteAheadLog_applies_legacy_operation_first_key_value_command()
+    public async Task ApplyAsync_skips_incompatible_key_value_entry()
+    {
+        var root = GetTemporaryDirectory();
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            var result = new KeyValueCommandResult();
+            var context = new KeyValueCommandBatchContext([result]);
+            var entry = CreateStateMachineEntry(
+                new LegacyAddKeyValueLogEntry([(byte)KeyValueOperation.Set]),
+                index: 2L,
+                context: context);
+
+            var shouldSnapshot = await InvokeApplyAsync(state, entry);
+
+            Assert.True(shouldSnapshot);
+            Assert.Empty(state.SlimDataState.KeyValues);
+            Assert.Equal(KeyValueCommandStatus.NotCommitted, result.Status);
+            Assert.Equal("Skipped incompatible key/value log entry.", result.ErrorMessage);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyAsync_keeps_non_key_value_parse_failures_explicit()
+    {
+        var root = GetTemporaryDirectory();
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            var entry = CreateStateMachineEntry(
+                new InvalidApplicationLogEntry(AddHashSetCommand.Id, [0]),
+                index: 2L);
+
+            await Assert.ThrowsAnyAsync<Exception>(
+                async () => await InvokeApplyAsync(state, entry));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WriteAheadLog_skips_incompatible_key_value_entries()
     {
         var root = GetTemporaryDirectory();
         var walPath = Path.Combine(root, "wal");
@@ -137,20 +187,14 @@ public sealed class SlimPersistentStateTests
             await using var state = new SlimPersistentState(root);
             await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
 
-            var payload = await SerializeLegacyOperationFirstSetAsync(
-                "legacy-wal-key",
-                "legacy-wal-value");
-            Assert.Equal((byte)KeyValueOperation.Set, payload[0]);
-
             var index = await wal.AppendAsync(
-                new LegacyAddKeyValueLogEntry(payload),
+                new LegacyAddKeyValueLogEntry([(byte)KeyValueOperation.Set]),
                 CancellationToken.None);
             await wal.CommitAsync(index, CancellationToken.None);
-            await wal.WaitForApplyAsync(index, CancellationToken.None);
+            using var applyTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await wal.WaitForApplyAsync(index, applyTimeout.Token);
 
-            Assert.Equal(
-                "legacy-wal-value",
-                Encoding.UTF8.GetString(state.SlimDataState.KeyValues["legacy-wal-key"].Span));
+            Assert.Empty(state.SlimDataState.KeyValues);
         }
         finally
         {
@@ -167,7 +211,11 @@ public sealed class SlimPersistentStateTests
         await wal.WaitForApplyAsync(index, CancellationToken.None);
     }
 
-    private static LogEntry CreateStateMachineEntry(IRaftLogEntry entry, long index, bool isConfiguration = false)
+    private static LogEntry CreateStateMachineEntry(
+        IRaftLogEntry entry,
+        long index,
+        bool isConfiguration = false,
+        object? context = null)
     {
         var constructor = typeof(LogEntry).GetConstructor(
             BindingFlags.Instance | BindingFlags.NonPublic,
@@ -177,16 +225,30 @@ public sealed class SlimPersistentStateTests
 
         Assert.NotNull(constructor);
         var stateMachineEntry = (LogEntry)constructor.Invoke([entry, index]);
-        if (!isConfiguration)
+        if (!isConfiguration && context is null)
             return stateMachineEntry;
 
         var boxedEntry = (object)stateMachineEntry;
-        var configurationField = typeof(LogEntry).GetField(
-            "<IsConfiguration>k__BackingField",
-            BindingFlags.Instance | BindingFlags.NonPublic);
+        if (isConfiguration)
+        {
+            var configurationField = typeof(LogEntry).GetField(
+                "<IsConfiguration>k__BackingField",
+                BindingFlags.Instance | BindingFlags.NonPublic);
 
-        Assert.NotNull(configurationField);
-        configurationField.SetValue(boxedEntry, true);
+            Assert.NotNull(configurationField);
+            configurationField.SetValue(boxedEntry, true);
+        }
+
+        if (context is not null)
+        {
+            var contextField = typeof(LogEntry).GetField(
+                "<Context>k__BackingField",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
+            Assert.NotNull(contextField);
+            contextField.SetValue(boxedEntry, context);
+        }
+
         return (LogEntry)boxedEntry;
     }
 
@@ -198,35 +260,6 @@ public sealed class SlimPersistentStateTests
 
         Assert.NotNull(method);
         return await (ValueTask<bool>)method.Invoke(state, [entry, CancellationToken.None])!;
-    }
-
-    private static async Task<byte[]> SerializeLegacyOperationFirstSetAsync(string key, string value)
-    {
-        await using var stream = new MemoryStream();
-        var writer = IAsyncBinaryWriter.Create(stream, new byte[256]);
-
-        await writer.WriteLittleEndianAsync((byte)KeyValueOperation.Set, CancellationToken.None);
-        await writer.EncodeAsync(
-                key.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                CancellationToken.None)
-            .ConfigureAwait(false);
-
-        await writer.WriteLittleEndianAsync(DateTime.UtcNow.Ticks, CancellationToken.None);
-        await writer.WriteLittleEndianAsync((byte)0, CancellationToken.None);
-        await writer.WriteLittleEndianAsync(0L, CancellationToken.None);
-
-        var decimalBits = decimal.GetBits(0m);
-        foreach (var bit in decimalBits)
-            await writer.WriteLittleEndianAsync(bit, CancellationToken.None);
-
-        await writer.WriteAsync(
-            Encoding.UTF8.GetBytes(value),
-            LengthFormat.Compressed,
-            CancellationToken.None);
-
-        return stream.ToArray();
     }
 
     private sealed class InvalidConfigurationLogEntry : IRaftLogEntry
@@ -249,6 +282,20 @@ public sealed class SlimPersistentStateTests
     {
         public long Term => 1L;
         public int? CommandId => AddKeyValueCommand.Id;
+        public bool IsConfiguration => false;
+        public bool IsSnapshot => false;
+        public bool IsReusable => true;
+        public long? Length => payload.Length;
+
+        public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
+            where TWriter : notnull, IAsyncBinaryWriter
+            => writer.Invoke(payload, token);
+    }
+
+    private sealed class InvalidApplicationLogEntry(int commandId, byte[] payload) : IRaftLogEntry
+    {
+        public long Term => 1L;
+        public int? CommandId => commandId;
         public bool IsConfiguration => false;
         public bool IsSnapshot => false;
         public bool IsReusable => true;

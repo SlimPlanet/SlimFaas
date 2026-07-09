@@ -4,6 +4,7 @@ using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
+using Microsoft.Extensions.Logging;
 using SlimData.Commands;
 
 namespace SlimData;
@@ -12,25 +13,39 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
 {
     public const string LogLocation = "SlimData:LogLocation";
     public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
+    private const string SkippedIncompatibleKeyValueMessage =
+        "Skipped incompatible key/value log entry.";
 
     private readonly SlimDataState _state = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
         ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
+    private readonly ILogger<SlimPersistentState>? _logger;
 
     public SlimPersistentState(string location)
-        : this(new DirectoryInfo(Path.GetFullPath(Path.Combine(NormalizeLocation(location), "db"))))
+        : this(location, null)
+    {
+    }
+
+    public SlimPersistentState(string location, ILogger<SlimPersistentState>? logger)
+        : this(new DirectoryInfo(Path.GetFullPath(Path.Combine(NormalizeLocation(location), "db"))), logger)
     {
     }
 
     public SlimPersistentState(IConfiguration configuration)
-        : this(configuration[LogLocation] ?? string.Empty)
+        : this(configuration, null)
     {
     }
 
-    private SlimPersistentState(DirectoryInfo location)
+    public SlimPersistentState(IConfiguration configuration, ILogger<SlimPersistentState>? logger)
+        : this(configuration[LogLocation] ?? string.Empty, logger)
+    {
+    }
+
+    private SlimPersistentState(DirectoryInfo location, ILogger<SlimPersistentState>? logger)
         : base(location)
     {
+        _logger = logger;
         Interpreter = SlimDataInterpreter.InitInterpreter(_state);
     }
 
@@ -62,6 +77,9 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         }
         catch (InvalidDataException ex)
         {
+            if (TrySkipIncompatibleKeyValueEntry(entry, ex))
+                return true;
+
             throw new InvalidDataException(
                 $"Failed to interpret SlimData Raft log entry. Index={entry.Index}, Term={entry.Term}, CommandId={entry.CommandId?.ToString() ?? "null"}, IsConfiguration={entry.IsConfiguration}, IsSnapshot={entry.IsSnapshot}, Length={entry.Length?.ToString() ?? "null"}.",
                 ex);
@@ -71,6 +89,55 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
             applyContext.SetApplied();
 
         return entry.Index % 1000L is 0;
+    }
+
+    private bool TrySkipIncompatibleKeyValueEntry(LogEntry entry, InvalidDataException exception)
+    {
+        if (entry.CommandId != AddKeyValueCommand.Id)
+            return false;
+
+        _logger?.LogWarning(
+            exception,
+            "Skipping incompatible SlimData key/value Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, IsConfiguration={IsConfiguration}, IsSnapshot={IsSnapshot}, Length={Length}",
+            entry.Index,
+            entry.Term,
+            entry.CommandId,
+            entry.IsConfiguration,
+            entry.IsSnapshot,
+            entry.Length);
+
+        MarkSkippedContext(entry.Context);
+        return true;
+    }
+
+    private static void MarkSkippedContext(object? context)
+    {
+        switch (context)
+        {
+            case CommandApplyContext applyContext:
+                applyContext.SetApplied();
+                break;
+
+            case KeyValueCommandResult result:
+                SetSkipped(result);
+                break;
+
+            case KeyValueCommandBatchContext batchContext:
+                foreach (var result in batchContext.Results)
+                    SetSkipped(result);
+                break;
+
+            case IReadOnlyList<KeyValueCommandResult> results:
+                foreach (var result in results)
+                    SetSkipped(result);
+                break;
+        }
+    }
+
+    private static void SetSkipped(KeyValueCommandResult result)
+    {
+        if (result.Status == KeyValueCommandStatus.None)
+            result.SetError(KeyValueCommandStatus.NotCommitted, SkippedIncompatibleKeyValueMessage);
     }
 
     protected override async ValueTask PersistAsync(IAsyncBinaryWriter writer, CancellationToken token)
