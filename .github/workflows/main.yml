@@ -142,6 +142,7 @@ jobs:
     outputs:
       new_version: ${{ steps.tag.outputs.new_version }}
       tag: ${{ steps.tag.outputs.tag }}
+      npm_tag: ${{ steps.tag.outputs.npm_tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -209,6 +210,13 @@ jobs:
           fi
           tag=${{ steps.which_tag.outputs.tag }}
           echo "tag=$tag" >> $GITHUB_OUTPUT
+          if [[ "$tag" = 'release' ]]; then
+            echo "npm_tag=latest" >> $GITHUB_OUTPUT
+          elif [[ "$tag" = 'default' ]]; then
+            echo "npm_tag=dev" >> $GITHUB_OUTPUT
+          else
+            echo "npm_tag=$tag" >> $GITHUB_OUTPUT
+          fi
 
   build_slimfaas:
     needs: tags
@@ -475,10 +483,11 @@ jobs:
         working-directory: ./src/SlimFaasPlanetSaver
 
       - id: Publish
-        uses: JS-DevTools/npm-publish@v3
+        uses: JS-DevTools/npm-publish@v4
         with:
           token: ${{ secrets.NPM_TOKEN }}
           package: ./src/SlimFaasPlanetSaver/package.json
+          tag: ${{ needs.tags.outputs.npm_tag }}
 
   deploy_website:
     runs-on: ubuntu-latest
