@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.74.0
+
+- [b78130ce](https://github.com/SlimPlanet/SlimFaas/commit/b78130ce74d825271e68f7a7a534e674f4d988f9) - refactor: upgrade npm (#287) (release), 2026-07-09 by *Guillaume Chervet*
+- [51fbc12b](https://github.com/SlimPlanet/SlimFaas/commit/51fbc12b88ff43261ada6fa568ed06cb3feaa207) - feat(set): add redis like commands for caching (#286), 2026-07-09 by *Guillaume Chervet*
+- [ad658f79](https://github.com/SlimPlanet/SlimFaas/commit/ad658f796b8cc53722ee6ab1c6666b43c622924d) - fix: resolve issue 284 (#285), 2026-07-03 by *Guillaume Chervet*
+
+
+## 0.73.1
+
+
+
 ## v0.73.1
 
 - [36efd0dc](https://github.com/SlimPlanet/SlimFaas/commit/36efd0dc38884bf42056a72a5d3f2706f6c33667) - fix(#281): Remove AsyncBodyOffloadThresholdBytes configurability and clean up related code (#282) (release), 2026-07-03 by *Guillaume Chervet*
@@ -264,15 +275,5 @@
 ## v0.61.8
 
 - [38c2259a](https://github.com/SlimPlanet/SlimFaas/commit/38c2259ab71a3cf8e235b2e48882f4de2400daa6) - fix: use native builds with QEMU emulation for AOT multi-platform (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.7
-
-- [c153a31b](https://github.com/SlimPlanet/SlimFaas/commit/c153a31baa1ed3bf91f1c03b676f0f2e5ebfaf47) - fix: enable AOT cross-compilation with Clang and LLD (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.6
-
-- [f22cfde0](https://github.com/SlimPlanet/SlimFaas/commit/f22cfde0d556933a8a61959cbb1ab0d033fb86c6) - fix: enable AOT cross-compilation for multi-platform builds (release), 2026-02-06 by *Guillaume Chervet*
 
 
