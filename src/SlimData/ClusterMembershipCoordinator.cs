@@ -63,6 +63,20 @@ public sealed class ClusterMembershipCoordinator(
                         protocol.Reason);
                     return false;
                 }
+
+                if (protocol.AssemblyVersion is { } assemblyVersion &&
+                    !string.Equals(
+                        assemblyVersion,
+                        Commands.SlimDataCommandProtocol.AssemblyVersion,
+                        StringComparison.Ordinal))
+                {
+                    logger.LogInformation(
+                        "Adding SlimData member from a different compatible build during rolling update. Endpoint={Endpoint}, Protocol={Protocol}, LocalAssemblyVersion={LocalAssemblyVersion}, RemoteAssemblyVersion={RemoteAssemblyVersion}",
+                        endpoint,
+                        protocol.Protocol,
+                        Commands.SlimDataCommandProtocol.AssemblyVersion,
+                        assemblyVersion);
+                }
             }
 
             logger.LogInformation(

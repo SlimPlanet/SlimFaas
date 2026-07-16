@@ -41,13 +41,9 @@ public sealed class SlimDataProtocolTests
     }
 
     [Theory]
-    [InlineData(null, null)]
-    [InlineData("SLDC/0", "other-build")]
-    [InlineData("SLDC/1", null)]
-    [InlineData("SLDC/1", "other-build")]
-    public async Task Membership_announcement_rejects_an_incompatible_protocol_or_build(
-        string? protocol,
-        string? assemblyVersion)
+    [InlineData(null)]
+    [InlineData("SLDC/0")]
+    public async Task Membership_announcement_rejects_an_incompatible_protocol(string? protocol)
     {
         var services = new ServiceCollection()
             .AddSingleton(new SlimDataInfo(3262))
@@ -56,8 +52,6 @@ public sealed class SlimDataProtocolTests
         context.Connection.LocalPort = 3262;
         if (protocol is not null)
             context.Request.Headers[SlimDataCommandProtocol.HeaderName] = protocol;
-        if (assemblyVersion is not null)
-            context.Request.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName] = assemblyVersion;
 
         await Endpoints.AnnounceMemberAsync(context);
 
@@ -68,6 +62,28 @@ public sealed class SlimDataProtocolTests
         Assert.Equal(
             SlimDataCommandProtocol.AssemblyVersion,
             context.Response.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName].ToString());
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("1.0.0+other-build")]
+    public async Task Membership_announcement_accepts_a_compatible_protocol_from_another_build(
+        string? assemblyVersion)
+    {
+        var services = new ServiceCollection()
+            .AddSingleton(new SlimDataInfo(3262))
+            .BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Connection.LocalPort = 3262;
+        context.Request.Headers[SlimDataCommandProtocol.HeaderName] = SlimDataCommandProtocol.Current;
+        if (assemblyVersion is not null)
+            context.Request.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName] = assemblyVersion;
+
+        await Endpoints.AnnounceMemberAsync(context);
+
+        // The request reaches endpoint validation; it is rejected only because this unit request
+        // intentionally omits the candidate endpoint query parameter.
+        Assert.Equal(StatusCodes.Status403Forbidden, context.Response.StatusCode);
     }
 
     [Fact]
@@ -125,8 +141,10 @@ public sealed class SlimDataProtocolTests
         Assert.Equal(expected, result.IsCompatible);
     }
 
-    [Fact]
-    public async Task Protocol_probe_rejects_a_different_assembly_build()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("1.0.0+different-commit")]
+    public async Task Protocol_probe_accepts_a_different_or_missing_assembly_build(string? assemblyVersion)
     {
         var factory = CreateHttpClientFactory(_ =>
         {
@@ -137,9 +155,12 @@ public sealed class SlimDataProtocolTests
             response.Headers.TryAddWithoutValidation(
                 SlimDataCommandProtocol.HeaderName,
                 SlimDataCommandProtocol.Current);
-            response.Headers.TryAddWithoutValidation(
-                SlimDataCommandProtocol.AssemblyVersionHeaderName,
-                "1.0.0+different-commit");
+            if (assemblyVersion is not null)
+            {
+                response.Headers.TryAddWithoutValidation(
+                    SlimDataCommandProtocol.AssemblyVersionHeaderName,
+                    assemblyVersion);
+            }
             return response;
         });
 
@@ -148,12 +169,13 @@ public sealed class SlimDataProtocolTests
             new Uri("http://localhost:3263/"),
             CancellationToken.None);
 
-        Assert.False(result.IsCompatible);
-        Assert.Contains("different-commit", result.Reason, StringComparison.Ordinal);
+        Assert.True(result.IsCompatible);
+        Assert.False(result.IsUnavailable);
+        Assert.Equal(assemblyVersion, result.AssemblyVersion);
     }
 
     [Fact]
-    public async Task Protocol_probe_treats_an_unreachable_node_as_incompatible()
+    public async Task Protocol_probe_treats_an_unreachable_node_as_unavailable()
     {
         var factory = CreateHttpClientFactory(_ => throw new HttpRequestException("connection refused"));
 
@@ -163,7 +185,25 @@ public sealed class SlimDataProtocolTests
             CancellationToken.None);
 
         Assert.False(result.IsCompatible);
+        Assert.True(result.IsUnavailable);
         Assert.Contains("unreachable", result.Reason, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.RequestTimeout)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task Protocol_probe_treats_transient_http_errors_as_unavailable(HttpStatusCode statusCode)
+    {
+        var factory = CreateHttpClientFactory(_ => new HttpResponseMessage(statusCode));
+
+        var result = await SlimDataProtocolClient.ProbeAsync(
+            factory,
+            new Uri("http://localhost:3263/"),
+            CancellationToken.None);
+
+        Assert.False(result.IsCompatible);
+        Assert.True(result.IsUnavailable);
     }
 
     [Fact]
@@ -228,7 +268,7 @@ public sealed class SlimDataProtocolTests
                 SlimDataCommandProtocol.Current);
             response.Headers.TryAddWithoutValidation(
                 SlimDataCommandProtocol.AssemblyVersionHeaderName,
-                SlimDataCommandProtocol.AssemblyVersion);
+                "1.0.0+rolling-update-build");
             return response;
         });
         var coordinator = new ClusterMembershipCoordinator(
@@ -247,6 +287,32 @@ public sealed class SlimDataProtocolTests
         cluster.Verify(
             x => x.AddMemberAsync(endpoint, It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    [Fact]
+    public async Task Local_leader_remains_compatible_while_a_follower_is_temporarily_unavailable()
+    {
+        var member = new Mock<IRaftClusterMember>(MockBehavior.Strict);
+        member.SetupGet(x => x.EndPoint).Returns(new UriEndPoint(new Uri("http://localhost:3263/")));
+        var cluster = new Mock<IRaftHttpCluster>(MockBehavior.Strict);
+        cluster.SetupGet(x => x.LeadershipToken).Returns(CancellationToken.None);
+        cluster.SetupGet(x => x.LocalMemberAddress).Returns(new Uri("http://localhost:3262/"));
+        cluster.As<IRaftCluster>()
+            .SetupGet(x => x.Members)
+            .Returns([member.Object]);
+        var factory = CreateHttpClientFactory(_ => throw new HttpRequestException("pod restarting"));
+        var compatibility = new SlimDataProtocolCompatibility(
+            NullLogger<SlimDataProtocolCompatibility>.Instance);
+        var worker = new SlimDataProtocolCompatibilityWorker(
+            cluster.Object,
+            factory,
+            compatibility,
+            NullLogger<SlimDataProtocolCompatibilityWorker>.Instance);
+
+        await worker.CheckAsync(CancellationToken.None);
+
+        Assert.True(compatibility.IsCompatible);
+        Assert.Contains("UnavailableMembers=1", compatibility.Reason, StringComparison.Ordinal);
     }
 
     [Fact]

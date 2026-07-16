@@ -54,7 +54,8 @@ internal readonly record struct SlimDataProtocolProbeResult(
     bool IsCompatible,
     string Reason,
     string? Protocol = null,
-    string? AssemblyVersion = null);
+    string? AssemblyVersion = null,
+    bool IsUnavailable = false);
 
 internal static class SlimDataProtocolClient
 {
@@ -72,11 +73,17 @@ internal static class SlimDataProtocolClient
         }
         catch (HttpRequestException ex)
         {
-            return new SlimDataProtocolProbeResult(false, $"Protocol endpoint is unreachable: {ex.Message}");
+            return new SlimDataProtocolProbeResult(
+                false,
+                $"Protocol endpoint is unreachable: {ex.Message}",
+                IsUnavailable: true);
         }
         catch (IOException ex)
         {
-            return new SlimDataProtocolProbeResult(false, $"Protocol response could not be read: {ex.Message}");
+            return new SlimDataProtocolProbeResult(
+                false,
+                $"Protocol response could not be read: {ex.Message}",
+                IsUnavailable: true);
         }
     }
 
@@ -92,9 +99,11 @@ internal static class SlimDataProtocolClient
 
         if (!response.IsSuccessStatusCode)
         {
+            var statusCode = (int)response.StatusCode;
             return new SlimDataProtocolProbeResult(
                 false,
-                $"Protocol endpoint returned HTTP {(int)response.StatusCode}.");
+                $"Protocol endpoint returned HTTP {statusCode}.",
+                IsUnavailable: statusCode is 408 or 429 || statusCode >= 500);
         }
 
         if (response.Content.Headers.ContentLength is > MaxProtocolResponseLength)
@@ -127,24 +136,27 @@ internal static class SlimDataProtocolClient
             : null;
 
         if (!string.Equals(protocol, SlimDataCommandProtocol.Current, StringComparison.Ordinal) ||
-            !string.Equals(headerProtocol, SlimDataCommandProtocol.Current, StringComparison.Ordinal) ||
-            !string.Equals(
-                assemblyVersion,
-                SlimDataCommandProtocol.AssemblyVersion,
-                StringComparison.Ordinal))
+            !string.Equals(headerProtocol, SlimDataCommandProtocol.Current, StringComparison.Ordinal))
         {
             return new SlimDataProtocolProbeResult(
                 false,
-                $"Remote protocol is '{protocol}', header is '{headerProtocol ?? "missing"}', " +
-                $"and assembly is '{assemblyVersion ?? "missing"}'; expected assembly " +
-                $"'{SlimDataCommandProtocol.AssemblyVersion}'.",
+                $"Remote protocol is '{protocol}' and header is '{headerProtocol ?? "missing"}'.",
                 protocol,
                 assemblyVersion);
         }
 
+        var buildReason = assemblyVersion switch
+        {
+            null => "Remote assembly version was not reported.",
+            var version when string.Equals(
+                version,
+                SlimDataCommandProtocol.AssemblyVersion,
+                StringComparison.Ordinal) => "Remote assembly build matches.",
+            _ => $"Remote assembly '{assemblyVersion}' differs but uses a compatible protocol."
+        };
         return new SlimDataProtocolProbeResult(
             true,
-            "Remote protocol endpoint matches.",
+            $"Remote protocol endpoint matches. {buildReason}",
             protocol,
             assemblyVersion);
     }
@@ -201,6 +213,8 @@ internal sealed class SlimDataProtocolCompatibilityWorker(
     {
         if (!cluster.LeadershipToken.IsCancellationRequested)
         {
+            var unavailableMembers = 0;
+            var differentBuilds = 0;
             foreach (var member in ((IRaftCluster)cluster).Members)
             {
                 if (member.EndPoint is not UriEndPoint endpoint)
@@ -214,6 +228,12 @@ internal sealed class SlimDataProtocolCompatibilityWorker(
                         endpoint.Uri,
                         token)
                     .ConfigureAwait(false);
+                if (memberProtocol.IsUnavailable)
+                {
+                    unavailableMembers++;
+                    continue;
+                }
+
                 if (!memberProtocol.IsCompatible)
                 {
                     compatibility.Update(
@@ -222,12 +242,22 @@ internal sealed class SlimDataProtocolCompatibilityWorker(
                         $"Raft member protocol check failed: {memberProtocol.Reason}");
                     return;
                 }
+
+                if (memberProtocol.AssemblyVersion is { } assemblyVersion &&
+                    !string.Equals(
+                        assemblyVersion,
+                        SlimDataCommandProtocol.AssemblyVersion,
+                        StringComparison.Ordinal))
+                {
+                    differentBuilds++;
+                }
             }
 
             compatibility.Update(
                 true,
                 cluster.LocalMemberAddress,
-                "The local leader and all configured members use the current protocol.");
+                $"The local leader and all reachable members use the current protocol. " +
+                $"UnavailableMembers={unavailableMembers}, DifferentBuilds={differentBuilds}.");
             return;
         }
 

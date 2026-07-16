@@ -172,14 +172,7 @@ public class Endpoints
         }
 
         if (!context.Request.Headers.TryGetValue(SlimDataCommandProtocol.HeaderName, out var protocol) ||
-            !string.Equals(protocol.ToString(), SlimDataCommandProtocol.Current, StringComparison.Ordinal) ||
-            !context.Request.Headers.TryGetValue(
-                SlimDataCommandProtocol.AssemblyVersionHeaderName,
-                out var assemblyVersion) ||
-            !string.Equals(
-                assemblyVersion.ToString(),
-                SlimDataCommandProtocol.AssemblyVersion,
-                StringComparison.Ordinal))
+            !string.Equals(protocol.ToString(), SlimDataCommandProtocol.Current, StringComparison.Ordinal))
         {
             context.Response.StatusCode = StatusCodes.Status409Conflict;
             context.Response.Headers[SlimDataCommandProtocol.HeaderName] = SlimDataCommandProtocol.Current;

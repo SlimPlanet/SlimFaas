@@ -268,7 +268,9 @@ X-SlimData-Command-Protocol: SLDC/1
 X-SlimData-Assembly-Version: <version>
 ```
 
-A node with a missing or incompatible protocol, or whose assembly version (including the Git commit SHA) differs from the other nodes, is rejected during membership changes. All replicas must therefore run the exact same image build. A follower also returns `503` from `/ready` and refuses SlimData operations while its leader is incompatible.
+A node with a missing or incompatible protocol is rejected during membership changes. The assembly version, including the Git commit SHA, is diagnostic only: different builds may coexist during a rolling update as long as both advertise the same command protocol. A temporarily unreachable follower does not make a leader incompatible while the Raft quorum and lease remain valid. A follower still returns `503` from `/ready` and refuses SlimData operations when its leader advertises an incompatible protocol.
+
+Any release that changes the Raft wire format must also change `SlimDataCommandProtocol.Current` (for example from `SLDC/1` to `SLDC/2`). Such a release requires a coordinated cluster upgrade; releases retaining `SLDC/1` support normal one-pod-at-a-time Kubernetes updates.
 
 Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
 
