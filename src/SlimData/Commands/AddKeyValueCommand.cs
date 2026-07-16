@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Buffers.Binary;
+using System.Text;
 using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Text;
@@ -90,66 +91,73 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         return len;
     }
 
-    public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
+    public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
     {
-        IAsyncBinaryWriter output = writer;
-        var items = EffectiveItems();
-        var payloadLength = GetItemsPayloadLength(items);
-        SlimDataCommandCodec.ValidateValueLength(payloadLength, "Key/value payload");
-        SlimDataCommandCodec.ValidateCommandLength(
-            checked(
-                SlimDataCommandCodec.HeaderLength +
-                sizeof(byte) +
-                SlimDataCommandCodec.GetBytesLength(checked((int)payloadLength))),
-            nameof(AddKeyValueCommand));
-        await SlimDataCommandCodec.WriteHeaderAsync(output, token).ConfigureAwait(false);
-        await output.WriteLittleEndianAsync(SerializationVersion, token).ConfigureAwait(false);
-        var payload = await SerializeItemsAsync(items, token).ConfigureAwait(false);
-        await SlimDataCommandCodec.WriteBytesAsync(output, payload, "Key/value payload", token)
-            .ConfigureAwait(false);
+        var payload = Serialize();
+        return writer.Invoke(payload, token);
     }
 
-    private static async ValueTask<byte[]> SerializeItemsAsync(List<BatchItem> items, CancellationToken token)
+    internal byte[] Serialize()
     {
-        var payloadLength = GetItemsPayloadLength(items);
-        SlimDataCommandCodec.ValidateValueLength(payloadLength, "Key/value payload");
-        await using var stream = new MemoryStream(checked((int)payloadLength));
-        var writer = IAsyncBinaryWriter.Create(stream, new byte[8192]);
-        await SlimDataCommandCodec.WriteCountAsync(
-            writer,
+        var items = EffectiveItems();
+        SlimDataCommandCodec.ValidateCount(
             items.Count,
             SlimDataCommandCodec.MaxBatchItems,
-            nameof(Items),
-            token).ConfigureAwait(false);
-        foreach (var item in items)
-            await WriteItemAsync(writer, item, token).ConfigureAwait(false);
+            nameof(Items));
+        var payloadLength = GetItemsPayloadLength(items);
+        SlimDataCommandCodec.ValidateValueLength(payloadLength, "Key/value payload");
+        var payloadLength32 = checked((int)payloadLength);
+        var commandLength = checked((int)(
+            SlimDataCommandCodec.HeaderLength +
+            sizeof(byte) +
+            SlimDataCommandCodec.GetBytesLength(payloadLength32)));
+        SlimDataCommandCodec.ValidateCommandLength(commandLength, nameof(AddKeyValueCommand));
 
-        return stream.ToArray();
+        var result = GC.AllocateUninitializedArray<byte>(commandLength);
+        var output = result.AsSpan();
+        var offset = SlimDataCommandCodec.WriteHeader(output);
+        output[offset++] = SerializationVersion;
+        offset += SlimDataCommandCodec.WriteCompressedLength(output[offset..], payloadLength32);
+        WriteInt32(output, ref offset, items.Count);
+
+        foreach (var item in items)
+            WriteItem(output, ref offset, item);
+
+        if (offset != result.Length)
+            throw new InvalidDataException($"Key/value serializer wrote {offset} bytes; expected {result.Length}.");
+
+        SlimDataCommandCodec.ValidateCurrentEnvelope(result, nameof(AddKeyValueCommand));
+        return result;
     }
 
-    private static async ValueTask WriteItemAsync<TWriter>(TWriter writer, BatchItem item, CancellationToken token)
-        where TWriter : notnull, IAsyncBinaryWriter
+    private static void WriteItem(Span<byte> output, ref int offset, BatchItem item)
     {
-        await writer.WriteLittleEndianAsync((byte)item.Operation, token).ConfigureAwait(false);
-        await SlimDataCommandCodec.WriteStringAsync(writer, item.Key, "Key/value key", token)
-            .ConfigureAwait(false);
+        output[offset++] = (byte)item.Operation;
+        offset += SlimDataCommandCodec.WriteString(output[offset..], item.Key, "Key/value key");
+        WriteInt64(output, ref offset, item.NowTicks);
 
-        await writer.WriteLittleEndianAsync(item.NowTicks, token).ConfigureAwait(false);
+        output[offset++] = item.ExpireAtUtcTicks.HasValue ? (byte)1 : (byte)0;
+        if (item.ExpireAtUtcTicks is { } expireAtUtcTicks)
+            WriteInt64(output, ref offset, expireAtUtcTicks);
 
-        byte hasTtl = (byte)(item.ExpireAtUtcTicks.HasValue ? 1 : 0);
-        await writer.WriteLittleEndianAsync(hasTtl, token).ConfigureAwait(false);
-        if (item.ExpireAtUtcTicks.HasValue)
-            await writer.WriteLittleEndianAsync(item.ExpireAtUtcTicks.Value, token).ConfigureAwait(false);
+        WriteInt64(output, ref offset, item.IntegerDelta);
+        foreach (var decimalBit in decimal.GetBits(item.FloatDelta))
+            WriteInt32(output, ref offset, decimalBit);
 
-        await writer.WriteLittleEndianAsync(item.IntegerDelta, token).ConfigureAwait(false);
+        offset += SlimDataCommandCodec.WriteBytes(output[offset..], item.Value.Span, "Key/value value");
+    }
 
-        var decimalBits = decimal.GetBits(item.FloatDelta);
-        for (var i = 0; i < decimalBits.Length; i++)
-            await writer.WriteLittleEndianAsync(decimalBits[i], token).ConfigureAwait(false);
+    private static void WriteInt32(Span<byte> output, ref int offset, int value)
+    {
+        BinaryPrimitives.WriteInt32LittleEndian(output[offset..], value);
+        offset += sizeof(int);
+    }
 
-        await SlimDataCommandCodec.WriteBytesAsync(writer, item.Value, "Key/value value", token)
-            .ConfigureAwait(false);
+    private static void WriteInt64(Span<byte> output, ref int offset, long value)
+    {
+        BinaryPrimitives.WriteInt64LittleEndian(output[offset..], value);
+        offset += sizeof(long);
     }
 
 #pragma warning disable CA2252

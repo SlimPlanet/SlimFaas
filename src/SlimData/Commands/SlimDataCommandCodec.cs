@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Numerics;
 using System.Reflection;
 using System.Text;
@@ -80,6 +81,89 @@ internal static class SlimDataCommandCodec
         }
 
         return result;
+    }
+
+    internal static int WriteHeader(Span<byte> destination)
+    {
+        EnsureDestination(destination, HeaderLength, "SlimData command envelope");
+        BinaryPrimitives.WriteUInt32LittleEndian(destination, Magic);
+        destination[sizeof(uint)] = Version;
+        return HeaderLength;
+    }
+
+    internal static int WriteString(
+        Span<byte> destination,
+        string? value,
+        string fieldName)
+    {
+        value ??= string.Empty;
+        var byteCount = Utf8.GetByteCount(value);
+        ValidateLength(byteCount, MaxStringBytes, fieldName);
+        var required = checked(sizeof(int) + byteCount);
+        EnsureDestination(destination, required, fieldName);
+        BinaryPrimitives.WriteInt32LittleEndian(destination, byteCount);
+        if (byteCount > 0)
+            Utf8.GetBytes(value, destination[sizeof(int)..required]);
+
+        return required;
+    }
+
+    internal static int WriteBytes(
+        Span<byte> destination,
+        ReadOnlySpan<byte> value,
+        string fieldName)
+    {
+        ValidateLength(value.Length, MaxValueBytes, fieldName);
+        var prefixLength = GetCompressedLengthSize(value.Length);
+        var required = checked(prefixLength + value.Length);
+        EnsureDestination(destination, required, fieldName);
+        var written = WriteCompressedLength(destination, value.Length);
+        value.CopyTo(destination[written..required]);
+        return required;
+    }
+
+    internal static void ValidateCurrentEnvelope(ReadOnlySpan<byte> payload, string commandName)
+    {
+        if (payload.Length < HeaderLength)
+        {
+            throw new SlimDataCommandFormatException(
+                SlimDataCommandViolation.Truncated,
+                $"{commandName} payload is shorter than the {HeaderLength}-byte envelope.");
+        }
+
+        var magic = BinaryPrimitives.ReadUInt32LittleEndian(payload);
+        if (magic != Magic || payload[sizeof(uint)] != Version)
+        {
+            throw new SlimDataCommandFormatException(
+                magic != Magic
+                    ? SlimDataCommandViolation.LegacyFormat
+                    : SlimDataCommandViolation.UnsupportedVersion,
+                $"{commandName} was not serialized with the current SlimData command envelope.");
+        }
+    }
+
+    internal static int WriteCompressedLength(Span<byte> destination, int length)
+    {
+        var value = (uint)length;
+        var offset = 0;
+        while (value >= 0x80U)
+        {
+            destination[offset++] = (byte)(value | 0x80U);
+            value >>= 7;
+        }
+
+        destination[offset++] = (byte)value;
+        return offset;
+    }
+
+    private static void EnsureDestination(Span<byte> destination, int required, string fieldName)
+    {
+        if (destination.Length < required)
+        {
+            throw new SlimDataCommandFormatException(
+                SlimDataCommandViolation.InvalidLength,
+                $"{fieldName} requires {required} output bytes but only {destination.Length} are available.");
+        }
     }
 
     internal static void ValidateCommandLength(long length, string commandName)
@@ -308,7 +392,7 @@ internal static class SlimDataCommandCodec
         }
     }
 
-    private static void ValidateCount(int count, int maximum, string fieldName)
+    internal static void ValidateCount(int count, int maximum, string fieldName)
     {
         if (count < 0 || count > maximum)
         {

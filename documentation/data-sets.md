@@ -258,7 +258,9 @@ For backward compatibility, a `warmupRounds` value inside `SlimData__Configurati
 
 ## Raft command protocol
 
-SlimData writes and accepts only the `SLDC/1` Raft command envelope. Legacy queue payloads using command ID `14` are skipped without mutating the state; they are never converted or rewritten. Every node exposes its protocol and assembly version on the internal SlimData port:
+SlimData writes and accepts only the `SLDC/1` Raft command envelope. Legacy payloads, including key/value command ID `2` and queue command ID `14`, are skipped without mutating the state; they are never converted or rewritten. Every node exposes its protocol and assembly version on the internal SlimData port:
+
+Before a mutation is appended to Raft, every SlimData command is serialized into a bounded immutable payload. Its declared length and `SLDC/1` envelope are validated, then the same byte block is written to the leader WAL and replicated to followers.
 
 ```text
 GET /SlimData/protocol
@@ -266,7 +268,7 @@ X-SlimData-Command-Protocol: SLDC/1
 X-SlimData-Assembly-Version: <version>
 ```
 
-A node with a missing or incompatible protocol is rejected during membership changes. A follower also returns `503` from `/ready` and refuses SlimData operations while its leader is incompatible.
+A node with a missing or incompatible protocol, or whose assembly version (including the Git commit SHA) differs from the other nodes, is rejected during membership changes. All replicas must therefore run the exact same image build. A follower also returns `503` from `/ready` and refuses SlimData operations while its leader is incompatible.
 
 Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
 
@@ -274,6 +276,6 @@ Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
 2. Scale the StatefulSet to zero.
 3. Delete the `slimfaas-volume-*` PVCs containing the `wal`, `db`, and `config` directories. Backup PVCs can be retained.
 4. Start `slimfaas-0`, then the followers one at a time.
-5. Verify the startup protocol/version log and ensure `slimdata_raft_skipped_command_total{command_id="14"}` remains zero.
+5. Verify the startup protocol/version log and ensure `slimdata_raft_skipped_command_total` remains zero.
 
 The readiness endpoint returns `503` while the local snapshot is being restored, the node has no active Raft consensus, or the leader protocol is incompatible. The liveness endpoint remains available so Kubernetes or OpenShift can keep the process alive while the cluster recovers.

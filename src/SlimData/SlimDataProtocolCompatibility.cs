@@ -127,11 +127,17 @@ internal static class SlimDataProtocolClient
             : null;
 
         if (!string.Equals(protocol, SlimDataCommandProtocol.Current, StringComparison.Ordinal) ||
-            !string.Equals(headerProtocol, SlimDataCommandProtocol.Current, StringComparison.Ordinal))
+            !string.Equals(headerProtocol, SlimDataCommandProtocol.Current, StringComparison.Ordinal) ||
+            !string.Equals(
+                assemblyVersion,
+                SlimDataCommandProtocol.AssemblyVersion,
+                StringComparison.Ordinal))
         {
             return new SlimDataProtocolProbeResult(
                 false,
-                $"Remote protocol is '{protocol}' and header is '{headerProtocol ?? "missing"}'.",
+                $"Remote protocol is '{protocol}', header is '{headerProtocol ?? "missing"}', " +
+                $"and assembly is '{assemblyVersion ?? "missing"}'; expected assembly " +
+                $"'{SlimDataCommandProtocol.AssemblyVersion}'.",
                 protocol,
                 assemblyVersion);
         }

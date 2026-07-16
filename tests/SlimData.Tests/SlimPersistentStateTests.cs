@@ -356,6 +356,146 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
+    public async Task WriteAheadLog_applies_pre_serialized_key_value_entry_without_skipping_it()
+    {
+        var root = GetTemporaryDirectory();
+        var walPath = Path.Combine(root, "wal");
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            var result = new KeyValueCommandResult();
+            var context = new KeyValueCommandBatchContext([result]);
+            var command = new AddKeyValueCommand
+            {
+                Items =
+                [
+                    new AddKeyValueCommand.BatchItem
+                    {
+                        Operation = KeyValueOperation.Set,
+                        Key = "history-key",
+                        Value = Encoding.UTF8.GetBytes("history-value"),
+                        NowTicks = DateTime.UtcNow.Ticks
+                    }
+                ]
+            };
+            var payload = command.Serialize();
+            var entry = new SerializedSlimDataLogEntry(
+                AddKeyValueCommand.Id,
+                1L,
+                payload,
+                context);
+
+            var index = await wal.AppendAsync(entry, CancellationToken.None);
+            await wal.CommitAsync(index, CancellationToken.None);
+            using var applyTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await wal.WaitForApplyAsync(index, applyTimeout.Token);
+
+            Assert.Equal(KeyValueCommandStatus.Applied, result.Status);
+            Assert.Equal(
+                "history-value",
+                Encoding.UTF8.GetString(state.SlimDataState.KeyValues["history-key"].Span));
+            Assert.DoesNotContain(
+                state.GetSkippedCommandMetrics(),
+                metric => metric.CommandId == AddKeyValueCommand.Id);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WriteAheadLog_applies_every_pre_serialized_command_type_without_skipping()
+    {
+        var root = GetTemporaryDirectory();
+        var walPath = Path.Combine(root, "wal");
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            var now = DateTime.UtcNow.Ticks;
+
+            await AppendSerializedCommitWaitAsync(wal, new AddHashSetCommand
+            {
+                Key = "all-hash",
+                Value = new Dictionary<string, ReadOnlyMemory<byte>>
+                {
+                    ["field"] = Encoding.UTF8.GetBytes("value")
+                }
+            });
+            await AppendSerializedCommitWaitAsync(wal, new AddKeyValueCommand
+            {
+                Operation = KeyValueOperation.Set,
+                Key = "all-key",
+                Value = Encoding.UTF8.GetBytes("value"),
+                NowTicks = now
+            });
+            await AppendSerializedCommitWaitAsync(wal, new ListLeftPushBatchCommand
+            {
+                Items =
+                [
+                    new ListLeftPushBatchCommand.BatchItem
+                    {
+                        Key = "all-queue",
+                        Identifier = "item",
+                        NowTicks = now,
+                        RetryTimeout = 30,
+                        Retries = [],
+                        HttpStatusCodesWorthRetrying = [],
+                        Value = Encoding.UTF8.GetBytes("value")
+                    }
+                ]
+            });
+            await AppendSerializedCommitWaitAsync(wal, new ListRightPopCommand
+            {
+                Key = "all-queue",
+                Count = 1,
+                NowTicks = now + 1,
+                IdTransaction = "tx",
+                ReservedIps = []
+            });
+            await AppendSerializedCommitWaitAsync(wal, new ListCallbackCommand
+            {
+                Key = "all-queue",
+                NowTicks = now + 2,
+                CallbackElements = [new CallbackElement("item", 200)]
+            });
+            await AppendSerializedCommitWaitAsync(wal, new ListCallbackBatchCommand
+            {
+                Items =
+                [
+                    new ListCallbackBatchCommand.BatchItem
+                    {
+                        Key = "all-queue",
+                        NowTicks = now + 3,
+                        CallbackElements = [new CallbackElement("missing-item", 200)]
+                    }
+                ]
+            });
+            await AppendSerializedCommitWaitAsync(wal, new DeleteHashSetCommand
+            {
+                Key = "all-hash",
+                DictionaryKey = "field"
+            });
+            await AppendSerializedCommitWaitAsync(wal, new DeleteKeyValueCommand { Key = "all-key" });
+
+            Assert.Empty(state.GetSkippedCommandMetrics());
+            Assert.False(state.SlimDataState.KeyValues.ContainsKey("all-key"));
+            Assert.False(state.SlimDataState.Hashsets.TryGetValue("all-hash", out var hash) &&
+                         hash.ContainsKey("field"));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task WriteAheadLog_skips_legacy_list_left_push_then_applies_current_entry()
     {
         var root = GetTemporaryDirectory();
@@ -427,6 +567,19 @@ public sealed class SlimPersistentStateTests
         where TCommand : struct, ICommand<TCommand>
     {
         var index = await wal.AppendAsync(command, token: CancellationToken.None);
+        await wal.CommitAsync(index, CancellationToken.None);
+        await wal.WaitForApplyAsync(index, CancellationToken.None);
+    }
+
+    private static async Task AppendSerializedCommitWaitAsync<TCommand>(WriteAheadLog wal, TCommand command)
+        where TCommand : struct, ICommand<TCommand>
+    {
+        var entry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            term: 1L,
+            new CommandApplyContext(),
+            CancellationToken.None);
+        var index = await wal.AppendAsync(entry, CancellationToken.None);
         await wal.CommitAsync(index, CancellationToken.None);
         await wal.WaitForApplyAsync(index, CancellationToken.None);
     }

@@ -96,8 +96,8 @@ public class Endpoints
         return expire;
     }
 
-    private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, LogEntry<T> cmd, CancellationToken ct)
-        where T : struct, ICommand<T>
+    private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, T cmd, CancellationToken ct)
+        where T : IInputLogEntry
     {
         using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(ct, cluster.LeadershipToken);
         timeoutSource.CancelAfter(ReplicationTimeout);
@@ -172,10 +172,19 @@ public class Endpoints
         }
 
         if (!context.Request.Headers.TryGetValue(SlimDataCommandProtocol.HeaderName, out var protocol) ||
-            !string.Equals(protocol.ToString(), SlimDataCommandProtocol.Current, StringComparison.Ordinal))
+            !string.Equals(protocol.ToString(), SlimDataCommandProtocol.Current, StringComparison.Ordinal) ||
+            !context.Request.Headers.TryGetValue(
+                SlimDataCommandProtocol.AssemblyVersionHeaderName,
+                out var assemblyVersion) ||
+            !string.Equals(
+                assemblyVersion.ToString(),
+                SlimDataCommandProtocol.AssemblyVersion,
+                StringComparison.Ordinal))
         {
             context.Response.StatusCode = StatusCodes.Status409Conflict;
             context.Response.Headers[SlimDataCommandProtocol.HeaderName] = SlimDataCommandProtocol.Current;
+            context.Response.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName] =
+                SlimDataCommandProtocol.AssemblyVersion;
             return;
         }
 
@@ -315,17 +324,18 @@ public class Endpoints
         foreach (var kv in dictionary)
             value.Add(kv.Key, kv.Value);
 
-        var logEntry = new LogEntry<AddHashSetCommand>
+        var command = new AddHashSetCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Key = key,
-                Value = value,
-                ExpireAtUtcTicks = expireAtUtcTicks
-            },
-            Context = new CommandApplyContext()
+            Key = key,
+            Value = value,
+            ExpireAtUtcTicks = expireAtUtcTicks
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
@@ -352,12 +362,13 @@ public class Endpoints
     public static async Task DeleteHashSetCommand(SlimPersistentState provider, string key, string dictionaryKey,
         IRaftCluster cluster, CancellationTokenSource source)
     {
-        var logEntry = new LogEntry<DeleteHashSetCommand>()
-        {
-            Term = cluster.Term,
-            Command = new() { Key = key, DictionaryKey = dictionaryKey },
-            Context = new CommandApplyContext()
-        };
+        var command = new DeleteHashSetCommand { Key = key, DictionaryKey = dictionaryKey };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
@@ -397,19 +408,20 @@ public class Endpoints
         values.Items = new List<QueueData>();
 
         var nowTicks = DateTime.UtcNow.Ticks;
-        var logEntry = new LogEntry<ListRightPopCommand>()
+        var command = new SlimData.Commands.ListRightPopCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Key = key,
-                Count = count,
-                NowTicks = nowTicks,
-                IdTransaction = transactionId,
-                ReservedIps = reservedIps ?? []
-            },
-            Context = new CommandApplyContext()
+            Key = key,
+            Count = count,
+            NowTicks = nowTicks,
+            IdTransaction = transactionId,
+            ReservedIps = reservedIps ?? []
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
         await SafeReplicateAsync(cluster, logEntry, source.Token);
         await Task.Delay(2, source.Token);
 
@@ -494,15 +506,16 @@ public class Endpoints
             batchItems.Add(batchItem);
         }
 
-        var logEntry = new LogEntry<ListLeftPushBatchCommand>()
+        var command = new SlimData.Commands.ListLeftPushBatchCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Items = batchItems,
-            },
-            Context = new CommandApplyContext()
+            Items = batchItems
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         bool success = await SafeReplicateAsync(cluster, logEntry, source.Token);
         var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => success ? b.Identifier : "").ToArray());
@@ -545,17 +558,18 @@ public class Endpoints
             callbackElements.Add(new CallbackElement(queueItemStatus.Id, queueItemStatus.HttpCode));
         }
 
-        var logEntry = new LogEntry<ListCallbackCommand>()
+        var command = new SlimData.Commands.ListCallbackCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Key = key,
-                NowTicks = nowTicks,
-                CallbackElements = callbackElements
-            },
-            Context = new CommandApplyContext()
+            Key = key,
+            NowTicks = nowTicks,
+            CallbackElements = callbackElements
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
@@ -602,15 +616,16 @@ public class Endpoints
         if (items.Count == 0)
             return new ListCallbackBatchResponse(acks);
 
-        var logEntry = new LogEntry<SlimData.Commands.ListCallbackBatchCommand>
+        var command = new SlimData.Commands.ListCallbackBatchCommand
         {
-            Term = cluster.Term,
-            Command = new SlimData.Commands.ListCallbackBatchCommand
-            {
-                Items = items
-            },
-            Context = new CommandApplyContext()
+            Items = items
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
         return new ListCallbackBatchResponse(acks);
@@ -681,26 +696,29 @@ public class Endpoints
             .Select(_ => new KeyValueCommandResult())
             .ToArray();
 
-        var logEntry = new LogEntry<AddKeyValueCommand>()
+        var context = new KeyValueCommandBatchContext(results);
+        var command = new AddKeyValueCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Items = requestItems
-                    .Select(item => new AddKeyValueCommand.BatchItem
-                    {
-                        Operation = item.Operation,
-                        Key = item.Key,
-                        Value = item.Value ?? Array.Empty<byte>(),
-                        ExpireAtUtcTicks = item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
-                        IntegerDelta = item.IntegerDelta,
-                        FloatDelta = item.FloatDelta,
-                        NowTicks = item.NowTicks
-                    })
-                    .ToList()
-            },
-            Context = new KeyValueCommandBatchContext(results)
+            Items = requestItems
+                .Select(item => new AddKeyValueCommand.BatchItem
+                {
+                    Operation = item.Operation,
+                    Key = item.Key,
+                    Value = item.Value ?? Array.Empty<byte>(),
+                    ExpireAtUtcTicks = item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
+                    IntegerDelta = item.IntegerDelta,
+                    FloatDelta = item.FloatDelta,
+                    NowTicks = item.NowTicks
+                })
+                .ToList()
         };
+        var payload = command.Serialize();
+        SlimDataCommandCodec.ValidateCurrentEnvelope(payload, nameof(AddKeyValueCommand));
+        var logEntry = new SerializedSlimDataLogEntry(
+            AddKeyValueCommand.Id,
+            cluster.Term,
+            payload,
+            context);
 
         var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
         if (!success)
@@ -752,12 +770,13 @@ public class Endpoints
         IRaftCluster cluster,
         CancellationTokenSource source)
     {
-        var logEntry = new LogEntry<DeleteKeyValueCommand>
-        {
-            Term = cluster.Term,
-            Command = new() { Key = key },
-            Context = new CommandApplyContext()
-        };
+        var command = new DeleteKeyValueCommand { Key = key };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }

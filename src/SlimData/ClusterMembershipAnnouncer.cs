@@ -53,6 +53,9 @@ internal sealed class ClusterMembershipAnnouncer(
             request.Headers.TryAddWithoutValidation(
                 SlimDataCommandProtocol.HeaderName,
                 SlimDataCommandProtocol.Current);
+            request.Headers.TryAddWithoutValidation(
+                SlimDataCommandProtocol.AssemblyVersionHeaderName,
+                SlimDataCommandProtocol.AssemblyVersion);
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token)
                 .ConfigureAwait(false);
             if (response.IsSuccessStatusCode)

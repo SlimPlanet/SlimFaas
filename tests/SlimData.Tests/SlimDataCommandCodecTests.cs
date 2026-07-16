@@ -128,6 +128,71 @@ public sealed class SlimDataCommandCodecTests
     }
 
     [Fact]
+    public async Task Every_command_is_pre_serialized_as_a_valid_immutable_raft_entry()
+    {
+        await AssertPreSerializedEntryAsync(new AddHashSetCommand
+        {
+            Key = "hash",
+            Value = new Dictionary<string, ReadOnlyMemory<byte>> { ["field"] = new byte[] { 1 } }
+        });
+        await AssertPreSerializedEntryAsync(new AddKeyValueCommand
+        {
+            Operation = KeyValueOperation.Set,
+            Key = "key",
+            Value = new byte[] { 2 },
+            NowTicks = 1
+        });
+        await AssertPreSerializedEntryAsync(new DeleteKeyValueCommand { Key = "key" });
+        await AssertPreSerializedEntryAsync(new ListLeftPushBatchCommand
+        {
+            Items =
+            [
+                new ListLeftPushBatchCommand.BatchItem
+                {
+                    Key = "queue",
+                    Identifier = "item",
+                    NowTicks = 2,
+                    RetryTimeout = 30,
+                    Retries = [1],
+                    HttpStatusCodesWorthRetrying = [500],
+                    Value = new byte[] { 3 }
+                }
+            ]
+        });
+        await AssertPreSerializedEntryAsync(new ListCallbackCommand
+        {
+            Key = "queue",
+            NowTicks = 3,
+            CallbackElements = [new CallbackElement("item", 200)]
+        });
+        await AssertPreSerializedEntryAsync(new ListCallbackBatchCommand
+        {
+            Items =
+            [
+                new ListCallbackBatchCommand.BatchItem
+                {
+                    Key = "queue",
+                    NowTicks = 4,
+                    CallbackElements = [new CallbackElement("item", 200)]
+                }
+            ]
+        });
+        await AssertPreSerializedEntryAsync(new DeleteHashSetCommand
+        {
+            Key = "hash",
+            DictionaryKey = "field"
+        });
+        await AssertPreSerializedEntryAsync(new ListRightPopCommand
+        {
+            Key = "queue",
+            Count = 1,
+            NowTicks = 5,
+            IdTransaction = "tx",
+            ReservedIps = ["127.0.0.1"]
+        });
+    }
+
+    [Fact]
     public async Task List_left_push_rejects_the_legacy_format()
     {
         var command = new ListLeftPushBatchCommand
@@ -261,6 +326,25 @@ public sealed class SlimDataCommandCodecTests
         await using var stream = new MemoryStream(bytes, writable: false);
         var reader = IAsyncBinaryReader.Create(stream, new byte[256]);
         return await read(reader, CancellationToken.None);
+    }
+
+    private static async Task AssertPreSerializedEntryAsync<TCommand>(TCommand command)
+        where TCommand : struct, ICommand<TCommand>
+    {
+        var context = new CommandApplyContext();
+        var entry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            term: 7L,
+            context,
+            CancellationToken.None);
+        var transferObject = (IDataTransferObject)entry;
+
+        Assert.Equal(TCommand.Id, entry.CommandId);
+        Assert.Equal(7L, entry.Term);
+        Assert.Same(context, entry.Context);
+        Assert.True(transferObject.TryGetMemory(out var payload));
+        Assert.Equal(transferObject.Length, payload.Length);
+        Assert.Equal(CurrentHeader(), payload.Span[..CurrentHeader().Length].ToArray());
     }
 
     private static async Task<byte[]> SerializeAndAssertLengthAsync<T>(T command)

@@ -41,9 +41,13 @@ public sealed class SlimDataProtocolTests
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("SLDC/0")]
-    public async Task Membership_announcement_rejects_a_missing_or_incompatible_protocol(string? protocol)
+    [InlineData(null, null)]
+    [InlineData("SLDC/0", "other-build")]
+    [InlineData("SLDC/1", null)]
+    [InlineData("SLDC/1", "other-build")]
+    public async Task Membership_announcement_rejects_an_incompatible_protocol_or_build(
+        string? protocol,
+        string? assemblyVersion)
     {
         var services = new ServiceCollection()
             .AddSingleton(new SlimDataInfo(3262))
@@ -52,6 +56,8 @@ public sealed class SlimDataProtocolTests
         context.Connection.LocalPort = 3262;
         if (protocol is not null)
             context.Request.Headers[SlimDataCommandProtocol.HeaderName] = protocol;
+        if (assemblyVersion is not null)
+            context.Request.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName] = assemblyVersion;
 
         await Endpoints.AnnounceMemberAsync(context);
 
@@ -59,6 +65,9 @@ public sealed class SlimDataProtocolTests
         Assert.Equal(
             SlimDataCommandProtocol.Current,
             context.Response.Headers[SlimDataCommandProtocol.HeaderName].ToString());
+        Assert.Equal(
+            SlimDataCommandProtocol.AssemblyVersion,
+            context.Response.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName].ToString());
     }
 
     [Fact]
@@ -99,7 +108,12 @@ public sealed class SlimDataProtocolTests
         {
             var response = new HttpResponseMessage(status) { Content = new StringContent(body) };
             if (header is not null)
+            {
                 response.Headers.TryAddWithoutValidation(SlimDataCommandProtocol.HeaderName, header);
+                response.Headers.TryAddWithoutValidation(
+                    SlimDataCommandProtocol.AssemblyVersionHeaderName,
+                    SlimDataCommandProtocol.AssemblyVersion);
+            }
             return response;
         });
 
@@ -109,6 +123,33 @@ public sealed class SlimDataProtocolTests
             CancellationToken.None);
 
         Assert.Equal(expected, result.IsCompatible);
+    }
+
+    [Fact]
+    public async Task Protocol_probe_rejects_a_different_assembly_build()
+    {
+        var factory = CreateHttpClientFactory(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(SlimDataCommandProtocol.Current)
+            };
+            response.Headers.TryAddWithoutValidation(
+                SlimDataCommandProtocol.HeaderName,
+                SlimDataCommandProtocol.Current);
+            response.Headers.TryAddWithoutValidation(
+                SlimDataCommandProtocol.AssemblyVersionHeaderName,
+                "1.0.0+different-commit");
+            return response;
+        });
+
+        var result = await SlimDataProtocolClient.ProbeAsync(
+            factory,
+            new Uri("http://localhost:3263/"),
+            CancellationToken.None);
+
+        Assert.False(result.IsCompatible);
+        Assert.Contains("different-commit", result.Reason, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -185,6 +226,9 @@ public sealed class SlimDataProtocolTests
             response.Headers.TryAddWithoutValidation(
                 SlimDataCommandProtocol.HeaderName,
                 SlimDataCommandProtocol.Current);
+            response.Headers.TryAddWithoutValidation(
+                SlimDataCommandProtocol.AssemblyVersionHeaderName,
+                SlimDataCommandProtocol.AssemblyVersion);
             return response;
         });
         var coordinator = new ClusterMembershipCoordinator(
