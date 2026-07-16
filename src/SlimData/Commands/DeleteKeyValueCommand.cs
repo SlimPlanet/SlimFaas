@@ -12,17 +12,18 @@ public struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
 
     public string Key { get; set; }
 
-    long? IDataTransferObject.Length => null;
+    long? IDataTransferObject.Length
+        => checked(SlimDataCommandCodec.HeaderLength + SlimDataCommandCodec.GetStringLength(Key));
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
     {
-        await writer.EncodeAsync(
-                Key.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token)
-            .ConfigureAwait(false);
+        IAsyncBinaryWriter output = writer;
+        SlimDataCommandCodec.ValidateCommandLength(
+            ((IDataTransferObject)this).Length.GetValueOrDefault(),
+            nameof(DeleteKeyValueCommand));
+        await SlimDataCommandCodec.WriteHeaderAsync(output, token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteStringAsync(output, Key, nameof(Key), token).ConfigureAwait(false);
     }
 
 #pragma warning disable CA2252
@@ -30,14 +31,18 @@ public struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        using var keyOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        return new DeleteKeyValueCommand
+        try
         {
-            Key = new string(keyOwner.Span),
-        };
+            IAsyncBinaryReader input = reader;
+            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(DeleteKeyValueCommand), token)
+                .ConfigureAwait(false);
+            var key = await SlimDataCommandCodec.ReadStringAsync(input, nameof(Key), token).ConfigureAwait(false);
+            SlimDataCommandCodec.EnsureFullyConsumed(input, nameof(DeleteKeyValueCommand));
+            return new DeleteKeyValueCommand { Key = key };
+        }
+        catch (Exception ex) when (SlimDataCommandCodec.IsStructuralException(ex))
+        {
+            throw SlimDataCommandCodec.WrapStructuralException(nameof(DeleteKeyValueCommand), ex);
+        }
     }
 }

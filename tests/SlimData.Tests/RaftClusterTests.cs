@@ -4,6 +4,7 @@ using System.Text;
 using DotNext;
 using DotNext.Buffers;
 using DotNext.Diagnostics;
+using DotNext.IO;
 using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
@@ -248,6 +249,27 @@ public class RaftClusterTests
         await GetLocalClusterView(host3).Readiness.WaitAsync(DefaultTimeout);
         await GetLocalClusterView(host1).ForceReplicationAsync();
 
+        using (var incompatibleEntryTimeout = new CancellationTokenSource(DefaultTimeout))
+        {
+            await GetLocalClusterView(host1).ReplicateAsync(
+                new IncompatibleCommandLogEntry(ListRightPopCommand.Id, [0]),
+                incompatibleEntryTimeout.Token);
+            await GetLocalClusterView(host1).ForceReplicationAsync(incompatibleEntryTimeout.Token);
+
+            var states = new[] { host1, host2, host3 }
+                .Select(host => host.Services.GetRequiredService<SlimPersistentState>())
+                .ToArray();
+            while (states.Any(state => state.GetSkippedCommandMetrics()
+                       .All(metric => metric.CommandId != ListRightPopCommand.Id || metric.Count < 1L)))
+            {
+                await Task.Delay(25, incompatibleEntryTimeout.Token);
+            }
+
+            Assert.All(states, state => Assert.Contains(
+                state.GetSkippedCommandMetrics(),
+                metric => metric.CommandId == ListRightPopCommand.Id && metric.Count == 1L));
+        }
+
         for (var i = 0; i < concurrentWritesDuringMemberAdd.Length; i++)
             Assert.Equal(i.ToString(), Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync($"member-add-kv-{i}") ?? []));
 
@@ -408,5 +430,19 @@ public class RaftClusterTests
         await host1.StopAsync();
         await host2.StopAsync();
         await host3.StopAsync();
+    }
+
+    private sealed class IncompatibleCommandLogEntry(int commandId, byte[] payload) : IRaftLogEntry
+    {
+        public long Term => 1L;
+        public int? CommandId => commandId;
+        public bool IsConfiguration => false;
+        public bool IsSnapshot => false;
+        public bool IsReusable => true;
+        public long? Length => payload.LongLength;
+
+        public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
+            where TWriter : notnull, IAsyncBinaryWriter
+            => writer.Invoke(payload, token);
     }
 }

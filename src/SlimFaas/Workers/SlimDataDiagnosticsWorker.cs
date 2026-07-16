@@ -65,6 +65,30 @@ public sealed class SlimDataDiagnosticsWorker(
         gauges.SetGaugeValue("slimdata_snapshot_last_duration_milliseconds", persistentState.LastSnapshotDurationMilliseconds,
             "Duration of the latest SlimData snapshot operation");
 
+        foreach (var skipped in persistentState.GetSkippedCommandMetrics())
+        {
+            var labels = new Dictionary<string, string>
+            {
+                ["command_id"] = skipped.CommandId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            };
+            gauges.SetGaugeValue("slimdata_raft_skipped_command_total", skipped.Count,
+                "Number of incompatible Raft commands skipped by command ID", labels);
+        }
+
+        var safety = persistentState.GetRaftSafetyMetrics();
+        gauges.SetGaugeValue("slimdata_raft_command_size_violation_total", safety.SizeViolations,
+            "Number of skipped Raft commands violating a size limit");
+        gauges.SetGaugeValue("slimdata_raft_command_format_violation_total", safety.FormatViolations,
+            "Number of skipped Raft commands violating the binary format");
+        gauges.SetGaugeValue("slimdata_raft_last_skipped_index", safety.LastSkippedIndex,
+            "Raft index of the latest skipped command, or -1 when none was skipped");
+        gauges.SetGaugeValue("slimdata_raft_last_skipped_term", safety.LastSkippedTerm,
+            "Raft term of the latest skipped command, or -1 when none was skipped");
+        gauges.SetGaugeValue("slimdata_raft_last_skipped_command_id", safety.LastSkippedCommandId,
+            "Command ID of the latest skipped command, or -1 when unavailable");
+        gauges.SetGaugeValue("slimdata_raft_last_skipped_length_bytes", safety.LastSkippedLength,
+            "Declared length of the latest skipped command, or -1 when unavailable");
+
         gauges.SetGaugeValue("slimdata_raft_last_log_index", cluster.AuditTrail.LastEntryIndex,
             "Last Raft WAL entry index");
         gauges.SetGaugeValue("slimdata_raft_committed_log_index", cluster.AuditTrail.LastCommittedEntryIndex,

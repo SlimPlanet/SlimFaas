@@ -23,52 +23,75 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
         public ReadOnlyMemory<byte> Value { get; set; }
     }
 
-    long? IDataTransferObject.Length => null;
+    long? IDataTransferObject.Length
+    {
+        get
+        {
+            long result = checked(SlimDataCommandCodec.HeaderLength + sizeof(int));
+            foreach (var item in Items ?? [])
+            {
+                result = checked(
+                    result +
+                    SlimDataCommandCodec.GetStringLength(item.Key) +
+                    SlimDataCommandCodec.GetStringLength(item.Identifier) +
+                    sizeof(long) +
+                    sizeof(int) +
+                    SlimDataCommandCodec.GetBytesLength(item.Value.Length) +
+                    sizeof(int) +
+                    ((item.Retries?.Count ?? 0) * sizeof(int)) +
+                    sizeof(int) +
+                    ((item.HttpStatusCodesWorthRetrying?.Count ?? 0) * sizeof(int)));
+            }
+
+            return result;
+        }
+    }
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : IAsyncBinaryWriter
     {
-        var count = Items?.Count ?? 0;
-        await writer.WriteLittleEndianAsync(count, token).ConfigureAwait(false);
+        IAsyncBinaryWriter output = writer;
+        var items = Items ?? [];
+        SlimDataCommandCodec.ValidateCommandLength(
+            ((IDataTransferObject)this).Length.GetValueOrDefault(),
+            nameof(ListLeftPushBatchCommand));
+        await SlimDataCommandCodec.WriteHeaderAsync(output, token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteCountAsync(
+            output,
+            items.Count,
+            SlimDataCommandCodec.MaxBatchItems,
+            nameof(Items),
+            token).ConfigureAwait(false);
 
-        if (count == 0)
-            return;
-
-        foreach (var it in Items!)
+        foreach (var item in items)
         {
-            // Strings
-            await writer.EncodeAsync(it.Key.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian, token).ConfigureAwait(false);
+            await SlimDataCommandCodec.WriteStringAsync(output, item.Key, "Queue key", token).ConfigureAwait(false);
+            await SlimDataCommandCodec.WriteStringAsync(output, item.Identifier, "Queue identifier", token)
+                .ConfigureAwait(false);
+            await output.WriteLittleEndianAsync(item.NowTicks, token).ConfigureAwait(false);
+            await output.WriteLittleEndianAsync(item.RetryTimeout, token).ConfigureAwait(false);
+            await SlimDataCommandCodec.WriteBytesAsync(output, item.Value, "Queue value", token)
+                .ConfigureAwait(false);
 
-            await writer.EncodeAsync(it.Identifier.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian, token).ConfigureAwait(false);
+            var retries = item.Retries ?? [];
+            await SlimDataCommandCodec.WriteCountAsync(
+                output,
+                retries.Count,
+                SlimDataCommandCodec.MaxCollectionCount,
+                nameof(BatchItem.Retries),
+                token).ConfigureAwait(false);
+            foreach (var retry in retries)
+                await output.WriteLittleEndianAsync(retry, token).ConfigureAwait(false);
 
-            // Champs scalaires
-            await writer.WriteLittleEndianAsync(it.NowTicks, token).ConfigureAwait(false);
-            await writer.WriteLittleEndianAsync(it.RetryTimeout, token).ConfigureAwait(false);
-
-            // Payload
-            await writer.WriteAsync(it.Value, LengthFormat.Compressed, token).ConfigureAwait(false);
-
-            // Retries
-            var retriesCount = it.Retries?.Count ?? 0;
-            await writer.WriteLittleEndianAsync(retriesCount, token).ConfigureAwait(false);
-            if (retriesCount > 0)
-            {
-                foreach (var r in it.Retries!)
-                    await writer.WriteLittleEndianAsync(r, token).ConfigureAwait(false);
-            }
-
-            // HttpStatusCodesWorthRetrying
-            var httpCount = it.HttpStatusCodesWorthRetrying?.Count ?? 0;
-            await writer.WriteLittleEndianAsync(httpCount, token).ConfigureAwait(false);
-            if (httpCount > 0)
-            {
-                foreach (var h in it.HttpStatusCodesWorthRetrying!)
-                    await writer.WriteLittleEndianAsync(h, token).ConfigureAwait(false);
-            }
+            var statusCodes = item.HttpStatusCodesWorthRetrying ?? [];
+            await SlimDataCommandCodec.WriteCountAsync(
+                output,
+                statusCodes.Count,
+                SlimDataCommandCodec.MaxCollectionCount,
+                nameof(BatchItem.HttpStatusCodesWorthRetrying),
+                token).ConfigureAwait(false);
+            foreach (var statusCode in statusCodes)
+                await output.WriteLittleEndianAsync(statusCode, token).ConfigureAwait(false);
         }
     }
 
@@ -77,56 +100,64 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        var count = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-        var items = new List<BatchItem>(count);
-
-        for (int i = 0; i < count; i++)
+        try
         {
-            // Strings
-            using var keyOwner = await reader
-                .DecodeAsync(new DecodingContext(Encoding.UTF8, false),
-                    LengthFormat.LittleEndian, token: token)
+            IAsyncBinaryReader input = reader;
+            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(ListLeftPushBatchCommand), token)
                 .ConfigureAwait(false);
-            string key = new string(keyOwner.Span);
-
-            using var idOwner = await reader
-                .DecodeAsync(new DecodingContext(Encoding.UTF8, false),
-                    LengthFormat.LittleEndian, token: token)
-                .ConfigureAwait(false);
-            string identifier = new string(idOwner.Span);
-
-            // Scalaires
-            var nowTicks = await reader.ReadLittleEndianAsync<Int64>(token).ConfigureAwait(false);
-            var retryTimeout = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-
-            // Payload
-            using var valueOwner = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
-            var value = valueOwner.Memory.ToArray();
-
-            // Retries
-            var retriesCount = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-            var retries = new List<int>(retriesCount);
-            while (retriesCount-- > 0)
-                retries.Add(await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false));
-
-            // HttpStatusCodesWorthRetrying
-            var httpCount = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-            var httpStatuses = new List<int>(httpCount);
-            while (httpCount-- > 0)
-                httpStatuses.Add(await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false));
-
-            items.Add(new BatchItem
+            var count = await SlimDataCommandCodec.ReadCountAsync(
+                input,
+                SlimDataCommandCodec.MaxBatchItems,
+                nameof(Items),
+                token).ConfigureAwait(false);
+            var items = new List<BatchItem>(count);
+            for (var i = 0; i < count; i++)
             {
-                Key = key,
-                Identifier = identifier,
-                NowTicks = nowTicks,
-                RetryTimeout = retryTimeout,
-                Value = value,
-                Retries = retries,
-                HttpStatusCodesWorthRetrying = httpStatuses
-            });
-        }
+                var key = await SlimDataCommandCodec.ReadStringAsync(input, "Queue key", token)
+                    .ConfigureAwait(false);
+                var identifier = await SlimDataCommandCodec.ReadStringAsync(input, "Queue identifier", token)
+                    .ConfigureAwait(false);
+                var nowTicks = await input.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
+                var retryTimeout = await input.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+                var value = await SlimDataCommandCodec.ReadBytesAsync(input, "Queue value", token)
+                    .ConfigureAwait(false);
 
-        return new ListLeftPushBatchCommand { Items = items };
+                var retriesCount = await SlimDataCommandCodec.ReadCountAsync(
+                    input,
+                    SlimDataCommandCodec.MaxCollectionCount,
+                    nameof(BatchItem.Retries),
+                    token).ConfigureAwait(false);
+                var retries = new List<int>(retriesCount);
+                for (var retryIndex = 0; retryIndex < retriesCount; retryIndex++)
+                    retries.Add(await input.ReadLittleEndianAsync<int>(token).ConfigureAwait(false));
+
+                var statusCount = await SlimDataCommandCodec.ReadCountAsync(
+                    input,
+                    SlimDataCommandCodec.MaxCollectionCount,
+                    nameof(BatchItem.HttpStatusCodesWorthRetrying),
+                    token).ConfigureAwait(false);
+                var statusCodes = new List<int>(statusCount);
+                for (var statusIndex = 0; statusIndex < statusCount; statusIndex++)
+                    statusCodes.Add(await input.ReadLittleEndianAsync<int>(token).ConfigureAwait(false));
+
+                items.Add(new BatchItem
+                {
+                    Key = key,
+                    Identifier = identifier,
+                    NowTicks = nowTicks,
+                    RetryTimeout = retryTimeout,
+                    Value = value,
+                    Retries = retries,
+                    HttpStatusCodesWorthRetrying = statusCodes
+                });
+            }
+
+            SlimDataCommandCodec.EnsureFullyConsumed(input, nameof(ListLeftPushBatchCommand));
+            return new ListLeftPushBatchCommand { Items = items };
+        }
+        catch (Exception ex) when (SlimDataCommandCodec.IsStructuralException(ex))
+        {
+            throw SlimDataCommandCodec.WrapStructuralException(nameof(ListLeftPushBatchCommand), ex);
+        }
     }
 }

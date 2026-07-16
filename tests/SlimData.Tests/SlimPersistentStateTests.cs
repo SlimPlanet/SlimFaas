@@ -211,12 +211,17 @@ public sealed class SlimPersistentStateTests
             Assert.True(shouldSnapshot);
             Assert.Empty(state.SlimDataState.KeyValues);
             Assert.Equal(KeyValueCommandStatus.NotCommitted, result.Status);
-            Assert.Equal("Skipped incompatible key/value log entry.", result.ErrorMessage);
+            Assert.Equal("Skipped incompatible SlimData Raft log entry.", result.ErrorMessage);
 
             var secondEntry = CreateStateMachineEntry(
                 new LegacyAddKeyValueLogEntry([(byte)KeyValueOperation.Set]),
                 index: 3L);
             Assert.False(await InvokeApplyAsync(state, secondEntry));
+
+            var skipped = Assert.Single(state.GetSkippedCommandMetrics());
+            Assert.Equal(AddKeyValueCommand.Id, skipped.CommandId);
+            Assert.Equal(2L, skipped.Count);
+            Assert.Equal(2L, state.GetRaftSafetyMetrics().FormatViolations);
         }
         finally
         {
@@ -226,19 +231,26 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
-    public async Task ApplyAsync_keeps_non_key_value_parse_failures_explicit()
+    public async Task ApplyAsync_skips_malformed_non_key_value_entries_and_marks_context()
     {
         var root = GetTemporaryDirectory();
 
         try
         {
             await using var state = new SlimPersistentState(root);
+            var context = new CommandApplyContext();
             var entry = CreateStateMachineEntry(
                 new InvalidApplicationLogEntry(AddHashSetCommand.Id, [0]),
-                index: 2L);
+                index: 2L,
+                context: context);
 
-            await Assert.ThrowsAnyAsync<Exception>(
-                async () => await InvokeApplyAsync(state, entry));
+            Assert.True(await InvokeApplyAsync(state, entry));
+            await context.WaitAsync(CancellationToken.None);
+
+            Assert.True(context.IsSkipped);
+            Assert.Equal("Skipped incompatible SlimData Raft log entry.", context.ErrorMessage);
+            Assert.Empty(state.SlimDataState.Hashsets);
+            Assert.Equal(1L, state.GetRaftSafetyMetrics().FormatViolations);
         }
         finally
         {
@@ -248,7 +260,58 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
-    public async Task WriteAheadLog_skips_incompatible_key_value_entries()
+    public async Task ApplyAsync_skips_unknown_and_oversized_entries_without_reading_their_payload()
+    {
+        var root = GetTemporaryDirectory();
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            var unknown = CreateStateMachineEntry(
+                new InvalidApplicationLogEntry(999, [0]),
+                index: 2L);
+            var oversized = CreateStateMachineEntry(
+                new InvalidApplicationLogEntry(
+                    ListCallbackCommand.Id,
+                    [0],
+                    declaredLength: (32L * 1024L * 1024L) + 1L),
+                index: 3L);
+            var negativeLength = CreateStateMachineEntry(
+                new InvalidApplicationLogEntry(
+                    ListCallbackBatchCommand.Id,
+                    [0],
+                    declaredLength: -1L),
+                index: 4L);
+            var missingLength = CreateStateMachineEntry(
+                new MissingLengthApplicationLogEntry(DeleteKeyValueCommand.Id, [0]),
+                index: 5L);
+
+            Assert.True(await InvokeApplyAsync(state, unknown));
+            Assert.False(await InvokeApplyAsync(state, oversized));
+            Assert.False(await InvokeApplyAsync(state, negativeLength));
+            Assert.False(await InvokeApplyAsync(state, missingLength));
+
+            Assert.Empty(state.SlimDataState.Queues);
+            var skipped = state.GetSkippedCommandMetrics();
+            Assert.Contains(skipped, metric => metric.CommandId == 999 && metric.Count == 1L);
+            Assert.Contains(skipped, metric => metric.CommandId == ListCallbackCommand.Id && metric.Count == 1L);
+            Assert.Contains(skipped, metric => metric.CommandId == ListCallbackBatchCommand.Id && metric.Count == 1L);
+            Assert.Contains(skipped, metric => metric.CommandId == DeleteKeyValueCommand.Id && metric.Count == 1L);
+            var safety = state.GetRaftSafetyMetrics();
+            Assert.Equal(1L, safety.SizeViolations);
+            Assert.Equal(3L, safety.FormatViolations);
+            Assert.Equal(5L, safety.LastSkippedIndex);
+            Assert.Equal(DeleteKeyValueCommand.Id, safety.LastSkippedCommandId);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WriteAheadLog_replays_valid_command_corruption_then_valid_command()
     {
         var root = GetTemporaryDirectory();
         var walPath = Path.Combine(root, "wal");
@@ -258,14 +321,32 @@ public sealed class SlimPersistentStateTests
             await using var state = new SlimPersistentState(root);
             await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
 
+            await AppendCommitWaitAsync(wal, new AddKeyValueCommand
+            {
+                Operation = KeyValueOperation.Set,
+                Key = "before-corruption",
+                Value = Encoding.UTF8.GetBytes("before")
+            });
+
             var index = await wal.AppendAsync(
-                new LegacyAddKeyValueLogEntry([(byte)KeyValueOperation.Set]),
+                new InvalidApplicationLogEntry(ListRightPopCommand.Id, [0]),
                 CancellationToken.None);
             await wal.CommitAsync(index, CancellationToken.None);
             using var applyTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await wal.WaitForApplyAsync(index, applyTimeout.Token);
 
-            Assert.Empty(state.SlimDataState.KeyValues);
+            await AppendCommitWaitAsync(wal, new AddKeyValueCommand
+            {
+                Operation = KeyValueOperation.Set,
+                Key = "after-corruption",
+                Value = Encoding.UTF8.GetBytes("after")
+            });
+
+            Assert.Equal("before", Encoding.UTF8.GetString(state.SlimDataState.KeyValues["before-corruption"].Span));
+            Assert.Equal("after", Encoding.UTF8.GetString(state.SlimDataState.KeyValues["after-corruption"].Span));
+            Assert.Contains(
+                state.GetSkippedCommandMetrics(),
+                metric => metric.CommandId == ListRightPopCommand.Id && metric.Count == 1L);
         }
         finally
         {
@@ -408,14 +489,31 @@ public sealed class SlimPersistentStateTests
             => writer.Invoke(payload, token);
     }
 
-    private sealed class InvalidApplicationLogEntry(int commandId, byte[] payload) : IRaftLogEntry
+    private sealed class InvalidApplicationLogEntry(
+        int commandId,
+        byte[] payload,
+        long? declaredLength = null) : IRaftLogEntry
     {
         public long Term => 1L;
         public int? CommandId => commandId;
         public bool IsConfiguration => false;
         public bool IsSnapshot => false;
         public bool IsReusable => true;
-        public long? Length => payload.Length;
+        public long? Length => declaredLength ?? payload.Length;
+
+        public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
+            where TWriter : notnull, IAsyncBinaryWriter
+            => writer.Invoke(payload, token);
+    }
+
+    private sealed class MissingLengthApplicationLogEntry(int commandId, byte[] payload) : IRaftLogEntry
+    {
+        public long Term => 1L;
+        public int? CommandId => commandId;
+        public bool IsConfiguration => false;
+        public bool IsSnapshot => false;
+        public bool IsReusable => true;
+        public long? Length => null;
 
         public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
             where TWriter : notnull, IAsyncBinaryWriter

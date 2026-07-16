@@ -15,27 +15,56 @@ public struct AddHashSetCommand : ICommand<AddHashSetCommand>
 
     public long? ExpireAtUtcTicks { get; set; }
 
-    long? IDataTransferObject.Length => null;
+    long? IDataTransferObject.Length
+    {
+        get
+        {
+            var result = checked(
+                SlimDataCommandCodec.HeaderLength +
+                SlimDataCommandCodec.GetStringLength(Key) +
+                sizeof(byte) +
+                (ExpireAtUtcTicks.HasValue ? sizeof(long) : 0) +
+                sizeof(int));
+            foreach (var (key, value) in Value ?? [])
+            {
+                result = checked(
+                    result +
+                    SlimDataCommandCodec.GetStringLength(key) +
+                    SlimDataCommandCodec.GetBytesLength(value.Length));
+            }
+
+            return result;
+        }
+    }
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
     {
-        var ctx = new EncodingContext(Encoding.UTF8, true);
-
-        await writer.EncodeAsync(Key.AsMemory(), ctx, LengthFormat.LittleEndian, token).ConfigureAwait(false);
+        IAsyncBinaryWriter output = writer;
+        SlimDataCommandCodec.ValidateCommandLength(
+            ((IDataTransferObject)this).Length.GetValueOrDefault(),
+            nameof(AddHashSetCommand));
+        await SlimDataCommandCodec.WriteHeaderAsync(output, token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteStringAsync(output, Key, nameof(Key), token).ConfigureAwait(false);
 
         byte hasTtl = (byte)(ExpireAtUtcTicks.HasValue ? 1 : 0);
-        await writer.WriteLittleEndianAsync(hasTtl, token).ConfigureAwait(false);
+        await output.WriteLittleEndianAsync(hasTtl, token).ConfigureAwait(false);
 
         if (ExpireAtUtcTicks.HasValue)
-            await writer.WriteLittleEndianAsync(ExpireAtUtcTicks.Value, token).ConfigureAwait(false);
+            await output.WriteLittleEndianAsync(ExpireAtUtcTicks.Value, token).ConfigureAwait(false);
 
-        await writer.WriteLittleEndianAsync(Value.Count, token).ConfigureAwait(false);
+        var values = Value ?? [];
+        await SlimDataCommandCodec.WriteCountAsync(
+            output,
+            values.Count,
+            SlimDataCommandCodec.MaxCollectionCount,
+            nameof(Value),
+            token).ConfigureAwait(false);
 
-        foreach (var (k, v) in Value)
+        foreach (var (k, v) in values)
         {
-            await writer.EncodeAsync(k.AsMemory(), ctx, LengthFormat.LittleEndian, token).ConfigureAwait(false);
-            await writer.WriteAsync(v, LengthFormat.Compressed, token).ConfigureAwait(false);
+            await SlimDataCommandCodec.WriteStringAsync(output, k, "HashSet key", token).ConfigureAwait(false);
+            await SlimDataCommandCodec.WriteBytesAsync(output, v, "HashSet value", token).ConfigureAwait(false);
         }
     }
 
@@ -44,38 +73,40 @@ public struct AddHashSetCommand : ICommand<AddHashSetCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        using var keyOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        var hasTtl = await reader.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
-        long? expire = null;
-        if (hasTtl != 0)
-            expire = await reader.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
-
-        var count = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
-
-        var dict = new Dictionary<string, ReadOnlyMemory<byte>>(count);
-        var ctx = new DecodingContext(Encoding.UTF8, true);
-
-        while (count-- > 0)
+        try
         {
-            using var entryKeyOwner = await reader.DecodeAsync(
-                ctx,
-                LengthFormat.LittleEndian,
-                token: token).ConfigureAwait(false);
+            IAsyncBinaryReader input = reader;
+            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(AddHashSetCommand), token)
+                .ConfigureAwait(false);
+            var key = await SlimDataCommandCodec.ReadStringAsync(input, nameof(Key), token).ConfigureAwait(false);
+            var hasTtl = await input.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
+            if (hasTtl > 1)
+                throw new InvalidDataException("Invalid hashset TTL marker.");
+            long? expire = hasTtl == 1
+                ? await input.ReadLittleEndianAsync<long>(token).ConfigureAwait(false)
+                : null;
 
-            using var valueOwner = await reader.ReadAsync(LengthFormat.Compressed, token: token).ConfigureAwait(false);
+            var count = await SlimDataCommandCodec.ReadCountAsync(
+                input,
+                SlimDataCommandCodec.MaxCollectionCount,
+                nameof(Value),
+                token).ConfigureAwait(false);
+            var dictionary = new Dictionary<string, ReadOnlyMemory<byte>>(count);
+            for (var i = 0; i < count; i++)
+            {
+                var dictionaryKey = await SlimDataCommandCodec.ReadStringAsync(input, "HashSet key", token)
+                    .ConfigureAwait(false);
+                var value = await SlimDataCommandCodec.ReadBytesAsync(input, "HashSet value", token)
+                    .ConfigureAwait(false);
+                dictionary.Add(dictionaryKey, value);
+            }
 
-            dict.Add(new string(entryKeyOwner.Span), valueOwner.Memory.ToArray());
+            SlimDataCommandCodec.EnsureFullyConsumed(input, nameof(AddHashSetCommand));
+            return new AddHashSetCommand { Key = key, Value = dictionary, ExpireAtUtcTicks = expire };
         }
-
-        return new AddHashSetCommand
+        catch (Exception ex) when (SlimDataCommandCodec.IsStructuralException(ex) || ex is InvalidDataException)
         {
-            Key = new string(keyOwner.Span),
-            Value = dict,
-            ExpireAtUtcTicks = expire
-        };
+            throw SlimDataCommandCodec.WrapStructuralException(nameof(AddHashSetCommand), ex);
+        }
     }
 }

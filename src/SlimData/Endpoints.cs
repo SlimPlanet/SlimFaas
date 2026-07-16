@@ -111,7 +111,14 @@ public class Endpoints
             await WaitForWritableLeaderAsync(cluster, operationToken).ConfigureAwait(false);
             await cluster.ReplicateAsync(cmd, operationToken).ConfigureAwait(false);
             if (cmd.Context is CommandApplyContext applyContext)
+            {
                 await applyContext.WaitAsync(operationToken).ConfigureAwait(false);
+                if (applyContext.IsSkipped)
+                {
+                    throw new SlimDataUnavailableException(
+                        applyContext.ErrorMessage ?? "SlimData skipped an incompatible Raft command.");
+                }
+            }
             return true;
         }
         catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && timeoutSource.IsCancellationRequested)

@@ -164,17 +164,6 @@ public class SlimDataInterpreter : CommandInterpreter
     public ValueTask ListRightPopAsync(ListRightPopCommand addHashSetCommand, CancellationToken token)
         => DoListRightPopAsync(addHashSetCommand, SlimDataState);
 
-    [CommandHandler]
-    public ValueTask ListRightPopLegacyAsync(ListRightPopCommandLegacy command, CancellationToken token)
-        => DoListRightPopAsync(new ListRightPopCommand
-        {
-            Key = command.Key,
-            Count = command.Count,
-            NowTicks = command.NowTicks,
-            IdTransaction = command.IdTransaction,
-            ReservedIps = []
-        }, SlimDataState);
-
     internal static ValueTask DoListRightPopAsync(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
     {
         var queues = slimDataState.Queues;
@@ -711,14 +700,6 @@ public class SlimDataInterpreter : CommandInterpreter
     public static CommandInterpreter InitInterpreter(SlimDataState state)
     {
         ValueTask ListRightPopHandler(ListRightPopCommand c, CancellationToken t) => DoListRightPopAsync(c, state);
-        ValueTask ListRightPopLegacyHandler(ListRightPopCommandLegacy c, CancellationToken t) => DoListRightPopAsync(new ListRightPopCommand
-        {
-            Key = c.Key,
-            Count = c.Count,
-            NowTicks = c.NowTicks,
-            IdTransaction = c.IdTransaction,
-            ReservedIps = []
-        }, state);
         ValueTask ListLeftPushBatchHandler(ListLeftPushBatchCommand c, CancellationToken t) => DoListLeftPushBatchAsync(c, state);
         ValueTask AddHashSetHandler(AddHashSetCommand c, CancellationToken t) => DoAddHashSetAsync(c, state);
         ValueTask DeleteHashSetHandler(DeleteHashSetCommand c, CancellationToken t) => DoDeleteHashSetAsync(c, state);
@@ -730,7 +711,6 @@ public class SlimDataInterpreter : CommandInterpreter
 
         var interpreter = new Builder()
             .Add(new Func<ListRightPopCommand, CancellationToken, ValueTask>(ListRightPopHandler))
-            .Add(new Func<ListRightPopCommandLegacy, CancellationToken, ValueTask>(ListRightPopLegacyHandler))
             .Add(new Func<ListLeftPushBatchCommand, CancellationToken, ValueTask>(ListLeftPushBatchHandler))
             .Add(new Func<AddHashSetCommand, CancellationToken, ValueTask>(AddHashSetHandler))
             .Add(new Func<DeleteHashSetCommand, CancellationToken, ValueTask>(DeleteHashSetHandler))

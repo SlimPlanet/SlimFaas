@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using DotNext;
@@ -18,14 +19,24 @@ public readonly record struct SlimDataStateMetrics(
     int QueueItems,
     long PayloadBytes);
 
+public readonly record struct SlimDataSkippedCommandMetric(int CommandId, long Count);
+
+public readonly record struct SlimDataRaftSafetyMetrics(
+    long SizeViolations,
+    long FormatViolations,
+    long LastSkippedIndex,
+    long LastSkippedTerm,
+    int LastSkippedCommandId,
+    long LastSkippedLength);
+
 public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimDataPayload>
 {
     public const string LogLocation = "SlimData:LogLocation";
     public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
     public const string SnapshotIntervalEntries = "SlimData:SnapshotIntervalEntries";
     public const int DefaultSnapshotIntervalEntries = 5000;
-    private const string SkippedIncompatibleKeyValueMessage =
-        "Skipped incompatible key/value log entry.";
+    private const string SkippedIncompatibleCommandMessage =
+        "Skipped incompatible SlimData Raft log entry.";
 
     private readonly SlimDataState _state = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
@@ -33,12 +44,19 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
     private readonly ILogger<SlimPersistentState>? _logger;
     private readonly int _snapshotIntervalEntries;
+    private readonly ConcurrentDictionary<int, long> _skippedCommands = new();
     private long _lastSnapshotRequestIndex;
-    private int _legacyCompactionRequested;
+    private int _incompatibleCompactionRequested;
     private int _isRestoring;
     private int _isSnapshotting;
     private long _lastSnapshotDurationMilliseconds;
     private long _lastSnapshotSizeBytes;
+    private long _sizeViolations;
+    private long _formatViolations;
+    private long _lastSkippedIndex = -1L;
+    private long _lastSkippedTerm = -1L;
+    private int _lastSkippedCommandId = -1;
+    private long _lastSkippedLength = -1L;
 
     public SlimPersistentState(string location)
         : this(location, DefaultSnapshotIntervalEntries, null)
@@ -113,25 +131,84 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
             snapshot.PayloadBytes);
     }
 
+    public IReadOnlyList<SlimDataSkippedCommandMetric> GetSkippedCommandMetrics()
+        => _skippedCommands
+            .OrderBy(static item => item.Key)
+            .Select(static item => new SlimDataSkippedCommandMetric(item.Key, item.Value))
+            .ToArray();
+
+    public SlimDataRaftSafetyMetrics GetRaftSafetyMetrics()
+        => new(
+            Volatile.Read(ref _sizeViolations),
+            Volatile.Read(ref _formatViolations),
+            Volatile.Read(ref _lastSkippedIndex),
+            Volatile.Read(ref _lastSkippedTerm),
+            Volatile.Read(ref _lastSkippedCommandId),
+            Volatile.Read(ref _lastSkippedLength));
+
     SlimDataPayload ISupplier<SlimDataPayload>.Invoke()
         => _state.CapturePayload();
 
     protected override async ValueTask<bool> ApplyAsync(LogEntry entry, CancellationToken token)
     {
-        if (entry.Length == 0L || entry.IsConfiguration || entry.IsSnapshot)
+        if (entry.IsConfiguration || entry.IsSnapshot)
             return false;
+
+        if (entry.Length == 0L && entry.CommandId is null)
+            return false;
+
+        if (!SlimDataCommandCodec.IsSupportedCommandId(entry.CommandId))
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                SlimDataCommandViolation.UnknownCommand,
+                "Unknown SlimData Raft command ID.");
+        }
+
+        if (entry.Length is null)
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                SlimDataCommandViolation.InvalidLength,
+                "SlimData Raft command does not declare its serialized length.");
+        }
+
+        if (entry.Length is > SlimDataCommandCodec.MaxCommandBytes)
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                SlimDataCommandViolation.TooLarge,
+                "SlimData Raft command exceeds the maximum allowed size.");
+        }
+
+        if (entry.Length is < SlimDataCommandCodec.HeaderLength)
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                entry.Length < 0L
+                    ? SlimDataCommandViolation.InvalidLength
+                    : SlimDataCommandViolation.Truncated,
+                entry.Length < 0L
+                    ? "SlimData Raft command has a negative serialized length."
+                    : "SlimData Raft command is shorter than its envelope.");
+        }
 
         try
         {
             await Interpreter.InterpretAsync(entry, entry.Context, token).ConfigureAwait(false);
         }
-        catch (InvalidDataException ex)
+        catch (SlimDataCommandFormatException ex)
         {
-            if (TrySkipIncompatibleKeyValueEntry(entry, ex))
-                return ShouldCreateSnapshot(entry.Index, requestLegacyCompaction: true);
-
-            throw new InvalidDataException(
-                $"Failed to interpret SlimData Raft log entry. Index={entry.Index}, Term={entry.Term}, CommandId={entry.CommandId?.ToString() ?? "null"}, IsConfiguration={entry.IsConfiguration}, IsSnapshot={entry.IsSnapshot}, Length={entry.Length?.ToString() ?? "null"}.",
+            return SkipIncompatibleEntry(entry, ex.Violation, ex.Message, ex);
+        }
+        catch (Exception ex) when (ex is InvalidDataException || SlimDataCommandCodec.IsStructuralException(ex))
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                ex is EndOfStreamException
+                    ? SlimDataCommandViolation.Truncated
+                    : SlimDataCommandViolation.InvalidFormat,
+                "SlimData Raft command has an invalid binary format.",
                 ex);
         }
 
@@ -141,9 +218,10 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         return ShouldCreateSnapshot(entry.Index);
     }
 
-    private bool ShouldCreateSnapshot(long index, bool requestLegacyCompaction = false)
+    private bool ShouldCreateSnapshot(long index, bool requestIncompatibleCompaction = false)
     {
-        if (requestLegacyCompaction && Interlocked.CompareExchange(ref _legacyCompactionRequested, 1, 0) is 0)
+        if (requestIncompatibleCompaction &&
+            Interlocked.CompareExchange(ref _incompatibleCompactionRequested, 1, 0) is 0)
         {
             Volatile.Write(ref _lastSnapshotRequestIndex, index);
             return true;
@@ -157,23 +235,41 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         return true;
     }
 
-    private bool TrySkipIncompatibleKeyValueEntry(LogEntry entry, InvalidDataException exception)
+    private bool SkipIncompatibleEntry(
+        LogEntry entry,
+        SlimDataCommandViolation violation,
+        string reason,
+        Exception? exception = null)
     {
-        if (entry.CommandId != AddKeyValueCommand.Id)
-            return false;
-
         _logger?.LogWarning(
             exception,
-            "Skipping incompatible SlimData key/value Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, IsConfiguration={IsConfiguration}, IsSnapshot={IsSnapshot}, Length={Length}",
+            "Skipping incompatible SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, Length={Length}, Violation={Violation}, Reason={Reason}",
             entry.Index,
             entry.Term,
             entry.CommandId,
-            entry.IsConfiguration,
-            entry.IsSnapshot,
-            entry.Length);
+            entry.Length,
+            violation,
+            reason);
 
+        RecordSkippedEntry(entry, violation);
         MarkSkippedContext(entry.Context);
-        return true;
+        return ShouldCreateSnapshot(entry.Index, requestIncompatibleCompaction: true);
+    }
+
+    private void RecordSkippedEntry(LogEntry entry, SlimDataCommandViolation violation)
+    {
+        var commandId = entry.CommandId ?? -1;
+        _skippedCommands.AddOrUpdate(commandId, 1L, static (_, count) => count + 1L);
+
+        if (violation is SlimDataCommandViolation.TooLarge)
+            Interlocked.Increment(ref _sizeViolations);
+        else
+            Interlocked.Increment(ref _formatViolations);
+
+        Volatile.Write(ref _lastSkippedIndex, entry.Index);
+        Volatile.Write(ref _lastSkippedTerm, entry.Term);
+        Volatile.Write(ref _lastSkippedCommandId, commandId);
+        Volatile.Write(ref _lastSkippedLength, entry.Length ?? -1L);
     }
 
     private static void MarkSkippedContext(object? context)
@@ -181,7 +277,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         switch (context)
         {
             case CommandApplyContext applyContext:
-                applyContext.SetApplied();
+                applyContext.SetSkipped(SkippedIncompatibleCommandMessage);
                 break;
 
             case KeyValueCommandResult result:
@@ -203,7 +299,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     private static void SetSkipped(KeyValueCommandResult result)
     {
         if (result.Status == KeyValueCommandStatus.None)
-            result.SetError(KeyValueCommandStatus.NotCommitted, SkippedIncompatibleKeyValueMessage);
+            result.SetError(KeyValueCommandStatus.NotCommitted, SkippedIncompatibleCommandMessage);
     }
 
     protected override async ValueTask PersistAsync(IAsyncBinaryWriter writer, CancellationToken token)
