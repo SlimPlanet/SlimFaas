@@ -7,10 +7,18 @@ using SlimData.Options;
 
 namespace SlimData;
 
+public interface IClusterMembershipCoordinator
+{
+    Task<bool> AddMemberAsync(Uri endpoint, CancellationToken token);
+
+    Task<bool> RemoveMemberAsync(Uri endpoint, CancellationToken token);
+}
+
 public sealed class ClusterMembershipCoordinator(
     IRaftHttpCluster cluster,
+    IHttpClientFactory httpClientFactory,
     IOptions<SlimDataMembershipOptions> options,
-    ILogger<ClusterMembershipCoordinator> logger)
+    ILogger<ClusterMembershipCoordinator> logger) : IClusterMembershipCoordinator
 {
     private readonly SemaphoreSlim _membershipGate = new(1, 1);
     private readonly TimeSpan _changeTimeout = TimeSpan.FromSeconds(options.Value.ChangeTimeoutSeconds);
@@ -36,6 +44,26 @@ public sealed class ClusterMembershipCoordinator(
             var isMember = IsMember(endpoint);
             if ((add && isMember) || (!add && !isMember))
                 return true;
+
+            if (add)
+            {
+                var protocol = await SlimDataProtocolClient.ProbeAsync(
+                        httpClientFactory,
+                        endpoint,
+                        timeout.Token)
+                    .ConfigureAwait(false);
+                if (!protocol.IsCompatible)
+                {
+                    logger.LogWarning(
+                        "SlimData member addition rejected because its command protocol is incompatible. Endpoint={Endpoint}, ExpectedProtocol={ExpectedProtocol}, ActualProtocol={ActualProtocol}, AssemblyVersion={AssemblyVersion}, Reason={Reason}",
+                        endpoint,
+                        Commands.SlimDataCommandProtocol.Current,
+                        protocol.Protocol,
+                        protocol.AssemblyVersion,
+                        protocol.Reason);
+                    return false;
+                }
+            }
 
             logger.LogInformation(
                 "Starting SlimData membership {Operation}. Endpoint={Endpoint}, LastLogIndex={LastLogIndex}, CommittedLogIndex={CommittedLogIndex}, TimeoutSeconds={TimeoutSeconds}",

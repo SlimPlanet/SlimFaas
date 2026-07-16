@@ -1,4 +1,5 @@
 ﻿using DotNext.Net.Cluster.Consensus.Raft;
+using SlimData;
 
 namespace SlimFaas;
 
@@ -7,7 +8,9 @@ public interface IMasterService
     bool IsMaster { get; }
 }
 
-public class MasterSlimDataService(IRaftCluster cluster) : IMasterService
+public class MasterSlimDataService(
+    IRaftCluster cluster,
+    ISlimDataProtocolCompatibility protocolCompatibility) : IMasterService
 {
     public bool IsMaster
     {
@@ -15,7 +18,8 @@ public class MasterSlimDataService(IRaftCluster cluster) : IMasterService
         {
             try
             {
-                return !cluster.LeadershipToken.IsCancellationRequested &&
+                return protocolCompatibility.IsCompatible &&
+                       !cluster.LeadershipToken.IsCancellationRequested &&
                        !cluster.ConsensusToken.IsCancellationRequested &&
                        cluster.TryGetLeaseToken(out var leaseToken) &&
                        !leaseToken.IsCancellationRequested;

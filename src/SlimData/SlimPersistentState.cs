@@ -181,10 +181,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
                 "SlimData Raft command exceeds the maximum allowed size.");
         }
 
-        var minimumCommandLength = entry.CommandId == ListLeftPushBatchCommand.Id
-            ? sizeof(int)
-            : SlimDataCommandCodec.HeaderLength;
-        if (entry.Length is < 0L || entry.Length < minimumCommandLength)
+        if (entry.Length is < 0L || entry.Length < SlimDataCommandCodec.HeaderLength)
         {
             return SkipIncompatibleEntry(
                 entry,
@@ -193,7 +190,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
                     : SlimDataCommandViolation.Truncated,
                 entry.Length < 0L
                     ? "SlimData Raft command has a negative serialized length."
-                    : $"SlimData Raft command is shorter than its {minimumCommandLength}-byte prefix.");
+                    : $"SlimData Raft command is shorter than its {SlimDataCommandCodec.HeaderLength}-byte envelope.");
         }
 
         try

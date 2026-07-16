@@ -233,7 +233,17 @@ public class RaftClusterTests
             await Task.Delay(200);
         }
 
-        Assert.True(await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host2).LocalMemberAddress));
+        using (var protocolTimeout = new CancellationTokenSource(DefaultTimeout))
+        {
+            var protocol = host1.Services.GetRequiredService<ISlimDataProtocolCompatibility>();
+            while (!protocol.IsCompatible)
+                await Task.Delay(50, protocolTimeout.Token);
+        }
+
+        var membershipCoordinator = host1.Services.GetRequiredService<ClusterMembershipCoordinator>();
+        Assert.True(await membershipCoordinator.AddMemberAsync(
+            GetLocalClusterView(host2).LocalMemberAddress,
+            CancellationToken.None));
         await GetLocalClusterView(host2).Readiness.WaitAsync(DefaultTimeout);
 
         IDatabaseService databaseServiceMaster = host1.Services.GetRequiredService<IDatabaseService>();
@@ -251,7 +261,9 @@ public class RaftClusterTests
         Assert.True(GetLocalClusterView(host1).AuditTrail.LastEntryIndex > entriesBeforeThirdMember);
 
         async Task<bool> AddThirdMemberAsync() =>
-            await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host3).LocalMemberAddress);
+            await membershipCoordinator.AddMemberAsync(
+                GetLocalClusterView(host3).LocalMemberAddress,
+                CancellationToken.None);
 
         var addThirdMemberTask = AddThirdMemberAsync();
         var concurrentWritesDuringMemberAdd = Enumerable.Range(0, 5)
@@ -264,6 +276,32 @@ public class RaftClusterTests
         await Task.WhenAll(concurrentWritesDuringMemberAdd);
         await GetLocalClusterView(host3).Readiness.WaitAsync(DefaultTimeout);
         await GetLocalClusterView(host1).ForceReplicationAsync();
+
+        IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
+        var thirdMemberEndpoint = GetLocalClusterView(host3).LocalMemberAddress;
+        Assert.True(await membershipCoordinator.RemoveMemberAsync(
+            thirdMemberEndpoint,
+            CancellationToken.None));
+        await WaitForMembershipCountAsync(GetLocalClusterView(host1), 2, CancellationToken.None);
+        await WaitForMembershipCountAsync(GetLocalClusterView(host2), 2, CancellationToken.None);
+
+        await databaseServiceMaster.SetAsync(
+            "membership-scale-down",
+            Encoding.UTF8.GetBytes("written-with-two-members"));
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+
+        Assert.True(await membershipCoordinator.AddMemberAsync(
+            thirdMemberEndpoint,
+            CancellationToken.None));
+        await WaitForMembershipCountAsync(GetLocalClusterView(host1), 3, CancellationToken.None);
+        await WaitForMembershipCountAsync(GetLocalClusterView(host2), 3, CancellationToken.None);
+        await WaitForMembershipCountAsync(GetLocalClusterView(host3), 3, CancellationToken.None);
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        await WaitForValueAsync(
+            databaseServiceSlave,
+            "membership-scale-down",
+            "written-with-two-members",
+            CancellationToken.None);
 
         using (var incompatibleEntryTimeout = new CancellationTokenSource(DefaultTimeout))
         {
@@ -288,8 +326,6 @@ public class RaftClusterTests
 
         for (var i = 0; i < concurrentWritesDuringMemberAdd.Length; i++)
             Assert.Equal(i.ToString(), Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync($"member-add-kv-{i}") ?? []));
-
-        IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
 
         await databaseServiceSlave.SetAsync("key1", MemoryPackSerializer.Serialize("value1") );
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceMaster.GetAsync("key1")));
@@ -397,16 +433,21 @@ public class RaftClusterTests
            customElementId);
        Assert.Equal(customElementId, customElementIdReturned);
        await GetLocalClusterView(host1).ForceReplicationAsync();
-       var customElementList = await databaseServiceSlave.ListCountElementAsync("listKeyCustom", new List<CountType> { CountType.Available });
+       var customElementList = await WaitForQueueCountAsync(
+           databaseServiceSlave,
+           "listKeyCustom",
+           expectedCount: 1,
+           CancellationToken.None);
        Assert.Single(customElementList);
        Assert.Equal(customElementId, customElementList[0].Id);
 
        await databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value1"), new RetryInformation([], 30, []));
        await GetLocalClusterView(host1).ForceReplicationAsync();
-       var listLength = await databaseServiceSlave.ListCountElementAsync("listKey1" , new List<CountType>()
-       {
-           CountType.Available
-       });
+       var listLength = await WaitForQueueCountAsync(
+           databaseServiceSlave,
+           "listKey1",
+           expectedCount: 1,
+           CancellationToken.None);
        Assert.Single(listLength);
 
         IList<QueueData>? listRightPop = await databaseServiceSlave.ListRightPopAsync("listKey1", Guid.NewGuid().ToString());
@@ -440,11 +481,26 @@ public class RaftClusterTests
         await Task.WhenAll(tasks);
 
         await GetLocalClusterView(host1).ForceReplicationAsync();
-        var listLength3 = await databaseServiceSlave.ListCountElementAsync("listKey1", new List<CountType>() { CountType.Available });
+        var listLength3 = await WaitForQueueCountAsync(
+            databaseServiceSlave,
+            "listKey1",
+            queuedItems,
+            CancellationToken.None);
         Assert.Equal(queuedItems, listLength3.Count);
 
         var persistentStates = new[] { host1, host2, host3 }
-            .Select(host => host.Services.GetRequiredService<SlimPersistentState>());
+            .Select(host => host.Services.GetRequiredService<SlimPersistentState>())
+            .ToArray();
+        using (var queueReplicationTimeout = new CancellationTokenSource(DefaultTimeout))
+        {
+            while (persistentStates.Any(state =>
+                       !state.SlimDataState.Queues.TryGetValue("listKey1", out var queue) ||
+                       queue.Length != queuedItems))
+            {
+                await Task.Delay(25, queueReplicationTimeout.Token);
+            }
+        }
+
         Assert.All(persistentStates, state => Assert.DoesNotContain(
             state.GetSkippedCommandMetrics(),
             metric => metric.CommandId == ListLeftPushBatchCommand.Id));
@@ -452,6 +508,53 @@ public class RaftClusterTests
         await host1.StopAsync();
         await host2.StopAsync();
         await host3.StopAsync();
+    }
+
+    private static async Task<IList<QueueData>> WaitForQueueCountAsync(
+        IDatabaseService database,
+        string key,
+        int expectedCount,
+        CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(DefaultTimeout);
+        while (true)
+        {
+            var items = await database.ListCountElementAsync(key, [CountType.Available]);
+            if (items.Count == expectedCount)
+                return items;
+
+            await Task.Delay(25, timeout.Token);
+        }
+    }
+
+    private static async Task WaitForMembershipCountAsync(
+        IRaftCluster cluster,
+        int expectedCount,
+        CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(DefaultTimeout);
+        while (cluster.Members.Count != expectedCount)
+            await Task.Delay(25, timeout.Token);
+    }
+
+    private static async Task WaitForValueAsync(
+        IDatabaseService database,
+        string key,
+        string expectedValue,
+        CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(DefaultTimeout);
+        while (true)
+        {
+            var value = await database.GetAsync(key);
+            if (value is not null && Encoding.UTF8.GetString(value) == expectedValue)
+                return;
+
+            await Task.Delay(25, timeout.Token);
+        }
     }
 
     private sealed class IncompatibleCommandLogEntry(int commandId, byte[] payload) : IRaftLogEntry

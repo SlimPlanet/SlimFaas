@@ -171,6 +171,14 @@ public class Endpoints
             return;
         }
 
+        if (!context.Request.Headers.TryGetValue(SlimDataCommandProtocol.HeaderName, out var protocol) ||
+            !string.Equals(protocol.ToString(), SlimDataCommandProtocol.Current, StringComparison.Ordinal))
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.Headers[SlimDataCommandProtocol.HeaderName] = SlimDataCommandProtocol.Current;
+            return;
+        }
+
         if (!context.Request.Query.TryGetValue("endpoint", out var endpointValue) ||
             !Uri.TryCreate(endpointValue.ToString(), UriKind.Absolute, out var endpoint) ||
             !Startup.IsAllowedClusterMember(endpoint))
@@ -202,6 +210,23 @@ public class Endpoints
         }
     }
 
+    public static async Task ProtocolAsync(HttpContext context)
+    {
+        var slimDataInfo = context.RequestServices.GetRequiredService<SlimDataInfo>();
+        if (context.Connection.LocalPort != slimDataInfo.Port)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        context.Response.ContentType = "text/plain";
+        context.Response.Headers[SlimDataCommandProtocol.HeaderName] = SlimDataCommandProtocol.Current;
+        context.Response.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName] =
+            SlimDataCommandProtocol.AssemblyVersion;
+        await context.Response.WriteAsync(SlimDataCommandProtocol.Current, context.RequestAborted)
+            .ConfigureAwait(false);
+    }
+
     public static async Task DoAsync(HttpContext context, RespondDelegate respondDelegate)
     {
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
@@ -213,6 +238,13 @@ public class Endpoints
         if (!currentPorts.Contains(slimDataInfo.Port))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        var protocolCompatibility = context.RequestServices.GetRequiredService<ISlimDataProtocolCompatibility>();
+        if (!protocolCompatibility.IsCompatible)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
             return;
         }
 

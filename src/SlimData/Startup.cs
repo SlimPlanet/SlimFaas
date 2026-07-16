@@ -17,6 +17,7 @@ public class Startup(IConfiguration configuration)
     private static readonly IList<string> ClusterMembers = new List<string>(2);
     private static Uri? LocalEndpoint;
     internal const string MembershipAnnounceResource = "/SlimData/members/announce";
+    internal const string ProtocolResource = "/SlimData/protocol";
 
     public static void AddClusterMemberBeforeStart(string endpoint)
     {
@@ -53,6 +54,7 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapClusterFileTransferRoutes();
                 endpoints.MapGet(LeaderResource, Endpoints.RedirectToLeaderAsync);
                 endpoints.MapGet(HealthResource, async context => { await context.Response.WriteAsync("OK"); });
+                endpoints.MapGet(ProtocolResource, Endpoints.ProtocolAsync);
                 endpoints.MapPost(ListLeftPushBatchResource,  Endpoints.ListLeftPushBatchAsync);
                 endpoints.MapPost(ListRightPopResource,  Endpoints.ListRightPopAsync);
                 endpoints.MapPost(AddHashSetResource,  Endpoints.AddHashSetAsync);
@@ -83,8 +85,33 @@ public class Startup(IConfiguration configuration)
             .Validate(
                 options => options.AnnouncementTimeoutSeconds > options.ChangeTimeoutSeconds,
                 "SlimData membership announcement timeout must exceed the change timeout.")
+            .Validate(
+                options => options.RemovalMissingCycles > 0,
+                "SlimData membership removal missing cycles must be positive.")
             .ValidateOnStart();
         services.AddSingleton<ClusterMembershipCoordinator>();
+        services.AddSingleton<IClusterMembershipCoordinator>(sp =>
+            sp.GetRequiredService<ClusterMembershipCoordinator>());
+        services.AddSingleton<SlimDataProtocolCompatibility>();
+        services.AddSingleton<ISlimDataProtocolCompatibility>(sp =>
+            sp.GetRequiredService<SlimDataProtocolCompatibility>());
+        services.AddHostedService<SlimDataProtocolCompatibilityWorker>();
+
+        services.AddHttpClient(SlimDataProtocolClient.HttpClientName, client =>
+            {
+                client.Timeout = Timeout.InfiniteTimeSpan;
+                client.DefaultRequestVersion = HttpVersion.Version11;
+                client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+            })
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false,
+                ConnectTimeout = TimeSpan.FromSeconds(2),
+                PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+                MaxConnectionsPerServer = 4,
+                UseProxy = false
+            });
 
         services.AddHttpClient("ClusterFilesTransfer", c =>
             {

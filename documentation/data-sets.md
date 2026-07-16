@@ -243,7 +243,10 @@ Raft membership changes are serialized and bounded by configurable timeouts. The
 ```bash
 SlimData__Membership__ChangeTimeoutSeconds=60
 SlimData__Membership__AnnouncementTimeoutSeconds=70
+SlimData__Membership__RemovalMissingCycles=3
 ```
+
+Followers normally join by announcing themselves to the current leader. As a fallback, the leader also reconciles the Raft membership with the orchestrator topology. Missing members are added first; a member is removed only after it has been absent for `RemovalMissingCycles` consecutive reconciliation cycles. No removal is attempted when the orchestrator snapshot does not contain the local leader.
 
 SlimData configures DotNext with `warmupRounds=10000` by default so a new follower can search far enough back in an active leader's WAL before requiring a snapshot. It can be overridden directly:
 
@@ -253,4 +256,24 @@ SlimData__WarmupRounds=20000
 
 For backward compatibility, a `warmupRounds` value inside `SlimData__Configuration` takes precedence over this dedicated setting.
 
-The readiness endpoint returns `503` while the local snapshot is being restored or while the node has no active Raft consensus. The liveness endpoint remains available so Kubernetes or OpenShift can keep the process alive while the cluster recovers.
+## Raft command protocol
+
+SlimData writes and accepts only the `SLDC/1` Raft command envelope. Legacy queue payloads using command ID `14` are skipped without mutating the state; they are never converted or rewritten. Every node exposes its protocol and assembly version on the internal SlimData port:
+
+```text
+GET /SlimData/protocol
+X-SlimData-Command-Protocol: SLDC/1
+X-SlimData-Assembly-Version: <version>
+```
+
+A node with a missing or incompatible protocol is rejected during membership changes. A follower also returns `503` from `/ready` and refuses SlimData operations while its leader is incompatible.
+
+Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
+
+1. Deploy one immutable image digest to all replicas.
+2. Scale the StatefulSet to zero.
+3. Delete the `slimfaas-volume-*` PVCs containing the `wal`, `db`, and `config` directories. Backup PVCs can be retained.
+4. Start `slimfaas-0`, then the followers one at a time.
+5. Verify the startup protocol/version log and ensure `slimdata_raft_skipped_command_total{command_id="14"}` remains zero.
+
+The readiness endpoint returns `503` while the local snapshot is being restored, the node has no active Raft consensus, or the leader protocol is incompatible. The liveness endpoint remains available so Kubernetes or OpenShift can keep the process alive while the cluster recovers.

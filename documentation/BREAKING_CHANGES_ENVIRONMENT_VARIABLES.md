@@ -50,6 +50,7 @@ Old environment variables are **no longer supported**.
 | *(new)* | `SlimData:SnapshotIntervalEntries` | `SlimData__SnapshotIntervalEntries` | `int` | `5000` |
 | *(new)* | `SlimData:Membership:ChangeTimeoutSeconds` | `SlimData__Membership__ChangeTimeoutSeconds` | `int` | `60` |
 | *(new)* | `SlimData:Membership:AnnouncementTimeoutSeconds` | `SlimData__Membership__AnnouncementTimeoutSeconds` | `int` | `70` |
+| *(new)* | `SlimData:Membership:RemovalMissingCycles` | `SlimData__Membership__RemovalMissingCycles` | `int` | `3` |
 
 ### RaftClientHandler Configuration (new)
 

@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
-using System.Reflection;
 using System.Text.Json;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
@@ -42,13 +41,10 @@ using var loggerFactory = LoggerFactory.Create(builder =>
     builder.AddDebug();
 });
 var startupLogger = loggerFactory.CreateLogger("SlimFaas.Startup");
-var slimDataAssemblyVersion = typeof(ListLeftPushBatchCommand).Assembly
-    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-    .InformationalVersion ?? "unknown";
 startupLogger.LogInformation(
     "SlimData command protocol {Protocol}, assembly {AssemblyVersion}",
     SlimDataCommandProtocol.Current,
-    slimDataAssemblyVersion);
+    SlimDataCommandProtocol.AssemblyVersion);
 
 // Bind options
 var slimFaasOptions = new SlimFaasOptions();
@@ -401,7 +397,7 @@ Dictionary<string, string> slimDataDefaultConfiguration = new()
 
 var allowUnsecureSSL = slimFaasOptions.AllowUnsecureSsl;
 
-serviceCollectionSlimFaas.AddHostedService<SlimDataSynchronizationWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimDataMembershipReconciliationWorker>();
 serviceCollectionSlimFaas.AddHostedService<ScheduleJobBackupWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
@@ -653,13 +649,9 @@ app.Use(async (context, next) =>
     {
         var cluster = context.RequestServices.GetService<IRaftCluster>();
         var persistentState = context.RequestServices.GetService<SlimPersistentState>();
-        // 200 si le nœud a terminé son warmup/rattrapage et peut être ajouté
-        var isReady = cluster is not null &&
-                      persistentState is not null &&
-                      cluster.Readiness.IsCompletedSuccessfully &&
-                      cluster.Leader is not null &&
-                      !cluster.ConsensusToken.IsCancellationRequested &&
-                      !persistentState.IsRestoring;
+        var protocolCompatibility = context.RequestServices.GetService<ISlimDataProtocolCompatibility>();
+        // 200 si le nœud a terminé son warmup/rattrapage et utilise le protocole du leader.
+        var isReady = SlimDataReadiness.IsReady(cluster, persistentState, protocolCompatibility);
         if (isReady)
         {
             context.Response.StatusCode = StatusCodes.Status200OK;

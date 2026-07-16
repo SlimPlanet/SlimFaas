@@ -356,7 +356,7 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
-    public async Task WriteAheadLog_applies_bounded_legacy_list_left_push_entry()
+    public async Task WriteAheadLog_skips_legacy_list_left_push_then_applies_current_entry()
     {
         var root = GetTemporaryDirectory();
         var walPath = Path.Combine(root, "wal");
@@ -390,12 +390,31 @@ public sealed class SlimPersistentStateTests
             using var applyTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             await wal.WaitForApplyAsync(index, applyTimeout.Token);
 
-            var item = Assert.Single(state.SlimDataState.Queues["legacy-queue"]);
-            Assert.Equal("legacy-item", item.Id);
-            Assert.Equal("legacy-value", Encoding.UTF8.GetString(item.Value.Span));
-            Assert.DoesNotContain(
+            Assert.DoesNotContain("legacy-queue", state.SlimDataState.Queues.Keys);
+            Assert.Contains(
                 state.GetSkippedCommandMetrics(),
-                metric => metric.CommandId == ListLeftPushBatchCommand.Id);
+                metric => metric.CommandId == ListLeftPushBatchCommand.Id && metric.Count == 1L);
+
+            await AppendCommitWaitAsync(wal, new ListLeftPushBatchCommand
+            {
+                Items =
+                [
+                    new ListLeftPushBatchCommand.BatchItem
+                    {
+                        Key = "current-queue",
+                        Identifier = "current-item",
+                        NowTicks = DateTime.UtcNow.Ticks,
+                        RetryTimeout = 30,
+                        Retries = [1, 2],
+                        HttpStatusCodesWorthRetrying = [500],
+                        Value = Encoding.UTF8.GetBytes("current-value")
+                    }
+                ]
+            });
+
+            var item = Assert.Single(state.SlimDataState.Queues["current-queue"]);
+            Assert.Equal("current-item", item.Id);
+            Assert.Equal("current-value", Encoding.UTF8.GetString(item.Value.Span));
         }
         finally
         {

@@ -86,6 +86,7 @@ public sealed class SlimDataCommandCodecTests
                 }
             ]
         };
+        Assert.Equal(CurrentHeader(), (await SerializeAndAssertLengthAsync(push))[..CurrentHeader().Length]);
         var pushResult = await RoundtripAsync(push, ListLeftPushBatchCommand.ReadFromAsync);
         Assert.Equal(bytes128, Assert.Single(pushResult.Items).Value.ToArray());
 
@@ -127,7 +128,7 @@ public sealed class SlimDataCommandCodecTests
     }
 
     [Fact]
-    public async Task List_left_push_reads_the_bounded_legacy_format()
+    public async Task List_left_push_rejects_the_legacy_format()
     {
         var command = new ListLeftPushBatchCommand
         {
@@ -149,14 +150,11 @@ public sealed class SlimDataCommandCodecTests
         var bytes = await SerializeLegacyListLeftPushAsync(command);
         await using var stream = new MemoryStream(bytes, writable: false);
         var reader = IAsyncBinaryReader.Create(stream, new byte[256]);
-        var result = await ListLeftPushBatchCommand.ReadFromAsync(reader, CancellationToken.None);
+        var exception = await Assert.ThrowsAnyAsync<IOException>(async () =>
+            await ListLeftPushBatchCommand.ReadFromAsync(reader, CancellationToken.None));
 
-        var item = Assert.Single(result.Items);
-        Assert.Equal("legacy-queue-雪", item.Key);
-        Assert.Equal("legacy-id-é", item.Identifier);
-        Assert.Equal(128, item.Value.Length);
-        Assert.Equal([1, 5], item.Retries);
-        Assert.Equal([429, 500], item.HttpStatusCodesWorthRetrying);
+        Assert.Contains("current SlimData command envelope", exception.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("OutOfMemoryException", exception.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

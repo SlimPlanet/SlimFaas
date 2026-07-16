@@ -9,6 +9,7 @@ namespace SlimFaas.Workers;
 public sealed class SlimDataDiagnosticsWorker(
     SlimPersistentState persistentState,
     IRaftCluster cluster,
+    ISlimDataProtocolCompatibility protocolCompatibility,
     IDatabaseService databaseService,
     DynamicGaugeService gauges,
     ILogger<SlimDataDiagnosticsWorker> logger) : BackgroundService
@@ -103,6 +104,8 @@ public sealed class SlimDataDiagnosticsWorker(
             "Whether this node currently sees Raft consensus");
         gauges.SetGaugeValue("slimdata_raft_has_leader_lease", hasLease ? 1 : 0,
             "Whether this node owns a valid Raft leader lease");
+        gauges.SetGaugeValue("slimdata_raft_protocol_compatible", protocolCompatibility.IsCompatible ? 1 : 0,
+            "Whether the local node and current Raft leader use the same SlimData command protocol");
         gauges.SetGaugeValue("slimdata_raft_member_count", cluster.Members.Count,
             "Number of remote members in the local Raft configuration");
 

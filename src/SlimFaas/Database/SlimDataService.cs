@@ -31,6 +31,7 @@ public class SlimDataService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceProvider _serviceProvider;
     private readonly IRaftCluster _cluster;
+    private readonly ISlimDataProtocolCompatibility _protocolCompatibility;
     private readonly ILogger<SlimDataService> _logger;
     public const string HttpClientName = "SlimDataHttpClient";
     private readonly IList<int> _retryInterval = new List<int> { 1, 1, 1 };
@@ -41,11 +42,13 @@ public class SlimDataService
         IHttpClientFactory httpClientFactory,
         IServiceProvider serviceProvider,
         IRaftCluster cluster,
+        ISlimDataProtocolCompatibility protocolCompatibility,
         ILogger<SlimDataService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _serviceProvider = serviceProvider;
         _cluster = cluster;
+        _protocolCompatibility = protocolCompatibility;
         _logger = logger;
         _batcher = new MultiRateAdaptiveBatcher(
             idleStop: TimeSpan.FromSeconds(15),
@@ -564,6 +567,12 @@ public class SlimDataService
 
     private async Task<EndPoint> GetAndWaitForLeader()
     {
+        if (!_protocolCompatibility.IsCompatible)
+        {
+            throw new SlimDataUnavailableException(
+                $"SlimData Raft command protocol is incompatible or unavailable: {_protocolCompatibility.Reason}");
+        }
+
         var timeWaited = TimeSpan.Zero;
         while (_cluster.Leader == null && timeWaited < _timeMaxToWaitForLeader)
         {

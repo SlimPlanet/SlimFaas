@@ -2,6 +2,7 @@ using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Connections;
 using Microsoft.Extensions.Options;
+using SlimData.Commands;
 using SlimData.Options;
 
 namespace SlimData;
@@ -49,6 +50,9 @@ internal sealed class ClusterMembershipAnnouncer(
         for (var redirectCount = 0; redirectCount < 2; redirectCount++)
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, target);
+            request.Headers.TryAddWithoutValidation(
+                SlimDataCommandProtocol.HeaderName,
+                SlimDataCommandProtocol.Current);
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token)
                 .ConfigureAwait(false);
             if (response.IsSuccessStatusCode)
