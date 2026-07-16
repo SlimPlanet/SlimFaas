@@ -1,6 +1,6 @@
 ﻿﻿using DotNext.Net.Cluster.Consensus.Raft;
-using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.Extensions.Options;
+using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -10,6 +10,7 @@ namespace SlimFaas;
 public class SlimDataSynchronizationWorker(
     IReplicasService replicasService,
     IRaftCluster cluster,
+    ClusterMembershipCoordinator membershipCoordinator,
     ILogger<SlimDataSynchronizationWorker> logger,
     ISlimDataStatus slimDataStatus,
     IOptions<SlimFaasOptions> slimFaasOptions,
@@ -47,8 +48,16 @@ public class SlimDataSynchronizationWorker(
                         continue;
                     }
 
-                    logger.LogInformation($"SlimDataSynchronizationWorker: SlimFaas pod {slimFaasPod.Name} has to be added in the cluster");
-                    await ((IRaftHttpCluster)cluster).AddMemberAsync(new Uri(url), stoppingToken);
+                    logger.LogInformation(
+                        "SlimDataSynchronizationWorker: SlimFaas pod {PodName} has to be added in the cluster",
+                        slimFaasPod.Name);
+                    var added = await membershipCoordinator.AddMemberAsync(new Uri(url), stoppingToken);
+                    if (!added)
+                    {
+                        logger.LogWarning(
+                            "SlimDataSynchronizationWorker: SlimFaas pod {PodName} was not added; the operation will be retried",
+                            slimFaasPod.Name);
+                    }
 
                     // Add only one at once to let a synchronization time
                     isWaitForNextRound = true;
@@ -76,9 +85,16 @@ public class SlimDataSynchronizationWorker(
                     }
 
                     logger.LogInformation(
-                        $"SlimDataSynchronizationWorker: SlimFaas pod {endpoint} need to be remove from the cluster");
-                    await ((IRaftHttpCluster)cluster).RemoveMemberAsync(
+                        "SlimDataSynchronizationWorker: SlimFaas pod {Endpoint} needs to be removed from the cluster",
+                        endpoint);
+                    var removed = await membershipCoordinator.RemoveMemberAsync(
                         new Uri(endpoint ?? string.Empty), stoppingToken);
+                    if (!removed)
+                    {
+                        logger.LogWarning(
+                            "SlimDataSynchronizationWorker: SlimFaas pod {Endpoint} was not removed; the operation will be retried",
+                            endpoint);
+                    }
                     // Remove only one at once to let a synchronization time
                     break;
                 }

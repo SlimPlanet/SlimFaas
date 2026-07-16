@@ -103,13 +103,18 @@ public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
         try
         {
             IAsyncBinaryReader input = reader;
-            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(ListLeftPushBatchCommand), token)
+            var legacyCount = await SlimDataCommandCodec.ReadHeaderOrLegacyCountAsync(
+                    input,
+                    nameof(ListLeftPushBatchCommand),
+                    SlimDataCommandCodec.MaxBatchItems,
+                    token)
                 .ConfigureAwait(false);
-            var count = await SlimDataCommandCodec.ReadCountAsync(
-                input,
-                SlimDataCommandCodec.MaxBatchItems,
-                nameof(Items),
-                token).ConfigureAwait(false);
+            var count = legacyCount ?? await SlimDataCommandCodec.ReadCountAsync(
+                    input,
+                    SlimDataCommandCodec.MaxBatchItems,
+                    nameof(Items),
+                    token)
+                .ConfigureAwait(false);
             var items = new List<BatchItem>(count);
             for (var i = 0; i < count; i++)
             {

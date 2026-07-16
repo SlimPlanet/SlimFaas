@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Reflection;
 using System.Text.Json;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
@@ -9,6 +11,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 using Prometheus;
 using SlimData;
+using SlimData.Commands;
 using SlimData.Expiration;
 using SlimFaas;
 using SlimFaas.Configuration;
@@ -39,6 +42,13 @@ using var loggerFactory = LoggerFactory.Create(builder =>
     builder.AddDebug();
 });
 var startupLogger = loggerFactory.CreateLogger("SlimFaas.Startup");
+var slimDataAssemblyVersion = typeof(ListLeftPushBatchCommand).Assembly
+    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+    .InformationalVersion ?? "unknown";
+startupLogger.LogInformation(
+    "SlimData command protocol {Protocol}, assembly {AssemblyVersion}",
+    SlimDataCommandProtocol.Current,
+    slimDataAssemblyVersion);
 
 // Bind options
 var slimFaasOptions = new SlimFaasOptions();
@@ -380,6 +390,7 @@ Dictionary<string, string> slimDataDefaultConfiguration = new()
     { "upperElectionTimeout", "3000" },
     { "requestTimeout", "00:00:02.5000000" },
     { "rpcTimeout", "00:00:01.0000000" },
+    { "warmupRounds", slimDataOptions.WarmupRounds.ToString(CultureInfo.InvariantCulture) },
     { "publicEndPoint", publicEndPoint },
     { "coldStart", coldStart },
     { "requestJournal:memoryLimit", "10" },

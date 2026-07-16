@@ -17,6 +17,7 @@ public class Starter
             { "partitioning", "false" },
             { "lowerElectionTimeout", "300" },
             { "upperElectionTimeout", "600" },
+            { "warmupRounds", "10000" },
             { "publicEndPoint", publicEndPoint },
             { "coldStart", "false" },
             { "requestJournal:memoryLimit", "10" },

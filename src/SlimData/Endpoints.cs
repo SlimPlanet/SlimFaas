@@ -188,13 +188,10 @@ public class Endpoints
             return;
         }
 
-        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
-            context.RequestAborted,
-            cluster.LeadershipToken);
-        timeout.CancelAfter(ReplicationTimeout);
         try
         {
-            var added = await cluster.AddMemberAsync(endpoint, timeout.Token).ConfigureAwait(false);
+            var coordinator = context.RequestServices.GetRequiredService<ClusterMembershipCoordinator>();
+            var added = await coordinator.AddMemberAsync(endpoint, context.RequestAborted).ConfigureAwait(false);
             context.Response.StatusCode = added
                 ? StatusCodes.Status204NoContent
                 : StatusCodes.Status503ServiceUnavailable;

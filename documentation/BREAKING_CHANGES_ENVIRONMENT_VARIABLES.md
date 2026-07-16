@@ -46,6 +46,10 @@ Old environment variables are **no longer supported**.
 | `SLIMDATA_DIRECTORY` | `SlimData:Directory` | `SlimData__Directory` | `string?` | `null` |
 | `SLIMDATA_CONFIGURATION` | `SlimData:Configuration` | `SlimData__Configuration` | `string?` | `null` |
 | *(implicit)* | `SlimData:AllowColdStart` | `SlimData__AllowColdStart` | `bool` | `false` |
+| *(new)* | `SlimData:WarmupRounds` | `SlimData__WarmupRounds` | `int` | `10000` |
+| *(new)* | `SlimData:SnapshotIntervalEntries` | `SlimData__SnapshotIntervalEntries` | `int` | `5000` |
+| *(new)* | `SlimData:Membership:ChangeTimeoutSeconds` | `SlimData__Membership__ChangeTimeoutSeconds` | `int` | `60` |
+| *(new)* | `SlimData:Membership:AnnouncementTimeoutSeconds` | `SlimData__Membership__AnnouncementTimeoutSeconds` | `int` | `70` |
 
 ### RaftClientHandler Configuration (new)
 

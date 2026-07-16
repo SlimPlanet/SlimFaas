@@ -1,15 +1,18 @@
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Connections;
+using Microsoft.Extensions.Options;
+using SlimData.Options;
 
 namespace SlimData;
 
 internal sealed class ClusterMembershipAnnouncer(
     IHttpClientFactory httpClientFactory,
+    IOptions<SlimDataMembershipOptions> options,
     ILogger<ClusterMembershipAnnouncer> logger)
 {
     internal const string HttpClientName = "SlimDataMembershipAnnouncer";
-    private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(2);
+    private readonly TimeSpan _attemptTimeout = TimeSpan.FromSeconds(options.Value.AnnouncementTimeoutSeconds);
 
     internal async Task AnnounceAsync(
         UriEndPoint address,
@@ -22,7 +25,7 @@ internal sealed class ClusterMembershipAnnouncer(
                 continue;
 
             using var attempt = CancellationTokenSource.CreateLinkedTokenSource(token);
-            attempt.CancelAfter(AttemptTimeout);
+            attempt.CancelAfter(_attemptTimeout);
             try
             {
                 if (await TryAnnounceAsync(candidate, address.Uri, attempt.Token).ConfigureAwait(false))

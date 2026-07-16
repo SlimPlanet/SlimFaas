@@ -238,4 +238,19 @@ SlimData creates streaming state snapshots every 5,000 applied entries by defaul
 SlimData__SnapshotIntervalEntries=5000
 ```
 
+Raft membership changes are serialized and bounded by configurable timeouts. The announcement timeout must be greater than the membership change timeout:
+
+```bash
+SlimData__Membership__ChangeTimeoutSeconds=60
+SlimData__Membership__AnnouncementTimeoutSeconds=70
+```
+
+SlimData configures DotNext with `warmupRounds=10000` by default so a new follower can search far enough back in an active leader's WAL before requiring a snapshot. It can be overridden directly:
+
+```bash
+SlimData__WarmupRounds=20000
+```
+
+For backward compatibility, a `warmupRounds` value inside `SlimData__Configuration` takes precedence over this dedicated setting.
+
 The readiness endpoint returns `503` while the local snapshot is being restored or while the node has no active Raft consensus. The liveness endpoint remains available so Kubernetes or OpenShift can keep the process alive while the cluster recovers.

@@ -355,6 +355,55 @@ public sealed class SlimPersistentStateTests
         }
     }
 
+    [Fact]
+    public async Task WriteAheadLog_applies_bounded_legacy_list_left_push_entry()
+    {
+        var root = GetTemporaryDirectory();
+        var walPath = Path.Combine(root, "wal");
+
+        try
+        {
+            var legacyCommand = new ListLeftPushBatchCommand
+            {
+                Items =
+                [
+                    new ListLeftPushBatchCommand.BatchItem
+                    {
+                        Key = "legacy-queue",
+                        Identifier = "legacy-item",
+                        NowTicks = DateTime.UtcNow.Ticks,
+                        RetryTimeout = 30,
+                        Retries = [1, 2],
+                        HttpStatusCodesWorthRetrying = [500],
+                        Value = Encoding.UTF8.GetBytes("legacy-value")
+                    }
+                ]
+            };
+            var payload = await SlimDataCommandCodecTests.SerializeLegacyListLeftPushAsync(legacyCommand);
+
+            await using var state = new SlimPersistentState(root);
+            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            var index = await wal.AppendAsync(
+                new InvalidApplicationLogEntry(ListLeftPushBatchCommand.Id, payload),
+                CancellationToken.None);
+            await wal.CommitAsync(index, CancellationToken.None);
+            using var applyTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await wal.WaitForApplyAsync(index, applyTimeout.Token);
+
+            var item = Assert.Single(state.SlimDataState.Queues["legacy-queue"]);
+            Assert.Equal("legacy-item", item.Id);
+            Assert.Equal("legacy-value", Encoding.UTF8.GetString(item.Value.Span));
+            Assert.DoesNotContain(
+                state.GetSkippedCommandMetrics(),
+                metric => metric.CommandId == ListLeftPushBatchCommand.Id);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     private static async Task AppendCommitWaitAsync<TCommand>(WriteAheadLog wal, TCommand command)
         where TCommand : struct, ICommand<TCommand>
     {

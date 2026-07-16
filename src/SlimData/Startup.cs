@@ -75,6 +75,17 @@ public class Startup(IConfiguration configuration)
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
+        services.AddOptions<SlimDataMembershipOptions>()
+            .Bind(configuration.GetSection(SlimDataMembershipOptions.SectionName))
+            .Validate(
+                options => options.ChangeTimeoutSeconds > 0,
+                "SlimData membership change timeout must be positive.")
+            .Validate(
+                options => options.AnnouncementTimeoutSeconds > options.ChangeTimeoutSeconds,
+                "SlimData membership announcement timeout must exceed the change timeout.")
+            .ValidateOnStart();
+        services.AddSingleton<ClusterMembershipCoordinator>();
+
         services.AddHttpClient("ClusterFilesTransfer", c =>
             {
                 c.Timeout = Timeout.InfiniteTimeSpan;

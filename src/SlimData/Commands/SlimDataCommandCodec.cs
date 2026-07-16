@@ -4,6 +4,11 @@ using DotNext.IO;
 
 namespace SlimData.Commands;
 
+public static class SlimDataCommandProtocol
+{
+    public const string Current = "SLDC/1";
+}
+
 internal enum SlimDataCommandViolation
 {
     LegacyFormat,
@@ -116,7 +121,8 @@ internal static class SlimDataCommandCodec
         {
             throw new SlimDataCommandFormatException(
                 SlimDataCommandViolation.LegacyFormat,
-                $"{commandName} payload does not use the current SlimData command envelope.");
+                $"{commandName} payload does not use the current SlimData command envelope " +
+                $"(received magic 0x{magic:X8}, expected 0x{Magic:X8}).");
         }
 
         var version = await reader.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
@@ -126,6 +132,36 @@ internal static class SlimDataCommandCodec
                 SlimDataCommandViolation.UnsupportedVersion,
                 $"Unsupported {commandName} envelope version {version}; expected {Version}.");
         }
+    }
+
+    internal static async ValueTask<int?> ReadHeaderOrLegacyCountAsync<TReader>(
+        TReader reader,
+        string commandName,
+        int maximumLegacyCount,
+        CancellationToken token)
+        where TReader : notnull, IAsyncBinaryReader
+    {
+        ValidateCommandSize(reader, commandName, sizeof(int));
+        EnsureRemaining(reader, sizeof(uint), commandName);
+
+        var marker = await reader.ReadLittleEndianAsync<uint>(token).ConfigureAwait(false);
+        if (marker != Magic)
+        {
+            var legacyCount = unchecked((int)marker);
+            ValidateCount(legacyCount, maximumLegacyCount, $"{commandName} legacy items");
+            return legacyCount;
+        }
+
+        EnsureRemaining(reader, sizeof(byte), commandName);
+        var version = await reader.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
+        if (version != Version)
+        {
+            throw new SlimDataCommandFormatException(
+                SlimDataCommandViolation.UnsupportedVersion,
+                $"Unsupported {commandName} envelope version {version}; expected {Version}.");
+        }
+
+        return null;
     }
 
     internal static async ValueTask WriteStringAsync<TWriter>(
@@ -257,7 +293,10 @@ internal static class SlimDataCommandCodec
             or OverflowException
             or ArgumentException;
 
-    private static void ValidateCommandSize<TReader>(TReader reader, string commandName)
+    private static void ValidateCommandSize<TReader>(
+        TReader reader,
+        string commandName,
+        int minimumLength = HeaderLength)
         where TReader : notnull, IAsyncBinaryReader
     {
         if (!reader.TryGetRemainingBytesCount(out var remaining))
@@ -270,11 +309,11 @@ internal static class SlimDataCommandCodec
                 $"{commandName} payload is {remaining} bytes; maximum is {MaxCommandBytes} bytes.");
         }
 
-        if (remaining < HeaderLength)
+        if (remaining < minimumLength)
         {
             throw new SlimDataCommandFormatException(
                 SlimDataCommandViolation.Truncated,
-                $"{commandName} payload is shorter than the {HeaderLength}-byte envelope.");
+                $"{commandName} payload is shorter than the required {minimumLength}-byte prefix.");
         }
     }
 

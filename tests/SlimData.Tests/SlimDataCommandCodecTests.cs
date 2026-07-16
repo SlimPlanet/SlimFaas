@@ -127,6 +127,39 @@ public sealed class SlimDataCommandCodecTests
     }
 
     [Fact]
+    public async Task List_left_push_reads_the_bounded_legacy_format()
+    {
+        var command = new ListLeftPushBatchCommand
+        {
+            Items =
+            [
+                new ListLeftPushBatchCommand.BatchItem
+                {
+                    Key = "legacy-queue-雪",
+                    Identifier = "legacy-id-é",
+                    NowTicks = 123,
+                    RetryTimeout = 30,
+                    Retries = [1, 5],
+                    HttpStatusCodesWorthRetrying = [429, 500],
+                    Value = Enumerable.Repeat((byte)0x7F, 128).ToArray()
+                }
+            ]
+        };
+
+        var bytes = await SerializeLegacyListLeftPushAsync(command);
+        await using var stream = new MemoryStream(bytes, writable: false);
+        var reader = IAsyncBinaryReader.Create(stream, new byte[256]);
+        var result = await ListLeftPushBatchCommand.ReadFromAsync(reader, CancellationToken.None);
+
+        var item = Assert.Single(result.Items);
+        Assert.Equal("legacy-queue-雪", item.Key);
+        Assert.Equal("legacy-id-é", item.Identifier);
+        Assert.Equal(128, item.Value.Length);
+        Assert.Equal([1, 5], item.Retries);
+        Assert.Equal([429, 500], item.HttpStatusCodesWorthRetrying);
+    }
+
+    [Fact]
     public async Task Every_command_rejects_bad_magic_version_oversized_prefix_and_truncation()
     {
         var cases = await CreateCommandCasesAsync();
@@ -180,6 +213,15 @@ public sealed class SlimDataCommandCodecTests
             excessiveBatch,
             async reader => { _ = await ListCallbackBatchCommand.ReadFromAsync(reader, CancellationToken.None); });
 
+        await AssertInvalidAsync(
+            nameof(ListLeftPushBatchCommand),
+            BitConverter.GetBytes(-1),
+            async reader => { _ = await ListLeftPushBatchCommand.ReadFromAsync(reader, CancellationToken.None); });
+        await AssertInvalidAsync(
+            nameof(ListLeftPushBatchCommand),
+            BitConverter.GetBytes(int.MaxValue),
+            async reader => { _ = await ListLeftPushBatchCommand.ReadFromAsync(reader, CancellationToken.None); });
+
         var command = new AddKeyValueCommand
         {
             Operation = KeyValueOperation.Set,
@@ -229,6 +271,41 @@ public sealed class SlimDataCommandCodecTests
         var bytes = await DataTransferObject.ToByteArrayAsync(command, null, CancellationToken.None);
         Assert.Equal(((IDataTransferObject)command).Length, bytes.LongLength);
         return bytes;
+    }
+
+    internal static async Task<byte[]> SerializeLegacyListLeftPushAsync(ListLeftPushBatchCommand command)
+    {
+        await using var stream = new MemoryStream();
+        var writer = IAsyncBinaryWriter.Create(stream, new byte[256]);
+        var items = command.Items ?? [];
+        await writer.WriteLittleEndianAsync(items.Count, CancellationToken.None);
+        foreach (var item in items)
+        {
+            await WriteLegacyStringAsync(writer, item.Key);
+            await WriteLegacyStringAsync(writer, item.Identifier);
+            await writer.WriteLittleEndianAsync(item.NowTicks, CancellationToken.None);
+            await writer.WriteLittleEndianAsync(item.RetryTimeout, CancellationToken.None);
+            await writer.WriteAsync(item.Value, LengthFormat.Compressed, CancellationToken.None);
+
+            var retries = item.Retries ?? [];
+            await writer.WriteLittleEndianAsync(retries.Count, CancellationToken.None);
+            foreach (var retry in retries)
+                await writer.WriteLittleEndianAsync(retry, CancellationToken.None);
+
+            var statuses = item.HttpStatusCodesWorthRetrying ?? [];
+            await writer.WriteLittleEndianAsync(statuses.Count, CancellationToken.None);
+            foreach (var status in statuses)
+                await writer.WriteLittleEndianAsync(status, CancellationToken.None);
+        }
+
+        return stream.ToArray();
+    }
+
+    private static async ValueTask WriteLegacyStringAsync(IAsyncBinaryWriter writer, string? value)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(value ?? string.Empty);
+        await writer.WriteLittleEndianAsync(bytes.Length, CancellationToken.None);
+        await writer.Invoke(bytes, CancellationToken.None);
     }
 
     private static async Task<IReadOnlyList<(string Name, byte[] Payload, ReadCommand Read)>>

@@ -178,7 +178,7 @@ public class RaftClusterTests
         return tempDirectory;
     }
 
-    [Fact(Timeout = 60000)]
+    [Fact(Timeout = 120000)]
     public static async Task MessageExchange()
     {
         Dictionary<string, string> config1 = new()
@@ -188,6 +188,7 @@ public class RaftClusterTests
             { "upperElectionTimeout", "900" },
             { "publicEndPoint", "http://localhost:3262/" },
             { "coldStart", "true" },
+            { "warmupRounds", "512" },
             { "requestTimeout", "00:01:00" },
             { SlimPersistentState.LogLocation, GetTemporaryDirectory() }
         };
@@ -199,6 +200,7 @@ public class RaftClusterTests
             { "upperElectionTimeout", "900" },
             { "publicEndPoint", "http://localhost:3263/" },
             { "coldStart", "false" },
+            { "warmupRounds", "512" },
             { "requestTimeout", "00:01:00" },
             { SlimPersistentState.LogLocation, GetTemporaryDirectory() }
         };
@@ -210,6 +212,7 @@ public class RaftClusterTests
             { "upperElectionTimeout", "900" },
             { "publicEndPoint", "http://localhost:3264/" },
             { "coldStart", "false" },
+            { "warmupRounds", "512" },
             { "requestTimeout", "00:01:00" },
             { SlimPersistentState.LogLocation, GetTemporaryDirectory() }
         };
@@ -234,6 +237,19 @@ public class RaftClusterTests
         await GetLocalClusterView(host2).Readiness.WaitAsync(DefaultTimeout);
 
         IDatabaseService databaseServiceMaster = host1.Services.GetRequiredService<IDatabaseService>();
+        // DotNext starts a new member at the leader's last index and backs up one index per warmup round.
+        // Keep the lag well above its default of 10 to cover fresh followers joining an active cluster.
+        const int entriesBeforeThirdMember = 128;
+        for (var i = 0; i < entriesBeforeThirdMember; i++)
+        {
+            await databaseServiceMaster.SetAsync(
+                $"pre-third-member-{i}",
+                Encoding.UTF8.GetBytes(i.ToString()));
+        }
+
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        Assert.True(GetLocalClusterView(host1).AuditTrail.LastEntryIndex > entriesBeforeThirdMember);
+
         async Task<bool> AddThirdMemberAsync() =>
             await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host3).LocalMemberAddress);
 
@@ -426,6 +442,12 @@ public class RaftClusterTests
         await GetLocalClusterView(host1).ForceReplicationAsync();
         var listLength3 = await databaseServiceSlave.ListCountElementAsync("listKey1", new List<CountType>() { CountType.Available });
         Assert.Equal(queuedItems, listLength3.Count);
+
+        var persistentStates = new[] { host1, host2, host3 }
+            .Select(host => host.Services.GetRequiredService<SlimPersistentState>());
+        Assert.All(persistentStates, state => Assert.DoesNotContain(
+            state.GetSkippedCommandMetrics(),
+            metric => metric.CommandId == ListLeftPushBatchCommand.Id));
 
         await host1.StopAsync();
         await host2.StopAsync();
