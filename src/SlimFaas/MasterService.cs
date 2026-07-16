@@ -13,8 +13,17 @@ public class MasterSlimDataService(IRaftCluster cluster) : IMasterService
     {
         get
         {
-            CancellationToken leadershipToken = cluster.LeadershipToken;
-            return !leadershipToken.IsCancellationRequested;
+            try
+            {
+                return !cluster.LeadershipToken.IsCancellationRequested &&
+                       !cluster.ConsensusToken.IsCancellationRequested &&
+                       cluster.TryGetLeaseToken(out var leaseToken) &&
+                       !leaseToken.IsCancellationRequested;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
     }
 

@@ -212,6 +212,7 @@ serviceCollectionSlimFaas.AddHostedService<ScaleReplicasWorker>();
 serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimDataDiagnosticsWorker>();
 serviceCollectionSlimFaas.AddHostedService<HealthWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
@@ -381,8 +382,8 @@ Dictionary<string, string> slimDataDefaultConfiguration = new()
     { "rpcTimeout", "00:00:01.0000000" },
     { "publicEndPoint", publicEndPoint },
     { "coldStart", coldStart },
-    { "requestJournal:memoryLimit", "30" },
-    { "requestJournal:expiration", "00:01:30" },
+    { "requestJournal:memoryLimit", "10" },
+    { "requestJournal:expiration", "00:00:15" },
     { "heartbeatThreshold", "0.25" }
 };
 
@@ -598,6 +599,30 @@ app.UseCpuRateLimiting(excludedPorts.ToArray());
 
 app.Use(async (context, next) =>
 {
+    try
+    {
+        await next(context);
+    }
+    catch (BatchItemTooLargeException) when (!context.Response.HasStarted)
+    {
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+    }
+    catch (BatchQueueFullException) when (!context.Response.HasStarted)
+    {
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.Response.Headers.RetryAfter = "1";
+    }
+    catch (SlimDataUnavailableException) when (!context.Response.HasStarted)
+    {
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+    }
+});
+
+app.Use(async (context, next) =>
+{
     if (slimfaasPorts == null)
     {
         await next.Invoke();
@@ -616,8 +641,15 @@ app.Use(async (context, next) =>
     else if (context.Request.Path == "/ready")
     {
         var cluster = context.RequestServices.GetService<IRaftCluster>();
+        var persistentState = context.RequestServices.GetService<SlimPersistentState>();
         // 200 si le nœud a terminé son warmup/rattrapage et peut être ajouté
-        if (cluster is not null && cluster.Readiness.IsCompletedSuccessfully)
+        var isReady = cluster is not null &&
+                      persistentState is not null &&
+                      cluster.Readiness.IsCompletedSuccessfully &&
+                      cluster.Leader is not null &&
+                      !cluster.ConsensusToken.IsCancellationRequested &&
+                      !persistentState.IsRestoring;
+        if (isReady)
         {
             context.Response.StatusCode = StatusCodes.Status200OK;
             await context.Response.WriteAsync("READY");

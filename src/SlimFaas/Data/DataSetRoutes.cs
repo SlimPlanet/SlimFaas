@@ -90,7 +90,22 @@ public static class DataSetRoutes
              var (bytes, error) = await ReadBodyUpTo1MbAsync(ctx, ct).ConfigureAwait(false);
              if (error is not null) return error;
 
-            await db.SetAsync(key, bytes ?? Array.Empty<byte>(), ttl).ConfigureAwait(false);
+            try
+            {
+                await db.SetAsync(key, bytes ?? Array.Empty<byte>(), ttl).ConfigureAwait(false);
+            }
+            catch (BatchQueueFullException ex)
+            {
+                return CapacityError(ex);
+            }
+            catch (BatchItemTooLargeException ex)
+            {
+                return CapacityError(ex);
+            }
+            catch (SlimDataUnavailableException ex)
+            {
+                return Unavailable(ex);
+            }
 
             return Results.Ok(elementId);
         }
@@ -135,10 +150,26 @@ public static class DataSetRoutes
             if (!IdValidator.IsSafeId(id))
                 return Results.BadRequest("Invalid id.");
 
-            var result = await db.SetAsync(
-                DataKey(id),
-                operation: KeyValueOperation.IncrementFloat,
-                floatDelta: by.Value).ConfigureAwait(false);
+            KeyValueCommandResult result;
+            try
+            {
+                result = await db.SetAsync(
+                    DataKey(id),
+                    operation: KeyValueOperation.IncrementFloat,
+                    floatDelta: by.Value).ConfigureAwait(false);
+            }
+            catch (BatchQueueFullException ex)
+            {
+                return CapacityError(ex);
+            }
+            catch (BatchItemTooLargeException ex)
+            {
+                return CapacityError(ex);
+            }
+            catch (SlimDataUnavailableException ex)
+            {
+                return Unavailable(ex);
+            }
 
             return ToNumericResult(result, isFloat: true);
         }
@@ -148,10 +179,26 @@ public static class DataSetRoutes
             if (!IdValidator.IsSafeId(id))
                 return Results.BadRequest("Invalid id.");
 
-            var result = await db.SetAsync(
-                DataKey(id),
-                operation: KeyValueOperation.IncrementInteger,
-                integerDelta: delta).ConfigureAwait(false);
+            KeyValueCommandResult result;
+            try
+            {
+                result = await db.SetAsync(
+                    DataKey(id),
+                    operation: KeyValueOperation.IncrementInteger,
+                    integerDelta: delta).ConfigureAwait(false);
+            }
+            catch (BatchQueueFullException ex)
+            {
+                return CapacityError(ex);
+            }
+            catch (BatchItemTooLargeException ex)
+            {
+                return CapacityError(ex);
+            }
+            catch (SlimDataUnavailableException ex)
+            {
+                return Unavailable(ex);
+            }
 
             return ToNumericResult(result, isFloat: false);
         }
@@ -175,6 +222,23 @@ public static class DataSetRoutes
                 title: "Key/value command failed",
                 detail: detail,
                 statusCode: StatusCodes.Status409Conflict);
+
+        private static IResult CapacityError(Exception exception)
+        {
+            var statusCode = exception is BatchItemTooLargeException
+                ? StatusCodes.Status413PayloadTooLarge
+                : StatusCodes.Status429TooManyRequests;
+            return Results.Problem(
+                title: statusCode == StatusCodes.Status413PayloadTooLarge ? "Payload too large" : "SlimData is busy",
+                detail: exception.Message,
+                statusCode: statusCode);
+        }
+
+        private static IResult Unavailable(SlimDataUnavailableException exception) =>
+            Results.Problem(
+                title: "SlimData is unavailable",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status503ServiceUnavailable);
 
         public static async Task<IResult> GetAsync(IDatabaseService db, string id)
         {

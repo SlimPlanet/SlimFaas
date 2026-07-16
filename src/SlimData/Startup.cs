@@ -2,6 +2,7 @@
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using DotNext.Net.Cluster.Consensus.Raft.Membership;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.AspNetCore.Connections;
 using SlimData.ClusterFiles;
@@ -14,6 +15,8 @@ namespace SlimData;
 public class Startup(IConfiguration configuration)
 {
     private static readonly IList<string> ClusterMembers = new List<string>(2);
+    private static Uri? LocalEndpoint;
+    internal const string MembershipAnnounceResource = "/SlimData/members/announce";
 
     public static void AddClusterMemberBeforeStart(string endpoint)
     {
@@ -43,6 +46,7 @@ public class Startup(IConfiguration configuration)
             .RedirectToLeader(AddHashSetResource)
             .RedirectToLeader(ListCallback)
             .RedirectToLeader(ListCallBackBatch)
+            .RedirectToLeader(MembershipAnnounceResource)
             .UseRouting()
             .UseEndpoints(static endpoints =>
             {
@@ -56,11 +60,15 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapPost(AddKeyValueBatchResource,  Endpoints.AddKeyValueBatchAsync);
                 endpoints.MapPost(ListCallback,  Endpoints.ListCallbackAsync);
                 endpoints.MapPost(ListCallBackBatch,  Endpoints.ListCallbackBatchAsync);
+                endpoints.MapPost(MembershipAnnounceResource, Endpoints.AnnounceMemberAsync);
             });
     }
 
     public void ConfigureServices(IServiceCollection services)
     {
+        services.PostConfigure<HttpClusterMemberConfiguration>(options =>
+            options.IsLeaderLeaseEnabled = true);
+
         // Configure RaftClientHandler options
         services.AddOptions<RaftClientHandlerOptions>()
             .Bind(configuration.GetSection(RaftClientHandlerOptions.SectionName))
@@ -100,11 +108,32 @@ public class Startup(IConfiguration configuration)
         var configPath = Path.Combine(stateRoot, "config");
         var usePersistentConfigurationStorage = bool.Parse(configuration[SlimPersistentState.UsePersistentConfigurationStorage] ?? "true");
         if (!string.IsNullOrWhiteSpace(path) && usePersistentConfigurationStorage)
+        {
             services.UsePersistentConfigurationStorage(configPath)
                 .ConfigureCluster<ClusterConfigurator>()
                 .AddSingleton<IHttpMessageHandlerFactory, RaftClientHandlerFactory>()
                 .AddOptions()
                 .AddRouting();
+            services.AddHttpClient(ClusterMembershipAnnouncer.HttpClientName, client =>
+                {
+                    client.Timeout = Timeout.InfiniteTimeSpan;
+                    client.DefaultRequestVersion = HttpVersion.Version11;
+                    client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionExact;
+                })
+                .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+                {
+                    AllowAutoRedirect = false,
+                    ConnectTimeout = TimeSpan.FromSeconds(2),
+                    PooledConnectionLifetime = TimeSpan.FromMinutes(2),
+                    PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
+                    MaxConnectionsPerServer = 4,
+                    UseProxy = false
+                });
+            services.AddSingleton<ClusterMembershipAnnouncer>();
+            services.AddSingleton<ClusterMemberAnnouncer<UriEndPoint>>(sp =>
+                sp.GetRequiredService<ClusterMembershipAnnouncer>().AnnounceAsync);
+            services.AddHostedService<ClusterMembershipAnnounceWorker>();
+        }
         else
             services.UseInMemoryConfigurationStorage(AddClusterMembers)
                 .ConfigureCluster<ClusterConfigurator>()
@@ -113,7 +142,11 @@ public class Startup(IConfiguration configuration)
                 .AddRouting();
 
         services
-            .UseStateMachine<SlimPersistentState>(new WriteAheadLog.Options { Location = walPath })
+            .UseStateMachine<SlimPersistentState>(new WriteAheadLog.Options
+            {
+                Location = walPath,
+                MemoryManagement = WriteAheadLog.MemoryManagementStrategy.SharedMemory
+            })
             .AddSingleton<ISupplier<SlimDataPayload>>(sp => sp.GetRequiredService<SlimPersistentState>());
 
         if (!string.IsNullOrWhiteSpace(path))
@@ -132,6 +165,7 @@ public class Startup(IConfiguration configuration)
         if (!string.IsNullOrEmpty(endpoint))
         {
             var uri = new Uri(endpoint);
+            LocalEndpoint = uri;
             services.AddSingleton<SlimDataInfo>(sp => new SlimDataInfo(uri.Port));
         }
     }
@@ -140,5 +174,44 @@ public class Startup(IConfiguration configuration)
     {
         foreach (var clusterMember in ClusterMembers)
             members.Add(new UriEndPoint(new Uri(clusterMember, UriKind.Absolute)));
+    }
+
+    internal static Uri[] GetKnownClusterMembers()
+        => ClusterMembers.Select(static endpoint => new Uri(endpoint, UriKind.Absolute)).ToArray();
+
+    internal static bool IsAllowedClusterMember(Uri candidate)
+    {
+        if (GetKnownClusterMembers().Any(known => SameEndpoint(known, candidate)))
+            return true;
+
+        var local = LocalEndpoint;
+        if (local is null || !string.Equals(local.Scheme, candidate.Scheme, StringComparison.OrdinalIgnoreCase) ||
+            local.Port != candidate.Port)
+        {
+            return false;
+        }
+
+        var localLabels = local.Host.Split('.');
+        var candidateLabels = candidate.Host.Split('.');
+        if (localLabels.Length < 2 || candidateLabels.Length != localLabels.Length ||
+            !localLabels.Skip(1).SequenceEqual(candidateLabels.Skip(1), StringComparer.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return string.Equals(RemoveOrdinal(localLabels[0]), RemoveOrdinal(candidateLabels[0]), StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool SameEndpoint(Uri left, Uri right)
+        => string.Equals(left.Scheme, right.Scheme, StringComparison.OrdinalIgnoreCase) &&
+           string.Equals(left.Host, right.Host, StringComparison.OrdinalIgnoreCase) &&
+           left.Port == right.Port;
+
+    private static string RemoveOrdinal(string hostLabel)
+    {
+        var separator = hostLabel.LastIndexOf('-');
+        return separator > 0 && int.TryParse(hostLabel.AsSpan(separator + 1), out _)
+            ? hostLabel[..separator]
+            : hostLabel;
     }
 }

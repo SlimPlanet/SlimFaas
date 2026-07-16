@@ -6,23 +6,42 @@ namespace SlimData;
 
 public sealed record RateTier(int MinPerMinute, TimeSpan Delay);
 
+public readonly record struct AdaptiveBatchQueueStatistics(string Kind, int Items, long Bytes);
+
+public sealed class BatchQueueFullException(string kind)
+    : Exception($"Adaptive batch queue '{kind}' is full.")
+{
+    public string Kind { get; } = kind;
+}
+
+public sealed class BatchItemTooLargeException(string kind, long itemBytes, long maximumBytes)
+    : Exception($"Adaptive batch item for '{kind}' is {itemBytes} bytes; maximum is {maximumBytes} bytes.")
+{
+    public string Kind { get; } = kind;
+    public long ItemBytes { get; } = itemBytes;
+    public long MaximumBytes { get; } = maximumBytes;
+}
+
 public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
 {
     private sealed record Kind
     {
         public int QueueLength;      // Interlocked
+        public long QueueBytes;
         public int ArrivalsCount;
         public required string Name;
         public required Func<IReadOnlyList<object>, CancellationToken, Task<IReadOnlyList<object>>> Handler;
         public required List<RateTier> Tiers;
         public required int MaxBatchSize;
         public int MaxQueueLength;
+        public long MaxQueueBytes;
         
         public int MaxBatchBytes; // 0 = unlimited
         public TimeSpan CoalesceWindow;
         public required Func<object, int> SizeEstimatorBytes;
 
-        public readonly ConcurrentQueue<(object req, TaskCompletionSource<object> tcs)> Queue = new();
+        public readonly object QueueGate = new();
+        public readonly ConcurrentQueue<(object req, TaskCompletionSource<object> tcs, int size)> Queue = new();
         public readonly ConcurrentQueue<long> Arrivals = new(); // Stopwatch ticks in last minute
         public DateTime NextAllowedDequeueAtUtc = DateTime.MinValue;
     }
@@ -53,6 +72,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         IEnumerable<RateTier>? tiers = null,
         int maxBatchSize = 512,
         int maxQueueLength = 0,
+        long maxQueueBytes = 0L,
         int maxBatchBytes = 512 * 1024 * 1024,                    
         Func<TReq, int>? sizeEstimatorBytes = null,
         TimeSpan? coalesceWindow = null)
@@ -73,6 +93,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
             Name = kind,
             MaxBatchSize = Math.Max(1, maxBatchSize),
             MaxQueueLength = Math.Max(0, maxQueueLength),
+            MaxQueueBytes = Math.Max(0L, maxQueueBytes),
             Tiers = tiersList,
             MaxBatchBytes = Math.Max(0, maxBatchBytes),
             SizeEstimatorBytes = o => typedEstimator((TReq)o),
@@ -100,12 +121,24 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         if (!_kinds.TryGetValue(kind, out var k))
             throw new KeyNotFoundException($"Kind '{kind}' is not registered.");
 
-        if (k.MaxQueueLength > 0 && Volatile.Read(ref k.QueueLength) >= k.MaxQueueLength)
-            throw new InvalidOperationException($"Queue '{kind}' is full");
+        var size = Math.Max(0, k.SizeEstimatorBytes(request!));
+        var maximumItemBytes = GetMaximumItemBytes(k);
+        if (maximumItemBytes > 0L && size > maximumItemBytes)
+            throw new BatchItemTooLargeException(kind, size, maximumItemBytes);
 
         var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-        k.Queue.Enqueue((request!, tcs));
-        Interlocked.Increment(ref k.QueueLength);
+        lock (k.QueueGate)
+        {
+            if ((k.MaxQueueLength > 0 && k.QueueLength >= k.MaxQueueLength) ||
+                (k.MaxQueueBytes > 0L && k.QueueBytes + size > k.MaxQueueBytes))
+            {
+                throw new BatchQueueFullException(kind);
+            }
+
+            k.Queue.Enqueue((request!, tcs, size));
+            k.QueueLength++;
+            k.QueueBytes += size;
+        }
         RecordArrival(k);
 
         StartWorkerIfNeeded();
@@ -115,6 +148,23 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         var obj = await tcs.Task.ConfigureAwait(false);
         return (TRes)obj;
     }
+
+    private static long GetMaximumItemBytes(Kind kind)
+    {
+        if (kind.MaxBatchBytes <= 0)
+            return kind.MaxQueueBytes;
+        if (kind.MaxQueueBytes <= 0L)
+            return kind.MaxBatchBytes;
+        return Math.Min(kind.MaxBatchBytes, kind.MaxQueueBytes);
+    }
+
+    public IReadOnlyList<AdaptiveBatchQueueStatistics> GetQueueStatistics()
+        => _kinds.Values
+            .Select(kind => new AdaptiveBatchQueueStatistics(
+                kind.Name,
+                Volatile.Read(ref kind.QueueLength),
+                Volatile.Read(ref kind.QueueBytes)))
+            .ToArray();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private void StartWorkerIfNeeded()
@@ -208,19 +258,28 @@ private async Task LoopAsync(CancellationToken ct)
             int usedBytes = 0;
             int cap = ksel.MaxBatchBytes; // 0 = pas de limite
 
-            while (batch.Count < ksel.MaxBatchSize && ksel.Queue.TryPeek(out var next))
+            while (batch.Count < ksel.MaxBatchSize)
             {
-                int sz = (cap > 0) ? Math.Max(0, ksel.SizeEstimatorBytes(next.req)) : 0;
+                (object req, TaskCompletionSource<object> tcs, int size) next;
+                lock (ksel.QueueGate)
+                {
+                    if (!ksel.Queue.TryPeek(out next))
+                        break;
+                }
+
+                var sz = next.size;
 
                 if (cap > 0)
                 {
                     if (batch.Count == 0 && sz >= cap)
                     {
-                        // ⚠️ 1 seul élément qui dépasse la limite => on l’envoie QUAND MÊME, mais seul
-                        ksel.Queue.TryDequeue(out var it);
-                        batch.Add(it);
+                        if (!TryDequeue(ksel, out var item))
+                            continue;
+                        if (item.tcs.Task.IsCompleted)
+                            continue;
+                        batch.Add((item.req, item.tcs));
                         usedBytes = sz;
-                        break; // on stoppe ici: batch=1, "gros" item
+                        break;
                     }
 
                     // Sinon, si ajouter cet élément dépasse le cap et qu'on a déjà qqch, on s'arrête
@@ -229,9 +288,11 @@ private async Task LoopAsync(CancellationToken ct)
                 }
 
                 // Ok, on peut ajouter cet élément
-                ksel.Queue.TryDequeue(out var accepted);
-                Interlocked.Decrement(ref ksel.QueueLength);
-                batch.Add(accepted);
+                if (!TryDequeue(ksel, out var accepted))
+                    continue;
+                if (accepted.tcs.Task.IsCompleted)
+                    continue;
+                batch.Add((accepted.req, accepted.tcs));
                 usedBytes += sz;
             }
 
@@ -266,10 +327,25 @@ private async Task LoopAsync(CancellationToken ct)
     finally
     {
         foreach (var k in _kinds.Values)
-            while (k.Queue.TryDequeue(out var it))
+            while (TryDequeue(k, out var it))
                 it.tcs.TrySetException(new TaskCanceledException("Batcher stopped"));
     }
 }
+
+    private static bool TryDequeue(
+        Kind kind,
+        out (object req, TaskCompletionSource<object> tcs, int size) item)
+    {
+        lock (kind.QueueGate)
+        {
+            if (!kind.Queue.TryDequeue(out item))
+                return false;
+
+            kind.QueueLength--;
+            kind.QueueBytes -= item.size;
+            return true;
+        }
+    }
 
 
     // ---- débit par minute & paliers (par kind) ----

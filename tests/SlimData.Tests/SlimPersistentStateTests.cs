@@ -4,6 +4,7 @@ using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
+using Microsoft.Extensions.Configuration;
 using SlimData.Commands;
 
 namespace SlimData.Tests;
@@ -43,7 +44,7 @@ public sealed class SlimPersistentStateTests
 
         try
         {
-            await using (var state = new SlimPersistentState(root))
+            await using (var state = CreateState(root, snapshotIntervalEntries: 100))
             await using (var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state))
             {
                 await AppendCommitWaitAsync(wal, new AddKeyValueCommand
@@ -79,7 +80,7 @@ public sealed class SlimPersistentStateTests
                     ]
                 });
 
-                for (var i = 4; i <= 1000; i++)
+                for (var i = 4; i <= 100; i++)
                 {
                     await AppendCommitWaitAsync(wal, new AddKeyValueCommand
                     {
@@ -89,13 +90,25 @@ public sealed class SlimPersistentStateTests
                     });
                 }
 
+                await AppendCommitWaitAsync(wal, new AddKeyValueCommand
+                {
+                    Operation = KeyValueOperation.Set,
+                    Key = "post-snapshot-key",
+                    Value = Encoding.UTF8.GetBytes("post-snapshot-value")
+                });
+
                 await wal.FlushAsync(CancellationToken.None);
+                Assert.True(state.LastSnapshotSizeBytes > 0L);
             }
 
-            await using (var restoredState = new SlimPersistentState(root))
-            await using (var restoredWal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, restoredState))
+            await using (var restoredState = CreateState(root, snapshotIntervalEntries: 100))
             {
+                // DotNext starts applying as soon as WriteAheadLog is constructed. Restore the
+                // snapshot first so entries committed after it cannot be applied and then overwritten.
                 await restoredState.RestoreAsync(CancellationToken.None);
+                await using var restoredWal = new WriteAheadLog(
+                    new WriteAheadLog.Options { Location = walPath },
+                    restoredState);
                 await restoredWal.InitializeAsync(CancellationToken.None);
                 using var replayTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 var committedIndex = restoredWal.LastCommittedEntryIndex;
@@ -105,6 +118,9 @@ public sealed class SlimPersistentStateTests
                 Assert.Equal(
                     "snapshot-value",
                     Encoding.UTF8.GetString(restoredState.SlimDataState.KeyValues["snapshot-key"].Span));
+                Assert.Equal(
+                    "post-snapshot-value",
+                    Encoding.UTF8.GetString(restoredState.SlimDataState.KeyValues["post-snapshot-key"].Span));
 
                 var hash = restoredState.SlimDataState.Hashsets["snapshot-hash"];
                 Assert.Equal("hash-value", Encoding.UTF8.GetString(hash["field"].Span));
@@ -117,6 +133,56 @@ public sealed class SlimPersistentStateTests
                 Assert.Equal([1, 2], item.TimeoutRetriesSeconds.ToArray());
                 Assert.Contains(500, item.HttpStatusRetries);
             }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Restore_invalid_snapshot_clears_old_state_and_restoring_flag()
+    {
+        var root = GetTemporaryDirectory();
+        var snapshotPath = Path.Combine(root, "invalid.snapshot");
+
+        try
+        {
+            await File.WriteAllBytesAsync(snapshotPath, BitConverter.GetBytes(-1));
+            await using var state = new SlimPersistentState(root);
+            state.SlimDataState.KeyValues = state.SlimDataState.KeyValues.SetItem(
+                "old-key",
+                Encoding.UTF8.GetBytes("old-value"));
+
+            await Assert.ThrowsAsync<InvalidDataException>(() =>
+                InvokeRestoreAsync(state, new FileInfo(snapshotPath), CancellationToken.None));
+
+            Assert.False(state.IsRestoring);
+            Assert.Empty(state.SlimDataState.KeyValues);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Restore_continues_snapshot_cadence_from_restored_index()
+    {
+        var root = GetTemporaryDirectory();
+        var snapshotPath = Path.Combine(root, "100-1");
+
+        try
+        {
+            // Three empty collection counts in the existing snapshot binary format.
+            await File.WriteAllBytesAsync(snapshotPath, new byte[3 * sizeof(int)]);
+            await using var state = CreateState(root, snapshotIntervalEntries: 100);
+            await InvokeRestoreAsync(state, new FileInfo(snapshotPath), CancellationToken.None);
+
+            Assert.False(await ApplySetAsync(state, index: 101L, key: "first"));
+            Assert.True(await ApplySetAsync(state, index: 200L, key: "second"));
         }
         finally
         {
@@ -146,6 +212,11 @@ public sealed class SlimPersistentStateTests
             Assert.Empty(state.SlimDataState.KeyValues);
             Assert.Equal(KeyValueCommandStatus.NotCommitted, result.Status);
             Assert.Equal("Skipped incompatible key/value log entry.", result.ErrorMessage);
+
+            var secondEntry = CreateStateMachineEntry(
+                new LegacyAddKeyValueLogEntry([(byte)KeyValueOperation.Set]),
+                index: 3L);
+            Assert.False(await InvokeApplyAsync(state, secondEntry));
         }
         finally
         {
@@ -260,6 +331,51 @@ public sealed class SlimPersistentStateTests
 
         Assert.NotNull(method);
         return await (ValueTask<bool>)method.Invoke(state, [entry, CancellationToken.None])!;
+    }
+
+    private static ValueTask<bool> ApplySetAsync(SlimPersistentState state, long index, string key)
+    {
+        var result = new KeyValueCommandResult();
+        var command = new LogEntry<AddKeyValueCommand>
+        {
+            Term = 1L,
+            Command = new AddKeyValueCommand
+            {
+                Operation = KeyValueOperation.Set,
+                Key = key,
+                Value = Encoding.UTF8.GetBytes("value")
+            },
+            Context = result
+        };
+        return InvokeApplyAsync(state, CreateStateMachineEntry(command, index, context: result));
+    }
+
+    private static async Task InvokeRestoreAsync(
+        SlimPersistentState state,
+        FileInfo snapshot,
+        CancellationToken token)
+    {
+        var method = typeof(SlimPersistentState).GetMethod(
+            "RestoreAsync",
+            BindingFlags.Instance | BindingFlags.NonPublic,
+            binder: null,
+            types: [typeof(FileInfo), typeof(CancellationToken)],
+            modifiers: null);
+
+        Assert.NotNull(method);
+        await (ValueTask)method.Invoke(state, [snapshot, token])!;
+    }
+
+    private static SlimPersistentState CreateState(string root, int snapshotIntervalEntries)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [SlimPersistentState.LogLocation] = root,
+                [SlimPersistentState.SnapshotIntervalEntries] = snapshotIntervalEntries.ToString()
+            })
+            .Build();
+        return new SlimPersistentState(configuration, logger: null);
     }
 
     private sealed class InvalidConfigurationLogEntry : IRaftLogEntry

@@ -219,3 +219,23 @@ curl -X DELETE "http://<slimfaas>/data/sets/my-usecase.session-123.state"
 
 Env override:
 - `Data:DefaultVisibility` → `Data__DefaultVisibility`
+
+---
+
+## Availability and backpressure
+
+Writes are grouped into bounded adaptive batches before being replicated as Raft entries. The API can return:
+
+- **413 Payload Too Large** when one item exceeds the configured batch limit.
+- **429 Too Many Requests** when the in-memory adaptive batch queue is full.
+- **503 Service Unavailable** when no Raft quorum or valid leader lease is available within the bounded replication timeout.
+
+`SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
+
+SlimData creates streaming state snapshots every 5,000 applied entries by default. The interval can be changed without altering the API:
+
+```bash
+SlimData__SnapshotIntervalEntries=5000
+```
+
+The readiness endpoint returns `503` while the local snapshot is being restored or while the node has no active Raft consensus. The liveness endpoint remains available so Kubernetes or OpenShift can keep the process alive while the cluster recovers.

@@ -6,40 +6,38 @@ using SlimFaas.Options;
 namespace SlimFaas;
 
 public class HealthWorker(
-    IHostApplicationLifetime hostApplicationLifetime,
     IRaftCluster raftCluster,
     ILogger<HealthWorker> logger,
     IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
     private readonly int _delay = workersOptions.Value.HealthDelayMilliseconds;
-    private readonly int _delayToExitSeconds = workersOptions.Value.HealthDelayToExitSeconds;
     private readonly int _delayToStartHealthCheck = workersOptions.Value.HealthDelayToStartHealthCheckSeconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         await Task.Delay(1000 * _delayToStartHealthCheck, stoppingToken);
-        TimeSpan timeSpan = TimeSpan.FromSeconds(0);
+        var consensusWasUnavailable = false;
         while (stoppingToken.IsCancellationRequested == false)
         {
             try
             {
                 await Task.Delay(_delay, stoppingToken);
-                if (raftCluster.Leader == null)
+                var consensusUnavailable = raftCluster.Leader is null || raftCluster.ConsensusToken.IsCancellationRequested;
+                if (consensusUnavailable && !consensusWasUnavailable)
                 {
-                    timeSpan = timeSpan.Add(TimeSpan.FromMilliseconds(_delay));
-                    logger.LogWarning("Raft cluster has no leader");
+                    logger.LogWarning("Raft cluster has no active consensus; the pod remains alive but is not ready");
                 }
-                else
+                else if (!consensusUnavailable && consensusWasUnavailable)
                 {
-                    timeSpan = TimeSpan.FromSeconds(0);
+                    logger.LogInformation("Raft cluster consensus is available again");
                 }
 
-                if (timeSpan.TotalSeconds > _delayToExitSeconds)
-                {
-                    logger.LogError("Raft cluster has no leader for more than {TotalSeconds} seconds, exist the application ", timeSpan.TotalSeconds);
-                    hostApplicationLifetime.StopApplication();
-                }
+                consensusWasUnavailable = consensusUnavailable;
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception e)
             {

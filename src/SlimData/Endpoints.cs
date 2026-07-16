@@ -1,7 +1,9 @@
 ﻿using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
+using DotNext.Net.Cluster.Consensus.Raft.Http;
 using MemoryPack;
+using Microsoft.AspNetCore.Connections;
 using SlimData.Commands;
 
 namespace SlimData;
@@ -66,6 +68,7 @@ public sealed record LpReq(
 
 public class Endpoints
 {
+    private static readonly TimeSpan ReplicationTimeout = TimeSpan.FromSeconds(5);
     public delegate Task RespondDelegate(IRaftCluster cluster, SlimPersistentState provider,
         CancellationTokenSource? source);
 
@@ -96,22 +99,51 @@ public class Endpoints
     private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, LogEntry<T> cmd, CancellationToken ct)
         where T : struct, ICommand<T>
     {
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(ct, cluster.LeadershipToken);
+        timeoutSource.CancelAfter(ReplicationTimeout);
+        var operationToken = timeoutSource.Token;
+
         // Évite le head-of-line : ne bloque pas indéfiniment
-        if (!await Inflight.WaitAsync(TimeSpan.FromMilliseconds(5000), ct))
+        if (!await Inflight.WaitAsync(ReplicationTimeout, operationToken))
             throw new TooManyRequestsException(); // 429
         try
         {
-            var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
-            if (!isLeader)
-                throw new AbandonedMutexException("Node is not leader anymore");
-            await cluster.ReplicateAsync(cmd, ct);
+            await WaitForWritableLeaderAsync(cluster, operationToken).ConfigureAwait(false);
+            await cluster.ReplicateAsync(cmd, operationToken).ConfigureAwait(false);
             if (cmd.Context is CommandApplyContext applyContext)
-                await applyContext.WaitAsync(ct);
+                await applyContext.WaitAsync(operationToken).ConfigureAwait(false);
             return true;
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && timeoutSource.IsCancellationRequested)
+        {
+            throw new SlimDataUnavailableException("Raft quorum or leader lease is unavailable.", ex);
+        }
+        catch (QuorumUnreachableException ex)
+        {
+            throw new SlimDataUnavailableException("Raft quorum is unavailable.", ex);
         }
         finally
         {
             Inflight.Release();
+        }
+    }
+
+    private static async Task WaitForWritableLeaderAsync(IRaftCluster cluster, CancellationToken token)
+    {
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            if (cluster.LeadershipToken.IsCancellationRequested)
+                throw new SlimDataUnavailableException("Node is not the active Raft leader.");
+
+            if (!cluster.ConsensusToken.IsCancellationRequested &&
+                cluster.TryGetLeaseToken(out var leaseToken) &&
+                !leaseToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await Task.Delay(25, token).ConfigureAwait(false);
         }
     }
 
@@ -121,6 +153,49 @@ public class Endpoints
         return context.Response.WriteAsync(
             $"Leader address is {cluster.Leader?.EndPoint}. Current address is {context.Connection.LocalIpAddress}:{context.Connection.LocalPort}",
             context.RequestAborted);
+    }
+
+    public static async Task AnnounceMemberAsync(HttpContext context)
+    {
+        var slimDataInfo = context.RequestServices.GetRequiredService<SlimDataInfo>();
+        if (context.Connection.LocalPort != slimDataInfo.Port)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        if (!context.Request.Query.TryGetValue("endpoint", out var endpointValue) ||
+            !Uri.TryCreate(endpointValue.ToString(), UriKind.Absolute, out var endpoint) ||
+            !Startup.IsAllowedClusterMember(endpoint))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
+        var cluster = context.RequestServices.GetRequiredService<IRaftHttpCluster>();
+        if (Startup.SameEndpoint(cluster.LocalMemberAddress, endpoint) ||
+            ((IRaftCluster)cluster).Members.Any(member =>
+                member.EndPoint is UriEndPoint address && Startup.SameEndpoint(address.Uri, endpoint)))
+        {
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+            return;
+        }
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(
+            context.RequestAborted,
+            cluster.LeadershipToken);
+        timeout.CancelAfter(ReplicationTimeout);
+        try
+        {
+            var added = await cluster.AddMemberAsync(endpoint, timeout.Token).ConfigureAwait(false);
+            context.Response.StatusCode = added
+                ? StatusCodes.Status204NoContent
+                : StatusCodes.Status503ServiceUnavailable;
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or QuorumUnreachableException or NotLeaderException)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        }
     }
 
     public static async Task DoAsync(HttpContext context, RespondDelegate respondDelegate)
@@ -160,6 +235,11 @@ public class Endpoints
             // client disconnected / leadership lost
             if (!context.Response.HasStarted)
                 context.Response.StatusCode = StatusCodes.Status499ClientClosedRequest; // (Kestrel non-standard, but useful)
+        }
+        catch (SlimDataUnavailableException e)
+        {
+            logger.LogWarning(e, "SlimData is unavailable for {Path}", context.Request.Path);
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         }
         catch (Exception e)
         {
@@ -650,4 +730,17 @@ public class Endpoints
 
 public class TooManyRequestsException : Exception
 {
+}
+
+public sealed class SlimDataUnavailableException : Exception
+{
+    public SlimDataUnavailableException(string message)
+        : base(message)
+    {
+    }
+
+    public SlimDataUnavailableException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }

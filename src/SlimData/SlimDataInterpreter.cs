@@ -7,14 +7,91 @@ using SlimData.Commands;
 
 namespace SlimData;
 
-public class SlimDataState(
-    ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets,
-    ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues,
-    ImmutableDictionary<string, ImmutableArray<QueueElement>> Queues)
+internal sealed class SlimDataStateSnapshot(
+    ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> hashsets,
+    ImmutableDictionary<string, ReadOnlyMemory<byte>> keyValues,
+    ImmutableDictionary<string, ImmutableArray<QueueElement>> queues)
 {
-    public ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets { get; set; } = Hashsets;
-    public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; } = KeyValues;
-    public ImmutableDictionary<string, ImmutableArray<QueueElement>> Queues { get; set; } = Queues;
+    internal static readonly SlimDataStateSnapshot Empty = new(
+        ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+        ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+        ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
+
+    internal ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets { get; } = hashsets;
+    internal ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; } = keyValues;
+    internal ImmutableDictionary<string, ImmutableArray<QueueElement>> Queues { get; } = queues;
+
+    internal long PayloadBytes
+    {
+        get
+        {
+            long result = 0L;
+            foreach (var value in KeyValues.Values)
+                result += value.Length;
+            foreach (var hashset in Hashsets.Values)
+            foreach (var value in hashset.Values)
+                result += value.Length;
+            foreach (var queue in Queues.Values)
+            foreach (var item in queue)
+                result += item.Value.Length;
+            return result;
+        }
+    }
+}
+
+public class SlimDataState(
+    ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> hashsets,
+    ImmutableDictionary<string, ReadOnlyMemory<byte>> keyValues,
+    ImmutableDictionary<string, ImmutableArray<QueueElement>> queues)
+{
+    private SlimDataStateSnapshot _snapshot = new(hashsets, keyValues, queues);
+
+    public ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>> Hashsets
+    {
+        get => Capture().Hashsets;
+        set => Update(snapshot => new(value, snapshot.KeyValues, snapshot.Queues));
+    }
+
+    public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues
+    {
+        get => Capture().KeyValues;
+        set => Update(snapshot => new(snapshot.Hashsets, value, snapshot.Queues));
+    }
+
+    public ImmutableDictionary<string, ImmutableArray<QueueElement>> Queues
+    {
+        get => Capture().Queues;
+        set => Update(snapshot => new(snapshot.Hashsets, snapshot.KeyValues, value));
+    }
+
+    internal SlimDataStateSnapshot Capture() => Volatile.Read(ref _snapshot);
+
+    internal void Replace(SlimDataStateSnapshot snapshot)
+        => Interlocked.Exchange(ref _snapshot, snapshot);
+
+    internal void Reset() => Replace(SlimDataStateSnapshot.Empty);
+
+    internal SlimDataPayload CapturePayload()
+    {
+        var snapshot = Capture();
+        return new()
+        {
+            KeyValues = snapshot.KeyValues,
+            Hashsets = snapshot.Hashsets,
+            Queues = snapshot.Queues
+        };
+    }
+
+    private void Update(Func<SlimDataStateSnapshot, SlimDataStateSnapshot> update)
+    {
+        SlimDataStateSnapshot current;
+        SlimDataStateSnapshot replacement;
+        do
+        {
+            current = Capture();
+            replacement = update(current);
+        } while (!ReferenceEquals(Interlocked.CompareExchange(ref _snapshot, replacement, current), current));
+    }
 }
 
 public sealed class QueueElement
@@ -631,30 +708,6 @@ public class SlimDataInterpreter : CommandInterpreter
         return default;
     }
 
-    [CommandHandler]
-    public ValueTask HandleSnapshotAsync(LogSnapshotCommand command, CancellationToken token)
-    {
-        DoHandleSnapshotAsync(command, SlimDataState);
-        return default;
-    }
-
-    internal static ValueTask DoHandleSnapshotAsync(LogSnapshotCommand command, SlimDataState state)
-    {
-        state.KeyValues = command.keysValues.ToImmutableDictionary();
-
-        var newQueues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty;
-        foreach (var q in command.queues)
-            newQueues = newQueues.SetItem(q.Key, q.Value.ToImmutableArray());
-        state.Queues = newQueues;
-
-        var newHashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty;
-        foreach (var hs in command.hashsets)
-            newHashsets = newHashsets.SetItem(hs.Key, hs.Value.ToImmutableDictionary());
-        state.Hashsets = newHashsets;
-        
-        return default;
-    }
-
     public static CommandInterpreter InitInterpreter(SlimDataState state)
     {
         ValueTask ListRightPopHandler(ListRightPopCommand c, CancellationToken t) => DoListRightPopAsync(c, state);
@@ -674,7 +727,6 @@ public class SlimDataInterpreter : CommandInterpreter
         ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand c, CancellationToken t) => DoDeleteKeyValueAsync(c, state);
         ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand c, CancellationToken t) => DoListCallbackAsync(c, state);
         ValueTask ListCallbackBatchHandler(ListCallbackBatchCommand c, CancellationToken t) => DoListCallbackBatchAsync(c, state);
-        ValueTask SnapshotHandler(LogSnapshotCommand c, CancellationToken t) => DoHandleSnapshotAsync(c, state);
 
         var interpreter = new Builder()
             .Add(new Func<ListRightPopCommand, CancellationToken, ValueTask>(ListRightPopHandler))
@@ -686,7 +738,6 @@ public class SlimDataInterpreter : CommandInterpreter
             .Add(new Func<DeleteKeyValueCommand, CancellationToken, ValueTask>(DeleteKeyValueHandler))
             .Add(new Func<ListCallbackCommand, CancellationToken, ValueTask>(ListSetQueueItemStatusAsync))
             .Add(new Func<ListCallbackBatchCommand, CancellationToken, ValueTask>(ListCallbackBatchHandler))
-            .Add(new Func<LogSnapshotCommand, CancellationToken, ValueTask>(SnapshotHandler))
             .Build();
 
         return interpreter;
