@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.74.1
+
+- [6455b6e8](https://github.com/SlimPlanet/SlimFaas/commit/6455b6e8b7dd235845cd00c729b5e8e5c9c9ad41) - fix: slimfaas raft ram (#290) (release), 2026-07-17 by *Guillaume Chervet*
+
+
+## 0.74.0
+
+
+
 ## v0.74.0
 
 - [b78130ce](https://github.com/SlimPlanet/SlimFaas/commit/b78130ce74d825271e68f7a7a534e674f4d988f9) - refactor: upgrade npm (#287) (release), 2026-07-09 by *Guillaume Chervet*
@@ -265,15 +274,5 @@
 ## v0.61.10
 
 - [52b59c79](https://github.com/SlimPlanet/SlimFaas/commit/52b59c79a14da51bcce9640bc18481937dc4fd26) - fix: enable AOT multi-platform with QEMU emulation (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.9
-
-- [af4bacad](https://github.com/SlimPlanet/SlimFaas/commit/af4bacad70db00f026f8fbe410989c84ed710360) - chore: simplify Dockerfile dependencies for native AOT builds (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.8
-
-- [38c2259a](https://github.com/SlimPlanet/SlimFaas/commit/38c2259ab71a3cf8e235b2e48882f4de2400daa6) - fix: use native builds with QEMU emulation for AOT multi-platform (release), 2026-02-06 by *Guillaume Chervet*
 
 
