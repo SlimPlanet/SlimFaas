@@ -174,7 +174,8 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
                 "SlimData Raft command does not declare its serialized length.");
         }
 
-        if (entry.Length is > SlimDataCommandCodec.MaxCommandBytes)
+        if (entry.Length is > SlimDataCommandCodec.MaxCommandBytes +
+            SlimDataCommandCodec.MaxRecoverableWalPaddingBytes)
         {
             return SkipIncompatibleEntry(
                 entry,
@@ -195,16 +196,27 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         }
 
         IRaftLogEntry applicationEntry = entry;
-        if (TryRecoverZeroPrefixedCurrentEntry(entry, out var recoveredEntry, out var discardedPrefixBytes))
+        var recovered = TryRecoverZeroPrefixedCurrentEntry(
+            entry,
+            out var recoveredEntry,
+            out var discardedPrefixBytes);
+        if (recovered)
         {
             applicationEntry = recoveredEntry;
-            _logger?.LogWarning(
+            _logger?.LogDebug(
                 "Recovered zero-prefixed SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, OriginalLength={OriginalLength}, DiscardedPrefixBytes={DiscardedPrefixBytes}",
                 entry.Index,
                 entry.Term,
                 entry.CommandId,
                 entry.Length,
                 discardedPrefixBytes);
+        }
+        else if (entry.Length is > SlimDataCommandCodec.MaxCommandBytes)
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                SlimDataCommandViolation.TooLarge,
+                "SlimData Raft command exceeds the maximum allowed size.");
         }
 
         try
@@ -283,16 +295,20 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         if (!entry.TryGetPayload(out var payload) || payload.IsEmpty)
             return false;
 
-        var prefixLength = checked((int)Math.Min(
-            payload.Length,
-            SlimDataCommandCodec.MaxRecoverableZeroPrefixBytes + SlimDataCommandCodec.HeaderLength));
-        Span<byte> prefix = stackalloc byte[prefixLength];
-        payload.Slice(0L, prefixLength).CopyTo(prefix);
-        var envelopeOffset = SlimDataCommandCodec.FindCurrentEnvelopeOffset(prefix);
-        if (envelopeOffset <= 0 || prefix[..envelopeOffset].ContainsAnyExcept((byte)0))
+        var leadingZeroBytes = CountLeadingZeroBytes(payload);
+        if (leadingZeroBytes <= 0L ||
+            leadingZeroBytes > SlimDataCommandCodec.MaxRecoverableWalPaddingBytes ||
+            payload.Length - leadingZeroBytes < SlimDataCommandCodec.HeaderLength)
+        {
+            return false;
+        }
+
+        Span<byte> header = stackalloc byte[SlimDataCommandCodec.HeaderLength];
+        payload.Slice(leadingZeroBytes, SlimDataCommandCodec.HeaderLength).CopyTo(header);
+        if (!SlimDataCommandCodec.HasCurrentEnvelope(header))
             return false;
 
-        var recoveredPayload = payload.Slice(envelopeOffset).ToArray();
+        var recoveredPayload = payload.Slice(leadingZeroBytes).ToArray();
         SlimDataCommandCodec.ValidateCommandLength(
             recoveredPayload.Length,
             $"SlimData command {entry.CommandId}");
@@ -306,7 +322,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
             Content = recoveredPayload,
             Context = entry.Context
         };
-        discardedPrefixBytes = envelopeOffset;
+        discardedPrefixBytes = checked((int)leadingZeroBytes);
         return true;
     }
 
@@ -315,24 +331,34 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         if (!entry.TryGetPayload(out var payload) || payload.IsEmpty)
             return new(0L, -1);
 
+        var leadingZeroBytes = CountLeadingZeroBytes(payload);
+        var currentEnvelopeOffset = -1;
+        if (leadingZeroBytes <= int.MaxValue &&
+            payload.Length - leadingZeroBytes >= SlimDataCommandCodec.HeaderLength)
+        {
+            Span<byte> header = stackalloc byte[SlimDataCommandCodec.HeaderLength];
+            payload.Slice(leadingZeroBytes, SlimDataCommandCodec.HeaderLength).CopyTo(header);
+            if (SlimDataCommandCodec.HasCurrentEnvelope(header))
+                currentEnvelopeOffset = checked((int)leadingZeroBytes);
+        }
+
+        return new(leadingZeroBytes, currentEnvelopeOffset);
+    }
+
+    private static long CountLeadingZeroBytes(ReadOnlySequence<byte> payload)
+    {
         long leadingZeroBytes = 0L;
         foreach (var segment in payload)
         {
             foreach (var value in segment.Span)
             {
                 if (value != 0)
-                    goto LeadingZerosCounted;
+                    return leadingZeroBytes;
                 leadingZeroBytes++;
             }
         }
 
-        LeadingZerosCounted:
-        var prefixLength = checked((int)Math.Min(
-            payload.Length,
-            SlimDataCommandCodec.MaxRecoverableZeroPrefixBytes + SlimDataCommandCodec.HeaderLength));
-        Span<byte> prefix = stackalloc byte[prefixLength];
-        payload.Slice(0L, prefixLength).CopyTo(prefix);
-        return new(leadingZeroBytes, SlimDataCommandCodec.FindCurrentEnvelopeOffset(prefix));
+        return leadingZeroBytes;
     }
 
     private readonly record struct PayloadDiagnostics(long LeadingZeroBytes, int CurrentEnvelopeOffset);

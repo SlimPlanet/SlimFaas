@@ -471,6 +471,52 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
+    public async Task WriteAheadLog_recovers_page_alignment_padding_for_streamed_entries()
+    {
+        var root = GetTemporaryDirectory();
+        var walPath = Path.Combine(root, "wal");
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            var pageSize = Environment.SystemPageSize;
+            var firstPayload = new AddKeyValueCommand
+            {
+                Operation = KeyValueOperation.Set,
+                Key = "page-first",
+                Value = new byte[pageSize - 2500],
+                NowTicks = DateTime.UtcNow.Ticks
+            }.Serialize();
+            var secondPayload = new AddKeyValueCommand
+            {
+                Operation = KeyValueOperation.Set,
+                Key = "page-second",
+                Value = new byte[3000],
+                NowTicks = DateTime.UtcNow.Ticks
+            }.Serialize();
+            var remainingPageBytes = pageSize - firstPayload.Length;
+
+            Assert.InRange(firstPayload.Length, 1, pageSize);
+            Assert.InRange(secondPayload.Length, remainingPageBytes + 1, pageSize);
+
+            await AppendStreamingCommitWaitAsync(wal, AddKeyValueCommand.Id, firstPayload);
+            await AppendStreamingCommitWaitAsync(wal, AddKeyValueCommand.Id, secondPayload);
+
+            Assert.True(state.SlimDataState.KeyValues.ContainsKey("page-first"));
+            Assert.True(state.SlimDataState.KeyValues.ContainsKey("page-second"));
+            Assert.DoesNotContain(
+                state.GetSkippedCommandMetrics(),
+                metric => metric.CommandId == AddKeyValueCommand.Id);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task WriteAheadLog_applies_every_pre_serialized_command_type_without_skipping()
     {
         var root = GetTemporaryDirectory();
@@ -660,6 +706,18 @@ public sealed class SlimPersistentStateTests
             Context = new CommandApplyContext()
         };
         var index = await wal.AppendAsync(entry, CancellationToken.None);
+        await wal.CommitAsync(index, CancellationToken.None);
+        await wal.WaitForApplyAsync(index, CancellationToken.None);
+    }
+
+    private static async Task AppendStreamingCommitWaitAsync(
+        WriteAheadLog wal,
+        int commandId,
+        byte[] payload)
+    {
+        var index = await wal.AppendAsync(
+            new InvalidApplicationLogEntry(commandId, payload),
+            CancellationToken.None);
         await wal.CommitAsync(index, CancellationToken.None);
         await wal.WaitForApplyAsync(index, CancellationToken.None);
     }
