@@ -231,6 +231,161 @@ public sealed class DataSetRoutesTests
 
 
     [Fact]
+    public async Task Incr_forwards_ttl_to_database()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                60_000L,
+                KeyValueOperation.IncrementInteger,
+                1,
+                0m))
+          .ReturnsAsync(AppliedInteger(1));
+
+        var res = await DataSetRoutes.Handlers.IncrAsync(db.Object, "counter", 60_000L);
+
+        var text = Assert.IsType<ContentHttpResult>(res);
+        Assert.Equal("1", text.ResponseContent);
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task IncrBy_forwards_ttl_to_database()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                30_000L,
+                KeyValueOperation.IncrementInteger,
+                5,
+                0m))
+          .ReturnsAsync(AppliedInteger(5));
+
+        var res = await DataSetRoutes.Handlers.IncrByAsync(db.Object, "counter", 5, 30_000L);
+
+        var text = Assert.IsType<ContentHttpResult>(res);
+        Assert.Equal("5", text.ResponseContent);
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task Decr_forwards_ttl_to_database()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                15_000L,
+                KeyValueOperation.IncrementInteger,
+                -1,
+                0m))
+          .ReturnsAsync(AppliedInteger(-1));
+
+        var res = await DataSetRoutes.Handlers.DecrAsync(db.Object, "counter", 15_000L);
+
+        var text = Assert.IsType<ContentHttpResult>(res);
+        Assert.Equal("-1", text.ResponseContent);
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task DecrBy_forwards_ttl_to_database()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                45_000L,
+                KeyValueOperation.IncrementInteger,
+                -3,
+                0m))
+          .ReturnsAsync(AppliedInteger(-3));
+
+        var res = await DataSetRoutes.Handlers.DecrByAsync(db.Object, "counter", 3, 45_000L);
+
+        var text = Assert.IsType<ContentHttpResult>(res);
+        Assert.Equal("-3", text.ResponseContent);
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task IncrByFloat_forwards_ttl_to_database()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                90_000L,
+                KeyValueOperation.IncrementFloat,
+                0,
+                1.5m))
+          .ReturnsAsync(AppliedDecimal(1.5m));
+
+        var res = await DataSetRoutes.Handlers.IncrByFloatAsync(db.Object, "counter", 1.5m, 90_000L);
+
+        var text = Assert.IsType<ContentHttpResult>(res);
+        Assert.Equal("1.5", text.ResponseContent);
+        db.VerifyAll();
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-1L)]
+    public async Task Incr_rejects_invalid_ttl(long ttl)
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+
+        var res = await DataSetRoutes.Handlers.IncrAsync(db.Object, "counter", ttl);
+
+        Assert.IsType<BadRequest<string>>(res);
+        db.VerifyAll(); // no call expected
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-10L)]
+    public async Task IncrBy_rejects_invalid_ttl(long ttl)
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+
+        var res = await DataSetRoutes.Handlers.IncrByAsync(db.Object, "counter", 1, ttl);
+
+        Assert.IsType<BadRequest<string>>(res);
+    }
+
+    [Fact]
+    public async Task Decr_rejects_invalid_ttl()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+
+        var res = await DataSetRoutes.Handlers.DecrAsync(db.Object, "counter", -1L);
+
+        Assert.IsType<BadRequest<string>>(res);
+    }
+
+    [Fact]
+    public async Task DecrBy_rejects_invalid_ttl()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+
+        var res = await DataSetRoutes.Handlers.DecrByAsync(db.Object, "counter", 1, 0L);
+
+        Assert.IsType<BadRequest<string>>(res);
+    }
+
+    [Fact]
+    public async Task IncrByFloat_rejects_invalid_ttl()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+
+        var res = await DataSetRoutes.Handlers.IncrByFloatAsync(db.Object, "counter", 1m, -5L);
+
+        Assert.IsType<BadRequest<string>>(res);
+    }
+
+    [Fact]
     public async Task Delete_deletes_key()
     {
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);

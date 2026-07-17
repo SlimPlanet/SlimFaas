@@ -34,11 +34,11 @@ Base path: `/data/sets`
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/data/sets?id={id?}&ttl={ttl_ms?}` | Create or overwrite a value |
-| `POST` | `/data/sets/{id}/incr` | Atomically increment an integer by 1 |
-| `POST` | `/data/sets/{id}/incrby?by={long}` | Atomically increment an integer by `by` |
-| `POST` | `/data/sets/{id}/incrbyfloat?by={decimal}` | Atomically increment a decimal value by `by` |
-| `POST` | `/data/sets/{id}/decr` | Atomically decrement an integer by 1 |
-| `POST` | `/data/sets/{id}/decrby?by={long}` | Atomically decrement an integer by `by` |
+| `POST` | `/data/sets/{id}/incr?ttl={ttl_ms?}` | Atomically increment an integer by 1 |
+| `POST` | `/data/sets/{id}/incrby?by={long}&ttl={ttl_ms?}` | Atomically increment an integer by `by` |
+| `POST` | `/data/sets/{id}/incrbyfloat?by={decimal}&ttl={ttl_ms?}` | Atomically increment a decimal value by `by` |
+| `POST` | `/data/sets/{id}/decr?ttl={ttl_ms?}` | Atomically decrement an integer by 1 |
+| `POST` | `/data/sets/{id}/decrby?by={long}&ttl={ttl_ms?}` | Atomically decrement an integer by `by` |
 | `GET` | `/data/sets/{id}` | Read a value |
 | `GET` | `/data/sets` | List entries (IDs + expiration) |
 | `DELETE` | `/data/sets/{id}` | Delete a value |
@@ -105,20 +105,22 @@ Supported operations:
 
 | Command | HTTP endpoint | Stored value type | Response |
 |---|---|---|---|
-| `INCR` | `POST /data/sets/{id}/incr` | UTF-8 integer | new integer value |
-| `INCRBY` | `POST /data/sets/{id}/incrby?by={long}` | UTF-8 integer | new integer value |
-| `INCRBYFLOAT` | `POST /data/sets/{id}/incrbyfloat?by={decimal}` | UTF-8 decimal | new decimal value |
-| `DECR` | `POST /data/sets/{id}/decr` | UTF-8 integer | new integer value |
-| `DECRBY` | `POST /data/sets/{id}/decrby?by={long}` | UTF-8 integer | new integer value |
+| `INCR` | `POST /data/sets/{id}/incr?ttl={ttl_ms?}` | UTF-8 integer | new integer value |
+| `INCRBY` | `POST /data/sets/{id}/incrby?by={long}&ttl={ttl_ms?}` | UTF-8 integer | new integer value |
+| `INCRBYFLOAT` | `POST /data/sets/{id}/incrbyfloat?by={decimal}&ttl={ttl_ms?}` | UTF-8 decimal | new decimal value |
+| `DECR` | `POST /data/sets/{id}/decr?ttl={ttl_ms?}` | UTF-8 integer | new integer value |
+| `DECRBY` | `POST /data/sets/{id}/decrby?by={long}&ttl={ttl_ms?}` | UTF-8 integer | new integer value |
 
 Rules:
 
 - Missing or expired keys start from `0`.
 - Integer commands require the existing value to be a strict UTF-8 integer.
 - `INCRBYFLOAT` requires the existing value to be a strict UTF-8 decimal number.
-- Numeric mutations preserve the existing TTL.
-- If a key has expired, the old value and TTL are ignored and removed before applying the mutation.
-- Invalid numeric values or integer overflows return **409 Conflict** and do not mutate the stored value.
+- When `ttl` is omitted, numeric mutations **preserve** the existing TTL. Keys without an existing TTL stay without one.
+- When `ttl > 0` is provided (milliseconds), it **applies or overrides** the TTL on the key — even if the key had none, or the key was created by this very command.
+- `ttl <= 0` (or otherwise invalid) returns **400 Bad Request** without mutating the stored value.
+- If a key has expired, the old value and TTL are ignored and removed before applying the mutation. A `ttl` provided on the request is still applied to the new value.
+- Invalid numeric values or integer overflows return **409 Conflict** and do not mutate the stored value or its TTL.
 - Responses are `text/plain` and contain the new value.
 
 Examples:
@@ -145,6 +147,12 @@ Increment a decimal value:
 ```bash
 curl -X POST "http://<slimfaas>/data/sets/cost-total/incrbyfloat?by=1.25"
 # 1.25
+```
+
+Increment a counter and set its TTL to 60 seconds atomically:
+```bash
+curl -X POST "http://<slimfaas>/data/sets/request-count/incr?ttl=60000"
+# 1
 ```
 
 Read the stored counter value:

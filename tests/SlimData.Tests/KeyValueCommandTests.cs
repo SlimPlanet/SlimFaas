@@ -67,21 +67,23 @@ public sealed class KeyValueCommandTests
             NowTicks = nowTicks > 0 ? nowTicks : DateTime.UtcNow.Ticks
         };
 
-    private static AddKeyValueCommand IncrementInteger(string key, long delta, long nowTicks = 0) =>
+    private static AddKeyValueCommand IncrementInteger(string key, long delta, long nowTicks = 0, long? expireAtUtcTicks = null) =>
         new()
         {
             Operation = KeyValueOperation.IncrementInteger,
             Key = key,
             IntegerDelta = delta,
+            ExpireAtUtcTicks = expireAtUtcTicks,
             NowTicks = nowTicks > 0 ? nowTicks : DateTime.UtcNow.Ticks
         };
 
-    private static AddKeyValueCommand IncrementFloat(string key, decimal delta, long nowTicks = 0) =>
+    private static AddKeyValueCommand IncrementFloat(string key, decimal delta, long nowTicks = 0, long? expireAtUtcTicks = null) =>
         new()
         {
             Operation = KeyValueOperation.IncrementFloat,
             Key = key,
             FloatDelta = delta,
+            ExpireAtUtcTicks = expireAtUtcTicks,
             NowTicks = nowTicks > 0 ? nowTicks : DateTime.UtcNow.Ticks
         };
 
@@ -170,6 +172,105 @@ public sealed class KeyValueCommandTests
 
         Assert.Equal(KeyValueCommandStatus.Overflow, result.Status);
         Assert.Equal(long.MaxValue.ToString(CultureInfo.InvariantCulture), Encoding.UTF8.GetString(state.KeyValues["counter"].Span));
+    }
+
+    [Fact]
+    public async Task Increment_integer_applies_ttl_when_provided_on_missing_key()
+    {
+        var state = NewState();
+        var ttl = DateTime.UtcNow.AddMinutes(5).Ticks;
+
+        var result = await ApplyAsync(state, IncrementInteger("counter", 1, expireAtUtcTicks: ttl));
+
+        Assert.Equal(KeyValueCommandStatus.Applied, result.Status);
+        Assert.Equal(1L, result.IntegerValue);
+        Assert.Equal("1", Encoding.UTF8.GetString(state.KeyValues["counter"].Span));
+        Assert.Equal(ttl, BitConverter.ToInt64(state.KeyValues[SlimDataInterpreter.TtlKey("counter")].Span));
+    }
+
+    [Fact]
+    public async Task Increment_integer_overrides_existing_ttl_when_provided()
+    {
+        var initialTtl = DateTime.UtcNow.AddMinutes(1).Ticks;
+        var newTtl = DateTime.UtcNow.AddHours(1).Ticks;
+        var state = NewState(ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("counter", Encoding.UTF8.GetBytes("41"))
+            .Add(SlimDataInterpreter.TtlKey("counter"), BitConverter.GetBytes(initialTtl)));
+
+        var result = await ApplyAsync(state, IncrementInteger("counter", 1, expireAtUtcTicks: newTtl));
+
+        Assert.Equal(KeyValueCommandStatus.Applied, result.Status);
+        Assert.Equal(42L, result.IntegerValue);
+        Assert.Equal(newTtl, BitConverter.ToInt64(state.KeyValues[SlimDataInterpreter.TtlKey("counter")].Span));
+    }
+
+    [Fact]
+    public async Task Increment_integer_does_not_write_ttl_when_absent_and_no_previous_ttl()
+    {
+        var state = NewState(ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("counter", Encoding.UTF8.GetBytes("10")));
+
+        var result = await ApplyAsync(state, IncrementInteger("counter", 1));
+
+        Assert.Equal(KeyValueCommandStatus.Applied, result.Status);
+        Assert.Equal(11L, result.IntegerValue);
+        Assert.False(state.KeyValues.ContainsKey(SlimDataInterpreter.TtlKey("counter")));
+    }
+
+    [Fact]
+    public async Task Increment_integer_does_not_write_ttl_on_invalid_number()
+    {
+        var newTtl = DateTime.UtcNow.AddHours(1).Ticks;
+        var state = NewState(ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("counter", Encoding.UTF8.GetBytes("nope")));
+
+        var result = await ApplyAsync(state, IncrementInteger("counter", 1, expireAtUtcTicks: newTtl));
+
+        Assert.Equal(KeyValueCommandStatus.InvalidNumber, result.Status);
+        Assert.Equal("nope", Encoding.UTF8.GetString(state.KeyValues["counter"].Span));
+        Assert.False(state.KeyValues.ContainsKey(SlimDataInterpreter.TtlKey("counter")));
+    }
+
+    [Fact]
+    public async Task Increment_integer_does_not_write_ttl_on_overflow()
+    {
+        var newTtl = DateTime.UtcNow.AddHours(1).Ticks;
+        var state = NewState(ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("counter", Encoding.UTF8.GetBytes(long.MaxValue.ToString(CultureInfo.InvariantCulture))));
+
+        var result = await ApplyAsync(state, IncrementInteger("counter", 1, expireAtUtcTicks: newTtl));
+
+        Assert.Equal(KeyValueCommandStatus.Overflow, result.Status);
+        Assert.False(state.KeyValues.ContainsKey(SlimDataInterpreter.TtlKey("counter")));
+    }
+
+    [Fact]
+    public async Task Increment_float_applies_ttl_when_provided()
+    {
+        var state = NewState(ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("counter", Encoding.UTF8.GetBytes("1.25")));
+        var ttl = DateTime.UtcNow.AddMinutes(5).Ticks;
+
+        var result = await ApplyAsync(state, IncrementFloat("counter", 0.75m, expireAtUtcTicks: ttl));
+
+        Assert.Equal(KeyValueCommandStatus.Applied, result.Status);
+        Assert.Equal(2m, result.DecimalValue);
+        Assert.Equal(ttl, BitConverter.ToInt64(state.KeyValues[SlimDataInterpreter.TtlKey("counter")].Span));
+    }
+
+    [Fact]
+    public async Task Increment_float_preserves_existing_ttl_when_none_provided()
+    {
+        var ttl = DateTime.UtcNow.AddMinutes(1).Ticks;
+        var state = NewState(ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add("counter", Encoding.UTF8.GetBytes("1.25"))
+            .Add(SlimDataInterpreter.TtlKey("counter"), BitConverter.GetBytes(ttl)));
+
+        var result = await ApplyAsync(state, IncrementFloat("counter", 0.75m));
+
+        Assert.Equal(KeyValueCommandStatus.Applied, result.Status);
+        Assert.Equal(2m, result.DecimalValue);
+        Assert.Equal(ttl, BitConverter.ToInt64(state.KeyValues[SlimDataInterpreter.TtlKey("counter")].Span));
     }
 
     [Fact]

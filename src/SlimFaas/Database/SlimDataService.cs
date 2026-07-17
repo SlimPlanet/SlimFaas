@@ -306,7 +306,7 @@ public class SlimDataService
         decimal floatDelta)
     {
         var serializedValue = value ?? Array.Empty<byte>();
-        var expireAtUtcTicks = operation == KeyValueOperation.Set ? ToExpireAtUtcTicks(ttlMs) : null;
+        var expireAtUtcTicks = ToExpireAtUtcTicks(ttlMs);
 
         return await _batcher.EnqueueAsync<KeyValueReq, KeyValueCommandResult>(
             "kv",
@@ -330,7 +330,7 @@ public class SlimDataService
                     item.Operation,
                     item.Key,
                     item.SerializedValue,
-                    item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
+                    item.ExpireAtUtcTicks,
                     item.IntegerDelta,
                     item.FloatDelta,
                     item.NowTicks))
