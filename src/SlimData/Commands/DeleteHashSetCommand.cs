@@ -13,17 +13,22 @@ public struct DeleteHashSetCommand : ICommand<DeleteHashSetCommand>
     public string Key { get; set; }
     public string DictionaryKey { get; set; }
 
-    long? IDataTransferObject.Length => null;
+    long? IDataTransferObject.Length
+        => checked(
+            SlimDataCommandCodec.HeaderLength +
+            SlimDataCommandCodec.GetStringLength(Key) +
+            SlimDataCommandCodec.GetStringLength(DictionaryKey));
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
     {
-        var context = new EncodingContext(Encoding.UTF8, true);
-
-        await writer.EncodeAsync(Key.AsMemory(), context, LengthFormat.LittleEndian, token)
-            .ConfigureAwait(false);
-
-        await writer.EncodeAsync(DictionaryKey.AsMemory(), context, LengthFormat.LittleEndian, token)
+        IAsyncBinaryWriter output = writer;
+        SlimDataCommandCodec.ValidateCommandLength(
+            ((IDataTransferObject)this).Length.GetValueOrDefault(),
+            nameof(DeleteHashSetCommand));
+        await SlimDataCommandCodec.WriteHeaderAsync(output, token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteStringAsync(output, Key, nameof(Key), token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteStringAsync(output, DictionaryKey, nameof(DictionaryKey), token)
             .ConfigureAwait(false);
     }
 
@@ -32,20 +37,20 @@ public struct DeleteHashSetCommand : ICommand<DeleteHashSetCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        using var keyOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        using var dictKeyOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        return new DeleteHashSetCommand
+        try
         {
-            Key = new string(keyOwner.Span),
-            DictionaryKey = new string(dictKeyOwner.Span)
-        };
+            IAsyncBinaryReader input = reader;
+            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(DeleteHashSetCommand), token)
+                .ConfigureAwait(false);
+            var key = await SlimDataCommandCodec.ReadStringAsync(input, nameof(Key), token).ConfigureAwait(false);
+            var dictionaryKey = await SlimDataCommandCodec.ReadStringAsync(input, nameof(DictionaryKey), token)
+                .ConfigureAwait(false);
+            SlimDataCommandCodec.EnsureFullyConsumed(input, nameof(DeleteHashSetCommand));
+            return new DeleteHashSetCommand { Key = key, DictionaryKey = dictionaryKey };
+        }
+        catch (Exception ex) when (SlimDataCommandCodec.IsStructuralException(ex))
+        {
+            throw SlimDataCommandCodec.WrapStructuralException(nameof(DeleteHashSetCommand), ex);
+        }
     }
 }

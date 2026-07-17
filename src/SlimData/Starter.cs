@@ -12,15 +12,16 @@ public class Starter
     {
         var uri = new Uri(publicEndPoint);
 
-        var configuration = new Dictionary<string, string>
+        var configuration = new Dictionary<string, string?>
         {
             { "partitioning", "false" },
             { "lowerElectionTimeout", "300" },
             { "upperElectionTimeout", "600" },
+            { "warmupRounds", "10000" },
             { "publicEndPoint", publicEndPoint },
             { "coldStart", "false" },
-            { "requestJournal:memoryLimit", "5" },
-            { "requestJournal:expiration", "00:01:00" },
+            { "requestJournal:memoryLimit", "10" },
+            { "requestJournal:expiration", "00:00:15" },
             { "heartbeatThreshold", "0.6" }
         };
         if (!string.IsNullOrEmpty(persistentStorage))

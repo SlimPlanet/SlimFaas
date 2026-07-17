@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Buffers.Binary;
+using System.Text;
 using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Text;
@@ -31,7 +32,17 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
     public long? ExpireAtUtcTicks { get; set; }
     public long NowTicks { get; set; }
 
-    long? IDataTransferObject.Length => null;
+    long? IDataTransferObject.Length
+    {
+        get
+        {
+            var payloadLength = GetItemsPayloadLength(EffectiveItems());
+            return checked(
+                SlimDataCommandCodec.HeaderLength +
+                sizeof(byte) +
+                SlimDataCommandCodec.GetBytesLength(checked((int)payloadLength)));
+        }
+    }
 
     public List<BatchItem> EffectiveItems()
     {
@@ -60,14 +71,14 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
 
         long len = 0;
         len += sizeof(byte); // operation
-        len += sizeof(int) + Encoding.UTF8.GetByteCount(key);
+        len += SlimDataCommandCodec.GetStringLength(key);
         len += sizeof(long); // now ticks
         len += sizeof(byte); // has ttl
         if (item.ExpireAtUtcTicks.HasValue)
             len += sizeof(long);
         len += sizeof(long); // integer delta
         len += sizeof(int) * 4; // decimal bits
-        len += Get7BitEncodedIntSize(valueLen) + valueLen;
+        len += SlimDataCommandCodec.GetBytesLength(valueLen);
         return len;
     }
 
@@ -80,65 +91,73 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         return len;
     }
 
-    private static int Get7BitEncodedIntSize(int value)
+    public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
+        where TWriter : notnull, IAsyncBinaryWriter
     {
-        uint v = (uint)value;
-        var size = 1;
-        while (v >= 0x80)
-        {
-            size++;
-            v >>= 7;
-        }
-        return size;
+        var payload = Serialize();
+        return writer.Invoke(payload, token);
     }
 
-    public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
-        where TWriter : notnull, IAsyncBinaryWriter
+    internal byte[] Serialize()
     {
         var items = EffectiveItems();
-        await writer.WriteLittleEndianAsync(SerializationVersion, token).ConfigureAwait(false);
-        var payload = await SerializeItemsAsync(items, token).ConfigureAwait(false);
-        await writer.WriteAsync(payload, LengthFormat.Compressed, token).ConfigureAwait(false);
-    }
+        SlimDataCommandCodec.ValidateCount(
+            items.Count,
+            SlimDataCommandCodec.MaxBatchItems,
+            nameof(Items));
+        var payloadLength = GetItemsPayloadLength(items);
+        SlimDataCommandCodec.ValidateValueLength(payloadLength, "Key/value payload");
+        var payloadLength32 = checked((int)payloadLength);
+        var commandLength = checked((int)(
+            SlimDataCommandCodec.HeaderLength +
+            sizeof(byte) +
+            SlimDataCommandCodec.GetBytesLength(payloadLength32)));
+        SlimDataCommandCodec.ValidateCommandLength(commandLength, nameof(AddKeyValueCommand));
 
-    private static async ValueTask<byte[]> SerializeItemsAsync(List<BatchItem> items, CancellationToken token)
-    {
-        await using var stream = new MemoryStream((int)GetItemsPayloadLength(items));
-        var writer = IAsyncBinaryWriter.Create(stream, new byte[8192]);
-        await writer.WriteLittleEndianAsync(items.Count, token).ConfigureAwait(false);
+        var result = GC.AllocateUninitializedArray<byte>(commandLength);
+        var output = result.AsSpan();
+        var offset = SlimDataCommandCodec.WriteHeader(output);
+        output[offset++] = SerializationVersion;
+        offset += SlimDataCommandCodec.WriteCompressedLength(output[offset..], payloadLength32);
+        WriteInt32(output, ref offset, items.Count);
+
         foreach (var item in items)
-            await WriteItemAsync(writer, item, token).ConfigureAwait(false);
+            WriteItem(output, ref offset, item);
 
-        return stream.ToArray();
+        if (offset != result.Length)
+            throw new InvalidDataException($"Key/value serializer wrote {offset} bytes; expected {result.Length}.");
+
+        SlimDataCommandCodec.ValidateCurrentEnvelope(result, nameof(AddKeyValueCommand));
+        return result;
     }
 
-    private static async ValueTask WriteItemAsync<TWriter>(TWriter writer, BatchItem item, CancellationToken token)
-        where TWriter : notnull, IAsyncBinaryWriter
+    private static void WriteItem(Span<byte> output, ref int offset, BatchItem item)
     {
-        var key = item.Key ?? string.Empty;
+        output[offset++] = (byte)item.Operation;
+        offset += SlimDataCommandCodec.WriteString(output[offset..], item.Key, "Key/value key");
+        WriteInt64(output, ref offset, item.NowTicks);
 
-        await writer.WriteLittleEndianAsync((byte)item.Operation, token).ConfigureAwait(false);
-        await writer.EncodeAsync(
-                key.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token)
-            .ConfigureAwait(false);
+        output[offset++] = item.ExpireAtUtcTicks.HasValue ? (byte)1 : (byte)0;
+        if (item.ExpireAtUtcTicks is { } expireAtUtcTicks)
+            WriteInt64(output, ref offset, expireAtUtcTicks);
 
-        await writer.WriteLittleEndianAsync(item.NowTicks, token).ConfigureAwait(false);
+        WriteInt64(output, ref offset, item.IntegerDelta);
+        foreach (var decimalBit in decimal.GetBits(item.FloatDelta))
+            WriteInt32(output, ref offset, decimalBit);
 
-        byte hasTtl = (byte)(item.ExpireAtUtcTicks.HasValue ? 1 : 0);
-        await writer.WriteLittleEndianAsync(hasTtl, token).ConfigureAwait(false);
-        if (item.ExpireAtUtcTicks.HasValue)
-            await writer.WriteLittleEndianAsync(item.ExpireAtUtcTicks.Value, token).ConfigureAwait(false);
+        offset += SlimDataCommandCodec.WriteBytes(output[offset..], item.Value.Span, "Key/value value");
+    }
 
-        await writer.WriteLittleEndianAsync(item.IntegerDelta, token).ConfigureAwait(false);
+    private static void WriteInt32(Span<byte> output, ref int offset, int value)
+    {
+        BinaryPrimitives.WriteInt32LittleEndian(output[offset..], value);
+        offset += sizeof(int);
+    }
 
-        var decimalBits = decimal.GetBits(item.FloatDelta);
-        for (var i = 0; i < decimalBits.Length; i++)
-            await writer.WriteLittleEndianAsync(decimalBits[i], token).ConfigureAwait(false);
-
-        await writer.WriteAsync(item.Value, LengthFormat.Compressed, token).ConfigureAwait(false);
+    private static void WriteInt64(Span<byte> output, ref int offset, long value)
+    {
+        BinaryPrimitives.WriteInt64LittleEndian(output[offset..], value);
+        offset += sizeof(long);
     }
 
 #pragma warning disable CA2252
@@ -146,12 +165,27 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        var version = await reader.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
-        if (version != SerializationVersion)
-            throw new InvalidDataException(
-                $"Unsupported AddKeyValueCommand version {version}. Only version {SerializationVersion} is supported.");
+        try
+        {
+            IAsyncBinaryReader input = reader;
+            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(AddKeyValueCommand), token)
+                .ConfigureAwait(false);
+            var version = await input.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
+            if (version != SerializationVersion)
+            {
+                throw new SlimDataCommandFormatException(
+                    SlimDataCommandViolation.UnsupportedVersion,
+                    $"Unsupported AddKeyValueCommand version {version}; expected {SerializationVersion}.");
+            }
 
-        return await ReadVersion3Async(reader, token).ConfigureAwait(false);
+            var command = await ReadVersion3Async(input, token).ConfigureAwait(false);
+            SlimDataCommandCodec.EnsureFullyConsumed(input, nameof(AddKeyValueCommand));
+            return command;
+        }
+        catch (Exception ex) when (SlimDataCommandCodec.IsStructuralException(ex) || ex is InvalidDataException)
+        {
+            throw SlimDataCommandCodec.WrapStructuralException(nameof(AddKeyValueCommand), ex);
+        }
     }
 
 #pragma warning disable CA2252
@@ -159,20 +193,22 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        using var payloadOwner = await reader.ReadAsync(
-            LengthFormat.Compressed,
-            token: token).ConfigureAwait(false);
-        using var stream = new MemoryStream(payloadOwner.Memory.ToArray());
+        var payload = await SlimDataCommandCodec.ReadBytesAsync(reader, "Key/value payload", token)
+            .ConfigureAwait(false);
+        using var stream = new MemoryStream(payload, writable: false);
         var payloadReader = IAsyncBinaryReader.Create(stream, new byte[8192]);
 
-        var count = await payloadReader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
-        if (count < 0)
-            throw new InvalidDataException("Invalid AddKeyValueCommand item count.");
+        var count = await SlimDataCommandCodec.ReadCountAsync(
+            payloadReader,
+            SlimDataCommandCodec.MaxBatchItems,
+            nameof(Items),
+            token).ConfigureAwait(false);
 
         var items = new List<BatchItem>(count);
         for (var i = 0; i < count; i++)
             items.Add(await ReadItemAsync(payloadReader, token).ConfigureAwait(false));
 
+        SlimDataCommandCodec.EnsureFullyConsumed(payloadReader, "Key/value payload");
         return ToCommand(items);
     }
 
@@ -217,16 +253,16 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         if (!Enum.IsDefined(operation))
             throw new InvalidDataException($"Unsupported AddKeyValueCommand operation byte {(byte)operation}.");
 
-        using var keyOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
+        var key = await SlimDataCommandCodec.ReadStringAsync(reader, "Key/value key", token)
+            .ConfigureAwait(false);
 
         var nowTicks = await reader.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
 
         var hasTtl = await reader.ReadLittleEndianAsync<byte>(token).ConfigureAwait(false);
         long? expire = null;
-        if (hasTtl != 0)
+        if (hasTtl > 1)
+            throw new InvalidDataException("Invalid key/value TTL marker.");
+        if (hasTtl == 1)
             expire = await reader.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
 
         var integerDelta = await reader.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
@@ -236,15 +272,14 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
             decimalBits[i] = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
         var floatDelta = new decimal(decimalBits);
 
-        using var valueOwner = await reader.ReadAsync(
-            LengthFormat.Compressed,
-            token: token).ConfigureAwait(false);
+        var value = await SlimDataCommandCodec.ReadBytesAsync(reader, "Key/value value", token)
+            .ConfigureAwait(false);
 
         return new BatchItem
         {
             Operation = operation,
-            Key = new string(keyOwner.Span),
-            Value = valueOwner.Memory.ToArray(),
+            Key = key,
+            Value = value,
             IntegerDelta = integerDelta,
             FloatDelta = floatDelta,
             ExpireAtUtcTicks = expire,

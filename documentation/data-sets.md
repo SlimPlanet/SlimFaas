@@ -219,3 +219,65 @@ curl -X DELETE "http://<slimfaas>/data/sets/my-usecase.session-123.state"
 
 Env override:
 - `Data:DefaultVisibility` → `Data__DefaultVisibility`
+
+---
+
+## Availability and backpressure
+
+Writes are grouped into bounded adaptive batches before being replicated as Raft entries. The API can return:
+
+- **413 Payload Too Large** when one item exceeds the configured batch limit.
+- **429 Too Many Requests** when the in-memory adaptive batch queue is full.
+- **503 Service Unavailable** when no Raft quorum or valid leader lease is available within the bounded replication timeout.
+
+`SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
+
+SlimData creates streaming state snapshots every 5,000 applied entries by default. The interval can be changed without altering the API:
+
+```bash
+SlimData__SnapshotIntervalEntries=5000
+```
+
+Raft membership changes are serialized and bounded by configurable timeouts. The announcement timeout must be greater than the membership change timeout:
+
+```bash
+SlimData__Membership__ChangeTimeoutSeconds=60
+SlimData__Membership__AnnouncementTimeoutSeconds=70
+SlimData__Membership__RemovalMissingCycles=3
+```
+
+Followers normally join by announcing themselves to the current leader. As a fallback, the leader also reconciles the Raft membership with the orchestrator topology. Missing members are added first; a member is removed only after it has been absent for `RemovalMissingCycles` consecutive reconciliation cycles. No removal is attempted when the orchestrator snapshot does not contain the local leader.
+
+SlimData configures DotNext with `warmupRounds=10000` by default so a new follower can search far enough back in an active leader's WAL before requiring a snapshot. It can be overridden directly:
+
+```bash
+SlimData__WarmupRounds=20000
+```
+
+For backward compatibility, a `warmupRounds` value inside `SlimData__Configuration` takes precedence over this dedicated setting.
+
+## Raft command protocol
+
+SlimData writes and accepts only the `SLDC/1` Raft command envelope. Legacy payloads, including key/value command ID `2` and queue command ID `14`, are skipped without mutating the state; they are never converted or rewritten. Every node exposes its protocol and assembly version on the internal SlimData port:
+
+Before a mutation is appended to Raft, every SlimData command is serialized into a bounded immutable payload. Its declared length and `SLDC/1` envelope are validated, then the same byte block is written to the leader WAL and replicated to followers.
+
+```text
+GET /SlimData/protocol
+X-SlimData-Command-Protocol: SLDC/1
+X-SlimData-Assembly-Version: <version>
+```
+
+A node with a missing or incompatible protocol is rejected during membership changes. The assembly version, including the Git commit SHA, is diagnostic only: different builds may coexist during a rolling update as long as both advertise the same command protocol. A temporarily unreachable follower does not make a leader incompatible while the Raft quorum and lease remain valid. A follower still returns `503` from `/ready` and refuses SlimData operations when its leader advertises an incompatible protocol.
+
+Any release that changes the Raft wire format must also change `SlimDataCommandProtocol.Current` (for example from `SLDC/1` to `SLDC/2`). Such a release requires a coordinated cluster upgrade; releases retaining `SLDC/1` support normal one-pod-at-a-time Kubernetes updates.
+
+Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
+
+1. Deploy one immutable image digest to all replicas.
+2. Scale the StatefulSet to zero.
+3. Delete the `slimfaas-volume-*` PVCs containing the `wal`, `db`, and `config` directories. Backup PVCs can be retained.
+4. Start `slimfaas-0`, then the followers one at a time.
+5. Verify the startup protocol/version log and ensure `slimdata_raft_skipped_command_total` remains zero.
+
+The readiness endpoint returns `503` while the local snapshot is being restored, the node has no active Raft consensus, or the leader protocol is incompatible. The liveness endpoint remains available so Kubernetes or OpenShift can keep the process alive while the cluster recovers.

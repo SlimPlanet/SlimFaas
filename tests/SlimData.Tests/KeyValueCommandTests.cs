@@ -267,4 +267,28 @@ public sealed class KeyValueCommandTests
         Assert.Equal(3L, items[2].IntegerDelta);
     }
 
+    [Fact]
+    public async Task AddKeyValueCommand_serializes_a_contiguous_current_envelope_with_exact_length()
+    {
+        var command = new AddKeyValueCommand
+        {
+            Items =
+            [
+                SetItem("history-é", new string('x', 128)),
+                IncrementIntegerItem("history-counter", 1)
+            ]
+        };
+
+        var payload = command.Serialize();
+
+        Assert.Equal([0x53, 0x4C, 0x44, 0x43, 0x01], payload[..5]);
+        Assert.Equal(3, payload[5]);
+        Assert.Equal(((IDataTransferObject)command).Length, payload.LongLength);
+
+        await using var stream = new MemoryStream(payload, writable: false);
+        var reader = IAsyncBinaryReader.Create(stream, new byte[32]);
+        var roundtripped = await AddKeyValueCommand.ReadFromAsync(reader, CancellationToken.None);
+        Assert.Equal(2, roundtripped.EffectiveItems().Count);
+    }
+
 }

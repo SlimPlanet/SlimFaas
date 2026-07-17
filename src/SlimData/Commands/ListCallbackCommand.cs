@@ -12,45 +12,59 @@ public struct ListCallbackCommand() : ICommand<ListCallbackCommand>
     public const int Id = 15;
     static int ICommand<ListCallbackCommand>.Id => Id;
 
-    public string Key { get; set; }
+    public string Key { get; set; } = string.Empty;
     public long NowTicks { get; set; }
-    public IList<CallbackElement> CallbackElements { get; set; }
+    public IList<CallbackElement> CallbackElements { get; set; } = [];
 
-    long? IDataTransferObject.Length => null;
+    long? IDataTransferObject.Length
+    {
+        get
+        {
+            var result = checked(
+                SlimDataCommandCodec.HeaderLength +
+                SlimDataCommandCodec.GetStringLength(Key) +
+                sizeof(long) +
+                sizeof(int));
+            foreach (var element in CallbackElements ?? [])
+            {
+                result = checked(
+                    result +
+                    SlimDataCommandCodec.GetStringLength(element?.Identifier) +
+                    sizeof(int));
+            }
+
+            return result;
+        }
+    }
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
     {
-        var key = Key ?? string.Empty;
-        var elements = CallbackElements;
+        IAsyncBinaryWriter output = writer;
+        var elements = CallbackElements ?? [];
+        SlimDataCommandCodec.ValidateCommandLength(
+            ((IDataTransferObject)this).Length.GetValueOrDefault(),
+            nameof(ListCallbackCommand));
+        await SlimDataCommandCodec.WriteHeaderAsync(output, token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteStringAsync(output, Key, nameof(Key), token).ConfigureAwait(false);
 
-        await writer.EncodeAsync(
-                key.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token)
-            .ConfigureAwait(false);
+        await output.WriteLittleEndianAsync(NowTicks, token).ConfigureAwait(false);
 
-        await writer.WriteLittleEndianAsync(NowTicks, token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteCountAsync(
+            output,
+            elements.Count,
+            SlimDataCommandCodec.MaxCollectionCount,
+            nameof(CallbackElements),
+            token).ConfigureAwait(false);
 
-        int count = elements?.Count ?? 0;
-        await writer.WriteLittleEndianAsync(count, token).ConfigureAwait(false);
-
-        if (count == 0)
-            return;
-
-        foreach (var element in elements!)
+        foreach (var element in elements)
         {
-            var id = element?.Identifier ?? string.Empty;
-
-            await writer.EncodeAsync(
-                    id.AsMemory(),
-                    new EncodingContext(Encoding.UTF8, false),
-                    LengthFormat.LittleEndian,
-                    token)
-                .ConfigureAwait(false);
-
-            await writer.WriteLittleEndianAsync(element.HttpCode, token).ConfigureAwait(false);
+            await SlimDataCommandCodec.WriteStringAsync(
+                output,
+                element?.Identifier,
+                "Callback identifier",
+                token).ConfigureAwait(false);
+            await output.WriteLittleEndianAsync(element?.HttpCode ?? 0, token).ConfigureAwait(false);
         }
     }
 
@@ -59,33 +73,40 @@ public struct ListCallbackCommand() : ICommand<ListCallbackCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        using var keyOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        var nowTicks = await reader.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
-
-        var callbackElementsCount = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
-        var callbackElements = new List<CallbackElement>(callbackElementsCount);
-
-        while (callbackElementsCount-- > 0)
+        try
         {
-            using var idOwner = await reader.DecodeAsync(
-                new DecodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token: token).ConfigureAwait(false);
+            IAsyncBinaryReader input = reader;
+            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(ListCallbackCommand), token)
+                .ConfigureAwait(false);
+            var key = await SlimDataCommandCodec.ReadStringAsync(input, nameof(Key), token).ConfigureAwait(false);
+            var nowTicks = await input.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
+            var callbackElementsCount = await SlimDataCommandCodec.ReadCountAsync(
+                input,
+                SlimDataCommandCodec.MaxCollectionCount,
+                nameof(CallbackElements),
+                token).ConfigureAwait(false);
+            var callbackElements = new List<CallbackElement>(callbackElementsCount);
+            for (var i = 0; i < callbackElementsCount; i++)
+            {
+                var identifier = await SlimDataCommandCodec.ReadStringAsync(
+                    input,
+                    "Callback identifier",
+                    token).ConfigureAwait(false);
+                var httpCode = await input.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+                callbackElements.Add(new CallbackElement(identifier, httpCode));
+            }
 
-            var httpCode = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
-
-            callbackElements.Add(new CallbackElement(new string(idOwner.Span), httpCode));
+            SlimDataCommandCodec.EnsureFullyConsumed(input, nameof(ListCallbackCommand));
+            return new ListCallbackCommand
+            {
+                Key = key,
+                NowTicks = nowTicks,
+                CallbackElements = callbackElements
+            };
         }
-
-        return new ListCallbackCommand
+        catch (Exception ex) when (SlimDataCommandCodec.IsStructuralException(ex))
         {
-            Key = new string(keyOwner.Span),
-            NowTicks = nowTicks,
-            CallbackElements = callbackElements
-        };
+            throw SlimDataCommandCodec.WrapStructuralException(nameof(ListCallbackCommand), ex);
+        }
     }
 }

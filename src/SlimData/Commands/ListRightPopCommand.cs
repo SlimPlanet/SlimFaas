@@ -16,41 +16,49 @@ public struct ListRightPopCommand : ICommand<ListRightPopCommand>
     public string IdTransaction { get; set; }
     public List<string> ReservedIps { get; set; }
 
-    long? IDataTransferObject.Length => null;
+    long? IDataTransferObject.Length
+    {
+        get
+        {
+            var result = checked(
+                SlimDataCommandCodec.HeaderLength +
+                SlimDataCommandCodec.GetStringLength(Key) +
+                sizeof(int) +
+                sizeof(long) +
+                SlimDataCommandCodec.GetStringLength(IdTransaction) +
+                sizeof(int));
+            foreach (var reservedIp in ReservedIps ?? [])
+                result = checked(result + SlimDataCommandCodec.GetStringLength(reservedIp));
+            return result;
+        }
+    }
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
     {
-        await writer.EncodeAsync(
-                Key.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token)
+        IAsyncBinaryWriter output = writer;
+        SlimDataCommandCodec.ValidateCommandLength(
+            ((IDataTransferObject)this).Length.GetValueOrDefault(),
+            nameof(ListRightPopCommand));
+        await SlimDataCommandCodec.WriteHeaderAsync(output, token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteStringAsync(output, Key, nameof(Key), token).ConfigureAwait(false);
+
+        await output.WriteLittleEndianAsync(Count, token).ConfigureAwait(false);
+        await output.WriteLittleEndianAsync(NowTicks, token).ConfigureAwait(false);
+
+        await SlimDataCommandCodec.WriteStringAsync(output, IdTransaction, nameof(IdTransaction), token)
             .ConfigureAwait(false);
 
-        await writer.WriteLittleEndianAsync(Count, token).ConfigureAwait(false);
-        await writer.WriteLittleEndianAsync(NowTicks, token).ConfigureAwait(false);
-
-        await writer.EncodeAsync(
-                IdTransaction.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token)
-            .ConfigureAwait(false);
-
-        var reservedIpsCount = ReservedIps?.Count ?? 0;
-        await writer.WriteLittleEndianAsync(reservedIpsCount, token).ConfigureAwait(false);
-        if (reservedIpsCount > 0)
+        var reservedIps = ReservedIps ?? [];
+        await SlimDataCommandCodec.WriteCountAsync(
+            output,
+            reservedIps.Count,
+            SlimDataCommandCodec.MaxCollectionCount,
+            nameof(ReservedIps),
+            token).ConfigureAwait(false);
+        foreach (var ip in reservedIps)
         {
-            foreach (var ip in ReservedIps!)
-            {
-                await writer.EncodeAsync(
-                        (ip ?? string.Empty).AsMemory(),
-                        new EncodingContext(Encoding.UTF8, false),
-                        LengthFormat.LittleEndian,
-                        token)
-                    .ConfigureAwait(false);
-            }
+            await SlimDataCommandCodec.WriteStringAsync(output, ip, "Reserved IP", token).ConfigureAwait(false);
         }
     }
 
@@ -59,98 +67,43 @@ public struct ListRightPopCommand : ICommand<ListRightPopCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        using var keyOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        var count = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
-        var nowTicks = await reader.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
-
-        using var txOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        var reservedIpsCount = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
-        var reservedIps = new List<string>(reservedIpsCount);
-        while (reservedIpsCount-- > 0)
+        try
         {
-            using var ipOwner = await reader.DecodeAsync(
-                new DecodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token: token).ConfigureAwait(false);
-            reservedIps.Add(new string(ipOwner.Span));
+            IAsyncBinaryReader input = reader;
+            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(ListRightPopCommand), token)
+                .ConfigureAwait(false);
+            var key = await SlimDataCommandCodec.ReadStringAsync(input, nameof(Key), token).ConfigureAwait(false);
+            var count = await input.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+            if (count < 0 || count > SlimDataCommandCodec.MaxCollectionCount)
+                throw new InvalidDataException($"Invalid pop count {count}.");
+            var nowTicks = await input.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
+            var transactionId = await SlimDataCommandCodec.ReadStringAsync(input, nameof(IdTransaction), token)
+                .ConfigureAwait(false);
+            var reservedIpsCount = await SlimDataCommandCodec.ReadCountAsync(
+                input,
+                SlimDataCommandCodec.MaxCollectionCount,
+                nameof(ReservedIps),
+                token).ConfigureAwait(false);
+            var reservedIps = new List<string>(reservedIpsCount);
+            for (var i = 0; i < reservedIpsCount; i++)
+            {
+                reservedIps.Add(await SlimDataCommandCodec.ReadStringAsync(input, "Reserved IP", token)
+                    .ConfigureAwait(false));
+            }
+
+            SlimDataCommandCodec.EnsureFullyConsumed(input, nameof(ListRightPopCommand));
+            return new ListRightPopCommand
+            {
+                Key = key,
+                Count = count,
+                NowTicks = nowTicks,
+                IdTransaction = transactionId,
+                ReservedIps = reservedIps
+            };
         }
-
-        return new ListRightPopCommand
+        catch (Exception ex) when (SlimDataCommandCodec.IsStructuralException(ex) || ex is InvalidDataException)
         {
-            Key = new string(keyOwner.Span),
-            Count = count,
-            NowTicks = nowTicks,
-            IdTransaction = new string(txOwner.Span),
-            ReservedIps = reservedIps
-        };
-    }
-}
-
-public struct ListRightPopCommandLegacy : ICommand<ListRightPopCommandLegacy>
-{
-    public const int Id = 4;
-    static int ICommand<ListRightPopCommandLegacy>.Id => Id;
-
-    public string Key { get; set; }
-    public int Count { get; set; }
-    public long NowTicks { get; set; }
-    public string IdTransaction { get; set; }
-
-    long? IDataTransferObject.Length => null;
-
-    public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
-        where TWriter : notnull, IAsyncBinaryWriter
-    {
-        await writer.EncodeAsync(
-                Key.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token)
-            .ConfigureAwait(false);
-
-        await writer.WriteLittleEndianAsync(Count, token).ConfigureAwait(false);
-        await writer.WriteLittleEndianAsync(NowTicks, token).ConfigureAwait(false);
-
-        await writer.EncodeAsync(
-                IdTransaction.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian,
-                token)
-            .ConfigureAwait(false);
-    }
-
-#pragma warning disable CA2252
-    public static async ValueTask<ListRightPopCommandLegacy> ReadFromAsync<TReader>(TReader reader, CancellationToken token)
-#pragma warning restore CA2252
-        where TReader : notnull, IAsyncBinaryReader
-    {
-        using var keyOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        var count = await reader.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
-        var nowTicks = await reader.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
-
-        using var txOwner = await reader.DecodeAsync(
-            new DecodingContext(Encoding.UTF8, false),
-            LengthFormat.LittleEndian,
-            token: token).ConfigureAwait(false);
-
-        return new ListRightPopCommandLegacy
-        {
-            Key = new string(keyOwner.Span),
-            Count = count,
-            NowTicks = nowTicks,
-            IdTransaction = new string(txOwner.Span)
-        };
+            throw SlimDataCommandCodec.WrapStructuralException(nameof(ListRightPopCommand), ex);
+        }
     }
 }

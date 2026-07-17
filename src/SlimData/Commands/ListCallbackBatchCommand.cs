@@ -19,39 +19,67 @@ public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
         public List<CallbackElement> CallbackElements { get; set; }
     }
 
-    long? IDataTransferObject.Length => null;
+    long? IDataTransferObject.Length
+    {
+        get
+        {
+            long result = checked(SlimDataCommandCodec.HeaderLength + sizeof(int));
+            foreach (var item in Items ?? [])
+            {
+                result = checked(
+                    result +
+                    SlimDataCommandCodec.GetStringLength(item.Key) +
+                    sizeof(long) +
+                    sizeof(int));
+                foreach (var element in item.CallbackElements ?? [])
+                {
+                    result = checked(
+                        result +
+                        SlimDataCommandCodec.GetStringLength(element?.Identifier) +
+                        sizeof(int));
+                }
+            }
+
+            return result;
+        }
+    }
 
     public async ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
         where TWriter : notnull, IAsyncBinaryWriter
     {
-        var count = Items?.Count ?? 0;
-        await writer.WriteLittleEndianAsync(count, token).ConfigureAwait(false);
-        if (count == 0) return;
+        IAsyncBinaryWriter output = writer;
+        var items = Items ?? [];
+        SlimDataCommandCodec.ValidateCommandLength(
+            ((IDataTransferObject)this).Length.GetValueOrDefault(),
+            nameof(ListCallbackBatchCommand));
+        await SlimDataCommandCodec.WriteHeaderAsync(output, token).ConfigureAwait(false);
+        await SlimDataCommandCodec.WriteCountAsync(
+            output,
+            items.Count,
+            SlimDataCommandCodec.MaxBatchItems,
+            nameof(Items),
+            token).ConfigureAwait(false);
 
-        foreach (var it in Items!)
+        foreach (var item in items)
         {
-            // Key
-            await writer.EncodeAsync(it.Key.AsMemory(),
-                new EncodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian, token).ConfigureAwait(false);
-
-            // NowTicks
-            await writer.WriteLittleEndianAsync(it.NowTicks, token).ConfigureAwait(false);
-
-            // CallbackElements
-            var elCount = it.CallbackElements?.Count ?? 0;
-            await writer.WriteLittleEndianAsync(elCount, token).ConfigureAwait(false);
-
-            if (elCount > 0)
+            await SlimDataCommandCodec.WriteStringAsync(output, item.Key, "Callback batch key", token)
+                .ConfigureAwait(false);
+            await output.WriteLittleEndianAsync(item.NowTicks, token).ConfigureAwait(false);
+            var elements = item.CallbackElements ?? [];
+            await SlimDataCommandCodec.WriteCountAsync(
+                output,
+                elements.Count,
+                SlimDataCommandCodec.MaxCollectionCount,
+                nameof(BatchItem.CallbackElements),
+                token).ConfigureAwait(false);
+            foreach (var element in elements)
             {
-                foreach (var el in it.CallbackElements!)
-                {
-                    await writer.EncodeAsync(el.Identifier.AsMemory(),
-                        new EncodingContext(Encoding.UTF8, false),
-                        LengthFormat.LittleEndian, token).ConfigureAwait(false);
-
-                    await writer.WriteLittleEndianAsync(el.HttpCode, token).ConfigureAwait(false);
-                }
+                await SlimDataCommandCodec.WriteStringAsync(
+                    output,
+                    element?.Identifier,
+                    "Callback identifier",
+                    token).ConfigureAwait(false);
+                await output.WriteLittleEndianAsync(element?.HttpCode ?? 0, token).ConfigureAwait(false);
             }
         }
     }
@@ -61,42 +89,52 @@ public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
     {
-        var count = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-        var items = new List<BatchItem>(count);
-
-        for (int i = 0; i < count; i++)
+        try
         {
-            // Key
-            using var keyOwner = await reader.DecodeAsync(
-                new DecodingContext(Encoding.UTF8, false),
-                LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
-            string key = new string(keyOwner.Span);
-
-            // NowTicks
-            var nowTicks = await reader.ReadLittleEndianAsync<Int64>(token).ConfigureAwait(false);
-
-            // CallbackElements
-            var elCount = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-            var elements = new List<CallbackElement>(elCount);
-
-            while (elCount-- > 0)
+            IAsyncBinaryReader input = reader;
+            await SlimDataCommandCodec.ReadHeaderAsync(input, nameof(ListCallbackBatchCommand), token)
+                .ConfigureAwait(false);
+            var count = await SlimDataCommandCodec.ReadCountAsync(
+                input,
+                SlimDataCommandCodec.MaxBatchItems,
+                nameof(Items),
+                token).ConfigureAwait(false);
+            var items = new List<BatchItem>(count);
+            for (var i = 0; i < count; i++)
             {
-                using var idOwner = await reader.DecodeAsync(
-                    new DecodingContext(Encoding.UTF8, false),
-                    LengthFormat.LittleEndian, token: token).ConfigureAwait(false);
-                string identifier = new string(idOwner.Span);
-                var httpCode = await reader.ReadLittleEndianAsync<Int32>(token).ConfigureAwait(false);
-                elements.Add(new CallbackElement(identifier, httpCode));
+                var key = await SlimDataCommandCodec.ReadStringAsync(input, "Callback batch key", token)
+                    .ConfigureAwait(false);
+                var nowTicks = await input.ReadLittleEndianAsync<long>(token).ConfigureAwait(false);
+                var elementCount = await SlimDataCommandCodec.ReadCountAsync(
+                    input,
+                    SlimDataCommandCodec.MaxCollectionCount,
+                    nameof(BatchItem.CallbackElements),
+                    token).ConfigureAwait(false);
+                var elements = new List<CallbackElement>(elementCount);
+                for (var elementIndex = 0; elementIndex < elementCount; elementIndex++)
+                {
+                    var identifier = await SlimDataCommandCodec.ReadStringAsync(
+                        input,
+                        "Callback identifier",
+                        token).ConfigureAwait(false);
+                    var httpCode = await input.ReadLittleEndianAsync<int>(token).ConfigureAwait(false);
+                    elements.Add(new CallbackElement(identifier, httpCode));
+                }
+
+                items.Add(new BatchItem
+                {
+                    Key = key,
+                    NowTicks = nowTicks,
+                    CallbackElements = elements
+                });
             }
 
-            items.Add(new BatchItem
-            {
-                Key = key,
-                NowTicks = nowTicks,
-                CallbackElements = elements
-            });
+            SlimDataCommandCodec.EnsureFullyConsumed(input, nameof(ListCallbackBatchCommand));
+            return new ListCallbackBatchCommand { Items = items };
         }
-
-        return new ListCallbackBatchCommand { Items = items };
+        catch (Exception ex) when (SlimDataCommandCodec.IsStructuralException(ex))
+        {
+            throw SlimDataCommandCodec.WrapStructuralException(nameof(ListCallbackBatchCommand), ex);
+        }
     }
 }

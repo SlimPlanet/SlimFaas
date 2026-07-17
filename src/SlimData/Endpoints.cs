@@ -1,7 +1,9 @@
 ﻿using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
+using DotNext.Net.Cluster.Consensus.Raft.Http;
 using MemoryPack;
+using Microsoft.AspNetCore.Connections;
 using SlimData.Commands;
 
 namespace SlimData;
@@ -66,6 +68,7 @@ public sealed record LpReq(
 
 public class Endpoints
 {
+    private static readonly TimeSpan ReplicationTimeout = TimeSpan.FromSeconds(5);
     public delegate Task RespondDelegate(IRaftCluster cluster, SlimPersistentState provider,
         CancellationTokenSource? source);
 
@@ -93,25 +96,61 @@ public class Endpoints
         return expire;
     }
 
-    private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, LogEntry<T> cmd, CancellationToken ct)
-        where T : struct, ICommand<T>
+    private static async Task<bool> SafeReplicateAsync<T>(IRaftCluster cluster, T cmd, CancellationToken ct)
+        where T : IInputLogEntry
     {
+        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(ct, cluster.LeadershipToken);
+        timeoutSource.CancelAfter(ReplicationTimeout);
+        var operationToken = timeoutSource.Token;
+
         // Évite le head-of-line : ne bloque pas indéfiniment
-        if (!await Inflight.WaitAsync(TimeSpan.FromMilliseconds(5000), ct))
+        if (!await Inflight.WaitAsync(ReplicationTimeout, operationToken))
             throw new TooManyRequestsException(); // 429
         try
         {
-            var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
-            if (!isLeader)
-                throw new AbandonedMutexException("Node is not leader anymore");
-            await cluster.ReplicateAsync(cmd, ct);
+            await WaitForWritableLeaderAsync(cluster, operationToken).ConfigureAwait(false);
+            await cluster.ReplicateAsync(cmd, operationToken).ConfigureAwait(false);
             if (cmd.Context is CommandApplyContext applyContext)
-                await applyContext.WaitAsync(ct);
+            {
+                await applyContext.WaitAsync(operationToken).ConfigureAwait(false);
+                if (applyContext.IsSkipped)
+                {
+                    throw new SlimDataUnavailableException(
+                        applyContext.ErrorMessage ?? "SlimData skipped an incompatible Raft command.");
+                }
+            }
             return true;
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested && timeoutSource.IsCancellationRequested)
+        {
+            throw new SlimDataUnavailableException("Raft quorum or leader lease is unavailable.", ex);
+        }
+        catch (QuorumUnreachableException ex)
+        {
+            throw new SlimDataUnavailableException("Raft quorum is unavailable.", ex);
         }
         finally
         {
             Inflight.Release();
+        }
+    }
+
+    private static async Task WaitForWritableLeaderAsync(IRaftCluster cluster, CancellationToken token)
+    {
+        while (true)
+        {
+            token.ThrowIfCancellationRequested();
+            if (cluster.LeadershipToken.IsCancellationRequested)
+                throw new SlimDataUnavailableException("Node is not the active Raft leader.");
+
+            if (!cluster.ConsensusToken.IsCancellationRequested &&
+                cluster.TryGetLeaseToken(out var leaseToken) &&
+                !leaseToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            await Task.Delay(25, token).ConfigureAwait(false);
         }
     }
 
@@ -121,6 +160,73 @@ public class Endpoints
         return context.Response.WriteAsync(
             $"Leader address is {cluster.Leader?.EndPoint}. Current address is {context.Connection.LocalIpAddress}:{context.Connection.LocalPort}",
             context.RequestAborted);
+    }
+
+    public static async Task AnnounceMemberAsync(HttpContext context)
+    {
+        var slimDataInfo = context.RequestServices.GetRequiredService<SlimDataInfo>();
+        if (context.Connection.LocalPort != slimDataInfo.Port)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        if (!context.Request.Headers.TryGetValue(SlimDataCommandProtocol.HeaderName, out var protocol) ||
+            !string.Equals(protocol.ToString(), SlimDataCommandProtocol.Current, StringComparison.Ordinal))
+        {
+            context.Response.StatusCode = StatusCodes.Status409Conflict;
+            context.Response.Headers[SlimDataCommandProtocol.HeaderName] = SlimDataCommandProtocol.Current;
+            context.Response.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName] =
+                SlimDataCommandProtocol.AssemblyVersion;
+            return;
+        }
+
+        if (!context.Request.Query.TryGetValue("endpoint", out var endpointValue) ||
+            !Uri.TryCreate(endpointValue.ToString(), UriKind.Absolute, out var endpoint) ||
+            !Startup.IsAllowedClusterMember(endpoint))
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return;
+        }
+
+        var cluster = context.RequestServices.GetRequiredService<IRaftHttpCluster>();
+        if (Startup.SameEndpoint(cluster.LocalMemberAddress, endpoint) ||
+            ((IRaftCluster)cluster).Members.Any(member =>
+                member.EndPoint is UriEndPoint address && Startup.SameEndpoint(address.Uri, endpoint)))
+        {
+            context.Response.StatusCode = StatusCodes.Status204NoContent;
+            return;
+        }
+
+        try
+        {
+            var coordinator = context.RequestServices.GetRequiredService<ClusterMembershipCoordinator>();
+            var added = await coordinator.AddMemberAsync(endpoint, context.RequestAborted).ConfigureAwait(false);
+            context.Response.StatusCode = added
+                ? StatusCodes.Status204NoContent
+                : StatusCodes.Status503ServiceUnavailable;
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or QuorumUnreachableException or NotLeaderException)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        }
+    }
+
+    public static async Task ProtocolAsync(HttpContext context)
+    {
+        var slimDataInfo = context.RequestServices.GetRequiredService<SlimDataInfo>();
+        if (context.Connection.LocalPort != slimDataInfo.Port)
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        context.Response.ContentType = "text/plain";
+        context.Response.Headers[SlimDataCommandProtocol.HeaderName] = SlimDataCommandProtocol.Current;
+        context.Response.Headers[SlimDataCommandProtocol.AssemblyVersionHeaderName] =
+            SlimDataCommandProtocol.AssemblyVersion;
+        await context.Response.WriteAsync(SlimDataCommandProtocol.Current, context.RequestAborted)
+            .ConfigureAwait(false);
     }
 
     public static async Task DoAsync(HttpContext context, RespondDelegate respondDelegate)
@@ -134,6 +240,13 @@ public class Endpoints
         if (!currentPorts.Contains(slimDataInfo.Port))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+
+        var protocolCompatibility = context.RequestServices.GetRequiredService<ISlimDataProtocolCompatibility>();
+        if (!protocolCompatibility.IsCompatible)
+        {
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
             return;
         }
 
@@ -160,6 +273,11 @@ public class Endpoints
             // client disconnected / leadership lost
             if (!context.Response.HasStarted)
                 context.Response.StatusCode = StatusCodes.Status499ClientClosedRequest; // (Kestrel non-standard, but useful)
+        }
+        catch (SlimDataUnavailableException e)
+        {
+            logger.LogWarning(e, "SlimData is unavailable for {Path}", context.Request.Path);
+            context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         }
         catch (Exception e)
         {
@@ -199,17 +317,18 @@ public class Endpoints
         foreach (var kv in dictionary)
             value.Add(kv.Key, kv.Value);
 
-        var logEntry = new LogEntry<AddHashSetCommand>
+        var command = new AddHashSetCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Key = key,
-                Value = value,
-                ExpireAtUtcTicks = expireAtUtcTicks
-            },
-            Context = new CommandApplyContext()
+            Key = key,
+            Value = value,
+            ExpireAtUtcTicks = expireAtUtcTicks
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
@@ -236,12 +355,13 @@ public class Endpoints
     public static async Task DeleteHashSetCommand(SlimPersistentState provider, string key, string dictionaryKey,
         IRaftCluster cluster, CancellationTokenSource source)
     {
-        var logEntry = new LogEntry<DeleteHashSetCommand>()
-        {
-            Term = cluster.Term,
-            Command = new() { Key = key, DictionaryKey = dictionaryKey },
-            Context = new CommandApplyContext()
-        };
+        var command = new DeleteHashSetCommand { Key = key, DictionaryKey = dictionaryKey };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
@@ -281,19 +401,20 @@ public class Endpoints
         values.Items = new List<QueueData>();
 
         var nowTicks = DateTime.UtcNow.Ticks;
-        var logEntry = new LogEntry<ListRightPopCommand>()
+        var command = new SlimData.Commands.ListRightPopCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Key = key,
-                Count = count,
-                NowTicks = nowTicks,
-                IdTransaction = transactionId,
-                ReservedIps = reservedIps ?? []
-            },
-            Context = new CommandApplyContext()
+            Key = key,
+            Count = count,
+            NowTicks = nowTicks,
+            IdTransaction = transactionId,
+            ReservedIps = reservedIps ?? []
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
         await SafeReplicateAsync(cluster, logEntry, source.Token);
         await Task.Delay(2, source.Token);
 
@@ -378,15 +499,16 @@ public class Endpoints
             batchItems.Add(batchItem);
         }
 
-        var logEntry = new LogEntry<ListLeftPushBatchCommand>()
+        var command = new SlimData.Commands.ListLeftPushBatchCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Items = batchItems,
-            },
-            Context = new CommandApplyContext()
+            Items = batchItems
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         bool success = await SafeReplicateAsync(cluster, logEntry, source.Token);
         var listLeftPushBatchResponse = new ListLeftPushBatchResponse(batchItems.Select(b => success ? b.Identifier : "").ToArray());
@@ -429,17 +551,18 @@ public class Endpoints
             callbackElements.Add(new CallbackElement(queueItemStatus.Id, queueItemStatus.HttpCode));
         }
 
-        var logEntry = new LogEntry<ListCallbackCommand>()
+        var command = new SlimData.Commands.ListCallbackCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Key = key,
-                NowTicks = nowTicks,
-                CallbackElements = callbackElements
-            },
-            Context = new CommandApplyContext()
+            Key = key,
+            NowTicks = nowTicks,
+            CallbackElements = callbackElements
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
@@ -486,15 +609,16 @@ public class Endpoints
         if (items.Count == 0)
             return new ListCallbackBatchResponse(acks);
 
-        var logEntry = new LogEntry<SlimData.Commands.ListCallbackBatchCommand>
+        var command = new SlimData.Commands.ListCallbackBatchCommand
         {
-            Term = cluster.Term,
-            Command = new SlimData.Commands.ListCallbackBatchCommand
-            {
-                Items = items
-            },
-            Context = new CommandApplyContext()
+            Items = items
         };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
         return new ListCallbackBatchResponse(acks);
@@ -565,26 +689,29 @@ public class Endpoints
             .Select(_ => new KeyValueCommandResult())
             .ToArray();
 
-        var logEntry = new LogEntry<AddKeyValueCommand>()
+        var context = new KeyValueCommandBatchContext(results);
+        var command = new AddKeyValueCommand
         {
-            Term = cluster.Term,
-            Command = new()
-            {
-                Items = requestItems
-                    .Select(item => new AddKeyValueCommand.BatchItem
-                    {
-                        Operation = item.Operation,
-                        Key = item.Key,
-                        Value = item.Value ?? Array.Empty<byte>(),
-                        ExpireAtUtcTicks = item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
-                        IntegerDelta = item.IntegerDelta,
-                        FloatDelta = item.FloatDelta,
-                        NowTicks = item.NowTicks
-                    })
-                    .ToList()
-            },
-            Context = new KeyValueCommandBatchContext(results)
+            Items = requestItems
+                .Select(item => new AddKeyValueCommand.BatchItem
+                {
+                    Operation = item.Operation,
+                    Key = item.Key,
+                    Value = item.Value ?? Array.Empty<byte>(),
+                    ExpireAtUtcTicks = item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
+                    IntegerDelta = item.IntegerDelta,
+                    FloatDelta = item.FloatDelta,
+                    NowTicks = item.NowTicks
+                })
+                .ToList()
         };
+        var payload = command.Serialize();
+        var logEntry = SerializedSlimDataLogEntry.Create(
+            AddKeyValueCommand.Id,
+            cluster.Term,
+            payload,
+            context,
+            nameof(AddKeyValueCommand));
 
         var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
         if (!success)
@@ -636,12 +763,13 @@ public class Endpoints
         IRaftCluster cluster,
         CancellationTokenSource source)
     {
-        var logEntry = new LogEntry<DeleteKeyValueCommand>
-        {
-            Term = cluster.Term,
-            Command = new() { Key = key },
-            Context = new CommandApplyContext()
-        };
+        var command = new DeleteKeyValueCommand { Key = key };
+        var context = new CommandApplyContext();
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+            command,
+            cluster.Term,
+            context,
+            source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
     }
@@ -650,4 +778,17 @@ public class Endpoints
 
 public class TooManyRequestsException : Exception
 {
+}
+
+public sealed class SlimDataUnavailableException : Exception
+{
+    public SlimDataUnavailableException(string message)
+        : base(message)
+    {
+    }
+
+    public SlimDataUnavailableException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }

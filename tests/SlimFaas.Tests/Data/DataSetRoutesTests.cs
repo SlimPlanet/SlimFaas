@@ -141,6 +141,35 @@ public sealed class DataSetRoutesTests
         db.VerifyAll();
     }
 
+    [Theory]
+    [InlineData(0, StatusCodes.Status429TooManyRequests)]
+    [InlineData(1, StatusCodes.Status413PayloadTooLarge)]
+    [InlineData(2, StatusCodes.Status503ServiceUnavailable)]
+    public async Task Incr_maps_capacity_and_quorum_failures(int failure, int expectedStatus)
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        Exception exception = failure switch
+        {
+            0 => new BatchQueueFullException("kv"),
+            1 => new BatchItemTooLargeException("kv", 5, 4),
+            _ => new SlimDataUnavailableException("No active quorum.")
+        };
+        db.Setup(d => d.SetAsync(
+                "data:set:counter",
+                (byte[]?)null,
+                null,
+                KeyValueOperation.IncrementInteger,
+                1,
+                0m))
+          .ThrowsAsync(exception);
+
+        var result = await DataSetRoutes.Handlers.IncrAsync(db.Object, "counter");
+
+        var problem = Assert.IsType<ProblemHttpResult>(result);
+        Assert.Equal(expectedStatus, problem.StatusCode);
+        db.VerifyAll();
+    }
+
     [Fact]
     public async Task Get_returns_notfound_when_missing()
     {

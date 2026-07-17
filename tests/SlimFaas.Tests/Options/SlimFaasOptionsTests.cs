@@ -154,6 +154,7 @@ public class SlimFaasOptionsTests
         {
             ["SlimData:Directory"] = "/custom/path",
             ["SlimData:AllowColdStart"] = "true",
+            ["SlimData:WarmupRounds"] = "20000",
             ["SlimData:Configuration"] = "{\"test\":\"value\"}"
         });
         var configuration = configurationBuilder.Build();
@@ -171,6 +172,7 @@ public class SlimFaasOptionsTests
         // Assert
         Assert.Equal("/custom/path", options.Directory);
         Assert.True(options.AllowColdStart);
+        Assert.Equal(20_000, options.WarmupRounds);
         Assert.Equal("{\"test\":\"value\"}", options.Configuration);
     }
 

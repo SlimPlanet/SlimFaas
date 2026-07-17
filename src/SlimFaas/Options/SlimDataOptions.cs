@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace SlimFaas.Options;
 
 /// <summary>
@@ -21,6 +23,12 @@ public class SlimDataOptions
     /// Allow cold start for SlimData
     /// </summary>
     public bool AllowColdStart { get; set; }
+
+    /// <summary>
+    /// Maximum number of WAL indices DotNext searches backwards when synchronizing a new member.
+    /// </summary>
+    [Range(1, int.MaxValue)]
+    public int WarmupRounds { get; set; } = 10_000;
 
     /// <summary>
     /// Directory path for ScheduleJob backup storage.

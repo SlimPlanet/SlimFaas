@@ -26,10 +26,16 @@ public static class Retry
             }
             catch (Exception ex)
             {
+                if (IsNonRetryable(ex))
+                    throw;
+
                 logger.LogError(ex, "SlimData Service DoAsync");
                 exceptions.Add(ex);
             }
         }
+
+        if (exceptions.LastOrDefault() is SlimData.SlimDataUnavailableException unavailable)
+            throw unavailable;
 
         throw new AggregateException(exceptions);
     }
@@ -57,10 +63,16 @@ public static class Retry
             }
             catch (Exception ex)
             {
+                if (IsNonRetryable(ex))
+                    throw;
+
                 logger.LogError(ex, "SlimData Service DoAsync");
                 exceptions.Add(ex);
             }
         }
+
+        if (exceptions.LastOrDefault() is SlimData.SlimDataUnavailableException unavailable)
+            throw unavailable;
 
         throw new AggregateException(exceptions);
     }
@@ -121,5 +133,8 @@ public static class Retry
             return fallbackResponse;
         }
     }
+
+    private static bool IsNonRetryable(Exception exception)
+        => exception is SlimData.BatchQueueFullException or SlimData.BatchItemTooLargeException;
 
 }

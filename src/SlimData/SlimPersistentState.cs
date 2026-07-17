@@ -1,4 +1,7 @@
+using System.Buffers;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using DotNext;
 using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft;
@@ -9,26 +12,68 @@ using SlimData.Commands;
 
 namespace SlimData;
 
+public readonly record struct SlimDataStateMetrics(
+    int KeyValues,
+    int Hashsets,
+    int HashsetItems,
+    int Queues,
+    int QueueItems,
+    long PayloadBytes);
+
+public readonly record struct SlimDataSkippedCommandMetric(int CommandId, long Count);
+
+public readonly record struct SlimDataRaftSafetyMetrics(
+    long SizeViolations,
+    long FormatViolations,
+    long LastSkippedIndex,
+    long LastSkippedTerm,
+    int LastSkippedCommandId,
+    long LastSkippedLength);
+
 public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimDataPayload>
 {
     public const string LogLocation = "SlimData:LogLocation";
     public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
-    private const string SkippedIncompatibleKeyValueMessage =
-        "Skipped incompatible key/value log entry.";
+    public const string SnapshotIntervalEntries = "SlimData:SnapshotIntervalEntries";
+    public const int DefaultSnapshotIntervalEntries = 5000;
+    private const string SkippedIncompatibleCommandMessage =
+        "Skipped incompatible SlimData Raft log entry.";
 
     private readonly SlimDataState _state = new(
         ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
         ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
         ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
     private readonly ILogger<SlimPersistentState>? _logger;
+    private readonly int _snapshotIntervalEntries;
+    private readonly ConcurrentDictionary<int, long> _skippedCommands = new();
+    private long _lastSnapshotRequestIndex;
+    private int _incompatibleCompactionRequested;
+    private int _isRestoring;
+    private int _isSnapshotting;
+    private long _lastSnapshotDurationMilliseconds;
+    private long _lastSnapshotSizeBytes;
+    private long _sizeViolations;
+    private long _formatViolations;
+    private long _lastSkippedIndex = -1L;
+    private long _lastSkippedTerm = -1L;
+    private int _lastSkippedCommandId = -1;
+    private long _lastSkippedLength = -1L;
 
     public SlimPersistentState(string location)
-        : this(location, null)
+        : this(location, DefaultSnapshotIntervalEntries, null)
     {
     }
 
     public SlimPersistentState(string location, ILogger<SlimPersistentState>? logger)
-        : this(new DirectoryInfo(Path.GetFullPath(Path.Combine(NormalizeLocation(location), "db"))), logger)
+        : this(location, DefaultSnapshotIntervalEntries, logger)
+    {
+    }
+
+    internal SlimPersistentState(string location, int snapshotIntervalEntries, ILogger<SlimPersistentState>? logger = null)
+        : this(
+            new DirectoryInfo(Path.GetFullPath(Path.Combine(NormalizeLocation(location), "db"))),
+            snapshotIntervalEntries,
+            logger)
     {
     }
 
@@ -38,13 +83,20 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     }
 
     public SlimPersistentState(IConfiguration configuration, ILogger<SlimPersistentState>? logger)
-        : this(configuration[LogLocation] ?? string.Empty, logger)
+        : this(
+            configuration[LogLocation] ?? string.Empty,
+            configuration.GetValue(SnapshotIntervalEntries, DefaultSnapshotIntervalEntries),
+            logger)
     {
     }
 
-    private SlimPersistentState(DirectoryInfo location, ILogger<SlimPersistentState>? logger)
+    private SlimPersistentState(
+        DirectoryInfo location,
+        int snapshotIntervalEntries,
+        ILogger<SlimPersistentState>? logger)
         : base(location)
     {
+        _snapshotIntervalEntries = Math.Max(1, snapshotIntervalEntries);
         _logger = logger;
         Interpreter = SlimDataInterpreter.InitInterpreter(_state);
     }
@@ -58,56 +110,273 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
 
     public SlimDataState SlimDataState => _state;
 
+    public bool IsRestoring => Volatile.Read(ref _isRestoring) is 1;
+
+    public bool IsSnapshotting => Volatile.Read(ref _isSnapshotting) is 1;
+
+    public long LastSnapshotDurationMilliseconds => Volatile.Read(ref _lastSnapshotDurationMilliseconds);
+
+    public long LastSnapshotSizeBytes => Volatile.Read(ref _lastSnapshotSizeBytes);
+
+    internal SlimDataStateSnapshot CaptureSnapshot() => _state.Capture();
+
+    public SlimDataStateMetrics GetStateMetrics()
+    {
+        var snapshot = _state.Capture();
+        return new(
+            snapshot.KeyValues.Count,
+            snapshot.Hashsets.Count,
+            snapshot.Hashsets.Values.Sum(static hashset => hashset.Count),
+            snapshot.Queues.Count,
+            snapshot.Queues.Values.Sum(static queue => queue.Length),
+            snapshot.PayloadBytes);
+    }
+
+    public IReadOnlyList<SlimDataSkippedCommandMetric> GetSkippedCommandMetrics()
+        => _skippedCommands
+            .OrderBy(static item => item.Key)
+            .Select(static item => new SlimDataSkippedCommandMetric(item.Key, item.Value))
+            .ToArray();
+
+    public SlimDataRaftSafetyMetrics GetRaftSafetyMetrics()
+        => new(
+            Volatile.Read(ref _sizeViolations),
+            Volatile.Read(ref _formatViolations),
+            Volatile.Read(ref _lastSkippedIndex),
+            Volatile.Read(ref _lastSkippedTerm),
+            Volatile.Read(ref _lastSkippedCommandId),
+            Volatile.Read(ref _lastSkippedLength));
+
     SlimDataPayload ISupplier<SlimDataPayload>.Invoke()
-        => new()
-        {
-            KeyValues = _state.KeyValues,
-            Hashsets = _state.Hashsets,
-            Queues = _state.Queues
-        };
+        => _state.CapturePayload();
 
     protected override async ValueTask<bool> ApplyAsync(LogEntry entry, CancellationToken token)
     {
-        if (entry.Length == 0L || entry.IsConfiguration || entry.IsSnapshot)
+        if (entry.IsConfiguration || entry.IsSnapshot)
             return false;
+
+        if (entry.Length == 0L && entry.CommandId is null)
+            return false;
+
+        if (!SlimDataCommandCodec.IsSupportedCommandId(entry.CommandId))
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                SlimDataCommandViolation.UnknownCommand,
+                "Unknown SlimData Raft command ID.");
+        }
+
+        if (entry.Length is null)
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                SlimDataCommandViolation.InvalidLength,
+                "SlimData Raft command does not declare its serialized length.");
+        }
+
+        if (entry.Length is > SlimDataCommandCodec.MaxCommandBytes +
+            SlimDataCommandCodec.MaxRecoverableWalPaddingBytes)
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                SlimDataCommandViolation.TooLarge,
+                "SlimData Raft command exceeds the maximum allowed size.");
+        }
+
+        if (entry.Length is < 0L || entry.Length < SlimDataCommandCodec.HeaderLength)
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                entry.Length < 0L
+                    ? SlimDataCommandViolation.InvalidLength
+                    : SlimDataCommandViolation.Truncated,
+                entry.Length < 0L
+                    ? "SlimData Raft command has a negative serialized length."
+                    : $"SlimData Raft command is shorter than its {SlimDataCommandCodec.HeaderLength}-byte envelope.");
+        }
+
+        IRaftLogEntry applicationEntry = entry;
+        var recovered = TryRecoverZeroPrefixedCurrentEntry(
+            entry,
+            out var recoveredEntry,
+            out var discardedPrefixBytes);
+        if (recovered)
+        {
+            applicationEntry = recoveredEntry;
+            _logger?.LogDebug(
+                "Recovered zero-prefixed SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, OriginalLength={OriginalLength}, DiscardedPrefixBytes={DiscardedPrefixBytes}",
+                entry.Index,
+                entry.Term,
+                entry.CommandId,
+                entry.Length,
+                discardedPrefixBytes);
+        }
+        else if (entry.Length is > SlimDataCommandCodec.MaxCommandBytes)
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                SlimDataCommandViolation.TooLarge,
+                "SlimData Raft command exceeds the maximum allowed size.");
+        }
 
         try
         {
-            await Interpreter.InterpretAsync(entry, entry.Context, token).ConfigureAwait(false);
+            await Interpreter.InterpretAsync(applicationEntry, entry.Context, token).ConfigureAwait(false);
         }
-        catch (InvalidDataException ex)
+        catch (SlimDataCommandFormatException ex)
         {
-            if (TrySkipIncompatibleKeyValueEntry(entry, ex))
-                return true;
-
-            throw new InvalidDataException(
-                $"Failed to interpret SlimData Raft log entry. Index={entry.Index}, Term={entry.Term}, CommandId={entry.CommandId?.ToString() ?? "null"}, IsConfiguration={entry.IsConfiguration}, IsSnapshot={entry.IsSnapshot}, Length={entry.Length?.ToString() ?? "null"}.",
+            return SkipIncompatibleEntry(entry, ex.Violation, ex.Message, ex);
+        }
+        catch (Exception ex) when (ex is InvalidDataException || SlimDataCommandCodec.IsStructuralException(ex))
+        {
+            return SkipIncompatibleEntry(
+                entry,
+                ex is EndOfStreamException
+                    ? SlimDataCommandViolation.Truncated
+                    : SlimDataCommandViolation.InvalidFormat,
+                "SlimData Raft command has an invalid binary format.",
                 ex);
         }
 
         if (entry.Context is CommandApplyContext applyContext)
             applyContext.SetApplied();
 
-        return entry.Index % 1000L is 0;
+        return ShouldCreateSnapshot(entry.Index);
     }
 
-    private bool TrySkipIncompatibleKeyValueEntry(LogEntry entry, InvalidDataException exception)
+    private bool ShouldCreateSnapshot(long index, bool requestIncompatibleCompaction = false)
     {
-        if (entry.CommandId != AddKeyValueCommand.Id)
+        if (requestIncompatibleCompaction &&
+            Interlocked.CompareExchange(ref _incompatibleCompactionRequested, 1, 0) is 0)
+        {
+            Volatile.Write(ref _lastSnapshotRequestIndex, index);
+            return true;
+        }
+
+        var previous = Volatile.Read(ref _lastSnapshotRequestIndex);
+        if (index - previous < _snapshotIntervalEntries)
             return false;
 
+        Volatile.Write(ref _lastSnapshotRequestIndex, index);
+        return true;
+    }
+
+    private bool SkipIncompatibleEntry(
+        LogEntry entry,
+        SlimDataCommandViolation violation,
+        string reason,
+        Exception? exception = null)
+    {
+        var payloadDiagnostics = GetPayloadDiagnostics(entry);
         _logger?.LogWarning(
             exception,
-            "Skipping incompatible SlimData key/value Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, IsConfiguration={IsConfiguration}, IsSnapshot={IsSnapshot}, Length={Length}",
+            "Skipping incompatible SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, Length={Length}, Violation={Violation}, LeadingZeroBytes={LeadingZeroBytes}, CurrentEnvelopeOffset={CurrentEnvelopeOffset}, Reason={Reason}",
             entry.Index,
             entry.Term,
             entry.CommandId,
-            entry.IsConfiguration,
-            entry.IsSnapshot,
-            entry.Length);
+            entry.Length,
+            violation,
+            payloadDiagnostics.LeadingZeroBytes,
+            payloadDiagnostics.CurrentEnvelopeOffset,
+            reason);
 
+        RecordSkippedEntry(entry, violation);
         MarkSkippedContext(entry.Context);
+        return ShouldCreateSnapshot(entry.Index, requestIncompatibleCompaction: true);
+    }
+
+    private static bool TryRecoverZeroPrefixedCurrentEntry(
+        LogEntry entry,
+        out BinaryLogEntry recoveredEntry,
+        out int discardedPrefixBytes)
+    {
+        recoveredEntry = default;
+        discardedPrefixBytes = 0;
+        if (!entry.TryGetPayload(out var payload) || payload.IsEmpty)
+            return false;
+
+        var leadingZeroBytes = CountLeadingZeroBytes(payload);
+        if (leadingZeroBytes <= 0L ||
+            leadingZeroBytes > SlimDataCommandCodec.MaxRecoverableWalPaddingBytes ||
+            payload.Length - leadingZeroBytes < SlimDataCommandCodec.HeaderLength)
+        {
+            return false;
+        }
+
+        Span<byte> header = stackalloc byte[SlimDataCommandCodec.HeaderLength];
+        payload.Slice(leadingZeroBytes, SlimDataCommandCodec.HeaderLength).CopyTo(header);
+        if (!SlimDataCommandCodec.HasCurrentEnvelope(header))
+            return false;
+
+        var recoveredPayload = payload.Slice(leadingZeroBytes).ToArray();
+        SlimDataCommandCodec.ValidateCommandLength(
+            recoveredPayload.Length,
+            $"SlimData command {entry.CommandId}");
+        SlimDataCommandCodec.ValidateCurrentEnvelope(
+            recoveredPayload,
+            $"SlimData command {entry.CommandId}");
+        recoveredEntry = new BinaryLogEntry
+        {
+            CommandId = entry.CommandId,
+            Term = entry.Term,
+            Content = recoveredPayload,
+            Context = entry.Context
+        };
+        discardedPrefixBytes = checked((int)leadingZeroBytes);
         return true;
+    }
+
+    private static PayloadDiagnostics GetPayloadDiagnostics(LogEntry entry)
+    {
+        if (!entry.TryGetPayload(out var payload) || payload.IsEmpty)
+            return new(0L, -1);
+
+        var leadingZeroBytes = CountLeadingZeroBytes(payload);
+        var currentEnvelopeOffset = -1;
+        if (leadingZeroBytes <= int.MaxValue &&
+            payload.Length - leadingZeroBytes >= SlimDataCommandCodec.HeaderLength)
+        {
+            Span<byte> header = stackalloc byte[SlimDataCommandCodec.HeaderLength];
+            payload.Slice(leadingZeroBytes, SlimDataCommandCodec.HeaderLength).CopyTo(header);
+            if (SlimDataCommandCodec.HasCurrentEnvelope(header))
+                currentEnvelopeOffset = checked((int)leadingZeroBytes);
+        }
+
+        return new(leadingZeroBytes, currentEnvelopeOffset);
+    }
+
+    private static long CountLeadingZeroBytes(ReadOnlySequence<byte> payload)
+    {
+        long leadingZeroBytes = 0L;
+        foreach (var segment in payload)
+        {
+            foreach (var value in segment.Span)
+            {
+                if (value != 0)
+                    return leadingZeroBytes;
+                leadingZeroBytes++;
+            }
+        }
+
+        return leadingZeroBytes;
+    }
+
+    private readonly record struct PayloadDiagnostics(long LeadingZeroBytes, int CurrentEnvelopeOffset);
+
+    private void RecordSkippedEntry(LogEntry entry, SlimDataCommandViolation violation)
+    {
+        var commandId = entry.CommandId ?? -1;
+        _skippedCommands.AddOrUpdate(commandId, 1L, static (_, count) => count + 1L);
+
+        if (violation is SlimDataCommandViolation.TooLarge)
+            Interlocked.Increment(ref _sizeViolations);
+        else
+            Interlocked.Increment(ref _formatViolations);
+
+        Volatile.Write(ref _lastSkippedIndex, entry.Index);
+        Volatile.Write(ref _lastSkippedTerm, entry.Term);
+        Volatile.Write(ref _lastSkippedCommandId, commandId);
+        Volatile.Write(ref _lastSkippedLength, entry.Length ?? -1L);
     }
 
     private static void MarkSkippedContext(object? context)
@@ -115,7 +384,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         switch (context)
         {
             case CommandApplyContext applyContext:
-                applyContext.SetApplied();
+                applyContext.SetSkipped(SkippedIncompatibleCommandMessage);
                 break;
 
             case KeyValueCommandResult result:
@@ -137,38 +406,85 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     private static void SetSkipped(KeyValueCommandResult result)
     {
         if (result.Status == KeyValueCommandStatus.None)
-            result.SetError(KeyValueCommandStatus.NotCommitted, SkippedIncompatibleKeyValueMessage);
+            result.SetError(KeyValueCommandStatus.NotCommitted, SkippedIncompatibleCommandMessage);
     }
 
     protected override async ValueTask PersistAsync(IAsyncBinaryWriter writer, CancellationToken token)
     {
-        var keyValues = new Dictionary<string, ReadOnlyMemory<byte>>(
-            _state.KeyValues.ToDictionary(kv => kv.Key, kv => kv.Value));
+        var startedAt = Stopwatch.GetTimestamp();
+        var snapshot = _state.Capture();
+        Volatile.Write(ref _isSnapshotting, 1);
+        _logger?.LogInformation(
+            "Persisting SlimData snapshot. KeyValues={KeyValues}, Hashsets={Hashsets}, Queues={Queues}, PayloadBytes={PayloadBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
+            snapshot.KeyValues.Count,
+            snapshot.Hashsets.Count,
+            snapshot.Queues.Count,
+            snapshot.PayloadBytes,
+            GC.GetTotalMemory(forceFullCollection: false));
 
-        var queues = new Dictionary<string, List<QueueElement>>(_state.Queues.Count);
-        foreach (var queue in _state.Queues)
-            queues[queue.Key] = queue.Value.ToList();
-
-        var hashsets = new Dictionary<string, Dictionary<string, ReadOnlyMemory<byte>>>(_state.Hashsets.Count);
-        foreach (var hashset in _state.Hashsets)
-            hashsets[hashset.Key] = hashset.Value.ToDictionary(kv => kv.Key, kv => kv.Value);
-
-        var snapshotCommand = new LogSnapshotCommand(keyValues, hashsets, queues);
-        await snapshotCommand.WriteToAsync(writer, token).ConfigureAwait(false);
+        try
+        {
+            await SlimDataSnapshotSerializer.WriteAsync(writer, snapshot, token).ConfigureAwait(false);
+            Volatile.Write(ref _lastSnapshotSizeBytes, snapshot.PayloadBytes);
+        }
+        finally
+        {
+            var elapsed = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+            Volatile.Write(ref _lastSnapshotDurationMilliseconds, elapsed);
+            Volatile.Write(ref _isSnapshotting, 0);
+            _logger?.LogInformation(
+                "SlimData snapshot persisted. DurationMilliseconds={DurationMilliseconds}, PayloadBytes={PayloadBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
+                elapsed,
+                snapshot.PayloadBytes,
+                GC.GetTotalMemory(forceFullCollection: false));
+        }
     }
 
     protected override async ValueTask RestoreAsync(FileInfo snapshotFile, CancellationToken token)
     {
-        await using var stream = snapshotFile.Open(new FileStreamOptions
-        {
-            Mode = FileMode.Open,
-            Access = FileAccess.Read,
-            Share = FileShare.ReadWrite | FileShare.Delete,
-            Options = FileOptions.Asynchronous | FileOptions.SequentialScan
-        });
+        var startedAt = Stopwatch.GetTimestamp();
+        Volatile.Write(ref _isRestoring, 1);
+        _state.Reset();
+        _logger?.LogInformation(
+            "Restoring SlimData snapshot. File={SnapshotFile}, FileBytes={FileBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
+            snapshotFile.FullName,
+            snapshotFile.Length,
+            GC.GetTotalMemory(forceFullCollection: false));
 
-        var reader = IAsyncBinaryReader.Create(stream, new byte[Environment.SystemPageSize]);
-        var snapshotCommand = await LogSnapshotCommand.ReadFromAsync(reader, token).ConfigureAwait(false);
-        await SlimDataInterpreter.DoHandleSnapshotAsync(snapshotCommand, _state).ConfigureAwait(false);
+        try
+        {
+            await using var stream = snapshotFile.Open(new FileStreamOptions
+            {
+                Mode = FileMode.Open,
+                Access = FileAccess.Read,
+                Share = FileShare.ReadWrite | FileShare.Delete,
+                Options = FileOptions.Asynchronous | FileOptions.SequentialScan
+            });
+
+            var reader = IAsyncBinaryReader.Create(stream, new byte[Environment.SystemPageSize]);
+            var snapshot = await SlimDataSnapshotSerializer.ReadAsync(reader, token).ConfigureAwait(false);
+            _state.Replace(snapshot);
+            if (TryGetSnapshotIndex(snapshotFile, out var snapshotIndex))
+                Volatile.Write(ref _lastSnapshotRequestIndex, snapshotIndex);
+            Volatile.Write(ref _lastSnapshotSizeBytes, snapshotFile.Length);
+        }
+        finally
+        {
+            var elapsed = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
+            Volatile.Write(ref _lastSnapshotDurationMilliseconds, elapsed);
+            Volatile.Write(ref _isRestoring, 0);
+            _logger?.LogInformation(
+                "SlimData snapshot restore completed. DurationMilliseconds={DurationMilliseconds}, ManagedMemoryBytes={ManagedMemoryBytes}",
+                elapsed,
+                GC.GetTotalMemory(forceFullCollection: false));
+        }
+    }
+
+    private static bool TryGetSnapshotIndex(FileInfo snapshotFile, out long index)
+    {
+        index = 0L;
+        var fileName = snapshotFile.Name.AsSpan();
+        var separator = fileName.IndexOf('-');
+        return separator > 0 && long.TryParse(fileName[..separator], out index);
     }
 }

@@ -53,6 +53,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\SlimData\SlimData.csproj" />
+    <InternalsVisibleTo Include="SlimFaas.Tests" />
   </ItemGroup>
 
   <!-- Build Vite/React dashboard into wwwroot -->

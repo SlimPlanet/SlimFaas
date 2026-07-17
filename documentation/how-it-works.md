@@ -10,7 +10,8 @@ It handles scaling, routing, and state management.
 1. **SlimFaas Pod**
    Runs as a **Deployment** or **StatefulSet** (commonly 3 replicas in production). Each pod has internal workers:
    - **SlimWorker**: Handles async call processing.
-   - **SlimDataSynchronizationWorker**: Manages the embedded database cluster (Raft-based).
+   - **ClusterMembershipAnnounceWorker**: Lets a follower announce itself to an existing SlimData leader.
+   - **SlimDataMembershipReconciliationWorker**: Lets the leader reconcile the Raft membership with the orchestrator topology, including delayed scale-down removal.
    - **HistorySynchronizationWorker**: Syncs request history and logs.
    - **ReplicasSynchronizationWorker**: Keeps track of your function pods’ replicas and statuses in Kubernetes.
    - **ReplicasScaleWorker**: If the SlimFaas pod is leader, it scales up/down your function pods.

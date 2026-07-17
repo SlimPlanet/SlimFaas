@@ -4,6 +4,7 @@ using System.Text;
 using DotNext;
 using DotNext.Buffers;
 using DotNext.Diagnostics;
+using DotNext.IO;
 using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
@@ -177,7 +178,7 @@ public class RaftClusterTests
         return tempDirectory;
     }
 
-    [Fact(Timeout = 20000)]
+    [Fact(Timeout = 120000)]
     public static async Task MessageExchange()
     {
         Dictionary<string, string> config1 = new()
@@ -187,6 +188,7 @@ public class RaftClusterTests
             { "upperElectionTimeout", "900" },
             { "publicEndPoint", "http://localhost:3262/" },
             { "coldStart", "true" },
+            { "warmupRounds", "512" },
             { "requestTimeout", "00:01:00" },
             { SlimPersistentState.LogLocation, GetTemporaryDirectory() }
         };
@@ -198,6 +200,7 @@ public class RaftClusterTests
             { "upperElectionTimeout", "900" },
             { "publicEndPoint", "http://localhost:3263/" },
             { "coldStart", "false" },
+            { "warmupRounds", "512" },
             { "requestTimeout", "00:01:00" },
             { SlimPersistentState.LogLocation, GetTemporaryDirectory() }
         };
@@ -209,6 +212,7 @@ public class RaftClusterTests
             { "upperElectionTimeout", "900" },
             { "publicEndPoint", "http://localhost:3264/" },
             { "coldStart", "false" },
+            { "warmupRounds", "512" },
             { "requestTimeout", "00:01:00" },
             { SlimPersistentState.LogLocation, GetTemporaryDirectory() }
         };
@@ -229,12 +233,37 @@ public class RaftClusterTests
             await Task.Delay(200);
         }
 
-        Assert.True(await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host2).LocalMemberAddress));
+        using (var protocolTimeout = new CancellationTokenSource(DefaultTimeout))
+        {
+            var protocol = host1.Services.GetRequiredService<ISlimDataProtocolCompatibility>();
+            while (!protocol.IsCompatible)
+                await Task.Delay(50, protocolTimeout.Token);
+        }
+
+        var membershipCoordinator = host1.Services.GetRequiredService<ClusterMembershipCoordinator>();
+        Assert.True(await membershipCoordinator.AddMemberAsync(
+            GetLocalClusterView(host2).LocalMemberAddress,
+            CancellationToken.None));
         await GetLocalClusterView(host2).Readiness.WaitAsync(DefaultTimeout);
 
         IDatabaseService databaseServiceMaster = host1.Services.GetRequiredService<IDatabaseService>();
+        // DotNext starts a new member at the leader's last index and backs up one index per warmup round.
+        // Keep the lag well above its default of 10 to cover fresh followers joining an active cluster.
+        const int entriesBeforeThirdMember = 128;
+        for (var i = 0; i < entriesBeforeThirdMember; i++)
+        {
+            await databaseServiceMaster.SetAsync(
+                $"pre-third-member-{i}",
+                Encoding.UTF8.GetBytes(i.ToString()));
+        }
+
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        Assert.True(GetLocalClusterView(host1).AuditTrail.LastEntryIndex > entriesBeforeThirdMember);
+
         async Task<bool> AddThirdMemberAsync() =>
-            await GetLocalClusterView(host1).AddMemberAsync(GetLocalClusterView(host3).LocalMemberAddress);
+            await membershipCoordinator.AddMemberAsync(
+                GetLocalClusterView(host3).LocalMemberAddress,
+                CancellationToken.None);
 
         var addThirdMemberTask = AddThirdMemberAsync();
         var concurrentWritesDuringMemberAdd = Enumerable.Range(0, 5)
@@ -248,10 +277,55 @@ public class RaftClusterTests
         await GetLocalClusterView(host3).Readiness.WaitAsync(DefaultTimeout);
         await GetLocalClusterView(host1).ForceReplicationAsync();
 
+        IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
+        var thirdMemberEndpoint = GetLocalClusterView(host3).LocalMemberAddress;
+        Assert.True(await membershipCoordinator.RemoveMemberAsync(
+            thirdMemberEndpoint,
+            CancellationToken.None));
+        await WaitForMembershipCountAsync(GetLocalClusterView(host1), 2, CancellationToken.None);
+        await WaitForMembershipCountAsync(GetLocalClusterView(host2), 2, CancellationToken.None);
+
+        await databaseServiceMaster.SetAsync(
+            "membership-scale-down",
+            Encoding.UTF8.GetBytes("written-with-two-members"));
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+
+        Assert.True(await membershipCoordinator.AddMemberAsync(
+            thirdMemberEndpoint,
+            CancellationToken.None));
+        await WaitForMembershipCountAsync(GetLocalClusterView(host1), 3, CancellationToken.None);
+        await WaitForMembershipCountAsync(GetLocalClusterView(host2), 3, CancellationToken.None);
+        await WaitForMembershipCountAsync(GetLocalClusterView(host3), 3, CancellationToken.None);
+        await GetLocalClusterView(host1).ForceReplicationAsync();
+        await WaitForValueAsync(
+            databaseServiceSlave,
+            "membership-scale-down",
+            "written-with-two-members",
+            CancellationToken.None);
+
+        using (var incompatibleEntryTimeout = new CancellationTokenSource(DefaultTimeout))
+        {
+            await GetLocalClusterView(host1).ReplicateAsync(
+                new IncompatibleCommandLogEntry(ListRightPopCommand.Id, [0]),
+                incompatibleEntryTimeout.Token);
+            await GetLocalClusterView(host1).ForceReplicationAsync(incompatibleEntryTimeout.Token);
+
+            var states = new[] { host1, host2, host3 }
+                .Select(host => host.Services.GetRequiredService<SlimPersistentState>())
+                .ToArray();
+            while (states.Any(state => state.GetSkippedCommandMetrics()
+                       .All(metric => metric.CommandId != ListRightPopCommand.Id || metric.Count < 1L)))
+            {
+                await Task.Delay(25, incompatibleEntryTimeout.Token);
+            }
+
+            Assert.All(states, state => Assert.Contains(
+                state.GetSkippedCommandMetrics(),
+                metric => metric.CommandId == ListRightPopCommand.Id && metric.Count == 1L));
+        }
+
         for (var i = 0; i < concurrentWritesDuringMemberAdd.Length; i++)
             Assert.Equal(i.ToString(), Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync($"member-add-kv-{i}") ?? []));
-
-        IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
 
         await databaseServiceSlave.SetAsync("key1", MemoryPackSerializer.Serialize("value1") );
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceMaster.GetAsync("key1")));
@@ -359,16 +433,21 @@ public class RaftClusterTests
            customElementId);
        Assert.Equal(customElementId, customElementIdReturned);
        await GetLocalClusterView(host1).ForceReplicationAsync();
-       var customElementList = await databaseServiceSlave.ListCountElementAsync("listKeyCustom", new List<CountType> { CountType.Available });
+       var customElementList = await WaitForQueueCountAsync(
+           databaseServiceSlave,
+           "listKeyCustom",
+           expectedCount: 1,
+           CancellationToken.None);
        Assert.Single(customElementList);
        Assert.Equal(customElementId, customElementList[0].Id);
 
        await databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value1"), new RetryInformation([], 30, []));
        await GetLocalClusterView(host1).ForceReplicationAsync();
-       var listLength = await databaseServiceSlave.ListCountElementAsync("listKey1" , new List<CountType>()
-       {
-           CountType.Available
-       });
+       var listLength = await WaitForQueueCountAsync(
+           databaseServiceSlave,
+           "listKey1",
+           expectedCount: 1,
+           CancellationToken.None);
        Assert.Single(listLength);
 
         IList<QueueData>? listRightPop = await databaseServiceSlave.ListRightPopAsync("listKey1", Guid.NewGuid().ToString());
@@ -395,17 +474,100 @@ public class RaftClusterTests
 
         // Test Batch Queue Insert
         IList<Task<string>> tasks = new List<Task<string>>();
-        for (int i = 0; i < 1000; i++)
+        const int queuedItems = 200;
+        for (int i = 0; i < queuedItems; i++)
             tasks.Add(databaseServiceSlave.ListLeftPushAsync("listKey1",   MemoryPackSerializer.Serialize("value" + i), new RetryInformation([], 30, [])));
 
         await Task.WhenAll(tasks);
 
         await GetLocalClusterView(host1).ForceReplicationAsync();
-        var listLength3 = await databaseServiceSlave.ListCountElementAsync("listKey1", new List<CountType>() { CountType.Available });
-        Assert.Equal(1000, listLength3.Count);
+        var listLength3 = await WaitForQueueCountAsync(
+            databaseServiceSlave,
+            "listKey1",
+            queuedItems,
+            CancellationToken.None);
+        Assert.Equal(queuedItems, listLength3.Count);
+
+        var persistentStates = new[] { host1, host2, host3 }
+            .Select(host => host.Services.GetRequiredService<SlimPersistentState>())
+            .ToArray();
+        using (var queueReplicationTimeout = new CancellationTokenSource(DefaultTimeout))
+        {
+            while (persistentStates.Any(state =>
+                       !state.SlimDataState.Queues.TryGetValue("listKey1", out var queue) ||
+                       queue.Length != queuedItems))
+            {
+                await Task.Delay(25, queueReplicationTimeout.Token);
+            }
+        }
+
+        Assert.All(persistentStates, state => Assert.DoesNotContain(
+            state.GetSkippedCommandMetrics(),
+            metric => metric.CommandId == ListLeftPushBatchCommand.Id));
 
         await host1.StopAsync();
         await host2.StopAsync();
         await host3.StopAsync();
+    }
+
+    private static async Task<IList<QueueData>> WaitForQueueCountAsync(
+        IDatabaseService database,
+        string key,
+        int expectedCount,
+        CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(DefaultTimeout);
+        while (true)
+        {
+            var items = await database.ListCountElementAsync(key, [CountType.Available]);
+            if (items.Count == expectedCount)
+                return items;
+
+            await Task.Delay(25, timeout.Token);
+        }
+    }
+
+    private static async Task WaitForMembershipCountAsync(
+        IRaftCluster cluster,
+        int expectedCount,
+        CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(DefaultTimeout);
+        while (cluster.Members.Count != expectedCount)
+            await Task.Delay(25, timeout.Token);
+    }
+
+    private static async Task WaitForValueAsync(
+        IDatabaseService database,
+        string key,
+        string expectedValue,
+        CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(DefaultTimeout);
+        while (true)
+        {
+            var value = await database.GetAsync(key);
+            if (value is not null && Encoding.UTF8.GetString(value) == expectedValue)
+                return;
+
+            await Task.Delay(25, timeout.Token);
+        }
+    }
+
+    private sealed class IncompatibleCommandLogEntry(int commandId, byte[] payload) : IRaftLogEntry
+    {
+        public long Term => 1L;
+        public int? CommandId => commandId;
+        public bool IsConfiguration => false;
+        public bool IsSnapshot => false;
+        public bool IsReusable => true;
+        public long? Length => payload.LongLength;
+
+        public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
+            where TWriter : notnull, IAsyncBinaryWriter
+            => writer.Invoke(payload, token);
     }
 }

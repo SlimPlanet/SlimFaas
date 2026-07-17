@@ -31,6 +31,7 @@ public class SlimDataService
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceProvider _serviceProvider;
     private readonly IRaftCluster _cluster;
+    private readonly ISlimDataProtocolCompatibility _protocolCompatibility;
     private readonly ILogger<SlimDataService> _logger;
     public const string HttpClientName = "SlimDataHttpClient";
     private readonly IList<int> _retryInterval = new List<int> { 1, 1, 1 };
@@ -41,11 +42,13 @@ public class SlimDataService
         IHttpClientFactory httpClientFactory,
         IServiceProvider serviceProvider,
         IRaftCluster cluster,
+        ISlimDataProtocolCompatibility protocolCompatibility,
         ILogger<SlimDataService> logger)
     {
         _httpClientFactory = httpClientFactory;
         _serviceProvider = serviceProvider;
         _cluster = cluster;
+        _protocolCompatibility = protocolCompatibility;
         _logger = logger;
         _batcher = new MultiRateAdaptiveBatcher(
             idleStop: TimeSpan.FromSeconds(15),
@@ -56,6 +59,9 @@ public class SlimDataService
             kind: "llp",
             batchHandler: BatchHandlerAsync,
             maxBatchSize: 512,
+            maxQueueLength: 256,
+            maxQueueBytes: 32L * 1024 * 1024,
+            maxBatchBytes: 8 * 1024 * 1024,
             sizeEstimatorBytes: r => r.SerializedPayload?.Length ?? 0
         );
 
@@ -63,13 +69,18 @@ public class SlimDataService
             kind: "lcb",
             batchHandler: BatchListCallbackHandlerAsync,
             maxBatchSize: 512,
-            sizeEstimatorBytes: r => r.SerializedStatus?.Length ?? 0
+            maxQueueLength: 1024,
+            maxQueueBytes: 8L * 1024 * 1024,
+            maxBatchBytes: 4 * 1024 * 1024,
+            sizeEstimatorBytes: r => Encoding.UTF8.GetByteCount(r.Key ?? string.Empty) + (r.SerializedStatus?.Length ?? 0)
         );
 
         _batcher.RegisterKind<KeyValueReq, KeyValueCommandResult>(
             kind: "kv",
             batchHandler: BatchKeyValueHandlerAsync,
             maxBatchSize: 256,
+            maxQueueLength: 1024,
+            maxQueueBytes: 16L * 1024 * 1024,
             maxBatchBytes: 4 * 1024 * 1024,
             sizeEstimatorBytes: r => Encoding.UTF8.GetByteCount(r.Key ?? string.Empty) + (r.SerializedValue?.Length ?? 0) + 64,
             coalesceWindow: TimeSpan.FromMilliseconds(3)
@@ -78,6 +89,9 @@ public class SlimDataService
 
     private ISupplier<SlimDataPayload> SimplePersistentState =>
         _serviceProvider.GetRequiredService<SlimPersistentState>();
+
+    public IReadOnlyList<AdaptiveBatchQueueStatistics> BatchQueueStatistics
+        => _batcher.GetQueueStatistics();
 
     private static string Escape(string s) => Uri.EscapeDataString(s);
 
@@ -191,6 +205,7 @@ public class SlimDataService
             Content = new ByteArrayContent(bin)
         };
         using var response = await httpClient.SendAsync(httpRequest, ct);
+        ThrowIfSlimDataUnavailable(response);
         if ((int)response.StatusCode >= 500)
             throw new DataException("Error in calling SlimData HTTP Service (batch)");
 
@@ -254,6 +269,7 @@ public class SlimDataService
             Content = new ByteArrayContent(bin)
         };
         using var response = await httpClient.SendAsync(httpRequest, ct);
+        ThrowIfSlimDataUnavailable(response);
         if ((int)response.StatusCode >= 500)
             throw new DataException("Error in calling SlimData HTTP Service (callback batch)");
 
@@ -342,6 +358,7 @@ public class SlimDataService
 
         using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
         using var responseMessage = await httpClient.SendAsync(requestMessage, ct);
+        ThrowIfSlimDataUnavailable(responseMessage);
         if ((int)responseMessage.StatusCode >= 500)
             throw new DataException("Error in calling SlimData HTTP Service (key/value batch)");
 
@@ -376,6 +393,7 @@ public class SlimDataService
             using var request = new HttpRequestMessage(HttpMethod.Post, uri) { Content = new ByteArrayContent(serialize) };
             using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await httpClient.SendAsync(request);
+            ThrowIfSlimDataUnavailable(response);
             if ((int)response.StatusCode >= 500)
                 throw new DataException("Error in calling SlimData HTTP Service");
         }
@@ -400,6 +418,7 @@ public class SlimDataService
                 new Uri($"{endpoint}SlimData/DeleteHashset?key={key}&dictionaryKey={dictionaryKey}"));
             using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await httpClient.SendAsync(request);
+            ThrowIfSlimDataUnavailable(response);
             if ((int)response.StatusCode >= 500)
                 throw new DataException("Error in calling SlimData HTTP Service");
         }
@@ -451,6 +470,7 @@ public class SlimDataService
             using var request = new HttpRequestMessage(HttpMethod.Post, uri);
             using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await httpClient.SendAsync(request);
+            ThrowIfSlimDataUnavailable(response);
             if ((int)response.StatusCode >= 500)
                 throw new DataException("Error in calling SlimData HTTP Service");
         }
@@ -479,6 +499,7 @@ public class SlimDataService
             request.Content = multipart;
             using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
             using var response = await httpClient.SendAsync(request);
+            ThrowIfSlimDataUnavailable(response);
             if ((int)response.StatusCode >= 500)
                 throw new DataException("Error in calling SlimData HTTP Service");
 
@@ -515,37 +536,43 @@ public class SlimDataService
 
     private async Task MasterWaitForleaseToken(CancellationToken ct = default)
     {
-        // Backoff progressif: 10ms -> 20 -> 40 -> ... -> 500ms (cap)
-        var remaining = 100;
-        var delayMs = 10;
-        const int maxDelayMs = 500;
-
-        // Pour éviter de spammer les logs
-        var nextLogAt = 100;
-
-        while (_cluster.TryGetLeaseToken(out var leaseToken) && leaseToken.IsCancellationRequested)
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        try
         {
-            remaining--;
-            if (remaining <= 0)
-                throw new Exception("Master node cannot have lease token");
-
-            if (remaining <= nextLogAt)
+            while (true)
             {
-                _logger.LogDebug("Master node waiting for lease token... remaining={Remaining}, nextDelayMs={DelayMs}",
-                    remaining, delayMs);
+                timeout.Token.ThrowIfCancellationRequested();
+                if (_cluster.ConsensusToken.IsCancellationRequested)
+                {
+                    await Task.Delay(25, timeout.Token).ConfigureAwait(false);
+                    continue;
+                }
 
-                // log à ~100, 50, 25, 12, 6, 3...
-                nextLogAt = Math.Max(1, remaining / 2);
+                if (_cluster.LeadershipToken.IsCancellationRequested)
+                    return;
+
+                if (_cluster.TryGetLeaseToken(out var leaseToken) && !leaseToken.IsCancellationRequested)
+                    return;
+
+                await Task.Delay(25, timeout.Token).ConfigureAwait(false);
             }
-
-            await Task.Delay(delayMs, ct).ConfigureAwait(false);
-            delayMs = Math.Min(maxDelayMs, delayMs * 2);
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            throw new SlimDataUnavailableException("Raft quorum or leader lease is unavailable.", ex);
         }
     }
 
 
     private async Task<EndPoint> GetAndWaitForLeader()
     {
+        if (!_protocolCompatibility.IsCompatible)
+        {
+            throw new SlimDataUnavailableException(
+                $"SlimData Raft command protocol is incompatible or unavailable: {_protocolCompatibility.Reason}");
+        }
+
         var timeWaited = TimeSpan.Zero;
         while (_cluster.Leader == null && timeWaited < _timeMaxToWaitForLeader)
         {
@@ -554,9 +581,15 @@ public class SlimDataService
         }
 
         if (_cluster.Leader == null)
-            throw new DataException("No leader found");
+            throw new SlimDataUnavailableException("No Raft leader is currently available.");
 
         return _cluster.Leader.EndPoint;
+    }
+
+    private static void ThrowIfSlimDataUnavailable(HttpResponseMessage response)
+    {
+        if (response.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+            throw new SlimDataUnavailableException("Raft quorum or leader lease is unavailable.");
     }
 }
 #pragma warning restore CA2252

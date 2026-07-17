@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.Json;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
 using Prometheus;
 using SlimData;
+using SlimData.Commands;
 using SlimData.Expiration;
 using SlimFaas;
 using SlimFaas.Configuration;
@@ -39,6 +41,10 @@ using var loggerFactory = LoggerFactory.Create(builder =>
     builder.AddDebug();
 });
 var startupLogger = loggerFactory.CreateLogger("SlimFaas.Startup");
+startupLogger.LogInformation(
+    "SlimData command protocol {Protocol}, assembly {AssemblyVersion}",
+    SlimDataCommandProtocol.Current,
+    SlimDataCommandProtocol.AssemblyVersion);
 
 // Bind options
 var slimFaasOptions = new SlimFaasOptions();
@@ -212,6 +218,7 @@ serviceCollectionSlimFaas.AddHostedService<ScaleReplicasWorker>();
 serviceCollectionSlimFaas.AddHostedService<ReplicasSynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimDataDiagnosticsWorker>();
 serviceCollectionSlimFaas.AddHostedService<HealthWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
@@ -379,17 +386,18 @@ Dictionary<string, string> slimDataDefaultConfiguration = new()
     { "upperElectionTimeout", "3000" },
     { "requestTimeout", "00:00:02.5000000" },
     { "rpcTimeout", "00:00:01.0000000" },
+    { "warmupRounds", slimDataOptions.WarmupRounds.ToString(CultureInfo.InvariantCulture) },
     { "publicEndPoint", publicEndPoint },
     { "coldStart", coldStart },
-    { "requestJournal:memoryLimit", "30" },
-    { "requestJournal:expiration", "00:01:30" },
+    { "requestJournal:memoryLimit", "10" },
+    { "requestJournal:expiration", "00:00:15" },
     { "heartbeatThreshold", "0.25" }
 };
 
 
 var allowUnsecureSSL = slimFaasOptions.AllowUnsecureSsl;
 
-serviceCollectionSlimFaas.AddHostedService<SlimDataSynchronizationWorker>();
+serviceCollectionSlimFaas.AddHostedService<SlimDataMembershipReconciliationWorker>();
 serviceCollectionSlimFaas.AddHostedService<ScheduleJobBackupWorker>();
 serviceCollectionSlimFaas.AddSingleton<IDatabaseService, SlimDataService>();
 serviceCollectionSlimFaas.AddSingleton<IWakeUpFunction, WakeUpFunction>();
@@ -598,6 +606,30 @@ app.UseCpuRateLimiting(excludedPorts.ToArray());
 
 app.Use(async (context, next) =>
 {
+    try
+    {
+        await next(context);
+    }
+    catch (BatchItemTooLargeException) when (!context.Response.HasStarted)
+    {
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+    }
+    catch (BatchQueueFullException) when (!context.Response.HasStarted)
+    {
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        context.Response.Headers.RetryAfter = "1";
+    }
+    catch (SlimDataUnavailableException) when (!context.Response.HasStarted)
+    {
+        context.Response.Clear();
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+    }
+});
+
+app.Use(async (context, next) =>
+{
     if (slimfaasPorts == null)
     {
         await next.Invoke();
@@ -616,8 +648,11 @@ app.Use(async (context, next) =>
     else if (context.Request.Path == "/ready")
     {
         var cluster = context.RequestServices.GetService<IRaftCluster>();
-        // 200 si le nœud a terminé son warmup/rattrapage et peut être ajouté
-        if (cluster is not null && cluster.Readiness.IsCompletedSuccessfully)
+        var persistentState = context.RequestServices.GetService<SlimPersistentState>();
+        var protocolCompatibility = context.RequestServices.GetService<ISlimDataProtocolCompatibility>();
+        // 200 si le nœud a terminé son warmup/rattrapage et utilise le protocole du leader.
+        var isReady = SlimDataReadiness.IsReady(cluster, persistentState, protocolCompatibility);
+        if (isReady)
         {
             context.Response.StatusCode = StatusCodes.Status200OK;
             await context.Response.WriteAsync("READY");
