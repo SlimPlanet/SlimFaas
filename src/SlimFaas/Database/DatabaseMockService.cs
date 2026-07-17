@@ -10,7 +10,31 @@ public class DatabaseMockService : IDatabaseService
 {
     private readonly ConcurrentDictionary<string, IDictionary<string, byte[]>> hashSet = new();
     private readonly ConcurrentDictionary<string, byte[]> keys = new();
+    private readonly ConcurrentDictionary<string, long> expiresAt = new();
     private readonly ConcurrentDictionary<string, List<QueueData>> queue = new();
+
+    private static long? ToExpireAtUtcTicks(long? ttlMs)
+    {
+        if (!ttlMs.HasValue) return null;
+        var now = DateTime.UtcNow.Ticks;
+        if (ttlMs.Value <= 0) return now;
+        var add = ttlMs.Value * TimeSpan.TicksPerMillisecond;
+        var expire = now + add;
+        return expire < now ? long.MaxValue : expire;
+    }
+
+    private bool TryGetActiveValue(string key, out byte[] value)
+    {
+        value = Array.Empty<byte>();
+        if (expiresAt.TryGetValue(key, out var expireAt) && expireAt <= DateTime.UtcNow.Ticks)
+        {
+            keys.TryRemove(key, out _);
+            expiresAt.TryRemove(key, out _);
+            return false;
+        }
+
+        return keys.TryGetValue(key, out value!);
+    }
 
     public Task DeleteAsync(string key) => throw new NotImplementedException();
 
@@ -20,9 +44,9 @@ public class DatabaseMockService : IDatabaseService
     }
     public Task<byte[]?> GetAsync(string key)
     {
-        if (keys.TryGetValue(key, out byte[]? value))
+        if (TryGetActiveValue(key, out var value))
         {
-            return Task.FromResult(value)!;
+            return Task.FromResult<byte[]?>(value);
         }
 
         return Task.FromResult<byte[]?>(null);
@@ -31,17 +55,18 @@ public class DatabaseMockService : IDatabaseService
     public Task<KeyValueCommandResult> SetAsync(
         string key,
         byte[]? value = null,
-        long? timeToLiveSeconds = null,
+        long? timeToLiveMilliseconds = null,
         KeyValueOperation operation = KeyValueOperation.Set,
         long integerDelta = 0,
         decimal floatDelta = 0)
     {
         var result = new KeyValueCommandResult();
+        var expireAt = ToExpireAtUtcTicks(timeToLiveMilliseconds);
 
         if (operation == KeyValueOperation.IncrementInteger)
         {
             var current = 0L;
-            if (keys.TryGetValue(key, out var existing) &&
+            if (TryGetActiveValue(key, out var existing) &&
                 !long.TryParse(Encoding.UTF8.GetString(existing), NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out current))
             {
                 result.SetError(KeyValueCommandStatus.InvalidNumber, "Value is not an integer.");
@@ -61,6 +86,8 @@ public class DatabaseMockService : IDatabaseService
 
             var bytes = Encoding.UTF8.GetBytes(next.ToString(CultureInfo.InvariantCulture));
             keys[key] = bytes;
+            if (expireAt.HasValue)
+                expiresAt[key] = expireAt.Value;
             result.SetApplied(bytes, integerValue: next);
             return Task.FromResult(result);
         }
@@ -68,7 +95,7 @@ public class DatabaseMockService : IDatabaseService
         if (operation == KeyValueOperation.IncrementFloat)
         {
             var current = 0m;
-            if (keys.TryGetValue(key, out var existing) &&
+            if (TryGetActiveValue(key, out var existing) &&
                 !decimal.TryParse(
                     Encoding.UTF8.GetString(existing),
                     NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint | NumberStyles.AllowExponent,
@@ -92,12 +119,18 @@ public class DatabaseMockService : IDatabaseService
 
             var bytes = Encoding.UTF8.GetBytes(next.ToString("G29", CultureInfo.InvariantCulture));
             keys[key] = bytes;
+            if (expireAt.HasValue)
+                expiresAt[key] = expireAt.Value;
             result.SetApplied(bytes, decimalValue: next);
             return Task.FromResult(result);
         }
 
         var setValue = value ?? Array.Empty<byte>();
         keys[key] = setValue;
+        if (expireAt.HasValue)
+            expiresAt[key] = expireAt.Value;
+        else
+            expiresAt.TryRemove(key, out _);
         result.SetApplied(setValue);
         return Task.FromResult(result);
     }

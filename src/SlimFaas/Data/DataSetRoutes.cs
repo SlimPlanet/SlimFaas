@@ -110,21 +110,21 @@ public static class DataSetRoutes
             return Results.Ok(elementId);
         }
 
-        public static Task<IResult> IncrAsync(IDatabaseService db, string id) =>
-            IntegerMutationAsync(db, id, 1);
+        public static Task<IResult> IncrAsync(IDatabaseService db, string id, long? ttl = null) =>
+            IntegerMutationAsync(db, id, 1, ttl);
 
-        public static async Task<IResult> IncrByAsync(IDatabaseService db, string id, long? by)
+        public static async Task<IResult> IncrByAsync(IDatabaseService db, string id, long? by, long? ttl = null)
         {
             if (!by.HasValue)
                 return Results.BadRequest("Missing by.");
 
-            return await IntegerMutationAsync(db, id, by.Value).ConfigureAwait(false);
+            return await IntegerMutationAsync(db, id, by.Value, ttl).ConfigureAwait(false);
         }
 
-        public static async Task<IResult> DecrAsync(IDatabaseService db, string id) =>
-            await IntegerMutationAsync(db, id, -1).ConfigureAwait(false);
+        public static async Task<IResult> DecrAsync(IDatabaseService db, string id, long? ttl = null) =>
+            await IntegerMutationAsync(db, id, -1, ttl).ConfigureAwait(false);
 
-        public static async Task<IResult> DecrByAsync(IDatabaseService db, string id, long? by)
+        public static async Task<IResult> DecrByAsync(IDatabaseService db, string id, long? by, long? ttl = null)
         {
             if (!by.HasValue)
                 return Results.BadRequest("Missing by.");
@@ -139,10 +139,10 @@ public static class DataSetRoutes
                 return Conflict("Integer decrement overflow.");
             }
 
-            return await IntegerMutationAsync(db, id, delta).ConfigureAwait(false);
+            return await IntegerMutationAsync(db, id, delta, ttl).ConfigureAwait(false);
         }
 
-        public static async Task<IResult> IncrByFloatAsync(IDatabaseService db, string id, decimal? by)
+        public static async Task<IResult> IncrByFloatAsync(IDatabaseService db, string id, decimal? by, long? ttl = null)
         {
             if (!by.HasValue)
                 return Results.BadRequest("Missing by.");
@@ -150,11 +150,15 @@ public static class DataSetRoutes
             if (!IdValidator.IsSafeId(id))
                 return Results.BadRequest("Invalid id.");
 
+            if (ttl.HasValue && ttl.Value <= 0)
+                return Results.BadRequest("Invalid ttl.");
+
             KeyValueCommandResult result;
             try
             {
                 result = await db.SetAsync(
                     DataKey(id),
+                    timeToLiveMilliseconds: ttl,
                     operation: KeyValueOperation.IncrementFloat,
                     floatDelta: by.Value).ConfigureAwait(false);
             }
@@ -174,16 +178,20 @@ public static class DataSetRoutes
             return ToNumericResult(result, isFloat: true);
         }
 
-        private static async Task<IResult> IntegerMutationAsync(IDatabaseService db, string id, long delta)
+        private static async Task<IResult> IntegerMutationAsync(IDatabaseService db, string id, long delta, long? ttl)
         {
             if (!IdValidator.IsSafeId(id))
                 return Results.BadRequest("Invalid id.");
+
+            if (ttl.HasValue && ttl.Value <= 0)
+                return Results.BadRequest("Invalid ttl.");
 
             KeyValueCommandResult result;
             try
             {
                 result = await db.SetAsync(
                     DataKey(id),
+                    timeToLiveMilliseconds: ttl,
                     operation: KeyValueOperation.IncrementInteger,
                     integerDelta: delta).ConfigureAwait(false);
             }

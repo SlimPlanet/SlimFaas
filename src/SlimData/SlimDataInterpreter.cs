@@ -546,7 +546,13 @@ public class SlimDataInterpreter : CommandInterpreter
         }
 
         var bytes = Encoding.UTF8.GetBytes(next.ToString(CultureInfo.InvariantCulture));
-        state.KeyValues = keyValues.SetItem(item.Key, bytes);
+        keyValues = keyValues.SetItem(item.Key, bytes);
+        if (item.ExpireAtUtcTicks.HasValue)
+        {
+            var ttlBytes = BitConverter.GetBytes(item.ExpireAtUtcTicks.Value);
+            keyValues = keyValues.SetItem(TtlKey(item.Key), ttlBytes);
+        }
+        state.KeyValues = keyValues;
         result.SetApplied(bytes, integerValue: next);
     }
 
@@ -579,7 +585,13 @@ public class SlimDataInterpreter : CommandInterpreter
         }
 
         var bytes = Encoding.UTF8.GetBytes(next.ToString("G29", CultureInfo.InvariantCulture));
-        state.KeyValues = keyValues.SetItem(item.Key, bytes);
+        keyValues = keyValues.SetItem(item.Key, bytes);
+        if (item.ExpireAtUtcTicks.HasValue)
+        {
+            var ttlBytes = BitConverter.GetBytes(item.ExpireAtUtcTicks.Value);
+            keyValues = keyValues.SetItem(TtlKey(item.Key), ttlBytes);
+        }
+        state.KeyValues = keyValues;
         result.SetApplied(bytes, decimalValue: next);
     }
 
