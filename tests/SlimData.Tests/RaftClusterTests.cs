@@ -332,14 +332,26 @@ public class RaftClusterTests
         await GetLocalClusterView(host1).ForceReplicationAsync();
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceSlave.GetAsync("key1")));
 
+        const long incrementTtlMs = 20_000L;
+        var beforeIncrementTicks = DateTime.UtcNow.Ticks;
         var incrementResult = await databaseServiceSlave.SetAsync(
             "counter1",
+            timeToLiveMilliseconds: incrementTtlMs,
             operation: KeyValueOperation.IncrementInteger,
             integerDelta: 1);
+        var afterIncrementTicks = DateTime.UtcNow.Ticks;
         Assert.Equal(KeyValueCommandStatus.Applied, incrementResult.Status);
         Assert.Equal(1L, incrementResult.IntegerValue);
         await GetLocalClusterView(host1).ForceReplicationAsync();
         Assert.Equal("1", Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync("counter1") ?? []));
+        var counterTtlKey = SlimDataInterpreter.TtlKey("counter1");
+        var leaderState = ((ISupplier<SlimDataPayload>)host1.Services
+            .GetRequiredService<SlimPersistentState>()).Invoke();
+        Assert.True(leaderState.KeyValues.TryGetValue(counterTtlKey, out var counterTtlBytes));
+        Assert.InRange(
+            BitConverter.ToInt64(counterTtlBytes.Span),
+            beforeIncrementTicks + incrementTtlMs * TimeSpan.TicksPerMillisecond,
+            afterIncrementTicks + incrementTtlMs * TimeSpan.TicksPerMillisecond);
 
         const int parallelIncrements = 20;
         var incrementTasks = Enumerable.Range(0, parallelIncrements)

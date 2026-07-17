@@ -23,6 +23,7 @@ public static class DataSetRoutes
         var group = endpoints.MapGroup("/data/sets")
             .AddEndpointFilter<DataVisibilityEndpointFilter>();
         group.MapPost("", Handlers.PostAsync);
+        group.MapPost("/{id}", Handlers.PostAsync);
         group.MapPost("/{id}/incr", Handlers.IncrAsync);
         group.MapPost("/{id}/incrby", Handlers.IncrByAsync);
         group.MapPost("/{id}/incrbyfloat", Handlers.IncrByFloatAsync);

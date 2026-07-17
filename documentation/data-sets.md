@@ -33,7 +33,8 @@ Base path: `/data/sets`
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/data/sets?id={id?}&ttl={ttl_ms?}` | Create or overwrite a value |
+| `POST` | `/data/sets/{id}?ttl={ttl_ms?}` | Create or overwrite a value with a caller-provided ID |
+| `POST` | `/data/sets?id={id?}&ttl={ttl_ms?}` | Create or overwrite a value (legacy query-string form; generates an ID when omitted) |
 | `POST` | `/data/sets/{id}/incr?ttl={ttl_ms?}` | Atomically increment an integer by 1 |
 | `POST` | `/data/sets/{id}/incrby?by={long}&ttl={ttl_ms?}` | Atomically increment an integer by `by` |
 | `POST` | `/data/sets/{id}/incrbyfloat?by={decimal}&ttl={ttl_ms?}` | Atomically increment a decimal value by `by` |
@@ -62,7 +63,7 @@ Examples:
 
 ## Create / overwrite
 
-`POST /data/sets?id={id?}&ttl={ttl_ms?}`
+`POST /data/sets/{id}?ttl={ttl_ms?}`
 
 - Body is stored as raw bytes.
 - Payload larger than 1 MiB returns **413 Payload Too Large**.
@@ -71,14 +72,14 @@ Examples:
 
 Store JSON with a fixed id:
 ```bash
-curl -X POST "http://<slimfaas>/data/sets?id=my-usecase.session-123.state" \
+curl -X POST "http://<slimfaas>/data/sets/my-usecase.session-123.state" \
   -H "Content-Type: application/json" \
   --data-binary '{"step":"route","chosen":"kb_rag","confidence":0.92}'
 ```
 
 Store a string:
 ```bash
-curl -X POST "http://<slimfaas>/data/sets?id=my-usecase.session-123.flag" \
+curl -X POST "http://<slimfaas>/data/sets/my-usecase.session-123.flag" \
   -H "Content-Type: text/plain" \
   --data-binary "ready"
 ```
@@ -91,7 +92,7 @@ echo "created id=$ID"
 
 Store with TTL (10 minutes = 600000 ms):
 ```bash
-curl -X POST "http://<slimfaas>/data/sets?id=my-usecase.session-123.state&ttl=600000" \
+curl -X POST "http://<slimfaas>/data/sets/my-usecase.session-123.state?ttl=600000" \
   --data-binary "temporary"
 ```
 
