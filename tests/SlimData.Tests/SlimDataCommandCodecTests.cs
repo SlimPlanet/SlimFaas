@@ -339,6 +339,7 @@ public sealed class SlimDataCommandCodecTests
             CancellationToken.None);
         var transferObject = (IDataTransferObject)entry;
 
+        Assert.IsType<DotNext.Net.Cluster.Consensus.Raft.BinaryLogEntry>(entry);
         Assert.Equal(TCommand.Id, entry.CommandId);
         Assert.Equal(7L, entry.Term);
         Assert.Same(context, entry.Context);

@@ -706,12 +706,12 @@ public class Endpoints
                 .ToList()
         };
         var payload = command.Serialize();
-        SlimDataCommandCodec.ValidateCurrentEnvelope(payload, nameof(AddKeyValueCommand));
-        var logEntry = new SerializedSlimDataLogEntry(
+        var logEntry = SerializedSlimDataLogEntry.Create(
             AddKeyValueCommand.Id,
             cluster.Term,
             payload,
-            context);
+            context,
+            nameof(AddKeyValueCommand));
 
         var success = await SafeReplicateAsync(cluster, logEntry, source.Token);
         if (!success)

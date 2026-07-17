@@ -4,33 +4,27 @@ using DotNext.Net.Cluster.Consensus.Raft.Commands;
 
 namespace SlimData.Commands;
 
-internal readonly struct SerializedSlimDataLogEntry(
-    int commandId,
-    long term,
-    ReadOnlyMemory<byte> payload,
-    object? context) : IInputLogEntry
+internal static class SerializedSlimDataLogEntry
 {
-    public long Term => term;
-
-    public int? CommandId => commandId;
-
-    public bool IsReusable => true;
-
-    public long? Length => payload.Length;
-
-    public object? Context { get; init; } = context;
-
-    public ValueTask WriteToAsync<TWriter>(TWriter writer, CancellationToken token)
-        where TWriter : IAsyncBinaryWriter
-        => writer.Invoke(payload, token);
-
-    bool IDataTransferObject.TryGetMemory(out ReadOnlyMemory<byte> memory)
+    internal static BinaryLogEntry Create(
+        int commandId,
+        long term,
+        ReadOnlyMemory<byte> payload,
+        object? context,
+        string commandName)
     {
-        memory = payload;
-        return true;
+        SlimDataCommandCodec.ValidateCommandLength(payload.Length, commandName);
+        SlimDataCommandCodec.ValidateCurrentEnvelope(payload.Span, commandName);
+        return new BinaryLogEntry
+        {
+            CommandId = commandId,
+            Term = term,
+            Content = payload,
+            Context = context
+        };
     }
 
-    internal static async ValueTask<SerializedSlimDataLogEntry> CreateAsync<TCommand>(
+    internal static async ValueTask<BinaryLogEntry> CreateAsync<TCommand>(
         TCommand command,
         long term,
         object? context,
@@ -49,7 +43,6 @@ internal readonly struct SerializedSlimDataLogEntry(
                 $"{typeof(TCommand).Name} serialized {payload.LongLength} bytes; expected {declaredLength}.");
         }
 
-        SlimDataCommandCodec.ValidateCurrentEnvelope(payload, typeof(TCommand).Name);
-        return new SerializedSlimDataLogEntry(TCommand.Id, term, payload, context);
+        return Create(TCommand.Id, term, payload, context, typeof(TCommand).Name);
     }
 }

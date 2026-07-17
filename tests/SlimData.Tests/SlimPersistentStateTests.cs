@@ -381,11 +381,12 @@ public sealed class SlimPersistentStateTests
                 ]
             };
             var payload = command.Serialize();
-            var entry = new SerializedSlimDataLogEntry(
+            var entry = SerializedSlimDataLogEntry.Create(
                 AddKeyValueCommand.Id,
                 1L,
                 payload,
-                context);
+                context,
+                nameof(AddKeyValueCommand));
 
             var index = await wal.AppendAsync(entry, CancellationToken.None);
             await wal.CommitAsync(index, CancellationToken.None);
@@ -399,6 +400,68 @@ public sealed class SlimPersistentStateTests
             Assert.DoesNotContain(
                 state.GetSkippedCommandMetrics(),
                 metric => metric.CommandId == AddKeyValueCommand.Id);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task WriteAheadLog_recovers_zero_prefixed_current_commands()
+    {
+        var root = GetTemporaryDirectory();
+        var walPath = Path.Combine(root, "wal");
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+
+            var keyValuePayload = PrefixWithZeros(new AddKeyValueCommand
+            {
+                Operation = KeyValueOperation.Set,
+                Key = "recovered-key",
+                Value = Encoding.UTF8.GetBytes("recovered-value"),
+                NowTicks = DateTime.UtcNow.Ticks
+            }.Serialize());
+            await AppendBinaryCommitWaitAsync(wal, AddKeyValueCommand.Id, keyValuePayload);
+
+            var queueCommand = new ListLeftPushBatchCommand
+            {
+                Items =
+                [
+                    new ListLeftPushBatchCommand.BatchItem
+                    {
+                        Key = "recovered-queue",
+                        Identifier = "recovered-item",
+                        NowTicks = DateTime.UtcNow.Ticks,
+                        RetryTimeout = 30,
+                        Retries = [],
+                        HttpStatusCodesWorthRetrying = [],
+                        Value = Encoding.UTF8.GetBytes("queue-value")
+                    }
+                ]
+            };
+            var queuePayload = await DataTransferObject.ToByteArrayAsync(
+                queueCommand,
+                null,
+                CancellationToken.None);
+            await AppendBinaryCommitWaitAsync(
+                wal,
+                ListLeftPushBatchCommand.Id,
+                PrefixWithZeros(queuePayload));
+
+            Assert.Equal(
+                "recovered-value",
+                Encoding.UTF8.GetString(state.SlimDataState.KeyValues["recovered-key"].Span));
+            Assert.Equal(
+                "recovered-item",
+                Assert.Single(state.SlimDataState.Queues["recovered-queue"]).Id);
+            Assert.DoesNotContain(
+                state.GetSkippedCommandMetrics(),
+                metric => metric.CommandId is AddKeyValueCommand.Id or ListLeftPushBatchCommand.Id);
         }
         finally
         {
@@ -582,6 +645,30 @@ public sealed class SlimPersistentStateTests
         var index = await wal.AppendAsync(entry, CancellationToken.None);
         await wal.CommitAsync(index, CancellationToken.None);
         await wal.WaitForApplyAsync(index, CancellationToken.None);
+    }
+
+    private static async Task AppendBinaryCommitWaitAsync(
+        WriteAheadLog wal,
+        int commandId,
+        byte[] payload)
+    {
+        var entry = new BinaryLogEntry
+        {
+            CommandId = commandId,
+            Term = 1L,
+            Content = payload,
+            Context = new CommandApplyContext()
+        };
+        var index = await wal.AppendAsync(entry, CancellationToken.None);
+        await wal.CommitAsync(index, CancellationToken.None);
+        await wal.WaitForApplyAsync(index, CancellationToken.None);
+    }
+
+    private static byte[] PrefixWithZeros(byte[] payload)
+    {
+        var result = new byte[payload.Length + sizeof(int)];
+        payload.CopyTo(result, sizeof(int));
+        return result;
     }
 
     private static LogEntry CreateStateMachineEntry(

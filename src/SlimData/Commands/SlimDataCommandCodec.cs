@@ -48,6 +48,7 @@ internal static class SlimDataCommandCodec
     internal const int MaxValueBytes = 16 * 1024 * 1024;
     internal const int MaxBatchItems = 1024;
     internal const int MaxCollectionCount = 100_000;
+    internal const int MaxRecoverableZeroPrefixBytes = 64;
 
     private static readonly Encoding Utf8 = new UTF8Encoding(
         encoderShouldEmitUTF8Identifier: false,
@@ -140,6 +141,23 @@ internal static class SlimDataCommandCodec
                     : SlimDataCommandViolation.UnsupportedVersion,
                 $"{commandName} was not serialized with the current SlimData command envelope.");
         }
+    }
+
+    internal static int FindCurrentEnvelopeOffset(ReadOnlySpan<byte> payload)
+    {
+        var maximumOffset = Math.Min(
+            MaxRecoverableZeroPrefixBytes,
+            payload.Length - HeaderLength);
+        for (var offset = 0; offset <= maximumOffset; offset++)
+        {
+            if (BinaryPrimitives.ReadUInt32LittleEndian(payload[offset..]) == Magic &&
+                payload[offset + sizeof(uint)] == Version)
+            {
+                return offset;
+            }
+        }
+
+        return -1;
     }
 
     internal static int WriteCompressedLength(Span<byte> destination, int length)

@@ -90,7 +90,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.74.1-pr.290696
+          image: axaguildev/slimfaas:0.74.1-pr.290697
           imagePullPolicy: Always
           livenessProbe:
             httpGet:

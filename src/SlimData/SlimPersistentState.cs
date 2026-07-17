@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -193,9 +194,22 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
                     : $"SlimData Raft command is shorter than its {SlimDataCommandCodec.HeaderLength}-byte envelope.");
         }
 
+        IRaftLogEntry applicationEntry = entry;
+        if (TryRecoverZeroPrefixedCurrentEntry(entry, out var recoveredEntry, out var discardedPrefixBytes))
+        {
+            applicationEntry = recoveredEntry;
+            _logger?.LogWarning(
+                "Recovered zero-prefixed SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, OriginalLength={OriginalLength}, DiscardedPrefixBytes={DiscardedPrefixBytes}",
+                entry.Index,
+                entry.Term,
+                entry.CommandId,
+                entry.Length,
+                discardedPrefixBytes);
+        }
+
         try
         {
-            await Interpreter.InterpretAsync(entry, entry.Context, token).ConfigureAwait(false);
+            await Interpreter.InterpretAsync(applicationEntry, entry.Context, token).ConfigureAwait(false);
         }
         catch (SlimDataCommandFormatException ex)
         {
@@ -241,20 +255,87 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         string reason,
         Exception? exception = null)
     {
+        var payloadDiagnostics = GetPayloadDiagnostics(entry);
         _logger?.LogWarning(
             exception,
-            "Skipping incompatible SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, Length={Length}, Violation={Violation}, Reason={Reason}",
+            "Skipping incompatible SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, Length={Length}, Violation={Violation}, LeadingZeroBytes={LeadingZeroBytes}, CurrentEnvelopeOffset={CurrentEnvelopeOffset}, Reason={Reason}",
             entry.Index,
             entry.Term,
             entry.CommandId,
             entry.Length,
             violation,
+            payloadDiagnostics.LeadingZeroBytes,
+            payloadDiagnostics.CurrentEnvelopeOffset,
             reason);
 
         RecordSkippedEntry(entry, violation);
         MarkSkippedContext(entry.Context);
         return ShouldCreateSnapshot(entry.Index, requestIncompatibleCompaction: true);
     }
+
+    private static bool TryRecoverZeroPrefixedCurrentEntry(
+        LogEntry entry,
+        out BinaryLogEntry recoveredEntry,
+        out int discardedPrefixBytes)
+    {
+        recoveredEntry = default;
+        discardedPrefixBytes = 0;
+        if (!entry.TryGetPayload(out var payload) || payload.IsEmpty)
+            return false;
+
+        var prefixLength = checked((int)Math.Min(
+            payload.Length,
+            SlimDataCommandCodec.MaxRecoverableZeroPrefixBytes + SlimDataCommandCodec.HeaderLength));
+        Span<byte> prefix = stackalloc byte[prefixLength];
+        payload.Slice(0L, prefixLength).CopyTo(prefix);
+        var envelopeOffset = SlimDataCommandCodec.FindCurrentEnvelopeOffset(prefix);
+        if (envelopeOffset <= 0 || prefix[..envelopeOffset].ContainsAnyExcept((byte)0))
+            return false;
+
+        var recoveredPayload = payload.Slice(envelopeOffset).ToArray();
+        SlimDataCommandCodec.ValidateCommandLength(
+            recoveredPayload.Length,
+            $"SlimData command {entry.CommandId}");
+        SlimDataCommandCodec.ValidateCurrentEnvelope(
+            recoveredPayload,
+            $"SlimData command {entry.CommandId}");
+        recoveredEntry = new BinaryLogEntry
+        {
+            CommandId = entry.CommandId,
+            Term = entry.Term,
+            Content = recoveredPayload,
+            Context = entry.Context
+        };
+        discardedPrefixBytes = envelopeOffset;
+        return true;
+    }
+
+    private static PayloadDiagnostics GetPayloadDiagnostics(LogEntry entry)
+    {
+        if (!entry.TryGetPayload(out var payload) || payload.IsEmpty)
+            return new(0L, -1);
+
+        long leadingZeroBytes = 0L;
+        foreach (var segment in payload)
+        {
+            foreach (var value in segment.Span)
+            {
+                if (value != 0)
+                    goto LeadingZerosCounted;
+                leadingZeroBytes++;
+            }
+        }
+
+        LeadingZerosCounted:
+        var prefixLength = checked((int)Math.Min(
+            payload.Length,
+            SlimDataCommandCodec.MaxRecoverableZeroPrefixBytes + SlimDataCommandCodec.HeaderLength));
+        Span<byte> prefix = stackalloc byte[prefixLength];
+        payload.Slice(0L, prefixLength).CopyTo(prefix);
+        return new(leadingZeroBytes, SlimDataCommandCodec.FindCurrentEnvelopeOffset(prefix));
+    }
+
+    private readonly record struct PayloadDiagnostics(long LeadingZeroBytes, int CurrentEnvelopeOffset);
 
     private void RecordSkippedEntry(LogEntry entry, SlimDataCommandViolation violation)
     {
