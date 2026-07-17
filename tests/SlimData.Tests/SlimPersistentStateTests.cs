@@ -169,7 +169,7 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
-    public async Task Restore_continues_snapshot_cadence_from_restored_index()
+    public async Task Restore_resets_snapshot_counters()
     {
         var root = GetTemporaryDirectory();
         var snapshotPath = Path.Combine(root, "100-1");
@@ -178,11 +178,199 @@ public sealed class SlimPersistentStateTests
         {
             // Three empty collection counts in the existing snapshot binary format.
             await File.WriteAllBytesAsync(snapshotPath, new byte[3 * sizeof(int)]);
-            await using var state = CreateState(root, snapshotIntervalEntries: 100);
+            await using var state = CreateState(
+                root,
+                snapshotIntervalEntries: 2,
+                snapshotIntervalBytes: long.MaxValue);
+
+            Assert.False(await ApplySetAsync(state, index: 1L, key: "before-restore"));
+            Assert.True(state.WalBytesSinceSnapshot > 0L);
+
             await InvokeRestoreAsync(state, new FileInfo(snapshotPath), CancellationToken.None);
 
+            Assert.Equal(0L, state.WalBytesSinceSnapshot);
+            Assert.Equal(SlimDataSnapshotTrigger.None, state.LastSnapshotTrigger);
             Assert.False(await ApplySetAsync(state, index: 101L, key: "first"));
             Assert.True(await ApplySetAsync(state, index: 200L, key: "second"));
+            Assert.Equal(SlimDataSnapshotTrigger.Entries, state.LastSnapshotTrigger);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyAsync_requests_snapshot_at_five_thousand_applied_entries()
+    {
+        var root = GetTemporaryDirectory();
+
+        try
+        {
+            await using var state = CreateState(
+                root,
+                snapshotIntervalEntries: 5000,
+                snapshotIntervalBytes: SlimPersistentState.DefaultSnapshotIntervalBytes);
+
+            for (var index = 1L; index < 5000L; index++)
+                Assert.False(await ApplySetAsync(state, index, "entry-threshold"));
+
+            Assert.InRange(
+                state.WalBytesSinceSnapshot,
+                1L,
+                SlimPersistentState.DefaultSnapshotIntervalBytes - 1L);
+            Assert.True(await ApplySetAsync(state, index: 5000L, key: "entry-threshold"));
+            Assert.Equal(0L, state.WalBytesSinceSnapshot);
+            Assert.Equal(SlimDataSnapshotTrigger.Entries, state.LastSnapshotTrigger);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task ApplyAsync_requests_snapshot_when_an_entry_crosses_the_byte_interval()
+    {
+        var root = GetTemporaryDirectory();
+        var firstEntry = CreateSetEntry(index: 1L, key: "first");
+        var secondEntry = CreateSetEntry(index: 2L, key: "second");
+        var byteInterval = firstEntry.Length.GetValueOrDefault() + secondEntry.Length.GetValueOrDefault() - 1L;
+
+        try
+        {
+            await using var state = CreateState(
+                root,
+                snapshotIntervalEntries: 5000,
+                snapshotIntervalBytes: byteInterval);
+
+            Assert.False(await InvokeApplyAsync(state, firstEntry));
+            Assert.Equal(firstEntry.Length.GetValueOrDefault(), state.WalBytesSinceSnapshot);
+
+            Assert.True(await InvokeApplyAsync(state, secondEntry));
+            Assert.Equal(0L, state.WalBytesSinceSnapshot);
+            Assert.Equal(SlimDataSnapshotTrigger.Bytes, state.LastSnapshotTrigger);
+
+            var thirdEntry = CreateSetEntry(index: 3L, key: "third");
+            Assert.False(await InvokeApplyAsync(state, thirdEntry));
+            Assert.Equal(thirdEntry.Length.GetValueOrDefault(), state.WalBytesSinceSnapshot);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Configuration_reads_json_snapshot_intervals()
+    {
+        var root = GetTemporaryDirectory();
+
+        try
+        {
+            using var json = new MemoryStream(Encoding.UTF8.GetBytes(
+                """
+                {
+                  "SlimData": {
+                    "SnapshotIntervalEntries": 2,
+                    "SnapshotIntervalBytes": 67108864
+                  }
+                }
+                """));
+            var configuration = new ConfigurationBuilder()
+                .AddJsonStream(json)
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [SlimPersistentState.LogLocation] = root
+                })
+                .Build();
+
+            await using var state = new SlimPersistentState(configuration, logger: null);
+            Assert.False(await ApplySetAsync(state, index: 1L, key: "first"));
+            Assert.True(await ApplySetAsync(state, index: 2L, key: "second"));
+            Assert.Equal(SlimDataSnapshotTrigger.Entries, state.LastSnapshotTrigger);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public async Task Configuration_reads_json_settings_and_environment_overrides()
+    {
+        var root = GetTemporaryDirectory();
+        var prefix = $"SLIMDATA_TEST_{Guid.NewGuid():N}_";
+        var entriesVariable = $"{prefix}SlimData__SnapshotIntervalEntries";
+        var bytesVariable = $"{prefix}SlimData__SnapshotIntervalBytes";
+
+        try
+        {
+            Environment.SetEnvironmentVariable(entriesVariable, "2");
+            Environment.SetEnvironmentVariable(bytesVariable, long.MaxValue.ToString());
+            using var json = new MemoryStream(Encoding.UTF8.GetBytes(
+                """
+                {
+                  "SlimData": {
+                    "SnapshotIntervalEntries": 100,
+                    "SnapshotIntervalBytes": 67108864
+                  }
+                }
+                """));
+            var configuration = new ConfigurationBuilder()
+                .AddJsonStream(json)
+                .AddEnvironmentVariables(prefix)
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [SlimPersistentState.LogLocation] = root
+                })
+                .Build();
+
+            await using var state = new SlimPersistentState(configuration, logger: null);
+            Assert.False(await ApplySetAsync(state, index: 1L, key: "first"));
+            Assert.True(await ApplySetAsync(state, index: 2L, key: "second"));
+            Assert.Equal(SlimDataSnapshotTrigger.Entries, state.LastSnapshotTrigger);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(entriesVariable, null);
+            Environment.SetEnvironmentVariable(bytesVariable, null);
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(0, 67108864L, "snapshotIntervalEntries")]
+    [InlineData(-1, 67108864L, "snapshotIntervalEntries")]
+    [InlineData(5000, 0L, "snapshotIntervalBytes")]
+    [InlineData(5000, -1L, "snapshotIntervalBytes")]
+    public void Configuration_rejects_non_positive_snapshot_intervals(
+        int snapshotIntervalEntries,
+        long snapshotIntervalBytes,
+        string expectedParameter)
+    {
+        var root = GetTemporaryDirectory();
+
+        try
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    [SlimPersistentState.LogLocation] = root,
+                    [SlimPersistentState.SnapshotIntervalEntries] = snapshotIntervalEntries.ToString(),
+                    [SlimPersistentState.SnapshotIntervalBytes] = snapshotIntervalBytes.ToString()
+                })
+                .Build();
+
+            var exception = Assert.Throws<ArgumentOutOfRangeException>(
+                () => new SlimPersistentState(configuration, logger: null));
+
+            Assert.Equal(expectedParameter, exception.ParamName);
         }
         finally
         {
@@ -209,6 +397,8 @@ public sealed class SlimPersistentStateTests
             var shouldSnapshot = await InvokeApplyAsync(state, entry);
 
             Assert.True(shouldSnapshot);
+            Assert.Equal(SlimDataSnapshotTrigger.Incompatible, state.LastSnapshotTrigger);
+            Assert.Equal(0L, state.WalBytesSinceSnapshot);
             Assert.Empty(state.SlimDataState.KeyValues);
             Assert.Equal(KeyValueCommandStatus.NotCommitted, result.Status);
             Assert.Equal("Skipped incompatible SlimData Raft log entry.", result.ErrorMessage);
@@ -781,6 +971,9 @@ public sealed class SlimPersistentStateTests
     }
 
     private static ValueTask<bool> ApplySetAsync(SlimPersistentState state, long index, string key)
+        => InvokeApplyAsync(state, CreateSetEntry(index, key));
+
+    private static LogEntry CreateSetEntry(long index, string key)
     {
         var result = new KeyValueCommandResult();
         var command = new LogEntry<AddKeyValueCommand>
@@ -794,7 +987,7 @@ public sealed class SlimPersistentStateTests
             },
             Context = result
         };
-        return InvokeApplyAsync(state, CreateStateMachineEntry(command, index, context: result));
+        return CreateStateMachineEntry(command, index, context: result);
     }
 
     private static async Task InvokeRestoreAsync(
@@ -813,13 +1006,17 @@ public sealed class SlimPersistentStateTests
         await (ValueTask)method.Invoke(state, [snapshot, token])!;
     }
 
-    private static SlimPersistentState CreateState(string root, int snapshotIntervalEntries)
+    private static SlimPersistentState CreateState(
+        string root,
+        int snapshotIntervalEntries,
+        long snapshotIntervalBytes = SlimPersistentState.DefaultSnapshotIntervalBytes)
     {
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
                 [SlimPersistentState.LogLocation] = root,
-                [SlimPersistentState.SnapshotIntervalEntries] = snapshotIntervalEntries.ToString()
+                [SlimPersistentState.SnapshotIntervalEntries] = snapshotIntervalEntries.ToString(),
+                [SlimPersistentState.SnapshotIntervalBytes] = snapshotIntervalBytes.ToString()
             })
             .Build();
         return new SlimPersistentState(configuration, logger: null);

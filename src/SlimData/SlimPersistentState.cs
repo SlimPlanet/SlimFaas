@@ -30,12 +30,22 @@ public readonly record struct SlimDataRaftSafetyMetrics(
     int LastSkippedCommandId,
     long LastSkippedLength);
 
+public enum SlimDataSnapshotTrigger
+{
+    None,
+    Entries,
+    Bytes,
+    Incompatible
+}
+
 public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimDataPayload>
 {
     public const string LogLocation = "SlimData:LogLocation";
     public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
     public const string SnapshotIntervalEntries = "SlimData:SnapshotIntervalEntries";
+    public const string SnapshotIntervalBytes = "SlimData:SnapshotIntervalBytes";
     public const int DefaultSnapshotIntervalEntries = 5000;
+    public const long DefaultSnapshotIntervalBytes = 64L * 1024L * 1024L;
     private const string SkippedIncompatibleCommandMessage =
         "Skipped incompatible SlimData Raft log entry.";
 
@@ -45,8 +55,11 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
     private readonly ILogger<SlimPersistentState>? _logger;
     private readonly int _snapshotIntervalEntries;
+    private readonly long _snapshotIntervalBytes;
     private readonly ConcurrentDictionary<int, long> _skippedCommands = new();
-    private long _lastSnapshotRequestIndex;
+    private long _walEntriesSinceSnapshot;
+    private long _walBytesSinceSnapshot;
+    private int _lastSnapshotTrigger;
     private int _incompatibleCompactionRequested;
     private int _isRestoring;
     private int _isSnapshotting;
@@ -60,19 +73,29 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     private long _lastSkippedLength = -1L;
 
     public SlimPersistentState(string location)
-        : this(location, DefaultSnapshotIntervalEntries, null)
+        : this(location, DefaultSnapshotIntervalEntries, DefaultSnapshotIntervalBytes, null)
     {
     }
 
     public SlimPersistentState(string location, ILogger<SlimPersistentState>? logger)
-        : this(location, DefaultSnapshotIntervalEntries, logger)
+        : this(location, DefaultSnapshotIntervalEntries, DefaultSnapshotIntervalBytes, logger)
     {
     }
 
     internal SlimPersistentState(string location, int snapshotIntervalEntries, ILogger<SlimPersistentState>? logger = null)
+        : this(location, snapshotIntervalEntries, DefaultSnapshotIntervalBytes, logger)
+    {
+    }
+
+    internal SlimPersistentState(
+        string location,
+        int snapshotIntervalEntries,
+        long snapshotIntervalBytes,
+        ILogger<SlimPersistentState>? logger = null)
         : this(
             new DirectoryInfo(Path.GetFullPath(Path.Combine(NormalizeLocation(location), "db"))),
             snapshotIntervalEntries,
+            snapshotIntervalBytes,
             logger)
     {
     }
@@ -86,6 +109,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         : this(
             configuration[LogLocation] ?? string.Empty,
             configuration.GetValue(SnapshotIntervalEntries, DefaultSnapshotIntervalEntries),
+            configuration.GetValue(SnapshotIntervalBytes, DefaultSnapshotIntervalBytes),
             logger)
     {
     }
@@ -93,10 +117,22 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     private SlimPersistentState(
         DirectoryInfo location,
         int snapshotIntervalEntries,
+        long snapshotIntervalBytes,
         ILogger<SlimPersistentState>? logger)
         : base(location)
     {
-        _snapshotIntervalEntries = Math.Max(1, snapshotIntervalEntries);
+        _snapshotIntervalEntries = snapshotIntervalEntries > 0
+            ? snapshotIntervalEntries
+            : throw new ArgumentOutOfRangeException(
+                nameof(snapshotIntervalEntries),
+                snapshotIntervalEntries,
+                "The snapshot entry interval must be strictly positive.");
+        _snapshotIntervalBytes = snapshotIntervalBytes > 0L
+            ? snapshotIntervalBytes
+            : throw new ArgumentOutOfRangeException(
+                nameof(snapshotIntervalBytes),
+                snapshotIntervalBytes,
+                "The snapshot byte interval must be strictly positive.");
         _logger = logger;
         Interpreter = SlimDataInterpreter.InitInterpreter(_state);
     }
@@ -117,6 +153,11 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     public long LastSnapshotDurationMilliseconds => Volatile.Read(ref _lastSnapshotDurationMilliseconds);
 
     public long LastSnapshotSizeBytes => Volatile.Read(ref _lastSnapshotSizeBytes);
+
+    public long WalBytesSinceSnapshot => Volatile.Read(ref _walBytesSinceSnapshot);
+
+    public SlimDataSnapshotTrigger LastSnapshotTrigger
+        => (SlimDataSnapshotTrigger)Volatile.Read(ref _lastSnapshotTrigger);
 
     internal SlimDataStateSnapshot CaptureSnapshot() => _state.Capture();
 
@@ -241,24 +282,40 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         if (entry.Context is CommandApplyContext applyContext)
             applyContext.SetApplied();
 
-        return ShouldCreateSnapshot(entry.Index);
+        return ShouldCreateSnapshot(entry.Length.GetValueOrDefault());
     }
 
-    private bool ShouldCreateSnapshot(long index, bool requestIncompatibleCompaction = false)
+    private bool ShouldCreateSnapshot(long entryLength)
     {
-        if (requestIncompatibleCompaction &&
-            Interlocked.CompareExchange(ref _incompatibleCompactionRequested, 1, 0) is 0)
-        {
-            Volatile.Write(ref _lastSnapshotRequestIndex, index);
-            return true;
-        }
+        var entries = Interlocked.Increment(ref _walEntriesSinceSnapshot);
+        var bytes = Interlocked.Add(ref _walBytesSinceSnapshot, entryLength);
+        var trigger = bytes >= _snapshotIntervalBytes
+            ? SlimDataSnapshotTrigger.Bytes
+            : entries >= _snapshotIntervalEntries
+                ? SlimDataSnapshotTrigger.Entries
+                : SlimDataSnapshotTrigger.None;
 
-        var previous = Volatile.Read(ref _lastSnapshotRequestIndex);
-        if (index - previous < _snapshotIntervalEntries)
+        if (trigger is SlimDataSnapshotTrigger.None)
             return false;
 
-        Volatile.Write(ref _lastSnapshotRequestIndex, index);
+        ResetSnapshotWindow(trigger);
         return true;
+    }
+
+    private bool ShouldCompactIncompatibleEntry()
+    {
+        if (Interlocked.CompareExchange(ref _incompatibleCompactionRequested, 1, 0) is not 0)
+            return false;
+
+        ResetSnapshotWindow(SlimDataSnapshotTrigger.Incompatible);
+        return true;
+    }
+
+    private void ResetSnapshotWindow(SlimDataSnapshotTrigger trigger)
+    {
+        Interlocked.Exchange(ref _walEntriesSinceSnapshot, 0L);
+        Interlocked.Exchange(ref _walBytesSinceSnapshot, 0L);
+        Volatile.Write(ref _lastSnapshotTrigger, (int)trigger);
     }
 
     private bool SkipIncompatibleEntry(
@@ -282,7 +339,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
 
         RecordSkippedEntry(entry, violation);
         MarkSkippedContext(entry.Context);
-        return ShouldCreateSnapshot(entry.Index, requestIncompatibleCompaction: true);
+        return ShouldCompactIncompatibleEntry();
     }
 
     private static bool TryRecoverZeroPrefixedCurrentEntry(
@@ -444,6 +501,8 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     {
         var startedAt = Stopwatch.GetTimestamp();
         Volatile.Write(ref _isRestoring, 1);
+        ResetSnapshotWindow(SlimDataSnapshotTrigger.None);
+        Volatile.Write(ref _incompatibleCompactionRequested, 0);
         _state.Reset();
         _logger?.LogInformation(
             "Restoring SlimData snapshot. File={SnapshotFile}, FileBytes={FileBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
@@ -464,8 +523,6 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
             var reader = IAsyncBinaryReader.Create(stream, new byte[Environment.SystemPageSize]);
             var snapshot = await SlimDataSnapshotSerializer.ReadAsync(reader, token).ConfigureAwait(false);
             _state.Replace(snapshot);
-            if (TryGetSnapshotIndex(snapshotFile, out var snapshotIndex))
-                Volatile.Write(ref _lastSnapshotRequestIndex, snapshotIndex);
             Volatile.Write(ref _lastSnapshotSizeBytes, snapshotFile.Length);
         }
         finally
@@ -480,11 +537,4 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         }
     }
 
-    private static bool TryGetSnapshotIndex(FileInfo snapshotFile, out long index)
-    {
-        index = 0L;
-        var fileName = snapshotFile.Name.AsSpan();
-        var separator = fileName.IndexOf('-');
-        return separator > 0 && long.TryParse(fileName[..separator], out index);
-    }
 }
