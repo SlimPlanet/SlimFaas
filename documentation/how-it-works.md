@@ -18,13 +18,46 @@ It handles scaling, routing, and state management.
 
 2. **SlimData**
    A built-in key-value store based on [Raft](https://raft.github.io/), provided by .NET’s [dotNext](https://github.com/dotnet/dotNext).
-   This database is crucial for consistent state among SlimFaas pods.
+   This database is crucial for consistent state among SlimFaas pods. Each node keeps the current state in memory and persists replicated commands in a write-ahead log (WAL).
 
 3. **Annotations**
    Add or remove SlimFaas **annotations** on your pods/Deployments to control scaling, concurrency, visibility, and timeouts.
 
 4. **Public vs. Private**
    Restricts who can access a function/job (any external caller vs. same-namespace or trusted pods).
+
+---
+
+### SlimData WAL and snapshots
+
+DotNext supports two WAL memory-management strategies. SlimFaas selects the strategy with `SlimData:WalMemoryManagement`:
+
+- `PrivateMemory` is the default. It uses private temporary buffers and favors write throughput, at the cost of higher RAM consumption.
+- `SharedMemory` writes directly to memory-mapped WAL files. It is the preferred mode for memory-constrained deployments because the operating system can reclaim or flush mapped pages under memory pressure.
+
+SlimData creates a streaming snapshot when either **64 MiB of successfully applied WAL entries** or **5,000 successfully applied entries** have accumulated, whichever occurs first. A snapshot compacts the preceding Raft log window; the byte and entry counters restart after the snapshot request or a snapshot restore.
+
+```json
+{
+  "SlimData": {
+    "WalMemoryManagement": "PrivateMemory",
+    "SnapshotIntervalEntries": 5000,
+    "SnapshotIntervalBytes": 67108864
+  }
+}
+```
+
+The equivalent environment variables are:
+
+```bash
+SlimData__WalMemoryManagement=SharedMemory
+SlimData__SnapshotIntervalEntries=5000
+SlimData__SnapshotIntervalBytes=67108864
+```
+
+`WalMemoryManagement` accepts only `PrivateMemory` and `SharedMemory`, case-insensitively. Snapshot intervals must be strictly positive. Invalid values stop startup with a configuration error. Changing the memory strategy does not change the WAL format and does not require a data migration.
+
+The current byte window and the cause of the latest snapshot request are exposed as `slimdata_wal_bytes_since_snapshot` and `slimdata_snapshot_last_trigger{cause="bytes|entries|incompatible"}`.
 
 ---
 

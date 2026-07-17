@@ -241,11 +241,22 @@ Writes are grouped into bounded adaptive batches before being replicated as Raft
 
 `SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
 
-SlimData creates streaming state snapshots every 5,000 applied entries by default. The interval can be changed without altering the API:
+SlimData uses DotNext's `PrivateMemory` WAL strategy by default for maximum write performance. This mode uses more RAM than `SharedMemory`. Memory-constrained deployments can select the memory-mapped strategy instead:
+
+```bash
+SlimData__WalMemoryManagement=SharedMemory
+```
+
+Only `PrivateMemory` and `SharedMemory` are accepted, case-insensitively. An invalid value prevents startup. Switching strategy does not alter the WAL format and does not require a data migration.
+
+Streaming state snapshots use a hybrid threshold. A snapshot is requested after 64 MiB of successfully applied WAL entries or 5,000 successfully applied entries, whichever occurs first. Both positive thresholds can be changed without altering the API:
 
 ```bash
 SlimData__SnapshotIntervalEntries=5000
+SlimData__SnapshotIntervalBytes=67108864
 ```
+
+The current byte window is exposed as `slimdata_wal_bytes_since_snapshot`. The one-hot gauge `slimdata_snapshot_last_trigger` reports the latest request cause with the `cause` label (`bytes`, `entries`, or `incompatible`).
 
 Raft membership changes are serialized and bounded by configurable timeouts. The announcement timeout must be greater than the membership change timeout:
 

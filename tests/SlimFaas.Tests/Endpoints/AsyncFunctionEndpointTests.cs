@@ -22,6 +22,18 @@ namespace SlimFaas.Tests.Endpoints;
 
 public class AsyncFunctionEndpointTests
 {
+    private sealed class UnknownLengthContent(byte[] body) : HttpContent
+    {
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+            => stream.WriteAsync(body).AsTask();
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = 0;
+            return false;
+        }
+    }
+
     private static KeyValueCommandResult Applied(byte[]? value = null)
     {
         var result = new KeyValueCommandResult();
@@ -98,6 +110,7 @@ public class AsyncFunctionEndpointTests
 
         // BroadcastFilePutAsync doit être appelé exactement une fois
         string? capturedFileId = null;
+        byte[]? capturedOffloadedBody = null;
         fileSyncMock
             .Setup(s => s.BroadcastFilePutAsync(
                 It.IsAny<string>(),
@@ -108,9 +121,22 @@ public class AsyncFunctionEndpointTests
                 It.IsAny<long?>(),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<IDictionary<string, string>?>()))
-            .Callback<string, Stream, string, long, bool, long?, CancellationToken, IDictionary<string, string>?>(
-                (id, _, _, _, _, _, _, _) => capturedFileId = id)
-            .ReturnsAsync(new FilePutResult("abc123sha", "application/octet-stream", 2 * 1024 * 1024));
+            .Returns(async (
+                string id,
+                Stream content,
+                string _,
+                long _,
+                bool _,
+                long? _,
+                CancellationToken ct,
+                IDictionary<string, string>? _) =>
+            {
+                capturedFileId = id;
+                using MemoryStream copy = new();
+                await content.CopyToAsync(copy, ct);
+                capturedOffloadedBody = copy.ToArray();
+                return new FilePutResult("abc123sha", "application/octet-stream", capturedOffloadedBody.Length);
+            });
 
         // db.SetAsync doit être appelé pour stocker les métadonnées
         string? capturedMetaKey = null;
@@ -193,8 +219,9 @@ public class AsyncFunctionEndpointTests
             .StartAsync();
 
         // Envoi d'un POST avec un body > 1 Mo
-        using var content = new ByteArrayContent(largeBody);
+        using var content = new UnknownLengthContent(largeBody);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        Assert.Null(content.Headers.ContentLength);
         HttpResponseMessage response = await host.GetTestClient()
             .PostAsync("http://localhost:5000/async-function/fibonacci/process", content);
 
@@ -230,6 +257,7 @@ public class AsyncFunctionEndpointTests
         Assert.NotNull(enqueuedRequest.OffloadedFileId);
         Assert.Equal(capturedFileId, enqueuedRequest.OffloadedFileId);
         Assert.Null(enqueuedRequest.Body);
+        Assert.Equal(largeBody, capturedOffloadedBody);
     }
 
     /// <summary>
@@ -312,8 +340,9 @@ public class AsyncFunctionEndpointTests
             })
             .StartAsync();
 
-        using var content = new ByteArrayContent(smallBody);
+        using var content = new UnknownLengthContent(smallBody);
         content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+        Assert.Null(content.Headers.ContentLength);
         HttpResponseMessage response = await host.GetTestClient()
             .PostAsync("http://localhost:5000/async-function/fibonacci/process", content);
 

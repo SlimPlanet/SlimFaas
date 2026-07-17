@@ -34,6 +34,7 @@ public class SlimQueuesWorker(
     public const string SlimfaasElementId = "SlimFaas-Element-Id";
     public const string SlimfaasTryNumber = "SlimFaas-Try-Number";
     public const string SlimfaasLastTry = "Slimfaas-Last-Try";
+    private const int OffloadedBodyUnavailableStatusCode = 500;
     private readonly int _delay = workersOptions.Value.QueuesDelayMilliseconds;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -149,29 +150,69 @@ public class SlimQueuesWorker(
             Stream? offloadedStream = null;
             if (!string.IsNullOrEmpty(customRequest.OffloadedFileId))
             {
-                var metaKey = DataFileKeys.MetaKey(customRequest.OffloadedFileId);
-                var metaBytes = await db.GetAsync(metaKey);
-                if (metaBytes != null && metaBytes.Length > 0)
+                try
                 {
+                    var metaKey = DataFileKeys.MetaKey(customRequest.OffloadedFileId);
+                    var metaBytes = await db.GetAsync(metaKey);
+                    if (metaBytes is null || metaBytes.Length == 0)
+                    {
+                        await MarkOffloadedBodyUnavailableAsync(
+                            functionDeployment,
+                            requestJson.Id,
+                            customRequest.OffloadedFileId,
+                            "metadata not found");
+                        continue;
+                    }
+
                     var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(metaBytes);
+                    if (meta is null || string.IsNullOrWhiteSpace(meta.Sha256Hex))
+                    {
+                        await MarkOffloadedBodyUnavailableAsync(
+                            functionDeployment,
+                            requestJson.Id,
+                            customRequest.OffloadedFileId,
+                            "metadata invalid");
+                        continue;
+                    }
+
                     if(logger.IsEnabled(LogLevel.Debug))
                     {
                         logger.LogDebug(
                             "Loaded offloaded metadata. MetaKey={MetaKey} Tags={Tags}",
                             metaKey,
-                            FormatTags(meta?.Tags));
+                            FormatTags(meta.Tags));
                     }
+
                     var pulled = await fileSync.PullFileIfMissingAsync(
                         customRequest.OffloadedFileId,
-                        meta?.Sha256Hex ?? "",
+                        meta.Sha256Hex,
                         null,
                         CancellationToken.None);
                     offloadedStream = pulled.Stream;
+                    if (offloadedStream is null)
+                    {
+                        await MarkOffloadedBodyUnavailableAsync(
+                            functionDeployment,
+                            requestJson.Id,
+                            customRequest.OffloadedFileId,
+                            "file not found in cluster");
+                        continue;
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    logger.LogWarning("Offloaded file metadata not found for id={FileId}, request will have empty body",
-                        customRequest.OffloadedFileId);
+                    logger.LogWarning(
+                        ex,
+                        "Unable to load offloaded body for id={FileId}. QueueElementId={QueueElementId}; reporting HTTP 500 to the queue",
+                        customRequest.OffloadedFileId,
+                        requestJson.Id);
+                    await slimFaasQueue.ListCallbackAsync(
+                        functionDeployment,
+                        new ListQueueItemStatus
+                        {
+                            Items = [new QueueItemStatus(requestJson.Id, OffloadedBodyUnavailableStatusCode)]
+                        });
+                    continue;
                 }
             }
             else
@@ -202,6 +243,25 @@ public class SlimQueuesWorker(
             processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp, offloadedStream));
             activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
         }
+    }
+
+    private async Task MarkOffloadedBodyUnavailableAsync(
+        string functionDeployment,
+        string queueElementId,
+        string fileId,
+        string reason)
+    {
+        logger.LogWarning(
+            "Unable to load offloaded body for id={FileId}: {Reason}. QueueElementId={QueueElementId}; reporting HTTP 500 to the queue",
+            fileId,
+            reason,
+            queueElementId);
+        await slimFaasQueue.ListCallbackAsync(
+            functionDeployment,
+            new ListQueueItemStatus
+            {
+                Items = [new QueueItemStatus(queueElementId, OffloadedBodyUnavailableStatusCode)]
+            });
     }
 
     private object? FormatTags(IDictionary<string, string>? metaTags)

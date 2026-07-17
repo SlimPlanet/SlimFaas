@@ -276,13 +276,92 @@ public sealed class SlimDataExpirationCleanerTests
              .Returns(EmptyMeta());
         files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(0);
 
-        var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
+        var sut = new SlimDataExpirationCleaner(
+            state.Object,
+            db.Object,
+            files.Object,
+            logger.Object,
+            orphanConfirmationCycles: 1);
         await sut.CleanupOnceAsync(CancellationToken.None);
 
         db.VerifyAll();
         db.VerifyNoOtherCalls();
         files.VerifyAll();
         files.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task CleanupOnceAsync_requires_three_consecutive_orphan_observations_before_deleting_metadata()
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var files = new Mock<IFileRepository>(MockBehavior.Strict);
+        var logger = new Mock<ILogger<SlimDataExpirationCleaner>>();
+
+        const string fileId = "orphan-confirmation";
+        var metaKey = DataFileKeys.MetaKey(fileId);
+        var data = new SlimDataPayload
+        {
+            KeyValues = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+                .Add(metaKey, SerializeOffloadMeta("element-not-enqueued-yet")),
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+
+        state.Setup(s => s.Invoke()).Returns(data);
+        db.Setup(d => d.DeleteAsync(metaKey)).Returns(Task.CompletedTask);
+        files.Setup(f => f.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
+            .Returns(() => EmptyMeta());
+        files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
+
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        db.Verify(d => d.DeleteAsync(metaKey), Times.Never);
+
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        db.Verify(d => d.DeleteAsync(metaKey), Times.Once);
+    }
+
+    [Fact]
+    public async Task CleanupOnceAsync_cancels_orphan_candidate_when_queue_element_appears()
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var files = new Mock<IFileRepository>(MockBehavior.Strict);
+        var logger = new Mock<ILogger<SlimDataExpirationCleaner>>();
+
+        const string queueElementId = "element-enqueued-after-metadata";
+        var metaKey = DataFileKeys.MetaKey("metadata-before-queue");
+        var keyValues = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+            .Add(metaKey, SerializeOffloadMeta(queueElementId));
+        var beforeEnqueue = new SlimDataPayload
+        {
+            KeyValues = keyValues,
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+        var afterEnqueue = beforeEnqueue with
+        {
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+                .Add("q1", ImmutableArray.Create(CreateQueueElement(queueElementId)))
+        };
+        var invocation = 0;
+
+        state.Setup(s => s.Invoke()).Returns(() => invocation++ == 0 ? beforeEnqueue : afterEnqueue);
+        files.Setup(f => f.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
+            .Returns(() => EmptyMeta());
+        files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
+
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        await sut.CleanupOnceAsync(CancellationToken.None);
+
+        db.Verify(d => d.DeleteAsync(metaKey), Times.Never);
     }
 
     [Fact]
@@ -354,7 +433,12 @@ public sealed class SlimDataExpirationCleanerTests
         files.Setup(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(0);
 
-        var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
+        var sut = new SlimDataExpirationCleaner(
+            state.Object,
+            db.Object,
+            files.Object,
+            logger.Object,
+            orphanConfirmationCycles: 1);
         await sut.CleanupOnceAsync(CancellationToken.None);
 
         files.VerifyAll();
