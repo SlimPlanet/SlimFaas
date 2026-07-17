@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.74.2
+
+- [1d04db0a](https://github.com/SlimPlanet/SlimFaas/commit/1d04db0a4022b5dfe2f0842fb61ec66ee9f27bc6) - fix: add ttl to set incr (#294) (release), 2026-07-17 by *Guillaume Chervet*
+
+
+## 0.74.1
+
+
+
 ## v0.74.1
 
 - [6455b6e8](https://github.com/SlimPlanet/SlimFaas/commit/6455b6e8b7dd235845cd00c729b5e8e5c9c9ad41) - fix: slimfaas raft ram (#290) (release), 2026-07-17 by *Guillaume Chervet*
@@ -264,15 +273,5 @@
 ## v0.61.12
 
 - [87f9236c](https://github.com/SlimPlanet/SlimFaas/commit/87f9236cf5da0a3373abc782edd295ad9d06d82e) - fix: test build (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.11
-
-- [753ccbbc](https://github.com/SlimPlanet/SlimFaas/commit/753ccbbce30fca0171f2d8718c52c3be7cfb8c4f) - fix build: test (release), 2026-02-06 by *Guillaume Chervet*
-
-
-## v0.61.10
-
-- [52b59c79](https://github.com/SlimPlanet/SlimFaas/commit/52b59c79a14da51bcce9640bc18481937dc4fd26) - fix: enable AOT multi-platform with QEMU emulation (release), 2026-02-06 by *Guillaume Chervet*
 
 
