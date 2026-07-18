@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.74.3
+
+- [86a94748](https://github.com/SlimPlanet/SlimFaas/commit/86a94748baa83b47da0303b647e0e71d059d4f3f) - fix: set ttl was broken (release) (#295), 2026-07-18 by *Guillaume Chervet*
+
+
+## 0.74.2
+
+
+
 ## v0.74.2
 
 - [1d04db0a](https://github.com/SlimPlanet/SlimFaas/commit/1d04db0a4022b5dfe2f0842fb61ec66ee9f27bc6) - fix: add ttl to set incr (#294) (release), 2026-07-17 by *Guillaume Chervet*
@@ -264,14 +273,5 @@
 ## v0.61.13
 
 - [bf82cbc5](https://github.com/SlimPlanet/SlimFaas/commit/bf82cbc52e4e5967b684052a45b7b78d5bb630a1) - Change PUBLISH_AOT to false for amd64 architecture (release), 2026-02-07 by *Guillaume Chervet*
-
-
-## 0.61.12
-
-
-
-## v0.61.12
-
-- [87f9236c](https://github.com/SlimPlanet/SlimFaas/commit/87f9236cf5da0a3373abc782edd295ad9d06d82e) - fix: test build (release), 2026-02-06 by *Guillaume Chervet*
 
 
