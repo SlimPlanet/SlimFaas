@@ -15,17 +15,44 @@ spec:
         SlimFaas/Function: "true"
 
         # 0 -> N / N -> 0 (HTTP + schedule)
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "1000000"
-        SlimFaas/NumberParallelRequest: "40"
-        SlimFaas/NumberParallelRequestPerPod: "20"
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
+        SlimFaas/NumberParallelRequest: "10"
+        SlimFaas/NumberParallelRequestPerPod: "1"
         SlimFaas/ReplicasAtStart: "1"
-        SlimFaas/ReplicasMin: "1"                            # autorise le scale-to-zero
+        SlimFaas/ReplicasMin: "0"                            # autorise le scale-to-zero
 
         # Scraping metrics par Prometheus / SlimFaas
         prometheus.io/path: /metrics
         prometheus.io/port: "5000"
         prometheus.io/scrape: "true"
 
+        # N -> M (AutoScaler Prometheus)
+        SlimFaas/Scale: >
+          {
+            "ReplicaMax": 10,
+            "Triggers": [
+              {
+                "MetricType": "Value",
+                "MetricName": "max_over_time_queue_fibonacci1",
+                "Query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci1\"}[30s])",
+                "Threshold": 10
+              }
+            ],
+            "Behavior": {
+              "ScaleUp": {
+                "StabilizationWindowSeconds": 0,
+                "Policies": [
+                  { "Type": "Pods",    "Value": 1,   "PeriodSeconds": 10 }
+                ]
+              },
+              "ScaleDown": {
+                "StabilizationWindowSeconds": 20,
+                "Policies": [
+                  { "Type": "Pods", "Value": 1, "PeriodSeconds": 10 }
+                ]
+              }
+            }
+          }
     spec:
       serviceAccountName: default
       automountServiceAccountToken: false

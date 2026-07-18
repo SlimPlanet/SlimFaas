@@ -90,7 +90,7 @@ spec:
       serviceAccountName: slimfaas
       containers:
         - name: slimfaas
-          image: axaguildev/slimfaas:0.74.3-pr.295707
+          image: axaguildev/slimfaas:latest
           imagePullPolicy: Always
           livenessProbe:
             httpGet:
@@ -133,10 +133,10 @@ spec:
               mountPath: /backup
           resources:
             limits:
-              memory: "800Mi"
+              memory: "600Mi"
               cpu: "400m"
             requests:
-              memory: "800Mi"
+              memory: "600Mi"
               cpu: "400m"
           ports:
             - containerPort: 5000
