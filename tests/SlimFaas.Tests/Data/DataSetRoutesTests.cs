@@ -1,12 +1,21 @@
 using System.Collections.Immutable;
+using System.Net;
 using System.Text;
 using DotNext;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Moq;
 using SlimData;
 using SlimData.Commands;
 using SlimFaas;
+using SlimFaas.Kubernetes;
+using SlimFaas.Options;
+using SlimFaas.Security;
 using Xunit;
 
 public sealed class DataSetRoutesTests
@@ -41,6 +50,33 @@ public sealed class DataSetRoutesTests
         return result;
     }
 
+    private static async Task<IHost> BuildHostAsync(IDatabaseService db)
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>();
+        var accessPolicy = new Mock<IFunctionAccessPolicy>();
+
+        return await new HostBuilder()
+            .ConfigureWebHost(builder =>
+            {
+                builder.UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddRouting();
+                        services.AddSingleton(db);
+                        services.AddSingleton(state.Object);
+                        services.AddSingleton(accessPolicy.Object);
+                        services.Configure<DataOptions>(options =>
+                            options.DefaultVisibility = FunctionVisibility.Public);
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapDataSetRoutes());
+                    });
+            })
+            .StartAsync();
+    }
+
     [Fact]
     public async Task Post_sets_value_and_returns_id()
     {
@@ -58,6 +94,49 @@ public sealed class DataSetRoutesTests
         var ok = Assert.IsType<Ok<string>>(res);
         Assert.Equal("element1", ok.Value);
 
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task Post_route_uses_path_id_and_forwards_query_ttl()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var body = Encoding.UTF8.GetBytes("hello");
+        db.Setup(d => d.SetAsync(
+                "data:set:youhou",
+                It.Is<byte[]>(value => value.SequenceEqual(body)),
+                20_000L))
+            .ReturnsAsync(Applied(body));
+
+        using var host = await BuildHostAsync(db.Object);
+        using var content = new ByteArrayContent(body);
+        using var response = await host.GetTestClient()
+            .PostAsync("/data/sets/youhou?ttl=20000", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        db.VerifyAll();
+    }
+
+    [Fact]
+    public async Task Incr_route_forwards_query_ttl_with_empty_body()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        db.Setup(d => d.SetAsync(
+                "data:set:david",
+                (byte[]?)null,
+                20_000L,
+                KeyValueOperation.IncrementInteger,
+                1,
+                0m))
+            .ReturnsAsync(AppliedInteger(1));
+
+        using var host = await BuildHostAsync(db.Object);
+        using var content = new ByteArrayContent([]);
+        using var response = await host.GetTestClient()
+            .PostAsync("/data/sets/david/incr?ttl=20000", content);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("1", await response.Content.ReadAsStringAsync());
         db.VerifyAll();
     }
 

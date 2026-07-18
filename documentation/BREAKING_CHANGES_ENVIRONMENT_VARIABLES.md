@@ -47,7 +47,9 @@ Old environment variables are **no longer supported**.
 | `SLIMDATA_CONFIGURATION` | `SlimData:Configuration` | `SlimData__Configuration` | `string?` | `null` |
 | *(implicit)* | `SlimData:AllowColdStart` | `SlimData__AllowColdStart` | `bool` | `false` |
 | *(new)* | `SlimData:WarmupRounds` | `SlimData__WarmupRounds` | `int` | `10000` |
+| *(new)* | `SlimData:WalMemoryManagement` | `SlimData__WalMemoryManagement` | `PrivateMemory \| SharedMemory` | `PrivateMemory` |
 | *(new)* | `SlimData:SnapshotIntervalEntries` | `SlimData__SnapshotIntervalEntries` | `int` | `5000` |
+| *(new)* | `SlimData:SnapshotIntervalBytes` | `SlimData__SnapshotIntervalBytes` | `long` | `67108864` |
 | *(new)* | `SlimData:Membership:ChangeTimeoutSeconds` | `SlimData__Membership__ChangeTimeoutSeconds` | `int` | `60` |
 | *(new)* | `SlimData:Membership:AnnouncementTimeoutSeconds` | `SlimData__Membership__AnnouncementTimeoutSeconds` | `int` | `70` |
 | *(new)* | `SlimData:Membership:RemovalMissingCycles` | `SlimData__Membership__RemovalMissingCycles` | `int` | `3` |
@@ -118,7 +120,10 @@ environment:
   "SlimData": {
     "Directory": "/data",
     "Configuration": "{\"coldStart\":\"true\"}",
-    "AllowColdStart": false
+    "AllowColdStart": false,
+    "WalMemoryManagement": "PrivateMemory",
+    "SnapshotIntervalEntries": 5000,
+    "SnapshotIntervalBytes": 67108864
   },
   "RaftClientHandler": {
     "ConnectTimeoutMilliseconds": 2000,
@@ -160,6 +165,9 @@ environment:
   - SlimData__Directory=/data
   - SlimData__Configuration={"coldStart":"true"}
   - SlimData__AllowColdStart=false
+  - SlimData__WalMemoryManagement=PrivateMemory
+  - SlimData__SnapshotIntervalEntries=5000
+  - SlimData__SnapshotIntervalBytes=67108864
 
   # RaftClientHandler
   - RaftClientHandler__ConnectTimeoutMilliseconds=2000

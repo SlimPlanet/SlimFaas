@@ -268,11 +268,10 @@ public class SlimQueuesWorkerOffloadTests
 
     /// <summary>
     /// Vérifie que si les métadonnées du fichier sont introuvables en base (db.GetAsync retourne null),
-    /// le worker loggue un avertissement et envoie quand même la requête avec un stream null
-    /// (comportement de fallback décrit dans le code source).
+    /// le worker loggue un avertissement, marque l'essai avec un statut retryable et n'appelle pas la fonction.
     /// </summary>
     [Fact]
-    public async Task WhenOffloadedFileMetadataNotFound_ShouldLogWarningAndSendWithNullStream()
+    public async Task WhenOffloadedFileMetadataNotFound_ShouldMarkRetryableFailureWithoutCallingFunction()
     {
         const string functionName = "my-func";
         const string fileId = "missing-file-id";
@@ -373,7 +372,7 @@ public class SlimQueuesWorkerOffloadTests
             It.IsAny<Exception?>(),
             (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()), Times.AtLeastOnce);
 
-        // SendHttpRequestAsync doit être appelé avec stream = null (fallback)
+        // La fonction ne doit jamais être appelée avec un body vide.
         sendClientMock.Verify(s => s.SendHttpRequestAsync(
             It.IsAny<CustomRequest>(),
             It.IsAny<SlimFaasDefaultConfiguration>(),
@@ -383,8 +382,15 @@ public class SlimQueuesWorkerOffloadTests
             It.IsAny<string?>(),
             It.IsAny<string?>(),
             It.IsAny<string?>(),
-            It.Is<Stream?>(stream => stream == null)), Times.AtLeastOnce);
+            It.IsAny<Stream?>()), Times.Never);
+
+        // Le code 500 appartient aux statuts retryables par défaut de la queue.
+        queueMock.Verify(q => q.ListCallbackAsync(
+            functionName,
+            It.Is<ListQueueItemStatus>(status =>
+                status.Items != null &&
+                status.Items.Any(item => item.Id == "element-id-3" && item.HttpCode == 500))),
+            Times.AtLeastOnce);
     }
 }
-
 

@@ -698,7 +698,7 @@ public class Endpoints
                     Operation = item.Operation,
                     Key = item.Key,
                     Value = item.Value ?? Array.Empty<byte>(),
-                    ExpireAtUtcTicks = item.Operation == KeyValueOperation.Set ? item.ExpireAtUtcTicks : null,
+                    ExpireAtUtcTicks = item.ExpireAtUtcTicks,
                     IntegerDelta = item.IntegerDelta,
                     FloatDelta = item.FloatDelta,
                     NowTicks = item.NowTicks

@@ -15,6 +15,13 @@ public sealed class SlimDataDiagnosticsWorker(
     ILogger<SlimDataDiagnosticsWorker> logger) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
+    private static readonly (SlimDataSnapshotTrigger Trigger, IReadOnlyDictionary<string, string> Labels)[]
+        SnapshotTriggerMetrics =
+        [
+            (SlimDataSnapshotTrigger.Entries, new Dictionary<string, string> { ["cause"] = "entries" }),
+            (SlimDataSnapshotTrigger.Bytes, new Dictionary<string, string> { ["cause"] = "bytes" }),
+            (SlimDataSnapshotTrigger.Incompatible, new Dictionary<string, string> { ["cause"] = "incompatible" })
+        ];
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -65,6 +72,17 @@ public sealed class SlimDataDiagnosticsWorker(
             "Size in bytes of the latest SlimData snapshot or its payload");
         gauges.SetGaugeValue("slimdata_snapshot_last_duration_milliseconds", persistentState.LastSnapshotDurationMilliseconds,
             "Duration of the latest SlimData snapshot operation");
+        gauges.SetGaugeValue("slimdata_wal_bytes_since_snapshot", persistentState.WalBytesSinceSnapshot,
+            "Bytes of applied SlimData WAL entries accumulated since the latest snapshot request or restore");
+
+        foreach (var (trigger, labels) in SnapshotTriggerMetrics)
+        {
+            gauges.SetGaugeValue(
+                "slimdata_snapshot_last_trigger",
+                persistentState.LastSnapshotTrigger == trigger ? 1 : 0,
+                "Cause of the latest SlimData snapshot request in this process",
+                labels);
+        }
 
         foreach (var skipped in persistentState.GetSkippedCommandMetrics())
         {

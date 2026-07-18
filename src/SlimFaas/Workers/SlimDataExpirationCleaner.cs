@@ -10,22 +10,34 @@ namespace SlimData.Expiration;
 public sealed class SlimDataExpirationCleaner
 {
     private const string QueueElementIdTagKey = "QueueElementId";
+    internal const int DefaultOrphanConfirmationCycles = 3;
+    private const string DiskCandidatePrefix = "disk:";
+    private const string MetadataCandidatePrefix = "metadata:";
 
     private readonly ISupplier<SlimDataPayload> _state;
     private readonly IDatabaseService _db;
     private readonly IFileRepository _files;
     private readonly ILogger<SlimDataExpirationCleaner> _logger;
+    private readonly int _orphanConfirmationCycles;
+    private readonly Dictionary<string, int> _orphanCandidates = new(StringComparer.Ordinal);
 
     public SlimDataExpirationCleaner(
         ISupplier<SlimDataPayload> state,
         IDatabaseService db,
         IFileRepository files,
-        ILogger<SlimDataExpirationCleaner> logger)
+        ILogger<SlimDataExpirationCleaner> logger,
+        int orphanConfirmationCycles = DefaultOrphanConfirmationCycles)
     {
         _state = state ?? throw new ArgumentNullException(nameof(state));
         _db = db ?? throw new ArgumentNullException(nameof(db));
         _files = files ?? throw new ArgumentNullException(nameof(files));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _orphanConfirmationCycles = orphanConfirmationCycles > 0
+            ? orphanConfirmationCycles
+            : throw new ArgumentOutOfRangeException(
+                nameof(orphanConfirmationCycles),
+                orphanConfirmationCycles,
+                "The number of orphan confirmation cycles must be strictly positive.");
     }
 
     public async Task CleanupOnceAsync(CancellationToken ct)
@@ -40,6 +52,7 @@ public sealed class SlimDataExpirationCleaner
 
         // Build set of active QueueElementIds for orphan detection (once per run)
         var activeQueueIds = BuildActiveQueueIds(queues);
+        var observedOrphanArtifacts = new HashSet<string>(StringComparer.Ordinal);
 
         // 1) KeyValues TTL: keys ending with the TTL postfix
         foreach (var kv in keyValues)
@@ -119,10 +132,23 @@ public sealed class SlimDataExpirationCleaner
             // Orphaned offload file: has a QueueElementId tag but the queue element no longer exists
             if (entry.Metadata.Tags is not null &&
                 entry.Metadata.Tags.TryGetValue(QueueElementIdTagKey, out var fileQueueElementId) &&
-                !string.IsNullOrEmpty(fileQueueElementId) &&
-                !activeQueueIds.Contains(fileQueueElementId))
+                !string.IsNullOrEmpty(fileQueueElementId))
             {
-                _logger.LogDebug("Deleting orphaned offload file. id={Id} QueueElementId={QueueElementId}", entry.Id, fileQueueElementId);
+                var candidateKey = DiskCandidatePrefix + entry.Id;
+                observedOrphanArtifacts.Add(candidateKey);
+                if (activeQueueIds.Contains(fileQueueElementId))
+                {
+                    _orphanCandidates.Remove(candidateKey);
+                    continue;
+                }
+
+                if (!IsConfirmedOrphan(candidateKey))
+                    continue;
+
+                _logger.LogDebug(
+                    "Deleting confirmed orphaned offload file. id={Id} QueueElementId={QueueElementId}",
+                    entry.Id,
+                    fileQueueElementId);
                 try
                 {
                     await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
@@ -161,10 +187,21 @@ public sealed class SlimDataExpirationCleaner
                 string.IsNullOrEmpty(queueElementId))
                 continue;
 
+            var candidateKey = MetadataCandidatePrefix + key;
+            observedOrphanArtifacts.Add(candidateKey);
             if (activeQueueIds.Contains(queueElementId))
+            {
+                _orphanCandidates.Remove(candidateKey);
+                continue;
+            }
+
+            if (!IsConfirmedOrphan(candidateKey))
                 continue;
 
-            _logger.LogDebug("Deleting orphaned offload metadata. key={Key} QueueElementId={QueueElementId}", key, queueElementId);
+            _logger.LogDebug(
+                "Deleting confirmed orphaned offload metadata. key={Key} QueueElementId={QueueElementId}",
+                key,
+                queueElementId);
             try
             {
                 await _db.DeleteAsync(key).ConfigureAwait(false);
@@ -188,6 +225,20 @@ public sealed class SlimDataExpirationCleaner
         {
             _logger.LogWarning(ex, "Failed to cleanup orphan .tmp files.");
         }
+
+        foreach (var candidateKey in _orphanCandidates.Keys.ToArray())
+        {
+            if (!observedOrphanArtifacts.Contains(candidateKey))
+                _orphanCandidates.Remove(candidateKey);
+        }
+    }
+
+    private bool IsConfirmedOrphan(string candidateKey)
+    {
+        _orphanCandidates.TryGetValue(candidateKey, out var observedCycles);
+        observedCycles = Math.Min(observedCycles + 1, _orphanConfirmationCycles);
+        _orphanCandidates[candidateKey] = observedCycles;
+        return observedCycles >= _orphanConfirmationCycles;
     }
 
     internal static HashSet<string> BuildActiveQueueIds(

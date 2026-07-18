@@ -18,6 +18,7 @@ public class Startup(IConfiguration configuration)
     private static Uri? LocalEndpoint;
     internal const string MembershipAnnounceResource = "/SlimData/members/announce";
     internal const string ProtocolResource = "/SlimData/protocol";
+    internal const string WalMemoryManagement = "SlimData:WalMemoryManagement";
 
     public static void AddClusterMemberBeforeStart(string endpoint)
     {
@@ -183,7 +184,7 @@ public class Startup(IConfiguration configuration)
             .UseStateMachine<SlimPersistentState>(new WriteAheadLog.Options
             {
                 Location = walPath,
-                MemoryManagement = WriteAheadLog.MemoryManagementStrategy.SharedMemory
+                MemoryManagement = GetWalMemoryManagement(configuration)
             })
             .AddSingleton<ISupplier<SlimDataPayload>>(sp => sp.GetRequiredService<SlimPersistentState>());
 
@@ -212,6 +213,33 @@ public class Startup(IConfiguration configuration)
     {
         foreach (var clusterMember in ClusterMembers)
             members.Add(new UriEndPoint(new Uri(clusterMember, UriKind.Absolute)));
+    }
+
+    internal static WriteAheadLog.MemoryManagementStrategy GetWalMemoryManagement(IConfiguration configuration)
+    {
+        var configuredValue = configuration[WalMemoryManagement];
+        if (configuredValue is null)
+            return WriteAheadLog.MemoryManagementStrategy.PrivateMemory;
+
+        if (string.Equals(
+                configuredValue,
+                nameof(WriteAheadLog.MemoryManagementStrategy.PrivateMemory),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return WriteAheadLog.MemoryManagementStrategy.PrivateMemory;
+        }
+
+        if (string.Equals(
+                configuredValue,
+                nameof(WriteAheadLog.MemoryManagementStrategy.SharedMemory),
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return WriteAheadLog.MemoryManagementStrategy.SharedMemory;
+        }
+
+        throw new InvalidOperationException(
+            $"Invalid value '{configuredValue}' for '{WalMemoryManagement}'. " +
+            "Allowed values are 'PrivateMemory' and 'SharedMemory'.");
     }
 
     internal static Uri[] GetKnownClusterMembers()

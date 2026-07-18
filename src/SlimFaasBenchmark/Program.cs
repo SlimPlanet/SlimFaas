@@ -15,7 +15,7 @@ var payload = new
 // Création du client HTTP (NB: tu peux aussi injecter le BaseAddress directement)
 using var httpClient = new HttpClient
 {
-    BaseAddress = new Uri("http://localhost:30021")
+    BaseAddress = new Uri("http://localhost:50000")
 };
 
 // Définition du scénario
@@ -36,9 +36,9 @@ var scenario = Scenario.Create("fibonacci_scenario", async context =>
     .WithoutWarmUp()
     .WithLoadSimulations(
         Simulation.Inject(
-            rate: 400,
+            rate: 320,
             interval: TimeSpan.FromSeconds(1),
-            during: TimeSpan.FromMinutes(120))
+            during: TimeSpan.FromMinutes(60))
     );
 
 // Exécution du scénario

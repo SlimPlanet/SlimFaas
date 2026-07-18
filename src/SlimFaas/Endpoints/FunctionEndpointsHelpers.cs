@@ -1,3 +1,4 @@
+using System.Buffers;
 using MemoryPack;
 using Microsoft.Extensions.DependencyInjection;
 using SlimData.ClusterFiles;
@@ -144,11 +145,31 @@ public static class FunctionEndpointsHelpers
             };
         }
 
-        bool shouldOffload = bodyOffloadThresholdBytes > 0
-                             && fileSync != null
-                             && db != null
-                             && (contextRequest.ContentLength == null
-                                 || contextRequest.ContentLength > bodyOffloadThresholdBytes);
+        bool canOffload = bodyOffloadThresholdBytes > 0
+                          && fileSync != null
+                          && db != null;
+        bool shouldOffload = canOffload
+                             && contextRequest.ContentLength > bodyOffloadThresholdBytes;
+        Stream? offloadContent = shouldOffload ? contextRequest.Body : null;
+
+        if (canOffload && contextRequest.ContentLength is null)
+        {
+            var bodyProbe = await ReadBodyProbeAsync(
+                contextRequest.Body,
+                bodyOffloadThresholdBytes,
+                ct).ConfigureAwait(false);
+
+            if (bodyProbe.Length <= bodyOffloadThresholdBytes)
+            {
+                requestBodyBytes = bodyProbe;
+            }
+            else
+            {
+                shouldOffload = true;
+                offloadContent = new PrefixedReadStream(bodyProbe, contextRequest.Body);
+            }
+        }
+
         logger.LogDebug(
             "Request body offload check. ShouldOffload={ShouldOffload} ContentLength={ContentLength} Threshold={Threshold}",
             shouldOffload,
@@ -168,7 +189,7 @@ public static class FunctionEndpointsHelpers
 
             var put = await fileSync!.BroadcastFilePutAsync(
                 id: offloadedFileId,
-                content: contextRequest.Body,
+                content: offloadContent!,
                 contentType: contentType,
                 contentLengthBytes: contentLength,
                 overwrite: false,
@@ -193,7 +214,7 @@ public static class FunctionEndpointsHelpers
             var metaBytes = MemoryPackSerializer.Serialize(meta);
             await db!.SetAsync(metaKey, metaBytes);
         }
-        else
+        else if (requestBodyBytes is null)
         {
             using StreamContent streamContent = new(context.Request.Body);
             using MemoryStream memoryStream = new();
@@ -211,6 +232,87 @@ public static class FunctionEndpointsHelpers
             Method = requestMethod,
             OffloadedFileId = offloadedFileId
         };
+    }
+
+    private static async Task<byte[]> ReadBodyProbeAsync(
+        Stream body,
+        long thresholdBytes,
+        CancellationToken ct)
+    {
+        var probeLength = checked((int)(thresholdBytes + 1));
+        using MemoryStream probe = new();
+        var buffer = ArrayPool<byte>.Shared.Rent(Math.Min(64 * 1024, probeLength));
+        try
+        {
+            while (probe.Length < probeLength)
+            {
+                var remaining = probeLength - (int)probe.Length;
+                var read = await body.ReadAsync(
+                    buffer.AsMemory(0, Math.Min(buffer.Length, remaining)),
+                    ct).ConfigureAwait(false);
+                if (read == 0)
+                    break;
+
+                await probe.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+            }
+
+            return probe.ToArray();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private sealed class PrefixedReadStream(byte[] prefix, Stream tail) : Stream
+    {
+        private int _prefixOffset;
+
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            if (_prefixOffset < prefix.Length)
+            {
+                var copied = Math.Min(count, prefix.Length - _prefixOffset);
+                prefix.AsSpan(_prefixOffset, copied).CopyTo(buffer.AsSpan(offset, copied));
+                _prefixOffset += copied;
+                return copied;
+            }
+
+            return tail.Read(buffer, offset, count);
+        }
+
+        public override async ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            if (_prefixOffset < prefix.Length)
+            {
+                var copied = Math.Min(buffer.Length, prefix.Length - _prefixOffset);
+                prefix.AsMemory(_prefixOffset, copied).CopyTo(buffer);
+                _prefixOffset += copied;
+                return copied;
+            }
+
+            return await tail.ReadAsync(buffer, cancellationToken).ConfigureAwait(false);
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     public static FunctionStatus MapToFunctionStatus(DeploymentInformation functionDeploymentInformation)
