@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.74.5
+
+- [281b94f8](https://github.com/SlimPlanet/SlimFaas/commit/281b94f862ec62d792397f37f81912e18cc8875a) - refactor: update npm lib (release) (#296), 2026-07-22 by *Guillaume Chervet*
+
+
+## 0.74.4
+
+
+
 ## v0.74.4
 
 - [02bf9318](https://github.com/SlimPlanet/SlimFaas/commit/02bf931887397e4b4e94079d4f9c31ce73cf9bc4) - fix: enhance raft shot (release), 2026-07-22 by *Guillaume Chervet*
@@ -265,14 +274,5 @@
 ## v0.62.0
 
 - [0861ad12](https://github.com/SlimPlanet/SlimFaas/commit/0861ad12dc11d58ffb7a0be611e8f54224b09e2c) - feat(slimfaas): add async **SlimFaas-Try-Number header** **Slimfaas-L… (#237) (release), 2026-02-10 by *Guillaume Chervet*
-
-
-## 0.61.14
-
-
-
-## v0.61.14
-
-- [3a60b1fb](https://github.com/SlimPlanet/SlimFaas/commit/3a60b1fb23cda6297c24ccc1e7076e264bf3069d) - doc: fix jobs enb var (release), 2026-02-08 by *Guillaume Chervet*
 
 
