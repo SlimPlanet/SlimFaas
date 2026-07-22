@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.74.4
+
+- [02bf9318](https://github.com/SlimPlanet/SlimFaas/commit/02bf931887397e4b4e94079d4f9c31ce73cf9bc4) - fix: enhance raft shot (release), 2026-07-22 by *Guillaume Chervet*
+- [55954212](https://github.com/SlimPlanet/SlimFaas/commit/5595421261ffc5d322cc6cd174e7b1dee7b1605d) - chore: update .net packages (release), 2026-07-22 by *Guillaume Chervet*
+
+
+## 0.74.3
+
+
+
 ## v0.74.3
 
 - [86a94748](https://github.com/SlimPlanet/SlimFaas/commit/86a94748baa83b47da0303b647e0e71d059d4f3f) - fix: set ttl was broken (release) (#295), 2026-07-18 by *Guillaume Chervet*
@@ -264,14 +274,5 @@
 ## v0.61.14
 
 - [3a60b1fb](https://github.com/SlimPlanet/SlimFaas/commit/3a60b1fb23cda6297c24ccc1e7076e264bf3069d) - doc: fix jobs enb var (release), 2026-02-08 by *Guillaume Chervet*
-
-
-## 0.61.13
-
-
-
-## v0.61.13
-
-- [bf82cbc5](https://github.com/SlimPlanet/SlimFaas/commit/bf82cbc52e4e5967b684052a45b7b78d5bb630a1) - Change PUBLISH_AOT to false for amd64 architecture (release), 2026-02-07 by *Guillaume Chervet*
 
 
