@@ -1,5 +1,6 @@
+import type { NextConfig } from 'next';
 
-const nextConfig = {
+const nextConfig: NextConfig = {
     output: 'export',
     images: {
         unoptimized: true,
@@ -11,4 +12,4 @@ const nextConfig = {
     },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
