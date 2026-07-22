@@ -219,7 +219,7 @@ public class Startup(IConfiguration configuration)
     {
         var configuredValue = configuration[WalMemoryManagement];
         if (configuredValue is null)
-            return WriteAheadLog.MemoryManagementStrategy.PrivateMemory;
+            return WriteAheadLog.MemoryManagementStrategy.SharedMemory;
 
         if (string.Equals(
                 configuredValue,

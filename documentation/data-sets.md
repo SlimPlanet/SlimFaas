@@ -241,19 +241,19 @@ Writes are grouped into bounded adaptive batches before being replicated as Raft
 
 `SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
 
-SlimData uses DotNext's `PrivateMemory` WAL strategy by default for maximum write performance. This mode uses more RAM than `SharedMemory`. Memory-constrained deployments can select the memory-mapped strategy instead:
+SlimData uses DotNext's `SharedMemory` WAL strategy by default. It keeps WAL chunks in memory-mapped files so the operating system can reclaim their pages under memory pressure. Deployments that explicitly favor maximum write throughput over memory usage can select `PrivateMemory` instead:
 
 ```bash
-SlimData__WalMemoryManagement=SharedMemory
+SlimData__WalMemoryManagement=PrivateMemory
 ```
 
 Only `PrivateMemory` and `SharedMemory` are accepted, case-insensitively. An invalid value prevents startup. Switching strategy does not alter the WAL format and does not require a data migration.
 
-Streaming state snapshots use a hybrid threshold. A snapshot is requested after 64 MiB of successfully applied WAL entries or 5,000 successfully applied entries, whichever occurs first. Both positive thresholds can be changed without altering the API:
+Streaming state snapshots use a hybrid threshold. A snapshot is requested after 32 MiB of successfully applied WAL entries or 500 successfully applied entries, whichever occurs first. Both positive thresholds can be changed without altering the API:
 
 ```bash
-SlimData__SnapshotIntervalEntries=5000
-SlimData__SnapshotIntervalBytes=67108864
+SlimData__SnapshotIntervalEntries=500
+SlimData__SnapshotIntervalBytes=33554432
 ```
 
 The current byte window is exposed as `slimdata_wal_bytes_since_snapshot`. The one-hot gauge `slimdata_snapshot_last_trigger` reports the latest request cause with the `cause` label (`bytes`, `entries`, or `incompatible`).

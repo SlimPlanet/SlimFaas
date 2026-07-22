@@ -233,7 +233,7 @@ public partial class KubernetesService
             client.BaseUri,
             $"apis/batch/v1/namespaces/{kubeNamespace}/jobs/{jobName}?propagationPolicy=Foreground");
 
-        HttpRequestMessage httpRequest = new(HttpMethod.Delete, new Uri(url));
+        using HttpRequestMessage httpRequest = new(HttpMethod.Delete, new Uri(url));
 
         // 2. (body facultatif) : DeleteOptions
         //    Utile si vous voulez, par ex., gracePeriodSeconds = 0
@@ -246,7 +246,7 @@ public partial class KubernetesService
         if (client.Credentials is not null)
             await client.Credentials.ProcessHttpRequestAsync(httpRequest, CancellationToken.None);
 
-        HttpResponseMessage response = await client.HttpClient.SendAsync(
+        using HttpResponseMessage response = await client.HttpClient.SendAsync(
             httpRequest, HttpCompletionOption.ResponseHeadersRead);
 
         if (response.StatusCode is not (HttpStatusCode.OK

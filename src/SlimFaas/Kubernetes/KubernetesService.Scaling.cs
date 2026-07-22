@@ -81,7 +81,6 @@ public partial class KubernetesService
         {
             k8s.Kubernetes client = _client;
             string patchString = $"{{\"spec\": {{\"replicas\": {request.Replicas}}}}}";
-            StringContent httpContent = new(patchString, Encoding.UTF8, "application/merge-patch+json");
             // we need to get the base uri, as it's not set on the HttpClient
             switch (request.PodType)
             {
@@ -89,15 +88,19 @@ public partial class KubernetesService
                     {
                         string url = string.Concat(client.BaseUri,
                             $"apis/apps/v1/namespaces/{request.Namespace}/deployments/{request.Deployment}/scale");
-                        HttpRequestMessage httpRequest = new(HttpMethod.Patch,
-                            new Uri(url));
-                        httpRequest.Content = httpContent;
+                        using HttpRequestMessage httpRequest = new(HttpMethod.Patch, new Uri(url))
+                        {
+                            Content = new StringContent(
+                                patchString,
+                                Encoding.UTF8,
+                                "application/merge-patch+json")
+                        };
                         if (client.Credentials != null)
                         {
                             await client.Credentials.ProcessHttpRequestAsync(httpRequest, CancellationToken.None);
                         }
 
-                        HttpResponseMessage response =
+                        using HttpResponseMessage response =
                             await client.HttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
                         if (response.StatusCode != HttpStatusCode.OK)
                         {
@@ -110,15 +113,19 @@ public partial class KubernetesService
                     {
                         string url = string.Concat(client.BaseUri,
                             $"apis/apps/v1/namespaces/{request.Namespace}/statefulsets/{request.Deployment}/scale");
-                        HttpRequestMessage httpRequest = new(HttpMethod.Patch,
-                            new Uri(url));
-                        httpRequest.Content = httpContent;
+                        using HttpRequestMessage httpRequest = new(HttpMethod.Patch, new Uri(url))
+                        {
+                            Content = new StringContent(
+                                patchString,
+                                Encoding.UTF8,
+                                "application/merge-patch+json")
+                        };
                         if (client.Credentials != null)
                         {
                             await client.Credentials.ProcessHttpRequestAsync(httpRequest, CancellationToken.None);
                         }
 
-                        HttpResponseMessage response =
+                        using HttpResponseMessage response =
                             await client.HttpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
                         if (response.StatusCode != HttpStatusCode.OK)
                         {

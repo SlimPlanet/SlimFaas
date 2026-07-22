@@ -202,6 +202,34 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
+    public async Task ApplyAsync_uses_memory_safe_default_snapshot_thresholds()
+    {
+        Assert.Equal(500, SlimPersistentState.DefaultSnapshotIntervalEntries);
+        Assert.Equal(32L * 1024L * 1024L, SlimPersistentState.DefaultSnapshotIntervalBytes);
+
+        var root = GetTemporaryDirectory();
+
+        try
+        {
+            await using var state = new SlimPersistentState(root);
+
+            for (var index = 1L; index < SlimPersistentState.DefaultSnapshotIntervalEntries; index++)
+                Assert.False(await ApplySetAsync(state, index, "default-entry-threshold"));
+
+            Assert.True(await ApplySetAsync(
+                state,
+                SlimPersistentState.DefaultSnapshotIntervalEntries,
+                "default-entry-threshold"));
+            Assert.Equal(SlimDataSnapshotTrigger.Entries, state.LastSnapshotTrigger);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task ApplyAsync_requests_snapshot_at_five_thousand_applied_entries()
     {
         var root = GetTemporaryDirectory();

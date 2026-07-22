@@ -44,8 +44,8 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     public const string UsePersistentConfigurationStorage = "SlimData:UsePersistentConfigurationStorage";
     public const string SnapshotIntervalEntries = "SlimData:SnapshotIntervalEntries";
     public const string SnapshotIntervalBytes = "SlimData:SnapshotIntervalBytes";
-    public const int DefaultSnapshotIntervalEntries = 5000;
-    public const long DefaultSnapshotIntervalBytes = 64L * 1024L * 1024L;
+    public const int DefaultSnapshotIntervalEntries = 500;
+    public const long DefaultSnapshotIntervalBytes = 32L * 1024L * 1024L;
     private const string SkippedIncompatibleCommandMessage =
         "Skipped incompatible SlimData Raft log entry.";
 

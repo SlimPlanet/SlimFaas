@@ -7,13 +7,13 @@ namespace SlimData.Tests;
 public sealed class StartupConfigurationTests
 {
     [Fact]
-    public void Wal_memory_management_defaults_to_private_memory()
+    public void Wal_memory_management_defaults_to_shared_memory()
     {
         var configuration = new ConfigurationBuilder().Build();
 
         var strategy = Startup.GetWalMemoryManagement(configuration);
 
-        Assert.Equal(WriteAheadLog.MemoryManagementStrategy.PrivateMemory, strategy);
+        Assert.Equal(WriteAheadLog.MemoryManagementStrategy.SharedMemory, strategy);
     }
 
     [Theory]

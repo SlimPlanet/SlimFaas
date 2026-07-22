@@ -32,17 +32,17 @@ It handles scaling, routing, and state management.
 
 DotNext supports two WAL memory-management strategies. SlimFaas selects the strategy with `SlimData:WalMemoryManagement`:
 
-- `PrivateMemory` is the default. It uses private temporary buffers and favors write throughput, at the cost of higher RAM consumption.
-- `SharedMemory` writes directly to memory-mapped WAL files. It is the preferred mode for memory-constrained deployments because the operating system can reclaim or flush mapped pages under memory pressure.
+- `SharedMemory` is the default. It writes directly to memory-mapped WAL files so the operating system can reclaim or flush mapped pages under memory pressure.
+- `PrivateMemory` uses private temporary buffers and favors write throughput, at the cost of higher RAM consumption.
 
-SlimData creates a streaming snapshot when either **64 MiB of successfully applied WAL entries** or **5,000 successfully applied entries** have accumulated, whichever occurs first. A snapshot compacts the preceding Raft log window; the byte and entry counters restart after the snapshot request or a snapshot restore.
+SlimData creates a streaming snapshot when either **32 MiB of successfully applied WAL entries** or **500 successfully applied entries** have accumulated, whichever occurs first. A snapshot compacts the preceding Raft log window; the byte and entry counters restart after the snapshot request or a snapshot restore.
 
 ```json
 {
   "SlimData": {
-    "WalMemoryManagement": "PrivateMemory",
-    "SnapshotIntervalEntries": 5000,
-    "SnapshotIntervalBytes": 67108864
+    "WalMemoryManagement": "SharedMemory",
+    "SnapshotIntervalEntries": 500,
+    "SnapshotIntervalBytes": 33554432
   }
 }
 ```
@@ -51,8 +51,8 @@ The equivalent environment variables are:
 
 ```bash
 SlimData__WalMemoryManagement=SharedMemory
-SlimData__SnapshotIntervalEntries=5000
-SlimData__SnapshotIntervalBytes=67108864
+SlimData__SnapshotIntervalEntries=500
+SlimData__SnapshotIntervalBytes=33554432
 ```
 
 `WalMemoryManagement` accepts only `PrivateMemory` and `SharedMemory`, case-insensitively. Snapshot intervals must be strictly positive. Invalid values stop startup with a configuration error. Changing the memory strategy does not change the WAL format and does not require a data migration.
