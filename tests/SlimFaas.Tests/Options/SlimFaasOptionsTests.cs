@@ -71,6 +71,86 @@ public class SlimFaasOptionsTests
         Assert.Equal(0, options.StatusStream.MaxLiveEventsPerSecond);
         Assert.Equal(1.0, options.StatusStream.LiveEventSamplingRatio);
         Assert.Equal(100, options.StatusStream.LiveActivityBatchSize);
+        Assert.Equal(8L * 1024L * 1024L, options.MetricsScraping.MaxResponseBytes);
+        Assert.Equal(64 * 1024, options.MetricsScraping.MaxLineBytes);
+        Assert.Equal(10_000, options.MetricsScraping.MaxSelectedSeriesPerTarget);
+        Assert.Equal(10, options.MetricsScraping.RequestTimeoutSeconds);
+    }
+
+    [Fact]
+    public void SlimFaasOptions_MetricsScraping_ShouldBindFromConfiguration()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SlimFaas:MetricsScraping:MaxResponseBytes"] = "16777216",
+                ["SlimFaas:MetricsScraping:MaxLineBytes"] = "131072",
+                ["SlimFaas:MetricsScraping:MaxSelectedSeriesPerTarget"] = "20000",
+                ["SlimFaas:MetricsScraping:RequestTimeoutSeconds"] = "20"
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddOptions<SlimFaasOptions>().BindConfiguration(SlimFaasOptions.SectionName);
+        services.AddSingleton<IConfiguration>(configuration);
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<IOptions<SlimFaasOptions>>().Value.MetricsScraping;
+
+        Assert.Equal(16L * 1024L * 1024L, options.MaxResponseBytes);
+        Assert.Equal(128 * 1024, options.MaxLineBytes);
+        Assert.Equal(20_000, options.MaxSelectedSeriesPerTarget);
+        Assert.Equal(20, options.RequestTimeoutSeconds);
+    }
+
+    [Theory]
+    [InlineData("MaxResponseBytes", "0")]
+    [InlineData("MaxLineBytes", "0")]
+    [InlineData("MaxLineBytes", "9000000")]
+    [InlineData("MaxSelectedSeriesPerTarget", "0")]
+    [InlineData("RequestTimeoutSeconds", "0")]
+    public void SlimFaasOptions_MetricsScraping_ShouldRejectInvalidValues(string setting, string value)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [$"SlimFaas:MetricsScraping:{setting}"] = value
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSlimFaasOptions(configuration);
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            serviceProvider.GetRequiredService<IOptions<SlimFaasOptions>>().Value);
+    }
+
+    [Fact]
+    public void SlimFaasOptions_MetricsScraping_SupportsEnvironmentVariableOverride()
+    {
+        var prefix = $"SLIMFAAS_METRICS_TEST_{Guid.NewGuid():N}_";
+        var variable = $"{prefix}SlimFaas__MetricsScraping__MaxResponseBytes";
+        Environment.SetEnvironmentVariable(variable, "123456");
+
+        try
+        {
+            var configuration = new ConfigurationBuilder()
+                .AddEnvironmentVariables(prefix)
+                .Build();
+            var services = new ServiceCollection();
+            services.AddOptions<SlimFaasOptions>().BindConfiguration(SlimFaasOptions.SectionName);
+            services.AddSingleton<IConfiguration>(configuration);
+
+            using var serviceProvider = services.BuildServiceProvider();
+            var options = serviceProvider.GetRequiredService<IOptions<SlimFaasOptions>>().Value;
+
+            Assert.Equal(123456, options.MetricsScraping.MaxResponseBytes);
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, null);
+        }
     }
 
     [Fact]
