@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.74.6
+
+- [7679e085](https://github.com/SlimPlanet/SlimFaas/commit/7679e085cc89a3765f2a9f7b87bb50e5d57a655a) - fix: metrics regex timeout (#297) (release), 2026-07-23 by *Guillaume Chervet*
+
+
+## 0.74.5
+
+
+
 ## v0.74.5
 
 - [281b94f8](https://github.com/SlimPlanet/SlimFaas/commit/281b94f862ec62d792397f37f81912e18cc8875a) - refactor: update npm lib (release) (#296), 2026-07-22 by *Guillaume Chervet*
@@ -264,15 +273,5 @@
 ## v0.64.0
 
 - [4934507e](https://github.com/SlimPlanet/SlimFaas/commit/4934507efabe11336514790bf7a7000113de005e) - feat(slimfaas): backup schedule (#241) (release), 2026-02-25 by *Guillaume Chervet*
-
-
-## v0.63.0
-
-- [a33f32e0](https://github.com/SlimPlanet/SlimFaas/commit/a33f32e04f4898d9533fa069786a5e4a45fc5a57) - feat(Resilience): add cpu rate limiting (#236) (release), 2026-02-13 by *Silthian*
-
-
-## v0.62.0
-
-- [0861ad12](https://github.com/SlimPlanet/SlimFaas/commit/0861ad12dc11d58ffb7a0be611e8f54224b09e2c) - feat(slimfaas): add async **SlimFaas-Try-Number header** **Slimfaas-L… (#237) (release), 2026-02-10 by *Guillaume Chervet*
 
 
