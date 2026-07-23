@@ -238,6 +238,26 @@ jobs:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
 
+  build_slimfaas_dotnet:
+    needs: tags
+    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
+    uses: ./.github/workflows/Docker.yml
+    with:
+      image_name: "axaguildev/slimfaas-dotnet"
+      image_version: "${{ needs.tags.outputs.new_version }}"
+      image_build_args: ""
+      image_context: "."
+      image_file: "./Dockerfile.dotnet"
+      platforms: "linux/amd64,linux/arm64"
+      readme_url: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/README.md
+      image_description: "SlimFaas: fast FaaS + jobs/cron, scalable amd simple."
+      license: "Apache-2.0"
+      keywords: "slimfaas,faas,proxy,serverless,queue,publish/subscribe,jobs,cron,kubernetes"
+      logo_url: https://raw.githubusercontent.com/${{ github.repository }}/main/documentation/SlimFaas.png
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+
   build_slimfaas_kafka:
     needs: tags
     if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
