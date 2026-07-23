@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using SlimFaas.Workers;
 
 namespace SlimFaas.Kubernetes;
 
@@ -13,24 +14,40 @@ public sealed class PromQlMiniEvaluator
 {
     public delegate IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> SnapshotProvider();
 
-    private readonly SnapshotProvider _snapshotProvider;
+    private readonly SnapshotProvider? _snapshotProvider;
+    private readonly IMetricsStore? _metricsStore;
 
     public PromQlMiniEvaluator(SnapshotProvider snapshotProvider)
     {
-        _snapshotProvider = snapshotProvider;
+        _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
+    }
+
+    public PromQlMiniEvaluator(IMetricsStore metricsStore)
+    {
+        _metricsStore = metricsStore ?? throw new ArgumentNullException(nameof(metricsStore));
     }
 
     // Évalue la requête au temps "now" (Unix seconds, par défaut = dernier timestamp dispo)
     public double Evaluate(string query, long? nowUnixSeconds = null)
     {
-        var snapshot = _snapshotProvider();
-        if (snapshot.Count == 0)
-            return double.NaN;
+        EvalContext ctx;
+        if (_metricsStore is not null)
+        {
+            if (_metricsStore.LatestTimestamp is not { } latestTimestamp)
+                return double.NaN;
 
-        long now = nowUnixSeconds ?? snapshot.Keys.Max();
+            ctx = new EvalContext(_metricsStore, nowUnixSeconds ?? latestTimestamp);
+        }
+        else
+        {
+            var snapshot = _snapshotProvider!();
+            if (snapshot.Count == 0)
+                return double.NaN;
+
+            ctx = new EvalContext(snapshot, nowUnixSeconds ?? snapshot.Keys.Max());
+        }
 
         var ast = Parser.Parse(query);
-        var ctx = new EvalContext(snapshot, now);
         var res = ast.Eval(ctx);
         var scalar = res.AsScalar();
         if (double.IsNaN(scalar) || double.IsInfinity(scalar))
@@ -42,12 +59,23 @@ public sealed class PromQlMiniEvaluator
     // --------- Eval model ---------
     private sealed class EvalContext
     {
-        public readonly IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> Store;
+        private readonly IReadOnlyDictionary<long,
+            IReadOnlyDictionary<string,
+                IReadOnlyDictionary<string,
+                    IReadOnlyDictionary<string, double>>>>? _snapshot;
+        private readonly IMetricsStore? _metricsStore;
+
         public readonly long Now;
 
         public EvalContext(IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> store, long now)
         {
-            Store = store;
+            _snapshot = store;
+            Now = now;
+        }
+
+        public EvalContext(IMetricsStore metricsStore, long now)
+        {
+            _metricsStore = metricsStore;
             Now = now;
         }
 
@@ -58,8 +86,37 @@ public sealed class PromQlMiniEvaluator
 
             // seriesKey -> (timestamp -> value)
             var series = new Dictionary<string, SortedList<long, double>>(StringComparer.Ordinal);
+            if (_metricsStore is not null)
+            {
+                _metricsStore.VisitSeries((_, _, podIp, metricKey, points) =>
+                {
+                    if (!TryParseMetricKey(metricKey, out var name, out var labels) ||
+                        !selector.Match(name, labels))
+                    {
+                        return;
+                    }
 
-            foreach (var (ts, depMap) in Store)
+                    SortedList<long, double>? selectedPoints = null;
+                    for (var index = 0; index < points.Count; index++)
+                    {
+                        var point = points[index];
+                        if (point.Timestamp < fromTs)
+                            continue;
+
+                        selectedPoints ??= new SortedList<long, double>(points.Count - index);
+                        selectedPoints[point.Timestamp] = point.Value;
+                    }
+
+                    if (selectedPoints is null)
+                        return;
+
+                    var baseKey = BuildSeriesKey(name, labels);
+                    series[$"{baseKey}|pod={podIp}"] = selectedPoints;
+                });
+                return series;
+            }
+
+            foreach (var (ts, depMap) in _snapshot!)
             {
                 if (ts < fromTs) continue;
 

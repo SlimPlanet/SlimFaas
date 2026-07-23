@@ -165,11 +165,11 @@ switch (envOrConfig)
 // Store métriques Prometheus en mémoire
 serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 
-// Evaluateur PromQL branché sur le snapshot du store
+// Evaluateur PromQL branché directement sur les séries du store
 serviceCollectionStarter.AddSingleton<PromQlMiniEvaluator>(sp =>
 {
-    var store = (InMemoryMetricsStore)sp.GetRequiredService<IMetricsStore>();
-    return new PromQlMiniEvaluator(store.Snapshot);
+    var store = sp.GetRequiredService<IMetricsStore>();
+    return new PromQlMiniEvaluator(store);
 });
 
 // Store d’historique de décisions de scaling

@@ -71,6 +71,7 @@ public class SlimFaasOptionsTests
         Assert.Equal(0, options.StatusStream.MaxLiveEventsPerSecond);
         Assert.Equal(1.0, options.StatusStream.LiveEventSamplingRatio);
         Assert.Equal(100, options.StatusStream.LiveActivityBatchSize);
+        Assert.Equal(2_000, options.MetricsScraping.ScrapeIntervalMilliseconds);
         Assert.Equal(8L * 1024L * 1024L, options.MetricsScraping.MaxResponseBytes);
         Assert.Equal(64 * 1024, options.MetricsScraping.MaxLineBytes);
         Assert.Equal(10_000, options.MetricsScraping.MaxSelectedSeriesPerTarget);
@@ -83,6 +84,7 @@ public class SlimFaasOptionsTests
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["SlimFaas:MetricsScraping:ScrapeIntervalMilliseconds"] = "3000",
                 ["SlimFaas:MetricsScraping:MaxResponseBytes"] = "16777216",
                 ["SlimFaas:MetricsScraping:MaxLineBytes"] = "131072",
                 ["SlimFaas:MetricsScraping:MaxSelectedSeriesPerTarget"] = "20000",
@@ -96,6 +98,7 @@ public class SlimFaasOptionsTests
         using var serviceProvider = services.BuildServiceProvider();
         var options = serviceProvider.GetRequiredService<IOptions<SlimFaasOptions>>().Value.MetricsScraping;
 
+        Assert.Equal(3_000, options.ScrapeIntervalMilliseconds);
         Assert.Equal(16L * 1024L * 1024L, options.MaxResponseBytes);
         Assert.Equal(128 * 1024, options.MaxLineBytes);
         Assert.Equal(20_000, options.MaxSelectedSeriesPerTarget);
@@ -103,6 +106,7 @@ public class SlimFaasOptionsTests
     }
 
     [Theory]
+    [InlineData("ScrapeIntervalMilliseconds", "0")]
     [InlineData("MaxResponseBytes", "0")]
     [InlineData("MaxLineBytes", "0")]
     [InlineData("MaxLineBytes", "9000000")]

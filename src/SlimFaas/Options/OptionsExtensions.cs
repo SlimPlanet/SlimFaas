@@ -54,7 +54,8 @@ public static class OptionsExtensions
     private static bool ValidateMetricsScrapingOptions(SlimFaasOptions options)
     {
         var metrics = options.MetricsScraping;
-        return metrics.MaxResponseBytes > 0L
+        return metrics.ScrapeIntervalMilliseconds > 0
+               && metrics.MaxResponseBytes > 0L
                && metrics.MaxLineBytes > 0
                && metrics.MaxLineBytes <= metrics.MaxResponseBytes
                && metrics.MaxSelectedSeriesPerTarget > 0

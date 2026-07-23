@@ -1,8 +1,6 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
-using DotNext.Net.Cluster;
-using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -49,9 +47,22 @@ namespace SlimFaas.Tests.Workers
             public void EnablePromql() => IsEnabled = true;
         }
 
+        private sealed class TestMasterService : IMasterService
+        {
+            private volatile bool _isMaster;
+
+            public bool IsMaster
+            {
+                get => _isMaster;
+                set => _isMaster = value;
+            }
+        }
+
         private sealed class InMemoryDatabaseService : IDatabaseService
         {
             private readonly ConcurrentDictionary<string, byte[]> _storage = new(StringComparer.Ordinal);
+            private readonly ConcurrentDictionary<string, int> _getCounts = new(StringComparer.Ordinal);
+            private readonly ConcurrentDictionary<string, int> _setCounts = new(StringComparer.Ordinal);
 
             public Task<KeyValueCommandResult> SetAsync(
                 string key,
@@ -64,6 +75,7 @@ namespace SlimFaas.Tests.Workers
                 var result = new KeyValueCommandResult();
                 var bytes = value ?? Array.Empty<byte>();
                 _storage[key] = bytes;
+                _setCounts.AddOrUpdate(key, 1, static (_, count) => count + 1);
                 result.SetApplied(bytes);
                 return Task.FromResult(result);
             }
@@ -86,11 +98,28 @@ namespace SlimFaas.Tests.Workers
 
             public Task<byte[]?> GetAsync(string key)
             {
+                _getCounts.AddOrUpdate(key, 1, static (_, count) => count + 1);
                 _storage.TryGetValue(key, out var value);
-                return Task.FromResult<byte[]?>(value);
+                return Task.FromResult<byte[]?>(value?.ToArray());
             }
 
-            public bool TryGetRaw(string key, out byte[] value) => _storage.TryGetValue(key, out value);
+            public bool TryGetRaw(string key, out byte[] value)
+            {
+                if (_storage.TryGetValue(key, out var stored))
+                {
+                    value = stored;
+                    return true;
+                }
+
+                value = [];
+                return false;
+            }
+
+            public int GetCount(string key)
+                => _getCounts.TryGetValue(key, out var count) ? count : 0;
+
+            public int SetCount(string key)
+                => _setCounts.TryGetValue(key, out var count) ? count : 0;
         }
 
         // --- Helpers de construction ---
@@ -153,7 +182,7 @@ namespace SlimFaas.Tests.Workers
                 Trust: FunctionTrust.Trusted
             );
 
-            // SlimFaas pods (StatefulSet -0, -1) pour la désignation
+            // SlimFaas pods used by the deployment model.
             var slimfaasPods = new List<PodInformation>
             {
                 new PodInformation("slimfaas-0", true, true, "10.9.0.1", "slimfaas", new List<int>{2112}, "1"),
@@ -258,25 +287,18 @@ namespace SlimFaas.Tests.Workers
         private static MetricsScrapingWorker NewWorker(
             DeploymentsInformations deployments,
             HttpClient httpClient,
-            string currentPodName,
+            bool isMaster,
             InMemoryMetricsStore store,
             IRequestedMetricsRegistry requestedMetricsRegistry,
             InMemoryDatabaseService? database = null,
             bool scrapingEnabled = true,
             int delayMs = 10_000,
-            MetricsScrapingOptions? metricsScrapingOptions = null) // le scraping se fait avant le premier Delay
+            MetricsScrapingOptions? metricsScrapingOptions = null,
+            IMasterService? masterService = null) // le scraping se fait avant le premier Delay
         {
-            // HOSTNAME courant
-            Environment.SetEnvironmentVariable("HOSTNAME", currentPodName);
-
             // IReplicasService
             var replicas = new Mock<IReplicasService>();
             replicas.SetupGet(r => r.Deployments).Returns(deployments);
-
-            // IRaftCluster : leader null => plus petit ordinal désigné.
-            var cluster = new Mock<IRaftCluster>();
-            cluster.SetupGet(c => c.Leader).Returns((IClusterMember?)null);
-            cluster.SetupGet(c => c.Members).Returns(Array.Empty<IRaftClusterMember>() as IReadOnlyCollection<IRaftClusterMember>);
 
             // IHttpClientFactory
             var httpFactory = new Mock<IHttpClientFactory>();
@@ -304,13 +326,9 @@ namespace SlimFaas.Tests.Workers
                 MetricsScraping = metricsScrapingOptions ?? new MetricsScrapingOptions()
             });
 
-            // INamespaceProvider
-            var namespaceProvider = new Mock<INamespaceProvider>();
-            namespaceProvider.SetupGet(n => n.CurrentNamespace).Returns("ns");
-
             return new MetricsScrapingWorker(
                 replicasService: replicas.Object,
-                cluster: cluster.Object,
+                masterService: masterService ?? new TestMasterService { IsMaster = isMaster },
                 httpClientFactory: httpFactory.Object,
                 metricsStore: store,
                 databaseService: db,
@@ -319,7 +337,6 @@ namespace SlimFaas.Tests.Workers
                 requestedMetricsRegistry: requestedMetricsRegistry,
                 logger: logger,
                 slimFaasOptions: slimFaasOptions,
-                namespaceProvider: namespaceProvider.Object,
                 delay: delayMs
             );
         }
@@ -331,10 +348,40 @@ namespace SlimFaas.Tests.Workers
             await svc.StopAsync(CancellationToken.None);
         }
 
+        private static async Task RunUntilAndStopAsync(
+            BackgroundService svc,
+            Func<bool> condition,
+            TimeSpan timeout)
+        {
+            await svc.StartAsync(CancellationToken.None);
+            try
+            {
+                await WaitUntilAsync(condition, timeout);
+            }
+            finally
+            {
+                await svc.StopAsync(CancellationToken.None);
+            }
+        }
+
+        private static async Task WaitUntilAsync(
+            Func<bool> condition,
+            TimeSpan timeout)
+        {
+            var deadline = DateTimeOffset.UtcNow + timeout;
+            while (!condition())
+            {
+                if (DateTimeOffset.UtcNow >= deadline)
+                    throw new TimeoutException("The expected worker condition was not reached.");
+
+                await Task.Delay(20);
+            }
+        }
+
         // --- Tests ---
 
         [Fact]
-        public async Task Designated_Node_Scrapes_And_Stores_Metrics()
+        public async Task Leader_Scrapes_And_Stores_Metrics()
         {
             var deployments = BuildDeploymentsForScrape();
 
@@ -369,7 +416,7 @@ namespace SlimFaas.Tests.Workers
 
             var store = CreateStore(out var registry, "metric_one", "metric_two");
             var db = new InMemoryDatabaseService();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store,
+            var worker = NewWorker(deployments, http, isMaster: true, store: store,
                 requestedMetricsRegistry: registry, database: db);
 
             await StartRunOnceAndStopAsync(worker);
@@ -403,26 +450,89 @@ namespace SlimFaas.Tests.Workers
             Assert.True(db.TryGetRaw("metrics:store", out var bytes));
             Assert.NotNull(bytes);
             Assert.NotEmpty(bytes);
+            Assert.True(db.TryGetRaw("metrics:store:version", out var version));
+            Assert.Equal(16, version.Length);
         }
 
         [Fact]
-        public async Task Non_Designated_Node_Does_Not_Scrape()
+        public async Task Follower_Does_Not_Scrape()
         {
             var deployments = BuildDeploymentsForScrape();
 
             var handler = new MapHttpHandler(Array.Empty<(string, HttpStatusCode, string)>());
             var http = new HttpClient(handler);
 
-            // Node courant = slimfaas-1 (le plus petit ordinal est -0) => pas désigné
+            // Un follower hydrate éventuellement le store, mais ne scrape jamais.
             var store = CreateStore(out var registry, "metric_one");
             var db = new InMemoryDatabaseService();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-1", store: store,
+            var worker = NewWorker(deployments, http, isMaster: false, store: store,
                 requestedMetricsRegistry: registry, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
             var snapshot = store.Snapshot();
             Assert.True(snapshot.Count == 0); // rien scrapé et rien à hydrater
+        }
+
+        [Fact]
+        public async Task Follower_StartsScrapingAfterBecomingLeader()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var requestCount = 0;
+            var handler = new DelegateHttpHandler((_, _) =>
+            {
+                Interlocked.Increment(ref requestCount);
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("metric_one 9", Encoding.UTF8, "text/plain")
+                });
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "metric_one");
+            var persistedStore = CreateStore(out _, "metric_one");
+            var persistedTimestamp = DateTimeOffset.UtcNow.AddSeconds(-10).ToUnixTimeSeconds();
+            persistedStore.Add(
+                persistedTimestamp,
+                "dep-a",
+                "10.1.0.1",
+                new Dictionary<string, double> { ["metric_one"] = 3 });
+            var database = new InMemoryDatabaseService();
+            await database.SetAsync(
+                "metrics:store",
+                MemoryPack.MemoryPackSerializer.Serialize(persistedStore.CreateRecord()));
+            await database.SetAsync("metrics:store:version", Guid.NewGuid().ToByteArray());
+            var master = new TestMasterService();
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: false,
+                store,
+                registry,
+                database,
+                delayMs: 2_000,
+                masterService: master);
+
+            await worker.StartAsync(CancellationToken.None);
+            try
+            {
+                await WaitUntilAsync(
+                    () => store.LatestTimestamp == persistedTimestamp,
+                    TimeSpan.FromSeconds(5));
+                Assert.Equal(0, Volatile.Read(ref requestCount));
+
+                master.IsMaster = true;
+                await WaitUntilAsync(
+                    () => Volatile.Read(ref requestCount) > 0,
+                    TimeSpan.FromSeconds(5));
+
+                var snapshot = store.Snapshot();
+                Assert.Contains(persistedTimestamp, snapshot.Keys);
+                Assert.True(snapshot.Count >= 2);
+            }
+            finally
+            {
+                await worker.StopAsync(CancellationToken.None);
+            }
         }
 
         [Fact]
@@ -440,7 +550,7 @@ namespace SlimFaas.Tests.Workers
 
             var store = CreateStore(out var registry, "metric_ok");
             var db = new InMemoryDatabaseService();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store,
+            var worker = NewWorker(deployments, http, isMaster: true, store: store,
                 requestedMetricsRegistry: registry, database: db);
 
             await StartRunOnceAndStopAsync(worker);
@@ -478,7 +588,7 @@ namespace SlimFaas.Tests.Workers
             var worker = NewWorker(
                 deployments,
                 http,
-                currentPodName: "slimfaas-0",
+                isMaster: true,
                 store,
                 registry,
                 metricsScrapingOptions: options);
@@ -507,7 +617,7 @@ namespace SlimFaas.Tests.Workers
             var worker = NewWorker(
                 deployments,
                 http,
-                currentPodName: "slimfaas-0",
+                isMaster: true,
                 store,
                 registry);
 
@@ -553,12 +663,15 @@ namespace SlimFaas.Tests.Workers
             var worker = NewWorker(
                 deployments,
                 http,
-                currentPodName: "slimfaas-0",
+                isMaster: true,
                 store,
                 registry,
                 metricsScrapingOptions: options);
 
-            await StartRunOnceAndStopAsync(worker, settleMs: 1_250);
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref cancellations) >= 1,
+                TimeSpan.FromSeconds(5));
 
             Assert.True(cancellations >= 1);
             Assert.Empty(store.Snapshot());
@@ -606,7 +719,7 @@ namespace SlimFaas.Tests.Workers
 
             var store = CreateStore(out var registry, "metric_one", "metric_two");
             var db = new InMemoryDatabaseService();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store,
+            var worker = NewWorker(deployments, http, isMaster: true, store: store,
                 requestedMetricsRegistry: registry, database: db);
 
             await StartRunOnceAndStopAsync(worker);
@@ -622,11 +735,11 @@ namespace SlimFaas.Tests.Workers
         }
 
         [Fact]
-        public async Task Non_Designated_Node_Hydrates_From_Database()
+        public async Task Follower_Hydrates_From_Database()
         {
             var deployments = BuildDeploymentsForScrape();
 
-            // 1) Nœud désigné : scrape + persist
+            // 1) Leader: scrape + persist
             var urls = deployments.GetMetricsTargets();
             var depAUrls = urls["dep-a"].OrderBy(x => x).ToArray();
 
@@ -649,43 +762,43 @@ namespace SlimFaas.Tests.Workers
 
             var db = new InMemoryDatabaseService();
 
-            var storeDesignated = CreateStore(out var designatedRegistry, "metric_one", "metric_two");
-            var workerDesignated = NewWorker(
+            var leaderStore = CreateStore(out var leaderRegistry, "metric_one", "metric_two");
+            var leaderWorker = NewWorker(
                 deployments,
                 http1,
-                currentPodName: "slimfaas-0", // désigné
-                store: storeDesignated,
-                requestedMetricsRegistry: designatedRegistry,
+                isMaster: true,
+                store: leaderStore,
+                requestedMetricsRegistry: leaderRegistry,
                 database: db);
 
-            await StartRunOnceAndStopAsync(workerDesignated);
+            await StartRunOnceAndStopAsync(leaderWorker);
 
-            var snapshotDesignated = storeDesignated.Snapshot();
-            Assert.NotEmpty(snapshotDesignated);
+            var leaderSnapshot = leaderStore.Snapshot();
+            Assert.NotEmpty(leaderSnapshot);
             Assert.True(db.TryGetRaw("metrics:store", out var bytes));
             Assert.NotNull(bytes);
             Assert.NotEmpty(bytes);
 
-            // 2) Nœud non désigné : ne scrape pas mais hydrate depuis DB
+            // 2) Follower: do not scrape, hydrate from the persisted backup.
             var handler2 = new MapHttpHandler(Array.Empty<(string, HttpStatusCode, string)>());
             var http2 = new HttpClient(handler2);
 
-            var storeNonDesignated = CreateStore(out var nonDesignatedRegistry, "metric_one", "metric_two");
-            var workerNonDesignated = NewWorker(
+            var followerStore = CreateStore(out var followerRegistry, "metric_one", "metric_two");
+            var followerWorker = NewWorker(
                 deployments,
                 http2,
-                currentPodName: "slimfaas-1", // non désigné
-                store: storeNonDesignated,
-                requestedMetricsRegistry: nonDesignatedRegistry,
+                isMaster: false,
+                store: followerStore,
+                requestedMetricsRegistry: followerRegistry,
                 database: db);
 
-            await StartRunOnceAndStopAsync(workerNonDesignated);
+            await StartRunOnceAndStopAsync(followerWorker);
 
-            var snapshotNonDesignated = storeNonDesignated.Snapshot();
-            Assert.NotEmpty(snapshotNonDesignated);
+            var followerSnapshot = followerStore.Snapshot();
+            Assert.NotEmpty(followerSnapshot);
 
             // On vérifie qu'il a bien les métriques attendues (hydrate OK)
-            var depMap = snapshotNonDesignated.Values.Single();
+            var depMap = followerSnapshot.Values.Single();
             var podMap = depMap["dep-a"];
 
             Assert.True(podMap.ContainsKey("10.1.0.1"));
@@ -699,6 +812,211 @@ namespace SlimFaas.Tests.Workers
 
             Assert.Equal(3.0, m2["metric_one"], 6);
             Assert.Equal(4.5, m2[@"metric_two{label=""a""}"], 6);
+        }
+
+        [Fact]
+        public async Task Leader_PersistsAtMostOnceWithinThirtySeconds()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var requestCount = 0;
+            var handler = new DelegateHttpHandler((_, _) =>
+            {
+                Interlocked.Increment(ref requestCount);
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("metric_one 1", Encoding.UTF8, "text/plain")
+                });
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "metric_one");
+            var db = new InMemoryDatabaseService();
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry,
+                database: db,
+                delayMs: 10);
+
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref requestCount) > 2,
+                TimeSpan.FromSeconds(5));
+
+            Assert.True(requestCount > 2);
+            Assert.Equal(1, db.SetCount("metrics:store"));
+            Assert.Equal(1, db.SetCount("metrics:store:version"));
+        }
+
+        [Fact]
+        public async Task ConfiguredScrapeIntervalControlsLeaderCadence()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var requestCount = 0;
+            var handler = new DelegateHttpHandler((_, _) =>
+            {
+                Interlocked.Increment(ref requestCount);
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("metric_one 1", Encoding.UTF8, "text/plain")
+                });
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "metric_one");
+            var options = new MetricsScrapingOptions
+            {
+                ScrapeIntervalMilliseconds = 25
+            };
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry,
+                delayMs: 0,
+                metricsScrapingOptions: options);
+
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref requestCount) >= 4,
+                TimeSpan.FromSeconds(5));
+
+            // There are two targets per cycle, so at least two completed cycles
+            // prove that the configured interval is used instead of the old 5 s.
+            Assert.True(Volatile.Read(ref requestCount) >= 4);
+        }
+
+        [Fact]
+        public async Task Follower_DoesNotReloadPayloadWhenVersionIsUnchanged()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var sourceStore = CreateStore(out _, "metric_one");
+            sourceStore.Add(
+                100,
+                "dep-a",
+                "10.1.0.1",
+                new Dictionary<string, double> { ["metric_one"] = 7 });
+            var db = new InMemoryDatabaseService();
+            await db.SetAsync(
+                "metrics:store",
+                MemoryPack.MemoryPackSerializer.Serialize(sourceStore.CreateRecord()));
+            await db.SetAsync("metrics:store:version", Guid.NewGuid().ToByteArray());
+
+            using var http = new HttpClient(
+                new MapHttpHandler(Array.Empty<(string, HttpStatusCode, string)>()));
+            var hydratedStore = CreateStore(out var registry, "metric_one");
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: false,
+                hydratedStore,
+                registry,
+                database: db);
+
+            await RunUntilAndStopAsync(
+                worker,
+                () => db.GetCount("metrics:store:version") >= 2,
+                TimeSpan.FromSeconds(5));
+
+            Assert.NotEmpty(hydratedStore.Snapshot());
+            Assert.True(db.GetCount("metrics:store:version") >= 2);
+            Assert.Equal(1, db.GetCount("metrics:store"));
+        }
+
+        [Fact]
+        public async Task Follower_ReloadsPayloadWhenVersionChanges()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var sourceStore = CreateStore(out _, "metric_one");
+            sourceStore.Add(
+                100,
+                "dep-a",
+                "10.1.0.1",
+                new Dictionary<string, double> { ["metric_one"] = 7 });
+            var db = new InMemoryDatabaseService();
+            await db.SetAsync(
+                "metrics:store",
+                MemoryPack.MemoryPackSerializer.Serialize(sourceStore.CreateRecord()));
+            await db.SetAsync("metrics:store:version", Guid.NewGuid().ToByteArray());
+
+            using var http = new HttpClient(
+                new MapHttpHandler(Array.Empty<(string, HttpStatusCode, string)>()));
+            var hydratedStore = CreateStore(out var registry, "metric_one");
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: false,
+                hydratedStore,
+                registry,
+                database: db);
+
+            await worker.StartAsync(CancellationToken.None);
+            try
+            {
+                await WaitUntilAsync(
+                    () => hydratedStore.LatestTimestamp == 100,
+                    TimeSpan.FromSeconds(5));
+
+                sourceStore.Add(
+                    105,
+                    "dep-a",
+                    "10.1.0.1",
+                    new Dictionary<string, double> { ["metric_one"] = 9 });
+                await db.SetAsync(
+                    "metrics:store",
+                    MemoryPack.MemoryPackSerializer.Serialize(sourceStore.CreateRecord()));
+                await db.SetAsync("metrics:store:version", Guid.NewGuid().ToByteArray());
+
+                await WaitUntilAsync(
+                    () => hydratedStore.LatestTimestamp == 105,
+                    TimeSpan.FromSeconds(5));
+            }
+            finally
+            {
+                await worker.StopAsync(CancellationToken.None);
+            }
+
+            Assert.Equal(
+                9,
+                hydratedStore.Snapshot()[105]["dep-a"]["10.1.0.1"]["metric_one"]);
+            Assert.Equal(2, db.GetCount("metrics:store"));
+        }
+
+        [Fact]
+        public async Task Follower_HydratesLegacyUnversionedRecordOnlyOnce()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var sourceStore = CreateStore(out _, "metric_one");
+            sourceStore.Add(
+                100,
+                "dep-a",
+                "10.1.0.1",
+                new Dictionary<string, double> { ["metric_one"] = 7 });
+            var db = new InMemoryDatabaseService();
+            await db.SetAsync(
+                "metrics:store",
+                MemoryPack.MemoryPackSerializer.Serialize(sourceStore.CreateRecord()));
+
+            using var http = new HttpClient(
+                new MapHttpHandler(Array.Empty<(string, HttpStatusCode, string)>()));
+            var hydratedStore = CreateStore(out var registry, "metric_one");
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: false,
+                hydratedStore,
+                registry,
+                database: db);
+
+            await RunUntilAndStopAsync(
+                worker,
+                () => db.GetCount("metrics:store:version") >= 2,
+                TimeSpan.FromSeconds(5));
+
+            Assert.NotEmpty(hydratedStore.Snapshot());
+            Assert.True(db.GetCount("metrics:store:version") >= 2);
+            Assert.Equal(1, db.GetCount("metrics:store"));
         }
     }
 }
