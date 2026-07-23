@@ -348,6 +348,22 @@ namespace SlimFaas.Tests.Workers
             await svc.StopAsync(CancellationToken.None);
         }
 
+        private static async Task RunUntilAndStopAsync(
+            BackgroundService svc,
+            Func<bool> condition,
+            TimeSpan timeout)
+        {
+            await svc.StartAsync(CancellationToken.None);
+            try
+            {
+                await WaitUntilAsync(condition, timeout);
+            }
+            finally
+            {
+                await svc.StopAsync(CancellationToken.None);
+            }
+        }
+
         private static async Task WaitUntilAsync(
             Func<bool> condition,
             TimeSpan timeout)
@@ -501,13 +517,13 @@ namespace SlimFaas.Tests.Workers
             {
                 await WaitUntilAsync(
                     () => store.LatestTimestamp == persistedTimestamp,
-                    TimeSpan.FromSeconds(1));
+                    TimeSpan.FromSeconds(5));
                 Assert.Equal(0, Volatile.Read(ref requestCount));
 
                 master.IsMaster = true;
                 await WaitUntilAsync(
                     () => Volatile.Read(ref requestCount) > 0,
-                    TimeSpan.FromSeconds(2));
+                    TimeSpan.FromSeconds(5));
 
                 var snapshot = store.Snapshot();
                 Assert.Contains(persistedTimestamp, snapshot.Keys);
@@ -652,7 +668,10 @@ namespace SlimFaas.Tests.Workers
                 registry,
                 metricsScrapingOptions: options);
 
-            await StartRunOnceAndStopAsync(worker, settleMs: 1_250);
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref cancellations) >= 1,
+                TimeSpan.FromSeconds(5));
 
             Assert.True(cancellations >= 1);
             Assert.Empty(store.Snapshot());
@@ -820,7 +839,10 @@ namespace SlimFaas.Tests.Workers
                 database: db,
                 delayMs: 10);
 
-            await StartRunOnceAndStopAsync(worker, settleMs: 150);
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref requestCount) > 2,
+                TimeSpan.FromSeconds(5));
 
             Assert.True(requestCount > 2);
             Assert.Equal(1, db.SetCount("metrics:store"));
@@ -855,7 +877,10 @@ namespace SlimFaas.Tests.Workers
                 delayMs: 0,
                 metricsScrapingOptions: options);
 
-            await StartRunOnceAndStopAsync(worker, settleMs: 140);
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref requestCount) >= 4,
+                TimeSpan.FromSeconds(5));
 
             // There are two targets per cycle, so at least two completed cycles
             // prove that the configured interval is used instead of the old 5 s.
@@ -889,7 +914,10 @@ namespace SlimFaas.Tests.Workers
                 registry,
                 database: db);
 
-            await StartRunOnceAndStopAsync(worker, settleMs: 1_250);
+            await RunUntilAndStopAsync(
+                worker,
+                () => db.GetCount("metrics:store:version") >= 2,
+                TimeSpan.FromSeconds(5));
 
             Assert.NotEmpty(hydratedStore.Snapshot());
             Assert.True(db.GetCount("metrics:store:version") >= 2);
@@ -924,20 +952,30 @@ namespace SlimFaas.Tests.Workers
                 database: db);
 
             await worker.StartAsync(CancellationToken.None);
-            await Task.Delay(100);
+            try
+            {
+                await WaitUntilAsync(
+                    () => hydratedStore.LatestTimestamp == 100,
+                    TimeSpan.FromSeconds(5));
 
-            sourceStore.Add(
-                105,
-                "dep-a",
-                "10.1.0.1",
-                new Dictionary<string, double> { ["metric_one"] = 9 });
-            await db.SetAsync(
-                "metrics:store",
-                MemoryPack.MemoryPackSerializer.Serialize(sourceStore.CreateRecord()));
-            await db.SetAsync("metrics:store:version", Guid.NewGuid().ToByteArray());
+                sourceStore.Add(
+                    105,
+                    "dep-a",
+                    "10.1.0.1",
+                    new Dictionary<string, double> { ["metric_one"] = 9 });
+                await db.SetAsync(
+                    "metrics:store",
+                    MemoryPack.MemoryPackSerializer.Serialize(sourceStore.CreateRecord()));
+                await db.SetAsync("metrics:store:version", Guid.NewGuid().ToByteArray());
 
-            await Task.Delay(1_100);
-            await worker.StopAsync(CancellationToken.None);
+                await WaitUntilAsync(
+                    () => hydratedStore.LatestTimestamp == 105,
+                    TimeSpan.FromSeconds(5));
+            }
+            finally
+            {
+                await worker.StopAsync(CancellationToken.None);
+            }
 
             Assert.Equal(
                 9,
@@ -971,7 +1009,10 @@ namespace SlimFaas.Tests.Workers
                 registry,
                 database: db);
 
-            await StartRunOnceAndStopAsync(worker, settleMs: 1_250);
+            await RunUntilAndStopAsync(
+                worker,
+                () => db.GetCount("metrics:store:version") >= 2,
+                TimeSpan.FromSeconds(5));
 
             Assert.NotEmpty(hydratedStore.Snapshot());
             Assert.True(db.GetCount("metrics:store:version") >= 2);
