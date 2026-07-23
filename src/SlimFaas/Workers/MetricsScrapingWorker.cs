@@ -1,6 +1,3 @@
-using System.Collections.Concurrent;
-using System.Globalization;
-using System.Text.RegularExpressions;
 using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
 using Microsoft.Extensions.Options;
@@ -20,6 +17,7 @@ public class MetricsScrapingWorker(
     IDatabaseService databaseService,
     ISlimDataStatus slimDataStatus,
     IMetricsScrapingGuard scrapingGuard,
+    IRequestedMetricsRegistry requestedMetricsRegistry,
     ILogger<MetricsScrapingWorker> logger,
     IOptions<SlimFaasOptions> slimFaasOptions,
     INamespaceProvider namespaceProvider,
@@ -28,13 +26,7 @@ public class MetricsScrapingWorker(
 {
     private readonly string _baseSlimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
     private readonly string _namespace = namespaceProvider.CurrentNamespace;
-
-// Remplace TOUTE la déclaration existante de MetricLine par celle-ci :
-    private static readonly Regex MetricLine = new(
-        // <metric_name><optional {labels}> <value> [optional_timestamp]
-        @"^\s*([a-zA-Z_:][a-zA-Z0-9_:]*)(\{[^}]*\})?\s+([-+]?(?:NaN|(?:\+|-)?Inf|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?))(?:\s+\d+)?\s*$",
-        RegexOptions.Compiled | RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(120));
-
+    private readonly MetricsScrapingOptions _metricsScrapingOptions = slimFaasOptions.Value.MetricsScraping;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -77,6 +69,13 @@ public class MetricsScrapingWorker(
                     continue;
                 }
 
+                var requestedMetricNames = requestedMetricsRegistry.GetRequestedMetricNames();
+                if (requestedMetricNames.Count == 0)
+                {
+                    await Task.Delay(delay, stoppingToken);
+                    continue;
+                }
+
                 var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
                 foreach (var (deployment, urls) in targetsByDeployment)
@@ -93,14 +92,60 @@ public class MetricsScrapingWorker(
 
                             var http = httpClientFactory.CreateClient(nameof(MetricsScrapingWorker));
                             using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                            using var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, stoppingToken);
+                            using var scrapeTimeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                            scrapeTimeout.CancelAfter(TimeSpan.FromSeconds(_metricsScrapingOptions.RequestTimeoutSeconds));
+                            using var resp = await http.SendAsync(
+                                req,
+                                HttpCompletionOption.ResponseHeadersRead,
+                                scrapeTimeout.Token);
                             if (!resp.IsSuccessStatusCode)
                                 continue;
 
-                            var body = await resp.Content.ReadAsStringAsync(stoppingToken);
-                            var parsed = ParsePrometheusText(body);
-                            if (parsed.Count > 0)
-                                metricsStore.Add(ts, deployment, podIp, parsed);
+                            var contentLength = resp.Content.Headers.ContentLength;
+                            if (contentLength > _metricsScrapingOptions.MaxResponseBytes)
+                            {
+                                logger.LogWarning(
+                                    "Metrics scrape rejected for {Url}: Content-Length {ContentLength} exceeds " +
+                                    "MaxResponseBytes {MaxResponseBytes}",
+                                    url,
+                                    contentLength,
+                                    _metricsScrapingOptions.MaxResponseBytes);
+                                continue;
+                            }
+
+                            await using var body = await resp.Content
+                                .ReadAsStreamAsync(scrapeTimeout.Token)
+                                .ConfigureAwait(false);
+                            var parsed = await PrometheusStreamParser.ParseAsync(
+                                body,
+                                requestedMetricNames,
+                                _metricsScrapingOptions,
+                                scrapeTimeout.Token);
+                            if (parsed.Status != PrometheusStreamParseStatus.Success)
+                            {
+                                logger.LogWarning(
+                                    "Metrics scrape rejected for {Url}: Reason={Reason}, BytesRead={BytesRead}, " +
+                                    "LinesRead={LinesRead}",
+                                    url,
+                                    parsed.Status,
+                                    parsed.BytesRead,
+                                    parsed.LinesRead);
+                                continue;
+                            }
+
+                            if (parsed.Metrics.Count > 0)
+                                metricsStore.Add(ts, deployment, podIp, parsed.Metrics);
+                        }
+                        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                        {
+                            throw;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            logger.LogWarning(
+                                "Metrics scrape timed out after {TimeoutSeconds} seconds for {Url}",
+                                _metricsScrapingOptions.RequestTimeoutSeconds,
+                                url);
                         }
                         catch (Exception e)
                         {
@@ -109,6 +154,10 @@ public class MetricsScrapingWorker(
                     }
                 }
                 await PersistMetricsSnapshotAsync(stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
             }
             catch (Exception e)
             {
@@ -135,38 +184,6 @@ public class MetricsScrapingWorker(
         if (Uri.TryCreate(url, UriKind.Absolute, out var u))
             return u.Host;
         return null;
-    }
-
-    private static IReadOnlyDictionary<string, double> ParsePrometheusText(string body)
-    {
-        var dict = new Dictionary<string, double>(StringComparer.Ordinal);
-        using var sr = new StringReader(body);
-        string? line;
-        while ((line = sr.ReadLine()) is not null)
-        {
-            if (line.Length == 0 || line[0] == '#')
-                continue;
-
-            var m = MetricLine.Match(line);
-            if (!m.Success)
-                continue;
-
-            var name = m.Groups[1].Value;
-            var labels = m.Groups[2].Success ? m.Groups[2].Value : string.Empty; // ex: {label="a"}
-            var key = string.Concat(name, labels).Trim();
-            var valStr = m.Groups[3].Value.Trim();
-
-            if (string.Equals(valStr, "NaN", StringComparison.OrdinalIgnoreCase))
-                continue;
-            if (string.Equals(valStr, "Inf", StringComparison.OrdinalIgnoreCase) || string.Equals(valStr, "+Inf", StringComparison.OrdinalIgnoreCase))
-                continue;
-            if (string.Equals(valStr, "-Inf", StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            if (double.TryParse(valStr, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
-                dict[key] = value;
-        }
-        return dict;
     }
 
     private static bool IsDesignatedScraperNode(IReplicasService replicasService, IRaftCluster cluster, ILogger logger, string baseSlimDataUrl, string namespace_)

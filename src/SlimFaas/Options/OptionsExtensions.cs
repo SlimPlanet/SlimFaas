@@ -16,6 +16,8 @@ public static class OptionsExtensions
             .ValidateDataAnnotations()
             .Validate(ValidateStatusStreamOptions,
                 "SlimFaas:StatusStream values are invalid.")
+            .Validate(ValidateMetricsScrapingOptions,
+                "SlimFaas:MetricsScraping values are invalid.")
             .ValidateOnStart();
 
         services.AddOptions<SlimDataOptions>()
@@ -47,6 +49,16 @@ public static class OptionsExtensions
                && s.LiveEventSamplingRatio >= 0
                && s.LiveEventSamplingRatio <= 1
                && s.LiveActivityBatchSize > 0;
+    }
+
+    private static bool ValidateMetricsScrapingOptions(SlimFaasOptions options)
+    {
+        var metrics = options.MetricsScraping;
+        return metrics.MaxResponseBytes > 0L
+               && metrics.MaxLineBytes > 0
+               && metrics.MaxLineBytes <= metrics.MaxResponseBytes
+               && metrics.MaxSelectedSeriesPerTarget > 0
+               && metrics.RequestTimeoutSeconds > 0;
     }
 
     /// <summary>

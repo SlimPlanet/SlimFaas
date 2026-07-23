@@ -74,6 +74,34 @@ public class SlimFaasOptions
     /// Typed configuration for the dashboard status stream and live network activity events.
     /// </summary>
     public StatusStreamOptions StatusStream { get; set; } = new();
+
+    /// <summary>
+    /// Resource limits applied when scraping Prometheus endpoints.
+    /// </summary>
+    public MetricsScrapingOptions MetricsScraping { get; set; } = new();
+}
+
+public class MetricsScrapingOptions
+{
+    /// <summary>
+    /// Maximum number of bytes accepted from one metrics response.
+    /// </summary>
+    public long MaxResponseBytes { get; set; } = 8L * 1024L * 1024L;
+
+    /// <summary>
+    /// Maximum number of UTF-8 bytes accepted in one exposition line.
+    /// </summary>
+    public int MaxLineBytes { get; set; } = 64 * 1024;
+
+    /// <summary>
+    /// Maximum number of unique requested series retained from one target.
+    /// </summary>
+    public int MaxSelectedSeriesPerTarget { get; set; } = 10_000;
+
+    /// <summary>
+    /// Timeout in seconds for one HTTP request and its streamed body.
+    /// </summary>
+    public int RequestTimeoutSeconds { get; set; } = 10;
 }
 
 public class StatusStreamOptions

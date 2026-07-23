@@ -24,13 +24,22 @@ namespace SlimFaas.Tests.Workers
 
         private sealed class TestRequestedMetricsRegistry : IRequestedMetricsRegistry
         {
+            private readonly HashSet<string> _names;
+
+            public TestRequestedMetricsRegistry(params string[] names)
+            {
+                _names = new HashSet<string>(names, StringComparer.Ordinal);
+            }
+
             public void RegisterFromQuery(string promql) { /* no-op pour les tests */ }
 
-            // On considère que toutes les métriques sont "demandées" pour garder
-            // le comportement des tests existants.
-            public bool IsRequestedKey(string metricKey) => true;
+            public bool IsRequestedKey(string metricKey)
+            {
+                var brace = metricKey.IndexOf('{');
+                return _names.Contains(brace < 0 ? metricKey : metricKey[..brace]);
+            }
 
-            public IReadOnlyCollection<string> GetRequestedMetricNames() => Array.Empty<string>();
+            public IReadOnlyCollection<string> GetRequestedMetricNames() => _names;
         }
 
         private sealed class TestMetricsScrapingGuard : IMetricsScrapingGuard
@@ -186,9 +195,63 @@ namespace SlimFaas.Tests.Workers
             }
         }
 
-        private static InMemoryMetricsStore CreateStore()
+        private sealed class DelegateHttpHandler(
+            Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> send) : HttpMessageHandler
         {
-            var registry = new TestRequestedMetricsRegistry();
+            protected override Task<HttpResponseMessage> SendAsync(
+                HttpRequestMessage request,
+                CancellationToken cancellationToken)
+                => send(request, cancellationToken);
+        }
+
+        private sealed class NonSeekableChunkedStream(byte[] content, int maxChunkSize) : Stream
+        {
+            private int _position;
+
+            public override bool CanRead => true;
+            public override bool CanSeek => false;
+            public override bool CanWrite => false;
+            public override long Length => throw new NotSupportedException();
+            public override long Position
+            {
+                get => throw new NotSupportedException();
+                set => throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                var read = Math.Min(Math.Min(count, maxChunkSize), content.Length - _position);
+                if (read <= 0)
+                    return 0;
+                content.AsSpan(_position, read).CopyTo(buffer.AsSpan(offset, read));
+                _position += read;
+                return read;
+            }
+
+            public override ValueTask<int> ReadAsync(
+                Memory<byte> buffer,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var read = Math.Min(Math.Min(buffer.Length, maxChunkSize), content.Length - _position);
+                if (read <= 0)
+                    return ValueTask.FromResult(0);
+                content.AsMemory(_position, read).CopyTo(buffer);
+                _position += read;
+                return ValueTask.FromResult(read);
+            }
+
+            public override void Flush() => throw new NotSupportedException();
+            public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+            public override void SetLength(long value) => throw new NotSupportedException();
+            public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        }
+
+        private static InMemoryMetricsStore CreateStore(
+            out TestRequestedMetricsRegistry registry,
+            params string[] requestedMetricNames)
+        {
+            registry = new TestRequestedMetricsRegistry(requestedMetricNames);
             return new InMemoryMetricsStore(registry, retentionSeconds: 3600);
         }
 
@@ -197,9 +260,11 @@ namespace SlimFaas.Tests.Workers
             HttpClient httpClient,
             string currentPodName,
             InMemoryMetricsStore store,
+            IRequestedMetricsRegistry requestedMetricsRegistry,
             InMemoryDatabaseService? database = null,
             bool scrapingEnabled = true,
-            int delayMs = 10_000) // le scraping se fait avant le premier Delay
+            int delayMs = 10_000,
+            MetricsScrapingOptions? metricsScrapingOptions = null) // le scraping se fait avant le premier Delay
         {
             // HOSTNAME courant
             Environment.SetEnvironmentVariable("HOSTNAME", currentPodName);
@@ -235,7 +300,8 @@ namespace SlimFaas.Tests.Workers
             var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
             {
                 Namespace = "ns",
-                BaseSlimDataUrl = "http://{pod_name}.{service_name}.{namespace}.svc:3262"
+                BaseSlimDataUrl = "http://{pod_name}.{service_name}.{namespace}.svc:3262",
+                MetricsScraping = metricsScrapingOptions ?? new MetricsScrapingOptions()
             });
 
             // INamespaceProvider
@@ -250,6 +316,7 @@ namespace SlimFaas.Tests.Workers
                 databaseService: db,
                 slimDataStatus: status.Object,
                 scrapingGuard: guard,
+                requestedMetricsRegistry: requestedMetricsRegistry,
                 logger: logger,
                 slimFaasOptions: slimFaasOptions,
                 namespaceProvider: namespaceProvider.Object,
@@ -281,12 +348,14 @@ namespace SlimFaas.Tests.Workers
                         # HELP metric_one test
                         metric_one 1
                         metric_two{label="a"} 2.5
+                        metric_unrequested 999
                         metric_nan NaN
                         """;
 
             var body2 = """
                         metric_one 3
                         metric_two{label="a"} 4.5
+                        metric_unrequested 999
                         metric_inf +Inf
                         metric_ninf -Inf
                         """;
@@ -298,9 +367,10 @@ namespace SlimFaas.Tests.Workers
             });
             var http = new HttpClient(handler);
 
-            var store = CreateStore();
+            var store = CreateStore(out var registry, "metric_one", "metric_two");
             var db = new InMemoryDatabaseService();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store, database: db);
+            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store,
+                requestedMetricsRegistry: registry, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
@@ -344,9 +414,10 @@ namespace SlimFaas.Tests.Workers
             var http = new HttpClient(handler);
 
             // Node courant = slimfaas-1 (le plus petit ordinal est -0) => pas désigné
-            var store = CreateStore();
+            var store = CreateStore(out var registry, "metric_one");
             var db = new InMemoryDatabaseService();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-1", store: store, database: db);
+            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-1", store: store,
+                requestedMetricsRegistry: registry, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
@@ -367,9 +438,10 @@ namespace SlimFaas.Tests.Workers
             });
             var http = new HttpClient(handler);
 
-            var store = CreateStore();
+            var store = CreateStore(out var registry, "metric_ok");
             var db = new InMemoryDatabaseService();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store, database: db);
+            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store,
+                requestedMetricsRegistry: registry, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
@@ -384,6 +456,112 @@ namespace SlimFaas.Tests.Workers
             var m1 = podMap["10.1.0.1"];
             Assert.Single(m1);
             Assert.Equal(123.0, m1["metric_ok"], 6);
+        }
+
+        [Fact]
+        public async Task ContentLengthAboveLimitIsRejectedBeforeParsing()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var handler = new DelegateHttpHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("metric_one 123456789", Encoding.UTF8, "text/plain")
+            }));
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "metric_one");
+            var options = new MetricsScrapingOptions
+            {
+                MaxResponseBytes = 8,
+                MaxLineBytes = 8,
+                MaxSelectedSeriesPerTarget = 10,
+                RequestTimeoutSeconds = 10
+            };
+            var worker = NewWorker(
+                deployments,
+                http,
+                currentPodName: "slimfaas-0",
+                store,
+                registry,
+                metricsScrapingOptions: options);
+
+            await StartRunOnceAndStopAsync(worker);
+
+            Assert.Empty(store.Snapshot());
+        }
+
+        [Fact]
+        public async Task ChunkedResponseWithoutContentLengthIsStreamedAndStored()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var payload = Encoding.UTF8.GetBytes("metric_one{source=\"chunked\"} 7\nmetric_unused 9\n");
+            var handler = new DelegateHttpHandler((_, _) =>
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StreamContent(new NonSeekableChunkedStream(payload, maxChunkSize: 2))
+                };
+                Assert.Null(response.Content.Headers.ContentLength);
+                return Task.FromResult(response);
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "metric_one");
+            var worker = NewWorker(
+                deployments,
+                http,
+                currentPodName: "slimfaas-0",
+                store,
+                registry);
+
+            await StartRunOnceAndStopAsync(worker);
+
+            var podMetrics = store.Snapshot().Values.Single()["dep-a"];
+            Assert.Equal(2, podMetrics.Count);
+            Assert.All(podMetrics.Values, metrics =>
+            {
+                var metric = Assert.Single(metrics);
+                Assert.Equal("metric_one{source=\"chunked\"}", metric.Key);
+                Assert.Equal(7, metric.Value);
+            });
+        }
+
+        [Fact]
+        public async Task PerTargetTimeoutCancelsStreamingRequest()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var cancellations = 0;
+            var handler = new DelegateHttpHandler(async (_, cancellationToken) =>
+            {
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                }
+                catch (OperationCanceledException)
+                {
+                    Interlocked.Increment(ref cancellations);
+                    throw;
+                }
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "metric_one");
+            var options = new MetricsScrapingOptions
+            {
+                MaxResponseBytes = 1024,
+                MaxLineBytes = 256,
+                MaxSelectedSeriesPerTarget = 10,
+                RequestTimeoutSeconds = 1
+            };
+            var worker = NewWorker(
+                deployments,
+                http,
+                currentPodName: "slimfaas-0",
+                store,
+                registry,
+                metricsScrapingOptions: options);
+
+            await StartRunOnceAndStopAsync(worker, settleMs: 1_250);
+
+            Assert.True(cancellations >= 1);
+            Assert.Empty(store.Snapshot());
         }
 
         [Fact]
@@ -426,9 +604,10 @@ namespace SlimFaas.Tests.Workers
             var handler = new MapHttpHandler(new[] { (url, HttpStatusCode.OK, body) });
             var http = new HttpClient(handler);
 
-            var store = CreateStore();
+            var store = CreateStore(out var registry, "metric_one", "metric_two");
             var db = new InMemoryDatabaseService();
-            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store, database: db);
+            var worker = NewWorker(deployments, http, currentPodName: "slimfaas-0", store: store,
+                requestedMetricsRegistry: registry, database: db);
 
             await StartRunOnceAndStopAsync(worker);
 
@@ -470,12 +649,13 @@ namespace SlimFaas.Tests.Workers
 
             var db = new InMemoryDatabaseService();
 
-            var storeDesignated = CreateStore();
+            var storeDesignated = CreateStore(out var designatedRegistry, "metric_one", "metric_two");
             var workerDesignated = NewWorker(
                 deployments,
                 http1,
                 currentPodName: "slimfaas-0", // désigné
                 store: storeDesignated,
+                requestedMetricsRegistry: designatedRegistry,
                 database: db);
 
             await StartRunOnceAndStopAsync(workerDesignated);
@@ -490,12 +670,13 @@ namespace SlimFaas.Tests.Workers
             var handler2 = new MapHttpHandler(Array.Empty<(string, HttpStatusCode, string)>());
             var http2 = new HttpClient(handler2);
 
-            var storeNonDesignated = CreateStore();
+            var storeNonDesignated = CreateStore(out var nonDesignatedRegistry, "metric_one", "metric_two");
             var workerNonDesignated = NewWorker(
                 deployments,
                 http2,
                 currentPodName: "slimfaas-1", // non désigné
                 store: storeNonDesignated,
+                requestedMetricsRegistry: nonDesignatedRegistry,
                 database: db);
 
             await StartRunOnceAndStopAsync(workerNonDesignated);
