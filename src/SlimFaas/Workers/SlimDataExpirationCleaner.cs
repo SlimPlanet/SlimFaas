@@ -129,14 +129,48 @@ public sealed class SlimDataExpirationCleaner
                 continue;
             }
 
-            // Orphaned offload file: has a QueueElementId tag but the queue element no longer exists
-            if (entry.Metadata.Tags is not null &&
-                entry.Metadata.Tags.TryGetValue(QueueElementIdTagKey, out var fileQueueElementId) &&
-                !string.IsNullOrEmpty(fileQueueElementId))
+            string? fileQueueElementId = null;
+            var hasQueueElementTag =
+                entry.Metadata.Tags is not null &&
+                entry.Metadata.Tags.TryGetValue(QueueElementIdTagKey, out fileQueueElementId) &&
+                !string.IsNullOrEmpty(fileQueueElementId);
+            var queueElementIsActive =
+                hasQueueElementTag && activeQueueIds.Contains(fileQueueElementId!);
+            var candidateKey = DiskCandidatePrefix + entry.Id;
+
+            // A file can be written just before its Raft metadata is committed. Requiring
+            // several consecutive observations protects that window and cluster convergence.
+            if (!keyValues.ContainsKey(DataFileKeys.MetaKey(entry.Id)))
             {
-                var candidateKey = DiskCandidatePrefix + entry.Id;
                 observedOrphanArtifacts.Add(candidateKey);
-                if (activeQueueIds.Contains(fileQueueElementId))
+                if (queueElementIsActive)
+                {
+                    _orphanCandidates.Remove(candidateKey);
+                    continue;
+                }
+
+                if (!IsConfirmedOrphan(candidateKey))
+                    continue;
+
+                _logger.LogDebug(
+                    "Deleting confirmed local file without Raft metadata. id={Id}",
+                    entry.Id);
+                try
+                {
+                    await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to delete local file without Raft metadata. id={Id}", entry.Id);
+                }
+                continue;
+            }
+
+            // Orphaned offload file: its metadata still exists, but the queue item is gone.
+            if (hasQueueElementTag)
+            {
+                observedOrphanArtifacts.Add(candidateKey);
+                if (queueElementIsActive)
                 {
                     _orphanCandidates.Remove(candidateKey);
                     continue;

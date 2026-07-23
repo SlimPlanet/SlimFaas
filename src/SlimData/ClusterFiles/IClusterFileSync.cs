@@ -21,4 +21,6 @@ public interface IClusterFileSync
         string sha256Hex,
         string? preferredNode,
         CancellationToken ct);
+
+    Task DeleteLocalAsync(string id, CancellationToken ct);
 }

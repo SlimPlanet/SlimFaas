@@ -486,4 +486,81 @@ public sealed class SlimDataExpirationCleanerTests
         files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Never);
         files.VerifyNoOtherCalls();
     }
+
+    [Fact]
+    public async Task CleanupOnceAsync_deletes_public_disk_file_after_three_cycles_without_raft_metadata()
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var files = new Mock<IFileRepository>(MockBehavior.Strict);
+        var logger = new Mock<ILogger<SlimDataExpirationCleaner>>();
+        const string fileId = "deleted-public-file";
+        var data = new SlimDataPayload
+        {
+            KeyValues = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+        var diskMeta = new FileMetadata(
+            "application/octet-stream",
+            "sha",
+            100,
+            ExpireAtUtcTicks: null);
+
+        state.Setup(s => s.Invoke()).Returns(data);
+        files.Setup(f => f.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
+            .Returns(() => Meta([new FileMetadataEntry(fileId, diskMeta)]));
+        files.Setup(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
+
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Never);
+
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Once);
+        db.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task CleanupOnceAsync_resets_public_disk_orphan_candidate_when_metadata_reappears()
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var files = new Mock<IFileRepository>(MockBehavior.Strict);
+        var logger = new Mock<ILogger<SlimDataExpirationCleaner>>();
+        const string fileId = "metadata-converges";
+        var withoutMetadata = new SlimDataPayload
+        {
+            KeyValues = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+        var withMetadata = withoutMetadata with
+        {
+            KeyValues = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty
+                .Add(DataFileKeys.MetaKey(fileId), new byte[] { 1 })
+        };
+        var invocation = 0;
+        state.Setup(s => s.Invoke()).Returns(() => invocation++ == 0 ? withoutMetadata : withMetadata);
+        files.Setup(f => f.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
+            .Returns(() => Meta([
+                new FileMetadataEntry(
+                    fileId,
+                    new FileMetadata("application/octet-stream", "sha", 1, null))
+            ]));
+        files.Setup(f => f.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        var sut = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, logger.Object);
+
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        await sut.CleanupOnceAsync(CancellationToken.None);
+        await sut.CleanupOnceAsync(CancellationToken.None);
+
+        files.Verify(f => f.DeleteAsync(fileId, It.IsAny<CancellationToken>()), Times.Never);
+        db.VerifyNoOtherCalls();
+    }
 }

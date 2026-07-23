@@ -7,10 +7,12 @@ using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Net.Http.Headers;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
 using SlimData.Expiration;
+using SlimData.Options;
 
 namespace SlimFaas;
 
@@ -92,6 +94,7 @@ public static class DataFileRoutes
             [FromQuery] long? ttl, // milliseconds
             IClusterFileSync fileSync,
             IDatabaseService db,
+            IOptions<ClusterFileOptions> fileOptions,
             CancellationToken ct)
         {
             var elementId = string.IsNullOrWhiteSpace(id) ? Guid.NewGuid().ToString("N") : id;
@@ -104,15 +107,17 @@ public static class DataFileRoutes
             // Snippet demandé
             var contentType = context.Request.ContentType ?? "application/octet-stream";
             var fileName = TryGetFileName(context.Request.Headers["Content-Disposition"].ToString());
-            const long DefaultUnknownLengthBytes = 20L * 1024L * 1024L; // 20 MiB
             var contentLength = context.Request.ContentLength;
-            var lengthForLimiter = (contentLength is long cl && cl > 0) ? cl : DefaultUnknownLengthBytes;
-            if (contentLength is null || contentLength <= 0)
+            var unknownLengthReservation = fileOptions.Value.UnknownLengthReservationBytes;
+            var lengthForLimiter = contentLength is long cl && cl >= 0
+                ? cl
+                : unknownLengthReservation;
+            if (contentLength is null || contentLength < 0)
             {
                 context.RequestServices.GetRequiredService<ILoggerFactory>()
                     .CreateLogger("Upload")
                     .LogWarning("Missing/invalid Content-Length for /data/files. Using default={DefaultBytes} bytes for limiter. Id={Id}",
-                        DefaultUnknownLengthBytes, elementId);
+                        unknownLengthReservation, elementId);
             }
 
             Stream contentStream = context.Request.Body;
@@ -190,6 +195,8 @@ public static class DataFileRoutes
         public static async Task<IResult> DeleteAsync(
             string elementId,
             IDatabaseService db,
+            IClusterFileSync fileSync,
+            ILoggerFactory loggerFactory,
             CancellationToken ct)
         {
             if (!IdValidator.IsSafeId(elementId))
@@ -197,6 +204,15 @@ public static class DataFileRoutes
             if (DataFileKeys.IsInternalElementId(elementId))
                 return Results.NotFound();
             await db.DeleteAsync(DataFileKeys.MetaKey(elementId));
+            try
+            {
+                await fileSync.DeleteLocalAsync(elementId, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                loggerFactory.CreateLogger("DataFiles")
+                    .LogWarning(ex, "Unable to delete local file after metadata deletion. Id={Id}", elementId);
+            }
             return Results.NoContent();
         }
 

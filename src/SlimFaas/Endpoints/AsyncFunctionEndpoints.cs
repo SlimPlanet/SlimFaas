@@ -1,7 +1,9 @@
 using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimData.ClusterFiles;
+using SlimData.Options;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -41,8 +43,9 @@ public static class AsyncFunctionEndpoints
                 IWebSocketFunctionRepository webSocketFunctionRepository,
                 NetworkActivityTracker activityTracker,
                 IClusterFileSync fileSync,
-                IDatabaseService db) =>
-                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker, fileSync, db))
+                IDatabaseService db,
+                IOptions<ClusterFileOptions> fileOptions) =>
+                HandleAsyncFunction(functionName, "", context, logger, replicasService, jobService, slimFaasQueue, accessPolicy, webSocketFunctionRepository, activityTracker, fileSync, db, fileOptions))
             .WithName("HandleAsyncFunctionRoot")
             .Produces(202)
             .Produces(404)
@@ -70,7 +73,8 @@ public static class AsyncFunctionEndpoints
         [FromServices] IWebSocketFunctionRepository webSocketFunctionRepository,
         [FromServices] NetworkActivityTracker activityTracker,
         [FromServices] IClusterFileSync fileSync,
-        [FromServices] IDatabaseService db)
+        [FromServices] IDatabaseService db,
+        [FromServices] IOptions<ClusterFileOptions> fileOptions)
     {
         functionPath ??= "";
 
@@ -107,6 +111,7 @@ public static class AsyncFunctionEndpoints
             queueElementId: queueElementId,
             fileSync: fileSync,
             db: db,
+            unknownLengthReservationBytes: fileOptions.Value.UnknownLengthReservationBytes,
             ct: context.RequestAborted);
 
         var bin = MemoryPackSerializer.Serialize(customRequest);
@@ -169,4 +174,3 @@ public static class AsyncFunctionEndpoints
         return Results.Ok();
     }
 }
-

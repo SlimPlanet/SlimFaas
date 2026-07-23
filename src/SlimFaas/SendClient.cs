@@ -48,7 +48,11 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                     {
                         string targetUrl = await ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy, reservedPodIp);
                         logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
-                        HttpRequestMessage targetRequestMessage = CreateTargetMessage(customRequest, new Uri(targetUrl), bodyOverrideStream);
+                        if (bodyOverrideStream?.CanSeek == true)
+                            bodyOverrideStream.Position = 0;
+
+                        using HttpRequestMessage targetRequestMessage =
+                            CreateTargetMessage(customRequest, new Uri(targetUrl), bodyOverrideStream);
                         return await httpClient.SendAsync(targetRequestMessage,
                             HttpCompletionOption.ResponseHeadersRead,
                             finalToken);
@@ -188,7 +192,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             !HttpMethods.IsTrace(requestMethod))
         {
             if (bodyOverrideStream != null)
-                requestMessage.Content = new StreamContent(bodyOverrideStream);
+                requestMessage.Content = new StreamContent(new NonDisposingReadStream(bodyOverrideStream));
             else if (context.Body != null)
                 requestMessage.Content = new StreamContent(new MemoryStream(context.Body));
         }
@@ -216,6 +220,55 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         requestMessage.Method = GetMethod(context.Method);
 
         return requestMessage;
+    }
+
+    private sealed class NonDisposingReadStream(Stream inner) : Stream
+    {
+        public override bool CanRead => inner.CanRead;
+        public override bool CanSeek => inner.CanSeek;
+        public override bool CanWrite => false;
+        public override long Length => inner.Length;
+
+        public override long Position
+        {
+            get => inner.Position;
+            set => inner.Position = value;
+        }
+
+        public override void Flush()
+        {
+        }
+
+        public override int Read(byte[] buffer, int offset, int count) =>
+            inner.Read(buffer, offset, count);
+
+        public override int Read(Span<byte> buffer) => inner.Read(buffer);
+
+        public override Task<int> ReadAsync(
+            byte[] buffer,
+            int offset,
+            int count,
+            CancellationToken cancellationToken) =>
+            inner.ReadAsync(buffer, offset, count, cancellationToken);
+
+        public override ValueTask<int> ReadAsync(
+            Memory<byte> buffer,
+            CancellationToken cancellationToken = default) =>
+            inner.ReadAsync(buffer, cancellationToken);
+
+        public override long Seek(long offset, SeekOrigin origin) =>
+            inner.Seek(offset, origin);
+
+        public override void SetLength(long value) => throw new NotSupportedException();
+
+        public override void Write(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+
+        protected override void Dispose(bool disposing)
+        {
+            // The caller owns the underlying stream across retries.
+            base.Dispose(disposing);
+        }
     }
 
     private static HttpMethod GetMethod(string method)

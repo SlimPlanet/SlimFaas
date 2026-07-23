@@ -1,7 +1,9 @@
 using System.Net;
 using DotNext.Net.Cluster;
 using DotNext.Net.Cluster.Messaging;
+using Microsoft.Extensions.Options;
 using SlimData.ClusterFiles.Http;
+using SlimData.Options;
 
 namespace SlimData.ClusterFiles;
 
@@ -12,15 +14,21 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
     private readonly ILogger<ClusterFileSync> _logger;
     private readonly IHttpClientFactory _httpFactory;
     private readonly ClusterFileSyncChannel _channel;
-    private readonly KeyedAsyncLock _idLock = new(KeyedAsyncLock.MegaBytes(256));
+    private readonly KeyedAsyncLock _idLock;
 
     public ClusterFileSync(IMessageBus bus, IFileRepository repo, ClusterFileAnnounceQueue announceQueue, ILogger<ClusterFileSync> logger,
-        IHttpClientFactory httpFactory)
+        IHttpClientFactory httpFactory,
+        IOptions<ClusterFileOptions>? options = null)
     {
         _bus = bus ?? throw new ArgumentNullException(nameof(bus));
         _repo = repo ?? throw new ArgumentNullException(nameof(repo));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpFactory = httpFactory;
+        var fileOptions = options?.Value ?? new ClusterFileOptions();
+        _idLock = new KeyedAsyncLock(
+            fileOptions.MaxInFlightBytes,
+            fileOptions.MaxPendingTransfers,
+            TimeSpan.FromSeconds(fileOptions.QueueWaitTimeoutSeconds));
 
         _channel = new ClusterFileSyncChannel(announceQueue);
         _bus.AddListener(_channel);
@@ -117,7 +125,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             HttpResponseMessage? headResp = null;
             try
             {
-                using var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
+                var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
                 headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, ct).ConfigureAwait(false);
                 _logger.LogDebug("GET {FileUri} {StatusCode}", fileUri, headResp.StatusCode);
                 if (headResp.StatusCode == HttpStatusCode.NotFound)
@@ -168,7 +176,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 var finalUri = headResp.RequestMessage?.RequestUri ?? fileUri;
 
                 // Lock + budget global (comme avant)
-                await using var _ = await _idLock.AcquireAsync(id, ct).ConfigureAwait(false);
+                await using var _ = await _idLock.AcquireAsync(id, length.Value, ct).ConfigureAwait(false);
 
                 // Re-check après lock
                 if (await _repo.ExistsAsync(id, sha256Hex, ct).ConfigureAwait(false))
@@ -215,6 +223,10 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                     // OK
                     return new FilePullResult(await _repo.OpenReadAsync(id, ct).ConfigureAwait(false));
                 }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Range pull failed from node {Node}. Id={Id}", SafeNode(member), id);
@@ -229,6 +241,12 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         }
 
         return new FilePullResult(null);
+    }
+
+    public async Task DeleteLocalAsync(string id, CancellationToken ct)
+    {
+        await using var _ = await _idLock.AcquireAsync(id, ct).ConfigureAwait(false);
+        await _repo.DeleteAsync(id, ct).ConfigureAwait(false);
     }
 
 

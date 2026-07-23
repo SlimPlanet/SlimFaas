@@ -90,6 +90,7 @@ public class Startup(IConfiguration configuration)
                 options => options.RemovalMissingCycles > 0,
                 "SlimData membership removal missing cycles must be positive.")
             .ValidateOnStart();
+        services.AddClusterFileOptions(configuration);
         services.AddSingleton<ClusterMembershipCoordinator>();
         services.AddSingleton<IClusterMembershipCoordinator>(sp =>
             sp.GetRequiredService<ClusterMembershipCoordinator>());
@@ -192,7 +193,8 @@ public class Startup(IConfiguration configuration)
         {
            services.AddSingleton<IFileRepository>(sp => new DiskFileRepository(
                Path.Combine(stateRoot, "files"),
-               sp.GetRequiredService<ILogger<DiskFileRepository>>()));
+               sp.GetRequiredService<ILogger<DiskFileRepository>>(),
+               sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ClusterFileOptions>>().Value.DropPageCache));
            services.AddSingleton<ClusterFileAnnounceQueue>();
            services.AddHostedService<ClusterFileAnnounceWorker>();
 
