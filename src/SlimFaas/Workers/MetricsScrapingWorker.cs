@@ -1,4 +1,5 @@
-using DotNext.Net.Cluster.Consensus.Raft;
+using System.Diagnostics;
+using System.Security.Cryptography;
 using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
@@ -7,11 +8,9 @@ using SlimFaas.Options;
 
 namespace SlimFaas.Workers;
 
-
-
 public class MetricsScrapingWorker(
     IReplicasService replicasService,
-    IRaftCluster cluster,
+    IMasterService masterService,
     IHttpClientFactory httpClientFactory,
     IMetricsStore metricsStore,
     IDatabaseService databaseService,
@@ -20,18 +19,29 @@ public class MetricsScrapingWorker(
     IRequestedMetricsRegistry requestedMetricsRegistry,
     ILogger<MetricsScrapingWorker> logger,
     IOptions<SlimFaasOptions> slimFaasOptions,
-    INamespaceProvider namespaceProvider,
-    int delay = 5_000)
+    int delay = 0)
     : BackgroundService
 {
-    private readonly string _baseSlimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
-    private readonly string _namespace = namespaceProvider.CurrentNamespace;
+    private const string MetricsStoreKey = "metrics:store";
+    private const string MetricsStoreVersionKey = "metrics:store:version";
+    private const long ThirtyMinutesInMilliseconds = 1_800_000;
+    private static readonly TimeSpan PersistenceInterval = TimeSpan.FromSeconds(30);
+
     private readonly MetricsScrapingOptions _metricsScrapingOptions = slimFaasOptions.Value.MetricsScraping;
+    private readonly int _scrapeIntervalMilliseconds = delay > 0
+        ? delay
+        : slimFaasOptions.Value.MetricsScraping.ScrapeIntervalMilliseconds;
+    private DateTimeOffset _nextPersistenceUtc = DateTimeOffset.MinValue;
+    private DateTimeOffset _nextLegacyHydrationUtc = DateTimeOffset.MinValue;
+    private byte[]? _lastHydratedVersion;
+    private byte[]? _lastLegacyPayloadHash;
+    private bool _wasMaster;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         while (!stoppingToken.IsCancellationRequested)
         {
+            var cycleStartedTimestamp = Stopwatch.GetTimestamp();
             try
             {
                 await slimDataStatus.WaitForReadyAsync();
@@ -49,14 +59,30 @@ public class MetricsScrapingWorker(
                 // 👉 Si aucune fonction n'a Scale ET aucune requête PromQL n'a été faite, on ne scrape pas
                 if (!hasScaleConfig && !scrapingGuard.IsEnabled)
                 {
-                    await Task.Delay(delay, stoppingToken);
+                    await DelayUntilNextScrapeCycleAsync(cycleStartedTimestamp, stoppingToken);
                     continue;
                 }
 
-                if (!IsDesignatedScraperNode(replicasService, cluster, logger, _baseSlimDataUrl, _namespace))
+                if (!masterService.IsMaster)
                 {
+                    _wasMaster = false;
                     await TryHydrateMetricsFromDatabaseAsync(stoppingToken);
                     await Task.Delay(1000, stoppingToken);
+                    continue;
+                }
+
+                if (!_wasMaster)
+                {
+                    // Restore the latest persisted history before the first scrape
+                    // after startup or a leadership change. This keeps range queries
+                    // immediately usable without putting persistence on the hot path.
+                    await TryHydrateMetricsFromDatabaseAsync(stoppingToken);
+                    _wasMaster = true;
+                }
+
+                if (!masterService.IsMaster)
+                {
+                    _wasMaster = false;
                     continue;
                 }
 
@@ -65,14 +91,14 @@ public class MetricsScrapingWorker(
                 // Si aucune cible annotée prometheus n'existe, on ne fait rien
                 if (targetsByDeployment.Count == 0)
                 {
-                    await Task.Delay(delay, stoppingToken);
+                    await DelayUntilNextScrapeCycleAsync(cycleStartedTimestamp, stoppingToken);
                     continue;
                 }
 
                 var requestedMetricNames = requestedMetricsRegistry.GetRequestedMetricNames();
                 if (requestedMetricNames.Count == 0)
                 {
-                    await Task.Delay(delay, stoppingToken);
+                    await DelayUntilNextScrapeCycleAsync(cycleStartedTimestamp, stoppingToken);
                     continue;
                 }
 
@@ -80,8 +106,14 @@ public class MetricsScrapingWorker(
 
                 foreach (var (deployment, urls) in targetsByDeployment)
                 {
-                    if(logger.IsEnabled(LogLevel.Information))
-                        logger.LogInformation("Scraping metrics for deployment {0} with {1} targets", deployment, urls.Count);
+                    if (logger.IsEnabled(LogLevel.Information))
+                    {
+                        logger.LogInformation(
+                            "Scraping metrics for deployment {Deployment} with {TargetCount} targets",
+                            deployment,
+                            urls.Count);
+                    }
+
                     foreach (var url in urls)
                     {
                         try
@@ -153,7 +185,7 @@ public class MetricsScrapingWorker(
                         }
                     }
                 }
-                await PersistMetricsSnapshotAsync(stoppingToken);
+                await PersistMetricsSnapshotIfDueAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -166,7 +198,7 @@ public class MetricsScrapingWorker(
 
             try
             {
-                await Task.Delay(delay, stoppingToken);
+                await DelayUntilNextScrapeCycleAsync(cycleStartedTimestamp, stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -186,74 +218,42 @@ public class MetricsScrapingWorker(
         return null;
     }
 
-    private static bool IsDesignatedScraperNode(IReplicasService replicasService, IRaftCluster cluster, ILogger logger, string baseSlimDataUrl, string namespace_)
+    private async Task DelayUntilNextScrapeCycleAsync(
+        long cycleStartedTimestamp,
+        CancellationToken stoppingToken)
     {
-        var slimfaasPods = replicasService.Deployments.SlimFaas.Pods
-            .Where(p => p.Started == true && !string.IsNullOrEmpty(p.Name))
-            .ToList();
-        if (slimfaasPods.Count == 0)
-            return false;
-
-        if(slimfaasPods.Count == 1)
-            return true;
-
-        var leaderEndpoint = cluster.Leader?.EndPoint?.ToString();
-        string? leaderKey = null;
-        if (!string.IsNullOrEmpty(leaderEndpoint))
-        {
-            leaderKey = SlimFaasPorts.RemoveLastPathSegment(leaderEndpoint!);
-        }
-
-        var ordered = slimfaasPods
-            .Select(p => (pod: p, ordinal: TryParseOrdinal(p.Name)))
-            .OrderBy(t => t.ordinal)
-            .ToList();
-
-        string? smallestNonLeaderPodName = null;
-        foreach (var t in ordered)
-        {
-            var endpoint = SlimDataEndpoint.Get(t.pod, baseSlimDataUrl, namespace_);
-            var key = SlimFaasPorts.RemoveLastPathSegment(endpoint);
-            if (!string.Equals(key, leaderKey, StringComparison.Ordinal))
-            {
-                smallestNonLeaderPodName = t.pod.Name;
-                break;
-            }
-        }
-        if (smallestNonLeaderPodName is null)
-            return false;
-
-        var currentPodName = Environment.GetEnvironmentVariable("HOSTNAME");
-        if (string.IsNullOrWhiteSpace(currentPodName))
-            return false;
-
-        var isDesignated = string.Equals(currentPodName, smallestNonLeaderPodName, StringComparison.Ordinal);
-        return isDesignated;
+        var elapsed = Stopwatch.GetElapsedTime(cycleStartedTimestamp);
+        var remaining = TimeSpan.FromMilliseconds(_scrapeIntervalMilliseconds) - elapsed;
+        if (remaining > TimeSpan.Zero)
+            await Task.Delay(remaining, stoppingToken);
     }
 
-    private static int TryParseOrdinal(string podName)
+    private async Task PersistMetricsSnapshotIfDueAsync(CancellationToken stoppingToken)
     {
-        var idx = podName.LastIndexOf('-');
-        if (idx < 0 || idx == podName.Length - 1)
-            return int.MaxValue;
-        if (int.TryParse(podName.AsSpan(idx + 1), out var n))
-            return n;
-        return int.MaxValue;
-    }
+        var now = DateTimeOffset.UtcNow;
+        if (now < _nextPersistenceUtc)
+            return;
 
-    const long ThirtyMinutesInMilliseconds = 1800000;
-
-    private async Task PersistMetricsSnapshotAsync(CancellationToken stoppingToken)
-    {
         try
         {
-            var snapshot = metricsStore.Snapshot();
-            if (snapshot.Count == 0)
+            var record = metricsStore.CreateRecord();
+            if (record.Store.Count == 0)
                 return;
 
-            var record = MetricsStoreRecord.FromSnapshot(snapshot);
             var bytes = MemoryPackSerializer.Serialize(record);
-            await databaseService.SetAsync("metrics:store", bytes, ThirtyMinutesInMilliseconds);
+            var version = Guid.NewGuid().ToByteArray();
+
+            // Publish data first and the small version marker last. Followers only
+            // read the large payload after observing the new marker.
+            await databaseService.SetAsync(MetricsStoreKey, bytes, ThirtyMinutesInMilliseconds);
+            await databaseService.SetAsync(
+                MetricsStoreVersionKey,
+                version,
+                ThirtyMinutesInMilliseconds);
+
+            _lastHydratedVersion = version.ToArray();
+            _lastLegacyPayloadHash = null;
+            _nextPersistenceUtc = now + PersistenceInterval;
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
@@ -268,15 +268,56 @@ public class MetricsScrapingWorker(
     {
         try
         {
-            var bytes = await databaseService.GetAsync("metrics:store");
+            var version = await databaseService.GetAsync(MetricsStoreVersionKey);
+            if (version is { Length: > 0 })
+            {
+                if (_lastHydratedVersion is not null &&
+                    version.AsSpan().SequenceEqual(_lastHydratedVersion))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                // Compatibility with a scraper from an older rolling deployment.
+                // The old writer has no version key, so inspect the legacy payload
+                // at the new 30-second persistence cadence and synthesize a version
+                // from its hash.
+                var now = DateTimeOffset.UtcNow;
+                if (now < _nextLegacyHydrationUtc)
+                    return;
+                _nextLegacyHydrationUtc = now + PersistenceInterval;
+            }
+
+            var bytes = await databaseService.GetAsync(MetricsStoreKey);
             if (bytes is null || bytes.Length == 0)
                 return;
+
+            byte[]? legacyPayloadHash = null;
+            if (version is not { Length: > 0 })
+            {
+                legacyPayloadHash = SHA256.HashData(bytes);
+                if (_lastLegacyPayloadHash is not null &&
+                    legacyPayloadHash.AsSpan().SequenceEqual(_lastLegacyPayloadHash))
+                {
+                    return;
+                }
+            }
 
             var record = MemoryPackSerializer.Deserialize<MetricsStoreRecord>(bytes);
             if (record is null)
                 return;
 
             metricsStore.ReplaceFromRecord(record);
+            if (version is { Length: > 0 })
+            {
+                _lastHydratedVersion = version.ToArray();
+                _lastLegacyPayloadHash = null;
+            }
+            else
+            {
+                _lastLegacyPayloadHash = legacyPayloadHash;
+            }
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
