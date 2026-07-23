@@ -84,6 +84,11 @@ public class SlimFaasOptions
 public class MetricsScrapingOptions
 {
     /// <summary>
+    /// Target interval between the start of two Prometheus scraping cycles.
+    /// </summary>
+    public int ScrapeIntervalMilliseconds { get; set; } = 2_000;
+
+    /// <summary>
     /// Maximum number of bytes accepted from one metrics response.
     /// </summary>
     public long MaxResponseBytes { get; set; } = 8L * 1024L * 1024L;
