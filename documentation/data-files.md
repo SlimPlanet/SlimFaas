@@ -32,7 +32,7 @@ Base path: `/data/files`
 |---|---|---|
 | `POST` | `/data/files?id={id?}&ttl={ms?}` | Store a binary artifact (request body = raw bytes) |
 | `GET` | `/data/files/{id}` | Download an artifact (auto-pull from another node if missing locally) |
-| `DELETE` | `/data/files/{id}` | Remove metadata (the artifact becomes inaccessible through the API) |
+| `DELETE` | `/data/files/{id}` | Remove metadata and delete the local binary |
 | `GET` | `/data/files` | List known artifacts (metadata-based) |
 
 ---
@@ -63,7 +63,7 @@ If `Content-Length` is **missing** or **unknown** (e.g., chunked transfer encodi
 
 - **accepts the upload**
 - logs a **warning**
-- **assumes the transfer is 20 MiB** for the limiter accounting
+- reserves the full default transfer budget (**256 MiB**) so an unknown-size upload runs alone
 
 > Recommendation
 > Provide `Content-Length` whenever possible to get accurate concurrency behavior (especially behind proxies).
@@ -118,13 +118,15 @@ curl -L "http://<slimfaas>/data/files/my-artifact-001" -o my-artifact-001.bin
 
 ## Delete an artifact: `DELETE /data/files/{id}`
 
-This removes the **metadata** for the artifact.
+This removes the cluster-consistent **metadata** and immediately attempts to remove the
+binary stored on the node handling the request. Other replicas remove their orphaned
+copy after three cleanup observations (at most about 90 seconds with the default interval).
 
 - `204 No Content` on success
 - `400 Bad Request` if id is invalid
 
-> Important
-> Removing metadata makes the artifact inaccessible through the API (downloads return 404), even if the binary still exists on disk. Disk cleanup depends on your configured cleanup/expiration strategy.
+Physical cleanup is best-effort: the metadata deletion remains authoritative and a
+background cleaner retries local orphan cleanup.
 
 ---
 
@@ -283,7 +285,8 @@ Meaning:
 - new transfers wait if starting them would exceed the budget
 - a single artifact larger than 256 MiB can run only if it is **alone**
 
-When `Content-Length` is missing/unknown, SlimFaas uses **20 MiB** as the reserved size for that transfer (and logs a warning).
+When `Content-Length` is missing/unknown, SlimFaas reserves the complete default
+budget (**256 MiB**) and logs a warning.
 
 **This is not a strict memory cap**; it’s a concurrency limiter.
 
@@ -304,8 +307,30 @@ When `Content-Length` is missing/unknown, SlimFaas uses **20 MiB** as the reserv
 ### Upload logs a warning about Content-Length
 Your client/proxy sent the request without `Content-Length` (often chunked transfer).
 
-SlimFaas will still accept the upload, but it will **assume 20 MiB** for concurrency accounting.
-Fix: ensure uploads have a known length (e.g., `curl --data-binary @file`) and verify proxy settings if you want precise limiter behavior.
+SlimFaas still accepts the upload and reserves the full **256 MiB** default budget.
+The upload runs alone by default. Provide a known length (e.g. `curl --data-binary @file`)
+to allow safe parallel transfers.
+
+### File transfer memory settings
+
+The defaults can be overridden with `SlimData__Files__...` environment variables:
+
+```json
+{
+  "SlimData": {
+    "Files": {
+      "MaxInFlightBytes": 268435456,
+      "UnknownLengthReservationBytes": 268435456,
+      "MaxPendingTransfers": 128,
+      "QueueWaitTimeoutSeconds": 30,
+      "DropPageCache": true
+    }
+  }
+}
+```
+
+When the pending queue is full or a transfer waits longer than the configured timeout,
+SlimFaas returns `429 Too Many Requests` with `Retry-After: 1`.
 
 ### 404 Not Found on download
 - metadata expired or was deleted

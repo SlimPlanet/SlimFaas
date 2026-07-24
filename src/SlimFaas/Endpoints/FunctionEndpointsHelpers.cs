@@ -10,7 +10,7 @@ namespace SlimFaas.Endpoints;
 
 public static class FunctionEndpointsHelpers
 {
-    private const long DefaultFileOffloadContentLengthBytes = 20L * 1024L * 1024L;
+    private const long DefaultFileOffloadContentLengthBytes = 256L * 1024L * 1024L;
     private const long LengthBytes = 512L * 1024L;
 
     public static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
@@ -115,6 +115,7 @@ public static class FunctionEndpointsHelpers
         string queueElementId = "",
         IClusterFileSync? fileSync = null,
         IDatabaseService? db = null,
+        long unknownLengthReservationBytes = DefaultFileOffloadContentLengthBytes,
         CancellationToken ct = default)
     {
         var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
@@ -179,7 +180,7 @@ public static class FunctionEndpointsHelpers
         {
             offloadedFileId = DataFileKeys.CreateInternalOffloadId();
             var contentType = contextRequest.ContentType ?? "application/octet-stream";
-            var contentLength = contextRequest.ContentLength ?? DefaultFileOffloadContentLengthBytes;
+            var contentLength = contextRequest.ContentLength ?? unknownLengthReservationBytes;
 
             var tags = new Dictionary<string, string>
             {

@@ -34,11 +34,12 @@ public class SlimQueuesWorkerOffloadTests
         ISlimFaasQueue queue,
         IReplicasService replicasService,
         IClusterFileSync fileSync,
-        IDatabaseService db)
+        IDatabaseService db,
+        Task<HttpResponseMessage>? responseTask = null,
+        Mock<IMasterService>? masterService = null)
     {
-        HttpResponseMessage responseMessage = new() { StatusCode = HttpStatusCode.OK };
         Mock<ISendClient> sendClientMock = new();
-        sendClientMock
+        var sendSetup = sendClientMock
             .Setup(s => s.SendHttpRequestAsync(
                 It.IsAny<CustomRequest>(),
                 It.IsAny<SlimFaasDefaultConfiguration>(),
@@ -48,8 +49,15 @@ public class SlimQueuesWorkerOffloadTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>()))
-            .ReturnsAsync(responseMessage);
+                It.IsAny<Stream?>()));
+        if (responseTask is null)
+        {
+            sendSetup.ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
+        }
+        else
+        {
+            sendSetup.Returns(responseTask);
+        }
 
         Mock<IServiceProvider> serviceProvider = new();
         serviceProvider.Setup(x => x.GetService(typeof(ISendClient))).Returns(sendClientMock.Object);
@@ -64,8 +72,11 @@ public class SlimQueuesWorkerOffloadTests
         Mock<ISlimDataStatus> slimDataStatus = new();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);
 
-        Mock<IMasterService> masterService = new();
-        masterService.Setup(s => s.IsMaster).Returns(true);
+        if (masterService is null)
+        {
+            masterService = new Mock<IMasterService>();
+            masterService.Setup(s => s.IsMaster).Returns(true);
+        }
 
         var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
         {
@@ -163,7 +174,7 @@ public class SlimQueuesWorkerOffloadTests
             .Returns(Task.CompletedTask);
 
         // --- fileSync mock : retourne un stream fictif ---
-        var fakeFileStream = new MemoryStream(new byte[2 * 1024 * 1024]);
+        var fakeFileStream = new TrackingMemoryStream(new byte[2 * 1024 * 1024]);
         Mock<IClusterFileSync> fileSyncMock = new();
         fileSyncMock
             .Setup(f => f.PullFileIfMissingAsync(fileId, sha256, null, It.IsAny<CancellationToken>()))
@@ -212,6 +223,7 @@ public class SlimQueuesWorkerOffloadTests
             It.IsAny<string?>(),
             It.IsAny<string?>(),
             It.Is<Stream?>(stream => stream != null)), Times.AtLeastOnce);
+        Assert.True(fakeFileStream.Disposed);
     }
 
     /// <summary>
@@ -392,5 +404,135 @@ public class SlimQueuesWorkerOffloadTests
                 status.Items.Any(item => item.Id == "element-id-3" && item.HttpCode == 500))),
             Times.AtLeastOnce);
     }
-}
 
+    [Fact]
+    public async Task Faulted_outbound_request_disposes_offloaded_stream()
+    {
+        const string functionName = "my-func";
+        const string fileId = "faulted-file";
+        const string sha = "sha";
+        var db = new Mock<IDatabaseService>();
+        db.Setup(d => d.GetAsync(DataFileKeys.MetaKey(fileId)))
+            .ReturnsAsync(MemoryPackSerializer.Serialize(
+                new DataSetMetadata(sha, 10, "application/octet-stream", fileId)));
+        var stream = new TrackingMemoryStream(new byte[10]);
+        var fileSync = new Mock<IClusterFileSync>();
+        fileSync.Setup(f => f.PullFileIfMissingAsync(fileId, sha, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FilePullResult(stream));
+        var request = new CustomRequest(
+            [],
+            Body: null,
+            FunctionName: functionName,
+            Path: "/process",
+            Method: "POST",
+            Query: "",
+            OffloadedFileId: fileId);
+        var queue = BuildQueueMock(
+            functionName,
+            new QueueData("faulted-element", MemoryPackSerializer.Serialize(request), 0, true, 0, 0));
+        var (worker, _) = BuildWorker(
+            queue.Object,
+            BuildReplicasService(functionName, "192.168.99.10"),
+            fileSync.Object,
+            db.Object,
+            Task.FromException<HttpResponseMessage>(new HttpRequestException("failed")));
+        using var stopping = new CancellationTokenSource();
+
+        await worker.StartAsync(stopping.Token);
+        await Task.Delay(250);
+        await stopping.CancelAsync();
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.True(stream.Disposed);
+    }
+
+    [Fact]
+    public async Task Leadership_loss_cancels_request_and_disposes_offloaded_stream()
+    {
+        const string functionName = "my-func";
+        const string fileId = "leadership-file";
+        const string sha = "sha";
+        var db = new Mock<IDatabaseService>();
+        db.Setup(d => d.GetAsync(DataFileKeys.MetaKey(fileId)))
+            .ReturnsAsync(MemoryPackSerializer.Serialize(
+                new DataSetMetadata(sha, 10, "application/octet-stream", fileId)));
+        var stream = new TrackingMemoryStream(new byte[10]);
+        var fileSync = new Mock<IClusterFileSync>();
+        fileSync.Setup(f => f.PullFileIfMissingAsync(fileId, sha, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FilePullResult(stream));
+        var request = new CustomRequest(
+            [],
+            Body: null,
+            FunctionName: functionName,
+            Path: "/process",
+            Method: "POST",
+            Query: "",
+            OffloadedFileId: fileId);
+        var queue = BuildQueueMock(
+            functionName,
+            new QueueData("leadership-element", MemoryPackSerializer.Serialize(request), 0, true, 0, 0));
+        var master = new Mock<IMasterService>();
+        var leadershipChecks = 0;
+        master.Setup(s => s.IsMaster).Returns(() => Interlocked.Increment(ref leadershipChecks) == 1);
+        var (worker, sendClient) = BuildWorker(
+            queue.Object,
+            BuildReplicasService(functionName, "192.168.99.11"),
+            fileSync.Object,
+            db.Object,
+            masterService: master);
+        CancellationTokenSource? capturedCancellation = null;
+        sendClient.Reset();
+        sendClient.Setup(s => s.SendHttpRequestAsync(
+                It.IsAny<CustomRequest>(),
+                It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationTokenSource?>(),
+                It.IsAny<IProxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<Stream?>()))
+            .Returns((
+                CustomRequest _,
+                SlimFaasDefaultConfiguration _,
+                string? _,
+                CancellationTokenSource? cancellation,
+                IProxy? _,
+                string? _,
+                string? _,
+                string? _,
+                Stream? _) =>
+            {
+                capturedCancellation = cancellation;
+                return WaitForCancellationAsync(cancellation!.Token);
+            });
+        using var stopping = new CancellationTokenSource();
+
+        await worker.StartAsync(stopping.Token);
+        await Task.Delay(250);
+        await stopping.CancelAsync();
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.NotNull(capturedCancellation);
+        Assert.True(capturedCancellation.IsCancellationRequested);
+        Assert.True(stream.Disposed);
+    }
+
+    private static async Task<HttpResponseMessage> WaitForCancellationAsync(CancellationToken cancellationToken)
+    {
+        await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        throw new InvalidOperationException("Cancellation was expected.");
+    }
+
+    private sealed class TrackingMemoryStream(byte[] buffer) : MemoryStream(buffer)
+    {
+        public bool Disposed { get; private set; }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+                Disposed = true;
+            base.Dispose(disposing);
+        }
+    }
+}

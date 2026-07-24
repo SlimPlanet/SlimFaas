@@ -6,12 +6,14 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using Moq;
 using SlimData;
 using SlimData.ClusterFiles;
 using SlimData.Commands;
+using SlimData.Options;
 using SlimFaas;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -208,7 +210,13 @@ public sealed class DataFileRoutesTests
 
         // Act
         var result = await DataFileRoutes.DataFileHandlers.PostAsync(
-            ctx, id: null, ttl: ttlMs, fileSync.Object, db.Object, CancellationToken.None);
+            ctx,
+            id: null,
+            ttl: ttlMs,
+            fileSync.Object,
+            db.Object,
+            Options.Create(new ClusterFileOptions()),
+            CancellationToken.None);
 
         var (status, _, bodyBytes) = await ExecuteAsync(result, ctx);
         var elementId = Encoding.UTF8.GetString(bodyBytes);
@@ -244,12 +252,59 @@ public sealed class DataFileRoutesTests
         var internalId = DataFileKeys.CreateInternalOffloadId();
 
         var result = await DataFileRoutes.DataFileHandlers.PostAsync(
-            ctx, internalId, 10L, fileSync.Object, db.Object, CancellationToken.None);
+            ctx,
+            internalId,
+            10L,
+            fileSync.Object,
+            db.Object,
+            Options.Create(new ClusterFileOptions()),
+            CancellationToken.None);
 
         var badRequest = Assert.IsType<BadRequest<string>>(result);
         Assert.Equal("Invalid id.", badRequest.Value);
         fileSync.VerifyNoOtherCalls();
         db.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task Post_without_content_length_uses_configured_unknown_length_reservation()
+    {
+        var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var ctx = NewHttpContext();
+        ctx.Request.Body = new MemoryStream([1, 2, 3]);
+        ctx.Request.ContentType = "application/octet-stream";
+        ctx.Request.ContentLength = null;
+        const long reservation = 123_456;
+        fileSync.Setup(s => s.BroadcastFilePutAsync(
+                "id1",
+                It.IsAny<Stream>(),
+                "application/octet-stream",
+                reservation,
+                true,
+                null,
+                It.IsAny<CancellationToken>(),
+                null))
+            .ReturnsAsync(new FilePutResult("sha", "application/octet-stream", 3));
+        db.Setup(d => d.SetAsync(DataFileKeys.MetaKey("id1"), It.IsAny<byte[]>(), null))
+            .ReturnsAsync(Applied());
+
+        var result = await DataFileRoutes.DataFileHandlers.PostAsync(
+            ctx,
+            "id1",
+            null,
+            fileSync.Object,
+            db.Object,
+            Options.Create(new ClusterFileOptions
+            {
+                UnknownLengthReservationBytes = reservation
+            }),
+            CancellationToken.None);
+
+        var (status, _, _) = await ExecuteAsync(result, ctx);
+        Assert.Equal(StatusCodes.Status200OK, status);
+        fileSync.VerifyAll();
+        db.VerifyAll();
     }
 
     // ------------------------------------------------------------
@@ -325,35 +380,79 @@ public sealed class DataFileRoutesTests
     // DELETE tests
     // ------------------------------------------------------------
     [Fact]
-    public async Task Delete_DeletesMetadataKey()
+    public async Task Delete_deletes_metadata_and_local_file()
     {
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
 
         db.Setup(d => d.DeleteAsync(DataFileKeys.MetaKey("id1")))
           .Returns(Task.CompletedTask);
+        fileSync.Setup(s => s.DeleteLocalAsync("id1", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
-        var result = await DataFileRoutes.DataFileHandlers.DeleteAsync("id1", db.Object, CancellationToken.None);
+        using var loggerFactory = LoggerFactory.Create(_ => { });
+        var result = await DataFileRoutes.DataFileHandlers.DeleteAsync(
+            "id1",
+            db.Object,
+            fileSync.Object,
+            loggerFactory,
+            CancellationToken.None);
 
         var ctx = NewHttpContext();
         var (status, _, _) = await ExecuteAsync(result, ctx);
 
         Assert.Equal(204, status);
         db.VerifyAll();
+        fileSync.VerifyAll();
+    }
+
+    [Fact]
+    public async Task Delete_keeps_no_content_when_local_cleanup_fails()
+    {
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
+        db.Setup(d => d.DeleteAsync(DataFileKeys.MetaKey("id1")))
+            .Returns(Task.CompletedTask);
+        fileSync.Setup(s => s.DeleteLocalAsync("id1", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("disk unavailable"));
+
+        using var loggerFactory = LoggerFactory.Create(_ => { });
+        var result = await DataFileRoutes.DataFileHandlers.DeleteAsync(
+            "id1",
+            db.Object,
+            fileSync.Object,
+            loggerFactory,
+            CancellationToken.None);
+
+        var ctx = NewHttpContext();
+        var (status, _, _) = await ExecuteAsync(result, ctx);
+
+        Assert.Equal(204, status);
+        db.VerifyAll();
+        fileSync.VerifyAll();
     }
 
     [Fact]
     public async Task Delete_returns_notfound_when_id_is_internal_pattern()
     {
         var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var fileSync = new Mock<IClusterFileSync>(MockBehavior.Strict);
         var internalId = DataFileKeys.CreateInternalOffloadId();
 
-        var result = await DataFileRoutes.DataFileHandlers.DeleteAsync(internalId, db.Object, CancellationToken.None);
+        using var loggerFactory = LoggerFactory.Create(_ => { });
+        var result = await DataFileRoutes.DataFileHandlers.DeleteAsync(
+            internalId,
+            db.Object,
+            fileSync.Object,
+            loggerFactory,
+            CancellationToken.None);
 
         var ctx = NewHttpContext();
         var (status, _, _) = await ExecuteAsync(result, ctx);
 
         Assert.Equal(404, status);
         db.VerifyNoOtherCalls();
+        fileSync.VerifyNoOtherCalls();
     }
 
     private sealed class TestInvocationContext : EndpointFilterInvocationContext

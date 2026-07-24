@@ -14,7 +14,10 @@ internal record struct RequestToWait(
     CustomRequest CustomRequest,
     string Id,
     string TargetIp,
-    Stream? OffloadedStream = null);
+    Stream? OffloadedStream,
+    CancellationTokenSource Cancellation);
+
+internal readonly record struct Awaiting202Request(string Id, string TargetIp);
 
 public class SlimQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
@@ -41,25 +44,32 @@ public class SlimQueuesWorker(
     {
         await slimDataStatus.WaitForReadyAsync();
         Dictionary<string, IList<RequestToWait>> processingTasks = new();
-        Dictionary<string, IList<RequestToWait>> awaiting202Tasks = new();
+        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks = new();
         Dictionary<string, int> setTickLastCallCounterDictionary = new();
-        while (stoppingToken.IsCancellationRequested == false)
+        try
         {
-            await DoOneCycle(stoppingToken, setTickLastCallCounterDictionary, processingTasks, awaiting202Tasks);
+            while (stoppingToken.IsCancellationRequested == false)
+            {
+                await DoOneCycle(stoppingToken, setTickLastCallCounterDictionary, processingTasks, awaiting202Tasks);
+            }
+        }
+        finally
+        {
+            ClearLocalTracking(processingTasks, awaiting202Tasks);
         }
     }
 
     private async Task DoOneCycle(CancellationToken stoppingToken,
         Dictionary<string, int> setTickLastCallCounterDictionary,
         Dictionary<string, IList<RequestToWait>> processingTasks,
-        Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
+        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks)
     {
         try
         {
             await Task.Delay(_delay, stoppingToken);
             if (!masterService.IsMaster)
             {
-                ClearLocalTrackingOnLeadershipLoss(processingTasks, awaiting202Tasks);
+                ClearLocalTracking(processingTasks, awaiting202Tasks);
                 return;
             }
             DeploymentsInformations deployments = replicasService.Deployments;
@@ -238,9 +248,38 @@ public class SlimQueuesWorker(
 
             string targetIp = reservedIp;
 
-            Task<HttpResponseMessage> taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
-                .SendHttpRequestAsync(customRequest, slimfaasDefaultConfiguration, null, null, proxy, reservedIp, functionDeployment, null, offloadedStream);
-            processingTasks[functionDeployment].Add(new RequestToWait(taskResponse, customRequest, requestJson.Id, targetIp, offloadedStream));
+            var requestCancellation = new CancellationTokenSource();
+            Task<HttpResponseMessage> taskResponse;
+            try
+            {
+                taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
+                    .SendHttpRequestAsync(
+                        customRequest,
+                        slimfaasDefaultConfiguration,
+                        null,
+                        requestCancellation,
+                        proxy,
+                        reservedIp,
+                        functionDeployment,
+                        null,
+                        offloadedStream);
+            }
+            catch
+            {
+                requestCancellation.Dispose();
+                if (offloadedStream is not null)
+                    await offloadedStream.DisposeAsync().ConfigureAwait(false);
+                throw;
+            }
+
+            processingTasks[functionDeployment].Add(
+                new RequestToWait(
+                    taskResponse,
+                    customRequest,
+                    requestJson.Id,
+                    targetIp,
+                    offloadedStream,
+                    requestCancellation));
             activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
         }
     }
@@ -305,7 +344,7 @@ public class SlimQueuesWorker(
 
     private async Task<int> ManageProcessingTasksAsync(ISlimFaasQueue slimFaasQueue,
         Dictionary<string, IList<RequestToWait>> processingTasks,
-        Dictionary<string, IList<RequestToWait>> awaiting202Tasks,
+        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks,
         string functionDeployment)
     {
         if (processingTasks.ContainsKey(functionDeployment) == false)
@@ -314,58 +353,53 @@ public class SlimQueuesWorker(
         }
         if (awaiting202Tasks.ContainsKey(functionDeployment) == false)
         {
-            awaiting202Tasks.Add(functionDeployment, new List<RequestToWait>());
+            awaiting202Tasks.Add(functionDeployment, new List<Awaiting202Request>());
         }
         var listQueueItemStatus = new ListQueueItemStatus();
         var queueItemStatusList = new List<QueueItemStatus>();
         listQueueItemStatus.Items = queueItemStatusList;
-        List<RequestToWait> httpResponseMessagesToDelete = new();
+        List<RequestToWait> completedRequests = new();
         IList<RequestToWait> requestToWaits = processingTasks[functionDeployment];
         foreach (RequestToWait processing in requestToWaits)
         {
+            if (!processing.Task.IsCompleted)
+            {
+                continue;
+            }
+
             try
             {
                 historyHttpService.SetTickLastCall(functionDeployment, DateTime.UtcNow.Ticks);
 
-                if (!processing.Task.IsCompleted)
-                {
-                    continue;
-                }
-
-                HttpResponseMessage httpResponseMessage = await processing.Task;
+                using HttpResponseMessage httpResponseMessage = await processing.Task;
                 var statusCode = (int)httpResponseMessage.StatusCode;
                 logger.LogDebug(
                     "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",
                     processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
                     httpResponseMessage.StatusCode);
-                httpResponseMessagesToDelete.Add(processing);
-
-                if (processing.OffloadedStream != null)
-                {
-                    await processing.OffloadedStream.DisposeAsync();
-                }
 
                 if (statusCode == 202)
                 {
-                    httpResponseMessage.Dispose();
-                    httpResponseMessagesToDelete.Add(processing);
-                    awaiting202Tasks[functionDeployment].Add(processing);
+                    awaiting202Tasks[functionDeployment].Add(
+                        new Awaiting202Request(processing.Id, processing.TargetIp));
                 }
                 else
                 {
-                    httpResponseMessagesToDelete.Add(processing);
                     activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment,
                         targetPod: processing.TargetIp);
                     queueItemStatusList.Add(new QueueItemStatus(processing.Id, statusCode));
-                    httpResponseMessage.Dispose();
                 }
             }
             catch (Exception e)
             {
                 queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
-                httpResponseMessagesToDelete.Add(processing);
                 activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, targetPod: processing.TargetIp);
                 logger.LogWarning("Request Error: {Message} {StackTrace}", e.Message, e.StackTrace);
+            }
+            finally
+            {
+                completedRequests.Add(processing);
+                await DisposeRequestResourcesAsync(processing).ConfigureAwait(false);
             }
         }
 
@@ -374,9 +408,9 @@ public class SlimQueuesWorker(
             await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
         }
 
-        foreach (RequestToWait httpResponseMessage in httpResponseMessagesToDelete)
+        foreach (RequestToWait completed in completedRequests)
         {
-            requestToWaits.Remove(httpResponseMessage);
+            requestToWaits.Remove(completed);
         }
 
         int numberProcessingTasks = requestToWaits.Count;
@@ -384,15 +418,15 @@ public class SlimQueuesWorker(
     }
 
     private async Task ManageAwaiting202TasksAsync(
-        Dictionary<string, IList<RequestToWait>> awaiting202Tasks,
+        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks,
         string functionDeployment)
     {
         if (!awaiting202Tasks.ContainsKey(functionDeployment))
         {
-            awaiting202Tasks[functionDeployment] = new List<RequestToWait>();
+            awaiting202Tasks[functionDeployment] = new List<Awaiting202Request>();
         }
 
-        IList<RequestToWait> pending = awaiting202Tasks[functionDeployment];
+        IList<Awaiting202Request> pending = awaiting202Tasks[functionDeployment];
         if (pending.Count == 0)
         {
             return;
@@ -400,7 +434,7 @@ public class SlimQueuesWorker(
 
         var running = await slimFaasQueue.ListElementsAsync(functionDeployment, [CountType.Running]);
         var runningByElementId = running.Select(r => r.Id).ToHashSet(StringComparer.Ordinal);
-        List<RequestToWait> completed = new();
+        List<Awaiting202Request> completed = new();
 
         foreach (var item in pending)
         {
@@ -420,12 +454,35 @@ public class SlimQueuesWorker(
         }
     }
 
-    private void ClearLocalTrackingOnLeadershipLoss(
+    private void ClearLocalTracking(
         Dictionary<string, IList<RequestToWait>> processingTasks,
-        Dictionary<string, IList<RequestToWait>> awaiting202Tasks)
+        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks)
     {
         foreach (var kv in processingTasks)
         {
+            foreach (var request in kv.Value)
+            {
+                try
+                {
+                    request.Cancellation.Cancel();
+                }
+                catch
+                {
+                    // Best effort during shutdown or a leadership transition.
+                }
+
+                try
+                {
+                    request.OffloadedStream?.Dispose();
+                }
+                catch
+                {
+                    // Continue releasing the remaining resources.
+                }
+                request.Cancellation.Dispose();
+                _ = ObserveAndDisposeResponseAsync(request.Task);
+            }
+
             kv.Value.Clear();
         }
 
@@ -433,6 +490,31 @@ public class SlimQueuesWorker(
         {
 
             kv.Value.Clear();
+        }
+    }
+
+    private static async Task DisposeRequestResourcesAsync(RequestToWait request)
+    {
+        try
+        {
+            if (request.OffloadedStream is not null)
+                await request.OffloadedStream.DisposeAsync().ConfigureAwait(false);
+        }
+        finally
+        {
+            request.Cancellation.Dispose();
+        }
+    }
+
+    private static async Task ObserveAndDisposeResponseAsync(Task<HttpResponseMessage> responseTask)
+    {
+        try
+        {
+            using var response = await responseTask.ConfigureAwait(false);
+        }
+        catch
+        {
+            // Expected after cancellation on shutdown or leadership loss.
         }
     }
 

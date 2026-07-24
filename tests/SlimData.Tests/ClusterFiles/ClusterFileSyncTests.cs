@@ -13,6 +13,28 @@ using Xunit;
 public sealed class ClusterFileSyncTests
 {
     [Fact]
+    public async Task DeleteLocalAsync_deletes_repository_file()
+    {
+        var repo = new Mock<IFileRepository>(MockBehavior.Strict);
+        var bus = new Mock<IMessageBus>(MockBehavior.Strict);
+        var queue = new ClusterFileAnnounceQueue();
+        var logger = new Mock<ILogger<ClusterFileSync>>();
+        var httpFactory = new TestHttpClientFactory(
+            new HttpClient(new StubHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound))));
+        bus.Setup(b => b.AddListener(It.IsAny<IInputChannel>()));
+        bus.Setup(b => b.RemoveListener(It.IsAny<IInputChannel>()));
+        repo.Setup(r => r.DeleteAsync("id1", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, logger.Object, httpFactory);
+
+        await sut.DeleteLocalAsync("id1", CancellationToken.None);
+        await sut.DisposeAsync();
+
+        repo.VerifyAll();
+        bus.VerifyAll();
+    }
+
+    [Fact]
     public async Task BroadcastFilePutAsync_saves_and_broadcasts_announce_only()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);

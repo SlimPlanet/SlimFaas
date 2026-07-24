@@ -10,14 +10,27 @@ public sealed class DiskFileRepository : IFileRepository
     private const string MetaExt = ".meta.mp";
     private readonly string _root;
     private readonly ILogger<DiskFileRepository> _logger;
+    private readonly IFileCacheControl _cacheControl;
 
-    public DiskFileRepository(string pathDirectory, ILogger<DiskFileRepository> logger)
+    public DiskFileRepository(
+        string pathDirectory,
+        ILogger<DiskFileRepository> logger,
+        bool dropPageCache = true)
+        : this(pathDirectory, logger, new LinuxFileCacheControl(dropPageCache, logger))
+    {
+    }
+
+    internal DiskFileRepository(
+        string pathDirectory,
+        ILogger<DiskFileRepository> logger,
+        IFileCacheControl cacheControl)
     {
         if (string.IsNullOrWhiteSpace(pathDirectory))
             throw new ArgumentException("pathDirectory is required", nameof(pathDirectory));
 
         _root = pathDirectory;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cacheControl = cacheControl ?? throw new ArgumentNullException(nameof(cacheControl));
         Directory.CreateDirectory(_root);
     }
 
@@ -62,6 +75,7 @@ public sealed class DiskFileRepository : IFileRepository
             }
             
             await fs.FlushAsync(ct).ConfigureAwait(false);
+            _cacheControl.Drop(fs);
             MoveIntoPlace(tmp, filePath, overwrite);
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
@@ -135,7 +149,7 @@ public sealed class DiskFileRepository : IFileRepository
         var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
 
-        return Task.FromResult<Stream>(fs);
+        return Task.FromResult<Stream>(new FileCacheDroppingReadStream(fs, _cacheControl));
     }
 
     private (string FilePath, string MetaPath) GetPaths(string id)

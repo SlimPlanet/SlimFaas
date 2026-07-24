@@ -19,6 +19,8 @@ internal sealed class HttpRangeReadStream : Stream
 
     private HttpResponseMessage? _resp;
     private Stream? _respStream;
+    private CancellationTokenSource? _chunkTimeoutSource;
+    private CancellationToken _chunkCallerToken;
     private long _remainingInChunk;
 
     public HttpRangeReadStream(HttpClient http, Uri uri, long length, int chunkSizeBytes, TimeSpan perChunkTimeout)
@@ -53,8 +55,27 @@ internal sealed class HttpRangeReadStream : Stream
 
         await EnsureChunkAsync(cancellationToken).ConfigureAwait(false);
 
+        cancellationToken.ThrowIfCancellationRequested();
         var toRead = (int)Math.Min(buffer.Length, _remainingInChunk);
-        var n = await _respStream!.ReadAsync(buffer[..toRead], cancellationToken).ConfigureAwait(false);
+        CancellationTokenSource? linkedReadSource = null;
+        var readToken = _chunkTimeoutSource!.Token;
+        if (cancellationToken.CanBeCanceled && cancellationToken != _chunkCallerToken)
+        {
+            linkedReadSource = CancellationTokenSource.CreateLinkedTokenSource(
+                cancellationToken,
+                readToken);
+            readToken = linkedReadSource.Token;
+        }
+
+        int n;
+        try
+        {
+            n = await _respStream!.ReadAsync(buffer[..toRead], readToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            linkedReadSource?.Dispose();
+        }
 
         if (n <= 0)
             throw new IOException("Remote stream ended unexpectedly during ranged download.");
@@ -76,22 +97,36 @@ internal sealed class HttpRangeReadStream : Stream
         var take = Math.Min((long)_chunkSize, remaining);
         if (take <= 0) return;
 
-        using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        cts.CancelAfter(_perChunkTimeout);
+        _chunkTimeoutSource = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        _chunkTimeoutSource.CancelAfter(_perChunkTimeout);
+        _chunkCallerToken = ct;
 
-        var req = new HttpRequestMessage(HttpMethod.Get, _uri);
-        req.Headers.Range = new RangeHeaderValue(offset, offset + take - 1);
+        try
+        {
+            var req = new HttpRequestMessage(HttpMethod.Get, _uri);
+            req.Headers.Range = new RangeHeaderValue(offset, offset + take - 1);
 
-        _resp = await HttpRedirect.SendWithRedirectAsync(_http, req, cts.Token).ConfigureAwait(false);
+            _resp = await HttpRedirect.SendWithRedirectAsync(
+                _http,
+                req,
+                _chunkTimeoutSource.Token).ConfigureAwait(false);
 
-        if (_resp.StatusCode == HttpStatusCode.NotFound)
-            throw new FileNotFoundException("Remote did not have the file.");
+            if (_resp.StatusCode == HttpStatusCode.NotFound)
+                throw new FileNotFoundException("Remote did not have the file.");
 
-        if (_resp.StatusCode != HttpStatusCode.PartialContent)
-            throw new IOException($"Unexpected status for Range GET: {(int)_resp.StatusCode} {_resp.ReasonPhrase}");
+            if (_resp.StatusCode != HttpStatusCode.PartialContent)
+                throw new IOException($"Unexpected status for Range GET: {(int)_resp.StatusCode} {_resp.ReasonPhrase}");
 
-        _respStream = await _resp.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
-        _remainingInChunk = take;
+            _respStream = await _resp.Content
+                .ReadAsStreamAsync(_chunkTimeoutSource.Token)
+                .ConfigureAwait(false);
+            _remainingInChunk = take;
+        }
+        catch
+        {
+            await DisposeCurrentResponseAsync().ConfigureAwait(false);
+            throw;
+        }
     }
 
     private async ValueTask DisposeCurrentResponseAsync()
@@ -108,6 +143,9 @@ internal sealed class HttpRangeReadStream : Stream
             _remainingInChunk = 0;
             try { _resp?.Dispose(); } catch { /* ignore */ }
             _resp = null;
+            try { _chunkTimeoutSource?.Dispose(); } catch { /* ignore */ }
+            _chunkTimeoutSource = null;
+            _chunkCallerToken = default;
         }
     }
 
@@ -137,17 +175,32 @@ internal static class HttpRedirect
 {
     public static async Task<HttpResponseMessage> SendWithRedirectAsync(HttpClient http, HttpRequestMessage req, CancellationToken ct)
     {
+        if (req.Content is not null)
+            throw new NotSupportedException("Cluster file redirects only support requests without a body.");
+
         Uri current = req.RequestUri!;
         for (int i = 0; i < 5; i++)
         {
-            var resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            HttpResponseMessage resp;
+            try
+            {
+                resp = await http.SendAsync(req, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                req.Dispose();
+                throw;
+            }
 
             if (resp.StatusCode is HttpStatusCode.TemporaryRedirect or HttpStatusCode.PermanentRedirect
                 or HttpStatusCode.Redirect or HttpStatusCode.Moved or HttpStatusCode.Found)
             {
                 var loc = resp.Headers.Location;
                 if (loc is null)
+                {
+                    req.Dispose();
                     return resp;
+                }
 
                 resp.Dispose();
                 current = loc.IsAbsoluteUri ? loc : new Uri(current, loc);
@@ -158,18 +211,16 @@ internal static class HttpRedirect
                 foreach (var h in req.Headers)
                     newReq.Headers.TryAddWithoutValidation(h.Key, h.Value);
 
-                // copy content headers if any (rare here)
-                if (req.Content is not null)
-                    newReq.Content = req.Content;
-
                 req.Dispose();
                 req = newReq;
                 continue;
             }
 
+            req.Dispose();
             return resp;
         }
 
+        req.Dispose();
         throw new IOException("Too many redirects while contacting cluster node.");
     }
 }

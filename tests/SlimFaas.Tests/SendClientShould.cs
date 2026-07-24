@@ -9,6 +9,61 @@ namespace SlimFaas.Tests;
 
 public class SendClientShould
 {
+    [Fact]
+    public async Task Async_request_retries_seekable_override_without_disposing_owned_stream()
+    {
+        var attempts = new List<byte[]>();
+        var requests = new List<HttpRequestMessage>();
+        using var httpClient = new HttpClient(new HttpMessageHandlerStub(async (request, cancellationToken) =>
+        {
+            requests.Add(request);
+            attempts.Add(await request.Content!.ReadAsByteArrayAsync(cancellationToken));
+            return new HttpResponseMessage(
+                attempts.Count == 1
+                    ? HttpStatusCode.InternalServerError
+                    : HttpStatusCode.OK);
+        }));
+        var namespaceProvider = new Mock<INamespaceProvider>();
+        namespaceProvider.SetupGet(n => n.CurrentNamespace).Returns("default");
+        var sendClient = new SendClient(
+            httpClient,
+            new Mock<ILogger<SendClient>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                BaseFunctionUrl = "http://{function_name}:8080/",
+                Namespace = "default"
+            }),
+            namespaceProvider.Object,
+            new SlimFaas.Endpoints.NetworkActivityTracker());
+        var body = new MemoryStream([1, 2, 3]);
+        var request = new CustomRequest(
+            [],
+            Body: null,
+            FunctionName: "worker",
+            Path: "/run",
+            Method: "POST",
+            Query: "");
+
+        using var response = await sendClient.SendHttpRequestAsync(
+            request,
+            new SlimFaasDefaultConfiguration
+            {
+                TimeoutRetries = [0],
+                HttpStatusRetries = [(int)HttpStatusCode.InternalServerError]
+            },
+            bodyOverrideStream: body);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(2, attempts.Count);
+        Assert.All(attempts, attempt => Assert.Equal(new byte[] { 1, 2, 3 }, attempt));
+        Assert.True(body.CanRead);
+        Assert.All(
+            requests,
+            sent => Assert.Throws<ObjectDisposedException>(
+                () => sent.Content!.ReadAsByteArrayAsync().GetAwaiter().GetResult()));
+        body.Dispose();
+    }
+
     [Theory]
     [InlineData("GET")]
     [InlineData("POST")]

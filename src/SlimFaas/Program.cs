@@ -19,6 +19,7 @@ using SlimFaas.Endpoints;
 using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Middleware;
 using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.WebSocket;
@@ -604,29 +605,7 @@ if (!string.IsNullOrEmpty(publicEndPoint))
 
 app.UseCpuRateLimiting(excludedPorts.ToArray());
 
-app.Use(async (context, next) =>
-{
-    try
-    {
-        await next(context);
-    }
-    catch (BatchItemTooLargeException) when (!context.Response.HasStarted)
-    {
-        context.Response.Clear();
-        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
-    }
-    catch (BatchQueueFullException) when (!context.Response.HasStarted)
-    {
-        context.Response.Clear();
-        context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        context.Response.Headers.RetryAfter = "1";
-    }
-    catch (SlimDataUnavailableException) when (!context.Response.HasStarted)
-    {
-        context.Response.Clear();
-        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
-    }
-});
+app.Use(SlimDataCapacityErrorHandler.InvokeAsync);
 
 app.Use(async (context, next) =>
 {
