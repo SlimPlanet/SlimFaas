@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Options;
 using Prometheus;
 using SlimData;
 using SlimData.Commands;
@@ -169,7 +170,13 @@ serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 serviceCollectionStarter.AddSingleton<PromQlMiniEvaluator>(sp =>
 {
     var store = sp.GetRequiredService<IMetricsStore>();
-    return new PromQlMiniEvaluator(store);
+    var scrapeIntervalMilliseconds = sp
+        .GetRequiredService<IOptions<SlimFaasOptions>>()
+        .Value
+        .MetricsScraping
+        .ScrapeIntervalMilliseconds;
+    var instantSelectorLookback = TimeSpan.FromMilliseconds(scrapeIntervalMilliseconds * 3L);
+    return new PromQlMiniEvaluator(store, instantSelectorLookback);
 });
 
 // Store d’historique de décisions de scaling

@@ -420,5 +420,86 @@ public class ReplicasScaleWorkerShould
         kubernetesService.Verify(k => k.ScaleAsync(expectedRequest), Times.Once);
     }
 
+    [Fact]
+    public async Task InvalidPromQlForOneDeployment_ShouldNotBlockOtherDeployments()
+    {
+        var now = DateTime.UtcNow;
+        var kubernetesService = new Mock<IKubernetesService>();
+        var historyHttpService = new HistoryHttpMemoryService();
+        historyHttpService.SetTickLastCall("invalid-promql", now.Ticks);
+        historyHttpService.SetTickLastCall("valid-promql", now.Ticks);
+
+        static ScaleConfig ScaleWithQuery(string metricName, string query) => new()
+        {
+            Triggers =
+            {
+                new ScaleTrigger(ScaleMetricType.Value, metricName, query, 1)
+            },
+            Behavior = new ScaleBehavior
+            {
+                ScaleUp = new ScaleDirectionBehavior
+                {
+                    Policies = new List<ScalePolicy>()
+                },
+                ScaleDown = new ScaleDirectionBehavior
+                {
+                    Policies = new List<ScalePolicy>()
+                }
+            }
+        };
+
+        var deployments = new DeploymentsInformations(
+            new List<DeploymentInformation>
+            {
+                new(
+                    "invalid-promql",
+                    "default",
+                    new List<PodInformation>(),
+                    new SlimFaasConfiguration(),
+                    Replicas: 1,
+                    Scale: ScaleWithQuery("invalid", "rate(requests_total[1m]) +")),
+                new(
+                    "valid-promql",
+                    "default",
+                    new List<PodInformation>(),
+                    new SlimFaasConfiguration(),
+                    Replicas: 1,
+                    Scale: ScaleWithQuery("valid", "2"))
+            },
+            new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
+            new List<PodInformation>());
+        kubernetesService
+            .Setup(service => service.ListFunctionsAsync(
+                "default",
+                It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deployments);
+        var expectedRequest = new ReplicaRequest(
+            "valid-promql",
+            "default",
+            2,
+            PodType.Deployment);
+        kubernetesService
+            .Setup(service => service.ScaleAsync(expectedRequest))
+            .ReturnsAsync(expectedRequest);
+
+        var replicasService = new ReplicasService(
+            kubernetesService.Object,
+            historyHttpService,
+            CreateAutoScalerForTests(),
+            new Mock<ILogger<ReplicasService>>().Object,
+            new Mock<IRequestedMetricsRegistry>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
+            () => now);
+
+        await replicasService.SyncDeploymentsAsync("default");
+        await replicasService.CheckScaleAsync("default");
+
+        kubernetesService.Verify(service => service.ScaleAsync(expectedRequest), Times.Once);
+        kubernetesService.Verify(
+            service => service.ScaleAsync(It.Is<ReplicaRequest>(
+                request => request.Deployment == "invalid-promql")),
+            Times.Never);
+    }
+
 
 }

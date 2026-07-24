@@ -323,10 +323,11 @@ Main fields:
 
 ### Scaling formula (HPA/KEDA-style)
 
-For each trigger, the AutoScaler computes:
+For each trigger, the AutoScaler computes according to `MetricType`:
 
 ```text
-desiredReplicasTrigger = ceil(currentReplicas * (currentMetric / Threshold))
+AverageValue: desiredReplicasTrigger = ceil(currentMetric / Threshold)
+Value:        desiredReplicasTrigger = ceil(currentReplicas * (currentMetric / Threshold))
 ```
 
 Then:
@@ -445,8 +446,11 @@ Supported operators: `+`, `-`, `*`, `/` (no comparison or logical operators).
 rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m])
 ```
 
-- Computes the **per-series rate** based on the first and last sample in the window.
-- Resets (counter going backwards) are ignored.
+- Computes the **per-series rate** based on the first and last sample available in the window.
+- The denominator is the elapsed time between those samples. Unlike Prometheus, SlimFaas does
+  not extrapolate the rate to the full range window.
+- A counter is ignored when its last value is below its first value. Resets that occur between
+  those endpoints are not detected.
 - The evaluator returns the **sum of the rates of all matching series**.
 
 This is typically combined with `sum()` (or used directly) as a global RPS estimator.
@@ -633,6 +637,7 @@ The SlimFaas PromQL mini-evaluator is intentionally simple. Notable limitations:
       which is caught by the AutoScaler and logged as a warning.
     - Any resulting `NaN` / `Infinity` is treated as “no data” and the current replica
       count is preserved (within `ReplicasMin` / `ReplicaMax`).
+    - A real scalar `0` remains a valid value and may trigger scale-down.
 
 In short: **keep queries simple and scalar-oriented**. If a query would be hard to express
 without advanced PromQL features, it is probably better suited for dashboards than for
@@ -651,6 +656,8 @@ At a high level:
 - SlimFaas keeps in memory **only the metric keys that have been requested at least once**.
 - A single SlimFaas node is responsible for scraping and persisting metrics.
 - All nodes evaluate PromQL against a **shared, synchronized store** with a **30-minute retention window**.
+- Instant selectors ignore a series after it has missed **three configured scrape intervals**.
+  Explicit range selectors such as `[1m]` continue to use their own window.
 
 ---
 

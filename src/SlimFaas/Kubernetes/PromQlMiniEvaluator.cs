@@ -12,19 +12,28 @@ namespace SlimFaas.Kubernetes;
 
 public sealed class PromQlMiniEvaluator
 {
+    private static readonly TimeSpan DefaultInstantSelectorLookback = TimeSpan.FromMinutes(5);
+
     public delegate IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> SnapshotProvider();
 
     private readonly SnapshotProvider? _snapshotProvider;
     private readonly IMetricsStore? _metricsStore;
+    private readonly TimeSpan _instantSelectorLookback;
 
-    public PromQlMiniEvaluator(SnapshotProvider snapshotProvider)
+    public PromQlMiniEvaluator(
+        SnapshotProvider snapshotProvider,
+        TimeSpan? instantSelectorLookback = null)
     {
         _snapshotProvider = snapshotProvider ?? throw new ArgumentNullException(nameof(snapshotProvider));
+        _instantSelectorLookback = ValidateInstantSelectorLookback(instantSelectorLookback);
     }
 
-    public PromQlMiniEvaluator(IMetricsStore metricsStore)
+    public PromQlMiniEvaluator(
+        IMetricsStore metricsStore,
+        TimeSpan? instantSelectorLookback = null)
     {
         _metricsStore = metricsStore ?? throw new ArgumentNullException(nameof(metricsStore));
+        _instantSelectorLookback = ValidateInstantSelectorLookback(instantSelectorLookback);
     }
 
     // Évalue la requête au temps "now" (Unix seconds, par défaut = dernier timestamp dispo)
@@ -36,7 +45,10 @@ public sealed class PromQlMiniEvaluator
             if (_metricsStore.LatestTimestamp is not { } latestTimestamp)
                 return double.NaN;
 
-            ctx = new EvalContext(_metricsStore, nowUnixSeconds ?? latestTimestamp);
+            ctx = new EvalContext(
+                _metricsStore,
+                nowUnixSeconds ?? latestTimestamp,
+                _instantSelectorLookback);
         }
         else
         {
@@ -44,16 +56,26 @@ public sealed class PromQlMiniEvaluator
             if (snapshot.Count == 0)
                 return double.NaN;
 
-            ctx = new EvalContext(snapshot, nowUnixSeconds ?? snapshot.Keys.Max());
+            ctx = new EvalContext(
+                snapshot,
+                nowUnixSeconds ?? snapshot.Keys.Max(),
+                _instantSelectorLookback);
         }
 
         var ast = Parser.Parse(query);
         var res = ast.Eval(ctx);
-        var scalar = res.AsScalar();
-        if (double.IsNaN(scalar) || double.IsInfinity(scalar))
-            return 0.0;
+        return res.AsScalar();
+    }
 
-        return scalar;
+    private static TimeSpan ValidateInstantSelectorLookback(TimeSpan? configured)
+    {
+        var lookback = configured ?? DefaultInstantSelectorLookback;
+        if (lookback <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(
+                nameof(configured),
+                lookback,
+                "Instant selector lookback must be positive.");
+        return lookback;
     }
 
     // --------- Eval model ---------
@@ -64,25 +86,38 @@ public sealed class PromQlMiniEvaluator
                 IReadOnlyDictionary<string,
                     IReadOnlyDictionary<string, double>>>>? _snapshot;
         private readonly IMetricsStore? _metricsStore;
+        private readonly long _instantSelectorLookbackSeconds;
 
         public readonly long Now;
 
-        public EvalContext(IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> store, long now)
+        public EvalContext(
+            IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> store,
+            long now,
+            TimeSpan instantSelectorLookback)
         {
             _snapshot = store;
             Now = now;
+            _instantSelectorLookbackSeconds = ToLookbackSeconds(instantSelectorLookback);
         }
 
-        public EvalContext(IMetricsStore metricsStore, long now)
+        public EvalContext(
+            IMetricsStore metricsStore,
+            long now,
+            TimeSpan instantSelectorLookback)
         {
             _metricsStore = metricsStore;
             Now = now;
+            _instantSelectorLookbackSeconds = ToLookbackSeconds(instantSelectorLookback);
         }
 
         // Renvoie toutes les séries (metricKey => SortedList<timestamp, value>) qui matchent le sélecteur.
         public Dictionary<string, SortedList<long, double>> SelectSeries(MetricSelector selector, TimeSpan? window = null)
         {
-            long fromTs = window.HasValue ? Now - (long)window.Value.TotalSeconds : long.MinValue;
+            var isInstantSelector = !window.HasValue;
+            var lookbackSeconds = isInstantSelector
+                ? _instantSelectorLookbackSeconds
+                : (long)Math.Ceiling(window!.Value.TotalSeconds);
+            var fromTs = Now - lookbackSeconds;
 
             // seriesKey -> (timestamp -> value)
             var series = new Dictionary<string, SortedList<long, double>>(StringComparer.Ordinal);
@@ -100,7 +135,7 @@ public sealed class PromQlMiniEvaluator
                     for (var index = 0; index < points.Count; index++)
                     {
                         var point = points[index];
-                        if (point.Timestamp < fromTs)
+                        if (IsOutsideSelection(point.Timestamp, fromTs, isInstantSelector))
                             continue;
 
                         selectedPoints ??= new SortedList<long, double>(points.Count - index);
@@ -118,7 +153,7 @@ public sealed class PromQlMiniEvaluator
 
             foreach (var (ts, depMap) in _snapshot!)
             {
-                if (ts < fromTs) continue;
+                if (IsOutsideSelection(ts, fromTs, isInstantSelector)) continue;
 
                 // depMap : deployment -> podMap
                 foreach (var (_, podMap) in depMap)
@@ -158,6 +193,11 @@ public sealed class PromQlMiniEvaluator
             return series;
         }
 
+        private static long ToLookbackSeconds(TimeSpan lookback)
+            => Math.Max(1L, (long)Math.Ceiling(lookback.TotalSeconds));
+
+        private static bool IsOutsideSelection(long timestamp, long fromTs, bool isInstantSelector)
+            => isInstantSelector ? timestamp <= fromTs : timestamp < fromTs;
 
         private static bool TryParseMetricKey(string key, out string name, out Dictionary<string, string> labels)
         {
@@ -236,7 +276,12 @@ public sealed class PromQlMiniEvaluator
     private readonly record struct EvalValue(double Scalar, Dictionary<string, double>? ByLe)
     {
         public bool IsScalar => ByLe is null;
-        public double AsScalar() => IsScalar ? Scalar : (ByLe?.Values.Sum() ?? double.NaN);
+        public double AsScalar() =>
+            IsScalar
+                ? Scalar
+                : ByLe is { Count: > 0 }
+                    ? ByLe.Values.Sum()
+                    : double.NaN;
 
         public static EvalValue FromScalar(double x) => new(x, null);
         public static EvalValue FromByLe(Dictionary<string, double> buckets) => new(double.NaN, buckets);
@@ -299,12 +344,9 @@ public sealed class PromQlMiniEvaluator
 
         if (b == 0.0)
         {
-            // Cas "pas de trafic" : 0 / 0 => 0
             if (a == 0.0)
-                return 0.0;
+                return double.NaN;
 
-            // Cas plus suspect : num != 0, denom = 0
-            // À toi de choisir : +∞, 0, clamp à une valeur max…
             return double.PositiveInfinity;
         }
 
@@ -428,6 +470,7 @@ public sealed class PromQlMiniEvaluator
         {
             var series = ctx.SelectSeries(selector, window);
             double sum = 0.0;
+            var validSeriesCount = 0;
 
             foreach (var sl in series.Values)
             {
@@ -441,9 +484,10 @@ public sealed class PromQlMiniEvaluator
                 if (diff < 0) continue; // compteur reset -> ignore
 
                 sum += diff / dt;
+                validSeriesCount++;
             }
 
-            return EvalValue.FromScalar(sum);
+            return EvalValue.FromScalar(validSeriesCount > 0 ? sum : double.NaN);
         }
     }
 
@@ -513,6 +557,9 @@ public sealed class PromQlMiniEvaluator
             {
                 // Somme des dernières valeurs (instantané) – non utilisé par tes exemples, mais on gère de base
                 var series = ctx.SelectSeries(selector, window: null);
+                if (series.Count == 0)
+                    return EvalValue.FromScalar(double.NaN);
+
                 double total = 0.0;
                 foreach (var sl in series.Values)
                     if (sl.Count > 0) total += sl.Last().Value;
@@ -580,7 +627,7 @@ public sealed class PromQlMiniEvaluator
         }
 
         private bool Eof => _pos >= _s.Length;
-        private char Cur => _s[_pos];
+        private char Cur => Eof ? '\0' : _s[_pos];
 
         private void SkipWs()
         {
@@ -939,7 +986,7 @@ public sealed class PromQlMiniEvaluator
                     count++;
                 }
 
-                if (count == 0) return EvalValue.FromScalar(0.0);
+                if (count == 0) return EvalValue.FromScalar(double.NaN);
                 return EvalValue.FromScalar(sum / count);
             }
         }
@@ -1022,10 +1069,15 @@ public sealed class PromQlMiniEvaluator
             SkipWs();
             if (!Accept("\"")) throw new FormatException("Expected '\"'");
             var sb = new StringBuilder();
+            var closed = false;
             while (!Eof)
             {
                 var c = Cur; _pos++;
-                if (c == '"') break;
+                if (c == '"')
+                {
+                    closed = true;
+                    break;
+                }
                 if (c == '\\' && !Eof)
                 {
                     var n = Cur; _pos++;
@@ -1033,6 +1085,8 @@ public sealed class PromQlMiniEvaluator
                 }
                 else sb.Append(c);
             }
+            if (!closed)
+                throw new FormatException("Unterminated quoted string");
             return sb.ToString();
         }
 
