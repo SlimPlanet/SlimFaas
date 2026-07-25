@@ -45,9 +45,14 @@ public class SlimFaasOptions
     public string Namespace { get; set; } = "default";
 
     /// <summary>
-    /// Orchestrator type: Kubernetes, Docker, or Mock
+    /// Orchestrator type: Kubernetes, Docker, or Local
     /// </summary>
     public string Orchestrator { get; set; } = "Kubernetes";
+
+    /// <summary>
+    /// Deterministic local topology used by integration tests and memory profiling.
+    /// </summary>
+    public LocalOrchestratorOptions Local { get; set; } = new();
 
     /// <summary>
     /// Pod scaled up by default when infrastructure has never been called
@@ -79,6 +84,49 @@ public class SlimFaasOptions
     /// Resource limits applied when scraping Prometheus endpoints.
     /// </summary>
     public MetricsScrapingOptions MetricsScraping { get; set; } = new();
+}
+
+public sealed class LocalOrchestratorOptions
+{
+    /// <summary>
+    /// Number of SlimFaas nodes exposed by the local orchestrator.
+    /// </summary>
+    public int NodeCount { get; set; } = 3;
+
+    /// <summary>
+    /// Prefix used to build stable node names (for example slimfaas-0).
+    /// </summary>
+    public string NodeNamePrefix { get; set; } = "slimfaas-";
+
+    /// <summary>
+    /// First SlimData/Raft port. Each subsequent node uses the next port.
+    /// </summary>
+    public int SlimDataPortBase { get; set; } = 3262;
+
+    /// <summary>
+    /// First public SlimFaas HTTP port. Each subsequent node uses the next port.
+    /// </summary>
+    public int HttpPortBase { get; set; } = 30021;
+
+    /// <summary>
+    /// Function advertised to all local SlimFaas nodes.
+    /// </summary>
+    public string FunctionName { get; set; } = "memory-function";
+
+    /// <summary>
+    /// Host running the local test function.
+    /// </summary>
+    public string FunctionHost { get; set; } = "127.0.0.1";
+
+    /// <summary>
+    /// Port running the local test function.
+    /// </summary>
+    public int FunctionPort { get; set; } = 5050;
+
+    /// <summary>
+    /// Maximum number of concurrent asynchronous calls dispatched to the local function.
+    /// </summary>
+    public int NumberParallelRequest { get; set; } = 64;
 }
 
 public class MetricsScrapingOptions

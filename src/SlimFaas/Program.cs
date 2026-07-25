@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
+using Microsoft.Extensions.Options;
 using Prometheus;
 using SlimData;
 using SlimData.Commands;
@@ -153,6 +154,11 @@ switch (envOrConfig)
         usePersistentConfigurationStorage = false;
         break;
 
+    case "Local":
+        serviceCollectionStarter.AddSingleton<IKubernetesService, LocalKubernetesService>();
+        usePersistentConfigurationStorage = false;
+        break;
+
     default:
         serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>(sp =>
         {
@@ -169,7 +175,13 @@ serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 serviceCollectionStarter.AddSingleton<PromQlMiniEvaluator>(sp =>
 {
     var store = sp.GetRequiredService<IMetricsStore>();
-    return new PromQlMiniEvaluator(store);
+    var scrapeIntervalMilliseconds = sp
+        .GetRequiredService<IOptions<SlimFaasOptions>>()
+        .Value
+        .MetricsScraping
+        .ScrapeIntervalMilliseconds;
+    var instantSelectorLookback = TimeSpan.FromMilliseconds(scrapeIntervalMilliseconds * 3L);
+    return new PromQlMiniEvaluator(store, instantSelectorLookback);
 });
 
 // Store d’historique de décisions de scaling
@@ -320,7 +332,8 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
         try
         {
             string slimDataEndpoint = SlimDataEndpoint.Get(podInformation, slimFaasOptions.BaseSlimDataUrl, namespace_);
-            if (!podInformation.Name.Contains(hostname))
+            bool isCurrentPod = podInformation.Name.Contains(hostname, StringComparison.Ordinal);
+            if (!isCurrentPod || envOrConfig == "Local")
             {
                 startupLogger.LogInformation("Adding node {SlimDataEndpoint} {Hostname} {PodName}",
                     slimDataEndpoint, hostname, podInformation.Name);
@@ -376,7 +389,8 @@ startupLogger.LogInformation("SlimData state dir: {Directory}, hasExistingState=
 // - Si répertoire vide -> seul le premier pod (…-0) peut booter le cluster
 //   et seulement si slimDataAllowColdStart = true (config globale).
 string coldStart = (!hasExistingState && isFirstPod && slimDataAllowColdStart) ? "true" : "false";
-if(envOrConfig=="Docker") {
+if (envOrConfig == "Docker")
+{
 	coldStart = "true";
 }
 
@@ -410,15 +424,7 @@ serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
-    {
-        var httpClientHandler = new HttpClientHandler { AllowAutoRedirect = true };
-        if (allowUnsecureSSL)
-        {
-            httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
-        }
-
-        return httpClientHandler;
-    });
+        InternalHttpClientHandler.Create(allowUnsecureSSL));
 // Export metrics from all HTTP clients registered in services
 builder.Services.UseHttpClientMetrics();
 
@@ -433,18 +439,7 @@ serviceCollectionSlimFaas.AddHttpClient<ISendClient, SendClient>()
         client.DefaultVersionPolicy = HttpVersionPolicy.RequestVersionOrLower;
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
-    {
-        var httpClientHandler = new HttpClientHandler
-        {
-            AllowAutoRedirect = true
-        };
-        if (allowUnsecureSSL)
-        {
-            httpClientHandler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
-        }
-
-        return httpClientHandler;
-    });
+        InternalHttpClientHandler.Create(allowUnsecureSSL));
 
 if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 {

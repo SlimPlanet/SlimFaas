@@ -162,6 +162,22 @@ public sealed class InMemoryMetricsStoreTests
         Assert.Equal(1, store.VisitCount);
     }
 
+    [Fact]
+    public void PromQlEvaluator_ExcludesStaleInstantSeriesFromMetricsStore()
+    {
+        var store = CreateStore(
+            retentionSeconds: 1_800,
+            maxSeries: 10,
+            maxPointsPerSeries: 10,
+            "queue_depth");
+        store.Add(100, "deployment-a", "stale", Metric("queue_depth", 9));
+        store.Add(120, "deployment-a", "fresh", Metric("queue_depth", 4));
+        var evaluator = new PromQlMiniEvaluator(store, TimeSpan.FromSeconds(30));
+
+        Assert.Equal(13, evaluator.Evaluate("sum(queue_depth)", 129));
+        Assert.Equal(4, evaluator.Evaluate("sum(queue_depth)", 131));
+    }
+
     private static InMemoryMetricsStore CreateStore(
         long retentionSeconds,
         int maxSeries,

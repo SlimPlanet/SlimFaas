@@ -139,6 +139,14 @@ public sealed class AutoScaler
             {
                 metricValue = _evaluator.Evaluate(trigger.Query, nowUnixSeconds);
             }
+            catch (FormatException ex)
+            {
+                _logger?.LogWarning(ex,
+                    "Invalid PromQL query '{Query}' for metric '{MetricName}'",
+                    trigger.Query,
+                    trigger.MetricName);
+                continue;
+            }
             catch (InvalidOperationException ex)
             {
                 _logger?.LogWarning(ex,
@@ -162,7 +170,9 @@ public sealed class AutoScaler
 
             var effectiveCurrent = currentReplicas == 0 ? 1 : currentReplicas;
             var ratio = metricValue / trigger.Threshold;
-            var desiredForTriggerDouble = effectiveCurrent * ratio;
+            var desiredForTriggerDouble = trigger.MetricType == ScaleMetricType.AverageValue
+                ? ratio
+                : effectiveCurrent * ratio;
             var desiredForTrigger = (int)Math.Ceiling(desiredForTriggerDouble);
 
             if (desiredForTrigger < 0)

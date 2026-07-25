@@ -38,7 +38,7 @@ public sealed class AutoScalerTests
     private static ScaleConfig MakeSimpleScaleConfig(
         double metricValue,
         double threshold,
-        ScaleMetricType metricType = ScaleMetricType.AverageValue)
+        ScaleMetricType metricType = ScaleMetricType.Value)
     {
         return new ScaleConfig
         {
@@ -173,6 +173,48 @@ public sealed class AutoScalerTests
     }
 
     [Fact]
+    public void MetricType_ShouldApplyPerPodOrTotalThresholdFormula()
+    {
+        var scaler = CreateAutoScaler();
+        var behaviorWithoutLimits = new ScaleBehavior
+        {
+            ScaleUp = new ScaleDirectionBehavior
+            {
+                Policies = new List<ScalePolicy>()
+            },
+            ScaleDown = new ScaleDirectionBehavior
+            {
+                Policies = new List<ScalePolicy>()
+            }
+        };
+        var averageValueConfig = MakeSimpleScaleConfig(
+            metricValue: 100,
+            threshold: 20,
+            metricType: ScaleMetricType.AverageValue) with
+        {
+            Behavior = behaviorWithoutLimits
+        };
+        var valueConfig = MakeSimpleScaleConfig(
+            metricValue: 100,
+            threshold: 20,
+            metricType: ScaleMetricType.Value) with
+        {
+            Behavior = behaviorWithoutLimits
+        };
+
+        var averageFromTwo = scaler.ComputeDesiredReplicas(
+            "average-two", averageValueConfig, 2, 0, 100, 1_000);
+        var averageFromTen = scaler.ComputeDesiredReplicas(
+            "average-ten", averageValueConfig, 10, 0, 100, 1_000);
+        var totalFromTwo = scaler.ComputeDesiredReplicas(
+            "value-two", valueConfig, 2, 0, 100, 1_000);
+
+        Assert.Equal(5, averageFromTwo);
+        Assert.Equal(5, averageFromTen);
+        Assert.Equal(10, totalFromTwo);
+    }
+
+    [Fact]
     public void SingleTrigger_ScaleDown_ShouldRespectMinReplicas()
     {
         var scaler = CreateAutoScaler();
@@ -249,13 +291,13 @@ public sealed class AutoScalerTests
             Triggers = new List<ScaleTrigger>
             {
                 new(
-                    MetricType: ScaleMetricType.AverageValue,
+                    MetricType: ScaleMetricType.Value,
                     MetricName: "m1",
                     Query: "10",
                     Threshold: 10
                 ),
                 new(
-                    MetricType: ScaleMetricType.AverageValue,
+                    MetricType: ScaleMetricType.Value,
                     MetricName: "m2",
                     Query: "30",
                     Threshold: 10
@@ -622,6 +664,60 @@ public sealed class AutoScalerTests
 
         // Aucune métrique exploitable → on reste sur current clampé
         Assert.Equal(5, desired);
+    }
+
+    [Fact]
+    public void MalformedPromQl_ShouldKeepCurrentReplicas()
+    {
+        var scaler = CreateAutoScaler();
+        var cfg = new ScaleConfig
+        {
+            Triggers =
+            {
+                new ScaleTrigger(
+                    ScaleMetricType.Value,
+                    "malformed",
+                    "rate(requests_total[1m]) +",
+                    10)
+            }
+        };
+
+        var desired = scaler.ComputeDesiredReplicas(
+            "func",
+            cfg,
+            currentReplicas: 7,
+            minReplicas: 1,
+            maxReplicas: 20,
+            nowUnixSeconds: 1_000);
+
+        Assert.Equal(7, desired);
+    }
+
+    [Theory]
+    [InlineData("missing_metric")]
+    [InlineData("sum(rate(missing_total[1m]))")]
+    [InlineData("0 / 0")]
+    [InlineData("1 / 0")]
+    public void NoDataPromQl_ShouldKeepCurrentReplicas(string query)
+    {
+        var scaler = CreateAutoScaler();
+        var cfg = new ScaleConfig
+        {
+            Triggers =
+            {
+                new ScaleTrigger(ScaleMetricType.Value, "no-data", query, 10)
+            }
+        };
+
+        var desired = scaler.ComputeDesiredReplicas(
+            "func",
+            cfg,
+            currentReplicas: 7,
+            minReplicas: 1,
+            maxReplicas: 20,
+            nowUnixSeconds: 1_000);
+
+        Assert.Equal(7, desired);
     }
 
     [Fact]

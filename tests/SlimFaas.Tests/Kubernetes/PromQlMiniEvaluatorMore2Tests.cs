@@ -83,8 +83,8 @@ namespace SlimFaas.Tests.MetricsQuery
                 // Act : on place "now" à 160 pour inclure [100,160] dans la fenêtre [1m]
                 double result = evaluator.Evaluate(AvgLatencyQuery, nowUnixSeconds: 160);
 
-                // Assert : denom = 0 => NaN
-                Assert.Equal(0, result);
+                // Assert : denom = 0 => no data
+                Assert.True(double.IsNaN(result));
             }
 
             [Fact]

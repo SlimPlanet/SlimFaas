@@ -51,6 +51,16 @@ namespace SlimFaas.Tests.Kubernetes
         }
 
         [Theory]
+        [InlineData("sum(rate(http_requests_total[1m])")]
+        [InlineData("rate(http_requests_total[1m]) +")]
+        [InlineData("metric{label=\"unterminated}")]
+        public void Parser_TruncatedQuery_ThrowsFormatException(string query)
+        {
+            var eval = NewEval(BuildSnapshot((1, "d", "p", "m", 1)));
+            Assert.Throws<FormatException>(() => eval.Evaluate(query));
+        }
+
+        [Theory]
         [InlineData("sum(rate(http_requests_total[1x]))")]
         [InlineData("sum(rate(http_requests_total[]))")]
         [InlineData("sum(rate(http_requests_total[1]))")]
@@ -93,18 +103,27 @@ namespace SlimFaas.Tests.Kubernetes
         }
 
         [Fact]
-        public void Arithmetic_DivisionByZero_ReturnsNaN()
+        public void Arithmetic_NonZeroDivisionByZero_ReturnsInfinity()
         {
             var snap = BuildSnapshot((1, "d", "p", "m", 1));
             var eval = NewEval(snap);
             var res = eval.Evaluate("1 / 0");
-            Assert.Equal(0, res);
+            Assert.True(double.IsPositiveInfinity(res));
+        }
+
+        [Fact]
+        public void Arithmetic_ZeroDivisionByZero_ReturnsNaN()
+        {
+            var snap = BuildSnapshot((1, "d", "p", "m", 1));
+            var eval = NewEval(snap);
+            var res = eval.Evaluate("0 / 0");
+            Assert.True(double.IsNaN(res));
         }
 
         // --- rate() : cas bord, resets, un seul point, dt=0 ---------------------------------
 
         [Fact]
-        public void Rate_NoMatchingSeries_ReturnsZero()
+        public void Rate_NoMatchingSeries_ReturnsNaN()
         {
             var snap = BuildSnapshot(
                 (100, "d", "p", "foo_total{job=\"a\"}", 10),
@@ -112,18 +131,18 @@ namespace SlimFaas.Tests.Kubernetes
             );
             var eval = NewEval(snap);
             var res = eval.Evaluate("""sum(rate(bar_total{job="a"}[1m]))""", nowUnixSeconds: 160);
-            Assert.Equal(0.0, res, 6);
+            Assert.True(double.IsNaN(res));
         }
 
         [Fact]
-        public void Rate_SinglePoint_Ignored_ReturnsZero()
+        public void Rate_SinglePoint_ReturnsNaN()
         {
             var snap = BuildSnapshot(
                 (100, "d", "p", "foo_total{job=\"a\"}", 10)
             );
             var eval = NewEval(snap);
             var res = eval.Evaluate("""sum(rate(foo_total{job="a"}[1m]))""", nowUnixSeconds: 100);
-            Assert.Equal(0.0, res, 6);
+            Assert.True(double.IsNaN(res));
         }
 
         [Fact]
@@ -144,7 +163,7 @@ namespace SlimFaas.Tests.Kubernetes
         }
 
         [Fact]
-        public void Rate_ZeroDeltaTime_Ignored()
+        public void Rate_ZeroDeltaTime_ReturnsNaN()
         {
             // Deux points même timestamp : dt=0 => ignoré
             var snap = BuildSnapshot(
@@ -153,7 +172,7 @@ namespace SlimFaas.Tests.Kubernetes
             );
             var eval = NewEval(snap);
             var res = eval.Evaluate("""sum(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 100);
-            Assert.Equal(0.0, res, 6);
+            Assert.True(double.IsNaN(res));
         }
 
         // --- Sélecteurs: égalité & regex ----------------------------------------------------
@@ -188,6 +207,37 @@ namespace SlimFaas.Tests.Kubernetes
             var res = eval.Evaluate("""sum(rate(http_total{job=~"web.*"}[1m]))""", nowUnixSeconds: 160);
             // (30 + 30) / 60 = 1.0
             Assert.Equal(1.0, res, 6);
+        }
+
+        [Fact]
+        public void InstantSelector_ExcludesSeriesAfterConfiguredLookback()
+        {
+            var snap = BuildSnapshot(
+                (100, "d", "stale", "queue_depth", 9),
+                (120, "d", "fresh", "queue_depth", 4)
+            );
+            var eval = new PromQlMiniEvaluator(
+                () => snap,
+                TimeSpan.FromSeconds(30));
+
+            Assert.Equal(13, eval.Evaluate("sum(queue_depth)", nowUnixSeconds: 129));
+            Assert.Equal(4, eval.Evaluate("sum(queue_depth)", nowUnixSeconds: 131));
+        }
+
+        [Fact]
+        public void RangeSelector_IsNotLimitedByInstantLookback()
+        {
+            var snap = BuildSnapshot(
+                (100, "d", "p", "requests_total", 10),
+                (160, "d", "p", "requests_total", 70)
+            );
+            var eval = new PromQlMiniEvaluator(
+                () => snap,
+                TimeSpan.FromSeconds(10));
+
+            var result = eval.Evaluate("sum(rate(requests_total[1m]))", nowUnixSeconds: 160);
+
+            Assert.Equal(1, result, 6);
         }
 
         // --- sum by (le) + histogram_quantile : cas bord & cohérence ------------------------
@@ -333,8 +383,8 @@ namespace SlimFaas.Tests.Kubernetes
             Assert.Equal(1.0, oneHour, 6);
 
             var thirtyMin = eval.Evaluate("""sum(rate(m{job="w"}[30m]))""", nowUnixSeconds: 3600);
-            // fenêtre démarre à 3600-1800=1800. Mais notre snapshot n'a qu'à 0 et 3600 -> premier point dans fenêtre=3600 (pas de 2 points) => 0.
-            Assert.Equal(0.0, thirtyMin, 6);
+            // Un seul point dans la fenêtre ne permet pas de calculer un débit.
+            Assert.True(double.IsNaN(thirtyMin));
 
             var seconds = eval.Evaluate("""sum(rate(m{job="w"}[3600s]))""", nowUnixSeconds: 3600);
             Assert.Equal(1.0, seconds, 6);

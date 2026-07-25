@@ -39,6 +39,7 @@ public class Startup(IConfiguration configuration)
         const string HealthResource = "/health";
         app.RestoreStateAsync<SlimPersistentState>().GetAwaiter().GetResult();
        
+        app.UseMiddleware<RaftAppendEntriesCommitIndexGuard>();
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
@@ -91,6 +92,7 @@ public class Startup(IConfiguration configuration)
                 "SlimData membership removal missing cycles must be positive.")
             .ValidateOnStart();
         services.AddClusterFileOptions(configuration);
+        services.AddSingleton<RaftAppendEntriesCommitIndexGuard>();
         services.AddSingleton<ClusterMembershipCoordinator>();
         services.AddSingleton<IClusterMembershipCoordinator>(sp =>
             sp.GetRequiredService<ClusterMembershipCoordinator>());
@@ -121,7 +123,8 @@ public class Startup(IConfiguration configuration)
             })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
-                AllowAutoRedirect = false 
+                AllowAutoRedirect = false,
+                UseProxy = false
             });
 
         services.AddHttpClient("RaftClient", c =>
