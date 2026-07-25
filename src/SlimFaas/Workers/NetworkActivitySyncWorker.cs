@@ -64,7 +64,7 @@ public class NetworkActivitySyncWorker(
         string ns = namespaceProvider.CurrentNamespace;
         string myNodeId = tracker.NodeId;
 
-        var client = httpClientFactory.CreateClient("ActivitySync");
+        using var client = httpClientFactory.CreateClient("ActivitySync");
         client.Timeout = TimeSpan.FromSeconds(3);
 
         foreach (var pod in slimFaasPods)
@@ -86,7 +86,7 @@ public class NetworkActivitySyncWorker(
                 _peerLastTimestamp.TryGetValue(peerBase, out long since);
 
                 string url = $"{peerBase}/internal/activity-events?since={since}";
-                var response = await client.GetAsync(url, ct);
+                using var response = await client.GetAsync(url, ct);
 
                 if (!response.IsSuccessStatusCode)
                     continue;
@@ -122,4 +122,3 @@ public class NetworkActivitySyncWorker(
         }
     }
 }
-

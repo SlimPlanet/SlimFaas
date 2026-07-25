@@ -114,7 +114,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             }
         }
 
-        var http = _httpFactory.CreateClient("ClusterFilesTransfer");
+        using var http = _httpFactory.CreateClient("ClusterFilesTransfer");
 
         foreach (var member in candidates)
         {

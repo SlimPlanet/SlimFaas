@@ -123,7 +123,8 @@ public class Startup(IConfiguration configuration)
             })
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
-                AllowAutoRedirect = false 
+                AllowAutoRedirect = false,
+                UseProxy = false
             });
 
         services.AddHttpClient("RaftClient", c =>

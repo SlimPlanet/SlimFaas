@@ -1,5 +1,7 @@
-﻿﻿using Microsoft.Extensions.Logging;
+﻿﻿using System.Net;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
 namespace SlimFaas;
@@ -15,26 +17,46 @@ public class SlimFaasPorts : ISlimFaasPorts
 
     public SlimFaasPorts(IReplicasService replicasService, ILogger<SlimFaasPorts> logger, IOptions<SlimFaasOptions> slimFaasOptions)
     {
-        string slimDataUrl = slimFaasOptions.Value.BaseSlimDataUrl;
-        if(slimDataUrl.EndsWith("/"))
-        {
-            slimDataUrl = slimDataUrl.Substring(0, slimDataUrl.Length - 1);
-        }
-        int slimDataUrlPort = int.Parse(slimDataUrl.Split(":")[2]);
-        var ports = replicasService.Deployments.SlimFaas.Pods.FirstOrDefault()?.Ports;
+        var options = slimFaasOptions.Value;
+        Ports = ResolvePorts(
+            replicasService.Deployments,
+            options.BaseSlimDataUrl,
+            options.Namespace,
+            Environment.GetEnvironmentVariable("HOSTNAME") ?? Dns.GetHostName(),
+            logger);
+    }
 
-        if(ports == null)
+    internal static IList<int> ResolvePorts(
+        DeploymentsInformations deployments,
+        string baseSlimDataUrl,
+        string kubeNamespace,
+        string hostname,
+        ILogger logger)
+    {
+        var currentPod = deployments.SlimFaas.Pods
+            .FirstOrDefault(pod => pod.Name.Contains(hostname, StringComparison.Ordinal))
+            ?? deployments.SlimFaas.Pods.FirstOrDefault();
+        var ports = currentPod?.Ports;
+        if (currentPod is null || ports is null)
         {
             logger.LogWarning("SlimFaas no ports found");
-            Ports = new List<int>();
-            return;
+            return [];
         }
-        var mergedPorts = new List<int>(ports);
-        Ports = mergedPorts.Where(p => p != slimDataUrlPort).ToList();
-        foreach (int port in Ports)
+
+        string slimDataEndpoint = SlimDataEndpoint.Get(currentPod, baseSlimDataUrl, kubeNamespace);
+        if (!Uri.TryCreate(slimDataEndpoint, UriKind.Absolute, out var slimDataUri))
+        {
+            throw new InvalidOperationException(
+                $"Unable to resolve SlimData endpoint '{slimDataEndpoint}' for pod '{currentPod.Name}'.");
+        }
+
+        var result = ports.Where(port => port != slimDataUri.Port).Distinct().ToArray();
+        foreach (int port in result)
         {
             logger.LogInformation("SlimFaasPorts: {Port}", port);
         }
+
+        return result;
     }
     public static string RemoveLastPathSegment(string? url)
     {

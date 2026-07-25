@@ -1,5 +1,10 @@
 ﻿# How SlimFaas Works (Architecture)
 
+For local development with a reproducible three-node Raft cluster, see
+[Running a three-node SlimFaas cluster locally](local-orchestrator.md). For the
+sync, async, set, and file memory workload, see
+[Reproducing SlimFaas memory workloads locally](memory-profiling.md).
+
 Under the hood, SlimFaas is an **HTTP proxy** that intercepts requests for your functions, jobs, or events.
 It handles scaling, routing, and state management.
 
