@@ -9,6 +9,7 @@ namespace SlimFaas.Workers;
 public sealed class SlimDataDiagnosticsWorker(
     SlimPersistentState persistentState,
     IRaftCluster cluster,
+    RaftAppendEntriesCommitIndexGuard appendEntriesCommitIndexGuard,
     ISlimDataProtocolCompatibility protocolCompatibility,
     IDatabaseService databaseService,
     DynamicGaugeService gauges,
@@ -112,6 +113,10 @@ public sealed class SlimDataDiagnosticsWorker(
             "Last Raft WAL entry index");
         gauges.SetGaugeValue("slimdata_raft_committed_log_index", cluster.AuditTrail.LastCommittedEntryIndex,
             "Last committed Raft WAL entry index");
+        gauges.SetGaugeValue(
+            "slimdata_raft_commit_index_clamped_total",
+            appendEntriesCommitIndexGuard.ClampedRequests,
+            "Number of incoming Raft AppendEntries requests whose commit index was bounded to the last transmitted entry");
         if (cluster.AuditTrail is WriteAheadLog wal)
             gauges.SetGaugeValue("slimdata_raft_applied_log_index", wal.LastAppliedIndex,
                 "Last applied Raft WAL entry index");
