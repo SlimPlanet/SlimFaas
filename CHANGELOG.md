@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.74.7
+
+- [e9201134](https://github.com/SlimPlanet/SlimFaas/commit/e9201134dc1021726a907d9e887826eb30908c6a) - fix: files ram decrease (#299) (release), 2026-07-24 by *Guillaume Chervet*
+- [0c2aaead](https://github.com/SlimPlanet/SlimFaas/commit/0c2aaeadd288ff07896edd2ba80889a3c95b4677) - fix: metrics limit used ram (#298), 2026-07-23 by *Guillaume Chervet*
+
+
+## 0.74.6
+
+
+
 ## v0.74.6
 
 - [7679e085](https://github.com/SlimPlanet/SlimFaas/commit/7679e085cc89a3765f2a9f7b87bb50e5d57a655a) - fix: metrics regex timeout (#297) (release), 2026-07-23 by *Guillaume Chervet*
@@ -263,15 +273,5 @@
 ## v0.65.0
 
 - [99b0128c](https://github.com/SlimPlanet/SlimFaas/commit/99b0128c5e0cde7b7c61f9600b5be9d836eb05e6) - feat(slimfaas): job configuration from k8s cronjobs (release) (#242), 2026-02-26 by *Fares Ahmed*
-
-
-## v0.64.1
-
-- [92a189a3](https://github.com/SlimPlanet/SlimFaas/commit/92a189a3f38842857d35ac2352182cb0645d17b3) - fix(slimfaas): remove orphelan tmp files (#243) (release), 2026-02-25 by *Guillaume Chervet*
-
-
-## v0.64.0
-
-- [4934507e](https://github.com/SlimPlanet/SlimFaas/commit/4934507efabe11336514790bf7a7000113de005e) - feat(slimfaas): backup schedule (#241) (release), 2026-02-25 by *Guillaume Chervet*
 
 
