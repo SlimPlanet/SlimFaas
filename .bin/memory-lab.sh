@@ -8,6 +8,12 @@ duration_seconds="${3:-120}"
 concurrency="${4:-12}"
 warmup_seconds="${WARMUP_SECONDS:-20}"
 cooldown_seconds="${COOLDOWN_SECONDS:-20}"
+target_requests_per_second="${TARGET_REQUESTS_PER_SECOND:-0}"
+target_requests_per_replica="${TARGET_REQUESTS_PER_REPLICA:-}"
+slimdata_batch_mode="${SLIMDATA_BATCH_MODE:-Global}"
+slimdata_batch_partitions="${SLIMDATA_BATCH_PARTITIONS:-8}"
+slimdata_low_load_fast_path="${SLIMDATA_LOW_LOAD_FAST_PATH:-false}"
+slimdata_low_load_rps="${SLIMDATA_LOW_LOAD_RPS:-10}"
 
 if [[ "$mode" != "trimmed" && "$mode" != "aot" ]]; then
   echo "Usage: .bin/memory-lab.sh [trimmed|aot] [mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [duration_seconds] [concurrency]" >&2
@@ -35,6 +41,10 @@ lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net10.0/SlimFaas.Memory
 memory_csv="$run_dir/memory.csv"
 diagnostics_csv="$run_dir/diagnostics.csv"
 phase_file="$run_dir/phase"
+target_replica_args=()
+if [[ -n "$target_requests_per_replica" ]]; then
+  target_replica_args=(--target-rps-per-replica "$target_requests_per_replica")
+fi
 mkdir -p "$run_dir" "$publish_dir"
 
 {
@@ -44,6 +54,12 @@ mkdir -p "$run_dir" "$publish_dir"
   echo "duration_seconds=$duration_seconds"
   echo "warmup_seconds=$warmup_seconds"
   echo "concurrency=$concurrency"
+  echo "target_requests_per_second=$target_requests_per_second"
+  echo "target_requests_per_replica=$target_requests_per_replica"
+  echo "slimdata_batch_mode=$slimdata_batch_mode"
+  echo "slimdata_batch_partitions=$slimdata_batch_partitions"
+  echo "slimdata_low_load_fast_path=$slimdata_low_load_fast_path"
+  echo "slimdata_low_load_rps=$slimdata_low_load_rps"
   echo "runtime_id=$runtime_id"
   echo "publish_dir=$publish_dir"
   echo "run_label=$run_label"
@@ -169,6 +185,10 @@ for index in 0 1 2; do
       SlimData__Directory="$run_dir/state" \
       SlimData__AllowColdStart="true" \
       SlimData__WarmupRounds="10000" \
+      SlimData__BatchMode="$slimdata_batch_mode" \
+      SlimData__BatchPartitionCount="$slimdata_batch_partitions" \
+      SlimData__LowLoadFastPath="$slimdata_low_load_fast_path" \
+      SlimData__LowLoadRequestsPerSecond="$slimdata_low_load_rps" \
       Data__DefaultVisibility="Public" \
       Logging__LogLevel__Default="Warning" \
       Logging__LogLevel__Microsoft.AspNetCore="Error" \
@@ -226,6 +246,8 @@ if ! dotnet "$lab_dll" load \
   --scenario "$scenario" \
   --duration "$warmup_seconds" \
   --concurrency "$concurrency" \
+  --target-rps "$target_requests_per_second" \
+  "${target_replica_args[@]}" \
   --first-port 30021 \
   --nodes 3 \
   --key-prefix "warmup-${timestamp}" \
@@ -237,7 +259,7 @@ collect_cluster_state "before"
 
 echo "load" >"$phase_file"
 echo "timestamp,node,pid,rss_kb,vsz_kb,phase" >"$memory_csv"
-echo "timestamp,node,pid,phase,cpu_percent,managed_heap_bytes,process_cpu_seconds,raft_committed_index,raft_applied_index,wal_bytes_since_snapshot,state_queue_items,batch_queue_requests,batch_queue_bytes,batch_raft_total,batch_operations_total,snapshot_size_bytes" >"$diagnostics_csv"
+echo "timestamp,node,pid,phase,cpu_percent,managed_heap_bytes,process_cpu_seconds,raft_committed_index,raft_applied_index,wal_bytes_since_snapshot,state_queue_items,batch_queue_requests,batch_queue_bytes,batch_raft_total,batch_operations_total,snapshot_size_bytes,local_batch_rps,low_load_fast_path_active,local_batch_delay_ms,local_batch_coalesce_ms,batch_partition_count" >"$diagnostics_csv"
 (
   metric_value() {
     local metrics="$1"
@@ -268,7 +290,12 @@ echo "timestamp,node,pid,phase,cpu_percent,managed_heap_bytes,process_cpu_second
       batch_raft_total="$(metric_value "$metrics" slimdata_command_batch_raft_total)"
       batch_operations_total="$(metric_value "$metrics" slimdata_command_batch_operations_total)"
       snapshot_size="$(metric_value "$metrics" slimdata_snapshot_last_size_bytes)"
-      echo "$sample_time,slimfaas-$index,$pid,$phase,${cpu_percent:-0},${managed_heap:-0},${process_cpu:-0},${committed:-0},${applied:-0},${wal_bytes:-0},${queue_items:-0},${batch_queue_requests:-0},${batch_queue_bytes:-0},${batch_raft_total:-0},${batch_operations_total:-0},${snapshot_size:-0}" >>"$diagnostics_csv"
+      local_batch_rps="$(metric_value "$metrics" slimdata_batch_local_requests_per_second)"
+      fast_path_active="$(metric_value "$metrics" slimdata_batch_low_load_fast_path_active)"
+      local_batch_delay="$(metric_value "$metrics" slimdata_batch_local_delay_milliseconds)"
+      local_batch_coalesce="$(metric_value "$metrics" slimdata_batch_local_coalesce_milliseconds)"
+      batch_partition_count="$(metric_value "$metrics" slimdata_batch_partition_count)"
+      echo "$sample_time,slimfaas-$index,$pid,$phase,${cpu_percent:-0},${managed_heap:-0},${process_cpu:-0},${committed:-0},${applied:-0},${wal_bytes:-0},${queue_items:-0},${batch_queue_requests:-0},${batch_queue_bytes:-0},${batch_raft_total:-0},${batch_operations_total:-0},${snapshot_size:-0},${local_batch_rps:-0},${fast_path_active:-0},${local_batch_delay:-0},${local_batch_coalesce:-0},${batch_partition_count:-0}" >>"$diagnostics_csv"
     done
     sleep 2
   done
@@ -285,6 +312,8 @@ dotnet "$lab_dll" load \
   --scenario "$scenario" \
   --duration "$duration_seconds" \
   --concurrency "$concurrency" \
+  --target-rps "$target_requests_per_second" \
+  "${target_replica_args[@]}" \
   --first-port 30021 \
   --nodes 3 \
   --payload-bytes 4096 \

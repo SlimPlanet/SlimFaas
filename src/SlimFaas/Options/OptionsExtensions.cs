@@ -23,6 +23,8 @@ public static class OptionsExtensions
         services.AddOptions<SlimDataOptions>()
             .BindConfiguration(SlimDataOptions.SectionName)
             .ValidateDataAnnotations()
+            .Validate(ValidateSlimDataBatchOptions,
+                "SlimData batching values are invalid.")
             .ValidateOnStart();
 
         services.AddOptions<WorkersOptions>()
@@ -61,6 +63,13 @@ public static class OptionsExtensions
                && metrics.MaxSelectedSeriesPerTarget > 0
                && metrics.RequestTimeoutSeconds > 0;
     }
+
+    private static bool ValidateSlimDataBatchOptions(SlimDataOptions options)
+        => Enum.IsDefined(options.BatchMode)
+           && options.LowLoadRequestsPerSecond is >= 0.1d and <= 10_000d
+           && (options.BatchMode != SlimDataBatchMode.PartitionedByKey ||
+               options.BatchPartitionCount is >= 2 and <= 16 &&
+               (options.BatchPartitionCount & (options.BatchPartitionCount - 1)) == 0);
 
     /// <summary>
     /// Gets a temporary directory path for SlimData storage

@@ -20,6 +20,7 @@ try
         "load" => await RunLoadAsync(Arguments.Parse(args[1..])),
         "report" => RunReport(Arguments.Parse(args[1..])),
         "compare" => RunComparison(Arguments.Parse(args[1..])),
+        "select-partition" => SelectPartition(Arguments.Parse(args[1..])),
         _ => throw new ArgumentException($"Unknown command '{args[0]}'.")
     };
 }
@@ -66,6 +67,18 @@ static async Task<int> RunLoadAsync(Arguments arguments)
     int firstPort = arguments.GetInt("first-port", 30021, 1, 65535);
     int nodeCount = arguments.GetInt("nodes", 3, 1, 32);
     int keysPerWorker = arguments.GetInt("keys-per-worker", 16, 1, 10_000);
+    double targetRequestsPerSecond = arguments.GetDouble(
+        "target-rps",
+        defaultValue: 0d,
+        minimum: 0d,
+        maximum: 100_000d);
+    double targetRequestsPerReplica = arguments.GetDouble(
+        "target-rps-per-replica",
+        defaultValue: targetRequestsPerSecond > 0d
+            ? targetRequestsPerSecond / nodeCount
+            : 0d,
+        minimum: 0d,
+        maximum: 100_000d);
     string keyPrefix = arguments.Get("key-prefix", $"memory-lab-{DateTimeOffset.UtcNow:yyyyMMddHHmmss}");
     string? csvPath = arguments.GetOptional("csv");
     string? jsonPath = arguments.GetOptional("json");
@@ -88,6 +101,9 @@ static async Task<int> RunLoadAsync(Arguments arguments)
 
     var statistics = new LoadStatistics();
     var expectedState = new ExpectedSlimDataState();
+    var requestScheduler = targetRequestsPerSecond > 0d
+        ? new PacedRequestScheduler(targetRequestsPerSecond)
+        : null;
     using var duration = new CancellationTokenSource(TimeSpan.FromSeconds(durationSeconds));
     using var progress = new PeriodicTimer(TimeSpan.FromSeconds(5));
     var progressTask = PrintProgressAsync(progress, statistics, duration.Token);
@@ -106,6 +122,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
             expectedState,
             keyPrefix,
             keysPerWorker,
+            requestScheduler,
             duration.Token))
         .ToArray();
 
@@ -121,6 +138,8 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         payloadBytes,
         keysPerWorker,
         keyPrefix,
+        targetRequestsPerSecond,
+        targetRequestsPerReplica,
         stopwatch.Elapsed);
     PrintLoadReport(report);
     if (!string.IsNullOrWhiteSpace(csvPath))
@@ -155,11 +174,24 @@ static async Task RunWorkerAsync(
     ExpectedSlimDataState expectedState,
     string keyPrefix,
     int keysPerWorker,
+    PacedRequestScheduler? requestScheduler,
     CancellationToken cancellationToken)
 {
     long sequence = 0;
     while (!cancellationToken.IsCancellationRequested)
     {
+        if (requestScheduler is not null)
+        {
+            try
+            {
+                await requestScheduler.WaitAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                break;
+            }
+        }
+
         var operation = SelectOperation(scenario, worker, sequence);
         int node = (int)((sequence + worker) % nodeCount);
         var baseUri = new Uri($"http://127.0.0.1:{firstPort + node}");
@@ -681,10 +713,12 @@ static int RunComparison(Arguments arguments)
 {
     string root = Path.GetFullPath(arguments.GetRequired("root"));
     string output = Path.GetFullPath(arguments.GetRequired("output"));
+    string baselineVariant = arguments.Get("baseline", "before");
     var runs = Directory
         .EnumerateFiles(root, "operations.json", SearchOption.AllDirectories)
         .Select(ReadBenchmarkRun)
         .OrderBy(static run => run.Scenario, StringComparer.Ordinal)
+        .ThenBy(static run => run.TargetRequestsPerReplica)
         .ThenBy(static run => run.Concurrency)
         .ThenBy(static run => run.Repetition)
         .ThenBy(static run => run.Variant, StringComparer.Ordinal)
@@ -693,70 +727,134 @@ static int RunComparison(Arguments arguments)
         throw new InvalidOperationException($"No operations.json files found below '{root}'.");
 
     var builder = new StringBuilder();
-    builder.AppendLine("# SlimData unified RAFT batch A/B benchmark");
+    builder.AppendLine("# SlimData batch-mode benchmark");
     builder.AppendLine();
     builder.AppendLine($"Generated: {DateTimeOffset.UtcNow:O}");
+    builder.AppendLine($"Baseline: `{baselineVariant}`");
     builder.AppendLine();
     builder.AppendLine("## Individual runs");
     builder.AppendLine();
-    builder.AppendLine("| Variant | Scenario | C | Rep | ops/s | errors | p50 ms | p95 ms | p99 ms | max RSS MiB | RAFT entries | mutations | entries/mutation | WAL Δ bytes | CPU s |");
-    builder.AppendLine("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+    builder.AppendLine("| Variant | Scenario | target/replica/s | C | Rep | ops/s | errors | p50 ms | p95 ms | p99 ms | max RSS MiB | RAFT entries | mutations | entries/mutation | WAL Δ bytes | CPU s |");
+    builder.AppendLine("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
     foreach (var run in runs)
     {
         builder.AppendLine(FormattableString.Invariant(
-            $"| {run.Variant} | {run.Scenario} | {run.Concurrency} | {run.Repetition} | {run.Rate:F2} | {run.Failed} | {run.P50Milliseconds:F2} | {run.P95Milliseconds:F2} | {run.P99Milliseconds:F2} | {run.PeakRssMegabytes:F1} | {run.RaftEntries:F0} | {run.Mutations:F0} | {Divide(run.RaftEntries, run.Mutations):F4} | {run.WalDeltaBytes:F0} | {run.CpuSeconds:F1} |"));
+            $"| {run.Variant} | {run.Scenario} | {run.TargetRequestsPerReplica:F1} | {run.Concurrency} | {run.Repetition} | {run.Rate:F2} | {run.Failed} | {run.P50Milliseconds:F2} | {run.P95Milliseconds:F2} | {run.P99Milliseconds:F2} | {run.PeakRssMegabytes:F1} | {run.RaftEntries:F0} | {run.Mutations:F0} | {Divide(run.RaftEntries, run.Mutations):F4} | {run.WalDeltaBytes:F0} | {run.CpuSeconds:F1} |"));
     }
 
     builder.AppendLine();
     builder.AppendLine("## Median comparison and acceptance criteria");
     builder.AppendLine();
-    builder.AppendLine("| Scenario | C | before ops/s | after ops/s | throughput | before p95 | after p95 | p95 change | before p99 | after p99 | p99 change | before RSS | after RSS | RSS change | errors | verdict |");
-    builder.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|");
+    builder.AppendLine("| Candidate | Scenario | target/replica/s | C | base ops/s | candidate ops/s | throughput | candidate p95 | candidate p99 | p99 change | RSS change | errors | verdict |");
+    builder.AppendLine("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|");
 
-    var overallPass = true;
+    var comparisonCount = 0;
+    var outcomes = new List<ComparisonOutcome>();
     foreach (var configuration in runs
-                 .GroupBy(static run => (run.Scenario, run.Concurrency))
+                 .GroupBy(static run => (
+                     run.Scenario,
+                     run.TargetRequestsPerSecond,
+                     run.TargetRequestsPerReplica,
+                     run.Concurrency))
                  .OrderBy(static group => group.Key.Scenario, StringComparer.Ordinal)
+                 .ThenBy(static group => group.Key.TargetRequestsPerReplica)
                  .ThenBy(static group => group.Key.Concurrency))
     {
-        var before = configuration.Where(static run => run.Variant == "before").ToArray();
-        var after = configuration.Where(static run => run.Variant == "after").ToArray();
-        if (before.Length == 0 || after.Length == 0)
+        var baseline = configuration
+            .Where(run => string.Equals(run.Variant, baselineVariant, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+        if (baseline.Length == 0)
             continue;
 
-        var beforeRate = Median(before.Select(static run => run.Rate));
-        var afterRate = Median(after.Select(static run => run.Rate));
-        var beforeP95 = Median(before.Select(static run => run.P95Milliseconds));
-        var afterP95 = Median(after.Select(static run => run.P95Milliseconds));
-        var beforeP99 = Median(before.Select(static run => run.P99Milliseconds));
-        var afterP99 = Median(after.Select(static run => run.P99Milliseconds));
-        var beforeRss = Median(before.Select(static run => run.PeakRssMegabytes));
-        var afterRss = Median(after.Select(static run => run.PeakRssMegabytes));
-        var errors = before.Sum(static run => run.Failed) + after.Sum(static run => run.Failed);
-        var throughputRatio = Divide(afterRate, beforeRate);
-        var p95Ratio = Divide(afterP95, beforeP95);
-        var p99Ratio = Divide(afterP99, beforeP99);
-        var rssRatio = Divide(afterRss, beforeRss);
-        var pass = errors == 0 &&
-                   throughputRatio >= 0.90 &&
-                   p95Ratio <= 1.20 &&
-                   p99Ratio <= 1.20 &&
-                   rssRatio <= 1.15;
-        overallPass &= pass;
+        foreach (var candidateGroup in configuration
+                     .Where(run => !string.Equals(
+                         run.Variant,
+                         baselineVariant,
+                         StringComparison.OrdinalIgnoreCase))
+                     .GroupBy(static run => run.Variant, StringComparer.OrdinalIgnoreCase)
+                     .OrderBy(static group => group.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            var candidate = candidateGroup.ToArray();
+            var baselineRate = Median(baseline.Select(static run => run.Rate));
+            var candidateRate = Median(candidate.Select(static run => run.Rate));
+            var baselineP99 = Median(baseline.Select(static run => run.P99Milliseconds));
+            var candidateP95 = Median(candidate.Select(static run => run.P95Milliseconds));
+            var candidateP99 = Median(candidate.Select(static run => run.P99Milliseconds));
+            var baselineRss = Median(baseline.Select(static run => run.PeakRssMegabytes));
+            var candidateRss = Median(candidate.Select(static run => run.PeakRssMegabytes));
+            var errors = baseline.Sum(static run => run.Failed) +
+                         candidate.Sum(static run => run.Failed);
+            var throughputRatio = Divide(candidateRate, baselineRate);
+            var p99Ratio = Divide(candidateP99, baselineP99);
+            var rssRatio = Divide(candidateRss, baselineRss);
+            var isLowLoad = configuration.Key.TargetRequestsPerSecond > 0d;
+            var pass = isLowLoad
+                ? errors == 0 &&
+                  candidateRate >= configuration.Key.TargetRequestsPerSecond * 0.90d &&
+                  candidateP95 < 50d &&
+                  candidateP99 < 75d
+                : errors == 0 &&
+                  throughputRatio >= 0.90d &&
+                  p99Ratio <= 1.20d &&
+                  rssRatio <= 1.15d;
+            comparisonCount++;
+            outcomes.Add(new ComparisonOutcome(
+                candidateGroup.Key,
+                isLowLoad,
+                pass,
+                throughputRatio));
 
+            builder.AppendLine(FormattableString.Invariant(
+                $"| {candidateGroup.Key} | {configuration.Key.Scenario} | {configuration.Key.TargetRequestsPerReplica:F1} | {configuration.Key.Concurrency} | {baselineRate:F2} | {candidateRate:F2} | {throughputRatio:P1} | {candidateP95:F2} | {candidateP99:F2} | {p99Ratio - 1:P1} | {rssRatio - 1:P1} | {errors} | {(pass ? "PASS" : "FAIL")} |"));
+        }
+    }
+
+    if (comparisonCount == 0)
+        throw new InvalidOperationException($"No run could be compared with baseline '{baselineVariant}'.");
+
+    builder.AppendLine();
+    builder.AppendLine("## Adoption decision");
+    builder.AppendLine();
+    builder.AppendLine("| Candidate | low-load SLO | high-load safety | median high-load gain | decision |");
+    builder.AppendLine("|---|---|---|---:|---|");
+    var adoptionPass = false;
+    foreach (var candidate in outcomes
+                 .GroupBy(static outcome => outcome.Candidate, StringComparer.OrdinalIgnoreCase)
+                 .OrderBy(static group => group.Key, StringComparer.OrdinalIgnoreCase))
+    {
+        var lowLoad = candidate.Where(static outcome => outcome.IsLowLoad).ToArray();
+        var highLoad = candidate.Where(static outcome => !outcome.IsLowLoad).ToArray();
+        var lowLoadPass = lowLoad.Length > 0 && lowLoad.All(static outcome => outcome.Pass);
+        var highLoadPass = highLoad.Length > 0 && highLoad.All(static outcome => outcome.Pass);
+        var medianHighLoadGain = Median(
+            highLoad.Select(static outcome => outcome.ThroughputRatio - 1d));
+        var isPartitioned = candidate.Key.Contains(
+            "partitioned",
+            StringComparison.OrdinalIgnoreCase);
+        var adopt = lowLoadPass &&
+                    highLoadPass &&
+                    (!isPartitioned || medianHighLoadGain >= 0.10d);
+        adoptionPass |= adopt;
+        var decision = adopt
+            ? "ADOPT"
+            : isPartitioned && lowLoadPass && highLoadPass
+                ? "KEEP OPT-IN — gain < 10%"
+                : "DO NOT ADOPT";
         builder.AppendLine(FormattableString.Invariant(
-            $"| {configuration.Key.Scenario} | {configuration.Key.Concurrency} | {beforeRate:F2} | {afterRate:F2} | {throughputRatio:P1} | {beforeP95:F2} | {afterP95:F2} | {p95Ratio - 1:P1} | {beforeP99:F2} | {afterP99:F2} | {p99Ratio - 1:P1} | {beforeRss:F1} | {afterRss:F1} | {rssRatio - 1:P1} | {errors} | {(pass ? "PASS" : "FAIL")} |"));
+            $"| {candidate.Key} | {(lowLoadPass ? "PASS" : "FAIL")} | {(highLoadPass ? "PASS" : "FAIL")} | {medianHighLoadGain:P1} | {decision} |"));
     }
 
     builder.AppendLine();
-    builder.AppendLine($"Overall result: **{(overallPass ? "PASS" : "FAIL")}**.");
+    builder.AppendLine($"Overall adoption result: **{(adoptionPass ? "PASS" : "FAIL")}**.");
     builder.AppendLine();
-    builder.AppendLine("RAFT entries are derived from committed log-index deltas. Mutation counts use the unified-batch metric when available; for the reference build they are inferred from the deterministic workload (an async call represents push, pop and callback). WAL deltas are medians across the three replicas.");
+    builder.AppendLine("Low-load runs require at least 90% of the target rate, p95 < 50 ms and p99 < 75 ms. Unpaced runs require throughput >= 90% of baseline, p99 <= 120% and RSS <= 115%. The overall adoption result passes when at least one candidate is adoptable. A partitioned candidate is recommended only when its median high-load throughput gain is at least 10%.");
+    builder.AppendLine();
+    builder.AppendLine("RAFT entries are derived from committed log-index deltas. Mutation counts use the unified-batch metric when available; WAL deltas are medians across the three replicas.");
 
     EnsureParentDirectory(output);
     File.WriteAllText(output, builder.ToString(), new UTF8Encoding(false));
     Console.WriteLine($"Comparison report: {output}");
-    return overallPass ? 0 : 1;
+    return adoptionPass ? 0 : 1;
 }
 
 static BenchmarkRun ReadBenchmarkRun(string jsonPath)
@@ -765,11 +863,6 @@ static BenchmarkRun ReadBenchmarkRun(string jsonPath)
         ?? throw new InvalidOperationException($"No run directory for '{jsonPath}'.");
     var manifest = ReadManifest(Path.Combine(runDirectory, "manifest.txt"));
     var label = manifest.GetValueOrDefault("run_label", Path.GetFileName(runDirectory));
-    var variant = label.StartsWith("before", StringComparison.OrdinalIgnoreCase)
-        ? "before"
-        : label.StartsWith("after", StringComparison.OrdinalIgnoreCase)
-            ? "after"
-            : label;
     var repetition = 0;
     var repetitionMarker = label.LastIndexOf("-r", StringComparison.OrdinalIgnoreCase);
     if (repetitionMarker >= 0)
@@ -780,11 +873,39 @@ static BenchmarkRun ReadBenchmarkRun(string jsonPath)
             CultureInfo.InvariantCulture,
             out repetition);
     }
+    var baseLabel = repetitionMarker > 0 ? label[..repetitionMarker] : label;
+    var variant = baseLabel.StartsWith("before", StringComparison.OrdinalIgnoreCase)
+        ? "before"
+        : baseLabel.StartsWith("after", StringComparison.OrdinalIgnoreCase)
+            ? "after"
+            : baseLabel;
 
     using var document = JsonDocument.Parse(File.ReadAllBytes(jsonPath));
     var report = document.RootElement.GetProperty("report");
     var scenario = report.GetProperty("Scenario").GetString() ?? "unknown";
     var concurrency = report.GetProperty("Concurrency").GetInt32();
+    var targetRequestsPerSecond = report.TryGetProperty(
+        "TargetRequestsPerSecond",
+        out var targetProperty)
+        ? targetProperty.GetDouble()
+        : double.TryParse(
+            manifest.GetValueOrDefault("target_requests_per_second", "0"),
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out var manifestTarget)
+            ? manifestTarget
+            : 0d;
+    var targetRequestsPerReplica = report.TryGetProperty(
+        "TargetRequestsPerReplica",
+        out var targetPerReplicaProperty)
+        ? targetPerReplicaProperty.GetDouble()
+        : double.TryParse(
+            manifest.GetValueOrDefault("target_requests_per_replica", "0"),
+            NumberStyles.Float,
+            CultureInfo.InvariantCulture,
+            out var manifestTargetPerReplica)
+            ? manifestTargetPerReplica
+            : targetRequestsPerSecond / 3d;
     var rate = report.GetProperty("Rate").GetDouble();
     var failed = report.GetProperty("Failed").GetInt64();
     var all = report.GetProperty("Operations")
@@ -822,17 +943,117 @@ static BenchmarkRun ReadBenchmarkRun(string jsonPath)
         variant,
         scenario,
         concurrency,
+        targetRequestsPerSecond,
+        targetRequestsPerReplica,
         repetition,
         rate,
         failed,
         all.GetProperty("P50Milliseconds").GetDouble(),
         all.GetProperty("P95Milliseconds").GetDouble(),
         all.GetProperty("P99Milliseconds").GetDouble(),
-        ReadPeakRssMegabytes(Path.Combine(runDirectory, "memory.csv")),
+        ReadPeakRssMegabytes(runDirectory),
         raftEntries,
         mutations,
         ReadWalDeltaBytes(runDirectory),
         cpuSeconds);
+}
+
+static int SelectPartition(Arguments arguments)
+{
+    var root = Path.GetFullPath(arguments.GetRequired("root"));
+    var output = Path.GetFullPath(arguments.GetRequired("output"));
+    var baselineVariant = arguments.Get("baseline", "global-low-latency");
+    var runs = Directory
+        .EnumerateFiles(root, "operations.json", SearchOption.AllDirectories)
+        .Select(ReadBenchmarkRun)
+        .Where(static run => run.TargetRequestsPerSecond <= 0d)
+        .ToArray();
+    var candidates = new List<PartitionSelection>();
+
+    foreach (var candidateRuns in runs
+                 .Where(static run => run.Variant.StartsWith(
+                     "partitioned",
+                     StringComparison.OrdinalIgnoreCase))
+                 .GroupBy(static run => run.Variant, StringComparer.OrdinalIgnoreCase))
+    {
+        var outcomes = new List<ComparisonOutcome>();
+        foreach (var configuration in runs
+                     .GroupBy(static run => (run.Scenario, run.Concurrency)))
+        {
+            var baseline = configuration
+                .Where(run => string.Equals(
+                    run.Variant,
+                    baselineVariant,
+                    StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            var candidate = configuration
+                .Where(run => string.Equals(
+                    run.Variant,
+                    candidateRuns.Key,
+                    StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+            if (baseline.Length == 0 || candidate.Length == 0)
+                continue;
+
+            var throughputRatio = Divide(
+                Median(candidate.Select(static run => run.Rate)),
+                Median(baseline.Select(static run => run.Rate)));
+            var p99Ratio = Divide(
+                Median(candidate.Select(static run => run.P99Milliseconds)),
+                Median(baseline.Select(static run => run.P99Milliseconds)));
+            var rssRatio = Divide(
+                Median(candidate.Select(static run => run.PeakRssMegabytes)),
+                Median(baseline.Select(static run => run.PeakRssMegabytes)));
+            var errors = baseline.Sum(static run => run.Failed) +
+                         candidate.Sum(static run => run.Failed);
+            outcomes.Add(new ComparisonOutcome(
+                candidateRuns.Key,
+                IsLowLoad: false,
+                Pass: errors == 0 &&
+                      throughputRatio >= 0.90d &&
+                      p99Ratio <= 1.20d &&
+                      rssRatio <= 1.15d,
+                throughputRatio));
+        }
+
+        if (outcomes.Count == 0)
+            continue;
+        candidates.Add(new PartitionSelection(
+            candidateRuns.Key,
+            outcomes.All(static outcome => outcome.Pass),
+            Median(outcomes.Select(static outcome => outcome.ThroughputRatio - 1d))));
+    }
+
+    var selected = candidates
+        .OrderByDescending(static candidate => candidate.Safe)
+        .ThenByDescending(static candidate => candidate.MedianThroughputGain)
+        .FirstOrDefault();
+    if (selected is null)
+        throw new InvalidOperationException(
+            $"No partitioned candidate could be compared with '{baselineVariant}'.");
+
+    var partitionMarker = selected.Variant.LastIndexOf("-p", StringComparison.OrdinalIgnoreCase);
+    if (partitionMarker < 0 ||
+        !int.TryParse(
+            selected.Variant.AsSpan(partitionMarker + 2),
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var partitions))
+    {
+        throw new InvalidDataException(
+            $"Cannot read the partition count from variant '{selected.Variant}'.");
+    }
+
+    EnsureParentDirectory(output);
+    File.WriteAllText(
+        output,
+        FormattableString.Invariant(
+            $"selected_variant={selected.Variant}\nselected_partitions={partitions}\nscreening_safe={(selected.Safe ? "true" : "false")}\nscreening_median_throughput_gain={selected.MedianThroughputGain:F6}\nscreening_adoption_eligible={(selected.Safe && selected.MedianThroughputGain >= 0.10d ? "true" : "false")}\n"),
+        new UTF8Encoding(false));
+    Console.WriteLine(
+        FormattableString.Invariant(
+            $"Selected {selected.Variant}: median throughput gain {selected.MedianThroughputGain:P1}."));
+    return 0;
 }
 
 static Dictionary<string, string> ReadManifest(string path)
@@ -843,14 +1064,33 @@ static Dictionary<string, string> ReadManifest(string path)
             .ToDictionary(static parts => parts[0], static parts => parts[1], StringComparer.Ordinal)
         : new Dictionary<string, string>(StringComparer.Ordinal);
 
-static double ReadPeakRssMegabytes(string path)
+static double ReadPeakRssMegabytes(string runDirectory)
 {
+    var path = Path.Combine(runDirectory, "memory.csv");
     if (!File.Exists(path))
         return 0d;
-    return File.ReadLines(path)
+    var samples = File.ReadLines(path)
         .Skip(1)
         .Select(MemorySample.Parse)
         .Where(static sample => sample.Phase == SamplePhase.Load)
+        .ToArray();
+    if (samples.Length == 0)
+        return 0d;
+
+    var manifest = ReadManifest(Path.Combine(runDirectory, "manifest.txt"));
+    var durationSeconds = double.TryParse(
+        manifest.GetValueOrDefault("duration_seconds", "0"),
+        NumberStyles.Float,
+        CultureInfo.InvariantCulture,
+        out var parsedDuration)
+        ? parsedDuration
+        : 0d;
+    var cutoff = durationSeconds > 0d
+        ? samples.Min(static sample => sample.Timestamp)
+            .AddSeconds(durationSeconds + 2d)
+        : DateTimeOffset.MaxValue;
+    return samples
+        .Where(sample => sample.Timestamp <= cutoff)
         .Select(static sample => sample.RssMegabytes)
         .DefaultIfEmpty()
         .Max();
@@ -1013,10 +1253,14 @@ static void PrintUsage()
           load [--scenario mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [--duration 60]
                [--concurrency 12] [--payload-bytes 4096] [--file-bytes 262144]
                [--first-port 30021] [--nodes 3] [--keys-per-worker 16]
+               [--target-rps 0]
+               [--target-rps-per-replica 0]
                [--key-prefix memory-lab] [--validate true]
                [--csv operations.csv] [--json operations.json]
           report --csv <memory.csv>
-          compare --root <runs-directory> --output <comparison.md>
+          compare --root <runs-directory> --output <comparison.md> [--baseline before]
+          select-partition --root <screening-runs> --output <selection.env>
+                           [--baseline global-low-latency]
         """);
 }
 
@@ -1076,6 +1320,8 @@ sealed class LoadStatistics
         int payloadBytes,
         int keysPerWorker,
         string keyPrefix,
+        double targetRequestsPerSecond,
+        double targetRequestsPerReplica,
         TimeSpan elapsed)
     {
         var samples = _samples.ToArray();
@@ -1095,6 +1341,8 @@ sealed class LoadStatistics
             payloadBytes,
             keysPerWorker,
             keyPrefix,
+            targetRequestsPerSecond,
+            targetRequestsPerReplica,
             elapsed.TotalSeconds,
             Completed,
             Failed,
@@ -1209,6 +1457,8 @@ sealed record LoadReport(
     int PayloadBytes,
     int KeysPerWorker,
     string KeyPrefix,
+    double TargetRequestsPerSecond,
+    double TargetRequestsPerReplica,
     double ElapsedSeconds,
     long Completed,
     long Failed,
@@ -1219,6 +1469,8 @@ sealed record BenchmarkRun(
     string Variant,
     string Scenario,
     int Concurrency,
+    double TargetRequestsPerSecond,
+    double TargetRequestsPerReplica,
     int Repetition,
     double Rate,
     long Failed,
@@ -1230,6 +1482,17 @@ sealed record BenchmarkRun(
     double Mutations,
     double WalDeltaBytes,
     double CpuSeconds);
+
+readonly record struct ComparisonOutcome(
+    string Candidate,
+    bool IsLowLoad,
+    bool Pass,
+    double ThroughputRatio);
+
+sealed record PartitionSelection(
+    string Variant,
+    bool Safe,
+    double MedianThroughputGain);
 
 sealed class Arguments
 {
@@ -1287,6 +1550,58 @@ sealed class Arguments
         }
 
         return parsed;
+    }
+
+    public double GetDouble(string name, double defaultValue, double minimum, double maximum)
+    {
+        string value = Get(name, defaultValue.ToString(CultureInfo.InvariantCulture));
+        if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed) ||
+            !double.IsFinite(parsed) ||
+            parsed < minimum ||
+            parsed > maximum)
+        {
+            throw new ArgumentException(
+                $"--{name} must be a number between {minimum} and {maximum}.");
+        }
+
+        return parsed;
+    }
+}
+
+sealed class PacedRequestScheduler
+{
+    private readonly long _intervalTimestampTicks;
+    private long _nextTimestamp;
+
+    public PacedRequestScheduler(double requestsPerSecond)
+    {
+        _intervalTimestampTicks = Math.Max(
+            1L,
+            (long)Math.Round(
+                Stopwatch.Frequency / requestsPerSecond,
+                MidpointRounding.AwayFromZero));
+        _nextTimestamp = Stopwatch.GetTimestamp();
+    }
+
+    public async ValueTask WaitAsync(CancellationToken cancellationToken)
+    {
+        long scheduledAt;
+        while (true)
+        {
+            var now = Stopwatch.GetTimestamp();
+            var current = Volatile.Read(ref _nextTimestamp);
+            scheduledAt = Math.Max(now, current);
+            var next = scheduledAt + _intervalTimestampTicks;
+            if (Interlocked.CompareExchange(ref _nextTimestamp, next, current) == current)
+                break;
+        }
+
+        var remainingTicks = scheduledAt - Stopwatch.GetTimestamp();
+        if (remainingTicks <= 0)
+            return;
+
+        var delay = TimeSpan.FromSeconds(remainingTicks / (double)Stopwatch.Frequency);
+        await Task.Delay(delay, cancellationToken);
     }
 }
 

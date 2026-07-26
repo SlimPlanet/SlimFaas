@@ -1,13 +1,17 @@
-﻿using System.Collections.Immutable;
+﻿using System.Buffers;
+using System.Collections.Immutable;
 using System.Data;
 using System.Diagnostics;
+using System.IO.Hashing;
 using System.Net;
 using System.Text;
 using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using MemoryPack;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimData.Commands;
+using SlimFaas.Options;
 
 namespace SlimFaas.Database;
 
@@ -24,10 +28,12 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     private readonly ISlimDataProtocolCompatibility _protocolCompatibility;
     private readonly ILogger<SlimDataService> _logger;
     private readonly TimeSpan _timeMaxToWaitForLeader = TimeSpan.FromMilliseconds(3000);
-    private readonly MultiRateAdaptiveBatcher _batcher;
-    private readonly string _producerId;
+    private readonly BatchPartition[] _batchPartitions;
+    private readonly SlimDataBatchMode _batchMode;
+    private readonly bool _lowLoadFastPathEnabled;
+    private readonly SlimDataBatchLoadController _loadController;
+    private readonly SlimDataBatchCapacityLimiter? _partitionCapacityLimiter;
     private readonly string _generationId = Guid.NewGuid().ToString("N");
-    private long _lastSuccessfulSequence;
 
     public const string HttpClientName = "SlimDataHttpClient";
 
@@ -37,6 +43,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         IRaftCluster cluster,
         ISlimDataProtocolCompatibility protocolCompatibility,
         SlimDataInfo slimDataInfo,
+        IOptions<SlimDataOptions> slimDataOptions,
         ILogger<SlimDataService> logger)
     {
         _httpClientFactory = httpClientFactory;
@@ -44,31 +51,83 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         _cluster = cluster;
         _protocolCompatibility = protocolCompatibility;
         _logger = logger;
-        _producerId = $"{Environment.MachineName}:{slimDataInfo.Port}";
-        _batcher = new MultiRateAdaptiveBatcher(
-            idleStop: TimeSpan.FromSeconds(15),
-            maxWaitPerTick: TimeSpan.FromSeconds(5));
-        _batcher.RegisterKind<SlimDataBatchOperation, SlimDataBatchOperationResult>(
-            kind: UnifiedBatchKind,
-            batchHandler: BatchMutationHandlerAsync,
-            tiers:
-            [
-                new RateTier(0, TimeSpan.FromMilliseconds(225)),
-                new RateTier(4_000, TimeSpan.FromMilliseconds(100)),
-            ],
-            maxBatchSize: 512,
-            maxQueueLength: 4096,
-            maxQueueBytes: 64L * 1024 * 1024,
-            maxBatchBytes: 15 * 1024 * 1024,
-            sizeEstimatorBytes: EstimateOperationBytes,
-            coalesceWindow: TimeSpan.FromMilliseconds(3));
+        var options = slimDataOptions.Value;
+        _batchMode = options.BatchMode;
+        _lowLoadFastPathEnabled = options.LowLoadFastPath;
+        _loadController = new SlimDataBatchLoadController(options.LowLoadRequestsPerSecond);
+
+        var partitionCount = _batchMode == SlimDataBatchMode.PartitionedByKey
+            ? options.BatchPartitionCount
+            : 1;
+        if (partitionCount > 1)
+            _partitionCapacityLimiter = new SlimDataBatchCapacityLimiter(4096, 64L * 1024 * 1024);
+
+        var baseProducerId = $"{Environment.MachineName}:{slimDataInfo.Port}";
+        _batchPartitions = new BatchPartition[partitionCount];
+        for (var index = 0; index < partitionCount; index++)
+        {
+            var kind = partitionCount == 1
+                ? UnifiedBatchKind
+                : $"{UnifiedBatchKind}-p{index:D2}";
+            var producerId = partitionCount == 1
+                ? baseProducerId
+                : $"{baseProducerId}:partition:{index}";
+            var batcher = new MultiRateAdaptiveBatcher(
+                idleStop: TimeSpan.FromSeconds(15),
+                maxWaitPerTick: TimeSpan.FromSeconds(5));
+            var partition = new BatchPartition(kind, producerId, batcher);
+            _batchPartitions[index] = partition;
+            batcher.RegisterKind<SlimDataBatchOperation, SlimDataBatchOperationResult>(
+                kind: kind,
+                batchHandler: (batch, cancellationToken) =>
+                    BatchMutationHandlerAsync(partition, batch, cancellationToken),
+                tiers:
+                [
+                    new RateTier(0, TimeSpan.FromMilliseconds(225)),
+                    new RateTier(4_000, TimeSpan.FromMilliseconds(100)),
+                ],
+                maxBatchSize: 512,
+                maxQueueLength: partitionCount == 1 ? 4096 : 0,
+                maxQueueBytes: partitionCount == 1 ? 64L * 1024 * 1024 : 0L,
+                maxBatchBytes: 15 * 1024 * 1024,
+                sizeEstimatorBytes: EstimateOperationBytes,
+                coalesceWindow: TimeSpan.FromMilliseconds(3),
+                timingProvider: _lowLoadFastPathEnabled ? _loadController.GetTiming : null);
+        }
     }
 
     private ISupplier<SlimDataPayload> SimplePersistentState =>
         _serviceProvider.GetRequiredService<SlimPersistentState>();
 
     public IReadOnlyList<AdaptiveBatchQueueStatistics> BatchQueueStatistics
-        => _batcher.GetQueueStatistics();
+        => _batchPartitions
+            .SelectMany(static partition => partition.Batcher.GetQueueStatistics())
+            .ToArray();
+
+    public SlimDataBatchMode BatchMode => _batchMode;
+
+    public int BatchPartitionCount => _batchPartitions.Length;
+
+    public bool LowLoadFastPathEnabled => _lowLoadFastPathEnabled;
+
+    internal SlimDataBatchLoadSnapshot BatchLoadSnapshot
+    {
+        get
+        {
+            var snapshot = _loadController.GetSnapshot();
+            if (_lowLoadFastPathEnabled)
+                return snapshot;
+
+            return snapshot with
+            {
+                Timing = new AdaptiveBatchTiming(
+                    snapshot.Level == SlimDataBatchLoadLevel.High
+                        ? TimeSpan.FromMilliseconds(100)
+                        : TimeSpan.FromMilliseconds(225),
+                    TimeSpan.FromMilliseconds(3))
+            };
+        }
+    }
 
     private static long? ToExpireAtUtcTicks(long? ttlMs)
     {
@@ -224,20 +283,38 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         _ = await EnqueueMutationAsync(mutation).ConfigureAwait(false);
     }
 
-    private Task<SlimDataBatchOperationResult> EnqueueMutationAsync(
+    private async Task<SlimDataBatchOperationResult> EnqueueMutationAsync(
         SlimDataBatchOperation operation)
-        => _batcher.EnqueueAsync<SlimDataBatchOperation, SlimDataBatchOperationResult>(
-            UnifiedBatchKind,
-            operation);
+    {
+        _loadController.RecordArrival();
+        var partition = _batchPartitions.Length == 1
+            ? _batchPartitions[0]
+            : _batchPartitions[GetPartitionIndex(operation.Key, _batchPartitions.Length)];
+        var operationBytes = EstimateOperationBytes(operation);
+        _partitionCapacityLimiter?.Reserve(partition.Kind, operationBytes);
+        try
+        {
+            return await partition.Batcher
+                .EnqueueAsync<SlimDataBatchOperation, SlimDataBatchOperationResult>(
+                    partition.Kind,
+                    operation)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _partitionCapacityLimiter?.Release(operationBytes);
+        }
+    }
 
     private async Task<IReadOnlyList<SlimDataBatchOperationResult>> BatchMutationHandlerAsync(
+        BatchPartition partition,
         IReadOnlyList<SlimDataBatchOperation> batch,
         CancellationToken cancellationToken)
     {
-        var sequence = _lastSuccessfulSequence + 1;
+        var sequence = partition.LastSuccessfulSequence + 1;
         var request = new SlimDataCommandBatchRequest
         {
-            ProducerId = _producerId,
+            ProducerId = partition.ProducerId,
             GenerationId = _generationId,
             Sequence = sequence,
             RequestId = Guid.NewGuid().ToString("N"),
@@ -278,7 +355,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                     }
                 }
 
-                _lastSuccessfulSequence = sequence;
+                partition.LastSuccessfulSequence = sequence;
                 return response.Results;
             }
             catch (Exception ex) when (IsRetryableBatchFailure(ex, cancellationToken))
@@ -287,7 +364,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                 _logger.LogWarning(
                     ex,
                     "Retrying the same ordered SlimData batch. Producer={ProducerId}, Sequence={Sequence}, Attempt={Attempt}",
-                    _producerId,
+                    partition.ProducerId,
                     sequence,
                     attempt);
                 await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
@@ -535,7 +612,39 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        await _batcher.DisposeAsync().ConfigureAwait(false);
+        foreach (var partition in _batchPartitions)
+            await partition.Batcher.DisposeAsync().ConfigureAwait(false);
+    }
+
+    internal static int GetPartitionIndex(string key, int partitionCount)
+    {
+        var byteCount = Encoding.UTF8.GetByteCount(key);
+        byte[]? rented = null;
+        Span<byte> bytes = byteCount <= 512
+            ? stackalloc byte[byteCount]
+            : (rented = ArrayPool<byte>.Shared.Rent(byteCount)).AsSpan(0, byteCount);
+        try
+        {
+            _ = Encoding.UTF8.GetBytes(key, bytes);
+            var hash = XxHash32.HashToUInt32(bytes);
+            return (int)(hash & (uint)(partitionCount - 1));
+        }
+        finally
+        {
+            if (rented is not null)
+                ArrayPool<byte>.Shared.Return(rented);
+        }
+    }
+
+    private sealed class BatchPartition(
+        string kind,
+        string producerId,
+        MultiRateAdaptiveBatcher batcher)
+    {
+        public string Kind { get; } = kind;
+        public string ProducerId { get; } = producerId;
+        public MultiRateAdaptiveBatcher Batcher { get; } = batcher;
+        public long LastSuccessfulSequence { get; set; }
     }
 }
 #pragma warning restore CA2252

@@ -6,6 +6,8 @@ namespace SlimData;
 
 public sealed record RateTier(int MinPerMinute, TimeSpan Delay);
 
+public readonly record struct AdaptiveBatchTiming(TimeSpan Delay, TimeSpan CoalesceWindow);
+
 public readonly record struct AdaptiveBatchQueueStatistics(string Kind, int Items, long Bytes);
 
 public sealed class BatchQueueFullException(string kind)
@@ -38,6 +40,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         
         public int MaxBatchBytes; // 0 = unlimited
         public TimeSpan CoalesceWindow;
+        public Func<AdaptiveBatchTiming>? TimingProvider;
         public required Func<object, int> SizeEstimatorBytes;
 
         public readonly object QueueGate = new();
@@ -75,7 +78,8 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         long maxQueueBytes = 0L,
         int maxBatchBytes = 512 * 1024 * 1024,                    
         Func<TReq, int>? sizeEstimatorBytes = null,
-        TimeSpan? coalesceWindow = null)
+        TimeSpan? coalesceWindow = null,
+        Func<AdaptiveBatchTiming>? timingProvider = null)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(MultiRateAdaptiveBatcher));
         if (string.IsNullOrWhiteSpace(kind)) throw new ArgumentNullException(nameof(kind));
@@ -97,7 +101,8 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
             Tiers = tiersList,
             MaxBatchBytes = Math.Max(0, maxBatchBytes),
             SizeEstimatorBytes = o => typedEstimator((TReq)o),
-            CoalesceWindow = coalesceWindow ?? tiersList[0].Delay, 
+            CoalesceWindow = coalesceWindow ?? tiersList[0].Delay,
+            TimingProvider = timingProvider,
             Handler = async (objs, ct) =>
             {
                 // cast sûr tant qu'on respecte EnqueueAsync<TReq,TRes> pour ce kind
@@ -219,6 +224,10 @@ private async Task LoopAsync(CancellationToken ct)
             {
                 if (k.Queue.IsEmpty) continue;
 
+                var timing = GetTiming(k);
+                if (timing.Delay <= TimeSpan.Zero)
+                    k.NextAllowedDequeueAtUtc = DateTime.MinValue;
+
                 // prêt si pas de cooldown ou cooldown expiré
                 if (k.NextAllowedDequeueAtUtc <= now)
                 {
@@ -246,12 +255,13 @@ private async Task LoopAsync(CancellationToken ct)
             }
             
             var ksel = readyKind;
+            var currentTiming = GetTiming(ksel);
             // 🔴 Fenêtre de coalescence : laisse la rafale se remplir (sans toucher au sémaphore)
-            if (ksel.CoalesceWindow > TimeSpan.Zero)
+            if (currentTiming.CoalesceWindow > TimeSpan.Zero)
             {
                 // Si on n'a pas déjà de quoi remplir un gros batch, on attend un poil
                 if (ksel.Queue.Count < ksel.MaxBatchSize)
-                    await Task.Delay(ksel.CoalesceWindow, ct).ConfigureAwait(false);
+                    await Task.Delay(currentTiming.CoalesceWindow, ct).ConfigureAwait(false);
             }
             // --- Drain avec limite mémoire et "toujours envoyer au moins 1" ---
             var batch = new List<(object req, TaskCompletionSource<object> tcs)>(ksel.MaxBatchSize);
@@ -316,7 +326,7 @@ private async Task LoopAsync(CancellationToken ct)
             }
 
             // reset pour permettre un nouveau dequeue immédiat si la pression retombe
-            var delayAfterBatch = ComputeDelayFromRatePerMinute(ksel);
+            var delayAfterBatch = GetTiming(ksel).Delay;
             if (delayAfterBatch > TimeSpan.Zero)
                 ksel.NextAllowedDequeueAtUtc = DateTime.UtcNow + delayAfterBatch;
             else
@@ -374,6 +384,12 @@ private async Task LoopAsync(CancellationToken ct)
         }
         return delay;
     }
+
+    private static AdaptiveBatchTiming GetTiming(Kind kind)
+        => kind.TimingProvider?.Invoke()
+           ?? new AdaptiveBatchTiming(
+               ComputeDelayFromRatePerMinute(kind),
+               kind.CoalesceWindow);
 
     private static void PruneArrivals(Kind k)
     {
