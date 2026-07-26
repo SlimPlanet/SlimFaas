@@ -133,6 +133,7 @@ Dive into the documentation:
 
 - [Get Started](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/get-started.md) – Learn how to deploy SlimFaas on Kubernetes or Docker Compose.
 - [Local three-node cluster](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/local-orchestrator.md) – Run a real SlimFaas/Raft cluster locally without Kubernetes or Docker.
+- [Unified SlimData mutation batching](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/slimdata-unified-batching.md) – Ordering, retry/deduplication, metrics, and Native AOT A/B benchmark.
 - Scaling
     - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
     - [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.

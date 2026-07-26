@@ -9,6 +9,7 @@ namespace SlimFaas.Workers;
 public sealed class SlimDataDiagnosticsWorker(
     SlimPersistentState persistentState,
     IRaftCluster cluster,
+    SlimDataCommandBatchCoordinator commandBatchCoordinator,
     RaftAppendEntriesCommitIndexGuard appendEntriesCommitIndexGuard,
     ISlimDataProtocolCompatibility protocolCompatibility,
     IDatabaseService databaseService,
@@ -54,6 +55,10 @@ public sealed class SlimDataDiagnosticsWorker(
             "SlimData process private memory in bytes");
         gauges.SetGaugeValue("slimdata_process_managed_heap_bytes", GC.GetTotalMemory(forceFullCollection: false),
             "SlimData managed heap in bytes");
+        gauges.SetGaugeValue(
+            "slimdata_process_cpu_seconds_total",
+            process.TotalProcessorTime.TotalSeconds,
+            "Total CPU time consumed by the SlimData process in seconds");
 
         var state = persistentState.GetStateMetrics();
         gauges.SetGaugeValue("slimdata_state_payload_bytes", state.PayloadBytes,
@@ -143,6 +148,37 @@ public sealed class SlimDataDiagnosticsWorker(
                     "Estimated bytes waiting in an adaptive batch queue", labels);
             }
         }
+
+        var commandBatch = commandBatchCoordinator.GetStatistics();
+        gauges.SetGaugeValue("slimdata_command_batch_queue_requests", commandBatch.QueueRequests,
+            "Number of producer batches waiting in the centralized leader queue");
+        gauges.SetGaugeValue("slimdata_command_batch_queue_bytes", commandBatch.QueueBytes,
+            "Estimated producer batch bytes waiting in the centralized leader queue");
+        gauges.SetGaugeValue("slimdata_command_batch_raft_total", commandBatch.RaftBatches,
+            "Number of composite RAFT entries produced by the centralized batch coordinator");
+        gauges.SetGaugeValue("slimdata_command_batch_producer_total", commandBatch.ProducerBatches,
+            "Number of producer batches included in composite RAFT entries");
+        gauges.SetGaugeValue("slimdata_command_batch_operations_total", commandBatch.Operations,
+            "Number of mutations included in composite RAFT entries");
+        gauges.SetGaugeValue("slimdata_command_batch_duplicates_total", commandBatch.Duplicates,
+            "Number of duplicate producer batches served from durable deduplication state");
+        gauges.SetGaugeValue("slimdata_command_batch_sequence_gaps_total", commandBatch.SequenceGaps,
+            "Number of rejected producer sequence gaps");
+        gauges.SetGaugeValue("slimdata_command_batch_last_raft_latency_milliseconds",
+            commandBatch.LastRaftLatencyMilliseconds,
+            "Commit and local apply latency of the latest composite RAFT batch");
+        gauges.SetGaugeValue("slimdata_command_batch_last_max_queue_wait_milliseconds",
+            commandBatch.LastMaxQueueWaitMilliseconds,
+            "Maximum leader queue wait of a producer request in the latest composite RAFT batch");
+        gauges.SetGaugeValue("slimdata_command_batch_last_producer_batches",
+            commandBatch.LastProducerBatchCount,
+            "Producer batch count in the latest composite RAFT entry");
+        gauges.SetGaugeValue("slimdata_command_batch_last_operations",
+            commandBatch.LastOperationCount,
+            "Mutation count in the latest composite RAFT entry");
+        gauges.SetGaugeValue("slimdata_command_batch_last_payload_bytes",
+            commandBatch.LastPayloadBytes,
+            "Estimated HTTP payload bytes included in the latest composite RAFT entry");
 
         RecordCgroupMemory();
     }

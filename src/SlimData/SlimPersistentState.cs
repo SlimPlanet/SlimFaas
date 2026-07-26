@@ -279,7 +279,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
                 ex);
         }
 
-        if (entry.Context is CommandApplyContext applyContext)
+        if (entry.Context is ISlimDataApplyContext applyContext)
             applyContext.SetApplied();
 
         return ShouldCreateSnapshot(entry.Length.GetValueOrDefault());
@@ -440,7 +440,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
     {
         switch (context)
         {
-            case CommandApplyContext applyContext:
+            case ISlimDataApplyContext applyContext:
                 applyContext.SetSkipped(SkippedIncompatibleCommandMessage);
                 break;
 

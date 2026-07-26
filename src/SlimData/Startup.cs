@@ -28,14 +28,8 @@ public class Startup(IConfiguration configuration)
     public void Configure(IApplicationBuilder app)
     {
         const string LeaderResource = "/SlimData/leader";
-        const string AddHashSetResource = "/SlimData/AddHashset";
-        const string DeleteHashSetResource = "/SlimData/DeleteHashset";
-        const string ListRightPopResource = "/SlimData/ListRightPop";
-        const string ListLeftPushBatchResource = "/SlimData/ListLeftPushBatch";
-        const string AddKeyValueBatchResource = "/SlimData/AddKeyValueBatch";
         const string ListLengthResource = "/SlimData/ListLength";
-        const string ListCallback = "/SlimData/ListCallback";
-        const string ListCallBackBatch = "/SlimData/ListCallbackBatch";
+        const string CommandBatchResource = "/SlimData/CommandBatch";
         const string HealthResource = "/health";
         app.RestoreStateAsync<SlimPersistentState>().GetAwaiter().GetResult();
        
@@ -43,12 +37,7 @@ public class Startup(IConfiguration configuration)
         app.UseConsensusProtocolHandler()
             .RedirectToLeader(LeaderResource)
             .RedirectToLeader(ListLengthResource)
-            .RedirectToLeader(ListLeftPushBatchResource)
-            .RedirectToLeader(ListRightPopResource)
-            .RedirectToLeader(AddKeyValueBatchResource)
-            .RedirectToLeader(AddHashSetResource)
-            .RedirectToLeader(ListCallback)
-            .RedirectToLeader(ListCallBackBatch)
+            .RedirectToLeader(CommandBatchResource)
             .RedirectToLeader(MembershipAnnounceResource)
             .UseRouting()
             .UseEndpoints(static endpoints =>
@@ -57,13 +46,7 @@ public class Startup(IConfiguration configuration)
                 endpoints.MapGet(LeaderResource, Endpoints.RedirectToLeaderAsync);
                 endpoints.MapGet(HealthResource, async context => { await context.Response.WriteAsync("OK"); });
                 endpoints.MapGet(ProtocolResource, Endpoints.ProtocolAsync);
-                endpoints.MapPost(ListLeftPushBatchResource,  Endpoints.ListLeftPushBatchAsync);
-                endpoints.MapPost(ListRightPopResource,  Endpoints.ListRightPopAsync);
-                endpoints.MapPost(AddHashSetResource,  Endpoints.AddHashSetAsync);
-                endpoints.MapPost(DeleteHashSetResource,  Endpoints.DeleteHashSetAsync);
-                endpoints.MapPost(AddKeyValueBatchResource,  Endpoints.AddKeyValueBatchAsync);
-                endpoints.MapPost(ListCallback,  Endpoints.ListCallbackAsync);
-                endpoints.MapPost(ListCallBackBatch,  Endpoints.ListCallbackBatchAsync);
+                endpoints.MapPost(CommandBatchResource, Endpoints.CommandBatchAsync);
                 endpoints.MapPost(MembershipAnnounceResource, Endpoints.AnnounceMemberAsync);
             });
     }
@@ -93,6 +76,7 @@ public class Startup(IConfiguration configuration)
             .ValidateOnStart();
         services.AddClusterFileOptions(configuration);
         services.AddSingleton<RaftAppendEntriesCommitIndexGuard>();
+        services.AddSingleton<SlimDataCommandBatchCoordinator>();
         services.AddSingleton<ClusterMembershipCoordinator>();
         services.AddSingleton<IClusterMembershipCoordinator>(sp =>
             sp.GetRequiredService<ClusterMembershipCoordinator>());

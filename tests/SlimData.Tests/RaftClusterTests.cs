@@ -517,6 +517,76 @@ public class RaftClusterTests
             state.GetSkippedCommandMetrics(),
             metric => metric.CommandId == ListLeftPushBatchCommand.Id));
 
+        var failoverRequest = new SlimDataCommandBatchRequest
+        {
+            ProducerId = "raft-failover-producer",
+            GenerationId = "raft-failover-generation",
+            Sequence = 1,
+            RequestId = "raft-failover-request",
+            Operations =
+            [
+                new SlimDataBatchOperation
+                {
+                    Kind = SlimDataBatchOperationKind.KeyValue,
+                    RequestId = "raft-failover-increment",
+                    Key = "raft-failover-counter",
+                    KeyValueOperation = KeyValueOperation.IncrementInteger,
+                    IntegerDelta = 1,
+                    NowTicks = DateTime.UtcNow.Ticks
+                }
+            ]
+        };
+        var clusterHosts = new[] { host1, host2, host3 };
+        var previousLeaderHost = clusterHosts.Single(
+            host => !GetLocalClusterView(host).LeadershipToken.IsCancellationRequested);
+        var previousLeader = GetLocalClusterView(previousLeaderHost);
+
+        // The command is committed, but its response is deliberately discarded to simulate
+        // a connection loss after commit and before the producer receives the acknowledgement.
+        _ = await Endpoints.ExecuteCommandBatchCommandAsync(
+            new SlimDataRaftBatchEnvelope { Requests = [failoverRequest] },
+            previousLeader,
+            CancellationToken.None);
+        await previousLeader.ForceReplicationAsync();
+        await previousLeaderHost.StopAsync();
+
+        var survivingHosts = clusterHosts.Where(host => !ReferenceEquals(host, previousLeaderHost)).ToArray();
+        IHost newLeaderHost;
+        using (var electionTimeout = new CancellationTokenSource(DefaultTimeout))
+        {
+            while (true)
+            {
+                electionTimeout.Token.ThrowIfCancellationRequested();
+                newLeaderHost = survivingHosts.FirstOrDefault(
+                    host => !GetLocalClusterView(host).LeadershipToken.IsCancellationRequested)!;
+                if (newLeaderHost is not null)
+                    break;
+
+                await Task.Delay(25, electionTimeout.Token);
+            }
+        }
+
+        var replay = Assert.Single(await Endpoints.ExecuteCommandBatchCommandAsync(
+            new SlimDataRaftBatchEnvelope { Requests = [failoverRequest] },
+            GetLocalClusterView(newLeaderHost),
+            CancellationToken.None));
+        Assert.True(replay.Duplicate);
+        Assert.Equal(1L, Assert.Single(replay.Results).KeyValueResult?.IntegerValue);
+        await GetLocalClusterView(newLeaderHost).ForceReplicationAsync();
+
+        foreach (var survivingHost in survivingHosts)
+        {
+            var survivorState = survivingHost.Services.GetRequiredService<SlimPersistentState>();
+            using var replicationTimeout = new CancellationTokenSource(DefaultTimeout);
+            while (!survivorState.SlimDataState.KeyValues.TryGetValue(
+                       "raft-failover-counter",
+                       out var counter) ||
+                   Encoding.UTF8.GetString(counter.Span) != "1")
+            {
+                await Task.Delay(25, replicationTimeout.Token);
+            }
+        }
+
         await host1.StopAsync();
         await host2.StopAsync();
         await host3.StopAsync();

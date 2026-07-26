@@ -8,7 +8,7 @@ namespace SlimData.Commands;
 
 public static class SlimDataCommandProtocol
 {
-    public const string Current = "SLDC/1";
+    public const string Current = "SLDC/2";
     public const string HeaderName = "X-SlimData-Command-Protocol";
     public const string AssemblyVersionHeaderName = "X-SlimData-Assembly-Version";
 
@@ -62,7 +62,8 @@ internal static class SlimDataCommandCodec
             or ListCallbackCommand.Id
             or ListCallbackBatchCommand.Id
             or DeleteHashSetCommand.Id
-            or ListRightPopCommand.Id;
+            or ListRightPopCommand.Id
+            or ExecuteBatchCommand.Id;
 
     internal static long GetStringLength(string? value)
         => checked(sizeof(int) + Utf8.GetByteCount(value ?? string.Empty));

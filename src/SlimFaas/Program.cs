@@ -573,7 +573,7 @@ app.UseStaticFiles();
 // --- WebSocket endpoint (port dédié uniquement) ---
 app.MapWebSocketEndpoints();
 
-//app.MapDataHashsetRoutes();
+app.MapDataHashsetRoutes();
 app.MapDataSetRoutes();
 app.MapDataFileRoutes();
 app.MapDebugRoutes();

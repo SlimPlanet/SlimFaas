@@ -22,9 +22,12 @@ From the repository root:
 ```
 
 Arguments are build mode, scenario, measured duration in seconds, and
-concurrency. Scenarios can be `sync`, `async`, `set`, `files`, or `mixed`.
+concurrency. Scenarios can be `sync`, `async`, `set`, `files`, `mixed`,
+`slimdata-set`, or `slimdata-mixed`.
 `mixed` uses a deterministic distribution of sync, async, set, and file
-operations.
+operations. `slimdata-set` measures 4 KiB key/value writes. `slimdata-mixed`
+covers set, delete, increment, hashset, hash delete, and asynchronous calls
+that exercise queue push, pop, and callback.
 
 The script:
 
@@ -32,10 +35,15 @@ The script:
 2. Starts `slimfaas-0`, `slimfaas-1`, and `slimfaas-2`.
 3. Waits until all three Raft members report ready.
 4. Warms up the selected scenario.
-5. Generates load while sampling each process RSS every two seconds.
+5. Generates load while sampling each process RSS and SlimData diagnostics
+   every two seconds.
 6. Marks load and idle-cooldown samples separately.
-7. Writes logs, `memory.csv`, and a per-node load slope/cooldown report below
-   `artifacts/memory-lab/`.
+7. Writes logs, raw per-operation CSV/JSON, `memory.csv`, `diagnostics.csv`,
+   before/after Prometheus snapshots, leader identities, WAL sizes, and a
+   per-node load slope/cooldown report below `artifacts/memory-lab/`.
+
+For the ordered command architecture and the complete alternating Native AOT
+A/B matrix, see [Unified ordered SlimData mutation batching](slimdata-unified-batching.md).
 
 The warm-up and cooldown default to 20 seconds and can be changed without
 editing the script:
