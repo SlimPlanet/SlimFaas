@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.75.0
+
+- [a0d44698](https://github.com/SlimPlanet/SlimFaas/commit/a0d44698461f0431dec86be96af2f6a008b25cfd) - feat(slimdata): batch & benchmark (release), 2026-07-26 by *Guillaume Chervet*
+
+
+## 0.74.8
+
+
+
 ## v0.74.8
 
 - [4d836f83](https://github.com/SlimPlanet/SlimFaas/commit/4d836f83c4e3c7df865cb2869c10a85108a6ed43) - fix: memory leak (release) (#300), 2026-07-25 by *Guillaume Chervet*
@@ -263,14 +272,5 @@
 ## v0.66.1
 
 - [7af99ae3](https://github.com/SlimPlanet/SlimFaas/commit/7af99ae3f782125ed706476fe46c865d1b9a783a) - fix(ci): publish client packages (release), 2026-03-12 by *Guillaume Chervet*
-
-
-## v0.66.0
-
-
-
-## 0.66.0
-
-- [57a55d99](https://github.com/SlimPlanet/SlimFaas/commit/57a55d99a9ebbfe0f1d2362a6d680170ded5a4a9) - feat(slimfaas): add lib client C# and python (#244) (release), 2026-03-12 by *Guillaume Chervet*
 
 
