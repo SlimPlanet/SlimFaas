@@ -10,7 +10,7 @@ warmup_seconds="${WARMUP_SECONDS:-20}"
 cooldown_seconds="${COOLDOWN_SECONDS:-20}"
 
 if [[ "$mode" != "trimmed" && "$mode" != "aot" ]]; then
-  echo "Usage: .bin/memory-lab.sh [trimmed|aot] [mixed|sync|async|set|files] [duration_seconds] [concurrency]" >&2
+  echo "Usage: .bin/memory-lab.sh [trimmed|aot] [mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [duration_seconds] [concurrency]" >&2
   exit 2
 fi
 
@@ -26,13 +26,28 @@ case "$(uname -s)-$(uname -m)" in
 esac
 
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
-run_dir="$repo_root/artifacts/memory-lab/${mode}-${scenario}-${timestamp}"
-publish_dir="$repo_root/artifacts/memory-lab/publish-${mode}-${runtime_id}"
+run_label="${MEMORY_LAB_RUN_LABEL:-$mode}"
+run_root="${MEMORY_LAB_RUN_ROOT:-$repo_root/artifacts/memory-lab}"
+run_dir="$run_root/${run_label}-${scenario}-c${concurrency}-${timestamp}"
+publish_dir="${MEMORY_LAB_PUBLISH_DIR:-$repo_root/artifacts/memory-lab/publish-${mode}-${runtime_id}}"
 lab_project="$repo_root/tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj"
 lab_dll="$repo_root/tools/SlimFaas.MemoryLab/bin/Release/net10.0/SlimFaas.MemoryLab.dll"
 memory_csv="$run_dir/memory.csv"
+diagnostics_csv="$run_dir/diagnostics.csv"
 phase_file="$run_dir/phase"
 mkdir -p "$run_dir" "$publish_dir"
+
+{
+  echo "timestamp=$timestamp"
+  echo "mode=$mode"
+  echo "scenario=$scenario"
+  echo "duration_seconds=$duration_seconds"
+  echo "warmup_seconds=$warmup_seconds"
+  echo "concurrency=$concurrency"
+  echo "runtime_id=$runtime_id"
+  echo "publish_dir=$publish_dir"
+  echo "run_label=$run_label"
+} >"$run_dir/manifest.txt"
 
 node_pids=()
 function_pid=""
@@ -41,7 +56,7 @@ cleanup() {
   if [[ -n "$sampler_pid" ]] && kill -0 "$sampler_pid" 2>/dev/null; then
     kill "$sampler_pid" 2>/dev/null || true
   fi
-  for pid in "${node_pids[@]}"; do
+  for pid in ${node_pids[@]+"${node_pids[@]}"}; do
     if kill -0 "$pid" 2>/dev/null; then
       kill "$pid" 2>/dev/null || true
     fi
@@ -51,7 +66,7 @@ cleanup() {
   fi
   for _ in $(seq 1 50); do
     running=0
-    for pid in "${node_pids[@]}" "$function_pid" "$sampler_pid"; do
+    for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid"; do
       if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
         running=1
       fi
@@ -61,12 +76,12 @@ cleanup() {
     fi
     sleep 0.1
   done
-  for pid in "${node_pids[@]}" "$function_pid" "$sampler_pid"; do
+  for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid"; do
     if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
       kill -KILL "$pid" 2>/dev/null || true
     fi
   done
-  for pid in "${node_pids[@]}" "$function_pid" "$sampler_pid"; do
+  for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid"; do
     if [[ -n "$pid" ]]; then
       wait "$pid" 2>/dev/null || true
     fi
@@ -76,7 +91,14 @@ trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 echo "Building memory lab"
-dotnet build "$lab_project" -c Release --nologo
+if [[ "${MEMORY_LAB_SKIP_LAB_BUILD:-0}" == "1" ]]; then
+  if [[ ! -f "$lab_dll" ]]; then
+    echo "Cannot reuse memory lab because $lab_dll does not exist" >&2
+    exit 1
+  fi
+else
+  dotnet build "$lab_project" -c Release --nologo
+fi
 
 publish_aot=false
 if [[ "$mode" == "aot" ]]; then
@@ -178,18 +200,50 @@ for attempt in $(seq 1 180); do
   sleep 1
 done
 
+collect_cluster_state() {
+  local phase="$1"
+  for index in 0 1 2; do
+    public_port=$((30021 + index))
+    raft_port=$((3262 + index))
+    curl --silent "http://127.0.0.1:$public_port/metrics" >"$run_dir/metrics-${phase}-slimfaas-${index}.prom" || true
+    curl --silent "http://127.0.0.1:$raft_port/SlimData/leader" >"$run_dir/leader-${phase}-slimfaas-${index}.txt" || true
+    state_dir="$run_dir/state/slimfaas-$index"
+    if [[ -d "$state_dir" ]]; then
+      du -sk "$state_dir" >"$run_dir/state-bytes-${phase}-slimfaas-${index}.txt" || true
+      if [[ -d "$state_dir/wal" ]]; then
+        if stat -f '%z %N' "$state_dir/wal" >/dev/null 2>&1; then
+          find "$state_dir/wal" -type f -print0 | xargs -0 stat -f '%z %N' >"$run_dir/wal-files-${phase}-slimfaas-${index}.txt" 2>/dev/null || true
+        else
+          find "$state_dir/wal" -type f -print0 | xargs -0 stat -c '%s %n' >"$run_dir/wal-files-${phase}-slimfaas-${index}.txt" 2>/dev/null || true
+        fi
+      fi
+    fi
+  done
+}
+
 echo "Warm-up: ${warmup_seconds}s"
-dotnet "$lab_dll" load \
+if ! dotnet "$lab_dll" load \
   --scenario "$scenario" \
   --duration "$warmup_seconds" \
   --concurrency "$concurrency" \
   --first-port 30021 \
   --nodes 3 \
-  >"$run_dir/warmup.log" 2>&1
+  --key-prefix "warmup-${timestamp}" \
+  >"$run_dir/warmup.log" 2>&1; then
+  echo "Warm-up reported errors; continuing so the measured run captures them" >&2
+fi
+
+collect_cluster_state "before"
 
 echo "load" >"$phase_file"
 echo "timestamp,node,pid,rss_kb,vsz_kb,phase" >"$memory_csv"
+echo "timestamp,node,pid,phase,cpu_percent,managed_heap_bytes,process_cpu_seconds,raft_committed_index,raft_applied_index,wal_bytes_since_snapshot,state_queue_items,batch_queue_requests,batch_queue_bytes,batch_raft_total,batch_operations_total,snapshot_size_bytes" >"$diagnostics_csv"
 (
+  metric_value() {
+    local metrics="$1"
+    local metric="$2"
+    awk -v name="$metric" '$1 == name || index($1, name "{") == 1 { print $NF; exit }' <<<"$metrics"
+  }
   while true; do
     sample_time="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     phase="$(<"$phase_file")"
@@ -200,6 +254,21 @@ echo "timestamp,node,pid,rss_kb,vsz_kb,phase" >"$memory_csv"
         read -r rss_kb vsz_kb <<<"$memory"
         echo "$sample_time,slimfaas-$index,$pid,$rss_kb,$vsz_kb,$phase" >>"$memory_csv"
       fi
+      cpu_percent="$(ps -o %cpu= -p "$pid" 2>/dev/null | xargs || true)"
+      public_port=$((30021 + index))
+      metrics="$(curl --silent --max-time 2 "http://127.0.0.1:$public_port/metrics" || true)"
+      managed_heap="$(metric_value "$metrics" slimdata_process_managed_heap_bytes)"
+      process_cpu="$(metric_value "$metrics" slimdata_process_cpu_seconds_total)"
+      committed="$(metric_value "$metrics" slimdata_raft_committed_log_index)"
+      applied="$(metric_value "$metrics" slimdata_raft_applied_log_index)"
+      wal_bytes="$(metric_value "$metrics" slimdata_wal_bytes_since_snapshot)"
+      queue_items="$(metric_value "$metrics" slimdata_state_queue_items)"
+      batch_queue_requests="$(metric_value "$metrics" slimdata_command_batch_queue_requests)"
+      batch_queue_bytes="$(metric_value "$metrics" slimdata_command_batch_queue_bytes)"
+      batch_raft_total="$(metric_value "$metrics" slimdata_command_batch_raft_total)"
+      batch_operations_total="$(metric_value "$metrics" slimdata_command_batch_operations_total)"
+      snapshot_size="$(metric_value "$metrics" slimdata_snapshot_last_size_bytes)"
+      echo "$sample_time,slimfaas-$index,$pid,$phase,${cpu_percent:-0},${managed_heap:-0},${process_cpu:-0},${committed:-0},${applied:-0},${wal_bytes:-0},${queue_items:-0},${batch_queue_requests:-0},${batch_queue_bytes:-0},${batch_raft_total:-0},${batch_operations_total:-0},${snapshot_size:-0}" >>"$diagnostics_csv"
     done
     sleep 2
   done
@@ -207,13 +276,28 @@ echo "timestamp,node,pid,rss_kb,vsz_kb,phase" >"$memory_csv"
 sampler_pid="$!"
 
 echo "Measured load: scenario=$scenario duration=${duration_seconds}s concurrency=$concurrency"
+validate_mixed="false"
+if [[ "$scenario" == "slimdata-mixed" ]]; then
+  validate_mixed="true"
+fi
+set +e
 dotnet "$lab_dll" load \
   --scenario "$scenario" \
   --duration "$duration_seconds" \
   --concurrency "$concurrency" \
   --first-port 30021 \
   --nodes 3 \
+  --payload-bytes 4096 \
+  --keys-per-worker 16 \
+  --key-prefix "measure-${timestamp}" \
+  --validate "$validate_mixed" \
+  --csv "$run_dir/operations.csv" \
+  --json "$run_dir/operations.json" \
   | tee "$run_dir/load.log"
+load_status="${PIPESTATUS[0]}"
+set -e
+
+collect_cluster_state "after"
 
 echo "Cooldown: ${cooldown_seconds}s"
 echo "cooldown" >"$phase_file"
@@ -224,3 +308,4 @@ sampler_pid=""
 
 dotnet "$lab_dll" report --csv "$memory_csv" | tee "$run_dir/report.csv"
 echo "Memory lab artifacts: $run_dir"
+exit "$load_status"

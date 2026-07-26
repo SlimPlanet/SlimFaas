@@ -57,7 +57,8 @@ collects RSS samples, and stops every process:
 The arguments are:
 
 1. publication mode: `trimmed` or `aot`;
-2. scenario: `sync`, `async`, `set`, `files`, or `mixed`;
+2. scenario: `sync`, `async`, `set`, `files`, `mixed`, `slimdata-set`, or
+   `slimdata-mixed`;
 3. measured duration in seconds;
 4. load-generator concurrency.
 
@@ -255,7 +256,9 @@ dotnet "$lab_dll" load \
   --nodes 3
 ```
 
-Replace `mixed` with `sync`, `async`, `set`, or `files` to isolate one path.
+Replace `mixed` with `sync`, `async`, `set`, `files`, `slimdata-set`, or
+`slimdata-mixed` to isolate one path. The two SlimData scenarios also emit raw
+latency files and can validate the bounded final state.
 
 ### Inspect health and metrics
 
@@ -364,4 +367,3 @@ the processes stop.
   delay while Raft metadata propagation or the peer file pull completes.
 - **A previous run affects the next one:** use a new `run_dir` to obtain
   isolated state rather than reusing the previous state directory.
-

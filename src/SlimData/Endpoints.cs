@@ -110,7 +110,7 @@ public class Endpoints
         {
             await WaitForWritableLeaderAsync(cluster, operationToken).ConfigureAwait(false);
             await cluster.ReplicateAsync(cmd, operationToken).ConfigureAwait(false);
-            if (cmd.Context is CommandApplyContext applyContext)
+            if (cmd.Context is ISlimDataApplyContext applyContext)
             {
                 await applyContext.WaitAsync(operationToken).ConfigureAwait(false);
                 if (applyContext.IsSkipped)
@@ -278,6 +278,11 @@ public class Endpoints
         {
             logger.LogWarning(e, "SlimData is unavailable for {Path}", context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        }
+        catch (InvalidDataException e)
+        {
+            logger.LogWarning(e, "Invalid SlimData request for {Path}", context.Request.Path);
+            context.Response.StatusCode = StatusCodes.Status400BadRequest;
         }
         catch (Exception e)
         {
@@ -772,6 +777,69 @@ public class Endpoints
             source.Token).ConfigureAwait(false);
 
         await SafeReplicateAsync(cluster, logEntry, source.Token);
+    }
+
+    public static Task CommandBatchAsync(HttpContext context)
+    {
+        return DoAsync(context, async (_, _, source) =>
+        {
+            if (context.Request.ContentLength is > SlimDataCommandCodec.MaxValueBytes)
+                throw new InvalidDataException("The SlimData command batch request is too large.");
+
+            await using var memoryStream = new MemoryStream();
+            await context.Request.Body.CopyToAsync(memoryStream, source!.Token).ConfigureAwait(false);
+            if (memoryStream.Length > SlimDataCommandCodec.MaxValueBytes)
+                throw new InvalidDataException("The SlimData command batch request is too large.");
+
+            SlimDataCommandBatchRequest request;
+            try
+            {
+                request = MemoryPackSerializer.Deserialize<SlimDataCommandBatchRequest>(memoryStream.GetBuffer().AsSpan(0, checked((int)memoryStream.Length)))
+                    ?? throw new InvalidDataException("The SlimData command batch request is null.");
+            }
+            catch (Exception ex) when (ex is not InvalidDataException)
+            {
+                throw new InvalidDataException("The SlimData command batch request is invalid.", ex);
+            }
+
+            SlimDataCommandBatchValidator.ValidateRequest(request);
+            var coordinator = context.RequestServices.GetRequiredService<SlimDataCommandBatchCoordinator>();
+            var response = await coordinator.EnqueueAsync(
+                    request,
+                    checked((int)memoryStream.Length),
+                    source.Token)
+                .ConfigureAwait(false);
+            var responseBytes = MemoryPackSerializer.Serialize(response);
+
+            context.Response.StatusCode = response.SequenceGap
+                ? StatusCodes.Status409Conflict
+                : StatusCodes.Status200OK;
+            context.Response.ContentType = "application/octet-stream";
+            context.Response.ContentLength = responseBytes.Length;
+            await context.Response.Body.WriteAsync(responseBytes, source.Token).ConfigureAwait(false);
+        });
+    }
+
+    internal static async Task<SlimDataCommandBatchResponse[]> ExecuteCommandBatchCommandAsync(
+        SlimDataRaftBatchEnvelope envelope,
+        IRaftCluster cluster,
+        CancellationToken cancellationToken)
+    {
+        SlimDataCommandBatchValidator.ValidateEnvelope(envelope);
+        var context = new SlimDataCommandBatchContext();
+        var command = new ExecuteBatchCommand
+        {
+            Payload = SlimDataRaftBatchEnvelopeCodec.Serialize(envelope)
+        };
+        var logEntry = await SerializedSlimDataLogEntry.CreateAsync(
+                command,
+                cluster.Term,
+                context,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        await SafeReplicateAsync(cluster, logEntry, cancellationToken).ConfigureAwait(false);
+        return context.Responses;
     }
 
 }

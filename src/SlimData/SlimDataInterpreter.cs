@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
+using MemoryPack;
 using SlimData.Commands;
 
 namespace SlimData;
@@ -709,6 +710,277 @@ public class SlimDataInterpreter : CommandInterpreter
         return default;
     }
 
+    [CommandHandler]
+    public ValueTask ExecuteBatchAsync(
+        ExecuteBatchCommand command,
+        object? context,
+        CancellationToken token)
+        => DoExecuteBatchAsync(command, SlimDataState, context);
+
+    internal static ValueTask DoExecuteBatchAsync(
+        ExecuteBatchCommand command,
+        SlimDataState state,
+        object? context = null)
+    {
+        var envelope = SlimDataRaftBatchEnvelopeCodec.Deserialize(command.Payload.Span);
+
+        var responses = new SlimDataCommandBatchResponse[envelope.Requests.Length];
+        for (var i = 0; i < envelope.Requests.Length; i++)
+            responses[i] = ApplyBatchRequest(envelope.Requests[i], state);
+
+        if (context is SlimDataCommandBatchContext batchContext)
+            batchContext.SetResponses(responses);
+
+        return default;
+    }
+
+    private static SlimDataCommandBatchResponse ApplyBatchRequest(
+        SlimDataCommandBatchRequest request,
+        SlimDataState state)
+    {
+        var sessionKey = SlimDataCommandBatchValidator.ProducerSessionKeyPrefix + request.ProducerId;
+        if (state.KeyValues.TryGetValue(sessionKey, out var sessionBytes))
+        {
+            SlimDataProducerSession? session;
+            try
+            {
+                session = MemoryPackSerializer.Deserialize<SlimDataProducerSession>(sessionBytes.Span);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidDataException("The persisted SlimData producer session is invalid.", ex);
+            }
+
+            if (session is not null)
+            {
+                if (string.Equals(session.GenerationId, request.GenerationId, StringComparison.Ordinal))
+                {
+                    if (session.Sequence == request.Sequence &&
+                        string.Equals(session.RequestId, request.RequestId, StringComparison.Ordinal))
+                    {
+                        var duplicate = DeserializeCachedResponse(session.Response);
+                        duplicate.Duplicate = true;
+                        return duplicate;
+                    }
+
+                    if (request.Sequence != session.Sequence + 1)
+                        return CreateSequenceGapResponse(request, session.Sequence + 1);
+                }
+                else if (request.Sequence != 1)
+                {
+                    return CreateSequenceGapResponse(request, 1);
+                }
+            }
+        }
+        else if (request.Sequence != 1)
+        {
+            return CreateSequenceGapResponse(request, 1);
+        }
+
+        var results = new SlimDataBatchOperationResult[request.Operations.Length];
+        for (var i = 0; i < request.Operations.Length; i++)
+            results[i] = ApplyBatchOperation(request.Operations[i], state);
+
+        var response = new SlimDataCommandBatchResponse
+        {
+            ProducerId = request.ProducerId,
+            Sequence = request.Sequence,
+            RequestId = request.RequestId,
+            ExpectedSequence = request.Sequence + 1,
+            Results = results
+        };
+
+        var responseBytes = MemoryPackSerializer.Serialize(response);
+        var producerSession = new SlimDataProducerSession
+        {
+            GenerationId = request.GenerationId,
+            Sequence = request.Sequence,
+            RequestId = request.RequestId,
+            Response = responseBytes
+        };
+        state.KeyValues = state.KeyValues.SetItem(
+            sessionKey,
+            MemoryPackSerializer.Serialize(producerSession));
+
+        return response;
+    }
+
+    private static SlimDataCommandBatchResponse DeserializeCachedResponse(byte[] response)
+    {
+        try
+        {
+            return MemoryPackSerializer.Deserialize<SlimDataCommandBatchResponse>(response)
+                ?? throw new InvalidDataException("The cached SlimData producer response is null.");
+        }
+        catch (Exception ex) when (ex is not InvalidDataException)
+        {
+            throw new InvalidDataException("The cached SlimData producer response is invalid.", ex);
+        }
+    }
+
+    private static SlimDataCommandBatchResponse CreateSequenceGapResponse(
+        SlimDataCommandBatchRequest request,
+        long expectedSequence)
+        => new()
+        {
+            ProducerId = request.ProducerId,
+            Sequence = request.Sequence,
+            RequestId = request.RequestId,
+            SequenceGap = true,
+            ExpectedSequence = expectedSequence,
+            ErrorMessage =
+                $"Producer {request.ProducerId} sent sequence {request.Sequence}; expected {expectedSequence}.",
+            Results = []
+        };
+
+    private static SlimDataBatchOperationResult ApplyBatchOperation(
+        SlimDataBatchOperation operation,
+        SlimDataState state)
+    {
+        var result = new SlimDataBatchOperationResult
+        {
+            Kind = operation.Kind,
+            RequestId = operation.RequestId,
+            Applied = true
+        };
+
+        switch (operation.Kind)
+        {
+            case SlimDataBatchOperationKind.KeyValue:
+            {
+                var keyValueResult = new KeyValueCommandResult();
+                DoAddKeyValueAsync(
+                    new AddKeyValueCommand
+                    {
+                        Items =
+                        [
+                            new AddKeyValueCommand.BatchItem
+                            {
+                                Operation = operation.KeyValueOperation,
+                                Key = operation.Key,
+                                Value = operation.Value,
+                                IntegerDelta = operation.IntegerDelta,
+                                FloatDelta = operation.FloatDelta,
+                                ExpireAtUtcTicks = operation.ExpireAtUtcTicks,
+                                NowTicks = operation.NowTicks
+                            }
+                        ]
+                    },
+                    state,
+                    keyValueResult);
+                result.KeyValueResult = keyValueResult;
+                result.Applied = keyValueResult.Applied;
+                result.ErrorMessage = keyValueResult.ErrorMessage;
+                break;
+            }
+
+            case SlimDataBatchOperationKind.DeleteKeyValue:
+                DoDeleteKeyValueAsync(new DeleteKeyValueCommand { Key = operation.Key }, state);
+                break;
+
+            case SlimDataBatchOperationKind.AddHashSet:
+                DoAddHashSetAsync(
+                    new AddHashSetCommand
+                    {
+                        Key = operation.Key,
+                        Value = operation.HashValues!
+                            .ToDictionary(
+                                static item => item.Key,
+                                static item => (ReadOnlyMemory<byte>)item.Value),
+                        ExpireAtUtcTicks = operation.ExpireAtUtcTicks
+                    },
+                    state);
+                break;
+
+            case SlimDataBatchOperationKind.DeleteHashSet:
+                DoDeleteHashSetAsync(
+                    new DeleteHashSetCommand
+                    {
+                        Key = operation.Key,
+                        DictionaryKey = operation.DictionaryKey
+                    },
+                    state);
+                break;
+
+            case SlimDataBatchOperationKind.ListLeftPush:
+                DoListLeftPushBatchAsync(
+                    new ListLeftPushBatchCommand
+                    {
+                        Items =
+                        [
+                            new ListLeftPushBatchCommand.BatchItem
+                            {
+                                Key = operation.Key,
+                                Identifier = operation.ElementId,
+                                NowTicks = operation.NowTicks,
+                                RetryTimeout = operation.RetryTimeoutSeconds,
+                                Retries = operation.Retries.ToList(),
+                                HttpStatusCodesWorthRetrying = operation.HttpStatusRetries.ToList(),
+                                Value = operation.Value
+                            }
+                        ]
+                    },
+                    state);
+                result.ElementId = operation.ElementId;
+                break;
+
+            case SlimDataBatchOperationKind.ListRightPop:
+                DoListRightPopAsync(
+                    new ListRightPopCommand
+                    {
+                        Key = operation.Key,
+                        Count = operation.Count,
+                        NowTicks = operation.NowTicks,
+                        IdTransaction = operation.TransactionId,
+                        ReservedIps = operation.ReservedIps.ToList()
+                    },
+                    state);
+                result.QueueItems = GetPoppedQueueItems(operation, state);
+                break;
+
+            case SlimDataBatchOperationKind.ListCallback:
+                DoListCallbackAsync(
+                    new ListCallbackCommand
+                    {
+                        Key = operation.Key,
+                        NowTicks = operation.NowTicks,
+                        CallbackElements = operation.CallbackItems
+                            .Select(static item => new CallbackElement(item.Id, item.HttpCode))
+                            .ToList()
+                    },
+                    state);
+                break;
+
+            default:
+                throw new InvalidDataException($"Unsupported SlimData operation kind {(byte)operation.Kind}.");
+        }
+
+        return result;
+    }
+
+    private static QueueData[] GetPoppedQueueItems(
+        SlimDataBatchOperation operation,
+        SlimDataState state)
+    {
+        if (!state.Queues.TryGetValue(operation.Key, out var queue))
+            return [];
+
+        return queue
+            .GetQueueRunningElement(operation.NowTicks)
+            .Where(item =>
+                !item.RetryQueueElements.IsDefaultOrEmpty &&
+                item.RetryQueueElements[^1].IdTransaction == operation.TransactionId)
+            .Select(static item => new QueueData(
+                item.Id,
+                item.Value.ToArray(),
+                item.NumberOfTries(),
+                item.IsLastTry(),
+                item.GetLastRetryTimeTicks(),
+                item.GetHttpTimeoutTicks(),
+                item.GetLastReservedIp()))
+            .ToArray();
+    }
+
     public static CommandInterpreter InitInterpreter(SlimDataState state)
     {
         ValueTask ListRightPopHandler(ListRightPopCommand c, CancellationToken t) => DoListRightPopAsync(c, state);
@@ -720,6 +992,8 @@ public class SlimDataInterpreter : CommandInterpreter
         ValueTask DeleteKeyValueHandler(DeleteKeyValueCommand c, CancellationToken t) => DoDeleteKeyValueAsync(c, state);
         ValueTask ListSetQueueItemStatusAsync(ListCallbackCommand c, CancellationToken t) => DoListCallbackAsync(c, state);
         ValueTask ListCallbackBatchHandler(ListCallbackBatchCommand c, CancellationToken t) => DoListCallbackBatchAsync(c, state);
+        ValueTask ExecuteBatchHandler(ExecuteBatchCommand c, object? context, CancellationToken t) =>
+            DoExecuteBatchAsync(c, state, context);
 
         var interpreter = new Builder()
             .Add(new Func<ListRightPopCommand, CancellationToken, ValueTask>(ListRightPopHandler))
@@ -730,6 +1004,7 @@ public class SlimDataInterpreter : CommandInterpreter
             .Add(new Func<DeleteKeyValueCommand, CancellationToken, ValueTask>(DeleteKeyValueHandler))
             .Add(new Func<ListCallbackCommand, CancellationToken, ValueTask>(ListSetQueueItemStatusAsync))
             .Add(new Func<ListCallbackBatchCommand, CancellationToken, ValueTask>(ListCallbackBatchHandler))
+            .Add(new Func<ExecuteBatchCommand, object?, CancellationToken, ValueTask>(ExecuteBatchHandler))
             .Build();
 
         return interpreter;

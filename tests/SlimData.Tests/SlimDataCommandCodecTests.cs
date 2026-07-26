@@ -1,5 +1,6 @@
 using DotNext.IO;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
+using MemoryPack;
 using SlimData.Commands;
 
 namespace SlimData.Tests;
@@ -125,6 +126,34 @@ public sealed class SlimDataCommandCodecTests
         var popResult = await RoundtripAsync(pop, ListRightPopCommand.ReadFromAsync);
         Assert.Equal(pop.IdTransaction, popResult.IdTransaction);
         Assert.Equal(pop.ReservedIps, popResult.ReservedIps);
+
+        var executeBatch = new ExecuteBatchCommand
+        {
+            Payload = SlimDataRaftBatchEnvelopeCodec.Serialize(new SlimDataRaftBatchEnvelope
+            {
+                Requests =
+                [
+                    new SlimDataCommandBatchRequest
+                    {
+                        ProducerId = "producer",
+                        GenerationId = "generation",
+                        Sequence = 1,
+                        RequestId = "batch",
+                        Operations =
+                        [
+                            new SlimDataBatchOperation
+                            {
+                                Kind = SlimDataBatchOperationKind.DeleteKeyValue,
+                                RequestId = "operation",
+                                Key = "key"
+                            }
+                        ]
+                    }
+                ]
+            })
+        };
+        var executeBatchResult = await RoundtripAsync(executeBatch, ExecuteBatchCommand.ReadFromAsync);
+        Assert.Equal(executeBatch.Payload.ToArray(), executeBatchResult.Payload.ToArray());
     }
 
     [Fact]
@@ -143,6 +172,31 @@ public sealed class SlimDataCommandCodecTests
             NowTicks = 1
         });
         await AssertPreSerializedEntryAsync(new DeleteKeyValueCommand { Key = "key" });
+        await AssertPreSerializedEntryAsync(new ExecuteBatchCommand
+        {
+            Payload = SlimDataRaftBatchEnvelopeCodec.Serialize(new SlimDataRaftBatchEnvelope
+            {
+                Requests =
+                [
+                    new SlimDataCommandBatchRequest
+                    {
+                        ProducerId = "producer",
+                        GenerationId = "generation",
+                        Sequence = 1,
+                        RequestId = "batch",
+                        Operations =
+                        [
+                            new SlimDataBatchOperation
+                            {
+                                Kind = SlimDataBatchOperationKind.DeleteKeyValue,
+                                RequestId = "operation",
+                                Key = "key"
+                            }
+                        ]
+                    }
+                ]
+            })
+        });
         await AssertPreSerializedEntryAsync(new ListLeftPushBatchCommand
         {
             Items =
