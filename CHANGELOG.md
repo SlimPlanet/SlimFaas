@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.75.0
+
+- [a0d44698](https://github.com/SlimPlanet/SlimFaas/commit/a0d44698461f0431dec86be96af2f6a008b25cfd) - feat(slimdata): batch & benchmark (release), 2026-07-26 by *Guillaume Chervet*
+
+
+## 0.74.8
+
+
+
+## v0.74.8
+
+- [4d836f83](https://github.com/SlimPlanet/SlimFaas/commit/4d836f83c4e3c7df865cb2869c10a85108a6ed43) - fix: memory leak (release) (#300), 2026-07-25 by *Guillaume Chervet*
+
+
+## 0.74.7
+
+
+
 ## v0.74.7
 
 - [e9201134](https://github.com/SlimPlanet/SlimFaas/commit/e9201134dc1021726a907d9e887826eb30908c6a) - fix: files ram decrease (#299) (release), 2026-07-24 by *Guillaume Chervet*
@@ -254,24 +272,5 @@
 ## v0.66.1
 
 - [7af99ae3](https://github.com/SlimPlanet/SlimFaas/commit/7af99ae3f782125ed706476fe46c865d1b9a783a) - fix(ci): publish client packages (release), 2026-03-12 by *Guillaume Chervet*
-
-
-## v0.66.0
-
-
-
-## 0.66.0
-
-- [57a55d99](https://github.com/SlimPlanet/SlimFaas/commit/57a55d99a9ebbfe0f1d2362a6d680170ded5a4a9) - feat(slimfaas): add lib client C# and python (#244) (release), 2026-03-12 by *Guillaume Chervet*
-
-
-## v0.65.1
-
-- [f1d6260f](https://github.com/SlimPlanet/SlimFaas/commit/f1d6260f2eec77ac665f0ad9e72f20201250ee89) - fix: Extract environment from EnvFrom in cronjobs (#245) (release), 2026-02-27 by *Fares Ahmed*
-
-
-## v0.65.0
-
-- [99b0128c](https://github.com/SlimPlanet/SlimFaas/commit/99b0128c5e0cde7b7c61f9600b5be9d836eb05e6) - feat(slimfaas): job configuration from k8s cronjobs (release) (#242), 2026-02-26 by *Fares Ahmed*
 
 
