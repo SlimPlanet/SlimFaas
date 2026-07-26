@@ -139,6 +139,35 @@ public sealed class SlimDataDiagnosticsWorker(
 
         if (databaseService is SlimDataService service)
         {
+            var batchModeLabels = new Dictionary<string, string>
+            {
+                ["mode"] = service.BatchMode.ToString()
+            };
+            gauges.SetGaugeValue("slimdata_batch_mode", 1,
+                "Configured local SlimData batch queue topology", batchModeLabels);
+            gauges.SetGaugeValue("slimdata_batch_partition_count", service.BatchPartitionCount,
+                "Number of local SlimData mutation batch queues");
+            gauges.SetGaugeValue(
+                "slimdata_batch_low_load_fast_path_enabled",
+                service.LowLoadFastPathEnabled ? 1 : 0,
+                "Whether zero-delay local batching is enabled under low load");
+
+            var load = service.BatchLoadSnapshot;
+            gauges.SetGaugeValue("slimdata_batch_local_requests_per_second", load.RequestsPerSecond,
+                "Local mutation request rate measured over a rolling five-second window");
+            gauges.SetGaugeValue(
+                "slimdata_batch_low_load_fast_path_active",
+                service.LowLoadFastPathEnabled && load.Level == SlimDataBatchLoadLevel.Low ? 1 : 0,
+                "Whether zero-delay local batching is currently active");
+            gauges.SetGaugeValue(
+                "slimdata_batch_local_delay_milliseconds",
+                load.Timing.Delay.TotalMilliseconds,
+                "Current local cooldown between mutation batches");
+            gauges.SetGaugeValue(
+                "slimdata_batch_local_coalesce_milliseconds",
+                load.Timing.CoalesceWindow.TotalMilliseconds,
+                "Current local mutation coalescence window");
+
             foreach (var queue in service.BatchQueueStatistics)
             {
                 var labels = new Dictionary<string, string> { ["kind"] = queue.Kind };

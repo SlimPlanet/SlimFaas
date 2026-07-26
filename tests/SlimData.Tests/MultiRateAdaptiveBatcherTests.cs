@@ -108,6 +108,47 @@ public sealed class MultiRateAdaptiveBatcherTests
         Assert.Equal(0, drained.Bytes);
     }
 
+    [Fact]
+    public async Task Dynamic_timing_provider_can_remove_local_delay_and_coalescence()
+    {
+        var timing = new AdaptiveBatchTiming(
+            TimeSpan.FromMilliseconds(100),
+            TimeSpan.FromMilliseconds(100));
+        var batchSizes = new List<int>();
+        await using var batcher = new MultiRateAdaptiveBatcher();
+        batcher.RegisterKind<int, int>(
+            "dynamic",
+            (requests, _) =>
+            {
+                lock (batchSizes)
+                    batchSizes.Add(requests.Count);
+                return Task.FromResult<IReadOnlyList<int>>(requests.ToArray());
+            },
+            tiers: [new RateTier(0, TimeSpan.FromMilliseconds(100))],
+            maxBatchSize: 16,
+            coalesceWindow: TimeSpan.FromMilliseconds(100),
+            timingProvider: () => timing);
+
+        var first = batcher.EnqueueAsync<int, int>("dynamic", 1);
+        var second = batcher.EnqueueAsync<int, int>("dynamic", 2);
+        var firstBatchResults = await Task
+            .WhenAll(first, second)
+            .WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(new[] { 1, 2 }, firstBatchResults);
+        Assert.Equal(2, Assert.Single(batchSizes));
+
+        timing = new AdaptiveBatchTiming(TimeSpan.Zero, TimeSpan.Zero);
+        var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+        Assert.Equal(3, await batcher
+            .EnqueueAsync<int, int>("dynamic", 3)
+            .WaitAsync(TimeSpan.FromSeconds(5)));
+        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(startedAt);
+
+        Assert.True(
+            elapsed < TimeSpan.FromMilliseconds(75),
+            $"Expected the fast path below 75 ms, measured {elapsed.TotalMilliseconds:F1} ms.");
+    }
+
     private static async Task WaitUntilAsync(Func<bool> condition)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));

@@ -239,7 +239,11 @@ public class SlimFaasOptionsTests
             ["SlimData:Directory"] = "/custom/path",
             ["SlimData:AllowColdStart"] = "true",
             ["SlimData:WarmupRounds"] = "20000",
-            ["SlimData:Configuration"] = "{\"test\":\"value\"}"
+            ["SlimData:Configuration"] = "{\"test\":\"value\"}",
+            ["SlimData:BatchMode"] = "PartitionedByKey",
+            ["SlimData:BatchPartitionCount"] = "4",
+            ["SlimData:LowLoadFastPath"] = "true",
+            ["SlimData:LowLoadRequestsPerSecond"] = "7.5"
         });
         var configuration = configurationBuilder.Build();
 
@@ -258,6 +262,33 @@ public class SlimFaasOptionsTests
         Assert.True(options.AllowColdStart);
         Assert.Equal(20_000, options.WarmupRounds);
         Assert.Equal("{\"test\":\"value\"}", options.Configuration);
+        Assert.Equal(SlimDataBatchMode.PartitionedByKey, options.BatchMode);
+        Assert.Equal(4, options.BatchPartitionCount);
+        Assert.True(options.LowLoadFastPath);
+        Assert.Equal(7.5d, options.LowLoadRequestsPerSecond);
+    }
+
+    [Theory]
+    [InlineData("3")]
+    [InlineData("6")]
+    [InlineData("12")]
+    public void SlimDataOptions_ShouldRejectUnsupportedPartitionCounts(string partitionCount)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["SlimData:BatchMode"] = "PartitionedByKey",
+                ["SlimData:BatchPartitionCount"] = partitionCount
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSlimFaasOptions(configuration);
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            serviceProvider.GetRequiredService<IOptions<SlimDataOptions>>().Value);
     }
 
     [Fact]
@@ -280,6 +311,8 @@ public class SlimFaasOptionsTests
         Assert.NotNull(slimFaasOptions);
         Assert.NotNull(slimDataOptions);
         Assert.NotNull(workersOptions);
+        Assert.Equal(SlimDataBatchMode.Global, slimDataOptions.Value.BatchMode);
+        Assert.True(slimDataOptions.Value.LowLoadFastPath);
     }
 
     [Fact]

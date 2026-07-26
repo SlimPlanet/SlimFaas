@@ -2,6 +2,12 @@ using System.ComponentModel.DataAnnotations;
 
 namespace SlimFaas.Options;
 
+public enum SlimDataBatchMode
+{
+    Global,
+    PartitionedByKey
+}
+
 /// <summary>
 /// Configuration options for SlimData
 /// </summary>
@@ -29,6 +35,28 @@ public class SlimDataOptions
     /// </summary>
     [Range(1, int.MaxValue)]
     public int WarmupRounds { get; set; } = 10_000;
+
+    /// <summary>
+    /// Local mutation queue topology.
+    /// </summary>
+    public SlimDataBatchMode BatchMode { get; set; } = SlimDataBatchMode.Global;
+
+    /// <summary>
+    /// Number of local key partitions when BatchMode is PartitionedByKey.
+    /// </summary>
+    [Range(2, 16)]
+    public int BatchPartitionCount { get; set; } = 8;
+
+    /// <summary>
+    /// Removes local cooldown and coalescing while the mutation rate is low.
+    /// </summary>
+    public bool LowLoadFastPath { get; set; } = true;
+
+    /// <summary>
+    /// Maximum local mutation rate for the low-load fast path.
+    /// </summary>
+    [Range(0.1d, 10_000d)]
+    public double LowLoadRequestsPerSecond { get; set; } = 10d;
 
     /// <summary>
     /// Directory path for ScheduleJob backup storage.
