@@ -442,7 +442,7 @@ serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
     .ConfigurePrimaryHttpMessageHandler(() =>
         InternalHttpClientHandler.Create(allowUnsecureSSL));
 // Export metrics from all HTTP clients registered in services
-builder.Services.UseHttpClientMetrics();
+builder.Services.UseHttpClientMetrics(BoundedHttpClientMetrics.Create());
 
 serviceCollectionSlimFaas.AddSingleton<IMasterService, MasterSlimDataService>();
 

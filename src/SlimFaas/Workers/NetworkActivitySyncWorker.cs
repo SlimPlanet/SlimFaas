@@ -58,11 +58,15 @@ public class NetworkActivitySyncWorker(
 
         var slimFaasPods = replicasService.Deployments?.SlimFaas?.Pods;
         if (slimFaasPods == null || slimFaasPods.Count <= 1)
+        {
+            _peerLastTimestamp.Clear();
             return; // Single node — nothing to sync
+        }
 
         string baseFunctionPodUrl = slimFaasOptions.Value.BaseFunctionPodUrl;
         string ns = namespaceProvider.CurrentNamespace;
         string myNodeId = tracker.NodeId;
+        var activePeers = new HashSet<string>(StringComparer.Ordinal);
 
         using var client = httpClientFactory.CreateClient("ActivitySync");
         client.Timeout = TimeSpan.FromSeconds(3);
@@ -82,8 +86,10 @@ public class NetworkActivitySyncWorker(
                 // Strip trailing path to get the host:port base
                 var uri = new Uri(baseUrl);
                 string peerBase = $"{uri.Scheme}://{uri.Authority}";
+                string peerKey = string.IsNullOrWhiteSpace(pod.Name) ? peerBase : pod.Name;
+                activePeers.Add(peerKey);
 
-                _peerLastTimestamp.TryGetValue(peerBase, out long since);
+                _peerLastTimestamp.TryGetValue(peerKey, out long since);
 
                 string url = $"{peerBase}/internal/activity-events?since={since}";
                 using var response = await client.GetAsync(url, ct);
@@ -107,7 +113,7 @@ public class NetworkActivitySyncWorker(
                     if (e.TimestampMs > maxTs)
                         maxTs = e.TimestampMs;
                 }
-                _peerLastTimestamp[peerBase] = maxTs;
+                _peerLastTimestamp[peerKey] = maxTs;
 
                 if (ingested > 0)
                 {
@@ -119,6 +125,13 @@ public class NetworkActivitySyncWorker(
             {
                 logger.LogDebug(ex, "NetworkActivitySyncWorker: failed to scrape peer {PodName}", pod.Name);
             }
+        }
+
+        foreach (var stalePeer in _peerLastTimestamp.Keys
+                     .Where(peer => !activePeers.Contains(peer))
+                     .ToArray())
+        {
+            _peerLastTimestamp.Remove(stalePeer);
         }
     }
 }

@@ -83,6 +83,84 @@ With a fixed set of keys and queue items, a heap that oscillates while RSS
 settles is normal pool/GC warm-up. A continuing RSS slope together with bounded
 state and bounded WAL needs a managed dump or a native allocation backtrace.
 
+## Simulate OpenShift pod churn
+
+The normal three-node laboratory deliberately uses stable IP addresses. That is
+useful for steady-state analysis, but it does not reproduce the cardinality
+created when OpenShift replaces function or SlimFaas pods.
+
+The `http-cardinality` command accelerates several days of pod turnover without
+requiring a cluster. Each request uses a new destination host while an
+in-memory HTTP handler avoids DNS and network noise:
+
+```bash
+dotnet run --project tools/SlimFaas.MemoryLab -c Release -- \
+  http-cardinality --mode default --hosts 10000
+
+dotnet run --project tools/SlimFaas.MemoryLab -c Release -- \
+  http-cardinality --mode bounded --hosts 10000
+```
+
+The original global `prometheus-net` HttpClient instrumentation used the
+destination `host` as a label. Its registry is append-only, and its two
+histograms have 16 buckets. A historical pod IP therefore remained reachable
+after the pod disappeared and added 40 exposition lines.
+
+An accelerated run produced:
+
+| Historical hosts | Original live managed delta | Original HTTP metric lines | Bounded live managed delta | Bounded HTTP metric lines |
+|---:|---:|---:|---:|---:|
+| 1,000 | 4.56 MiB | 40,000 | 0.34 MiB | 40 |
+| 5,000 | 20.97 MiB | 200,000 | 0.35 MiB | 40 |
+| 10,000 | 41.85 MiB | 400,000 | 0.35 MiB | 40 |
+| 20,000 | 83.30 MiB | 800,000 | 0.34 MiB | 40 |
+
+The measurements are taken after a forced compacting GC. This distinguishes
+live collector children from temporary allocation and GC heap capacity.
+
+SlimFaas now publishes the same `httpclient_*` metric families with only
+bounded labels: `client`, plus `code` where the response status is known.
+The ephemeral `host` and caller-controlled `method` labels are intentionally
+omitted. Queries or dashboards that grouped `httpclient_*` metrics by `host` or
+`method` must remove that grouping.
+
+After deploying the fixed image, verify one pod:
+
+```bash
+curl --silent http://<slimfaas-pod>:<port>/metrics \
+  | grep '^httpclient_' \
+  | grep 'host="'
+```
+
+The command must return no line. A process running the old implementation
+cannot release those label children with a GC; a rollout is required to start
+with a new registry.
+
+The fixed, fully trimmed build was also exercised with the three-node `mixed`
+scenario for five measured minutes:
+
+| Result | Value |
+|---|---:|
+| Operations | 42,019 |
+| Failed operations | 0 |
+| Throughput | 140.0/s |
+| HTTP metric lines, node 0 | 120 before / 120 after |
+| HTTP metric lines, nodes 1 and 2 | 199 before / 199 after |
+| Destination `host` labels | 0 |
+| Managed heap after 60 seconds idle | 44.4 / 53.8 / 49.1 MiB |
+
+RSS can remain above its startup value even when the managed heap drops during
+the idle phase. The .NET GC retains committed heap segments for reuse, and RSS
+also includes pools and memory-mapped WAL pages. For that reason, a rising RSS
+during a short load is not sufficient evidence of a live-object leak.
+
+On macOS, prevent laptop sleep during a reference run because the .NET timeout
+uses a monotonic clock while the CSV contains wall-clock timestamps:
+
+```bash
+caffeinate -dimsu .bin/memory-lab.sh aot mixed 900 12
+```
+
 SlimFaas must remain on DotNext 6.4.1 or newer. DotNext 6.4.1 removed the
 leader replication-loop allocation that occurred on every heartbeat timeout.
 SlimFaas also bypasses the operating-system proxy for its internal SlimData,

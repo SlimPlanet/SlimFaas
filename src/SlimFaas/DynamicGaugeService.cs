@@ -7,15 +7,27 @@ public class DynamicGaugeService
 {
     private sealed record LabeledGaugeInfo(Gauge Gauge, string[] LabelNames);
 
+    private readonly IMetricFactory _metricFactory;
+
     // Gauges sans labels (compat rétro)
     private readonly ConcurrentDictionary<string, Gauge> _gauges = new();
 
     // Gauges avec labels (ex: function=...)
     private readonly ConcurrentDictionary<string, LabeledGaugeInfo> _labeledGauges = new();
 
+    public DynamicGaugeService()
+        : this(Metrics.DefaultFactory)
+    {
+    }
+
+    internal DynamicGaugeService(IMetricFactory metricFactory)
+    {
+        _metricFactory = metricFactory;
+    }
+
     private Gauge GetOrCreateGauge(string name, string help)
     {
-        return _gauges.GetOrAdd(name, _ => Metrics.CreateGauge(name, help));
+        return _gauges.GetOrAdd(name, _ => _metricFactory.CreateGauge(name, help));
     }
 
     private LabeledGaugeInfo GetOrCreateLabeledGauge(
@@ -30,7 +42,7 @@ public class DynamicGaugeService
                 .OrderBy(k => k, StringComparer.Ordinal)
                 .ToArray();
 
-            var gauge = Metrics.CreateGauge(name, help, labelNames);
+            var gauge = _metricFactory.CreateGauge(name, help, labelNames);
             return new LabeledGaugeInfo(gauge, labelNames);
         });
     }
@@ -84,5 +96,24 @@ public class DynamicGaugeService
         }
 
         return info.Gauge.WithLabels(labelValues).Value;
+    }
+
+    public void RemoveGaugeValue(
+        string name,
+        IReadOnlyDictionary<string, string> labels)
+    {
+        if (!_labeledGauges.TryGetValue(name, out var info))
+        {
+            return;
+        }
+
+        var labelValues = new string[info.LabelNames.Length];
+        for (var i = 0; i < info.LabelNames.Length; i++)
+        {
+            labels.TryGetValue(info.LabelNames[i], out var value);
+            labelValues[i] = value ?? string.Empty;
+        }
+
+        info.Gauge.RemoveLabelled(labelValues);
     }
 }

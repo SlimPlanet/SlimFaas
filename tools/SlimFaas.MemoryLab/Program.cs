@@ -5,6 +5,9 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.Extensions.DependencyInjection;
+using Prometheus;
+using Prometheus.HttpClientMetrics;
 
 if (args.Length == 0)
 {
@@ -21,6 +24,7 @@ try
         "report" => RunReport(Arguments.Parse(args[1..])),
         "compare" => RunComparison(Arguments.Parse(args[1..])),
         "select-partition" => SelectPartition(Arguments.Parse(args[1..])),
+        "http-cardinality" => await RunHttpCardinalityAsync(Arguments.Parse(args[1..])),
         _ => throw new ArgumentException($"Unknown command '{args[0]}'.")
     };
 }
@@ -53,6 +57,130 @@ static async Task<int> RunFunctionAsync(Arguments arguments)
     await app.RunAsync();
     return 0;
 }
+
+static async Task<int> RunHttpCardinalityAsync(Arguments arguments)
+{
+    int hosts = arguments.GetInt("hosts", 10_000, 1, 1_000_000);
+    string mode = arguments.Get("mode", "default").ToLowerInvariant();
+    if (mode is not ("default" or "bounded"))
+        throw new ArgumentException("--mode must be default or bounded.");
+
+    GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+    long managedBefore = GC.GetTotalMemory(forceFullCollection: true);
+    using var process = Process.GetCurrentProcess();
+    long workingSetBefore = process.WorkingSet64;
+
+    var registry = Metrics.NewCustomRegistry();
+    var exporterOptions = mode == "bounded"
+        ? CreateBoundedHttpClientExporterOptions(registry)
+        : CreateDefaultHttpClientExporterOptions(registry);
+
+    var services = new ServiceCollection();
+    services
+        .AddHttpClient("rotating-host")
+        .ConfigurePrimaryHttpMessageHandler(static () => new ImmediateHttpMessageHandler())
+        .UseHttpClientMetrics(exporterOptions);
+
+    await using var provider = services.BuildServiceProvider();
+    var factory = provider.GetRequiredService<IHttpClientFactory>();
+    using var client = factory.CreateClient("rotating-host");
+
+    var stopwatch = Stopwatch.StartNew();
+    for (var index = 0; index < hosts; index++)
+    {
+        using var response = await client.GetAsync(
+            $"http://pod-{index}.ephemeral.test/health",
+            HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+    }
+    stopwatch.Stop();
+
+    GC.Collect(2, GCCollectionMode.Forced, blocking: true, compacting: true);
+    long managedAfter = GC.GetTotalMemory(forceFullCollection: true);
+    process.Refresh();
+    long workingSetAfter = process.WorkingSet64;
+
+    using var expositionStream = new MemoryStream();
+    await registry.CollectAndExportAsTextAsync(expositionStream);
+    string exposition = Encoding.UTF8.GetString(expositionStream.GetBuffer(), 0, checked((int)expositionStream.Length));
+    string[] metricLines = exposition.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+    int requestSeries = metricLines.Count(static line =>
+        line.StartsWith("httpclient_requests_sent_total{", StringComparison.Ordinal));
+    int hostLabelSeries = metricLines.Count(static line =>
+        line.StartsWith("httpclient_", StringComparison.Ordinal) &&
+        line.Contains("host=\"", StringComparison.Ordinal));
+    int totalHttpClientSeries = metricLines.Count(static line =>
+        line.StartsWith("httpclient_", StringComparison.Ordinal));
+
+    Console.WriteLine("mode,hosts,request_series,host_label_series,total_httpclient_lines,managed_before_mb,managed_after_mb,managed_delta_mb,working_set_before_mb,working_set_after_mb,working_set_delta_mb,exposition_mb,elapsed_seconds");
+    Console.WriteLine(
+        string.Create(
+            CultureInfo.InvariantCulture,
+            $"{mode},{hosts},{requestSeries},{hostLabelSeries},{totalHttpClientSeries}," +
+            $"{ToMegabytes(managedBefore):F3},{ToMegabytes(managedAfter):F3},{ToMegabytes(managedAfter - managedBefore):F3}," +
+            $"{ToMegabytes(workingSetBefore):F3},{ToMegabytes(workingSetAfter):F3},{ToMegabytes(workingSetAfter - workingSetBefore):F3}," +
+            $"{ToMegabytes(expositionStream.Length):F3},{stopwatch.Elapsed.TotalSeconds:F3}"));
+
+    return mode == "bounded" && requestSeries > 4
+        ? 1
+        : 0;
+}
+
+static HttpClientExporterOptions CreateDefaultHttpClientExporterOptions(CollectorRegistry registry)
+    => new()
+    {
+        InProgress = { Registry = registry },
+        RequestCount = { Registry = registry },
+        RequestDuration = { Registry = registry },
+        ResponseDuration = { Registry = registry }
+    };
+
+static HttpClientExporterOptions CreateBoundedHttpClientExporterOptions(CollectorRegistry registry)
+{
+    var factory = Metrics.WithCustomRegistry(registry);
+    string[] requestLabels = ["client"];
+    string[] responseLabels = ["client", "code"];
+    var histogramConfiguration = new HistogramConfiguration
+    {
+        Buckets = Histogram.ExponentialBuckets(0.001, 2.0, 16)
+    };
+
+    return new HttpClientExporterOptions
+    {
+        InProgress =
+        {
+            Gauge = factory.CreateGauge(
+                "httpclient_requests_in_progress",
+                "Number of requests currently being executed by an HttpClient that have not yet received response headers.",
+                requestLabels)
+        },
+        RequestCount =
+        {
+            Counter = factory.CreateCounter(
+                "httpclient_requests_sent_total",
+                "Count of HTTP requests that have been completed by an HttpClient.",
+                responseLabels)
+        },
+        RequestDuration =
+        {
+            Histogram = factory.CreateHistogram(
+                "httpclient_request_duration_seconds",
+                "Duration histogram of HTTP requests performed by an HttpClient.",
+                responseLabels,
+                histogramConfiguration)
+        },
+        ResponseDuration =
+        {
+            Histogram = factory.CreateHistogram(
+                "httpclient_response_duration_seconds",
+                "Duration histogram of HTTP requests performed by an HttpClient, measuring the duration until the HTTP response finished being processed.",
+                responseLabels,
+                histogramConfiguration)
+        }
+    };
+}
+
+static double ToMegabytes(long bytes) => bytes / 1024d / 1024d;
 
 static async Task<int> RunLoadAsync(Arguments arguments)
 {
@@ -1261,6 +1389,7 @@ static void PrintUsage()
           compare --root <runs-directory> --output <comparison.md> [--baseline before]
           select-partition --root <screening-runs> --output <selection.env>
                            [--baseline global-low-latency]
+          http-cardinality [--mode default|bounded] [--hosts 10000]
         """);
 }
 
@@ -1636,4 +1765,16 @@ enum SamplePhase
 {
     Load,
     Cooldown
+}
+
+sealed class ImmediateHttpMessageHandler : HttpMessageHandler
+{
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+        => Task.FromResult(
+            new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent([])
+            });
 }

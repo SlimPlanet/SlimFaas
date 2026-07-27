@@ -247,7 +247,7 @@ if ! dotnet "$lab_dll" load \
   --duration "$warmup_seconds" \
   --concurrency "$concurrency" \
   --target-rps "$target_requests_per_second" \
-  "${target_replica_args[@]}" \
+  ${target_replica_args[@]+"${target_replica_args[@]}"} \
   --first-port 30021 \
   --nodes 3 \
   --key-prefix "warmup-${timestamp}" \
@@ -313,7 +313,7 @@ dotnet "$lab_dll" load \
   --duration "$duration_seconds" \
   --concurrency "$concurrency" \
   --target-rps "$target_requests_per_second" \
-  "${target_replica_args[@]}" \
+  ${target_replica_args[@]+"${target_replica_args[@]}"} \
   --first-port 30021 \
   --nodes 3 \
   --payload-bytes 4096 \
