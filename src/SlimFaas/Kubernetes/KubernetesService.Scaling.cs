@@ -1,42 +1,13 @@
 using System.Net;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using k8s.Autorest;
 
 namespace SlimFaas.Kubernetes;
 
 public partial class KubernetesService
 {
-    private static ScaleConfig NormalizeScaleConfig(ScaleConfig? cfg)
-    {
-        // objet racine
-        cfg ??= new ScaleConfig();
-
-        // Behavior (et ses sous-objets)
-        var behavior = cfg.Behavior ?? new ScaleBehavior();
-
-        var scaleUp = behavior.ScaleUp ?? ScaleDirectionBehavior.DefaultScaleUp();
-        var scaleDown = behavior.ScaleDown ?? ScaleDirectionBehavior.DefaultScaleDown();
-
-        // Policies (si null -> defaults)
-        var upPolicies = scaleUp.Policies is { Count: > 0 } ? scaleUp.Policies : ScaleDirectionBehavior.DefaultScaleUp().Policies;
-        var downPolicies = scaleDown.Policies is { Count: > 0 } ? scaleDown.Policies : ScaleDirectionBehavior.DefaultScaleDown().Policies;
-
-        // Triggers (si null -> liste vide)
-        var triggers = cfg.Triggers ?? new List<ScaleTrigger>();
-
-        // On reconstruit via 'with' (records immutables)
-        return cfg with
-        {
-            Triggers = triggers,
-            Behavior = behavior with
-            {
-                ScaleUp = scaleUp with { Policies = upPolicies },
-                ScaleDown = scaleDown with { Policies = downPolicies }
-            }
-        };
-    }
+    private static ScaleConfig NormalizeScaleConfig(ScaleConfig? config)
+        => FunctionMetadataParser.NormalizeScaleConfig(config);
 
     private static ScaleConfig? GetScaleConfig(
         IDictionary<string, string> annotations,
@@ -48,23 +19,8 @@ public partial class KubernetesService
             if (annotations.TryGetValue(Scale, out string? annotation) &&
                 !string.IsNullOrWhiteSpace(annotation))
             {
-                annotation = JsonMinifier.MinifyJson(annotation);
-                if (!string.IsNullOrEmpty(annotation))
-                {
-                    // AOT-safe : on n'utilise QUE le contexte source-généré
-                    var opts = new JsonSerializerOptions
-                    {
-                        PropertyNameCaseInsensitive = true,
-                        TypeInfoResolver = ScaleConfigSerializerContext.Default
-                    };
-                    // Enums en string (insensible à la casse) — AOT OK
-                    opts.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false));
-
-                    var parsed = JsonSerializer.Deserialize<ScaleConfig>(annotation, opts);
-
-                    // IMPORTANT : on normalise pour injecter les defaults si des sous-objets manquent
-                    return NormalizeScaleConfig(parsed);
-                }
+                return FunctionMetadataParser.ParseScale(
+                    new Dictionary<string, string>(annotations, StringComparer.Ordinal));
             }
         }
         catch (Exception e)

@@ -127,52 +127,33 @@ public partial class KubernetesService
                 }
                 else
                 {
-                    SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
-                    ScaleConfig? scaleConfig = GetScaleConfig(annotations, name, logger);
-                    ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
-                    FunctionVisibility funcVisibility =
-                        annotations.TryGetValue(DefaultVisibility, out string? visibility)
-                            ? Enum.Parse<FunctionVisibility>(visibility)
-                            : FunctionVisibility.Public;
+                    FunctionMetadata metadata = FunctionMetadataParser.Parse(
+                        new Dictionary<string, string>(annotations, StringComparer.Ordinal),
+                        name);
                     ResourcesConfiguration? resources = ExtractResources(deploymentListItem.Spec.Template?.Spec?.Containers);
 
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
                         pods,
-                        configuration,
+                        metadata.Configuration,
                         deploymentListItem.Spec.Replicas ?? 0,
-                        annotations.TryGetValue(ReplicasAtStart, out string? annotationReplicasAtStart)
-                            ? int.Parse(annotationReplicasAtStart)
-                            : 1, annotations.TryGetValue(ReplicasMin, out string? annotationReplicaMin)
-                            ? int.Parse(annotationReplicaMin)
-                            : 0, annotations.TryGetValue(TimeoutSecondBeforeSetReplicasMin,
-                            out string? annotationTimeoutSecondBeforeSetReplicasMin)
-                            ? int.Parse(annotationTimeoutSecondBeforeSetReplicasMin)
-                            : 300, annotations.TryGetValue(NumberParallelRequest,
-                            out string? annotationNumberParallelRequest)
-                            ? int.Parse(annotationNumberParallelRequest)
-                            : 10, annotations.ContainsKey(
-                                      ReplicasStartAsSoonAsOneFunctionRetrieveARequest) &&
-                                  annotations[ReplicasStartAsSoonAsOneFunctionRetrieveARequest].ToLower() == "true",
+                        metadata.ReplicasAtStart,
+                        metadata.ReplicasMin,
+                        metadata.TimeoutSecondBeforeSetReplicasMin,
+                        metadata.NumberParallelRequest,
+                        metadata.ReplicasStartAsSoonAsOneFunctionRetrieveARequest,
                         PodType.Deployment,
-                        annotations.TryGetValue(DependsOn, out string? value)
-                            ? value.Split(',').ToList()
-                            : new List<string>(),
-                        scheduleConfig,
-                        GetSubscribeEvents(annotations, logger, funcVisibility),
-                        funcVisibility,
-                        GetPathsStartWithVisibility(annotations, name, logger),
+                        metadata.DependsOn,
+                        metadata.Schedule,
+                        metadata.SubscribeEvents,
+                        metadata.Visibility,
+                        metadata.PathsStartWithVisibility,
                         resourceVersion,
                         endpointReady,
-                        annotations.TryGetValue(DefaultTrust, out string? trust)
-                            ? Enum.Parse<FunctionTrust>(trust)
-                            : FunctionTrust.Trusted,
-                        scaleConfig,
-                        annotations.TryGetValue(NumberParallelRequestPerPod,
-                            out string? annotationNumberParallelRequestPerPod)
-                            ? int.Parse(annotationNumberParallelRequestPerPod)
-                            : 10,
+                        metadata.Trust,
+                        metadata.Scale,
+                        metadata.NumberParallelRequestPerPod,
                         resources
                     );
                     deploymentInformationList.Add(deploymentInformation);
@@ -382,51 +363,32 @@ public partial class KubernetesService
                 }
                 else
                 {
-                    ScheduleConfig? scheduleConfig = GetScheduleConfig(annotations, name, logger);
-                    SlimFaasConfiguration configuration = GetConfiguration(annotations, name, logger);
-                    FunctionVisibility funcVisibility =
-                        annotations.TryGetValue(DefaultVisibility, out string? visibility)
-                            ? Enum.Parse<FunctionVisibility>(visibility)
-                            : FunctionVisibility.Public;
-                    ScaleConfig? scaleConfig = GetScaleConfig(annotations, name, logger);
+                    FunctionMetadata metadata = FunctionMetadataParser.Parse(
+                        new Dictionary<string, string>(annotations, StringComparer.Ordinal),
+                        name);
                     ResourcesConfiguration? resources = ExtractResources(deploymentListItem.Spec.Template?.Spec?.Containers);
                     DeploymentInformation deploymentInformation = new(
                         name,
                         kubeNamespace,
                         pods,
-                        configuration,
+                        metadata.Configuration,
                         deploymentListItem.Spec.Replicas ?? 0,
-                        annotations.TryGetValue(ReplicasAtStart, out string? annotationReplicasAtStart)
-                            ? int.Parse(annotationReplicasAtStart)
-                            : 1, annotations.TryGetValue(ReplicasMin, out string? annotationReplicasMin)
-                            ? int.Parse(annotationReplicasMin)
-                            : 0, annotations.TryGetValue(TimeoutSecondBeforeSetReplicasMin,
-                            out string? annotationTimeoutSecondBeforeSetReplicasMin)
-                            ? int.Parse(annotationTimeoutSecondBeforeSetReplicasMin)
-                            : 300, annotations.TryGetValue(NumberParallelRequest,
-                            out string? annotationNumberParallelRequest)
-                            ? int.Parse(annotationNumberParallelRequest)
-                            : 10, annotations.ContainsKey(
-                                      ReplicasStartAsSoonAsOneFunctionRetrieveARequest) &&
-                                  annotations[ReplicasStartAsSoonAsOneFunctionRetrieveARequest].ToLower() == "true",
+                        metadata.ReplicasAtStart,
+                        metadata.ReplicasMin,
+                        metadata.TimeoutSecondBeforeSetReplicasMin,
+                        metadata.NumberParallelRequest,
+                        metadata.ReplicasStartAsSoonAsOneFunctionRetrieveARequest,
                         PodType.StatefulSet,
-                        annotations.TryGetValue(DependsOn, out string? value)
-                            ? value.Split(',').ToList()
-                            : new List<string>(),
-                        scheduleConfig,
-                        GetSubscribeEvents(annotations, logger, funcVisibility),
-                        funcVisibility,
-                        GetPathsStartWithVisibility(annotations, name, logger),
+                        metadata.DependsOn,
+                        metadata.Schedule,
+                        metadata.SubscribeEvents,
+                        metadata.Visibility,
+                        metadata.PathsStartWithVisibility,
                         resourceVersion,
                         endpointReady,
-                        annotations.TryGetValue(DefaultTrust, out string? trust)
-                            ? Enum.Parse<FunctionTrust>(trust)
-                            : FunctionTrust.Trusted,
-                        scaleConfig,
-                        annotations.TryGetValue(NumberParallelRequestPerPod,
-                            out string? annotationNumberParallelRequestPerPod)
-                            ? int.Parse(annotationNumberParallelRequestPerPod)
-                            : 10,
+                        metadata.Trust,
+                        metadata.Scale,
+                        metadata.NumberParallelRequestPerPod,
                         resources);
 
                     deploymentInformationList.Add(deploymentInformation);

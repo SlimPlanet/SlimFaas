@@ -1,0 +1,270 @@
+using System.Collections.Concurrent;
+using SlimFaas.Kubernetes;
+
+namespace SlimFaas.Local;
+
+public sealed class LocalJobManager : IAsyncDisposable
+{
+    private static readonly CreateJobResources CompatibilityResources = new(
+        new Dictionary<string, string> { ["cpu"] = "100m", ["memory"] = "100Mi" },
+        new Dictionary<string, string> { ["cpu"] = "100m", ["memory"] = "100Mi" });
+
+    private readonly LoadedLocalManifest _loaded;
+    private readonly LocalStateStore _state;
+    private readonly ConcurrentDictionary<string, JobRuntime> _jobs = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, byte> _knownJobNames = new(StringComparer.Ordinal);
+    private readonly CancellationTokenSource _stopping = new();
+    private Task? _monitorTask;
+
+    public LocalJobManager(LoadedLocalManifest loaded, LocalStateStore state)
+    {
+        _loaded = loaded;
+        _state = state;
+        Configuration = BuildConfiguration(loaded.Manifest.Jobs);
+    }
+
+    public SlimFaasJobConfiguration Configuration { get; }
+
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        _monitorTask = MonitorLoopAsync(_stopping.Token);
+        return Task.CompletedTask;
+    }
+
+    public Task CreateAsync(ProcessCreateJobCommand command, CancellationToken cancellationToken)
+    {
+        if (!_loaded.Manifest.Jobs.TryGetValue(command.Name, out LocalJobManifest? manifest))
+            throw new LocalManifestException($"Job configuration '{command.Name}' does not exist.");
+
+        // jobFullName is generated once in the distributed queue. TryAdd makes a
+        // leader hand-off safe: a second node cannot start the same process.
+        var runtime = new JobRuntime(command, manifest);
+        if (!_knownJobNames.TryAdd(command.JobFullName, 0) ||
+            !_jobs.TryAdd(command.JobFullName, runtime))
+            return Task.CompletedTask;
+
+        Start(runtime);
+        return Task.CompletedTask;
+    }
+
+    public IList<Job> Snapshot()
+        => _jobs.Values
+            .OrderByDescending(runtime => runtime.Command.InQueueTimestamp)
+            .Select(runtime =>
+            {
+                lock (runtime.Gate)
+                {
+                    return new Job(
+                        Name: runtime.Command.JobFullName,
+                        Status: runtime.Status,
+                        Ips: [],
+                        DependsOn: runtime.Command.CreateJob.DependsOn ?? runtime.Manifest.DependsOn,
+                        ElementId: runtime.Command.ElementId,
+                        InQueueTimestamp: runtime.Command.InQueueTimestamp,
+                        StartTimestamp: runtime.StartTimestamp);
+                }
+            })
+            .ToList();
+
+    public async Task DeleteAsync(string fullName, CancellationToken cancellationToken)
+    {
+        if (!_jobs.TryRemove(fullName, out JobRuntime? runtime))
+            return;
+
+        ManagedLocalProcess? process;
+        lock (runtime.Gate)
+        {
+            process = runtime.Process;
+            runtime.Process = null;
+        }
+
+        if (process is not null)
+        {
+            await process.StopAsync(null, TimeSpan.FromSeconds(5), cancellationToken);
+            await process.DisposeAsync();
+        }
+    }
+
+    private void Start(JobRuntime runtime)
+    {
+        lock (runtime.Gate)
+        {
+            if (runtime.Process is not null || runtime.Completed)
+                return;
+
+            List<string> command = [.. runtime.Manifest.Command, .. runtime.Command.CreateJob.Args];
+            Dictionary<string, string> environment =
+                runtime.Manifest.Environment.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
+            foreach (EnvVarInput item in runtime.Command.CreateJob.Environments ?? [])
+            {
+                if (item.SecretRef is null && item.ConfigMapRef is null &&
+                    item.FieldRef is null && item.ResourceFieldRef is null)
+                {
+                    environment[item.Name] = item.Value;
+                }
+            }
+
+            try
+            {
+                runtime.Process = ManagedLocalProcess.Start(
+                    command,
+                    Path.GetFullPath(runtime.Manifest.WorkingDirectory, _loaded.BaseDirectory),
+                    environment,
+                    $"job/{runtime.Command.Name}/{runtime.Command.ElementId}",
+                    Path.Combine(_state.LogsDirectory, $"{runtime.Command.JobFullName}.log"));
+                runtime.Status = JobStatus.Running;
+                runtime.StartTimestamp = DateTime.UtcNow.Ticks;
+                runtime.StartedAt = DateTimeOffset.UtcNow;
+            }
+            catch (Exception exception)
+            {
+                Console.Error.WriteLine(
+                    $"[job/{runtime.Command.Name}/{runtime.Command.ElementId}] start failed: {exception.Message}");
+                CompleteAttempt(runtime, exitCode: -1);
+            }
+        }
+    }
+
+    private async Task MonitorLoopAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(250));
+        try
+        {
+            do
+            {
+                foreach (JobRuntime runtime in _jobs.Values)
+                {
+                    ManagedLocalProcess? completedProcess = null;
+                    bool restart = false;
+                    bool remove = false;
+                    lock (runtime.Gate)
+                    {
+                        if (runtime.Process is { HasExited: true } process)
+                        {
+                            int exitCode = process.ExitCode ?? -1;
+                            runtime.Process = null;
+                            completedProcess = process;
+                            CompleteAttempt(runtime, exitCode);
+                        }
+
+                        if (!runtime.Completed && runtime.Process is null &&
+                            DateTimeOffset.UtcNow >= runtime.NextStart)
+                        {
+                            restart = true;
+                        }
+
+                        int ttl = runtime.Command.CreateJob.TtlSecondsAfterFinished;
+                        if (runtime.Completed && runtime.FinishedAt.HasValue &&
+                            DateTimeOffset.UtcNow - runtime.FinishedAt.Value >= TimeSpan.FromSeconds(ttl))
+                        {
+                            remove = true;
+                        }
+                    }
+
+                    if (completedProcess is not null)
+                        await completedProcess.DisposeAsync();
+                    if (restart)
+                        Start(runtime);
+                    if (remove)
+                        _jobs.TryRemove(runtime.Command.JobFullName, out _);
+                }
+            } while (await timer.WaitForNextTickAsync(cancellationToken));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private static void CompleteAttempt(JobRuntime runtime, int exitCode)
+    {
+        if (exitCode == 0)
+        {
+            runtime.Status = JobStatus.Succeeded;
+            runtime.Completed = true;
+            runtime.FinishedAt = DateTimeOffset.UtcNow;
+            return;
+        }
+
+        if (runtime.Attempts <= runtime.Command.CreateJob.BackoffLimit)
+        {
+            runtime.Attempts++;
+            runtime.Status = JobStatus.Pending;
+            runtime.NextStart = DateTimeOffset.UtcNow.AddSeconds(Math.Min(30, 1 << Math.Min(runtime.Attempts - 1, 5)));
+            return;
+        }
+
+        runtime.Status = JobStatus.Failed;
+        runtime.Completed = true;
+        runtime.FinishedAt = DateTimeOffset.UtcNow;
+    }
+
+    private static SlimFaasJobConfiguration BuildConfiguration(
+        IReadOnlyDictionary<string, LocalJobManifest> jobs)
+    {
+        var configurations = new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase);
+        var schedules = new Dictionary<string, IList<ScheduleCreateJob>>(StringComparer.OrdinalIgnoreCase);
+        foreach ((string name, LocalJobManifest manifest) in jobs)
+        {
+            CreateJobResources resources = manifest.Resources is null
+                ? CompatibilityResources
+                : new CreateJobResources(manifest.Resources.Requests, manifest.Resources.Limits);
+            IList<EnvVarInput> environment = manifest.Environment
+                .Select(item => new EnvVarInput(item.Key, item.Value))
+                .ToList();
+            configurations[name] = new SlimfaasJob(
+                Image: $"local:{name}",
+                ImagesWhitelist: [],
+                Resources: resources,
+                DependsOn: manifest.DependsOn,
+                Environments: environment,
+                BackoffLimit: manifest.BackoffLimit,
+                Visibility: manifest.Visibility,
+                NumberParallelJob: manifest.Parallelism,
+                TtlSecondsAfterFinished: manifest.TtlSecondsAfterFinished,
+                RestartPolicy: manifest.RestartPolicy);
+
+            if (manifest.Schedules.Count > 0)
+            {
+                schedules[name] = manifest.Schedules.Select(schedule => new ScheduleCreateJob(
+                    Schedule: schedule.Cron,
+                    Args: schedule.Args,
+                    Image: "",
+                    BackoffLimit: manifest.BackoffLimit,
+                    TtlSecondsAfterFinished: manifest.TtlSecondsAfterFinished,
+                    RestartPolicy: manifest.RestartPolicy,
+                    Resources: resources,
+                    Environments: environment,
+                    DependsOn: schedule.DependsOn.Count > 0 ? schedule.DependsOn : manifest.DependsOn)).ToList();
+            }
+        }
+
+        return new SlimFaasJobConfiguration(configurations, schedules.Count > 0 ? schedules : null);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _stopping.CancelAsync();
+        if (_monitorTask is not null)
+            await _monitorTask;
+
+        foreach (string name in _jobs.Keys.ToArray())
+            await DeleteAsync(name, CancellationToken.None);
+
+        _stopping.Dispose();
+    }
+
+    private sealed class JobRuntime(ProcessCreateJobCommand command, LocalJobManifest manifest)
+    {
+        public object Gate { get; } = new();
+        public ProcessCreateJobCommand Command { get; } = command;
+        public LocalJobManifest Manifest { get; } = manifest;
+        public ManagedLocalProcess? Process { get; set; }
+        public JobStatus Status { get; set; } = JobStatus.Pending;
+        public int Attempts { get; set; } = 1;
+        public long StartTimestamp { get; set; }
+        public DateTimeOffset StartedAt { get; set; }
+        public DateTimeOffset NextStart { get; set; }
+        public DateTimeOffset? FinishedAt { get; set; }
+        public bool Completed { get; set; }
+    }
+}

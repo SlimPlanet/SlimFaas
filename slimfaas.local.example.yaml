@@ -1,0 +1,72 @@
+schemaVersion: 1
+name: fibonacci-dev
+
+cluster:
+  nodes: 3
+  gatewayPort: 30020
+  httpPortBase: 30021
+  raftPortBase: 3262
+
+processPorts:
+  from: 5000
+  to: 5999
+
+state:
+  mode: persistent
+  directory: .slimfaas/fibonacci-dev
+
+functions:
+  fibonacci:
+    command:
+      - dotnet
+      - watch
+      - run
+      - --project
+      - src/Fibonacci
+      - --no-launch-profile
+    workingDirectory: .
+
+    # This block can be copied from spec.template.metadata.annotations.
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/ReplicasMin: "0"
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "30"
+      SlimFaas/NumberParallelRequest: "10"
+      SlimFaas/NumberParallelRequestPerPod: "1"
+      SlimFaas/DependsOn: ""
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/DefaultTrust: "Trusted"
+      prometheus.io/scrape: "true"
+      prometheus.io/path: "/metrics"
+      prometheus.io/port: "{port}"
+      SlimFaas/Scale: >
+        {
+          "ReplicaMax": 10,
+          "Triggers": [],
+          "Behavior": {}
+        }
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://127.0.0.1:{port}"
+
+    health:
+      path: /health
+      periodSeconds: 1
+      timeoutSeconds: 2
+      startupTimeoutSeconds: 120
+
+jobs:
+  fibonacci-batch:
+    command: ["dotnet", "run", "--project", "src/FibonacciBatch", "--"]
+    workingDirectory: .
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+    parallelism: 2
+    visibility: Public
+    ttlSecondsAfterFinished: 60
+    backoffLimit: 1
+    schedules:
+      - cron: "0 0 * * *"
+        args: ["42"]

@@ -55,6 +55,12 @@ public class SlimFaasOptions
     public LocalOrchestratorOptions Local { get; set; } = new();
 
     /// <summary>
+    /// Connection to the native local process supervisor. This section is
+    /// populated by <c>slimfaas local up</c> for child SlimFaas nodes.
+    /// </summary>
+    public ProcessOrchestratorOptions Process { get; set; } = new();
+
+    /// <summary>
     /// Pod scaled up by default when infrastructure has never been called
     /// </summary>
     public bool PodScaledUpByDefaultWhenInfrastructureHasNeverCalled { get; set; }
@@ -127,6 +133,12 @@ public sealed class LocalOrchestratorOptions
     /// Maximum number of concurrent asynchronous calls dispatched to the local function.
     /// </summary>
     public int NumberParallelRequest { get; set; } = 64;
+}
+
+public sealed class ProcessOrchestratorOptions
+{
+    public string SupervisorUrl { get; set; } = "";
+    public string Token { get; set; } = "";
 }
 
 public class MetricsScrapingOptions

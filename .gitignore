@@ -478,3 +478,7 @@ $RECYCLE.BIN/
 
 .idea/
 wwwroot/
+
+# SlimFaas local development secrets
+.env.local
+slimfaas.local.secrets.yaml

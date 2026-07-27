@@ -1,0 +1,76 @@
+using SlimFaas.Kubernetes;
+
+namespace SlimFaas.Tests.Kubernetes;
+
+public sealed class FunctionMetadataParserTests
+{
+    [Fact]
+    public void Parse_MapsTheKubernetesAnnotationContract()
+    {
+        var annotations = new Dictionary<string, string>
+        {
+            [FunctionAnnotationNames.Function] = "true",
+            [FunctionAnnotationNames.ReplicasMin] = "1",
+            [FunctionAnnotationNames.ReplicasAtStart] = "2",
+            [FunctionAnnotationNames.TimeoutSecondBeforeSetReplicasMin] = "45",
+            [FunctionAnnotationNames.NumberParallelRequest] = "20",
+            [FunctionAnnotationNames.NumberParallelRequestPerPod] = "4",
+            [FunctionAnnotationNames.DependsOn] = "one,two",
+            [FunctionAnnotationNames.SubscribeEvents] = "Private:event-one,event-two",
+            [FunctionAnnotationNames.PathsStartWithVisibility] = "Private:/admin,/public",
+            [FunctionAnnotationNames.DefaultVisibility] = "Private",
+            [FunctionAnnotationNames.DefaultTrust] = "Untrusted",
+            [FunctionAnnotationNames.Configuration] =
+                """{"DefaultSync":{"HttpTimeout":42,"TimeoutRetries":[1],"HttpStatusRetries":[503]}}""",
+            [FunctionAnnotationNames.Schedule] =
+                """{"TimeZoneID":"UTC","Default":{"WakeUp":["08:00"],"ScaleDownTimeout":[]}}""",
+            [FunctionAnnotationNames.Scale] =
+                """
+                {
+                  "ReplicaMax": 7,
+                  "Triggers": [{
+                    "MetricType": "AverageValue",
+                    "MetricName": "requests",
+                    "Query": "sum(requests)",
+                    "Threshold": 10
+                  }]
+                }
+                """
+        };
+
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(annotations, "function");
+
+        Assert.Equal(1, metadata.ReplicasMin);
+        Assert.Equal(2, metadata.ReplicasAtStart);
+        Assert.Equal(45, metadata.TimeoutSecondBeforeSetReplicasMin);
+        Assert.Equal(20, metadata.NumberParallelRequest);
+        Assert.Equal(4, metadata.NumberParallelRequestPerPod);
+        Assert.Equal(["one", "two"], metadata.DependsOn);
+        Assert.Equal(FunctionVisibility.Private, metadata.Visibility);
+        Assert.Equal(FunctionTrust.Untrusted, metadata.Trust);
+        Assert.Equal(42, metadata.Configuration.DefaultSync.HttpTimeout);
+        Assert.Equal("UTC", metadata.Schedule?.TimeZoneID);
+        Assert.Equal(7, metadata.Scale?.ReplicaMax);
+        Assert.Equal(ScaleMetricType.AverageValue, Assert.Single(metadata.Scale!.Triggers).MetricType);
+        Assert.Equal(FunctionVisibility.Private, metadata.SubscribeEvents[0].Visibility);
+        Assert.Equal(FunctionVisibility.Private, metadata.SubscribeEvents[1].Visibility);
+        Assert.Equal(FunctionVisibility.Private, metadata.PathsStartWithVisibility[0].Visibility);
+        Assert.Equal(FunctionVisibility.Public, metadata.PathsStartWithVisibility[1].Visibility);
+    }
+
+    [Fact]
+    public void Parse_LeavesScaleNullWhenAnnotationIsAbsent()
+    {
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(
+            new Dictionary<string, string>
+            {
+                [FunctionAnnotationNames.Function] = "true",
+                [FunctionAnnotationNames.ReplicasMin] = "0",
+                [FunctionAnnotationNames.ReplicasAtStart] = "0"
+            },
+            "function");
+
+        Assert.Null(metadata.Scale);
+        Assert.NotNull(metadata.Schedule);
+    }
+}

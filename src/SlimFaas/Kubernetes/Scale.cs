@@ -2,12 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace SlimFaas.Kubernetes;
 
+[JsonConverter(typeof(JsonStringEnumConverter<ScaleMetricType>))]
 public enum ScaleMetricType
 {
     AverageValue, // la valeur moyenne par pod visée
     Value         // la valeur totale (somme) visée
 }
 
+[JsonConverter(typeof(JsonStringEnumConverter<ScalePolicyType>))]
 public enum ScalePolicyType
 {
     Percent,
