@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.77.0
+
+- [d8de1bee](https://github.com/SlimPlanet/SlimFaas/commit/d8de1beec424685dbb712ca4cdbde7210db30c7d) - feat(slimfaas): local process (release) (#304), 2026-07-28 by *Guillaume Chervet*
+
+
+## v0.76.1
+
+- [d25deb5c](https://github.com/SlimPlanet/SlimFaas/commit/d25deb5c13b7a477d7b3a6c4e00961d617f63a5e) - feature(slimfaas): add mode local (#303) (release), 2026-07-28 by *Guillaume Chervet*
+
+
+## 0.76.0
+
+
+
 ## v0.76.0
 
 - [4ea80568](https://github.com/SlimPlanet/SlimFaas/commit/4ea80568c21d7164adfbb0ccdda58402e60e2430) - feat: multi batch and low latency (#302) (release), 2026-07-26 by *Guillaume Chervet*
@@ -258,19 +272,5 @@
 
 ## 0.66.3
 
-
-
-## v0.66.3
-
-
-
-## 0.66.2
-
-- [3a19c5a3](https://github.com/SlimPlanet/SlimFaas/commit/3a19c5a3b09227f84bd4cf7775e1805a23d57ce6) - fix: package publish (release), 2026-03-12 by *Guillaume Chervet*
-
-
-## v0.66.2
-
-- [5c81dcaf](https://github.com/SlimPlanet/SlimFaas/commit/5c81dcaf872d1bf6294ac6c2c57a414cfd1fc92d) - fix(ci): publish client packages (release), 2026-03-12 by *Guillaume Chervet*
 
 
