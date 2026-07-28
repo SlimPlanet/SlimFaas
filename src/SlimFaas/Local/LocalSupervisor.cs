@@ -18,6 +18,11 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
         var allocator = new LocalPortAllocator(loaded, state);
         await using var functions = new LocalFunctionManager(loaded, allocator, state);
         await using var jobs = new LocalJobManager(loaded, state);
+        await using var processes = new LocalProcessManager(loaded, allocator, state);
+        allocator.Prune(functions.PortAllocationIds
+            .Concat(processes.PortAllocationIds)
+            .ToHashSet(StringComparer.Ordinal));
+        processes.PreparePorts();
 
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions
         {
@@ -112,14 +117,17 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
         LocalTcpGateway? gateway = null;
         try
         {
-            await functions.StartAsync(cancellationToken);
-            await jobs.StartAsync(cancellationToken);
-            await nodeManager.StartAsync(cancellationToken);
+            await Task.WhenAll(
+                functions.StartAsync(cancellationToken),
+                jobs.StartAsync(cancellationToken),
+                processes.StartAsync(cancellationToken),
+                nodeManager.StartAsync(cancellationToken));
             gateway = new LocalTcpGateway(loaded.Manifest.Cluster.GatewayPort, nodeManager);
             gateway.Start();
 
             Console.WriteLine(
                 $"SlimFaas local '{loaded.Manifest.Name}' is running with {loaded.Manifest.Cluster.Nodes} node(s).");
+            Console.WriteLine($"Auxiliary processes: {loaded.Manifest.Processes.Count}");
             Console.WriteLine($"Gateway: http://127.0.0.1:{loaded.Manifest.Cluster.GatewayPort}");
             Console.WriteLine($"State: {loaded.StateDirectory}");
             Console.WriteLine("Press Ctrl+C to stop.");

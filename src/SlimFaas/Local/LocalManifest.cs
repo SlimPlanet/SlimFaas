@@ -13,6 +13,8 @@ public sealed class LocalManifest
         new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, LocalJobManifest> Jobs { get; set; } =
         new(StringComparer.OrdinalIgnoreCase);
+    public Dictionary<string, LocalProcessManifest> Processes { get; set; } =
+        new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class LocalClusterManifest
@@ -90,6 +92,16 @@ public sealed class LocalJobScheduleManifest
     public List<string> DependsOn { get; set; } = [];
 }
 
+public sealed class LocalProcessManifest
+{
+    public List<string> Command { get; set; } = [];
+    public string WorkingDirectory { get; set; } = ".";
+    public Dictionary<string, string> Environment { get; set; } =
+        new(StringComparer.Ordinal);
+    public string? Port { get; set; }
+    public string RestartPolicy { get; set; } = "always";
+}
+
 [YamlStaticContext]
 [YamlSerializable(typeof(LocalManifest))]
 [YamlSerializable(typeof(LocalClusterManifest))]
@@ -101,6 +113,7 @@ public sealed class LocalJobScheduleManifest
 [YamlSerializable(typeof(LocalJobManifest))]
 [YamlSerializable(typeof(LocalJobResourcesManifest))]
 [YamlSerializable(typeof(LocalJobScheduleManifest))]
+[YamlSerializable(typeof(LocalProcessManifest))]
 public partial class LocalManifestYamlContext : StaticContext;
 
 public sealed record LoadedLocalManifest(

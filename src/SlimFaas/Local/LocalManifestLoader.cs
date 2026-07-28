@@ -94,6 +94,9 @@ public static partial class LocalManifestLoader
         manifest.Jobs = new Dictionary<string, LocalJobManifest>(
             manifest.Jobs ?? new Dictionary<string, LocalJobManifest>(),
             StringComparer.OrdinalIgnoreCase);
+        manifest.Processes = new Dictionary<string, LocalProcessManifest>(
+            manifest.Processes ?? new Dictionary<string, LocalProcessManifest>(),
+            StringComparer.OrdinalIgnoreCase);
 
         foreach (string name in manifest.Functions.Keys.ToArray())
         {
@@ -142,6 +145,18 @@ public static partial class LocalManifestLoader
                 schedule.Args ??= [];
                 schedule.DependsOn ??= [];
             }
+        }
+
+        foreach (string name in manifest.Processes.Keys.ToArray())
+        {
+            LocalProcessManifest process = manifest.Processes[name] ?? new LocalProcessManifest();
+            manifest.Processes[name] = process;
+            process.Command ??= [];
+            process.WorkingDirectory ??= "";
+            process.RestartPolicy ??= "";
+            process.Environment = new Dictionary<string, string>(
+                process.Environment ?? new Dictionary<string, string>(),
+                StringComparer.Ordinal);
         }
     }
 
@@ -223,11 +238,72 @@ public static partial class LocalManifestLoader
             }
         }
 
+        var fixedProcessPorts = new Dictionary<int, string>();
+        foreach ((string name, LocalProcessManifest process) in manifest.Processes)
+        {
+            string prefix = $"processes.{name}";
+            if (!ProcessNamePattern().IsMatch(name))
+            {
+                errors.Add(
+                    $"{prefix}: name must start with [a-z0-9], contain only [a-z0-9_.-], " +
+                    "and contain at most 63 characters.");
+            }
+            if (process.Command.Count == 0 || process.Command.Any(string.IsNullOrWhiteSpace))
+                errors.Add($"{prefix}.command must contain an executable and non-empty arguments.");
+
+            string workingDirectory = string.IsNullOrWhiteSpace(process.WorkingDirectory)
+                ? ""
+                : Path.GetFullPath(process.WorkingDirectory, baseDirectory);
+            if (string.IsNullOrEmpty(workingDirectory) || !Directory.Exists(workingDirectory))
+                errors.Add($"{prefix}.workingDirectory '{workingDirectory}' does not exist.");
+
+            if (!LocalProcessRestartPolicyParser.TryParse(process.RestartPolicy, out _))
+                errors.Add($"{prefix}.restartPolicy must be 'always', 'onFailure', or 'never'.");
+
+            bool usesPortTemplate = process.Command.Any(ContainsPortTemplate) ||
+                                    process.Environment.Values.Any(ContainsPortTemplate);
+            if (process.Port is null)
+            {
+                if (usesPortTemplate)
+                    errors.Add($"{prefix} uses '{{port}}' but does not configure port.");
+                continue;
+            }
+
+            if (process.Port.Equals("auto", StringComparison.OrdinalIgnoreCase))
+            {
+                requiredProcessPorts = checked(requiredProcessPorts + 1);
+                continue;
+            }
+
+            if (!int.TryParse(process.Port, NumberStyles.None, CultureInfo.InvariantCulture, out int fixedPort) ||
+                fixedPort is < IPEndPoint.MinPort or > IPEndPoint.MaxPort)
+            {
+                errors.Add($"{prefix}.port must be 'auto' or an integer between 1 and 65535.");
+                continue;
+            }
+
+            if (reservedPorts.Contains(fixedPort))
+                errors.Add($"{prefix}.port must not overlap gateway, HTTP, or Raft ports.");
+            if (fixedProcessPorts.TryGetValue(fixedPort, out string? existingProcess))
+            {
+                errors.Add(
+                    $"{prefix}.port duplicates processes.{existingProcess}.port ({fixedPort}).");
+            }
+            else
+            {
+                fixedProcessPorts.Add(fixedPort, name);
+            }
+
+            if (fixedPort >= manifest.ProcessPorts.From && fixedPort <= manifest.ProcessPorts.To)
+                requiredProcessPorts = checked(requiredProcessPorts + 1);
+        }
+
         int availableProcessPorts = manifest.ProcessPorts.To - manifest.ProcessPorts.From + 1;
         if (requiredProcessPorts > availableProcessPorts)
         {
             errors.Add(
-                $"processPorts contains {availableProcessPorts} ports but function maxima require {requiredProcessPorts}.");
+                $"processPorts contains {availableProcessPorts} ports but function maxima and local processes " +
+                $"require {requiredProcessPorts}.");
         }
 
         foreach ((string name, LocalJobManifest job) in manifest.Jobs)
@@ -349,11 +425,17 @@ public static partial class LocalManifestLoader
             errors.Add($"{name} range exceeds 65535.");
     }
 
+    private static bool ContainsPortTemplate(string value)
+        => value.Contains("{port}", StringComparison.Ordinal);
+
     [GeneratedRegex(@"^[A-Za-z0-9._-]{1,63}$", RegexOptions.CultureInvariant)]
     private static partial Regex NamePattern();
 
     [GeneratedRegex(@"^[a-z0-9_-]{3,63}$", RegexOptions.CultureInvariant)]
     private static partial Regex FunctionNamePattern();
+
+    [GeneratedRegex(@"^[a-z0-9][a-z0-9_.-]{0,62}$", RegexOptions.CultureInvariant)]
+    private static partial Regex ProcessNamePattern();
 }
 
 public sealed class LocalManifestException : Exception
