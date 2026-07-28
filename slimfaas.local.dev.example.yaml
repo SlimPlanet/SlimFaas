@@ -26,7 +26,6 @@ jobs:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       FIBONACCI_API_KEY: "${FIBONACCI_API_KEY}"
-<<<<<<< HEAD
 
 processes:
   fibonacci-front:
@@ -45,5 +44,3 @@ processes:
       VITE_SLIMFAAS_URL: "http://127.0.0.1:30020"
     port: auto
     restartPolicy: always
-=======
->>>>>>> origin/main

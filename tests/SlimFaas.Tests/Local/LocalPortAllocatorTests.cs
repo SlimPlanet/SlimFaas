@@ -93,7 +93,6 @@ public sealed class LocalPortAllocatorTests
         }
     }
 
-<<<<<<< HEAD
     [Fact]
     public void ReserveFixed_RejectsConflictsAndAllowsPortsOutsideTheDynamicRange()
     {
@@ -200,8 +199,6 @@ public sealed class LocalPortAllocatorTests
             IsPersistent: true);
     }
 
-=======
->>>>>>> origin/main
     private static int FindAvailableRangeStart()
     {
         for (var port = 42000; port < 60000; port += 20)

@@ -121,7 +121,6 @@ public sealed class LocalStateStore : IDisposable
         }
     }
 
-<<<<<<< HEAD
     public void PrunePortAllocations(IReadOnlySet<string> activeReplicaIds)
     {
         lock (_gate)
@@ -138,8 +137,6 @@ public sealed class LocalStateStore : IDisposable
         }
     }
 
-=======
->>>>>>> origin/main
     public void Save()
     {
         lock (_gate)
@@ -204,10 +201,7 @@ public sealed class LocalPortAllocator
     private readonly LocalStateStore _state;
     private readonly object _gate = new();
     private readonly HashSet<int> _reserved;
-<<<<<<< HEAD
     private readonly Dictionary<string, int> _claimed = new(StringComparer.Ordinal);
-=======
->>>>>>> origin/main
 
     public LocalPortAllocator(LoadedLocalManifest loaded, LocalStateStore state)
     {
@@ -232,22 +226,15 @@ public sealed class LocalPortAllocator
                 !_reserved.Contains(existing.Value) &&
                 LocalManifestLoader.IsTcpPortAvailable(existing.Value))
             {
-<<<<<<< HEAD
                 _claimed[replicaId] = existing.Value;
-=======
->>>>>>> origin/main
                 return existing.Value;
             }
 
             if (existing.HasValue)
-<<<<<<< HEAD
             {
                 _state.ReleasePort(replicaId);
                 _claimed.Remove(replicaId);
             }
-=======
-                _state.ReleasePort(replicaId);
->>>>>>> origin/main
 
             HashSet<int> allocated = _state.Allocations
                 .Where(item => !string.Equals(item.Key, replicaId, StringComparison.Ordinal))
@@ -265,10 +252,7 @@ public sealed class LocalPortAllocator
                 }
 
                 _state.SetAllocatedPort(replicaId, port);
-<<<<<<< HEAD
                 _claimed[replicaId] = port;
-=======
->>>>>>> origin/main
                 return port;
             }
 
@@ -276,7 +260,6 @@ public sealed class LocalPortAllocator
         }
     }
 
-<<<<<<< HEAD
     public int? ReserveFixed(string replicaId, int port)
     {
         lock (_gate)
@@ -340,24 +323,14 @@ public sealed class LocalPortAllocator
             _claimed.Remove(replicaId);
             _state.ReleasePort(replicaId);
         }
-=======
-    public void RejectAndRetry(string replicaId)
-    {
-        lock (_gate)
-            _state.ReleasePort(replicaId);
->>>>>>> origin/main
     }
 
     public void Release(string replicaId)
     {
         lock (_gate)
-<<<<<<< HEAD
         {
             _claimed.Remove(replicaId);
             _state.ReleasePort(replicaId);
         }
-=======
-            _state.ReleasePort(replicaId);
->>>>>>> origin/main
     }
 }

@@ -406,7 +406,6 @@ public sealed class LocalManifestLoaderTests
     }
 
     [Fact]
-<<<<<<< HEAD
     public void Load_ParsesAndMergesAuxiliaryProcessesWithCaseInsensitiveStructuralKeys()
     {
         using var directory = new TemporaryDirectory();
@@ -580,8 +579,6 @@ public sealed class LocalManifestLoaderTests
     }
 
     [Fact]
-=======
->>>>>>> origin/main
     public void StateStore_RefusesCleanWithoutMarker()
     {
         using var directory = new TemporaryDirectory();

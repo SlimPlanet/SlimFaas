@@ -44,15 +44,12 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         return Task.CompletedTask;
     }
 
-<<<<<<< HEAD
     public IReadOnlySet<string> PortAllocationIds
         => _functions.Values
             .SelectMany(function => Enumerable.Range(0, function.Maximum)
                 .Select(index => ReplicaId(function.Name, index)))
             .ToHashSet(StringComparer.Ordinal);
 
-=======
->>>>>>> origin/main
     public Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request, CancellationToken cancellationToken)
     {
         if (!_functions.TryGetValue(request.Deployment, out FunctionRuntime? function))
@@ -383,11 +380,7 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         };
     }
 
-<<<<<<< HEAD
     internal static string ReplicaId(string function, int index) => $"function:{function}:{index}";
-=======
-    private static string ReplicaId(string function, int index) => $"function:{function}:{index}";
->>>>>>> origin/main
 
     public async ValueTask DisposeAsync()
     {

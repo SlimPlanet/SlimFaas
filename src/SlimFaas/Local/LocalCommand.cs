@@ -31,10 +31,7 @@ public static class LocalCommand
                     $"Configuration from {loaded.ManifestPaths.Count} YAML file(s) is valid " +
                     $"({loaded.Manifest.Functions.Count} function(s), " +
                     $"{loaded.Manifest.Jobs.Count} job(s), " +
-<<<<<<< HEAD
                     $"{loaded.Manifest.Processes.Count} auxiliary process(es), " +
-=======
->>>>>>> origin/main
                     $"{loaded.Manifest.Cluster.Nodes} node(s)).");
                 return 0;
             }
