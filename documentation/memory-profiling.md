@@ -118,6 +118,10 @@ An accelerated run produced:
 The measurements are taken after a forced compacting GC. This distinguishes
 live collector children from temporary allocation and GC heap capacity.
 
+A pre-deployment safety run with 100,000 rotating destinations in bounded mode
+still produced one request series, zero `host` labels, 40 HTTP metric lines,
+and only a 0.345 MiB live managed-memory delta after compacting GC.
+
 SlimFaas now publishes the same `httpclient_*` metric families with only
 bounded labels: `client`, plus `code` where the response status is known.
 The ephemeral `host` and caller-controlled `method` labels are intentionally
@@ -153,6 +157,30 @@ RSS can remain above its startup value even when the managed heap drops during
 the idle phase. The .NET GC retains committed heap segments for reuse, and RSS
 also includes pools and memory-mapped WAL pages. For that reason, a rising RSS
 during a short load is not sufficient evidence of a live-object leak.
+
+### Final Native AOT pre-deployment run
+
+The current source was republished as Native AOT and exercised on three nodes
+with concurrency 24, a three-minute warm-up, 30 measured minutes, and a
+five-minute idle cooldown:
+
+| Result | Value |
+|---|---:|
+| Operations | 1,181,502 |
+| Failed operations | 0 |
+| Throughput | 656.38/s |
+| Latency p50 / p95 / p99 | 23.810 / 109.979 / 136.195 ms |
+| Tail RSS slope, nodes 0 / 1 / 2 | -0.085 / +0.014 / +0.375 MiB/min |
+| Cooldown RSS, nodes 0 / 1 / 2 | 373.70 / 403.09 / 367.45 MiB |
+| Tail managed-heap slope, nodes 0 / 1 / 2 | -0.466 / +0.411 / +0.267 MiB/min |
+| HTTP metric lines per node | 238 before / 238 after |
+| Destination `host` labels | 0 |
+| Queue items at cooldown end | 0 / 0 / 0 |
+
+The small positive coefficients are not shared across nodes and are tiny
+relative to the normal GC ranges. Node 2, for example, ended its measured load
+at 372.42 MiB RSS and cooled down to 367.45 MiB despite its +0.375 MiB/min
+regression coefficient. This run did not reproduce an unbounded memory trend.
 
 On macOS, prevent laptop sleep during a reference run because the .NET timeout
 uses a monotonic clock while the CSV contains wall-clock timestamps:
