@@ -94,9 +94,12 @@ public static partial class LocalManifestLoader
         manifest.Jobs = new Dictionary<string, LocalJobManifest>(
             manifest.Jobs ?? new Dictionary<string, LocalJobManifest>(),
             StringComparer.OrdinalIgnoreCase);
+<<<<<<< HEAD
         manifest.Processes = new Dictionary<string, LocalProcessManifest>(
             manifest.Processes ?? new Dictionary<string, LocalProcessManifest>(),
             StringComparer.OrdinalIgnoreCase);
+=======
+>>>>>>> origin/main
 
         foreach (string name in manifest.Functions.Keys.ToArray())
         {
@@ -146,6 +149,7 @@ public static partial class LocalManifestLoader
                 schedule.DependsOn ??= [];
             }
         }
+<<<<<<< HEAD
 
         foreach (string name in manifest.Processes.Keys.ToArray())
         {
@@ -158,6 +162,8 @@ public static partial class LocalManifestLoader
                 process.Environment ?? new Dictionary<string, string>(),
                 StringComparer.Ordinal);
         }
+=======
+>>>>>>> origin/main
     }
 
     private static void Validate(LocalManifest manifest, string baseDirectory)
@@ -238,6 +244,7 @@ public static partial class LocalManifestLoader
             }
         }
 
+<<<<<<< HEAD
         var fixedProcessPorts = new Dictionary<int, string>();
         foreach ((string name, LocalProcessManifest process) in manifest.Processes)
         {
@@ -298,12 +305,18 @@ public static partial class LocalManifestLoader
                 requiredProcessPorts = checked(requiredProcessPorts + 1);
         }
 
+=======
+>>>>>>> origin/main
         int availableProcessPorts = manifest.ProcessPorts.To - manifest.ProcessPorts.From + 1;
         if (requiredProcessPorts > availableProcessPorts)
         {
             errors.Add(
+<<<<<<< HEAD
                 $"processPorts contains {availableProcessPorts} ports but function maxima and local processes " +
                 $"require {requiredProcessPorts}.");
+=======
+                $"processPorts contains {availableProcessPorts} ports but function maxima require {requiredProcessPorts}.");
+>>>>>>> origin/main
         }
 
         foreach ((string name, LocalJobManifest job) in manifest.Jobs)
@@ -425,17 +438,23 @@ public static partial class LocalManifestLoader
             errors.Add($"{name} range exceeds 65535.");
     }
 
+<<<<<<< HEAD
     private static bool ContainsPortTemplate(string value)
         => value.Contains("{port}", StringComparison.Ordinal);
 
+=======
+>>>>>>> origin/main
     [GeneratedRegex(@"^[A-Za-z0-9._-]{1,63}$", RegexOptions.CultureInvariant)]
     private static partial Regex NamePattern();
 
     [GeneratedRegex(@"^[a-z0-9_-]{3,63}$", RegexOptions.CultureInvariant)]
     private static partial Regex FunctionNamePattern();
+<<<<<<< HEAD
 
     [GeneratedRegex(@"^[a-z0-9][a-z0-9_.-]{0,62}$", RegexOptions.CultureInvariant)]
     private static partial Regex ProcessNamePattern();
+=======
+>>>>>>> origin/main
 }
 
 public sealed class LocalManifestException : Exception

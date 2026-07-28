@@ -1,9 +1,16 @@
 # Native local development mode
 
+<<<<<<< HEAD
 `slimfaas local` starts functions, Jobs, auxiliary development processes, and
 one to three real SlimFaas/Raft nodes directly as operating-system processes.
 It is intended for development: processes share the host network and no CPU,
 memory, or security isolation is applied.
+=======
+`slimfaas local` starts functions, Jobs, and one to three real SlimFaas/Raft
+nodes directly as operating-system processes. It is intended for development:
+processes share the host network and no CPU, memory, or security isolation is
+applied.
+>>>>>>> origin/main
 
 The existing `Local` orchestrator remains available for deterministic tests.
 The CLI uses the separate internal `Process` orchestrator and a single
@@ -54,7 +61,11 @@ YAML mappings are merged recursively, while scalars and sequences such as
 `command`, `dependsOn`, and `schedules` are replaced by the last file that
 defines them. An empty sequence clears an inherited sequence. Set a value to
 `null` to remove an inherited field, annotation, environment variable,
+<<<<<<< HEAD
 function, Job, or auxiliary process:
+=======
+function, or Job:
+>>>>>>> origin/main
 
 ```yaml
 functions:
@@ -83,9 +94,14 @@ functions:
 
 The merged YAML and env-file contents are not written to the state directory
 or logs. Keep `.env.local` and secret overlays out of source control. Prefer
+<<<<<<< HEAD
 function, Job, or auxiliary-process `environment` entries for secrets: a
 secret interpolated into `command` can be visible through operating-system
 process inspection.
+=======
+function or Job `environment` entries for secrets: a secret interpolated into
+`command` can be visible through operating-system process inspection.
+>>>>>>> origin/main
 
 See [the development overlay](../slimfaas.local.dev.example.yaml) and
 [the env-file example](../.env.local.example).
@@ -116,11 +132,18 @@ maximum is `max(ReplicasMin, ReplicasAtStart)`.
 
 ## Dynamic ports
 
+<<<<<<< HEAD
 `processPorts` is one global pool shared by all functions and auxiliary
 processes using `port: auto`. At scale-out, SlimFaas selects the first free
 port, verifies it immediately before launch, and keeps it for the process or
 replica identity across crash restarts. Function allocations are persisted in
 persistent mode and released at scale-down.
+=======
+`processPorts` is one global pool shared by all functions. At scale-out,
+SlimFaas selects the first free port, verifies it immediately before launch,
+and keeps it for the replica identity across crash restarts. The allocation is
+persisted in persistent mode and released at scale-down.
+>>>>>>> origin/main
 
 The following placeholders are expanded independently for every replica in
 command arguments, environment values, annotations, health checks, and
@@ -144,6 +167,7 @@ annotations such as `prometheus.io/port`. If the pool is exhausted, the
 desired replica remains visible with `StartFailureReason=PortRangeExhausted`
 and is retried after a port becomes free.
 
+<<<<<<< HEAD
 ## Auxiliary development processes
 
 Use `processes` to launch frontends, file watchers, emulators, and other tools
@@ -201,6 +225,8 @@ processes:
     restartPolicy: never
 ```
 
+=======
+>>>>>>> origin/main
 ## Jobs and gateway
 
 Job commands run without a shell. Arguments from `/job/{name}` are appended to

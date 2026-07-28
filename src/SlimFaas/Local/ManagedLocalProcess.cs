@@ -7,6 +7,7 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
 {
     private readonly Process _process;
     private readonly StreamWriter _log;
+<<<<<<< HEAD
     private readonly string _tag;
     private readonly object _outputGate = new();
 
@@ -15,6 +16,14 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
         _process = process;
         _log = log;
         _tag = tag;
+=======
+    private readonly object _outputGate = new();
+
+    private ManagedLocalProcess(Process process, StreamWriter log)
+    {
+        _process = process;
+        _log = log;
+>>>>>>> origin/main
     }
 
     public bool HasExited => _process.HasExited;
@@ -36,7 +45,21 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
             AutoFlush = true
         };
 
+<<<<<<< HEAD
         ProcessStartInfo startInfo = CreateStartInfo(command, workingDirectory);
+=======
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = command[0],
+            WorkingDirectory = workingDirectory,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        for (var index = 1; index < command.Count; index++)
+            startInfo.ArgumentList.Add(command[index]);
+>>>>>>> origin/main
         foreach ((string name, string value) in environment)
             startInfo.Environment[name] = value;
 
@@ -45,7 +68,11 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
             StartInfo = startInfo,
             EnableRaisingEvents = true
         };
+<<<<<<< HEAD
         var managed = new ManagedLocalProcess(process, log, tag);
+=======
+        var managed = new ManagedLocalProcess(process, log);
+>>>>>>> origin/main
         process.OutputDataReceived += (_, eventArgs) => managed.WriteLine(tag, eventArgs.Data);
         process.ErrorDataReceived += (_, eventArgs) => managed.WriteLine(tag, eventArgs.Data);
 
@@ -69,6 +96,7 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
     public Task WaitForExitAsync(CancellationToken cancellationToken = default)
         => _process.WaitForExitAsync(cancellationToken);
 
+<<<<<<< HEAD
     public void WriteStatus(string value) => WriteLine(_tag, value);
 
     public static void WriteStatus(string tag, string logPath, string value)
@@ -174,6 +202,8 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
         return null;
     }
 
+=======
+>>>>>>> origin/main
     public async Task StopAsync(
         Uri? shutdownUri,
         TimeSpan timeout,

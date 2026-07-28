@@ -118,10 +118,13 @@ An accelerated run produced:
 The measurements are taken after a forced compacting GC. This distinguishes
 live collector children from temporary allocation and GC heap capacity.
 
+<<<<<<< HEAD
 A pre-deployment safety run with 100,000 rotating destinations in bounded mode
 still produced one request series, zero `host` labels, 40 HTTP metric lines,
 and only a 0.345 MiB live managed-memory delta after compacting GC.
 
+=======
+>>>>>>> origin/main
 SlimFaas now publishes the same `httpclient_*` metric families with only
 bounded labels: `client`, plus `code` where the response status is known.
 The ephemeral `host` and caller-controlled `method` labels are intentionally
@@ -158,6 +161,7 @@ the idle phase. The .NET GC retains committed heap segments for reuse, and RSS
 also includes pools and memory-mapped WAL pages. For that reason, a rising RSS
 during a short load is not sufficient evidence of a live-object leak.
 
+<<<<<<< HEAD
 ### Final Native AOT pre-deployment run
 
 The current source was republished as Native AOT and exercised on three nodes
@@ -182,6 +186,8 @@ relative to the normal GC ranges. Node 2, for example, ended its measured load
 at 372.42 MiB RSS and cooled down to 367.45 MiB despite its +0.375 MiB/min
 regression coefficient. This run did not reproduce an unbounded memory trend.
 
+=======
+>>>>>>> origin/main
 On macOS, prevent laptop sleep during a reference run because the .NET timeout
 uses a monotonic clock while the CSV contains wall-clock timestamps:
 
