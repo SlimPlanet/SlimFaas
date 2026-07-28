@@ -121,6 +121,22 @@ public sealed class LocalStateStore : IDisposable
         }
     }
 
+    public void PrunePortAllocations(IReadOnlySet<string> activeReplicaIds)
+    {
+        lock (_gate)
+        {
+            bool changed = false;
+            foreach (string replicaId in _metadata.PortAllocations.Keys.ToArray())
+            {
+                if (!activeReplicaIds.Contains(replicaId))
+                    changed |= _metadata.PortAllocations.Remove(replicaId);
+            }
+
+            if (changed)
+                SaveUnsafe();
+        }
+    }
+
     public void Save()
     {
         lock (_gate)
@@ -185,6 +201,7 @@ public sealed class LocalPortAllocator
     private readonly LocalStateStore _state;
     private readonly object _gate = new();
     private readonly HashSet<int> _reserved;
+    private readonly Dictionary<string, int> _claimed = new(StringComparer.Ordinal);
 
     public LocalPortAllocator(LoadedLocalManifest loaded, LocalStateStore state)
     {
@@ -209,11 +226,15 @@ public sealed class LocalPortAllocator
                 !_reserved.Contains(existing.Value) &&
                 LocalManifestLoader.IsTcpPortAvailable(existing.Value))
             {
+                _claimed[replicaId] = existing.Value;
                 return existing.Value;
             }
 
             if (existing.HasValue)
+            {
                 _state.ReleasePort(replicaId);
+                _claimed.Remove(replicaId);
+            }
 
             HashSet<int> allocated = _state.Allocations
                 .Where(item => !string.Equals(item.Key, replicaId, StringComparison.Ordinal))
@@ -231,6 +252,7 @@ public sealed class LocalPortAllocator
                 }
 
                 _state.SetAllocatedPort(replicaId, port);
+                _claimed[replicaId] = port;
                 return port;
             }
 
@@ -238,15 +260,77 @@ public sealed class LocalPortAllocator
         }
     }
 
+    public int? ReserveFixed(string replicaId, int port)
+    {
+        lock (_gate)
+        {
+            if (port is < 1 or > 65535 || _reserved.Contains(port))
+                return null;
+
+            int? existing = _state.GetAllocatedPort(replicaId);
+            if (existing == port && LocalManifestLoader.IsTcpPortAvailable(port))
+            {
+                _claimed[replicaId] = port;
+                return port;
+            }
+
+            if (existing.HasValue)
+            {
+                _state.ReleasePort(replicaId);
+                _claimed.Remove(replicaId);
+            }
+
+            string[] allocatedByOtherIdentities = _state.Allocations
+                .Where(item =>
+                    !string.Equals(item.Key, replicaId, StringComparison.Ordinal) &&
+                    item.Value == port)
+                .Select(item => item.Key)
+                .ToArray();
+            if (allocatedByOtherIdentities.Any(_claimed.ContainsKey) ||
+                !LocalManifestLoader.IsTcpPortAvailable(port))
+            {
+                return null;
+            }
+
+            // A fixed auxiliary port has priority over allocations persisted
+            // by dynamic functions or automatic processes from an earlier run.
+            foreach (string otherIdentity in allocatedByOtherIdentities)
+                _state.ReleasePort(otherIdentity);
+
+            _state.SetAllocatedPort(replicaId, port);
+            _claimed[replicaId] = port;
+            return port;
+        }
+    }
+
+    public void Prune(IReadOnlySet<string> activeReplicaIds)
+    {
+        lock (_gate)
+        {
+            _state.PrunePortAllocations(activeReplicaIds);
+            foreach (string replicaId in _claimed.Keys.ToArray())
+            {
+                if (!activeReplicaIds.Contains(replicaId))
+                    _claimed.Remove(replicaId);
+            }
+        }
+    }
+
     public void RejectAndRetry(string replicaId)
     {
         lock (_gate)
+        {
+            _claimed.Remove(replicaId);
             _state.ReleasePort(replicaId);
+        }
     }
 
     public void Release(string replicaId)
     {
         lock (_gate)
+        {
+            _claimed.Remove(replicaId);
             _state.ReleasePort(replicaId);
+        }
     }
 }

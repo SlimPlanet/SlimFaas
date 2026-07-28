@@ -26,3 +26,21 @@ jobs:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       FIBONACCI_API_KEY: "${FIBONACCI_API_KEY}"
+
+processes:
+  fibonacci-front:
+    command:
+      - npm
+      - run
+      - dev
+      - --
+      - --host
+      - 127.0.0.1
+      - --port
+      - "{port}"
+    workingDirectory: src/FibonacciReact
+    environment:
+      BROWSER: "none"
+      VITE_SLIMFAAS_URL: "http://127.0.0.1:30020"
+    port: auto
+    restartPolicy: always

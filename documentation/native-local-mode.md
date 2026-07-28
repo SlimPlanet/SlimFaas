@@ -1,9 +1,9 @@
 # Native local development mode
 
-`slimfaas local` starts functions, Jobs, and one to three real SlimFaas/Raft
-nodes directly as operating-system processes. It is intended for development:
-processes share the host network and no CPU, memory, or security isolation is
-applied.
+`slimfaas local` starts functions, Jobs, auxiliary development processes, and
+one to three real SlimFaas/Raft nodes directly as operating-system processes.
+It is intended for development: processes share the host network and no CPU,
+memory, or security isolation is applied.
 
 The existing `Local` orchestrator remains available for deterministic tests.
 The CLI uses the separate internal `Process` orchestrator and a single
@@ -54,7 +54,7 @@ YAML mappings are merged recursively, while scalars and sequences such as
 `command`, `dependsOn`, and `schedules` are replaced by the last file that
 defines them. An empty sequence clears an inherited sequence. Set a value to
 `null` to remove an inherited field, annotation, environment variable,
-function, or Job:
+function, Job, or auxiliary process:
 
 ```yaml
 functions:
@@ -83,8 +83,9 @@ functions:
 
 The merged YAML and env-file contents are not written to the state directory
 or logs. Keep `.env.local` and secret overlays out of source control. Prefer
-function or Job `environment` entries for secrets: a secret interpolated into
-`command` can be visible through operating-system process inspection.
+function, Job, or auxiliary-process `environment` entries for secrets: a
+secret interpolated into `command` can be visible through operating-system
+process inspection.
 
 See [the development overlay](../slimfaas.local.dev.example.yaml) and
 [the env-file example](../.env.local.example).
@@ -115,10 +116,11 @@ maximum is `max(ReplicasMin, ReplicasAtStart)`.
 
 ## Dynamic ports
 
-`processPorts` is one global pool shared by all functions. At scale-out,
-SlimFaas selects the first free port, verifies it immediately before launch,
-and keeps it for the replica identity across crash restarts. The allocation is
-persisted in persistent mode and released at scale-down.
+`processPorts` is one global pool shared by all functions and auxiliary
+processes using `port: auto`. At scale-out, SlimFaas selects the first free
+port, verifies it immediately before launch, and keeps it for the process or
+replica identity across crash restarts. Function allocations are persisted in
+persistent mode and released at scale-down.
 
 The following placeholders are expanded independently for every replica in
 command arguments, environment values, annotations, health checks, and
@@ -141,6 +143,63 @@ The real port is advertised in `PodInformation.Ports` and substituted into
 annotations such as `prometheus.io/port`. If the pool is exhausted, the
 desired replica remains visible with `StartFailureReason=PortRangeExhausted`
 and is retried after a port becomes free.
+
+## Auxiliary development processes
+
+Use `processes` to launch frontends, file watchers, emulators, and other tools
+alongside the SlimFaas cluster:
+
+```yaml
+processes:
+  fibonacci-front:
+    command: ["npm", "run", "dev", "--", "--host", "127.0.0.1", "--port", "{port}"]
+    workingDirectory: src/FibonacciReact
+    environment:
+      BROWSER: "none"
+      VITE_SLIMFAAS_URL: "http://127.0.0.1:30020"
+    port: auto
+    restartPolicy: always
+```
+
+Each entry starts exactly one process and is deliberately absent from
+`DeploymentInformation`, autoscaling, readiness, routing, and the SlimFaas
+control API. Commands run without a shell. On Windows, executable wrappers such
+as `npm.cmd` and `.bat` files are resolved through `ComSpec`; the same
+`["npm", "run", "dev"]` command therefore remains portable.
+
+`workingDirectory` defaults to `.` and is relative to the first YAML file.
+`environment` follows the same overlay, `${VARIABLE}`, and secret-handling
+rules as functions. Names must use lowercase letters, digits, `.`, `_`, or
+`-`, start with a letter or digit, and contain at most 63 characters.
+
+`port` can be omitted, set to a fixed integer, or set to `auto`. An automatic
+port comes from `processPorts`; a fixed port may be inside or outside that
+range. Configured process ports are reserved before functions start. When a
+port is configured, `{port}` is replaced in command arguments and environment
+values and `PORT` is injected. Using `{port}` without configuring `port` is a
+validation error.
+
+`restartPolicy` is case-insensitive and supports:
+
+- `always` (default): restart after any exit or launch failure;
+- `onFailure`: restart only after a non-zero exit or launch failure;
+- `never`: make one attempt, which is useful for one-off setup commands.
+
+Retries use an exponential delay from 1 to 30 seconds, reset after 30 seconds
+of stable execution. A process ending never terminates the cluster. During
+shutdown, restarts are disabled and every remaining process tree is
+terminated. Output is prefixed with `[process/<name>]` and also written to
+`logs/process-<name>.log`.
+
+For example, a one-off asset generator can be declared as:
+
+```yaml
+processes:
+  generate-assets:
+    command: ["npm", "run", "generate"]
+    workingDirectory: src/FibonacciReact
+    restartPolicy: never
+```
 
 ## Jobs and gateway
 

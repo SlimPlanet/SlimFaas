@@ -406,6 +406,179 @@ public sealed class LocalManifestLoaderTests
     }
 
     [Fact]
+    public void Load_ParsesAndMergesAuxiliaryProcessesWithCaseInsensitiveStructuralKeys()
+    {
+        using var directory = new TemporaryDirectory();
+        const string variable = "SLIMFAAS_LOCAL_PROCESS_SECRET_75F2";
+        string? previous = Environment.GetEnvironmentVariable(variable);
+        Environment.SetEnvironmentVariable(variable, "from-process-environment");
+        try
+        {
+            string basePath = directory.Write(
+                "base.yaml",
+                ValidYaml() +
+                """
+
+                processes:
+                  fibonacci-front:
+                    command: ["npm", "run", "dev"]
+                    workingDirectory: .
+                    environment:
+                      KEEP: inherited
+                      REMOVE: inherited
+                      SECRET: "${SLIMFAAS_LOCAL_PROCESS_SECRET_75F2}"
+                    port: auto
+                    restartPolicy: always
+                  removable:
+                    command: ["dotnet", "--info"]
+                    restartPolicy: never
+                """);
+            string overlayPath = directory.Write(
+                "dev.yaml",
+                """
+                Processes:
+                  FIBONACCI-FRONT:
+                    Command: ["npm", "run", "dev", "--", "--port", "{port}"]
+                    Environment:
+                      REMOVE: null
+                      ADDED: overlay
+                    RestartPolicy: OnFailure
+                  removable: null
+                """);
+
+            LoadedLocalManifest loaded = LocalManifestLoader.Load([basePath, overlayPath], []);
+            LocalProcessManifest process = loaded.Manifest.Processes["fibonacci-front"];
+
+            Assert.Equal(["npm", "run", "dev", "--", "--port", "{port}"], process.Command);
+            Assert.Equal("inherited", process.Environment["KEEP"]);
+            Assert.Equal("overlay", process.Environment["ADDED"]);
+            Assert.Equal("from-process-environment", process.Environment["SECRET"]);
+            Assert.False(process.Environment.ContainsKey("REMOVE"));
+            Assert.Equal("auto", process.Port);
+            Assert.Equal("OnFailure", process.RestartPolicy);
+            Assert.False(loaded.Manifest.Processes.ContainsKey("removable"));
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable(variable, previous);
+        }
+    }
+
+    [Fact]
+    public void Load_AcceptsAnIntegerAuxiliaryProcessPort()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            """
+
+            processes:
+              frontend:
+                command: ["npm", "run", "dev", "--", "--port", "{port}"]
+                port: 41102
+            """);
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        Assert.Equal("41102", loaded.Manifest.Processes["frontend"].Port);
+        Assert.Equal(".", loaded.Manifest.Processes["frontend"].WorkingDirectory);
+        Assert.Equal("always", loaded.Manifest.Processes["frontend"].RestartPolicy);
+    }
+
+    [Theory]
+    [InlineData(
+        """
+        processes:
+          Frontend:
+            command: ["dotnet", "--info"]
+        """,
+        "name must start")]
+    [InlineData(
+        """
+        processes:
+          frontend:
+            command: ["dotnet", "--info"]
+            restartPolicy: sometimes
+        """,
+        "restartPolicy")]
+    [InlineData(
+        """
+        processes:
+          frontend:
+            command: ["npm", "--port", "{port}"]
+        """,
+        "does not configure port")]
+    [InlineData(
+        """
+        processes:
+          frontend:
+            command: ["dotnet", "--info"]
+            port: 41000
+        """,
+        "must not overlap gateway")]
+    public void Load_RejectsInvalidAuxiliaryProcessConfiguration(
+        string processYaml,
+        string expectedMessage)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write("local.yaml", $"{ValidYaml()}{Environment.NewLine}{processYaml}");
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(expectedMessage, error.Message);
+    }
+
+    [Fact]
+    public void Load_RejectsDuplicateFixedAuxiliaryPorts()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            """
+
+            processes:
+              frontend:
+                command: ["dotnet", "--info"]
+                port: 42000
+              watcher:
+                command: ["dotnet", "--info"]
+                port: 42000
+            """);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains("duplicates processes.frontend.port", error.Message);
+    }
+
+    [Fact]
+    public void Load_CountsAutomaticAuxiliaryPortsAgainstPoolCapacity()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            """
+
+            processes:
+              frontend:
+                command: ["dotnet", "--info"]
+                port: auto
+              watcher:
+                command: ["dotnet", "--info"]
+                port: auto
+            """);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains("require 4", error.Message);
+    }
+
+    [Fact]
     public void StateStore_RefusesCleanWithoutMarker()
     {
         using var directory = new TemporaryDirectory();
