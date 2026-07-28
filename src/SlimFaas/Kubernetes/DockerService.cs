@@ -505,10 +505,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
 
         Dictionary<string, string> labels = first.Labels ?? new Dictionary<string, string>();
 
-        SlimFaasConfiguration config = ParseOrDefault(labels, Configuration, () => new SlimFaasConfiguration(),
-            json => JsonSerializer.Deserialize(json,
-                        SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration)
-                   ?? new SlimFaasConfiguration());
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(labels, deploymentName);
 
         // 5) Nombre de replicas = nombre de RUNNING NON-template
         int replicas = runningNonTemplate.Count;
@@ -552,24 +549,24 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             deploymentName,
             kubeNamespace,
             pods,
-            config,
+            metadata.Configuration,
             replicas,
-            GetInt(labels, ReplicasAtStart, 1),
-            GetInt(labels, ReplicasMin, 0),
-            GetInt(labels, TimeoutSecondBeforeSetReplicasMin, 300),
-            GetInt(labels, NumberParallelRequest, 10),
-            GetBool(labels, ReplicasStartAsSoonAsOneFunctionRetrieveARequest, false),
+            metadata.ReplicasAtStart,
+            metadata.ReplicasMin,
+            metadata.TimeoutSecondBeforeSetReplicasMin,
+            metadata.NumberParallelRequest,
+            metadata.ReplicasStartAsSoonAsOneFunctionRetrieveARequest,
             PodType.Deployment,
-            SplitCsv(labels, DependsOn),
-            ParseOrDefault(labels, Schedule, () => new ScheduleConfig(),
-                json => JsonSerializer.Deserialize(json, ScheduleConfigSerializerContext.Default.ScheduleConfig)
-                       ?? new ScheduleConfig()),
-            GetSubscribeEvents(labels),
-            ParseEnum(labels, DefaultVisibility, FunctionVisibility.Public),
-            GetPathsStartWithVisibility(labels),
+            metadata.DependsOn,
+            metadata.Schedule,
+            metadata.SubscribeEvents,
+            metadata.Visibility,
+            metadata.PathsStartWithVisibility,
             $"{replicas}-{pods.Count}-{endpointReady}",
             endpointReady,
-            ParseEnum(labels, DefaultTrust, FunctionTrust.Trusted),
+            metadata.Trust,
+            metadata.Scale,
+            metadata.NumberParallelRequestPerPod,
             Resources: resources
         );
 

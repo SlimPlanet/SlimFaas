@@ -159,6 +159,7 @@ Check out:
 
 - [Get Started](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/get-started.md) – Learn how to deploy SlimFaas on Kubernetes or Docker Compose.
 - [Local three-node cluster](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/local-orchestrator.md) – Run a real SlimFaas/Raft cluster locally without Kubernetes or Docker.
+- [Native local development mode](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/native-local-mode.md) – Start functions, Jobs, and 1–3 supervised SlimFaas nodes from mergeable YAML files.
 - Scaling
     - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
     - [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.

@@ -122,7 +122,9 @@ public class JobService(
         CreateJob newCreateJob = new(
             createJob.Args,
             image,
+            BackoffLimit: conf.BackoffLimit,
             TtlSecondsAfterFinished: conf.TtlSecondsAfterFinished,
+            RestartPolicy: conf.RestartPolicy,
             Resources: JobResourceValidator.ValidateResources(conf.Resources,  createJob.Resources),
             Environments: environments,
             DependsOn: dependsOn);

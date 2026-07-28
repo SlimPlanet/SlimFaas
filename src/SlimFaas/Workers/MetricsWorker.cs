@@ -1,6 +1,7 @@
 ﻿using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
+using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
 namespace SlimFaas.Workers;
@@ -14,7 +15,15 @@ public class MetricsWorker(
     IOptions<WorkersOptions> workersOptions)
     : BackgroundService
 {
+    private static readonly string[] QueueMetricNames =
+    [
+        "slimfaas_function_queue_ready_items",
+        "slimfaas_function_queue_in_flight_items",
+        "slimfaas_function_queue_retry_pending_items"
+    ];
+
     private readonly int _delay = workersOptions.Value.ScaleReplicasDelayMilliseconds;
+    private readonly HashSet<string> _publishedFunctions = new(StringComparer.Ordinal);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -30,6 +39,7 @@ public class MetricsWorker(
                 }
 
                 var deployments = replicasService.Deployments;
+                RemoveStaleFunctionMetrics(deployments.Functions);
                 foreach (var deployment in deployments.Functions)
                 {
                     // Label Prometheus : function="fibonacci1"
@@ -77,5 +87,27 @@ public class MetricsWorker(
                 logger.LogError(e, "Global Error in MetricsWorker");
             }
         }
+    }
+
+    internal void RemoveStaleFunctionMetrics(IList<DeploymentInformation> functions)
+    {
+        var currentFunctions = functions
+            .Select(static function => function.Deployment)
+            .ToHashSet(StringComparer.Ordinal);
+
+        foreach (var staleFunction in _publishedFunctions.Except(currentFunctions).ToArray())
+        {
+            var labels = new Dictionary<string, string>
+            {
+                ["function"] = staleFunction
+            };
+            foreach (var metricName in QueueMetricNames)
+            {
+                dynamicGaugeService.RemoveGaugeValue(metricName, labels);
+            }
+        }
+
+        _publishedFunctions.Clear();
+        _publishedFunctions.UnionWith(currentFunctions);
     }
 }

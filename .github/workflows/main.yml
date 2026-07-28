@@ -434,8 +434,94 @@ jobs:
           path: ${{ matrix.zip }}
           if-no-files-found: error
 
-  publish_slimfaas_mcp_release:
-    needs: [tags, build_slimfaas_mcp_aot]
+  build_slimfaas_aot:
+    needs: tags
+    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            zip: SlimFaas-linux-x64.zip
+          - os: ubuntu-24.04-arm
+            rid: linux-arm64
+            zip: SlimFaas-linux-arm64.zip
+          - os: windows-latest
+            rid: win-x64
+            zip: SlimFaas-win-x64.zip
+          - os: macos-latest
+            rid: osx-x64
+            zip: SlimFaas-osx-x64.zip
+          - os: macos-14
+            rid: osx-arm64
+            zip: SlimFaas-osx-arm64.zip
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          check-latest: true
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Publish SlimFaas (${{ matrix.rid }})
+        run: |
+          dotnet publish ./src/SlimFaas/SlimFaas.csproj \
+            -c Release -r ${{ matrix.rid }} \
+            -o ./publish \
+            -p:PublishAot=true \
+            -p:PublishTrimmed=true \
+            -p:SelfContained=true \
+            -p:DebugType=none \
+            -p:DebugSymbols=false
+        shell: bash
+
+      - name: Validate native local CLI
+        run: |
+          ./publish/SlimFaas local validate \
+            -f ./slimfaas.local.example.yaml \
+            -f ./slimfaas.local.dev.example.yaml \
+            --env-file ./.env.local.example
+        if: runner.os != 'Windows'
+        shell: bash
+
+      - name: Validate native local CLI (Windows)
+        run: |
+          .\publish\SlimFaas.exe local validate `
+            -f .\slimfaas.local.example.yaml `
+            -f .\slimfaas.local.dev.example.yaml `
+            --env-file .\.env.local.example
+        if: runner.os == 'Windows'
+        shell: powershell
+
+      - name: Zip artifact (Linux & macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cd publish
+          zip -r ../${{ matrix.zip }} .
+        shell: bash
+
+      - name: Zip artifact (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          Compress-Archive -Path publish\* -DestinationPath ${{ matrix.zip }}
+        shell: powershell
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.zip }}
+          path: ${{ matrix.zip }}
+          if-no-files-found: error
+
+  publish_native_release:
+    needs: [tags, build_slimfaas_mcp_aot, build_slimfaas_aot]
     if: needs.tags.outputs.tag == 'release'
     runs-on: ubuntu-latest
 
@@ -446,25 +532,25 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: SlimFaasMcp-*.zip
+          pattern: SlimFaas*.zip
           merge-multiple: true
 
       - name: Create GitHub Release & upload assets
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.tags.outputs.new_version }}
-          name: "SlimFaas MCP ${{ needs.tags.outputs.new_version }}"
+          name: "SlimFaas ${{ needs.tags.outputs.new_version }}"
           body: |
-            **SlimFaasMcp** build native AOT for 4 platforms :
+            Native AOT builds for SlimFaas and SlimFaasMcp:
 
-            * linux-x64
-            * windows-x64
-            * macOS (x64)
-            * macOS (arm64)
+            * Linux x64 and ARM64 (SlimFaas)
+            * Windows x64
+            * macOS x64 and ARM64
 
           draft: false
           prerelease: false
           files: |
+            SlimFaas-*.zip
             SlimFaasMcp-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

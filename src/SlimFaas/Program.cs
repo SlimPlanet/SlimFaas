@@ -20,6 +20,7 @@ using SlimFaas.Endpoints;
 using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Local;
 using SlimFaas.Middleware;
 using SlimFaas.Options;
 using SlimFaas.Security;
@@ -27,6 +28,13 @@ using SlimFaas.WebSocket;
 using SlimFaas.Workers;
 
 #pragma warning disable CA2252
+
+int? localCommandExitCode = await LocalCommand.TryRunAsync(args);
+if (localCommandExitCode.HasValue)
+{
+    Environment.ExitCode = localCommandExitCode.Value;
+    return;
+}
 
 // Load configuration early
 string? environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
@@ -156,6 +164,12 @@ switch (envOrConfig)
 
     case "Local":
         serviceCollectionStarter.AddSingleton<IKubernetesService, LocalKubernetesService>();
+        usePersistentConfigurationStorage = false;
+        break;
+
+    case "Process":
+        serviceCollectionStarter.AddHttpClient(ProcessKubernetesService.HttpClientName);
+        serviceCollectionStarter.AddSingleton<IKubernetesService, ProcessKubernetesService>();
         usePersistentConfigurationStorage = false;
         break;
 
@@ -333,7 +347,9 @@ if (replicasService?.Deployments?.SlimFaas?.Pods != null)
         {
             string slimDataEndpoint = SlimDataEndpoint.Get(podInformation, slimFaasOptions.BaseSlimDataUrl, namespace_);
             bool isCurrentPod = podInformation.Name.Contains(hostname, StringComparison.Ordinal);
-            if (!isCurrentPod || envOrConfig == "Local")
+            // In-memory cluster configuration (Local and Process) must receive
+            // the complete topology, including the current member.
+            if (!isCurrentPod || envOrConfig is "Local" or "Process")
             {
                 startupLogger.LogInformation("Adding node {SlimDataEndpoint} {Hostname} {PodName}",
                     slimDataEndpoint, hostname, podInformation.Name);
@@ -426,7 +442,7 @@ serviceCollectionSlimFaas.AddHttpClient(SlimDataService.HttpClientName)
     .ConfigurePrimaryHttpMessageHandler(() =>
         InternalHttpClientHandler.Create(allowUnsecureSSL));
 // Export metrics from all HTTP clients registered in services
-builder.Services.UseHttpClientMetrics();
+builder.Services.UseHttpClientMetrics(BoundedHttpClientMetrics.Create());
 
 serviceCollectionSlimFaas.AddSingleton<IMasterService, MasterSlimDataService>();
 
