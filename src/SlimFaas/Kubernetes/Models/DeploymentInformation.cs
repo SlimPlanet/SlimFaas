@@ -55,6 +55,7 @@ public record PodInformation(
     string? ServiceName = null)
 {
     public IDictionary<string, string>? Annotations { get; init; }
+    public string? RoutingKey { get; init; }
     public string? StartFailureReason { get; init; }
     public string? StartFailureMessage { get; init; }
     public string? AppFailureReason { get; init;}

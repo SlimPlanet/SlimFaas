@@ -29,6 +29,8 @@ using SlimFaas.Workers;
 
 #pragma warning disable CA2252
 
+PrometheusMeterFilter.ConfigureDefaultAdapter();
+
 int? localCommandExitCode = await LocalCommand.TryRunAsync(args);
 if (localCommandExitCode.HasValue)
 {
@@ -213,6 +215,7 @@ ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServicePr
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
+builder.WebHost.UseStaticWebAssets();
 
 // Register options
 builder.Services.AddSlimFaasOptions(builder.Configuration);

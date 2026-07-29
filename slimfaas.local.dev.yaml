@@ -1,4 +1,4 @@
-# Partial development overlay applied after slimfaas.local.example.yaml.
+# Partial development overlay applied after slimfaas.local.yaml.
 cluster:
   nodes: 1
 
@@ -6,13 +6,13 @@ state:
   mode: ephemeral
 
 functions:
-  fibonacci:
+  fibonacci1:
     command:
       - dotnet
       - watch
       - run
       - --project
-      - src/Fibonacci
+      - Fibonacci.csproj
       - --no-launch-profile
     annotations:
       SlimFaas/ReplicasAtStart: "1"
@@ -22,7 +22,7 @@ functions:
       FIBONACCI_API_KEY: "${FIBONACCI_API_KEY}"
 
 jobs:
-  fibonacci-batch:
+  fibonacci:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       FIBONACCI_API_KEY: "${FIBONACCI_API_KEY}"

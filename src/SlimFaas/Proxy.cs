@@ -21,7 +21,13 @@ namespace SlimFaas
         string GetNextIP(int maxPerPod, IReadOnlyCollection<string> alreadyUsedIps);
 
         IList<int>? GetPorts();
-        IList<int>? GetPorts(string? ip);
+        IList<int>? GetPorts(string? target);
+
+        /// <summary>
+        /// Résout l'identité de routage sélectionnée vers l'adresse réseau réelle du pod.
+        /// Par défaut, l'identité est déjà une IP (cas Kubernetes).
+        /// </summary>
+        string? ResolvePodIp(string? target) => target;
 
         /// <summary>
         /// Réserve <paramref name="count"/> IPs en simulant l'ajout progressif des
@@ -81,17 +87,26 @@ namespace SlimFaas
                 .FirstOrDefault();
         }
 
-        public IList<int>? GetPorts(string? ip)
+        public IList<int>? GetPorts(string? target)
         {
-            if (string.IsNullOrWhiteSpace(ip))
+            if (string.IsNullOrWhiteSpace(target))
             {
                 return GetPorts();
             }
 
             var deploymentInformation = SearchFunction(_replicasService, _functionName);
-            return deploymentInformation?.Pods
-                .FirstOrDefault(pod => pod.Ready == true && string.Equals(pod.Ip, ip, StringComparison.OrdinalIgnoreCase))
-                ?.Ports;
+            return FindReadyPod(deploymentInformation, target)?.Ports;
+        }
+
+        public string? ResolvePodIp(string? target)
+        {
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                return null;
+            }
+
+            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            return FindReadyPod(deploymentInformation, target)?.Ip;
         }
 
         public IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps)
@@ -137,20 +152,27 @@ namespace SlimFaas
 
             lock (lockObject)
             {
-                var readyPodsIps = deploymentInformation.Pods
+                var readyTargets = deploymentInformation.Pods
                     .Where(pod => pod.Ready == true)
-                    .Select(pod => pod.Ip)
+                    .Select(RoutingTarget)
                     .ToList();
 
-                if (readyPodsIps.Count == 0)
+                if (readyTargets.Count == 0)
                 {
                     return "";
                 }
 
                 var inFlight = GetOrCreateInFlight(deployment);
-                var activeByIp = inFlight.ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.OrdinalIgnoreCase);
+                var activeByTarget = inFlight.ToDictionary(
+                    kv => kv.Key,
+                    kv => kv.Value,
+                    StringComparer.OrdinalIgnoreCase);
 
-                var selected = SelectBestIp(deployment, readyPodsIps, int.MaxValue, activeByIp);
+                var selected = SelectBestTarget(
+                    deployment,
+                    readyTargets,
+                    int.MaxValue,
+                    activeByTarget);
                 if (string.IsNullOrWhiteSpace(selected))
                 {
                     return "";
@@ -206,41 +228,46 @@ namespace SlimFaas
                 return "";
             }
 
-            var readyPodsIps = deploymentInformation.Pods
+            var readyTargets = deploymentInformation.Pods
                 .Where(pod => pod.Ready == true)
-                .Select(pod => pod.Ip)
+                .Select(RoutingTarget)
                 .ToList();
 
-            if (readyPodsIps.Count == 0)
+            if (readyTargets.Count == 0)
             {
                 return "";
             }
 
             // Comptage des requêtes actives par pod, dérivé directement de l'état fourni
             // (ex: IPs réservées par les éléments "Running" en DB).
-            var activeByIp = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var activeByTarget = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             if (alreadyUsedIps != null)
             {
-                foreach (var ip in alreadyUsedIps)
+                foreach (var target in alreadyUsedIps)
                 {
-                    if (string.IsNullOrWhiteSpace(ip))
+                    if (string.IsNullOrWhiteSpace(target))
                     {
                         continue;
                     }
-                    activeByIp[ip] = activeByIp.TryGetValue(ip, out var c) ? c + 1 : 1;
+                    activeByTarget[target] =
+                        activeByTarget.TryGetValue(target, out var count) ? count + 1 : 1;
                 }
             }
 
-            return SelectBestIp(deploymentInformation.Deployment, readyPodsIps, maxPerPod, activeByIp);
+            return SelectBestTarget(
+                deploymentInformation.Deployment,
+                readyTargets,
+                maxPerPod,
+                activeByTarget);
         }
 
-        private string SelectBestIp(
+        private string SelectBestTarget(
             string deployment,
-            IList<string> readyPodsIps,
+            IList<string> readyTargets,
             int maxPerPod,
-            IReadOnlyDictionary<string, int> activeByIp)
+            IReadOnlyDictionary<string, int> activeByTarget)
         {
-            if (readyPodsIps.Count == 0)
+            if (readyTargets.Count == 0)
             {
                 return "";
             }
@@ -250,14 +277,14 @@ namespace SlimFaas
             if (!IpAddresses.TryGetValue(deployment, out var lastIp)
                 || string.IsNullOrWhiteSpace(lastIp))
             {
-                startIndex = _random.Next(0, readyPodsIps.Count);
+                startIndex = _random.Next(0, readyTargets.Count);
             }
             else
             {
-                var currentIndex = readyPodsIps.IndexOf(lastIp);
+                var currentIndex = readyTargets.IndexOf(lastIp);
                 startIndex = currentIndex == -1
-                    ? _random.Next(0, readyPodsIps.Count)
-                    : (currentIndex + 1) % readyPodsIps.Count;
+                    ? _random.Next(0, readyTargets.Count)
+                    : (currentIndex + 1) % readyTargets.Count;
             }
 
             // Stratégie "least-connections" : parmi les pods non saturés, choisir
@@ -265,11 +292,11 @@ namespace SlimFaas
             // le premier rencontré dans l'ordre round-robin gagne.
             string? bestIp = null;
             double bestScore = double.MaxValue;
-            for (int i = 0; i < readyPodsIps.Count; i++)
+            for (int i = 0; i < readyTargets.Count; i++)
             {
-                int index = (startIndex + i) % readyPodsIps.Count;
-                string candidateIp = readyPodsIps[index];
-                int active = activeByIp.TryGetValue(candidateIp, out var c) ? c : 0;
+                int index = (startIndex + i) % readyTargets.Count;
+                string candidateIp = readyTargets[index];
+                int active = activeByTarget.TryGetValue(candidateIp, out var count) ? count : 0;
 
                 if (active >= maxPerPod)
                 {
@@ -300,6 +327,33 @@ namespace SlimFaas
 
             // Tous les pods sont saturés
             return "";
+        }
+
+        private static string RoutingTarget(PodInformation pod)
+            => string.IsNullOrWhiteSpace(pod.RoutingKey) ? pod.Ip : pod.RoutingKey;
+
+        private static PodInformation? FindReadyPod(
+            DeploymentInformation? deploymentInformation,
+            string target)
+        {
+            if (deploymentInformation is null)
+            {
+                return null;
+            }
+
+            return deploymentInformation.Pods.FirstOrDefault(pod =>
+                       pod.Ready == true &&
+                       !string.IsNullOrWhiteSpace(pod.RoutingKey) &&
+                       string.Equals(
+                           pod.RoutingKey,
+                           target,
+                           StringComparison.OrdinalIgnoreCase))
+                   ?? deploymentInformation.Pods.FirstOrDefault(pod =>
+                       pod.Ready == true &&
+                       string.Equals(
+                           pod.Ip,
+                           target,
+                           StringComparison.OrdinalIgnoreCase));
         }
     }
 }

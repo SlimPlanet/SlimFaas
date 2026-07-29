@@ -70,6 +70,7 @@ public sealed class LocalFunctionManagerTests
                 manager,
                 pod => pod.Ports?.Contains(port) == true);
             Assert.Equal(port, Assert.Single(allocated.Ports!));
+            Assert.Equal("test-function-0", allocated.RoutingKey);
 
             await manager.ScaleAsync(
                 new ReplicaRequest("test-function", "function-test", 0, PodType.Deployment),

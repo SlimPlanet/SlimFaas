@@ -60,11 +60,20 @@ public sealed class LocalNodeManager : IAsyncDisposable
                 ResourceVersion: node.StartedAt.UtcTicks.ToString(CultureInfo.InvariantCulture),
                 ServiceName: "slimfaas")
             {
+                Annotations = MetricsAnnotations(HttpPort(node)),
                 AppFailureReason = node.FailureReason,
                 AppFailureMessage = node.FailureMessage
             }).ToList();
         }
     }
+
+    internal static IDictionary<string, string> MetricsAnnotations(int httpPort)
+        => new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["prometheus.io/scrape"] = "true",
+            ["prometheus.io/path"] = "/metrics",
+            ["prometheus.io/port"] = httpPort.ToString(CultureInfo.InvariantCulture)
+        };
 
     private async Task MonitorLoopAsync(CancellationToken cancellationToken)
     {

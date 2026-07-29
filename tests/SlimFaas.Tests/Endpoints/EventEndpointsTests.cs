@@ -379,9 +379,29 @@ public class EventEndpointsTests
             It.IsAny<string?>(),
             It.IsAny<CancellationTokenSource?>(),
             It.IsAny<Proxy?>(),
-            It.IsAny<string?>(),
+            It.Is<string?>(targetPod => targetPod == "test-pod-0"),
             NetworkActivityTracker.Actors.SlimFaas,
-            It.IsAny<string?>()), Times.Exactly(2));
+            It.IsAny<string?>()), Times.Once);
+        sendClientMock.Verify(s => s.SendHttpRequestAsync(
+            It.IsAny<CustomRequest>(),
+            It.IsAny<SlimFaasDefaultConfiguration>(),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationTokenSource?>(),
+            It.IsAny<Proxy?>(),
+            It.Is<string?>(targetPod => targetPod == "test-pod-1"),
+            NetworkActivityTracker.Actors.SlimFaas,
+            It.IsAny<string?>()), Times.Once);
+
+        NetworkActivityTracker activityTracker = host.Services.GetRequiredService<NetworkActivityTracker>();
+        NetworkActivityEvent[] publishEvents = activityTracker.GetRecent()
+            .Where(item =>
+                item.Type == NetworkActivityTracker.EventTypes.EventPublish &&
+                item.Source == NetworkActivityTracker.Actors.SlimFaas &&
+                item.Target == "test-function")
+            .ToArray();
+        Assert.Equal(2, publishEvents.Length);
+        Assert.Equal(
+            new string?[] { "test-pod-0", "test-pod-1" },
+            publishEvents.Select(item => item.TargetPod).Order().ToArray());
     }
 }
-

@@ -247,6 +247,106 @@ public class SendClientShould
         }
     }
 
+    [Fact]
+    public async Task LoadBalanceLocalReplicasByRoutingKeyAndPort()
+    {
+        var requestedPorts = new List<int>();
+        using var httpClient = new HttpClient(new HttpMessageHandlerStub(request =>
+        {
+            requestedPorts.Add(request.RequestUri!.Port);
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("OK")
+            });
+        }));
+        var namespaceProvider = new Mock<INamespaceProvider>();
+        namespaceProvider.SetupGet(provider => provider.CurrentNamespace).Returns("default");
+        var tracker = new SlimFaas.Endpoints.NetworkActivityTracker();
+        var sendClient = new SendClient(
+            httpClient,
+            new Mock<ILogger<SendClient>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                BaseFunctionUrl = "http://{pod_ip}:{pod_port}/",
+                Namespace = "default"
+            }),
+            namespaceProvider.Object,
+            tracker);
+        var replicasService = new FakeReplicasService
+        {
+            Deployments = new FakeDeploymentCollection
+            {
+                Functions =
+                [
+                    new DeploymentInformation(
+                        Deployment: "local-fibonacci",
+                        Namespace: "default",
+                        Pods:
+                        [
+                            new PodInformation(
+                                "local-fibonacci-0",
+                                true,
+                                true,
+                                "127.0.0.1",
+                                "local-fibonacci",
+                                [5001])
+                            {
+                                RoutingKey = "local-fibonacci-0"
+                            },
+                            new PodInformation(
+                                "local-fibonacci-1",
+                                true,
+                                true,
+                                "127.0.0.1",
+                                "local-fibonacci",
+                                [5002])
+                            {
+                                RoutingKey = "local-fibonacci-1"
+                            }
+                        ],
+                        Configuration: new SlimFaasConfiguration(),
+                        Replicas: 2,
+                        EndpointReady: true)
+                ]
+            }
+        };
+        var proxy = new Proxy(replicasService, "local-fibonacci");
+
+        HttpResponseMessage? firstResponse = null;
+        HttpResponseMessage? secondResponse = null;
+        try
+        {
+            firstResponse = await sendClient.SendHttpRequestSync(
+                BuildHttpContext(),
+                "local-fibonacci",
+                "health",
+                "",
+                new SlimFaasDefaultConfiguration(),
+                proxy: proxy);
+            secondResponse = await sendClient.SendHttpRequestSync(
+                BuildHttpContext(),
+                "local-fibonacci",
+                "health",
+                "",
+                new SlimFaasDefaultConfiguration(),
+                proxy: proxy);
+
+            Assert.Equal([5001, 5002], requestedPorts.Order().ToArray());
+            Assert.Equal(
+                new string?[] { "local-fibonacci-0", "local-fibonacci-1" },
+                tracker.GetRecent()
+                    .Where(item => item.Type == SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestOut)
+                    .Select(item => item.TargetPod)
+                    .Order()
+                    .ToArray());
+        }
+        finally
+        {
+            firstResponse?.Dispose();
+            secondResponse?.Dispose();
+        }
+    }
+
     private static DefaultHttpContext BuildHttpContext()
     {
         DefaultHttpContext httpContext = new();

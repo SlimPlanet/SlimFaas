@@ -163,7 +163,11 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
                     loaded.Manifest.Cluster.RaftPortBase + index,
                     loaded.Manifest.Cluster.HttpPortBase + index
                 ],
-                ServiceName: "slimfaas"))
+                ServiceName: "slimfaas")
+            {
+                Annotations = LocalNodeManager.MetricsAnnotations(
+                    loaded.Manifest.Cluster.HttpPortBase + index)
+            })
             .ToList();
 
     private void EnsureClusterPortsAvailable()

@@ -128,7 +128,7 @@ public static class EventEndpoints
                         eventName, function.Deployment, pod.Name, pod.Ready);
 
                     activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, function.Deployment,
-                        targetPod: pod.Ip);
+                        targetPod: pod.Name);
 
                     historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
 
@@ -139,7 +139,7 @@ public static class EventEndpoints
                         eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
 
                     Task task = SendRequestAsync(queryString, sendClient, customRequest with { FunctionName = function.Deployment },
-                        baseUrl, logger, eventName, function.Configuration.DefaultPublish);
+                        baseUrl, pod.Name, logger, eventName, function.Configuration.DefaultPublish);
                     tasks.Add(task);
                 }
             }
@@ -175,6 +175,7 @@ public static class EventEndpoints
         ISendClient sendClient,
         CustomRequest customRequest,
         string baseUrl,
+        string targetPod,
         ILogger logger,
         string eventName,
         SlimFaasDefaultConfiguration slimFaasDefaultConfiguration)
@@ -187,7 +188,7 @@ public static class EventEndpoints
                 baseUrl,
                 null,
                 null,
-                null,
+                targetPod,
                 NetworkActivityTracker.Actors.SlimFaas);
 
             logger.LogDebug(
@@ -203,4 +204,3 @@ public static class EventEndpoints
         }
     }
 }
-

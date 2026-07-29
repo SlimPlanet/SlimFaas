@@ -373,6 +373,7 @@ public sealed class LocalFunctionManager : IAsyncDisposable
             ServiceName: function.Name)
         {
             Annotations = annotations,
+            RoutingKey = $"{function.Name}-{replica.Index}",
             StartFailureReason = replica.StartFailureReason,
             StartFailureMessage = replica.StartFailureMessage,
             AppFailureReason = replica.AppFailureReason,

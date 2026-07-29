@@ -111,12 +111,16 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             {
                 const int maxAttempts = 10;
                 IList<int>? ports = null;
+                string? resolvedPodIp = null;
 
                 for (var attempt = 0; attempt < maxAttempts; attempt++)
                 {
                     reservedSyncIp = proxy.AcquireNextIPForSync();
                     ports = proxy.GetPorts(reservedSyncIp);
-                    if (!string.IsNullOrWhiteSpace(reservedSyncIp) && ports is { Count: > 0 })
+                    resolvedPodIp = proxy.ResolvePodIp(reservedSyncIp);
+                    if (!string.IsNullOrWhiteSpace(reservedSyncIp) &&
+                        !string.IsNullOrWhiteSpace(resolvedPodIp) &&
+                        ports is { Count: > 0 })
                     {
                         break;
                     }
@@ -126,12 +130,19 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                     await Task.Delay(100, finalToken);
                 }
 
-                if (string.IsNullOrWhiteSpace(reservedSyncIp) || ports is null || ports.Count == 0)
+                if (string.IsNullOrWhiteSpace(reservedSyncIp) ||
+                    string.IsNullOrWhiteSpace(resolvedPodIp) ||
+                    ports is null ||
+                    ports.Count == 0)
                 {
                     throw new Exception("Not port or IP available");
                 }
 
-                targetUrl = BuildPodTargetUrl(functionUrl, functionPath + functionQuery, reservedSyncIp, ports);
+                targetUrl = BuildPodTargetUrl(
+                    functionUrl,
+                    functionPath + functionQuery,
+                    resolvedPodIp,
+                    ports);
             }
             else
             {
@@ -317,13 +328,15 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     {
         if (functionUrl.Contains("{pod_ip}") && proxy != null)
         {
-           var ip = reservedPodIp;
-           var ports = proxy.GetPorts(ip);
+           var target = reservedPodIp;
+           var ports = proxy.GetPorts(target);
+           var ip = proxy.ResolvePodIp(target);
            var count = 10;
            while ((ports == null || ports.Count == 0 || string.IsNullOrEmpty(ip)) && count > 0)
            {
-               ip = proxy.GetNextIP();
-               ports = proxy.GetPorts(ip);
+               target = proxy.GetNextIP();
+               ports = proxy.GetPorts(target);
+               ip = proxy.ResolvePodIp(target);
                count--;
                await Task.Delay(100);
            }
