@@ -503,9 +503,10 @@ namespace SlimFaas.Tests
                                     true,
                                     "127.0.0.1",
                                     "local-function",
-                                    [5001])
+                                [5001])
                                 {
-                                    RoutingKey = "local-function-0"
+                                    RoutingKey = "local-function-0",
+                                    EndpointUrl = "http://127.0.0.1:5001/debug"
                                 },
                                 new PodInformation(
                                     "local-function-1",
@@ -537,6 +538,10 @@ namespace SlimFaas.Tests
             Assert.Equal([5002], proxy.GetPorts("local-function-1"));
             Assert.Equal("127.0.0.1", proxy.ResolvePodIp("local-function-0"));
             Assert.Equal("127.0.0.1", proxy.ResolvePodIp("local-function-1"));
+            Assert.Equal(
+                "http://127.0.0.1:5001/debug",
+                proxy.ResolvePodEndpointUrl("local-function-0"));
+            Assert.Null(proxy.ResolvePodEndpointUrl("local-function-1"));
         }
 
         private static FakeReplicasService BuildThreePods()

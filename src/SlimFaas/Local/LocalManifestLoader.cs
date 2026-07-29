@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -104,6 +105,9 @@ public static partial class LocalManifestLoader
             manifest.Functions[name] = function;
             function.Command ??= [];
             function.WorkingDirectory ??= "";
+            function.DebugUrl = string.IsNullOrWhiteSpace(function.DebugUrl)
+                ? null
+                : function.DebugUrl.Trim();
             function.Health ??= new LocalHealthManifest();
             function.Health.Path ??= "";
             if (function.Shutdown is not null)
@@ -191,17 +195,52 @@ public static partial class LocalManifestLoader
             errors.Add("processPorts must not overlap gateway, HTTP or Raft ports.");
 
         int requiredProcessPorts = 0;
+        var localDebugPorts = new Dictionary<int, string>();
         foreach ((string name, LocalFunctionManifest function) in manifest.Functions)
         {
+            Uri? debugUri = null;
             if (!FunctionNamePattern().IsMatch(name))
                 errors.Add($"functions.{name}: name must match [a-z0-9_-] and contain 3 to 63 characters.");
-            if (function.Command.Count == 0 || function.Command.Any(string.IsNullOrWhiteSpace))
-                errors.Add($"functions.{name}.command must contain an executable and non-empty arguments.");
-            string workingDirectory = string.IsNullOrWhiteSpace(function.WorkingDirectory)
-                ? ""
-                : Path.GetFullPath(function.WorkingDirectory, baseDirectory);
-            if (string.IsNullOrEmpty(workingDirectory) || !Directory.Exists(workingDirectory))
-                errors.Add($"functions.{name}.workingDirectory '{workingDirectory}' does not exist.");
+            if (function.DebugUrl is not null)
+            {
+                if (!TryParseDebugUrl(function.DebugUrl, out debugUri, out string? debugError))
+                {
+                    errors.Add($"functions.{name}.debugUrl {debugError}");
+                }
+                else if (reservedPorts.Contains(debugUri!.Port))
+                {
+                    errors.Add(
+                        $"functions.{name}.debugUrl port must not overlap gateway, HTTP, or Raft ports.");
+                }
+                else if (IsLocalDebugUrl(debugUri))
+                {
+                    if (localDebugPorts.TryGetValue(debugUri.Port, out string? existingFunction))
+                    {
+                        errors.Add(
+                            $"functions.{name}.debugUrl duplicates functions.{existingFunction}.debugUrl " +
+                            $"port ({debugUri.Port}).");
+                    }
+                    else
+                    {
+                        localDebugPorts.Add(debugUri.Port, name);
+                        if (debugUri.Port >= manifest.ProcessPorts.From &&
+                            debugUri.Port <= manifest.ProcessPorts.To)
+                        {
+                            requiredProcessPorts = checked(requiredProcessPorts + 1);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (function.Command.Count == 0 || function.Command.Any(string.IsNullOrWhiteSpace))
+                    errors.Add($"functions.{name}.command must contain an executable and non-empty arguments.");
+                string workingDirectory = string.IsNullOrWhiteSpace(function.WorkingDirectory)
+                    ? ""
+                    : Path.GetFullPath(function.WorkingDirectory, baseDirectory);
+                if (string.IsNullOrEmpty(workingDirectory) || !Directory.Exists(workingDirectory))
+                    errors.Add($"functions.{name}.workingDirectory '{workingDirectory}' does not exist.");
+            }
             if (!FunctionMetadataParser.IsFunction(function.Annotations))
                 errors.Add($"functions.{name}.annotations must contain SlimFaas/Function: \"true\".");
 
@@ -210,16 +249,18 @@ public static partial class LocalManifestLoader
                 FunctionMetadata metadata = FunctionMetadataParser.Parse(function.Annotations, name);
                 int maximum = metadata.Scale?.ReplicaMax ??
                               Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin);
-                if (metadata.Scale?.ReplicaMax is int replicaMax &&
+                if (debugUri is null &&
+                    metadata.Scale?.ReplicaMax is int replicaMax &&
                     replicaMax < Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin))
                 {
                     errors.Add(
                         $"functions.{name}.annotations: SlimFaas/Scale.ReplicaMax must be greater than or " +
                         "equal to ReplicasMin and ReplicasAtStart.");
                 }
-                if (maximum < 0)
+                if (debugUri is null && maximum < 0)
                     errors.Add($"functions.{name}.annotations: ReplicaMax must not be negative.");
-                requiredProcessPorts = checked(requiredProcessPorts + maximum);
+                if (debugUri is null)
+                    requiredProcessPorts = checked(requiredProcessPorts + maximum);
             }
             catch (Exception exception)
             {
@@ -284,6 +325,11 @@ public static partial class LocalManifestLoader
 
             if (reservedPorts.Contains(fixedPort))
                 errors.Add($"{prefix}.port must not overlap gateway, HTTP, or Raft ports.");
+            if (localDebugPorts.TryGetValue(fixedPort, out string? debugFunction))
+            {
+                errors.Add(
+                    $"{prefix}.port conflicts with functions.{debugFunction}.debugUrl ({fixedPort}).");
+            }
             if (fixedProcessPorts.TryGetValue(fixedPort, out string? existingProcess))
             {
                 errors.Add(
@@ -392,6 +438,99 @@ public static partial class LocalManifestLoader
         {
             return false;
         }
+    }
+
+    internal static Uri GetDebugUri(string debugUrl)
+    {
+        if (TryParseDebugUrl(debugUrl, out Uri? uri, out _))
+            return uri!;
+        throw new InvalidOperationException($"Invalid validated debugUrl '{debugUrl}'.");
+    }
+
+    internal static bool IsLocalDebugUrl(Uri uri)
+    {
+        if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return IPAddress.TryParse(uri.Host, out IPAddress? address) &&
+               IPAddress.IsLoopback(address);
+    }
+
+    private static bool TryParseDebugUrl(
+        string value,
+        [NotNullWhen(true)] out Uri? uri,
+        out string? error)
+    {
+        uri = null;
+        error = null;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? parsed) ||
+            !parsed.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(parsed.Host))
+        {
+            error = "must be an absolute HTTP URL.";
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(parsed.UserInfo))
+        {
+            error = "must not contain user information.";
+            return false;
+        }
+
+        if (!HasExplicitPort(value, parsed))
+        {
+            error = "must contain an explicit port.";
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(parsed.Query))
+        {
+            error = "must not contain a query.";
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(parsed.Fragment))
+        {
+            error = "must not contain a fragment.";
+            return false;
+        }
+
+        uri = parsed;
+        return true;
+    }
+
+    private static bool HasExplicitPort(string value, Uri uri)
+    {
+        int authorityStart = value.IndexOf("://", StringComparison.Ordinal);
+        if (authorityStart < 0)
+            return false;
+        authorityStart += 3;
+        int authorityEnd = value.IndexOfAny(['/', '?', '#'], authorityStart);
+        string authority = authorityEnd < 0
+            ? value[authorityStart..]
+            : value[authorityStart..authorityEnd];
+
+        if (authority.StartsWith("[", StringComparison.Ordinal))
+        {
+            int closingBracket = authority.IndexOf(']');
+            return closingBracket >= 0 &&
+                   closingBracket + 1 < authority.Length &&
+                   authority[closingBracket + 1] == ':' &&
+                   int.TryParse(
+                       authority[(closingBracket + 2)..],
+                       NumberStyles.None,
+                       CultureInfo.InvariantCulture,
+                       out int ipv6Port) &&
+                   ipv6Port == uri.Port;
+        }
+
+        int separator = authority.LastIndexOf(':');
+        return separator > 0 &&
+               int.TryParse(
+                   authority[(separator + 1)..],
+                   NumberStyles.None,
+                   CultureInfo.InvariantCulture,
+                   out int port) &&
+               port == uri.Port;
     }
 
     private static void ValidateHttpSettings(

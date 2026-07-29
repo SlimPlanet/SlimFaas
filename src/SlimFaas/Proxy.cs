@@ -30,6 +30,12 @@ namespace SlimFaas
         string? ResolvePodIp(string? target) => target;
 
         /// <summary>
+        /// Résout une URL de base explicite pour le pod sélectionné.
+        /// Elle est absente pour les pods Kubernetes classiques.
+        /// </summary>
+        string? ResolvePodEndpointUrl(string? target) => null;
+
+        /// <summary>
         /// Réserve <paramref name="count"/> IPs en simulant l'ajout progressif des
         /// IPs choisies à <paramref name="alreadyUsedIps"/>. Aucune mutation d'état
         /// global n'est effectuée : le caller est responsable du suivi (via la DB).
@@ -107,6 +113,17 @@ namespace SlimFaas
 
             var deploymentInformation = SearchFunction(_replicasService, _functionName);
             return FindReadyPod(deploymentInformation, target)?.Ip;
+        }
+
+        public string? ResolvePodEndpointUrl(string? target)
+        {
+            if (string.IsNullOrWhiteSpace(target))
+            {
+                return null;
+            }
+
+            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            return FindReadyPod(deploymentInformation, target)?.EndpointUrl;
         }
 
         public IList<string> ReserveNextIPs(int maxPerPod, int count, IReadOnlyCollection<string> alreadyUsedIps)

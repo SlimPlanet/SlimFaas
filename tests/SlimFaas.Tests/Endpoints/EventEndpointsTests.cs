@@ -58,6 +58,9 @@ public class EventEndpointsTests
             Pods: new List<PodInformation>
             {
                 new PodInformation("test-pod-0", true, true, "10.0.0.1", "test-function", new List<int> { 8080 })
+                {
+                    EndpointUrl = "http://127.0.0.1:5051/debug-base"
+                }
             },
             EndpointReady: true
         );
@@ -145,7 +148,7 @@ public class EventEndpointsTests
         sendClientMock.Verify(s => s.SendHttpRequestAsync(
             It.IsAny<CustomRequest>(),
             It.IsAny<SlimFaasDefaultConfiguration>(),
-            It.IsAny<string?>(),
+            "http://127.0.0.1:5051/debug-base",
             It.IsAny<CancellationTokenSource?>(),
             It.IsAny<Proxy?>(),
             It.IsAny<string?>(),

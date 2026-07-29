@@ -1,4 +1,5 @@
 ﻿﻿using System.Net;
+using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -345,6 +346,108 @@ public class SendClientShould
             firstResponse?.Dispose();
             secondResponse?.Dispose();
         }
+    }
+
+    [Fact]
+    public async Task RouteSyncAndQueuedAsyncRequestsThroughExplicitDebugEndpoint()
+    {
+        var captured = new List<(Uri Uri, string Method, string Body, string? DebugHeader)>();
+        using var httpClient = new HttpClient(new HttpMessageHandlerStub(
+            async (request, cancellationToken) =>
+            {
+                string body = request.Content is null
+                    ? ""
+                    : await request.Content.ReadAsStringAsync(cancellationToken);
+                string? debugHeader = request.Headers.TryGetValues("X-Debug", out IEnumerable<string>? values)
+                    ? Assert.Single(values)
+                    : request.Content?.Headers.TryGetValues("X-Debug", out values) == true
+                        ? Assert.Single(values)
+                        : null;
+                captured.Add((request.RequestUri!, request.Method.Method, body, debugHeader));
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("OK")
+                };
+            }));
+        var namespaceProvider = new Mock<INamespaceProvider>();
+        namespaceProvider.SetupGet(provider => provider.CurrentNamespace).Returns("default");
+        var sendClient = new SendClient(
+            httpClient,
+            new Mock<ILogger<SendClient>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                BaseFunctionUrl = "http://{pod_ip}:{pod_port}/",
+                Namespace = "default"
+            }),
+            namespaceProvider.Object,
+            new SlimFaas.Endpoints.NetworkActivityTracker());
+        var replicasService = new FakeReplicasService
+        {
+            Deployments = new FakeDeploymentCollection
+            {
+                Functions =
+                [
+                    new DeploymentInformation(
+                        Deployment: "debug-function",
+                        Namespace: "default",
+                        Pods:
+                        [
+                            new PodInformation(
+                                "debug-function-debug",
+                                true,
+                                true,
+                                "10.0.0.99",
+                                "debug-function",
+                                [8080])
+                            {
+                                RoutingKey = "debug-function-debug",
+                                EndpointUrl = "http://127.0.0.1:5051/debug-base"
+                            }
+                        ],
+                        Configuration: new SlimFaasConfiguration(),
+                        Replicas: 1,
+                        EndpointReady: true)
+                ]
+            }
+        };
+        var proxy = new Proxy(replicasService, "debug-function");
+
+        var queuedRequest = new CustomRequest(
+            [new CustomHeader("X-Debug", ["async"])],
+            Encoding.UTF8.GetBytes("async-body"),
+            "debug-function",
+            "/queued/path",
+            "POST",
+            "?value=1");
+        using HttpResponseMessage asyncResponse = await sendClient.SendHttpRequestAsync(
+            queuedRequest,
+            new SlimFaasDefaultConfiguration(),
+            proxy: proxy,
+            reservedPodIp: "debug-function-debug");
+
+        DefaultHttpContext context = BuildHttpContext();
+        context.Request.Method = "PUT";
+        context.Request.Headers["X-Debug"] = "sync";
+        context.Request.Body = new MemoryStream(Encoding.UTF8.GetBytes("sync-body"));
+        context.Request.ContentLength = context.Request.Body.Length;
+        using HttpResponseMessage syncResponse = await sendClient.SendHttpRequestSync(
+            context,
+            "debug-function",
+            "/sync/path",
+            "?value=2",
+            new SlimFaasDefaultConfiguration(),
+            proxy: proxy);
+
+        Assert.Equal(
+            new Uri("http://127.0.0.1:5051/debug-base/queued/path?value=1"),
+            captured[0].Uri);
+        Assert.Equal(("POST", "async-body", "async"),
+            (captured[0].Method, captured[0].Body, captured[0].DebugHeader));
+        Assert.Equal(
+            new Uri("http://127.0.0.1:5051/debug-base/sync/path?value=2"),
+            captured[1].Uri);
+        Assert.Equal(("PUT", "sync-body", "sync"),
+            (captured[1].Method, captured[1].Body, captured[1].DebugHeader));
     }
 
     private static DefaultHttpContext BuildHttpContext()

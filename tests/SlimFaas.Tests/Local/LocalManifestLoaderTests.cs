@@ -406,6 +406,91 @@ public sealed class LocalManifestLoaderTests
     }
 
     [Fact]
+    public void Load_AcceptsDebugUrlWithExplicitPortAndBasePathWithoutCommand()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml()
+                .Replace(
+                    "    command: [\"dotnet\", \"--info\"]\n    workingDirectory: .\n",
+                    "    debugUrl: \"http://127.0.0.1:5051/debug/base\"\n",
+                    StringComparison.Ordinal));
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        LocalFunctionManifest function = loaded.Manifest.Functions["function-one"];
+        Assert.Equal("http://127.0.0.1:5051/debug/base", function.DebugUrl);
+        Assert.Empty(function.Command);
+    }
+
+    [Theory]
+    [InlineData("https://127.0.0.1:5051", "absolute HTTP URL")]
+    [InlineData("http://127.0.0.1", "explicit port")]
+    [InlineData("127.0.0.1:5051", "absolute HTTP URL")]
+    [InlineData("http://127.0.0.1:5051/debug?value=1", "must not contain a query")]
+    [InlineData("http://127.0.0.1:5051/debug#section", "must not contain a fragment")]
+    public void Load_RejectsInvalidDebugUrls(string debugUrl, string expectedMessage)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "    command: [\"dotnet\", \"--info\"]",
+                $"    debugUrl: \"{debugUrl}\"",
+                StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(expectedMessage, error.Message);
+    }
+
+    [Theory]
+    [InlineData(41000)]
+    [InlineData(41001)]
+    [InlineData(41002)]
+    public void Load_RejectsDebugUrlThatUsesAClusterPort(int port)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "    command: [\"dotnet\", \"--info\"]",
+                $"    debugUrl: \"http://127.0.0.1:{port}\"",
+                StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains("must not overlap gateway, HTTP, or Raft ports", error.Message);
+    }
+
+    [Fact]
+    public void Load_RejectsFixedProcessPortThatConflictsWithLocalDebugUrl()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "    command: [\"dotnet\", \"--info\"]",
+                "    debugUrl: \"http://localhost:5051\"",
+                StringComparison.Ordinal) +
+            """
+
+            processes:
+              frontend:
+                command: ["dotnet", "--info"]
+                port: 5051
+            """);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains("conflicts with functions.function-one.debugUrl", error.Message);
+    }
+
+    [Fact]
     public void Load_ParsesAndMergesAuxiliaryProcessesWithCaseInsensitiveStructuralKeys()
     {
         using var directory = new TemporaryDirectory();

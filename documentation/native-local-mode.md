@@ -11,8 +11,8 @@ loopback-only, token-authenticated supervisor.
 
 ## Start a project
 
-Copy [the complete example](../slimfaas.local.example.yaml) to
-`slimfaas.local.yaml`, then run:
+The repository contains a complete [`slimfaas.local.yaml`](../slimfaas.local.yaml)
+demo. Run:
 
 ```bash
 slimfaas local validate
@@ -87,7 +87,7 @@ function, Job, or auxiliary-process `environment` entries for secrets: a
 secret interpolated into `command` can be visible through operating-system
 process inspection.
 
-See [the development overlay](../slimfaas.local.dev.example.yaml) and
+See [the development overlay](../slimfaas.local.dev.yaml) and
 [the env-file example](../.env.local.example).
 
 Use `--clean` to discard persistent local state:
@@ -113,6 +113,68 @@ Structural YAML keys are case-insensitive, so both `environment` and
 
 `SlimFaas/Scale.ReplicaMax` limits scale-out. Without that annotation, the
 maximum is `max(ReplicasMin, ReplicasAtStart)`.
+
+## Route a function to an IDE debugger
+
+Set `functions.<name>.debugUrl` in a local, unversioned overlay to route the
+function to a process started by an IDE:
+
+```yaml
+# slimfaas.local.debug.yaml
+functions:
+  fibonacci1:
+    debugUrl: "http://127.0.0.1:5051"
+```
+
+Start the debug target with a fixed binding. For ASP.NET Core, set this in the
+IDE launch profile or environment:
+
+```text
+ASPNETCORE_URLS=http://127.0.0.1:5051
+```
+
+Then apply the overlay after the normal manifest:
+
+```bash
+dotnet run --project src/SlimFaas -- local up \
+  -f slimfaas.local.yaml \
+  -f slimfaas.local.debug.yaml
+```
+
+Without the second `-f`, the function returns to its normal `command`. The
+overlay is read only at startup; switching a target while the cluster is
+running is not supported.
+
+`debugUrl` must be an absolute `http` URL with an explicit port. A base path is
+allowed, for example `http://127.0.0.1:5051/my-function`; query strings and
+fragments are rejected. The port must not conflict with the gateway, node
+HTTP, or Raft ports. A loopback or `localhost` debug port is also reserved from
+`processPorts` and auxiliary processes.
+
+While debug routing is enabled, SlimFaas does not start, restart, shut down, or
+scale the function command. It advertises one virtual
+`<function-name>-debug` replica and probes `debugUrl + health.path`. The
+function is `Starting` until the IDE process answers successfully, becomes
+`Running`, and returns to `Starting` if the process stops. Probes continue
+without a fallback to the normal command. Synchronous calls keep their normal
+HTTP timeout behavior, while asynchronous calls remain queued until the
+endpoint is ready.
+
+The URL can also be supplied from the existing `.env.local` mechanism:
+
+```yaml
+functions:
+  fibonacci1:
+    debugUrl: "${FIBONACCI1_DEBUG_URL}"
+```
+
+```dotenv
+FIBONACCI1_DEBUG_URL=http://127.0.0.1:5051
+```
+
+Pass `--env-file .env.local` together with both manifests. The repository
+ignores `slimfaas.local.debug.yaml` and `.env.local` so developer-specific
+ports are not committed accidentally.
 
 ## Dynamic ports
 

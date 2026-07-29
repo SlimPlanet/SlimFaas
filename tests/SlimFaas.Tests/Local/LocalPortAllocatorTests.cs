@@ -94,6 +94,36 @@ public sealed class LocalPortAllocatorTests
     }
 
     [Fact]
+    public void Reserve_SkipsLocalDebugPortEvenBeforeDebuggerStarts()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "SlimFaas.Tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        int rangeStart = FindAvailableRangeStart();
+        try
+        {
+            LoadedLocalManifest loaded = CreateLoadedManifest(root, rangeStart);
+            loaded.Manifest.Functions["debug-function"] = new LocalFunctionManifest
+            {
+                DebugUrl = $"http://127.0.0.1:{rangeStart}",
+                Annotations = new Dictionary<string, string>
+                {
+                    [SlimFaas.Kubernetes.FunctionAnnotationNames.Function] = "true"
+                }
+            };
+            using LocalStateStore state = LocalStateStore.Open(loaded, clean: false);
+            var allocator = new LocalPortAllocator(loaded, state);
+
+            Assert.Equal(rangeStart + 1, allocator.Reserve("function:managed:0"));
+            Assert.Null(allocator.ReserveFixed("process:frontend", rangeStart));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public void ReserveFixed_RejectsConflictsAndAllowsPortsOutsideTheDynamicRange()
     {
         string root = Path.Combine(Path.GetTempPath(), "SlimFaas.Tests", Guid.NewGuid().ToString("N"));

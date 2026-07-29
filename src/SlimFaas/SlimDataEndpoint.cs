@@ -8,7 +8,9 @@ public static class SlimDataEndpoint
     {
         // Note: This method now requires baseUrl and namespace to be passed explicitly
         // They should come from SlimFaasOptions injected in the calling code
-        string baseSlimDataUrl = baseUrl ?? "http://{pod_name}.{service_name}.{namespace}.svc:3262";
+        string baseSlimDataUrl = podInformation.EndpointUrl ??
+                                 baseUrl ??
+                                 "http://{pod_name}.{service_name}.{namespace}.svc:3262";
         string namespaceSlimFaas = namespaceOverride ?? "default";
         if (!string.IsNullOrEmpty(baseSlimDataUrl))
         {

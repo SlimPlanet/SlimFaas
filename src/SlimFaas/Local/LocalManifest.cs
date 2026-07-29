@@ -41,6 +41,7 @@ public sealed class LocalFunctionManifest
 {
     public List<string> Command { get; set; } = [];
     public string WorkingDirectory { get; set; } = ".";
+    public string? DebugUrl { get; set; }
     public Dictionary<string, string> Annotations { get; set; } =
         new(StringComparer.Ordinal);
     public Dictionary<string, string> Environment { get; set; } =

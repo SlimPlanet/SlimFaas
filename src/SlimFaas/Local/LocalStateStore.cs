@@ -213,6 +213,15 @@ public sealed class LocalPortAllocator
             _reserved.Add(loaded.Manifest.Cluster.HttpPortBase + index);
             _reserved.Add(loaded.Manifest.Cluster.RaftPortBase + index);
         }
+
+        foreach (LocalFunctionManifest function in loaded.Manifest.Functions.Values)
+        {
+            if (function.DebugUrl is null)
+                continue;
+            Uri debugUri = LocalManifestLoader.GetDebugUri(function.DebugUrl);
+            if (LocalManifestLoader.IsLocalDebugUrl(debugUri))
+                _reserved.Add(debugUri.Port);
+        }
     }
 
     public int? Reserve(string replicaId)
