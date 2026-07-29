@@ -1,8 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
-using System.Diagnostics.CodeAnalysis;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using YamlDotNet.Core;
@@ -86,6 +87,7 @@ public static partial class LocalManifestLoader
     {
         manifest.Name ??= "";
         manifest.Cluster ??= new LocalClusterManifest();
+        manifest.Cluster.NodeLogLevel ??= "";
         manifest.ProcessPorts ??= new LocalPortRangeManifest();
         manifest.State ??= new LocalStateManifest();
         manifest.State.Mode ??= "";
@@ -126,10 +128,10 @@ public static partial class LocalManifestLoader
             manifest.Jobs[name] = job;
             job.Command ??= [];
             job.WorkingDirectory ??= "";
-            job.Visibility ??= "";
             job.RestartPolicy ??= "";
-            job.DependsOn ??= [];
-            job.Schedules ??= [];
+            job.Annotations = new Dictionary<string, string>(
+                job.Annotations ?? new Dictionary<string, string>(),
+                StringComparer.Ordinal);
             job.Environment = new Dictionary<string, string>(
                 job.Environment ?? new Dictionary<string, string>(),
                 StringComparer.Ordinal);
@@ -141,13 +143,6 @@ public static partial class LocalManifestLoader
                 job.Resources.Limits = new Dictionary<string, string>(
                     job.Resources.Limits ?? new Dictionary<string, string>(),
                     StringComparer.OrdinalIgnoreCase);
-            }
-
-            foreach (LocalJobScheduleManifest schedule in job.Schedules)
-            {
-                schedule.Cron ??= "";
-                schedule.Args ??= [];
-                schedule.DependsOn ??= [];
             }
         }
 
@@ -173,6 +168,13 @@ public static partial class LocalManifestLoader
             errors.Add("name must contain only letters, digits, '.', '_' or '-'.");
         if (manifest.Cluster.Nodes is < 1 or > 3)
             errors.Add("cluster.nodes must be between 1 and 3.");
+        if (!Enum.GetNames<LogLevel>().Contains(
+                manifest.Cluster.NodeLogLevel,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            errors.Add(
+                "cluster.nodeLogLevel must be Trace, Debug, Information, Warning, Error, Critical, or None.");
+        }
 
         ValidatePort("cluster.entrypointPort", manifest.Cluster.EntrypointPort, errors);
         ValidatePortRange(
@@ -367,40 +369,75 @@ public static partial class LocalManifestLoader
                 : Path.GetFullPath(job.WorkingDirectory, baseDirectory);
             if (string.IsNullOrEmpty(workingDirectory) || !Directory.Exists(workingDirectory))
                 errors.Add($"jobs.{name}.workingDirectory '{workingDirectory}' does not exist.");
-            if (job.Parallelism < 1)
-                errors.Add($"jobs.{name}.parallelism must be positive.");
             if (job.TtlSecondsAfterFinished < 0)
                 errors.Add($"jobs.{name}.ttlSecondsAfterFinished must be non-negative.");
             if (job.BackoffLimit < 0)
                 errors.Add($"jobs.{name}.backoffLimit must be non-negative.");
-            if (!Enum.TryParse<FunctionVisibility>(job.Visibility, true, out _))
-                errors.Add($"jobs.{name}.visibility must be Public or Private.");
-            foreach (LocalJobScheduleManifest schedule in job.Schedules)
-            {
-                if (string.IsNullOrWhiteSpace(schedule.Cron))
-                {
-                    errors.Add($"jobs.{name}.schedules.cron must not be empty.");
-                    continue;
-                }
 
-                try
+            if (!JobMetadataParser.IsJob(job.Annotations))
+            {
+                errors.Add($"jobs.{name}.annotations must contain SlimFaas/Job: \"true\".");
+            }
+
+            try
+            {
+                JobMetadata metadata = JobMetadataParser.Parse(job.Annotations);
+                foreach (ScheduleCreateJob schedule in metadata.Schedules)
                 {
-                    ResultWithError<long> result = Cron.GetNextJobExecutionTimestamp(
-                        schedule.Cron,
-                        DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                    if (!result.IsSuccess)
+                    if (schedule is null)
+                    {
+                        errors.Add($"jobs.{name}.annotations: SlimFaas/Schedules must not contain null entries.");
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(schedule.Schedule))
                     {
                         errors.Add(
-                            $"jobs.{name}.schedules.cron '{schedule.Cron}' is invalid: " +
-                            $"{result.Error?.Description}");
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.Schedule must not be empty.");
+                        continue;
+                    }
+
+                    if (schedule.Args is null)
+                    {
+                        errors.Add(
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.Args must be an array.");
+                    }
+                    if (schedule.BackoffLimit < 0)
+                    {
+                        errors.Add(
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.BackoffLimit must be non-negative.");
+                    }
+                    if (schedule.TtlSecondsAfterFinished < 0)
+                    {
+                        errors.Add(
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.TtlSecondsAfterFinished " +
+                            "must be non-negative.");
+                    }
+
+                    try
+                    {
+                        ResultWithError<long> result = Cron.GetNextJobExecutionTimestamp(
+                            schedule.Schedule,
+                            DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                        if (!result.IsSuccess)
+                        {
+                            errors.Add(
+                                $"jobs.{name}.annotations: SlimFaas/Schedules.Schedule " +
+                                $"'{schedule.Schedule}' is invalid: {result.Error?.Description}");
+                        }
+                    }
+                    catch (Exception exception) when (
+                        exception is FormatException or OverflowException or DivideByZeroException)
+                    {
+                        errors.Add(
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.Schedule " +
+                            $"'{schedule.Schedule}' is invalid: {exception.Message}");
                     }
                 }
-                catch (Exception exception) when (
-                    exception is FormatException or OverflowException or DivideByZeroException)
-                {
-                    errors.Add(
-                        $"jobs.{name}.schedules.cron '{schedule.Cron}' is invalid: {exception.Message}");
-                }
+            }
+            catch (Exception exception)
+            {
+                errors.Add($"jobs.{name}.annotations: {exception.Message}");
             }
         }
 

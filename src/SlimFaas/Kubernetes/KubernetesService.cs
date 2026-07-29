@@ -34,15 +34,15 @@ public partial class KubernetesService : IKubernetesService
     private const string Configuration = "SlimFaas/Configuration";
     private const string Function = "SlimFaas/Function";
     private const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
-    private const string DependsOn = "SlimFaas/DependsOn";
+    private const string DependsOn = JobAnnotationNames.DependsOn;
     private const string SubscribeEvents = "SlimFaas/SubscribeEvents";
-    private const string DefaultVisibility = "SlimFaas/DefaultVisibility";
+    private const string DefaultVisibility = JobAnnotationNames.DefaultVisibility;
     private const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
     private const string Scale = "SlimFaas/Scale";
-    private const string Job = "SlimFaas/Job";
-    private const string JobImagesWhitelist = "SlimFaas/JobImagesWhitelist";
-    private const string NumberParallelJob = "SlimFaas/NumberParallelJob";
-    private const string JobSchedules = "SlimFaas/Schedules";
+    private const string Job = JobAnnotationNames.Job;
+    private const string JobImagesWhitelist = JobAnnotationNames.JobImagesWhitelist;
+    private const string NumberParallelJob = JobAnnotationNames.NumberParallelJob;
+    private const string JobSchedules = JobAnnotationNames.Schedules;
 
     private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
         "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";

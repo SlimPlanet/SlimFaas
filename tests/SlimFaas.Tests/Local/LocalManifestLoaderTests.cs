@@ -331,6 +331,96 @@ public sealed class LocalManifestLoaderTests
     }
 
     [Fact]
+    public void Load_AcceptsKubernetesJobAnnotations()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            """
+
+            jobs:
+              batch-job:
+                command: ["dotnet", "--info"]
+                workingDirectory: .
+                annotations:
+                  SlimFaas/Job: "true"
+                  SlimFaas/DefaultVisibility: "Public"
+                  SlimFaas/NumberParallelJob: "2"
+                  SlimFaas/DependsOn: "function-one, function-two"
+                  SlimFaas/Schedules: '[{"Schedule":"*/5 * * * *","Args":["39"],"DependsOn":["function-two"]}]'
+            """);
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+        LocalJobManifest job = Assert.Single(loaded.Manifest.Jobs).Value;
+        JobMetadata metadata = JobMetadataParser.Parse(job.Annotations);
+
+        Assert.Equal(FunctionVisibility.Public, metadata.Visibility);
+        Assert.Equal(2, metadata.NumberParallelJob);
+        Assert.Equal(["function-one", "function-two"], metadata.DependsOn);
+        ScheduleCreateJob schedule = Assert.Single(metadata.Schedules);
+        Assert.Equal("*/5 * * * *", schedule.Schedule);
+        Assert.Equal(["39"], schedule.Args);
+        Assert.Equal(["function-two"], schedule.DependsOn);
+    }
+
+    [Theory]
+    [InlineData("parallelism: 2", "parallelism")]
+    [InlineData("visibility: Public", "visibility")]
+    [InlineData("dependsOn: [function-one]", "dependsOn")]
+    [InlineData("schedules: []", "schedules")]
+    public void Load_RejectsRemovedLocalJobMetadataFields(string field, string fieldName)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            $$"""
+
+            jobs:
+              batch-job:
+                command: ["dotnet", "--info"]
+                workingDirectory: .
+                annotations:
+                  SlimFaas/Job: "true"
+                {{field}}
+            """);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(fieldName, error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("SlimFaas/Job: \"false\"", "SlimFaas/Job")]
+    [InlineData("SlimFaas/DefaultVisibility: Internal", "SlimFaas/DefaultVisibility")]
+    [InlineData("SlimFaas/NumberParallelJob: \"0\"", "SlimFaas/NumberParallelJob")]
+    [InlineData("SlimFaas/Schedules: not-json", "SlimFaas/Schedules")]
+    [InlineData("SlimFaas/Schedules: '[{\"Schedule\":\"invalid\",\"Args\":[]}]'", "SlimFaas/Schedules")]
+    public void Load_RejectsInvalidKubernetesJobAnnotations(string annotation, string expected)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            $$"""
+
+            jobs:
+              batch-job:
+                command: ["dotnet", "--info"]
+                workingDirectory: .
+                annotations:
+                  {{annotation}}
+            """);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(expected, error.Message);
+    }
+
+    [Fact]
     public void Load_UsesCanonicalClusterPortDefaults()
     {
         using var directory = new TemporaryDirectory();
@@ -344,6 +434,52 @@ public sealed class LocalManifestLoaderTests
 
         Assert.Equal(30020, loaded.Manifest.Cluster.EntrypointPort);
         Assert.Equal(30021, loaded.Manifest.Cluster.NodeHttpPortBase);
+        Assert.Equal("Error", loaded.Manifest.Cluster.NodeLogLevel);
+    }
+
+    [Theory]
+    [InlineData("Trace")]
+    [InlineData("Debug")]
+    [InlineData("Information")]
+    [InlineData("Warning")]
+    [InlineData("Error")]
+    [InlineData("Critical")]
+    [InlineData("None")]
+    [InlineData("warning")]
+    public void Load_AcceptsNodeLogLevels(string level)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "  raftPortBase: 41002",
+                $"  raftPortBase: 41002\n  nodeLogLevel: {level}",
+                StringComparison.Ordinal));
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        Assert.Equal(level, loaded.Manifest.Cluster.NodeLogLevel);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Verbose")]
+    [InlineData("3")]
+    public void Load_RejectsInvalidNodeLogLevel(string level)
+    {
+        using var directory = new TemporaryDirectory();
+        string renderedLevel = string.IsNullOrEmpty(level) ? "\"\"" : level;
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "  raftPortBase: 41002",
+                $"  raftPortBase: 41002\n  nodeLogLevel: {renderedLevel}",
+                StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains("cluster.nodeLogLevel", error.Message);
     }
 
     [Theory]

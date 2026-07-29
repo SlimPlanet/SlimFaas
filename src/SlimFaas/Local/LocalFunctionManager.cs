@@ -39,7 +39,7 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                 return new FunctionRuntime(item.Key, item.Value, metadata, maximum, debugUri)
                 {
                     Desired = debugUri is null
-                        ? Math.Min(metadata.ReplicasAtStart, maximum)
+                        ? Math.Min(metadata.ReplicasMin, maximum)
                         : 1
                 };
             },

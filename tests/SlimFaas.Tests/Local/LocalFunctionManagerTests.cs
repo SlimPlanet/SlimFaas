@@ -12,6 +12,74 @@ namespace SlimFaas.Tests.Local;
 public sealed class LocalFunctionManagerTests
 {
     [Fact]
+    public async Task ManagedFunction_StartsAtReplicasMinAndKeepsReplicasAtStartAsWakeTarget()
+    {
+        string root = Path.Combine(Path.GetTempPath(), "SlimFaas.Tests", Guid.NewGuid().ToString("N"));
+        string statePath = Path.Combine(root, "state");
+        Directory.CreateDirectory(root);
+        int port = FindAvailablePort();
+        var manifest = new LocalManifest
+        {
+            Name = "function-test",
+            Cluster = new LocalClusterManifest
+            {
+                Nodes = 1,
+                EntrypointPort = port + 10,
+                NodeHttpPortBase = port + 11,
+                RaftPortBase = port + 12
+            },
+            ProcessPorts = new LocalPortRangeManifest { From = port, To = port },
+            Functions = new Dictionary<string, LocalFunctionManifest>
+            {
+                ["sleeping-function"] = new LocalFunctionManifest
+                {
+                    Command = ["unused"],
+                    WorkingDirectory = root,
+                    Annotations = new Dictionary<string, string>
+                    {
+                        [FunctionAnnotationNames.Function] = "true",
+                        [FunctionAnnotationNames.ReplicasAtStart] = "1",
+                        [FunctionAnnotationNames.ReplicasMin] = "0",
+                        [FunctionAnnotationNames.Scale] = """{"ReplicaMax":1}"""
+                    }
+                }
+            }
+        };
+        var loaded = new LoadedLocalManifest(
+            manifest,
+            Path.Combine(root, "manifest.yaml"),
+            root,
+            statePath,
+            IsPersistent: true);
+
+        try
+        {
+            using LocalStateStore state = LocalStateStore.Open(loaded, clean: false);
+            var allocator = new LocalPortAllocator(loaded, state);
+            await using var manager = new LocalFunctionManager(loaded, allocator, state);
+
+            DeploymentInformation sleeping = Assert.Single(manager.Snapshot("function-test"));
+            Assert.Equal(0, sleeping.Replicas);
+            Assert.Equal(0, sleeping.ReplicasMin);
+            Assert.Equal(1, sleeping.ReplicasAtStart);
+            Assert.Empty(sleeping.Pods);
+
+            ReplicaRequest? wakeRequest = await manager.ScaleAsync(
+                new ReplicaRequest("sleeping-function", "function-test", 1, PodType.Deployment),
+                CancellationToken.None);
+
+            Assert.NotNull(wakeRequest);
+            Assert.Equal(1, wakeRequest.Replicas);
+            Assert.Equal(1, Assert.Single(manager.Snapshot("function-test")).Replicas);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Reconcile_PublishesPortExhaustionThenAllocatesAndReleasesPort()
     {
         string root = Path.Combine(Path.GetTempPath(), "SlimFaas.Tests", Guid.NewGuid().ToString("N"));
@@ -43,6 +111,7 @@ public sealed class LocalFunctionManagerTests
                     {
                         [FunctionAnnotationNames.Function] = "true",
                         [FunctionAnnotationNames.ReplicasAtStart] = "1",
+                        [FunctionAnnotationNames.ReplicasMin] = "1",
                         [FunctionAnnotationNames.Scale] = """{"ReplicaMax":1}"""
                     }
                 }

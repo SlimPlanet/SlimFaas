@@ -23,6 +23,7 @@ public sealed class LocalClusterManifest
     public int EntrypointPort { get; set; } = 30020;
     public int NodeHttpPortBase { get; set; } = 30021;
     public int RaftPortBase { get; set; } = 3262;
+    public string NodeLogLevel { get; set; } = "Error";
 }
 
 public sealed class LocalPortRangeManifest
@@ -68,15 +69,13 @@ public sealed class LocalJobManifest
 {
     public List<string> Command { get; set; } = [];
     public string WorkingDirectory { get; set; } = ".";
+    public Dictionary<string, string> Annotations { get; set; } =
+        new(StringComparer.Ordinal);
     public Dictionary<string, string> Environment { get; set; } =
         new(StringComparer.Ordinal);
-    public int Parallelism { get; set; } = 1;
-    public string Visibility { get; set; } = "Private";
     public int TtlSecondsAfterFinished { get; set; } = 60;
     public int BackoffLimit { get; set; } = 1;
     public string RestartPolicy { get; set; } = "Never";
-    public List<string> DependsOn { get; set; } = [];
-    public List<LocalJobScheduleManifest> Schedules { get; set; } = [];
     public LocalJobResourcesManifest? Resources { get; set; }
 }
 
@@ -84,13 +83,6 @@ public sealed class LocalJobResourcesManifest
 {
     public Dictionary<string, string> Requests { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> Limits { get; set; } = new(StringComparer.OrdinalIgnoreCase);
-}
-
-public sealed class LocalJobScheduleManifest
-{
-    public string Cron { get; set; } = "";
-    public List<string> Args { get; set; } = [];
-    public List<string> DependsOn { get; set; } = [];
 }
 
 public sealed class LocalProcessManifest
@@ -113,7 +105,6 @@ public sealed class LocalProcessManifest
 [YamlSerializable(typeof(LocalShutdownManifest))]
 [YamlSerializable(typeof(LocalJobManifest))]
 [YamlSerializable(typeof(LocalJobResourcesManifest))]
-[YamlSerializable(typeof(LocalJobScheduleManifest))]
 [YamlSerializable(typeof(LocalProcessManifest))]
 public partial class LocalManifestYamlContext : StaticContext;
 

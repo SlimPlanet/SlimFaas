@@ -36,8 +36,24 @@ public sealed class LocalNodeManagerTests
                 "test-token");
 
             IList<PodInformation> pods = manager.Snapshot();
+            IReadOnlyDictionary<string, string> environment = manager.BuildNodeEnvironment(0);
 
             Assert.Equal(3, pods.Count);
+            Assert.Equal("slimfaas-0", environment["HOSTNAME"]);
+            Assert.Equal("false", environment["OpenTelemetry__Enable"]);
+            Assert.Equal("false", environment["OpenTelemetry__EnableConsoleExporter"]);
+            Assert.All(
+                new[]
+                {
+                    "Logging__LogLevel__Default",
+                    "Logging__LogLevel__Microsoft.AspNetCore",
+                    "Logging__LogLevel__SlimFaas",
+                    "Logging__LogLevel__SlimData",
+                    "Logging__LogLevel__DotNext",
+                    "Logging__LogLevel__DotNext.Net.Cluster",
+                    "Logging__LogLevel__DotNext.Net.Cluster.Consensus.Raft"
+                },
+                key => Assert.Equal("Error", environment[key]));
             Assert.Equal(
                 [
                     "http://127.0.0.1:31021/metrics",

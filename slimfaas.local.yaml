@@ -6,6 +6,7 @@ cluster:
   entrypointPort: 30020
   nodeHttpPortBase: 30021
   raftPortBase: 3262
+  nodeLogLevel: Error
 
 processPorts:
   from: 5000
@@ -170,33 +171,30 @@ jobs:
   fibonacci:
     command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
     workingDirectory: src/FibonacciBatch
+    annotations:
+      SlimFaas/Job: "true"
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/NumberParallelJob: "2"
+      SlimFaas/DependsOn: "fibonacci1"
+      SlimFaas/Schedules: '[{"Schedule":"0 0 * * *","Args":["42","43"]}]'
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       SLIMFAAS_WS_URL: "ws://127.0.0.1:30020/ws"
       SLIMFAAS_FUNCTION_NAME: "fibonacci-batch-ws"
       SLIMFAAS_SUBSCRIBE_EVENTS: "Public:fibo-public"
-    parallelism: 2
-    visibility: Public
     ttlSecondsAfterFinished: 2
     backoffLimit: 1
     restartPolicy: Never
-    dependsOn:
-      - fibonacci1
-    schedules:
-      - cron: "0 0 * * *"
-        args: ["42", "43"]
 
   fibonacci5:
     command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
     workingDirectory: src/FibonacciBatch
-    parallelism: 1
-    visibility: Public
+    annotations:
+      SlimFaas/Job: "true"
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/NumberParallelJob: "1"
+      SlimFaas/DependsOn: "fibonacci1,fibonacci2"
+      SlimFaas/Schedules: '[{"Schedule":"*/2 * * * *","Args":["39"]}]'
     ttlSecondsAfterFinished: 60
     backoffLimit: 1
     restartPolicy: Never
-    dependsOn:
-      - fibonacci1
-      - fibonacci2
-    schedules:
-      - cron: "*/2 * * * *"
-        args: ["39"]

@@ -49,6 +49,7 @@ IConfigurationRoot configurationRoot = new ConfigurationBuilder()
 // Create early logger for startup
 using var loggerFactory = LoggerFactory.Create(builder =>
 {
+    builder.AddConfiguration(configurationRoot.GetSection("Logging"));
     builder.AddConsole();
     builder.AddDebug();
 });
@@ -106,6 +107,7 @@ serviceCollectionStarter.AddSingleton<IJobConfiguration, JobConfiguration>();
 
 serviceCollectionStarter.AddLogging(loggingBuilder =>
 {
+    loggingBuilder.AddConfiguration(configurationRoot.GetSection("Logging"));
     loggingBuilder.AddConsole();
     loggingBuilder.AddDebug();
 });

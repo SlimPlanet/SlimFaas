@@ -60,6 +60,34 @@ SlimFaas execute this cleanup and can leave child processes running. Processes
 targeted through `debugUrl` are launched by the IDE, are not managed by
 SlimFaas, and are never stopped by it.
 
+### Keep the console focused on function logs
+
+SlimFaas node logs default to `Error` in native local mode so function, Job,
+and auxiliary-process output remains prominent. Configure the node verbosity
+independently when troubleshooting the local cluster:
+
+```yaml
+cluster:
+  nodeLogLevel: Warning
+```
+
+Accepted values are `Trace`, `Debug`, `Information`, `Warning`, `Error`,
+`Critical`, and `None`. The setting applies from the first node bootstrap log
+and covers SlimFaas, SlimData, Raft, and ASP.NET Core. Function log levels
+remain controlled by each function's `environment`, for example:
+
+```yaml
+functions:
+  fibonacci1:
+    environment:
+      Logging__LogLevel__Default: Debug
+```
+
+Every emitted line keeps its `[function/<name>/<replica>]`,
+`[job/<name>]`, `[process/<name>]`, or `[node/slimfaas-<index>]` prefix.
+Console OpenTelemetry exporters are disabled for the managed SlimFaas nodes;
+functions retain their own telemetry configuration.
+
 ## Overlays and local secrets
 
 YAML mappings are merged recursively, while scalars and sequences such as
@@ -126,6 +154,10 @@ Structural YAML keys are case-insensitive, so both `environment` and
 
 `SlimFaas/Scale.ReplicaMax` limits scale-out. Without that annotation, the
 maximum is `max(ReplicasMin, ReplicasAtStart)`.
+
+At local cluster startup, managed functions begin at `ReplicasMin`.
+`ReplicasAtStart` remains the target used when an HTTP request, an event, or
+`/wake-function/{name}` wakes a function from zero.
 
 ## Route a function to an IDE debugger
 
@@ -277,6 +309,35 @@ processes:
 ```
 
 ## Jobs and entrypoint
+
+Local Jobs use the same `SlimFaas/*` annotations as suspended Kubernetes
+CronJobs. For example:
+
+```yaml
+jobs:
+  fibonacci5:
+    command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
+    workingDirectory: src/FibonacciBatch
+    annotations:
+      SlimFaas/Job: "true"
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/NumberParallelJob: "1"
+      SlimFaas/DependsOn: "fibonacci1,fibonacci2"
+      SlimFaas/Schedules: '[{"Schedule":"*/2 * * * *","Args":["39"]}]'
+    ttlSecondsAfterFinished: 60
+    backoffLimit: 1
+    restartPolicy: Never
+```
+
+`SlimFaas/Job: "true"` is required. `DefaultVisibility` defaults to `Private`,
+`NumberParallelJob` defaults to `1`, `DependsOn` is comma-separated, and
+`Schedules` uses the same JSON array format as the Kubernetes annotation.
+The former local fields `parallelism`, `visibility`, `dependsOn`, and
+`schedules` have been removed and are rejected rather than treated as aliases.
+
+`SlimFaas/Function`, replica scaling, and event subscription annotations apply
+to entries under `functions:`; Kubernetes Jobs are configured with
+`SlimFaas/Job` and do not subscribe to function events.
 
 Job commands run without a shell. Arguments from `/job/{name}` are appended to
 the configured command; a request cannot replace that executable through

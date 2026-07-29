@@ -307,6 +307,26 @@ spec:
 
 > **Note:** The CronJob's `suspend` field must be set to `true` for SlimFaas to consider it a valid job definition. This ensures SlimFaas manages the scheduling and triggering of the job, preventing Kubernetes from automatically creating Job resources outside of SlimFaas's control.
 
+The native local manifest uses the same annotations under `jobs.<name>`:
+
+```yaml
+jobs:
+  fibonacci5:
+    command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
+    workingDirectory: src/FibonacciBatch
+    annotations:
+      SlimFaas/Job: "true"
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/NumberParallelJob: "1"
+      SlimFaas/DependsOn: "fibonacci1,fibonacci2"
+      SlimFaas/Schedules: '[{"Schedule":"*/2 * * * *","Args":["39"]}]'
+```
+
+In native local mode, `command` replaces the container image and the
+Kubernetes Job-spec settings remain structural YAML fields. The old local
+metadata fields `parallelism`, `visibility`, `dependsOn`, and `schedules` are
+not aliases and are rejected.
+
 ### 2.3.1 Declaring Schedules via `SlimFaas/Schedules` Annotation
 
 You can embed one or more cron schedules directly on the CronJob using the `SlimFaas/Schedules` annotation. Its value is a **JSON array** of schedule entries:
