@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.77.1
+
+- [661414a9](https://github.com/SlimPlanet/SlimFaas/commit/661414a9073c2a15e6d83a2f5b26ab676c958a13) - feature(slimfaas):  enhance local mode (#305) (release), 2026-07-29 by *Guillaume Chervet*
+
+
+## 0.76.1
+
+
+
+## 0.77.0
+
+
+
 ## v0.77.0
 
 - [d8de1bee](https://github.com/SlimPlanet/SlimFaas/commit/d8de1beec424685dbb712ca4cdbde7210db30c7d) - feat(slimfaas): local process (release) (#304), 2026-07-28 by *Guillaume Chervet*
@@ -259,18 +272,5 @@
 ## v0.66.5
 
 - [462c3af9](https://github.com/SlimPlanet/SlimFaas/commit/462c3af9b8c11d537329b27f4b183b2baecd722b) - fix(ci): publish client libs (release), 2026-03-12 by *Guillaume Chervet*
-
-
-## 0.66.4
-
-
-
-## v0.66.4
-
-- [6241ba92](https://github.com/SlimPlanet/SlimFaas/commit/6241ba92789d175c887e411600be02cea08f7738) - fix(ci): dotnet client lib (release), 2026-03-12 by *Guillaume Chervet*
-
-
-## 0.66.3
-
 
 
