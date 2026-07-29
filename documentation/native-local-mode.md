@@ -40,13 +40,25 @@ not discover an override or `.env` file automatically.
 When using the framework-dependent build from this repository:
 
 ```bash
-dotnet run --project src/SlimFaas -- local validate
-dotnet run --project src/SlimFaas -- local up
+dotnet run --project src/SlimFaas -- local validate \
+  -f ../../slimfaas.local.yaml
+dotnet run --project src/SlimFaas -- local up \
+  -f ../../slimfaas.local.yaml
 ```
 
+The repository launch profile uses `src/SlimFaas` as its working directory,
+which is why repository-root files use the `../../` prefix in these commands.
+
 `local up` stays in the foreground, prefixes and aggregates child output, and
-writes the same output below `state.directory/logs`. `Ctrl+C` calls configured
-function shutdown hooks, then terminates every child process tree.
+writes the same output below `state.directory/logs`. `Ctrl+C` and, on Unix,
+`SIGTERM` call configured function shutdown hooks, then stop functions, Jobs,
+auxiliary processes, SlimFaas nodes, and their complete descendant process
+trees.
+
+Forced termination such as `kill -9`, `SIGKILL`, or `taskkill /F` does not let
+SlimFaas execute this cleanup and can leave child processes running. Processes
+targeted through `debugUrl` are launched by the IDE, are not managed by
+SlimFaas, and are never stopped by it.
 
 ## Overlays and local secrets
 
@@ -98,7 +110,8 @@ slimfaas local up --clean
 
 For safety, SlimFaas only deletes a directory containing its
 `.slimfaas-local.json` ownership marker. Changing `cluster.nodes` for an
-existing persistent state also requires `--clean`.
+existing persistent state, or opening an unsupported marker schema, requires
+`--clean`.
 
 ## Kubernetes-compatible function metadata
 
@@ -137,8 +150,8 @@ Then apply the overlay after the normal manifest:
 
 ```bash
 dotnet run --project src/SlimFaas -- local up \
-  -f slimfaas.local.yaml \
-  -f slimfaas.local.debug.yaml
+  -f ../../slimfaas.local.yaml \
+  -f ../../slimfaas.local.debug.yaml
 ```
 
 Without the second `-f`, the function returns to its normal `command`. The
@@ -147,7 +160,7 @@ running is not supported.
 
 `debugUrl` must be an absolute `http` URL with an explicit port. A base path is
 allowed, for example `http://127.0.0.1:5051/my-function`; query strings and
-fragments are rejected. The port must not conflict with the gateway, node
+fragments are rejected. The port must not conflict with the entrypoint, node
 HTTP, or Raft ports. A loopback or `localhost` debug port is also reserved from
 `processPorts` and auxiliary processes.
 
@@ -172,7 +185,7 @@ functions:
 FIBONACCI1_DEBUG_URL=http://127.0.0.1:5051
 ```
 
-Pass `--env-file .env.local` together with both manifests. The repository
+Pass `--env-file ../../.env.local` together with both manifests. The repository
 ignores `slimfaas.local.debug.yaml` and `.env.local` so developer-specific
 ports are not committed accidentally.
 
@@ -263,7 +276,7 @@ processes:
     restartPolicy: never
 ```
 
-## Jobs and gateway
+## Jobs and entrypoint
 
 Job commands run without a shell. Arguments from `/job/{name}` are appended to
 the configured command; a request cannot replace that executable through
@@ -275,10 +288,11 @@ schedules decide when a Job is created. The supervisor makes creation
 idempotent by `jobFullName`, tracks exit status and `backoffLimit`, and applies
 the configured TTL.
 
-`cluster.gatewayPort` is a stable TCP entry point. Each new connection is sent
-round-robin to a node whose `/ready` endpoint succeeds. Interrupted
-connections are never replayed; a later connection selects from the current
-ready set.
+`cluster.entrypointPort` is the stable TCP entrypoint used by applications and
+developers. Each new connection is sent round-robin to a node whose `/ready`
+endpoint succeeds. `cluster.nodeHttpPortBase` is the first direct node HTTP
+port; subsequent nodes use consecutive ports. Interrupted connections are
+never replayed; a later connection selects from the current ready set.
 
 The YAML is intentionally static during a run. Detached mode, supervisor high
 availability, resource enforcement, and network isolation are outside this

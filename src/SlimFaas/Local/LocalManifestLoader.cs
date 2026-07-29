@@ -174,25 +174,29 @@ public static partial class LocalManifestLoader
         if (manifest.Cluster.Nodes is < 1 or > 3)
             errors.Add("cluster.nodes must be between 1 and 3.");
 
-        ValidatePort("cluster.gatewayPort", manifest.Cluster.GatewayPort, errors);
-        ValidatePortRange("cluster.httpPortBase", manifest.Cluster.HttpPortBase, manifest.Cluster.Nodes, errors);
+        ValidatePort("cluster.entrypointPort", manifest.Cluster.EntrypointPort, errors);
+        ValidatePortRange(
+            "cluster.nodeHttpPortBase",
+            manifest.Cluster.NodeHttpPortBase,
+            manifest.Cluster.Nodes,
+            errors);
         ValidatePortRange("cluster.raftPortBase", manifest.Cluster.RaftPortBase, manifest.Cluster.Nodes, errors);
         ValidatePort("processPorts.from", manifest.ProcessPorts.From, errors);
         ValidatePort("processPorts.to", manifest.ProcessPorts.To, errors);
         if (manifest.ProcessPorts.From > manifest.ProcessPorts.To)
             errors.Add("processPorts.from must be less than or equal to processPorts.to.");
 
-        var reservedPorts = new HashSet<int> { manifest.Cluster.GatewayPort };
+        var reservedPorts = new HashSet<int> { manifest.Cluster.EntrypointPort };
         for (int index = 0; index < manifest.Cluster.Nodes; index++)
         {
-            reservedPorts.Add(manifest.Cluster.HttpPortBase + index);
+            reservedPorts.Add(manifest.Cluster.NodeHttpPortBase + index);
             reservedPorts.Add(manifest.Cluster.RaftPortBase + index);
         }
 
         if (reservedPorts.Count != 1 + manifest.Cluster.Nodes * 2)
-            errors.Add("gateway, HTTP and Raft port ranges must not overlap.");
+            errors.Add("entrypoint, node HTTP and Raft port ranges must not overlap.");
         if (reservedPorts.Any(p => p >= manifest.ProcessPorts.From && p <= manifest.ProcessPorts.To))
-            errors.Add("processPorts must not overlap gateway, HTTP or Raft ports.");
+            errors.Add("processPorts must not overlap entrypoint, node HTTP or Raft ports.");
 
         int requiredProcessPorts = 0;
         var localDebugPorts = new Dictionary<int, string>();
@@ -210,7 +214,7 @@ public static partial class LocalManifestLoader
                 else if (reservedPorts.Contains(debugUri!.Port))
                 {
                     errors.Add(
-                        $"functions.{name}.debugUrl port must not overlap gateway, HTTP, or Raft ports.");
+                        $"functions.{name}.debugUrl port must not overlap entrypoint, node HTTP, or Raft ports.");
                 }
                 else if (IsLocalDebugUrl(debugUri))
                 {
@@ -324,7 +328,7 @@ public static partial class LocalManifestLoader
             }
 
             if (reservedPorts.Contains(fixedPort))
-                errors.Add($"{prefix}.port must not overlap gateway, HTTP, or Raft ports.");
+                errors.Add($"{prefix}.port must not overlap entrypoint, node HTTP, or Raft ports.");
             if (localDebugPorts.TryGetValue(fixedPort, out string? debugFunction))
             {
                 errors.Add(
@@ -479,6 +483,12 @@ public static partial class LocalManifestLoader
         if (!HasExplicitPort(value, parsed))
         {
             error = "must contain an explicit port.";
+            return false;
+        }
+
+        if (parsed.Port is < 1 or > IPEndPoint.MaxPort)
+        {
+            error = "port must be between 1 and 65535.";
             return false;
         }
 

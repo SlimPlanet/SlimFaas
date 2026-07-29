@@ -3,8 +3,8 @@ name: slimfaas-demo
 
 cluster:
   nodes: 3
-  gatewayPort: 30020
-  httpPortBase: 30021
+  entrypointPort: 30020
+  nodeHttpPortBase: 30021
   raftPortBase: 3262
 
 processPorts:

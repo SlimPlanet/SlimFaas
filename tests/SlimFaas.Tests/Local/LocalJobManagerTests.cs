@@ -54,8 +54,8 @@ public sealed class LocalJobManagerTests
                 Cluster = new LocalClusterManifest
                 {
                     Nodes = 1,
-                    GatewayPort = 43000,
-                    HttpPortBase = 43001,
+                    EntrypointPort = 43000,
+                    NodeHttpPortBase = 43001,
                     RaftPortBase = 43002
                 },
                 Jobs = new Dictionary<string, LocalJobManifest> { ["test-job"] = job }

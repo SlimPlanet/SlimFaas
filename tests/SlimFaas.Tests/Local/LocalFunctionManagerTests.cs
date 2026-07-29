@@ -24,8 +24,8 @@ public sealed class LocalFunctionManagerTests
             Cluster = new LocalClusterManifest
             {
                 Nodes = 1,
-                GatewayPort = port + 10,
-                HttpPortBase = port + 11,
+                EntrypointPort = port + 10,
+                NodeHttpPortBase = port + 11,
                 RaftPortBase = port + 12
             },
             ProcessPorts = new LocalPortRangeManifest { From = port, To = port },
@@ -111,8 +111,8 @@ public sealed class LocalFunctionManagerTests
             Cluster = new LocalClusterManifest
             {
                 Nodes = 1,
-                GatewayPort = port + 10,
-                HttpPortBase = port + 11,
+                EntrypointPort = port + 10,
+                NodeHttpPortBase = port + 11,
                 RaftPortBase = port + 12
             },
             ProcessPorts = new LocalPortRangeManifest { From = port, To = port },

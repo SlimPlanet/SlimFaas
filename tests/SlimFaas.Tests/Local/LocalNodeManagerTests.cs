@@ -15,7 +15,7 @@ public sealed class LocalNodeManagerTests
             Cluster = new LocalClusterManifest
             {
                 Nodes = 3,
-                HttpPortBase = 31021,
+                NodeHttpPortBase = 31021,
                 RaftPortBase = 3362
             }
         };

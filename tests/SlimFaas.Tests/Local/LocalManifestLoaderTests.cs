@@ -1,5 +1,6 @@
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
+using System.Text.Json;
 
 namespace SlimFaas.Tests.Local;
 
@@ -295,8 +296,8 @@ public sealed class LocalManifestLoaderTests
             name: parser-test
             cluster:
               nodes: 1
-              gatewayPort: 41000
-              httpPortBase: 41001
+              entrypointPort: 41000
+              nodeHttpPortBase: 41001
               raftPortBase: 41002
             processPorts:
               from: 41100
@@ -325,6 +326,40 @@ public sealed class LocalManifestLoaderTests
         Assert.Equal("http://127.0.0.1:{port}", function.Environment["ASPNETCORE_URLS"]);
         Assert.Equal(FunctionVisibility.Private, metadata.Visibility);
         Assert.Equal(3, metadata.Scale?.ReplicaMax);
+        Assert.Equal(41000, loaded.Manifest.Cluster.EntrypointPort);
+        Assert.Equal(41001, loaded.Manifest.Cluster.NodeHttpPortBase);
+    }
+
+    [Fact]
+    public void Load_UsesCanonicalClusterPortDefaults()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml()
+                .Replace("  entrypointPort: 41000\n", "", StringComparison.Ordinal)
+                .Replace("  nodeHttpPortBase: 41001\n", "", StringComparison.Ordinal));
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        Assert.Equal(30020, loaded.Manifest.Cluster.EntrypointPort);
+        Assert.Equal(30021, loaded.Manifest.Cluster.NodeHttpPortBase);
+    }
+
+    [Theory]
+    [InlineData("entrypointPort", "gatewayPort")]
+    [InlineData("nodeHttpPortBase", "httpPortBase")]
+    public void Load_RejectsRemovedClusterPortNames(string canonicalName, string removedName)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(canonicalName, removedName, StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(removedName, error.Message);
     }
 
     [Fact]
@@ -427,6 +462,7 @@ public sealed class LocalManifestLoaderTests
     [Theory]
     [InlineData("https://127.0.0.1:5051", "absolute HTTP URL")]
     [InlineData("http://127.0.0.1", "explicit port")]
+    [InlineData("http://127.0.0.1:0", "port must be between 1 and 65535")]
     [InlineData("127.0.0.1:5051", "absolute HTTP URL")]
     [InlineData("http://127.0.0.1:5051/debug?value=1", "must not contain a query")]
     [InlineData("http://127.0.0.1:5051/debug#section", "must not contain a fragment")]
@@ -463,7 +499,7 @@ public sealed class LocalManifestLoaderTests
         LocalManifestException error = Assert.Throws<LocalManifestException>(
             () => LocalManifestLoader.Load(path));
 
-        Assert.Contains("must not overlap gateway, HTTP, or Raft ports", error.Message);
+        Assert.Contains("must not overlap entrypoint, node HTTP, or Raft ports", error.Message);
     }
 
     [Fact]
@@ -601,7 +637,7 @@ public sealed class LocalManifestLoaderTests
             command: ["dotnet", "--info"]
             port: 41000
         """,
-        "must not overlap gateway")]
+        "must not overlap entrypoint")]
     public void Load_RejectsInvalidAuxiliaryProcessConfiguration(
         string processYaml,
         string expectedMessage)
@@ -682,6 +718,76 @@ public sealed class LocalManifestLoaderTests
         Assert.True(File.Exists(Path.Combine(state, "user-file")));
     }
 
+    [Fact]
+    public void StateStore_WritesVersionTwoMarkerWithCanonicalPortNames()
+    {
+        using var directory = new TemporaryDirectory();
+        string state = Path.Combine(directory.Path, "owned-state");
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "mode: ephemeral",
+                $"mode: persistent\n  directory: {state}",
+                StringComparison.Ordinal));
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        using (LocalStateStore.Open(loaded, clean: false))
+        {
+        }
+
+        using JsonDocument marker = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(state, LocalStateStore.MarkerFileName)));
+        JsonElement root = marker.RootElement;
+        Assert.Equal(2, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(41000, root.GetProperty("entrypointPort").GetInt32());
+        Assert.Equal(41001, root.GetProperty("nodeHttpPortBase").GetInt32());
+        Assert.False(root.TryGetProperty("gatewayPort", out _));
+        Assert.False(root.TryGetProperty("httpPortBase", out _));
+    }
+
+    [Fact]
+    public void StateStore_RejectsVersionOneMarkerButCleanRecreatesIt()
+    {
+        using var directory = new TemporaryDirectory();
+        string state = Path.Combine(directory.Path, "owned-state");
+        Directory.CreateDirectory(state);
+        File.WriteAllText(
+            Path.Combine(state, LocalStateStore.MarkerFileName),
+            """
+            {
+              "schemaVersion": 1,
+              "project": "local-test",
+              "nodes": 1,
+              "gatewayPort": 41000,
+              "httpPortBase": 41001,
+              "raftPortBase": 41002,
+              "processPortFrom": 41100,
+              "processPortTo": 41102,
+              "portAllocations": {}
+            }
+            """);
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "mode: ephemeral",
+                $"mode: persistent\n  directory: {state}",
+                StringComparison.Ordinal));
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalStateStore.Open(loaded, clean: false));
+        Assert.Contains("unsupported schema version 1", error.Message);
+        Assert.Contains("--clean", error.Message);
+
+        using (LocalStateStore.Open(loaded, clean: true))
+        {
+        }
+
+        using JsonDocument marker = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(state, LocalStateStore.MarkerFileName)));
+        Assert.Equal(2, marker.RootElement.GetProperty("schemaVersion").GetInt32());
+    }
+
     private static string ValidYaml(string functionTail = "")
     {
         const string yaml =
@@ -690,8 +796,8 @@ public sealed class LocalManifestLoaderTests
             name: local-test
             cluster:
               nodes: 1
-              gatewayPort: 41000
-              httpPortBase: 41001
+              entrypointPort: 41000
+              nodeHttpPortBase: 41001
               raftPortBase: 41002
             processPorts:
               from: 41100

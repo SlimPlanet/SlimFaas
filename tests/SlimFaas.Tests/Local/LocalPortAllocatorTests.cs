@@ -20,8 +20,8 @@ public sealed class LocalPortAllocatorTests
                 Cluster = new LocalClusterManifest
                 {
                     Nodes = 1,
-                    GatewayPort = first + 10,
-                    HttpPortBase = first + 11,
+                    EntrypointPort = first + 10,
+                    NodeHttpPortBase = first + 11,
                     RaftPortBase = first + 12
                 },
                 ProcessPorts = new LocalPortRangeManifest { From = first, To = first + 2 },
@@ -65,8 +65,8 @@ public sealed class LocalPortAllocatorTests
                 Cluster = new LocalClusterManifest
                 {
                     Nodes = 1,
-                    GatewayPort = port + 10,
-                    HttpPortBase = port + 11,
+                    EntrypointPort = port + 10,
+                    NodeHttpPortBase = port + 11,
                     RaftPortBase = port + 12
                 },
                 ProcessPorts = new LocalPortRangeManifest { From = port, To = port }
@@ -139,8 +139,8 @@ public sealed class LocalPortAllocatorTests
             Assert.Equal(fixedPort, allocator.ReserveFixed("process:frontend", fixedPort));
             Assert.Null(allocator.ReserveFixed("process:watcher", fixedPort));
             Assert.Null(allocator.ReserveFixed(
-                "process:gateway-conflict",
-                loaded.Manifest.Cluster.GatewayPort));
+                "process:entrypoint-conflict",
+                loaded.Manifest.Cluster.EntrypointPort));
 
             allocator.Release("process:frontend");
             using var external = new TcpListener(IPAddress.Loopback, fixedPort);
@@ -214,8 +214,8 @@ public sealed class LocalPortAllocatorTests
             Cluster = new LocalClusterManifest
             {
                 Nodes = 1,
-                GatewayPort = rangeStart + 10,
-                HttpPortBase = rangeStart + 11,
+                EntrypointPort = rangeStart + 10,
+                NodeHttpPortBase = rangeStart + 11,
                 RaftPortBase = rangeStart + 12
             },
             ProcessPorts = new LocalPortRangeManifest { From = rangeStart, To = rangeStart + 2 },

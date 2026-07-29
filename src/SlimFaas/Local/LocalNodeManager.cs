@@ -216,7 +216,7 @@ public sealed class LocalNodeManager : IAsyncDisposable
         return [processPath];
     }
 
-    private int HttpPort(NodeRuntime node) => _loaded.Manifest.Cluster.HttpPortBase + node.Index;
+    private int HttpPort(NodeRuntime node) => _loaded.Manifest.Cluster.NodeHttpPortBase + node.Index;
     private int RaftPort(NodeRuntime node) => _loaded.Manifest.Cluster.RaftPortBase + node.Index;
 
     public async ValueTask DisposeAsync()

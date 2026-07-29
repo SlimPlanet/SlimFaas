@@ -20,8 +20,8 @@ public sealed class LocalManifest
 public sealed class LocalClusterManifest
 {
     public int Nodes { get; set; } = 1;
-    public int GatewayPort { get; set; } = 30020;
-    public int HttpPortBase { get; set; } = 30021;
+    public int EntrypointPort { get; set; } = 30020;
+    public int NodeHttpPortBase { get; set; } = 30021;
     public int RaftPortBase { get; set; } = 3262;
 }
 

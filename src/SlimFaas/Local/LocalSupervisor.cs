@@ -122,13 +122,13 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
                 jobs.StartAsync(cancellationToken),
                 processes.StartAsync(cancellationToken),
                 nodeManager.StartAsync(cancellationToken));
-            gateway = new LocalTcpGateway(loaded.Manifest.Cluster.GatewayPort, nodeManager);
+            gateway = new LocalTcpGateway(loaded.Manifest.Cluster.EntrypointPort, nodeManager);
             gateway.Start();
 
             Console.WriteLine(
                 $"SlimFaas local '{loaded.Manifest.Name}' is running with {loaded.Manifest.Cluster.Nodes} node(s).");
             Console.WriteLine($"Auxiliary processes: {loaded.Manifest.Processes.Count}");
-            Console.WriteLine($"Gateway: http://127.0.0.1:{loaded.Manifest.Cluster.GatewayPort}");
+            Console.WriteLine($"Entrypoint: http://127.0.0.1:{loaded.Manifest.Cluster.EntrypointPort}");
             Console.WriteLine($"State: {loaded.StateDirectory}");
             Console.WriteLine("Press Ctrl+C to stop.");
 
@@ -161,12 +161,12 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
                 Ports:
                 [
                     loaded.Manifest.Cluster.RaftPortBase + index,
-                    loaded.Manifest.Cluster.HttpPortBase + index
+                    loaded.Manifest.Cluster.NodeHttpPortBase + index
                 ],
                 ServiceName: "slimfaas")
             {
                 Annotations = LocalNodeManager.MetricsAnnotations(
-                    loaded.Manifest.Cluster.HttpPortBase + index)
+                    loaded.Manifest.Cluster.NodeHttpPortBase + index)
             })
             .ToList();
 
@@ -174,11 +174,12 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
     {
         var ports = new Dictionary<int, string>
         {
-            [loaded.Manifest.Cluster.GatewayPort] = "cluster.gatewayPort"
+            [loaded.Manifest.Cluster.EntrypointPort] = "cluster.entrypointPort"
         };
         for (var index = 0; index < loaded.Manifest.Cluster.Nodes; index++)
         {
-            ports[loaded.Manifest.Cluster.HttpPortBase + index] = $"cluster.httpPortBase[{index}]";
+            ports[loaded.Manifest.Cluster.NodeHttpPortBase + index] =
+                $"cluster.nodeHttpPortBase[{index}]";
             ports[loaded.Manifest.Cluster.RaftPortBase + index] = $"cluster.raftPortBase[{index}]";
         }
 
