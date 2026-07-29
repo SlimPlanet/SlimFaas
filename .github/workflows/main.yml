@@ -485,8 +485,8 @@ jobs:
       - name: Validate native local CLI
         run: |
           ./publish/SlimFaas local validate \
-            -f ./slimfaas.local.example.yaml \
-            -f ./slimfaas.local.dev.example.yaml \
+            -f ./slimfaas.local.yaml \
+            -f ./slimfaas.local.dev.yaml \
             --env-file ./.env.local.example
         if: runner.os != 'Windows'
         shell: bash
@@ -494,8 +494,8 @@ jobs:
       - name: Validate native local CLI (Windows)
         run: |
           .\publish\SlimFaas.exe local validate `
-            -f .\slimfaas.local.example.yaml `
-            -f .\slimfaas.local.dev.example.yaml `
+            -f .\slimfaas.local.yaml `
+            -f .\slimfaas.local.dev.yaml `
             --env-file .\.env.local.example
         if: runner.os == 'Windows'
         shell: powershell
