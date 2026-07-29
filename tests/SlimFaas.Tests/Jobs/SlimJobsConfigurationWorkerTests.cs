@@ -69,9 +69,18 @@ public class SlimJobsConfigurationWorkerTests
     [Fact(DisplayName = "ExecuteAsync keeps calling SyncJobsConfigurationAsync until cancelled")]
     public async Task ExecuteAsync_LoopsUntilCancelled()
     {
-        // Arrange – use a tiny delay so the loop spins a few times quickly
+        // Arrange – use a tiny delay so the loop spins quickly
+        var callCount = 0;
+        var twoCallsReached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
         var jobConfigMock = new Mock<IJobConfiguration>();
-        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync())
+            .Returns(() =>
+            {
+                if (Interlocked.Increment(ref callCount) >= 2)
+                    twoCallsReached.TrySetResult();
+                return Task.CompletedTask;
+            });
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
@@ -79,9 +88,9 @@ public class SlimJobsConfigurationWorkerTests
 
         using var cts = new CancellationTokenSource();
 
-        // Act – run for a short time then cancel
+        // Act – wait until at least 2 calls are observed, then cancel
         await worker.StartAsync(cts.Token);
-        await Task.Delay(80);
+        await twoCallsReached.Task.WaitAsync(TimeSpan.FromSeconds(10));
         cts.Cancel();
         await worker.StopAsync(CancellationToken.None);
 
