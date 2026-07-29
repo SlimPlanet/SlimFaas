@@ -1,11 +1,14 @@
 ﻿# Getting Started with SlimFaas
 
-This guide covers two primary ways to start using SlimFaas:
+This guide covers three primary ways to start using SlimFaas:
+
 1. **Kubernetes** (including local clusters via Docker Desktop)
 2. **Docker / Podman Compose** (for quick local testing)
 3. **Manual Installation** (for your own Kubernetes setup)
 
-You can also find [advanced installation details](#manual-installation-on-kubernetes) below.
+For day-to-day development without Kubernetes or Docker, use
+[Native Local Mode](native-local-mode.md). You can also find
+[advanced installation details](#manual-installation-on-kubernetes) below.
 
 ---
 

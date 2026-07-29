@@ -1,4 +1,4 @@
-﻿![SlimFaas.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true)
+﻿![SlimFaas](SlimFaas.png)
 
 # SlimFaas: The Slimmest, Simplest & Autoscaling-First Function-as-a-Service
 
@@ -123,7 +123,7 @@ SlimFaas includes two complementary data APIs:
     - AOT-friendly code paths,
     - minimal dependencies.
 
-![slim-faas-ram-cpu.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/slim-faas-ram-cpu.png?raw=true)
+![SlimFaas CPU and memory usage](slim-faas-ram-cpu.png)
 
 ---
 
@@ -131,24 +131,32 @@ SlimFaas includes two complementary data APIs:
 
 Dive into the documentation:
 
-- [Get Started](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/get-started.md) – Learn how to deploy SlimFaas on Kubernetes or Docker Compose.
-- [Local three-node cluster](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/local-orchestrator.md) – Run a real SlimFaas/Raft cluster locally without Kubernetes or Docker.
-- [Unified SlimData mutation batching](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/slimdata-unified-batching.md) – Ordering, retry/deduplication, metrics, and Native AOT A/B benchmark.
+- [Get Started](get-started.md) – Deploy SlimFaas on Kubernetes or Docker Compose.
+- [Local Mode](native-local-mode.md) – Run functions, Jobs, development processes, and a supervised SlimFaas cluster directly on your machine.
 - Scaling
-    - [Autoscaling](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/autoscaling.md) – Deep-dive into `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
-    - [Kafka Connector](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/kafka.md) – Use Kafka topic lag to wake functions from `0 → N` and keep workers alive while messages are still flowing.
-    - [Planet Saver](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/planet-saver.md) – See how to start and monitor replicas from a JavaScript frontend.
+    - [Autoscaling](autoscaling.md) – Configure `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
+    - [Kafka Connector](kafka.md) – Use Kafka topic lag to wake functions and keep workers alive while messages are flowing.
+    - [Planet Saver](planet-saver.md) – Start and monitor replicas from a JavaScript frontend.
 - Functions & Workloads
-    - [Functions](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/functions.md) – See how to call functions synchronously or asynchronously.
-    - [User Interface](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/user-interface.md) – Use the built-in UI to monitor functions, queues, jobs, and real-time messages.
-    - [Events](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/events.md) – Explore how to use internal synchronous publish/subscribe events.
-    - [Jobs](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/jobs.md) – Learn how to define and run one-off jobs.
-    - [OpenTelemetry](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/opentelemetry.md) – Enable distributed tracing, metrics, and logs with OpenTelemetry integration.
+    - [Functions](functions.md) – Call functions synchronously or asynchronously.
+    - [User Interface](user-interface.md) – Monitor functions, queues, jobs, and real-time messages.
+    - [Clients](clients.md) – Integrate SlimFaas with .NET and Python applications.
+    - [Events](events.md) – Use internal publish/subscribe events.
+    - [Jobs](jobs.md) – Define, schedule, and run one-off jobs.
+    - [OpenTelemetry](opentelemetry.md) – Enable distributed tracing, metrics, and logs.
 - Data & Files
-    - [Data Sets](https://slimfaas.dev/data-sets) - Store small blobs/JSON in a Redis-like KV store with TTL (milliseconds) and atomic counters.
-    - [Data Files](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/data-files.md) - Understand how to ingest, store, and serve temporary binary artifacts.
-- [How It Works](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/how-it-works.md) – Dive into SlimFaas’s architecture and design.
-- [MCP](https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/mcp.md) – Discover how to convert *any* OpenAPI definition into MCP-ready tools on the fly.
+    - [Data Files](data-files.md) – Ingest, store, and serve temporary binary artifacts.
+    - [Data Sets](data-sets.md) – Store replicated, Redis-like key-value payloads with optional TTL.
+- [How It Works](how-it-works.md) – Understand SlimFaas architecture and request flows.
+- [MCP](mcp.md) – Convert OpenAPI definitions into MCP-ready tools.
+
+### Technical references
+
+- [Local three-node orchestrator](local-orchestrator.md)
+- [Memory profiling](memory-profiling.md)
+- [Unified SlimData mutation batching](slimdata-unified-batching.md)
+- [SlimData batch modes](slimdata-batch-modes.md)
+- [Environment-variable breaking changes](BREAKING_CHANGES_ENVIRONMENT_VARIABLES.md)
 
 We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **keep your serverless workloads slim**.
 
@@ -179,11 +187,11 @@ Enjoy SlimFaas!
 
 List of organizations using this project in production or at stages of testing.
 
-![AXA.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/adopters_logo/AXA.png?raw=true)
+![AXA](adopters_logo/AXA.png)
 
 ---
 
 Add your logo via a pull request:
 
-- Logo must be in PNG format, `100 px width, and 100 px height`.
-- Add your logo to the `documentation/adopters` folder.
+- Logo must be in PNG format, 100 px wide and 100 px high.
+- Add your logo to the `docs/adopters_logo` folder.

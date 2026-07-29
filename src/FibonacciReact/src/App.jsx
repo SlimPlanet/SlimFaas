@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 
-// Logo SlimFaas (URL GitHub)
+// Logo SlimFaas (canonical raw GitHub URL)
 const slimFaasLogoUrl =
-    'https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true';
+    'https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/docs/SlimFaas.png';
 
 /**
  * Hook personnalisé pour exécuter un callback à intervalle régulier

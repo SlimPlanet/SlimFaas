@@ -56,7 +56,7 @@ export default function App({ Component, pageProps }: AppProps) {
                 {/* Open Graph */}
                 <meta property="og:title" content="SlimFaas : The slimmest and simplest Function As A Service" />
                 <meta property="og:description" content="Deploy functions effortlessly with SlimFaas, the ultra-light FaaS platform." />
-                <meta property="og:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" />
+                <meta property="og:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/docs/SlimFaas.png?raw=true" />
                 <meta property="og:url" content="https://github.com/SlimPlanet/SlimFaas" />
                 <meta property="og:type" content="website" />
 
@@ -64,7 +64,7 @@ export default function App({ Component, pageProps }: AppProps) {
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content="SlimFaas : The slimmest and simplest Function As A Service" />
                 <meta name="twitter:description" content="Deploy functions effortlessly with SlimFaas, the ultra-light FaaS platform." />
-                <meta name="twitter:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/documentation/SlimFaas.png?raw=true" />
+                <meta name="twitter:image" content="https://github.com/SlimPlanet/SlimFaas/blob/main/docs/SlimFaas.png?raw=true" />
             </Head>
 
             {/* GTM */}

@@ -7,7 +7,7 @@
 
 SlimFaas provides an API to give your frontend detailed information about the state of your backend infrastructure. This makes **@axa-fr/slimfaas-planet-saver** a true **“mind changer”** — in production, you can have zero replicas running for your API backend, and display a friendly message in the UI that the backend is starting (instead of showing an error). When the backend is ready, the user seamlessly continues their journey.
 
-![SlimFaasPlanetSaver.gif](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimfaasPlanetSaver.gif?raw=true)
+![SlimFaas Planet Saver](SlimFaasPlanetSaver.gif)
 
 ---
 

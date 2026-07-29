@@ -3,7 +3,7 @@
 To get started with the repository:
 
 ```sh
-git clone https://github.com/AxaFrance/SlimFaas.git
+git clone https://github.com/SlimPlanet/SlimFaas.git
 
 ```
 You are now ready to contribute!

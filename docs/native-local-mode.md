@@ -5,19 +5,43 @@ one to three real SlimFaas/Raft nodes directly as operating-system processes.
 It is intended for development: processes share the host network and no CPU,
 memory, or security isolation is applied.
 
+Docker and Kubernetes are not required. Install the runtimes used by the
+commands in your manifest, such as the .NET SDK or Node.js, and ensure the
+configured port ranges are available.
+
 The existing `Local` orchestrator remains available for deterministic tests.
 The CLI uses the separate internal `Process` orchestrator and a single
 loopback-only, token-authenticated supervisor.
 
-## Start a project
+## Quick start
 
 The repository contains a complete [`slimfaas.local.yaml`](../slimfaas.local.yaml)
-demo. Run:
+demo. From a directory containing that manifest, run:
 
 ```bash
 slimfaas local validate
 slimfaas local up
 ```
+
+When the cluster is ready, the console prints:
+
+```text
+Entrypoint: http://127.0.0.1:30020
+```
+
+Open that URL for the SlimFaas user interface, or use it as the base URL for
+function, Job, event, and data requests. `30020` is the stable entrypoint in
+the repository demo. Ports starting at `30021` are direct node ports and
+should not be used as the application entrypoint in native local mode.
+
+For example:
+
+```bash
+curl http://127.0.0.1:30020/status-functions
+curl http://127.0.0.1:30020/function/fibonacci1/hello/local
+```
+
+## Manifests and overlays
 
 Select another manifest with `-f` or `--file`. Repeat the option to apply
 partial overlays from left to right:
@@ -49,46 +73,7 @@ dotnet run --project src/SlimFaas -- local up \
 The repository launch profile uses `src/SlimFaas` as its working directory,
 which is why repository-root files use the `../../` prefix in these commands.
 
-`local up` stays in the foreground, prefixes and aggregates child output, and
-writes the same output below `state.directory/logs`. `Ctrl+C` and, on Unix,
-`SIGTERM` call configured function shutdown hooks, then stop functions, Jobs,
-auxiliary processes, SlimFaas nodes, and their complete descendant process
-trees.
-
-Forced termination such as `kill -9`, `SIGKILL`, or `taskkill /F` does not let
-SlimFaas execute this cleanup and can leave child processes running. Processes
-targeted through `debugUrl` are launched by the IDE, are not managed by
-SlimFaas, and are never stopped by it.
-
-### Keep the console focused on function logs
-
-SlimFaas node logs default to `Error` in native local mode so function, Job,
-and auxiliary-process output remains prominent. Configure the node verbosity
-independently when troubleshooting the local cluster:
-
-```yaml
-cluster:
-  nodeLogLevel: Warning
-```
-
-Accepted values are `Trace`, `Debug`, `Information`, `Warning`, `Error`,
-`Critical`, and `None`. The setting applies from the first node bootstrap log
-and covers SlimFaas, SlimData, Raft, and ASP.NET Core. Function log levels
-remain controlled by each function's `environment`, for example:
-
-```yaml
-functions:
-  fibonacci1:
-    environment:
-      Logging__LogLevel__Default: Debug
-```
-
-Every emitted line keeps its `[function/<name>/<replica>]`,
-`[job/<name>]`, `[process/<name>]`, or `[node/slimfaas-<index>]` prefix.
-Console OpenTelemetry exporters are disabled for the managed SlimFaas nodes;
-functions retain their own telemetry configuration.
-
-## Overlays and local secrets
+### Local secrets
 
 YAML mappings are merged recursively, while scalars and sequences such as
 `command`, `dependsOn`, and `schedules` are replaced by the last file that
@@ -308,7 +293,7 @@ processes:
     restartPolicy: never
 ```
 
-## Jobs and entrypoint
+## Jobs
 
 Local Jobs use the same `SlimFaas/*` annotations as suspended Kubernetes
 CronJobs. For example:
@@ -349,11 +334,65 @@ schedules decide when a Job is created. The supervisor makes creation
 idempotent by `jobFullName`, tracks exit status and `backoffLimit`, and applies
 the configured TTL.
 
+## Entrypoint and load balancing
+
 `cluster.entrypointPort` is the stable TCP entrypoint used by applications and
 developers. Each new connection is sent round-robin to a node whose `/ready`
 endpoint succeeds. `cluster.nodeHttpPortBase` is the first direct node HTTP
 port; subsequent nodes use consecutive ports. Interrupted connections are
 never replayed; a later connection selects from the current ready set.
+
+## Logs and shutdown
+
+`local up` stays in the foreground, prefixes and aggregates child output, and
+writes the same output below `state.directory/logs`. Every emitted line keeps
+its `[function/<name>/<replica>]`, `[job/<name>]`, `[process/<name>]`, or
+`[node/slimfaas-<index>]` prefix.
+
+SlimFaas node logs default to `Error` in native local mode so function, Job,
+and auxiliary-process output remains prominent. Configure the node verbosity
+independently when troubleshooting the local cluster:
+
+```yaml
+cluster:
+  nodeLogLevel: Warning
+```
+
+Accepted values are `Trace`, `Debug`, `Information`, `Warning`, `Error`,
+`Critical`, and `None`. The setting applies from the first node bootstrap log
+and covers SlimFaas, SlimData, Raft, and ASP.NET Core. Function log levels
+remain controlled by each function's `environment`, for example:
+
+```yaml
+functions:
+  fibonacci1:
+    environment:
+      Logging__LogLevel__Default: Debug
+```
+
+Console OpenTelemetry exporters are disabled for the managed SlimFaas nodes;
+functions retain their own telemetry configuration.
+
+`Ctrl+C` and, on Unix, `SIGTERM` call configured function shutdown hooks, then
+stop functions, Jobs, auxiliary processes, SlimFaas nodes, and their complete
+descendant process trees. Forced termination such as `kill -9`, `SIGKILL`, or
+`taskkill /F` does not let SlimFaas execute this cleanup and can leave child
+processes running.
+
+Processes targeted through `debugUrl` are launched by the IDE, are not managed
+by SlimFaas, and are never stopped by it.
+
+## Troubleshooting
+
+- If `http://127.0.0.1:30021/` returns `404`, use the printed entrypoint,
+  `http://127.0.0.1:30020/`, for the user interface and application traffic.
+- If a function remains `Starting`, inspect its prefixed console output and
+  `state.directory/logs`. For `debugUrl`, also check that the IDE process is
+  listening on the configured address and that its health endpoint succeeds.
+- Run `slimfaas local validate` with the same `-f` and `--env-file` options as
+  `local up` to identify manifest, interpolation, and port-collision errors.
+- Use `--clean` when an earlier state marker is incompatible with a changed
+  node count or state schema.
 
 The YAML is intentionally static during a run. Detached mode, supervisor high
 availability, resource enforcement, and network isolation are outside this
