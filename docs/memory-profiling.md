@@ -140,6 +140,48 @@ The command must return no line. A process running the old implementation
 cannot release those label children with a GC; a rollout is required to start
 with a new registry.
 
+The default `prometheus-net` .NET Meter adapter also observes runtime-provided
+HTTP instruments. Those instruments use destination pod addresses and HTTP
+routes as labels, duplicating the bounded SlimFaas HTTP metrics and creating
+thousands of additional histogram time series. SlimFaas excludes exactly the
+`System.Net.Http` and `Microsoft.AspNetCore.Hosting` meters from its Prometheus
+registry.
+
+Use these bounded metric families instead:
+
+| Removed automatic family | Bounded replacement |
+|---|---|
+| `system_net_http_http_client_request_duration_*` | `httpclient_request_duration_seconds_*` |
+| `system_net_http_http_client_active_requests` | `httpclient_requests_in_progress` |
+| `microsoft_aspnetcore_hosting_http_server_request_duration_*` | `http_request_duration_seconds_*` |
+| `microsoft_aspnetcore_hosting_http_server_active_requests` | `http_requests_in_progress` |
+
+The filter applies only to the Prometheus endpoint. OpenTelemetry keeps its
+ASP.NET Core and HTTP client instrumentation and continues exporting the
+detailed attributes through OTLP. Runtime, GC, DotNext, Kestrel, memory-pool,
+and name-resolution meters also remain available in `/metrics`.
+
+After deploying the filtered image, verify one newly started pod:
+
+```bash
+metrics="$(curl --silent http://<slimfaas-pod>:<port>/metrics)"
+
+if grep -Eq \
+  '^(system_net_http_|microsoft_aspnetcore_hosting_)' \
+  <<<"$metrics"; then
+  echo "unexpected automatic HTTP meter"
+  exit 1
+fi
+
+grep -Eq '^httpclient_' <<<"$metrics"
+grep -Eq '^http_request_' <<<"$metrics"
+grep -Eq '^system_runtime_dotnet_gc_' <<<"$metrics"
+```
+
+A complete rollout is required because the default Meter adapter is configured
+when the Prometheus registry is first collected; existing processes retain
+their already initialized adapter until restart.
+
 The fixed, fully trimmed build was also exercised with the three-node `mixed`
 scenario for five measured minutes:
 

@@ -171,8 +171,11 @@ Located at `/README.md`, this is the first impression:
 - Update performance benchmarks if AOT compilation improves metrics
 - Add/remove links to documentation sections as needed
 
-#### 2. **Documentation Folder** (`./documentation/`)
-These files are **automatically published to the website** (https://slimfaas.dev):
+#### 2. **Documentation Folder** (`./docs/`)
+Public files registered in
+`src/SlimFaasSite/src/lib/documentation-catalog.ts` are automatically
+published to [slimfaas.dev](https://slimfaas.dev). Other files remain
+technical references on GitHub.
 
 - **`get-started.md`** – Deployment instructions
   - Add new deployment methods if available
@@ -252,13 +255,13 @@ These files are **automatically published to the website** (https://slimfaas.dev
   ```
 - **Sections** – Use clear hierarchy: `# Title`, `## Section`, `### Subsection`
 - **Cross-links** – Link to related documentation files
-- **Images & Diagrams** – Store in `documentation/` folder; reference with full GitHub URL
+- **Images & Diagrams** – Store in `docs/` and use paths relative to the Markdown file
 
 ### Documentation Site Build
 
 The documentation site is **automatically built and deployed** via the `SiteBuild` workflow:
 
-- Trigger: Updates to `documentation/` or `README.md`
+- Sources: The checked-out `docs/` files and `README.md`
 - Build Tool: Node.js + pnpm (see `.github/workflows/SiteBuild.yml`)
 - Deployment: Published to https://slimfaas.dev
 - No manual intervention needed; changes appear automatically
@@ -358,7 +361,7 @@ SlimFaas/
 │   ├── SlimFaas.Tests/
 │   ├── SlimData.Tests/
 │   └── ...
-├── documentation/             # Markdown docs → published to web
+├── docs/                      # Markdown docs and assets → published to web
 ├── README.md                   # Project overview
 ├── agent.md                    # This file
 └── global.json                 # .NET SDK version
@@ -374,16 +377,16 @@ SlimFaas/
 | **Build** | `dotnet build` or `dotnet publish -c Release` for native executable |
 | **Test** | `dotnet test --collect "Code Coverage;Format=cobertura"` |
 | **Run** | `dotnet run --project src/SlimFaas/` or Docker Compose |
-| **Docs** | Update `README.md` + `documentation/*.md`; auto-published to website |
+| **Docs** | Update `README.md` + `docs/*.md`; auto-published to website |
 | **AOT Tips** | Avoid reflection, use MemoryPack, test with `dotnet publish` |
 
 ---
 
 ## 📞 Questions?
 
-- **Architecture**: See `documentation/how-it-works.md`
-- **Deployment**: See `documentation/get-started.md`
-- **Scaling**: See `documentation/autoscaling.md`
+- **Architecture**: See `docs/how-it-works.md`
+- **Deployment**: See `docs/get-started.md`
+- **Scaling**: See `docs/autoscaling.md`
 - **Contributing**: See `CONTRIBUTING.md`
 
 ---

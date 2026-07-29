@@ -1,6 +1,7 @@
 ﻿import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { DOCUMENTATION_CATALOG } from "@/lib/documentation-catalog";
 
 const Navbar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -39,7 +40,11 @@ const Navbar: React.FC = () => {
         <nav className="layout__navbar navbar">
             <div className="navbar__left">
                 {/* Logo */}
-                <Link href="/" className="navbar__logo-link" onClick={closeAll}>
+                <Link
+                    href={DOCUMENTATION_CATALOG.home.route}
+                    className="navbar__logo-link"
+                    onClick={closeAll}
+                >
                     <Image
                         className="navbar__logo"
                         src="https://github.com/cncf/artwork/blob/main/projects/slimfaas/icon/white/slimfaas-icon-white.svg?raw=true"
@@ -71,14 +76,32 @@ const Navbar: React.FC = () => {
                     className={`navbar__list ${isMenuOpen ? "navbar__list--active" : ""}`}
                 >
                     <li className="navbar__item">
-                        <Link href="/" className="navbar__link" onClick={closeAll}>
-                            Home
+                        <Link
+                            href={DOCUMENTATION_CATALOG.home.route}
+                            className="navbar__link"
+                            onClick={closeAll}
+                        >
+                            {DOCUMENTATION_CATALOG.home.label}
                         </Link>
                     </li>
 
                     <li className="navbar__item">
-                        <Link href="/get-started" className="navbar__link" onClick={closeAll}>
-                            Get Started
+                        <Link
+                            href={DOCUMENTATION_CATALOG["get-started"].route}
+                            className="navbar__link"
+                            onClick={closeAll}
+                        >
+                            {DOCUMENTATION_CATALOG["get-started"].label}
+                        </Link>
+                    </li>
+
+                    <li className="navbar__item">
+                        <Link
+                            href={DOCUMENTATION_CATALOG["local-mode"].route}
+                            className="navbar__link"
+                            onClick={closeAll}
+                        >
+                            {DOCUMENTATION_CATALOG["local-mode"].label}
                         </Link>
                     </li>
 
@@ -110,56 +133,56 @@ const Navbar: React.FC = () => {
                         >
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/functions"
+                                    href={DOCUMENTATION_CATALOG.functions.route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Functions
+                                    {DOCUMENTATION_CATALOG.functions.label}
                                 </Link>
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/user-interface"
+                                    href={DOCUMENTATION_CATALOG["user-interface"].route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    User Interface
+                                    {DOCUMENTATION_CATALOG["user-interface"].label}
                                 </Link>
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/clients"
+                                    href={DOCUMENTATION_CATALOG.clients.route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Clients
+                                    {DOCUMENTATION_CATALOG.clients.label}
                                 </Link>
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/events"
+                                    href={DOCUMENTATION_CATALOG.events.route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Events
+                                    {DOCUMENTATION_CATALOG.events.label}
                                 </Link>
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/jobs"
+                                    href={DOCUMENTATION_CATALOG.jobs.route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Jobs
+                                    {DOCUMENTATION_CATALOG.jobs.label}
                                 </Link>
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/opentelemetry"
+                                    href={DOCUMENTATION_CATALOG.opentelemetry.route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Open Telemetry
+                                    {DOCUMENTATION_CATALOG.opentelemetry.label}
                                 </Link>
                             </li>
                         </ul>
@@ -191,29 +214,29 @@ const Navbar: React.FC = () => {
                         >
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/autoscaling"
+                                    href={DOCUMENTATION_CATALOG.autoscaling.route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Autoscaling
+                                    {DOCUMENTATION_CATALOG.autoscaling.label}
                                 </Link>
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/kafka"
+                                    href={DOCUMENTATION_CATALOG.kafka.route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Kafka Connector
+                                    {DOCUMENTATION_CATALOG.kafka.label}
                                 </Link>
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/planet-saver"
+                                    href={DOCUMENTATION_CATALOG["planet-saver"].route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    PlanetSaver
+                                    {DOCUMENTATION_CATALOG["planet-saver"].label}
                                 </Link>
                             </li>
                         </ul>
@@ -245,33 +268,41 @@ const Navbar: React.FC = () => {
                         >
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/data-files"
+                                    href={DOCUMENTATION_CATALOG["data-files"].route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Files
+                                    {DOCUMENTATION_CATALOG["data-files"].label}
                                 </Link>
                             </li>
                             <li className="navbar__submenu-item">
                                 <Link
-                                    href="/data-sets"
+                                    href={DOCUMENTATION_CATALOG["data-sets"].route}
                                     className="navbar__submenu-link"
                                     onClick={closeAll}
                                 >
-                                    Sets
+                                    {DOCUMENTATION_CATALOG["data-sets"].label}
                                 </Link>
                             </li>
                         </ul>
                     </li>
 
                     <li className="navbar__item">
-                        <Link href="/how-it-works" className="navbar__link" onClick={closeAll}>
-                            How it works
+                        <Link
+                            href={DOCUMENTATION_CATALOG["how-it-works"].route}
+                            className="navbar__link"
+                            onClick={closeAll}
+                        >
+                            {DOCUMENTATION_CATALOG["how-it-works"].label}
                         </Link>
                     </li>
                     <li className="navbar__item">
-                        <Link href="/mcp" className="navbar__link" onClick={closeAll}>
-                            MCP
+                        <Link
+                            href={DOCUMENTATION_CATALOG.mcp.route}
+                            className="navbar__link"
+                            onClick={closeAll}
+                        >
+                            {DOCUMENTATION_CATALOG.mcp.label}
                         </Link>
                     </li>
                 </ul>

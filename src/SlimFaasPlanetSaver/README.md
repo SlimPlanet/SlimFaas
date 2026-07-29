@@ -2,7 +2,7 @@
 
 [![npm version](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver.svg)](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver)
 
-![SlimFaas.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimFaas.png)
+![SlimFaas](../../docs/SlimFaas.png)
 
 A Vanilla JS project to save the planet. SlimFaas (https://github.com/SlimPlanet/slimfaas) is the slimmest and simplest Function As A Service on Kubernetes.
 It works as a proxy that you can be deployed in your namespace.
@@ -14,7 +14,7 @@ SlimFaas API can give to the frontend information about the infrastructure state
 Because in production instead of setting up 2 replicas of your API backend, you can set up 0 replicas and use an UX that will show the user that the backend is down instead !
 **@axa-fr/slimfaas-planet-saver** is here to for doing that easy.
 
-![SlimFaasPlanetSaver.gif](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/SlimfaasPlanetSaver.gif)
+![SlimFaas Planet Saver](../../docs/SlimFaasPlanetSaver.gif)
 
 ## Getting Started
 

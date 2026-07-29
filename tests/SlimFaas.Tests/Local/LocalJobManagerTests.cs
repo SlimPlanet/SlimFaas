@@ -30,12 +30,43 @@ public sealed class LocalJobManagerTests
         Assert.Equal("element-id", job.ElementId);
     }
 
+    [Fact]
+    public async Task Configuration_MapsKubernetesJobAnnotations()
+    {
+        var annotations = new Dictionary<string, string>
+        {
+            [JobAnnotationNames.Job] = "true",
+            [JobAnnotationNames.DefaultVisibility] = "Public",
+            [JobAnnotationNames.NumberParallelJob] = "3",
+            [JobAnnotationNames.DependsOn] = "function-one,function-two",
+            [JobAnnotationNames.Schedules] =
+                """[{"Schedule":"*/5 * * * *","Args":["39"],"DependsOn":["function-two"]}]"""
+        };
+        await using var fixture = new JobFixture(["--info"], backoffLimit: 4, annotations: annotations);
+
+        SlimfaasJob configuration = fixture.Manager.Configuration.Configurations["test-job"];
+        Assert.Equal("Public", configuration.Visibility);
+        Assert.Equal(3, configuration.NumberParallelJob);
+        Assert.Equal(["function-one", "function-two"], configuration.DependsOn);
+
+        ScheduleCreateJob schedule = Assert.Single(fixture.Manager.Configuration.Schedules!["test-job"]);
+        Assert.Equal("*/5 * * * *", schedule.Schedule);
+        Assert.Equal(["39"], schedule.Args);
+        Assert.Equal(["function-two"], schedule.DependsOn);
+        Assert.Equal(4, schedule.BackoffLimit);
+        Assert.Equal(60, schedule.TtlSecondsAfterFinished);
+        Assert.Equal("Never", schedule.RestartPolicy);
+    }
+
     private sealed class JobFixture : IAsyncDisposable
     {
         private readonly string _root;
         private readonly LocalStateStore _state;
 
-        public JobFixture(List<string> arguments, int backoffLimit)
+        public JobFixture(
+            List<string> arguments,
+            int backoffLimit,
+            Dictionary<string, string>? annotations = null)
         {
             _root = Path.Combine(Path.GetTempPath(), "SlimFaas.Tests", Guid.NewGuid().ToString("N"));
             string statePath = Path.Combine(_root, "state");
@@ -45,6 +76,11 @@ public sealed class LocalJobManagerTests
             {
                 Command = [dotnet, .. arguments],
                 WorkingDirectory = _root,
+                Annotations = annotations ??
+                              new Dictionary<string, string>
+                              {
+                                  [JobAnnotationNames.Job] = "true"
+                              },
                 BackoffLimit = backoffLimit,
                 TtlSecondsAfterFinished = 60
             };
@@ -54,8 +90,8 @@ public sealed class LocalJobManagerTests
                 Cluster = new LocalClusterManifest
                 {
                     Nodes = 1,
-                    GatewayPort = 43000,
-                    HttpPortBase = 43001,
+                    EntrypointPort = 43000,
+                    NodeHttpPortBase = 43001,
                     RaftPortBase = 43002
                 },
                 Jobs = new Dictionary<string, LocalJobManifest> { ["test-job"] = job }

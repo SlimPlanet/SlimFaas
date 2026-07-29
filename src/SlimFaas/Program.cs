@@ -29,6 +29,8 @@ using SlimFaas.Workers;
 
 #pragma warning disable CA2252
 
+PrometheusMeterFilter.ConfigureDefaultAdapter();
+
 int? localCommandExitCode = await LocalCommand.TryRunAsync(args);
 if (localCommandExitCode.HasValue)
 {
@@ -47,6 +49,7 @@ IConfigurationRoot configurationRoot = new ConfigurationBuilder()
 // Create early logger for startup
 using var loggerFactory = LoggerFactory.Create(builder =>
 {
+    builder.AddConfiguration(configurationRoot.GetSection("Logging"));
     builder.AddConsole();
     builder.AddDebug();
 });
@@ -104,6 +107,7 @@ serviceCollectionStarter.AddSingleton<IJobConfiguration, JobConfiguration>();
 
 serviceCollectionStarter.AddLogging(loggingBuilder =>
 {
+    loggingBuilder.AddConfiguration(configurationRoot.GetSection("Logging"));
     loggingBuilder.AddConsole();
     loggingBuilder.AddDebug();
 });
@@ -213,6 +217,7 @@ ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServicePr
 IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
+builder.WebHost.UseStaticWebAssets();
 
 // Register options
 builder.Services.AddSlimFaasOptions(builder.Configuration);

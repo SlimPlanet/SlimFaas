@@ -31,7 +31,7 @@ client/python/
 tests/
 
 # Documentation et demo
-documentation/
+docs/
 demo/
 
 # Fichiers git et CI
@@ -48,4 +48,3 @@ node_modules/
 **/.gitignore
 **/.editorconfig
 docker-compose*.yml
-

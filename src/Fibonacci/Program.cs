@@ -8,6 +8,9 @@ using Prometheus;
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 IServiceCollection serviceCollection = builder.Services;
+string slimFaasBaseUrl = (
+    builder.Configuration["SlimFaas:BaseUrl"] ??
+    "http://slimfaas.slimfaas-demo.svc.cluster.local:5000").TrimEnd('/');
 
 var openTelemetryConfig = builder.Configuration
     .GetSection("OpenTelemetry")
@@ -102,7 +105,7 @@ app.MapPost("/fibonacci4", async (
         logger.LogInformation("Fibonacci4 Internal Called: {Input}", input.Input);
 
         using var resp = await client.PostAsJsonAsync(
-            "http://slimfaas.slimfaas-demo.svc.cluster.local:5000/function/fibonacci4/fibonacci",
+            $"{slimFaasBaseUrl}/function/fibonacci4/fibonacci",
             new FibonacciInput { Input = input.Input - 1 },
             FibonacciInputSerializerContext.Default.FibonacciInput);
 
@@ -129,7 +132,7 @@ app.MapPost("/send-private-fibonacci-event", async (
     logger.LogInformation("Fibonacci Private Event Called");
 
     using var response = await client.PostAsJsonAsync(
-        "http://slimfaas.slimfaas-demo.svc.cluster.local:5000/publish-event/fibo-private/fibonacci",
+        $"{slimFaasBaseUrl}/publish-event/fibo-private/fibonacci",
         input, FibonacciInputSerializerContext.Default.FibonacciInput);
 
     logger.LogInformation("Response status code: {StatusCode}", response.StatusCode);
@@ -152,12 +155,12 @@ app.MapPost("/fibonacci-recursive", async (
             return Results.Ok(new FibonacciRecursiveOutput { Result = 1, NumberCall = 1 });
 
         var t1 = client.PostAsJsonAsync(
-            "http://slimfaas.slimfaas-demo.svc.cluster.local:5000/function/fibonacci3/fibonacci-recursive",
+            $"{slimFaasBaseUrl}/function/fibonacci3/fibonacci-recursive",
             new FibonacciInput { Input = input.Input - 1 },
             FibonacciInputSerializerContext.Default.FibonacciInput);
 
         var t2 = client.PostAsJsonAsync(
-            "http://slimfaas.slimfaas-demo.svc.cluster.local:5000/function/fibonacci3/fibonacci-recursive",
+            $"{slimFaasBaseUrl}/function/fibonacci3/fibonacci-recursive",
             new FibonacciInput { Input = input.Input - 2 },
             FibonacciInputSerializerContext.Default.FibonacciInput);
 
@@ -278,7 +281,7 @@ app.MapPost("/computeWithCallback", async (
 
             using var req = new HttpRequestMessage(
                 HttpMethod.Post,
-                $"http://slimfaas.slimfaas-demo.svc:5000/async-function-callback/fibonacci1/{elementId}/{status}")
+                $"{slimFaasBaseUrl}/async-function-callback/fibonacci1/{elementId}/{status}")
             {
                 Content = JsonContent.Create(new { })
             };

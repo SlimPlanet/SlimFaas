@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SlimFaas documentation site
 
-## Getting Started
+This Next.js application builds the static site published at
+[slimfaas.dev](https://slimfaas.dev).
 
-First, run the development server:
+## Documentation sources
+
+Public pages are rendered from the repository's `docs/*.md` files. The
+route-to-file mapping, labels, titles, and descriptions are defined in
+`src/lib/documentation-catalog.ts`. The static build reads the checked-out
+files directly, so a branch or pull request always renders its own
+documentation rather than the version from the default branch.
+
+Relative links between public documents become site routes. Links to technical
+references become GitHub links, and relative documentation assets are served
+from the canonical SlimFaas repository.
+
+## Develop
+
+From this directory:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Validate and export
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm lint
+pnpm build
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The static export is written to `out/`. A missing documentation source fails
+the build instead of producing an empty page.

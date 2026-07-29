@@ -1,5 +1,6 @@
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
+using System.Text.Json;
 
 namespace SlimFaas.Tests.Local;
 
@@ -295,8 +296,8 @@ public sealed class LocalManifestLoaderTests
             name: parser-test
             cluster:
               nodes: 1
-              gatewayPort: 41000
-              httpPortBase: 41001
+              entrypointPort: 41000
+              nodeHttpPortBase: 41001
               raftPortBase: 41002
             processPorts:
               from: 41100
@@ -325,6 +326,176 @@ public sealed class LocalManifestLoaderTests
         Assert.Equal("http://127.0.0.1:{port}", function.Environment["ASPNETCORE_URLS"]);
         Assert.Equal(FunctionVisibility.Private, metadata.Visibility);
         Assert.Equal(3, metadata.Scale?.ReplicaMax);
+        Assert.Equal(41000, loaded.Manifest.Cluster.EntrypointPort);
+        Assert.Equal(41001, loaded.Manifest.Cluster.NodeHttpPortBase);
+    }
+
+    [Fact]
+    public void Load_AcceptsKubernetesJobAnnotations()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            """
+
+            jobs:
+              batch-job:
+                command: ["dotnet", "--info"]
+                workingDirectory: .
+                annotations:
+                  SlimFaas/Job: "true"
+                  SlimFaas/DefaultVisibility: "Public"
+                  SlimFaas/NumberParallelJob: "2"
+                  SlimFaas/DependsOn: "function-one, function-two"
+                  SlimFaas/Schedules: '[{"Schedule":"*/5 * * * *","Args":["39"],"DependsOn":["function-two"]}]'
+            """);
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+        LocalJobManifest job = Assert.Single(loaded.Manifest.Jobs).Value;
+        JobMetadata metadata = JobMetadataParser.Parse(job.Annotations);
+
+        Assert.Equal(FunctionVisibility.Public, metadata.Visibility);
+        Assert.Equal(2, metadata.NumberParallelJob);
+        Assert.Equal(["function-one", "function-two"], metadata.DependsOn);
+        ScheduleCreateJob schedule = Assert.Single(metadata.Schedules);
+        Assert.Equal("*/5 * * * *", schedule.Schedule);
+        Assert.Equal(["39"], schedule.Args);
+        Assert.Equal(["function-two"], schedule.DependsOn);
+    }
+
+    [Theory]
+    [InlineData("parallelism: 2", "parallelism")]
+    [InlineData("visibility: Public", "visibility")]
+    [InlineData("dependsOn: [function-one]", "dependsOn")]
+    [InlineData("schedules: []", "schedules")]
+    public void Load_RejectsRemovedLocalJobMetadataFields(string field, string fieldName)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            $$"""
+
+            jobs:
+              batch-job:
+                command: ["dotnet", "--info"]
+                workingDirectory: .
+                annotations:
+                  SlimFaas/Job: "true"
+                {{field}}
+            """);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(fieldName, error.Message, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("SlimFaas/Job: \"false\"", "SlimFaas/Job")]
+    [InlineData("SlimFaas/DefaultVisibility: Internal", "SlimFaas/DefaultVisibility")]
+    [InlineData("SlimFaas/NumberParallelJob: \"0\"", "SlimFaas/NumberParallelJob")]
+    [InlineData("SlimFaas/Schedules: not-json", "SlimFaas/Schedules")]
+    [InlineData("SlimFaas/Schedules: '[{\"Schedule\":\"invalid\",\"Args\":[]}]'", "SlimFaas/Schedules")]
+    public void Load_RejectsInvalidKubernetesJobAnnotations(string annotation, string expected)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml() +
+            $$"""
+
+            jobs:
+              batch-job:
+                command: ["dotnet", "--info"]
+                workingDirectory: .
+                annotations:
+                  {{annotation}}
+            """);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(expected, error.Message);
+    }
+
+    [Fact]
+    public void Load_UsesCanonicalClusterPortDefaults()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml()
+                .Replace("  entrypointPort: 41000\n", "", StringComparison.Ordinal)
+                .Replace("  nodeHttpPortBase: 41001\n", "", StringComparison.Ordinal));
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        Assert.Equal(30020, loaded.Manifest.Cluster.EntrypointPort);
+        Assert.Equal(30021, loaded.Manifest.Cluster.NodeHttpPortBase);
+        Assert.Equal("Error", loaded.Manifest.Cluster.NodeLogLevel);
+    }
+
+    [Theory]
+    [InlineData("Trace")]
+    [InlineData("Debug")]
+    [InlineData("Information")]
+    [InlineData("Warning")]
+    [InlineData("Error")]
+    [InlineData("Critical")]
+    [InlineData("None")]
+    [InlineData("warning")]
+    public void Load_AcceptsNodeLogLevels(string level)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "  raftPortBase: 41002",
+                $"  raftPortBase: 41002\n  nodeLogLevel: {level}",
+                StringComparison.Ordinal));
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        Assert.Equal(level, loaded.Manifest.Cluster.NodeLogLevel);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("Verbose")]
+    [InlineData("3")]
+    public void Load_RejectsInvalidNodeLogLevel(string level)
+    {
+        using var directory = new TemporaryDirectory();
+        string renderedLevel = string.IsNullOrEmpty(level) ? "\"\"" : level;
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "  raftPortBase: 41002",
+                $"  raftPortBase: 41002\n  nodeLogLevel: {renderedLevel}",
+                StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains("cluster.nodeLogLevel", error.Message);
+    }
+
+    [Theory]
+    [InlineData("entrypointPort", "gatewayPort")]
+    [InlineData("nodeHttpPortBase", "httpPortBase")]
+    public void Load_RejectsRemovedClusterPortNames(string canonicalName, string removedName)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(canonicalName, removedName, StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(removedName, error.Message);
     }
 
     [Fact]
@@ -403,6 +574,92 @@ public sealed class LocalManifestLoaderTests
             () => LocalManifestLoader.Load(path));
 
         Assert.Contains("must not overlap", error.Message);
+    }
+
+    [Fact]
+    public void Load_AcceptsDebugUrlWithExplicitPortAndBasePathWithoutCommand()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml()
+                .Replace(
+                    "    command: [\"dotnet\", \"--info\"]\n    workingDirectory: .\n",
+                    "    debugUrl: \"http://127.0.0.1:5051/debug/base\"\n",
+                    StringComparison.Ordinal));
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        LocalFunctionManifest function = loaded.Manifest.Functions["function-one"];
+        Assert.Equal("http://127.0.0.1:5051/debug/base", function.DebugUrl);
+        Assert.Empty(function.Command);
+    }
+
+    [Theory]
+    [InlineData("https://127.0.0.1:5051", "absolute HTTP URL")]
+    [InlineData("http://127.0.0.1", "explicit port")]
+    [InlineData("http://127.0.0.1:0", "port must be between 1 and 65535")]
+    [InlineData("127.0.0.1:5051", "absolute HTTP URL")]
+    [InlineData("http://127.0.0.1:5051/debug?value=1", "must not contain a query")]
+    [InlineData("http://127.0.0.1:5051/debug#section", "must not contain a fragment")]
+    public void Load_RejectsInvalidDebugUrls(string debugUrl, string expectedMessage)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "    command: [\"dotnet\", \"--info\"]",
+                $"    debugUrl: \"{debugUrl}\"",
+                StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(expectedMessage, error.Message);
+    }
+
+    [Theory]
+    [InlineData(41000)]
+    [InlineData(41001)]
+    [InlineData(41002)]
+    public void Load_RejectsDebugUrlThatUsesAClusterPort(int port)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "    command: [\"dotnet\", \"--info\"]",
+                $"    debugUrl: \"http://127.0.0.1:{port}\"",
+                StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains("must not overlap entrypoint, node HTTP, or Raft ports", error.Message);
+    }
+
+    [Fact]
+    public void Load_RejectsFixedProcessPortThatConflictsWithLocalDebugUrl()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "    command: [\"dotnet\", \"--info\"]",
+                "    debugUrl: \"http://localhost:5051\"",
+                StringComparison.Ordinal) +
+            """
+
+            processes:
+              frontend:
+                command: ["dotnet", "--info"]
+                port: 5051
+            """);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains("conflicts with functions.function-one.debugUrl", error.Message);
     }
 
     [Fact]
@@ -516,7 +773,7 @@ public sealed class LocalManifestLoaderTests
             command: ["dotnet", "--info"]
             port: 41000
         """,
-        "must not overlap gateway")]
+        "must not overlap entrypoint")]
     public void Load_RejectsInvalidAuxiliaryProcessConfiguration(
         string processYaml,
         string expectedMessage)
@@ -597,6 +854,76 @@ public sealed class LocalManifestLoaderTests
         Assert.True(File.Exists(Path.Combine(state, "user-file")));
     }
 
+    [Fact]
+    public void StateStore_WritesVersionTwoMarkerWithCanonicalPortNames()
+    {
+        using var directory = new TemporaryDirectory();
+        string state = Path.Combine(directory.Path, "owned-state");
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "mode: ephemeral",
+                $"mode: persistent\n  directory: {state}",
+                StringComparison.Ordinal));
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        using (LocalStateStore.Open(loaded, clean: false))
+        {
+        }
+
+        using JsonDocument marker = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(state, LocalStateStore.MarkerFileName)));
+        JsonElement root = marker.RootElement;
+        Assert.Equal(2, root.GetProperty("schemaVersion").GetInt32());
+        Assert.Equal(41000, root.GetProperty("entrypointPort").GetInt32());
+        Assert.Equal(41001, root.GetProperty("nodeHttpPortBase").GetInt32());
+        Assert.False(root.TryGetProperty("gatewayPort", out _));
+        Assert.False(root.TryGetProperty("httpPortBase", out _));
+    }
+
+    [Fact]
+    public void StateStore_RejectsVersionOneMarkerButCleanRecreatesIt()
+    {
+        using var directory = new TemporaryDirectory();
+        string state = Path.Combine(directory.Path, "owned-state");
+        Directory.CreateDirectory(state);
+        File.WriteAllText(
+            Path.Combine(state, LocalStateStore.MarkerFileName),
+            """
+            {
+              "schemaVersion": 1,
+              "project": "local-test",
+              "nodes": 1,
+              "gatewayPort": 41000,
+              "httpPortBase": 41001,
+              "raftPortBase": 41002,
+              "processPortFrom": 41100,
+              "processPortTo": 41102,
+              "portAllocations": {}
+            }
+            """);
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "mode: ephemeral",
+                $"mode: persistent\n  directory: {state}",
+                StringComparison.Ordinal));
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalStateStore.Open(loaded, clean: false));
+        Assert.Contains("unsupported schema version 1", error.Message);
+        Assert.Contains("--clean", error.Message);
+
+        using (LocalStateStore.Open(loaded, clean: true))
+        {
+        }
+
+        using JsonDocument marker = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(state, LocalStateStore.MarkerFileName)));
+        Assert.Equal(2, marker.RootElement.GetProperty("schemaVersion").GetInt32());
+    }
+
     private static string ValidYaml(string functionTail = "")
     {
         const string yaml =
@@ -605,8 +932,8 @@ public sealed class LocalManifestLoaderTests
             name: local-test
             cluster:
               nodes: 1
-              gatewayPort: 41000
-              httpPortBase: 41001
+              entrypointPort: 41000
+              nodeHttpPortBase: 41001
               raftPortBase: 41002
             processPorts:
               from: 41100

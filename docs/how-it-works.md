@@ -77,7 +77,7 @@ The current byte window and the cause of the latest snapshot request are exposed
    Wait for the function’s response.
 4. **SlimFaas** returns the function’s response to the client.
 
-![sync_http_call.PNG](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/sync_http_call.PNG?raw=true)
+![Synchronous HTTP call](sync_http_call.PNG)
 
 ### Asynchronous HTTP Calls
 
@@ -87,7 +87,7 @@ The current byte window and the cause of the latest snapshot request are exposed
 3. **SlimWorker** processes requests in the background, respecting concurrency limits.
 4. **Function** handles each request. SlimFaas logs outcomes in SlimData.
 
-![async_http_call.PNG](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/async_http_call.PNG?raw=true)
+![Asynchronous HTTP call](async_http_call.PNG)
 
 ### Publish/Subscribe (Events)
 
@@ -96,7 +96,7 @@ The current byte window and the cause of the latest snapshot request are exposed
 2. SlimFaas synchronously broadcasts the payload to each subscribed function’s replicas.
 3. Each replica processes the event and responds individually to SlimFaas.
 
-![publish_sync_call.png](https://github.com/AxaFrance/SlimFaas/blob/main/documentation/publish_sync_call.png?raw=true)
+![Synchronous event publication](publish_sync_call.png)
 
 ---
 

@@ -1,0 +1,200 @@
+schemaVersion: 1
+name: slimfaas-demo
+
+cluster:
+  nodes: 3
+  entrypointPort: 30020
+  nodeHttpPortBase: 30021
+  raftPortBase: 3262
+  nodeLogLevel: Error
+
+processPorts:
+  from: 5000
+  to: 5999
+
+state:
+  mode: persistent
+  directory: .slimfaas/slimfaas-demo
+
+functions:
+  fibonacci1:
+    command:
+      - dotnet
+      - run
+      - --project
+      - Fibonacci.csproj
+      - --no-launch-profile
+      - --artifacts-path
+      - ../../.slimfaas/build/fibonacci1-{replica}
+    workingDirectory: src/Fibonacci
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
+      SlimFaas/NumberParallelRequest: "10"
+      SlimFaas/NumberParallelRequestPerPod: "1"
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/ReplicasMin: "0"
+      prometheus.io/path: "/metrics"
+      prometheus.io/port: "{port}"
+      prometheus.io/scrape: "true"
+      SlimFaas/Scale: >
+        {
+          "ReplicaMax": 10,
+          "Triggers": [
+            {
+              "MetricType": "Value",
+              "MetricName": "max_over_time_queue_fibonacci1",
+              "Query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci1\"}[30s])",
+              "Threshold": 10
+            }
+          ],
+          "Behavior": {
+            "ScaleUp": {
+              "StabilizationWindowSeconds": 0,
+              "Policies": [
+                { "Type": "Pods", "Value": 1, "PeriodSeconds": 10 }
+              ]
+            },
+            "ScaleDown": {
+              "StabilizationWindowSeconds": 20,
+              "Policies": [
+                { "Type": "Pods", "Value": 1, "PeriodSeconds": 10 }
+              ]
+            }
+          }
+        }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://127.0.0.1:{port}"
+      Logging__LogLevel__Default: Debug
+      SlimFaas__BaseUrl: "http://127.0.0.1:30020"
+    health:
+      path: /health
+      periodSeconds: 1
+      timeoutSeconds: 2
+      startupTimeoutSeconds: 120
+
+  fibonacci2:
+    command:
+      - dotnet
+      - run
+      - --project
+      - Fibonacci.csproj
+      - --no-launch-profile
+      - --artifacts-path
+      - ../../.slimfaas/build/fibonacci2-{replica}
+    workingDirectory: src/Fibonacci
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
+      SlimFaas/NumberParallelRequest: "2"
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/ReplicasMin: "0"
+      # MySQL is an external StatefulSet in the Kubernetes demo. The sample
+      # Fibonacci API does not use it, so only the native dependency is kept.
+      SlimFaas/DependsOn: "fibonacci1"
+      prometheus.io/path: "/metrics"
+      prometheus.io/port: "{port}"
+      prometheus.io/scrape: "true"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://127.0.0.1:{port}"
+      SlimFaas__BaseUrl: "http://127.0.0.1:30020"
+    health:
+      path: /health
+      periodSeconds: 1
+      timeoutSeconds: 2
+      startupTimeoutSeconds: 120
+
+  fibonacci3:
+    command:
+      - dotnet
+      - run
+      - --project
+      - Fibonacci.csproj
+      - --no-launch-profile
+      - --artifacts-path
+      - ../../.slimfaas/build/fibonacci3-{replica}
+    workingDirectory: src/Fibonacci
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
+      SlimFaas/NumberParallelRequest: "40"
+      SlimFaas/NumberParallelRequestPerPod: "10"
+      SlimFaas/SubscribeEvents: "fibo-public"
+      SlimFaas/ReplicasAtStart: "2"
+      SlimFaas/ReplicasMin: "0"
+      prometheus.io/path: "/metrics"
+      prometheus.io/port: "{port}"
+      prometheus.io/scrape: "true"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://127.0.0.1:{port}"
+      SlimFaas__BaseUrl: "http://127.0.0.1:30020"
+    health:
+      path: /health
+      periodSeconds: 1
+      timeoutSeconds: 2
+      startupTimeoutSeconds: 120
+
+  fibonacci4:
+    command:
+      - dotnet
+      - run
+      - --project
+      - Fibonacci.csproj
+      - --no-launch-profile
+      - --artifacts-path
+      - ../../.slimfaas/build/fibonacci4-{replica}
+    workingDirectory: src/Fibonacci
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
+      SlimFaas/DefaultVisibility: "Private"
+      SlimFaas/ReplicasAtStart: "2"
+      SlimFaas/ReplicasMin: "0"
+      SlimFaas/SubscribeEvents: "Public:fibo-public"
+      prometheus.io/path: "/metrics"
+      prometheus.io/port: "{port}"
+      prometheus.io/scrape: "true"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://127.0.0.1:{port}"
+      SlimFaas__BaseUrl: "http://127.0.0.1:30020"
+    health:
+      path: /health
+      periodSeconds: 1
+      timeoutSeconds: 2
+      startupTimeoutSeconds: 120
+
+jobs:
+  fibonacci:
+    command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
+    workingDirectory: src/FibonacciBatch
+    annotations:
+      SlimFaas/Job: "true"
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/NumberParallelJob: "2"
+      SlimFaas/DependsOn: "fibonacci1"
+      SlimFaas/Schedules: '[{"Schedule":"0 0 * * *","Args":["42","43"]}]'
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      SLIMFAAS_WS_URL: "ws://127.0.0.1:30020/ws"
+      SLIMFAAS_FUNCTION_NAME: "fibonacci-batch-ws"
+      SLIMFAAS_SUBSCRIBE_EVENTS: "Public:fibo-public"
+    ttlSecondsAfterFinished: 2
+    backoffLimit: 1
+    restartPolicy: Never
+
+  fibonacci5:
+    command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
+    workingDirectory: src/FibonacciBatch
+    annotations:
+      SlimFaas/Job: "true"
+      SlimFaas/DefaultVisibility: "Public"
+      SlimFaas/NumberParallelJob: "1"
+      SlimFaas/DependsOn: "fibonacci1,fibonacci2"
+      SlimFaas/Schedules: '[{"Schedule":"*/2 * * * *","Args":["39"]}]'
+    ttlSecondsAfterFinished: 60
+    backoffLimit: 1
+    restartPolicy: Never

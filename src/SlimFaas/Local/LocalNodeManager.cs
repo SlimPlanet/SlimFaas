@@ -60,11 +60,20 @@ public sealed class LocalNodeManager : IAsyncDisposable
                 ResourceVersion: node.StartedAt.UtcTicks.ToString(CultureInfo.InvariantCulture),
                 ServiceName: "slimfaas")
             {
+                Annotations = MetricsAnnotations(HttpPort(node)),
                 AppFailureReason = node.FailureReason,
                 AppFailureMessage = node.FailureMessage
             }).ToList();
         }
     }
+
+    internal static IDictionary<string, string> MetricsAnnotations(int httpPort)
+        => new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["prometheus.io/scrape"] = "true",
+            ["prometheus.io/path"] = "/metrics",
+            ["prometheus.io/port"] = httpPort.ToString(CultureInfo.InvariantCulture)
+        };
 
     private async Task MonitorLoopAsync(CancellationToken cancellationToken)
     {
@@ -115,23 +124,7 @@ public sealed class LocalNodeManager : IAsyncDisposable
                 return;
 
             IReadOnlyList<string> command = SelfCommand();
-            var environment = new Dictionary<string, string>(StringComparer.Ordinal)
-            {
-                ["HOSTNAME"] = $"slimfaas-{node.Index}",
-                ["SlimFaas__Orchestrator"] = "Process",
-                ["SlimFaas__Namespace"] = _loaded.Manifest.Name,
-                ["SlimFaas__Process__SupervisorUrl"] = _supervisorUri.ToString().TrimEnd('/'),
-                ["SlimFaas__Process__Token"] = _token,
-                ["SlimFaas__BaseSlimDataUrl"] = "http://{pod_ip}:{pod_port_0}",
-                ["SlimFaas__BaseFunctionUrl"] = "http://{pod_ip}:{pod_port}",
-                ["SlimFaas__BaseFunctionPodUrl"] = "http://{pod_ip}:{pod_port}",
-                ["SlimFaas__WebSocketPort"] = "0",
-                ["SlimData__Directory"] = _state.DataDirectory,
-                ["SlimData__AllowColdStart"] = "true",
-                ["Data__DefaultVisibility"] = "Public",
-                ["Logging__LogLevel__Default"] = "Warning",
-                ["Logging__LogLevel__Microsoft.AspNetCore"] = "Error"
-            };
+            Dictionary<string, string> environment = BuildNodeEnvironment(node.Index);
 
             try
             {
@@ -154,6 +147,35 @@ public sealed class LocalNodeManager : IAsyncDisposable
                     Math.Min(30, 1 << Math.Min(failures - 1, 5)));
             }
         }
+    }
+
+    internal Dictionary<string, string> BuildNodeEnvironment(int nodeIndex)
+    {
+        string logLevel = _loaded.Manifest.Cluster.NodeLogLevel;
+        return new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["HOSTNAME"] = $"slimfaas-{nodeIndex}",
+            ["SlimFaas__Orchestrator"] = "Process",
+            ["SlimFaas__Namespace"] = _loaded.Manifest.Name,
+            ["SlimFaas__Process__SupervisorUrl"] = _supervisorUri.ToString().TrimEnd('/'),
+            ["SlimFaas__Process__Token"] = _token,
+            ["SlimFaas__BaseSlimDataUrl"] = "http://{pod_ip}:{pod_port_0}",
+            ["SlimFaas__BaseFunctionUrl"] = "http://{pod_ip}:{pod_port}",
+            ["SlimFaas__BaseFunctionPodUrl"] = "http://{pod_ip}:{pod_port}",
+            ["SlimFaas__WebSocketPort"] = "0",
+            ["SlimData__Directory"] = _state.DataDirectory,
+            ["SlimData__AllowColdStart"] = "true",
+            ["Data__DefaultVisibility"] = "Public",
+            ["OpenTelemetry__Enable"] = "false",
+            ["OpenTelemetry__EnableConsoleExporter"] = "false",
+            ["Logging__LogLevel__Default"] = logLevel,
+            ["Logging__LogLevel__Microsoft.AspNetCore"] = logLevel,
+            ["Logging__LogLevel__SlimFaas"] = logLevel,
+            ["Logging__LogLevel__SlimData"] = logLevel,
+            ["Logging__LogLevel__DotNext"] = logLevel,
+            ["Logging__LogLevel__DotNext.Net.Cluster"] = logLevel,
+            ["Logging__LogLevel__DotNext.Net.Cluster.Consensus.Raft"] = logLevel
+        };
     }
 
     private async Task ProbeAsync(NodeRuntime node, CancellationToken cancellationToken)
@@ -207,7 +229,7 @@ public sealed class LocalNodeManager : IAsyncDisposable
         return [processPath];
     }
 
-    private int HttpPort(NodeRuntime node) => _loaded.Manifest.Cluster.HttpPortBase + node.Index;
+    private int HttpPort(NodeRuntime node) => _loaded.Manifest.Cluster.NodeHttpPortBase + node.Index;
     private int RaftPort(NodeRuntime node) => _loaded.Manifest.Cluster.RaftPortBase + node.Index;
 
     public async ValueTask DisposeAsync()

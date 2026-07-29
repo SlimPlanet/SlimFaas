@@ -483,6 +483,67 @@ namespace SlimFaas.Tests
             Assert.Equal(new List<int> { 9001, 9002 }, ports);
         }
 
+        [Fact]
+        public void LocalRoutingKeys_DistributeReplicasSharingTheSameIp()
+        {
+            var replicasService = new FakeReplicasService
+            {
+                Deployments = new FakeDeploymentCollection
+                {
+                    Functions =
+                    [
+                        new DeploymentInformation(
+                            Deployment: "local-function",
+                            Namespace: "default",
+                            Pods:
+                            [
+                                new PodInformation(
+                                    "local-function-0",
+                                    true,
+                                    true,
+                                    "127.0.0.1",
+                                    "local-function",
+                                [5001])
+                                {
+                                    RoutingKey = "local-function-0",
+                                    EndpointUrl = "http://127.0.0.1:5001/debug"
+                                },
+                                new PodInformation(
+                                    "local-function-1",
+                                    true,
+                                    true,
+                                    "127.0.0.1",
+                                    "local-function",
+                                    [5002])
+                                {
+                                    RoutingKey = "local-function-1"
+                                }
+                            ],
+                            Configuration: new SlimFaasConfiguration(),
+                            Replicas: 2)
+                    ]
+                }
+            };
+            Proxy.IpAddresses["local-function"] = "local-function-1";
+            var proxy = new Proxy(replicasService, "local-function");
+
+            IList<string> targets = proxy.ReserveNextIPs(
+                maxPerPod: 2,
+                count: 4,
+                alreadyUsedIps: NoUsage);
+
+            Assert.Equal(2, targets.Count(target => target == "local-function-0"));
+            Assert.Equal(2, targets.Count(target => target == "local-function-1"));
+            Assert.Equal([5001], proxy.GetPorts("local-function-0"));
+            Assert.Equal([5002], proxy.GetPorts("local-function-1"));
+            Assert.Equal("127.0.0.1", proxy.ResolvePodIp("local-function-0"));
+            Assert.Equal("127.0.0.1", proxy.ResolvePodIp("local-function-1"));
+            Assert.Equal(
+                "http://127.0.0.1:5001/debug",
+                proxy.ResolvePodEndpointUrl("local-function-0"));
+            Assert.Null(proxy.ResolvePodEndpointUrl("local-function-1"));
+        }
+
         private static FakeReplicasService BuildThreePods()
         {
             return new FakeReplicasService

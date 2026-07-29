@@ -10,6 +10,7 @@ namespace SlimFaas.Local;
 public sealed class LocalStateStore : IDisposable
 {
     public const string MarkerFileName = ".slimfaas-local.json";
+    private const int CurrentSchemaVersion = 2;
 
     private readonly LoadedLocalManifest _loaded;
     private readonly object _gate = new();
@@ -38,7 +39,7 @@ public sealed class LocalStateStore : IDisposable
                     $"Refusing --clean for '{directory}': the SlimFaas local ownership marker is missing.");
             }
 
-            LocalStateMetadata existing = ReadMarker(marker);
+            LocalStateMetadata existing = ReadMarker(marker, requireCurrentSchema: false);
             if (!string.Equals(existing.Project, loaded.Manifest.Name, StringComparison.Ordinal))
             {
                 throw new LocalManifestException(
@@ -68,11 +69,11 @@ public sealed class LocalStateStore : IDisposable
         else
         {
             metadata = new LocalStateMetadata(
-                SchemaVersion: 1,
+                SchemaVersion: CurrentSchemaVersion,
                 Project: loaded.Manifest.Name,
                 Nodes: loaded.Manifest.Cluster.Nodes,
-                GatewayPort: loaded.Manifest.Cluster.GatewayPort,
-                HttpPortBase: loaded.Manifest.Cluster.HttpPortBase,
+                EntrypointPort: loaded.Manifest.Cluster.EntrypointPort,
+                NodeHttpPortBase: loaded.Manifest.Cluster.NodeHttpPortBase,
                 RaftPortBase: loaded.Manifest.Cluster.RaftPortBase,
                 ProcessPortFrom: loaded.Manifest.ProcessPorts.From,
                 ProcessPortTo: loaded.Manifest.ProcessPorts.To,
@@ -152,7 +153,9 @@ public sealed class LocalStateStore : IDisposable
         File.Move(temporary, marker, overwrite: true);
     }
 
-    private static LocalStateMetadata ReadMarker(string marker)
+    private static LocalStateMetadata ReadMarker(
+        string marker,
+        bool requireCurrentSchema = true)
     {
         try
         {
@@ -161,10 +164,11 @@ public sealed class LocalStateStore : IDisposable
                                               ProcessControlJsonContext.Default.LocalStateMetadata)
                                           ?? throw new LocalManifestException(
                                               $"State marker '{marker}' is empty.");
-            if (metadata.SchemaVersion != 1)
+            if (requireCurrentSchema && metadata.SchemaVersion != CurrentSchemaVersion)
             {
                 throw new LocalManifestException(
-                    $"State marker '{marker}' has unsupported schema version {metadata.SchemaVersion}.");
+                    $"State marker '{marker}' has unsupported schema version {metadata.SchemaVersion}. " +
+                    "Run local up with --clean.");
             }
 
             return metadata with
@@ -207,11 +211,20 @@ public sealed class LocalPortAllocator
     {
         _loaded = loaded;
         _state = state;
-        _reserved = [loaded.Manifest.Cluster.GatewayPort];
+        _reserved = [loaded.Manifest.Cluster.EntrypointPort];
         for (var index = 0; index < loaded.Manifest.Cluster.Nodes; index++)
         {
-            _reserved.Add(loaded.Manifest.Cluster.HttpPortBase + index);
+            _reserved.Add(loaded.Manifest.Cluster.NodeHttpPortBase + index);
             _reserved.Add(loaded.Manifest.Cluster.RaftPortBase + index);
+        }
+
+        foreach (LocalFunctionManifest function in loaded.Manifest.Functions.Values)
+        {
+            if (function.DebugUrl is null)
+                continue;
+            Uri debugUri = LocalManifestLoader.GetDebugUri(function.DebugUrl);
+            if (LocalManifestLoader.IsLocalDebugUrl(debugUri))
+                _reserved.Add(debugUri.Port);
         }
     }
 

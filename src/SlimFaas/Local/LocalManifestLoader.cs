@@ -1,7 +1,9 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.Logging;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using YamlDotNet.Core;
@@ -85,6 +87,7 @@ public static partial class LocalManifestLoader
     {
         manifest.Name ??= "";
         manifest.Cluster ??= new LocalClusterManifest();
+        manifest.Cluster.NodeLogLevel ??= "";
         manifest.ProcessPorts ??= new LocalPortRangeManifest();
         manifest.State ??= new LocalStateManifest();
         manifest.State.Mode ??= "";
@@ -104,6 +107,9 @@ public static partial class LocalManifestLoader
             manifest.Functions[name] = function;
             function.Command ??= [];
             function.WorkingDirectory ??= "";
+            function.DebugUrl = string.IsNullOrWhiteSpace(function.DebugUrl)
+                ? null
+                : function.DebugUrl.Trim();
             function.Health ??= new LocalHealthManifest();
             function.Health.Path ??= "";
             if (function.Shutdown is not null)
@@ -122,10 +128,10 @@ public static partial class LocalManifestLoader
             manifest.Jobs[name] = job;
             job.Command ??= [];
             job.WorkingDirectory ??= "";
-            job.Visibility ??= "";
             job.RestartPolicy ??= "";
-            job.DependsOn ??= [];
-            job.Schedules ??= [];
+            job.Annotations = new Dictionary<string, string>(
+                job.Annotations ?? new Dictionary<string, string>(),
+                StringComparer.Ordinal);
             job.Environment = new Dictionary<string, string>(
                 job.Environment ?? new Dictionary<string, string>(),
                 StringComparer.Ordinal);
@@ -137,13 +143,6 @@ public static partial class LocalManifestLoader
                 job.Resources.Limits = new Dictionary<string, string>(
                     job.Resources.Limits ?? new Dictionary<string, string>(),
                     StringComparer.OrdinalIgnoreCase);
-            }
-
-            foreach (LocalJobScheduleManifest schedule in job.Schedules)
-            {
-                schedule.Cron ??= "";
-                schedule.Args ??= [];
-                schedule.DependsOn ??= [];
             }
         }
 
@@ -169,39 +168,85 @@ public static partial class LocalManifestLoader
             errors.Add("name must contain only letters, digits, '.', '_' or '-'.");
         if (manifest.Cluster.Nodes is < 1 or > 3)
             errors.Add("cluster.nodes must be between 1 and 3.");
+        if (!Enum.GetNames<LogLevel>().Contains(
+                manifest.Cluster.NodeLogLevel,
+                StringComparer.OrdinalIgnoreCase))
+        {
+            errors.Add(
+                "cluster.nodeLogLevel must be Trace, Debug, Information, Warning, Error, Critical, or None.");
+        }
 
-        ValidatePort("cluster.gatewayPort", manifest.Cluster.GatewayPort, errors);
-        ValidatePortRange("cluster.httpPortBase", manifest.Cluster.HttpPortBase, manifest.Cluster.Nodes, errors);
+        ValidatePort("cluster.entrypointPort", manifest.Cluster.EntrypointPort, errors);
+        ValidatePortRange(
+            "cluster.nodeHttpPortBase",
+            manifest.Cluster.NodeHttpPortBase,
+            manifest.Cluster.Nodes,
+            errors);
         ValidatePortRange("cluster.raftPortBase", manifest.Cluster.RaftPortBase, manifest.Cluster.Nodes, errors);
         ValidatePort("processPorts.from", manifest.ProcessPorts.From, errors);
         ValidatePort("processPorts.to", manifest.ProcessPorts.To, errors);
         if (manifest.ProcessPorts.From > manifest.ProcessPorts.To)
             errors.Add("processPorts.from must be less than or equal to processPorts.to.");
 
-        var reservedPorts = new HashSet<int> { manifest.Cluster.GatewayPort };
+        var reservedPorts = new HashSet<int> { manifest.Cluster.EntrypointPort };
         for (int index = 0; index < manifest.Cluster.Nodes; index++)
         {
-            reservedPorts.Add(manifest.Cluster.HttpPortBase + index);
+            reservedPorts.Add(manifest.Cluster.NodeHttpPortBase + index);
             reservedPorts.Add(manifest.Cluster.RaftPortBase + index);
         }
 
         if (reservedPorts.Count != 1 + manifest.Cluster.Nodes * 2)
-            errors.Add("gateway, HTTP and Raft port ranges must not overlap.");
+            errors.Add("entrypoint, node HTTP and Raft port ranges must not overlap.");
         if (reservedPorts.Any(p => p >= manifest.ProcessPorts.From && p <= manifest.ProcessPorts.To))
-            errors.Add("processPorts must not overlap gateway, HTTP or Raft ports.");
+            errors.Add("processPorts must not overlap entrypoint, node HTTP or Raft ports.");
 
         int requiredProcessPorts = 0;
+        var localDebugPorts = new Dictionary<int, string>();
         foreach ((string name, LocalFunctionManifest function) in manifest.Functions)
         {
+            Uri? debugUri = null;
             if (!FunctionNamePattern().IsMatch(name))
                 errors.Add($"functions.{name}: name must match [a-z0-9_-] and contain 3 to 63 characters.");
-            if (function.Command.Count == 0 || function.Command.Any(string.IsNullOrWhiteSpace))
-                errors.Add($"functions.{name}.command must contain an executable and non-empty arguments.");
-            string workingDirectory = string.IsNullOrWhiteSpace(function.WorkingDirectory)
-                ? ""
-                : Path.GetFullPath(function.WorkingDirectory, baseDirectory);
-            if (string.IsNullOrEmpty(workingDirectory) || !Directory.Exists(workingDirectory))
-                errors.Add($"functions.{name}.workingDirectory '{workingDirectory}' does not exist.");
+            if (function.DebugUrl is not null)
+            {
+                if (!TryParseDebugUrl(function.DebugUrl, out debugUri, out string? debugError))
+                {
+                    errors.Add($"functions.{name}.debugUrl {debugError}");
+                }
+                else if (reservedPorts.Contains(debugUri!.Port))
+                {
+                    errors.Add(
+                        $"functions.{name}.debugUrl port must not overlap entrypoint, node HTTP, or Raft ports.");
+                }
+                else if (IsLocalDebugUrl(debugUri))
+                {
+                    if (localDebugPorts.TryGetValue(debugUri.Port, out string? existingFunction))
+                    {
+                        errors.Add(
+                            $"functions.{name}.debugUrl duplicates functions.{existingFunction}.debugUrl " +
+                            $"port ({debugUri.Port}).");
+                    }
+                    else
+                    {
+                        localDebugPorts.Add(debugUri.Port, name);
+                        if (debugUri.Port >= manifest.ProcessPorts.From &&
+                            debugUri.Port <= manifest.ProcessPorts.To)
+                        {
+                            requiredProcessPorts = checked(requiredProcessPorts + 1);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                if (function.Command.Count == 0 || function.Command.Any(string.IsNullOrWhiteSpace))
+                    errors.Add($"functions.{name}.command must contain an executable and non-empty arguments.");
+                string workingDirectory = string.IsNullOrWhiteSpace(function.WorkingDirectory)
+                    ? ""
+                    : Path.GetFullPath(function.WorkingDirectory, baseDirectory);
+                if (string.IsNullOrEmpty(workingDirectory) || !Directory.Exists(workingDirectory))
+                    errors.Add($"functions.{name}.workingDirectory '{workingDirectory}' does not exist.");
+            }
             if (!FunctionMetadataParser.IsFunction(function.Annotations))
                 errors.Add($"functions.{name}.annotations must contain SlimFaas/Function: \"true\".");
 
@@ -210,16 +255,18 @@ public static partial class LocalManifestLoader
                 FunctionMetadata metadata = FunctionMetadataParser.Parse(function.Annotations, name);
                 int maximum = metadata.Scale?.ReplicaMax ??
                               Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin);
-                if (metadata.Scale?.ReplicaMax is int replicaMax &&
+                if (debugUri is null &&
+                    metadata.Scale?.ReplicaMax is int replicaMax &&
                     replicaMax < Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin))
                 {
                     errors.Add(
                         $"functions.{name}.annotations: SlimFaas/Scale.ReplicaMax must be greater than or " +
                         "equal to ReplicasMin and ReplicasAtStart.");
                 }
-                if (maximum < 0)
+                if (debugUri is null && maximum < 0)
                     errors.Add($"functions.{name}.annotations: ReplicaMax must not be negative.");
-                requiredProcessPorts = checked(requiredProcessPorts + maximum);
+                if (debugUri is null)
+                    requiredProcessPorts = checked(requiredProcessPorts + maximum);
             }
             catch (Exception exception)
             {
@@ -283,7 +330,12 @@ public static partial class LocalManifestLoader
             }
 
             if (reservedPorts.Contains(fixedPort))
-                errors.Add($"{prefix}.port must not overlap gateway, HTTP, or Raft ports.");
+                errors.Add($"{prefix}.port must not overlap entrypoint, node HTTP, or Raft ports.");
+            if (localDebugPorts.TryGetValue(fixedPort, out string? debugFunction))
+            {
+                errors.Add(
+                    $"{prefix}.port conflicts with functions.{debugFunction}.debugUrl ({fixedPort}).");
+            }
             if (fixedProcessPorts.TryGetValue(fixedPort, out string? existingProcess))
             {
                 errors.Add(
@@ -317,40 +369,75 @@ public static partial class LocalManifestLoader
                 : Path.GetFullPath(job.WorkingDirectory, baseDirectory);
             if (string.IsNullOrEmpty(workingDirectory) || !Directory.Exists(workingDirectory))
                 errors.Add($"jobs.{name}.workingDirectory '{workingDirectory}' does not exist.");
-            if (job.Parallelism < 1)
-                errors.Add($"jobs.{name}.parallelism must be positive.");
             if (job.TtlSecondsAfterFinished < 0)
                 errors.Add($"jobs.{name}.ttlSecondsAfterFinished must be non-negative.");
             if (job.BackoffLimit < 0)
                 errors.Add($"jobs.{name}.backoffLimit must be non-negative.");
-            if (!Enum.TryParse<FunctionVisibility>(job.Visibility, true, out _))
-                errors.Add($"jobs.{name}.visibility must be Public or Private.");
-            foreach (LocalJobScheduleManifest schedule in job.Schedules)
-            {
-                if (string.IsNullOrWhiteSpace(schedule.Cron))
-                {
-                    errors.Add($"jobs.{name}.schedules.cron must not be empty.");
-                    continue;
-                }
 
-                try
+            if (!JobMetadataParser.IsJob(job.Annotations))
+            {
+                errors.Add($"jobs.{name}.annotations must contain SlimFaas/Job: \"true\".");
+            }
+
+            try
+            {
+                JobMetadata metadata = JobMetadataParser.Parse(job.Annotations);
+                foreach (ScheduleCreateJob schedule in metadata.Schedules)
                 {
-                    ResultWithError<long> result = Cron.GetNextJobExecutionTimestamp(
-                        schedule.Cron,
-                        DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-                    if (!result.IsSuccess)
+                    if (schedule is null)
+                    {
+                        errors.Add($"jobs.{name}.annotations: SlimFaas/Schedules must not contain null entries.");
+                        continue;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(schedule.Schedule))
                     {
                         errors.Add(
-                            $"jobs.{name}.schedules.cron '{schedule.Cron}' is invalid: " +
-                            $"{result.Error?.Description}");
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.Schedule must not be empty.");
+                        continue;
+                    }
+
+                    if (schedule.Args is null)
+                    {
+                        errors.Add(
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.Args must be an array.");
+                    }
+                    if (schedule.BackoffLimit < 0)
+                    {
+                        errors.Add(
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.BackoffLimit must be non-negative.");
+                    }
+                    if (schedule.TtlSecondsAfterFinished < 0)
+                    {
+                        errors.Add(
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.TtlSecondsAfterFinished " +
+                            "must be non-negative.");
+                    }
+
+                    try
+                    {
+                        ResultWithError<long> result = Cron.GetNextJobExecutionTimestamp(
+                            schedule.Schedule,
+                            DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                        if (!result.IsSuccess)
+                        {
+                            errors.Add(
+                                $"jobs.{name}.annotations: SlimFaas/Schedules.Schedule " +
+                                $"'{schedule.Schedule}' is invalid: {result.Error?.Description}");
+                        }
+                    }
+                    catch (Exception exception) when (
+                        exception is FormatException or OverflowException or DivideByZeroException)
+                    {
+                        errors.Add(
+                            $"jobs.{name}.annotations: SlimFaas/Schedules.Schedule " +
+                            $"'{schedule.Schedule}' is invalid: {exception.Message}");
                     }
                 }
-                catch (Exception exception) when (
-                    exception is FormatException or OverflowException or DivideByZeroException)
-                {
-                    errors.Add(
-                        $"jobs.{name}.schedules.cron '{schedule.Cron}' is invalid: {exception.Message}");
-                }
+            }
+            catch (Exception exception)
+            {
+                errors.Add($"jobs.{name}.annotations: {exception.Message}");
             }
         }
 
@@ -392,6 +479,105 @@ public static partial class LocalManifestLoader
         {
             return false;
         }
+    }
+
+    internal static Uri GetDebugUri(string debugUrl)
+    {
+        if (TryParseDebugUrl(debugUrl, out Uri? uri, out _))
+            return uri!;
+        throw new InvalidOperationException($"Invalid validated debugUrl '{debugUrl}'.");
+    }
+
+    internal static bool IsLocalDebugUrl(Uri uri)
+    {
+        if (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
+            return true;
+        return IPAddress.TryParse(uri.Host, out IPAddress? address) &&
+               IPAddress.IsLoopback(address);
+    }
+
+    private static bool TryParseDebugUrl(
+        string value,
+        [NotNullWhen(true)] out Uri? uri,
+        out string? error)
+    {
+        uri = null;
+        error = null;
+        if (!Uri.TryCreate(value, UriKind.Absolute, out Uri? parsed) ||
+            !parsed.Scheme.Equals(Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
+            string.IsNullOrWhiteSpace(parsed.Host))
+        {
+            error = "must be an absolute HTTP URL.";
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(parsed.UserInfo))
+        {
+            error = "must not contain user information.";
+            return false;
+        }
+
+        if (!HasExplicitPort(value, parsed))
+        {
+            error = "must contain an explicit port.";
+            return false;
+        }
+
+        if (parsed.Port is < 1 or > IPEndPoint.MaxPort)
+        {
+            error = "port must be between 1 and 65535.";
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(parsed.Query))
+        {
+            error = "must not contain a query.";
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(parsed.Fragment))
+        {
+            error = "must not contain a fragment.";
+            return false;
+        }
+
+        uri = parsed;
+        return true;
+    }
+
+    private static bool HasExplicitPort(string value, Uri uri)
+    {
+        int authorityStart = value.IndexOf("://", StringComparison.Ordinal);
+        if (authorityStart < 0)
+            return false;
+        authorityStart += 3;
+        int authorityEnd = value.IndexOfAny(['/', '?', '#'], authorityStart);
+        string authority = authorityEnd < 0
+            ? value[authorityStart..]
+            : value[authorityStart..authorityEnd];
+
+        if (authority.StartsWith("[", StringComparison.Ordinal))
+        {
+            int closingBracket = authority.IndexOf(']');
+            return closingBracket >= 0 &&
+                   closingBracket + 1 < authority.Length &&
+                   authority[closingBracket + 1] == ':' &&
+                   int.TryParse(
+                       authority[(closingBracket + 2)..],
+                       NumberStyles.None,
+                       CultureInfo.InvariantCulture,
+                       out int ipv6Port) &&
+                   ipv6Port == uri.Port;
+        }
+
+        int separator = authority.LastIndexOf(':');
+        return separator > 0 &&
+               int.TryParse(
+                   authority[(separator + 1)..],
+                   NumberStyles.None,
+                   CultureInfo.InvariantCulture,
+                   out int port) &&
+               port == uri.Port;
     }
 
     private static void ValidateHttpSettings(

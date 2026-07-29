@@ -447,8 +447,8 @@ public sealed class LocalProcessManagerTests
             Cluster = new LocalClusterManifest
             {
                 Nodes = 1,
-                GatewayPort = rangeStart + 10,
-                HttpPortBase = rangeStart + 11,
+                EntrypointPort = rangeStart + 10,
+                NodeHttpPortBase = rangeStart + 11,
                 RaftPortBase = rangeStart + 12
             },
             ProcessPorts = new LocalPortRangeManifest

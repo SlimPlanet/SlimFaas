@@ -54,11 +54,14 @@ public sealed class LocalJobManager : IAsyncDisposable
             {
                 lock (runtime.Gate)
                 {
+                    List<string> dependsOn = runtime.Command.CreateJob.DependsOn ??
+                                             Configuration.Configurations[runtime.Command.Name].DependsOn ??
+                                             [];
                     return new Job(
                         Name: runtime.Command.JobFullName,
                         Status: runtime.Status,
                         Ips: [],
-                        DependsOn: runtime.Command.CreateJob.DependsOn ?? runtime.Manifest.DependsOn,
+                        DependsOn: dependsOn,
                         ElementId: runtime.Command.ElementId,
                         InQueueTimestamp: runtime.Command.InQueueTimestamp,
                         StartTimestamp: runtime.StartTimestamp);
@@ -205,6 +208,7 @@ public sealed class LocalJobManager : IAsyncDisposable
         var schedules = new Dictionary<string, IList<ScheduleCreateJob>>(StringComparer.OrdinalIgnoreCase);
         foreach ((string name, LocalJobManifest manifest) in jobs)
         {
+            JobMetadata metadata = JobMetadataParser.Parse(manifest.Annotations);
             CreateJobResources resources = manifest.Resources is null
                 ? CompatibilityResources
                 : new CreateJobResources(manifest.Resources.Requests, manifest.Resources.Limits);
@@ -215,26 +219,32 @@ public sealed class LocalJobManager : IAsyncDisposable
                 Image: $"local:{name}",
                 ImagesWhitelist: [],
                 Resources: resources,
-                DependsOn: manifest.DependsOn,
+                DependsOn: metadata.DependsOn,
                 Environments: environment,
                 BackoffLimit: manifest.BackoffLimit,
-                Visibility: manifest.Visibility,
-                NumberParallelJob: manifest.Parallelism,
+                Visibility: metadata.Visibility.ToString(),
+                NumberParallelJob: metadata.NumberParallelJob,
                 TtlSecondsAfterFinished: manifest.TtlSecondsAfterFinished,
                 RestartPolicy: manifest.RestartPolicy);
 
-            if (manifest.Schedules.Count > 0)
+            if (metadata.Schedules.Count > 0)
             {
-                schedules[name] = manifest.Schedules.Select(schedule => new ScheduleCreateJob(
-                    Schedule: schedule.Cron,
-                    Args: schedule.Args,
+                schedules[name] = metadata.Schedules.Select(schedule => new ScheduleCreateJob(
+                    Schedule: schedule.Schedule,
+                    Args: schedule.Args ?? [],
                     Image: "",
-                    BackoffLimit: manifest.BackoffLimit,
-                    TtlSecondsAfterFinished: manifest.TtlSecondsAfterFinished,
-                    RestartPolicy: manifest.RestartPolicy,
-                    Resources: resources,
-                    Environments: environment,
-                    DependsOn: schedule.DependsOn.Count > 0 ? schedule.DependsOn : manifest.DependsOn)).ToList();
+                    BackoffLimit: schedule.BackoffLimit == 1
+                        ? manifest.BackoffLimit
+                        : schedule.BackoffLimit,
+                    TtlSecondsAfterFinished: schedule.TtlSecondsAfterFinished == 60
+                        ? manifest.TtlSecondsAfterFinished
+                        : schedule.TtlSecondsAfterFinished,
+                    RestartPolicy: schedule.RestartPolicy == "Never"
+                        ? manifest.RestartPolicy
+                        : schedule.RestartPolicy,
+                    Resources: schedule.Resources ?? resources,
+                    Environments: schedule.Environments ?? environment,
+                    DependsOn: schedule.DependsOn ?? metadata.DependsOn)).ToList();
             }
         }
 

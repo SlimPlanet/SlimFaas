@@ -27,12 +27,20 @@ public sealed class LocalFunctionManager : IAsyncDisposable
             item =>
             {
                 FunctionMetadata metadata = FunctionMetadataParser.Parse(item.Value.Annotations, item.Key);
-                int maximum = metadata.Scale?.ReplicaMax ??
-                              Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin);
-                maximum = Math.Max(maximum, Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin));
-                return new FunctionRuntime(item.Key, item.Value, metadata, maximum)
+                Uri? debugUri = item.Value.DebugUrl is null
+                    ? null
+                    : LocalManifestLoader.GetDebugUri(item.Value.DebugUrl);
+                int maximum = debugUri is null
+                    ? metadata.Scale?.ReplicaMax ??
+                      Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin)
+                    : 1;
+                if (debugUri is null)
+                    maximum = Math.Max(maximum, Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin));
+                return new FunctionRuntime(item.Key, item.Value, metadata, maximum, debugUri)
                 {
-                    Desired = Math.Min(metadata.ReplicasAtStart, maximum)
+                    Desired = debugUri is null
+                        ? Math.Min(metadata.ReplicasMin, maximum)
+                        : 1
                 };
             },
             StringComparer.OrdinalIgnoreCase);
@@ -46,6 +54,7 @@ public sealed class LocalFunctionManager : IAsyncDisposable
 
     public IReadOnlySet<string> PortAllocationIds
         => _functions.Values
+            .Where(function => function.DebugUri is null)
             .SelectMany(function => Enumerable.Range(0, function.Maximum)
                 .Select(index => ReplicaId(function.Name, index)))
             .ToHashSet(StringComparer.Ordinal);
@@ -57,12 +66,19 @@ public sealed class LocalFunctionManager : IAsyncDisposable
 
         lock (function.Gate)
         {
-            function.Desired = Math.Clamp(request.Replicas, 0, function.Maximum);
+            function.Desired = function.DebugUri is null
+                ? Math.Clamp(request.Replicas, 0, function.Maximum)
+                : 1;
             Interlocked.Increment(ref _resourceVersion);
         }
 
         return Task.FromResult<ReplicaRequest?>(
-            request with { Replicas = Math.Clamp(request.Replicas, 0, function.Maximum) });
+            request with
+            {
+                Replicas = function.DebugUri is null
+                    ? Math.Clamp(request.Replicas, 0, function.Maximum)
+                    : 1
+            });
     }
 
     public IList<DeploymentInformation> Snapshot(string namespaceName)
@@ -84,10 +100,12 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                     Pods: pods,
                     Configuration: function.Metadata.Configuration,
                     Replicas: function.Desired,
-                    ReplicasAtStart: function.Metadata.ReplicasAtStart,
-                    ReplicasMin: function.Metadata.ReplicasMin,
+                    ReplicasAtStart: function.DebugUri is null ? function.Metadata.ReplicasAtStart : 1,
+                    ReplicasMin: function.DebugUri is null ? function.Metadata.ReplicasMin : 1,
                     TimeoutSecondBeforeSetReplicasMin:
-                    function.Metadata.TimeoutSecondBeforeSetReplicasMin,
+                    function.DebugUri is null
+                        ? function.Metadata.TimeoutSecondBeforeSetReplicasMin
+                        : int.MaxValue,
                     NumberParallelRequest: function.Metadata.NumberParallelRequest,
                     ReplicasStartAsSoonAsOneFunctionRetrieveARequest:
                     function.Metadata.ReplicasStartAsSoonAsOneFunctionRetrieveARequest,
@@ -100,7 +118,7 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                     ResourceVersion: Volatile.Read(ref _resourceVersion).ToString(CultureInfo.InvariantCulture),
                     EndpointReady: pods.Any(pod => pod.Ready == true),
                     Trust: function.Metadata.Trust,
-                    Scale: function.Metadata.Scale,
+                    Scale: function.DebugUri is null ? function.Metadata.Scale : null,
                     NumberParallelRequestPerPod: function.Metadata.NumberParallelRequestPerPod));
             }
         }
@@ -133,6 +151,9 @@ public sealed class LocalFunctionManager : IAsyncDisposable
 
         lock (function.Gate)
         {
+            if (function.DebugUri is not null)
+                function.Desired = 1;
+
             foreach ((int index, ReplicaRuntime replica) in function.Replicas.ToArray())
             {
                 if (index >= function.Desired)
@@ -147,7 +168,20 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                 if (!function.Replicas.TryGetValue(index, out ReplicaRuntime? replica))
                 {
                     replica = new ReplicaRuntime(index);
+                    if (function.DebugUri is not null)
+                    {
+                        replica.Port = function.DebugUri.Port;
+                        replica.StartedAt = DateTimeOffset.UtcNow;
+                    }
                     function.Replicas.Add(index, replica);
+                    Interlocked.Increment(ref _resourceVersion);
+                }
+
+                if (function.DebugUri is not null)
+                {
+                    if (DateTimeOffset.UtcNow >= replica.NextProbe)
+                        toProbe.Add(replica);
+                    continue;
                 }
 
                 if (replica.Process is { HasExited: true })
@@ -185,7 +219,8 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         foreach (ReplicaRuntime replica in toStop)
         {
             await StopReplicaAsync(function, replica, cancellationToken);
-            _ports.Release(ReplicaId(function.Name, replica.Index));
+            if (function.DebugUri is null)
+                _ports.Release(ReplicaId(function.Name, replica.Index));
         }
 
         foreach (ReplicaRuntime replica in toStart)
@@ -267,7 +302,8 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         ReplicaRuntime replica,
         CancellationToken cancellationToken)
     {
-        if (!replica.Port.HasValue || replica.Process is null)
+        if (!replica.Port.HasValue ||
+            (function.DebugUri is null && replica.Process is null))
             return;
 
         bool ready = false;
@@ -277,10 +313,13 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                 function.Manifest.Health.Path,
                 replica.Port.Value,
                 replica.Index);
+            string healthUrl = function.DebugUri is null
+                ? $"http://127.0.0.1:{replica.Port.Value}{healthPath}"
+                : SendClient.CombinePaths(function.DebugUri.AbsoluteUri, healthPath);
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(function.Manifest.Health.TimeoutSeconds));
             using HttpResponseMessage response = await _healthClient.GetAsync(
-                new Uri($"http://127.0.0.1:{replica.Port.Value}{healthPath}"),
+                new Uri(healthUrl),
                 timeout.Token);
             ready = response.IsSuccessStatusCode;
         }
@@ -293,14 +332,21 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         ManagedLocalProcess? unhealthyProcess = null;
         lock (function.Gate)
         {
-            if (replica.Process is null)
+            if (!function.Replicas.TryGetValue(replica.Index, out ReplicaRuntime? current) ||
+                !ReferenceEquals(current, replica) ||
+                (function.DebugUri is null && replica.Process is null))
                 return;
             bool previous = replica.Ready;
             replica.Ready = ready;
             replica.NextProbe = DateTimeOffset.UtcNow.AddSeconds(function.Manifest.Health.PeriodSeconds);
             if (ready)
+            {
                 replica.ConsecutiveFailures = 0;
-            else if (DateTimeOffset.UtcNow - replica.StartedAt >
+                replica.AppFailureReason = null;
+                replica.AppFailureMessage = null;
+            }
+            else if (function.DebugUri is null &&
+                     DateTimeOffset.UtcNow - replica.StartedAt >
                      TimeSpan.FromSeconds(function.Manifest.Health.StartupTimeoutSeconds))
             {
                 replica.AppFailureReason = "ReadinessTimeout";
@@ -362,17 +408,23 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                 : item.Value,
             StringComparer.Ordinal);
 
+        string podName = function.DebugUri is null
+            ? $"{function.Name}-{replica.Index}"
+            : $"{function.Name}-debug";
+
         return new PodInformation(
-            Name: $"{function.Name}-{replica.Index}",
-            Started: replica.Process is { HasExited: false },
+            Name: podName,
+            Started: function.DebugUri is not null || replica.Process is { HasExited: false },
             Ready: replica.Ready,
-            Ip: "127.0.0.1",
+            Ip: function.DebugUri?.Host ?? "127.0.0.1",
             DeploymentName: function.Name,
             Ports: replica.Port.HasValue ? [replica.Port.Value] : [],
             ResourceVersion: replica.StartedAt.UtcTicks.ToString(CultureInfo.InvariantCulture),
             ServiceName: function.Name)
         {
             Annotations = annotations,
+            RoutingKey = podName,
+            EndpointUrl = function.DebugUri?.AbsoluteUri.TrimEnd('/'),
             StartFailureReason = replica.StartFailureReason,
             StartFailureMessage = replica.StartFailureMessage,
             AppFailureReason = replica.AppFailureReason,
@@ -400,7 +452,8 @@ public sealed class LocalFunctionManager : IAsyncDisposable
             foreach (ReplicaRuntime replica in replicas)
             {
                 await StopReplicaAsync(function, replica, CancellationToken.None);
-                _ports.Release(ReplicaId(function.Name, replica.Index));
+                if (function.DebugUri is null)
+                    _ports.Release(ReplicaId(function.Name, replica.Index));
             }
         }
 
@@ -412,12 +465,14 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         string name,
         LocalFunctionManifest manifest,
         FunctionMetadata metadata,
-        int maximum)
+        int maximum,
+        Uri? debugUri)
     {
         public string Name { get; } = name;
         public LocalFunctionManifest Manifest { get; } = manifest;
         public FunctionMetadata Metadata { get; } = metadata;
         public int Maximum { get; } = maximum;
+        public Uri? DebugUri { get; } = debugUri;
         public object Gate { get; } = new();
         public SortedDictionary<int, ReplicaRuntime> Replicas { get; } = [];
         public int Desired { get; set; }
