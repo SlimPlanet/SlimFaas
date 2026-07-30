@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.78.0
+
+- [53b82316](https://github.com/SlimPlanet/SlimFaas/commit/53b82316abdb890ec06da11eea787ad6a12b9a67) - feat(slimfaas): local add dependson processes (release), 2026-07-30 by *Guillaume Chervet*
+
+
+## 0.77.1
+
+
+
 ## v0.77.1
 
 - [661414a9](https://github.com/SlimPlanet/SlimFaas/commit/661414a9073c2a15e6d83a2f5b26ab676c958a13) - feature(slimfaas):  enhance local mode (#305) (release), 2026-07-29 by *Guillaume Chervet*
@@ -263,14 +272,5 @@
 ## v0.67.0
 
 - [af25e0c3](https://github.com/SlimPlanet/SlimFaas/commit/af25e0c3b1ea2ccbd49e7ad638e7ca4a72350ae2) - feat(Jobs): Allow to configure Schedules in kubernetes job configuration (#250) (release), 2026-03-17 by *Silthian*
-
-
-## 0.66.5
-
-
-
-## v0.66.5
-
-- [462c3af9](https://github.com/SlimPlanet/SlimFaas/commit/462c3af9b8c11d537329b27f4b183b2baecd722b) - fix(ci): publish client libs (release), 2026-03-12 by *Guillaume Chervet*
 
 
