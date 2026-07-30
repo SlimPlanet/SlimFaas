@@ -441,9 +441,25 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
 
   const ipToPod = useMemo(() => {
     const map: Record<string, { functionName: string; podName: string }> = {};
+    const ambiguousIps = new Set<string>();
     for (const fn of functions) {
       for (const pod of fn.Pods ?? []) {
-        if (pod.Ip) map[pod.Ip] = { functionName: fn.Name, podName: pod.Name };
+        if (!pod.Ip) continue;
+        const ip = pod.Ip.startsWith('::ffff:') ? pod.Ip.slice(7) : pod.Ip;
+        // Native local replicas and host callers share the loopback address,
+        // so it cannot reliably identify the source of a request.
+        if (ip === '::1' || ip.startsWith('127.')) continue;
+        if (ambiguousIps.has(ip)) continue;
+
+        const existing = map[ip];
+        if (existing &&
+          (existing.functionName !== fn.Name || existing.podName !== pod.Name)) {
+          delete map[ip];
+          ambiguousIps.add(ip);
+          continue;
+        }
+
+        map[ip] = { functionName: fn.Name, podName: pod.Name };
       }
     }
     return map;
@@ -451,8 +467,6 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
 
   const resolvePodLink = useCallback((ip: string | null | undefined) => {
     if (!ip) return null;
-    const direct = ipToPod[ip];
-    if (direct) return direct;
     const clean = ip.startsWith('::ffff:') ? ip.slice(7) : ip;
     return ipToPod[clean] ?? null;
   }, [ipToPod]);

@@ -483,3 +483,4 @@ wwwroot/
 .env.local
 slimfaas.local.debug.yaml
 slimfaas.local.secrets.yaml
+.slimfaas

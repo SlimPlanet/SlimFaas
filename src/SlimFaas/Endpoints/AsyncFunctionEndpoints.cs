@@ -101,6 +101,10 @@ public static class AsyncFunctionEndpoints
         var defaultAsync = function.Configuration.DefaultAsync;
 
         string queueElementId = Guid.NewGuid().ToString();
+        var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
+            context,
+            jobService,
+            FunctionEndpointsHelpers.GetLocalJobToken(context));
 
         CustomRequest customRequest = await FunctionEndpointsHelpers.InitCustomRequest(
             context,
@@ -115,7 +119,6 @@ public static class AsyncFunctionEndpoints
             ct: context.RequestAborted);
 
         var bin = MemoryPackSerializer.Serialize(customRequest);
-        var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService);
         string requestInId = activityTracker.Record(
             NetworkActivityTracker.EventTypes.RequestIn,
             activityCaller.Actor,

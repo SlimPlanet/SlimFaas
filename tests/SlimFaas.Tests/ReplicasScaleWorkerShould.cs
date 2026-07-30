@@ -420,6 +420,70 @@ public class ReplicasScaleWorkerShould
         kubernetesService.Verify(k => k.ScaleAsync(expectedRequest), Times.Once);
     }
 
+    [Fact]
+    public async Task ScaleDownToZeroWhenScaleConfigurationHasNoTriggers()
+    {
+        DateTime now = DateTime.UtcNow;
+        var kubernetesService = new Mock<IKubernetesService>();
+        var historyHttpService = new HistoryHttpMemoryService();
+        historyHttpService.SetTickLastCall("no-metric-trigger", now.AddMinutes(-10).Ticks);
+        var deployment = new DeploymentInformation(
+            Deployment: "no-metric-trigger",
+            Namespace: "default",
+            Pods:
+            [
+                new PodInformation(
+                    "no-metric-trigger-0",
+                    Started: true,
+                    Ready: true,
+                    Ip: "127.0.0.1",
+                    DeploymentName: "no-metric-trigger")
+            ],
+            Configuration: new SlimFaasConfiguration(),
+            Replicas: 1,
+            ReplicasAtStart: 1,
+            ReplicasMin: 0,
+            TimeoutSecondBeforeSetReplicasMin: 300,
+            Scale: new ScaleConfig
+            {
+                ReplicaMax = 1,
+                Triggers = []
+            });
+        var deployments = new DeploymentsInformations(
+            [deployment],
+            new SlimFaasDeploymentInformation(1, []),
+            []);
+        kubernetesService
+            .Setup(service => service.ListFunctionsAsync(
+                "default",
+                It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deployments);
+        var expectedRequest = new ReplicaRequest(
+            "no-metric-trigger",
+            "default",
+            0,
+            PodType.Deployment);
+        kubernetesService
+            .Setup(service => service.ScaleAsync(expectedRequest))
+            .ReturnsAsync(expectedRequest);
+        var replicasService = new ReplicasService(
+            kubernetesService.Object,
+            historyHttpService,
+            CreateAutoScalerForTests(),
+            new Mock<ILogger<ReplicasService>>().Object,
+            new Mock<IRequestedMetricsRegistry>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+            }),
+            () => now);
+
+        await replicasService.SyncDeploymentsAsync("default");
+        await replicasService.CheckScaleAsync("default");
+
+        kubernetesService.Verify(service => service.ScaleAsync(expectedRequest), Times.Once);
+    }
+
     [Theory]
     [InlineData(null, true)]
     [InlineData(false, false)]

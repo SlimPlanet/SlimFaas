@@ -78,7 +78,10 @@ public static class SyncFunctionEndpoints
             return Results.NotFound();
         }
 
-        var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService);
+        var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
+            context,
+            jobService,
+            FunctionEndpointsHelpers.GetLocalJobToken(context));
         var requestInId = activityTracker.Record(
             NetworkActivityTracker.EventTypes.RequestIn,
             activityCaller.Actor,

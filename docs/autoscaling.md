@@ -43,7 +43,7 @@ SlimFaas combines **two complementary autoscaling systems**:
 
    👉 This system is used **only when the function already has at least one pod** (`replicas > 0`).
 
-When the Prometheus-based AutoScaler is enabled for a function (`SlimFaas/Scale` present), **scale-to-zero is allowed only if both systems agree**: the HTTP/schedule logic must decide that the function can go down to `ReplicasMin = 0`, *and* the metrics-based AutoScaler must also compute a desired replica count of `0`. If metrics still indicate that capacity is needed (`desired > 0`), SlimFaas keeps at least one replica running even if HTTP activity is idle.
+When the Prometheus-based AutoScaler is enabled for a function (`SlimFaas/Scale` has at least one trigger), **scale-to-zero is allowed only if both systems agree**: the HTTP/schedule logic must decide that the function can go down to `ReplicasMin = 0`, *and* the metrics-based AutoScaler must also compute a desired replica count of `0`. If metrics still indicate that capacity is needed (`desired > 0`), SlimFaas keeps at least one replica running even if HTTP activity is idle. An empty `Triggers` list disables this metric veto.
 
 Both systems are orchestrated by:
 
@@ -156,7 +156,7 @@ flowchart LR
 - `ScaleReplicasWorker` periodically calls `CheckScaleAsync` if the node is the master.
 - `ReplicasService.CheckScaleAsync`:
     1. Computes a **desired replica count** using the **HTTP/schedule based system** (`0 → N` / `N → 0`).
-    2. If the function already has `replicas > 0` and a `SlimFaas/Scale` annotation, it invokes the **Prometheus AutoScaler** to adjust `N → M` and, when `ReplicasMin = 0`, to confirm whether scale-to-zero is actually allowed.
+    2. If the function already has `replicas > 0` and at least one `SlimFaas/Scale` trigger, it invokes the **Prometheus AutoScaler** to adjust `N → M` and, when `ReplicasMin = 0`, to confirm whether scale-to-zero is actually allowed.
 
 ---
 
@@ -199,7 +199,7 @@ Behavior (simplified):
   then SlimFaas **proposes** scaling the function down to **`ReplicasMin`**.
 
 If `ReplicasMin` is `"0"`, this gives you **scale-to-zero** when the Prometheus AutoScaler is disabled.
-If `ReplicasMin` is `"0"` **and** a `SlimFaas/Scale` configuration is present, SlimFaas will actually scale to zero **only if the metrics-based AutoScaler also agrees that `desiredReplicas` is `0`**. If the metrics say that some capacity is still needed (`desired > 0`), SlimFaas keeps at least one replica running (or more, according to the metrics).
+If `ReplicasMin` is `"0"` **and** `SlimFaas/Scale` contains at least one trigger, SlimFaas will actually scale to zero **only if the metrics-based AutoScaler also agrees that `desiredReplicas` is `0`**. If the metrics say that some capacity is still needed (`desired > 0`), SlimFaas keeps at least one replica running (or more, according to the metrics). A `SlimFaas/Scale` configuration with `Triggers: []` leaves scale-to-zero under HTTP/schedule control.
 
 ### Wake-up `0 → N` (from zero or below minimum)
 
@@ -344,7 +344,7 @@ If all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the Auto
 
 #### Interaction with scale-to-zero
 
-When `ReplicasMin` is `0` and a `SlimFaas/Scale` configuration is present:
+When `ReplicasMin` is `0` and a `SlimFaas/Scale` configuration has at least one trigger:
 
 - The HTTP/schedule system may **propose** going down to `ReplicasMin = 0` after inactivity.
 - The metrics-based AutoScaler then decides whether this is actually allowed:
@@ -1061,7 +1061,7 @@ for each function:
 
   4. Prometheus-based N→M system:
 
-     - If there is a valid SlimFaas/Scale annotation
+     - If there is a SlimFaas/Scale annotation with at least one trigger
        AND currentReplicas > 0:
 
          desiredFromMetrics = AutoScaler(proposedReplicas, metrics...)
@@ -1085,7 +1085,7 @@ Key points:
 
 - The **HTTP/schedule system always runs first**, and is the only one that can propose a transition from `0` to `> 0`.
 - The **Prometheus AutoScaler only runs if `currentReplicas > 0`**.
-- When `ReplicasMin = 0` and a `SlimFaas/Scale` configuration is present, **scale-to-zero requires both subsystems to agree**:
+- When `ReplicasMin = 0` and a `SlimFaas/Scale` configuration has at least one trigger, **scale-to-zero requires both subsystems to agree**:
     - HTTP/schedule must declare the function idle enough to go down to 0,
     - metrics must also say that `desiredReplicas <= 0`.
       If metrics still require capacity (`desiredReplicas > 0`), SlimFaas keeps at least one replica alive (`max(1, desiredFromMetrics)`).
@@ -1140,8 +1140,8 @@ Interpretation:
   ```
 
 - After 5 minutes with no activity (HTTP or schedule), the HTTP/schedule system **proposes** scaling the function down to 0.
-  If no `SlimFaas/Scale` configuration is present, SlimFaas will scale to 0.
-  If a `SlimFaas/Scale` configuration is present, SlimFaas will actually scale to 0 **only if metrics also allow `desiredReplicas <= 0`**; otherwise it will keep at least one replica (or more, according to the metrics).
+  If no `SlimFaas/Scale` trigger is configured, SlimFaas will scale to 0.
+  If at least one trigger is configured, SlimFaas will actually scale to 0 **only if metrics also allow `desiredReplicas <= 0`**; otherwise it will keep at least one replica (or more, according to the metrics).
 
 ### 2. Combined trigger: RPS per pod + queue length
 
@@ -1265,7 +1265,7 @@ spec:
 5. **Never rely on Prometheus to wake from 0**
     - Prometheus metrics require pods to be running and scraped.
     - In SlimFaas, **only HTTP/schedule controls 0 → N**.
-    - When `SlimFaas/Scale` is enabled and `ReplicasMin = 0`, metrics also act as a **safety net** for 0 → N → 0 by vetoing scale-to-zero if they still indicate that capacity is needed.
+    - When `SlimFaas/Scale` has at least one trigger and `ReplicasMin = 0`, metrics also act as a **safety net** for 0 → N → 0 by vetoing scale-to-zero if they still indicate that capacity is needed.
 
 6. **Document each trigger**
     - Use `MetricName` for clear semantic names.
@@ -1315,7 +1315,7 @@ By design:
 
 - SlimFaas **only allows the HTTP/schedule system to wake functions from 0**.
 - The Prometheus AutoScaler only adjusts **existing** capacity.
-- When `SlimFaas/Scale` is enabled, metrics can **prevent** a function from going back to 0 (by vetoing scale-to-zero), but they can **never** create the first replica from 0.
+- When `SlimFaas/Scale` has at least one trigger, metrics can **prevent** a function from going back to 0 (by vetoing scale-to-zero), but they can **never** create the first replica from 0.
 
 This avoids relying on metrics that cannot exist while no pod is running.
 
@@ -1344,8 +1344,8 @@ annotations:
 
 After 300 seconds of inactivity (considering HTTP history, schedule, and dependencies), the HTTP/schedule system will **propose** scaling the function down to 0.
 
-- If there is **no** `SlimFaas/Scale` configuration for this function, SlimFaas will scale the function down to 0.
-- If there **is** a `SlimFaas/Scale` configuration, SlimFaas will only scale to 0 if the metrics-based AutoScaler also computes `desiredReplicas <= 0`. Otherwise, it will keep at least one replica running until metrics also consider that 0 is safe.
+- If there is no `SlimFaas/Scale` trigger for this function, SlimFaas will scale the function down to 0.
+- If there is at least one `SlimFaas/Scale` trigger, SlimFaas will only scale to 0 if the metrics-based AutoScaler also computes `desiredReplicas <= 0`. Otherwise, it will keep at least one replica running until metrics also consider that 0 is safe.
 
 ---
 

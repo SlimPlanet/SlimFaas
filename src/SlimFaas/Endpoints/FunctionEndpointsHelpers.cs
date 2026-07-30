@@ -1,10 +1,15 @@
 using System.Buffers;
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using MemoryPack;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using SlimData.ClusterFiles;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Local;
+using SlimFaas.Options;
 using SlimFaas;
 
 namespace SlimFaas.Endpoints;
@@ -28,10 +33,29 @@ public static class FunctionEndpointsHelpers
     /// </summary>
     internal static NetworkActivityCaller ResolveNetworkActivityCaller(
         HttpContext context,
-        IJobService jobService)
+        IJobService jobService,
+        string localJobToken = "")
     {
         var candidates = GetCallerIpCandidates(context).ToList();
         IList<Kubernetes.Job> jobs = jobService.Jobs ?? Array.Empty<Kubernetes.Job>();
+        string localJobName = context.Request.Headers[LocalJobGateway.JobHeaderName]
+            .FirstOrDefault()?
+            .Trim() ?? string.Empty;
+        string suppliedSignature = context.Request.Headers[LocalJobGateway.SignatureHeaderName]
+            .FirstOrDefault()?
+            .Trim() ?? string.Empty;
+        context.Request.Headers.Remove(LocalJobGateway.JobHeaderName);
+        context.Request.Headers.Remove(LocalJobGateway.SignatureHeaderName);
+        if (!string.IsNullOrEmpty(localJobName) &&
+            !string.IsNullOrEmpty(localJobToken) &&
+            SignaturesEqual(
+                suppliedSignature,
+                LocalJobGateway.CreateSignature(localJobName, localJobToken)) &&
+            TryCreateJobCaller(localJobName, out NetworkActivityCaller localCaller))
+        {
+            return localCaller;
+        }
+
         foreach (string candidate in candidates)
         {
             foreach (Kubernetes.Job job in jobs.Where(job => job.Status == JobStatus.Running))
@@ -45,15 +69,8 @@ public static class FunctionEndpointsHelpers
                     continue;
                 }
 
-                int separatorIndex = job.Name.LastIndexOf(
-                    KubernetesService.SlimfaasJobKey,
-                    StringComparison.OrdinalIgnoreCase);
-                if (separatorIndex > 0)
-                {
-                    return new NetworkActivityCaller(
-                        job.Name[..separatorIndex],
-                        job.Name);
-                }
+                if (TryCreateJobCaller(job.Name, out NetworkActivityCaller caller))
+                    return caller;
             }
         }
 
@@ -62,6 +79,40 @@ public static class FunctionEndpointsHelpers
             ?? candidates.FirstOrDefault()
             ?? string.Empty);
         return new NetworkActivityCaller(NetworkActivityTracker.Actors.External, fallbackIp);
+    }
+
+    internal static string GetLocalJobToken(HttpContext context)
+        => context.RequestServices
+            .GetService<IOptions<SlimFaasOptions>>()?
+            .Value
+            .Process
+            .Token ?? string.Empty;
+
+    private static bool TryCreateJobCaller(
+        string jobName,
+        out NetworkActivityCaller caller)
+    {
+        int separatorIndex = jobName.LastIndexOf(
+            KubernetesService.SlimfaasJobKey,
+            StringComparison.OrdinalIgnoreCase);
+        if (separatorIndex > 0)
+        {
+            caller = new NetworkActivityCaller(
+                jobName[..separatorIndex],
+                jobName);
+            return true;
+        }
+
+        caller = default;
+        return false;
+    }
+
+    private static bool SignaturesEqual(string supplied, string expected)
+    {
+        byte[] suppliedBytes = Encoding.UTF8.GetBytes(supplied);
+        byte[] expectedBytes = Encoding.UTF8.GetBytes(expected);
+        return suppliedBytes.Length == expectedBytes.Length &&
+               CryptographicOperations.FixedTimeEquals(suppliedBytes, expectedBytes);
     }
 
     private static IEnumerable<string> GetCallerIpCandidates(HttpContext context)

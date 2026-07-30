@@ -103,7 +103,7 @@ public sealed class LocalJobManagerTests
                 statePath,
                 IsPersistent: true);
             _state = LocalStateStore.Open(loaded, clean: false);
-            Manager = new LocalJobManager(loaded, _state);
+            Manager = new LocalJobManager(loaded, _state, "test-token");
             Manager.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
         }
 

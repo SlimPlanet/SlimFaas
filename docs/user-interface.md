@@ -89,9 +89,15 @@ the IP addresses of running jobs. The message then starts from the exact job ins
 
 If the running instance disappears from the current status snapshot while the event is
 being displayed, the animation falls back to the job configuration bubble. Calls that
-cannot be matched to a running job remain attached to the external caller node. Native
-local jobs run as processes and do not expose a distinct IP, so they use this external
-fallback.
+cannot be matched to a running job remain attached to the external caller node.
+
+In native local mode, all processes share the host IP. SlimFaas therefore routes local
+entrypoint URLs declared in each Job's command or environment through a per-execution
+loopback gateway. The gateway adds the Job execution identity, allowing the same
+`Job -> SlimFaas -> Function` and `Job -> SlimFaas -> Queue -> Function` animations
+without relying on a distinct process IP. Loopback addresses are not treated as
+function replica identities, so requests sent from local tools such as `curl` or Bruno
+remain attached to the external caller node.
 
 The map is live-only for animations. Historical activity is not replayed into the animation stream when a new browser session starts.
 

@@ -16,7 +16,42 @@ loopback-only, token-authenticated supervisor.
 ## Quick start
 
 The repository contains a complete [`slimfaas.local.yaml`](../slimfaas.local.yaml)
-demo. From a directory containing that manifest, run:
+demo.
+
+### Run the demo from a Git clone
+
+With the .NET 10 SDK, Node.js, and npm installed, clone the repository and
+start the demo directly from its root:
+
+```bash
+git clone https://github.com/SlimPlanet/SlimFaas.git
+cd SlimFaas
+
+dotnet run --project src/SlimFaas -- \
+  local validate -f ../../slimfaas.local.yaml
+
+dotnet run --project src/SlimFaas -- \
+  local up -f ../../slimfaas.local.yaml
+```
+
+The first `dotnet run` restores and builds SlimFaas and its web interface. The
+`../../slimfaas.local.yaml` path is relative to the `src/SlimFaas` working
+directory configured by the repository launch profile.
+
+Keep `local up` running and, from another terminal in the cloned repository,
+test the dashboard and a demo function:
+
+```bash
+curl http://127.0.0.1:30020/status-functions
+curl http://127.0.0.1:30020/function/fibonacci1/hello/local
+```
+
+Open <http://127.0.0.1:30020/> to view the live interface. Press `Ctrl+C` in
+the first terminal to stop the demo.
+
+### Run with an installed SlimFaas executable
+
+From a directory containing the manifest, run:
 
 ```bash
 slimfaas local validate
@@ -365,6 +400,18 @@ The normal distributed queue, leader election, dependencies, parallelism, and
 schedules decide when a Job is created. The supervisor makes creation
 idempotent by `jobFullName`, tracks exit status and `backoffLimit`, and applies
 the configured TTL.
+
+Each execution also receives `SLIMFAAS_JOB_NAME` (the Job configuration name)
+and `SLIMFAAS_JOB_RUN_NAME` (the generated execution name). Because native
+processes share the host IP, the supervisor rewrites `http://` and `ws://`
+URLs that target `cluster.entrypointPort` on `127.0.0.1`, `localhost`, or
+`::1` in the Job command and environment. Those calls pass through a
+per-execution loopback gateway so the network map can attribute synchronous
+and asynchronous function calls to the exact Job execution.
+
+Use the stable local entrypoint in Job environment variables rather than a
+direct node port. URLs hard-coded inside the application cannot be rewritten
+and remain displayed as external callers.
 
 ## Entrypoint and load balancing
 

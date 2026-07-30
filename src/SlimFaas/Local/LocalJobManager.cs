@@ -11,15 +11,20 @@ public sealed class LocalJobManager : IAsyncDisposable
 
     private readonly LoadedLocalManifest _loaded;
     private readonly LocalStateStore _state;
+    private readonly string _token;
     private readonly ConcurrentDictionary<string, JobRuntime> _jobs = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _knownJobNames = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _stopping = new();
     private Task? _monitorTask;
 
-    public LocalJobManager(LoadedLocalManifest loaded, LocalStateStore state)
+    public LocalJobManager(
+        LoadedLocalManifest loaded,
+        LocalStateStore state,
+        string token)
     {
         _loaded = loaded;
         _state = state;
+        _token = token;
         Configuration = BuildConfiguration(loaded.Manifest.Jobs);
     }
 
@@ -75,10 +80,13 @@ public sealed class LocalJobManager : IAsyncDisposable
             return;
 
         ManagedLocalProcess? process;
+        LocalJobGateway? gateway;
         lock (runtime.Gate)
         {
             process = runtime.Process;
             runtime.Process = null;
+            gateway = runtime.Gateway;
+            runtime.Gateway = null;
         }
 
         if (process is not null)
@@ -86,6 +94,8 @@ public sealed class LocalJobManager : IAsyncDisposable
             await process.StopAsync(null, TimeSpan.FromSeconds(5), cancellationToken);
             await process.DisposeAsync();
         }
+        if (gateway is not null)
+            await gateway.DisposeAsync();
     }
 
     private void Start(JobRuntime runtime)
@@ -95,7 +105,20 @@ public sealed class LocalJobManager : IAsyncDisposable
             if (runtime.Process is not null || runtime.Completed)
                 return;
 
+            runtime.Gateway ??= new LocalJobGateway(
+                _loaded.Manifest.Cluster.EntrypointPort,
+                runtime.Command.JobFullName,
+                _token);
+            runtime.Gateway.Start();
+            int gatewayPort = runtime.Gateway.Port;
+
             List<string> command = [.. runtime.Manifest.Command, .. runtime.Command.CreateJob.Args];
+            command = command
+                .Select(value => RewriteEntrypointUrls(
+                    value,
+                    _loaded.Manifest.Cluster.EntrypointPort,
+                    gatewayPort))
+                .ToList();
             Dictionary<string, string> environment =
                 runtime.Manifest.Environment.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
             foreach (EnvVarInput item in runtime.Command.CreateJob.Environments ?? [])
@@ -106,6 +129,15 @@ public sealed class LocalJobManager : IAsyncDisposable
                     environment[item.Name] = item.Value;
                 }
             }
+            foreach (string name in environment.Keys.ToArray())
+            {
+                environment[name] = RewriteEntrypointUrls(
+                    environment[name],
+                    _loaded.Manifest.Cluster.EntrypointPort,
+                    gatewayPort);
+            }
+            environment["SLIMFAAS_JOB_NAME"] = runtime.Command.Name;
+            environment["SLIMFAAS_JOB_RUN_NAME"] = runtime.Command.JobFullName;
 
             try
             {
@@ -138,6 +170,7 @@ public sealed class LocalJobManager : IAsyncDisposable
                 foreach (JobRuntime runtime in _jobs.Values)
                 {
                     ManagedLocalProcess? completedProcess = null;
+                    LocalJobGateway? gatewayToDispose = null;
                     bool restart = false;
                     bool remove = false;
                     lock (runtime.Gate)
@@ -168,8 +201,17 @@ public sealed class LocalJobManager : IAsyncDisposable
                         await completedProcess.DisposeAsync();
                     if (restart)
                         Start(runtime);
-                    if (remove)
-                        _jobs.TryRemove(runtime.Command.JobFullName, out _);
+                    if (remove &&
+                        _jobs.TryRemove(runtime.Command.JobFullName, out JobRuntime? removed))
+                    {
+                        lock (removed.Gate)
+                        {
+                            gatewayToDispose = removed.Gateway;
+                            removed.Gateway = null;
+                        }
+                    }
+                    if (gatewayToDispose is not null)
+                        await gatewayToDispose.DisposeAsync();
                 }
             } while (await timer.WaitForNextTickAsync(cancellationToken));
         }
@@ -251,6 +293,26 @@ public sealed class LocalJobManager : IAsyncDisposable
         return new SlimFaasJobConfiguration(configurations, schedules.Count > 0 ? schedules : null);
     }
 
+    internal static string RewriteEntrypointUrls(
+        string value,
+        int entrypointPort,
+        int gatewayPort)
+    {
+        string result = value;
+        foreach (string scheme in new[] { "http", "ws" })
+        {
+            foreach (string host in new[] { "127.0.0.1", "localhost", "[::1]" })
+            {
+                result = result.Replace(
+                    $"{scheme}://{host}:{entrypointPort}",
+                    $"{scheme}://127.0.0.1:{gatewayPort}",
+                    StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        return result;
+    }
+
     public async ValueTask DisposeAsync()
     {
         await _stopping.CancelAsync();
@@ -269,6 +331,7 @@ public sealed class LocalJobManager : IAsyncDisposable
         public ProcessCreateJobCommand Command { get; } = command;
         public LocalJobManifest Manifest { get; } = manifest;
         public ManagedLocalProcess? Process { get; set; }
+        public LocalJobGateway? Gateway { get; set; }
         public JobStatus Status { get; set; } = JobStatus.Pending;
         public int Attempts { get; set; } = 1;
         public long StartTimestamp { get; set; }

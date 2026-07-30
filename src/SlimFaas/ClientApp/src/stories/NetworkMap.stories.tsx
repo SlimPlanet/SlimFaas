@@ -157,6 +157,40 @@ const JOB_TO_FUNCTION_ACTIVITY: NetworkActivityEvent[] = [
   },
 ];
 
+const NATIVE_LOCAL_FUNCTIONS: FunctionStatusDetailed[] = FUNCTIONS
+  .filter(fn => fn.Name === 'fibonacci1')
+  .map(fn => ({
+    ...fn,
+    NumberReady: 1,
+    NumberRequested: 1,
+    Pods: (fn.Pods ?? []).slice(0, 1).map(pod => ({ ...pod, Ip: '127.0.0.1' })),
+  }));
+
+const NATIVE_LOCAL_EXTERNAL_ACTIVITY: NetworkActivityEvent[] = [
+  {
+    Id: 'local-external-in',
+    Type: 'request_in',
+    Source: 'external',
+    Target: 'slimfaas',
+    QueueName: null,
+    TimestampMs: now,
+    NodeId: 'slimfaas-0',
+    SourcePod: '127.0.0.1',
+    TargetPod: null,
+  },
+  {
+    Id: 'local-external-out',
+    Type: 'request_out',
+    Source: 'slimfaas',
+    Target: 'fibonacci1',
+    QueueName: null,
+    TimestampMs: now + 150,
+    NodeId: 'slimfaas-0',
+    SourcePod: null,
+    TargetPod: '127.0.0.1',
+  },
+];
+
 // Set of functions that have had queue activity (based on ACTIVITY events and non-zero queue lengths)
 const FUNCTIONS_WITH_QUEUE_ACTIVITY = new Set(
   [
@@ -221,6 +255,19 @@ export const JobToFunction: Story = {
       { Name: 'slimfaas-0', Status: 'Running' },
       { Name: 'slimfaas-1', Status: 'Running' },
     ],
+  },
+};
+
+export const NativeLocalExternalCaller: Story = {
+  name: 'Native local external caller with shared loopback IP',
+  args: {
+    functions: NATIVE_LOCAL_FUNCTIONS,
+    jobs: [],
+    queues: [],
+    activity: NATIVE_LOCAL_EXTERNAL_ACTIVITY,
+    functionsWithQueueActivity: new Set<string>(),
+    slimFaasReplicas: 1,
+    slimFaasNodes: [{ Name: 'slimfaas-0', Status: 'Running' }],
   },
 };
 

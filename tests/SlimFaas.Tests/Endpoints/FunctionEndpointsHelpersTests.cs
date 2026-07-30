@@ -4,6 +4,7 @@ using Moq;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Local;
 using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Endpoints;
@@ -64,11 +65,75 @@ public class FunctionEndpointsHelpersTests
         Assert.Equal("10.42.0.99", caller.SourcePod);
     }
 
+    [Fact(DisplayName = "Network activity caller resolves a native local Job before the Job snapshot refreshes")]
+    public void ResolveNetworkActivityCaller_ResolvesSignedNativeLocalJobHeader()
+    {
+        const string runName = "daily-report-slimfaas-job-local1";
+        var context = CreateContext("127.0.0.1");
+        AddLocalJobIdentity(context, runName);
+        var jobService = new Mock<IJobService>();
+        jobService.SetupGet(service => service.Jobs).Returns([]);
+
+        var caller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
+            context,
+            jobService.Object,
+            "test-token");
+
+        Assert.Equal("daily-report", caller.Actor);
+        Assert.Equal(runName, caller.SourcePod);
+        Assert.False(context.Request.Headers.ContainsKey(LocalJobGateway.JobHeaderName));
+        Assert.False(context.Request.Headers.ContainsKey(LocalJobGateway.SignatureHeaderName));
+    }
+
+    [Fact(DisplayName = "Network activity caller ignores an unsigned native local Job header")]
+    public void ResolveNetworkActivityCaller_IgnoresUnsignedNativeLocalJobHeader()
+    {
+        var context = CreateContext("127.0.0.1");
+        context.Request.Headers[LocalJobGateway.JobHeaderName] =
+            "other-job-slimfaas-job-local2";
+        var jobService = new Mock<IJobService>();
+        jobService.SetupGet(service => service.Jobs).Returns([]);
+
+        var caller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
+            context,
+            jobService.Object,
+            "test-token");
+
+        Assert.Equal(NetworkActivityTracker.Actors.External, caller.Actor);
+        Assert.Equal("127.0.0.1", caller.SourcePod);
+    }
+
+    [Fact(DisplayName = "Network activity caller ignores an invalid native local Job signature")]
+    public void ResolveNetworkActivityCaller_IgnoresInvalidNativeLocalJobSignature()
+    {
+        const string runName = "daily-report-slimfaas-job-local1";
+        var context = CreateContext("10.42.0.99");
+        context.Request.Headers[LocalJobGateway.JobHeaderName] = runName;
+        context.Request.Headers[LocalJobGateway.SignatureHeaderName] = "invalid";
+        var jobService = new Mock<IJobService>();
+        jobService.SetupGet(service => service.Jobs).Returns([]);
+
+        var caller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
+            context,
+            jobService.Object,
+            "test-token");
+
+        Assert.Equal(NetworkActivityTracker.Actors.External, caller.Actor);
+        Assert.Equal("10.42.0.99", caller.SourcePod);
+    }
+
     private static DefaultHttpContext CreateContext(string remoteIp)
     {
         var context = new DefaultHttpContext();
         context.Connection.RemoteIpAddress = IPAddress.Parse(remoteIp);
         return context;
+    }
+
+    private static void AddLocalJobIdentity(DefaultHttpContext context, string runName)
+    {
+        context.Request.Headers[LocalJobGateway.JobHeaderName] = runName;
+        context.Request.Headers[LocalJobGateway.SignatureHeaderName] =
+            LocalJobGateway.CreateSignature(runName, "test-token");
     }
 
     private static Mock<IJobService> CreateJobService(string runName, string ip)

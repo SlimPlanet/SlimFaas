@@ -14,6 +14,7 @@ using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Local;
 using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.WebSocket;
@@ -106,7 +107,7 @@ public class AsyncFunctionEndpointTests
             new KubernetesJob(
                 jobRunName,
                 JobStatus.Running,
-                ["10.42.0.18"],
+                [],
                 [],
                 "element-2",
                 0,
@@ -134,7 +135,11 @@ public class AsyncFunctionEndpointTests
                         services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
                         {
                             Namespace = "default",
-                            BaseFunctionUrl = "http://{pod_ip}:{pod_port}"
+                            BaseFunctionUrl = "http://{pod_ip}:{pod_port}",
+                            Process = new ProcessOrchestratorOptions
+                            {
+                                Token = "test-token"
+                            }
                         }));
                         var namespaceProviderMock = new Mock<INamespaceProvider>();
                         namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
@@ -156,7 +161,10 @@ public class AsyncFunctionEndpointTests
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
             "http://localhost:5000/async-function/fibonacci/compute");
-        request.Headers.TryAddWithoutValidation("X-Forwarded-For", "10.42.0.18");
+        request.Headers.TryAddWithoutValidation(LocalJobGateway.JobHeaderName, jobRunName);
+        request.Headers.TryAddWithoutValidation(
+            LocalJobGateway.SignatureHeaderName,
+            LocalJobGateway.CreateSignature(jobRunName, "test-token"));
 
         HttpResponseMessage response = await host.GetTestClient().SendAsync(request);
 

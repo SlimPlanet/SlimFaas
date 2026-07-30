@@ -9,6 +9,8 @@ using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Local;
+using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.Tests.Endpoints;
 using SlimFaas.WebSocket;
@@ -87,7 +89,7 @@ public class SyncFunctionEndpointTests
             new KubernetesJob(
                 jobRunName,
                 JobStatus.Running,
-                ["10.42.0.17"],
+                [],
                 [],
                 "element-1",
                 0,
@@ -108,6 +110,14 @@ public class SyncFunctionEndpointTests
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
                         services.AddSingleton<IWakeUpFunction>(_ => new Mock<IWakeUpFunction>().Object);
                         services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
+                        services.AddSingleton(Microsoft.Extensions.Options.Options.Create(
+                            new SlimFaasOptions
+                            {
+                                Process = new ProcessOrchestratorOptions
+                                {
+                                    Token = "test-token"
+                                }
+                            }));
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
@@ -128,7 +138,10 @@ public class SyncFunctionEndpointTests
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
             "http://localhost:5000/function/fibonacci/compute");
-        request.Headers.TryAddWithoutValidation("X-Forwarded-For", "10.42.0.17");
+        request.Headers.TryAddWithoutValidation(LocalJobGateway.JobHeaderName, jobRunName);
+        request.Headers.TryAddWithoutValidation(
+            LocalJobGateway.SignatureHeaderName,
+            LocalJobGateway.CreateSignature(jobRunName, "test-token"));
 
         HttpResponseMessage response = await host.GetTestClient().SendAsync(request);
 
