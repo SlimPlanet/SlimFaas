@@ -254,10 +254,12 @@ processes:
 ```
 
 Each entry starts exactly one process and is deliberately absent from
-`DeploymentInformation`, autoscaling, readiness, routing, and the SlimFaas
-control API. Commands run without a shell. On Windows, executable wrappers such
-as `npm.cmd` and `.bat` files are resolved through `ComSpec`; the same
-`["npm", "run", "dev"]` command therefore remains portable.
+`DeploymentInformation`, autoscaling, function readiness, routing, and the
+public SlimFaas control API. Its running state can only participate in the
+local dependency checks described below. Commands run without a shell. On
+Windows, executable wrappers such as `npm.cmd` and `.bat` files are resolved
+through `ComSpec`; the same `["npm", "run", "dev"]` command therefore remains
+portable.
 
 `workingDirectory` defaults to `.` and is relative to the first YAML file.
 `environment` follows the same overlay, `${VARIABLE}`, and secret-handling
@@ -282,6 +284,36 @@ of stable execution. A process ending never terminates the cluster. During
 shutdown, restarts are disabled and every remaining process tree is
 terminated. Output is prefixed with `[process/<name>]` and also written to
 `logs/process-<name>.log`.
+
+### Local-only process dependencies
+
+A function, Job, or scheduled Job can wait for an auxiliary process by using
+`processes:<name>` in its normal `SlimFaas/DependsOn` annotation:
+
+```yaml
+functions:
+  orders-api:
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/DependsOn: "orders-database,processes:database-emulator"
+
+processes:
+  database-emulator:
+    command: ["database-emulator", "--port", "{port}"]
+    port: auto
+    restartPolicy: always
+```
+
+In native local mode, `processes:database-emulator` is ready while that managed
+operating-system process is running. A function waiting at zero is not scaled
+up, and a Job remains queued, until all its process dependencies are running.
+There is no health probe for auxiliary processes, and losing a dependency does
+not scale down a function that is already running.
+
+The referenced name must exist under `processes`; `slimfaas local validate`
+rejects missing or empty process names. Docker and Kubernetes deliberately
+ignore every `processes:` entry, so the same annotation can combine a deployed
+dependency such as `orders-database` with its local development replacement.
 
 For example, a one-off asset generator can be declared as:
 

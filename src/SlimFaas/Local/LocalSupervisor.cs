@@ -59,7 +59,11 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
             var topology = new DeploymentsInformations(
                 Functions: functionSnapshot,
                 SlimFaas: new SlimFaasDeploymentInformation(loaded.Manifest.Cluster.Nodes, nodeSnapshot),
-                Pods: functionSnapshot.SelectMany(item => item.Pods).ToList());
+                Pods: functionSnapshot.SelectMany(item => item.Pods).ToList(),
+                LocalProcesses: processes.Snapshot().ToDictionary(
+                    status => status.Name,
+                    status => status.Running,
+                    StringComparer.OrdinalIgnoreCase));
             return Results.Json(topology, ProcessControlJsonContext.Default.DeploymentsInformations);
         });
 

@@ -5,32 +5,44 @@ import { DOCUMENTATION_CATALOG } from "@/lib/documentation-catalog";
 
 const Navbar: React.FC = () => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isGetStartedOpen, setIsGetStartedOpen] = useState(false);
     const [isScaleOpen, setIsScaleOpen] = useState(false);
     const [isFunctionsOpen, setIsFunctionsOpen] = useState(false);
     const [isDataOpen, setIsDataOpen] = useState(false);
 
     const toggleMenu = () => setIsMenuOpen((prev) => !prev);
 
+    const toggleGetStarted = () => {
+        setIsGetStartedOpen((prev) => !prev);
+        setIsScaleOpen(false);
+        setIsFunctionsOpen(false);
+        setIsDataOpen(false);
+    };
+
     const toggleScale = () => {
         setIsScaleOpen((prev) => !prev);
+        setIsGetStartedOpen(false);
         setIsFunctionsOpen(false);
         setIsDataOpen(false);
     };
 
     const toggleFunctions = () => {
         setIsFunctionsOpen((prev) => !prev);
+        setIsGetStartedOpen(false);
         setIsScaleOpen(false);
         setIsDataOpen(false);
     };
 
     const toggleData = () => {
         setIsDataOpen((prev) => !prev);
+        setIsGetStartedOpen(false);
         setIsScaleOpen(false);
         setIsFunctionsOpen(false);
     };
 
     const closeAll = () => {
         setIsMenuOpen(false);
+        setIsGetStartedOpen(false);
         setIsScaleOpen(false);
         setIsFunctionsOpen(false);
         setIsDataOpen(false);
@@ -85,24 +97,51 @@ const Navbar: React.FC = () => {
                         </Link>
                     </li>
 
-                    <li className="navbar__item">
-                        <Link
-                            href={DOCUMENTATION_CATALOG["get-started"].route}
-                            className="navbar__link"
-                            onClick={closeAll}
+                    {/* Sous-menu Get Started */}
+                    <li
+                        className={`navbar__item navbar__item--has-submenu ${
+                            isGetStartedOpen ? "navbar__item--submenu-open" : ""
+                        }`}
+                    >
+                        <button
+                            type="button"
+                            className="navbar__link navbar__link--submenu-toggle"
+                            onClick={toggleGetStarted}
+                            aria-haspopup="true"
+                            aria-expanded={isGetStartedOpen}
+                            aria-controls="navbar-get-started-submenu"
                         >
                             {DOCUMENTATION_CATALOG["get-started"].label}
-                        </Link>
-                    </li>
+                            <span className="navbar__submenu-icon" aria-hidden="true">
+                                ▾
+                            </span>
+                        </button>
 
-                    <li className="navbar__item">
-                        <Link
-                            href={DOCUMENTATION_CATALOG["local-mode"].route}
-                            className="navbar__link"
-                            onClick={closeAll}
+                        <ul
+                            id="navbar-get-started-submenu"
+                            className={`navbar__submenu ${
+                                isGetStartedOpen ? "navbar__submenu--open" : ""
+                            }`}
                         >
-                            {DOCUMENTATION_CATALOG["local-mode"].label}
-                        </Link>
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href={DOCUMENTATION_CATALOG["get-started"].route}
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    {DOCUMENTATION_CATALOG["get-started"].label}
+                                </Link>
+                            </li>
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href={DOCUMENTATION_CATALOG["local-mode"].route}
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    {DOCUMENTATION_CATALOG["local-mode"].label}
+                                </Link>
+                            </li>
+                        </ul>
                     </li>
 
                     {/* Sous-menu Functions */}

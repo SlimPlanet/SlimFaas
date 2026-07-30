@@ -420,6 +420,65 @@ public class ReplicasScaleWorkerShould
         kubernetesService.Verify(k => k.ScaleAsync(expectedRequest), Times.Once);
     }
 
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task LocalProcessDependency_IsOnlyAppliedToLocalTopology(
+        bool? running,
+        bool shouldScale)
+    {
+        DateTime now = DateTime.UtcNow;
+        var kubernetesService = new Mock<IKubernetesService>();
+        var historyHttpService = new HistoryHttpMemoryService();
+        historyHttpService.SetTickLastCall("dependent-function", now.Ticks);
+        Dictionary<string, bool>? localProcesses = running.HasValue
+            ? new Dictionary<string, bool> { ["database-emulator"] = running.Value }
+            : null;
+        var deployments = new DeploymentsInformations(
+            Functions:
+            [
+                new DeploymentInformation(
+                    Deployment: "dependent-function",
+                    Namespace: "default",
+                    Pods: [],
+                    Configuration: new SlimFaasConfiguration(),
+                    Replicas: 0,
+                    DependsOn: ["processes:database-emulator"])
+            ],
+            SlimFaas: new SlimFaasDeploymentInformation(1, []),
+            Pods: [],
+            LocalProcesses: localProcesses);
+        kubernetesService
+            .Setup(service => service.ListFunctionsAsync(
+                "default",
+                It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deployments);
+        var expectedRequest = new ReplicaRequest(
+            "dependent-function",
+            "default",
+            1,
+            PodType.Deployment);
+        kubernetesService
+            .Setup(service => service.ScaleAsync(expectedRequest))
+            .ReturnsAsync(expectedRequest);
+        var replicasService = new ReplicasService(
+            kubernetesService.Object,
+            historyHttpService,
+            CreateAutoScalerForTests(),
+            new Mock<ILogger<ReplicasService>>().Object,
+            new Mock<IRequestedMetricsRegistry>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
+            () => now);
+
+        await replicasService.SyncDeploymentsAsync("default");
+        await replicasService.CheckScaleAsync("default");
+
+        kubernetesService.Verify(
+            service => service.ScaleAsync(expectedRequest),
+            shouldScale ? Times.Once() : Times.Never());
+    }
+
     [Fact]
     public async Task InvalidPromQlForOneDeployment_ShouldNotBlockOtherDeployments()
     {

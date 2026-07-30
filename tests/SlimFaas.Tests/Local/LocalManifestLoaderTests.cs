@@ -364,6 +364,69 @@ public sealed class LocalManifestLoaderTests
         Assert.Equal(["function-two"], schedule.DependsOn);
     }
 
+    [Fact]
+    public void Load_AcceptsLocalProcessDependenciesForFunctionsJobsAndSchedules()
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "SlimFaas/Function: \"true\"",
+                "SlimFaas/Function: \"true\"\n" +
+                "      SlimFaas/DependsOn: \"processes:database-emulator\"",
+                StringComparison.Ordinal) +
+            """
+
+            jobs:
+              batch-job:
+                command: ["dotnet", "--info"]
+                workingDirectory: .
+                annotations:
+                  SlimFaas/Job: "true"
+                  SlimFaas/DependsOn: "processes:database-emulator"
+                  SlimFaas/Schedules: '[{"Schedule":"*/5 * * * *","Args":[],"DependsOn":["processes:database-emulator"]}]'
+            processes:
+              database-emulator:
+                command: ["dotnet", "--info"]
+            """);
+
+        LoadedLocalManifest loaded = LocalManifestLoader.Load(path);
+
+        Assert.Equal(
+            "processes:database-emulator",
+            FunctionMetadataParser.Parse(
+                loaded.Manifest.Functions["function-one"].Annotations,
+                "function-one").DependsOn.Single());
+        JobMetadata job = JobMetadataParser.Parse(
+            loaded.Manifest.Jobs["batch-job"].Annotations);
+        Assert.Equal("processes:database-emulator", job.DependsOn.Single());
+        Assert.Equal(
+            "processes:database-emulator",
+            Assert.Single(job.Schedules).DependsOn?.Single());
+    }
+
+    [Theory]
+    [InlineData("processes:missing", "does not match an entry under processes")]
+    [InlineData("processes:", "must name a process")]
+    public void Load_RejectsInvalidLocalProcessDependencies(
+        string dependency,
+        string expectedMessage)
+    {
+        using var directory = new TemporaryDirectory();
+        string path = directory.Write(
+            "local.yaml",
+            ValidYaml().Replace(
+                "SlimFaas/Function: \"true\"",
+                $"SlimFaas/Function: \"true\"\n" +
+                $"      SlimFaas/DependsOn: \"{dependency}\"",
+                StringComparison.Ordinal));
+
+        LocalManifestException error = Assert.Throws<LocalManifestException>(
+            () => LocalManifestLoader.Load(path));
+
+        Assert.Contains(expectedMessage, error.Message);
+    }
+
     [Theory]
     [InlineData("parallelism: 2", "parallelism")]
     [InlineData("visibility: Public", "visibility")]

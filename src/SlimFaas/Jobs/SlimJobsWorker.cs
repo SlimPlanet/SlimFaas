@@ -70,6 +70,8 @@ public class SlimJobsWorker(
 
                 foreach (var dependOn in job.DependsOn)
                 {
+                    if (DependencyReference.TryGetLocalProcessName(dependOn, out _))
+                        continue;
                     historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
                 }
 
@@ -153,21 +155,31 @@ public class SlimJobsWorker(
                 numberPodReady += 1;
                 if (createJob?.DependsOn != null)
                 {
+                    DeploymentsInformations deployments = replicasService.Deployments;
                     foreach (var dependOn in createJob.DependsOn)
                     {
-                        historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
+                        if (!DependencyReference.TryGetLocalProcessName(dependOn, out _))
+                            historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
 
-                        var function =
-                            replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == dependOn);
-                        if (function is { Replicas: <= 0 })
-                        {
+                        if (!IsDependencyReady(deployments, dependOn))
                             numberPodReady = 0;
-                        }
                     }
                 }
             }
         }
 
         return numberPodReady;
+    }
+
+    internal static bool IsDependencyReady(
+        DeploymentsInformations deployments,
+        string dependency)
+    {
+        if (DependencyReference.TryGetLocalProcessName(dependency, out _))
+            return DependencyReference.IsLocalProcessReady(deployments, dependency);
+
+        DeploymentInformation? function =
+            deployments.Functions.FirstOrDefault(item => item.Deployment == dependency);
+        return function is not { Replicas: <= 0 };
     }
 }

@@ -253,6 +253,11 @@ public static partial class LocalManifestLoader
             try
             {
                 FunctionMetadata metadata = FunctionMetadataParser.Parse(function.Annotations, name);
+                ValidateLocalProcessDependencies(
+                    $"functions.{name}.annotations",
+                    metadata.DependsOn,
+                    manifest.Processes,
+                    errors);
                 int maximum = metadata.Scale?.ReplicaMax ??
                               Math.Max(metadata.ReplicasAtStart, metadata.ReplicasMin);
                 if (debugUri is null &&
@@ -382,6 +387,11 @@ public static partial class LocalManifestLoader
             try
             {
                 JobMetadata metadata = JobMetadataParser.Parse(job.Annotations);
+                ValidateLocalProcessDependencies(
+                    $"jobs.{name}.annotations",
+                    metadata.DependsOn,
+                    manifest.Processes,
+                    errors);
                 foreach (ScheduleCreateJob schedule in metadata.Schedules)
                 {
                     if (schedule is null)
@@ -389,6 +399,12 @@ public static partial class LocalManifestLoader
                         errors.Add($"jobs.{name}.annotations: SlimFaas/Schedules must not contain null entries.");
                         continue;
                     }
+
+                    ValidateLocalProcessDependencies(
+                        $"jobs.{name}.annotations: SlimFaas/Schedules",
+                        schedule.DependsOn ?? [],
+                        manifest.Processes,
+                        errors);
 
                     if (string.IsNullOrWhiteSpace(schedule.Schedule))
                     {
@@ -596,6 +612,31 @@ public static partial class LocalManifestLoader
             errors.Add($"{prefix}.timeoutSeconds must be positive.");
         if (startupTimeout < 1)
             errors.Add($"{prefix}.startupTimeoutSeconds must be positive.");
+    }
+
+    private static void ValidateLocalProcessDependencies(
+        string source,
+        IEnumerable<string> dependencies,
+        IReadOnlyDictionary<string, LocalProcessManifest> processes,
+        ICollection<string> errors)
+    {
+        foreach (string dependency in dependencies)
+        {
+            if (!DependencyReference.TryGetLocalProcessName(dependency, out string processName))
+                continue;
+
+            if (string.IsNullOrWhiteSpace(processName))
+            {
+                errors.Add(
+                    $"{source}: SlimFaas/DependsOn '{dependency}' must name a process after " +
+                    $"'{DependencyReference.LocalProcessPrefix}'.");
+            }
+            else if (!processes.ContainsKey(processName))
+            {
+                errors.Add(
+                    $"{source}: SlimFaas/DependsOn '{dependency}' does not match an entry under processes.");
+            }
+        }
     }
 
     private static void ValidatePort(string name, int port, ICollection<string> errors)

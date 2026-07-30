@@ -7,7 +7,8 @@ public record SlimFaasDeploymentInformation(int Replicas, IList<PodInformation> 
 public record DeploymentsInformations(
     IList<DeploymentInformation> Functions,
     SlimFaasDeploymentInformation SlimFaas,
-    IEnumerable<PodInformation> Pods);
+    IEnumerable<PodInformation> Pods,
+    Dictionary<string, bool>? LocalProcesses = null);
 
 [JsonSerializable(typeof(DeploymentsInformations))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

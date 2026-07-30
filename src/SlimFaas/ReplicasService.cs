@@ -40,7 +40,12 @@ public class ReplicasService(
             _deployments.Functions.ToArray(),
             new SlimFaasDeploymentInformation(_deployments.SlimFaas?.Replicas ?? 1,
                                                _deployments.SlimFaas?.Pods ?? new List<PodInformation>()),
-            new List<PodInformation>());
+            new List<PodInformation>(),
+            _deployments.LocalProcesses is null
+                ? null
+                : new Dictionary<string, bool>(
+                    _deployments.LocalProcesses,
+                    StringComparer.OrdinalIgnoreCase));
 
     // souvent Reason = "Unschedulable", message contenant "exceeded quota", "Insufficient cpu", etc.
     static bool IsInfrastructureFailure(PodInformation pod) =>
@@ -155,7 +160,7 @@ public class ReplicasService(
                 }
             }
             else if ((currentScale == 0 || currentScale < deploymentInformation.ReplicasMin)
-                     && DependsOnReady(deploymentInformation))
+                     && DependsOnReady(currentDeployments, deploymentInformation))
             {
                 // Sortie de 0 ou mise à niveau jusqu'à ReplicasAtStart
                 desiredReplicas = deploymentInformation.ReplicasAtStart;
@@ -314,13 +319,22 @@ public class ReplicasService(
         return deploymentInformation.TimeoutSecondBeforeSetReplicasMin;
     }
 
-    private bool DependsOnReady(DeploymentInformation deploymentInformation)
+    private static bool DependsOnReady(
+        DeploymentsInformations deployments,
+        DeploymentInformation deploymentInformation)
     {
         if (deploymentInformation.DependsOn == null) return true;
 
         foreach (string dependOn in deploymentInformation.DependsOn)
         {
-            if (Deployments.Functions
+            if (DependencyReference.TryGetLocalProcessName(dependOn, out _))
+            {
+                if (!DependencyReference.IsLocalProcessReady(deployments, dependOn))
+                    return false;
+                continue;
+            }
+
+            if (deployments.Functions
                 .Where(f => f.Deployment == dependOn)
                 .Any(f => f.Pods.Count(p => p.Ready.HasValue && p.Ready.Value) < f.ReplicasAtStart))
             {
