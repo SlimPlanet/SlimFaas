@@ -17,6 +17,7 @@ using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.WebSocket;
+using KubernetesJob = SlimFaas.Kubernetes.Job;
 
 namespace SlimFaas.Tests.Endpoints;
 
@@ -92,6 +93,82 @@ public class AsyncFunctionEndpointTests
         HttpResponseMessage response = await host.GetTestClient().GetAsync($"http://localhost:5000{path}");
 
         Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Fact(DisplayName = "Async function activity identifies and correlates the calling job run")]
+    public async Task CallFunctionInAsyncMode_FromJob_RecordsCorrelatedJobActivity()
+    {
+        const string jobRunName = "daily-report-slimfaas-job-b2";
+        var tracker = new NetworkActivityTracker();
+        var jobServiceMock = new Mock<IJobService>();
+        jobServiceMock.SetupGet(service => service.Jobs).Returns(
+        [
+            new KubernetesJob(
+                jobRunName,
+                JobStatus.Running,
+                ["10.42.0.18"],
+                [],
+                "element-2",
+                0,
+                0)
+        ]);
+
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<HistoryHttpMemoryService>();
+                        services.AddSingleton<ISendClient, SendClientMock>();
+                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        services.AddSingleton<IReplicasService, MemoryReplicasService>();
+                        services.AddSingleton<IWakeUpFunction>(_ => new Mock<IWakeUpFunction>().Object);
+                        services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
+                        services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        services.AddSingleton<IClusterFileSync>(_ => new Mock<IClusterFileSync>().Object);
+                        services.AddSingleton<IDatabaseService>(_ => new Mock<IDatabaseService>().Object);
+                        services.AddSingleton(Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+                        {
+                            Namespace = "default",
+                            BaseFunctionUrl = "http://{pod_ip}:{pod_port}"
+                        }));
+                        var namespaceProviderMock = new Mock<INamespaceProvider>();
+                        namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
+                        services.AddSingleton<INamespaceProvider>(namespaceProviderMock.Object);
+                        services.AddMemoryCache();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<WakeUpGate>();
+                        services.AddSingleton(tracker);
+                        services.AddRouting();
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
+            })
+            .StartAsync();
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "http://localhost:5000/async-function/fibonacci/compute");
+        request.Headers.TryAddWithoutValidation("X-Forwarded-For", "10.42.0.18");
+
+        HttpResponseMessage response = await host.GetTestClient().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var events = tracker.GetRecent();
+        Assert.Equal(2, events.Count);
+        Assert.Equal(NetworkActivityTracker.EventTypes.RequestIn, events[0].Type);
+        Assert.Equal("daily-report", events[0].Source);
+        Assert.Equal(jobRunName, events[0].SourcePod);
+        Assert.Equal(NetworkActivityTracker.EventTypes.Enqueue, events[1].Type);
+        Assert.Equal(events[0].Id, events[1].CorrelationId);
+        Assert.Equal(jobRunName, events[1].SourcePod);
     }
 
     /// <summary>

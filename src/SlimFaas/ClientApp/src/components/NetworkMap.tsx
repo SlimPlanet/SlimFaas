@@ -62,6 +62,11 @@ const JOBS_ARC_END = Math.PI * 0.58;
 const SVG_VIEW_H = 680;
 const REPLICA_SLOT_COUNT = 16;
 const REPLICA_SLOT_ORDER = [0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15];
+const SLIMFAAS_JOB_KEY = '-slimfaas-job-';
+
+function looksLikeSlimFaasJobRun(name: string | null | undefined): boolean {
+  return !!name && name.toLowerCase().includes(SLIMFAAS_JOB_KEY);
+}
 
 function nameColor(name: string): string {
   const colors = ['#4c6ef5', '#7950f2', '#e64980', '#f76707', '#36b37e', '#00b8d9', '#fab005', '#e8590c', '#ae3ec9', '#0ca678', '#2f9e44', '#1098ad', '#f08c00', '#d6336c', '#6741d9'];
@@ -452,15 +457,48 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     return ipToPod[clean] ?? null;
   }, [ipToPod]);
 
-  const resolvePodLabel = useCallback((ip: string | null | undefined) => {
-    const link = resolvePodLink(ip);
-    if (link) {
-      const shortPod = link.podName.length > 18 ? `...${link.podName.slice(-15)}` : link.podName;
-      return `${link.functionName}/${shortPod}`;
+  const jobRunLinks = useMemo(() => {
+    const links: Record<string, { jobName: string; runName: string }> = {};
+    for (const job of jobs) {
+      for (const run of job.RunningJobs ?? []) {
+        const runName = run.Name || run.ElementId;
+        if (runName) links[runName] = { jobName: job.Name, runName };
+      }
     }
-    if (!ip) return undefined;
-    return ip.startsWith('::ffff:') ? ip.slice(7) : ip;
-  }, [resolvePodLink]);
+    return links;
+  }, [jobs]);
+
+  const resolveJobRunLink = useCallback((runName: string | null | undefined) => {
+    if (!runName) return null;
+    return jobRunLinks[runName] ?? null;
+  }, [jobRunLinks]);
+
+  const resolvePodLabel = useCallback((podIpOrName: string | null | undefined) => {
+    const functionLink = resolvePodLink(podIpOrName);
+    if (functionLink) {
+      const shortPod = functionLink.podName.length > 18 ? `...${functionLink.podName.slice(-15)}` : functionLink.podName;
+      return `${functionLink.functionName}/${shortPod}`;
+    }
+
+    const jobLink = resolveJobRunLink(podIpOrName);
+    if (jobLink) {
+      const shortRun = jobLink.runName.length > 18 ? `...${jobLink.runName.slice(-15)}` : jobLink.runName;
+      return `${jobLink.jobName}/${shortRun}`;
+    }
+
+    if (looksLikeSlimFaasJobRun(podIpOrName)) {
+      const runName = podIpOrName!;
+      const separatorIndex = runName.toLowerCase().lastIndexOf(SLIMFAAS_JOB_KEY);
+      const jobName = separatorIndex > 0 ? runName.slice(0, separatorIndex) : '';
+      if (jobPositions[jobName]) {
+        const shortRun = runName.length > 18 ? `...${runName.slice(-15)}` : runName;
+        return `${jobName}/${shortRun}`;
+      }
+    }
+
+    if (!podIpOrName) return undefined;
+    return podIpOrName.startsWith('::ffff:') ? podIpOrName.slice(7) : podIpOrName;
+  }, [jobPositions, resolveJobRunLink, resolvePodLink]);
 
   const getFunctionReplicaPosition = useCallback((functionName: string, podIpOrName: string | null | undefined) => {
     const link = resolvePodLink(podIpOrName);
@@ -477,18 +515,33 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     const runs = jobRunPositions[jobName];
     if (runs && Object.keys(runs).length > 0) {
       if (runNameOrElementId && runs[runNameOrElementId]) return { x: runs[runNameOrElementId].x, y: runs[runNameOrElementId].y };
-      const firstRun = Object.values(runs)[0];
-      if (firstRun) return { x: firstRun.x, y: firstRun.y };
+      if (!runNameOrElementId) {
+        const firstRun = Object.values(runs)[0];
+        if (firstRun) return { x: firstRun.x, y: firstRun.y };
+      }
     }
 
     return jobPositions[jobName] ?? null;
   }, [jobPositions, jobRunPositions]);
 
   const getActorPosition = useCallback((actorName: string, podIpOrName: string | null | undefined) => {
-    const jobPos = getJobPosition(actorName, podIpOrName);
-    if (jobPos) return jobPos;
+    const functionLink = resolvePodLink(podIpOrName);
+    if (functionLink) {
+      return getFunctionReplicaPosition(functionLink.functionName, functionLink.podName);
+    }
+
+    const jobLink = resolveJobRunLink(podIpOrName);
+    if (jobLink && (!actorName || actorName === jobLink.jobName)) {
+      return getJobPosition(jobLink.jobName, jobLink.runName);
+    }
+
+    if (jobPositions[actorName]
+      && (!fnPositions[actorName] || looksLikeSlimFaasJobRun(podIpOrName))) {
+      return getJobPosition(actorName, podIpOrName);
+    }
+
     return getFunctionReplicaPosition(actorName, podIpOrName);
-  }, [getFunctionReplicaPosition, getJobPosition]);
+  }, [fnPositions, getFunctionReplicaPosition, getJobPosition, jobPositions, resolveJobRunLink, resolvePodLink]);
 
   const getSlimPosition = useCallback((nodeId: string | null | undefined) => {
     if (nodeId && slimReplicaPositions[nodeId]) {
@@ -557,6 +610,27 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     return firstReplica ? fnReplicaKey(functionName, firstReplica) : null;
   }, [fnReplicaKey, functionReplicaPositions, resolvePodLink]);
 
+  const resolveActorCounterKey = useCallback((actorName: string | null | undefined, podIpOrName: string | null | undefined): string | null => {
+    if (!actorName) return null;
+
+    const functionLink = resolvePodLink(podIpOrName);
+    if (functionLink) {
+      return fnReplicaKey(functionLink.functionName, functionLink.podName);
+    }
+
+    const jobLink = resolveJobRunLink(podIpOrName);
+    if (jobLink && actorName === jobLink.jobName) {
+      return fnReplicaKey(`job:${jobLink.jobName}`, jobLink.runName);
+    }
+
+    if (jobPositions[actorName]
+      && (!fnPositions[actorName] || looksLikeSlimFaasJobRun(podIpOrName))) {
+      return `job:${actorName}`;
+    }
+
+    return resolveFunctionReplicaCounterKey(actorName, podIpOrName);
+  }, [fnPositions, fnReplicaKey, jobPositions, resolveFunctionReplicaCounterKey, resolveJobRunLink, resolvePodLink]);
+
   const resolveSenderReplicaCounterKey = useCallback((evt: NetworkActivityEvent): string | null => {
     const sourceActor = (evt.Source || 'slimfaas').toLowerCase();
     if ((sourceActor === 'external' || sourceActor === 'slimfaas') && evt.NodeId) {
@@ -564,8 +638,8 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     }
 
     if (sourceActor !== 'external' && sourceActor !== 'slimfaas') {
-      const functionReplica = resolveFunctionReplicaCounterKey(evt.Source, evt.SourcePod);
-      if (functionReplica) return functionReplica;
+      const actorReplica = resolveActorCounterKey(evt.Source, evt.SourcePod);
+      if (actorReplica) return actorReplica;
     }
 
     const srcLink = resolvePodLink(evt.SourcePod);
@@ -579,7 +653,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     }
 
     return null;
-  }, [fnReplicaKey, resolveFunctionReplicaCounterKey, resolvePodLink, sfReplicaKey]);
+  }, [fnReplicaKey, resolveActorCounterKey, resolvePodLink, sfReplicaKey]);
 
 
   const queueMessage = useCallback((message: AnimatedMessage) => {
@@ -601,15 +675,20 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
 
     if (evt.Type === 'enqueue') {
       const queueName = evt.QueueName || evt.Target;
-      const queuePos = queuePositions[queueName];
-      if (!queuePos) return;
-
-      // Async ingress from unknown source is considered done once persisted in queue.
-      const sourceIsKnownInternal = !!resolvePodLink(evt.SourcePod);
-      if (!sourceIsKnownInternal) {
-        decExternalCounter();
+      const correlationKey = activityCorrelationKey(evt);
+      const trackedSender = requestInSenderRef.current[correlationKey];
+      if (trackedSender) {
+        delete requestInSenderRef.current[correlationKey];
+        if (trackedSender.isExternal) decExternalCounter();
+        if (trackedSender.senderReplicaKey) decReplicaCounter(trackedSender.senderReplicaKey);
+      } else {
+        // Compatibility with activity emitted before enqueue events carried CorrelationId.
+        const sourceIsKnownInternal = !!resolvePodLink(evt.SourcePod) || !!resolveJobRunLink(evt.SourcePod);
+        if (!sourceIsKnownInternal) decExternalCounter();
       }
 
+      const queuePos = queuePositions[queueName];
+      if (!queuePos) return;
       enqueueVisualMessage({
         id: `${evt.Id}|enqueue`,
         segments: [{ from: slim, to: queuePos }],
@@ -645,17 +724,26 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     }
 
     if (evt.Type === 'request_in') {
-      const link = resolvePodLink(evt.SourcePod);
+      const functionLink = resolvePodLink(evt.SourcePod);
+      const jobLink = resolveJobRunLink(evt.SourcePod);
       const sourceName = (evt.Source || '').trim();
       const sourceActor = sourceName.toLowerCase();
-      const sourceIsFunction = sourceActor.length > 0 && sourceActor !== 'external' && sourceActor !== 'slimfaas';
+      const sourceIsNamedActor = sourceActor.length > 0 && sourceActor !== 'external' && sourceActor !== 'slimfaas';
 
-      const functionStartPos = sourceIsFunction
+      const actorStartPos = sourceIsNamedActor
         ? replicaOf(sourceName, evt.SourcePod)
-        : (link ? replicaOf(link.functionName, link.podName) : null);
-      const senderReplicaKey = sourceIsFunction
-        ? resolveFunctionReplicaCounterKey(sourceName, evt.SourcePod)
-        : (link ? fnReplicaKey(link.functionName, link.podName) : null);
+        : functionLink
+          ? replicaOf(functionLink.functionName, functionLink.podName)
+          : jobLink
+            ? replicaOf(jobLink.jobName, jobLink.runName)
+            : null;
+      const senderReplicaKey = sourceIsNamedActor
+        ? resolveActorCounterKey(sourceName, evt.SourcePod)
+        : functionLink
+          ? fnReplicaKey(functionLink.functionName, functionLink.podName)
+          : jobLink
+            ? fnReplicaKey(`job:${jobLink.jobName}`, jobLink.runName)
+            : null;
 
       if (senderReplicaKey) {
         incReplicaCounter(senderReplicaKey);
@@ -669,9 +757,13 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
         touchedAt: performance.now(),
       };
 
-      const startPos = functionStartPos ?? externalPos;
+      const startPos = actorStartPos ?? externalPos;
       if (!startPos) return;
-      const sourceColor = link?.functionName ? nameColor(link.functionName) : '#6b778c';
+      const sourceColor = jobLink || jobPositions[sourceName]
+        ? nameColor(`job:${jobLink?.jobName ?? sourceName}`)
+        : functionLink || (sourceIsNamedActor && functionReplicaPositions[sourceName])
+          ? nameColor(functionLink?.functionName ?? sourceName)
+          : '#6b778c';
       enqueueVisualMessage({
         id: `${evt.Id}|request_in`,
         segments: [{ from: startPos, to: slim }],
@@ -833,7 +925,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
         label: srcLabel,
       });
     }
-  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, fnReplicaKey, getActorPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, queueMessage, queuePositions, resolveFunctionReplicaCounterKey, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
+  }, [decExternalCounter, decQueueCounter, decReplicaCounter, externalPos, fnReplicaKey, functionReplicaPositions, getActorPosition, getSlimPosition, incExternalCounter, incQueueCounter, incReplicaCounter, jobPositions, queueMessage, queuePositions, resolveActorCounterKey, resolveJobRunLink, resolvePodLabel, resolvePodLink, resolveSenderReplicaCounterKey]);
 
   useEffect(() => {
     const fresh: NetworkActivityEvent[] = [];
@@ -1054,6 +1146,19 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
       });
     }
 
+    for (const [jobName, position] of Object.entries(jobPositions)) {
+      const key = `job:${jobName}`;
+      const c = replicaCounters[key] || 0;
+      if (c > 0) {
+        cData.push({
+          key,
+          x: position.x + JOB_BUBBLE_R + 7,
+          y: position.y - JOB_BUBBLE_R + 2,
+          count: c,
+        });
+      }
+    }
+
     for (const [queueName, qp] of Object.entries(queuePositions)) {
       const key = `queue:${queueName}`;
       const c = queueCounters[key] || 0;
@@ -1084,7 +1189,7 @@ const NetworkMap: React.FC<Props> = ({ functions, jobs, queues, activity, functi
     cSel.exit().remove();
 
     frameRef.current = requestAnimationFrame(animate);
-  }, [externalPos, fnReplicaKey, queuePositions, sfReplicaKey]);
+  }, [externalPos, fnReplicaKey, jobPositions, queuePositions, sfReplicaKey]);
 
   const structuralKey = `${fnNamesKey}|${jobNamesKey}|${queueFnKey}`;
 

@@ -13,12 +13,12 @@ namespace SlimFaas.Endpoints;
 public record NetworkActivityEvent(
     string Id,
     string Type,          // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish", "request_waiting", "request_started", "request_end"
-    string Source,        // e.g. "external", function name, "slimfaas"
+    string Source,        // e.g. "external", function/job configuration name, "slimfaas"
     string Target,        // e.g. "slimfaas", function name, "external"
     string? QueueName,    // the queue name if relevant
     long TimestampMs,
     string NodeId,        // hostname of the SlimFaas node that recorded the event
-    string? SourcePod = null,   // source pod name or IP (e.g. the caller pod)
+    string? SourcePod = null,   // source pod name or IP (including a full SlimFaas job run name)
     string? TargetPod = null,   // target pod name or IP (e.g. the downstream pod receiving the request)
     string? CorrelationId = null); // shared id used to pair related start/end events while keeping Id unique
 
@@ -378,7 +378,6 @@ public sealed class NetworkActivityTracker
         }
     }
 }
-
 
 
 

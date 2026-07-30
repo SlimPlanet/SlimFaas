@@ -78,9 +78,12 @@ public static class SyncFunctionEndpoints
             return Results.NotFound();
         }
 
-        var requestInId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
-            sourcePod: context.Connection.RemoteIpAddress?.ToString());
-        string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
+        var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService);
+        var requestInId = activityTracker.Record(
+            NetworkActivityTracker.EventTypes.RequestIn,
+            activityCaller.Actor,
+            NetworkActivityTracker.Actors.SlimFaas,
+            sourcePod: activityCaller.SourcePod);
 
         try
         {
@@ -97,14 +100,22 @@ public static class SyncFunctionEndpoints
             bool functionWasReady = IsFunctionReady(function);
             if (!functionWasReady)
             {
-                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestWaiting, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: callerIp);
+                activityTracker.Record(
+                    NetworkActivityTracker.EventTypes.RequestWaiting,
+                    NetworkActivityTracker.Actors.SlimFaas,
+                    functionName,
+                    sourcePod: activityCaller.SourcePod);
             }
 
             await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
 
             if (!functionWasReady)
             {
-                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestStarted, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: callerIp);
+                activityTracker.Record(
+                    NetworkActivityTracker.EventTypes.RequestStarted,
+                    NetworkActivityTracker.Actors.SlimFaas,
+                    functionName,
+                    sourcePod: activityCaller.SourcePod);
             }
 
             var proxy = new Proxy(replicasService, functionName);
@@ -159,8 +170,12 @@ public static class SyncFunctionEndpoints
         }
         finally
         {
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
-                sourcePod: callerIp, correlationId: requestInId);
+            activityTracker.Record(
+                NetworkActivityTracker.EventTypes.RequestEnd,
+                activityCaller.Actor,
+                NetworkActivityTracker.Actors.SlimFaas,
+                sourcePod: activityCaller.SourcePod,
+                correlationId: requestInId);
         }
     }
 
@@ -329,4 +344,3 @@ public static class SyncFunctionEndpoints
         context.Response.Headers.Remove("transfer-encoding");
     }
 }
-

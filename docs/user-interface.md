@@ -75,10 +75,23 @@ When `SlimFaas:EnableFront` is enabled, the UI renders a live network map.
 The map uses the activity stream to show messages moving between:
 
 - external callers
+- running job instances
 - SlimFaas
 - function pods
 - async queues
 - SlimFaas replicas in multi-node deployments
+
+When a SlimFaas-managed job calls a function, the incoming activity is matched against
+the IP addresses of running jobs. The message then starts from the exact job instance:
+
+- synchronous calls are displayed as `Job -> SlimFaas -> Function`
+- asynchronous calls are displayed as `Job -> SlimFaas -> Queue -> Function`
+
+If the running instance disappears from the current status snapshot while the event is
+being displayed, the animation falls back to the job configuration bubble. Calls that
+cannot be matched to a running job remain attached to the external caller node. Native
+local jobs run as processes and do not expose a distinct IP, so they use this external
+fallback.
 
 The map is live-only for animations. Historical activity is not replayed into the animation stream when a new browser session starts.
 

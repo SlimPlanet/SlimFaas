@@ -111,7 +111,7 @@ export interface NetworkActivityEvent {
   QueueName: string | null;
   TimestampMs: number;
   NodeId: string;
-  SourcePod: string | null;  // source pod name or IP (e.g. the caller pod)
+  SourcePod: string | null;  // source pod name/IP, or the full name of a SlimFaas job run
   TargetPod: string | null;  // target pod name or IP (e.g. the downstream pod receiving the request)
   CorrelationId?: string | null; // shared id used to pair related start/end events
 }

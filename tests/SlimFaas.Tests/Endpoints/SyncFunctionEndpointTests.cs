@@ -75,4 +75,72 @@ public class SyncFunctionEndpointTests
 
         Assert.Equal(expected, response.StatusCode);
     }
+
+    [Fact(DisplayName = "Sync function activity identifies the calling job run")]
+    public async Task CallFunctionInSyncMode_FromJob_RecordsJobActivity()
+    {
+        const string jobRunName = "daily-report-slimfaas-job-a1";
+        var tracker = new NetworkActivityTracker();
+        var jobServiceMock = new Mock<IJobService>();
+        jobServiceMock.SetupGet(service => service.Jobs).Returns(
+        [
+            new KubernetesJob(
+                jobRunName,
+                JobStatus.Running,
+                ["10.42.0.17"],
+                [],
+                "element-1",
+                0,
+                0)
+        ]);
+
+        using IHost host = await new HostBuilder()
+            .ConfigureWebHost(webBuilder =>
+            {
+                webBuilder
+                    .UseTestServer()
+                    .ConfigureServices(services =>
+                    {
+                        services.AddSingleton<HistoryHttpMemoryService>();
+                        services.AddSingleton<ISendClient, SendClientMock>();
+                        services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
+                        services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
+                        services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
+                        services.AddSingleton<IWakeUpFunction>(_ => new Mock<IWakeUpFunction>().Object);
+                        services.AddSingleton<IJobService>(_ => jobServiceMock.Object);
+                        services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+                        services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
+                        services.AddSingleton<IWebSocketSendClient, WebSocketSendClientMock>();
+                        services.AddMemoryCache();
+                        services.AddSingleton<FunctionStatusCache>();
+                        services.AddSingleton<WakeUpGate>();
+                        services.AddSingleton(tracker);
+                        services.AddRouting();
+                    })
+                    .Configure(app =>
+                    {
+                        app.UseRouting();
+                        app.UseEndpoints(endpoints => endpoints.MapSlimFaasEndpoints());
+                    });
+            })
+            .StartAsync();
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Get,
+            "http://localhost:5000/function/fibonacci/compute");
+        request.Headers.TryAddWithoutValidation("X-Forwarded-For", "10.42.0.17");
+
+        HttpResponseMessage response = await host.GetTestClient().SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var events = tracker.GetRecent();
+        Assert.Equal(2, events.Count);
+        Assert.Equal(NetworkActivityTracker.EventTypes.RequestIn, events[0].Type);
+        Assert.Equal("daily-report", events[0].Source);
+        Assert.Equal(jobRunName, events[0].SourcePod);
+        Assert.Equal(NetworkActivityTracker.EventTypes.RequestEnd, events[1].Type);
+        Assert.Equal(events[0].Id, events[1].CorrelationId);
+        Assert.Equal("daily-report", events[1].Source);
+        Assert.Equal(jobRunName, events[1].SourcePod);
+    }
 }

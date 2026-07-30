@@ -115,18 +115,42 @@ public static class AsyncFunctionEndpoints
             ct: context.RequestAborted);
 
         var bin = MemoryPackSerializer.Serialize(customRequest);
-        string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-        activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
-            sourcePod: callerIp);
-        var id = await slimFaasQueue.EnqueueAsync(
+        var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService);
+        string requestInId = activityTracker.Record(
+            NetworkActivityTracker.EventTypes.RequestIn,
+            activityCaller.Actor,
+            NetworkActivityTracker.Actors.SlimFaas,
+            sourcePod: activityCaller.SourcePod);
+
+        string id;
+        try
+        {
+            id = await slimFaasQueue.EnqueueAsync(
+                functionName,
+                bin,
+                new RetryInformation(
+                    defaultAsync.TimeoutRetries,
+                    defaultAsync.HttpTimeout,
+                    defaultAsync.HttpStatusRetries), queueElementId);
+        }
+        catch
+        {
+            activityTracker.Record(
+                NetworkActivityTracker.EventTypes.RequestEnd,
+                activityCaller.Actor,
+                NetworkActivityTracker.Actors.SlimFaas,
+                sourcePod: activityCaller.SourcePod,
+                correlationId: requestInId);
+            throw;
+        }
+
+        activityTracker.Record(
+            NetworkActivityTracker.EventTypes.Enqueue,
+            NetworkActivityTracker.Actors.SlimFaas,
             functionName,
-            bin,
-            new RetryInformation(
-                defaultAsync.TimeoutRetries,
-                defaultAsync.HttpTimeout,
-                defaultAsync.HttpStatusRetries), queueElementId);
-        activityTracker.Record(NetworkActivityTracker.EventTypes.Enqueue, NetworkActivityTracker.Actors.SlimFaas, functionName, functionName,
-            sourcePod: callerIp);
+            functionName,
+            sourcePod: activityCaller.SourcePod,
+            correlationId: requestInId);
 
         context.Response.Headers.Append(SlimQueuesWorker.SlimfaasElementId, id);
         return Results.Accepted();

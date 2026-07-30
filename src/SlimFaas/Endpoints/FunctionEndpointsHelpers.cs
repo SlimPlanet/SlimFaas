@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Net;
 using MemoryPack;
 using Microsoft.Extensions.DependencyInjection;
 using SlimData.ClusterFiles;
@@ -13,9 +14,113 @@ public static class FunctionEndpointsHelpers
     private const long DefaultFileOffloadContentLengthBytes = 256L * 1024L * 1024L;
     private const long LengthBytes = 512L * 1024L;
 
+    internal readonly record struct NetworkActivityCaller(string Actor, string SourcePod);
+
     public static DeploymentInformation? SearchFunction(IReplicasService replicasService, string functionName)
     {
         return replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
+    }
+
+    /// <summary>
+    /// Resolves the workload responsible for an incoming network activity event.
+    /// SlimFaas-created jobs have a stable generated name, so the UI can target the
+    /// exact running job node while retaining the configuration name as a fallback.
+    /// </summary>
+    internal static NetworkActivityCaller ResolveNetworkActivityCaller(
+        HttpContext context,
+        IJobService jobService)
+    {
+        var candidates = GetCallerIpCandidates(context).ToList();
+        IList<Kubernetes.Job> jobs = jobService.Jobs ?? Array.Empty<Kubernetes.Job>();
+        foreach (string candidate in candidates)
+        {
+            foreach (Kubernetes.Job job in jobs.Where(job => job.Status == JobStatus.Running))
+            {
+                bool matchesJobIp = job.Ips
+                    .Where(ip => !string.IsNullOrWhiteSpace(ip))
+                    .Select(NormalizeNetworkAddress)
+                    .Any(ip => string.Equals(ip, candidate, StringComparison.OrdinalIgnoreCase));
+                if (!matchesJobIp)
+                {
+                    continue;
+                }
+
+                int separatorIndex = job.Name.LastIndexOf(
+                    KubernetesService.SlimfaasJobKey,
+                    StringComparison.OrdinalIgnoreCase);
+                if (separatorIndex > 0)
+                {
+                    return new NetworkActivityCaller(
+                        job.Name[..separatorIndex],
+                        job.Name);
+                }
+            }
+        }
+
+        string fallbackIp = NormalizeNetworkAddress(
+            context.Connection.RemoteIpAddress?.ToString()
+            ?? candidates.FirstOrDefault()
+            ?? string.Empty);
+        return new NetworkActivityCaller(NetworkActivityTracker.Actors.External, fallbackIp);
+    }
+
+    private static IEnumerable<string> GetCallerIpCandidates(HttpContext context)
+    {
+        string remoteIp = NormalizeNetworkAddress(context.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
+        if (!string.IsNullOrEmpty(remoteIp))
+        {
+            yield return remoteIp;
+        }
+
+        foreach (string? rawHeaderValue in context.Request.Headers["X-Forwarded-For"])
+        {
+            string rawHeader = rawHeaderValue ?? string.Empty;
+            foreach (string part in rawHeader.Split(
+                         ',',
+                         StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                string candidate = NormalizeNetworkAddress(part);
+                if (!string.IsNullOrEmpty(candidate)
+                    && !string.Equals(candidate, remoteIp, StringComparison.OrdinalIgnoreCase))
+                {
+                    yield return candidate;
+                }
+            }
+        }
+    }
+
+    private static string NormalizeNetworkAddress(string value)
+    {
+        string candidate = value.Trim().Trim('"');
+        if (string.IsNullOrEmpty(candidate))
+        {
+            return string.Empty;
+        }
+
+        int closingBracket = candidate.IndexOf(']');
+        if (candidate[0] == '['
+            && closingBracket > 0)
+        {
+            candidate = candidate[1..closingBracket];
+        }
+        else if (candidate.Count(c => c == ':') == 1)
+        {
+            int separatorIndex = candidate.LastIndexOf(':');
+            if (separatorIndex > 0
+                && int.TryParse(candidate[(separatorIndex + 1)..], out _))
+            {
+                candidate = candidate[..separatorIndex];
+            }
+        }
+
+        if (!IPAddress.TryParse(candidate, out IPAddress? address))
+        {
+            return candidate;
+        }
+
+        return address.IsIPv4MappedToIPv6
+            ? address.MapToIPv4().ToString()
+            : address.ToString();
     }
 
     public static FunctionVisibility GetFunctionVisibility(ILogger logger, DeploymentInformation function, string path)

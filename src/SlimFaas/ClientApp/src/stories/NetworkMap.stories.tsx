@@ -110,6 +110,53 @@ const ACTIVITY: NetworkActivityEvent[] = [
   { Id: 'evt-6', Type: 'event_publish', Source: 'slimfaas', Target: 'ws-handler', QueueName: null, TimestampMs: now - 500, NodeId: 'slimfaas-1', SourcePod: null, TargetPod: 'aaa' },
 ];
 
+const JOB_TO_FUNCTION_ACTIVITY: NetworkActivityEvent[] = [
+  {
+    Id: 'job-call-a-in',
+    Type: 'request_in',
+    Source: 'daily-report',
+    Target: 'slimfaas',
+    QueueName: null,
+    TimestampMs: now,
+    NodeId: 'slimfaas-0',
+    SourcePod: 'daily-report-slimfaas-job-a1',
+    TargetPod: null,
+  },
+  {
+    Id: 'job-call-a-out',
+    Type: 'request_out',
+    Source: 'slimfaas',
+    Target: 'fibonacci1',
+    QueueName: null,
+    TimestampMs: now + 150,
+    NodeId: 'slimfaas-0',
+    SourcePod: null,
+    TargetPod: '10.0.0.1',
+  },
+  {
+    Id: 'job-call-b-in',
+    Type: 'request_in',
+    Source: 'daily-report',
+    Target: 'slimfaas',
+    QueueName: null,
+    TimestampMs: now + 300,
+    NodeId: 'slimfaas-1',
+    SourcePod: 'daily-report-slimfaas-job-b2',
+    TargetPod: null,
+  },
+  {
+    Id: 'job-call-b-out',
+    Type: 'request_out',
+    Source: 'slimfaas',
+    Target: 'fibonacci2',
+    QueueName: null,
+    TimestampMs: now + 450,
+    NodeId: 'slimfaas-1',
+    SourcePod: null,
+    TargetPod: '10.0.0.3',
+  },
+];
+
 // Set of functions that have had queue activity (based on ACTIVITY events and non-zero queue lengths)
 const FUNCTIONS_WITH_QUEUE_ACTIVITY = new Set(
   [
@@ -157,6 +204,22 @@ export const NoActivity: Story = {
       { Name: 'slimfaas-0', Status: 'Running' },
       { Name: 'slimfaas-1', Status: 'Running' },
       { Name: 'slimfaas-2', Status: 'Starting' },
+    ],
+  },
+};
+
+export const JobToFunction: Story = {
+  name: 'Parallel jobs calling functions',
+  args: {
+    functions: FUNCTIONS,
+    jobs: JOBS,
+    queues: QUEUES,
+    activity: JOB_TO_FUNCTION_ACTIVITY,
+    functionsWithQueueActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)),
+    slimFaasReplicas: 2,
+    slimFaasNodes: [
+      { Name: 'slimfaas-0', Status: 'Running' },
+      { Name: 'slimfaas-1', Status: 'Running' },
     ],
   },
 };
