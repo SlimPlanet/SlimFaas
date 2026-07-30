@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.79.1
+
+- [70f8f469](https://github.com/SlimPlanet/SlimFaas/commit/70f8f469b7aea1365fe9a47ef23feb26e4f02249) - fix(slimfaas): local scale down (release), 2026-07-30 by *Guillaume Chervet*
+
+
+## 0.79.0
+
+
+
 ## v0.79.0
 
 - [2216e9f6](https://github.com/SlimPlanet/SlimFaas/commit/2216e9f64d0a972f7b5694ca5366d7f8b8ebd0c4) - feat(slimfaas): UI stream job activity (release), 2026-07-30 by *Guillaume Chervet*
@@ -263,14 +272,5 @@
 ## v0.69.0
 
 - [53c930f4](https://github.com/SlimPlanet/SlimFaas/commit/53c930f4cf13fe3d410f35ea12295a3f559b43b9) - feat(Job): Check that the name is valid (#257) (release), 2026-03-23 by *Silthian*
-
-
-## 0.68.0
-
-
-
-## v0.68.0
-
-- [169337c4](https://github.com/SlimPlanet/SlimFaas/commit/169337c4b7361483848499b0c7c0606d1c5bc3ab) - feat(Cron): Improve compatibility with various cron syntaxes (#258) (release), 2026-03-23 by *Silthian*
 
 
