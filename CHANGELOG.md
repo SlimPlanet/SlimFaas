@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.79.0
+
+- [2216e9f6](https://github.com/SlimPlanet/SlimFaas/commit/2216e9f64d0a972f7b5694ca5366d7f8b8ebd0c4) - feat(slimfaas): UI stream job activity (release), 2026-07-30 by *Guillaume Chervet*
+
+
+## 0.78.0
+
+
+
 ## v0.78.0
 
 - [53b82316](https://github.com/SlimPlanet/SlimFaas/commit/53b82316abdb890ec06da11eea787ad6a12b9a67) - feat(slimfaas): local add dependson processes (release), 2026-07-30 by *Guillaume Chervet*
@@ -263,14 +272,5 @@
 ## v0.68.0
 
 - [169337c4](https://github.com/SlimPlanet/SlimFaas/commit/169337c4b7361483848499b0c7c0606d1c5bc3ab) - feat(Cron): Improve compatibility with various cron syntaxes (#258) (release), 2026-03-23 by *Silthian*
-
-
-## 0.67.0
-
-
-
-## v0.67.0
-
-- [af25e0c3](https://github.com/SlimPlanet/SlimFaas/commit/af25e0c3b1ea2ccbd49e7ad638e7ca4a72350ae2) - feat(Jobs): Allow to configure Schedules in kubernetes job configuration (#250) (release), 2026-03-17 by *Silthian*
 
 
