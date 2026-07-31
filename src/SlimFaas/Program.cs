@@ -214,7 +214,7 @@ serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
 #pragma warning disable ASP0000 // BuildServiceProvider is required here for early initialization
 ServiceProvider serviceProviderStarter = serviceCollectionStarter.BuildServiceProvider();
 #pragma warning restore ASP0000
-IReplicasService? replicasService = serviceProviderStarter.GetService<IReplicasService>();
+IReplicasService replicasService = serviceProviderStarter.GetRequiredService<IReplicasService>();
 
 WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(args);
 builder.WebHost.UseStaticWebAssets();
@@ -257,8 +257,8 @@ serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
 serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
 serviceCollectionSlimFaas.AddSingleton<ISlimDataStatus, SlimDataStatus>();
-serviceCollectionSlimFaas.AddSingleton<IReplicasService, ReplicasService>(sp =>
-    (ReplicasService)serviceProviderStarter.GetService<IReplicasService>()!);
+serviceCollectionSlimFaas.AddSingleton<IReplicasService>(sp =>
+    serviceProviderStarter.GetRequiredService<IReplicasService>());
 serviceCollectionSlimFaas.AddSingleton<IMetricsScrapingGuard>(sp =>
     serviceProviderStarter.GetRequiredService<IMetricsScrapingGuard>());
 serviceCollectionSlimFaas.AddSingleton<IRequestedMetricsRegistry>(sp =>
@@ -313,81 +313,79 @@ var namespaceProvider = serviceProviderStarter.GetRequiredService<INamespaceProv
 string namespace_ = namespaceProvider.CurrentNamespace;
 startupLogger.LogInformation("Using namespace: {Namespace}", namespace_);
 
-replicasService?.SyncDeploymentsAsync(namespace_).Wait();
+await replicasService.SyncDeploymentsAsync(namespace_);
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? Dns.GetHostName();
 startupLogger.LogInformation("Current hostname: {Hostname}", hostname);
-while (replicasService?.Deployments?.SlimFaas?.Pods.Any(p => p.Name.Contains(hostname)) == false)
+while (replicasService.Deployments.SlimFaas.Pods.Any(p => p.Name.Contains(hostname, StringComparison.Ordinal)) == false)
 {
-    foreach (PodInformation podInformation in replicasService?.Deployments?.SlimFaas?.Pods ?? Array.Empty<PodInformation>())
+    foreach (PodInformation podInformation in replicasService.Deployments.SlimFaas.Pods)
     {
         startupLogger.LogInformation("Current SlimFaas pod: {PodName} {PodIp} {PodStarted}",
             podInformation.Name, podInformation.Ip, podInformation.Started);
     }
     startupLogger.LogInformation("Waiting current pod to be ready");
-    Task.Delay(1000).Wait();
-    replicasService?.SyncDeploymentsAsync(namespace_).Wait();
+    await Task.Delay(1000);
+    await replicasService.SyncDeploymentsAsync(namespace_);
 }
 
-if (replicasService?.Deployments?.SlimFaas?.Pods.Count == 1)
+if (replicasService.Deployments.SlimFaas.Pods.Count == 1)
 {
     slimDataAllowColdStart = true;
     startupLogger.LogInformation("Starting SlimFaas, coldstart: {ColdStart}", slimDataAllowColdStart);
 }
 
 while (!slimDataAllowColdStart &&
-       replicasService?.Deployments?.SlimFaas?.Pods.Count(p => !string.IsNullOrEmpty(p.Ip)) < 2)
+       replicasService.Deployments.SlimFaas.Pods.Count(p => !string.IsNullOrEmpty(p.Ip)) < 2)
 {
     startupLogger.LogInformation("Waiting for at least 2 pods to be ready");
-    Task.Delay(1000).Wait();
-    replicasService?.SyncDeploymentsAsync(namespace_).Wait();
+    await Task.Delay(1000);
+    await replicasService.SyncDeploymentsAsync(namespace_);
 }
 
-if (replicasService?.Deployments?.SlimFaas?.Pods != null)
+var slimFaasPods = replicasService.Deployments.SlimFaas.Pods;
+
+foreach (PodInformation podInformation in slimFaasPods
+             .Where(p => !string.IsNullOrEmpty(p.Ip) && p.Started == true))
 {
-
-    foreach (PodInformation podInformation in replicasService.Deployments.SlimFaas.Pods
-                 .Where(p => !string.IsNullOrEmpty(p.Ip) && p.Started == true).ToList())
+    try
     {
-        try
+        string slimDataEndpoint = SlimDataEndpoint.Get(podInformation, slimFaasOptions.BaseSlimDataUrl, namespace_);
+        bool isCurrentPod = podInformation.Name.Contains(hostname, StringComparison.Ordinal);
+        // In-memory cluster configuration (Local and Process) must receive
+        // the complete topology, including the current member.
+        if (!isCurrentPod || envOrConfig is "Local" or "Process")
         {
-            string slimDataEndpoint = SlimDataEndpoint.Get(podInformation, slimFaasOptions.BaseSlimDataUrl, namespace_);
-            bool isCurrentPod = podInformation.Name.Contains(hostname, StringComparison.Ordinal);
-            // In-memory cluster configuration (Local and Process) must receive
-            // the complete topology, including the current member.
-            if (!isCurrentPod || envOrConfig is "Local" or "Process")
-            {
-                startupLogger.LogInformation("Adding node {SlimDataEndpoint} {Hostname} {PodName}",
-                    slimDataEndpoint, hostname, podInformation.Name);
-                Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
-            }
-        }
-        catch (Exception ex)
-        {
-            startupLogger.LogError(ex, "Error adding node");
+            startupLogger.LogInformation("Adding node {SlimDataEndpoint} {Hostname} {PodName}",
+                slimDataEndpoint, hostname, podInformation.Name);
+            Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
         }
     }
-
-    PodInformation currentPod = replicasService.Deployments.SlimFaas.Pods.First(p => p.Name.Contains(hostname));
-    startupLogger.LogInformation("Starting node {PodName}", currentPod.Name);
-    podDataDirectoryPersistantStorage = Path.Combine(slimDataDirectory, currentPod.Name);
-    if (!Directory.Exists(podDataDirectoryPersistantStorage))
+    catch (Exception ex)
     {
-        Directory.CreateDirectory(podDataDirectoryPersistantStorage);
+        startupLogger.LogError(ex, "Error adding node");
     }
-    else
-    {
-        switch (envOrConfig)
-        {
-            case "Docker":
-                Directory.Delete(podDataDirectoryPersistantStorage, true);
-                Directory.CreateDirectory(podDataDirectoryPersistantStorage);
-                break;
-        }
-    }
-
-    publicEndPoint = SlimDataEndpoint.Get(currentPod, slimFaasOptions.BaseSlimDataUrl, namespace_);
-    startupLogger.LogInformation("Node started {PodName} {PublicEndpoint}", currentPod.Name, publicEndPoint);
 }
+
+PodInformation currentPod = slimFaasPods.First(p => p.Name.Contains(hostname, StringComparison.Ordinal));
+startupLogger.LogInformation("Starting node {PodName}", currentPod.Name);
+podDataDirectoryPersistantStorage = Path.Combine(slimDataDirectory, currentPod.Name);
+if (!Directory.Exists(podDataDirectoryPersistantStorage))
+{
+    Directory.CreateDirectory(podDataDirectoryPersistantStorage);
+}
+else
+{
+    switch (envOrConfig)
+    {
+        case "Docker":
+            Directory.Delete(podDataDirectoryPersistantStorage, true);
+            Directory.CreateDirectory(podDataDirectoryPersistantStorage);
+            break;
+    }
+}
+
+publicEndPoint = SlimDataEndpoint.Get(currentPod, slimFaasOptions.BaseSlimDataUrl, namespace_);
+startupLogger.LogInformation("Node started {PodName} {PublicEndpoint}", currentPod.Name, publicEndPoint);
 
 
 

@@ -1,14 +1,13 @@
 using System.Text.Json;
 using System.Threading.Channels;
 using SlimFaas.Endpoints;
-using SlimFaas.Kubernetes;
 // AppJsonContext est dans namespace SlimFaas - accessible via using implicite (même assembly)
 
 namespace SlimFaas.WebSocket;
 
 /// <summary>
 /// Service qui envoie une requête asynchrone à un client WebSocket et attend son callback.
-/// Utilisé par <see cref="SlimFaas.Workers.SlimQueuesWorker"/> à la place d'un appel HTTP classique.
+/// Utilisé par <see cref="SlimFaas.SlimQueuesWorker"/> à la place d'un appel HTTP classique.
 /// </summary>
 public interface IWebSocketSendClient
 {
@@ -179,6 +178,7 @@ public class WebSocketSendClient : IWebSocketSendClient
 
         var pendingStream = new PendingSyncStream();
         connection.PendingSyncStreams[correlationId] = pendingStream;
+        CancellationTokenSource? responseTimeoutCts = null;
 
         try
         {
@@ -218,10 +218,11 @@ public class WebSocketSendClient : IWebSocketSendClient
                 functionName, connection.ConnectionId, correlationId);
 
             // 4. Attend SyncResponseStart du client (avec timeout)
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(ct, pendingStream.Cts.Token);
-            cts.CancelAfter(TimeSpan.FromSeconds(300));
+            responseTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct, pendingStream.Cts.Token);
+            responseTimeoutCts.CancelAfter(TimeSpan.FromSeconds(300));
 
-            var responseStart = await pendingStream.ResponseStartTcs.Task.WaitAsync(cts.Token);
+            var responseStart = await pendingStream.ResponseStartTcs.Task.WaitAsync(responseTimeoutCts.Token);
+            var responseCts = responseTimeoutCts;
 
             return (
                 responseStart.StatusCode,
@@ -229,17 +230,18 @@ public class WebSocketSendClient : IWebSocketSendClient
                 pendingStream.ResponseChunks.Reader,
                 async () =>
                 {
-                    try { await pendingStream.ResponseEndTcs.Task.WaitAsync(cts.Token); }
+                    try { await pendingStream.ResponseEndTcs.Task.WaitAsync(responseCts.Token); }
                     finally
                     {
                         connection.PendingSyncStreams.TryRemove(correlationId, out _);
-                        cts.Dispose();
+                        responseCts.Dispose();
                     }
                 }
             );
         }
         catch (Exception)
         {
+            responseTimeoutCts?.Dispose();
             connection.PendingSyncStreams.TryRemove(correlationId, out _);
 
             // Envoie SyncCancel au client pour libérer ses ressources

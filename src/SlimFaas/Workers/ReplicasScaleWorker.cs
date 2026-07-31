@@ -8,7 +8,6 @@ public class ScaleReplicasWorker(
     IReplicasService replicasService,
     IMasterService masterService,
     ILogger<ScaleReplicasWorker> logger,
-    IOptions<SlimFaasOptions> slimFaasOptions,
     IOptions<WorkersOptions> workersOptions,
     INamespaceProvider namespaceProvider)
     : BackgroundService

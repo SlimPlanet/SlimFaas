@@ -7,7 +7,6 @@ namespace SlimFaas;
 public class ReplicasSynchronizationWorker(
     IReplicasService replicasService,
     ILogger<ReplicasSynchronizationWorker> logger,
-    IOptions<SlimFaasOptions> slimFaasOptions,
     IOptions<WorkersOptions> workersOptions,
     INamespaceProvider namespaceProvider)
     : BackgroundService

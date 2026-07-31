@@ -1,11 +1,8 @@
 ﻿﻿﻿using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using MemoryPack;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Kubernetes;
-using SlimFaas.Options;
 
 namespace SlimFaas.Jobs;
 
@@ -49,7 +46,6 @@ public class JobService(
     IKubernetesService kubernetesService,
     IJobConfiguration jobConfiguration,
     IJobQueue jobQueue,
-    IOptions<SlimFaasOptions> slimFaasOptions,
     INamespaceProvider namespaceProvider,
     ILogger<JobService> logger) : IJobService
 {

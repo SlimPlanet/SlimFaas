@@ -149,10 +149,6 @@ public class ReplicasScaleWorkerShould
         {
             ScaleReplicasDelayMilliseconds = 100
         });
-        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
-        {
-            Namespace = "default"
-        });
 
         var namespaceProviderMock = new Mock<INamespaceProvider>();
         namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
@@ -161,7 +157,6 @@ public class ReplicasScaleWorkerShould
             replicasService,
             masterService.Object,
             logger.Object,
-            slimFaasOptions,
             workersOptions,
             namespaceProviderMock.Object);
 
@@ -195,15 +190,11 @@ public class ReplicasScaleWorkerShould
         {
             ScaleReplicasDelayMilliseconds = 10
         });
-        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
-        {
-            Namespace = "default"
-        });
 
         var namespaceProviderMock = new Mock<INamespaceProvider>();
         namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns("default");
 
-        ScaleReplicasWorker service = new(replicaService.Object, masterService.Object, logger.Object, slimFaasOptions, workersOptions, namespaceProviderMock.Object);
+        ScaleReplicasWorker service = new(replicaService.Object, masterService.Object, logger.Object, workersOptions, namespaceProviderMock.Object);
         using var cts = new CancellationTokenSource();
         Task task = service.StartAsync(cts.Token);
         await Task.Delay(100);

@@ -60,7 +60,6 @@ public class JobServiceTests
             _kubernetesServiceMock.Object,
             _jobConfigurationMock.Object,
             _jobQueueMock.Object,
-            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = "default" }),
             namespaceProviderMock.Object,
             NullLogger<JobService>.Instance
         );

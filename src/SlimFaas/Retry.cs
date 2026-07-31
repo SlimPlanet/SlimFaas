@@ -91,7 +91,7 @@ public static class Retry
             if (attempt >= 0)
             {
                 var delay = delays[attempt];
-                logger.LogWarning("DoRequestAsync Try {Attempt} : wait number {Delay} second", attempt+1, delay);
+                logger.LogWarning("DoRequestAsync Try {Attempt} : wait number {Delay} second", attempt + 1, delay);
                 await Task.Delay(delay * 1000);
             }
 

@@ -46,7 +46,6 @@ public class JobServiceAdditionalTests
         namespaceProviderMock.SetupGet(n => n.CurrentNamespace).Returns(Ns);
 
         _svc = new JobService(_kube.Object, _conf.Object, _queue.Object,
-            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { Namespace = Ns }),
             namespaceProviderMock.Object,
             NullLogger<JobService>.Instance);
     }
