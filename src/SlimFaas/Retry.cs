@@ -124,7 +124,7 @@ public static class Retry
         }
         catch (HttpRequestException ex)
         {
-            logger.LogError($"Network exception : {ex.Message}");
+            logger.LogError(ex, "Network exception");
 
             var fallbackResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
             {

@@ -208,15 +208,18 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                     }
                 }
 
-                _logger.LogDebug(
-                    "Binding topic={Topic}, group={Group}, function={Function} has {Pending} pending messages, consumedDelta={ConsumedDelta}, recentActivity={RecentActivity}, usedAdmin={UsedAdmin}",
-                    binding.Topic,
-                    binding.ConsumerGroupId,
-                    binding.FunctionName,
-                    pending,
-                    consumedDelta,
-                    recentActivity,
-                    usedAdmin);
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogDebug(
+                        "Binding topic={Topic}, group={Group}, function={Function} has {Pending} pending messages, consumedDelta={ConsumedDelta}, recentActivity={RecentActivity}, usedAdmin={UsedAdmin}",
+                        binding.Topic,
+                        binding.ConsumerGroupId,
+                        binding.FunctionName,
+                        pending,
+                        consumedDelta,
+                        recentActivity,
+                        usedAdmin);
+                }
 
                 var shouldWakeForPending = pending >= binding.MinPendingMessages;
                 var shouldWakeForActivity = recentActivity && binding.ActivityKeepAliveSeconds > 0;
@@ -250,11 +253,14 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                     }
                     else
                     {
-                        _logger.LogDebug(
-                            "Cooldown still active for topic={Topic}, group={Group}, function={Function}",
-                            binding.Topic,
-                            binding.ConsumerGroupId,
-                            binding.FunctionName);
+                        if (_logger.IsEnabled(LogLevel.Debug))
+                        {
+                            _logger.LogDebug(
+                                "Cooldown still active for topic={Topic}, group={Group}, function={Function}",
+                                binding.Topic,
+                                binding.ConsumerGroupId,
+                                binding.FunctionName);
+                        }
                     }
                 }
             }

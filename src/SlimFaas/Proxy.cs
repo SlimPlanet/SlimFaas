@@ -180,16 +180,11 @@ namespace SlimFaas
                 }
 
                 var inFlight = GetOrCreateInFlight(deployment);
-                var activeByTarget = inFlight.ToDictionary(
-                    kv => kv.Key,
-                    kv => kv.Value,
-                    StringComparer.OrdinalIgnoreCase);
-
                 var selected = SelectBestTarget(
                     deployment,
                     readyTargets,
                     int.MaxValue,
-                    activeByTarget);
+                    inFlight);
                 if (string.IsNullOrWhiteSpace(selected))
                 {
                     return "";

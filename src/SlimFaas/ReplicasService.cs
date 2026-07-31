@@ -108,11 +108,8 @@ public class ReplicasService(
                 tickLastCall = lastTicksFromSchedule.Value;
             }
 
-            var allDependsOn = currentDeployments.Functions
-                .Where(f => f.DependsOn != null && f.DependsOn.Contains(deploymentInformation.Deployment))
-                .ToList();
-
-            foreach (DeploymentInformation information in allDependsOn)
+            foreach (DeploymentInformation information in currentDeployments.Functions
+                         .Where(f => f.DependsOn != null && f.DependsOn.Contains(deploymentInformation.Deployment)))
             {
                 if (tickLastCall < ticksLastCall[information.Deployment])
                     tickLastCall = ticksLastCall[information.Deployment];
@@ -173,12 +170,12 @@ public class ReplicasService(
 
             // 🔒 Protection : si un pod est bloqué "exceeded quota", on n'essaie plus de scaler vers le haut
             bool isScaleUp = desiredReplicas > currentScale;
-            var podFailureReason = HasInfrastructurePodFailure(deploymentInformation);
-            if (isScaleUp && podFailureReason != null)
+            var podFailure = HasInfrastructurePodFailure(deploymentInformation);
+            if (isScaleUp && podFailure != null)
             {
                 logger.LogWarning(
-                    "Skip scale-up for {Deployment} from {CurrentScale} to {DesiredReplicas} because a pod is blocked by Infrastructure Error: {PodFailureReason}",
-                    deploymentInformation.Deployment, currentScale, desiredReplicas, podFailureReason);
+                    "Skip scale-up for {Deployment} from {CurrentScale} to {DesiredReplicas} because a pod is blocked by Infrastructure Error: {PodFailureReason}: {PodFailureMessage}",
+                    deploymentInformation.Deployment, currentScale, desiredReplicas, podFailure.Value.Reason, podFailure.Value.Message);
 
                 // On laisse le nombre de pods inchangé
                 desiredReplicas = currentScale;
@@ -299,15 +296,31 @@ public class ReplicasService(
 
             if (times.Count >= 2)
             {
-                var orderedTimes = times
-                    .Where(t => t.DateTime.Ticks < nowUtc.Ticks)
-                    .OrderBy(t => t.DateTime.Ticks)
-                    .ToList();
-                if (orderedTimes.Count >= 1)
+                TimeToScaleDownTimeout? latestPastTime = null;
+                foreach (var time in times)
                 {
-                    return orderedTimes[^1].Value;
+                    if (time.DateTime.Ticks < nowUtc.Ticks &&
+                        (latestPastTime is null || time.DateTime.Ticks > latestPastTime.DateTime.Ticks))
+                    {
+                        latestPastTime = time;
+                    }
                 }
-                return times.OrderBy(t => t.DateTime.Ticks).Last().Value;
+
+                if (latestPastTime is not null)
+                {
+                    return latestPastTime.Value;
+                }
+
+                TimeToScaleDownTimeout latestTime = times[0];
+                for (int index = 1; index < times.Count; index++)
+                {
+                    if (times[index].DateTime.Ticks > latestTime.DateTime.Ticks)
+                    {
+                        latestTime = times[index];
+                    }
+                }
+
+                return latestTime.Value;
             }
             else if (times.Count == 1)
             {
@@ -344,7 +357,7 @@ public class ReplicasService(
         return true;
     }
 
-    private static string? HasInfrastructurePodFailure(DeploymentInformation deploymentInformation)
+    private static (string Reason, string? Message)? HasInfrastructurePodFailure(DeploymentInformation deploymentInformation)
     {
         if (deploymentInformation.Pods.Count == 0)
         {
@@ -355,7 +368,7 @@ public class ReplicasService(
         {
             if (IsInfrastructureFailure(pod))
             {
-                return $"{pod.StartFailureReason} : {pod.StartFailureMessage}";
+                return (pod.StartFailureReason!, pod.StartFailureMessage);
             }
         }
 
