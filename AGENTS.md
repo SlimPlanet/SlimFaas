@@ -2,15 +2,15 @@
 
 ## 🎯 Overview
 
-This document provides essential guidelines for AI agents (like GitHub Copilot) working on the **SlimFaas** and **SlimData** projects. It covers compilation strategies, execution commands, testing procedures, and documentation requirements.
+This document provides essential guidelines for AI agents (like GitHub Copilot) working on the **SlimFaas**, **SlimData**, **SlimFaasMcp**, and client packages. It covers compilation strategies, execution commands, testing procedures, and documentation requirements.
 
 ---
 
 ## 📦 Core Technologies
 
-### SlimFaas & SlimData: AOT Compilation
+### SlimFaas, SlimData & SlimFaasMcp: AOT Compilation
 
-**Both SlimFaas and SlimData are compiled using Ahead-of-Time (AOT) compilation**, a .NET feature that compiles IL code directly to native machine code at build time.
+**SlimFaas, SlimData, and SlimFaasMcp are compiled using Ahead-of-Time (AOT) compilation**, a .NET feature that compiles IL code directly to native machine code at build time.
 
 #### Why AOT?
 
@@ -21,7 +21,7 @@ This document provides essential guidelines for AI agents (like GitHub Copilot) 
 
 #### AOT Configuration
 
-Both projects have `<PublishAot>true</PublishAot>` in their `.csproj` files:
+The native .NET services below have `<PublishAot>true</PublishAot>` in their `.csproj` files:
 
 - **SlimFaas** (`src/SlimFaas/SlimFaas.csproj`):
   - Target Framework: `.NET 10.0`
@@ -34,12 +34,19 @@ Both projects have `<PublishAot>true</PublishAot>` in their `.csproj` files:
   - Optimization preference: Size
   - Full trimming enabled
 
+- **SlimFaasMcp** (`src/SlimFaasMcp/SlimFaasMcp.csproj`):
+  - Target Framework: `.NET 10.0`
+  - Full trimming enabled
+  - Symbols stripped
+  - Builds `ClientApp` with `npm ci` and `npm run build` before build/publish
+
 #### Important AOT Considerations
 
 - **Reflection Limitations**: Minimize runtime reflection; use code generation where needed
 - **Type Safety**: Ensure all types used in serialization are discoverable at compile time
 - **Native Dependencies**: Be careful with P/Invoke calls; verify they work across platforms
 - **Dependencies**: Only use NuGet packages with AOT support (e.g., `KubernetesClient.Aot`, `MemoryPack`, `prometheus-net`)
+- **Source-generated serialization**: Add new JSON payloads to existing `JsonSerializerContext` partials (for example `src/SlimFaasMcp/AppJsonContext.cs` or `src/SlimFaas/Local/ProcessControlContracts.cs`) and keep SlimData command payloads `MemoryPackable`.
 
 ---
 
@@ -49,6 +56,8 @@ Both projects have `<PublishAot>true</PublishAot>` in their `.csproj` files:
 
 - **.NET SDK**: Version `10.0.103` or later (see `global.json`)
 - **Node.js**: Version `24` or later (for UI/dashboard builds)
+- **pnpm**: Version `10.14.0` is used by CI for `src/SlimFaasSite` and `src/SlimFaasPlanetSaver`
+- **Python/UV**: Python `>=3.10` with `uv` for `client/python/slimfaas-client`
 - **Docker** or **Podman** (optional, for containerized deployments)
 
 ### Building
@@ -57,11 +66,17 @@ Both projects have `<PublishAot>true</PublishAot>` in their `.csproj` files:
 # Build the entire solution
 dotnet build
 
+# Fast backend-only SlimFaas build (skip embedded dashboard ClientApp)
+dotnet build src/SlimFaas/SlimFaas.csproj -p:SkipClientAppBuild=true
+
 # Build with AOT compilation (creates native executable)
 dotnet publish -c Release
 
 # Build a specific project
 dotnet build src/SlimFaas/SlimFaas.csproj
+
+# Build the documentation site
+(cd src/SlimFaasSite && pnpm install --frozen-lockfile && pnpm build)
 ```
 
 ### Running Locally
@@ -75,8 +90,14 @@ dotnet run --project src/SlimFaas/SlimFaas.csproj
 
 # Run examples
 dotnet run --project src/Fibonacci/Fibonacci.csproj
-dotnet run --project demo/
+dotnet run --project src/FibonacciBatch/FibonacciBatch.csproj
+
+# Validate and run the native local demo (paths are relative to the src/SlimFaas launch profile)
+dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml
+dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
 ```
+
+Use repeatable `-f` overlays such as `slimfaas.local.dev.yaml` or `slimfaas.local.debug.yaml`; `debugUrl` routes a function to an IDE process in native local mode.
 
 ### Docker
 
@@ -84,6 +105,12 @@ dotnet run --project demo/
 # Build Docker image
 docker build -t slimfaas:latest .
 
+# Run local Compose demo
+docker-compose up
+
+# Podman Compose on macOS
+chmod +x ./run-podman-compose.sh
+./run-podman-compose.sh up -d
 ```
 
 ---
@@ -111,6 +138,15 @@ SlimFaas maintains comprehensive test coverage across multiple test projects.
 - **SlimFaasKafka.Tests** (`tests/SlimFaasKafka.Tests/`)
   - Kafka connector and lag monitoring
 
+- **SlimFaasClient.Tests** (`client/dotnet/SlimFaasClient/tests/`)
+  - .NET WebSocket client registration, async handling, sync streaming
+
+- **Python slimfaas-client tests** (`client/python/slimfaas-client/tests/`)
+  - Python WebSocket client behavior with `uv run pytest`
+
+- **SlimFaasPlanetSaver tests** (`src/SlimFaasPlanetSaver/src/*.spec.jsx`)
+  - JavaScript frontend helper behavior and coverage via Vitest
+
 ### Running Tests
 
 ```bash
@@ -125,6 +161,15 @@ dotnet test tests/SlimFaas.Tests/SlimFaas.Tests.csproj
 
 # Run specific test with verbose output
 dotnet test --filter "ClassName=YourTestClass" --verbosity detailed
+
+# Run .NET client tests
+dotnet test client/dotnet/SlimFaasClient/tests/SlimFaasClient.Tests/SlimFaasClient.Tests.csproj
+
+# Run Python client tests
+(cd client/python/slimfaas-client && uv sync --extra dev && uv run pytest)
+
+# Run SlimFaasPlanetSaver coverage (same package checked by CI)
+(cd src/SlimFaasPlanetSaver && pnpm i --frozen-lockfile && pnpm run coverage)
 
 # Watch mode (re-run on file changes)
 dotnet watch test
@@ -182,6 +227,11 @@ technical references on GitHub.
   - Update prerequisites when SDK versions change
   - Include new environment variables
 
+- **`native-local-mode.md`** – Native local CLI and process orchestration
+  - Document `slimfaas local validate` / `slimfaas local up` behavior
+  - Explain manifest overlays, `--env-file`, `--clean`, and `debugUrl`
+  - Keep examples aligned with `slimfaas.local*.yaml`
+
 - **`autoscaling.md`** – Scaling mechanisms
   - Document new PromQL trigger types
   - Explain scale-up/scale-down policies
@@ -191,6 +241,11 @@ technical references on GitHub.
   - Describe sync/async invocation changes
   - Document new function annotations
   - Explain timeout and retry behaviors
+
+- **`clients.md`** – Official WebSocket clients
+  - Document .NET and Python client registration/configuration changes
+  - Keep sync streaming, async callbacks, and publish/subscribe examples current
+  - Update `client/dotnet/SlimFaasClient/README.md` or `client/python/slimfaas-client/README.md` when package APIs change
 
 - **`jobs.md`** – Job scheduling and execution
   - Document cron schedule syntax
@@ -216,6 +271,10 @@ technical references on GitHub.
   - Document consumer lag monitoring
   - Explain wake-up from Kafka events
   - Provide integration examples
+
+- **`planet-saver.md`** – JavaScript frontend wake-up helper
+  - Document behavior modes such as `WakeUp`, `WakeUp+BlockUI`, and `None`
+  - Keep examples aligned with `src/SlimFaasPlanetSaver/README.md`
 
 - **`how-it-works.md`** – Architecture deep-dive
   - Document internal workers and components
@@ -259,12 +318,13 @@ technical references on GitHub.
 
 ### Documentation Site Build
 
-The documentation site is **automatically built and deployed** via the `SiteBuild` workflow:
+The documentation site is **automatically built and deployed** from `src/SlimFaasSite`:
 
 - Sources: The checked-out `docs/` files and `README.md`
-- Build Tool: Node.js + pnpm (see `.github/workflows/SiteBuild.yml`)
+- Build Tool: Node.js + pnpm (see `.github/workflows/SiteBuild.yml` and the `deploy_website` job in `.github/workflows/main.yml`)
 - Deployment: Published to https://slimfaas.dev
 - No manual intervention needed; changes appear automatically
+- Validate locally with `(cd src/SlimFaasSite && pnpm install --frozen-lockfile && pnpm build)`; a missing source in `src/SlimFaasSite/src/lib/documentation-catalog.ts` fails the build.
 
 ### Documentation Checklist
 
@@ -274,6 +334,8 @@ Before committing code changes:
 - [ ] Did I add/change configuration options? → Update `get-started.md` or `how-it-works.md`
 - [ ] Did I modify API endpoints? → Update `functions.md`, `jobs.md`, or `data-*.md`
 - [ ] Did I change scaling behavior? → Update `autoscaling.md`
+- [ ] Did I change demo-facing behavior? → Update `demo/deployment-*.yml`, `docker-compose.yml`, and `slimfaas.local*.yaml`
+- [ ] Did I change data or performance-sensitive paths? → Run the relevant `.bin/*benchmark*.sh` or memory-lab command
 - [ ] Are there new dependencies or AOT concerns? → Update `how-it-works.md`
 - [ ] Did I test the documentation examples? → Ensure they still work
 - [ ] Did I fix a bug that affects deployment? → Document the workaround or fix
@@ -291,14 +353,28 @@ All workflows live in `.github/workflows/`:
    - Unit tests with code coverage
    - Automated versioning and tagging
    - Docker image builds and pushes
+   - Native AOT release artifacts for SlimFaas and SlimFaasMcp
+   - SlimFaasPlanetSaver npm publish and documentation site deployment on `main`
 
-2. **SiteBuild.yml** – Documentation site:
+2. **SiteBuild.yml** – Reusable documentation site build:
    - Builds Markdown documentation to static site
-   - Deploys to GitHub Pages or hosting provider
+   - Used by external-contributor checks; deployment happens in `main.yml`
 
 3. **Docker.yml** – Container builds:
    - Creates multi-platform Docker images
    - Publishes to Docker Hub
+
+4. **main-external-contrib.yml** – External contributor CI:
+   - Defines unit tests, SlimFaasPlanetSaver coverage, Docker builds without push, and site build checks
+
+5. **publish-dotnet-nuget.yml** – .NET client package:
+   - Builds, tests, packs, and publishes `client/dotnet/SlimFaasClient`
+
+6. **publish-python-pypi.yml** – Python client package:
+   - Uses `uv`, builds, tests, and publishes `client/python/slimfaas-client`
+
+7. **scorecard.yml** – Supply-chain security:
+   - Runs OpenSSF Scorecard analysis and uploads SARIF results
 
 ### Running Locally Before Commit
 
@@ -312,9 +388,22 @@ dotnet sonarscanner end ...
 dotnet test --collect "Code Coverage;Format=cobertura"
 
 # Build UI components
-cd src/SlimFaasPlanetSaver
-pnpm i --frozen-lockfile
-pnpm run coverage
+(cd src/SlimFaasPlanetSaver && pnpm i --frozen-lockfile && pnpm run coverage)
+
+# Build documentation site
+(cd src/SlimFaasSite && pnpm install --frozen-lockfile && pnpm build)
+
+# Validate the native local end-to-end demo before runtime/config changes are considered done
+dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml
+dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
+
+# While local up is running, smoke-test the whole chain from another terminal
+curl http://127.0.0.1:30020/status-functions
+curl http://127.0.0.1:30020/function/fibonacci1/hello/local
+
+# Quick performance smoke tests for data/performance-sensitive changes
+WARMUP_SECONDS=2 DURATION_SECONDS=5 REPETITIONS=1 .bin/slimdata-benchmark.sh
+BENCHMARK_PHASE=screening SCREENING_DURATION_SECONDS=10 SCREENING_WARMUP_SECONDS=5 .bin/slimdata-batch-modes-benchmark.sh
 ```
 
 ---
@@ -337,15 +426,29 @@ pnpm run coverage
    - Link new docs from `README.md` or related files
    - Test documentation examples
 
-4. **Consider Performance**
+4. **Keep Demos Working**
+   - If code changes affect user-facing configuration, sample workloads, ports, images, or annotations, update the matching demo files: `demo/deployment-*.yml`, `docker-compose.yml`, and `slimfaas.local*.yaml`.
+   - After runtime, configuration, function routing, data, queue, job, or UI changes, run the native local chain with `dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml` and verify `http://127.0.0.1:30020/status-functions` plus a demo function path such as `/function/fibonacci1/hello/local`.
+
+5. **Consider Performance**
    - SlimFaas is designed for **slim footprint and fast execution**
    - Avoid large allocations; use pooling/streaming where possible
    - Profile impact on memory and startup time
+   - For changes touching `src/SlimData/`, `src/SlimFaas/Data/`, batching, queues, metrics cardinality, HTTP client pooling, or high-throughput request paths, run the relevant performance tests: `.bin/slimdata-benchmark.sh`, `.bin/slimdata-batch-modes-benchmark.sh`, `.bin/memory-lab.sh`, or `dotnet run --project src/SlimFaasBenchmark/SlimFaasBenchmark.csproj`.
 
-5. **Kubernetes-First Mindset**
+6. **Kubernetes-First Mindset**
    - Test with proper Kubernetes API interactions
    - Use annotations for configuration
    - Consider multi-pod scenarios (leader election, state sync)
+
+7. **Keep WebSocket Clients and Runtime in Sync**
+   - Runtime WebSocket code lives in `src/SlimFaas/WebSocket/`; official clients live in `client/dotnet/SlimFaasClient/` and `client/python/slimfaas-client/`.
+   - If registration payloads, callbacks, or sync streaming change, update `docs/clients.md`, both client READMEs, and the relevant client tests.
+   - `FunctionName` / `function_name` must not match an existing Kubernetes Deployment, and clients sharing the same name must use identical configuration.
+
+8. **Validate Native Local Mode Changes**
+   - CLI and manifest orchestration live under `src/SlimFaas/Local/`.
+   - Validate with `dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml` and use `slimfaas.local.debug.yaml` for `debugUrl` IDE routing scenarios.
 
 ### File Organization
 
@@ -355,15 +458,23 @@ SlimFaas/
 │   ├── SlimFaas/              # Main FaaS runtime (AOT-compiled)
 │   ├── SlimData/              # Embedded Raft-based KV store (AOT-compiled)
 │   ├── SlimFaasKafka/         # Kafka connector
-│   ├── SlimFaasMcp/           # MCP runtime
-│   └── examples/              # Demo applications
+│   ├── SlimFaasMcp/           # MCP runtime (AOT-compiled) + ClientApp
+│   ├── SlimFaasSite/          # Next.js documentation site
+│   ├── SlimFaasPlanetSaver/   # JS wake-up UX helper package
+│   └── Fibonacci*/CalculatorApi/GmailMailerApi/... # Demo applications
+├── client/
+│   ├── dotnet/SlimFaasClient/ # .NET WebSocket client package + tests
+│   └── python/slimfaas-client/ # Python WebSocket client package + tests
+├── .bin/                       # Benchmark and release helper scripts
 ├── tests/
 │   ├── SlimFaas.Tests/
 │   ├── SlimData.Tests/
 │   └── ...
+├── tools/SlimFaas.MemoryLab/   # Memory/performance workload tool
 ├── docs/                      # Markdown docs and assets → published to web
+├── demo/                      # Kubernetes/Compose deployment manifests
 ├── README.md                   # Project overview
-├── agent.md                    # This file
+├── AGENTS.md                   # This file
 └── global.json                 # .NET SDK version
 ```
 
@@ -373,11 +484,11 @@ SlimFaas/
 
 | Aspect | Details |
 |--------|---------|
-| **Compilation** | AOT-first; both SlimFaas & SlimData use `.NET 10.0` with `PublishAot: true` |
+| **Compilation** | AOT-first; SlimFaas, SlimData & SlimFaasMcp use `.NET 10.0` with `PublishAot: true` |
 | **Build** | `dotnet build` or `dotnet publish -c Release` for native executable |
-| **Test** | `dotnet test --collect "Code Coverage;Format=cobertura"` |
-| **Run** | `dotnet run --project src/SlimFaas/` or Docker Compose |
-| **Docs** | Update `README.md` + `docs/*.md`; auto-published to website |
+| **Test** | `dotnet test --collect "Code Coverage;Format=cobertura"`; run client/JS tests when those packages change |
+| **Run** | `dotnet run --project src/SlimFaas/`, `slimfaas local up`, or Docker/Podman Compose |
+| **Docs** | Update `README.md` + relevant `docs/*.md` registered in `DOCUMENTATION_CATALOG`; auto-published to website |
 | **AOT Tips** | Avoid reflection, use MemoryPack, test with `dotnet publish` |
 
 ---
@@ -386,10 +497,12 @@ SlimFaas/
 
 - **Architecture**: See `docs/how-it-works.md`
 - **Deployment**: See `docs/get-started.md`
+- **Local Mode**: See `docs/native-local-mode.md`
 - **Scaling**: See `docs/autoscaling.md`
+- **Clients**: See `docs/clients.md`
 - **Contributing**: See `CONTRIBUTING.md`
 
 ---
 
-**Last Updated**: 2026-07-03
+**Last Updated**: 2026-07-31
 **Target Audience**: AI Agents, Contributors, Maintainers
