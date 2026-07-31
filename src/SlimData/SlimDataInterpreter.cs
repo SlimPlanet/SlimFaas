@@ -147,23 +147,13 @@ public sealed class QueueHttpTryElement
 }
 
 #pragma warning disable CA2252
-public class SlimDataInterpreter : CommandInterpreter
+public static class SlimDataInterpreter
 {
     public const int DeleteFromQueueCode = 1000;
     public const string TimeToLivePostfix = ":${__slimfaas_ttl__}$";
     public const string HashsetTtlField = "${__slimfaas_ttl__}$";
 
     public static string TtlKey(string key) => key + TimeToLivePostfix;
-
-    public SlimDataState SlimDataState = new(
-        ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
-        ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
-        ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
-    );
-
-    [CommandHandler]
-    public ValueTask ListRightPopAsync(ListRightPopCommand addHashSetCommand, CancellationToken token)
-        => DoListRightPopAsync(addHashSetCommand, SlimDataState);
 
     internal static ValueTask DoListRightPopAsync(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
     {
@@ -239,10 +229,6 @@ public class SlimDataInterpreter : CommandInterpreter
         return default;
     }
 
-    [CommandHandler]
-    public ValueTask ListLeftPushBatchAsync(ListLeftPushBatchCommand listLeftPushBatchCommand, CancellationToken token)
-        => DoListLeftPushBatchAsync(listLeftPushBatchCommand, SlimDataState);
-
     internal static ValueTask DoListLeftPushBatchAsync(ListLeftPushBatchCommand cmd, SlimDataState state)
     {
         var queues = state.Queues;
@@ -284,10 +270,6 @@ public class SlimDataInterpreter : CommandInterpreter
         state.Queues = queues;
         return default;
     }
-
-    [CommandHandler]
-    public ValueTask ListCallbackAsync(ListCallbackCommand addHashSetCommand, CancellationToken token)
-        => DoListCallbackAsync(addHashSetCommand, SlimDataState);
 
     internal static ValueTask DoListCallbackAsync(ListCallbackCommand cmd, SlimDataState state)
     {
@@ -351,10 +333,6 @@ public class SlimDataInterpreter : CommandInterpreter
         return default;
     }
 
-    [CommandHandler]
-    public ValueTask ListCallbackBatchAsync(ListCallbackBatchCommand command, CancellationToken token)
-        => DoListCallbackBatchAsync(command, SlimDataState);
-
     internal static ValueTask DoListCallbackBatchAsync(ListCallbackBatchCommand batch, SlimDataState state)
     {
         var queues = state.Queues;
@@ -408,10 +386,6 @@ public class SlimDataInterpreter : CommandInterpreter
         return default;
     }
 
-    [CommandHandler]
-    public ValueTask AddHashSetAsync(AddHashSetCommand addHashSetCommand, CancellationToken token)
-        => DoAddHashSetAsync(addHashSetCommand, SlimDataState);
-
     internal static ValueTask DoAddHashSetAsync(AddHashSetCommand cmd, SlimDataState state)
     {
         var hashsets = state.Hashsets;
@@ -445,10 +419,6 @@ public class SlimDataInterpreter : CommandInterpreter
         state.Hashsets = hashsets;
         return default;
     }
-
-    [CommandHandler]
-    public ValueTask AddKeyValueAsync(AddKeyValueCommand valueCommand, CancellationToken token)
-        => DoAddKeyValueAsync(valueCommand, SlimDataState);
 
     internal static ValueTask DoAddKeyValueAsync(AddKeyValueCommand cmd, SlimDataState state, object? context = null)
     {
@@ -667,10 +637,6 @@ public class SlimDataInterpreter : CommandInterpreter
 
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    [CommandHandler]
-    public ValueTask DeleteKeyValueAsync(DeleteKeyValueCommand valueCommand, CancellationToken token)
-        => DoDeleteKeyValueAsync(valueCommand, SlimDataState);
-
     internal static ValueTask DoDeleteKeyValueAsync(DeleteKeyValueCommand cmd, SlimDataState state)
     {
         var keyValues = state.KeyValues;
@@ -685,10 +651,6 @@ public class SlimDataInterpreter : CommandInterpreter
         state.KeyValues = keyValues;
         return default;
     }
-
-    [CommandHandler]
-    public ValueTask DeleteHashSetAsync(DeleteHashSetCommand valueCommand, CancellationToken token)
-        => DoDeleteHashSetAsync(valueCommand, SlimDataState);
 
     internal static ValueTask DoDeleteHashSetAsync(DeleteHashSetCommand cmd, SlimDataState state)
     {
@@ -709,13 +671,6 @@ public class SlimDataInterpreter : CommandInterpreter
 
         return default;
     }
-
-    [CommandHandler]
-    public ValueTask ExecuteBatchAsync(
-        ExecuteBatchCommand command,
-        object? context,
-        CancellationToken token)
-        => DoExecuteBatchAsync(command, SlimDataState, context);
 
     internal static ValueTask DoExecuteBatchAsync(
         ExecuteBatchCommand command,
@@ -995,7 +950,7 @@ public class SlimDataInterpreter : CommandInterpreter
         ValueTask ExecuteBatchHandler(ExecuteBatchCommand c, object? context, CancellationToken t) =>
             DoExecuteBatchAsync(c, state, context);
 
-        var interpreter = new Builder()
+        var interpreter = new CommandInterpreter.Builder()
             .Add(new Func<ListRightPopCommand, CancellationToken, ValueTask>(ListRightPopHandler))
             .Add(new Func<ListLeftPushBatchCommand, CancellationToken, ValueTask>(ListLeftPushBatchHandler))
             .Add(new Func<AddHashSetCommand, CancellationToken, ValueTask>(AddHashSetHandler))

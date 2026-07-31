@@ -1,5 +1,3 @@
-using System.ComponentModel.DataAnnotations;
-
 namespace SlimFaas.Options;
 
 public enum SlimDataBatchMode
@@ -33,7 +31,6 @@ public class SlimDataOptions
     /// <summary>
     /// Maximum number of WAL indices DotNext searches backwards when synchronizing a new member.
     /// </summary>
-    [Range(1, int.MaxValue)]
     public int WarmupRounds { get; set; } = 10_000;
 
     /// <summary>
@@ -44,7 +41,6 @@ public class SlimDataOptions
     /// <summary>
     /// Number of local key partitions when BatchMode is PartitionedByKey.
     /// </summary>
-    [Range(2, 16)]
     public int BatchPartitionCount { get; set; } = 8;
 
     /// <summary>
@@ -55,7 +51,6 @@ public class SlimDataOptions
     /// <summary>
     /// Maximum local mutation rate for the low-load fast path.
     /// </summary>
-    [Range(0.1d, 10_000d)]
     public double LowLoadRequestsPerSecond { get; set; } = 10d;
 
     /// <summary>

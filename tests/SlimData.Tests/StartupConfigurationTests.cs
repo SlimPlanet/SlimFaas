@@ -1,6 +1,7 @@
 using System.Text;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.Extensions.Configuration;
+using SlimData.Options;
 
 namespace SlimData.Tests;
 
@@ -96,5 +97,35 @@ public sealed class StartupConfigurationTests
         Assert.Contains(Startup.WalMemoryManagement, exception.Message, StringComparison.Ordinal);
         Assert.Contains("PrivateMemory", exception.Message, StringComparison.Ordinal);
         Assert.Contains("SharedMemory", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Raft_client_handler_options_accept_default_values()
+    {
+        var options = new RaftClientHandlerOptions();
+
+        Assert.True(Startup.ValidateRaftClientHandlerOptions(options));
+    }
+
+    [Theory]
+    [InlineData(0, 5, 30, 100)]
+    [InlineData(2000, 0, 30, 100)]
+    [InlineData(2000, 5, 0, 100)]
+    [InlineData(2000, 5, 30, 0)]
+    public void Raft_client_handler_options_reject_non_positive_values(
+        int connectTimeoutMilliseconds,
+        int pooledConnectionLifetimeMinutes,
+        int pooledConnectionIdleTimeoutSeconds,
+        int maxConnectionsPerServer)
+    {
+        var options = new RaftClientHandlerOptions
+        {
+            ConnectTimeoutMilliseconds = connectTimeoutMilliseconds,
+            PooledConnectionLifetimeMinutes = pooledConnectionLifetimeMinutes,
+            PooledConnectionIdleTimeoutSeconds = pooledConnectionIdleTimeoutSeconds,
+            MaxConnectionsPerServer = maxConnectionsPerServer
+        };
+
+        Assert.False(Startup.ValidateRaftClientHandlerOptions(options));
     }
 }

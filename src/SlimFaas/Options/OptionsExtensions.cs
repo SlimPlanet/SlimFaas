@@ -13,7 +13,6 @@ public static class OptionsExtensions
     {
         services.AddOptions<SlimFaasOptions>()
             .BindConfiguration(SlimFaasOptions.SectionName)
-            .ValidateDataAnnotations()
             .Validate(ValidateStatusStreamOptions,
                 "SlimFaas:StatusStream values are invalid.")
             .Validate(ValidateMetricsScrapingOptions,
@@ -22,14 +21,12 @@ public static class OptionsExtensions
 
         services.AddOptions<SlimDataOptions>()
             .BindConfiguration(SlimDataOptions.SectionName)
-            .ValidateDataAnnotations()
-            .Validate(ValidateSlimDataBatchOptions,
-                "SlimData batching values are invalid.")
+            .Validate(ValidateSlimDataOptions,
+                "SlimData values are invalid.")
             .ValidateOnStart();
 
         services.AddOptions<WorkersOptions>()
             .BindConfiguration(WorkersOptions.SectionName)
-            .ValidateDataAnnotations()
             .ValidateOnStart();
 
         return services;
@@ -64,11 +61,12 @@ public static class OptionsExtensions
                && metrics.RequestTimeoutSeconds > 0;
     }
 
-    private static bool ValidateSlimDataBatchOptions(SlimDataOptions options)
-        => Enum.IsDefined(options.BatchMode)
+    private static bool ValidateSlimDataOptions(SlimDataOptions options)
+        => options.WarmupRounds > 0
+           && Enum.IsDefined(options.BatchMode)
+           && options.BatchPartitionCount is >= 2 and <= 16
            && options.LowLoadRequestsPerSecond is >= 0.1d and <= 10_000d
            && (options.BatchMode != SlimDataBatchMode.PartitionedByKey ||
-               options.BatchPartitionCount is >= 2 and <= 16 &&
                (options.BatchPartitionCount & (options.BatchPartitionCount - 1)) == 0);
 
     /// <summary>
