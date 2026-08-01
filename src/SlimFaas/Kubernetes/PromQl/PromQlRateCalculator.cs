@@ -2,7 +2,8 @@ namespace SlimFaas.Kubernetes;
 
 // Shared per-series rate computation used by RateNode, RatePerBucketNode, and AvgRateNode.
 // Returns false when the series has fewer than two points, a zero/negative time span, or a
-// negative delta (counter reset). Callers that receive false must skip the series.
+// no usable elapsed time. Counter resets contribute the post-reset value, matching
+// Prometheus' monotonic-counter behaviour without extrapolating range boundaries.
 internal static class PromQlRateCalculator
 {
     public static bool TryComputeRate(SortedList<long, double> sl, out double rate)
@@ -15,8 +16,14 @@ internal static class PromQlRateCalculator
         var dt = (double)(last.Key - first.Key);
         if (dt <= 0) return false;
 
-        var diff = last.Value - first.Value;
-        if (diff < 0) return false; // counter reset – skip this series
+        double diff = 0;
+        var previous = first.Value;
+        for (var index = 1; index < sl.Count; index++)
+        {
+            var current = sl.Values[index];
+            diff += current >= previous ? current - previous : current;
+            previous = current;
+        }
 
         rate = diff / dt;
         return true;
@@ -29,17 +36,17 @@ internal sealed class RateNode(MetricSelector selector, TimeSpan window) : Value
     public override EvalValue Eval(EvalContext ctx)
     {
         var series = ctx.SelectSeries(selector, window);
-        double sum = 0.0;
-        int validCount = 0;
+        var rates = new Dictionary<string, double>(StringComparer.Ordinal);
 
-        foreach (var sl in series.Values)
+        foreach (var (seriesKey, sl) in series)
         {
             if (!PromQlRateCalculator.TryComputeRate(sl, out var rate)) continue;
-            sum += rate;
-            validCount++;
+            rates[seriesKey] = rate;
         }
 
-        return EvalValue.FromScalar(validCount > 0 ? sum : double.NaN);
+        return rates.Count > 0
+            ? EvalValue.FromVector(rates)
+            : EvalValue.FromScalar(double.NaN);
     }
 
     public override void CollectMetricNames(HashSet<string> names) => names.Add(selector.MetricName);
@@ -64,7 +71,7 @@ internal sealed class RatePerBucketNode(MetricSelector selector, TimeSpan window
                 byLe[leValue] = rate;
         }
 
-        return EvalValue.FromByLe(byLe);
+        return EvalValue.FromVector(byLe);
     }
 
     public override void CollectMetricNames(HashSet<string> names) => names.Add(selector.MetricName);

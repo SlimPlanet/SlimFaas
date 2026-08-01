@@ -217,9 +217,9 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
     // C4 – Rate and no-data edge cases
     // ─────────────────────────────────────────────────────────────────────────
 
-    // Contract: when every matched series has a negative delta (all reset), rate() → NaN.
+    // Contract: resets contribute their post-reset values.
     [Fact]
-    public void Rate_AllSeriesReset_ReturnsNaN()
+    public void Rate_AllSeriesReset_UsesPostResetValues()
     {
         var snap = BuildSnapshot(
             (100, "d", "p1", "req_total{job=\"a\"}", 50),
@@ -227,18 +227,24 @@ public sealed class PromQlMiniEvaluatorCharacterizationTests
             (100, "d", "p2", "req_total{job=\"a\"}", 80),
             (160, "d", "p2", "req_total{job=\"a\"}", 30));
         var eval = SnapEval(snap);
-        Assert.True(double.IsNaN(eval.Evaluate("""sum(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160)));
+        Assert.Equal(
+            40.0 / 60.0,
+            eval.Evaluate("""sum(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160),
+            6);
     }
 
-    // Contract: avg(rate(...)) with all resets → NaN (no valid series).
+    // Contract: avg(rate(...)) uses the same reset behaviour.
     [Fact]
-    public void AvgRate_AllSeriesReset_ReturnsNaN()
+    public void AvgRate_AllSeriesReset_UsesPostResetValue()
     {
         var snap = BuildSnapshot(
             (100, "d", "p", "req_total{job=\"a\"}", 50),
             (160, "d", "p", "req_total{job=\"a\"}", 10));
         var eval = SnapEval(snap);
-        Assert.True(double.IsNaN(eval.Evaluate("""avg(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160)));
+        Assert.Equal(
+            10.0 / 60.0,
+            eval.Evaluate("""avg(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160),
+            6);
     }
 
     // Contract: NaN from one sub-expression propagates through binary arithmetic.

@@ -110,6 +110,37 @@ public sealed class AutoScalerTests
     }
 
     [Fact]
+    public void MissingTrigger_ShouldBlockScaleDownButNotScaleUp()
+    {
+        var scaler = CreateAutoScaler();
+        var behaviorWithoutLimits = new ScaleBehavior
+        {
+            ScaleUp = new ScaleDirectionBehavior { Policies = [] },
+            ScaleDown = new ScaleDirectionBehavior { Policies = [] }
+        };
+        var scaleDownConfig = new ScaleConfig
+        {
+            Triggers =
+            [
+                new ScaleTrigger(ScaleMetricType.Value, "valid", "0.2", 1),
+                new ScaleTrigger(ScaleMetricType.Value, "missing", "missing_metric", 1)
+            ],
+            Behavior = behaviorWithoutLimits
+        };
+        var scaleUpConfig = scaleDownConfig with
+        {
+            Triggers =
+            [
+                new ScaleTrigger(ScaleMetricType.Value, "valid", "2", 1),
+                new ScaleTrigger(ScaleMetricType.Value, "missing", "missing_metric", 1)
+            ]
+        };
+
+        Assert.Equal(5, scaler.ComputeDesiredReplicas("func", scaleDownConfig, 5, 1, 20, 1_000));
+        Assert.Equal(10, scaler.ComputeDesiredReplicas("func", scaleUpConfig, 5, 1, 20, 1_001));
+    }
+
+    [Fact]
     public void SingleTrigger_MetricEqualThreshold_ShouldKeepCurrent()
     {
         var scaler = CreateAutoScaler();

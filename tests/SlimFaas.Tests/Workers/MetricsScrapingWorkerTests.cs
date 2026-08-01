@@ -455,6 +455,46 @@ namespace SlimFaas.Tests.Workers
         }
 
         [Fact]
+        public async Task Local_Replicas_On_Different_Ports_Remain_Distinct_Series()
+        {
+            var pods = new List<PodInformation>
+            {
+                Pod("dep-a-p1", "127.0.0.1", "dep-a", PromAnns(port: "5100")),
+                Pod("dep-a-p2", "127.0.0.1", "dep-a", PromAnns(port: "5101"))
+            };
+            var deployment = new DeploymentInformation(
+                "dep-a", "ns", pods, new SlimFaasConfiguration(),
+                2, 1, 0, 300, 1, false, PodType.Deployment,
+                [], new ScheduleConfig(), [], FunctionVisibility.Public,
+                [], "1", true, FunctionTrust.Trusted);
+            var deployments = new DeploymentsInformations(
+                [deployment],
+                new SlimFaasDeploymentInformation(1, []),
+                []);
+            var urls = deployments.GetMetricsTargets()["dep-a"].OrderBy(x => x).ToArray();
+            var handler = new MapHttpHandler(
+            [
+                (urls[0], HttpStatusCode.OK, "requests_total 10"),
+                (urls[1], HttpStatusCode.OK, "requests_total 20")
+            ]);
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "requests_total");
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry);
+
+            await StartRunOnceAndStopAsync(worker);
+
+            var podMap = store.Snapshot().Values.Single()["dep-a"];
+            Assert.Equal(2, podMap.Count);
+            Assert.Equal(10, podMap["127.0.0.1:5100"]["requests_total"]);
+            Assert.Equal(20, podMap["127.0.0.1:5101"]["requests_total"]);
+        }
+
+        [Fact]
         public async Task Follower_Does_Not_Scrape()
         {
             var deployments = BuildDeploymentsForScrape();
@@ -885,6 +925,104 @@ namespace SlimFaas.Tests.Workers
             // There are two targets per cycle, so at least two completed cycles
             // prove that the configured interval is used instead of the old 5 s.
             Assert.True(Volatile.Read(ref requestCount) >= 4);
+        }
+
+        [Fact]
+        public async Task FunctionScrapeIntervalOverridesSlowerGlobalCadence()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var function = deployments.Functions.Single() with
+            {
+                Scale = new ScaleConfig
+                {
+                    ScrapeIntervalMilliseconds = 1_000,
+                    Triggers = [new ScaleTrigger(Query: "metric_one", Threshold: 1)]
+                }
+            };
+            deployments = deployments with { Functions = [function] };
+            var requestCount = 0;
+            var handler = new DelegateHttpHandler((_, _) =>
+            {
+                Interlocked.Increment(ref requestCount);
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("metric_one 1", Encoding.UTF8, "text/plain")
+                });
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "metric_one");
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry,
+                delayMs: 0,
+                metricsScrapingOptions: new MetricsScrapingOptions
+                {
+                    ScrapeIntervalMilliseconds = 5_000
+                });
+
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref requestCount) >= 4,
+                TimeSpan.FromSeconds(3));
+
+            Assert.True(Volatile.Read(ref requestCount) >= 4);
+        }
+
+        [Fact]
+        public async Task TargetsAreScrapedWithBoundedParallelism()
+        {
+            var deployments = BuildDeploymentsForScrape();
+            var currentConcurrency = 0;
+            var maximumConcurrency = 0;
+            var bothTargetsStarted = new TaskCompletionSource(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var handler = new DelegateHttpHandler(async (_, cancellationToken) =>
+            {
+                var current = Interlocked.Increment(ref currentConcurrency);
+                var observed = Volatile.Read(ref maximumConcurrency);
+                while (current > observed)
+                {
+                    var previous = Interlocked.CompareExchange(
+                        ref maximumConcurrency,
+                        current,
+                        observed);
+                    if (previous == observed)
+                        break;
+                    observed = previous;
+                }
+
+                if (current >= 2)
+                    bothTargetsStarted.TrySetResult();
+
+                await bothTargetsStarted.Task.WaitAsync(cancellationToken);
+                Interlocked.Decrement(ref currentConcurrency);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("metric_one 1", Encoding.UTF8, "text/plain")
+                };
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "metric_one");
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry,
+                metricsScrapingOptions: new MetricsScrapingOptions
+                {
+                    MaxConcurrentTargets = 2
+                });
+
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref maximumConcurrency) >= 2,
+                TimeSpan.FromSeconds(3));
+
+            Assert.Equal(2, maximumConcurrency);
         }
 
         [Fact]

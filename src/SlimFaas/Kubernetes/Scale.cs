@@ -63,8 +63,14 @@ public record ScaleBehavior
 
 public record ScaleConfig
 {
+    public const int MinimumScrapeIntervalMilliseconds = 1_000;
+    public const int MaximumScrapeIntervalMilliseconds = 300_000;
+
     // Si l'annotation n'est pas définie -> reste null (comportement demandé)
     public int? ReplicaMax { get; init; } = null;
+
+    // Optional per-function metrics scrape interval. Null keeps the global value.
+    public int? ScrapeIntervalMilliseconds { get; init; } = null;
 
     // Par défaut, pas de triggers si non fournis
     public IList<ScaleTrigger> Triggers { get; init; } = new List<ScaleTrigger>();

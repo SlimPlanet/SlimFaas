@@ -27,7 +27,7 @@ public static class DebugRoutes
                 double result;
                 try
                 {
-                    result = eval.Evaluate(req.Query, req.NowUnixSeconds);
+                    result = eval.Evaluate(req.Query, req.NowUnixSeconds, req.Deployment);
 
                     // IMPORTANT : filtrer NaN / ±Infinity
                     if (double.IsNaN(result) || double.IsInfinity(result))

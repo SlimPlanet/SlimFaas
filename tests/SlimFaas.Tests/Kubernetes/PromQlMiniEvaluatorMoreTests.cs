@@ -146,10 +146,10 @@ namespace SlimFaas.Tests.Kubernetes
         }
 
         [Fact]
-        public void Rate_ResetCounter_Ignored()
+        public void Rate_ResetCounter_UsesPostResetValue()
         {
             // 2 séries : l'une reset (descend), l'autre croît.
-            // serie1: 100->160 : 50 -> 10 (diff<0) ignorée
+            // serie1: 100->160 : 50 -> 10 => 10/60
             // serie2: 100->160 : 20 -> 38 (diff 18 / 60 = 0.3)
             var snap = BuildSnapshot(
                 (100, "d", "p1", "req_total{job=\"a\"}", 50),
@@ -159,7 +159,7 @@ namespace SlimFaas.Tests.Kubernetes
             );
             var eval = NewEval(snap);
             var res = eval.Evaluate("""sum(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160);
-            Assert.Equal(0.3, res, 6);
+            Assert.Equal(28.0 / 60.0, res, 6);
         }
 
         [Fact]

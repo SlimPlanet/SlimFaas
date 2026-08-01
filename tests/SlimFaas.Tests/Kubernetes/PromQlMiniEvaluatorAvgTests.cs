@@ -64,11 +64,11 @@ namespace SlimFaas.Tests.Kubernetes
         }
 
         [Fact]
-        public void Avg_Rate_Ignores_Reset_And_SinglePoint()
+        public void Avg_Rate_Handles_Reset_And_Ignores_SinglePoint()
         {
-            // p1: reset (diff<0) -> ignoré
+            // p1: reset -> 10/60
             // p2: un seul point -> ignoré
-            // p3: 20->38 (Δ18/60=0.3) => avg sur 1 série = 0.3
+            // p3: 20->38 -> 18/60. Average = 14/60.
             var snap = BuildSnapshot(
                 (100, "d", "p1", "req_total{job=\"a\"}", 50),
                 (160, "d", "p1", "req_total{job=\"a\"}", 10),
@@ -80,7 +80,7 @@ namespace SlimFaas.Tests.Kubernetes
             );
             var eval = NewEval(snap);
             var res = eval.Evaluate("""avg(rate(req_total{job="a"}[1m]))""", nowUnixSeconds: 160);
-            Assert.Equal(0.3, res, 6);
+            Assert.Equal(14.0 / 60.0, res, 6);
         }
 
         [Fact]

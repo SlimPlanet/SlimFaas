@@ -28,9 +28,11 @@ public class MetricsScrapingWorker(
     private static readonly TimeSpan PersistenceInterval = TimeSpan.FromSeconds(30);
 
     private readonly MetricsScrapingOptions _metricsScrapingOptions = slimFaasOptions.Value.MetricsScraping;
+    private readonly bool _hasDelayOverride = delay > 0;
     private readonly int _scrapeIntervalMilliseconds = delay > 0
         ? delay
         : slimFaasOptions.Value.MetricsScraping.ScrapeIntervalMilliseconds;
+    private readonly Dictionary<string, long> _nextScrapeByDeployment = new(StringComparer.Ordinal);
     private DateTimeOffset _nextPersistenceUtc = DateTimeOffset.MinValue;
     private DateTimeOffset _nextLegacyHydrationUtc = DateTimeOffset.MinValue;
     private byte[]? _lastHydratedVersion;
@@ -47,6 +49,7 @@ public class MetricsScrapingWorker(
                 await slimDataStatus.WaitForReadyAsync();
 
                 var deployments = replicasService.Deployments;
+                var loopIntervalMilliseconds = ResolveLoopIntervalMilliseconds(deployments);
 
                 // 👉 Est-ce qu'au moins une fonction utilise le ScaleConfig ?
                 var scaledDeployments = deployments.Functions
@@ -59,7 +62,10 @@ public class MetricsScrapingWorker(
                 // 👉 Si aucune fonction n'a Scale ET aucune requête PromQL n'a été faite, on ne scrape pas
                 if (!hasScaleConfig && !scrapingGuard.IsEnabled)
                 {
-                    await DelayUntilNextScrapeCycleAsync(cycleStartedTimestamp, stoppingToken);
+                    await DelayUntilNextScrapeCycleAsync(
+                        cycleStartedTimestamp,
+                        loopIntervalMilliseconds,
+                        stoppingToken);
                     continue;
                 }
 
@@ -91,99 +97,38 @@ public class MetricsScrapingWorker(
                 // Si aucune cible annotée prometheus n'existe, on ne fait rien
                 if (targetsByDeployment.Count == 0)
                 {
-                    await DelayUntilNextScrapeCycleAsync(cycleStartedTimestamp, stoppingToken);
+                    await DelayUntilNextScrapeCycleAsync(
+                        cycleStartedTimestamp,
+                        loopIntervalMilliseconds,
+                        stoppingToken);
                     continue;
                 }
 
                 var requestedMetricNames = requestedMetricsRegistry.GetRequestedMetricNames();
                 if (requestedMetricNames.Count == 0)
                 {
-                    await DelayUntilNextScrapeCycleAsync(cycleStartedTimestamp, stoppingToken);
+                    await DelayUntilNextScrapeCycleAsync(
+                        cycleStartedTimestamp,
+                        loopIntervalMilliseconds,
+                        stoppingToken);
                     continue;
                 }
 
-                var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-
-                foreach (var (deployment, urls) in targetsByDeployment)
+                var dueTargets = SelectDueTargets(deployments, targetsByDeployment);
+                if (dueTargets.Count > 0)
                 {
-                    if (logger.IsEnabled(LogLevel.Information))
-                    {
-                        logger.LogInformation(
-                            "Scraping metrics for deployment {Deployment} with {TargetCount} targets",
-                            deployment,
-                            urls.Count);
-                    }
-
-                    foreach (var url in urls)
-                    {
-                        try
-                        {
-                            var podIp = GetHostFromUrl(url);
-                            if (string.IsNullOrEmpty(podIp))
-                                continue;
-
-                            var http = httpClientFactory.CreateClient(nameof(MetricsScrapingWorker));
-                            using var req = new HttpRequestMessage(HttpMethod.Get, url);
-                            using var scrapeTimeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                            scrapeTimeout.CancelAfter(TimeSpan.FromSeconds(_metricsScrapingOptions.RequestTimeoutSeconds));
-                            using var resp = await http.SendAsync(
-                                req,
-                                HttpCompletionOption.ResponseHeadersRead,
-                                scrapeTimeout.Token);
-                            if (!resp.IsSuccessStatusCode)
-                                continue;
-
-                            var contentLength = resp.Content.Headers.ContentLength;
-                            if (contentLength > _metricsScrapingOptions.MaxResponseBytes)
-                            {
-                                logger.LogWarning(
-                                    "Metrics scrape rejected for {Url}: Content-Length {ContentLength} exceeds " +
-                                    "MaxResponseBytes {MaxResponseBytes}",
-                                    url,
-                                    contentLength,
-                                    _metricsScrapingOptions.MaxResponseBytes);
-                                continue;
-                            }
-
-                            await using var body = await resp.Content
-                                .ReadAsStreamAsync(scrapeTimeout.Token)
-                                .ConfigureAwait(false);
-                            var parsed = await PrometheusStreamParser.ParseAsync(
-                                body,
-                                requestedMetricNames,
-                                _metricsScrapingOptions,
-                                scrapeTimeout.Token);
-                            if (parsed.Status != PrometheusStreamParseStatus.Success)
-                            {
-                                logger.LogWarning(
-                                    "Metrics scrape rejected for {Url}: Reason={Reason}, BytesRead={BytesRead}, " +
-                                    "LinesRead={LinesRead}",
-                                    url,
-                                    parsed.Status,
-                                    parsed.BytesRead,
-                                    parsed.LinesRead);
-                                continue;
-                            }
-
-                            if (parsed.Metrics.Count > 0)
-                                metricsStore.Add(ts, deployment, podIp, parsed.Metrics);
-                        }
-                        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
-                        {
-                            throw;
-                        }
-                        catch (OperationCanceledException)
-                        {
-                            logger.LogWarning(
-                                "Metrics scrape timed out after {TimeoutSeconds} seconds for {Url}",
-                                _metricsScrapingOptions.RequestTimeoutSeconds,
-                                url);
-                        }
-                        catch (Exception e)
-                        {
-                            logger.LogWarning(e, "metrics scrape error for {Url}", url);
-                        }
-                    }
+                    var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                    using var concurrency = new SemaphoreSlim(_metricsScrapingOptions.MaxConcurrentTargets);
+                    var scrapeTasks = dueTargets
+                        .Select(target => ScrapeTargetBoundedAsync(
+                            target.Deployment,
+                            target.Url,
+                            ts,
+                            requestedMetricNames,
+                            concurrency,
+                            stoppingToken))
+                        .ToArray();
+                    await Task.WhenAll(scrapeTasks);
                 }
                 await PersistMetricsSnapshotIfDueAsync(stoppingToken);
             }
@@ -198,7 +143,11 @@ public class MetricsScrapingWorker(
 
             try
             {
-                await DelayUntilNextScrapeCycleAsync(cycleStartedTimestamp, stoppingToken);
+                var deployments = replicasService.Deployments;
+                await DelayUntilNextScrapeCycleAsync(
+                    cycleStartedTimestamp,
+                    ResolveLoopIntervalMilliseconds(deployments),
+                    stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -211,21 +160,200 @@ public class MetricsScrapingWorker(
         }
     }
 
-    private static string? GetHostFromUrl(string url)
+    private static string? GetTargetIdentityFromUrl(string url)
     {
         if (Uri.TryCreate(url, UriKind.Absolute, out var u))
-            return u.Host;
+        {
+            // Kubernetes targets have one IP per pod, so keeping the historic
+            // host-only identity preserves persisted series during upgrades.
+            // The local runner exposes every replica on the loopback address
+            // with a distinct port; include that port to avoid merging pods.
+            return u.IsLoopback ? u.Authority : u.Host;
+        }
         return null;
     }
 
     private async Task DelayUntilNextScrapeCycleAsync(
         long cycleStartedTimestamp,
+        int intervalMilliseconds,
         CancellationToken stoppingToken)
     {
         var elapsed = Stopwatch.GetElapsedTime(cycleStartedTimestamp);
-        var remaining = TimeSpan.FromMilliseconds(_scrapeIntervalMilliseconds) - elapsed;
+        var remaining = TimeSpan.FromMilliseconds(intervalMilliseconds) - elapsed;
         if (remaining > TimeSpan.Zero)
             await Task.Delay(remaining, stoppingToken);
+    }
+
+    private int ResolveLoopIntervalMilliseconds(DeploymentsInformations deployments)
+    {
+        if (_hasDelayOverride)
+            return _scrapeIntervalMilliseconds;
+
+        var minimum = _scrapeIntervalMilliseconds;
+        foreach (var function in deployments.Functions)
+        {
+            if (function.Scale is { Triggers.Count: > 0, ScrapeIntervalMilliseconds: { } configured })
+                minimum = Math.Min(minimum, configured);
+        }
+
+        return minimum;
+    }
+
+    private List<(string Deployment, string Url)> SelectDueTargets(
+        DeploymentsInformations deployments,
+        IDictionary<string, IList<string>> targetsByDeployment)
+    {
+        var functions = deployments.Functions.ToDictionary(
+            static function => function.Deployment,
+            StringComparer.Ordinal);
+        var currentDeployments = targetsByDeployment.Keys.ToHashSet(StringComparer.Ordinal);
+        foreach (var staleDeployment in _nextScrapeByDeployment.Keys
+                     .Where(key => !currentDeployments.Contains(key))
+                     .ToArray())
+        {
+            _nextScrapeByDeployment.Remove(staleDeployment);
+        }
+
+        var now = Stopwatch.GetTimestamp();
+        var dueTargets = new List<(string Deployment, string Url)>();
+        foreach (var (deployment, urls) in targetsByDeployment)
+        {
+            if (_nextScrapeByDeployment.TryGetValue(deployment, out var nextScrape) && now < nextScrape)
+                continue;
+
+            var intervalMilliseconds = _scrapeIntervalMilliseconds;
+            if (!_hasDelayOverride &&
+                functions.TryGetValue(deployment, out var function) &&
+                function.Scale?.ScrapeIntervalMilliseconds is { } configured)
+            {
+                intervalMilliseconds = configured;
+            }
+
+            _nextScrapeByDeployment[deployment] = now +
+                (long)(intervalMilliseconds / 1_000.0 * Stopwatch.Frequency);
+            dueTargets.AddRange(urls.Select(url => (deployment, url)));
+
+            if (logger.IsEnabled(LogLevel.Information))
+            {
+                logger.LogInformation(
+                    "Scraping metrics for deployment {Deployment} with {TargetCount} targets",
+                    deployment,
+                    urls.Count);
+            }
+        }
+
+        return dueTargets;
+    }
+
+    private async Task ScrapeTargetBoundedAsync(
+        string deployment,
+        string url,
+        long timestamp,
+        IReadOnlyCollection<string> requestedMetricNames,
+        SemaphoreSlim concurrency,
+        CancellationToken stoppingToken)
+    {
+        await concurrency.WaitAsync(stoppingToken);
+        try
+        {
+            await ScrapeTargetAsync(deployment, url, timestamp, requestedMetricNames, stoppingToken);
+        }
+        finally
+        {
+            concurrency.Release();
+        }
+    }
+
+    private async Task ScrapeTargetAsync(
+        string deployment,
+        string url,
+        long timestamp,
+        IReadOnlyCollection<string> requestedMetricNames,
+        CancellationToken stoppingToken)
+    {
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            var targetIdentity = GetTargetIdentityFromUrl(url);
+            if (string.IsNullOrEmpty(targetIdentity))
+            {
+                MetricsScrapingTelemetry.RecordFailure(deployment, "invalid_url");
+                return;
+            }
+
+            var http = httpClientFactory.CreateClient(nameof(MetricsScrapingWorker));
+            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            using var scrapeTimeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            scrapeTimeout.CancelAfter(TimeSpan.FromSeconds(_metricsScrapingOptions.RequestTimeoutSeconds));
+            using var resp = await http.SendAsync(
+                req,
+                HttpCompletionOption.ResponseHeadersRead,
+                scrapeTimeout.Token);
+            if (!resp.IsSuccessStatusCode)
+            {
+                MetricsScrapingTelemetry.RecordFailure(deployment, "http_status");
+                return;
+            }
+
+            var contentLength = resp.Content.Headers.ContentLength;
+            if (contentLength > _metricsScrapingOptions.MaxResponseBytes)
+            {
+                logger.LogWarning(
+                    "Metrics scrape rejected for {Url}: Content-Length {ContentLength} exceeds " +
+                    "MaxResponseBytes {MaxResponseBytes}",
+                    url,
+                    contentLength,
+                    _metricsScrapingOptions.MaxResponseBytes);
+                MetricsScrapingTelemetry.RecordFailure(deployment, "response_too_large");
+                return;
+            }
+
+            await using var body = await resp.Content
+                .ReadAsStreamAsync(scrapeTimeout.Token)
+                .ConfigureAwait(false);
+            var parsed = await PrometheusStreamParser.ParseAsync(
+                body,
+                requestedMetricNames,
+                _metricsScrapingOptions,
+                scrapeTimeout.Token);
+            if (parsed.Status != PrometheusStreamParseStatus.Success)
+            {
+                logger.LogWarning(
+                    "Metrics scrape rejected for {Url}: Reason={Reason}, BytesRead={BytesRead}, " +
+                    "LinesRead={LinesRead}",
+                    url,
+                    parsed.Status,
+                    parsed.BytesRead,
+                    parsed.LinesRead);
+                MetricsScrapingTelemetry.RecordFailure(deployment, "parse");
+                return;
+            }
+
+            if (parsed.Metrics.Count > 0)
+                metricsStore.Add(timestamp, deployment, targetIdentity, parsed.Metrics);
+            MetricsScrapingTelemetry.RecordSuccess(deployment);
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            logger.LogWarning(
+                "Metrics scrape timed out after {TimeoutSeconds} seconds for {Url}",
+                _metricsScrapingOptions.RequestTimeoutSeconds,
+                url);
+            MetricsScrapingTelemetry.RecordFailure(deployment, "timeout");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "metrics scrape error for {Url}", url);
+            MetricsScrapingTelemetry.RecordFailure(deployment, "exception");
+        }
+        finally
+        {
+            MetricsScrapingTelemetry.RecordDuration(deployment, Stopwatch.GetElapsedTime(started));
+        }
     }
 
     private async Task PersistMetricsSnapshotIfDueAsync(CancellationToken stoppingToken)

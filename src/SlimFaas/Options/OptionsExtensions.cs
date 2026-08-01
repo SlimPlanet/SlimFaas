@@ -57,6 +57,7 @@ public static class OptionsExtensions
     {
         var metrics = options.MetricsScraping;
         return metrics.ScrapeIntervalMilliseconds > 0
+               && metrics.MaxConcurrentTargets > 0
                && metrics.MaxResponseBytes > 0L
                && metrics.MaxLineBytes > 0
                && metrics.MaxLineBytes <= metrics.MaxResponseBytes

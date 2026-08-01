@@ -68,4 +68,65 @@ public class PromQlMiniEvaluatorMaxOverTimeTests
         Assert.Equal(30.0, result, 6);
         snapshotProviderMock.Verify(sp => sp(), Times.Once);
     }
+
+    [Fact]
+    public void SumOfMaxOverTime_ShouldSumEachPodMaximum()
+    {
+        var snapshot = new Dictionary<long,
+            IReadOnlyDictionary<string,
+                IReadOnlyDictionary<string,
+                    IReadOnlyDictionary<string, double>>>>
+        {
+            [100] = new Dictionary<string,
+                IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>
+            {
+                ["api"] = new Dictionary<string, IReadOnlyDictionary<string, double>>
+                {
+                    ["pod-a"] = new Dictionary<string, double> { ["work"] = 2 },
+                    ["pod-b"] = new Dictionary<string, double> { ["work"] = 7 }
+                }
+            },
+            [110] = new Dictionary<string,
+                IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>
+            {
+                ["api"] = new Dictionary<string, IReadOnlyDictionary<string, double>>
+                {
+                    ["pod-a"] = new Dictionary<string, double> { ["work"] = 5 },
+                    ["pod-b"] = new Dictionary<string, double> { ["work"] = 3 }
+                }
+            }
+        };
+        var evaluator = new PromQlMiniEvaluator(() => snapshot);
+
+        Assert.Equal(12, evaluator.Evaluate("sum(max_over_time(work[20s]))", 110), 6);
+        Assert.Equal(7, evaluator.Evaluate("max_over_time(work[20s])", 110), 6);
+    }
+
+    [Fact]
+    public void DeploymentScope_ShouldExcludeIdenticallyNamedMetricsFromOtherFunctions()
+    {
+        var snapshot = new Dictionary<long,
+            IReadOnlyDictionary<string,
+                IReadOnlyDictionary<string,
+                    IReadOnlyDictionary<string, double>>>>
+        {
+            [100] = new Dictionary<string,
+                IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>
+            {
+                ["api-a"] = new Dictionary<string, IReadOnlyDictionary<string, double>>
+                {
+                    ["pod-a"] = new Dictionary<string, double> { ["work"] = 4 }
+                },
+                ["api-b"] = new Dictionary<string, IReadOnlyDictionary<string, double>>
+                {
+                    ["pod-b"] = new Dictionary<string, double> { ["work"] = 9 }
+                }
+            }
+        };
+        var evaluator = new PromQlMiniEvaluator(() => snapshot);
+
+        Assert.Equal(13, evaluator.Evaluate("sum(work)", 100), 6);
+        Assert.Equal(4, evaluator.Evaluate("sum(work)", 100, "api-a"), 6);
+        Assert.Equal(9, evaluator.Evaluate("sum(work)", 100, "api-b"), 6);
+    }
 }
