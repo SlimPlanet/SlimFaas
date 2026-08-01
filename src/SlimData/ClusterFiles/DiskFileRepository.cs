@@ -48,34 +48,34 @@ public sealed class DiskFileRepository : IFileRepository
 
         try
         {
-            await using var fs = new FileStream(
-                tmp, FileMode.Create, FileAccess.Write, FileShare.None,
-                bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
-
             using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-
-            var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
             long total = 0;
-
-            try
+            await using (var fs = new FileStream(
+                             tmp, FileMode.Create, FileAccess.Write, FileShare.None,
+                             bufferSize: 128 * 1024, options: FileOptions.Asynchronous))
             {
-                while (true)
+                var buffer = ArrayPool<byte>.Shared.Rent(128 * 1024);
+                try
                 {
-                    var read = await content.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
-                    if (read <= 0) break;
+                    while (true)
+                    {
+                        var read = await content.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
+                        if (read <= 0) break;
 
-                    hash.AppendData(buffer, 0, read);
-                    await fs.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                    total += read;
+                        hash.AppendData(buffer, 0, read);
+                        await fs.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+                        total += read;
+                    }
                 }
+                finally
+                {
+                    ArrayPool<byte>.Shared.Return(buffer);
+                }
+
+                await fs.FlushAsync(ct).ConfigureAwait(false);
+                _cacheControl.Drop(fs);
             }
-            finally
-            {
-                ArrayPool<byte>.Shared.Return(buffer);
-            }
-            
-            await fs.FlushAsync(ct).ConfigureAwait(false);
-            _cacheControl.Drop(fs);
+
             MoveIntoPlace(tmp, filePath, overwrite);
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
@@ -207,11 +207,13 @@ public sealed class DiskFileRepository : IFileRepository
         {
             var bytes = MemoryPackSerializer.Serialize(meta);
 
-            await using var s = new FileStream(tmp, FileMode.Create, FileAccess.Write, FileShare.None,
-                bufferSize: 16 * 1024, options: FileOptions.Asynchronous);
-
-            await s.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
-            await s.FlushAsync(ct).ConfigureAwait(false);
+            await using (var stream = new FileStream(
+                             tmp, FileMode.Create, FileAccess.Write, FileShare.None,
+                             bufferSize: 16 * 1024, options: FileOptions.Asynchronous))
+            {
+                await stream.WriteAsync(bytes.AsMemory(), ct).ConfigureAwait(false);
+                await stream.FlushAsync(ct).ConfigureAwait(false);
+            }
 
             File.Move(tmp, metaPath, overwrite: true);
         }
