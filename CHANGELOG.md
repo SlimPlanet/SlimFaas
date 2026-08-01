@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.79.2
+
+- [769ffebc](https://github.com/SlimPlanet/SlimFaas/commit/769ffebcf276d0b149e9381675a4a931341b3798) - refactor: clean code (release), 2026-07-31 by *Guillaume Chervet*
+- [e209ac86](https://github.com/SlimPlanet/SlimFaas/commit/e209ac86fad58f167446a17a27266fcac81e0f45) - refactor(slimfaas): clean logger warning, 2026-07-31 by *Guillaume Chervet*
+- [015280f3](https://github.com/SlimPlanet/SlimFaas/commit/015280f3706b1b279403a03f6703cc4c67e30fdc) - doc: update AGENTS.md, 2026-07-31 by *Guillaume Chervet*
+
+
+## 0.79.1
+
+
+
 ## v0.79.1
 
 - [70f8f469](https://github.com/SlimPlanet/SlimFaas/commit/70f8f469b7aea1365fe9a47ef23feb26e4f02249) - fix(slimfaas): local scale down (release), 2026-07-30 by *Guillaume Chervet*
@@ -263,14 +274,5 @@
 ## v0.70.0
 
 - [bcb14b2d](https://github.com/SlimPlanet/SlimFaas/commit/bcb14b2d9b5194bc0a65a1da54bb83206a609f8d) - feat(slimfaas): proxy least connections (#260) (release), 2026-04-02 by *Guillaume Chervet*
-
-
-## 0.69.0
-
-
-
-## v0.69.0
-
-- [53c930f4](https://github.com/SlimPlanet/SlimFaas/commit/53c930f4cf13fe3d410f35ea12295a3f559b43b9) - feat(Job): Check that the name is valid (#257) (release), 2026-03-23 by *Silthian*
 
 
