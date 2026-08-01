@@ -394,6 +394,9 @@ Conceptually:
 
 - `StabilizationWindowSeconds`:
     - For scale-down, a non-zero window makes SlimFaas look at the **max desired replicas** in the recent window to avoid flapping.
+    - Every recommendation refreshes this history, even when the replica count
+      does not change. The scale-down window therefore starts when demand falls,
+      not when the last scale-up happened.
     - For scale-up, you can also use a stabilization window, but the default is usually `0`.
 
 ---

@@ -623,6 +623,44 @@ public sealed class AutoScalerTests
     }
 
     [Fact]
+    public void ScaleDownStabilization_ShouldRefreshOnUnchangedHighRecommendation()
+    {
+        var scaler = CreateAutoScaler(new InMemoryAutoScalerStore());
+        const string key = "func";
+        var scaleDown = new ScaleDirectionBehavior
+        {
+            StabilizationWindowSeconds = 300,
+            Policies = { }
+        };
+        var cfgScaleUp = MakeSimpleScaleConfig(metricValue: 20, threshold: 10) with
+        {
+            Behavior = new ScaleBehavior
+            {
+                ScaleUp = ScaleDirectionBehavior.DefaultScaleUp(),
+                ScaleDown = scaleDown
+            }
+        };
+        var cfgHold = MakeSimpleScaleConfig(metricValue: 10, threshold: 10) with
+        {
+            Behavior = cfgScaleUp.Behavior
+        };
+        var cfgLow = MakeSimpleScaleConfig(metricValue: 1, threshold: 10) with
+        {
+            Behavior = cfgScaleUp.Behavior
+        };
+
+        Assert.Equal(10, scaler.ComputeDesiredReplicas(
+            key, cfgScaleUp, 5, 1, 100, 1_000));
+        Assert.Equal(10, scaler.ComputeDesiredReplicas(
+            key, cfgHold, 10, 1, 100, 1_250));
+
+        Assert.Equal(10, scaler.ComputeDesiredReplicas(
+            key, cfgLow, 10, 1, 100, 1_500));
+        Assert.Equal(1, scaler.ComputeDesiredReplicas(
+            key, cfgLow, 10, 1, 100, 1_560));
+    }
+
+    [Fact]
     public void DeploymentOverload_ShouldUseScaleConfigFromDeployment()
     {
         var scaler = CreateAutoScaler();

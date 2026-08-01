@@ -6,6 +6,7 @@ public sealed class AutoScaler
 {
     private readonly PromQlMiniEvaluator _evaluator;
     private readonly IAutoScalerStore _store;
+    private readonly InMemoryAutoScalerStore _recommendationStore = new();
     private readonly ILogger<AutoScaler>? _logger;
     private readonly ConcurrentDictionary<string, CachedQuery> _queryCache =
         new(StringComparer.Ordinal);
@@ -74,6 +75,7 @@ public sealed class AutoScaler
         nowUnixSeconds);
 
     var desired = triggerComputation.DesiredReplicas;
+    _recommendationStore.AddSample(key, nowUnixSeconds, desired);
 
     var behavior = scaleConfig.Behavior ?? new ScaleBehavior();
 
@@ -442,7 +444,8 @@ public sealed class AutoScaler
             return desired;
 
         var fromTs = nowUnixSeconds - stabilizationWindowSeconds;
-        var samples = _store.GetSamples(key, fromTs);
+        var samples = (isScaleUp ? _store : _recommendationStore)
+            .GetSamples(key, fromTs);
         if (samples.Count == 0)
             return desired;
 
