@@ -29,7 +29,9 @@ public class PrometheusStreamParserTests
             "metric_inf",
             "malformed_metric"
         };
-        await using var stream = Stream(body.Replace("\n", "\r\n", StringComparison.Ordinal), maxChunkSize: 3);
+        await using var stream = Stream(
+            body.ReplaceLineEndings("\n").Replace("\n", "\r\n", StringComparison.Ordinal),
+            maxChunkSize: 3);
 
         var result = await PrometheusStreamParser.ParseAsync(
             stream,

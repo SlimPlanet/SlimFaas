@@ -19,13 +19,12 @@ public sealed class ManagedLocalProcessTests
             commandInterpreterOverride: @"C:\Windows\System32\cmd.exe");
 
         Assert.Equal(@"C:\Windows\System32\cmd.exe", startInfo.FileName);
-        Assert.Equal("/d", startInfo.ArgumentList[0]);
-        Assert.Equal("/s", startInfo.ArgumentList[1]);
-        Assert.Equal("/c", startInfo.ArgumentList[2]);
-        Assert.Contains(wrapper, startInfo.ArgumentList[3]);
-        Assert.Contains("\"run\"", startInfo.ArgumentList[3]);
-        Assert.Contains("\"--host\"", startInfo.ArgumentList[3]);
-        Assert.Contains("\"127.0.0.1\"", startInfo.ArgumentList[3]);
+        Assert.StartsWith("/d /s /c ", startInfo.Arguments, StringComparison.Ordinal);
+        Assert.Contains(wrapper, startInfo.Arguments);
+        Assert.Contains("\"run\"", startInfo.Arguments);
+        Assert.Contains("\"--host\"", startInfo.Arguments);
+        Assert.Contains("\"127.0.0.1\"", startInfo.Arguments);
+        Assert.Empty(startInfo.ArgumentList);
         Assert.False(startInfo.UseShellExecute);
     }
 
@@ -42,6 +41,39 @@ public sealed class ManagedLocalProcessTests
         Assert.Equal("npm", startInfo.FileName);
         Assert.Equal(["run", "dev"], startInfo.ArgumentList);
         Assert.False(startInfo.UseShellExecute);
+    }
+
+    [Fact]
+    public async Task Start_RunsAWindowsCommandWrapperFromAPathWithSpaces()
+    {
+        if (!OperatingSystem.IsWindows())
+            return;
+
+        using var directory = new TemporaryDirectory();
+        string wrapper = Path.Combine(directory.Path, "wrapper with spaces.cmd");
+        string logPath = Path.Combine(directory.Path, "wrapper.log");
+        File.WriteAllText(
+            wrapper,
+            "@echo off\r\n" +
+            "echo VALUE=%WRAPPER_TEST_VALUE%\r\n" +
+            "echo ARG=%~1\r\n");
+
+        int? exitCode;
+        await using (ManagedLocalProcess process = ManagedLocalProcess.Start(
+                         ["wrapper with spaces", "argument with spaces"],
+                         directory.Path,
+                         new Dictionary<string, string> { ["WRAPPER_TEST_VALUE"] = "windows" },
+                         "process/wrapper-test",
+                         logPath))
+        {
+            await process.WaitForExitAsync();
+            exitCode = process.ExitCode;
+        }
+
+        string log = File.ReadAllText(logPath);
+        Assert.Equal(0, exitCode);
+        Assert.Contains("VALUE=windows", log, StringComparison.Ordinal);
+        Assert.Contains("ARG=argument with spaces", log, StringComparison.Ordinal);
     }
 
     [Fact]

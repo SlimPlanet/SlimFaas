@@ -117,10 +117,10 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
 
         if (isBatch)
         {
-            startInfo.ArgumentList.Add("/d");
-            startInfo.ArgumentList.Add("/s");
-            startInfo.ArgumentList.Add("/c");
-            startInfo.ArgumentList.Add(BuildWindowsBatchCommand(windowsExecutable!, arguments));
+            // ArgumentList applies the C runtime's backslash escaping. cmd.exe does not
+            // use that escaping and receives literal \" characters when the batch path
+            // contains spaces. Supply its command line verbatim instead.
+            startInfo.Arguments = $"/d /s /c {BuildWindowsBatchCommand(windowsExecutable!, arguments)}";
         }
         else
         {
