@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.79.3
+
+- [56e8f9a3](https://github.com/SlimPlanet/SlimFaas/commit/56e8f9a309178447723fcc3574e88347c3de1ebc) - refactor(slimfaas): remove trimming warning (#307) (release), 2026-08-01 by *Guillaume Chervet*
+- [ec92b95f](https://github.com/SlimPlanet/SlimFaas/commit/ec92b95fe362903392304f95c82d5f501818dafa) - fix(slimfaas): local mode win (#308), 2026-08-01 by *Guillaume Chervet*
+- [8fc80e1e](https://github.com/SlimPlanet/SlimFaas/commit/8fc80e1e25d04d8ac6f9e7d92de6dcdade5a7c3b) - doc: Generate `sitemap.xml` dynamically during SlimFaasSite export (#306), 2026-08-01 by *Copilot*
+
+
+## 0.79.2
+
+
+
 ## v0.79.2
 
 - [769ffebc](https://github.com/SlimPlanet/SlimFaas/commit/769ffebcf276d0b149e9381675a4a931341b3798) - refactor: clean code (release), 2026-07-31 by *Guillaume Chervet*
@@ -265,14 +276,5 @@
 ## v0.70.1
 
 - [be514c3d](https://github.com/SlimPlanet/SlimFaas/commit/be514c3d27d8ea1a3235743bacfcaefc947af580) - chore: update all JS library versions across all package.json files (#261) (release), 2026-04-03 by *Copilot*
-
-
-## 0.70.0
-
-
-
-## v0.70.0
-
-- [bcb14b2d](https://github.com/SlimPlanet/SlimFaas/commit/bcb14b2d9b5194bc0a65a1da54bb83206a609f8d) - feat(slimfaas): proxy least connections (#260) (release), 2026-04-02 by *Guillaume Chervet*
 
 
