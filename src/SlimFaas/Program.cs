@@ -449,8 +449,7 @@ builder.Services.UseHttpClientMetrics(BoundedHttpClientMetrics.Create());
 
 serviceCollectionSlimFaas.AddSingleton<IMasterService, MasterSlimDataService>();
 
-serviceCollectionSlimFaas.AddScoped<ISendClient, SendClient>();
-serviceCollectionSlimFaas.AddHttpClient<ISendClient, SendClient>()
+serviceCollectionSlimFaas.AddHttpClient(SendClient.HttpClientName)
     .SetHandlerLifetime(TimeSpan.FromMinutes(5))
     .ConfigureHttpClient(client =>
     {
@@ -459,6 +458,12 @@ serviceCollectionSlimFaas.AddHttpClient<ISendClient, SendClient>()
     })
     .ConfigurePrimaryHttpMessageHandler(() =>
         InternalHttpClientHandler.Create(allowUnsecureSSL));
+serviceCollectionSlimFaas.AddSingleton<ISendClient>(sp => new SendClient(
+    sp.GetRequiredService<IHttpClientFactory>().CreateClient(SendClient.HttpClientName),
+    sp.GetRequiredService<ILogger<SendClient>>(),
+    sp.GetRequiredService<IOptions<SlimFaasOptions>>(),
+    sp.GetRequiredService<INamespaceProvider>(),
+    sp.GetRequiredService<NetworkActivityTracker>()));
 
 if (!string.IsNullOrEmpty(podDataDirectoryPersistantStorage))
 {

@@ -1,35 +1,41 @@
-﻿namespace SlimFaas;
+﻿using System.Collections.Concurrent;
+
+namespace SlimFaas;
 
 public class HistoryHttpMemoryService
 {
-    private readonly IDictionary<string, long> _local = new Dictionary<string, long>();
-    private readonly ReaderWriterLockSlim _readerWriterLockSlim = new();
+    private readonly ConcurrentDictionary<string, long> _local = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, int> _activeCalls = new(StringComparer.Ordinal);
 
-    public long GetTicksLastCall(string functionName)
+    public long GetTicksLastCall(string functionName) =>
+        _local.TryGetValue(functionName, out long value) ? value : 0L;
+
+    public void SetTickLastCall(string functionName, long ticks) =>
+        _local[functionName] = ticks;
+
+    public void BeginActiveCall(string functionName)
     {
-        _readerWriterLockSlim.EnterReadLock();
-        try
-        {
-            return _local.TryGetValue(functionName, out long value) ? value : 0L;
-        }
-        finally
-        {
-            _readerWriterLockSlim.ExitReadLock();
-        }
+        _activeCalls.AddOrUpdate(functionName, 1, static (_, current) => current + 1);
+        SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
     }
 
-    public void SetTickLastCall(string functionName, long ticks)
+    public void EndActiveCall(string functionName)
     {
-        _readerWriterLockSlim.EnterWriteLock();
-        try
-        {
-            _local[functionName] = ticks;
-        }
-        finally
-        {
-            _readerWriterLockSlim.ExitWriteLock();
-        }
+        SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+        _activeCalls.AddOrUpdate(
+            functionName,
+            0,
+            static (_, current) => current > 0 ? current - 1 : 0);
     }
 
-    ~HistoryHttpMemoryService() => _readerWriterLockSlim?.Dispose();
+    public bool HasActiveCalls(string functionName) =>
+        _activeCalls.TryGetValue(functionName, out int count) && count > 0;
+
+    public void RefreshActiveCall(string functionName, long ticks)
+    {
+        if (HasActiveCalls(functionName))
+        {
+            SetTickLastCall(functionName, ticks);
+        }
+    }
 }

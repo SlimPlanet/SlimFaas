@@ -28,9 +28,10 @@ public class HistorySynchronizationWorker(
                 foreach (DeploymentInformation function in replicasService.Deployments.Functions)
                 {
                     long ticksInDatabase = await historyHttpDatabaseService.GetTicksLastCallAsync(function.Deployment);
-                    long ticksMemory = historyHttpMemoryService.GetTicksLastCall(function.Deployment);
                     bool isDatabaseTicksUpdated = false;
                     var nowTicks = DateTime.UtcNow.Ticks;
+                    historyHttpMemoryService.RefreshActiveCall(function.Deployment, nowTicks);
+                    long ticksMemory = historyHttpMemoryService.GetTicksLastCall(function.Deployment);
                     if (ticksInDatabase > nowTicks)
                     {
                         logger.LogWarning(

@@ -25,4 +25,27 @@ public class HistoryHttpMemoryServiceTests
         Assert.True(historyHttpMemoryService.GetTicksLastCall("test") < 1000);
         Assert.True(historyHttpMemoryService.GetTicksLastCall("test") >= 0);
     }
+
+    [Fact]
+    public void ActiveCalls_AreCountedAndCanRefreshTheLastCallTimestamp()
+    {
+        var history = new HistoryHttpMemoryService();
+
+        history.BeginActiveCall("test");
+        history.BeginActiveCall("test");
+        history.RefreshActiveCall("test", 1234L);
+
+        Assert.True(history.HasActiveCalls("test"));
+        Assert.Equal(1234L, history.GetTicksLastCall("test"));
+
+        history.EndActiveCall("test");
+        Assert.True(history.HasActiveCalls("test"));
+
+        history.EndActiveCall("test");
+        Assert.False(history.HasActiveCalls("test"));
+
+        long completedTicks = history.GetTicksLastCall("test");
+        history.RefreshActiveCall("test", completedTicks + 1);
+        Assert.Equal(completedTicks, history.GetTicksLastCall("test"));
+    }
 }

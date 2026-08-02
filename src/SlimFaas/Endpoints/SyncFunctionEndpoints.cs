@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Local;
 using SlimFaas.WebSocket;
 
 namespace SlimFaas.Endpoints;
@@ -81,7 +82,9 @@ public static class SyncFunctionEndpoints
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
             context,
             jobService,
-            FunctionEndpointsHelpers.GetLocalJobToken(context));
+            context.Request.Headers.ContainsKey(LocalJobGateway.JobHeaderName)
+                ? FunctionEndpointsHelpers.GetLocalJobToken(context)
+                : string.Empty);
         var requestInId = activityTracker.Record(
             NetworkActivityTracker.EventTypes.RequestIn,
             activityCaller.Actor,
@@ -99,6 +102,9 @@ public static class SyncFunctionEndpoints
             }
 
             // ── Fonction HTTP classique ──
+            historyHttpService.BeginActiveCall(functionName);
+            SlimFaasDefaultConfiguration syncConfiguration = function.Configuration.DefaultSync;
+
             // Signal that SlimFaas is waiting for a pod to start (for UI visualization)
             bool functionWasReady = IsFunctionReady(function);
             if (!functionWasReady)
@@ -110,7 +116,15 @@ public static class SyncFunctionEndpoints
                     sourcePod: activityCaller.SourcePod);
             }
 
-            await WaitForAnyPodStartedAsync(logger, context, historyHttpService, replicasService, functionName);
+            if (!functionWasReady)
+            {
+                function = await WaitForAnyPodStartedAsync(
+                    logger,
+                    context,
+                    replicasService,
+                    functionName,
+                    function);
+            }
 
             if (!functionWasReady)
             {
@@ -121,40 +135,16 @@ public static class SyncFunctionEndpoints
                     sourcePod: activityCaller.SourcePod);
             }
 
-            var proxy = new Proxy(replicasService, functionName);
-            Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
+            var proxy = new Proxy(replicasService, functionName, function);
+            using var responseMessage = await sendClient.SendHttpRequestSync(
                 context,
                 functionName,
                 functionPath,
                 context.Request.QueryString.ToUriComponent(),
-                function.Configuration.DefaultSync,
+                syncConfiguration,
                 null,
                 proxy,
-                NetworkActivityTracker.Actors.SlimFaas);
-
-            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
-            try
-            {
-                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-
-                while (true)
-                {
-                    var nextTickTask = timer.WaitForNextTickAsync(ct).AsTask();
-                    var completed = await Task.WhenAny(responseTask, nextTickTask);
-
-                    if (completed == responseTask)
-                        break;
-
-                    historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-                }
-            }
-            catch (OperationCanceledException) when (ct.IsCancellationRequested)
-            {
-                logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
-                return Results.StatusCode(499); // Client Closed Request
-            }
-
-            using var responseMessage = await responseTask.ConfigureAwait(false);
+                NetworkActivityTracker.Actors.SlimFaas).ConfigureAwait(false);
 
             context.Response.StatusCode = (int)responseMessage.StatusCode;
             CopyFromTargetResponseHeaders(context, responseMessage);
@@ -162,9 +152,12 @@ public static class SyncFunctionEndpoints
             var stream = await responseMessage.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
             await stream.CopyToAsync(context.Response.Body, ct).ConfigureAwait(false);
 
-            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-
             return Results.Empty;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
+            return Results.StatusCode(499); // Client Closed Request
         }
         catch (Exception ex)
         {
@@ -173,6 +166,11 @@ public static class SyncFunctionEndpoints
         }
         finally
         {
+            if (function?.Namespace != "websocket-virtual")
+            {
+                historyHttpService.EndActiveCall(functionName);
+            }
+
             activityTracker.Record(
                 NetworkActivityTracker.EventTypes.RequestEnd,
                 activityCaller.Actor,
@@ -268,21 +266,17 @@ public static class SyncFunctionEndpoints
         }
     }
 
-    private static async Task WaitForAnyPodStartedAsync(
+    private static async Task<DeploymentInformation?> WaitForAnyPodStartedAsync(
         ILogger logger,
         HttpContext context,
-        HistoryHttpMemoryService historyHttpService,
         IReplicasService replicasService,
-        string functionName)
+        string functionName,
+        DeploymentInformation initialFunction)
     {
-        var function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
-        if (function is null) return;
+        var function = initialFunction;
 
         var timeout = TimeSpan.FromSeconds(function.Configuration.DefaultSync.HttpTimeout);
         var sw = Stopwatch.StartNew();
-
-        historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-        var lastTickUpdate = sw.Elapsed;
 
         var basePoll = TimeSpan.FromMilliseconds(100);
 
@@ -291,13 +285,13 @@ public static class SyncFunctionEndpoints
             while (true)
             {
                 function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
-                if (function is null) return;
+                if (function is null) return null;
 
                 if (IsFunctionReady(function))
                 {
                     logger.LogDebug("WaitForAnyPodStartedAsync: {FunctionName} is ready (EndpointReady={EndpointReady}).",
                         functionName, function.EndpointReady);
-                    return;
+                    return function;
                 }
 
                 foreach (var pod in function.Pods ?? Enumerable.Empty<PodInformation>())
@@ -305,22 +299,15 @@ public static class SyncFunctionEndpoints
                     logger.LogDebug("Pod {PodName} Ready={Ready} IP={Ip}", pod.Name, pod.Ready, pod.Ip);
                 }
 
-                if (sw.Elapsed - lastTickUpdate >= TimeSpan.FromSeconds(1))
-                {
-                    var nowTicks = DateTime.UtcNow.Ticks;
-                    historyHttpService.SetTickLastCall(functionName, nowTicks);
-                    lastTickUpdate = sw.Elapsed;
-                }
-
                 var remaining = timeout - sw.Elapsed;
                 if (remaining <= TimeSpan.Zero)
                 {
                     logger.LogWarning("WaitForAnyPodStartedAsync: timeout ({Timeout}s) atteint pour {FunctionName}.",
                         timeout.TotalSeconds, functionName);
-                    return;
+                    return function;
                 }
 
-                if (context.RequestAborted.IsCancellationRequested) return;
+                if (context.RequestAborted.IsCancellationRequested) return function;
 
                 var delay = remaining <= basePoll ? remaining : basePoll;
                 await Task.Delay(delay, context.RequestAborted);
@@ -329,6 +316,7 @@ public static class SyncFunctionEndpoints
         catch (OperationCanceledException)
         {
             logger.LogDebug("WaitForAnyPodStartedAsync: annulé pour {FunctionName}.", functionName);
+            return function;
         }
     }
 

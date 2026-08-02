@@ -450,6 +450,127 @@ public class SendClientShould
             (captured[1].Method, captured[1].Body, captured[1].DebugHeader));
     }
 
+    [Fact]
+    public async Task Sync_streams_large_non_seekable_body_without_disposing_the_source()
+    {
+        byte[] payload = Enumerable.Range(0, 512 * 1024)
+            .Select(index => (byte)(index % 251))
+            .ToArray();
+        byte[]? received = null;
+        using var httpClient = new HttpClient(new HttpMessageHandlerStub(
+            async (request, cancellationToken) =>
+            {
+                received = await request.Content!.ReadAsByteArrayAsync(cancellationToken);
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent("OK")
+                };
+            }));
+        var namespaceProvider = new Mock<INamespaceProvider>();
+        namespaceProvider.SetupGet(provider => provider.CurrentNamespace).Returns("default");
+        var sendClient = new SendClient(
+            httpClient,
+            new Mock<ILogger<SendClient>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                BaseFunctionUrl = "http://{function_name}:8080/",
+                Namespace = "default"
+            }),
+            namespaceProvider.Object,
+            new SlimFaas.Endpoints.NetworkActivityTracker());
+        using var source = new NonSeekableReadStream(new MemoryStream(payload));
+        DefaultHttpContext context = BuildHttpContext();
+        context.Request.Method = HttpMethods.Post;
+        context.Request.Body = source;
+        context.Request.ContentLength = payload.Length;
+        context.Request.ContentType = "application/octet-stream";
+
+        using HttpResponseMessage response = await sendClient.SendHttpRequestSync(
+            context,
+            "fibonacci",
+            "/upload",
+            "",
+            new SlimFaasDefaultConfiguration());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(payload, received);
+        Assert.True(source.CanRead);
+    }
+
+    [Fact]
+    public async Task Sync_forwards_client_cancellation()
+    {
+        var requestStarted = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        using var httpClient = new HttpClient(new HttpMessageHandlerStub(
+            async (_, cancellationToken) =>
+            {
+                requestStarted.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            }));
+        var namespaceProvider = new Mock<INamespaceProvider>();
+        namespaceProvider.SetupGet(provider => provider.CurrentNamespace).Returns("default");
+        var sendClient = new SendClient(
+            httpClient,
+            new Mock<ILogger<SendClient>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                BaseFunctionUrl = "http://{function_name}:8080/",
+                Namespace = "default"
+            }),
+            namespaceProvider.Object,
+            new SlimFaas.Endpoints.NetworkActivityTracker());
+        using var clientCancellation = new CancellationTokenSource();
+        DefaultHttpContext context = BuildHttpContext();
+        context.RequestAborted = clientCancellation.Token;
+
+        Task<HttpResponseMessage> responseTask = sendClient.SendHttpRequestSync(
+            context,
+            "fibonacci",
+            "/wait",
+            "",
+            new SlimFaasDefaultConfiguration());
+        await requestStarted.Task;
+        await clientCancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => responseTask);
+    }
+
+    [Fact]
+    public async Task Sync_releases_reserved_target_when_forwarding_fails()
+    {
+        using var httpClient = new HttpClient(new HttpMessageHandlerStub(
+            _ => Task.FromException<HttpResponseMessage>(new HttpRequestException("target unavailable"))));
+        var namespaceProvider = new Mock<INamespaceProvider>();
+        namespaceProvider.SetupGet(provider => provider.CurrentNamespace).Returns("default");
+        var sendClient = new SendClient(
+            httpClient,
+            new Mock<ILogger<SendClient>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                BaseFunctionUrl = "http://{pod_ip}:{pod_port}/",
+                Namespace = "default"
+            }),
+            namespaceProvider.Object,
+            new SlimFaas.Endpoints.NetworkActivityTracker());
+        var proxy = new Mock<IProxy>();
+        proxy.Setup(item => item.AcquireNextIPForSync()).Returns("pod-1");
+        proxy.Setup(item => item.GetPorts("pod-1")).Returns([8080]);
+        proxy.Setup(item => item.ResolvePodIp("pod-1")).Returns("127.0.0.1");
+        DefaultHttpContext context = BuildHttpContext();
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => sendClient.SendHttpRequestSync(
+            context,
+            "fibonacci",
+            "/fail",
+            "",
+            new SlimFaasDefaultConfiguration(),
+            proxy: proxy.Object));
+
+        proxy.Verify(item => item.ReleaseSyncIP("pod-1"), Times.Once);
+    }
+
     private static DefaultHttpContext BuildHttpContext()
     {
         DefaultHttpContext httpContext = new();
@@ -459,6 +580,40 @@ public class SendClientShould
         httpContext.Request.Scheme = "http";
         httpContext.Request.Body = new MemoryStream();
         return httpContext;
+    }
+}
+
+internal sealed class NonSeekableReadStream(Stream inner) : Stream
+{
+    public override bool CanRead => inner.CanRead;
+    public override bool CanSeek => false;
+    public override bool CanWrite => false;
+    public override long Length => throw new NotSupportedException();
+    public override long Position
+    {
+        get => throw new NotSupportedException();
+        set => throw new NotSupportedException();
+    }
+
+    public override void Flush() => throw new NotSupportedException();
+    public override int Read(byte[] buffer, int offset, int count) => inner.Read(buffer, offset, count);
+    public override int Read(Span<byte> buffer) => inner.Read(buffer);
+    public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken) =>
+        inner.ReadAsync(buffer, offset, count, cancellationToken);
+    public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default) =>
+        inner.ReadAsync(buffer, cancellationToken);
+    public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+    public override void SetLength(long value) => throw new NotSupportedException();
+    public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            inner.Dispose();
+        }
+
+        base.Dispose(disposing);
     }
 }
 

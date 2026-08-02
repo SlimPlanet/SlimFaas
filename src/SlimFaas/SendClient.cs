@@ -18,6 +18,7 @@ public interface ISendClient
 
 public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions, INamespaceProvider namespaceProvider, NetworkActivityTracker activityTracker) : ISendClient
 {
+    internal const string HttpClientName = "SlimFaas.Functions";
     private readonly string _baseFunctionUrl = slimFaasOptions.Value.BaseFunctionUrl;
     private readonly string _namespaceSlimFaas = namespaceProvider.CurrentNamespace;
 
@@ -116,10 +117,22 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
                 for (var attempt = 0; attempt < maxAttempts; attempt++)
                 {
-                    reservedSyncIp = proxy.AcquireNextIPForSync();
-                    ports = proxy.GetPorts(reservedSyncIp);
-                    resolvedPodIp = proxy.ResolvePodIp(reservedSyncIp);
-                    endpointUrl = proxy.ResolvePodEndpointUrl(reservedSyncIp);
+                    if (proxy is Proxy slimFaasProxy &&
+                        slimFaasProxy.TryAcquireNextTargetForSync(out SyncTargetReservation reservation))
+                    {
+                        reservedSyncIp = reservation.RoutingTarget;
+                        ports = reservation.Ports;
+                        resolvedPodIp = reservation.Ip;
+                        endpointUrl = reservation.EndpointUrl;
+                    }
+                    else if (proxy is not Proxy)
+                    {
+                        reservedSyncIp = proxy.AcquireNextIPForSync();
+                        ports = proxy.GetPorts(reservedSyncIp);
+                        resolvedPodIp = proxy.ResolvePodIp(reservedSyncIp);
+                        endpointUrl = proxy.ResolvePodEndpointUrl(reservedSyncIp);
+                    }
+
                     if (!string.IsNullOrWhiteSpace(reservedSyncIp) &&
                         (!string.IsNullOrWhiteSpace(endpointUrl) ||
                          (!string.IsNullOrWhiteSpace(resolvedPodIp) &&
@@ -472,10 +485,21 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         CopyFromOriginalRequestContentAndHeaders(context, requestMessage);
 
         requestMessage.RequestUri = targetUri;
-        foreach (KeyValuePair<string, StringValues> header in context.Request.Headers.Where(h =>
-                     h.Key.ToLower() != "host"))
+        foreach (KeyValuePair<string, StringValues> header in context.Request.Headers)
         {
-            requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
+            if (header.Key.Equals("Host", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            string[] values = header.Value
+                .Where(static value => value is not null)
+                .Select(static value => value!)
+                .ToArray();
+            if (!requestMessage.Headers.TryAddWithoutValidation(header.Key, values))
+            {
+                requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, values);
+            }
         }
 
         requestMessage.Headers.Host = targetUri.Host;
@@ -487,20 +511,14 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     private void CopyFromOriginalRequestContentAndHeaders(HttpContext context, HttpRequestMessage requestMessage)
     {
         string requestMethod = context.Request.Method;
-        context.Request.EnableBuffering(bufferThreshold: 1024 * 100, bufferLimit: 200 * 1024 * 1024);
 
         if (!HttpMethods.IsGet(requestMethod) &&
             !HttpMethods.IsHead(requestMethod) &&
             !HttpMethods.IsDelete(requestMethod) &&
             !HttpMethods.IsTrace(requestMethod))
         {
-            StreamContent streamContent = new(context.Request.Body);
+            StreamContent streamContent = new(new NonDisposingReadStream(context.Request.Body));
             requestMessage.Content = streamContent;
-        }
-
-        foreach (KeyValuePair<string, StringValues> header in context.Request.Headers)
-        {
-            requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());
         }
     }
 

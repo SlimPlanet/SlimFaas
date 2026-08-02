@@ -170,6 +170,7 @@ Check out:
     - [Events](docs/events.md) – Use internal publish/subscribe events.
     - [Jobs](docs/jobs.md) – Define, schedule, and run one-off jobs.
     - [OpenTelemetry](docs/opentelemetry.md) – Enable distributed tracing, metrics, and logs.
+    - [Benchmarks](docs/benchmarking.md) – Measure sync overhead, async delivery latency, and native-local scaling speed.
 - Data & Files
     - [Data Files](docs/data-files.md) – Ingest, store, and serve temporary binary artifacts.
     - [Data Sets](docs/data-sets.md) – Store replicated, Redis-like key-value payloads with optional TTL.

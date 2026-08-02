@@ -14,4 +14,18 @@ public class HostPort
 
         return false;
     }
+
+    internal static bool IsSamePort(int localPort, int hostPort, IList<int> ports)
+    {
+        for (var index = 0; index < ports.Count; index++)
+        {
+            int port = ports[index];
+            if (port == localPort || port == hostPort)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
