@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.79.4
+
+- [bbe315ad](https://github.com/SlimPlanet/SlimFaas/commit/bbe315ad2270a3c03426490a1e756bfeed9adaa6) - fix: enhance scale (#309) (release), 2026-08-02 by *Guillaume Chervet*
+
+
+## 0.79.3
+
+
+
 ## v0.79.3
 
 - [56e8f9a3](https://github.com/SlimPlanet/SlimFaas/commit/56e8f9a309178447723fcc3574e88347c3de1ebc) - refactor(slimfaas): remove trimming warning (#307) (release), 2026-08-01 by *Guillaume Chervet*
@@ -267,14 +276,5 @@
 ## v0.70.2
 
 - [85bdb0f3](https://github.com/SlimPlanet/SlimFaas/commit/85bdb0f390fe714c780022df39149829891509a5) - fix(slimfaas): Allow numbers and underscores in job names (#264) (release), 2026-04-14 by *Copilot*
-
-
-## 0.70.1
-
-
-
-## v0.70.1
-
-- [be514c3d](https://github.com/SlimPlanet/SlimFaas/commit/be514c3d27d8ea1a3235743bacfcaefc947af580) - chore: update all JS library versions across all package.json files (#261) (release), 2026-04-03 by *Copilot*
 
 
