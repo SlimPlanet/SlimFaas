@@ -235,34 +235,41 @@ public sealed class PromQlCompilerAndRateTests
         Assert.False(PromQlRateCalculator.TryComputeRate(sl, out _));
     }
 
-    // PromQlRateCalculator.TryComputeRate: counter reset (negative delta) → false.
+    // PromQlRateCalculator.TryComputeRate: counter reset contributes the post-reset value.
     [Fact]
-    public void RateCalculator_CounterReset_ReturnsFalse()
+    public void RateCalculator_CounterReset_UsesPostResetValue()
     {
         var sl = new SortedList<long, double> { { 0, 100 }, { 60, 10 } }; // reset
-        Assert.False(PromQlRateCalculator.TryComputeRate(sl, out _));
+        Assert.True(PromQlRateCalculator.TryComputeRate(sl, out var rate));
+        Assert.Equal(10.0 / 60.0, rate, 6);
     }
 
-    // rate() excludes resets → NaN when all series reset.
+    // rate() remains usable when all series reset.
     [Fact]
-    public void Rate_AllSeriesReset_ReturnsNaN()
+    public void Rate_AllSeriesReset_UsesPostResetValues()
     {
         var snap = BuildSnapshot(
             (0, "d", "p", "cnt{job=\"a\"}", 100),
             (60, "d", "p", "cnt{job=\"a\"}", 10)); // reset
         var eval = SnapEval(snap);
-        Assert.True(double.IsNaN(eval.Evaluate("""sum(rate(cnt{job="a"}[1m]))""", nowUnixSeconds: 60)));
+        Assert.Equal(
+            10.0 / 60.0,
+            eval.Evaluate("""sum(rate(cnt{job="a"}[1m]))""", nowUnixSeconds: 60),
+            6);
     }
 
-    // avg(rate(...)) excludes resets → NaN when all series reset.
+    // avg(rate(...)) uses the same reset handling.
     [Fact]
-    public void AvgRate_AllSeriesReset_ReturnsNaN()
+    public void AvgRate_AllSeriesReset_UsesPostResetValue()
     {
         var snap = BuildSnapshot(
             (0, "d", "p", "cnt{job=\"a\"}", 100),
             (60, "d", "p", "cnt{job=\"a\"}", 10)); // reset
         var eval = SnapEval(snap);
-        Assert.True(double.IsNaN(eval.Evaluate("""avg(rate(cnt{job="a"}[1m]))""", nowUnixSeconds: 60)));
+        Assert.Equal(
+            10.0 / 60.0,
+            eval.Evaluate("""avg(rate(cnt{job="a"}[1m]))""", nowUnixSeconds: 60),
+            6);
     }
 
     // rate() and avg(rate(...)) return the same value for a single non-reset series
@@ -281,20 +288,17 @@ public sealed class PromQlCompilerAndRateTests
         Assert.Equal(rateResult, avgRateResult, 6);
     }
 
-    // RatePerBucketNode (used by histogram_quantile) also excludes reset buckets.
-    // A bucket that decreases contributes nothing; only increasing buckets contribute.
+    // RatePerBucketNode (used by histogram_quantile) also handles reset buckets.
     [Fact]
     public void RatePerBucket_ResetBucket_IsExcluded()
     {
         var snap = BuildSnapshot(
             (0, "d", "p", """http_req_bucket{le="0.1"}""", 100),
-            (60, "d", "p", """http_req_bucket{le="0.1"}""", 10), // reset – excluded
+            (60, "d", "p", """http_req_bucket{le="0.1"}""", 10), // reset – rate = 1/6
             (0, "d", "p", """http_req_bucket{le="+Inf"}""", 200),
             (60, "d", "p", """http_req_bucket{le="+Inf"}""", 260)); // rate = 1.0
         var eval = SnapEval(snap);
 
-        // histogram_quantile: only the +Inf bucket has a valid rate.
-        // With only one bucket the quantile resolves to that bucket's upper bound.
         var res = eval.Evaluate(
             """histogram_quantile(0.99, sum by (le)(rate(http_req_bucket[1m])))""",
             nowUnixSeconds: 60);

@@ -273,6 +273,7 @@ metadata:
     SlimFaas/Scale: >
       {
         "ReplicaMax": 20,
+        "ScrapeIntervalMilliseconds": 1000,
         "Triggers": [
           {
             "MetricType": "AverageValue",
@@ -303,6 +304,12 @@ Main fields:
 
 - `ReplicaMax`
   Maximum number of pods SlimFaas may ever scale this function to. `null` means no hard cap.
+
+- `ScrapeIntervalMilliseconds`
+  Optional scrape cadence for this function, from `1000` to `300000` milliseconds.
+  When omitted, the global `SlimFaas:MetricsScraping:ScrapeIntervalMilliseconds`
+  value is used. A one-second cadence is useful for sub-second work whose pressure
+  peaks can disappear between global five-second scrapes.
 
 - `Triggers`
   List of metrics-based scaling rules.
@@ -340,7 +347,7 @@ Then:
     - scale-up / scale-down policies,
     - stabilization windows.
 
-If all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the AutoScaler **keeps the current replica count**, only clamping it between `ReplicasMin` and `ReplicaMax`.
+If all triggers are invalid (NaN, Inf, negative, invalid PromQL, etc.), the AutoScaler **keeps the current replica count**, only clamping it between `ReplicasMin` and `ReplicaMax`. With multiple triggers, a valid trigger may still scale up while any invalid trigger blocks scale-down. This prevents incomplete telemetry from removing capacity.
 
 #### Interaction with scale-to-zero
 
@@ -387,6 +394,9 @@ Conceptually:
 
 - `StabilizationWindowSeconds`:
     - For scale-down, a non-zero window makes SlimFaas look at the **max desired replicas** in the recent window to avoid flapping.
+    - Every recommendation refreshes this history, even when the replica count
+      does not change. The scale-down window therefore starts when demand falls,
+      not when the last scale-up happened.
     - For scale-up, you can also use a stabilization window, but the default is usually `0`.
 
 ---
@@ -446,11 +456,10 @@ Supported operators: `+`, `-`, `*`, `/` (no comparison or logical operators).
 rate(http_server_requests_seconds_count{namespace="default", job="fibonacci"}[1m])
 ```
 
-- Computes the **per-series rate** based on the first and last sample available in the window.
+- Computes the **per-series rate** from the counter increments available in the window.
 - The denominator is the elapsed time between those samples. Unlike Prometheus, SlimFaas does
   not extrapolate the rate to the full range window.
-- A counter is ignored when its last value is below its first value. Resets that occur between
-  those endpoints are not detected.
+- Counter resets are supported: the post-reset value contributes to the increase.
 - The evaluator returns the **sum of the rates of all matching series**.
 
 This is typically combined with `sum()` (or used directly) as a global RPS estimator.
@@ -537,6 +546,16 @@ Semantics:
 - The output is a scalar, perfect for triggers such as “max queue length over 30s”.
 
 This is particularly useful for queue-driven autoscaling.
+
+Series identity is retained inside nested aggregations. This expression therefore adds
+the recent maximum of every pod instead of returning only the busiest pod:
+
+```promql
+sum(max_over_time(work_inflight[10s]))
+```
+
+Autoscaler evaluations are scoped to the function being scaled. Identically named
+metrics exposed by another function cannot contribute to its desired replica count.
 
 ### Practical examples for triggers
 
@@ -693,8 +712,19 @@ Every 5 seconds, a background worker (`MetricsScrapingWorker`) runs on the
 4. For each parsed metric line, it decides whether to store the sample
    in the in-memory `IMetricsStore` (see next section).
 
-Only this lightweight HTTP metrics scrape happens every 5 seconds; no other
+Only this lightweight HTTP metrics scrape happens at the configured cadence; no other
 “debug” or control endpoints are called on your functions during scraping.
+
+Targets are fetched with bounded parallelism (`SlimFaas:MetricsScraping:MaxConcurrentTargets`,
+default `8`). `ScaleConfig.ScrapeIntervalMilliseconds` can accelerate one function
+without forcing every function in the cluster to use the same cadence.
+
+SlimFaas exposes the scaler state through `slimfaas_autoscaler_trigger_value`,
+`slimfaas_autoscaler_trigger_valid`, `slimfaas_autoscaler_current_replicas`,
+`slimfaas_autoscaler_desired_replicas`, `slimfaas_autoscaler_ready_replicas` and
+`slimfaas_autoscaler_last_decision`. Scrape health is available through
+`slimfaas_metrics_scrape_duration_seconds`, `slimfaas_metrics_scrape_failures_total`
+and `slimfaas_metrics_scrape_last_success_unixtime`. Queries are never used as labels.
 
 ---
 
@@ -835,7 +865,8 @@ This endpoint also:
 ```jsonc
 {
   "query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci\"}[30s])",
-  "nowUnixSeconds": 1732100000
+  "nowUnixSeconds": 1732100000,
+  "deployment": "fibonacci"
 }
 ```
 
@@ -844,6 +875,8 @@ Fields:
 - `query` (required): the PromQL expression to evaluate.
 - `nowUnixSeconds` (optional): Unix timestamp (seconds) to use as “now” for range selectors.
   If omitted, the evaluator uses the **latest timestamp available in the store**.
+- `deployment` (optional): restricts evaluation to series scraped from this deployment.
+  Autoscaler evaluations always apply this isolation automatically.
 
 #### Successful response (200)
 

@@ -110,6 +110,37 @@ public sealed class AutoScalerTests
     }
 
     [Fact]
+    public void MissingTrigger_ShouldBlockScaleDownButNotScaleUp()
+    {
+        var scaler = CreateAutoScaler();
+        var behaviorWithoutLimits = new ScaleBehavior
+        {
+            ScaleUp = new ScaleDirectionBehavior { Policies = [] },
+            ScaleDown = new ScaleDirectionBehavior { Policies = [] }
+        };
+        var scaleDownConfig = new ScaleConfig
+        {
+            Triggers =
+            [
+                new ScaleTrigger(ScaleMetricType.Value, "valid", "0.2", 1),
+                new ScaleTrigger(ScaleMetricType.Value, "missing", "missing_metric", 1)
+            ],
+            Behavior = behaviorWithoutLimits
+        };
+        var scaleUpConfig = scaleDownConfig with
+        {
+            Triggers =
+            [
+                new ScaleTrigger(ScaleMetricType.Value, "valid", "2", 1),
+                new ScaleTrigger(ScaleMetricType.Value, "missing", "missing_metric", 1)
+            ]
+        };
+
+        Assert.Equal(5, scaler.ComputeDesiredReplicas("func", scaleDownConfig, 5, 1, 20, 1_000));
+        Assert.Equal(10, scaler.ComputeDesiredReplicas("func", scaleUpConfig, 5, 1, 20, 1_001));
+    }
+
+    [Fact]
     public void SingleTrigger_MetricEqualThreshold_ShouldKeepCurrent()
     {
         var scaler = CreateAutoScaler();
@@ -589,6 +620,44 @@ public sealed class AutoScalerTests
             maxReplicas: 100,
             nowUnixSeconds: t2);
         Assert.Equal(1, third);
+    }
+
+    [Fact]
+    public void ScaleDownStabilization_ShouldRefreshOnUnchangedHighRecommendation()
+    {
+        var scaler = CreateAutoScaler(new InMemoryAutoScalerStore());
+        const string key = "func";
+        var scaleDown = new ScaleDirectionBehavior
+        {
+            StabilizationWindowSeconds = 300,
+            Policies = { }
+        };
+        var cfgScaleUp = MakeSimpleScaleConfig(metricValue: 20, threshold: 10) with
+        {
+            Behavior = new ScaleBehavior
+            {
+                ScaleUp = ScaleDirectionBehavior.DefaultScaleUp(),
+                ScaleDown = scaleDown
+            }
+        };
+        var cfgHold = MakeSimpleScaleConfig(metricValue: 10, threshold: 10) with
+        {
+            Behavior = cfgScaleUp.Behavior
+        };
+        var cfgLow = MakeSimpleScaleConfig(metricValue: 1, threshold: 10) with
+        {
+            Behavior = cfgScaleUp.Behavior
+        };
+
+        Assert.Equal(10, scaler.ComputeDesiredReplicas(
+            key, cfgScaleUp, 5, 1, 100, 1_000));
+        Assert.Equal(10, scaler.ComputeDesiredReplicas(
+            key, cfgHold, 10, 1, 100, 1_250));
+
+        Assert.Equal(10, scaler.ComputeDesiredReplicas(
+            key, cfgLow, 10, 1, 100, 1_500));
+        Assert.Equal(1, scaler.ComputeDesiredReplicas(
+            key, cfgLow, 10, 1, 100, 1_560));
     }
 
     [Fact]

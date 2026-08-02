@@ -1,10 +1,18 @@
+using System.Collections.Concurrent;
+
 namespace SlimFaas.Kubernetes;
 
 public sealed class AutoScaler
 {
     private readonly PromQlMiniEvaluator _evaluator;
     private readonly IAutoScalerStore _store;
+    private readonly InMemoryAutoScalerStore _recommendationStore = new();
     private readonly ILogger<AutoScaler>? _logger;
+    private readonly ConcurrentDictionary<string, CachedQuery> _queryCache =
+        new(StringComparer.Ordinal);
+
+    private sealed record CachedQuery(CompiledPromQlQuery? Query, string? Error);
+    private readonly record struct TriggerComputation(int DesiredReplicas, bool HasInvalidTrigger);
 
     public AutoScaler(
         PromQlMiniEvaluator evaluator,
@@ -25,13 +33,17 @@ public sealed class AutoScaler
         var min = deployment.ReplicasMin;
         int? max = scale?.ReplicaMax;
 
-        return ComputeDesiredReplicas(
+        var desired = ComputeDesiredReplicas(
             deployment.Deployment,
             scale,
             current,
             min,
             max,
             nowUnixSeconds);
+        AutoScalerTelemetry.RecordReadyReplicas(
+            deployment.Deployment,
+            deployment.Pods?.Count(static pod => pod.Ready == true) ?? 0);
+        return desired;
     }
 
     public int ComputeDesiredReplicas(
@@ -54,14 +66,16 @@ public sealed class AutoScaler
     }
 
     // 1. Calcul brut via triggers (PromQL + formule HPA)
-    var rawDesired = ComputeFromTriggers(
+    var triggerComputation = ComputeFromTriggers(
+        key,
         scaleConfig,
         currentReplicas,
         minReplicas,
         maxReplicas,
         nowUnixSeconds);
 
-    var desired = rawDesired;
+    var desired = triggerComputation.DesiredReplicas;
+    _recommendationStore.AddSample(key, nowUnixSeconds, desired);
 
     var behavior = scaleConfig.Behavior ?? new ScaleBehavior();
 
@@ -113,11 +127,18 @@ public sealed class AutoScaler
         _store.AddSample(key, nowUnixSeconds, desired);
     }
 
+    AutoScalerTelemetry.RecordDecision(
+        key,
+        currentReplicas,
+        desired,
+        triggerComputation.HasInvalidTrigger);
+
     return desired;
 }
 
 
-    private int ComputeFromTriggers(
+    private TriggerComputation ComputeFromTriggers(
+        string key,
         ScaleConfig config,
         int currentReplicas,
         int minReplicas,
@@ -125,19 +146,41 @@ public sealed class AutoScaler
         long nowUnixSeconds)
     {
         double? maxDesired = null;
+        var hasInvalidTrigger = false;
 
         foreach (var trigger in config.Triggers)
         {
             if (string.IsNullOrWhiteSpace(trigger.Query))
+            {
+                hasInvalidTrigger = true;
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
                 continue;
+            }
 
             if (trigger.Threshold <= 0)
+            {
+                hasInvalidTrigger = true;
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
                 continue;
+            }
 
             double metricValue;
             try
             {
-                metricValue = _evaluator.Evaluate(trigger.Query, nowUnixSeconds);
+                var cachedQuery = _queryCache.GetOrAdd(trigger.Query, CompileQuery);
+                if (cachedQuery.Query is null)
+                {
+                    hasInvalidTrigger = true;
+                    _logger?.LogWarning(
+                        "Invalid PromQL query '{Query}' for metric '{MetricName}': {Error}",
+                        trigger.Query,
+                        trigger.MetricName,
+                        cachedQuery.Error);
+                    AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                    continue;
+                }
+
+                metricValue = _evaluator.Evaluate(cachedQuery.Query, nowUnixSeconds, key);
             }
             catch (FormatException ex)
             {
@@ -145,6 +188,8 @@ public sealed class AutoScaler
                     "Invalid PromQL query '{Query}' for metric '{MetricName}'",
                     trigger.Query,
                     trigger.MetricName);
+                hasInvalidTrigger = true;
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
                 continue;
             }
             catch (InvalidOperationException ex)
@@ -152,6 +197,8 @@ public sealed class AutoScaler
                 _logger?.LogWarning(ex,
                     "InvalidOperationException while evaluating PromQL query '{Query}'",
                     trigger.Query);
+                hasInvalidTrigger = true;
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
                 continue;
             }
             catch (ArgumentException ex)
@@ -159,14 +206,26 @@ public sealed class AutoScaler
                 _logger?.LogWarning(ex,
                     "ArgumentException while evaluating PromQL query '{Query}'",
                     trigger.Query);
+                hasInvalidTrigger = true;
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
                 continue;
             }
 
             if (double.IsNaN(metricValue) || double.IsInfinity(metricValue))
+            {
+                hasInvalidTrigger = true;
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
                 continue;
+            }
 
             if (metricValue < 0)
+            {
+                hasInvalidTrigger = true;
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
                 continue;
+            }
+
+            AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, metricValue, isValid: true);
 
             var effectiveCurrent = currentReplicas == 0 ? 1 : currentReplicas;
             var ratio = metricValue / trigger.Threshold;
@@ -190,10 +249,28 @@ public sealed class AutoScaler
 
         if (maxDesired is null)
         {
-            return Clamp(currentReplicas, minReplicas, maxReplicas);
+            return new TriggerComputation(
+                Clamp(currentReplicas, minReplicas, maxReplicas),
+                HasInvalidTrigger: true);
         }
 
-        return (int)maxDesired.Value;
+        var desired = (int)maxDesired.Value;
+        if (hasInvalidTrigger && desired < currentReplicas)
+            desired = currentReplicas;
+
+        return new TriggerComputation(desired, hasInvalidTrigger);
+    }
+
+    private static CachedQuery CompileQuery(string query)
+    {
+        try
+        {
+            return new CachedQuery(PromQlQueryCompiler.Compile(query), null);
+        }
+        catch (FormatException exception)
+        {
+            return new CachedQuery(null, exception.Message);
+        }
     }
 
     private static int Clamp(int value, int min, int? max)
@@ -367,7 +444,8 @@ public sealed class AutoScaler
             return desired;
 
         var fromTs = nowUnixSeconds - stabilizationWindowSeconds;
-        var samples = _store.GetSamples(key, fromTs);
+        var samples = (isScaleUp ? _store : _recommendationStore)
+            .GetSamples(key, fromTs);
         if (samples.Count == 0)
             return desired;
 

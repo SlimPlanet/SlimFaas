@@ -62,6 +62,7 @@ public class GetScaleConfigTests
         var json = """
                    {
                      "ReplicaMax": 3,
+                     "ScrapeIntervalMilliseconds": 1000,
                      "Triggers": [
                        {
                          "MetricType": "AverageValue",
@@ -105,6 +106,7 @@ public class GetScaleConfigTests
         // Assert
         Assert.NotNull(cfg);
         Assert.Equal(3, cfg!.ReplicaMax);
+        Assert.Equal(1_000, cfg.ScrapeIntervalMilliseconds);
 
         Assert.Equal(2, cfg.Triggers.Count);
         Assert.Equal(ScaleMetricType.AverageValue, cfg.Triggers[0].MetricType);
@@ -134,6 +136,23 @@ public class GetScaleConfigTests
         Assert.Equal(ScalePolicyType.Percent, cfg.Behavior.ScaleDown.Policies[0].Type);
         Assert.Equal(100, cfg.Behavior.ScaleDown.Policies[0].Value);
         Assert.Equal(15,  cfg.Behavior.ScaleDown.Policies[0].PeriodSeconds);
+    }
+
+    [Theory]
+    [InlineData(999)]
+    [InlineData(300001)]
+    public void ScrapeIntervalOutsideSupportedRange_ShouldBeRejected(int intervalMilliseconds)
+    {
+        var annotations = new Dictionary<string, string>
+        {
+            ["SlimFaas/Scale"] = $$"""
+                {
+                  "ScrapeIntervalMilliseconds": {{intervalMilliseconds}}
+                }
+                """
+        };
+
+        Assert.Null(InvokeGetScaleConfig(annotations));
     }
 
     [Fact]

@@ -32,24 +32,30 @@ public sealed class PromQlMiniEvaluator
 
     // Evaluates a raw query string. Checks for data availability before parsing (preserves
     // original NaN-on-no-data semantics when the store is empty).
-    public double Evaluate(string query, long? nowUnixSeconds = null)
+    public double Evaluate(
+        string query,
+        long? nowUnixSeconds = null,
+        string? deployment = null)
     {
-        var ctx = BuildContext(nowUnixSeconds);
+        var ctx = BuildContext(nowUnixSeconds, deployment);
         if (ctx is null) return double.NaN;
         var compiled = PromQlQueryCompiler.Compile(query);
         return compiled.Root.Eval(ctx).AsScalar();
     }
 
     // Evaluates a pre-compiled query plan, skipping parsing on every call.
-    public double Evaluate(CompiledPromQlQuery compiled, long? nowUnixSeconds = null)
+    public double Evaluate(
+        CompiledPromQlQuery compiled,
+        long? nowUnixSeconds = null,
+        string? deployment = null)
     {
         ArgumentNullException.ThrowIfNull(compiled);
-        var ctx = BuildContext(nowUnixSeconds);
+        var ctx = BuildContext(nowUnixSeconds, deployment);
         if (ctx is null) return double.NaN;
         return compiled.Root.Eval(ctx).AsScalar();
     }
 
-    private EvalContext? BuildContext(long? nowUnixSeconds)
+    private EvalContext? BuildContext(long? nowUnixSeconds, string? deployment)
     {
         if (_metricsStore is not null)
         {
@@ -59,7 +65,8 @@ public sealed class PromQlMiniEvaluator
             return new EvalContext(
                 _metricsStore,
                 nowUnixSeconds ?? latestTimestamp,
-                _instantSelectorLookback);
+                _instantSelectorLookback,
+                deployment);
         }
 
         var snapshot = _snapshotProvider!();
@@ -69,7 +76,8 @@ public sealed class PromQlMiniEvaluator
         return new EvalContext(
             snapshot,
             nowUnixSeconds ?? snapshot.Keys.Max(),
-            _instantSelectorLookback);
+            _instantSelectorLookback,
+            deployment);
     }
 
     private static TimeSpan ValidateInstantSelectorLookback(TimeSpan? configured)

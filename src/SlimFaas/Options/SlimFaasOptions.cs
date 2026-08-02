@@ -149,6 +149,11 @@ public class MetricsScrapingOptions
     public int ScrapeIntervalMilliseconds { get; set; } = 2_000;
 
     /// <summary>
+    /// Maximum number of metrics targets scraped concurrently by the leader.
+    /// </summary>
+    public int MaxConcurrentTargets { get; set; } = 8;
+
+    /// <summary>
     /// Maximum number of bytes accepted from one metrics response.
     /// </summary>
     public long MaxResponseBytes { get; set; } = 8L * 1024L * 1024L;

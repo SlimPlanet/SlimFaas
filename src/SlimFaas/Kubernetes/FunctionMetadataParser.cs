@@ -99,6 +99,16 @@ public static class FunctionMetadataParser
     public static ScaleConfig NormalizeScaleConfig(ScaleConfig? scale)
     {
         scale ??= new ScaleConfig();
+        if (scale.ScrapeIntervalMilliseconds is { } scrapeInterval &&
+            scrapeInterval is < ScaleConfig.MinimumScrapeIntervalMilliseconds or
+                > ScaleConfig.MaximumScrapeIntervalMilliseconds)
+        {
+            throw new FormatException(
+                $"{FunctionAnnotationNames.Scale}.ScrapeIntervalMilliseconds must be between " +
+                $"{ScaleConfig.MinimumScrapeIntervalMilliseconds} and " +
+                $"{ScaleConfig.MaximumScrapeIntervalMilliseconds}.");
+        }
+
         ScaleBehavior behavior = scale.Behavior ?? new ScaleBehavior();
         ScaleDirectionBehavior scaleUp = behavior.ScaleUp ?? ScaleDirectionBehavior.DefaultScaleUp();
         ScaleDirectionBehavior scaleDown = behavior.ScaleDown ?? ScaleDirectionBehavior.DefaultScaleDown();

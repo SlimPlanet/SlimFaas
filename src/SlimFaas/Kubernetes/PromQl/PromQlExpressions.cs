@@ -10,20 +10,41 @@ internal abstract class ValueNode
     public abstract void CollectMetricNames(HashSet<string> names);
 }
 
-// Result of evaluating a node: either a scalar or a bucket map (le → value) for histograms.
-internal readonly record struct EvalValue(double Scalar, Dictionary<string, double>? ByLe)
+internal enum VectorScalarReduction
 {
-    public bool IsScalar => ByLe is null;
+    Sum,
+    Min,
+    Max,
+    Average
+}
+
+// Result of evaluating a node: either a scalar or a vector keyed by series identity.
+// The default reduction preserves the historical scalar result for top-level vectors.
+internal readonly record struct EvalValue(
+    double Scalar,
+    Dictionary<string, double>? Vector,
+    VectorScalarReduction DefaultReduction = VectorScalarReduction.Sum)
+{
+    public bool IsScalar => Vector is null;
 
     public double AsScalar() =>
         IsScalar
             ? Scalar
-            : ByLe is { Count: > 0 }
-                ? ByLe.Values.Sum()
+            : Vector is { Count: > 0 }
+                ? DefaultReduction switch
+                {
+                    VectorScalarReduction.Min => Vector.Values.Min(),
+                    VectorScalarReduction.Max => Vector.Values.Max(),
+                    VectorScalarReduction.Average => Vector.Values.Average(),
+                    _ => Vector.Values.Sum()
+                }
                 : double.NaN;
 
     public static EvalValue FromScalar(double x) => new(x, null);
-    public static EvalValue FromByLe(Dictionary<string, double> buckets) => new(double.NaN, buckets);
+    public static EvalValue FromVector(
+        Dictionary<string, double> values,
+        VectorScalarReduction defaultReduction = VectorScalarReduction.Sum) =>
+        new(double.NaN, values, defaultReduction);
 }
 
 internal sealed class NumberNode(double value) : ValueNode
@@ -76,12 +97,12 @@ internal sealed class SumNode(ValueNode inner, string? byLabel) : ValueNode
         if (byLabel is null)
         {
             // sum(...) without "by" → collapse to a scalar.
-            if (v.ByLe is null) return EvalValue.FromScalar(double.NaN);
-            return EvalValue.FromScalar(v.ByLe.Values.Sum());
+            if (v.Vector is null) return EvalValue.FromScalar(double.NaN);
+            return EvalValue.FromScalar(v.Vector.Values.Sum());
         }
 
         // sum by (le)(...) → preserve the bucket dictionary for histogram_quantile.
-        return EvalValue.FromByLe(new Dictionary<string, double>(v.ByLe!, StringComparer.Ordinal));
+        return EvalValue.FromVector(new Dictionary<string, double>(v.Vector!, StringComparer.Ordinal));
     }
 
     public override void CollectMetricNames(HashSet<string> names) => inner.CollectMetricNames(names);
@@ -95,10 +116,10 @@ internal sealed class MinNode(ValueNode inner, string? byLabel) : ValueNode
         if (v.IsScalar) return v;
 
         if (byLabel is not null)
-            return EvalValue.FromByLe(new Dictionary<string, double>(v.ByLe!, StringComparer.Ordinal));
+            return EvalValue.FromVector(new Dictionary<string, double>(v.Vector!, StringComparer.Ordinal));
 
-        if (v.ByLe is null || v.ByLe.Count == 0) return EvalValue.FromScalar(double.NaN);
-        return EvalValue.FromScalar(v.ByLe.Values.Min());
+        if (v.Vector is null || v.Vector.Count == 0) return EvalValue.FromScalar(double.NaN);
+        return EvalValue.FromScalar(v.Vector.Values.Min());
     }
 
     public override void CollectMetricNames(HashSet<string> names) => inner.CollectMetricNames(names);
@@ -112,10 +133,10 @@ internal sealed class MaxNode(ValueNode inner, string? byLabel) : ValueNode
         if (v.IsScalar) return v;
 
         if (byLabel is not null)
-            return EvalValue.FromByLe(new Dictionary<string, double>(v.ByLe!, StringComparer.Ordinal));
+            return EvalValue.FromVector(new Dictionary<string, double>(v.Vector!, StringComparer.Ordinal));
 
-        if (v.ByLe is null || v.ByLe.Count == 0) return EvalValue.FromScalar(double.NaN);
-        return EvalValue.FromScalar(v.ByLe.Values.Max());
+        if (v.Vector is null || v.Vector.Count == 0) return EvalValue.FromScalar(double.NaN);
+        return EvalValue.FromScalar(v.Vector.Values.Max());
     }
 
     public override void CollectMetricNames(HashSet<string> names) => inner.CollectMetricNames(names);
@@ -129,10 +150,10 @@ internal sealed class AvgNode(ValueNode inner, string? byLabel) : ValueNode
         if (v.IsScalar) return v;
 
         if (byLabel is not null)
-            return EvalValue.FromByLe(new Dictionary<string, double>(v.ByLe!, StringComparer.Ordinal));
+            return EvalValue.FromVector(new Dictionary<string, double>(v.Vector!, StringComparer.Ordinal));
 
-        if (v.ByLe is null || v.ByLe.Count == 0) return EvalValue.FromScalar(double.NaN);
-        return EvalValue.FromScalar(v.ByLe.Values.Average());
+        if (v.Vector is null || v.Vector.Count == 0) return EvalValue.FromScalar(double.NaN);
+        return EvalValue.FromScalar(v.Vector.Values.Average());
     }
 
     public override void CollectMetricNames(HashSet<string> names) => inner.CollectMetricNames(names);
@@ -145,7 +166,7 @@ internal sealed class HistogramQuantileNode(double phi, ValueNode bucketsExpr) :
         var v = bucketsExpr.Eval(ctx);
         if (v.IsScalar) return EvalValue.FromScalar(double.NaN);
 
-        var buckets = v.ByLe!;
+        var buckets = v.Vector!;
         var points = new List<(double le, double count)>();
         foreach (var (k, c) in buckets)
         {
@@ -186,17 +207,17 @@ internal sealed class MaxOverTimeNode(MetricSelector selector, TimeSpan window) 
     public override EvalValue Eval(EvalContext ctx)
     {
         var series = ctx.SelectSeries(selector, window);
-        double? globalMax = null;
+        var maxima = new Dictionary<string, double>(StringComparer.Ordinal);
 
-        foreach (var sl in series.Values)
+        foreach (var (seriesKey, sl) in series)
         {
             if (sl.Count == 0) continue;
             var localMax = sl.Values.Max();
             if (double.IsNaN(localMax)) continue;
-            globalMax = globalMax is null ? localMax : Math.Max(globalMax.Value, localMax);
+            maxima[seriesKey] = localMax;
         }
 
-        return EvalValue.FromScalar(globalMax ?? double.NaN);
+        return EvalValue.FromVector(maxima, VectorScalarReduction.Max);
     }
 
     public override void CollectMetricNames(HashSet<string> names) => names.Add(selector.MetricName);
@@ -208,13 +229,13 @@ internal sealed class SelectorSumNode(MetricSelector selector, TimeSpan? window)
     {
         if (window is null)
         {
-            // Instant selector: sum of the most-recent value per series.
+            // Instant selector: keep the most-recent value and its series identity.
             var series = ctx.SelectSeries(selector, window: null);
             if (series.Count == 0) return EvalValue.FromScalar(double.NaN);
-            double total = 0.0;
-            foreach (var sl in series.Values)
-                if (sl.Count > 0) total += sl.Values[^1];
-            return EvalValue.FromScalar(total);
+            var values = new Dictionary<string, double>(StringComparer.Ordinal);
+            foreach (var (seriesKey, sl) in series)
+                if (sl.Count > 0) values[seriesKey] = sl.Values[^1];
+            return EvalValue.FromVector(values);
         }
 
         // Range selector: delegate to the shared rate calculation.

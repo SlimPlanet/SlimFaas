@@ -43,27 +43,32 @@ internal sealed class EvalContext
                 IReadOnlyDictionary<string, double>>>>? _snapshot;
     private readonly IMetricsStore? _metricsStore;
     private readonly long _instantSelectorLookbackSeconds;
+    private readonly string? _deployment;
 
     public readonly long Now;
 
     public EvalContext(
         IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> store,
         long now,
-        TimeSpan instantSelectorLookback)
+        TimeSpan instantSelectorLookback,
+        string? deployment = null)
     {
         _snapshot = store;
         Now = now;
         _instantSelectorLookbackSeconds = ToLookbackSeconds(instantSelectorLookback);
+        _deployment = deployment;
     }
 
     public EvalContext(
         IMetricsStore metricsStore,
         long now,
-        TimeSpan instantSelectorLookback)
+        TimeSpan instantSelectorLookback,
+        string? deployment = null)
     {
         _metricsStore = metricsStore;
         Now = now;
         _instantSelectorLookbackSeconds = ToLookbackSeconds(instantSelectorLookback);
+        _deployment = deployment;
     }
 
     // Returns all series (seriesKey → SortedList<timestamp, value>) matching the selector.
@@ -79,8 +84,12 @@ internal sealed class EvalContext
 
         if (_metricsStore is not null)
         {
-            _metricsStore.VisitSeries((_, _, podIp, metricKey, points) =>
+            _metricsStore.VisitSeries((_, deployment, podIp, metricKey, points) =>
             {
+                if (_deployment is not null &&
+                    !string.Equals(deployment, _deployment, StringComparison.Ordinal))
+                    return;
+
                 if (!TryParseMetricKey(metricKey, out var name, out var labels) ||
                     !selector.Match(name, labels))
                 {
@@ -111,8 +120,12 @@ internal sealed class EvalContext
         {
             if (IsOutsideSelection(ts, fromTs, isInstantSelector)) continue;
 
-            foreach (var (_, podMap) in depMap)
+            foreach (var (deployment, podMap) in depMap)
             {
+                if (_deployment is not null &&
+                    !string.Equals(deployment, _deployment, StringComparison.Ordinal))
+                    continue;
+
                 foreach (var (podIp, metrics) in podMap)
                 {
                     foreach (var (metricKey, value) in metrics)
