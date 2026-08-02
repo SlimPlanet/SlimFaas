@@ -34,6 +34,14 @@ dotnet run --project src/SlimFaas -- \
   local up -f ../../slimfaas.local.yaml
 ```
 
+In Windows PowerShell, keep each command on one line because `\` is not a
+PowerShell line-continuation character:
+
+```powershell
+dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml
+dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
+```
+
 The first `dotnet run` restores and builds SlimFaas and its web interface. The
 `../../slimfaas.local.yaml` path is relative to the `src/SlimFaas` working
 directory configured by the repository launch profile.

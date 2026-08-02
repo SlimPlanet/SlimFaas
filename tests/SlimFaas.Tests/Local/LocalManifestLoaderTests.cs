@@ -989,7 +989,7 @@ public sealed class LocalManifestLoaderTests
 
     private static string ValidYaml(string functionTail = "")
     {
-        const string yaml =
+        string yaml =
             """
             schemaVersion: 1
             name: local-test
@@ -1011,14 +1011,14 @@ public sealed class LocalManifestLoaderTests
                   SlimFaas/Function: "true"
                   SlimFaas/ReplicasAtStart: "1"
                   SlimFaas/Scale: '{"ReplicaMax": 2}'
-            """;
+            """.ReplaceLineEndings("\n");
         if (string.IsNullOrWhiteSpace(functionTail))
             return yaml;
 
         string indentedTail = string.Join(
-            Environment.NewLine,
+            "\n",
             functionTail.Trim().Split('\n').Select(line => $"    {line.TrimEnd('\r')}"));
-        return $"{yaml}{Environment.NewLine}{indentedTail}{Environment.NewLine}";
+        return $"{yaml}\n{indentedTail}\n";
     }
 
     private sealed class TemporaryDirectory : IDisposable

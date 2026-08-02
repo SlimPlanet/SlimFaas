@@ -59,7 +59,9 @@ public class Startup(IConfiguration configuration)
         // Configure RaftClientHandler options
         services.AddOptions<RaftClientHandlerOptions>()
             .Bind(configuration.GetSection(RaftClientHandlerOptions.SectionName))
-            .ValidateDataAnnotations()
+            .Validate(
+                ValidateRaftClientHandlerOptions,
+                "Raft client handler options must be positive.")
             .ValidateOnStart();
 
         services.AddOptions<SlimDataMembershipOptions>()
@@ -203,6 +205,12 @@ public class Startup(IConfiguration configuration)
         foreach (var clusterMember in ClusterMembers)
             members.Add(new UriEndPoint(new Uri(clusterMember, UriKind.Absolute)));
     }
+
+    internal static bool ValidateRaftClientHandlerOptions(RaftClientHandlerOptions options)
+        => options.ConnectTimeoutMilliseconds > 0
+           && options.PooledConnectionLifetimeMinutes > 0
+           && options.PooledConnectionIdleTimeoutSeconds > 0
+           && options.MaxConnectionsPerServer > 0;
 
     internal static WriteAheadLog.MemoryManagementStrategy GetWalMemoryManagement(IConfiguration configuration)
     {

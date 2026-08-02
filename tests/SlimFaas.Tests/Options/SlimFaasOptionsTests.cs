@@ -295,6 +295,30 @@ public class SlimFaasOptionsTests
             serviceProvider.GetRequiredService<IOptions<SlimDataOptions>>().Value);
     }
 
+    [Theory]
+    [InlineData("WarmupRounds", "0")]
+    [InlineData("BatchPartitionCount", "1")]
+    [InlineData("BatchPartitionCount", "17")]
+    [InlineData("LowLoadRequestsPerSecond", "0")]
+    [InlineData("LowLoadRequestsPerSecond", "10000.1")]
+    public void SlimDataOptions_ShouldRejectOutOfRangeValues(string setting, string value)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [$"SlimData:{setting}"] = value
+            })
+            .Build();
+        var services = new ServiceCollection();
+        services.AddSingleton<IConfiguration>(configuration);
+        services.AddSlimFaasOptions(configuration);
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        Assert.Throws<OptionsValidationException>(() =>
+            serviceProvider.GetRequiredService<IOptions<SlimDataOptions>>().Value);
+    }
+
     [Fact]
     public void OptionsExtensions_AddSlimFaasOptions_ShouldRegisterAllOptions()
     {

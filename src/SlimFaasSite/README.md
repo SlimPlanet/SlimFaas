@@ -33,5 +33,6 @@ pnpm lint
 pnpm build
 ```
 
-The static export is written to `out/`. A missing documentation source fails
-the build instead of producing an empty page.
+The static export is written to `out/`, including a generated `sitemap.xml`.
+A missing documentation source fails the build instead of producing an empty
+page.
