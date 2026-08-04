@@ -247,7 +247,9 @@ public class SlimFaasOptionsTests
             ["SlimData:BatchMode"] = "PartitionedByKey",
             ["SlimData:BatchPartitionCount"] = "4",
             ["SlimData:LowLoadFastPath"] = "true",
-            ["SlimData:LowLoadRequestsPerSecond"] = "7.5"
+            ["SlimData:LowLoadRequestsPerSecond"] = "7.5",
+            ["SlimData:QueueLowLatencyEnabled"] = "false",
+            ["SlimData:QueueMutationMaxWaitMilliseconds"] = "17"
         });
         var configuration = configurationBuilder.Build();
 
@@ -270,6 +272,8 @@ public class SlimFaasOptionsTests
         Assert.Equal(4, options.BatchPartitionCount);
         Assert.True(options.LowLoadFastPath);
         Assert.Equal(7.5d, options.LowLoadRequestsPerSecond);
+        Assert.False(options.QueueLowLatencyEnabled);
+        Assert.Equal(17, options.QueueMutationMaxWaitMilliseconds);
     }
 
     [Theory]
@@ -301,6 +305,8 @@ public class SlimFaasOptionsTests
     [InlineData("BatchPartitionCount", "17")]
     [InlineData("LowLoadRequestsPerSecond", "0")]
     [InlineData("LowLoadRequestsPerSecond", "10000.1")]
+    [InlineData("QueueMutationMaxWaitMilliseconds", "-1")]
+    [InlineData("QueueMutationMaxWaitMilliseconds", "226")]
     public void SlimDataOptions_ShouldRejectOutOfRangeValues(string setting, string value)
     {
         var configuration = new ConfigurationBuilder()

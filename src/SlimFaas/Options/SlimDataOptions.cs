@@ -54,6 +54,16 @@ public class SlimDataOptions
     public double LowLoadRequestsPerSecond { get; set; } = 10d;
 
     /// <summary>
+    /// Allows durable queue mutations to interrupt the adaptive local batching cooldown.
+    /// </summary>
+    public bool QueueLowLatencyEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Maximum time a queue-critical mutation may wait in the local adaptive batcher.
+    /// </summary>
+    public int QueueMutationMaxWaitMilliseconds { get; set; } = 5;
+
+    /// <summary>
     /// Directory path for ScheduleJob backup storage.
     /// When set, ScheduleJob data is backed up to this directory as JSON.
     /// On cold start with an empty database, data is restored from this backup.

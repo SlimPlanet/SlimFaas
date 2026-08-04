@@ -249,6 +249,36 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
         await _repo.DeleteAsync(id, ct).ConfigureAwait(false);
     }
 
+    public async Task BroadcastFileDeleteAsync(string id, CancellationToken ct)
+    {
+        await DeleteLocalAsync(id, ct).ConfigureAwait(false);
+        string deleteName = FileSyncProtocol.BuildDeleteName(Base64UrlCodec.Encode(id));
+        foreach (var member in _bus.Members)
+        {
+            if (!member.IsRemote)
+                continue;
+            try
+            {
+                await member.SendSignalAsync(
+                    new TextMessage(string.Empty, deleteName),
+                    requiresConfirmation: true,
+                    ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (IsNotImplemented(ex))
+            {
+                // Mixed-version clusters fall back to the convergent orphan cleaner.
+                _logger.LogDebug(
+                    "File delete signal skipped because the remote node does not support it. Node={Node}",
+                    SafeNode(member));
+            }
+            catch (Exception ex)
+            {
+                // Deletion is best effort. Missing signals are repaired by orphan cleanup.
+                _logger.LogWarning(ex, "File delete signal failed. Node={Node} Id={Id}", SafeNode(member), id);
+            }
+        }
+    }
+
 
     private static bool IsNotImplemented(Exception ex)
     {

@@ -38,6 +38,40 @@ memory profile while allowing the high-concurrency workload to form larger
 composite batches. The delay changes batching cadence only; it never changes
 the queue order.
 
+Queue-critical mutations use a bounded-wait lane within that same FIFO. Queue
+push, pop, callback, and async body-offload metadata default to a maximum local
+wait of 5 ms. A critical operation can interrupt the adaptive cooldown and can
+shorten the coalescing window, but it never overtakes normal operations already
+in front of it: the complete FIFO prefix is flushed together. Durability,
+producer sequencing, and the Raft format are unchanged.
+
+Within a committed producer batch, adjacent queue pushes are applied with one
+builder per queue key. Grouped callbacks index the queue once and rebuild it at
+most once, avoiding repeated full-queue and payload scans without changing the
+serialized command, deduplication, or FIFO semantics.
+
+Dequeue responses reuse a queue payload's backing array when its
+`ReadOnlyMemory<byte>` covers the complete buffer. Raft replicas therefore do
+not allocate an additional large-object-heap copy before serializing the same
+response; sliced memories retain the safe copy fallback.
+
+Configure this behavior with:
+
+```json
+{
+  "SlimData": {
+    "QueueLowLatencyEnabled": true,
+    "QueueMutationMaxWaitMilliseconds": 5
+  }
+}
+```
+
+`QueueMutationMaxWaitMilliseconds` accepts 0 through 225. Set
+`QueueLowLatencyEnabled` to `false` to use the adaptive delay for every
+mutation. Environment-variable equivalents are
+`SlimData__QueueLowLatencyEnabled` and
+`SlimData__QueueMutationMaxWaitMilliseconds`.
+
 `DateTime.UtcNow.Ticks` remains mutation data for TTL and queue timeout
 semantics. It is never used to sort commands. Wall clocks from three replicas
 cannot provide a safe total order because they can drift, repeat, or arrive
@@ -82,7 +116,9 @@ Its costs are:
 - a global leader sequencer can become a throughput bottleneck;
 - unrelated keys share queueing delay and head-of-line blocking;
 - low traffic can wait for the measured 225 ms local dequeue cadence, in
-  addition to a 3 ms coalescing window and up to 2 ms at the leader;
+  addition to a 3 ms coalescing window and up to 2 ms at the leader for normal
+  mutations; queue-critical operations instead use their configured bounded
+  local wait;
 - the last response retained per producer adds bounded replicated state;
 - an unresolved producer batch intentionally blocks later batches from that
   producer to preserve order;
@@ -101,6 +137,11 @@ resulting producer batches into RAFT.
 The following Prometheus gauges/counters expose the path:
 
 - `slimdata_batch_queue_items` and `slimdata_batch_queue_bytes`;
+- `slimdata_batch_queue_low_latency_enabled` and
+  `slimdata_batch_queue_max_wait_milliseconds`;
+- `slimdata_batch_latency_sensitive_operations_total`,
+  `slimdata_batch_forced_flush_total`, and
+  `slimdata_batch_last_latency_sensitive_wait_milliseconds`;
 - `slimdata_command_batch_queue_requests` and
   `slimdata_command_batch_queue_bytes`;
 - `slimdata_command_batch_raft_total`;

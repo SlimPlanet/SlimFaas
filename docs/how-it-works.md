@@ -83,9 +83,19 @@ The current byte window and the cause of the latest snapshot request are exposed
 
 1. **Client → SlimFaas**
    `GET /async-function/<functionName>/...` (returns immediately with `202 Accepted`).
-2. **SlimFaas** enqueues the request in SlimData.
-3. **SlimWorker** processes requests in the background, respecting concurrency limits.
-4. **Function** handles each request. SlimFaas logs outcomes in SlimData.
+2. **SlimFaas** durably enqueues the request in SlimData, then returns `202`.
+3. The committed mutation signals the HTTP and WebSocket workers immediately;
+   periodic polling remains only as a recovery fallback.
+4. **SlimWorker** reads one lightweight queue snapshot (counts, running IDs,
+   and IP reservations, without payload copies), then dispatches while
+   respecting concurrency and least-connections limits.
+5. Completions enter a mailbox, release response/body/cancellation resources
+   immediately, and are committed back to SlimData in grouped callbacks. Queue
+   callback application uses a single indexed pass; terminal offload cleanup
+   runs in a separate mailbox after that durable callback, with best-effort
+   remote file deletion and batched orphan-metadata cleanup.
+6. **Function** handles each request. Results completed after a leadership loss
+   are discarded locally so the current leader owns retry/callback decisions.
 
 ![Asynchronous HTTP call](async_http_call.PNG)
 

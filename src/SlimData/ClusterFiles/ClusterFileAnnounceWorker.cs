@@ -29,6 +29,12 @@ public sealed class ClusterFileAnnounceWorker : BackgroundService
         {
             try
             {
+                if (a.Delete)
+                {
+                    await _sync.DeleteLocalAsync(a.Id, stoppingToken).ConfigureAwait(false);
+                    continue;
+                }
+
                 // Déjà présent => rien à faire
                 if (await _repo.ExistsAsync(a.Id, a.Sha256Hex, stoppingToken).ConfigureAwait(false))
                     continue;

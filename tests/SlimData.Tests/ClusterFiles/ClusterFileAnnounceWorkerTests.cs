@@ -6,6 +6,28 @@ using Xunit;
 public sealed class ClusterFileAnnounceWorkerTests
 {
     [Fact]
+    public async Task Worker_applies_remote_delete_without_rebroadcasting()
+    {
+        var queue = new ClusterFileAnnounceQueue();
+        var repo = new Mock<IFileRepository>(MockBehavior.Strict);
+        var sync = new Mock<IClusterFileSync>(MockBehavior.Strict);
+        var logger = new Mock<ILogger<ClusterFileAnnounceWorker>>();
+        var deleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        sync.Setup(service => service.DeleteLocalAsync("delete-id", It.IsAny<CancellationToken>()))
+            .Callback(() => deleted.TrySetResult())
+            .Returns(Task.CompletedTask);
+        var worker = new ClusterFileAnnounceWorker(queue, sync.Object, repo.Object, logger.Object);
+
+        await worker.StartAsync(CancellationToken.None);
+        Assert.True(queue.TryEnqueue(new AnnouncedFile("delete-id", string.Empty, null, Delete: true)));
+        await deleted.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        await worker.StopAsync(CancellationToken.None);
+
+        sync.VerifyAll();
+        repo.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task Worker_pulls_when_missing_and_disposes_stream()
     {
         var queue = new ClusterFileAnnounceQueue();

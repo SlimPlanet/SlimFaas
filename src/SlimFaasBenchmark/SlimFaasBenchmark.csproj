@@ -9,4 +9,8 @@
     <RootNamespace>SlimFaasBenchmark</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlimFaas.Tests" />
+  </ItemGroup>
+
 </Project>

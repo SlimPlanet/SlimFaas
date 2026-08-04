@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using System.Text;
 using MemoryPack;
 using SlimData.Commands;
@@ -72,6 +73,66 @@ public sealed class SlimDataCommandBatchTests
     }
 
     [Fact]
+    public async Task Composite_batch_coalesces_adjacent_pushes_without_changing_fifo_or_deduplication()
+    {
+        var state = NewState();
+        SlimDataBatchOperation[] pushes = Enumerable.Range(0, 64)
+            .Select(index =>
+            {
+                var operation = Operation(
+                    SlimDataBatchOperationKind.ListLeftPush,
+                    $"push-{index}",
+                    "queue");
+                operation.ElementId = $"element-{index}";
+                operation.Value = [(byte)index];
+                operation.RetryTimeoutSeconds = 30;
+                return operation;
+            })
+            .ToArray();
+        var duplicate = Operation(SlimDataBatchOperationKind.ListLeftPush, "duplicate", "queue");
+        duplicate.ElementId = "element-0";
+        duplicate.Value = [255];
+        var callback = Operation(SlimDataBatchOperationKind.ListCallback, "callback", "queue");
+        callback.CallbackItems = Enumerable.Range(0, 64)
+            .Where(static index => index % 2 == 0)
+            .Select(index => new QueueItemStatus(
+                $"element-{index}",
+                SlimDataInterpreter.DeleteFromQueueCode))
+            .ToArray();
+
+        SlimDataCommandBatchResponse response = await ApplyAsync(
+            state,
+            NewRequest([.. pushes, duplicate, callback]));
+
+        Assert.Equal(66, response.Results.Length);
+        Assert.Equal(
+            Enumerable.Range(0, 64).Where(static index => index % 2 != 0).Select(index => $"element-{index}"),
+            state.Queues["queue"].Select(static element => element.Id));
+        Assert.DoesNotContain(state.Queues["queue"], static element => element.Value.Span[0] == 255);
+    }
+
+    [Fact]
+    public async Task Pop_response_reuses_the_full_queue_payload_buffer_without_a_replica_side_copy()
+    {
+        var state = NewState();
+        var push = Operation(SlimDataBatchOperationKind.ListLeftPush, "push", "queue");
+        push.ElementId = "element";
+        push.Value = new byte[256 * 1024];
+        push.RetryTimeoutSeconds = 30;
+        var pop = Operation(SlimDataBatchOperationKind.ListRightPop, "pop", "queue");
+        pop.TransactionId = "transaction";
+        pop.Count = 1;
+        pop.NowTicks = 2;
+
+        SlimDataCommandBatchResponse response = await ApplyAsync(state, NewRequest(push, pop));
+
+        Assert.True(MemoryMarshal.TryGetArray(
+            state.Queues["queue"][0].Value,
+            out ArraySegment<byte> stored));
+        Assert.Same(stored.Array, Assert.Single(response.Results[1].QueueItems!).Data);
+    }
+
+    [Fact]
     public async Task Retried_composite_batch_returns_cached_response_without_incrementing_twice()
     {
         var state = NewState();
@@ -128,6 +189,24 @@ public sealed class SlimDataCommandBatchTests
                     .Select(static item => (item.Key, Value: Convert.ToHexString(item.Value.Span)))
                     .ToArray());
         }
+    }
+
+    [Theory]
+    [InlineData(SlimDataBatchOperationKind.ListLeftPush, true)]
+    [InlineData(SlimDataBatchOperationKind.ListRightPop, true)]
+    [InlineData(SlimDataBatchOperationKind.ListCallback, true)]
+    [InlineData(SlimDataBatchOperationKind.KeyValue, false)]
+    [InlineData(SlimDataBatchOperationKind.AddHashSet, false)]
+    public void Queue_signal_classifier_only_selects_durable_queue_mutations(
+        SlimDataBatchOperationKind kind,
+        bool expected)
+    {
+        var envelope = new SlimDataRaftBatchEnvelope
+        {
+            Requests = [NewRequest(Operation(kind, "operation", "key"))]
+        };
+
+        Assert.Equal(expected, SlimDataCommandBatchCoordinator.ContainsQueueMutation(envelope));
     }
 
     private static async Task<SlimDataCommandBatchResponse> ApplyAsync(

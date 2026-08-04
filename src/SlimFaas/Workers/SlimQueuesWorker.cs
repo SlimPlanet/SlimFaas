@@ -1,4 +1,6 @@
-﻿using MemoryPack;
+using System.Collections.Concurrent;
+using System.Threading.Channels;
+using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimData.ClusterFiles;
@@ -6,263 +8,250 @@ using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
+using SlimFaas.Workers;
 
 namespace SlimFaas;
 
-internal record struct RequestToWait(
-    Task<HttpResponseMessage> Task,
+internal sealed record TrackedHttpRequest(
+    long Generation,
+    string FunctionName,
     CustomRequest CustomRequest,
     string Id,
     string TargetIp,
     Stream? OffloadedStream,
-    CancellationTokenSource Cancellation);
+    CancellationTokenSource Cancellation,
+    IReadOnlySet<int> HttpStatusRetries);
+
+internal readonly record struct CompletedHttpRequest(
+    TrackedHttpRequest Request,
+    int StatusCode,
+    Exception? Error);
 
 internal readonly record struct Awaiting202Request(string Id, string TargetIp);
+
+internal sealed record PreparedHttpMessage(
+    QueueData Message,
+    CustomRequest Request,
+    Stream? OffloadedStream);
 
 public class SlimQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
     IReplicasService replicasService,
     HistoryHttpMemoryService historyHttpService,
     ILogger<SlimQueuesWorker> logger,
-    IServiceProvider serviceProvider,
+    ISendClient sendClient,
     ISlimDataStatus slimDataStatus,
     IMasterService masterService,
     IClusterFileSync fileSync,
     IDatabaseService db,
     IOptions<WorkersOptions> workersOptions,
-    NetworkActivityTracker activityTracker)
+    NetworkActivityTracker activityTracker,
+    SlimDataQueueSignal? queueSignal = null)
     : BackgroundService
 {
-
     public const string SlimfaasElementId = "SlimFaas-Element-Id";
     public const string SlimfaasTryNumber = "SlimFaas-Try-Number";
     public const string SlimfaasLastTry = "Slimfaas-Last-Try";
     private const int OffloadedBodyUnavailableStatusCode = 500;
-    private readonly int _delay = workersOptions.Value.QueuesDelayMilliseconds;
+    private const int MaximumConcurrentOffloadPreparations = 32;
+    private const int MaximumOffloadCleanupBatchSize = 32;
+
+    private readonly int _maximumIdleWaitMilliseconds = workersOptions.Value.QueuesDelayMilliseconds;
+    private readonly SlimDataQueueSignal _queueSignal = queueSignal ?? new SlimDataQueueSignal();
+    private readonly long _initialSignalVersion = queueSignal?.Version ?? 0;
+    private readonly ConcurrentQueue<CompletedHttpRequest> _completedRequests = new();
+    private readonly Channel<string> _terminalOffloadCleanup = Channel.CreateUnbounded<string>(
+        new UnboundedChannelOptions
+        {
+            SingleReader = true,
+            SingleWriter = true,
+            AllowSynchronousContinuations = false
+        });
+    private long _trackingGeneration;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await slimDataStatus.WaitForReadyAsync();
-        Dictionary<string, IList<RequestToWait>> processingTasks = new();
-        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks = new();
-        Dictionary<string, int> setTickLastCallCounterDictionary = new();
+        long observedSignalVersion = _initialSignalVersion;
+        await slimDataStatus.WaitForReadyAsync().ConfigureAwait(false);
+        var processingRequests = new Dictionary<string, Dictionary<string, TrackedHttpRequest>>(StringComparer.Ordinal);
+        var awaiting202Requests = new Dictionary<string, List<Awaiting202Request>>(StringComparer.Ordinal);
+        var lastCallCounters = new Dictionary<string, int>(StringComparer.Ordinal);
+        Task cleanupTask = RunTerminalOffloadCleanupAsync(stoppingToken);
         try
         {
-            while (stoppingToken.IsCancellationRequested == false)
+            while (!stoppingToken.IsCancellationRequested)
             {
-                await DoOneCycle(stoppingToken, setTickLastCallCounterDictionary, processingTasks, awaiting202Tasks);
+                long previousVersion = observedSignalVersion;
+                observedSignalVersion = await _queueSignal.WaitForChangeAsync(
+                    observedSignalVersion,
+                    TimeSpan.FromMilliseconds(_maximumIdleWaitMilliseconds),
+                    stoppingToken).ConfigureAwait(false);
+                AsyncQueueTelemetry.RecordWake(
+                    "http",
+                    observedSignalVersion == previousVersion
+                        ? "fallback"
+                        : _completedRequests.IsEmpty ? "mutation" : "completion");
+                using IDisposable cycle = AsyncQueueTelemetry.MeasureCycle("http");
+                await DoOneCycleAsync(
+                    lastCallCounters,
+                    processingRequests,
+                    awaiting202Requests,
+                    stoppingToken).ConfigureAwait(false);
             }
         }
         finally
         {
-            ClearLocalTracking(processingTasks, awaiting202Tasks);
+            ClearLocalTracking(processingRequests, awaiting202Requests);
+            _terminalOffloadCleanup.Writer.TryComplete();
+            await cleanupTask.ConfigureAwait(false);
         }
     }
 
-    private async Task DoOneCycle(CancellationToken stoppingToken,
-        Dictionary<string, int> setTickLastCallCounterDictionary,
-        Dictionary<string, IList<RequestToWait>> processingTasks,
-        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks)
+    private async Task DoOneCycleAsync(
+        Dictionary<string, int> lastCallCounters,
+        Dictionary<string, Dictionary<string, TrackedHttpRequest>> processingRequests,
+        Dictionary<string, List<Awaiting202Request>> awaiting202Requests,
+        CancellationToken stoppingToken)
     {
         try
         {
-            await Task.Delay(_delay, stoppingToken);
             if (!masterService.IsMaster)
             {
-                ClearLocalTracking(processingTasks, awaiting202Tasks);
+                ClearLocalTracking(processingRequests, awaiting202Requests);
                 return;
             }
+
+            await DrainCompletedRequestsAsync(processingRequests, awaiting202Requests).ConfigureAwait(false);
             DeploymentsInformations deployments = replicasService.Deployments;
-            IList<DeploymentInformation> functions = deployments.Functions;
-            foreach (DeploymentInformation function in functions)
+            foreach (DeploymentInformation function in deployments.Functions)
             {
-                string functionDeployment = function.Deployment;
-                setTickLastCallCounterDictionary.TryAdd(functionDeployment, 0);
-                await ManageAwaiting202TasksAsync(awaiting202Tasks, functionDeployment);
-                int numberProcessingTasks = await ManageProcessingTasksAsync(slimFaasQueue, processingTasks, awaiting202Tasks, functionDeployment);
+                string functionName = function.Deployment;
+                Dictionary<string, TrackedHttpRequest> active = GetOrAdd(processingRequests, functionName);
+                List<Awaiting202Request> awaiting202 = GetOrAdd(awaiting202Requests, functionName);
+                lastCallCounters.TryAdd(functionName, 0);
 
-                var numberPodsReady = function.Pods?.Count(p  => p.Ready.HasValue && p.Ready.Value && !string.IsNullOrEmpty(p.Ip)) ?? 1;
-
-                int numberMaxProcessingTasks = Math.Min(function.NumberParallelRequest, numberPodsReady * function.NumberParallelRequestPerPod);
-                int numberLimitProcessingTasks = numberMaxProcessingTasks - numberProcessingTasks;
-                setTickLastCallCounterDictionary[functionDeployment]++;
-                int functionReplicas = function.Replicas;
-                long queueLength = await UpdateTickLastCallIfRequestStillInProgress(
-                    functionReplicas,
-                    setTickLastCallCounterDictionary,
-                    functionDeployment,
-                    numberProcessingTasks,
-                    numberLimitProcessingTasks);
-
-                if (functionReplicas == 0 || queueLength <= 0)
+                QueueDispatchState queueState;
+                using (AsyncQueueTelemetry.MeasureSnapshot("http"))
                 {
-                    continue;
+                    queueState = await slimFaasQueue
+                        .GetDispatchStateAsync(functionName)
+                        .ConfigureAwait(false);
                 }
+                CompleteAwaiting202(functionName, awaiting202, queueState.RunningReservations);
 
-                bool? isAnyContainerStarted = function.Pods?.Any(p => p.Ready.HasValue && p.Ready.Value);
-                if (!isAnyContainerStarted.HasValue || !isAnyContainerStarted.Value || !function.EndpointReady)
-                {
+                int readyPods = function.Pods?.Count(pod =>
+                    pod.Ready == true && !string.IsNullOrEmpty(pod.Ip)) ?? 1;
+                int maximumParallelism = Math.Min(
+                    function.NumberParallelRequest,
+                    readyPods * function.NumberParallelRequestPerPod);
+                int availableSlots = Math.Max(0, maximumParallelism - active.Count);
+                UpdateLastCallIfWorkRemains(
+                    function.Replicas,
+                    lastCallCounters,
+                    functionName,
+                    active.Count,
+                    queueState.TotalPending);
+
+                if (function.Replicas == 0 || queueState.Available <= 0 || availableSlots <= 0)
                     continue;
-                }
-
-                if (numberProcessingTasks >= numberMaxProcessingTasks)
-                {
+                bool hasReadyContainer = function.Pods?.Any(pod => pod.Ready == true) == true;
+                if (!hasReadyContainer || !function.EndpointReady)
                     continue;
-                }
 
-                await SendHttpRequestToFunction(processingTasks, numberLimitProcessingTasks,
-                    function);
+                await DispatchRequestsAsync(
+                    active,
+                    Math.Min(availableSlots, queueState.Available),
+                    queueState.RunningReservations,
+                    function,
+                    stoppingToken).ConfigureAwait(false);
             }
         }
-        catch (Exception e)
+        catch (Exception exception)
         {
-            logger.LogError(e, "Global Error in SlimFaas Worker");
+            logger.LogError(exception, "Global Error in SlimFaas Worker");
         }
     }
 
-    private async Task SendHttpRequestToFunction(Dictionary<string, IList<RequestToWait>> processingTasks,
-        int numberLimitProcessingTasks,
-        DeploymentInformation function)
+    private async Task DispatchRequestsAsync(
+        Dictionary<string, TrackedHttpRequest> active,
+        int maximumMessages,
+        IReadOnlyList<QueueRunningReservation> runningReservations,
+        DeploymentInformation function,
+        CancellationToken stoppingToken)
     {
-        string functionDeployment = function.Deployment;
-        var proxy = new Proxy(replicasService, functionDeployment);
-
-        // Récupère l'état des éléments "Running" depuis la base : leurs IPs réservées
-        // représentent la charge actuelle par pod (source de vérité partagée).
-        var runningElements = await slimFaasQueue.ListElementsAsync(functionDeployment, [CountType.Running]);
-        var alreadyUsedIps = runningElements
-            .Select(r => r.ReservedIp)
+        string functionName = function.Deployment;
+        var proxy = new Proxy(replicasService, functionName);
+        string[] alreadyUsedIps = runningReservations
+            .Select(reservation => reservation.ReservedIp)
             .Where(ip => !string.IsNullOrWhiteSpace(ip))
-            .ToList();
-
-        var reservedIps = proxy.ReserveNextIPs(function.NumberParallelRequestPerPod, numberLimitProcessingTasks, alreadyUsedIps);
+            .ToArray();
+        IList<string> reservedIps = proxy.ReserveNextIPs(
+            function.NumberParallelRequestPerPod,
+            maximumMessages,
+            alreadyUsedIps);
         if (reservedIps.Count == 0)
         {
-            logger.LogDebug("All pods saturated for {FunctionDeployment}, skipping dequeue", functionDeployment);
+            logger.LogDebug("All pods saturated for {FunctionDeployment}, skipping dequeue", functionName);
             return;
         }
 
-        var jsons = await slimFaasQueue.DequeueAsync(functionDeployment, reservedIps.Count, reservedIps);
-
-        if (jsons == null)
+        IList<QueueData>? messages;
+        using (AsyncQueueTelemetry.MeasureDequeue("http"))
         {
-            return;
+            messages = await slimFaasQueue
+                .DequeueAsync(functionName, reservedIps.Count, reservedIps)
+                .ConfigureAwait(false);
         }
+        if (messages is null || messages.Count == 0)
+            return;
 
-        for (var i = 0; i < jsons.Count; i++)
+        PreparedHttpMessage?[] preparedMessages = await PrepareMessagesAsync(
+            functionName,
+            messages,
+            stoppingToken).ConfigureAwait(false);
+        for (var index = 0; index < preparedMessages.Length; index++)
         {
-            var requestJson = jsons[i];
-            CustomRequest customRequest = MemoryPackSerializer.Deserialize<CustomRequest>(requestJson.Data);
+            PreparedHttpMessage? prepared = preparedMessages[index];
+            if (prepared is null)
+                continue;
+            QueueData message = prepared.Message;
+            CustomRequest customRequest = prepared.Request;
+            logger.LogDebug(
+                "{CustomRequestMethod}: {CustomRequestPath}{CustomRequestQuery} Sending",
+                customRequest.Method,
+                customRequest.Path,
+                customRequest.Query);
+            Stream? offloadedStream = prepared.OffloadedStream;
 
-            logger.LogDebug("{CustomRequestMethod}: {CustomRequestPath}{CustomRequestQuery} Sending",
-                customRequest.Method, customRequest.Path, customRequest.Query);
-
-            Stream? offloadedStream = null;
-            if (!string.IsNullOrEmpty(customRequest.OffloadedFileId))
-            {
-                try
-                {
-                    var metaKey = DataFileKeys.MetaKey(customRequest.OffloadedFileId);
-                    var metaBytes = await db.GetAsync(metaKey);
-                    if (metaBytes is null || metaBytes.Length == 0)
-                    {
-                        await MarkOffloadedBodyUnavailableAsync(
-                            functionDeployment,
-                            requestJson.Id,
-                            customRequest.OffloadedFileId,
-                            "metadata not found");
-                        continue;
-                    }
-
-                    var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(metaBytes);
-                    if (meta is null || string.IsNullOrWhiteSpace(meta.Sha256Hex))
-                    {
-                        await MarkOffloadedBodyUnavailableAsync(
-                            functionDeployment,
-                            requestJson.Id,
-                            customRequest.OffloadedFileId,
-                            "metadata invalid");
-                        continue;
-                    }
-
-                    if(logger.IsEnabled(LogLevel.Debug))
-                    {
-                        logger.LogDebug(
-                            "Loaded offloaded metadata. MetaKey={MetaKey} Tags={Tags}",
-                            metaKey,
-                            FormatTags(meta.Tags));
-                    }
-
-                    var pulled = await fileSync.PullFileIfMissingAsync(
-                        customRequest.OffloadedFileId,
-                        meta.Sha256Hex,
-                        null,
-                        CancellationToken.None);
-                    offloadedStream = pulled.Stream;
-                    if (offloadedStream is null)
-                    {
-                        await MarkOffloadedBodyUnavailableAsync(
-                            functionDeployment,
-                            requestJson.Id,
-                            customRequest.OffloadedFileId,
-                            "file not found in cluster");
-                        continue;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    logger.LogWarning(
-                        ex,
-                        "Unable to load offloaded body for id={FileId}. QueueElementId={QueueElementId}; reporting HTTP 500 to the queue",
-                        customRequest.OffloadedFileId,
-                        requestJson.Id);
-                    await slimFaasQueue.ListCallbackAsync(
-                        functionDeployment,
-                        new ListQueueItemStatus
-                        {
-                            Items = [new QueueItemStatus(requestJson.Id, OffloadedBodyUnavailableStatusCode)]
-                        });
-                    continue;
-                }
-            }
-            else
-            {
-                logger.LogDebug("{RequestJson}", requestJson);
-            }
-
-            historyHttpService.SetTickLastCall(functionDeployment, DateTime.UtcNow.Ticks);
-            using IServiceScope scope = serviceProvider.CreateScope();
-            var slimfaasDefaultConfiguration = new SlimFaasDefaultConfiguration()
+            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+            var configuration = new SlimFaasDefaultConfiguration
             {
                 HttpTimeout = function.Configuration.DefaultAsync.HttpTimeout,
                 TimeoutRetries = [],
                 HttpStatusRetries = []
             };
-            List<CustomHeader> customRequestHeaders = customRequest.Headers;
-            customRequestHeaders.Add(new CustomHeader(SlimfaasElementId, [requestJson.Id]));
-            customRequestHeaders.Add(new CustomHeader(SlimfaasLastTry, [requestJson.IsLastTry.ToString().ToLowerInvariant()]));
-            customRequestHeaders.Add(new CustomHeader(SlimfaasTryNumber, [requestJson.TryNumber.ToString()]));
-            var reservedIp = !string.IsNullOrWhiteSpace(requestJson.ReservedIp)
-                ? requestJson.ReservedIp
-                : (i < reservedIps.Count ? reservedIps[i] : string.Empty);
-
-            string targetIp = reservedIp;
-
+            customRequest.Headers.Add(new CustomHeader(SlimfaasElementId, [message.Id]));
+            customRequest.Headers.Add(new CustomHeader(
+                SlimfaasLastTry,
+                [message.IsLastTry.ToString().ToLowerInvariant()]));
+            customRequest.Headers.Add(new CustomHeader(SlimfaasTryNumber, [message.TryNumber.ToString()]));
+            string reservedIp = !string.IsNullOrWhiteSpace(message.ReservedIp)
+                ? message.ReservedIp
+                : index < reservedIps.Count ? reservedIps[index] : string.Empty;
             var requestCancellation = new CancellationTokenSource();
-            Task<HttpResponseMessage> taskResponse;
+            Task<HttpResponseMessage> responseTask;
             try
             {
-                taskResponse = scope.ServiceProvider.GetRequiredService<ISendClient>()
-                    .SendHttpRequestAsync(
-                        customRequest,
-                        slimfaasDefaultConfiguration,
-                        null,
-                        requestCancellation,
-                        proxy,
-                        reservedIp,
-                        functionDeployment,
-                        null,
-                        offloadedStream);
+                responseTask = sendClient.SendHttpRequestAsync(
+                    customRequest,
+                    configuration,
+                    null,
+                    requestCancellation,
+                    proxy,
+                    reservedIp,
+                    functionName,
+                    null,
+                    offloadedStream);
             }
             catch
             {
@@ -272,20 +261,354 @@ public class SlimQueuesWorker(
                 throw;
             }
 
-            processingTasks[functionDeployment].Add(
-                new RequestToWait(
-                    taskResponse,
-                    customRequest,
-                    requestJson.Id,
-                    targetIp,
-                    offloadedStream,
-                    requestCancellation));
-            activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, functionDeployment, targetPod: targetIp);
+            var tracked = new TrackedHttpRequest(
+                Volatile.Read(ref _trackingGeneration),
+                functionName,
+                customRequest,
+                message.Id,
+                reservedIp,
+                offloadedStream,
+                requestCancellation,
+                function.Configuration.DefaultAsync.HttpStatusRetries.ToHashSet());
+            active[message.Id] = tracked;
+            _ = ObserveCompletionAsync(responseTask, tracked);
+            activityTracker.Record(
+                NetworkActivityTracker.EventTypes.Dequeue,
+                NetworkActivityTracker.Actors.SlimFaas,
+                functionName,
+                functionName,
+                targetPod: reservedIp);
         }
     }
 
+    private async Task<PreparedHttpMessage?[]> PrepareMessagesAsync(
+        string functionName,
+        IList<QueueData> messages,
+        CancellationToken cancellationToken)
+    {
+        var prepared = new PreparedHttpMessage?[messages.Count];
+        var offloadedIndexes = new List<int>();
+        for (var index = 0; index < messages.Count; index++)
+        {
+            QueueData message = messages[index];
+            CustomRequest request;
+            try
+            {
+                request = MemoryPackSerializer.Deserialize<CustomRequest>(message.Data);
+            }
+            catch (Exception exception)
+            {
+                logger.LogWarning(
+                    exception,
+                    "Unable to deserialize async request. FunctionName={FunctionName} QueueElementId={QueueElementId}",
+                    functionName,
+                    message.Id);
+                await slimFaasQueue.ListCallbackAsync(
+                    functionName,
+                    new ListQueueItemStatus
+                    {
+                        Items = [new QueueItemStatus(message.Id, StatusCodes.Status500InternalServerError)]
+                    }).ConfigureAwait(false);
+                continue;
+            }
+
+            prepared[index] = new PreparedHttpMessage(message, request, null);
+            if (!string.IsNullOrEmpty(request.OffloadedFileId))
+                offloadedIndexes.Add(index);
+        }
+
+        if (offloadedIndexes.Count == 0)
+            return prepared;
+
+        try
+        {
+            await Parallel.ForEachAsync(
+                offloadedIndexes,
+                new ParallelOptions
+                {
+                    CancellationToken = cancellationToken,
+                    MaxDegreeOfParallelism = MaximumConcurrentOffloadPreparations
+                },
+                async (index, token) =>
+                {
+                    PreparedHttpMessage message = prepared[index]!;
+                    Stream? stream = await OpenOffloadedBodyAsync(
+                        functionName,
+                        message.Message.Id,
+                        message.Request,
+                        token).ConfigureAwait(false);
+                    prepared[index] = stream is null
+                        ? null
+                        : message with { OffloadedStream = stream };
+                }).ConfigureAwait(false);
+        }
+        catch
+        {
+            foreach (PreparedHttpMessage message in prepared.OfType<PreparedHttpMessage>())
+            {
+                if (message.OffloadedStream is not null)
+                    await message.OffloadedStream.DisposeAsync().ConfigureAwait(false);
+            }
+            throw;
+        }
+
+        // Preparation may complete out of order, but dispatch below consumes this indexed
+        // array in the original dequeue order and therefore preserves FIFO delivery order.
+        return prepared;
+    }
+
+    private async Task<Stream?> OpenOffloadedBodyAsync(
+        string functionName,
+        string queueElementId,
+        CustomRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(request.OffloadedFileId))
+            return null;
+
+        try
+        {
+            string metadataKey = DataFileKeys.MetaKey(request.OffloadedFileId);
+            byte[]? metadataBytes = await db.GetAsync(metadataKey).ConfigureAwait(false);
+            if (metadataBytes is null || metadataBytes.Length == 0)
+            {
+                await MarkOffloadedBodyUnavailableAsync(
+                    functionName, queueElementId, request.OffloadedFileId, "metadata not found").ConfigureAwait(false);
+                return null;
+            }
+
+            DataSetMetadata? metadata = MemoryPackSerializer.Deserialize<DataSetMetadata>(metadataBytes);
+            if (metadata is null || string.IsNullOrWhiteSpace(metadata.Sha256Hex))
+            {
+                await MarkOffloadedBodyUnavailableAsync(
+                    functionName, queueElementId, request.OffloadedFileId, "metadata invalid").ConfigureAwait(false);
+                return null;
+            }
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug(
+                    "Loaded offloaded metadata. MetaKey={MetaKey} Tags={Tags}",
+                    metadataKey,
+                    FormatTags(metadata.Tags));
+            }
+
+            FilePullResult pulled = await fileSync.PullFileIfMissingAsync(
+                request.OffloadedFileId,
+                metadata.Sha256Hex,
+                null,
+                cancellationToken).ConfigureAwait(false);
+            if (pulled.Stream is null)
+            {
+                await MarkOffloadedBodyUnavailableAsync(
+                    functionName, queueElementId, request.OffloadedFileId, "file not found in cluster").ConfigureAwait(false);
+            }
+            return pulled.Stream;
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Unable to load offloaded body for id={FileId}. QueueElementId={QueueElementId}; reporting HTTP 500 to the queue",
+                request.OffloadedFileId,
+                queueElementId);
+            await slimFaasQueue.ListCallbackAsync(
+                functionName,
+                new ListQueueItemStatus
+                {
+                    Items = [new QueueItemStatus(queueElementId, OffloadedBodyUnavailableStatusCode)]
+                }).ConfigureAwait(false);
+            return null;
+        }
+    }
+
+    private async Task ObserveCompletionAsync(
+        Task<HttpResponseMessage> responseTask,
+        TrackedHttpRequest request)
+    {
+        var statusCode = 500;
+        Exception? error = null;
+        try
+        {
+            using HttpResponseMessage response = await responseTask.ConfigureAwait(false);
+            statusCode = (int)response.StatusCode;
+        }
+        catch (Exception exception)
+        {
+            error = exception;
+        }
+        finally
+        {
+            try
+            {
+                if (request.OffloadedStream is not null)
+                    await request.OffloadedStream.DisposeAsync().ConfigureAwait(false);
+            }
+            finally
+            {
+                request.Cancellation.Dispose();
+            }
+        }
+
+        _completedRequests.Enqueue(new CompletedHttpRequest(request, statusCode, error));
+        _queueSignal.Pulse();
+    }
+
+    private async Task DrainCompletedRequestsAsync(
+        Dictionary<string, Dictionary<string, TrackedHttpRequest>> processingRequests,
+        Dictionary<string, List<Awaiting202Request>> awaiting202Requests)
+    {
+        long generation = Volatile.Read(ref _trackingGeneration);
+        var callbacks = new Dictionary<string, List<QueueItemStatus>>(StringComparer.Ordinal);
+        var terminalOffloads = new List<string>();
+        while (_completedRequests.TryDequeue(out CompletedHttpRequest completed))
+        {
+            TrackedHttpRequest request = completed.Request;
+            if (processingRequests.TryGetValue(request.FunctionName, out var active))
+                active.Remove(request.Id);
+            if (request.Generation != generation)
+                continue;
+
+            historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
+            if (completed.Error is not null)
+            {
+                logger.LogWarning(
+                    completed.Error,
+                    "Async request failed for {FunctionName}/{ElementId}",
+                    request.FunctionName,
+                    request.Id);
+            }
+            else
+            {
+                logger.LogDebug(
+                    "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",
+                    request.CustomRequest.Method,
+                    request.CustomRequest.Path,
+                    request.CustomRequest.Query,
+                    completed.StatusCode);
+            }
+
+            if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
+            {
+                GetOrAdd(awaiting202Requests, request.FunctionName)
+                    .Add(new Awaiting202Request(request.Id, request.TargetIp));
+                continue;
+            }
+
+            activityTracker.Record(
+                NetworkActivityTracker.EventTypes.RequestEnd,
+                request.FunctionName,
+                NetworkActivityTracker.Actors.SlimFaas,
+                request.FunctionName,
+                targetPod: request.TargetIp);
+            if (!callbacks.TryGetValue(request.FunctionName, out List<QueueItemStatus>? statuses))
+            {
+                statuses = [];
+                callbacks.Add(request.FunctionName, statuses);
+            }
+            statuses.Add(new QueueItemStatus(request.Id, completed.StatusCode));
+            if (!string.IsNullOrEmpty(request.CustomRequest.OffloadedFileId) &&
+                !request.HttpStatusRetries.Contains(completed.StatusCode))
+            {
+                terminalOffloads.Add(request.CustomRequest.OffloadedFileId);
+            }
+        }
+
+        foreach ((string functionName, List<QueueItemStatus> statuses) in callbacks)
+        {
+            await slimFaasQueue.ListCallbackAsync(
+                functionName,
+                new ListQueueItemStatus { Items = statuses }).ConfigureAwait(false);
+        }
+
+        if (terminalOffloads.Count > 0)
+        {
+            foreach (string fileId in terminalOffloads.Distinct(StringComparer.Ordinal))
+                _terminalOffloadCleanup.Writer.TryWrite(fileId);
+        }
+    }
+
+    private async Task RunTerminalOffloadCleanupAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await foreach (string first in _terminalOffloadCleanup.Reader.ReadAllAsync(stoppingToken))
+            {
+                var fileIds = new HashSet<string>(StringComparer.Ordinal) { first };
+                while (fileIds.Count < MaximumOffloadCleanupBatchSize &&
+                       _terminalOffloadCleanup.Reader.TryRead(out string? fileId))
+                {
+                    fileIds.Add(fileId);
+                }
+                await Task.WhenAll(fileIds.Select(CleanupTerminalOffloadAsync)).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+    }
+
+    private async Task CleanupTerminalOffloadAsync(string fileId)
+    {
+        try
+        {
+            // The callback was committed first, so this dispatching replica can release its
+            // local file without racing a retry. Raft metadata and remote copies are left to
+            // the convergent orphan cleaner; deleting them here would put cleanup mutations
+            // ahead of new queue writes in the strict global FIFO.
+            await fileSync.BroadcastFileDeleteAsync(fileId, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(
+                exception,
+                "Unable to clean terminal async offload. FileId={FileId}",
+                fileId);
+        }
+    }
+
+    private void CompleteAwaiting202(
+        string functionName,
+        List<Awaiting202Request> pending,
+        IReadOnlyList<QueueRunningReservation> runningReservations)
+    {
+        if (pending.Count == 0)
+            return;
+        var runningIds = runningReservations
+            .Select(reservation => reservation.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        for (var index = pending.Count - 1; index >= 0; index--)
+        {
+            Awaiting202Request item = pending[index];
+            if (runningIds.Contains(item.Id))
+                continue;
+            pending.RemoveAt(index);
+            activityTracker.Record(
+                NetworkActivityTracker.EventTypes.RequestEnd,
+                functionName,
+                NetworkActivityTracker.Actors.SlimFaas,
+                functionName,
+                targetPod: item.TargetIp);
+        }
+    }
+
+    private void UpdateLastCallIfWorkRemains(
+        int functionReplicas,
+        Dictionary<string, int> counters,
+        string functionName,
+        int activeRequests,
+        int queueLength)
+    {
+        int counterLimit = functionReplicas == 0 ? 10 : 40;
+        counters[functionName]++;
+        if (counters[functionName] <= counterLimit)
+            return;
+        counters[functionName] = 0;
+        if (queueLength > 0 || activeRequests > 0)
+            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+    }
+
     private async Task MarkOffloadedBodyUnavailableAsync(
-        string functionDeployment,
+        string functionName,
         string queueElementId,
         string fileId,
         string reason)
@@ -296,226 +619,64 @@ public class SlimQueuesWorker(
             reason,
             queueElementId);
         await slimFaasQueue.ListCallbackAsync(
-            functionDeployment,
+            functionName,
             new ListQueueItemStatus
             {
                 Items = [new QueueItemStatus(queueElementId, OffloadedBodyUnavailableStatusCode)]
-            });
+            }).ConfigureAwait(false);
     }
 
-    private object? FormatTags(IDictionary<string, string>? metaTags)
+    private static object? FormatTags(IDictionary<string, string>? tags) =>
+        tags is null || tags.Count == 0
+            ? null
+            : string.Join(", ", tags.Select(pair => $"{pair.Key}={pair.Value}"));
+
+    private void ClearLocalTracking(
+        Dictionary<string, Dictionary<string, TrackedHttpRequest>> processingRequests,
+        Dictionary<string, List<Awaiting202Request>> awaiting202Requests)
     {
-        if (metaTags == null || metaTags.Count == 0)
-            return null;
-
-        return string.Join(", ", metaTags.Select(kv => $"{kv.Key}={kv.Value}"));
-    }
-
-    private async Task<long> UpdateTickLastCallIfRequestStillInProgress(int? functionReplicas,
-        Dictionary<string, int> setTickLastCallCounterDictionnary,
-        string functionDeployment,
-        int numberProcessingTasks,
-        int numberLimitProcessingTasks)
-    {
-            int counterLimit = functionReplicas == 0 ? 10 : 40;
-            long queueLength = await slimFaasQueue.CountElementAsync(functionDeployment, new List<CountType>()
-            {
-                CountType.Available,
-                CountType.Running,
-                CountType.WaitingForRetry
-            } );
-            if (setTickLastCallCounterDictionnary[functionDeployment] > counterLimit)
-            {
-                setTickLastCallCounterDictionnary[functionDeployment] = 0;
-
-                if (queueLength > 0 || numberProcessingTasks > 0)
-                {
-                    historyHttpService.SetTickLastCall(functionDeployment, DateTime.UtcNow.Ticks);
-                }
-            }
-
-            if (queueLength == 0)
-            {
-                return 0;
-            }
-
-            return await slimFaasQueue.CountElementAsync(functionDeployment,  new List<CountType>() { CountType.Available }, numberLimitProcessingTasks);
-    }
-
-    private async Task<int> ManageProcessingTasksAsync(ISlimFaasQueue slimFaasQueue,
-        Dictionary<string, IList<RequestToWait>> processingTasks,
-        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks,
-        string functionDeployment)
-    {
-        if (processingTasks.ContainsKey(functionDeployment) == false)
-        {
-            processingTasks.Add(functionDeployment, new List<RequestToWait>());
-        }
-        if (awaiting202Tasks.ContainsKey(functionDeployment) == false)
-        {
-            awaiting202Tasks.Add(functionDeployment, new List<Awaiting202Request>());
-        }
-        var listQueueItemStatus = new ListQueueItemStatus();
-        var queueItemStatusList = new List<QueueItemStatus>();
-        listQueueItemStatus.Items = queueItemStatusList;
-        List<RequestToWait> completedRequests = new();
-        IList<RequestToWait> requestToWaits = processingTasks[functionDeployment];
-        foreach (RequestToWait processing in requestToWaits)
-        {
-            if (!processing.Task.IsCompleted)
-            {
-                continue;
-            }
-
-            try
-            {
-                historyHttpService.SetTickLastCall(functionDeployment, DateTime.UtcNow.Ticks);
-
-                using HttpResponseMessage httpResponseMessage = await processing.Task;
-                var statusCode = (int)httpResponseMessage.StatusCode;
-                logger.LogDebug(
-                    "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",
-                    processing.CustomRequest.Method, processing.CustomRequest.Path, processing.CustomRequest.Query,
-                    httpResponseMessage.StatusCode);
-
-                if (statusCode == 202)
-                {
-                    awaiting202Tasks[functionDeployment].Add(
-                        new Awaiting202Request(processing.Id, processing.TargetIp));
-                }
-                else
-                {
-                    activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment,
-                        targetPod: processing.TargetIp);
-                    queueItemStatusList.Add(new QueueItemStatus(processing.Id, statusCode));
-                }
-            }
-            catch (Exception e)
-            {
-                queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
-                activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment, targetPod: processing.TargetIp);
-                logger.LogWarning("Request Error: {Message} {StackTrace}", e.Message, e.StackTrace);
-            }
-            finally
-            {
-                completedRequests.Add(processing);
-                await DisposeRequestResourcesAsync(processing).ConfigureAwait(false);
-            }
-        }
-
-        if (listQueueItemStatus.Items.Count > 0)
-        {
-            await slimFaasQueue.ListCallbackAsync(functionDeployment, listQueueItemStatus);
-        }
-
-        foreach (RequestToWait completed in completedRequests)
-        {
-            requestToWaits.Remove(completed);
-        }
-
-        int numberProcessingTasks = requestToWaits.Count;
-        return numberProcessingTasks;
-    }
-
-    private async Task ManageAwaiting202TasksAsync(
-        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks,
-        string functionDeployment)
-    {
-        if (!awaiting202Tasks.ContainsKey(functionDeployment))
-        {
-            awaiting202Tasks[functionDeployment] = new List<Awaiting202Request>();
-        }
-
-        IList<Awaiting202Request> pending = awaiting202Tasks[functionDeployment];
-        if (pending.Count == 0)
+        if (processingRequests.Values.All(active => active.Count == 0) &&
+            awaiting202Requests.Values.All(pending => pending.Count == 0))
         {
             return;
         }
 
-        var running = await slimFaasQueue.ListElementsAsync(functionDeployment, [CountType.Running]);
-        var runningByElementId = running.Select(r => r.Id).ToHashSet(StringComparer.Ordinal);
-        List<Awaiting202Request> completed = new();
-
-        foreach (var item in pending)
+        Interlocked.Increment(ref _trackingGeneration);
+        foreach (Dictionary<string, TrackedHttpRequest> active in processingRequests.Values)
         {
-            if (runningByElementId.Contains(item.Id))
-            {
-                continue;
-            }
-
-            completed.Add(item);
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, functionDeployment, NetworkActivityTracker.Actors.SlimFaas, functionDeployment,
-                targetPod: item.TargetIp);
-        }
-
-        foreach (var item in completed)
-        {
-            pending.Remove(item);
-        }
-    }
-
-    private void ClearLocalTracking(
-        Dictionary<string, IList<RequestToWait>> processingTasks,
-        Dictionary<string, IList<Awaiting202Request>> awaiting202Tasks)
-    {
-        foreach (var kv in processingTasks)
-        {
-            foreach (var request in kv.Value)
+            foreach (TrackedHttpRequest request in active.Values)
             {
                 try
                 {
                     request.Cancellation.Cancel();
                 }
-                catch
+                catch (ObjectDisposedException)
                 {
-                    // Best effort during shutdown or a leadership transition.
                 }
-
                 try
                 {
                     request.OffloadedStream?.Dispose();
                 }
-                catch
+                catch (ObjectDisposedException)
                 {
-                    // Continue releasing the remaining resources.
                 }
-                request.Cancellation.Dispose();
-                _ = ObserveAndDisposeResponseAsync(request.Task);
             }
-
-            kv.Value.Clear();
+            active.Clear();
         }
-
-        foreach (var kv in awaiting202Tasks)
-        {
-
-            kv.Value.Clear();
-        }
+        foreach (List<Awaiting202Request> pending in awaiting202Requests.Values)
+            pending.Clear();
     }
 
-    private static async Task DisposeRequestResourcesAsync(RequestToWait request)
+    private static TValue GetOrAdd<TValue>(
+        IDictionary<string, TValue> dictionary,
+        string key)
+        where TValue : new()
     {
-        try
+        if (!dictionary.TryGetValue(key, out TValue? value))
         {
-            if (request.OffloadedStream is not null)
-                await request.OffloadedStream.DisposeAsync().ConfigureAwait(false);
+            value = new TValue();
+            dictionary.Add(key, value);
         }
-        finally
-        {
-            request.Cancellation.Dispose();
-        }
+        return value;
     }
-
-    private static async Task ObserveAndDisposeResponseAsync(Task<HttpResponseMessage> responseTask)
-    {
-        try
-        {
-            using var response = await responseTask.ConfigureAwait(false);
-        }
-        catch
-        {
-            // Expected after cancellation on shutdown or leadership loss.
-        }
-    }
-
 }

@@ -7,10 +7,22 @@ namespace SlimData.ClusterFiles;
 internal sealed class ClusterFileSyncChannel(ClusterFileAnnounceQueue announceQueue) : IInputChannel
 {
     public bool IsSupported(string messageName, bool oneWay)
-        => oneWay && messageName.StartsWith(FileSyncProtocol.AnnouncePrefix + "|", StringComparison.Ordinal);
+        => oneWay &&
+           (messageName.StartsWith(FileSyncProtocol.AnnouncePrefix + "|", StringComparison.Ordinal) ||
+            messageName.StartsWith(FileSyncProtocol.DeletePrefix + "|", StringComparison.Ordinal));
 
     public Task ReceiveSignal(ISubscriber sender, IMessage signal, object? context, CancellationToken token)
     {
+        if (FileSyncProtocol.TryParseDeleteName(signal.Name, out string deleteIdEncoded))
+        {
+            announceQueue.TryEnqueue(new AnnouncedFile(
+                Base64UrlCodec.Decode(deleteIdEncoded),
+                string.Empty,
+                null,
+                Delete: true));
+            return Task.CompletedTask;
+        }
+
         if (FileSyncProtocol.TryParseAnnounceName(signal.Name, out var idEnc, out var sha, out _, out _, out _))
         {
             var id = Base64UrlCodec.Decode(idEnc);

@@ -23,4 +23,6 @@ public interface IClusterFileSync
         CancellationToken ct);
 
     Task DeleteLocalAsync(string id, CancellationToken ct);
+
+    Task BroadcastFileDeleteAsync(string id, CancellationToken ct) => DeleteLocalAsync(id, ct);
 }

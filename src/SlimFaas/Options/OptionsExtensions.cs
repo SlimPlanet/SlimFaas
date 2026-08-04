@@ -67,6 +67,7 @@ public static class OptionsExtensions
            && Enum.IsDefined(options.BatchMode)
            && options.BatchPartitionCount is >= 2 and <= 16
            && options.LowLoadRequestsPerSecond is >= 0.1d and <= 10_000d
+           && options.QueueMutationMaxWaitMilliseconds is >= 0 and <= 225
            && (options.BatchMode != SlimDataBatchMode.PartitionedByKey ||
                (options.BatchPartitionCount & (options.BatchPartitionCount - 1)) == 0);
 

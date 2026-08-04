@@ -1,6 +1,5 @@
 using System.Net;
 using MemoryPack;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SlimData;
@@ -59,16 +58,6 @@ public class SlimQueuesWorkerOffloadTests
             sendSetup.Returns(responseTask);
         }
 
-        Mock<IServiceProvider> serviceProvider = new();
-        serviceProvider.Setup(x => x.GetService(typeof(ISendClient))).Returns(sendClientMock.Object);
-
-        Mock<IServiceScope> serviceScope = new();
-        serviceScope.Setup(x => x.ServiceProvider).Returns(serviceProvider.Object);
-
-        Mock<IServiceScopeFactory> serviceScopeFactory = new();
-        serviceScopeFactory.Setup(x => x.CreateScope()).Returns(serviceScope.Object);
-        serviceProvider.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactory.Object);
-
         Mock<ISlimDataStatus> slimDataStatus = new();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);
 
@@ -88,7 +77,7 @@ public class SlimQueuesWorkerOffloadTests
             replicasService,
             new HistoryHttpMemoryService(),
             new Mock<ILogger<SlimQueuesWorker>>().Object,
-            serviceProvider.Object,
+            sendClientMock.Object,
             slimDataStatus.Object,
             masterService.Object,
             fileSync,
@@ -102,7 +91,10 @@ public class SlimQueuesWorkerOffloadTests
     // -----------------------------------------------------------------------
     // Helper : crée un IReplicasService minimal avec une fonction "my-func"
     // -----------------------------------------------------------------------
-    private static IReplicasService BuildReplicasService(string functionName = "my-func", string podIp = "192.168.99.1")
+    private static IReplicasService BuildReplicasService(
+        string functionName = "my-func",
+        string podIp = "192.168.99.1",
+        int maximumParallelism = 1)
     {
         Mock<IReplicasService> mock = new();
         mock.Setup(r => r.Deployments).Returns(new DeploymentsInformations(
@@ -111,14 +103,15 @@ public class SlimQueuesWorkerOffloadTests
                 new(Replicas: 1,
                     Deployment: functionName,
                     Namespace: "default",
-                    NumberParallelRequest: 1,
+                    NumberParallelRequest: maximumParallelism,
                     ReplicasMin: 0,
                     ReplicasAtStart: 1,
                     TimeoutSecondBeforeSetReplicasMin: 300,
                     ReplicasStartAsSoonAsOneFunctionRetrieveARequest: true,
                     Configuration: new SlimFaasConfiguration(),
                     Pods: new List<PodInformation> { new("pod-1", true, true, podIp, functionName) },
-                    EndpointReady: true)
+                    EndpointReady: true,
+                    NumberParallelRequestPerPod: maximumParallelism)
             },
             SlimFaas: new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
             Pods: new List<PodInformation>()));
@@ -143,6 +136,9 @@ public class SlimQueuesWorkerOffloadTests
         queueMock
             .Setup(q => q.ListElementsAsync(It.IsAny<string>(), It.IsAny<IList<CountType>>(), It.IsAny<int>()))
             .ReturnsAsync(new List<QueueData>());
+        queueMock
+            .Setup(q => q.GetDispatchStateAsync(functionName))
+            .ReturnsAsync(new QueueDispatchState(1, 0, 0, []));
         return queueMock;
     }
 
@@ -168,11 +164,6 @@ public class SlimQueuesWorkerOffloadTests
         dbMock
             .Setup(d => d.GetAsync(DataFileKeys.MetaKey(fileId)))
             .ReturnsAsync(metaBytes);
-        // DeleteAsync sera appelé après la complétion pour nettoyage
-        dbMock
-            .Setup(d => d.DeleteAsync(It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
-
         // --- fileSync mock : retourne un stream fictif ---
         var fakeFileStream = new TrackingMemoryStream(new byte[2 * 1024 * 1024]);
         Mock<IClusterFileSync> fileSyncMock = new();
@@ -224,6 +215,249 @@ public class SlimQueuesWorkerOffloadTests
             It.IsAny<string?>(),
             It.Is<Stream?>(stream => stream != null)), Times.AtLeastOnce);
         Assert.True(fakeFileStream.Disposed);
+        dbMock.Verify(d => d.DeleteAsync(DataFileKeys.MetaKey(fileId)), Times.Never);
+        fileSyncMock.Verify(
+            f => f.BroadcastFileDeleteAsync(fileId, It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task Retryable_response_keeps_offloaded_body_for_the_next_attempt()
+    {
+        const string functionName = "my-func";
+        const string fileId = "retryable-file";
+        const string sha = "retry-sha";
+        var db = new Mock<IDatabaseService>();
+        db.Setup(service => service.GetAsync(DataFileKeys.MetaKey(fileId)))
+            .ReturnsAsync(MemoryPackSerializer.Serialize(
+                new DataSetMetadata(sha, 10, "application/octet-stream", fileId)));
+        var fileSync = new Mock<IClusterFileSync>();
+        fileSync.Setup(service => service.PullFileIfMissingAsync(
+                fileId, sha, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FilePullResult(new TrackingMemoryStream(new byte[10])));
+        var request = new CustomRequest(
+            [],
+            Body: null,
+            FunctionName: functionName,
+            Path: "/retry",
+            Method: "POST",
+            Query: "",
+            OffloadedFileId: fileId);
+        var queue = BuildQueueMock(
+            functionName,
+            new QueueData("retry-element", MemoryPackSerializer.Serialize(request), 0, false, 0, 0));
+        var (worker, _) = BuildWorker(
+            queue.Object,
+            BuildReplicasService(functionName, "192.168.99.21"),
+            fileSync.Object,
+            db.Object,
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)));
+        using var stopping = new CancellationTokenSource();
+
+        await worker.StartAsync(stopping.Token);
+        await Task.Delay(250);
+        await stopping.CancelAsync();
+        await worker.StopAsync(CancellationToken.None);
+
+        db.Verify(service => service.DeleteAsync(DataFileKeys.MetaKey(fileId)), Times.Never);
+        fileSync.Verify(
+            service => service.BroadcastFileDeleteAsync(fileId, It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task Slow_terminal_offload_cleanup_does_not_block_the_next_dispatch()
+    {
+        const string functionName = "my-func";
+        string[] fileIds = ["cleanup-file-1", "cleanup-file-2"];
+        var metadata = fileIds.ToDictionary(
+            id => DataFileKeys.MetaKey(id),
+            id => MemoryPackSerializer.Serialize(
+                new DataSetMetadata($"sha-{id}", 10, "application/octet-stream", id)));
+        var cleanupStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseCleanup = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var db = new Mock<IDatabaseService>();
+        db.Setup(service => service.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync((string key) => metadata[key]);
+        var fileSync = new Mock<IClusterFileSync>();
+        fileSync.Setup(service => service.PullFileIfMissingAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FilePullResult(new TrackingMemoryStream(new byte[10])));
+        fileSync.Setup(service => service.BroadcastFileDeleteAsync(
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                cleanupStarted.TrySetResult();
+                await releaseCleanup.Task;
+            });
+        QueueData[] messages = fileIds.Select((fileId, index) =>
+        {
+            var request = new CustomRequest(
+                [],
+                Body: null,
+                FunctionName: functionName,
+                Path: $"/cleanup/{index}",
+                Method: "POST",
+                Query: "",
+                OffloadedFileId: fileId);
+            return new QueueData(
+                $"cleanup-element-{index}",
+                MemoryPackSerializer.Serialize(request),
+                0,
+                true,
+                0,
+                0);
+        }).ToArray();
+        var queue = new Mock<ISlimFaasQueue>();
+        var dequeueIndex = 0;
+        queue.Setup(service => service.GetDispatchStateAsync(functionName))
+            .ReturnsAsync(() => new QueueDispatchState(dequeueIndex < messages.Length ? 1 : 0, 0, 0, []));
+        queue.Setup(service => service.DequeueAsync(
+                functionName,
+                It.IsAny<int>(),
+                It.IsAny<IList<string>?>()))
+            .ReturnsAsync(() => dequeueIndex < messages.Length
+                ? [messages[dequeueIndex++]]
+                : []);
+        queue.Setup(service => service.ListCallbackAsync(
+                functionName, It.IsAny<ListQueueItemStatus>()))
+            .Returns(Task.CompletedTask);
+        var (worker, sendClient) = BuildWorker(
+            queue.Object,
+            BuildReplicasService(functionName, "192.168.99.22", maximumParallelism: 1),
+            fileSync.Object,
+            db.Object);
+        var sendCount = 0;
+        var bothSent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        sendClient.Reset();
+        sendClient.Setup(service => service.SendHttpRequestAsync(
+                It.IsAny<CustomRequest>(),
+                It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationTokenSource?>(),
+                It.IsAny<IProxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<Stream?>()))
+            .Returns(() =>
+            {
+                if (Interlocked.Increment(ref sendCount) == messages.Length)
+                    bothSent.TrySetResult();
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            });
+        using var stopping = new CancellationTokenSource();
+
+        await worker.StartAsync(stopping.Token);
+        await cleanupStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await bothSent.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        releaseCleanup.TrySetResult();
+        await stopping.CancelAsync();
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal(2, sendCount);
+    }
+
+    [Fact]
+    public async Task Offloaded_bodies_are_prepared_concurrently_but_dispatched_in_fifo_order()
+    {
+        const string functionName = "my-func";
+        string[] fileIds = ["file-1", "file-2"];
+        var metadata = fileIds.ToDictionary(
+            id => DataFileKeys.MetaKey(id),
+            id => MemoryPackSerializer.Serialize(
+                new DataSetMetadata($"sha-{id}", 10, "application/octet-stream", id)));
+        var db = new Mock<IDatabaseService>();
+        db.Setup(service => service.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync((string key) => metadata[key]);
+        var bothPullsStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releasePulls = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var pullCount = 0;
+        var fileSync = new Mock<IClusterFileSync>();
+        fileSync.Setup(service => service.PullFileIfMissingAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                null,
+                It.IsAny<CancellationToken>()))
+            .Returns(async (string id, string _, string? _, CancellationToken token) =>
+            {
+                if (Interlocked.Increment(ref pullCount) == fileIds.Length)
+                    bothPullsStarted.TrySetResult();
+                await releasePulls.Task.WaitAsync(token);
+                return new FilePullResult(new TrackingMemoryStream(new byte[10]));
+            });
+        QueueData[] messages = fileIds.Select((fileId, index) =>
+        {
+            var request = new CustomRequest(
+                [],
+                Body: null,
+                FunctionName: functionName,
+                Path: $"/process/{index}",
+                Method: "POST",
+                Query: "",
+                OffloadedFileId: fileId);
+            return new QueueData(
+                $"element-{index}",
+                MemoryPackSerializer.Serialize(request),
+                0,
+                true,
+                0,
+                0);
+        }).ToArray();
+        var queue = new Mock<ISlimFaasQueue>();
+        queue.Setup(service => service.GetDispatchStateAsync(functionName))
+            .ReturnsAsync(new QueueDispatchState(messages.Length, 0, 0, []));
+        queue.SetupSequence(service => service.DequeueAsync(
+                functionName,
+                It.IsAny<int>(),
+                It.IsAny<IList<string>?>()))
+            .ReturnsAsync(messages)
+            .ReturnsAsync([]);
+        queue.Setup(service => service.ListCallbackAsync(
+                It.IsAny<string>(), It.IsAny<ListQueueItemStatus>()))
+            .Returns(Task.CompletedTask);
+        var (worker, sendClient) = BuildWorker(
+            queue.Object,
+            BuildReplicasService(functionName, "192.168.99.20", maximumParallelism: 2),
+            fileSync.Object,
+            db.Object);
+        var sentPaths = new List<string>();
+        var bothSent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        sendClient.Reset();
+        sendClient.Setup(service => service.SendHttpRequestAsync(
+                It.IsAny<CustomRequest>(),
+                It.IsAny<SlimFaasDefaultConfiguration>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationTokenSource?>(),
+                It.IsAny<IProxy?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>(),
+                It.IsAny<Stream?>()))
+            .Returns((CustomRequest request, SlimFaasDefaultConfiguration _, string? _,
+                CancellationTokenSource? _, IProxy? _, string? _, string? _, string? _, Stream? _) =>
+            {
+                lock (sentPaths)
+                {
+                    sentPaths.Add(request.Path);
+                    if (sentPaths.Count == messages.Length)
+                        bothSent.TrySetResult();
+                }
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
+            });
+        using var stopping = new CancellationTokenSource();
+
+        await worker.StartAsync(stopping.Token);
+        await bothPullsStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        releasePulls.TrySetResult();
+        await bothSent.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await stopping.CancelAsync();
+        await worker.StopAsync(CancellationToken.None);
+
+        Assert.Equal(["/process/0", "/process/1"], sentPaths);
     }
 
     /// <summary>
@@ -330,16 +564,6 @@ public class SlimQueuesWorkerOffloadTests
                 It.IsAny<Stream?>()))
             .ReturnsAsync(responseMessage);
 
-        Mock<IServiceProvider> serviceProvider = new();
-        serviceProvider.Setup(x => x.GetService(typeof(ISendClient))).Returns(sendClientMock.Object);
-
-        Mock<IServiceScope> serviceScope = new();
-        serviceScope.Setup(x => x.ServiceProvider).Returns(serviceProvider.Object);
-
-        Mock<IServiceScopeFactory> serviceScopeFactory = new();
-        serviceScopeFactory.Setup(x => x.CreateScope()).Returns(serviceScope.Object);
-        serviceProvider.Setup(x => x.GetService(typeof(IServiceScopeFactory))).Returns(serviceScopeFactory.Object);
-
         Mock<ISlimDataStatus> slimDataStatus = new();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);
 
@@ -358,7 +582,7 @@ public class SlimQueuesWorkerOffloadTests
             replicasService,
             new HistoryHttpMemoryService(),
             loggerMock.Object,
-            serviceProvider.Object,
+            sendClientMock.Object,
             slimDataStatus.Object,
             masterService.Object,
             fileSyncMock.Object,

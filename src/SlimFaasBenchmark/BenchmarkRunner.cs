@@ -45,7 +45,7 @@ internal static class BenchmarkRunner
             FileShare.Read);
         await using var samplesWriter = new StreamWriter(samplesStream, new UTF8Encoding(false));
         await samplesWriter.WriteLineAsync(
-            "mode,payload_bytes,concurrency,repetition,success,latency_ms,error");
+            "mode,payload_bytes,concurrency,repetition,success,latency_ms,error,request_id");
         int caseIndex = 0;
         foreach (int payloadBytes in options.PayloadBytes)
         {
@@ -84,6 +84,10 @@ internal static class BenchmarkRunner
         IReadOnlyList<LatencyAggregateResult> latency = AggregateLatency(latencyRuns);
         IReadOnlyList<SyncOverheadResult> overhead = ComputeSyncOverhead(latency);
 
+        IReadOnlyList<AsyncWorkloadResult> asyncWorkloads = options.Profile == "async-queue"
+            ? await RunFocusedAsyncWorkloadsAsync(client, options)
+            : [];
+
         Console.WriteLine("Running scale-to-zero and PromQL scale-out burst...");
         var scaleTimeline = new List<ScaleTimelineSample>();
         ScaleResult scaling = await RunScaleBenchmarkAsync(client, options, scaleTimeline);
@@ -101,7 +105,12 @@ internal static class BenchmarkRunner
             options.Concurrency,
             options.ScaleMessages,
             options.ScaleConcurrency,
-            options.ScaleTargetReplicas);
+            options.ScaleTargetReplicas,
+            options.Profile,
+            options.AsyncPacedMessages,
+            options.AsyncPacedIntervalMilliseconds,
+            options.AsyncBurstMessages,
+            options.AsyncBurstConcurrency);
         var report = new BenchmarkReport(
             startedAt,
             DateTimeOffset.UtcNow,
@@ -112,11 +121,18 @@ internal static class BenchmarkRunner
             latencyRuns,
             latency,
             overhead,
-            scaling);
+            scaling,
+            asyncWorkloads);
 
         await WriteArtifactsAsync(options.OutputDirectory, report, scaleTimeline);
         PrintSummary(overhead, scaling, options.OutputDirectory);
-        return latencyRuns.Any(run => run.Failed > 0) || scaling.Failed > 0 || scaling.TimedOut ? 1 : 0;
+        bool asyncWorkloadFailed = asyncWorkloads.Any(run =>
+            run.Failed > 0 || run.Missing > 0 || run.Duplicates > 0);
+        return latencyRuns.Any(run =>
+                   run.Failed > 0 || run.AsyncMissing > 0 || run.AsyncDuplicates > 0) ||
+               asyncWorkloadFailed || scaling.Failed > 0 || scaling.TimedOut
+            ? 1
+            : 0;
     }
 
     private static async Task EnsureReadyAsync(HttpClient client, RunnerOptions options)
@@ -185,6 +201,10 @@ internal static class BenchmarkRunner
         string? runId = mode == "async"
             ? $"async-{payload.Length}-{concurrency}-{repetition}-{Guid.NewGuid():N}"
             : null;
+        using var resourceMonitorCancellation = mode == "async" ? new CancellationTokenSource() : null;
+        Task<IReadOnlyList<ClusterResourceSnapshot>>? resourceMonitor = resourceMonitorCancellation is null
+            ? null
+            : MonitorClusterResourcesAsync(client, options.NodeUrls, resourceMonitorCancellation.Token);
         var runSamples = new ConcurrentQueue<RequestSample>();
         TimeSpan elapsed = await ExecuteTimedLoadAsync(
             client,
@@ -205,6 +225,9 @@ internal static class BenchmarkRunner
         long failed = snapshot.LongLength - successful.LongLength;
 
         TargetObservationSummary? asyncDelivery = null;
+        AsyncResourceUsage? asyncResources = null;
+        var asyncMissing = 0;
+        var asyncDuplicates = 0;
         if (mode == "async" && runId is not null)
         {
             asyncDelivery = await WaitForAsyncDeliveryAsync(
@@ -214,8 +237,17 @@ internal static class BenchmarkRunner
                 checked((int)successful.LongLength),
                 options.AsyncDrainTimeout);
             await WaitForQueueToDrainAsync(client, options.NodeUrls, options.Function, options.AsyncDrainTimeout);
+            asyncMissing = Math.Max(0, checked((int)successful.LongLength) - asyncDelivery.UniqueCount);
+            asyncDuplicates = asyncDelivery.DuplicateCount;
             using HttpResponseMessage _ = await client.DeleteAsync(
                 new Uri(options.DirectUrl, $"benchmark/observations/{runId}"));
+        }
+
+        if (resourceMonitorCancellation is not null && resourceMonitor is not null)
+        {
+            resourceMonitorCancellation.Cancel();
+            IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
+            asyncResources = BuildResourceUsage(resourceSamples, successful.LongLength);
         }
 
         var result = new LatencyRunResult(
@@ -231,7 +263,11 @@ internal static class BenchmarkRunner
             Statistics.Percentile(successful, 0.95),
             Statistics.Percentile(successful, 0.99),
             successful.Length == 0 ? 0 : successful[^1],
-            asyncDelivery);
+            asyncDelivery,
+            successful.Length == 0 ? 0 : successful.Average(),
+            asyncMissing,
+            asyncDuplicates,
+            asyncResources);
         return new LatencyCaseData(result, snapshot);
     }
 
@@ -264,7 +300,9 @@ internal static class BenchmarkRunner
                             new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
                         if (runId is not null)
                         {
+                            string requestId = Guid.NewGuid().ToString("N");
                             request.Headers.TryAddWithoutValidation(BenchmarkTarget.RunIdHeader, runId);
+                            request.Headers.TryAddWithoutValidation(BenchmarkTarget.RequestIdHeader, requestId);
                             request.Headers.TryAddWithoutValidation(
                                 BenchmarkTarget.SentTicksHeader,
                                 DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture));
@@ -287,7 +325,10 @@ internal static class BenchmarkRunner
                             repetition,
                             true,
                             Stopwatch.GetElapsedTime(requestStarted).TotalMilliseconds,
-                            null));
+                            null,
+                            request.Headers.TryGetValues(BenchmarkTarget.RequestIdHeader, out var ids)
+                                ? ids.Single()
+                                : null));
                     }
                     catch (Exception exception)
                     {
@@ -325,7 +366,8 @@ internal static class BenchmarkRunner
                              new Uri(directUrl, $"benchmark/observations/{runId}"),
                              JsonOptions,
                              cancellation.Token) ?? TargetObservationSummary.Empty(runId);
-                if (latest.Count >= expected)
+                int uniqueCount = latest.UniqueCount > 0 ? latest.UniqueCount : latest.Count;
+                if (uniqueCount >= expected)
                     return latest;
                 await Task.Delay(100, cancellation.Token);
             }
@@ -335,7 +377,8 @@ internal static class BenchmarkRunner
         }
 
         throw new TimeoutException(
-            $"Async run '{runId}' delivered {latest.Count}/{expected} messages after {timeout.TotalSeconds:F0}s.");
+            $"Async run '{runId}' delivered {latest.UniqueCount}/{expected} unique messages " +
+            $"({latest.Count} total, {latest.DuplicateCount} duplicates) after {timeout.TotalSeconds:F0}s.");
     }
 
     private static async Task WaitForQueueToDrainAsync(
@@ -396,7 +439,15 @@ internal static class BenchmarkRunner
                     AsyncMedian(asyncDeliveries, summary => summary.CompletionP50Milliseconds),
                     AsyncMedian(asyncDeliveries, summary => summary.CompletionP95Milliseconds),
                     AsyncMedian(asyncDeliveries, summary => summary.CompletionP99Milliseconds),
-                    asyncDeliveries.Length == 0 ? null : asyncDeliveries.Sum(summary => summary.Count));
+                    asyncDeliveries.Length == 0 ? null : asyncDeliveries.Sum(summary => summary.Count),
+                    Statistics.Median(groupedRuns.Select(run => run.MeanMilliseconds)),
+                    AsyncMedian(asyncDeliveries, summary => summary.ArrivalMeanMilliseconds),
+                    AsyncMedian(asyncDeliveries, summary => summary.CompletionMeanMilliseconds),
+                    groupedRuns.Sum(run => run.AsyncMissing),
+                    groupedRuns.Sum(run => run.AsyncDuplicates),
+                    MedianNullable(groupedRuns.Select(run => run.AsyncResources?.CpuMillisecondsPerMessage)),
+                    MedianNullable(groupedRuns.Select(run => run.AsyncResources?.RaftEntriesPerMessage)),
+                    MedianNullable(groupedRuns.Select(run => run.AsyncResources?.PeakWorkingSetBytes)));
             })
             .ToArray();
     }
@@ -405,6 +456,12 @@ internal static class BenchmarkRunner
         IReadOnlyList<TargetObservationSummary> values,
         Func<TargetObservationSummary, double> selector) =>
         values.Count == 0 ? null : Statistics.Median(values.Select(selector));
+
+    private static double? MedianNullable(IEnumerable<double?> values)
+    {
+        double[] snapshot = values.Where(value => value.HasValue).Select(value => value!.Value).ToArray();
+        return snapshot.Length == 0 ? null : Statistics.Median(snapshot);
+    }
 
     private static IReadOnlyList<SyncOverheadResult> ComputeSyncOverhead(
         IReadOnlyList<LatencyAggregateResult> latency)
@@ -438,6 +495,261 @@ internal static class BenchmarkRunner
             .OrderBy(result => result.PayloadBytes)
             .ThenBy(result => result.Concurrency)
             .ToArray();
+    }
+
+    private static async Task<IReadOnlyList<AsyncWorkloadResult>> RunFocusedAsyncWorkloadsAsync(
+        HttpClient client,
+        RunnerOptions options)
+    {
+        var results = new List<AsyncWorkloadResult>(options.Repetitions * 2);
+        byte[] payload = CreatePayload(4 * 1024);
+        for (var repetition = 1; repetition <= options.Repetitions; repetition++)
+        {
+            Console.WriteLine(
+                $"Async paced messages={options.AsyncPacedMessages} interval={options.AsyncPacedIntervalMilliseconds}ms repetition={repetition}/{options.Repetitions}");
+            results.Add(await RunFixedAsyncWorkloadAsync(
+                client,
+                options,
+                "paced",
+                payload,
+                concurrency: 1,
+                options.AsyncPacedMessages,
+                options.AsyncPacedIntervalMilliseconds,
+                repetition));
+
+            Console.WriteLine(
+                $"Async burst messages={options.AsyncBurstMessages} concurrency={options.AsyncBurstConcurrency} repetition={repetition}/{options.Repetitions}");
+            results.Add(await RunFixedAsyncWorkloadAsync(
+                client,
+                options,
+                "burst",
+                payload,
+                options.AsyncBurstConcurrency,
+                options.AsyncBurstMessages,
+                intervalMilliseconds: 0,
+                repetition));
+        }
+
+        return results;
+    }
+
+    private static async Task<AsyncWorkloadResult> RunFixedAsyncWorkloadAsync(
+        HttpClient client,
+        RunnerOptions options,
+        string loadShape,
+        byte[] payload,
+        int concurrency,
+        int messages,
+        int intervalMilliseconds,
+        int repetition)
+    {
+        await WaitForQueueToDrainAsync(client, options.NodeUrls, options.Function, options.AsyncDrainTimeout);
+        string runId = $"async-{loadShape}-{repetition}-{Guid.NewGuid():N}";
+        Uri uri = new(options.SlimFaasUrl, $"async-function/{options.Function}/echo");
+        var samples = new ConcurrentQueue<RequestSample>();
+        using var resourceMonitorCancellation = new CancellationTokenSource();
+        Task<IReadOnlyList<ClusterResourceSnapshot>> resourceMonitor =
+            MonitorClusterResourcesAsync(client, options.NodeUrls, resourceMonitorCancellation.Token);
+        long started = Stopwatch.GetTimestamp();
+
+        if (intervalMilliseconds > 0)
+        {
+            for (var index = 0; index < messages; index++)
+            {
+                samples.Enqueue(await SendOneAsync(
+                    client, uri, loadShape, payload, concurrency, repetition, runId));
+                if (index + 1 < messages)
+                    await Task.Delay(intervalMilliseconds);
+            }
+        }
+        else
+        {
+            await Parallel.ForEachAsync(
+                Enumerable.Range(0, messages),
+                new ParallelOptions { MaxDegreeOfParallelism = concurrency },
+                async (_, _) => samples.Enqueue(await SendOneAsync(
+                    client, uri, loadShape, payload, concurrency, repetition, runId)));
+        }
+
+        TimeSpan elapsed = Stopwatch.GetElapsedTime(started);
+        RequestSample[] snapshot = samples.ToArray();
+        double[] successful = snapshot
+            .Where(sample => sample.Success)
+            .Select(sample => sample.LatencyMilliseconds)
+            .Order()
+            .ToArray();
+        int failed = snapshot.Length - successful.Length;
+        TargetObservationSummary delivery = successful.Length == 0
+            ? TargetObservationSummary.Empty(runId)
+            : await WaitForAsyncDeliveryAsync(
+                client, options.DirectUrl, runId, successful.Length, options.AsyncDrainTimeout);
+        await WaitForQueueToDrainAsync(client, options.NodeUrls, options.Function, options.AsyncDrainTimeout);
+        resourceMonitorCancellation.Cancel();
+        IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
+        AsyncResourceUsage? resources = BuildResourceUsage(resourceSamples, successful.LongLength);
+        using HttpResponseMessage _ = await client.DeleteAsync(
+            new Uri(options.DirectUrl, $"benchmark/observations/{runId}"));
+
+        return new AsyncWorkloadResult(
+            loadShape,
+            payload.Length,
+            concurrency,
+            repetition,
+            messages,
+            successful.Length,
+            failed,
+            Math.Max(0, successful.Length - delivery.UniqueCount),
+            delivery.DuplicateCount,
+            elapsed.TotalSeconds,
+            successful.Length / Math.Max(0.001, elapsed.TotalSeconds),
+            successful.Length == 0 ? 0 : successful.Average(),
+            Statistics.Percentile(successful, 0.50),
+            Statistics.Percentile(successful, 0.95),
+            Statistics.Percentile(successful, 0.99),
+            delivery,
+            resources);
+    }
+
+    private static async Task<RequestSample> SendOneAsync(
+        HttpClient client,
+        Uri uri,
+        string mode,
+        byte[] payload,
+        int concurrency,
+        int repetition,
+        string runId)
+    {
+        string requestId = Guid.NewGuid().ToString("N");
+        long requestStarted = Stopwatch.GetTimestamp();
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, uri)
+            {
+                Content = new ByteArrayContent(payload)
+            };
+            request.Content.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue("application/octet-stream");
+            request.Headers.TryAddWithoutValidation(BenchmarkTarget.RunIdHeader, runId);
+            request.Headers.TryAddWithoutValidation(BenchmarkTarget.RequestIdHeader, requestId);
+            request.Headers.TryAddWithoutValidation(
+                BenchmarkTarget.SentTicksHeader,
+                DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture));
+
+            using HttpResponseMessage response = await client.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead);
+            await response.Content.CopyToAsync(Stream.Null);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new HttpRequestException(
+                    $"HTTP {(int)response.StatusCode} ({response.StatusCode}) from {uri}");
+            }
+
+            return new RequestSample(
+                mode,
+                payload.Length,
+                concurrency,
+                repetition,
+                true,
+                Stopwatch.GetElapsedTime(requestStarted).TotalMilliseconds,
+                null,
+                requestId);
+        }
+        catch (Exception exception)
+        {
+            return new RequestSample(
+                mode,
+                payload.Length,
+                concurrency,
+                repetition,
+                false,
+                Stopwatch.GetElapsedTime(requestStarted).TotalMilliseconds,
+                exception.Message,
+                requestId);
+        }
+    }
+
+    private static async Task<IReadOnlyList<ClusterResourceSnapshot>> MonitorClusterResourcesAsync(
+        HttpClient client,
+        IReadOnlyList<Uri> nodeUrls,
+        CancellationToken cancellationToken)
+    {
+        var samples = new List<ClusterResourceSnapshot>();
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                ClusterResourceSnapshot? sample = await ReadClusterResourcesAsync(
+                    client, nodeUrls, cancellationToken);
+                if (sample is not null)
+                    samples.Add(sample);
+                await Task.Delay(500, cancellationToken);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+
+        return samples;
+    }
+
+    private static async Task<ClusterResourceSnapshot?> ReadClusterResourcesAsync(
+        HttpClient client,
+        IReadOnlyList<Uri> nodeUrls,
+        CancellationToken cancellationToken)
+    {
+        ClusterResourceSnapshot?[] nodes = await Task.WhenAll(nodeUrls.Select(async nodeUrl =>
+        {
+            try
+            {
+                string metrics = await client.GetStringAsync(new Uri(nodeUrl, "metrics"), cancellationToken);
+                return new ClusterResourceSnapshot(
+                    ParseMetric(metrics, "slimdata_process_cpu_seconds_total"),
+                    ParseMetric(metrics, "slimdata_command_batch_raft_total"),
+                    ParseMetric(metrics, "slimdata_process_working_set_bytes"));
+            }
+            catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+            {
+                return null;
+            }
+        }));
+        ClusterResourceSnapshot[] available = nodes.Where(node => node is not null).Cast<ClusterResourceSnapshot>().ToArray();
+        if (available.Length == 0)
+            return null;
+        return new ClusterResourceSnapshot(
+            available.Sum(node => node.CpuSeconds),
+            available.Sum(node => node.RaftEntries),
+            available.Sum(node => node.WorkingSetBytes));
+    }
+
+    internal static double ParseMetric(string metrics, string metricName)
+    {
+        foreach (string line in metrics.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!line.StartsWith(metricName + " ", StringComparison.Ordinal))
+                continue;
+            ReadOnlySpan<char> raw = line.AsSpan(metricName.Length + 1).Trim();
+            return double.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out double value)
+                ? value
+                : 0;
+        }
+        return 0;
+    }
+
+    private static AsyncResourceUsage? BuildResourceUsage(
+        IReadOnlyList<ClusterResourceSnapshot> samples,
+        long messages)
+    {
+        if (samples.Count < 2 || messages <= 0)
+            return null;
+        double cpuSeconds = Math.Max(0, samples[^1].CpuSeconds - samples[0].CpuSeconds);
+        double raftEntries = Math.Max(0, samples[^1].RaftEntries - samples[0].RaftEntries);
+        return new AsyncResourceUsage(
+            cpuSeconds * 1000d / messages,
+            raftEntries / messages,
+            samples.Max(sample => sample.WorkingSetBytes),
+            cpuSeconds,
+            raftEntries);
     }
 
     private static async Task<ScaleResult> RunScaleBenchmarkAsync(
@@ -795,7 +1107,8 @@ internal static class BenchmarkRunner
                 sample.Repetition.ToString(CultureInfo.InvariantCulture),
                 sample.Success ? "true" : "false",
                 sample.LatencyMilliseconds.ToString("F6", CultureInfo.InvariantCulture),
-                EscapeCsv(sample.Error)));
+                EscapeCsv(sample.Error),
+                EscapeCsv(sample.RequestId)));
         }
         await writer.FlushAsync();
     }
@@ -842,12 +1155,26 @@ internal static class BenchmarkRunner
         builder.AppendLine();
         builder.AppendLine("The HTTP columns measure client-to-202 enqueue latency. Target columns measure client send to handler arrival and completion.");
         builder.AppendLine();
-        builder.AppendLine("| payload | concurrency | accepted | failed | rate | HTTP p50 | HTTP p95 | HTTP p99 | arrival p50 | arrival p95 | arrival p99 | completion p50 | completion p95 | completion p99 |");
-        builder.AppendLine("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+        builder.AppendLine("| payload | concurrency | accepted | failed | missing | duplicates | rate | HTTP mean | HTTP p50 | HTTP p95 | HTTP p99 | arrival mean | arrival p50 | arrival p95 | arrival p99 | CPU/msg | Raft/msg |");
+        builder.AppendLine("|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
         foreach (LatencyAggregateResult row in report.Latency.Where(result => result.Mode == "async"))
         {
             builder.AppendLine(FormattableString.Invariant(
-                $"| {FormatBytes(row.PayloadBytes)} | {row.Concurrency} | {row.Completed} | {row.Failed} | {row.MeanRatePerSecond:F1}/s | {row.P50Milliseconds:F3} ms | {row.P95Milliseconds:F3} ms | {row.P99Milliseconds:F3} ms | {FormatNullable(row.AsyncArrivalP50Milliseconds)} | {FormatNullable(row.AsyncArrivalP95Milliseconds)} | {FormatNullable(row.AsyncArrivalP99Milliseconds)} | {FormatNullable(row.AsyncCompletionP50Milliseconds)} | {FormatNullable(row.AsyncCompletionP95Milliseconds)} | {FormatNullable(row.AsyncCompletionP99Milliseconds)} |"));
+                $"| {FormatBytes(row.PayloadBytes)} | {row.Concurrency} | {row.Completed} | {row.Failed} | {row.AsyncMissing} | {row.AsyncDuplicates} | {row.MeanRatePerSecond:F1}/s | {row.MeanMilliseconds:F3} ms | {row.P50Milliseconds:F3} ms | {row.P95Milliseconds:F3} ms | {row.P99Milliseconds:F3} ms | {FormatNullable(row.AsyncArrivalMeanMilliseconds)} | {FormatNullable(row.AsyncArrivalP50Milliseconds)} | {FormatNullable(row.AsyncArrivalP95Milliseconds)} | {FormatNullable(row.AsyncArrivalP99Milliseconds)} | {FormatNullable(row.AsyncCpuMillisecondsPerMessage)} | {FormatRatio(row.AsyncRaftEntriesPerMessage)} |"));
+        }
+
+        if (report.AsyncWorkloads is { Count: > 0 })
+        {
+            builder.AppendLine();
+            builder.AppendLine("## Focused asynchronous workloads");
+            builder.AppendLine();
+            builder.AppendLine("| shape | repetition | messages | concurrency | failed | missing | duplicates | rate | HTTP mean | HTTP p95 | arrival mean | arrival p95 | CPU/msg | Raft/msg |");
+            builder.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+            foreach (AsyncWorkloadResult row in report.AsyncWorkloads)
+            {
+                builder.AppendLine(FormattableString.Invariant(
+                    $"| {row.LoadShape} | {row.Repetition} | {row.Requested} | {row.Concurrency} | {row.Failed} | {row.Missing} | {row.Duplicates} | {row.RatePerSecond:F1}/s | {row.MeanMilliseconds:F3} ms | {row.P95Milliseconds:F3} ms | {row.Delivery.ArrivalMeanMilliseconds:F3} ms | {row.Delivery.ArrivalP95Milliseconds:F3} ms | {FormatNullable(row.Resources?.CpuMillisecondsPerMessage)} | {FormatRatio(row.Resources?.RaftEntriesPerMessage)} |"));
+            }
         }
 
         ScaleResult scale = report.Scaling;
@@ -907,6 +1234,9 @@ internal static class BenchmarkRunner
     private static string FormatNullable(double? value) =>
         value.HasValue ? FormattableString.Invariant($"{value.Value:F3} ms") : "not observed";
 
+    private static string FormatRatio(double? value) =>
+        value.HasValue ? value.Value.ToString("F4", CultureInfo.InvariantCulture) : "not observed";
+
     private static string NullableCsv(double? value) =>
         value?.ToString("F3", CultureInfo.InvariantCulture) ?? string.Empty;
 
@@ -922,6 +1252,11 @@ internal static class BenchmarkRunner
         int Failed,
         double? FirstAcceptedMilliseconds,
         double AllAcceptedMilliseconds);
+
+    private sealed record ClusterResourceSnapshot(
+        double CpuSeconds,
+        double RaftEntries,
+        double WorkingSetBytes);
 
     private sealed record RunnerOptions(
         Uri SlimFaasUrl,
@@ -939,6 +1274,11 @@ internal static class BenchmarkRunner
         int ScaleConcurrency,
         int ScaleTargetReplicas,
         TimeSpan ScaleTimeout,
+        string Profile,
+        int AsyncPacedMessages,
+        int AsyncPacedIntervalMilliseconds,
+        int AsyncBurstMessages,
+        int AsyncBurstConcurrency,
         string OutputDirectory)
     {
         public static RunnerOptions Parse(CommandArguments arguments)
@@ -950,6 +1290,9 @@ internal static class BenchmarkRunner
                 "http://127.0.0.1:31021,http://127.0.0.1:31022,http://127.0.0.1:31023");
             int asyncDrainSeconds = arguments.GetInt("async-drain-timeout", 180, 1, 3600);
             int scaleTimeoutSeconds = arguments.GetInt("scale-timeout", 120, 1, 3600);
+            string profile = arguments.Get("profile", "standard").ToLowerInvariant();
+            if (profile is not ("standard" or "async-queue"))
+                throw new ArgumentException("--profile must be 'standard' or 'async-queue'.");
             return new RunnerOptions(
                 slimFaasUrl,
                 directUrl,
@@ -966,6 +1309,11 @@ internal static class BenchmarkRunner
                 arguments.GetInt("scale-concurrency", 32, 1, 1024),
                 arguments.GetInt("scale-target-replicas", 4, 2, 1000),
                 TimeSpan.FromSeconds(scaleTimeoutSeconds),
+                profile,
+                arguments.GetInt("async-paced-messages", 100, 1, 100_000),
+                arguments.GetInt("async-paced-interval-ms", 100, 1, 60_000),
+                arguments.GetInt("async-burst-messages", 1000, 1, 1_000_000),
+                arguments.GetInt("async-burst-concurrency", 64, 1, 1024),
                 Path.GetFullPath(arguments.Get(
                     "output",
                     Path.Combine("artifacts", "slimfaas-local-benchmark", "manual"))));

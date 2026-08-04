@@ -9,6 +9,31 @@ using Xunit;
 public sealed class ClusterFileSync_AnnounceTests
 {
     [Fact]
+    public async Task ReceiveSignal_enqueues_remote_delete_in_the_ordered_file_mailbox()
+    {
+        var queue = new ClusterFileAnnounceQueue();
+        var channel = new ClusterFileSyncChannel(queue);
+        string name = FileSyncProtocol.BuildDeleteName(Base64UrlCodec.Encode("delete-id"));
+
+        Assert.True(channel.IsSupported(name, oneWay: true));
+        await channel.ReceiveSignal(
+            Mock.Of<ISubscriber>(),
+            new TextMessage(string.Empty, name),
+            context: null,
+            token: CancellationToken.None);
+
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        await foreach (AnnouncedFile item in queue.ReadAllAsync(timeout.Token))
+        {
+            Assert.Equal("delete-id", item.Id);
+            Assert.True(item.Delete);
+            return;
+        }
+
+        Assert.Fail("The remote delete was not enqueued.");
+    }
+
+    [Fact]
     public async Task ReceiveSignal_enqueue_announce_for_background_pull()
     {
         var repo = new Mock<IFileRepository>();
