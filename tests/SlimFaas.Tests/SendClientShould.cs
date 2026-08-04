@@ -490,7 +490,7 @@ public class SendClientShould
             "fibonacci",
             "/upload",
             "",
-            new SlimFaasDefaultConfiguration());
+            new SlimFaasSyncConfiguration());
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(payload, received);
@@ -530,7 +530,7 @@ public class SendClientShould
             "fibonacci",
             "/wait",
             "",
-            new SlimFaasDefaultConfiguration());
+            new SlimFaasSyncConfiguration());
         await requestStarted.Task;
         await clientCancellation.CancelAsync();
 
@@ -565,7 +565,7 @@ public class SendClientShould
             "fibonacci",
             "/fail",
             "",
-            new SlimFaasDefaultConfiguration(),
+            new SlimFaasSyncConfiguration(),
             proxy: proxy.Object));
 
         proxy.Verify(item => item.ReleaseSyncIP("pod-1"), Times.Once);
