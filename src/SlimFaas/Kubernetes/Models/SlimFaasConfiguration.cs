@@ -4,9 +4,14 @@ namespace SlimFaas.Kubernetes;
 
 public record SlimFaasConfiguration
 {
-    public SlimFaasDefaultConfiguration DefaultSync { get; init; } = new();
+    public SlimFaasSyncConfiguration DefaultSync { get; init; } = new();
     public SlimFaasDefaultConfiguration DefaultAsync { get; init; } = new();
     public SlimFaasDefaultConfiguration DefaultPublish { get; init; } = new();
+}
+
+public record SlimFaasSyncConfiguration
+{
+    public int HttpTimeout { get; init; } = 120;
 }
 
 public record SlimFaasDefaultConfiguration

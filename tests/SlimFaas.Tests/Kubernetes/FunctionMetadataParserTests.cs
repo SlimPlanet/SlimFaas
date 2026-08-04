@@ -59,6 +59,44 @@ public sealed class FunctionMetadataParserTests
     }
 
     [Fact]
+    public void Parse_AppliesDefaultsToOmittedConfigurationSections()
+    {
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(
+            new Dictionary<string, string>
+            {
+                [FunctionAnnotationNames.Function] = "true",
+                [FunctionAnnotationNames.Configuration] =
+                    """{"DefaultPublish":{"HttpTimeout":15,"TimeoutRetries":[1,2,4],"HttpStatusRetries":[500,502,503]}}"""
+            },
+            "function");
+
+        Assert.Equal(120, metadata.Configuration.DefaultSync.HttpTimeout);
+        Assert.Equal(120, metadata.Configuration.DefaultAsync.HttpTimeout);
+        Assert.Equal([2, 4, 8], metadata.Configuration.DefaultAsync.TimeoutRetries);
+        Assert.Equal([500, 502, 503], metadata.Configuration.DefaultAsync.HttpStatusRetries);
+        Assert.Equal(15, metadata.Configuration.DefaultPublish.HttpTimeout);
+        Assert.Equal([1, 2, 4], metadata.Configuration.DefaultPublish.TimeoutRetries);
+        Assert.Equal([500, 502, 503], metadata.Configuration.DefaultPublish.HttpStatusRetries);
+    }
+
+    [Fact]
+    public void Parse_ReplacesNullConfigurationSectionsWithDefaults()
+    {
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(
+            new Dictionary<string, string>
+            {
+                [FunctionAnnotationNames.Function] = "true",
+                [FunctionAnnotationNames.Configuration] =
+                    """{"DefaultSync":null,"DefaultAsync":null,"DefaultPublish":null}"""
+            },
+            "function");
+
+        Assert.Equal(120, metadata.Configuration.DefaultSync.HttpTimeout);
+        Assert.Equal(120, metadata.Configuration.DefaultAsync.HttpTimeout);
+        Assert.Equal(120, metadata.Configuration.DefaultPublish.HttpTimeout);
+    }
+
+    [Fact]
     public void Parse_LeavesScaleNullWhenAnnotationIsAbsent()
     {
         FunctionMetadata metadata = FunctionMetadataParser.Parse(

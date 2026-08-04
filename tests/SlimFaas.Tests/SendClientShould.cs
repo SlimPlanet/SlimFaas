@@ -161,9 +161,9 @@ public class SendClientShould
         httpContextRequest.ContentLength = 1;
         httpContextRequest.ContentType = "application/json";
 
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration = new();
+        SlimFaasSyncConfiguration slimFaasSyncConfiguration = new();
 
-        HttpResponseMessage response = await sendClient.SendHttpRequestSync(httpContext, "fibonacci", "health", "", slimFaasDefaultConfiguration);
+        HttpResponseMessage response = await sendClient.SendHttpRequestSync(httpContext, "fibonacci", "health", "", slimFaasSyncConfiguration);
 
         Uri expectedUri = new Uri("http://fibonacci:8080/health");
         Assert.NotNull(sendedRequest);
@@ -228,14 +228,14 @@ public class SendClientShould
         try
         {
             firstResponse = await sendClient.SendHttpRequestSync(
-                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy);
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasSyncConfiguration(), proxy: proxy);
             secondResponse = await sendClient.SendHttpRequestSync(
-                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy);
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasSyncConfiguration(), proxy: proxy);
 
             Assert.Equal(2, requestedHosts.Distinct().Count());
 
             using HttpResponseMessage thirdResponse = await sendClient.SendHttpRequestSync(
-                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasDefaultConfiguration(), proxy: proxy);
+                BuildHttpContext(), "fibonacci", "health", "", new SlimFaasSyncConfiguration(), proxy: proxy);
 
             Assert.Equal(HttpStatusCode.OK, thirdResponse.StatusCode);
             Assert.Equal(3, requestedHosts.Count);
@@ -322,14 +322,14 @@ public class SendClientShould
                 "local-fibonacci",
                 "health",
                 "",
-                new SlimFaasDefaultConfiguration(),
+                new SlimFaasSyncConfiguration(),
                 proxy: proxy);
             secondResponse = await sendClient.SendHttpRequestSync(
                 BuildHttpContext(),
                 "local-fibonacci",
                 "health",
                 "",
-                new SlimFaasDefaultConfiguration(),
+                new SlimFaasSyncConfiguration(),
                 proxy: proxy);
 
             Assert.Equal([5001, 5002], requestedPorts.Order().ToArray());
@@ -435,7 +435,7 @@ public class SendClientShould
             "debug-function",
             "/sync/path",
             "?value=2",
-            new SlimFaasDefaultConfiguration(),
+            new SlimFaasSyncConfiguration(),
             proxy: proxy);
 
         Assert.Equal(
