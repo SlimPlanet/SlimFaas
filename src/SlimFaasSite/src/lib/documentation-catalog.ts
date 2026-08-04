@@ -71,6 +71,14 @@ export const DOCUMENTATION_CATALOG = {
         title: 'SlimFaas OpenTelemetry',
         description: 'Configure distributed traces, metrics, and logs for SlimFaas.',
     },
+    benchmarking: {
+        sourcePath: 'docs/benchmarking.md',
+        route: '/benchmarking',
+        label: 'Benchmarks',
+        title: 'SlimFaas Latency and Autoscaling Benchmark',
+        description:
+            'Measure synchronous proxy overhead, asynchronous delivery, and native-local autoscaling speed.',
+    },
     autoscaling: {
         sourcePath: 'docs/autoscaling.md',
         route: '/autoscaling',

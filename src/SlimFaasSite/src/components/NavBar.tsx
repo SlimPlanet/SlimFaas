@@ -224,6 +224,15 @@ const Navbar: React.FC = () => {
                                     {DOCUMENTATION_CATALOG.opentelemetry.label}
                                 </Link>
                             </li>
+                            <li className="navbar__submenu-item">
+                                <Link
+                                    href={DOCUMENTATION_CATALOG.benchmarking.route}
+                                    className="navbar__submenu-link"
+                                    onClick={closeAll}
+                                >
+                                    {DOCUMENTATION_CATALOG.benchmarking.label}
+                                </Link>
+                            </li>
                         </ul>
                     </li>
 

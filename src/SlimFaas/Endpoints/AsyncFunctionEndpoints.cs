@@ -7,6 +7,7 @@ using SlimData.Options;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Local;
 using SlimFaas.Security;
 using SlimFaas.WebSocket;
 
@@ -104,7 +105,9 @@ public static class AsyncFunctionEndpoints
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
             context,
             jobService,
-            FunctionEndpointsHelpers.GetLocalJobToken(context));
+            context.Request.Headers.ContainsKey(LocalJobGateway.JobHeaderName)
+                ? FunctionEndpointsHelpers.GetLocalJobToken(context)
+                : string.Empty);
 
         CustomRequest customRequest = await FunctionEndpointsHelpers.InitCustomRequest(
             context,

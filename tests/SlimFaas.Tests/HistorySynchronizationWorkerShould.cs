@@ -121,6 +121,54 @@ public class HistorySynchronizationWorkerShould
     }
 
     [Fact]
+    public async Task ActiveCall_KeepsRefreshingSharedHistoryUntilItCompletes()
+    {
+        const string functionName = "long-running";
+        var deployments = new DeploymentsInformations(
+            [new DeploymentInformation(
+                functionName,
+                "default",
+                [],
+                new SlimFaasConfiguration(),
+                Replicas: 1)],
+            new SlimFaasDeploymentInformation(1, []),
+            []);
+        var replicasService = new Mock<IReplicasService>();
+        replicasService.SetupGet(service => service.Deployments).Returns(deployments);
+        var database = new DatabaseMockService();
+        var databaseHistory = new HistoryHttpDatabaseService(database);
+        var memoryHistory = new HistoryHttpMemoryService();
+        var slimDataStatus = new Mock<ISlimDataStatus>();
+        slimDataStatus.Setup(service => service.WaitForReadyAsync()).Returns(Task.CompletedTask);
+        var worker = new HistorySynchronizationWorker(
+            replicasService.Object,
+            memoryHistory,
+            databaseHistory,
+            new Mock<ILogger<HistorySynchronizationWorker>>().Object,
+            slimDataStatus.Object,
+            Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+            {
+                HistorySynchronizationDelayMilliseconds = 20
+            }));
+
+        memoryHistory.BeginActiveCall(functionName);
+        long startedTicks = memoryHistory.GetTicksLastCall(functionName);
+        using var cancellation = new CancellationTokenSource();
+        Task running = worker.StartAsync(cancellation.Token);
+
+        await Task.Delay(120);
+        long persistedTicks = await databaseHistory.GetTicksLastCallAsync(functionName);
+
+        Assert.True(persistedTicks > startedTicks);
+        Assert.True(memoryHistory.HasActiveCalls(functionName));
+
+        memoryHistory.EndActiveCall(functionName);
+        await cancellation.CancelAsync();
+        await running;
+        Assert.False(memoryHistory.HasActiveCalls(functionName));
+    }
+
+    [Fact]
     public async Task LogErrorWhenExceptionIsThrown()
     {
         var logger = new Mock<ILogger<HistorySynchronizationWorker>>();

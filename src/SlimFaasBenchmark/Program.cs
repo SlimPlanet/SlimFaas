@@ -1,48 +1,23 @@
-﻿using System;
-using System.Net.Http;
-using System.Net.Http.Json;
-using System.Threading.Tasks;
-using NBomber.CSharp;
-using NBomber.Http;
+using SlimFaasBenchmark;
 
-// Exemple de payload JSON
-var payload = new
+if (args.Length == 0)
 {
-    n = 30,
-    message = "Compute Fibonacci"
-};
+    BenchmarkCli.PrintUsage();
+    return 2;
+}
 
-// Création du client HTTP (NB: tu peux aussi injecter le BaseAddress directement)
-using var httpClient = new HttpClient
+try
 {
-    BaseAddress = new Uri("http://localhost:50000")
-};
-
-// Définition du scénario
-var scenario = Scenario.Create("fibonacci_scenario", async context =>
+    return args[0].ToLowerInvariant() switch
     {
-        // Envoie du JSON dans le corps de la requête
-        var response = await httpClient.PostAsJsonAsync(
-            "async-function/fibonacci1/compute", // chemin relatif
-            payload,                             // ton JSON
-            new CancellationToken()
-        );
-
-        // Retourne le résultat à NBomber
-        return response.IsSuccessStatusCode
-            ? Response.Ok()
-            : Response.Fail(statusCode: response.StatusCode.ToString());
-    })
-    .WithoutWarmUp()
-    .WithLoadSimulations(
-        Simulation.Inject(
-            rate: 320,
-            interval: TimeSpan.FromSeconds(1),
-            during: TimeSpan.FromMinutes(60))
-    );
-
-// Exécution du scénario
-NBomberRunner
-    .RegisterScenarios(scenario)
-    .WithWorkerPlugins(new HttpMetricsPlugin())
-    .Run();
+        "target" => await BenchmarkTarget.RunAsync(CommandArguments.Parse(args[1..])),
+        "run" => await BenchmarkRunner.RunAsync(CommandArguments.Parse(args[1..])),
+        "compare" => await BenchmarkComparer.RunAsync(CommandArguments.Parse(args[1..])),
+        _ => throw new ArgumentException($"Unknown command '{args[0]}'.")
+    };
+}
+catch (Exception exception)
+{
+    Console.Error.WriteLine(exception);
+    return 1;
+}

@@ -3,6 +3,12 @@ using SlimFaas.Kubernetes;
 
 namespace SlimFaas
 {
+    internal readonly record struct SyncTargetReservation(
+        string RoutingTarget,
+        string Ip,
+        IList<int>? Ports,
+        string? EndpointUrl);
+
     public interface IProxy
     {
         /// <summary>
@@ -58,22 +64,26 @@ namespace SlimFaas
     {
         private readonly IReplicasService _replicasService;
         private readonly string _functionName;
+        private readonly DeploymentInformation? _deploymentSnapshot;
 
         // Etat local du load-balancer (heuristique locale au process).
         public static ConcurrentDictionary<string, string> IpAddresses { get; } = new();
         private static ConcurrentDictionary<string, ConcurrentDictionary<string, int>> InFlightSyncByDeployment { get; } = new();
-        private static ConcurrentDictionary<string, object> DeploymentLocks { get; } = new();
 
         public Proxy(IReplicasService replicasService, string functionName)
+            : this(replicasService, functionName, null)
+        {
+        }
+
+        internal Proxy(
+            IReplicasService replicasService,
+            string functionName,
+            DeploymentInformation? deploymentSnapshot)
         {
             _replicasService = replicasService;
             _functionName = functionName;
+            _deploymentSnapshot = deploymentSnapshot;
         }
-
-        private readonly Random _random = new();
-
-        private static object GetDeploymentLock(string deployment)
-            => DeploymentLocks.GetOrAdd(deployment, static _ => new object());
 
         private static ConcurrentDictionary<string, int> GetOrCreateInFlight(string deployment)
             => InFlightSyncByDeployment.GetOrAdd(deployment,
@@ -84,9 +94,12 @@ namespace SlimFaas
             return replicasService.Deployments.Functions.FirstOrDefault(f => f.Deployment == functionName);
         }
 
+        private DeploymentInformation? GetDeployment() =>
+            _deploymentSnapshot ?? SearchFunction(_replicasService, _functionName);
+
         public IList<int>? GetPorts()
         {
-            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            var deploymentInformation = GetDeployment();
             return deploymentInformation?.Pods
                 .Where(pod => pod.Ready == true)
                 .Select(pod => pod.Ports)
@@ -100,7 +113,7 @@ namespace SlimFaas
                 return GetPorts();
             }
 
-            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            var deploymentInformation = GetDeployment();
             return FindReadyPod(deploymentInformation, target)?.Ports;
         }
 
@@ -111,7 +124,7 @@ namespace SlimFaas
                 return null;
             }
 
-            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            var deploymentInformation = GetDeployment();
             return FindReadyPod(deploymentInformation, target)?.Ip;
         }
 
@@ -122,7 +135,7 @@ namespace SlimFaas
                 return null;
             }
 
-            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            var deploymentInformation = GetDeployment();
             return FindReadyPod(deploymentInformation, target)?.EndpointUrl;
         }
 
@@ -158,41 +171,74 @@ namespace SlimFaas
         /// </summary>
         public string AcquireNextIPForSync()
         {
-            var deploymentInformation = SearchFunction(_replicasService, _functionName);
-            if (deploymentInformation == null)
+            return TryAcquireNextTargetForSync(out SyncTargetReservation reservation)
+                ? reservation.RoutingTarget
+                : "";
+        }
+
+        internal bool TryAcquireNextTargetForSync(out SyncTargetReservation reservation)
+        {
+            var deploymentInformation = GetDeployment();
+            if (deploymentInformation is null)
             {
-                return "";
+                reservation = default;
+                return false;
             }
 
             var deployment = deploymentInformation.Deployment;
-            var lockObject = GetDeploymentLock(deployment);
-
-            lock (lockObject)
+            if (deploymentInformation.Pods.Count == 1 &&
+                deploymentInformation.Pods[0].Ready == true)
             {
-                var readyTargets = deploymentInformation.Pods
-                    .Where(pod => pod.Ready == true)
-                    .Select(RoutingTarget)
-                    .ToList();
-
-                if (readyTargets.Count == 0)
+                PodInformation onlyPod = deploymentInformation.Pods[0];
+                string onlyTarget = RoutingTarget(onlyPod);
+                if (string.IsNullOrWhiteSpace(onlyTarget))
                 {
-                    return "";
+                    reservation = default;
+                    return false;
                 }
 
-                var inFlight = GetOrCreateInFlight(deployment);
-                var selected = SelectBestTarget(
-                    deployment,
-                    readyTargets,
-                    int.MaxValue,
-                    inFlight);
-                if (string.IsNullOrWhiteSpace(selected))
-                {
-                    return "";
-                }
-
-                inFlight.AddOrUpdate(selected, 1, static (_, current) => current + 1);
-                return selected;
+                GetOrCreateInFlight(deployment)
+                    .AddOrUpdate(onlyTarget, 1, static (_, current) => current + 1);
+                reservation = new SyncTargetReservation(
+                    onlyTarget,
+                    onlyPod.Ip,
+                    onlyPod.Ports,
+                    onlyPod.EndpointUrl);
+                return true;
             }
+
+            PodInformation[] readyPods = deploymentInformation.Pods
+                .Where(pod => pod.Ready == true)
+                .ToArray();
+
+            if (readyPods.Length == 0)
+            {
+                reservation = default;
+                return false;
+            }
+
+            string[] readyTargets = readyPods.Select(RoutingTarget).ToArray();
+            var inFlight = GetOrCreateInFlight(deployment);
+            string selected = SelectBestTarget(
+                deployment,
+                readyTargets,
+                int.MaxValue,
+                inFlight);
+            if (string.IsNullOrWhiteSpace(selected))
+            {
+                reservation = default;
+                return false;
+            }
+
+            inFlight.AddOrUpdate(selected, 1, static (_, current) => current + 1);
+            PodInformation selectedPod = readyPods.First(pod =>
+                string.Equals(RoutingTarget(pod), selected, StringComparison.OrdinalIgnoreCase));
+            reservation = new SyncTargetReservation(
+                selected,
+                selectedPod.Ip,
+                selectedPod.Ports,
+                selectedPod.EndpointUrl);
+            return true;
         }
 
         /// <summary>
@@ -205,36 +251,18 @@ namespace SlimFaas
                 return;
             }
 
-            var deploymentInformation = SearchFunction(_replicasService, _functionName);
-            var deployment = deploymentInformation?.Deployment ?? _functionName;
-            var lockObject = GetDeploymentLock(deployment);
-
-            lock (lockObject)
+            var deployment = GetDeployment()?.Deployment ?? _functionName;
+            if (!InFlightSyncByDeployment.TryGetValue(deployment, out var inFlight))
             {
-                if (!InFlightSyncByDeployment.TryGetValue(deployment, out var inFlight))
-                {
-                    return;
-                }
-
-                if (!inFlight.TryGetValue(ip, out var current))
-                {
-                    return;
-                }
-
-                if (current <= 1)
-                {
-                    inFlight.TryRemove(ip, out _);
-                }
-                else
-                {
-                    inFlight[ip] = current - 1;
-                }
+                return;
             }
+
+            inFlight.AddOrUpdate(ip, 0, static (_, current) => current > 0 ? current - 1 : 0);
         }
 
         private string GetNextIPInternal(int maxPerPod, IReadOnlyCollection<string>? alreadyUsedIps)
         {
-            var deploymentInformation = SearchFunction(_replicasService, _functionName);
+            var deploymentInformation = GetDeployment();
             if (deploymentInformation == null)
             {
                 return "";
@@ -273,7 +301,7 @@ namespace SlimFaas
                 activeByTarget);
         }
 
-        private string SelectBestTarget(
+        private static string SelectBestTarget(
             string deployment,
             IList<string> readyTargets,
             int maxPerPod,
@@ -284,20 +312,7 @@ namespace SlimFaas
                 return "";
             }
 
-            // Déterminer l'index de départ (round-robin)
-            int startIndex;
-            if (!IpAddresses.TryGetValue(deployment, out var lastIp)
-                || string.IsNullOrWhiteSpace(lastIp))
-            {
-                startIndex = _random.Next(0, readyTargets.Count);
-            }
-            else
-            {
-                var currentIndex = readyTargets.IndexOf(lastIp);
-                startIndex = currentIndex == -1
-                    ? _random.Next(0, readyTargets.Count)
-                    : (currentIndex + 1) % readyTargets.Count;
-            }
+            int startIndex = AdvanceRoundRobin(deployment, readyTargets);
 
             // Stratégie "least-connections" : parmi les pods non saturés, choisir
             // celui qui a le moins de requêtes actives. En cas d'égalité,
@@ -315,15 +330,7 @@ namespace SlimFaas
                     continue;
                 }
 
-                // Pénalité légère sur le dernier pod choisi pour éviter le "sticky"
-                // lorsque plusieurs pods ont la même charge.
                 double score = active;
-                if (!string.IsNullOrWhiteSpace(lastIp)
-                    && string.Equals(candidateIp, lastIp, StringComparison.OrdinalIgnoreCase))
-                {
-                    score += 0.25;
-                }
-
                 if (score < bestScore)
                 {
                     bestIp = candidateIp;
@@ -333,12 +340,37 @@ namespace SlimFaas
 
             if (bestIp != null)
             {
-                IpAddresses[deployment] = bestIp;
                 return bestIp;
             }
 
             // Tous les pods sont saturés
             return "";
+        }
+
+        private static int AdvanceRoundRobin(string deployment, IList<string> readyTargets)
+        {
+            while (true)
+            {
+                if (!IpAddresses.TryGetValue(deployment, out string? previous) ||
+                    string.IsNullOrWhiteSpace(previous))
+                {
+                    string initial = readyTargets[Random.Shared.Next(readyTargets.Count)];
+                    if (IpAddresses.TryAdd(deployment, initial))
+                    {
+                        return readyTargets.IndexOf(initial);
+                    }
+
+                    continue;
+                }
+
+                int previousIndex = readyTargets.IndexOf(previous);
+                int nextIndex = previousIndex < 0 ? 0 : (previousIndex + 1) % readyTargets.Count;
+                string next = readyTargets[nextIndex];
+                if (IpAddresses.TryUpdate(deployment, next, previous))
+                {
+                    return nextIndex;
+                }
+            }
         }
 
         private static string RoutingTarget(PodInformation pod)

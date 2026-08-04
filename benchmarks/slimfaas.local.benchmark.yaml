@@ -1,0 +1,93 @@
+schemaVersion: 1
+name: slimfaas-benchmark
+
+cluster:
+  nodes: 3
+  entrypointPort: 31020
+  nodeHttpPortBase: 31021
+  raftPortBase: 3162
+  nodeLogLevel: Error
+
+processPorts:
+  from: 32000
+  to: 32015
+
+state:
+  mode: ephemeral
+
+functions:
+  benchmark-latency:
+    # The auxiliary target below listens on the same address. It is intentionally
+    # not declared with `port:` because local mode reserves debugger ports for
+    # externally managed processes.
+    debugUrl: http://127.0.0.1:31080
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/NumberParallelRequest: "256"
+      SlimFaas/NumberParallelRequestPerPod: "256"
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/ReplicasMin: "1"
+    health:
+      path: /health
+      periodSeconds: 1
+      timeoutSeconds: 2
+      startupTimeoutSeconds: 120
+
+  benchmark-scale:
+    command:
+      - dotnet
+      - src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll
+      - target
+    workingDirectory: ..
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "5"
+      SlimFaas/NumberParallelRequest: "4"
+      SlimFaas/NumberParallelRequestPerPod: "1"
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/ReplicasMin: "0"
+      prometheus.io/path: "/metrics"
+      prometheus.io/port: "{port}"
+      prometheus.io/scrape: "true"
+      SlimFaas/Scale: >
+        {
+          "ReplicaMax": 4,
+          "ScrapeIntervalMilliseconds": 1000,
+          "Triggers": [
+            {
+              "MetricType": "AverageValue",
+              "MetricName": "benchmark_scale_pressure",
+              "Query": "max_over_time(slimfaas_benchmark_scale_pressure[30s])",
+              "Threshold": 1
+            }
+          ],
+          "Behavior": {
+            "ScaleUp": {
+              "StabilizationWindowSeconds": 0,
+              "Policies": []
+            },
+            "ScaleDown": {
+              "StabilizationWindowSeconds": 0,
+              "Policies": []
+            }
+          }
+        }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://127.0.0.1:{port}"
+    health:
+      path: /health
+      periodSeconds: 1
+      timeoutSeconds: 2
+      startupTimeoutSeconds: 120
+
+processes:
+  benchmark-target:
+    command:
+      - dotnet
+      - src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll
+      - target
+      - --port
+      - "31080"
+    workingDirectory: ..
+    restartPolicy: always

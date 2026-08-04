@@ -426,6 +426,34 @@ namespace SlimFaas.Tests
         }
 
         [Fact]
+        public void AcquireNextIPForSync_IsSafeUnderConcurrentReservations()
+        {
+            var replicasService = BuildThreePods();
+            var proxy = new Proxy(replicasService, "my-deployment");
+            var reserved = new ConcurrentBag<string>();
+
+            Parallel.For(0, 300, _ => reserved.Add(proxy.AcquireNextIPForSync()));
+
+            Assert.Equal(300, reserved.Count);
+            Assert.DoesNotContain("", reserved);
+            Assert.Equal(3, reserved.Distinct().Count());
+            Assert.All(
+                reserved.GroupBy(ip => ip),
+                group => Assert.InRange(group.Count(), 50, 150));
+
+            Parallel.ForEach(reserved, proxy.ReleaseSyncIP);
+
+            var afterRelease = Enumerable.Range(0, 3)
+                .Select(_ => proxy.AcquireNextIPForSync())
+                .ToArray();
+            Assert.Equal(3, afterRelease.Distinct().Count());
+            foreach (string target in afterRelease)
+            {
+                proxy.ReleaseSyncIP(target);
+            }
+        }
+
+        [Fact]
         public void GetPorts_WhenFunctionNotFound_ReturnsNull()
         {
             // Arrange

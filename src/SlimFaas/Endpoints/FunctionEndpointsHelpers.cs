@@ -36,7 +36,6 @@ public static class FunctionEndpointsHelpers
         IJobService jobService,
         string localJobToken = "")
     {
-        var candidates = GetCallerIpCandidates(context).ToList();
         IList<Kubernetes.Job> jobs = jobService.Jobs ?? Array.Empty<Kubernetes.Job>();
         string localJobName = context.Request.Headers[LocalJobGateway.JobHeaderName]
             .FirstOrDefault()?
@@ -55,6 +54,15 @@ public static class FunctionEndpointsHelpers
         {
             return localCaller;
         }
+
+        if (jobs.Count == 0)
+        {
+            string remoteIp = NormalizeNetworkAddress(
+                context.Connection.RemoteIpAddress?.ToString() ?? string.Empty);
+            return new NetworkActivityCaller(NetworkActivityTracker.Actors.External, remoteIp);
+        }
+
+        var candidates = GetCallerIpCandidates(context).ToList();
 
         foreach (string candidate in candidates)
         {
