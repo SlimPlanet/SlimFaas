@@ -119,10 +119,14 @@ metadata:
 ```
 
 ## 6. Function Configuration
-   You can fine-tune sync/async HTTP timeouts, retries, and more using JSON config in `SlimFaas/Configuration`:
+
+You can configure the synchronous HTTP timeout and the retry policies used by asynchronous and publish calls with `SlimFaas/Configuration`:
 
 ```json
 {
+  "DefaultSync": {
+    "HttpTimeout": 120
+  },
   "DefaultAsync": {
     "HttpTimeout": 120,
     "TimeoutRetries": [2,4,8],
@@ -135,7 +139,22 @@ metadata:
   }
 }
 ```
-These settings let you define how aggressively to retry failing calls, which statuses to retry, and more.
+
+Synchronous calls make exactly one HTTP request and never retry. `DefaultSync` therefore supports only `HttpTimeout`.
+
+`TimeoutRetries` defines the delays in seconds between attempts for asynchronous and publish calls. `HttpStatusRetries` lists the HTTP statuses that trigger those retries.
+
+Every section is optional. When a section or property is omitted, SlimFaas applies its defaults. For example, the following configuration customizes only publish calls; sync and async keep their default 120-second timeout, and async keeps its default retry policy:
+
+```json
+{
+  "DefaultPublish": {
+    "HttpTimeout": 15,
+    "TimeoutRetries": [1,2,4],
+    "HttpStatusRetries": [500,502,503]
+  }
+}
+```
 
 ---
 

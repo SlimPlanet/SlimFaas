@@ -103,7 +103,11 @@ public static class SyncFunctionEndpoints
 
             // ── Fonction HTTP classique ──
             historyHttpService.BeginActiveCall(functionName);
+<<<<<<< HEAD
             SlimFaasDefaultConfiguration syncConfiguration = function.Configuration.DefaultSync;
+=======
+            SlimFaasSyncConfiguration syncConfiguration = function.Configuration.DefaultSync;
+>>>>>>> origin/main
 
             // Signal that SlimFaas is waiting for a pod to start (for UI visualization)
             bool functionWasReady = IsFunctionReady(function);

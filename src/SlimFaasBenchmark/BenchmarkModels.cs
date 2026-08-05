@@ -7,6 +7,7 @@ internal readonly record struct RequestSample(
     int Repetition,
     bool Success,
     double LatencyMilliseconds,
+<<<<<<< HEAD
     string? Error,
     string? RequestId = null);
 
@@ -16,6 +17,9 @@ internal sealed record AsyncResourceUsage(
     double? PeakWorkingSetBytes,
     double? CpuSeconds,
     double? RaftEntries);
+=======
+    string? Error);
+>>>>>>> origin/main
 
 internal sealed record LatencyCaseData(
     LatencyRunResult Result,
@@ -34,12 +38,16 @@ internal sealed record LatencyRunResult(
     double P95Milliseconds,
     double P99Milliseconds,
     double MaxMilliseconds,
+<<<<<<< HEAD
     TargetObservationSummary? AsyncDelivery,
     double MeanMilliseconds = 0,
     int AsyncMissing = 0,
     int AsyncDuplicates = 0,
     AsyncResourceUsage? AsyncResources = null,
     string LoadShape = "steady");
+=======
+    TargetObservationSummary? AsyncDelivery);
+>>>>>>> origin/main
 
 internal sealed record LatencyAggregateResult(
     string Mode,
@@ -59,6 +67,7 @@ internal sealed record LatencyAggregateResult(
     double? AsyncCompletionP50Milliseconds,
     double? AsyncCompletionP95Milliseconds,
     double? AsyncCompletionP99Milliseconds,
+<<<<<<< HEAD
     int? AsyncObserved,
     double MeanMilliseconds = 0,
     double? AsyncArrivalMeanMilliseconds = null,
@@ -88,6 +97,9 @@ internal sealed record AsyncWorkloadResult(
     double P99Milliseconds,
     TargetObservationSummary Delivery,
     AsyncResourceUsage? Resources);
+=======
+    int? AsyncObserved);
+>>>>>>> origin/main
 
 internal sealed record SyncOverheadResult(
     int PayloadBytes,
@@ -145,12 +157,16 @@ internal sealed record BenchmarkSettings(
     IReadOnlyList<int> Concurrency,
     int ScaleMessages,
     int ScaleConcurrency,
+<<<<<<< HEAD
     int ScaleTargetReplicas,
     string Profile = "standard",
     int AsyncPacedMessages = 0,
     int AsyncPacedIntervalMilliseconds = 0,
     int AsyncBurstMessages = 0,
     int AsyncBurstConcurrency = 0);
+=======
+    int ScaleTargetReplicas);
+>>>>>>> origin/main
 
 internal sealed record BenchmarkReport(
     DateTimeOffset StartedAtUtc,
@@ -162,8 +178,12 @@ internal sealed record BenchmarkReport(
     IReadOnlyList<LatencyRunResult> LatencyRuns,
     IReadOnlyList<LatencyAggregateResult> Latency,
     IReadOnlyList<SyncOverheadResult> SyncOverhead,
+<<<<<<< HEAD
     ScaleResult Scaling,
     IReadOnlyList<AsyncWorkloadResult>? AsyncWorkloads = null);
+=======
+    ScaleResult Scaling);
+>>>>>>> origin/main
 
 internal sealed record FunctionStatusDto(
     int NumberReady,

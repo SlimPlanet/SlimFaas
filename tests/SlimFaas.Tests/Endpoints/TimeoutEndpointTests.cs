@@ -31,7 +31,7 @@ internal class NeverReadyReplicasService : IReplicasService
             Namespace: "default",
             Configuration: new SlimFaasConfiguration
             {
-                DefaultSync = new SlimFaasDefaultConfiguration
+                DefaultSync = new SlimFaasSyncConfiguration
                 {
                     // HttpTimeout est en secondes
                     HttpTimeout = httpTimeoutTenthsSeconds
@@ -77,7 +77,7 @@ internal class FlipReadyQuicklyReplicasService : IReplicasService
             Namespace: "default",
             Configuration: new SlimFaasConfiguration
             {
-                DefaultSync = new SlimFaasDefaultConfiguration
+                DefaultSync = new SlimFaasSyncConfiguration
                 {
                     // HttpTimeout en secondes
                     HttpTimeout = httpTimeoutSeconds
@@ -127,7 +127,7 @@ internal class SendClientGatewayTimeout : ISendClient
     public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null)
         => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
 
-    public Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath, string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null)
+    public Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath, string functionQuery, SlimFaasSyncConfiguration slimFaasSyncConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null)
         => Task.FromResult(new HttpResponseMessage(HttpStatusCode.GatewayTimeout));
 }
 

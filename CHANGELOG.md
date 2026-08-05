@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.80.0
+
+- [780153dc](https://github.com/SlimPlanet/SlimFaas/commit/780153dc307eee841e3960a73d59dc065fd104e7) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
+- [309a2119](https://github.com/SlimPlanet/SlimFaas/commit/309a21194601a8334c1ab314552d3bb257477e48) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
+- [b9f9a9f3](https://github.com/SlimPlanet/SlimFaas/commit/b9f9a9f3e354dc5872b97d124f9b31a3be8b4e15) - feat: optimise sync request (#310), 2026-08-04 by *Guillaume Chervet*
+
+
+## 0.79.4
+
+
+
 ## v0.79.4
 
 - [bbe315ad](https://github.com/SlimPlanet/SlimFaas/commit/bbe315ad2270a3c03426490a1e756bfeed9adaa6) - fix: enhance scale (#309) (release), 2026-08-02 by *Guillaume Chervet*
@@ -267,14 +278,5 @@
 ## v0.71.0
 
 - [eb130e6d](https://github.com/SlimPlanet/SlimFaas/commit/eb130e6dc27ab451b1591b89dfd86d8558794427) - feat(slimfaas): add dashboard (#262) (release), 2026-04-14 by *Guillaume Chervet*
-
-
-## 0.70.2
-
-
-
-## v0.70.2
-
-- [85bdb0f3](https://github.com/SlimPlanet/SlimFaas/commit/85bdb0f390fe714c780022df39149829891509a5) - fix(slimfaas): Allow numbers and underscores in job names (#264) (release), 2026-04-14 by *Copilot*
 
 

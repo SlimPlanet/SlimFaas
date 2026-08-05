@@ -8,7 +8,10 @@ internal static class BenchmarkTarget
 {
     internal const string RunIdHeader = "X-SlimFaas-Benchmark-Run-Id";
     internal const string SentTicksHeader = "X-SlimFaas-Benchmark-Sent-Utc-Ticks";
+<<<<<<< HEAD
     internal const string RequestIdHeader = "X-SlimFaas-Benchmark-Request-Id";
+=======
+>>>>>>> origin/main
 
     public static async Task<int> RunAsync(CommandArguments arguments)
     {
@@ -77,6 +80,7 @@ internal static class BenchmarkTarget
                     !string.IsNullOrWhiteSpace(rawRunId) &&
                     long.TryParse(rawSentTicks, NumberStyles.Integer, CultureInfo.InvariantCulture, out long sentTicks))
                 {
+<<<<<<< HEAD
                     string requestId = context.Request.Headers.TryGetValue(RequestIdHeader, out var rawRequestId) &&
                                        !string.IsNullOrWhiteSpace(rawRequestId)
                         ? rawRequestId.ToString()
@@ -84,6 +88,10 @@ internal static class BenchmarkTarget
                     observations.GetOrAdd(rawRunId.ToString(), static _ => new ObservationAccumulator())
                         .Record(
                             requestId,
+=======
+                    observations.GetOrAdd(rawRunId.ToString(), static _ => new ObservationAccumulator())
+                        .Record(
+>>>>>>> origin/main
                             TimeSpan.FromTicks(Math.Max(0, receivedTicks - sentTicks)).TotalMilliseconds,
                             TimeSpan.FromTicks(Math.Max(0, completedTicks - sentTicks)).TotalMilliseconds);
                 }
@@ -114,6 +122,7 @@ internal static class BenchmarkTarget
 internal sealed class ObservationAccumulator
 {
     private readonly object _gate = new();
+<<<<<<< HEAD
     private readonly HashSet<string> _requestIds = new(StringComparer.Ordinal);
     private readonly List<double> _arrivalMilliseconds = [];
     private readonly List<double> _completionMilliseconds = [];
@@ -130,6 +139,15 @@ internal sealed class ObservationAccumulator
                 _duplicates++;
                 return;
             }
+=======
+    private readonly List<double> _arrivalMilliseconds = [];
+    private readonly List<double> _completionMilliseconds = [];
+
+    public void Record(double arrivalMilliseconds, double completionMilliseconds)
+    {
+        lock (_gate)
+        {
+>>>>>>> origin/main
             _arrivalMilliseconds.Add(arrivalMilliseconds);
             _completionMilliseconds.Add(completionMilliseconds);
         }
@@ -143,17 +161,25 @@ internal sealed class ObservationAccumulator
             double[] completions = _completionMilliseconds.Order().ToArray();
             return new TargetObservationSummary(
                 runId,
+<<<<<<< HEAD
                 _count,
+=======
+                arrivals.Length,
+>>>>>>> origin/main
                 Statistics.Percentile(arrivals, 0.50),
                 Statistics.Percentile(arrivals, 0.95),
                 Statistics.Percentile(arrivals, 0.99),
                 Statistics.Percentile(completions, 0.50),
                 Statistics.Percentile(completions, 0.95),
+<<<<<<< HEAD
                 Statistics.Percentile(completions, 0.99),
                 _requestIds.Count,
                 _duplicates,
                 arrivals.Length == 0 ? 0 : arrivals.Average(),
                 completions.Length == 0 ? 0 : completions.Average());
+=======
+                Statistics.Percentile(completions, 0.99));
+>>>>>>> origin/main
         }
     }
 }
@@ -166,11 +192,15 @@ internal sealed record TargetObservationSummary(
     double ArrivalP99Milliseconds,
     double CompletionP50Milliseconds,
     double CompletionP95Milliseconds,
+<<<<<<< HEAD
     double CompletionP99Milliseconds,
     int UniqueCount = 0,
     int DuplicateCount = 0,
     double ArrivalMeanMilliseconds = 0,
     double CompletionMeanMilliseconds = 0)
+=======
+    double CompletionP99Milliseconds)
+>>>>>>> origin/main
 {
     public static TargetObservationSummary Empty(string runId) => new(runId, 0, 0, 0, 0, 0, 0, 0);
 }

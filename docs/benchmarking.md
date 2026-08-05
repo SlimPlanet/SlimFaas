@@ -19,6 +19,7 @@ warm-up windows:
 .bin/slimfaas-local-benchmark.sh
 ```
 
+<<<<<<< HEAD
 The `async-queue` profile uses the same payload/concurrency matrix and adds a
 low-rate paced scenario plus a burst of 1,000 messages at concurrency 64:
 
@@ -28,6 +29,8 @@ BENCHMARK_RUN_ROOT=artifacts/slimfaas-local-benchmark/async-baseline \
 .bin/slimfaas-local-benchmark.sh
 ```
 
+=======
+>>>>>>> origin/main
 The script builds SlimFaas without the dashboard, builds the benchmark driver,
 validates `benchmarks/slimfaas.local.benchmark.yaml`, starts a clean three-node
 cluster with `slimfaas local`, runs the matrix, and shuts down every managed
@@ -58,6 +61,7 @@ dotnet run --project src/SlimFaasBenchmark -- compare \
   --output artifacts/slimfaas-local-benchmark/comparison
 ```
 
+<<<<<<< HEAD
 For an async queue optimization, capture the candidate on the same machine and
 compare with the async acceptance rules:
 
@@ -73,6 +77,8 @@ dotnet run --project src/SlimFaasBenchmark -- compare \
   --output artifacts/slimfaas-local-benchmark/async-comparison
 ```
 
+=======
+>>>>>>> origin/main
 The command rejects reports whose duration, warm-up, repetitions, payloads,
 concurrency, or scaling settings differ. It writes:
 
@@ -86,6 +92,7 @@ timeouts, when the median added p50 reduction is below 20% for 64 B–4 KiB or
 by more than 10%. Async latency and scaling timings are reported for context;
 only their errors and timeouts affect the verdict.
 
+<<<<<<< HEAD
 With `--profile async`, the verdict additionally requires no missing,
 duplicated, failed, or expired message; median reductions of at least 50% for
 the HTTP-202 p95 and 40% for the function-arrival p95; and at least 40% p50
@@ -101,6 +108,8 @@ informational for `--profile async`; the async p99/throughput/resource rules and
 all correctness failures determine that profile's verdict. Use the default
 `--profile sync` comparison when sync guardrails must be gating.
 
+=======
+>>>>>>> origin/main
 ## What is measured
 
 ### Warm synchronous overhead
@@ -133,6 +142,7 @@ frequency and temperature bias.
 
 Each async case reports two different clocks:
 
+<<<<<<< HEAD
 - **acceptance latency**: client send until SlimFaas returns HTTP 202 after the
   request has been durably enqueued;
 - **arrival latency**: client send until the target handler starts, including
@@ -143,6 +153,13 @@ For example, p95 means that 95% of messages were no slower than that value. The
 mean is the easiest headline number, while p95 and p99 reveal occasional slow
 messages that an average can hide.
 
+=======
+- **ingress latency**: client send until SlimFaas returns HTTP 202 after the
+  request has been durably enqueued;
+- **delivery latency**: client send until the target handler starts, including
+  enqueue, queue wait, dispatch, and request-body transfer.
+
+>>>>>>> origin/main
 The target also records completion latency in `results.json`. The target and
 driver are local processes on the same clock, so UTC ticks can be compared
 without a network clock-synchronization error. The benchmark waits for every
@@ -153,12 +170,15 @@ The 2 MiB case is intentionally above SlimFaas' 1 MiB async body-offload
 threshold. This makes the matrix cover both inline queue payloads and the
 cluster-file path.
 
+<<<<<<< HEAD
 The async profile also records throughput, missing and duplicate IDs, errors,
 expirations, Raft entries per accepted message, process CPU per message, and
 peak aggregate SlimFaas working set. The paced scenario measures how quickly a
 nearly idle queue wakes without waiting for the polling fallback. The burst
 scenario measures coalescing and backpressure under sudden load.
 
+=======
+>>>>>>> origin/main
 ### Scaling speed
 
 `benchmark-scale` starts at zero replicas. The driver sends a burst of 200 async
@@ -202,7 +222,11 @@ Available variables are:
 
 | Variable | Standard default | Purpose |
 |---|---:|---|
+<<<<<<< HEAD
 | `BENCHMARK_PROFILE` | `standard` | `quick`, `standard`, or `async-queue` defaults |
+=======
+| `BENCHMARK_PROFILE` | `standard` | `quick` or `standard` defaults |
+>>>>>>> origin/main
 | `BENCHMARK_DURATION_SECONDS` | `10` | measured seconds per route and case |
 | `BENCHMARK_WARMUP_SECONDS` | `2` | unrecorded warm-up seconds |
 | `BENCHMARK_REPETITIONS` | `3` | repetitions per payload/concurrency case |
@@ -212,10 +236,13 @@ Available variables are:
 | `BENCHMARK_SCALE_CONCURRENCY` | `32` | burst enqueue concurrency |
 | `BENCHMARK_SCALE_TIMEOUT_SECONDS` | `120` | maximum scaling observation window |
 | `BENCHMARK_ASYNC_DRAIN_TIMEOUT_SECONDS` | `180` | maximum async delivery/drain wait |
+<<<<<<< HEAD
 | `BENCHMARK_ASYNC_PACED_MESSAGES` | `100` | messages in the low-rate wake-up scenario |
 | `BENCHMARK_ASYNC_PACED_INTERVAL_MS` | `100` | interval between paced messages |
 | `BENCHMARK_ASYNC_BURST_MESSAGES` | `1000` | messages in the burst scenario |
 | `BENCHMARK_ASYNC_BURST_CONCURRENCY` | `64` | burst enqueue concurrency |
+=======
+>>>>>>> origin/main
 | `BENCHMARK_RUN_ROOT` | timestamped artifacts path | exact output directory |
 | `BENCHMARK_SKIP_BUILD` | `false` | reuse existing Release binaries for repeated runs on the same checkout |
 

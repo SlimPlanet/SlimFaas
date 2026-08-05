@@ -13,7 +13,7 @@ public interface ISendClient
     Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
-        string functionQuery, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null);
+        string functionQuery, SlimFaasSyncConfiguration slimFaasSyncConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null);
 }
 
 public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOptions<SlimFaasOptions> slimFaasOptions, INamespaceProvider namespaceProvider, NetworkActivityTracker activityTracker) : ISendClient
@@ -78,7 +78,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         string functionName,
         string functionPath,
         string functionQuery,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration,
+        SlimFaasSyncConfiguration slimFaasSyncConfiguration,
         string? baseUrl = null,
         IProxy? proxy = null,
         string? activitySource = null,
@@ -98,7 +98,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                 functionName, functionPath, functionQuery);
 
             using var localCancellationToken = new CancellationTokenSource(
-                TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout));
+                TimeSpan.FromSeconds(slimFaasSyncConfiguration.HttpTimeout));
 
             var cancellationToken = httpContext.RequestAborted;
             using var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(

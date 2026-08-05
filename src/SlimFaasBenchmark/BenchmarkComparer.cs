@@ -32,6 +32,7 @@ internal sealed record SyncComparisonRow(
 internal sealed record AsyncComparisonRow(
     int PayloadBytes,
     int Concurrency,
+<<<<<<< HEAD
     double BaselineHttpMeanMilliseconds,
     double CandidateHttpMeanMilliseconds,
     double BaselineHttpP50Milliseconds,
@@ -99,6 +100,15 @@ internal sealed record AsyncAcceptanceCriteria(
     bool TailAndThroughputGuardrailsPassed,
     bool WorkloadGuardrailsPassed);
 
+=======
+    double BaselineHttpP50Milliseconds,
+    double CandidateHttpP50Milliseconds,
+    double? BaselineArrivalP50Milliseconds,
+    double? CandidateArrivalP50Milliseconds,
+    long CandidateFailed,
+    string Verdict);
+
+>>>>>>> origin/main
 internal sealed record ScalingComparison(
     double? BaselineReadyOneMilliseconds,
     double? CandidateReadyOneMilliseconds,
@@ -124,22 +134,29 @@ internal sealed record BenchmarkComparisonReport(
     IReadOnlyList<string> Failures,
     IReadOnlyList<SyncComparisonRow> Sync,
     IReadOnlyList<AsyncComparisonRow> Async,
+<<<<<<< HEAD
     ScalingComparison Scaling,
     string Profile = "sync",
     AsyncAcceptanceCriteria? AsyncCriteria = null,
     IReadOnlyList<AsyncWorkloadComparisonRow>? AsyncWorkloads = null);
+=======
+    ScalingComparison Scaling);
+>>>>>>> origin/main
 
 internal static class BenchmarkComparer
 {
     private const double SmallPayloadMinimumReductionPercent = 20d;
     private const double LargePayloadMinimumReductionPercent = 40d;
     private const double MaximumGuardrailRegressionPercent = 10d;
+<<<<<<< HEAD
     private const double AsyncHttpP95MinimumReductionPercent = 50d;
     private const double AsyncArrivalP95MinimumReductionPercent = 40d;
     private const double AsyncLargePayloadP50MinimumReductionPercent = 40d;
     private const double MaximumCpuRegressionPercent = 20d;
     private const double MaximumMemoryRegressionPercent = 10d;
     private const double MaximumRaftEntryRatio = 2d;
+=======
+>>>>>>> origin/main
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -155,9 +172,12 @@ internal static class BenchmarkComparer
             "output",
             Path.Combine(Path.GetDirectoryName(candidatePath) ?? ".", "comparison"));
         string outputDirectory = ResolvePath(outputValue, mustExist: false);
+<<<<<<< HEAD
         string profile = arguments.Get("profile", "sync").ToLowerInvariant();
         if (profile is not ("sync" or "async"))
             throw new ArgumentException("--profile must be 'sync' or 'async'.");
+=======
+>>>>>>> origin/main
 
         BenchmarkReport baseline = await ReadReportAsync(baselinePath);
         BenchmarkReport candidate = await ReadReportAsync(candidatePath);
@@ -167,8 +187,12 @@ internal static class BenchmarkComparer
             Path.GetFullPath(baselinePath),
             Path.GetFullPath(candidatePath),
             baseline,
+<<<<<<< HEAD
             candidate,
             profile);
+=======
+            candidate);
+>>>>>>> origin/main
 
         Directory.CreateDirectory(outputDirectory);
         await File.WriteAllTextAsync(
@@ -179,8 +203,13 @@ internal static class BenchmarkComparer
             BuildMarkdown(comparison));
 
         Console.WriteLine(comparison.Passed
+<<<<<<< HEAD
             ? $"PASS: the {profile} optimization met every comparison criterion."
             : $"FAIL: one or more {profile} optimization criteria were not met.");
+=======
+            ? "PASS: the sync optimization met every comparison criterion."
+            : "FAIL: one or more sync optimization criteria were not met.");
+>>>>>>> origin/main
         Console.WriteLine($"Comparison artifacts: {outputDirectory}");
         return comparison.Passed ? 0 : 1;
     }
@@ -189,11 +218,17 @@ internal static class BenchmarkComparer
         string baselinePath,
         string candidatePath,
         BenchmarkReport baseline,
+<<<<<<< HEAD
         BenchmarkReport candidate,
         string profile = "sync")
     {
         var failures = new List<string>();
         bool asyncProfile = string.Equals(profile, "async", StringComparison.OrdinalIgnoreCase);
+=======
+        BenchmarkReport candidate)
+    {
+        var failures = new List<string>();
+>>>>>>> origin/main
         SyncComparisonRow[] syncRows = baseline.SyncOverhead
             .OrderBy(row => row.PayloadBytes)
             .ThenBy(row => row.Concurrency)
@@ -222,9 +257,15 @@ internal static class BenchmarkComparer
                     row.Mode == "sync" &&
                     row.PayloadBytes == baselineRow.PayloadBytes &&
                     row.Concurrency == baselineRow.Concurrency);
+<<<<<<< HEAD
                 string verdict = asyncProfile
                     ? "INFO"
                     : guardrailsPassed && candidateLatency.Failed == 0 ? "PASS" : "FAIL";
+=======
+                string verdict = guardrailsPassed && candidateLatency.Failed == 0
+                    ? "PASS"
+                    : "FAIL";
+>>>>>>> origin/main
 
                 return new SyncComparisonRow(
                     baselineRow.PayloadBytes,
@@ -265,6 +306,7 @@ internal static class BenchmarkComparer
                            largeReduction >= LargePayloadMinimumReductionPercent;
         bool guardrailsPassed = syncRows.All(row => row.GuardrailsPassed);
 
+<<<<<<< HEAD
         if (!asyncProfile && !smallPassed)
             failures.Add(FormattableString.Invariant(
                 $"Small-payload median p50 reduction was {smallReduction:F1}%, below {SmallPayloadMinimumReductionPercent:F1}%."));
@@ -272,6 +314,15 @@ internal static class BenchmarkComparer
             failures.Add(FormattableString.Invariant(
                 $"Large-payload median p50 reduction was {largeReduction:F1}%, below {LargePayloadMinimumReductionPercent:F1}%."));
         foreach (SyncComparisonRow row in syncRows.Where(row => !asyncProfile && !row.GuardrailsPassed))
+=======
+        if (!smallPassed)
+            failures.Add(FormattableString.Invariant(
+                $"Small-payload median p50 reduction was {smallReduction:F1}%, below {SmallPayloadMinimumReductionPercent:F1}%."));
+        if (!largePassed)
+            failures.Add(FormattableString.Invariant(
+                $"Large-payload median p50 reduction was {largeReduction:F1}%, below {LargePayloadMinimumReductionPercent:F1}%."));
+        foreach (SyncComparisonRow row in syncRows.Where(row => !row.GuardrailsPassed))
+>>>>>>> origin/main
         {
             failures.Add(
                 $"Guardrail failed for {FormatBytes(row.PayloadBytes)} at concurrency {row.Concurrency}.");
@@ -287,6 +338,7 @@ internal static class BenchmarkComparer
                     row.Mode == "async" &&
                     row.PayloadBytes == baselineRow.PayloadBytes &&
                     row.Concurrency == baselineRow.Concurrency);
+<<<<<<< HEAD
                 double httpP50Reduction = ReductionPercent(
                     baselineRow.P50Milliseconds, candidateRow.P50Milliseconds);
                 double httpP95Reduction = ReductionPercent(
@@ -394,6 +446,20 @@ internal static class BenchmarkComparer
             asyncGuardrailsPassed,
             workloadGuardrailsPassed);
 
+=======
+                return new AsyncComparisonRow(
+                    baselineRow.PayloadBytes,
+                    baselineRow.Concurrency,
+                    baselineRow.P50Milliseconds,
+                    candidateRow.P50Milliseconds,
+                    baselineRow.AsyncArrivalP50Milliseconds,
+                    candidateRow.AsyncArrivalP50Milliseconds,
+                    candidateRow.Failed,
+                    candidateRow.Failed == 0 ? "PASS" : "FAIL");
+            })
+            .ToArray();
+
+>>>>>>> origin/main
         var scaling = new ScalingComparison(
             baseline.Scaling.ReadyOneMilliseconds,
             candidate.Scaling.ReadyOneMilliseconds,
@@ -406,6 +472,7 @@ internal static class BenchmarkComparer
             candidate.Scaling.Failed == 0 && !candidate.Scaling.TimedOut ? "PASS" : "FAIL");
 
         long candidateLatencyFailures = candidate.Latency.Sum(row => row.Failed);
+<<<<<<< HEAD
         int candidateMissing = candidate.Latency.Sum(row => row.AsyncMissing) +
                                (candidate.AsyncWorkloads?.Sum(row => row.Missing) ?? 0);
         int candidateDuplicates = candidate.Latency.Sum(row => row.AsyncDuplicates) +
@@ -415,11 +482,15 @@ internal static class BenchmarkComparer
                           candidateWorkloadFailures == 0 &&
                           candidateMissing == 0 &&
                           candidateDuplicates == 0 &&
+=======
+        bool noFailures = candidateLatencyFailures == 0 &&
+>>>>>>> origin/main
                           candidate.Scaling.Failed == 0 &&
                           !candidate.Scaling.TimedOut;
         if (!noFailures)
         {
             failures.Add(
+<<<<<<< HEAD
                 $"Candidate recorded {candidateLatencyFailures + candidateWorkloadFailures} request failures, " +
                 $"{candidateMissing} missing, {candidateDuplicates} duplicates, " +
                 $"{candidate.Scaling.Failed} scaling failures, timedOut={candidate.Scaling.TimedOut}.");
@@ -439,6 +510,12 @@ internal static class BenchmarkComparer
               asyncGuardrailsPassed && workloadGuardrailsPassed
             : smallPassed && largePassed && guardrailsPassed;
 
+=======
+                $"Candidate recorded {candidateLatencyFailures} latency failures, " +
+                $"{candidate.Scaling.Failed} scaling failures, timedOut={candidate.Scaling.TimedOut}.");
+        }
+
+>>>>>>> origin/main
         return new BenchmarkComparisonReport(
             DateTimeOffset.UtcNow,
             baselinePath,
@@ -449,6 +526,7 @@ internal static class BenchmarkComparer
             largePassed,
             guardrailsPassed,
             noFailures,
+<<<<<<< HEAD
             performancePassed && noFailures,
             failures,
             syncRows,
@@ -460,6 +538,16 @@ internal static class BenchmarkComparer
     }
 
     internal static async Task<BenchmarkReport> ReadReportAsync(string path)
+=======
+            smallPassed && largePassed && guardrailsPassed && noFailures,
+            failures,
+            syncRows,
+            asyncRows,
+            scaling);
+    }
+
+    private static async Task<BenchmarkReport> ReadReportAsync(string path)
+>>>>>>> origin/main
     {
         if (!File.Exists(path))
             throw new FileNotFoundException("Benchmark results file not found.", path);
@@ -478,11 +566,14 @@ internal static class BenchmarkComparer
                           baseline.ScaleMessages == candidate.ScaleMessages &&
                           baseline.ScaleConcurrency == candidate.ScaleConcurrency &&
                           baseline.ScaleTargetReplicas == candidate.ScaleTargetReplicas &&
+<<<<<<< HEAD
                           baseline.Profile == candidate.Profile &&
                           baseline.AsyncPacedMessages == candidate.AsyncPacedMessages &&
                           baseline.AsyncPacedIntervalMilliseconds == candidate.AsyncPacedIntervalMilliseconds &&
                           baseline.AsyncBurstMessages == candidate.AsyncBurstMessages &&
                           baseline.AsyncBurstConcurrency == candidate.AsyncBurstConcurrency &&
+=======
+>>>>>>> origin/main
                           baseline.PayloadBytes.SequenceEqual(candidate.PayloadBytes) &&
                           baseline.Concurrency.SequenceEqual(candidate.Concurrency);
         if (!compatible)
@@ -543,6 +634,7 @@ internal static class BenchmarkComparer
         return snapshot.Length == 0 ? null : Statistics.Median(snapshot);
     }
 
+<<<<<<< HEAD
     private static double? ReductionPercentNullable(double? baseline, double? candidate) =>
         baseline.HasValue && candidate.HasValue
             ? ReductionPercent(baseline.Value, candidate.Value)
@@ -659,6 +751,12 @@ internal static class BenchmarkComparer
     {
         var builder = new StringBuilder();
         builder.AppendLine($"# SlimFaas {report.Profile} optimization comparison");
+=======
+    private static string BuildMarkdown(BenchmarkComparisonReport report)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("# SlimFaas sync optimization comparison");
+>>>>>>> origin/main
         builder.AppendLine();
         builder.AppendLine($"Overall verdict: **{(report.Passed ? "PASS" : "FAIL")}**.");
         builder.AppendLine();
@@ -666,6 +764,7 @@ internal static class BenchmarkComparer
         builder.AppendLine();
         builder.AppendLine("| criterion | observed | target | verdict |");
         builder.AppendLine("|---|---:|---:|:---:|");
+<<<<<<< HEAD
         if (report.Profile == "async" && report.AsyncCriteria is { } asyncCriteria)
         {
             AppendCriterion(builder, "Async median HTTP p95 reduction",
@@ -693,6 +792,15 @@ internal static class BenchmarkComparer
         builder.AppendLine(report.Profile == "async"
             ? $"| sync p95/p99 and throughput guardrails (informational) | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(report.SyncGuardrailsPassed ? "PASS" : "OBSERVE")} |"
             : $"| sync p95/p99 and throughput guardrails | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(report.SyncGuardrailsPassed ? "PASS" : "FAIL")} |");
+=======
+        AppendCriterion(builder, "Small payload median added-p50 reduction",
+            report.SmallPayloadMedianP50ReductionPercent, SmallPayloadMinimumReductionPercent,
+            report.SmallPayloadTargetPassed);
+        AppendCriterion(builder, "Large payload median added-p50 reduction",
+            report.LargePayloadMedianP50ReductionPercent, LargePayloadMinimumReductionPercent,
+            report.LargePayloadTargetPassed);
+        builder.AppendLine($"| p95/p99 and throughput guardrails | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(report.SyncGuardrailsPassed ? "PASS" : "FAIL")} |");
+>>>>>>> origin/main
         builder.AppendLine($"| candidate errors/timeouts | {(report.CandidateHasNoFailures ? "0" : "present")} | 0 | {(report.CandidateHasNoFailures ? "PASS" : "FAIL")} |");
 
         builder.AppendLine();
@@ -707,6 +815,7 @@ internal static class BenchmarkComparer
         }
 
         builder.AppendLine();
+<<<<<<< HEAD
         builder.AppendLine(report.Profile == "async"
             ? "## Asynchronous comparison"
             : "## Asynchronous comparison (informational)");
@@ -731,6 +840,16 @@ internal static class BenchmarkComparer
                 builder.AppendLine(FormattableString.Invariant(
                     $"| {row.LoadShape} | {row.Concurrency} | {row.BaselineRatePerSecond:F1}/s | {row.CandidateRatePerSecond:F1}/s | {row.BaselineHttpP95Milliseconds:F3} ms | {row.CandidateHttpP95Milliseconds:F3} ms | {row.BaselineArrivalP95Milliseconds:F3} ms | {row.CandidateArrivalP95Milliseconds:F3} ms | {row.CandidateMissing}/{row.CandidateDuplicates} | {row.Verdict} |"));
             }
+=======
+        builder.AppendLine("## Asynchronous comparison (informational)");
+        builder.AppendLine();
+        builder.AppendLine("| payload | concurrency | baseline HTTP p50 | candidate HTTP p50 | baseline arrival p50 | candidate arrival p50 | candidate failures | verdict |");
+        builder.AppendLine("|---:|---:|---:|---:|---:|---:|---:|:---:|");
+        foreach (AsyncComparisonRow row in report.Async)
+        {
+            builder.AppendLine(FormattableString.Invariant(
+                $"| {FormatBytes(row.PayloadBytes)} | {row.Concurrency} | {row.BaselineHttpP50Milliseconds:F3} ms | {row.CandidateHttpP50Milliseconds:F3} ms | {FormatNullable(row.BaselineArrivalP50Milliseconds)} | {FormatNullable(row.CandidateArrivalP50Milliseconds)} | {row.CandidateFailed} | {row.Verdict} |"));
+>>>>>>> origin/main
         }
 
         builder.AppendLine();
@@ -785,6 +904,7 @@ internal static class BenchmarkComparer
         value.HasValue
             ? value.Value.ToString("F3", CultureInfo.InvariantCulture) + " ms"
             : "not observed";
+<<<<<<< HEAD
 
     private static string FormatResources(AsyncAcceptanceCriteria criteria)
     {
@@ -793,4 +913,6 @@ internal static class BenchmarkComparer
         string raft = criteria.RaftEntryRatio?.ToString("F2", CultureInfo.InvariantCulture) ?? "n/a";
         return $"CPU {cpu}%, memory {memory}%, Raft x{raft}";
     }
+=======
+>>>>>>> origin/main
 }

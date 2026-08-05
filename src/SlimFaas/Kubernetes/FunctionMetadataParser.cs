@@ -53,11 +53,7 @@ public static class FunctionMetadataParser
             FunctionVisibility.Public);
 
         return new FunctionMetadata(
-            ParseJson(
-                annotations,
-                FunctionAnnotationNames.Configuration,
-                SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration,
-                new SlimFaasConfiguration()),
+            ParseConfiguration(annotations),
             ParseInt(annotations, FunctionAnnotationNames.ReplicasAtStart, 1, minimum: 0),
             ParseInt(annotations, FunctionAnnotationNames.ReplicasMin, 0, minimum: 0),
             ParseInt(annotations, FunctionAnnotationNames.TimeoutSecondBeforeSetReplicasMin, 300, minimum: 0),
@@ -82,6 +78,33 @@ public static class FunctionMetadataParser
             ParseEnum(annotations, FunctionAnnotationNames.DefaultTrust, FunctionTrust.Trusted),
             ParseScale(annotations),
             ParseInt(annotations, FunctionAnnotationNames.NumberParallelRequestPerPod, 10, minimum: 1));
+    }
+
+    private static SlimFaasConfiguration ParseConfiguration(IReadOnlyDictionary<string, string> annotations)
+    {
+        SlimFaasConfiguration configuration = ParseJson(
+            annotations,
+            FunctionAnnotationNames.Configuration,
+            SlimFaasConfigurationSerializerContext.Default.SlimFaasConfiguration,
+            new SlimFaasConfiguration());
+
+        return configuration with
+        {
+            DefaultSync = configuration.DefaultSync ?? new SlimFaasSyncConfiguration(),
+            DefaultAsync = NormalizeRetryConfiguration(configuration.DefaultAsync),
+            DefaultPublish = NormalizeRetryConfiguration(configuration.DefaultPublish)
+        };
+    }
+
+    private static SlimFaasDefaultConfiguration NormalizeRetryConfiguration(
+        SlimFaasDefaultConfiguration? configuration)
+    {
+        configuration ??= new SlimFaasDefaultConfiguration();
+        return configuration with
+        {
+            TimeoutRetries = configuration.TimeoutRetries ?? [2, 4, 8],
+            HttpStatusRetries = configuration.HttpStatusRetries ?? [500, 502, 503]
+        };
     }
 
     public static ScaleConfig? ParseScale(IReadOnlyDictionary<string, string> annotations)
