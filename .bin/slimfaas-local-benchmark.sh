@@ -3,10 +3,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 profile="${BENCHMARK_PROFILE:-standard}"
-<<<<<<< HEAD
 run_profile="standard"
-=======
->>>>>>> origin/main
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 run_root="${BENCHMARK_RUN_ROOT:-$repo_root/artifacts/slimfaas-local-benchmark/$profile-$timestamp}"
 manifest="$repo_root/benchmarks/slimfaas.local.benchmark.yaml"
@@ -27,7 +24,6 @@ case "$profile" in
     warmup_seconds="${BENCHMARK_WARMUP_SECONDS:-2}"
     repetitions="${BENCHMARK_REPETITIONS:-3}"
     ;;
-<<<<<<< HEAD
   async-queue)
     run_profile="async-queue"
     duration_seconds="${BENCHMARK_DURATION_SECONDS:-10}"
@@ -36,10 +32,6 @@ case "$profile" in
     ;;
   *)
     echo "BENCHMARK_PROFILE must be quick, standard, or async-queue" >&2
-=======
-  *)
-    echo "BENCHMARK_PROFILE must be quick or standard" >&2
->>>>>>> origin/main
     exit 2
     ;;
 esac
@@ -50,13 +42,10 @@ scale_messages="${BENCHMARK_SCALE_MESSAGES:-200}"
 scale_concurrency="${BENCHMARK_SCALE_CONCURRENCY:-32}"
 scale_timeout="${BENCHMARK_SCALE_TIMEOUT_SECONDS:-120}"
 async_drain_timeout="${BENCHMARK_ASYNC_DRAIN_TIMEOUT_SECONDS:-180}"
-<<<<<<< HEAD
 async_paced_messages="${BENCHMARK_ASYNC_PACED_MESSAGES:-100}"
 async_paced_interval_ms="${BENCHMARK_ASYNC_PACED_INTERVAL_MS:-100}"
 async_burst_messages="${BENCHMARK_ASYNC_BURST_MESSAGES:-1000}"
 async_burst_concurrency="${BENCHMARK_ASYNC_BURST_CONCURRENCY:-64}"
-=======
->>>>>>> origin/main
 
 mkdir -p "$run_root"
 
@@ -84,13 +73,10 @@ dotnet "$slimfaas_dll" local validate -f "$manifest"
   echo "concurrency=$concurrency"
   echo "scale_messages=$scale_messages"
   echo "scale_concurrency=$scale_concurrency"
-<<<<<<< HEAD
   echo "async_paced_messages=$async_paced_messages"
   echo "async_paced_interval_ms=$async_paced_interval_ms"
   echo "async_burst_messages=$async_burst_messages"
   echo "async_burst_concurrency=$async_burst_concurrency"
-=======
->>>>>>> origin/main
 } >"$run_root/benchmark-manifest.txt"
 
 local_pid=""
@@ -141,10 +127,7 @@ if [[ "$ready" != "1" ]]; then
 fi
 
 dotnet "$benchmark_dll" run \
-<<<<<<< HEAD
   --profile "$run_profile" \
-=======
->>>>>>> origin/main
   --slimfaas-url http://127.0.0.1:31020 \
   --direct-url http://127.0.0.1:31080 \
   --node-urls http://127.0.0.1:31021,http://127.0.0.1:31022,http://127.0.0.1:31023 \
@@ -157,13 +140,10 @@ dotnet "$benchmark_dll" run \
   --scale-messages "$scale_messages" \
   --scale-concurrency "$scale_concurrency" \
   --scale-timeout "$scale_timeout" \
-<<<<<<< HEAD
   --async-paced-messages "$async_paced_messages" \
   --async-paced-interval-ms "$async_paced_interval_ms" \
   --async-burst-messages "$async_burst_messages" \
   --async-burst-concurrency "$async_burst_concurrency" \
-=======
->>>>>>> origin/main
   --output "$run_root"
 
 echo "SlimFaas local benchmark artifacts: $run_root"
