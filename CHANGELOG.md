@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.81.0
+
+- [8dc88d7a](https://github.com/SlimPlanet/SlimFaas/commit/8dc88d7a651df1c796d54e523bf47c5b7bce168c) - feat: optimize async (release) (#311), 2026-08-07 by *Guillaume Chervet*
+
+
+## 0.80.0
+
+
+
 ## v0.80.0
 
 - [780153dc](https://github.com/SlimPlanet/SlimFaas/commit/780153dc307eee841e3960a73d59dc065fd104e7) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
@@ -269,14 +278,5 @@
 ## v0.71.1
 
 - [9780c1be](https://github.com/SlimPlanet/SlimFaas/commit/9780c1be154b0b1ad0ea574bfcdb58232cda1498) - fix(slimfaas): Increase job name max length from 12 to 30 characters (#267) (release), 2026-04-15 by *Copilot*
-
-
-## 0.71.0
-
-
-
-## v0.71.0
-
-- [eb130e6d](https://github.com/SlimPlanet/SlimFaas/commit/eb130e6dc27ab451b1591b89dfd86d8558794427) - feat(slimfaas): add dashboard (#262) (release), 2026-04-14 by *Guillaume Chervet*
 
 
