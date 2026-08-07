@@ -130,6 +130,7 @@ internal sealed class LeaderTracker : LeaderChangedEvent, IClusterMemberLifetime
 public class RaftClusterTests
 {
     private protected static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(20);
+    private protected static readonly TimeSpan BusyMembershipCatchUpTimeout = TimeSpan.FromSeconds(60);
 
     private static IHost CreateHost<TStartup>(int port, IDictionary<string, string> configuration,
         IClusterMemberLifetime configurator = null,
@@ -274,7 +275,7 @@ public class RaftClusterTests
 
         Assert.True(await addThirdMemberTask);
         await Task.WhenAll(concurrentWritesDuringMemberAdd);
-        await GetLocalClusterView(host3).Readiness.WaitAsync(TimeSpan.FromSeconds(60));
+        await GetLocalClusterView(host3).Readiness.WaitAsync(BusyMembershipCatchUpTimeout);
         await GetLocalClusterView(host1).ForceReplicationAsync();
 
         IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
