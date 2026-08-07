@@ -1,0 +1,28 @@
+1. SlimFaas has been deployed successfully!
+
+   Release name: {{ .Release.Name }}
+   Namespace:    {{ .Release.Namespace }}
+   Replicas:     {{ .Values.replicaCount }}
+
+2. SlimFaas is accessible within the cluster at:
+
+   http://{{ include "slimfaas.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+   You can proxy to it locally using:
+
+   kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "slimfaas.fullname" . }} {{ .Values.service.port }}:{{ .Values.service.port }}
+
+   Then access it at: http://localhost:{{ .Values.service.port }}
+
+{{- if .Values.ingress.enabled }}
+3. Ingress is enabled. SlimFaas is available at:
+{{- range .Values.ingress.hosts }}
+   http{{ if $.Values.ingress.tls }}s{{ end }}://{{ .host }}/
+{{- end }}
+{{- end }}
+
+4. To check the status of SlimFaas pods:
+
+   kubectl get pods -n {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "slimfaas.name" . }},app.kubernetes.io/instance={{ .Release.Name }}"
+
+5. For more information, see: https://slimfaas.dev
