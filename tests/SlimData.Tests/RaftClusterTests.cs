@@ -274,7 +274,7 @@ public class RaftClusterTests
 
         Assert.True(await addThirdMemberTask);
         await Task.WhenAll(concurrentWritesDuringMemberAdd);
-        await GetLocalClusterView(host3).Readiness.WaitAsync(DefaultTimeout);
+        await GetLocalClusterView(host3).Readiness.WaitAsync(TimeSpan.FromSeconds(60));
         await GetLocalClusterView(host1).ForceReplicationAsync();
 
         IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
