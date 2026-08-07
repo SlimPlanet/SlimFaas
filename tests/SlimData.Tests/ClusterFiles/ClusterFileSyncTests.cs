@@ -13,6 +13,42 @@ using Xunit;
 public sealed class ClusterFileSyncTests
 {
     [Fact]
+    public async Task BroadcastFileDeleteAsync_deletes_locally_and_signals_remote_members()
+    {
+        var repo = new Mock<IFileRepository>(MockBehavior.Strict);
+        var bus = new Mock<IMessageBus>(MockBehavior.Strict);
+        var remote = new Mock<ISubscriber>(MockBehavior.Strict);
+        var local = new Mock<ISubscriber>(MockBehavior.Strict);
+        var queue = new ClusterFileAnnounceQueue();
+        remote.SetupGet(member => member.IsRemote).Returns(true);
+        local.SetupGet(member => member.IsRemote).Returns(false);
+        bus.SetupGet(value => value.Members).Returns([local.Object, remote.Object]);
+        bus.Setup(value => value.AddListener(It.IsAny<IInputChannel>()));
+        bus.Setup(value => value.RemoveListener(It.IsAny<IInputChannel>()));
+        repo.Setup(value => value.DeleteAsync("delete-id", It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        string? signalName = null;
+        remote.Setup(value => value.SendSignalAsync(
+                It.IsAny<IMessage>(), true, It.IsAny<CancellationToken>()))
+            .Callback<IMessage, bool, CancellationToken>((message, _, _) => signalName = message.Name)
+            .Returns(Task.CompletedTask);
+        var httpFactory = new TestHttpClientFactory(
+            new HttpClient(new StubHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.NotFound))));
+        var sut = new ClusterFileSync(bus.Object, repo.Object, queue, Mock.Of<ILogger<ClusterFileSync>>(), httpFactory);
+
+        await sut.BroadcastFileDeleteAsync("delete-id", CancellationToken.None);
+        await sut.DisposeAsync();
+
+        Assert.NotNull(signalName);
+        Assert.True(FileSyncProtocol.TryParseDeleteName(signalName!, out string encoded));
+        Assert.Equal("delete-id", Base64UrlCodec.Decode(encoded));
+        repo.VerifyAll();
+        bus.VerifyAll();
+        remote.VerifyAll();
+        local.VerifyAll();
+    }
+
+    [Fact]
     public async Task DeleteLocalAsync_deletes_repository_file()
     {
         var repo = new Mock<IFileRepository>(MockBehavior.Strict);

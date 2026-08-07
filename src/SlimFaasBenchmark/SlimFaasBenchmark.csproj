@@ -8,5 +8,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>SlimFaasBenchmark</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="SlimFaas.Tests" />
+  </ItemGroup>
 
 </Project>

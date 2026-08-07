@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace SlimData;
@@ -8,7 +7,15 @@ public sealed record RateTier(int MinPerMinute, TimeSpan Delay);
 
 public readonly record struct AdaptiveBatchTiming(TimeSpan Delay, TimeSpan CoalesceWindow);
 
-public readonly record struct AdaptiveBatchQueueStatistics(string Kind, int Items, long Bytes);
+public readonly record struct AdaptiveBatchEnqueueOptions(TimeSpan? MaximumQueueWait = null);
+
+public readonly record struct AdaptiveBatchQueueStatistics(
+    string Kind,
+    int Items,
+    long Bytes,
+    long LatencySensitiveOperations = 0,
+    long ForcedFlushes = 0,
+    double LastLatencySensitiveWaitMilliseconds = 0);
 
 public sealed class BatchQueueFullException(string kind)
     : Exception($"Adaptive batch queue '{kind}' is full.")
@@ -26,49 +33,107 @@ public sealed class BatchItemTooLargeException(string kind, long itemBytes, long
 
 public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
 {
-    private sealed record Kind
+    private sealed record PendingItem(
+        object Request,
+        TaskCompletionSource<object> Completion,
+        int Size,
+        long EnqueuedTimestamp,
+        long? FlushDeadlineTimestamp);
+
+    private sealed class Kind
     {
-        public int QueueLength;      // Interlocked
+        public int QueueLength;
         public long QueueBytes;
         public int ArrivalsCount;
-        public required string Name;
-        public required Func<IReadOnlyList<object>, CancellationToken, Task<IReadOnlyList<object>>> Handler;
-        public required List<RateTier> Tiers;
-        public required int MaxBatchSize;
-        public int MaxQueueLength;
-        public long MaxQueueBytes;
-        
-        public int MaxBatchBytes; // 0 = unlimited
-        public TimeSpan CoalesceWindow;
-        public Func<AdaptiveBatchTiming>? TimingProvider;
-        public required Func<object, int> SizeEstimatorBytes;
+        public required string Name { get; init; }
+        public required Func<IReadOnlyList<object>, CancellationToken, Task<IReadOnlyList<object>>> Handler { get; init; }
+        public required List<RateTier> Tiers { get; init; }
+        public required int MaxBatchSize { get; init; }
+        public int MaxQueueLength { get; init; }
+        public long MaxQueueBytes { get; init; }
+        public int MaxBatchBytes { get; init; }
+        public TimeSpan CoalesceWindow { get; init; }
+        public Func<AdaptiveBatchTiming>? TimingProvider { get; init; }
+        public required Func<object, int> SizeEstimatorBytes { get; init; }
+        public object QueueGate { get; } = new();
+        public Queue<PendingItem> Queue { get; } = new();
+        public ConcurrentQueue<long> Arrivals { get; } = new();
+        public long NextAllowedDequeueTimestamp;
+        public long? EarliestFlushDeadlineTimestamp;
+        public long LatencySensitiveOperations;
+        public long ForcedFlushes;
+        public long LastLatencySensitiveWaitMicroseconds;
+    }
 
-        public readonly object QueueGate = new();
-        public readonly ConcurrentQueue<(object req, TaskCompletionSource<object> tcs, int size)> Queue = new();
-        public readonly ConcurrentQueue<long> Arrivals = new(); // Stopwatch ticks in last minute
-        public DateTime NextAllowedDequeueAtUtc = DateTime.MinValue;
+    private sealed class VersionSignal
+    {
+        private readonly object _gate = new();
+        private TaskCompletionSource _changed = CreateCompletion();
+        private long _version;
+
+        public long Version => Volatile.Read(ref _version);
+
+        public void Pulse()
+        {
+            TaskCompletionSource changed;
+            lock (_gate)
+            {
+                Interlocked.Increment(ref _version);
+                changed = _changed;
+                _changed = CreateCompletion();
+            }
+            changed.TrySetResult();
+        }
+
+        public async Task<long> WaitForChangeAsync(
+            long observedVersion,
+            TimeSpan timeout,
+            TimeProvider timeProvider,
+            CancellationToken cancellationToken)
+        {
+            Task task;
+            lock (_gate)
+            {
+                if (_version != observedVersion)
+                    return _version;
+                task = _changed.Task;
+            }
+
+            try
+            {
+                await task.WaitAsync(timeout, timeProvider, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+            }
+            return Version;
+        }
+
+        private static TaskCompletionSource CreateCompletion() =>
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
     }
 
     private readonly ConcurrentDictionary<string, Kind> _kinds = new();
-    private readonly SemaphoreSlim _signal = new(0);
-
+    private readonly VersionSignal _signal = new();
     private readonly CancellationTokenSource _disposeCts = new();
+    private readonly TimeProvider _timeProvider;
     private volatile bool _disposed;
-    private volatile int _workerRunning; // 0 stopped, 1 running
+    private volatile int _workerRunning;
     private Task? _loopTask;
+
+    public MultiRateAdaptiveBatcher(
+        TimeSpan? idleStop = null,
+        TimeSpan? maxWaitPerTick = null,
+        TimeProvider? timeProvider = null)
+    {
+        IdleStop = idleStop ?? TimeSpan.FromSeconds(15);
+        MaxWaitPerTick = maxWaitPerTick ?? TimeSpan.FromSeconds(5);
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
     public TimeSpan IdleStop { get; }
     public TimeSpan MaxWaitPerTick { get; }
 
-    public MultiRateAdaptiveBatcher(TimeSpan? idleStop = null, TimeSpan? maxWaitPerTick = null)
-    {
-        IdleStop = idleStop ?? TimeSpan.FromSeconds(15);
-        MaxWaitPerTick = maxWaitPerTick ?? TimeSpan.FromSeconds(5);
-    }
-
-    /// <summary>
-    /// Enregistre un "kind" (cas d'usage) avec son handler batch, ses paliers et sa taille de batch.
-    /// </summary>
     public void RegisterKind<TReq, TRes>(
         string kind,
         Func<IReadOnlyList<TReq>, CancellationToken, Task<IReadOnlyList<TRes>>> batchHandler,
@@ -76,23 +141,23 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         int maxBatchSize = 512,
         int maxQueueLength = 0,
         long maxQueueBytes = 0L,
-        int maxBatchBytes = 512 * 1024 * 1024,                    
+        int maxBatchBytes = 512 * 1024 * 1024,
         Func<TReq, int>? sizeEstimatorBytes = null,
         TimeSpan? coalesceWindow = null,
         Func<AdaptiveBatchTiming>? timingProvider = null)
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(MultiRateAdaptiveBatcher));
-        if (string.IsNullOrWhiteSpace(kind)) throw new ArgumentNullException(nameof(kind));
-        if (batchHandler is null) throw new ArgumentNullException(nameof(batchHandler));
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(kind);
+        ArgumentNullException.ThrowIfNull(batchHandler);
 
-        var tiersList = (tiers ?? new[]
-        {
-            new RateTier(32,  TimeSpan.FromMilliseconds(60)),
-            new RateTier(64,  TimeSpan.FromMilliseconds(120)),
-            new RateTier(128, TimeSpan.FromMilliseconds(240)),
-        }).OrderBy(t => t.MinPerMinute).ToList();
+        var tiersList = (tiers ??
+        [
+            new RateTier(32, TimeSpan.FromMilliseconds(60)),
+            new RateTier(64, TimeSpan.FromMilliseconds(120)),
+            new RateTier(128, TimeSpan.FromMilliseconds(240))
+        ]).OrderBy(tier => tier.MinPerMinute).ToList();
         Func<TReq, int> typedEstimator = sizeEstimatorBytes ?? (_ => 0);
-        var k = new Kind
+        var registeredKind = new Kind
         {
             Name = kind,
             MaxBatchSize = Math.Max(1, maxBatchSize),
@@ -100,59 +165,332 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
             MaxQueueBytes = Math.Max(0L, maxQueueBytes),
             Tiers = tiersList,
             MaxBatchBytes = Math.Max(0, maxBatchBytes),
-            SizeEstimatorBytes = o => typedEstimator((TReq)o),
+            SizeEstimatorBytes = request => typedEstimator((TReq)request),
             CoalesceWindow = coalesceWindow ?? tiersList[0].Delay,
             TimingProvider = timingProvider,
-            Handler = async (objs, ct) =>
+            Handler = async (requests, cancellationToken) =>
             {
-                // cast sûr tant qu'on respecte EnqueueAsync<TReq,TRes> pour ce kind
-                var typedReqs = objs.Cast<TReq>().ToList();
-                var typedRes = await batchHandler(typedReqs, ct).ConfigureAwait(false);
-                return typedRes.Cast<object>().ToList();
+                var typedRequests = requests.Cast<TReq>().ToArray();
+                IReadOnlyList<TRes> results = await batchHandler(typedRequests, cancellationToken)
+                    .ConfigureAwait(false);
+                return results.Cast<object>().ToArray();
             }
         };
 
-        if (!_kinds.TryAdd(kind, k))
-            throw new InvalidOperationException($"Kind '{kind}' already registered.");
+        if (!_kinds.TryAdd(kind, registeredKind))
+            throw new InvalidOperationException($"Kind '{kind}' is already registered.");
     }
 
-    /// <summary>
-    /// Enfile une requête dans le kind indiqué et récupère le résultat typé.
-    /// </summary>
-    public async Task<TRes> EnqueueAsync<TReq, TRes>(string kind, TReq request, CancellationToken ct = default)
+    public async Task<TRes> EnqueueAsync<TReq, TRes>(
+        string kind,
+        TReq request,
+        CancellationToken cancellationToken = default,
+        AdaptiveBatchEnqueueOptions enqueueOptions = default)
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(MultiRateAdaptiveBatcher));
-
-        if (!_kinds.TryGetValue(kind, out var k))
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_kinds.TryGetValue(kind, out Kind? registeredKind))
             throw new KeyNotFoundException($"Kind '{kind}' is not registered.");
+        if (enqueueOptions.MaximumQueueWait is { } maximumQueueWait && maximumQueueWait < TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(enqueueOptions), "Maximum queue wait cannot be negative.");
 
-        var size = Math.Max(0, k.SizeEstimatorBytes(request!));
-        var maximumItemBytes = GetMaximumItemBytes(k);
+        int size = Math.Max(0, registeredKind.SizeEstimatorBytes(request!));
+        long maximumItemBytes = GetMaximumItemBytes(registeredKind);
         if (maximumItemBytes > 0L && size > maximumItemBytes)
             throw new BatchItemTooLargeException(kind, size, maximumItemBytes);
 
-        var tcs = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-        lock (k.QueueGate)
+        long enqueuedTimestamp = _timeProvider.GetTimestamp();
+        long? flushDeadline = enqueueOptions.MaximumQueueWait is { } wait
+            ? AddTimestamp(enqueuedTimestamp, wait)
+            : null;
+        var completion = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (registeredKind.QueueGate)
         {
-            if ((k.MaxQueueLength > 0 && k.QueueLength >= k.MaxQueueLength) ||
-                (k.MaxQueueBytes > 0L && k.QueueBytes + size > k.MaxQueueBytes))
+            if ((registeredKind.MaxQueueLength > 0 &&
+                 registeredKind.QueueLength >= registeredKind.MaxQueueLength) ||
+                (registeredKind.MaxQueueBytes > 0L &&
+                 registeredKind.QueueBytes + size > registeredKind.MaxQueueBytes))
             {
                 throw new BatchQueueFullException(kind);
             }
 
-            k.Queue.Enqueue((request!, tcs, size));
-            k.QueueLength++;
-            k.QueueBytes += size;
+            registeredKind.Queue.Enqueue(new PendingItem(
+                request!, completion, size, enqueuedTimestamp, flushDeadline));
+            registeredKind.QueueLength++;
+            registeredKind.QueueBytes += size;
+            if (flushDeadline.HasValue &&
+                (!registeredKind.EarliestFlushDeadlineTimestamp.HasValue ||
+                 flushDeadline.Value < registeredKind.EarliestFlushDeadlineTimestamp.Value))
+            {
+                registeredKind.EarliestFlushDeadlineTimestamp = flushDeadline;
+            }
         }
-        RecordArrival(k);
+        if (flushDeadline.HasValue)
+            Interlocked.Increment(ref registeredKind.LatencySensitiveOperations);
+        RecordArrival(registeredKind);
 
         StartWorkerIfNeeded();
-        _signal.Release();
+        _signal.Pulse();
 
-        using var reg = ct.Register(() => tcs.TrySetCanceled(ct));
-        var obj = await tcs.Task.ConfigureAwait(false);
-        return (TRes)obj;
+        using CancellationTokenRegistration registration = cancellationToken.Register(
+            () => completion.TrySetCanceled(cancellationToken));
+        object result = await completion.Task.ConfigureAwait(false);
+        return (TRes)result;
     }
+
+    public IReadOnlyList<AdaptiveBatchQueueStatistics> GetQueueStatistics() =>
+        _kinds.Values.Select(kind => new AdaptiveBatchQueueStatistics(
+            kind.Name,
+            Volatile.Read(ref kind.QueueLength),
+            Volatile.Read(ref kind.QueueBytes),
+            Volatile.Read(ref kind.LatencySensitiveOperations),
+            Volatile.Read(ref kind.ForcedFlushes),
+            Volatile.Read(ref kind.LastLatencySensitiveWaitMicroseconds) / 1000d)).ToArray();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void StartWorkerIfNeeded()
+    {
+        if (_disposed)
+            return;
+        if (Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
+            _loopTask = Task.Run(() => LoopAsync(_disposeCts.Token), _disposeCts.Token);
+    }
+
+    private async Task LoopAsync(CancellationToken cancellationToken)
+    {
+        long observedVersion = _signal.Version;
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                if (AllQueuesEmpty())
+                {
+                    long idleStarted = _timeProvider.GetTimestamp();
+                    while (AllQueuesEmpty() &&
+                           _timeProvider.GetElapsedTime(idleStarted) < IdleStop)
+                    {
+                        TimeSpan remaining = IdleStop - _timeProvider.GetElapsedTime(idleStarted);
+                        observedVersion = await _signal.WaitForChangeAsync(
+                            observedVersion,
+                            Min(MaxWaitPerTick, Min(remaining, TimeSpan.FromMilliseconds(250))),
+                            _timeProvider,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (AllQueuesEmpty())
+                    {
+                        Interlocked.Exchange(ref _workerRunning, 0);
+                        if (!AllQueuesEmpty() &&
+                            Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
+                        {
+                            continue;
+                        }
+                        return;
+                    }
+                }
+
+                long now = _timeProvider.GetTimestamp();
+                Kind? readyKind = null;
+                long? nextReadyTimestamp = null;
+                bool deadlineForced = false;
+                foreach (Kind kind in _kinds.Values)
+                {
+                    if (IsQueueEmpty(kind))
+                        continue;
+                    AdaptiveBatchTiming timing = GetTiming(kind);
+                    if (timing.Delay <= TimeSpan.Zero)
+                        kind.NextAllowedDequeueTimestamp = 0;
+
+                    long normalReady = kind.NextAllowedDequeueTimestamp;
+                    long? deadline = GetEarliestDeadline(kind);
+                    bool normalIsReady = normalReady == 0 || normalReady <= now;
+                    bool deadlineIsReady = deadline.HasValue && deadline.Value <= now;
+                    if (normalIsReady || deadlineIsReady)
+                    {
+                        readyKind = kind;
+                        deadlineForced = deadlineIsReady && !normalIsReady;
+                        break;
+                    }
+
+                    long effectiveReady = deadline.HasValue
+                        ? Math.Min(normalReady, deadline.Value)
+                        : normalReady;
+                    if (!nextReadyTimestamp.HasValue || effectiveReady < nextReadyTimestamp.Value)
+                        nextReadyTimestamp = effectiveReady;
+                }
+
+                if (readyKind is null)
+                {
+                    TimeSpan wait = MaxWaitPerTick;
+                    if (nextReadyTimestamp.HasValue)
+                        wait = Min(wait, DurationUntil(now, nextReadyTimestamp.Value));
+                    observedVersion = await _signal.WaitForChangeAsync(
+                        observedVersion,
+                        wait,
+                        _timeProvider,
+                        cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+
+                if (deadlineForced)
+                    Interlocked.Increment(ref readyKind.ForcedFlushes);
+                AdaptiveBatchTiming currentTiming = GetTiming(readyKind);
+                TimeSpan coalesce = deadlineForced ? TimeSpan.Zero : currentTiming.CoalesceWindow;
+                long? earliestDeadline = GetEarliestDeadline(readyKind);
+                if (earliestDeadline.HasValue)
+                    coalesce = Min(coalesce, DurationUntil(now, earliestDeadline.Value));
+                if (coalesce > TimeSpan.Zero && GetQueueCount(readyKind) < readyKind.MaxBatchSize)
+                    await Task.Delay(coalesce, _timeProvider, cancellationToken).ConfigureAwait(false);
+
+                List<PendingItem> batch = DrainBatch(readyKind);
+                if (batch.Count == 0)
+                    continue;
+
+                RecordLatencySensitiveWait(readyKind, batch);
+                try
+                {
+                    IReadOnlyList<object> results = await readyKind.Handler(
+                        batch.Select(item => item.Request).ToArray(), cancellationToken).ConfigureAwait(false);
+                    if (results.Count != batch.Count)
+                        throw new InvalidOperationException("Batch handler must return as many results as inputs.");
+                    for (var index = 0; index < results.Count; index++)
+                        batch[index].Completion.TrySetResult(results[index]);
+                }
+                catch (Exception exception)
+                {
+                    foreach (PendingItem item in batch)
+                        item.Completion.TrySetException(exception);
+                }
+
+                TimeSpan delayAfterBatch = GetTiming(readyKind).Delay;
+                readyKind.NextAllowedDequeueTimestamp = delayAfterBatch > TimeSpan.Zero
+                    ? AddTimestamp(_timeProvider.GetTimestamp(), delayAfterBatch)
+                    : 0;
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            foreach (Kind kind in _kinds.Values)
+            {
+                while (TryDequeue(kind, out PendingItem? item))
+                    item.Completion.TrySetException(new TaskCanceledException("Batcher stopped"));
+            }
+        }
+    }
+
+    private List<PendingItem> DrainBatch(Kind kind)
+    {
+        var batch = new List<PendingItem>(kind.MaxBatchSize);
+        var usedBytes = 0;
+        while (batch.Count < kind.MaxBatchSize)
+        {
+            PendingItem? next = Peek(kind);
+            if (next is null)
+                break;
+            if (kind.MaxBatchBytes > 0 &&
+                batch.Count > 0 &&
+                usedBytes + next.Size > kind.MaxBatchBytes)
+            {
+                break;
+            }
+            if (!TryDequeue(kind, out PendingItem? accepted))
+                continue;
+            if (accepted.Completion.Task.IsCompleted)
+                continue;
+            batch.Add(accepted);
+            usedBytes += accepted.Size;
+            if (kind.MaxBatchBytes > 0 && batch.Count == 1 && usedBytes >= kind.MaxBatchBytes)
+                break;
+        }
+        return batch;
+    }
+
+    private void RecordLatencySensitiveWait(Kind kind, IReadOnlyList<PendingItem> batch)
+    {
+        PendingItem? lastSensitive = batch.LastOrDefault(item => item.FlushDeadlineTimestamp.HasValue);
+        if (lastSensitive is null)
+            return;
+        double milliseconds = _timeProvider.GetElapsedTime(lastSensitive.EnqueuedTimestamp).TotalMilliseconds;
+        Volatile.Write(
+            ref kind.LastLatencySensitiveWaitMicroseconds,
+            (long)(Math.Max(0, milliseconds) * 1000d));
+    }
+
+    private PendingItem? Peek(Kind kind)
+    {
+        lock (kind.QueueGate)
+            return kind.Queue.TryPeek(out PendingItem? item) ? item : null;
+    }
+
+    private static bool TryDequeue(Kind kind, out PendingItem item)
+    {
+        lock (kind.QueueGate)
+        {
+            if (!kind.Queue.TryDequeue(out item!))
+                return false;
+            kind.QueueLength--;
+            kind.QueueBytes -= item.Size;
+            if (item.FlushDeadlineTimestamp == kind.EarliestFlushDeadlineTimestamp)
+                kind.EarliestFlushDeadlineTimestamp = FindEarliestDeadline(kind.Queue);
+            return true;
+        }
+    }
+
+    private static long? FindEarliestDeadline(IEnumerable<PendingItem> queue)
+    {
+        long? earliest = null;
+        foreach (PendingItem item in queue)
+        {
+            if (item.FlushDeadlineTimestamp.HasValue &&
+                (!earliest.HasValue || item.FlushDeadlineTimestamp.Value < earliest.Value))
+            {
+                earliest = item.FlushDeadlineTimestamp;
+            }
+        }
+        return earliest;
+    }
+
+    private static int GetQueueCount(Kind kind)
+    {
+        lock (kind.QueueGate)
+            return kind.Queue.Count;
+    }
+
+    private static bool IsQueueEmpty(Kind kind)
+    {
+        lock (kind.QueueGate)
+            return kind.Queue.Count == 0;
+    }
+
+    private bool AllQueuesEmpty() => _kinds.Values.All(IsQueueEmpty);
+
+    private static long? GetEarliestDeadline(Kind kind)
+    {
+        lock (kind.QueueGate)
+            return kind.EarliestFlushDeadlineTimestamp;
+    }
+
+    private long AddTimestamp(long timestamp, TimeSpan duration)
+    {
+        if (duration <= TimeSpan.Zero)
+            return timestamp;
+        double delta = duration.TotalSeconds * _timeProvider.TimestampFrequency;
+        return delta >= long.MaxValue - timestamp
+            ? long.MaxValue
+            : timestamp + (long)Math.Ceiling(delta);
+    }
+
+    private TimeSpan DurationUntil(long now, long timestamp)
+    {
+        if (timestamp <= now)
+            return TimeSpan.Zero;
+        return TimeSpan.FromSeconds((timestamp - now) / (double)_timeProvider.TimestampFrequency);
+    }
+
+    private static TimeSpan Min(TimeSpan first, TimeSpan second) =>
+        first <= second ? first : second;
 
     private static long GetMaximumItemBytes(Kind kind)
     {
@@ -163,258 +501,63 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         return Math.Min(kind.MaxBatchBytes, kind.MaxQueueBytes);
     }
 
-    public IReadOnlyList<AdaptiveBatchQueueStatistics> GetQueueStatistics()
-        => _kinds.Values
-            .Select(kind => new AdaptiveBatchQueueStatistics(
-                kind.Name,
-                Volatile.Read(ref kind.QueueLength),
-                Volatile.Read(ref kind.QueueBytes)))
-            .ToArray();
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void StartWorkerIfNeeded()
+    private void RecordArrival(Kind kind)
     {
-        if (_disposed) return;
-        if (Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
-        {
-            var ct = _disposeCts.Token;
-            _loopTask = Task.Run(() => LoopAsync(ct), ct);
-        }
+        kind.Arrivals.Enqueue(_timeProvider.GetTimestamp());
+        Interlocked.Increment(ref kind.ArrivalsCount);
+        PruneArrivals(kind);
     }
 
-    private static TimeSpan Min(TimeSpan a, TimeSpan b)
-        => TimeSpan.FromTicks(Math.Min(a.Ticks, b.Ticks));
-
-    // --- Remplace entièrement la méthode LoopAsync par celle-ci ---
-private async Task LoopAsync(CancellationToken ct)
-{
-    try
+    private int ComputeRatePerMinute(Kind kind)
     {
-        while (!ct.IsCancellationRequested)
-        {
-            // 1) Idle-stop si tout est vide
-            if (_kinds.Values.All(k => k.Queue.IsEmpty))
-            {
-                var idleDeadline = DateTime.UtcNow + IdleStop;
-                while (DateTime.UtcNow < idleDeadline && _kinds.Values.All(k => k.Queue.IsEmpty))
-                {
-                    // ici on peut attendre sur le signal (on n’a rien en file)
-                    await _signal.WaitAsync(Min(MaxWaitPerTick, TimeSpan.FromMilliseconds(250)), ct).ConfigureAwait(false);
-                    if (ct.IsCancellationRequested) break;
-                }
-
-                if (_kinds.Values.All(k => k.Queue.IsEmpty))
-                {
-                    Interlocked.Exchange(ref _workerRunning, 0);
-                    if (_kinds.Values.Any(k => !k.Queue.IsEmpty) &&
-                        Interlocked.CompareExchange(ref _workerRunning, 1, 0) == 0)
-                    {
-                        continue; // du travail est arrivé juste après l’arrêt
-                    }
-                    return;
-                }
-            }
-
-            // 2) Sélection du kind prêt + gestion du throttling par tiers
-            var now = DateTime.UtcNow;
-            Kind? readyKind = null;
-            DateTime? nextReadyAt = null; // plus proche échéance autorisée
-
-            foreach (var k in _kinds.Values)
-            {
-                if (k.Queue.IsEmpty) continue;
-
-                var timing = GetTiming(k);
-                if (timing.Delay <= TimeSpan.Zero)
-                    k.NextAllowedDequeueAtUtc = DateTime.MinValue;
-
-                // prêt si pas de cooldown ou cooldown expiré
-                if (k.NextAllowedDequeueAtUtc <= now)
-                {
-                    readyKind = k;
-                    break;
-                }
-
-                // on garde la plus proche échéance
-                if (nextReadyAt is null || k.NextAllowedDequeueAtUtc < nextReadyAt.Value)
-                    nextReadyAt = k.NextAllowedDequeueAtUtc;
-            }
-
-            if (readyKind is null)
-            {
-                // aucun kind prêt -> attendre jusqu'au plus proche "ready", plafonné par MaxWaitPerTick
-                var wait = MaxWaitPerTick;
-                if (nextReadyAt is not null)
-                {
-                    var until = nextReadyAt.Value - now;
-                    if (until > TimeSpan.Zero && until < wait) wait = until;
-                }
-
-                await Task.Delay(wait, ct).ConfigureAwait(false);
-                continue;
-            }
-            
-            var ksel = readyKind;
-            var currentTiming = GetTiming(ksel);
-            // 🔴 Fenêtre de coalescence : laisse la rafale se remplir (sans toucher au sémaphore)
-            if (currentTiming.CoalesceWindow > TimeSpan.Zero)
-            {
-                // Si on n'a pas déjà de quoi remplir un gros batch, on attend un poil
-                if (ksel.Queue.Count < ksel.MaxBatchSize)
-                    await Task.Delay(currentTiming.CoalesceWindow, ct).ConfigureAwait(false);
-            }
-            // --- Drain avec limite mémoire et "toujours envoyer au moins 1" ---
-            var batch = new List<(object req, TaskCompletionSource<object> tcs)>(ksel.MaxBatchSize);
-            int usedBytes = 0;
-            int cap = ksel.MaxBatchBytes; // 0 = pas de limite
-
-            while (batch.Count < ksel.MaxBatchSize)
-            {
-                (object req, TaskCompletionSource<object> tcs, int size) next;
-                lock (ksel.QueueGate)
-                {
-                    if (!ksel.Queue.TryPeek(out next))
-                        break;
-                }
-
-                var sz = next.size;
-
-                if (cap > 0)
-                {
-                    if (batch.Count == 0 && sz >= cap)
-                    {
-                        if (!TryDequeue(ksel, out var item))
-                            continue;
-                        if (item.tcs.Task.IsCompleted)
-                            continue;
-                        batch.Add((item.req, item.tcs));
-                        usedBytes = sz;
-                        break;
-                    }
-
-                    // Sinon, si ajouter cet élément dépasse le cap et qu'on a déjà qqch, on s'arrête
-                    if (batch.Count > 0 && (usedBytes + sz) > cap)
-                        break;
-                }
-
-                // Ok, on peut ajouter cet élément
-                if (!TryDequeue(ksel, out var accepted))
-                    continue;
-                if (accepted.tcs.Task.IsCompleted)
-                    continue;
-                batch.Add((accepted.req, accepted.tcs));
-                usedBytes += sz;
-            }
-
-            if (batch.Count == 0)
-                continue;
-
-            try
-            {
-                var reqs = batch.Select(b => b.req).ToList();
-                var results = await ksel.Handler(reqs, ct).ConfigureAwait(false);
-                if (results.Count != batch.Count)
-                    throw new InvalidOperationException("Batch handler must return as many results as inputs.");
-
-                for (int i = 0; i < results.Count; i++)
-                    batch[i].tcs.TrySetResult(results[i]);
-            }
-            catch (Exception ex)
-            {
-                foreach (var it in batch)
-                    it.tcs.TrySetException(ex);
-            }
-
-            // reset pour permettre un nouveau dequeue immédiat si la pression retombe
-            var delayAfterBatch = GetTiming(ksel).Delay;
-            if (delayAfterBatch > TimeSpan.Zero)
-                ksel.NextAllowedDequeueAtUtc = DateTime.UtcNow + delayAfterBatch;
-            else
-                ksel.NextAllowedDequeueAtUtc = DateTime.MinValue;
-        }
-    }
-    catch (OperationCanceledException) { /* normal on dispose */ }
-    finally
-    {
-        foreach (var k in _kinds.Values)
-            while (TryDequeue(k, out var it))
-                it.tcs.TrySetException(new TaskCanceledException("Batcher stopped"));
-    }
-}
-
-    private static bool TryDequeue(
-        Kind kind,
-        out (object req, TaskCompletionSource<object> tcs, int size) item)
-    {
-        lock (kind.QueueGate)
-        {
-            if (!kind.Queue.TryDequeue(out item))
-                return false;
-
-            kind.QueueLength--;
-            kind.QueueBytes -= item.size;
-            return true;
-        }
+        PruneArrivals(kind);
+        return Math.Max(0, Volatile.Read(ref kind.ArrivalsCount));
     }
 
-
-    // ---- débit par minute & paliers (par kind) ----
-
-    private static void RecordArrival(Kind k)
+    private TimeSpan ComputeDelayFromRatePerMinute(Kind kind)
     {
-        k.Arrivals.Enqueue(Stopwatch.GetTimestamp());
-        Interlocked.Increment(ref k.ArrivalsCount);
-        PruneArrivals(k);
-    }
-
-    private static int ComputeRatePerMinute(Kind k)
-    {
-        PruneArrivals(k);
-        return Math.Max(0, Volatile.Read(ref k.ArrivalsCount));
-    }
-
-    private static TimeSpan ComputeDelayFromRatePerMinute(Kind k)
-    {
-        var rpm = ComputeRatePerMinute(k);
+        int requestsPerMinute = ComputeRatePerMinute(kind);
         TimeSpan delay = TimeSpan.Zero;
-        foreach (var tier in k.Tiers)
+        foreach (RateTier tier in kind.Tiers)
         {
-            if (rpm > tier.MinPerMinute) delay = tier.Delay;
-            else break;
+            if (requestsPerMinute > tier.MinPerMinute)
+                delay = tier.Delay;
+            else
+                break;
         }
         return delay;
     }
 
-    private static AdaptiveBatchTiming GetTiming(Kind kind)
-        => kind.TimingProvider?.Invoke()
-           ?? new AdaptiveBatchTiming(
-               ComputeDelayFromRatePerMinute(kind),
-               kind.CoalesceWindow);
+    private AdaptiveBatchTiming GetTiming(Kind kind) =>
+        kind.TimingProvider?.Invoke() ??
+        new AdaptiveBatchTiming(ComputeDelayFromRatePerMinute(kind), kind.CoalesceWindow);
 
-    private static void PruneArrivals(Kind k)
+    private void PruneArrivals(Kind kind)
     {
-        var now = Stopwatch.GetTimestamp();
-        var windowTicks = Stopwatch.Frequency * 60L;
-        while (k.Arrivals.TryPeek(out var ts))
+        long now = _timeProvider.GetTimestamp();
+        long window = (long)(_timeProvider.TimestampFrequency * 60d);
+        while (kind.Arrivals.TryPeek(out long timestamp) && now - timestamp > window)
         {
-            if ((now - ts) > windowTicks)
-            {
-                if (k.Arrivals.TryDequeue(out _))
-                    Interlocked.Decrement(ref k.ArrivalsCount);
-            }
-            else break;
+            if (kind.Arrivals.TryDequeue(out _))
+                Interlocked.Decrement(ref kind.ArrivalsCount);
         }
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_disposed) return;
+        if (_disposed)
+            return;
         _disposed = true;
-
         _disposeCts.Cancel();
-        try { if (_loopTask is not null) await _loopTask.ConfigureAwait(false); } catch { /* ignore */ }
-
-        _signal.Dispose();
+        _signal.Pulse();
+        try
+        {
+            if (_loopTask is not null)
+                await _loopTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
         _disposeCts.Dispose();
     }
 }

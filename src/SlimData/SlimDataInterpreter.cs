@@ -1,6 +1,7 @@
 ﻿using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using MemoryPack;
@@ -235,8 +236,25 @@ public static class SlimDataInterpreter
         if (cmd.Items is null || cmd.Items.Count == 0)
             return default;
 
+        var pendingQueues = new Dictionary<
+            string,
+            (ImmutableArray<QueueElement>.Builder Items, HashSet<string> Identifiers)>(StringComparer.Ordinal);
         foreach (var item in cmd.Items)
         {
+            if (!pendingQueues.TryGetValue(item.Key, out var pending))
+            {
+                ImmutableArray<QueueElement> current = queues.TryGetValue(item.Key, out var existing)
+                    ? existing
+                    : ImmutableArray<QueueElement>.Empty;
+                pending = (
+                    current.ToBuilder(),
+                    current.Select(static element => element.Id).ToHashSet(StringComparer.Ordinal));
+                pendingQueues.Add(item.Key, pending);
+            }
+
+            if (!pending.Identifiers.Add(item.Identifier))
+                continue;
+
             var qe = new QueueElement(
                 item.Value,
                 item.Identifier,
@@ -246,26 +264,11 @@ public static class SlimDataInterpreter
                 ImmutableArray<QueueHttpTryElement>.Empty,
                 item.HttpStatusCodesWorthRetrying is null ? ImmutableHashSet<int>.Empty : item.HttpStatusCodesWorthRetrying.ToImmutableHashSet()
             );
-
-            if (queues.TryGetValue(item.Key, out var arr))
-            {
-                bool exists = false;
-                for (int i = 0; i < arr.Length; i++)
-                {
-                    if (arr[i].Id == item.Identifier) { exists = true; break; }
-                }
-                if (!exists)
-                {
-                    var b = arr.ToBuilder();
-                    b.Add(qe);
-                    queues = queues.SetItem(item.Key, b.ToImmutable());
-                }
-            }
-            else
-            {
-                queues = queues.Add(item.Key, ImmutableArray.Create(qe));
-            }
+            pending.Items.Add(qe);
         }
+
+        foreach ((string key, var pending) in pendingQueues)
+            queues = queues.SetItem(key, pending.Items.ToImmutable());
 
         state.Queues = queues;
         return default;
@@ -277,25 +280,21 @@ public static class SlimDataInterpreter
         if (!queues.TryGetValue(cmd.Key, out var arr))
             return default;
 
-        var work = arr;
+        var positions = new Dictionary<string, int>(arr.Length, StringComparer.Ordinal);
+        for (var index = 0; index < arr.Length; index++)
+            positions.TryAdd(arr[index].Id, index);
+        HashSet<int>? removed = null;
 
         for (int i = 0; i < cmd.CallbackElements.Count; i++)
         {
             var cb = cmd.CallbackElements[i];
+            if (!positions.TryGetValue(cb.Identifier, out var idx) || removed?.Contains(idx) == true)
+                continue;
 
-            int idx = -1;
-            for (int j = 0; j < work.Length; j++)
-            {
-                if (work[j].Id == cb.Identifier) { idx = j; break; }
-            }
-            if (idx < 0) continue;
-
-            var qe = work[idx];
+            var qe = arr[idx];
             if (cb.HttpCode == DeleteFromQueueCode)
             {
-                var b = work.ToBuilder();
-                b.RemoveAt(idx);
-                work = b.ToImmutable();
+                (removed ??= []).Add(idx);
                 continue;
             }
 
@@ -306,29 +305,23 @@ public static class SlimDataInterpreter
                 last.HttpCode = cb.HttpCode;
 
                 if (qe.IsFinished(cmd.NowTicks))
-                {
-                    var b = work.ToBuilder();
-                    b.RemoveAt(idx);
-                    work = b.ToImmutable();
-                }
+                    (removed ??= []).Add(idx);
             }
         }
 
-        queues = queues.SetItem(cmd.Key, work);
-        state.Queues = queues;
-
-        int totalQueueElements = 0;
-        long totalQueueBytes = 0;
-        foreach (var kv in state.Queues)
+        if (removed is not null)
         {
-            var a = kv.Value;
-            int count = a.Length;
-            totalQueueElements += count;
-
-            long sizeBytes = 0;
-            for (int i = 0; i < a.Length; i++) sizeBytes += a[i].Value.Length;
-            totalQueueBytes += sizeBytes;
+            var remaining = ImmutableArray.CreateBuilder<QueueElement>(arr.Length - removed.Count);
+            for (var index = 0; index < arr.Length; index++)
+            {
+                if (!removed.Contains(index))
+                    remaining.Add(arr[index]);
+            }
+            arr = remaining.MoveToImmutable();
         }
+
+        queues = queues.SetItem(cmd.Key, arr);
+        state.Queues = queues;
 
         return default;
     }
@@ -733,8 +726,48 @@ public static class SlimDataInterpreter
         }
 
         var results = new SlimDataBatchOperationResult[request.Operations.Length];
-        for (var i = 0; i < request.Operations.Length; i++)
-            results[i] = ApplyBatchOperation(request.Operations[i], state);
+        for (var i = 0; i < request.Operations.Length;)
+        {
+            if (request.Operations[i].Kind != SlimDataBatchOperationKind.ListLeftPush)
+            {
+                results[i] = ApplyBatchOperation(request.Operations[i], state);
+                i++;
+                continue;
+            }
+
+            var end = i + 1;
+            while (end < request.Operations.Length &&
+                   request.Operations[end].Kind == SlimDataBatchOperationKind.ListLeftPush)
+            {
+                end++;
+            }
+
+            var items = new List<ListLeftPushBatchCommand.BatchItem>(end - i);
+            for (var index = i; index < end; index++)
+            {
+                SlimDataBatchOperation operation = request.Operations[index];
+                items.Add(new ListLeftPushBatchCommand.BatchItem
+                {
+                    Key = operation.Key,
+                    Identifier = operation.ElementId,
+                    NowTicks = operation.NowTicks,
+                    RetryTimeout = operation.RetryTimeoutSeconds,
+                    Retries = operation.Retries.ToList(),
+                    HttpStatusCodesWorthRetrying = operation.HttpStatusRetries.ToList(),
+                    Value = operation.Value
+                });
+                results[index] = new SlimDataBatchOperationResult
+                {
+                    Kind = operation.Kind,
+                    RequestId = operation.RequestId,
+                    Applied = true,
+                    ElementId = operation.ElementId
+                };
+            }
+
+            DoListLeftPushBatchAsync(new ListLeftPushBatchCommand { Items = items }, state);
+            i = end;
+        }
 
         var response = new SlimDataCommandBatchResponse
         {
@@ -927,13 +960,25 @@ public static class SlimDataInterpreter
                 item.RetryQueueElements[^1].IdTransaction == operation.TransactionId)
             .Select(static item => new QueueData(
                 item.Id,
-                item.Value.ToArray(),
+                GetQueueValueBuffer(item.Value),
                 item.NumberOfTries(),
                 item.IsLastTry(),
                 item.GetLastRetryTimeTicks(),
                 item.GetHttpTimeoutTicks(),
                 item.GetLastReservedIp()))
             .ToArray();
+    }
+
+    private static byte[] GetQueueValueBuffer(ReadOnlyMemory<byte> value)
+    {
+        if (MemoryMarshal.TryGetArray(value, out ArraySegment<byte> segment) &&
+            segment.Offset == 0 &&
+            segment.Count == segment.Array!.Length)
+        {
+            return segment.Array;
+        }
+
+        return value.ToArray();
     }
 
     public static CommandInterpreter InitInterpreter(SlimDataState state)

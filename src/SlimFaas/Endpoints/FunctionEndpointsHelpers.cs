@@ -377,7 +377,7 @@ public static class FunctionEndpointsHelpers
                     string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
             }
             var metaBytes = MemoryPackSerializer.Serialize(meta);
-            await db!.SetAsync(metaKey, metaBytes);
+            await db!.SetQueueMetadataAsync(metaKey, metaBytes);
         }
         else if (requestBodyBytes is null)
         {

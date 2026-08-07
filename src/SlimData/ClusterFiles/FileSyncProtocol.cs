@@ -31,6 +31,7 @@ public static class FileSyncProtocol
     private const char TagKvSep = '=';
 
     public const string AnnouncePrefix   = "slimfaas.file.announce";
+    public const string DeletePrefix     = "slimfaas.file.delete";
     public const string TagsHeaderName    = "X-SlimFaas-Tags";
 
     // announce|idEnc|sha|len|contentTypeEnc|overwrite(0/1)
@@ -58,6 +59,21 @@ public static class FileSyncProtocol
 
         contentType = Base64UrlCodec.Decode(parts[4]);
         overwrite = parts[5] == "1";
+        return true;
+    }
+
+    public static string BuildDeleteName(string idEncoded)
+        => $"{DeletePrefix}{Sep}{idEncoded}";
+
+    public static bool TryParseDeleteName(string name, out string idEncoded)
+    {
+        idEncoded = string.Empty;
+        if (!name.StartsWith(DeletePrefix + Sep, StringComparison.Ordinal))
+            return false;
+        string[] parts = name.Split(Sep);
+        if (parts.Length != 2 || string.IsNullOrWhiteSpace(parts[1]))
+            return false;
+        idEncoded = parts[1];
         return true;
     }
 

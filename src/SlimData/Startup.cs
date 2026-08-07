@@ -78,6 +78,7 @@ public class Startup(IConfiguration configuration)
             .ValidateOnStart();
         services.AddClusterFileOptions(configuration);
         services.AddSingleton<RaftAppendEntriesCommitIndexGuard>();
+        services.AddSingleton<SlimDataQueueSignal>();
         services.AddSingleton<SlimDataCommandBatchCoordinator>();
         services.AddSingleton<ClusterMembershipCoordinator>();
         services.AddSingleton<IClusterMembershipCoordinator>(sp =>

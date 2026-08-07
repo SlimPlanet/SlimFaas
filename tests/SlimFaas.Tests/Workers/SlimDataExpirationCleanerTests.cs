@@ -291,6 +291,61 @@ public sealed class SlimDataExpirationCleanerTests
     }
 
     [Fact]
+    public async Task CleanupOnceAsync_batches_orphan_metadata_deletes_with_bounded_concurrency()
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);
+        var db = new Mock<IDatabaseService>(MockBehavior.Strict);
+        var files = new Mock<IFileRepository>(MockBehavior.Strict);
+        var keyValues = ImmutableDictionary.CreateBuilder<string, ReadOnlyMemory<byte>>();
+        for (var index = 0; index < 65; index++)
+        {
+            keyValues.Add(
+                DataFileKeys.MetaKey($"orphan-{index}"),
+                SerializeOffloadMeta($"missing-element-{index}"));
+        }
+        state.Setup(service => service.Invoke()).Returns(new SlimDataPayload
+        {
+            KeyValues = keyValues.ToImmutable(),
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty,
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        });
+        files.Setup(service => service.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>()))
+            .Returns(EmptyMeta());
+        files.Setup(service => service.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+        var releaseFirstBatch = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstBatchStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var active = 0;
+        var maximumActive = 0;
+        db.Setup(service => service.DeleteAsync(It.IsAny<string>()))
+            .Returns(async () =>
+            {
+                int current = Interlocked.Increment(ref active);
+                int observed;
+                while (current > (observed = Volatile.Read(ref maximumActive)))
+                    Interlocked.CompareExchange(ref maximumActive, current, observed);
+                if (current == 64)
+                    firstBatchStarted.TrySetResult();
+                await releaseFirstBatch.Task;
+                Interlocked.Decrement(ref active);
+            });
+        var sut = new SlimDataExpirationCleaner(
+            state.Object,
+            db.Object,
+            files.Object,
+            Mock.Of<ILogger<SlimDataExpirationCleaner>>(),
+            orphanConfirmationCycles: 1);
+
+        Task cleanup = sut.CleanupOnceAsync(CancellationToken.None);
+        await firstBatchStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(64, Volatile.Read(ref maximumActive));
+        releaseFirstBatch.TrySetResult();
+        await cleanup;
+
+        db.Verify(service => service.DeleteAsync(It.IsAny<string>()), Times.Exactly(65));
+    }
+
+    [Fact]
     public async Task CleanupOnceAsync_requires_three_consecutive_orphan_observations_before_deleting_metadata()
     {
         var state = new Mock<ISupplier<SlimDataPayload>>(MockBehavior.Strict);

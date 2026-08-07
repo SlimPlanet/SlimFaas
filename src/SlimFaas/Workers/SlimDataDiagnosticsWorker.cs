@@ -151,6 +151,14 @@ public sealed class SlimDataDiagnosticsWorker(
                 "slimdata_batch_low_load_fast_path_enabled",
                 service.LowLoadFastPathEnabled ? 1 : 0,
                 "Whether zero-delay local batching is enabled under low load");
+            gauges.SetGaugeValue(
+                "slimdata_batch_queue_low_latency_enabled",
+                service.QueueLowLatencyEnabled ? 1 : 0,
+                "Whether queue-critical mutations can interrupt the local adaptive batching cooldown");
+            gauges.SetGaugeValue(
+                "slimdata_batch_queue_max_wait_milliseconds",
+                service.QueueMutationMaxWait.TotalMilliseconds,
+                "Configured maximum local wait for queue-critical mutations");
 
             var load = service.BatchLoadSnapshot;
             gauges.SetGaugeValue("slimdata_batch_local_requests_per_second", load.RequestsPerSecond,
@@ -175,6 +183,14 @@ public sealed class SlimDataDiagnosticsWorker(
                     "Number of items waiting in an adaptive batch queue", labels);
                 gauges.SetGaugeValue("slimdata_batch_queue_bytes", queue.Bytes,
                     "Estimated bytes waiting in an adaptive batch queue", labels);
+                gauges.SetGaugeValue("slimdata_batch_latency_sensitive_operations_total",
+                    queue.LatencySensitiveOperations,
+                    "Queue-critical operations submitted to an adaptive batch queue", labels);
+                gauges.SetGaugeValue("slimdata_batch_forced_flush_total", queue.ForcedFlushes,
+                    "Adaptive batches flushed because a queue-critical deadline expired", labels);
+                gauges.SetGaugeValue("slimdata_batch_last_latency_sensitive_wait_milliseconds",
+                    queue.LastLatencySensitiveWaitMilliseconds,
+                    "Local batch wait of the latest queue-critical operation", labels);
             }
         }
 

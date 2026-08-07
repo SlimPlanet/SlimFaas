@@ -109,7 +109,7 @@ public class SlimWorkerShould
             replicasService.Object,
             historyHttpService,
             logger.Object,
-            serviceProvider.Object,
+            sendClientMock.Object,
             slimDataStatus.Object,
             masterService.Object,
             clusterFileSync.Object,
@@ -184,7 +184,7 @@ public class SlimWorkerShould
             replicasService.Object,
             historyHttpService,
             logger.Object,
-            serviceProvider.Object,
+            new Mock<ISendClient>().Object,
             slimDataStatus.Object,
             masterService.Object,
             clusterFileSync.Object,
@@ -290,6 +290,8 @@ public class SlimWorkerShould
             .ReturnsAsync(new List<QueueData> { queueData });
         mockQueue.Setup(q => q.ListCallbackAsync(It.IsAny<string>(), It.IsAny<ListQueueItemStatus>()))
             .Returns(Task.CompletedTask);
+        mockQueue.Setup(q => q.GetDispatchStateAsync("test-function"))
+            .ReturnsAsync(new QueueDispatchState(1, 0, 0, []));
 
 
         var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
@@ -305,7 +307,7 @@ public class SlimWorkerShould
             replicasService.Object,
             historyHttpService,
             logger.Object,
-            serviceProvider.Object,
+            sendClientMock.Object,
             slimDataStatus.Object,
             masterService.Object,
             clusterFileSyncForHeaders.Object,

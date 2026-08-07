@@ -13,6 +13,7 @@ public sealed class SlimDataExpirationCleaner
     internal const int DefaultOrphanConfirmationCycles = 3;
     private const string DiskCandidatePrefix = "disk:";
     private const string MetadataCandidatePrefix = "metadata:";
+    private const int MaximumMetadataDeleteBatchSize = 64;
 
     private readonly ISupplier<SlimDataPayload> _state;
     private readonly IDatabaseService _db;
@@ -195,6 +196,7 @@ public sealed class SlimDataExpirationCleaner
         }
 
         // 4) RAFT offload metadata keys: delete when the linked QueueElementId is no longer active
+        var confirmedOrphanMetadata = new List<string>();
         foreach (var kv in keyValues)
         {
             ct.ThrowIfCancellationRequested();
@@ -236,15 +238,9 @@ public sealed class SlimDataExpirationCleaner
                 "Deleting confirmed orphaned offload metadata. key={Key} QueueElementId={QueueElementId}",
                 key,
                 queueElementId);
-            try
-            {
-                await _db.DeleteAsync(key).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to delete orphaned offload metadata. key={Key}", key);
-            }
+            confirmedOrphanMetadata.Add(key);
         }
+        await DeleteOrphanMetadataAsync(confirmedOrphanMetadata).ConfigureAwait(false);
 
         // 5) Cleanup orphan .tmp files (interrupted uploads)
         try
@@ -273,6 +269,24 @@ public sealed class SlimDataExpirationCleaner
         observedCycles = Math.Min(observedCycles + 1, _orphanConfirmationCycles);
         _orphanCandidates[candidateKey] = observedCycles;
         return observedCycles >= _orphanConfirmationCycles;
+    }
+
+    private async Task DeleteOrphanMetadataAsync(IReadOnlyCollection<string> keys)
+    {
+        foreach (string[] batch in keys.Chunk(MaximumMetadataDeleteBatchSize))
+            await Task.WhenAll(batch.Select(DeleteOneOrphanMetadataAsync)).ConfigureAwait(false);
+    }
+
+    private async Task DeleteOneOrphanMetadataAsync(string key)
+    {
+        try
+        {
+            await _db.DeleteAsync(key).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to delete orphaned offload metadata. key={Key}", key);
+        }
     }
 
     internal static HashSet<string> BuildActiveQueueIds(

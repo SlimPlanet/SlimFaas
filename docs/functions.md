@@ -23,6 +23,11 @@ If your function has scaled to zero, SlimFaas automatically **wakes it up** and 
 
 Asynchronous calls return immediately (HTTP 202 or 201), while SlimFaas queues the request and processes it in the background.
 
+`202 Accepted` is returned only after the queue mutation is durably committed.
+FIFO order, retries, and callback behavior are unchanged. For request bodies
+larger than 1 MiB, SlimFaas durably commits and validates the offload metadata
+before it enqueues the message that refers to that body.
+
 - **Route**:
   `GET/POST/PUT/... http://<slimfaas>/async-function/<functionName>/<path>`
 
@@ -32,6 +37,25 @@ Asynchronous calls return immediately (HTTP 202 or 201), while SlimFaas queues t
 
 - **Limiting parallel requests** via annotations (e.g., `SlimFaas/NumberParallelRequest`).
 - **Retry pattern** on timeouts or specific HTTP status codes.
+
+Queue mutations wake the HTTP and WebSocket dispatch workers immediately after
+their durable commit. `Workers:QueuesDelayMilliseconds` is therefore a maximum
+fallback interval for a lost signal, a leadership transition, or a retry that
+becomes eligible; it is no longer the normal queue polling latency. The local
+SlimData wait for queue-critical mutations is controlled by
+`SlimData:QueueLowLatencyEnabled` (default `true`) and
+`SlimData:QueueMutationMaxWaitMilliseconds` (default `5`, range 0–225).
+
+Bodies stored through the internal offload path are prepared concurrently with
+a bounded parallelism, then dispatched in their original FIFO order. After a
+non-retryable result has been durably committed to the queue, SlimFaas removes
+its local file through a dedicated cleanup mailbox. This cleanup never blocks
+dispatch of the next message and broadcasts a best-effort delete signal for
+remote copies. Older or temporarily unavailable replicas fall back to the
+existing convergent orphan cleaner. Raft metadata deletion stays outside the
+dispatch mailbox and is grouped by the cleaner, so cleanup mutations cannot
+delay every new queue write. A retryable status keeps every artifact available
+for the next attempt.
 
 ---
 

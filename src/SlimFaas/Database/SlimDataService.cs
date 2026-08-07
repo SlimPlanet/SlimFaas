@@ -31,6 +31,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     private readonly BatchPartition[] _batchPartitions;
     private readonly SlimDataBatchMode _batchMode;
     private readonly bool _lowLoadFastPathEnabled;
+    private readonly bool _queueLowLatencyEnabled;
+    private readonly TimeSpan _queueMutationMaxWait;
     private readonly SlimDataBatchLoadController _loadController;
     private readonly SlimDataBatchCapacityLimiter? _partitionCapacityLimiter;
     private readonly string _generationId = Guid.NewGuid().ToString("N");
@@ -54,6 +56,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         var options = slimDataOptions.Value;
         _batchMode = options.BatchMode;
         _lowLoadFastPathEnabled = options.LowLoadFastPath;
+        _queueLowLatencyEnabled = options.QueueLowLatencyEnabled;
+        _queueMutationMaxWait = TimeSpan.FromMilliseconds(options.QueueMutationMaxWaitMilliseconds);
         _loadController = new SlimDataBatchLoadController(options.LowLoadRequestsPerSecond);
 
         var partitionCount = _batchMode == SlimDataBatchMode.PartitionedByKey
@@ -109,6 +113,10 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public int BatchPartitionCount => _batchPartitions.Length;
 
     public bool LowLoadFastPathEnabled => _lowLoadFastPathEnabled;
+
+    public bool QueueLowLatencyEnabled => _queueLowLatencyEnabled;
+
+    public TimeSpan QueueMutationMaxWait => _queueMutationMaxWait;
 
     internal SlimDataBatchLoadSnapshot BatchLoadSnapshot
     {
@@ -210,6 +218,15 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                ?? throw new DataException("The unified SlimData batch did not return a key/value result.");
     }
 
+    public async Task<KeyValueCommandResult> SetQueueMetadataAsync(string key, byte[] value)
+    {
+        var mutation = NewOperation(SlimDataBatchOperationKind.KeyValue, key);
+        mutation.Value = value;
+        var response = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
+        return response.KeyValueResult
+               ?? throw new DataException("The unified SlimData batch did not return a key/value result.");
+    }
+
     public async Task HashSetAsync(
         string key,
         IDictionary<string, byte[]> values,
@@ -246,7 +263,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         mutation.Retries = retryInformation.Retries?.ToArray() ?? [];
         mutation.HttpStatusRetries = retryInformation.HttpStatusRetries?.ToArray() ?? [];
 
-        var response = await EnqueueMutationAsync(mutation).ConfigureAwait(false);
+        var response = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
         return response.ElementId
                ?? throw new DataException("The unified SlimData batch did not return a queue element ID.");
     }
@@ -261,7 +278,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         mutation.TransactionId = transactionId;
         mutation.Count = count;
         mutation.ReservedIps = reservedIps?.ToArray() ?? [];
-        var response = await EnqueueMutationAsync(mutation).ConfigureAwait(false);
+        var response = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
         return response.QueueItems?.ToList() ?? [];
     }
 
@@ -274,17 +291,21 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             _logger,
             [1, 1, 1]);
 
+    public Task<QueueDispatchState> GetQueueDispatchStateAsync(string key) =>
+        Retry.DoAsync(() => DoGetQueueDispatchStateAsync(key), _logger, [1, 1, 1]);
+
     public async Task ListCallbackAsync(
         string key,
         ListQueueItemStatus queueItemStatus)
     {
         var mutation = NewOperation(SlimDataBatchOperationKind.ListCallback, key);
         mutation.CallbackItems = queueItemStatus.Items?.ToArray() ?? [];
-        _ = await EnqueueMutationAsync(mutation).ConfigureAwait(false);
+        _ = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
     }
 
     private async Task<SlimDataBatchOperationResult> EnqueueMutationAsync(
-        SlimDataBatchOperation operation)
+        SlimDataBatchOperation operation,
+        bool latencySensitive = false)
     {
         _loadController.RecordArrival();
         var partition = _batchPartitions.Length == 1
@@ -297,7 +318,10 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             return await partition.Batcher
                 .EnqueueAsync<SlimDataBatchOperation, SlimDataBatchOperationResult>(
                     partition.Kind,
-                    operation)
+                    operation,
+                    enqueueOptions: latencySensitive && _queueLowLatencyEnabled
+                        ? new AdaptiveBatchEnqueueOptions(_queueMutationMaxWait)
+                        : default)
                 .ConfigureAwait(false);
         }
         finally
@@ -503,6 +527,50 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                 item.GetHttpTimeoutTicks(),
                 item.GetLastReservedIp()))
             .ToList();
+    }
+
+    private async Task<QueueDispatchState> DoGetQueueDispatchStateAsync(string key)
+    {
+        await GetAndWaitForLeader().ConfigureAwait(false);
+        await WaitForLocalApplyAsync().ConfigureAwait(false);
+
+        var data = SimplePersistentState.Invoke();
+        if (!data.Queues.TryGetValue(key, out var queue) || queue.IsDefaultOrEmpty)
+            return QueueDispatchState.Empty;
+        return BuildQueueDispatchState(queue, DateTime.UtcNow.Ticks);
+    }
+
+    internal static QueueDispatchState BuildQueueDispatchState(
+        ImmutableArray<QueueElement> queue,
+        long nowTicks)
+    {
+        var available = 0;
+        var waitingForRetry = 0;
+        var runningReservations = new List<QueueRunningReservation>();
+        foreach (QueueElement element in queue)
+        {
+            if (element.IsFinished(nowTicks))
+                continue;
+            if (element.IsRunning(nowTicks))
+            {
+                runningReservations.Add(new QueueRunningReservation(
+                    element.Id,
+                    element.GetLastReservedIp()));
+                continue;
+            }
+            if (element.IsWaitingForRetry(nowTicks))
+            {
+                waitingForRetry++;
+                continue;
+            }
+            available++;
+        }
+
+        return new QueueDispatchState(
+            available,
+            runningReservations.Count,
+            waitingForRetry,
+            runningReservations);
     }
 
     private async Task WaitForLocalApplyAsync(CancellationToken cancellationToken = default)

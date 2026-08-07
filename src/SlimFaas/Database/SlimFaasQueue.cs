@@ -24,4 +24,7 @@ public class SlimFaasQueue(IDatabaseService databaseService) : ISlimFaasQueue
     public async Task<IList<QueueData>> ListElementsAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) =>
         await databaseService.ListCountElementAsync($"{KeyPrefix}{key}", countTypes, maximum);
 
+    public Task<QueueDispatchState> GetDispatchStateAsync(string key) =>
+        databaseService.GetQueueDispatchStateAsync($"{KeyPrefix}{key}");
+
 }

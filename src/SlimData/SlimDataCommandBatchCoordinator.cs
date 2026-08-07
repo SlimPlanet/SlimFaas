@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Threading.Channels;
 using DotNext.Net.Cluster.Consensus.Raft;
+using SlimData.Commands;
 
 namespace SlimData;
 
@@ -26,6 +27,7 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
 
     private readonly IRaftCluster _cluster;
     private readonly ILogger<SlimDataCommandBatchCoordinator> _logger;
+    private readonly SlimDataQueueSignal _queueSignal;
     private readonly Channel<PendingRequest> _channel;
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Task _worker;
@@ -44,10 +46,12 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
 
     public SlimDataCommandBatchCoordinator(
         IRaftCluster cluster,
-        ILogger<SlimDataCommandBatchCoordinator> logger)
+        ILogger<SlimDataCommandBatchCoordinator> logger,
+        SlimDataQueueSignal? queueSignal = null)
     {
         _cluster = cluster;
         _logger = logger;
+        _queueSignal = queueSignal ?? new SlimDataQueueSignal();
         _channel = Channel.CreateBounded<PendingRequest>(new BoundedChannelOptions(Capacity)
         {
             SingleReader = true,
@@ -165,6 +169,9 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
             Volatile.Write(ref _lastOperationCount, operationCount);
             Volatile.Write(ref _lastPayloadBytes, payloadBytes);
 
+            if (ContainsQueueMutation(envelope))
+                _queueSignal.Pulse();
+
             for (var i = 0; i < batch.Count; i++)
                 batch[i].Completion.TrySetResult(responses[i]);
         }
@@ -174,6 +181,12 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
                 pending.Completion.TrySetException(ex);
         }
     }
+
+    internal static bool ContainsQueueMutation(SlimDataRaftBatchEnvelope envelope) =>
+        envelope.Requests.Any(static request => request.Operations.Any(static operation =>
+            operation.Kind is SlimDataBatchOperationKind.ListLeftPush or
+                SlimDataBatchOperationKind.ListRightPop or
+                SlimDataBatchOperationKind.ListCallback));
 
     private void RemoveFromQueueStatistics(List<PendingRequest> batch, int payloadBytes)
     {

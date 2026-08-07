@@ -1,19 +1,28 @@
+using System.Collections.Concurrent;
 using MemoryPack;
+using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
-using Microsoft.Extensions.Options;
+using SlimFaas.Workers;
 
 namespace SlimFaas.WebSocket;
 
-internal record struct WebSocketRequestToWait(Task<int> Task, string FunctionName, string Id);
+internal sealed record TrackedWebSocketRequest(
+    long Generation,
+    string FunctionName,
+    string Id,
+    CancellationTokenSource Cancellation);
+
+internal readonly record struct CompletedWebSocketRequest(
+    TrackedWebSocketRequest Request,
+    int StatusCode,
+    Exception? Error);
 
 /// <summary>
-/// Worker qui poll les queues des fonctions WebSocket virtuelles
-/// et dispatch les messages via WebSocket au lieu d'HTTP.
-/// Fonctionne comme <see cref="SlimQueuesWorker"/> : les tâches en cours sont
-/// trackées entre les cycles et libérées au fur et à mesure.
+/// Dispatches durable async queue items to registered WebSocket functions.
+/// Queue commits and request completions wake the worker; the configured polling delay is only a fallback.
 /// </summary>
 public class WebSocketQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
@@ -23,241 +32,275 @@ public class WebSocketQueuesWorker(
     HistoryHttpMemoryService historyHttpService,
     ILogger<WebSocketQueuesWorker> logger,
     IMasterService masterService,
-    IOptions<WorkersOptions> workersOptions)
+    IOptions<WorkersOptions> workersOptions,
+    SlimDataQueueSignal? queueSignal = null)
     : BackgroundService
 {
-    private readonly int _delay = workersOptions.Value.QueuesDelayMilliseconds;
+    private readonly int _maximumIdleWaitMilliseconds = workersOptions.Value.QueuesDelayMilliseconds;
+    private readonly SlimDataQueueSignal _queueSignal = queueSignal ?? new SlimDataQueueSignal();
+    private readonly long _initialSignalVersion = queueSignal?.Version ?? 0;
+    private readonly ConcurrentQueue<CompletedWebSocketRequest> _completedRequests = new();
+    private long _trackingGeneration;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        Dictionary<string, IList<WebSocketRequestToWait>> processingTasks = new();
-        Dictionary<string, int> setTickLastCallCounterDictionary = new();
-
-        while (!stoppingToken.IsCancellationRequested)
+        var processingRequests = new Dictionary<string, Dictionary<string, TrackedWebSocketRequest>>(StringComparer.Ordinal);
+        var lastCallCounters = new Dictionary<string, int>(StringComparer.Ordinal);
+        // Capture at construction time so a durable mutation committed after DI has built the
+        // worker, but just before ExecuteAsync is scheduled, cannot be missed.
+        long observedSignalVersion = _initialSignalVersion;
+        try
         {
-            try
+            while (!stoppingToken.IsCancellationRequested)
             {
-                await Task.Delay(_delay, stoppingToken);
-
-                if (!masterService.IsMaster)
+                try
                 {
-                    continue;
-                }
+                    long previousVersion = observedSignalVersion;
+                    observedSignalVersion = await _queueSignal.WaitForChangeAsync(
+                        observedSignalVersion,
+                        TimeSpan.FromMilliseconds(_maximumIdleWaitMilliseconds),
+                        stoppingToken).ConfigureAwait(false);
+                    AsyncQueueTelemetry.RecordWake(
+                        "websocket",
+                        observedSignalVersion == previousVersion
+                            ? "fallback"
+                            : _completedRequests.IsEmpty ? "mutation" : "completion");
+                    using IDisposable cycle = AsyncQueueTelemetry.MeasureCycle("websocket");
+                    if (!masterService.IsMaster)
+                    {
+                        ClearLocalTracking(processingRequests);
+                        continue;
+                    }
 
-                var virtualDeployments = functionRepository.GetVirtualDeployments();
-                foreach (var deployment in virtualDeployments)
+                    await DrainCompletedRequestsAsync(processingRequests).ConfigureAwait(false);
+                    foreach (DeploymentInformation deployment in functionRepository.GetVirtualDeployments())
+                    {
+                        await ProcessQueueAsync(
+                            deployment,
+                            processingRequests,
+                            lastCallCounters,
+                            stoppingToken).ConfigureAwait(false);
+                    }
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
-                    await ProcessQueueAsync(deployment, processingTasks, setTickLastCallCounterDictionary, stoppingToken);
+                    break;
+                }
+                catch (Exception exception)
+                {
+                    logger.LogError(exception, "Error in WebSocketQueuesWorker");
                 }
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e, "Error in WebSocketQueuesWorker");
-            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            ClearLocalTracking(processingRequests);
         }
     }
 
     private async Task ProcessQueueAsync(
         DeploymentInformation deployment,
-        Dictionary<string, IList<WebSocketRequestToWait>> processingTasks,
-        Dictionary<string, int> setTickLastCallCounterDictionary,
-        CancellationToken ct)
+        Dictionary<string, Dictionary<string, TrackedWebSocketRequest>> processingRequests,
+        Dictionary<string, int> lastCallCounters,
+        CancellationToken stoppingToken)
     {
         string functionName = deployment.Deployment;
-
-        // Initialiser les collections si nécessaire
-        if (!processingTasks.ContainsKey(functionName))
+        Dictionary<string, TrackedWebSocketRequest> active = GetOrAdd(processingRequests, functionName);
+        lastCallCounters.TryAdd(functionName, 0);
+        QueueDispatchState queueState;
+        using (AsyncQueueTelemetry.MeasureSnapshot("websocket"))
         {
-            processingTasks[functionName] = new List<WebSocketRequestToWait>();
+            queueState = await slimFaasQueue
+                .GetDispatchStateAsync(functionName)
+                .ConfigureAwait(false);
         }
-        setTickLastCallCounterDictionary.TryAdd(functionName, 0);
-
-        // 1. Gérer les tâches terminées (comme ManageProcessingTasksAsync dans SlimQueuesWorker)
-        int numberProcessingTasks = await ManageProcessingTasksAsync(functionName, processingTasks);
-
-        // 2. Calculer le nombre de pods (connexions) ready
-        var connections = registry.GetConnections(functionName);
-        int numberPodsReady = connections.Count;
-
-        if (numberPodsReady == 0)
-        {
+        int connectionCount = registry.GetConnections(functionName).Count;
+        if (connectionCount == 0)
             return;
-        }
 
-        // 3. Calculer les limites — identique à SlimQueuesWorker
-        int numberMaxProcessingTasks = Math.Min(
+        int maximumParallelism = Math.Min(
             deployment.NumberParallelRequest,
-            numberPodsReady * deployment.NumberParallelRequestPerPod);
-        int numberLimitProcessingTasks = numberMaxProcessingTasks - numberProcessingTasks;
-
-        // 4. Tick last call / queue length
-        setTickLastCallCounterDictionary[functionName]++;
-        int functionReplicas = deployment.Replicas;
-
-        long queueLength = await UpdateTickLastCallIfRequestStillInProgress(
-            functionReplicas,
-            setTickLastCallCounterDictionary,
+            connectionCount * deployment.NumberParallelRequestPerPod);
+        int availableSlots = Math.Max(0, maximumParallelism - active.Count);
+        UpdateLastCallIfWorkRemains(
+            deployment.Replicas,
+            lastCallCounters,
             functionName,
-            numberProcessingTasks,
-            numberLimitProcessingTasks);
-
-        if (functionReplicas == 0 || queueLength <= 0)
-        {
+            active.Count,
+            queueState.TotalPending);
+        if (deployment.Replicas == 0 || queueState.Available <= 0 || availableSlots <= 0)
             return;
-        }
 
-        if (numberProcessingTasks >= numberMaxProcessingTasks)
+        IList<QueueData>? items;
+        using (AsyncQueueTelemetry.MeasureDequeue("websocket"))
         {
-            return;
+            items = await slimFaasQueue.DequeueAsync(
+                functionName,
+                Math.Min(availableSlots, queueState.Available)).ConfigureAwait(false);
         }
-
-        // 5. Dequeue et lancer les tâches (fire-and-forget, trackées)
-        await DispatchRequestsAsync(functionName, processingTasks, numberLimitProcessingTasks, deployment, ct);
-    }
-
-    private async Task DispatchRequestsAsync(
-        string functionName,
-        Dictionary<string, IList<WebSocketRequestToWait>> processingTasks,
-        int numberLimitProcessingTasks,
-        DeploymentInformation deployment,
-        CancellationToken ct)
-    {
-        var items = await slimFaasQueue.DequeueAsync(functionName, numberLimitProcessingTasks);
-        if (items == null || items.Count == 0)
-        {
+        if (items is null)
             return;
-        }
-
-        foreach (var item in items)
+        foreach (QueueData item in items)
         {
             CustomRequest customRequest;
             try
             {
                 customRequest = MemoryPackSerializer.Deserialize<CustomRequest>(item.Data);
             }
-            catch (Exception ex)
+            catch (Exception exception)
             {
-                logger.LogError(ex, "Failed to deserialize CustomRequest for WebSocket function {FunctionName}", functionName);
-                await slimFaasQueue.ListCallbackAsync(functionName, new ListQueueItemStatus
-                {
-                    Items = [new QueueItemStatus(item.Id, 500)]
-                });
+                logger.LogError(
+                    exception,
+                    "Failed to deserialize CustomRequest for WebSocket function {FunctionName}",
+                    functionName);
+                await slimFaasQueue.ListCallbackAsync(
+                    functionName,
+                    new ListQueueItemStatus
+                    {
+                        Items = [new QueueItemStatus(item.Id, StatusCodes.Status500InternalServerError)]
+                    }).ConfigureAwait(false);
                 continue;
             }
 
-            logger.LogDebug("WebSocket dispatch: {Method} {Path} for {FunctionName} elementId={ElementId}",
-                customRequest.Method, customRequest.Path, functionName, item.Id);
-
             historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-
-            // Lancer la tâche SANS l'attendre (fire-and-forget, trackée)
-            Task<int> task = webSocketSendClient.SendAsync(
+            var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+            var tracked = new TrackedWebSocketRequest(
+                Volatile.Read(ref _trackingGeneration),
+                functionName,
+                item.Id,
+                requestCancellation);
+            active[item.Id] = tracked;
+            Task<int> responseTask = webSocketSendClient.SendAsync(
                 functionName,
                 customRequest,
                 item.Id,
                 item.IsLastTry,
                 item.TryNumber,
-                ct);
-
-            processingTasks[functionName].Add(new WebSocketRequestToWait(task, functionName, item.Id));
+                requestCancellation.Token);
+            _ = ObserveCompletionAsync(responseTask, tracked);
         }
     }
 
-    private async Task<int> ManageProcessingTasksAsync(
-        string functionName,
-        Dictionary<string, IList<WebSocketRequestToWait>> processingTasks)
+    private async Task ObserveCompletionAsync(
+        Task<int> responseTask,
+        TrackedWebSocketRequest request)
     {
-        var listQueueItemStatus = new ListQueueItemStatus();
-        var queueItemStatusList = new List<QueueItemStatus>();
-        listQueueItemStatus.Items = queueItemStatusList;
-
-        List<WebSocketRequestToWait> toRemove = new();
-        IList<WebSocketRequestToWait> requestToWaits = processingTasks[functionName];
-
-        foreach (var processing in requestToWaits)
+        var statusCode = StatusCodes.Status500InternalServerError;
+        Exception? error = null;
+        try
         {
-            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+            statusCode = await responseTask.ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            error = exception;
+        }
+        finally
+        {
+            request.Cancellation.Dispose();
+        }
 
-            if (!processing.Task.IsCompleted)
-            {
+        _completedRequests.Enqueue(new CompletedWebSocketRequest(request, statusCode, error));
+        _queueSignal.Pulse();
+    }
+
+    private async Task DrainCompletedRequestsAsync(
+        Dictionary<string, Dictionary<string, TrackedWebSocketRequest>> processingRequests)
+    {
+        long generation = Volatile.Read(ref _trackingGeneration);
+        var callbacks = new Dictionary<string, List<QueueItemStatus>>(StringComparer.Ordinal);
+        while (_completedRequests.TryDequeue(out CompletedWebSocketRequest completed))
+        {
+            TrackedWebSocketRequest request = completed.Request;
+            if (processingRequests.TryGetValue(request.FunctionName, out var active))
+                active.Remove(request.Id);
+            if (request.Generation != generation)
                 continue;
-            }
-
-            try
+            historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
+            if (completed.Error is not null)
             {
-                int statusCode = await processing.Task;
+                logger.LogWarning(
+                    completed.Error,
+                    "WebSocket async request failed for {FunctionName}/{ElementId}",
+                    request.FunctionName,
+                    request.Id);
+            }
+            else
+            {
                 logger.LogDebug(
                     "WebSocket async completed for {FunctionName} elementId={ElementId} statusCode={StatusCode}",
-                    functionName, processing.Id, statusCode);
-                toRemove.Add(processing);
-
-                if (statusCode == 202)
-                {
-                    // Le client prendra en charge le callback lui-même
-                    logger.LogInformation(
-                        "WebSocket async accepted (202) for {FunctionName}/{ElementId}, awaiting client callback",
-                        functionName, processing.Id);
-                }
-                else
-                {
-                    queueItemStatusList.Add(new QueueItemStatus(processing.Id, statusCode));
-                }
+                    request.FunctionName,
+                    request.Id,
+                    completed.StatusCode);
             }
-            catch (Exception e)
+            if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
+                continue;
+            if (!callbacks.TryGetValue(request.FunctionName, out List<QueueItemStatus>? statuses))
             {
-                queueItemStatusList.Add(new QueueItemStatus(processing.Id, 500));
-                toRemove.Add(processing);
-                logger.LogWarning("WebSocket request error: {Message} {StackTrace}", e.Message, e.StackTrace);
+                statuses = [];
+                callbacks.Add(request.FunctionName, statuses);
             }
+            statuses.Add(new QueueItemStatus(request.Id, completed.StatusCode));
         }
 
-        if (listQueueItemStatus.Items.Count > 0)
+        foreach ((string functionName, List<QueueItemStatus> statuses) in callbacks)
         {
-            await slimFaasQueue.ListCallbackAsync(functionName, listQueueItemStatus);
+            await slimFaasQueue.ListCallbackAsync(
+                functionName,
+                new ListQueueItemStatus { Items = statuses }).ConfigureAwait(false);
         }
-
-        foreach (var item in toRemove)
-        {
-            requestToWaits.Remove(item);
-        }
-
-        return requestToWaits.Count;
     }
 
-    private async Task<long> UpdateTickLastCallIfRequestStillInProgress(
-        int functionReplicas,
-        Dictionary<string, int> setTickLastCallCounterDictionary,
+    private void UpdateLastCallIfWorkRemains(
+        int replicas,
+        Dictionary<string, int> counters,
         string functionName,
-        int numberProcessingTasks,
-        int numberLimitProcessingTasks)
+        int activeRequests,
+        int queueLength)
     {
-        int counterLimit = functionReplicas == 0 ? 10 : 40;
-        long queueLength = await slimFaasQueue.CountElementAsync(
-            functionName,
-            [CountType.Available, CountType.Running, CountType.WaitingForRetry]);
+        int counterLimit = replicas == 0 ? 10 : 40;
+        counters[functionName]++;
+        if (counters[functionName] <= counterLimit)
+            return;
+        counters[functionName] = 0;
+        if (queueLength > 0 || activeRequests > 0)
+            historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+    }
 
-        if (setTickLastCallCounterDictionary[functionName] > counterLimit)
+    private void ClearLocalTracking(
+        Dictionary<string, Dictionary<string, TrackedWebSocketRequest>> processingRequests)
+    {
+        if (processingRequests.Values.All(active => active.Count == 0))
+            return;
+        Interlocked.Increment(ref _trackingGeneration);
+        foreach (Dictionary<string, TrackedWebSocketRequest> active in processingRequests.Values)
         {
-            setTickLastCallCounterDictionary[functionName] = 0;
-            if (queueLength > 0 || numberProcessingTasks > 0)
+            foreach (TrackedWebSocketRequest request in active.Values)
             {
-                historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+                try
+                {
+                    request.Cancellation.Cancel();
+                }
+                catch (ObjectDisposedException)
+                {
+                }
             }
+            active.Clear();
         }
+    }
 
-        if (queueLength == 0)
+    private static Dictionary<string, TrackedWebSocketRequest> GetOrAdd(
+        IDictionary<string, Dictionary<string, TrackedWebSocketRequest>> dictionary,
+        string key)
+    {
+        if (!dictionary.TryGetValue(key, out Dictionary<string, TrackedWebSocketRequest>? value))
         {
-            return 0;
+            value = new Dictionary<string, TrackedWebSocketRequest>(StringComparer.Ordinal);
+            dictionary.Add(key, value);
         }
-
-        return await slimFaasQueue.CountElementAsync(
-            functionName,
-            [CountType.Available],
-            numberLimitProcessingTasks);
+        return value;
     }
 }
-

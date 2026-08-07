@@ -192,6 +192,7 @@ public class AsyncFunctionEndpointTests
         Mock<IClusterFileSync> fileSyncMock = new(MockBehavior.Strict);
         Mock<IDatabaseService> dbMock = new(MockBehavior.Strict);
         Mock<ISlimFaasQueue> queueMock = new();
+        var durableOrder = new List<string>();
 
         // BroadcastFilePutAsync doit être appelé exactement une fois
         string? capturedFileId = null;
@@ -223,15 +224,16 @@ public class AsyncFunctionEndpointTests
                 return new FilePutResult("abc123sha", "application/octet-stream", capturedOffloadedBody.Length);
             });
 
-        // db.SetAsync doit être appelé pour stocker les métadonnées
+        // La métadonnée durable utilise la même priorité faible latence que la queue.
         string? capturedMetaKey = null;
         byte[]? capturedMetaBytes = null;
         dbMock
-            .Setup(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()))
-            .Callback<string, byte[], long?, KeyValueOperation, long, decimal>((k, v, _, _, _, _) =>
+            .Setup(d => d.SetQueueMetadataAsync(It.IsAny<string>(), It.IsAny<byte[]>()))
+            .Callback<string, byte[]>((k, v) =>
             {
                 capturedMetaKey = k;
                 capturedMetaBytes = v;
+                durableOrder.Add("metadata");
             })
             .ReturnsAsync(() => Applied(capturedMetaBytes));
 
@@ -239,7 +241,11 @@ public class AsyncFunctionEndpointTests
         byte[]? enqueuedPayload = null;
         queueMock
             .Setup(q => q.EnqueueAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<RetryInformation>(), It.IsAny<string?>()))
-            .Callback<string, byte[], RetryInformation, string?>((_, data, _, _) => enqueuedPayload = data)
+            .Callback<string, byte[], RetryInformation, string?>((_, data, _, _) =>
+            {
+                enqueuedPayload = data;
+                durableOrder.Add("enqueue");
+            })
             .ReturnsAsync(Guid.NewGuid().ToString());
 
         var fibonacciConfig = new SlimFaasConfiguration
@@ -314,6 +320,7 @@ public class AsyncFunctionEndpointTests
 
         // L'endpoint doit retourner 202 Accepted
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        Assert.Equal(new[] { "metadata", "enqueue" }, durableOrder);
 
         // BroadcastFilePutAsync doit avoir été appelé
         fileSyncMock.Verify(s => s.BroadcastFilePutAsync(

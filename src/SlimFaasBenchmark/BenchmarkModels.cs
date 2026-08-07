@@ -7,7 +7,15 @@ internal readonly record struct RequestSample(
     int Repetition,
     bool Success,
     double LatencyMilliseconds,
-    string? Error);
+    string? Error,
+    string? RequestId = null);
+
+internal sealed record AsyncResourceUsage(
+    double? CpuMillisecondsPerMessage,
+    double? RaftEntriesPerMessage,
+    double? PeakWorkingSetBytes,
+    double? CpuSeconds,
+    double? RaftEntries);
 
 internal sealed record LatencyCaseData(
     LatencyRunResult Result,
@@ -26,7 +34,12 @@ internal sealed record LatencyRunResult(
     double P95Milliseconds,
     double P99Milliseconds,
     double MaxMilliseconds,
-    TargetObservationSummary? AsyncDelivery);
+    TargetObservationSummary? AsyncDelivery,
+    double MeanMilliseconds = 0,
+    int AsyncMissing = 0,
+    int AsyncDuplicates = 0,
+    AsyncResourceUsage? AsyncResources = null,
+    string LoadShape = "steady");
 
 internal sealed record LatencyAggregateResult(
     string Mode,
@@ -46,7 +59,35 @@ internal sealed record LatencyAggregateResult(
     double? AsyncCompletionP50Milliseconds,
     double? AsyncCompletionP95Milliseconds,
     double? AsyncCompletionP99Milliseconds,
-    int? AsyncObserved);
+    int? AsyncObserved,
+    double MeanMilliseconds = 0,
+    double? AsyncArrivalMeanMilliseconds = null,
+    double? AsyncCompletionMeanMilliseconds = null,
+    int AsyncMissing = 0,
+    int AsyncDuplicates = 0,
+    double? AsyncCpuMillisecondsPerMessage = null,
+    double? AsyncRaftEntriesPerMessage = null,
+    double? AsyncPeakWorkingSetBytes = null,
+    string LoadShape = "steady");
+
+internal sealed record AsyncWorkloadResult(
+    string LoadShape,
+    int PayloadBytes,
+    int Concurrency,
+    int Repetition,
+    int Requested,
+    int Accepted,
+    int Failed,
+    int Missing,
+    int Duplicates,
+    double ElapsedSeconds,
+    double RatePerSecond,
+    double MeanMilliseconds,
+    double P50Milliseconds,
+    double P95Milliseconds,
+    double P99Milliseconds,
+    TargetObservationSummary Delivery,
+    AsyncResourceUsage? Resources);
 
 internal sealed record SyncOverheadResult(
     int PayloadBytes,
@@ -104,7 +145,12 @@ internal sealed record BenchmarkSettings(
     IReadOnlyList<int> Concurrency,
     int ScaleMessages,
     int ScaleConcurrency,
-    int ScaleTargetReplicas);
+    int ScaleTargetReplicas,
+    string Profile = "standard",
+    int AsyncPacedMessages = 0,
+    int AsyncPacedIntervalMilliseconds = 0,
+    int AsyncBurstMessages = 0,
+    int AsyncBurstConcurrency = 0);
 
 internal sealed record BenchmarkReport(
     DateTimeOffset StartedAtUtc,
@@ -116,7 +162,8 @@ internal sealed record BenchmarkReport(
     IReadOnlyList<LatencyRunResult> LatencyRuns,
     IReadOnlyList<LatencyAggregateResult> Latency,
     IReadOnlyList<SyncOverheadResult> SyncOverhead,
-    ScaleResult Scaling);
+    ScaleResult Scaling,
+    IReadOnlyList<AsyncWorkloadResult>? AsyncWorkloads = null);
 
 internal sealed record FunctionStatusDto(
     int NumberReady,

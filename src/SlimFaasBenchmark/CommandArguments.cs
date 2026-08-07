@@ -92,8 +92,10 @@ internal static class BenchmarkCli
         SlimFaasBenchmark:
           target [--port 31080]
           compare --baseline <baseline-results.json> --candidate <candidate-results.json>
+                  [--profile sync|async]
                   [--output artifacts/slimfaas-local-benchmark/comparison]
-          run [--slimfaas-url http://127.0.0.1:31020]
+          run [--profile standard|async-queue]
+              [--slimfaas-url http://127.0.0.1:31020]
               [--direct-url http://127.0.0.1:31080]
               [--node-urls http://127.0.0.1:31021,http://127.0.0.1:31022,http://127.0.0.1:31023]
               [--function benchmark-latency] [--scale-function benchmark-scale]
@@ -102,6 +104,8 @@ internal static class BenchmarkCli
               [--concurrency 1,16] [--async-drain-timeout 180]
               [--scale-messages 200] [--scale-concurrency 32]
               [--scale-target-replicas 4] [--scale-timeout 120]
+              [--async-paced-messages 100] [--async-paced-interval-ms 100]
+              [--async-burst-messages 1000] [--async-burst-concurrency 64]
               [--output artifacts/slimfaas-local-benchmark/manual]
         """);
 }
