@@ -37,6 +37,16 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     private readonly SlimDataBatchCapacityLimiter? _partitionCapacityLimiter;
     private readonly string _generationId = Guid.NewGuid().ToString("N");
 
+    // Delays (in seconds) shared by every read-path Retry.DoAsync so that no
+    // array is allocated per call.
+    private static readonly int[] RetryDelays = [1, 1, 1];
+
+    // Client reused for every batch flush (up to one flush every ~3-5 ms in
+    // low-latency mode) instead of a CreateClient/Dispose per flush. Same pattern
+    // as SendClient: the underlying handler is never rotated anymore, which is
+    // harmless here (pod IPs, leader failover through the per-request URI).
+    private HttpClient? _batchHttpClient;
+
     public const string HttpClientName = "SlimDataHttpClient";
 
     public SlimDataService(
@@ -100,8 +110,14 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         }
     }
 
+    // SlimPersistentState is a singleton: cache the resolution instead of querying
+    // the DI container on every read. Resolution stays lazy (not in the constructor)
+    // to preserve the startup initialization order; the potential race is benign,
+    // both threads get the same instance.
+    private ISupplier<SlimDataPayload>? _persistentState;
+
     private ISupplier<SlimDataPayload> SimplePersistentState =>
-        _serviceProvider.GetRequiredService<SlimPersistentState>();
+        _persistentState ??= _serviceProvider.GetRequiredService<SlimPersistentState>();
 
     public IReadOnlyList<AdaptiveBatchQueueStatistics> BatchQueueStatistics
         => _batchPartitions
@@ -196,7 +212,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     }
 
     public Task<byte[]?> GetAsync(string key) =>
-        Retry.DoAsync(() => DoGetAsync(key), _logger, [1, 1, 1]);
+        Retry.DoAsync(() => DoGetAsync(key), _logger, RetryDelays);
 
     public async Task<KeyValueCommandResult> SetAsync(
         string key,
@@ -246,7 +262,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     }
 
     public Task<IDictionary<string, byte[]>> HashGetAllAsync(string key) =>
-        Retry.DoAsync(() => DoHashGetAllAsync(key), _logger, [1, 1, 1]);
+        Retry.DoAsync(() => DoHashGetAllAsync(key), _logger, RetryDelays);
 
     public async Task<string> ListLeftPushAsync(
         string key,
@@ -289,7 +305,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         Retry.DoAsync(
             () => DoListCountElementAsync(key, countTypes, maximum),
             _logger,
-            [1, 1, 1]);
+            RetryDelays);
 
     public Task<long> ListCountAsync(
         string key,
@@ -298,10 +314,10 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         Retry.DoAsync(
             () => DoListCountAsync(key, countTypes, maximum),
             _logger,
-            [1, 1, 1]);
+            RetryDelays);
 
     public Task<QueueDispatchState> GetQueueDispatchStateAsync(string key) =>
-        Retry.DoAsync(() => DoGetQueueDispatchStateAsync(key), _logger, [1, 1, 1]);
+        Retry.DoAsync(() => DoGetQueueDispatchStateAsync(key), _logger, RetryDelays);
 
     public async Task ListCallbackAsync(
         string key,
@@ -416,7 +432,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         {
             Content = new ByteArrayContent(payload)
         };
-        using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
+        HttpClient httpClient = _batchHttpClient ??= _httpClientFactory.CreateClient(HttpClientName);
         using var response = await httpClient.SendAsync(
                 request,
                 HttpCompletionOption.ResponseHeadersRead,

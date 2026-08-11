@@ -196,3 +196,26 @@ incremental hash of the raw data actually changed, and the activity-sync HTTP
 client is no longer created/disposed every 2 s (not micro-benchmarkable in
 isolation; covered by the tests).
 **Measured gain → commit kept.**
+
+---
+
+### Commit "perf: trim SlimDataService read-path and snapshot overheads" (theme 5)
+
+Tests: SlimData.Tests (SlimPersistentState, CommandBatch, Snapshot — 35 green) +
+SlimFaas.Tests (SlimDataBatchMode, Retry, PerfRegression — 23 green).
+
+This theme reduces **operation counts** rather than an independently benchmarkable
+path; the gain is quantified from the measured unit cost:
+
+| Saved operation | Measured unit cost | Avoided frequency |
+|---|---:|---|
+| `PayloadBytes` evaluation (full state walk) | 41–43 µs (test state: 200 KV + 400 hashset fields + 500 queue elements) | 2 out of 3 evaluations removed **per Raft snapshot** (+ 2 `GC.GetTotalMemory` probes when Information logging is disabled) |
+| `GetRequiredService<SlimPersistentState>()` DI resolution | — | 1 per store read → 1 per instance |
+| `HttpClient` created/disposed | — | 1 per batch flush (up to 1 every ~3-5 ms under load) → 1 per instance |
+| `[1,1,1]` array | 48 B | 1 per store read → 0 (shared static array) |
+
+The unit cost of `PayloadBytes` is unchanged after the commit (41.35 µs vs the
+43.45 µs baseline — within the variance): it is the **number of evaluations** that
+drops from 3 to 1 per snapshot, i.e. ≈ 85 µs of state walking saved per snapshot on
+the test state (more on larger real states).
+**Measured gain (operation count reduction × unit cost) → commit kept.**
