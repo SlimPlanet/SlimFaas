@@ -135,7 +135,7 @@ public class JobService(
 
     private IList<Job> _jobs = new List<Job>();
 
-    public IList<Job> Jobs => new List<Job>(Volatile.Read(ref _jobs).ToArray());
+    public IList<Job> Jobs => Volatile.Read(ref _jobs);
 
     public async Task<IList<Job>> SyncJobsAsync()
     {

@@ -114,3 +114,20 @@ repeated on every evaluation; called for every scheduled function on every 1 s t
 
 `PersistAsync` currently evaluates `PayloadBytes` 3 times per Raft snapshot
 (≈ 87 µs of avoidable state walking per snapshot on this test state).
+
+---
+
+### Commit "perf: return atomic snapshots instead of deep-copying on every access" (theme 1)
+
+Non-regression tests: `SnapshotAccessRegressionTests` (+ existing
+ReplicasService/JobService/Proxy suites — 64 tests green).
+
+| Method          | Before (baseline)  | After              | Gain |
+|---------------- |-------------------:|-------------------:|------|
+| ReadDeployments | 84.52 ns / 376 B   |  0.95 ns / 0 B     | ~89× faster, zero allocation |
+| SearchFunction  | 88.48 ns / 376 B   | 12.23 ns / 0 B     | ~7× faster, zero allocation |
+| ReadJobs        | 82.76 ns / 240 B   |  1.11 ns / 0 B     | ~74× faster, zero allocation |
+
+These properties are read several times per proxied HTTP request and up to ~100×/s
+by the queue workers: the allocation savings translate directly into GC pressure.
+**Measured gain → commit kept.**

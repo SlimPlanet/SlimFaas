@@ -34,18 +34,8 @@ public class ReplicasService(
         new List<PodInformation>());
 
     // Lecture sans verrou puisque _deployments est remplacé atomiquement.
-    public DeploymentsInformations Deployments =>
-        // On retourne ici une copie si nécessaire pour éviter que le consommateur ne modifie la collection.
-        new(
-            _deployments.Functions.ToArray(),
-            new SlimFaasDeploymentInformation(_deployments.SlimFaas?.Replicas ?? 1,
-                                               _deployments.SlimFaas?.Pods ?? new List<PodInformation>()),
-            new List<PodInformation>(),
-            _deployments.LocalProcesses is null
-                ? null
-                : new Dictionary<string, bool>(
-                    _deployments.LocalProcesses,
-                    StringComparer.OrdinalIgnoreCase));
+    // The returned snapshot must never be mutated by consumers.
+    public DeploymentsInformations Deployments => Volatile.Read(ref _deployments);
 
     // souvent Reason = "Unschedulable", message contenant "exceeded quota", "Insufficient cpu", etc.
     static bool IsInfrastructureFailure(PodInformation pod) =>
