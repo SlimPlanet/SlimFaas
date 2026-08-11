@@ -110,6 +110,10 @@ public class WebSocketQueuesWorker(
         string functionName = deployment.Deployment;
         Dictionary<string, TrackedWebSocketRequest> active = GetOrAdd(processingRequests, functionName);
         lastCallCounters.TryAdd(functionName, 0);
+        int connectionCount = registry.GetConnections(functionName).Count;
+        if (connectionCount == 0)
+            return;
+
         QueueDispatchState queueState;
         using (AsyncQueueTelemetry.MeasureSnapshot("websocket"))
         {
@@ -117,9 +121,6 @@ public class WebSocketQueuesWorker(
                 .GetDispatchStateAsync(functionName)
                 .ConfigureAwait(false);
         }
-        int connectionCount = registry.GetConnections(functionName).Count;
-        if (connectionCount == 0)
-            return;
 
         int maximumParallelism = Math.Min(
             deployment.NumberParallelRequest,

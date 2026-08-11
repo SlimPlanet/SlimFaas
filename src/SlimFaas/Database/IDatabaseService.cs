@@ -43,6 +43,8 @@ public interface IDatabaseService
     Task<string> ListLeftPushAsync(string key, byte[] field, RetryInformation retryInformation, string? newElementId = null);
     Task<IList<QueueData>?> ListRightPopAsync(string key, string transactionId, int count = 1, IList<string>? reservedIps = null);
     Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue);
+    async Task<long> ListCountAsync(string key, IList<CountType> countTypes, int maximum = int.MaxValue) =>
+        (await ListCountElementAsync(key, countTypes, maximum)).Count;
     async Task<QueueDispatchState> GetQueueDispatchStateAsync(string key)
     {
         IList<QueueData> available = await ListCountElementAsync(key, [CountType.Available]);

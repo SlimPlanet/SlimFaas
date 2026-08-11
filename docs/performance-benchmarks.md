@@ -131,3 +131,26 @@ ReplicasService/JobService/Proxy suites — 64 tests green).
 These properties are read several times per proxied HTTP request and up to ~100×/s
 by the queue workers: the allocation savings translate directly into GC pressure.
 **Measured gain → commit kept.**
+
+---
+
+### Commit "perf: count queue elements without materializing message bodies" (theme 2)
+
+Non-regression tests: `QueueCountRegressionTests` (+ MetricsWorker, SlimJobsWorker,
+QueueDispatchState, WebSocket, StatusStream — 34 tests green).
+
+The production path switches from the `MaterializeThenCount` strategy to
+`CountOnly` (in-run A/B benchmark, 2 KB payloads):
+
+| Strategy             | QueueDepth | Mean         | Allocated | Ratio |
+|--------------------- |----------- |-------------:|----------:|------:|
+| MaterializeThenCount | 50         |   9,646.9 ns |  108624 B | 1.000 |
+| **CountOnly**        | 50         |     379.3 ns |     848 B | 0.008 |
+| MaterializeThenCount | 500        |  96,237.3 ns | 1084224 B | 1.000 |
+| **CountOnly**        | 500        |   3,756.3 ns |    8048 B | 0.007 |
+
+That is ~25× faster and ~128× fewer allocations per count. Callers:
+MetricsWorker (also went from 3 reads to 1 per function per second),
+SlimJobsWorker (duplicated read removed), the SSE status cache, and
+WebSocketQueuesWorker (no longer reads the store when no connection exists).
+**Measured gain → commit kept.**

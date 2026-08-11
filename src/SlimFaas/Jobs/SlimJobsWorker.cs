@@ -97,7 +97,7 @@ public class SlimJobsWorker(
                     continue;
                 }
 
-                var numberJobReady = await ShouldWaitDependencies(jobName);
+                var numberJobReady = ShouldWaitDependencies(count);
                 if (numberJobReady<=0)
                 {
                     continue;
@@ -141,29 +141,25 @@ public class SlimJobsWorker(
         }
     }
 
-    private async Task<int> ShouldWaitDependencies(string jobName)
+    private int ShouldWaitDependencies(IList<QueueData> countElement)
     {
         var numberPodReady = 0;
-        var countElement = await jobQueue.CountElementAsync(jobName, new List<CountType> { CountType.Available });
-        if (countElement.Count > 0)
+        DeploymentsInformations deployments = replicasService.Deployments;
+        for (var i = countElement.Count - 1; i >= 0; i--)
         {
-            var reversedJobElement = countElement.Reverse().ToList();
-            foreach (var jobElement in reversedJobElement)
+            var jobElement = countElement[i];
+            JobInQueue? jobInQueue = MemoryPackSerializer.Deserialize<JobInQueue>(jobElement.Data);
+            CreateJob? createJob = jobInQueue?.CreateJob;
+            numberPodReady += 1;
+            if (createJob?.DependsOn != null)
             {
-                JobInQueue? jobInQueue = MemoryPackSerializer.Deserialize<JobInQueue>(jobElement.Data);
-                CreateJob? createJob = jobInQueue?.CreateJob;
-                numberPodReady += 1;
-                if (createJob?.DependsOn != null)
+                foreach (var dependOn in createJob.DependsOn)
                 {
-                    DeploymentsInformations deployments = replicasService.Deployments;
-                    foreach (var dependOn in createJob.DependsOn)
-                    {
-                        if (!DependencyReference.TryGetLocalProcessName(dependOn, out _))
-                            historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
+                    if (!DependencyReference.TryGetLocalProcessName(dependOn, out _))
+                        historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
 
-                        if (!IsDependencyReady(deployments, dependOn))
-                            numberPodReady = 0;
-                    }
+                    if (!IsDependencyReady(deployments, dependOn))
+                        numberPodReady = 0;
                 }
             }
         }

@@ -291,6 +291,15 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             _logger,
             [1, 1, 1]);
 
+    public Task<long> ListCountAsync(
+        string key,
+        IList<CountType> countTypes,
+        int maximum = int.MaxValue) =>
+        Retry.DoAsync(
+            () => DoListCountAsync(key, countTypes, maximum),
+            _logger,
+            [1, 1, 1]);
+
     public Task<QueueDispatchState> GetQueueDispatchStateAsync(string key) =>
         Retry.DoAsync(() => DoGetQueueDispatchStateAsync(key), _logger, [1, 1, 1]);
 
@@ -527,6 +536,33 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
                 item.GetHttpTimeoutTicks(),
                 item.GetLastReservedIp()))
             .ToList();
+    }
+
+    private async Task<long> DoListCountAsync(
+        string key,
+        IList<CountType> countTypes,
+        int maximum)
+    {
+        await GetAndWaitForLeader().ConfigureAwait(false);
+        await WaitForLocalApplyAsync().ConfigureAwait(false);
+
+        var data = SimplePersistentState.Invoke();
+        if (!data.Queues.TryGetValue(key, out var value) ||
+            value.IsDefaultOrEmpty ||
+            countTypes.Count == 0)
+        {
+            return 0;
+        }
+
+        var nowTicks = DateTime.UtcNow.Ticks;
+        long count = 0;
+        if (countTypes.Contains(CountType.Available))
+            count += value.GetQueueAvailableElement(nowTicks, maximum).Length;
+        if (countTypes.Contains(CountType.Running))
+            count += value.GetQueueRunningElement(nowTicks).Length;
+        if (countTypes.Contains(CountType.WaitingForRetry))
+            count += value.GetQueueWaitingForRetryElement(nowTicks).Length;
+        return count;
     }
 
     private async Task<QueueDispatchState> DoGetQueueDispatchStateAsync(string key)
