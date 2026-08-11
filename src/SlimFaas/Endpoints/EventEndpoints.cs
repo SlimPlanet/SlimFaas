@@ -144,14 +144,15 @@ public static class EventEndpoints
                 }
             }
 
-            while (tasks.Any(t => !t.IsCompleted) && !context.RequestAborted.IsCancellationRequested)
+            // Poll-free wait: wake up as soon as everything completes, with a 1 s
+            // heartbeat to refresh the "last call" of the called functions.
+            Task allTasks = Task.WhenAll(tasks);
+            while (!allTasks.IsCompleted && !context.RequestAborted.IsCancellationRequested)
             {
-                await Task.Delay(20, context.RequestAborted);
-                bool isOneSecondElapsed = new DateTime(lastSetTicks, DateTimeKind.Utc) < DateTime.UtcNow.AddSeconds(-1);
-
-                if (!isOneSecondElapsed)
+                Task completed = await Task.WhenAny(allTasks, Task.Delay(1000, context.RequestAborted));
+                if (completed == allTasks)
                 {
-                    continue;
+                    break;
                 }
 
                 lastSetTicks = DateTime.UtcNow.Ticks;

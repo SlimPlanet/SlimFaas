@@ -492,10 +492,35 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                 continue;
             }
 
-            string[] values = header.Value
-                .Where(static value => value is not null)
-                .Select(static value => value!)
-                .ToArray();
+            StringValues headerValue = header.Value;
+            if (headerValue.Count == 1)
+            {
+                string? single = headerValue[0];
+                if (single is null)
+                {
+                    continue;
+                }
+
+                if (!requestMessage.Headers.TryAddWithoutValidation(header.Key, single))
+                {
+                    requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, single);
+                }
+                continue;
+            }
+
+            string[] values = new string[headerValue.Count];
+            int count = 0;
+            for (int i = 0; i < headerValue.Count; i++)
+            {
+                if (headerValue[i] is { } value)
+                {
+                    values[count++] = value;
+                }
+            }
+            if (count < values.Length)
+            {
+                Array.Resize(ref values, count);
+            }
             if (!requestMessage.Headers.TryAddWithoutValidation(header.Key, values))
             {
                 requestMessage.Content?.Headers.TryAddWithoutValidation(header.Key, values);

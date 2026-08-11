@@ -64,14 +64,14 @@ public sealed class DefaultFunctionAccessPolicy(
         if (function.PathsStartWithVisibility is not { Count: > 0 })
             return function.Visibility;
 
-        var p = (path ?? string.Empty).ToLowerInvariant();
+        var p = path ?? string.Empty;
 
         foreach (var rule in function.PathsStartWithVisibility)
         {
             if (string.IsNullOrWhiteSpace(rule.Path))
                 continue;
 
-            if (p.StartsWith(rule.Path.ToLowerInvariant()))
+            if (p.StartsWith(rule.Path, StringComparison.OrdinalIgnoreCase))
                 return rule.Visibility;
         }
 

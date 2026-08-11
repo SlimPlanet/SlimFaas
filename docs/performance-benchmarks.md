@@ -154,3 +154,24 @@ MetricsWorker (also went from 3 reads to 1 per function per second),
 SlimJobsWorker (duplicated read removed), the SSE status cache, and
 WebSocketQueuesWorker (no longer reads the store when no connection exists).
 **Measured gain → commit kept.**
+
+---
+
+### Commit "perf: cut per-request allocations on the HTTP proxy hot path" (theme 3)
+
+Tests: SendClient, SyncFunctionEndpoint, FunctionEndpointsHelpers, Proxy,
+EventEndpoint + PerfRegression suites — 102 tests green. The uppercase visibility
+rule test (behavior fix) ships with this commit.
+
+| Method                      | Before (baseline)   | After               | Gain |
+|---------------------------- |--------------------:|--------------------:|------|
+| ProxyAcquireReleaseSync     | 581.60 ns / 320 B   | 531.57 ns / 280 B   | −9 % time, −40 B/request |
+| ResolveVisibility_PathRules | 301.73 ns / 528 B   | 260.75 ns / 528 B   | −13 % time¹ |
+| Port check (production)     | 35.42 ns / 152 B (WithArrays) | 1.32 ns / 0 B (AllocationFree) | ~27× faster, zero allocation |
+
+¹ The test path is already lowercase, so `ToLowerInvariant` benefited from the
+allocation-free .NET fast path; for mixed-case paths the allocation gain adds to
+the time gain. The header copies (request/response) and the publish-event loop
+(20 ms poll → `Task.WhenAll`) cannot be micro-benchmarked in isolation (private
+paths tied to HttpContext); they are covered by the endpoint tests.
+**Measured gain → commit kept.**
