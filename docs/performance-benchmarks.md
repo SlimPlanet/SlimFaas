@@ -175,3 +175,24 @@ the time gain. The header copies (request/response) and the publish-event loop
 (20 ms poll → `Task.WhenAll`) cannot be micro-benchmarked in isolation (private
 paths tied to HttpContext); they are covered by the endpoint tests.
 **Measured gain → commit kept.**
+
+---
+
+### Commit "perf: reduce recurring work in periodic background services" (theme 4)
+
+Non-regression tests: `ScheduleEvaluationRegressionTests`,
+`ScheduleJobBackupSkipRegressionTests` (+ AutoScaler, RequestedMetricsRegistry,
+ScheduleJobBackup, ReplicasScale — 81 tests green).
+
+| Method                    | Before (baseline)   | After             | Gain |
+|-------------------------- |--------------------:|------------------:|------|
+| ScheduleLastTicks         | 21.273 µs / 46.42 KB | 409.07 ns / 592 B | ~52× faster, ~80× fewer allocations |
+| RegisterAlreadyKnownQuery |  2.159 µs / 1.29 KB  |  42.50 ns / 0 B   | ~51× faster, zero allocation |
+
+`ScheduleLastTicks` is called for every scheduled function on every 1 s tick of
+the ScaleReplicasWorker; `RegisterFromQuery` for every trigger every 3 s.
+The schedule-jobs backup now only serializes (base64 + JSON + SHA-256) when the
+incremental hash of the raw data actually changed, and the activity-sync HTTP
+client is no longer created/disposed every 2 s (not micro-benchmarkable in
+isolation; covered by the tests).
+**Measured gain → commit kept.**

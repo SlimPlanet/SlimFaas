@@ -53,9 +53,18 @@ public interface IRequestedMetricsRegistry
             _metrics.TryAdd(metricName, 0);
         }
 
+        // Already-parsed queries: registration is purely additive, so re-parsing an
+        // identical query is always a no-op. Bounded in practice by the number of
+        // distinct configured trigger queries.
+        private readonly ConcurrentDictionary<string, byte> _processedQueries =
+            new(StringComparer.Ordinal);
+
         public void RegisterFromQuery(string promql)
         {
             if (string.IsNullOrWhiteSpace(promql))
+                return;
+
+            if (!_processedQueries.TryAdd(promql, 0))
                 return;
 
             // 1. Nettoyage grossier de la requête :

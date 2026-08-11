@@ -214,11 +214,17 @@ public class ReplicasService(
 
     record TimeToScaleDownTimeout(int Hours, int Minutes, int Value, DateTime DateTime);
 
+    // TZDB data is immutable for the lifetime of the process: cache the ForId
+    // resolution, otherwise called for every schedule entry on every tick.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeZone> TimeZoneCache =
+        new(StringComparer.Ordinal);
+
     private static DateTime CreateDateTime(DateTime dateTime, int hours, int minutes, string timeZoneId)
     {
-        TzdbDateTimeZoneSource source = TzdbDateTimeZoneSource.Default;
         LocalDateTime local = new(dateTime.Year, dateTime.Month, dateTime.Day, hours, minutes);
-        DateTimeZone dateTimeZone = source.ForId(timeZoneId);
+        DateTimeZone dateTimeZone = TimeZoneCache.GetOrAdd(
+            timeZoneId,
+            static id => TzdbDateTimeZoneSource.Default.ForId(id));
         ZonedDateTime zonedDateTime = local.InZoneLeniently(dateTimeZone);
         return zonedDateTime.ToDateTimeUtc();
     }
