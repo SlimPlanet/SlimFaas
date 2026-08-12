@@ -272,6 +272,15 @@ serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemo
     serviceProviderStarter.GetService<HistoryHttpMemoryService>()!);
 serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
     serviceProviderStarter.GetService<IKubernetesService>()!);
+// Signaux de changement alimentés par les watch Kubernetes. Instance unique créée ici
+// pour que WatchEnabled soit fixé avant le démarrage des workers.
+var kubernetesWatchSignals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals();
+if (envOrConfig is not ("Docker" or "Local" or "Process") && slimFaasOptions.KubernetesWatch.Enabled)
+{
+    kubernetesWatchSignals.WatchEnabled = true;
+    serviceCollectionSlimFaas.AddHostedService<SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker>();
+}
+serviceCollectionSlimFaas.AddSingleton(kubernetesWatchSignals);
 serviceCollectionSlimFaas.AddSingleton<INamespaceProvider>(sp =>
     serviceProviderStarter.GetRequiredService<INamespaceProvider>());
 serviceCollectionSlimFaas.AddSingleton<IJobService, JobService>();

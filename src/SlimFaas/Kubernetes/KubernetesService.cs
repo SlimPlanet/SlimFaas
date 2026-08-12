@@ -67,6 +67,10 @@ public partial class KubernetesService : IKubernetesService
     private readonly ILogger<KubernetesService> _logger;
     private bool _serviceListForbidden;
 
+    // Authenticated client shared with the watch worker (same config, same auth,
+    // same connection pool) — see Watch/KubernetesWatcherWorker.
+    internal k8s.Kubernetes Client => _client;
+
     public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
     {
         _logger = logger;

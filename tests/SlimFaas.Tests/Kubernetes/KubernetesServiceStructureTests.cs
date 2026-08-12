@@ -33,6 +33,10 @@ public class KubernetesServiceStructureTests
 
         Assert.NotNull(t.GetField("_client", BindingFlags.Instance | BindingFlags.NonPublic));
         Assert.NotNull(t.GetField("_logger", BindingFlags.Instance | BindingFlags.NonPublic));
+
+        // The watch worker (Kubernetes/Watch/KubernetesWatcherWorker) reuses the
+        // authenticated client through this internal accessor.
+        Assert.NotNull(t.GetProperty("Client", BindingFlags.Instance | BindingFlags.NonPublic));
     }
 
     [Theory]
