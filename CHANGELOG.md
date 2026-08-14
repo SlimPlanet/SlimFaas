@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.81.1
+
+- [5d766c95](https://github.com/SlimPlanet/SlimFaas/commit/5d766c95aafaab9da2c280cea34585f687f65a09) - perf: hot-path reads with zero allocation (~89×), queue counts ~25×, schedule evaluation ~52× faster (release) (#313), 2026-08-14 by *Guillaume Delahaye*
+
+
+## 0.81.0
+
+- [3cb41f11](https://github.com/SlimPlanet/SlimFaas/commit/3cb41f1177b5217e132b12b286d74820f0fe6e40) - fix: Stabilize Raft cluster catch-up timeout in SlimData test (#312), 2026-08-07 by *Copilot*
+
+
 ## v0.81.0
 
 - [8dc88d7a](https://github.com/SlimPlanet/SlimFaas/commit/8dc88d7a651df1c796d54e523bf47c5b7bce168c) - feat: optimize async (release) (#311), 2026-08-07 by *Guillaume Chervet*
@@ -269,14 +279,5 @@
 
 - [547da85e](https://github.com/SlimPlanet/SlimFaas/commit/547da85e0d0926f05ae1d2c8031b8438a73cdb43) - fix(slimfass): live events + load balancing (release) (#265), 2026-04-28 by *Guillaume Chervet*
 - [e00b3be4](https://github.com/SlimPlanet/SlimFaas/commit/e00b3be4e8dad3e916fe2562f4ea3676f6a3b7bd) - s, 2026-04-18 by *Guillaume Chervet*
-
-
-## 0.71.1
-
-
-
-## v0.71.1
-
-- [9780c1be](https://github.com/SlimPlanet/SlimFaas/commit/9780c1be154b0b1ad0ea574bfcdb58232cda1498) - fix(slimfaas): Increase job name max length from 12 to 30 characters (#267) (release), 2026-04-15 by *Copilot*
 
 
