@@ -10,6 +10,18 @@
 
 # SlimFaas: The Slimmest, Simplest & Autoscaling-First Function-as-a-Service
 
+<div align="center">
+
+### 🌥️ Proud CNCF Landscape Project
+
+SlimFaas is part of the [Cloud Native Computing Foundation (CNCF) landscape](https://landscape.cncf.io).
+
+<img alt="CNCF logo" src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg" width="220"/>
+
+[Join us on CNCF Slack](https://cloud-native.slack.com/archives/C08CRC77VDE) · [Community Meeting Calendar](https://calendar.google.com/calendar/embed?src=be1dd72d18650490580a7d5d96a45a6eebe0fc4c9fe8adce630754cbb6121cca%40group.calendar.google.com&ctz=Europe%2FParis) · [Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md)
+
+</div>
+
 [![Continuous Integration](https://github.com/SlimPlanet/SlimFaas/actions/workflows/main.yml/badge.svg)](https://github.com/SlimPlanet/SlimFaas/actions/workflows/main.yml)
 [![Quality Gate](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=alert_status)](https://sonarcloud.io/dashboard?id=SlimPlanet_SlimFaas)
 [![Reliability](https://sonarcloud.io/api/project_badges/measure?project=SlimPlanet_SlimFaas&metric=reliability_rating)](https://sonarcloud.io/component_measures?id=SlimPlanet_SlimFaas&metric=reliability_rating)
@@ -190,13 +202,6 @@ We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **kee
 ---
 
 ### Community & Governance
-
-- **CNCF Project**
-  SlimFaas is proud to be part of the [Cloud Native Computing Foundation (CNCF) landscape](https://landscape.cncf.io).
-
-  <div align="center">
-    <img alt="CNCF logo" src="https://www.cncf.io/wp-content/uploads/2022/07/cncf-stacked-color-bg.svg" width="200"/>
-  </div>
 
 - **Community Meeting**
   Join us through our [Community Meeting Calendar](https://calendar.google.com/calendar/embed?src=be1dd72d18650490580a7d5d96a45a6eebe0fc4c9fe8adce630754cbb6121cca%40group.calendar.google.com&ctz=Europe%2FParis)
