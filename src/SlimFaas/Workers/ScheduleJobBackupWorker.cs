@@ -195,6 +195,17 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             var provider = _serviceProvider.GetRequiredService<SlimPersistentState>();
             var payload = ((ISupplier<SlimDataPayload>)provider).Invoke();
 
+            // Change detection BEFORE any serialization work: incremental hash of the
+            // filtered raw data (no ToArray, no base64, no JSON while nothing has
+            // changed). Keys are sorted so the hash is stable regardless of the
+            // dictionaries' enumeration order.
+            var newHash = ComputeStateHash(payload);
+            if (newHash == _lastBackupHash)
+            {
+                _logger.LogDebug("ScheduleJobBackupWorker: no change detected (hash={Hash}) — skipping write", newHash);
+                return;
+            }
+
             var backupData = new ScheduleJobBackupData();
             foreach (var hashset in payload.Hashsets)
             {
@@ -214,14 +225,6 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             }
 
             var json = JsonSerializer.Serialize(backupData, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);
-
-            // Skip write if nothing changed
-            var newHash = ComputeHash(json);
-            if (newHash == _lastBackupHash)
-            {
-                _logger.LogDebug("ScheduleJobBackupWorker: no change detected (hash={Hash}) — skipping write", newHash);
-                return;
-            }
 
             if (!Directory.Exists(_backupDirectory!))
                 Directory.CreateDirectory(_backupDirectory!);
@@ -247,10 +250,50 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
         }
     }
 
-    private static string ComputeHash(string content)
+    private static string ComputeStateHash(SlimDataPayload payload)
     {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(content));
-        return Convert.ToHexString(bytes);
+        using var hasher = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var lengthBuffer = new byte[sizeof(int)];
+
+        var relevantKeys = new List<string>();
+        foreach (var hashset in payload.Hashsets)
+        {
+            if (hashset.Key.StartsWith(ScheduleJobPrefix, StringComparison.Ordinal))
+                relevantKeys.Add(hashset.Key);
+        }
+        relevantKeys.Sort(StringComparer.Ordinal);
+
+        var fieldKeys = new List<string>();
+        foreach (var hashsetKey in relevantKeys)
+        {
+            var fields = payload.Hashsets[hashsetKey];
+            fieldKeys.Clear();
+            foreach (var kv in fields)
+            {
+                if (kv.Key != SlimDataInterpreter.HashsetTtlField)
+                    fieldKeys.Add(kv.Key);
+            }
+
+            if (fieldKeys.Count == 0)
+                continue;
+
+            fieldKeys.Sort(StringComparer.Ordinal);
+            AppendChunk(hasher, Encoding.UTF8.GetBytes(hashsetKey), lengthBuffer);
+            foreach (var fieldKey in fieldKeys)
+            {
+                AppendChunk(hasher, Encoding.UTF8.GetBytes(fieldKey), lengthBuffer);
+                AppendChunk(hasher, fields[fieldKey].Span, lengthBuffer);
+            }
+        }
+
+        return Convert.ToHexString(hasher.GetHashAndReset());
+    }
+
+    private static void AppendChunk(IncrementalHash hasher, ReadOnlySpan<byte> data, byte[] lengthBuffer)
+    {
+        System.Buffers.Binary.BinaryPrimitives.WriteInt32LittleEndian(lengthBuffer, data.Length);
+        hasher.AppendData(lengthBuffer);
+        hasher.AppendData(data);
     }
 }
 

@@ -34,18 +34,8 @@ public class ReplicasService(
         new List<PodInformation>());
 
     // Lecture sans verrou puisque _deployments est remplacé atomiquement.
-    public DeploymentsInformations Deployments =>
-        // On retourne ici une copie si nécessaire pour éviter que le consommateur ne modifie la collection.
-        new(
-            _deployments.Functions.ToArray(),
-            new SlimFaasDeploymentInformation(_deployments.SlimFaas?.Replicas ?? 1,
-                                               _deployments.SlimFaas?.Pods ?? new List<PodInformation>()),
-            new List<PodInformation>(),
-            _deployments.LocalProcesses is null
-                ? null
-                : new Dictionary<string, bool>(
-                    _deployments.LocalProcesses,
-                    StringComparer.OrdinalIgnoreCase));
+    // The returned snapshot must never be mutated by consumers.
+    public DeploymentsInformations Deployments => Volatile.Read(ref _deployments);
 
     // souvent Reason = "Unschedulable", message contenant "exceeded quota", "Insufficient cpu", etc.
     static bool IsInfrastructureFailure(PodInformation pod) =>
@@ -224,11 +214,17 @@ public class ReplicasService(
 
     record TimeToScaleDownTimeout(int Hours, int Minutes, int Value, DateTime DateTime);
 
+    // TZDB data is immutable for the lifetime of the process: cache the ForId
+    // resolution, otherwise called for every schedule entry on every tick.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeZone> TimeZoneCache =
+        new(StringComparer.Ordinal);
+
     private static DateTime CreateDateTime(DateTime dateTime, int hours, int minutes, string timeZoneId)
     {
-        TzdbDateTimeZoneSource source = TzdbDateTimeZoneSource.Default;
         LocalDateTime local = new(dateTime.Year, dateTime.Month, dateTime.Day, hours, minutes);
-        DateTimeZone dateTimeZone = source.ForId(timeZoneId);
+        DateTimeZone dateTimeZone = TimeZoneCache.GetOrAdd(
+            timeZoneId,
+            static id => TzdbDateTimeZoneSource.Default.ForId(id));
         ZonedDateTime zonedDateTime = local.InZoneLeniently(dateTimeZone);
         return zonedDateTime.ToDateTimeUtc();
     }

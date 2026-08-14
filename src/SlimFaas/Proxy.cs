@@ -207,17 +207,24 @@ namespace SlimFaas
                 return true;
             }
 
-            PodInformation[] readyPods = deploymentInformation.Pods
-                .Where(pod => pod.Ready == true)
-                .ToArray();
+            // Single pass: ready pods + routing targets, no LINQ, no rescan.
+            var readyPods = new List<PodInformation>(deploymentInformation.Pods.Count);
+            var readyTargets = new List<string>(deploymentInformation.Pods.Count);
+            foreach (PodInformation pod in deploymentInformation.Pods)
+            {
+                if (pod.Ready == true)
+                {
+                    readyPods.Add(pod);
+                    readyTargets.Add(RoutingTarget(pod));
+                }
+            }
 
-            if (readyPods.Length == 0)
+            if (readyPods.Count == 0)
             {
                 reservation = default;
                 return false;
             }
 
-            string[] readyTargets = readyPods.Select(RoutingTarget).ToArray();
             var inFlight = GetOrCreateInFlight(deployment);
             string selected = SelectBestTarget(
                 deployment,
@@ -231,8 +238,21 @@ namespace SlimFaas
             }
 
             inFlight.AddOrUpdate(selected, 1, static (_, current) => current + 1);
-            PodInformation selectedPod = readyPods.First(pod =>
-                string.Equals(RoutingTarget(pod), selected, StringComparison.OrdinalIgnoreCase));
+            PodInformation? selectedPod = null;
+            for (int i = 0; i < readyTargets.Count; i++)
+            {
+                if (string.Equals(readyTargets[i], selected, StringComparison.OrdinalIgnoreCase))
+                {
+                    selectedPod = readyPods[i];
+                    break;
+                }
+            }
+
+            if (selectedPod is null)
+            {
+                throw new InvalidOperationException(
+                    $"Selected routing target '{selected}' does not match any ready pod of deployment '{deployment}'.");
+            }
             reservation = new SyncTargetReservation(
                 selected,
                 selectedPod.Ip,
@@ -268,10 +288,14 @@ namespace SlimFaas
                 return "";
             }
 
-            var readyTargets = deploymentInformation.Pods
-                .Where(pod => pod.Ready == true)
-                .Select(RoutingTarget)
-                .ToList();
+            var readyTargets = new List<string>(deploymentInformation.Pods.Count);
+            foreach (PodInformation pod in deploymentInformation.Pods)
+            {
+                if (pod.Ready == true)
+                {
+                    readyTargets.Add(RoutingTarget(pod));
+                }
+            }
 
             if (readyTargets.Count == 0)
             {

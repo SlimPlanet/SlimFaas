@@ -14,6 +14,12 @@ using SlimFaas;
 
 namespace SlimFaas.Endpoints;
 
+// Log category for FunctionEndpointsHelpers: a static class cannot be used as a
+// generic argument of ILogger<T>.
+public sealed class FunctionEndpointsHelpersLog
+{
+}
+
 public static class FunctionEndpointsHelpers
 {
     private const long DefaultFileOffloadContentLengthBytes = 256L * 1024L * 1024L;
@@ -191,7 +197,7 @@ public static class FunctionEndpointsHelpers
 
         foreach (var pathStartWith in function.PathsStartWithVisibility)
         {
-            if (GetPathWithoutPrefix(path,"/").ToLowerInvariant().StartsWith(GetPathWithoutPrefix(pathStartWith.Path, "/")))
+            if (GetPathWithoutPrefix(path,"/").StartsWith(GetPathWithoutPrefix(pathStartWith.Path, "/"), StringComparison.OrdinalIgnoreCase))
             {
                 return pathStartWith.Visibility;
             }
@@ -282,8 +288,9 @@ public static class FunctionEndpointsHelpers
         long unknownLengthReservationBytes = DefaultFileOffloadContentLengthBytes,
         CancellationToken ct = default)
     {
-        var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
-            .CreateLogger(nameof(FunctionEndpointsHelpers));
+        // ILogger<T> is a singleton cached by the DI container, unlike
+        // ILoggerFactory.CreateLogger(string) which takes a lock on every call.
+        var logger = context.RequestServices.GetRequiredService<ILogger<FunctionEndpointsHelpersLog>>();
         List<CustomHeader> customHeaders = contextRequest.Headers
             .Select(headers => new CustomHeader(headers.Key, headers.Value.ToArray())).ToList();
 

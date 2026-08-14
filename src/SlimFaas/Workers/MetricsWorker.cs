@@ -48,36 +48,26 @@ public class MetricsWorker(
                         ["function"] = deployment.Deployment
                     };
 
-                    // 1) Messages prêts (ready_items)
-                    var readyCount = await slimFaasQueue.CountElementAsync(
-                        deployment.Deployment,
-                        new List<CountType> { CountType.Available });
+                    // A single queue-state read feeds the three gauges, which also
+                    // makes them mutually consistent (same snapshot).
+                    QueueDispatchState queueState = await slimFaasQueue.GetDispatchStateAsync(
+                        deployment.Deployment);
 
                     dynamicGaugeService.SetGaugeValue(
                         "slimfaas_function_queue_ready_items",
-                        readyCount,
+                        queueState.Available,
                         "Number of messages currently ready to be processed in the function queue",
                         labels);
 
-                    // 2) Messages en cours (in_flight_items)
-                    var inFlightCount = await slimFaasQueue.CountElementAsync(
-                        deployment.Deployment,
-                        new List<CountType> { CountType.Running });
-
                     dynamicGaugeService.SetGaugeValue(
                         "slimfaas_function_queue_in_flight_items",
-                        inFlightCount,
+                        queueState.Running,
                         "Number of messages currently being processed by workers for the function",
                         labels);
 
-                    // 3) Messages en attente de retry (retry_pending_items)
-                    var retryPendingCount = await slimFaasQueue.CountElementAsync(
-                        deployment.Deployment,
-                        new List<CountType> { CountType.WaitingForRetry });
-
                     dynamicGaugeService.SetGaugeValue(
                         "slimfaas_function_queue_retry_pending_items",
-                        retryPendingCount,
+                        queueState.WaitingForRetry,
                         "Number of messages waiting for a retry in the function queue",
                         labels);
                 }

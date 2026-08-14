@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Primitives;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
@@ -324,14 +325,43 @@ public static class SyncFunctionEndpoints
     {
         foreach (KeyValuePair<string, IEnumerable<string>> header in responseMessage.Headers)
         {
-            context.Response.Headers[header.Key] = header.Value.ToArray();
+            context.Response.Headers[header.Key] = ToStringValues(header.Value);
         }
 
         foreach (KeyValuePair<string, IEnumerable<string>> header in responseMessage.Content.Headers)
         {
-            context.Response.Headers[header.Key] = header.Value.ToArray();
+            context.Response.Headers[header.Key] = ToStringValues(header.Value);
         }
 
         context.Response.Headers.Remove("transfer-encoding");
+    }
+
+    private static StringValues ToStringValues(IEnumerable<string> values)
+    {
+        // HttpHeaders enumeration already yields string[] instances: reuse them without copying.
+        if (values is string[] array)
+        {
+            return array.Length == 1 ? new StringValues(array[0]) : new StringValues(array);
+        }
+
+        using IEnumerator<string> enumerator = values.GetEnumerator();
+        if (!enumerator.MoveNext())
+        {
+            return StringValues.Empty;
+        }
+
+        string first = enumerator.Current;
+        if (!enumerator.MoveNext())
+        {
+            return new StringValues(first);
+        }
+
+        var list = new List<string> { first, enumerator.Current };
+        while (enumerator.MoveNext())
+        {
+            list.Add(enumerator.Current);
+        }
+
+        return new StringValues(list.ToArray());
     }
 }

@@ -23,6 +23,10 @@ public class NetworkActivitySyncWorker(
     // Track the last timestamp we fetched per peer to ask only for newer events
     private readonly Dictionary<string, long> _peerLastTimestamp = new(StringComparer.Ordinal);
 
+    // Client reused across cycles (the worker is a singleton) instead of a
+    // create/dispose every 2 seconds.
+    private HttpClient? _client;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         if (!slimFaasOptions.Value.EnableFront)
@@ -68,8 +72,12 @@ public class NetworkActivitySyncWorker(
         string myNodeId = tracker.NodeId;
         var activePeers = new HashSet<string>(StringComparer.Ordinal);
 
-        using var client = httpClientFactory.CreateClient("ActivitySync");
-        client.Timeout = TimeSpan.FromSeconds(3);
+        if (_client is null)
+        {
+            _client = httpClientFactory.CreateClient("ActivitySync");
+            _client.Timeout = TimeSpan.FromSeconds(3);
+        }
+        HttpClient client = _client;
 
         foreach (var pod in slimFaasPods)
         {

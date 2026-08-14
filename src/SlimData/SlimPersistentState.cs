@@ -471,29 +471,40 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         var startedAt = Stopwatch.GetTimestamp();
         var snapshot = _state.Capture();
         Volatile.Write(ref _isSnapshotting, 1);
-        _logger?.LogInformation(
-            "Persisting SlimData snapshot. KeyValues={KeyValues}, Hashsets={Hashsets}, Queues={Queues}, PayloadBytes={PayloadBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
-            snapshot.KeyValues.Count,
-            snapshot.Hashsets.Count,
-            snapshot.Queues.Count,
-            snapshot.PayloadBytes,
-            GC.GetTotalMemory(forceFullCollection: false));
+        // PayloadBytes walks the entire state: evaluate it only once, and run the
+        // logging probes (GC.GetTotalMemory included) only when the Information
+        // level is enabled.
+        var informationEnabled = _logger?.IsEnabled(LogLevel.Information) == true;
+        long payloadBytes = snapshot.PayloadBytes;
+        if (informationEnabled)
+        {
+            _logger?.LogInformation(
+                "Persisting SlimData snapshot. KeyValues={KeyValues}, Hashsets={Hashsets}, Queues={Queues}, PayloadBytes={PayloadBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
+                snapshot.KeyValues.Count,
+                snapshot.Hashsets.Count,
+                snapshot.Queues.Count,
+                payloadBytes,
+                GC.GetTotalMemory(forceFullCollection: false));
+        }
 
         try
         {
             await SlimDataSnapshotSerializer.WriteAsync(writer, snapshot, token).ConfigureAwait(false);
-            Volatile.Write(ref _lastSnapshotSizeBytes, snapshot.PayloadBytes);
+            Volatile.Write(ref _lastSnapshotSizeBytes, payloadBytes);
         }
         finally
         {
             var elapsed = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
             Volatile.Write(ref _lastSnapshotDurationMilliseconds, elapsed);
             Volatile.Write(ref _isSnapshotting, 0);
-            _logger?.LogInformation(
-                "SlimData snapshot persisted. DurationMilliseconds={DurationMilliseconds}, PayloadBytes={PayloadBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
-                elapsed,
-                snapshot.PayloadBytes,
-                GC.GetTotalMemory(forceFullCollection: false));
+            if (informationEnabled)
+            {
+                _logger?.LogInformation(
+                    "SlimData snapshot persisted. DurationMilliseconds={DurationMilliseconds}, PayloadBytes={PayloadBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
+                    elapsed,
+                    payloadBytes,
+                    GC.GetTotalMemory(forceFullCollection: false));
+            }
         }
     }
 

@@ -21,6 +21,7 @@
 
     <ItemGroup>
         <InternalsVisibleTo Include="SlimData.Tests" />
+        <InternalsVisibleTo Include="SlimFaas.Benchmarks" />
     </ItemGroup>
 
 </Project>
