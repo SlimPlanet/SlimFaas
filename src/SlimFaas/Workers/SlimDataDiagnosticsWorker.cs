@@ -24,6 +24,10 @@ public sealed class SlimDataDiagnosticsWorker(
             (SlimDataSnapshotTrigger.Bytes, new Dictionary<string, string> { ["cause"] = "bytes" }),
             (SlimDataSnapshotTrigger.Incompatible, new Dictionary<string, string> { ["cause"] = "incompatible" })
         ];
+    private static readonly IReadOnlyDictionary<string, string> WalRecoveryLabels =
+        new Dictionary<string, string> { ["mode"] = "wal" };
+    private static readonly IReadOnlyDictionary<string, string> SnapshotRecoveryLabels =
+        new Dictionary<string, string> { ["mode"] = "snapshot" };
     private long _previousLastLogIndex = -1;
     private long _previousAppliedLogIndex = -1;
     private long _previousSampleTimestamp;
@@ -165,21 +169,19 @@ public sealed class SlimDataDiagnosticsWorker(
         _previousAppliedLogIndex = appliedLogIndex;
         _previousSampleTimestamp = now;
 
-        var recovering = !cluster.Readiness.IsCompletedSuccessfully && appliedLogIndex < lastLogIndex;
+        var recovering = appliedLogIndex < lastLogIndex;
         if (recovering && _recoveryStartedTimestamp == 0)
             _recoveryStartedTimestamp = now;
         else if (!recovering)
             _recoveryStartedTimestamp = 0;
 
         var snapshotRecovery = persistentState.IsRestoring || persistentState.IsSnapshotting;
-        foreach (var mode in new[] { "wal", "snapshot" })
-        {
-            gauges.SetGaugeValue(
-                "slimdata_raft_recovery_mode",
-                recovering && (mode == "snapshot" ? snapshotRecovery : !snapshotRecovery) ? 1 : 0,
-                "Current SlimData Raft recovery mode",
-                new Dictionary<string, string> { ["mode"] = mode });
-        }
+        gauges.SetGaugeValue("slimdata_raft_recovery_mode",
+            recovering && !snapshotRecovery ? 1 : 0,
+            "Current SlimData Raft recovery mode", WalRecoveryLabels);
+        gauges.SetGaugeValue("slimdata_raft_recovery_mode",
+            recovering && snapshotRecovery ? 1 : 0,
+            "Current SlimData Raft recovery mode", SnapshotRecoveryLabels);
 
         gauges.SetGaugeValue(
             "slimdata_raft_recovery_duration_seconds",
