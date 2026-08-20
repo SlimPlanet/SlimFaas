@@ -144,7 +144,7 @@ public sealed class SlimDataDiagnosticsWorker(
 
         var now = Stopwatch.GetTimestamp();
         var logRewound = _previousSampleTimestamp != 0 && lastLogIndex < _previousLastLogIndex;
-        if (_previousSampleTimestamp != 0)
+        if (_previousSampleTimestamp != 0 && !logRewound)
         {
             var elapsedSeconds = (now - _previousSampleTimestamp) / (double)Stopwatch.Frequency;
             if (elapsedSeconds > 0)

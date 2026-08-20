@@ -39,7 +39,9 @@ The SlimData diagnostics metrics expose the locally measurable recovery state:
 `slimdata_raft_recovery_mode{mode="wal|snapshot"}`, and
 `slimdata_raft_recovery_duration_seconds`. The convergence gauge is an
 early-warning signal, not a membership failure: it is set when the observed
-local apply rate is below the observed WAL generation rate.
+local apply rate is below the observed WAL generation rate. If an alternate
+audit-trail implementation does not expose an applied index, lag and recovery
+metrics remain zero because that state cannot be measured safely.
 
 3. **Annotations**
    Add or remove SlimFaas **annotations** on your pods/Deployments to control scaling, concurrency, visibility, and timeouts.
