@@ -34,9 +34,10 @@ larger than the configured search window. There is no public API in this
 version to force a snapshot for a particular follower.
 
 The SlimData diagnostics metrics expose the locally measurable recovery state:
-`slimdata_raft_replication_lag`, `slimdata_raft_wal_generation_rate`,
+`slimdata_raft_local_apply_lag` (local WAL entries pending application, not
+leader/follower replication lag), `slimdata_raft_wal_generation_rate`,
 `slimdata_raft_catch_up_rate`, `slimdata_raft_catch_up_cannot_converge`,
-`slimdata_raft_recovery_mode{mode="wal|snapshot"}`, and
+`slimdata_raft_recovery_mode{mode="wal|restoring|unknown"}`, and
 `slimdata_raft_recovery_duration_seconds`. The convergence gauge is an
 early-warning signal, not a membership failure: it is set when the observed
 local apply rate is below the observed WAL generation rate. If an alternate
