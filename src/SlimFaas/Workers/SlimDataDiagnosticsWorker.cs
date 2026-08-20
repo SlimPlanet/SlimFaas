@@ -32,6 +32,7 @@ public sealed class SlimDataDiagnosticsWorker(
     private long _previousAppliedLogIndex = -1;
     private long _previousSampleTimestamp;
     private long _recoveryStartedTimestamp;
+    private int _recoveryClearSamples;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -141,6 +142,7 @@ public sealed class SlimDataDiagnosticsWorker(
             "Number of local Raft WAL entries not yet applied");
 
         var now = Stopwatch.GetTimestamp();
+        var logRewound = _previousSampleTimestamp != 0 && lastLogIndex < _previousLastLogIndex;
         if (_previousSampleTimestamp != 0)
         {
             var elapsedSeconds = (now - _previousSampleTimestamp) / (double)Stopwatch.Frequency;
@@ -172,13 +174,23 @@ public sealed class SlimDataDiagnosticsWorker(
 
         _previousLastLogIndex = lastLogIndex;
         _previousAppliedLogIndex = appliedLogIndex;
-        _previousSampleTimestamp = now;
+        _previousSampleTimestamp = logRewound ? 0 : now;
 
         var recovering = hasAppliedLogIndex && appliedLogIndex < lastLogIndex;
         if (recovering && _recoveryStartedTimestamp == 0)
+        {
             _recoveryStartedTimestamp = now;
-        else if (!recovering)
+            _recoveryClearSamples = 0;
+        }
+        else if (recovering)
+        {
+            _recoveryClearSamples = 0;
+        }
+        else if (_recoveryStartedTimestamp != 0 && ++_recoveryClearSamples >= 2)
+        {
             _recoveryStartedTimestamp = 0;
+            _recoveryClearSamples = 0;
+        }
 
         var snapshotRecovery = persistentState.IsRestoring || persistentState.IsSnapshotting;
         gauges.SetGaugeValue("slimdata_raft_recovery_mode",
