@@ -17,6 +17,7 @@ public sealed class SlimDataDiagnosticsWorker(
     ILogger<SlimDataDiagnosticsWorker> logger) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
+    private const int RecoveryClearSamplesRequired = 2;
     private static readonly (SlimDataSnapshotTrigger Trigger, IReadOnlyDictionary<string, string> Labels)[]
         SnapshotTriggerMetrics =
         [
@@ -177,7 +178,8 @@ public sealed class SlimDataDiagnosticsWorker(
         _previousAppliedLogIndex = logRewound ? -1 : appliedLogIndex;
         _previousSampleTimestamp = logRewound ? 0 : now;
 
-        var recovering = hasAppliedLogIndex && appliedLogIndex < lastLogIndex;
+        var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
+        var recovering = hasAppliedLogIndex && !isLeader && replicationLag > 0;
         if (recovering && _recoveryStartedTimestamp == 0)
         {
             _recoveryStartedTimestamp = now;
@@ -187,7 +189,8 @@ public sealed class SlimDataDiagnosticsWorker(
         {
             _recoveryClearSamples = 0;
         }
-        else if (_recoveryStartedTimestamp != 0 && ++_recoveryClearSamples >= 2)
+        else if (_recoveryStartedTimestamp != 0 &&
+                 ++_recoveryClearSamples >= RecoveryClearSamplesRequired)
         {
             _recoveryStartedTimestamp = 0;
             _recoveryClearSamples = 0;
