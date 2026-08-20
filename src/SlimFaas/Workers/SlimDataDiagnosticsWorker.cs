@@ -131,7 +131,10 @@ public sealed class SlimDataDiagnosticsWorker(
             appendEntriesCommitIndexGuard.ClampedRequests,
             "Number of incoming Raft AppendEntries requests whose commit index was bounded to the last transmitted entry");
         var lastLogIndex = cluster.AuditTrail.LastEntryIndex;
-        var appliedLogIndex = cluster.AuditTrail is WriteAheadLog wal ? wal.LastAppliedIndex : -1;
+        var hasAppliedLogIndex = cluster.AuditTrail is WriteAheadLog;
+        var appliedLogIndex = hasAppliedLogIndex
+            ? ((WriteAheadLog)cluster.AuditTrail).LastAppliedIndex
+            : lastLogIndex;
         gauges.SetGaugeValue("slimdata_raft_applied_log_index", appliedLogIndex,
             "Last applied Raft WAL entry index");
         gauges.SetGaugeValue("slimdata_raft_replication_lag", Math.Max(0, lastLogIndex - appliedLogIndex),
@@ -144,14 +147,16 @@ public sealed class SlimDataDiagnosticsWorker(
             if (elapsedSeconds > 0)
             {
                 var walGenerationRate = Math.Max(0, lastLogIndex - _previousLastLogIndex) / elapsedSeconds;
-                var catchUpRate = Math.Max(0, appliedLogIndex - _previousAppliedLogIndex) / elapsedSeconds;
+                var catchUpRate = hasAppliedLogIndex
+                    ? Math.Max(0, appliedLogIndex - _previousAppliedLogIndex) / elapsedSeconds
+                    : 0;
                 gauges.SetGaugeValue("slimdata_raft_wal_generation_rate", walGenerationRate,
                     "Raft WAL entries generated per second");
                 gauges.SetGaugeValue("slimdata_raft_catch_up_rate", catchUpRate,
                     "Raft WAL entries applied per second");
                 gauges.SetGaugeValue(
                     "slimdata_raft_catch_up_cannot_converge",
-                    appliedLogIndex < lastLogIndex && walGenerationRate > catchUpRate ? 1 : 0,
+                    hasAppliedLogIndex && appliedLogIndex < lastLogIndex && walGenerationRate > catchUpRate ? 1 : 0,
                     "Whether local Raft catch-up is currently slower than WAL generation");
             }
         }
@@ -169,7 +174,7 @@ public sealed class SlimDataDiagnosticsWorker(
         _previousAppliedLogIndex = appliedLogIndex;
         _previousSampleTimestamp = now;
 
-        var recovering = appliedLogIndex < lastLogIndex;
+        var recovering = hasAppliedLogIndex && appliedLogIndex < lastLogIndex;
         if (recovering && _recoveryStartedTimestamp == 0)
             _recoveryStartedTimestamp = now;
         else if (!recovering)
