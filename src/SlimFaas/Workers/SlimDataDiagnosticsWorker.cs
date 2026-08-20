@@ -138,7 +138,8 @@ public sealed class SlimDataDiagnosticsWorker(
             : lastLogIndex;
         gauges.SetGaugeValue("slimdata_raft_applied_log_index", appliedLogIndex,
             "Last applied Raft WAL entry index");
-        gauges.SetGaugeValue("slimdata_raft_replication_lag", Math.Max(0, lastLogIndex - appliedLogIndex),
+        var replicationLag = Math.Max(0, lastLogIndex - appliedLogIndex);
+        gauges.SetGaugeValue("slimdata_raft_replication_lag", replicationLag,
             "Number of local Raft WAL entries not yet applied");
 
         var now = Stopwatch.GetTimestamp();
@@ -158,7 +159,7 @@ public sealed class SlimDataDiagnosticsWorker(
                     "Raft WAL entries applied per second");
                 gauges.SetGaugeValue(
                     "slimdata_raft_catch_up_cannot_converge",
-                    hasAppliedLogIndex && appliedLogIndex < lastLogIndex && walGenerationRate > catchUpRate ? 1 : 0,
+                    hasAppliedLogIndex && replicationLag > 0 && walGenerationRate > catchUpRate ? 1 : 0,
                     "Whether local Raft catch-up is currently slower than WAL generation");
             }
         }
@@ -172,8 +173,8 @@ public sealed class SlimDataDiagnosticsWorker(
                 "Whether local Raft catch-up is currently slower than WAL generation");
         }
 
-        _previousLastLogIndex = lastLogIndex;
-        _previousAppliedLogIndex = appliedLogIndex;
+        _previousLastLogIndex = logRewound ? -1 : lastLogIndex;
+        _previousAppliedLogIndex = logRewound ? -1 : appliedLogIndex;
         _previousSampleTimestamp = logRewound ? 0 : now;
 
         var recovering = hasAppliedLogIndex && appliedLogIndex < lastLogIndex;
