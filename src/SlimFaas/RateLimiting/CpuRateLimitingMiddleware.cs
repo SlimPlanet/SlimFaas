@@ -35,7 +35,8 @@ public class CpuRateLimitingMiddleware
 
         string path = context.Request.Path.Value ?? string.Empty;
         if (_options.ExcludedPaths.Any(excluded =>
-            path.Equals(excluded, StringComparison.OrdinalIgnoreCase)))
+            path.Equals(excluded, StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith($"{excluded}/", StringComparison.OrdinalIgnoreCase)))
         {
             await _next(context);
             return;

@@ -115,6 +115,38 @@ public class CpuRateLimitingMiddlewareTests
     }
 
     [Fact]
+    public async Task InvokeAsync_WhenExcludedPathIsSlimDataSubroute_CallsNext()
+    {
+        var options = CreateOptions(new RateLimitingOptions
+        {
+            Enabled = true,
+            CpuHighThreshold = 80,
+            CpuLowThreshold = 60,
+            ExcludedPaths = ["/SlimData"]
+        });
+        var cpuProvider = new Mock<ICpuMetrics>();
+        cpuProvider.Setup(p => p.CurrentCpuPercent).Returns(90);
+        var logger = new Mock<ILogger<CpuRateLimitingMiddleware>>();
+        var nextCalled = false;
+        RequestDelegate next = _ =>
+        {
+            nextCalled = true;
+            return Task.CompletedTask;
+        };
+
+        var middleware = new CpuRateLimitingMiddleware(next, options, cpuProvider.Object, logger.Object, ExcludedPorts);
+        var context = new DefaultHttpContext
+        {
+            Connection = { LocalPort = 5000 },
+            Request = { Path = "/SlimData/protocol" }
+        };
+
+        await middleware.InvokeAsync(context);
+
+        Assert.True(nextCalled);
+    }
+
+    [Fact]
     public async Task InvokeAsync_WhenCpuHigh_Returns429()
     {
         var options = CreateOptions(new RateLimitingOptions

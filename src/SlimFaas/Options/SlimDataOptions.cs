@@ -31,7 +31,7 @@ public class SlimDataOptions
     /// <summary>
     /// Maximum number of WAL indices DotNext searches backwards when synchronizing a new member.
     /// </summary>
-    public int WarmupRounds { get; set; } = 10_000;
+    public int WarmupRounds { get; set; } = 100;
 
     /// <summary>
     /// Local mutation queue topology.

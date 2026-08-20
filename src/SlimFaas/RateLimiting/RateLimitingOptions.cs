@@ -4,17 +4,17 @@ public class RateLimitingOptions
 {
     public const string SectionName = "SlimFaas:RateLimiting";
 
-    public bool Enabled { get; set; }
+    public bool Enabled { get; set; } = true;
 
-    public double CpuHighThreshold { get; set; }
+    public double CpuHighThreshold { get; set; } = 80;
 
-    public double CpuLowThreshold { get; set; }
+    public double CpuLowThreshold { get; set; } = 60;
 
-    public int SampleIntervalMs { get; set; }
+    public int SampleIntervalMs { get; set; } = 1000;
 
-    public int? RetryAfterSeconds { get; set; }
+    public int? RetryAfterSeconds { get; set; } = 5;
 
-    public string[] ExcludedPaths { get; set; } = [];
+    public string[] ExcludedPaths { get; set; } = ["/health", "/metrics", "/ready", "/SlimData"];
 
     public bool IsValid()
     {
