@@ -24,6 +24,10 @@ public sealed class SlimDataDiagnosticsWorker(
             (SlimDataSnapshotTrigger.Bytes, new Dictionary<string, string> { ["cause"] = "bytes" }),
             (SlimDataSnapshotTrigger.Incompatible, new Dictionary<string, string> { ["cause"] = "incompatible" })
         ];
+    private long _previousLastLogIndex = -1;
+    private long _previousAppliedLogIndex = -1;
+    private long _previousSampleTimestamp;
+    private long _recoveryStartedTimestamp;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -122,9 +126,67 @@ public sealed class SlimDataDiagnosticsWorker(
             "slimdata_raft_commit_index_clamped_total",
             appendEntriesCommitIndexGuard.ClampedRequests,
             "Number of incoming Raft AppendEntries requests whose commit index was bounded to the last transmitted entry");
-        if (cluster.AuditTrail is WriteAheadLog wal)
-            gauges.SetGaugeValue("slimdata_raft_applied_log_index", wal.LastAppliedIndex,
-                "Last applied Raft WAL entry index");
+        var lastLogIndex = cluster.AuditTrail.LastEntryIndex;
+        var appliedLogIndex = cluster.AuditTrail is WriteAheadLog wal ? wal.LastAppliedIndex : -1;
+        gauges.SetGaugeValue("slimdata_raft_applied_log_index", appliedLogIndex,
+            "Last applied Raft WAL entry index");
+        gauges.SetGaugeValue("slimdata_raft_replication_lag", Math.Max(0, lastLogIndex - appliedLogIndex),
+            "Number of local Raft WAL entries not yet applied");
+
+        var now = Stopwatch.GetTimestamp();
+        if (_previousSampleTimestamp != 0)
+        {
+            var elapsedSeconds = (now - _previousSampleTimestamp) / (double)Stopwatch.Frequency;
+            if (elapsedSeconds > 0)
+            {
+                var walGenerationRate = Math.Max(0, lastLogIndex - _previousLastLogIndex) / elapsedSeconds;
+                var catchUpRate = Math.Max(0, appliedLogIndex - _previousAppliedLogIndex) / elapsedSeconds;
+                gauges.SetGaugeValue("slimdata_raft_wal_generation_rate", walGenerationRate,
+                    "Raft WAL entries generated per second");
+                gauges.SetGaugeValue("slimdata_raft_catch_up_rate", catchUpRate,
+                    "Raft WAL entries applied per second");
+                gauges.SetGaugeValue(
+                    "slimdata_raft_catch_up_cannot_converge",
+                    appliedLogIndex < lastLogIndex && walGenerationRate > catchUpRate ? 1 : 0,
+                    "Whether local Raft catch-up is currently slower than WAL generation");
+            }
+        }
+        else
+        {
+            gauges.SetGaugeValue("slimdata_raft_wal_generation_rate", 0,
+                "Raft WAL entries generated per second");
+            gauges.SetGaugeValue("slimdata_raft_catch_up_rate", 0,
+                "Raft WAL entries applied per second");
+            gauges.SetGaugeValue("slimdata_raft_catch_up_cannot_converge", 0,
+                "Whether local Raft catch-up is currently slower than WAL generation");
+        }
+
+        _previousLastLogIndex = lastLogIndex;
+        _previousAppliedLogIndex = appliedLogIndex;
+        _previousSampleTimestamp = now;
+
+        var recovering = !cluster.Readiness.IsCompletedSuccessfully && appliedLogIndex < lastLogIndex;
+        if (recovering && _recoveryStartedTimestamp == 0)
+            _recoveryStartedTimestamp = now;
+        else if (!recovering)
+            _recoveryStartedTimestamp = 0;
+
+        var snapshotRecovery = persistentState.IsRestoring || persistentState.IsSnapshotting;
+        foreach (var mode in new[] { "wal", "snapshot" })
+        {
+            gauges.SetGaugeValue(
+                "slimdata_raft_recovery_mode",
+                recovering && (mode == "snapshot" ? snapshotRecovery : !snapshotRecovery) ? 1 : 0,
+                "Current SlimData Raft recovery mode",
+                new Dictionary<string, string> { ["mode"] = mode });
+        }
+
+        gauges.SetGaugeValue(
+            "slimdata_raft_recovery_duration_seconds",
+            _recoveryStartedTimestamp == 0
+                ? 0
+                : (now - _recoveryStartedTimestamp) / (double)Stopwatch.Frequency,
+            "Duration of the current SlimData Raft recovery");
 
         var hasConsensus = !cluster.ConsensusToken.IsCancellationRequested;
         var hasLease = cluster.TryGetLeaseToken(out var leaseToken) && !leaseToken.IsCancellationRequested;

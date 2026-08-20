@@ -191,6 +191,11 @@ roleRef:
 
 Example partial YAML (from *deployment-slimfaas.yml*):
 
+Keep `podManagementPolicy: OrderedReady` for the SlimFaas StatefulSet. It
+ensures the first node establishes a healthy Raft member before the next node
+starts. `Parallel` can shorten startup, but has not been demonstrated safe for
+SlimData cold-start and membership recovery under load.
+
 ```yaml
 apiVersion: apps/v1
 kind: StatefulSet
