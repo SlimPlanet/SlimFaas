@@ -45,13 +45,18 @@ public sealed class SlimDataRecoveryMetricCalculatorTests
         var clearSamples = 0;
 
         SlimDataDiagnosticsWorker.SlimDataRecoveryMetricCalculator.UpdateRecoveryState(
+            "restoring", 5, ref started, ref clearSamples);
+        Assert.Equal(5, started);
+        Assert.Equal(0, clearSamples);
+
+        SlimDataDiagnosticsWorker.SlimDataRecoveryMetricCalculator.UpdateRecoveryState(
             "wal", 10, ref started, ref clearSamples);
-        Assert.Equal(10, started);
+        Assert.Equal(5, started);
         Assert.Equal(0, clearSamples);
 
         SlimDataDiagnosticsWorker.SlimDataRecoveryMetricCalculator.UpdateRecoveryState(
             "unknown", 20, ref started, ref clearSamples);
-        Assert.Equal(10, started);
+        Assert.Equal(5, started);
         Assert.Equal(1, clearSamples);
 
         SlimDataDiagnosticsWorker.SlimDataRecoveryMetricCalculator.UpdateRecoveryState(
