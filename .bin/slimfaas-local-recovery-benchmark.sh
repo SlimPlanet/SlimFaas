@@ -8,6 +8,9 @@ run_root="${RECOVERY_RUN_ROOT:-$repo_root/artifacts/slimfaas-local-recovery/$(da
 timeout_seconds="${RECOVERY_TIMEOUT_SECONDS:-180}"
 traffic_interval="${RECOVERY_TRAFFIC_INTERVAL_MS:-25}"
 traffic_sleep="$(printf '%d.%03d' "$((traffic_interval / 1000))" "$((traffic_interval % 1000))")"
+entrypoint_http_port=31020
+node_http_ports=(31021 31022 31023)
+raft_ports=(3162 3163 3164)
 local_pid=""
 traffic_pid=""
 write_pid=""
@@ -49,7 +52,7 @@ wait_for() {
   return 1
 }
 
-for port in 31020 31021 31022 31023; do
+for port in "$entrypoint_http_port" "${node_http_ports[@]}"; do
   wait_for "http://127.0.0.1:$port/ready" || {
     echo "Timed out waiting for $port/ready; see $run_root/slimfaas-local.log" >&2
     exit 1
@@ -57,7 +60,7 @@ for port in 31020 31021 31022 31023; do
 done
 
 leader_port() {
-  for port in 3162 3163 3164; do
+  for port in "${raft_ports[@]}"; do
     response="$(curl --silent --max-time 2 "http://127.0.0.1:$port/SlimData/leader" || true)"
     if [[ "$response" =~ Leader\ address\ is\ http://127\.0\.0\.1:([0-9]+) ]]; then
       echo "${BASH_REMATCH[1]}"
@@ -76,7 +79,7 @@ leader="$(leader_port)" || { echo "Unable to identify the SlimData leader" >&2; 
 case "$leader" in
   3162) leader_http_port=31021; restart_raft_port=3163; restart_http_port=31022 ;;
   3163) leader_http_port=31022; restart_raft_port=3162; restart_http_port=31021 ;;
-  3164) leader_http_port=31023; restart_raft_port=3162; restart_http_port=31021 ;;
+  3164) leader_http_port=31023; restart_raft_port=3163; restart_http_port=31022 ;;
   *) echo "Unexpected leader port: $leader" >&2; exit 1 ;;
 esac
 leader_before="$leader"
@@ -87,7 +90,7 @@ echo "Leader is $leader; restarting non-leader node $restart_http_port"
     curl --silent --show-error --max-time 2 \
       -X POST -H 'Content-Type: application/octet-stream' \
       --data-binary "recovery-$(date +%s%N)" \
-      "http://127.0.0.1:31020/data/sets/recovery" >/dev/null || true
+      "http://127.0.0.1:$entrypoint_http_port/data/sets/recovery" >/dev/null || true
     sleep "$traffic_sleep"
   done
 ) >"$run_root/writes.log" 2>&1 &
@@ -96,7 +99,7 @@ write_pid="$!"
 (
   while :; do
     curl --silent --show-error --max-time 2 \
-      "http://127.0.0.1:31020/function/benchmark-latency/echo" >/dev/null || true
+      "http://127.0.0.1:$entrypoint_http_port/function/benchmark-latency/echo" >/dev/null || true
     sleep "$traffic_sleep"
   done
 ) >"$run_root/http-traffic.log" 2>&1 &
@@ -107,7 +110,15 @@ node_pid="$(lsof -tiTCP:"$restart_raft_port" -sTCP:LISTEN | head -n1 || true)"
 [[ -n "$node_pid" ]] || { echo "Unable to find node process on $restart_raft_port" >&2; exit 1; }
 kill -KILL "$node_pid"
 
-start_index="$(metric "$leader_http_port" slimdata_raft_committed_log_index)"
+start_index=""
+metric_deadline=$((SECONDS + 10))
+while (( SECONDS < metric_deadline )); do
+  if start_index="$(metric "$leader_http_port" slimdata_raft_committed_log_index)"; then
+    break
+  fi
+  sleep 1
+done
+[[ -n "$start_index" ]] || { echo "Unable to read the leader committed index" >&2; exit 1; }
 deadline=$((SECONDS + timeout_seconds))
 health_seen=0
 ready_seen=0
