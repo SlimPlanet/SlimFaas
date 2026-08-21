@@ -76,12 +76,19 @@ metric() {
 }
 
 leader="$(leader_port)" || { echo "Unable to identify the SlimData leader" >&2; exit 1; }
-case "$leader" in
-  3162) leader_http_port=31021; restart_raft_port=3163; restart_http_port=31022 ;;
-  3163) leader_http_port=31022; restart_raft_port=3162; restart_http_port=31021 ;;
-  3164) leader_http_port=31023; restart_raft_port=3163; restart_http_port=31022 ;;
-  *) echo "Unexpected leader port: $leader" >&2; exit 1 ;;
-esac
+leader_http_port=""
+restart_raft_port=""
+restart_http_port=""
+for index in "${!raft_ports[@]}"; do
+  if [[ "${raft_ports[$index]}" == "$leader" ]]; then
+    leader_http_port="${node_http_ports[$index]}"
+  elif [[ -z "$restart_raft_port" ]]; then
+    restart_raft_port="${raft_ports[$index]}"
+    restart_http_port="${node_http_ports[$index]}"
+  fi
+done
+[[ -n "$leader_http_port" && -n "$restart_raft_port" ]] ||
+  { echo "Unexpected leader port: $leader" >&2; exit 1; }
 leader_before="$leader"
 echo "Leader is $leader; restarting non-leader node $restart_http_port"
 
@@ -123,12 +130,24 @@ deadline=$((SECONDS + timeout_seconds))
 health_seen=0
 ready_seen=0
 last_index="$start_index"
+leader_missing_since=0
 while (( SECONDS < deadline )); do
   current_leader="$(leader_port || true)"
-  [[ -z "$current_leader" || "$current_leader" == "$leader_before" ]] || {
-    echo "Leader changed from $leader_before to ${current_leader:-unknown}" >&2
-    exit 1
-  }
+  if [[ -z "$current_leader" ]]; then
+    if (( leader_missing_since == 0 )); then
+      leader_missing_since="$SECONDS"
+    fi
+    if (( SECONDS - leader_missing_since > 10 )); then
+      echo "Leader endpoint unavailable for more than 10s" >&2
+      exit 1
+    fi
+  else
+    leader_missing_since=0
+    [[ "$current_leader" == "$leader_before" ]] || {
+      echo "Leader changed from $leader_before to $current_leader" >&2
+      exit 1
+    }
+  fi
   if curl --silent --fail --max-time 2 "http://127.0.0.1:$restart_http_port/health" >/dev/null; then
     health_seen=1
   fi
