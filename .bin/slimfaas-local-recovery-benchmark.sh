@@ -7,6 +7,7 @@ slimfaas_dll="$repo_root/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll"
 run_root="${RECOVERY_RUN_ROOT:-$repo_root/artifacts/slimfaas-local-recovery/$(date -u +%Y%m%dT%H%M%SZ)}"
 timeout_seconds="${RECOVERY_TIMEOUT_SECONDS:-180}"
 traffic_interval="${RECOVERY_TRAFFIC_INTERVAL_MS:-25}"
+traffic_sleep="$(printf '%d.%03d' "$((traffic_interval / 1000))" "$((traffic_interval % 1000))")"
 local_pid=""
 traffic_pid=""
 write_pid=""
@@ -87,7 +88,7 @@ echo "Leader is $leader; restarting non-leader node $restart_http_port"
       -X POST -H 'Content-Type: application/octet-stream' \
       --data-binary "recovery-$(date +%s%N)" \
       "http://127.0.0.1:31020/data/sets/recovery" >/dev/null || true
-    sleep "0.$(printf '%03d' "$traffic_interval")"
+    sleep "$traffic_sleep"
   done
 ) >"$run_root/writes.log" 2>&1 &
 write_pid="$!"
@@ -96,7 +97,7 @@ write_pid="$!"
   while :; do
     curl --silent --show-error --max-time 2 \
       "http://127.0.0.1:31020/function/benchmark-latency/echo" >/dev/null || true
-    sleep "0.$(printf '%03d' "$traffic_interval")"
+    sleep "$traffic_sleep"
   done
 ) >"$run_root/http-traffic.log" 2>&1 &
 traffic_pid="$!"
@@ -117,7 +118,7 @@ while (( SECONDS < deadline )); do
     echo "Leader changed from $leader_before to ${current_leader:-unknown}" >&2
     exit 1
   }
-  if curl --silent --fail --max-time 2 "http://127.0.0.1:$restart_raft_port/health" >/dev/null; then
+  if curl --silent --fail --max-time 2 "http://127.0.0.1:$restart_http_port/health" >/dev/null; then
     health_seen=1
   fi
   if curl --silent --fail --max-time 2 "http://127.0.0.1:$restart_http_port/ready" >/dev/null; then
