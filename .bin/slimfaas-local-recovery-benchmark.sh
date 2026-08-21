@@ -125,7 +125,7 @@ ready_seen=0
 last_index="$start_index"
 while (( SECONDS < deadline )); do
   current_leader="$(leader_port || true)"
-  [[ "$current_leader" == "$leader_before" ]] || {
+  [[ -z "$current_leader" || "$current_leader" == "$leader_before" ]] || {
     echo "Leader changed from $leader_before to ${current_leader:-unknown}" >&2
     exit 1
   }
