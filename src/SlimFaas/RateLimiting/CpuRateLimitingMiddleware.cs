@@ -35,7 +35,10 @@ public class CpuRateLimitingMiddleware
 
         string path = context.Request.Path.Value ?? string.Empty;
         if (_options.ExcludedPaths.Any(excluded =>
-            path.Equals(excluded, StringComparison.OrdinalIgnoreCase)))
+            path.Equals(excluded, StringComparison.OrdinalIgnoreCase) ||
+            (path.StartsWith(excluded, StringComparison.OrdinalIgnoreCase) &&
+             path.Length > excluded.Length &&
+             path[excluded.Length] == '/')))
         {
             await _next(context);
             return;

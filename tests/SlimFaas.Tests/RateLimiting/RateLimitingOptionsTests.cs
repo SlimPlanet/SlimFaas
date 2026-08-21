@@ -5,6 +5,16 @@ namespace SlimFaas.Tests.RateLimiting;
 public class RateLimitingOptionsTests
 {
     [Fact]
+    public void Defaults_EnableCpuProtectionAndExcludeControlPlanePaths()
+    {
+        var options = new RateLimitingOptions();
+
+        Assert.True(options.Enabled);
+        Assert.Equal(["/health", "/metrics", "/ready", "/SlimData"], options.ExcludedPaths);
+        Assert.True(options.IsValid());
+    }
+
+    [Fact]
     public void IsValid_WithValidOptions_ReturnsTrue()
     {
         var options = new RateLimitingOptions

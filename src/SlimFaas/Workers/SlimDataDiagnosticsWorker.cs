@@ -17,6 +17,7 @@ public sealed class SlimDataDiagnosticsWorker(
     ILogger<SlimDataDiagnosticsWorker> logger) : BackgroundService
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
+    private const int RecoveryClearSamplesRequired = 2;
     private static readonly (SlimDataSnapshotTrigger Trigger, IReadOnlyDictionary<string, string> Labels)[]
         SnapshotTriggerMetrics =
         [
@@ -24,6 +25,17 @@ public sealed class SlimDataDiagnosticsWorker(
             (SlimDataSnapshotTrigger.Bytes, new Dictionary<string, string> { ["cause"] = "bytes" }),
             (SlimDataSnapshotTrigger.Incompatible, new Dictionary<string, string> { ["cause"] = "incompatible" })
         ];
+    private static readonly IReadOnlyDictionary<string, string> WalRecoveryLabels =
+        new Dictionary<string, string> { ["mode"] = "wal" };
+    private static readonly IReadOnlyDictionary<string, string> SnapshotRecoveryLabels =
+        new Dictionary<string, string> { ["mode"] = "restoring" };
+    private static readonly IReadOnlyDictionary<string, string> UnknownRecoveryLabels =
+        new Dictionary<string, string> { ["mode"] = "unknown" };
+    private long _previousLastLogIndex = -1;
+    private long _previousAppliedLogIndex = -1;
+    private long _previousSampleTimestamp;
+    private long _recoveryStartedTimestamp;
+    private int _recoveryClearSamples;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -122,9 +134,81 @@ public sealed class SlimDataDiagnosticsWorker(
             "slimdata_raft_commit_index_clamped_total",
             appendEntriesCommitIndexGuard.ClampedRequests,
             "Number of incoming Raft AppendEntries requests whose commit index was bounded to the last transmitted entry");
-        if (cluster.AuditTrail is WriteAheadLog wal)
-            gauges.SetGaugeValue("slimdata_raft_applied_log_index", wal.LastAppliedIndex,
-                "Last applied Raft WAL entry index");
+        var lastLogIndex = cluster.AuditTrail.LastEntryIndex;
+        var hasAppliedLogIndex = cluster.AuditTrail is WriteAheadLog;
+        var appliedLogIndex = hasAppliedLogIndex
+            ? ((WriteAheadLog)cluster.AuditTrail).LastAppliedIndex
+            : lastLogIndex;
+        gauges.SetGaugeValue("slimdata_raft_applied_log_index", appliedLogIndex,
+            "Last applied Raft WAL entry index");
+        var localApplyLag = SlimDataRecoveryMetricCalculator.CalculateLocalApplyLag(lastLogIndex, appliedLogIndex);
+        gauges.SetGaugeValue("slimdata_raft_local_apply_lag", localApplyLag,
+            "Number of local Raft WAL entries not yet applied; this is not leader/follower replication lag");
+
+        var now = Stopwatch.GetTimestamp();
+        var logRewound = _previousSampleTimestamp != 0 && lastLogIndex < _previousLastLogIndex;
+        if (_previousSampleTimestamp != 0 && !logRewound)
+        {
+            var elapsedSeconds = (now - _previousSampleTimestamp) / (double)Stopwatch.Frequency;
+            if (elapsedSeconds > 0)
+            {
+                var walGenerationRate = SlimDataRecoveryMetricCalculator.CalculateRate(
+                    lastLogIndex, _previousLastLogIndex, elapsedSeconds);
+                var catchUpRate = hasAppliedLogIndex
+                    ? SlimDataRecoveryMetricCalculator.CalculateRate(
+                        appliedLogIndex, _previousAppliedLogIndex, elapsedSeconds)
+                    : 0;
+                gauges.SetGaugeValue("slimdata_raft_wal_generation_rate", walGenerationRate,
+                    "Raft WAL entries generated per second");
+                gauges.SetGaugeValue("slimdata_raft_catch_up_rate", catchUpRate,
+                    "Raft WAL entries applied per second");
+                gauges.SetGaugeValue(
+                    "slimdata_raft_catch_up_cannot_converge",
+                    hasAppliedLogIndex && localApplyLag > 0 &&
+                    SlimDataRecoveryMetricCalculator.CannotConverge(walGenerationRate, catchUpRate) ? 1 : 0,
+                    "Whether local Raft catch-up is currently slower than WAL generation");
+            }
+        }
+        else
+        {
+            gauges.SetGaugeValue("slimdata_raft_wal_generation_rate", 0,
+                "Raft WAL entries generated per second");
+            gauges.SetGaugeValue("slimdata_raft_catch_up_rate", 0,
+                "Raft WAL entries applied per second");
+            gauges.SetGaugeValue("slimdata_raft_catch_up_cannot_converge", 0,
+                "Whether local Raft catch-up is currently slower than WAL generation");
+        }
+
+        _previousLastLogIndex = logRewound ? -1 : lastLogIndex;
+        _previousAppliedLogIndex = logRewound ? -1 : appliedLogIndex;
+        _previousSampleTimestamp = logRewound ? 0 : now;
+
+        var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
+        var recoveryMode = SlimDataRecoveryMetricCalculator.GetMode(
+            hasAppliedLogIndex && !isLeader, localApplyLag, persistentState.IsRestoring);
+        var recovering = recoveryMode is "wal" or "restoring";
+        SlimDataRecoveryMetricCalculator.UpdateRecoveryState(
+            recovering ? recoveryMode : "unknown",
+            now,
+            ref _recoveryStartedTimestamp,
+            ref _recoveryClearSamples);
+
+        gauges.SetGaugeValue("slimdata_raft_recovery_mode",
+            recoveryMode is "wal" ? 1 : 0,
+            "Current SlimData Raft recovery mode", WalRecoveryLabels);
+        gauges.SetGaugeValue("slimdata_raft_recovery_mode",
+            recoveryMode is "restoring" ? 1 : 0,
+            "Current SlimData Raft recovery mode", SnapshotRecoveryLabels);
+        gauges.SetGaugeValue("slimdata_raft_recovery_mode",
+            recoveryMode is "unknown" ? 1 : 0,
+            "Current SlimData Raft recovery mode", UnknownRecoveryLabels);
+
+        gauges.SetGaugeValue(
+            "slimdata_raft_recovery_duration_seconds",
+            _recoveryStartedTimestamp == 0
+                ? 0
+                : (now - _recoveryStartedTimestamp) / (double)Stopwatch.Frequency,
+            "Duration of the current SlimData Raft recovery");
 
         var hasConsensus = !cluster.ConsensusToken.IsCancellationRequested;
         var hasLease = cluster.TryGetLeaseToken(out var leaseToken) && !leaseToken.IsCancellationRequested;
@@ -192,6 +276,7 @@ public sealed class SlimDataDiagnosticsWorker(
                     queue.LastLatencySensitiveWaitMilliseconds,
                     "Local batch wait of the latest queue-critical operation", labels);
             }
+
         }
 
         var commandBatch = commandBatchCoordinator.GetStatistics();
@@ -226,6 +311,46 @@ public sealed class SlimDataDiagnosticsWorker(
             "Estimated HTTP payload bytes included in the latest composite RAFT entry");
 
         RecordCgroupMemory();
+    }
+
+    internal static class SlimDataRecoveryMetricCalculator
+    {
+        internal static long CalculateLocalApplyLag(long lastLogIndex, long appliedLogIndex)
+            => Math.Max(0, lastLogIndex - appliedLogIndex);
+
+        internal static double CalculateRate(long currentIndex, long previousIndex, double elapsedSeconds)
+            => elapsedSeconds > 0
+                ? Math.Max(0, currentIndex - previousIndex) / elapsedSeconds
+                : 0;
+
+        internal static bool CannotConverge(double walGenerationRate, double catchUpRate)
+            => walGenerationRate > catchUpRate;
+
+        internal static string GetMode(bool isFollower, long localApplyLag, bool isRestoring)
+            => isFollower && localApplyLag > 0
+                ? isRestoring ? "restoring" : "wal"
+                : "unknown";
+
+        internal static void UpdateRecoveryState(
+            string mode,
+            long now,
+            ref long startedTimestamp,
+            ref int clearSamples)
+        {
+            if (mode is "wal" or "restoring")
+            {
+                if (startedTimestamp == 0)
+                    startedTimestamp = now;
+
+                clearSamples = 0;
+            }
+            else if (startedTimestamp != 0 &&
+                     ++clearSamples >= RecoveryClearSamplesRequired)
+            {
+                startedTimestamp = 0;
+                clearSamples = 0;
+            }
+        }
     }
 
     private void RecordCgroupMemory()

@@ -8,6 +8,15 @@ namespace SlimData.Tests;
 public sealed class StartupConfigurationTests
 {
     [Fact]
+    public void Membership_defaults_allow_slow_recovery()
+    {
+        var options = new SlimDataMembershipOptions();
+
+        Assert.Equal(180, options.ChangeTimeoutSeconds);
+        Assert.Equal(200, options.AnnouncementTimeoutSeconds);
+    }
+
+    [Fact]
     public void Wal_memory_management_defaults_to_shared_memory()
     {
         var configuration = new ConfigurationBuilder().Build();

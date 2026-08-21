@@ -25,6 +25,25 @@ It handles scaling, routing, and state management.
    A built-in key-value store based on [Raft](https://raft.github.io/), provided by .NET’s [dotNext](https://github.com/dotnet/dotNext).
    This database is crucial for consistent state among SlimFaas pods. Each node keeps the current state in memory and persists replicated commands in a write-ahead log (WAL).
 
+### SlimData recovery
+
+DotNext 6.4.1 chooses the synchronization path internally. SlimFaas supplies
+`warmupRounds` (100 by default): a restarted member first attempts WAL
+backtracking and can fall back to DotNext snapshot recovery when the gap is
+larger than the configured search window. There is no public API in this
+version to force a snapshot for a particular follower.
+
+The SlimData diagnostics metrics expose the locally measurable recovery state:
+`slimdata_raft_local_apply_lag` (local WAL entries pending application, not
+leader/follower replication lag), `slimdata_raft_wal_generation_rate`,
+`slimdata_raft_catch_up_rate`, `slimdata_raft_catch_up_cannot_converge`,
+`slimdata_raft_recovery_mode{mode="wal|restoring|unknown"}`, and
+`slimdata_raft_recovery_duration_seconds`. The convergence gauge is an
+early-warning signal, not a membership failure: it is set when the observed
+local apply rate is below the observed WAL generation rate. If an alternate
+audit-trail implementation does not expose an applied index, lag and recovery
+metrics remain zero because that state cannot be measured safely.
+
 3. **Annotations**
    Add or remove SlimFaas **annotations** on your pods/Deployments to control scaling, concurrency, visibility, and timeouts.
 
