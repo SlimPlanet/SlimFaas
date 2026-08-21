@@ -113,7 +113,7 @@ write_pid="$!"
 traffic_pid="$!"
 
 sleep 3
-node_pid="$(lsof -t -i "TCP:$restart_raft_port" -sTCP:LISTEN | head -n1 || true)"
+node_pid="$(lsof -t -i "TCP:$restart_raft_port" | head -n1 || true)"
 [[ -n "$node_pid" ]] || { echo "Unable to find node process on $restart_raft_port" >&2; exit 1; }
 kill -KILL "$node_pid"
 
