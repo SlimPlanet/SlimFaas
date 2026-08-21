@@ -12,6 +12,23 @@ The quick profile is intended for a smoke test and takes a few minutes:
 BENCHMARK_PROFILE=quick .bin/slimfaas-local-benchmark.sh
 ```
 
+## Run the three-node recovery scenario
+
+The restart-under-load scenario starts the same three-node SlimFaas Local
+cluster, writes continuously to SlimData, generates application HTTP traffic,
+kills a non-leader node, and fails unless the leader remains stable while the
+restarted node reports both `/health` and `/ready` successfully and committed
+Raft entries continue to advance:
+
+```bash
+RECOVERY_TIMEOUT_SECONDS=180 .bin/slimfaas-local-recovery-benchmark.sh
+```
+
+Use `RECOVERY_SKIP_BUILD=true` for repeated runs with existing Release binaries
+and `RECOVERY_RUN_ROOT` to select the artifact directory. The scenario requires
+`lsof` and writes `recovery-summary.txt`, traffic logs, and the local
+supervisor log below the selected artifact directory.
+
 The standard profile runs every case three times with longer measurement and
 warm-up windows:
 
