@@ -96,7 +96,7 @@ echo "Leader is $leader; restarting non-leader node $restart_http_port"
   while :; do
     curl --silent --show-error --max-time 2 \
       -X POST -H 'Content-Type: application/octet-stream' \
-      --data-binary "recovery-$(date +%s%N)" \
+      --data-binary "recovery-$SECONDS-$RANDOM" \
       "http://127.0.0.1:$entrypoint_http_port/data/sets/recovery" >/dev/null || true
     sleep "$traffic_sleep"
   done
@@ -113,7 +113,7 @@ write_pid="$!"
 traffic_pid="$!"
 
 sleep 3
-node_pid="$(lsof -tiTCP:"$restart_raft_port" -sTCP:LISTEN | head -n1 || true)"
+node_pid="$(lsof -t -i "TCP:$restart_raft_port" -sTCP:LISTEN | head -n1 || true)"
 [[ -n "$node_pid" ]] || { echo "Unable to find node process on $restart_raft_port" >&2; exit 1; }
 kill -KILL "$node_pid"
 
