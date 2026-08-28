@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.82.0
+
+- [78c7387d](https://github.com/SlimPlanet/SlimFaas/commit/78c7387d3a16e83dc49fd24baa4e27ff9dcbe802) - fix(slimplanet): Content-Length was set to 0 (#327) (release), 2026-08-28 by *antoinelrnld*
+- [35a66252](https://github.com/SlimPlanet/SlimFaas/commit/35a662523fe83be3f184b00d81b14a59e69fe0e7) - feat: Improve SlimData/RAFT recovery under load (#317)(release), 2026-08-21 by *Copilot*
+- [e357700e](https://github.com/SlimPlanet/SlimFaas/commit/e357700ec4e1202f27d0cce5a6a696078d377a7a) - doc: Elevate CNCF presence in README header and de-duplicate community content (#315), 2026-08-14 by *Copilot*
+
+
+## 0.81.1
+
+
+
 ## v0.81.1
 
 - [5d766c95](https://github.com/SlimPlanet/SlimFaas/commit/5d766c95aafaab9da2c280cea34585f687f65a09) - perf: hot-path reads with zero allocation (~89×), queue counts ~25×, schedule evaluation ~52× faster (release) (#313), 2026-08-14 by *Guillaume Delahaye*
@@ -269,15 +280,5 @@
 ## v0.71.3
 
 - [c7c32aea](https://github.com/SlimPlanet/SlimFaas/commit/c7c32aea9d27b46aba931132650fcb3b82748991) - doc(slimfaas): add client driver .NET and Python (#270) (release), 2026-04-28 by *Guillaume Chervet*
-
-
-## 0.71.2
-
-
-
-## v0.71.2
-
-- [547da85e](https://github.com/SlimPlanet/SlimFaas/commit/547da85e0d0926f05ae1d2c8031b8438a73cdb43) - fix(slimfass): live events + load balancing (release) (#265), 2026-04-28 by *Guillaume Chervet*
-- [e00b3be4](https://github.com/SlimPlanet/SlimFaas/commit/e00b3be4e8dad3e916fe2562f4ea3676f6a3b7bd) - s, 2026-04-18 by *Guillaume Chervet*
 
 
