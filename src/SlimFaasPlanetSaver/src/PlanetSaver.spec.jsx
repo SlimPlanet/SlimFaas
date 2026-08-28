@@ -1,6 +1,7 @@
-﻿import { describe, it, expect } from 'vitest';
+﻿import { describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import PlanetSaver from './PlanetSaver.jsx';
+import SlimFaasPlanetSaver from './SlimFaasPlanetSaver.js';
 import mockFetch, {
     setAlternateStatusFunctionsBody,
     alternateStatusFunctionsBodyOn,
@@ -107,5 +108,22 @@ describe('PlanetSaver Component', () => {
         screen.debug();
 
         unmount();
+    });
+});
+
+describe('SlimFaasPlanetSaver', () => {
+    it('Sends a non-empty JSON payload when waking a function', async () => {
+        const fetch = vi.fn().mockResolvedValue({ status: 204 });
+        const planetSaver = new SlimFaasPlanetSaver('https://slimfaas/', { fetch });
+
+        await planetSaver.wakeUpPods([{ Name: 'fibonacci1', NumberReady: 0 }]);
+
+        expect(fetch).toHaveBeenCalledWith('https://slimfaas/wake-function/fibonacci1', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: '{}',
+        });
     });
 });

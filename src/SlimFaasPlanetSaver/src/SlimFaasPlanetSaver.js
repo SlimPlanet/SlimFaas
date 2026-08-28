@@ -85,6 +85,10 @@ export default class SlimFaasPlanetSaver {
             .map(async (item) => {
                 const response = await this.fetch(`${this.baseUrl}/wake-function/${item.Name}`, {
                     method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: '{}',
                 });
                 if (response.status >= 400) {
                     throw new Error(`HTTP Error! status: ${response.status} for function ${item.Name}`);
