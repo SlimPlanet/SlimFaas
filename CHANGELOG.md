@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.82.2
+
+- [19a3e5b7](https://github.com/SlimPlanet/SlimFaas/commit/19a3e5b7b539416fa11ed7991aa966772deef96c) - fix: planet-saver clean npm packages (release), 2026-09-01 by *Guillaume Chervet*
+
+
+## 0.82.1
+
+
+
 ## v0.82.1
 
 - [381f9b0c](https://github.com/SlimPlanet/SlimFaas/commit/381f9b0c6a65035d9a507df4a2a17ecb77e53573) - fix: npm pubish token via oidc (release), 2026-09-01 by *Guillaume Chervet*
@@ -271,14 +280,5 @@
 - [dd633753](https://github.com/SlimPlanet/SlimFaas/commit/dd6337536b174019f8886182e600ceff7586013a) - fix(jobs): preserve initial env-var job configurations after k8s sync (#277) (release), 2026-05-19 by *Silthian*
 - [7230c898](https://github.com/SlimPlanet/SlimFaas/commit/7230c8986e0f62fea7ec861fbb98eef58e554b4b) - Update pnpm and npm libraries (#276), 2026-05-15 by *Copilot*
 - [b06371a3](https://github.com/SlimPlanet/SlimFaas/commit/b06371a3972cdda9413ad9c81dcfd79534d4ca3a) - dox: Update footer LF Projects trademark disclaimer (#274), 2026-05-05 by *Copilot*
-
-
-## 0.72.0
-
-
-
-## v0.72.0
-
-- [04cf9cd6](https://github.com/SlimPlanet/SlimFaas/commit/04cf9cd65a3b29fa92750aca32f7aade37d71d83) - feat(slimfaas): web stream live job (#272) (release), 2026-04-30 by *Guillaume Chervet*
 
 
