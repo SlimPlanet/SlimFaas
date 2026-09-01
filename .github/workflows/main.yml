@@ -12,7 +12,6 @@ env:
   NODE_VERSION: "24"
 
 permissions:
-  id-token: write
   contents: write
 
 jobs:
@@ -559,6 +558,10 @@ jobs:
     needs: tags
     if: github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
@@ -566,6 +569,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
+          registry-url: https://registry.npmjs.org
 
       - uses: pnpm/action-setup@v4
         name: Install pnpm
@@ -576,6 +580,9 @@ jobs:
       - name: pnpm ci
         run: pnpm i --frozen-lockfile
         working-directory: ./src/SlimFaasPlanetSaver
+
+      - name: Install an OIDC-compatible npm CLI
+        run: npm install --global npm@11
 
       - name: Git Configuration
         id: gitconfig
@@ -588,12 +595,9 @@ jobs:
           pnpm version ${{ needs.tags.outputs.new_version }}
         working-directory: ./src/SlimFaasPlanetSaver
 
-      - id: Publish
-        uses: JS-DevTools/npm-publish@v4
-        with:
-          token: ${{ secrets.NPM_TOKEN }}
-          package: ./src/SlimFaasPlanetSaver/package.json
-          tag: ${{ needs.tags.outputs.npm_tag }}
+      - name: Publish package to npm
+        run: npm publish --access public --tag "${{ needs.tags.outputs.npm_tag }}"
+        working-directory: ./src/SlimFaasPlanetSaver
 
   deploy_website:
     runs-on: ubuntu-latest
