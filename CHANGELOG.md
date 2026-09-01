@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.82.1
+
+- [381f9b0c](https://github.com/SlimPlanet/SlimFaas/commit/381f9b0c6a65035d9a507df4a2a17ecb77e53573) - fix: npm pubish token via oidc (release), 2026-09-01 by *Guillaume Chervet*
+
+
+## 0.82.0
+
+
+
 ## v0.82.0
 
 - [78c7387d](https://github.com/SlimPlanet/SlimFaas/commit/78c7387d3a16e83dc49fd24baa4e27ff9dcbe802) - fix(slimplanet): Content-Length was set to 0 (#327) (release), 2026-08-28 by *antoinelrnld*
@@ -271,14 +280,5 @@
 ## v0.72.0
 
 - [04cf9cd6](https://github.com/SlimPlanet/SlimFaas/commit/04cf9cd65a3b29fa92750aca32f7aade37d71d83) - feat(slimfaas): web stream live job (#272) (release), 2026-04-30 by *Guillaume Chervet*
-
-
-## 0.71.3
-
-
-
-## v0.71.3
-
-- [c7c32aea](https://github.com/SlimPlanet/SlimFaas/commit/c7c32aea9d27b46aba931132650fcb3b82748991) - doc(slimfaas): add client driver .NET and Python (#270) (release), 2026-04-28 by *Guillaume Chervet*
 
 
