@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,96695,e=>{"use strict";var r=e.i(21005);e.i(78547),e.s([],10591),e.i(10591),e.s(["createTreemapServices",()=>r.createTreemapServices],96695)}]);
