@@ -48,6 +48,16 @@ The native .NET services below have `<PublishAot>true</PublishAot>` in their `.c
 - **Dependencies**: Only use NuGet packages with AOT support (e.g., `KubernetesClient.Aot`, `MemoryPack`, `prometheus-net`)
 - **Source-generated serialization**: Add new JSON payloads to existing `JsonSerializerContext` partials (for example `src/SlimFaasMcp/AppJsonContext.cs` or `src/SlimFaas/Local/ProcessControlContracts.cs`) and keep SlimData command payloads `MemoryPackable`.
 
+### Dependency License Compliance (CNCF/FOSSA)
+
+Every dependency or lockfile change must comply with the [CNCF third-party license policy](https://github.com/cncf/foundation/blob/main/policies-guidance/allowed-third-party-license-policy.md) and pass the repository's FOSSA License Compliance check.
+
+- Check direct and transitive dependencies after every upgrade. Do not rely only on the package's declared SPDX license: FOSSA can detect differently licensed vendored, generated, example, or test files inside a distribution.
+- Do not add or upgrade to a version that FOSSA flags with a license outside the CNCF allowlist, including `GPL-2.0-only` or `GPL-3.0-only`, unless the CNCF Governing Board has granted an explicit exception.
+- Prefer replacing a non-compliant dependency. When no suitable replacement exists, pin the highest version already validated by FOSSA with an explicit direct constraint and an explanatory comment so a future lockfile refresh cannot silently reintroduce the rejected release.
+- Regenerate every affected lockfile, run the relevant build and test commands, and confirm the FOSSA License Compliance check passes on the pull request before merging.
+- Record every temporary license-related version hold and its reason in the pull request summary so maintainers know when and why it may be revisited.
+
 ---
 
 ## 🚀 Running the Project
@@ -337,6 +347,7 @@ Before committing code changes:
 - [ ] Did I change demo-facing behavior? → Update `demo/deployment-*.yml`, `docker-compose.yml`, and `slimfaas.local*.yaml`
 - [ ] Did I change data or performance-sensitive paths? → Run the relevant `.bin/*benchmark*.sh` or memory-lab command
 - [ ] Are there new dependencies or AOT concerns? → Update `how-it-works.md`
+- [ ] Did dependencies or lockfiles change? → Confirm the pull request passes FOSSA License Compliance
 - [ ] Did I test the documentation examples? → Ensure they still work
 - [ ] Did I fix a bug that affects deployment? → Document the workaround or fix
 
@@ -504,5 +515,5 @@ SlimFaas/
 
 ---
 
-**Last Updated**: 2026-07-31
+**Last Updated**: 2026-09-02
 **Target Audience**: AI Agents, Contributors, Maintainers
