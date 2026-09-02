@@ -5,7 +5,7 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   build: {
-    outDir: path.resolve(__dirname, '../wwwroot'),
+    outDir: path.resolve(import.meta.dirname, '../wwwroot'),
     emptyOutDir: true,
   },
   server: {
@@ -19,4 +19,3 @@ export default defineConfig({
     },
   },
 })
-

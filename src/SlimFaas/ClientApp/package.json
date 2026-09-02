@@ -11,7 +11,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@axa-fr/slimfaas-planet-saver": "^0.72.1",
+    "@axa-fr/slimfaas-planet-saver": "^0.82.2",
     "@types/d3": "^7.4.3",
     "d3": "^7.9.0",
     "react": "^19.2.8",
@@ -20,22 +20,22 @@
     "serve": "^14.2.6"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
-    "@storybook/addon-essentials": "^8.6.14",
-    "@storybook/react": "^8.6.18",
-    "@storybook/react-vite": "^8.6.18",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^5.2.0",
-    "eslint": "^9.39.4",
+    "@eslint/js": "^9.39.5",
+    "@storybook/addon-docs": "^10.6.0",
+    "@storybook/react": "^10.6.0",
+    "@storybook/react-vite": "^10.6.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.3",
-    "globals": "^17.7.0",
-    "sass-embedded": "^1.100.0",
-    "storybook": "^8.6.18",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "sass-embedded": "^1.103.1",
+    "storybook": "^10.6.0",
     "typescript": "^7.0.2",
-    "vite": "^6.4.3"
+    "vite": "^8.2.2"
   },
   "overrides": {
     "uuid": "^11.1.1"

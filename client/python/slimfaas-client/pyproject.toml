@@ -27,6 +27,9 @@ dev = [
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "anyio>=4.0",
+    # Pygments 2.21.0 is rejected by the CNCF FOSSA policy (GPL findings).
+    # Keep the last version validated by FOSSA until a newer release is approved.
+    "pygments==2.19.2",
 ]
 
 [tool.hatch.build.targets.wheel]

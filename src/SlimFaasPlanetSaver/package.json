@@ -36,21 +36,21 @@
     "coverage": "vitest run --coverage"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@testing-library/react": "^16.3.2",
-    "@vitejs/plugin-react": "^6.0.4",
-    "@vitest/coverage-v8": "^4.1.10",
-    "eslint": "^10.7.0",
+    "@eslint/js": "^9.39.5",
+    "@testing-library/react": "^16.3.3",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^9.39.5",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.3",
-    "globals": "^17.7.0",
-    "jsdom": "^29.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "jsdom": "^30.0.1",
     "prop-types": "15.8.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "vite": "^8.1.5",
-    "vitest": "^4.1.10"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   },
   "license": "MIT",
   "publishConfig": {
