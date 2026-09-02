@@ -278,6 +278,28 @@ public class RaftClusterTests
         await GetLocalClusterView(host3).Readiness.WaitAsync(BusyMembershipCatchUpTimeout);
         await GetLocalClusterView(host1).ForceReplicationAsync();
 
+        IDatabaseService[] readServices =
+        [
+            databaseServiceMaster,
+            host2.Services.GetRequiredService<IDatabaseService>(),
+            host3.Services.GetRequiredService<IDatabaseService>()
+        ];
+
+        const int readAfterWriteIterations = 16;
+        for (var i = 0; i < readAfterWriteIterations; i++)
+        {
+            var expected = $"version-{i:D2}";
+            await databaseServiceMaster.SetAsync(
+                "read-after-write",
+                Encoding.UTF8.GetBytes(expected));
+
+            foreach (IDatabaseService readService in readServices)
+            {
+                var actual = await readService.GetAsync("read-after-write");
+                Assert.Equal(expected, Encoding.UTF8.GetString(actual ?? []));
+            }
+        }
+
         IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
         var thirdMemberEndpoint = GetLocalClusterView(host3).LocalMemberAddress;
         Assert.True(await membershipCoordinator.RemoveMemberAsync(

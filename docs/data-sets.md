@@ -170,6 +170,12 @@ curl -s "http://<slimfaas>/data/sets/request-count"
 
 - Returns raw bytes as `application/octet-stream`.
 - `404 Not Found` when missing or expired.
+- `503 Service Unavailable` when the Raft quorum cannot guarantee a current read.
+
+Reads are linearizable. After a create or overwrite returns successfully, a
+later `GET` through any healthy cluster node observes that committed value. A
+follower applies a Raft read barrier and catches up to the leader's commit index
+before reading its local state.
 
 Examples:
 ```bash
@@ -233,11 +239,11 @@ Env override:
 
 ## Availability and backpressure
 
-Writes are grouped into bounded adaptive batches before being replicated as Raft entries. The API can return:
+Writes are grouped into bounded adaptive batches before being replicated as Raft entries. Key/value reads use a bounded Raft read barrier. The API can return:
 
 - **413 Payload Too Large** when one item exceeds the configured batch limit.
 - **429 Too Many Requests** when the in-memory adaptive batch queue is full.
-- **503 Service Unavailable** when no Raft quorum or valid leader lease is available within the bounded replication timeout.
+- **503 Service Unavailable** when no Raft quorum or valid leader lease is available within the bounded replication or read-barrier timeout.
 
 `SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
 

@@ -95,10 +95,14 @@ curl -X POST "http://<slimfaas>/data/files?id=my-artifact-001&ttl=300000"   -H "
 
 When you request an artifact:
 
-1. SlimFaas reads the **cluster-consistent metadata** for `{id}` (checksum, size, content type, filename, TTL)
+1. SlimFaas applies a Raft read barrier and reads the **cluster-consistent metadata** for `{id}` (checksum, size, content type, filename, TTL)
 2. It checks whether the binary exists locally and matches the expected checksum
 3. If missing, SlimFaas attempts to **pull** the binary from another cluster node that has it
 4. The response streams the binary to the client
+
+After a create or overwrite returns `200 OK`, a later download through any
+healthy cluster node uses the latest committed metadata. A follower waits until
+that metadata is applied locally instead of serving an older checksum.
 
 ### Responses
 
@@ -107,6 +111,7 @@ When you request an artifact:
     - a download filename if provided at upload time
 - `400 Bad Request` if id is invalid
 - `404 Not Found` if metadata is missing/expired, or if no node can provide the binary
+- `503 Service Unavailable` if the Raft quorum cannot guarantee a current metadata read
 
 ### Example (curl)
 
@@ -216,6 +221,10 @@ For `/data/files`:
 - **binary content** is stored on disk on the node that received the POST request
 
 This avoids moving large binaries through the cluster’s consensus layer.
+Metadata reads are linearizable: followers synchronize to the leader's current
+commit index before selecting the checksum to serve. Binary distribution remains
+eventual; an on-demand pull supplies the committed version when it is not yet
+present on the node handling the download.
 
 ### 2) Cluster distribution model: announce + pull
 
