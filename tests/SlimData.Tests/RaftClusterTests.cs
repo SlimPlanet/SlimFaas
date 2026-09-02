@@ -68,8 +68,8 @@ internal sealed class AdvancedDebugProvider : Disposable, ILoggerProvider
 
             if (exception is not null)
             {
-                buffer.WriteLine();
-                buffer.WriteLine();
+                buffer.Write(Environment.NewLine);
+                buffer.Write(Environment.NewLine);
                 buffer.Write(exception.ToString());
             }
 
