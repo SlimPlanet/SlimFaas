@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.82.4
+
+- [8a7fb497](https://github.com/SlimPlanet/SlimFaas/commit/8a7fb49773b8481d5bb6843d44875a510fe38909) - chore: update .NET and client dependencies (release) (#330), 2026-09-02 by *Guillaume Chervet*
+
+
+## 0.82.3
+
+
+
+## v0.82.3
+
+- [aae3e8d8](https://github.com/SlimPlanet/SlimFaas/commit/aae3e8d88599914304aed584063a83257b2930b6) - fix(slimdata): make key-value reads linearizable (#329) (release), 2026-09-02 by *Guillaume Chervet*
+
+
+## 0.82.2
+
+
+
 ## v0.82.2
 
 - [19a3e5b7](https://github.com/SlimPlanet/SlimFaas/commit/19a3e5b7b539416fa11ed7991aa966772deef96c) - fix: planet-saver clean npm packages (release), 2026-09-01 by *Guillaume Chervet*
@@ -260,25 +278,5 @@
 ## v0.73.0
 
 - [d41acb3b](https://github.com/SlimPlanet/SlimFaas/commit/d41acb3b50359d913f883754b10136f1366d95e5) - feat(slimfaas): Allow async function to stream big payload (#273) (release), 2026-07-01 by *Silthian*
-
-
-## 0.72.2
-
-
-
-## v0.72.2
-
-- [0fac74e7](https://github.com/SlimPlanet/SlimFaas/commit/0fac74e732dae2cccf11176939f1b75dda163269) - fix(slimfaas): async callback (#279) (release), 2026-05-21 by *Guillaume Chervet*
-
-
-## 0.72.1
-
-
-
-## v0.72.1
-
-- [dd633753](https://github.com/SlimPlanet/SlimFaas/commit/dd6337536b174019f8886182e600ceff7586013a) - fix(jobs): preserve initial env-var job configurations after k8s sync (#277) (release), 2026-05-19 by *Silthian*
-- [7230c898](https://github.com/SlimPlanet/SlimFaas/commit/7230c8986e0f62fea7ec861fbb98eef58e554b4b) - Update pnpm and npm libraries (#276), 2026-05-15 by *Copilot*
-- [b06371a3](https://github.com/SlimPlanet/SlimFaas/commit/b06371a3972cdda9413ad9c81dcfd79534d4ca3a) - dox: Update footer LF Projects trademark disclaimer (#274), 2026-05-05 by *Copilot*
 
 
