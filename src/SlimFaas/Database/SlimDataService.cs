@@ -21,6 +21,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     private const string UnifiedBatchKind = "commands";
     private const string UnifiedBatchResource = "SlimData/CommandBatch";
     private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(1);
+    private static readonly TimeSpan ReadBarrierTimeout = TimeSpan.FromSeconds(5);
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IServiceProvider _serviceProvider;
@@ -475,9 +476,29 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 
     private async Task<byte[]?> DoGetAsync(string key)
     {
-        await GetAndWaitForLeader().ConfigureAwait(false);
-        await WaitForLocalApplyAsync().ConfigureAwait(false);
-        await MasterWaitForLeaseToken().ConfigureAwait(false);
+        using var timeout = new CancellationTokenSource(ReadBarrierTimeout);
+        try
+        {
+            await GetAndWaitForLeader(timeout.Token).ConfigureAwait(false);
+
+            // On a follower, the read barrier asks the leader for its current
+            // commit index and waits until that index is applied locally.
+            // Weak avoids forcing unrelated pending writes on the leader; a
+            // completed SetAsync is already committed before it returns.
+            await _cluster.ApplyReadBarrierAsync(ReadBarrierType.Weak, timeout.Token)
+                .ConfigureAwait(false);
+            await MasterWaitForLeaseToken(timeout.Token).ConfigureAwait(false);
+        }
+        catch (QuorumUnreachableException ex)
+        {
+            throw new SlimDataUnavailableException(
+                "Raft quorum is unavailable for a linearizable read.", ex);
+        }
+        catch (OperationCanceledException ex) when (timeout.IsCancellationRequested)
+        {
+            throw new SlimDataUnavailableException(
+                "Raft read barrier or leader lease timed out.", ex);
+        }
 
         var data = SimplePersistentState.Invoke();
         if (TryReadExpireAtFromKeyValues(data, key, out var expireAt) &&
