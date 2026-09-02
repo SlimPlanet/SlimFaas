@@ -1,0 +1,178 @@
+# Default values for slimfaas.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+## @section Global parameters
+
+## @param nameOverride Override the name of the chart
+nameOverride: ""
+## @param fullnameOverride Override the full name of the chart (overrides both chart name and release name)
+fullnameOverride: ""
+
+## @section SlimFaas StatefulSet parameters
+
+## @param replicaCount Number of SlimFaas replicas.
+## It is recommended to run at least 3 replicas for high availability.
+replicaCount: 3
+
+image:
+  ## @param image.repository Container image repository
+  repository: axaguildev/slimfaas
+  ## @param image.pullPolicy Image pull policy
+  pullPolicy: IfNotPresent
+  ## @param image.tag Overrides the image tag. Defaults to the chart appVersion.
+  tag: ""
+
+## @param imagePullSecrets List of image pull secrets
+imagePullSecrets: []
+
+## @section Service Account and RBAC
+
+serviceAccount:
+  ## @param serviceAccount.create Whether to create a ServiceAccount for SlimFaas
+  create: true
+  ## @param serviceAccount.name Name of the ServiceAccount. Defaults to the chart fullname.
+  name: ""
+  ## @param serviceAccount.annotations Annotations to add to the ServiceAccount
+  annotations: {}
+
+rbac:
+  ## @param rbac.create Whether to create RBAC Role and RoleBinding resources
+  create: true
+
+## @section Pod configuration
+
+## @param podAnnotations Annotations to add to the SlimFaas pods
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/path: /metrics
+  prometheus.io/port: "5000"
+
+## @param podSecurityContext Pod-level security context
+podSecurityContext: {}
+
+## @param securityContext Container-level security context
+securityContext: {}
+
+## @section Service
+
+service:
+  ## @param service.port Port for the SlimFaas HTTP service
+  port: 5000
+  ## @param service.slimDataPort Port for SlimData inter-node communication
+  slimDataPort: 3262
+
+## @section Persistent Volume Claims
+
+persistence:
+  ## @param persistence.database.size Size of the primary data volume
+  database:
+    size: 2Gi
+    ## @param persistence.database.storageClass StorageClass for the primary data volume. Leave empty to use the default.
+    storageClass: ""
+  ## @param persistence.backup.size Size of the backup volume
+  backup:
+    size: 1Gi
+    ## @param persistence.backup.storageClass StorageClass for the backup volume. Leave empty to use the default.
+    storageClass: ""
+
+## @section Resource requests and limits
+
+resources:
+  limits:
+    cpu: 400m
+    memory: 180Mi
+  requests:
+    cpu: 400m
+    memory: 180Mi
+
+## @section Liveness and Readiness probes
+
+## @param terminationGracePeriodSeconds Duration in seconds the pod needs to terminate gracefully
+terminationGracePeriodSeconds: 10
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 5000
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 8
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: 5000
+  initialDelaySeconds: 3
+  periodSeconds: 10
+  timeoutSeconds: 8
+
+## @section Environment variables
+
+## @param env Additional environment variables to set on the SlimFaas container
+env: {}
+  # MY_CUSTOM_VAR: "value"
+
+## @param defaultVisibility Default visibility for functions. Options: "Public" or "Private"
+defaultVisibility: "Public"
+
+## @param logLevel Log level for SlimFaas. Options: "Debug", "Information", "Warning", "Error"
+logLevel: "Information"
+
+## @section Jobs configuration
+
+## @param jobsConfiguration JSON configuration for SlimFaas batch jobs.
+## Set to a JSON string to enable batch job support.
+## See https://github.com/SlimPlanet/SlimFaas for full documentation.
+jobsConfiguration: ""
+# jobsConfiguration: |
+#   {
+#     "Configurations": {
+#       "my-job": {
+#         "Image": "my-image:latest",
+#         "Resources": {
+#           "Requests": { "cpu": "400m", "memory": "400Mi" },
+#           "Limits": { "cpu": "400m", "memory": "400Mi" }
+#         },
+#         "BackoffLimit": 1,
+#         "Visibility": "Public",
+#         "NumberParallelJob": 2,
+#         "TtlSecondsAfterFinished": 2,
+#         "RestartPolicy": "Never"
+#       }
+#     }
+#   }
+
+## @section Ingress
+
+ingress:
+  ## @param ingress.enabled Whether to create an Ingress resource
+  enabled: false
+  ## @param ingress.className Ingress class name (e.g., "nginx", "traefik")
+  className: ""
+  ## @param ingress.annotations Annotations to add to the Ingress
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  ## @param ingress.hosts List of Ingress host rules
+  hosts:
+    - host: slimfaas.local
+      paths:
+        - path: /
+          pathType: Prefix
+  ## @param ingress.tls TLS configuration for the Ingress
+  tls: []
+  #  - secretName: slimfaas-tls
+  #    hosts:
+  #      - slimfaas.local
+
+## @section Node scheduling
+
+## @param nodeSelector Node selector for pod scheduling
+nodeSelector: {}
+
+## @param tolerations Tolerations for pod scheduling
+tolerations: []
+
+## @param affinity Affinity rules for pod scheduling
+affinity: {}
