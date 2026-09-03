@@ -8,6 +8,7 @@ public sealed class AutoScaler
     private readonly IAutoScalerStore _store;
     private readonly InMemoryAutoScalerStore _recommendationStore = new();
     private readonly ILogger<AutoScaler>? _logger;
+    private readonly IExternalMetricsSourceHealthRegistry _externalHealthRegistry;
     private readonly ConcurrentDictionary<string, CachedQuery> _queryCache =
         new(StringComparer.Ordinal);
 
@@ -17,11 +18,13 @@ public sealed class AutoScaler
     public AutoScaler(
         PromQlMiniEvaluator evaluator,
         IAutoScalerStore store,
-        ILogger<AutoScaler>? logger = null)
+        ILogger<AutoScaler>? logger = null,
+        IExternalMetricsSourceHealthRegistry? externalHealthRegistry = null)
     {
         _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _logger = logger;
+        _externalHealthRegistry = externalHealthRegistry ?? new ExternalMetricsSourceHealthRegistry();
     }
 
     public int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds)
@@ -150,17 +153,25 @@ public sealed class AutoScaler
 
         foreach (var trigger in config.Triggers)
         {
+            string sourceLabel = MetricsSourceScope.Label(trigger.Source);
             if (string.IsNullOrWhiteSpace(trigger.Query))
             {
                 hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
                 continue;
             }
 
             if (trigger.Threshold <= 0)
             {
                 hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
+                continue;
+            }
+
+            if (trigger.Source is null && currentReplicas == 0)
+            {
+                hasInvalidTrigger = true;
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
                 continue;
             }
 
@@ -176,11 +187,47 @@ public sealed class AutoScaler
                         trigger.Query,
                         trigger.MetricName,
                         cachedQuery.Error);
-                    AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                    AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
                     continue;
                 }
 
-                metricValue = _evaluator.Evaluate(cachedQuery.Query, nowUnixSeconds, key);
+                string scope = key;
+                TimeSpan? externalLookback = null;
+                if (trigger.Source is not null)
+                {
+                    scope = MetricsSourceScope.ForExternal(key, trigger.Source);
+                    if (!_externalHealthRegistry.IsHealthy(
+                            scope,
+                            nowUnixSeconds,
+                            cachedQuery.Query.ReferencedMetricNames,
+                            out string healthReason))
+                    {
+                        hasInvalidTrigger = true;
+                        _logger?.LogWarning(
+                            "External metrics source {Source} is invalid for function {Function}: {Reason}",
+                            trigger.Source,
+                            key,
+                            healthReason);
+                        AutoScalerTelemetry.RecordTrigger(
+                            key,
+                            trigger.MetricName,
+                            sourceLabel,
+                            0,
+                            isValid: false);
+                        continue;
+                    }
+
+                    if (_externalHealthRegistry.TryGet(scope, out ExternalMetricsSourceHealth? health) &&
+                        health is not null)
+                    {
+                        externalLookback = TimeSpan.FromMilliseconds(
+                            health.ScrapeIntervalMilliseconds * 3L);
+                    }
+                }
+
+                metricValue = externalLookback.HasValue
+                    ? _evaluator.Evaluate(cachedQuery.Query, nowUnixSeconds, scope, externalLookback.Value)
+                    : _evaluator.Evaluate(cachedQuery.Query, nowUnixSeconds, scope);
             }
             catch (FormatException ex)
             {
@@ -189,7 +236,7 @@ public sealed class AutoScaler
                     trigger.Query,
                     trigger.MetricName);
                 hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
                 continue;
             }
             catch (InvalidOperationException ex)
@@ -198,7 +245,7 @@ public sealed class AutoScaler
                     "InvalidOperationException while evaluating PromQL query '{Query}'",
                     trigger.Query);
                 hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
                 continue;
             }
             catch (ArgumentException ex)
@@ -207,25 +254,25 @@ public sealed class AutoScaler
                     "ArgumentException while evaluating PromQL query '{Query}'",
                     trigger.Query);
                 hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
                 continue;
             }
 
             if (double.IsNaN(metricValue) || double.IsInfinity(metricValue))
             {
                 hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
                 continue;
             }
 
             if (metricValue < 0)
             {
                 hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, 0, isValid: false);
                 continue;
             }
 
-            AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, metricValue, isValid: true);
+            AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, sourceLabel, metricValue, isValid: true);
 
             var effectiveCurrent = currentReplicas == 0 ? 1 : currentReplicas;
             var ratio = metricValue / trigger.Threshold;

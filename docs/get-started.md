@@ -42,6 +42,13 @@ kubectl apply -f deployment-kafka.yml
 docker run -d -p 8000:8000 --rm axaguildev/fibonacci-webapp:latest
 ```
 
+The demo manifests expose the SlimFaas and SlimFaasKafka queue metrics through
+Services. Functions can reference those always-on endpoints with named
+`SlimFaas/Scale.Sources`, allowing queue pressure to wake a function from zero.
+See [Autoscaling](autoscaling.md#configuring-metrics-based-scaling) for the schema
+and [Native Local Mode](native-local-mode.md#validate-external-openmetrics-autoscaling)
+for the reproducible `0 → 2 → 4 → 0` integration test.
+
 ### Test Synchronous Calls
 If you used slimfaas-nodeport.yml, port 30021 might be exposed. You can call your functions via SlimFaas:
 

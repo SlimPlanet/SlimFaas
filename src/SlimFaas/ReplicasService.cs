@@ -121,7 +121,8 @@ public class ReplicasService(
 
             // --- Calcul commun : désir des métriques (Prometheus), si activées ---
             int? desiredFromMetrics = null;
-            if (deploymentInformation.Scale?.Triggers.Count > 0 && currentScale > 0)
+            if (deploymentInformation.Scale is { Triggers.Count: > 0 } scale &&
+                (currentScale > 0 || scale.Triggers.Any(static trigger => trigger.Source is not null)))
             {
                 desiredFromMetrics = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
             }

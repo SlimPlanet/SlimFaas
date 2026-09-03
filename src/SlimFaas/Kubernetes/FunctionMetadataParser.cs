@@ -132,6 +132,50 @@ public static class FunctionMetadataParser
                 $"{ScaleConfig.MaximumScrapeIntervalMilliseconds}.");
         }
 
+        var sources = new List<ScaleSource>();
+        var sourceNames = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ScaleSource? source in scale.Sources ?? [])
+        {
+            if (source is null)
+                throw new FormatException($"{FunctionAnnotationNames.Scale}.Sources cannot contain null values.");
+
+            string name = source.Name?.Trim() ?? string.Empty;
+            string url = source.Url?.Trim() ?? string.Empty;
+            if (name.Length == 0)
+                throw new FormatException($"{FunctionAnnotationNames.Scale}.Sources[].Name is required.");
+            if (!sourceNames.Add(name))
+                throw new FormatException(
+                    $"{FunctionAnnotationNames.Scale}.Sources contains duplicate source name '{name}'.");
+            if (!Uri.TryCreate(url, UriKind.Absolute, out Uri? uri) ||
+                (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) ||
+                string.IsNullOrWhiteSpace(uri.Host) ||
+                !string.IsNullOrEmpty(uri.UserInfo) ||
+                !string.IsNullOrEmpty(uri.Fragment))
+            {
+                throw new FormatException(
+                    $"{FunctionAnnotationNames.Scale}.Sources['{name}'].Url must be an absolute HTTP or HTTPS URL " +
+                    "without credentials or a fragment.");
+            }
+
+            sources.Add(source with { Name = name, Url = uri.AbsoluteUri });
+        }
+
+        var triggers = new List<ScaleTrigger>();
+        foreach (ScaleTrigger? trigger in scale.Triggers ?? [])
+        {
+            if (trigger is null)
+                throw new FormatException($"{FunctionAnnotationNames.Scale}.Triggers cannot contain null values.");
+
+            string? source = string.IsNullOrWhiteSpace(trigger.Source) ? null : trigger.Source.Trim();
+            if (source is not null && !sourceNames.Contains(source))
+            {
+                throw new FormatException(
+                    $"{FunctionAnnotationNames.Scale}.Triggers references unknown source '{source}'.");
+            }
+
+            triggers.Add(trigger with { Source = source });
+        }
+
         ScaleBehavior behavior = scale.Behavior ?? new ScaleBehavior();
         ScaleDirectionBehavior scaleUp = behavior.ScaleUp ?? ScaleDirectionBehavior.DefaultScaleUp();
         ScaleDirectionBehavior scaleDown = behavior.ScaleDown ?? ScaleDirectionBehavior.DefaultScaleDown();
@@ -144,7 +188,8 @@ public static class FunctionMetadataParser
 
         return scale with
         {
-            Triggers = scale.Triggers ?? [],
+            Sources = sources,
+            Triggers = triggers,
             Behavior = behavior with
             {
                 ScaleUp = scaleUp with { Policies = upPolicies },

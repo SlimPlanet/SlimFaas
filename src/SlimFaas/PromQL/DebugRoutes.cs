@@ -13,7 +13,9 @@ public static class DebugRoutes
                 PromQlRequest req,
                 PromQlMiniEvaluator eval,
                 IMetricsScrapingGuard guard,
-                IRequestedMetricsRegistry registry) =>
+                IRequestedMetricsRegistry registry,
+                IReplicasService replicasService,
+                IExternalMetricsSourceHealthRegistry externalHealthRegistry) =>
             {
                 // Active le scraping côté PromQL
                 guard.EnablePromql();
@@ -23,11 +25,59 @@ public static class DebugRoutes
 
                 if (string.IsNullOrWhiteSpace(req.Query))
                     return Results.BadRequest(new ErrorResponse { Error = "query is required" });
+                if (string.IsNullOrWhiteSpace(req.Deployment))
+                    return Results.BadRequest(new ErrorResponse { Error = "deployment is required" });
 
                 double result;
                 try
                 {
-                    result = eval.Evaluate(req.Query, req.NowUnixSeconds, req.Deployment);
+                    CompiledPromQlQuery query = PromQlQueryCompiler.Compile(req.Query);
+                    string scope = req.Deployment;
+                    TimeSpan? externalLookback = null;
+                    if (!string.IsNullOrWhiteSpace(req.Source))
+                    {
+                        DeploymentInformation? deployment = replicasService.Deployments.Functions.FirstOrDefault(
+                            function => string.Equals(
+                                function.Deployment,
+                                req.Deployment,
+                                StringComparison.Ordinal));
+                        ScaleSource? source = deployment?.Scale?.Sources.FirstOrDefault(
+                            source => string.Equals(source.Name, req.Source, StringComparison.Ordinal));
+                        if (source is null)
+                        {
+                            return Results.BadRequest(new ErrorResponse
+                            {
+                                Error = $"source '{req.Source}' is not configured for deployment '{req.Deployment}'"
+                            });
+                        }
+
+                        scope = MetricsSourceScope.ForExternal(req.Deployment, source.Name);
+                        long now = req.NowUnixSeconds ?? DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                        if (!externalHealthRegistry.IsHealthy(
+                                scope,
+                                now,
+                                query.ReferencedMetricNames,
+                                out string reason))
+                        {
+                            return Results.BadRequest(new ErrorResponse
+                            {
+                                Error = $"source '{source.Name}' is unavailable: {reason}"
+                            });
+                        }
+
+                        if (externalHealthRegistry.TryGet(
+                                scope,
+                                out ExternalMetricsSourceHealth? health) &&
+                            health is not null)
+                        {
+                            externalLookback = TimeSpan.FromMilliseconds(
+                                health.ScrapeIntervalMilliseconds * 3L);
+                        }
+                    }
+
+                    result = externalLookback.HasValue
+                        ? eval.Evaluate(query, req.NowUnixSeconds, scope, externalLookback.Value)
+                        : eval.Evaluate(query, req.NowUnixSeconds, scope);
 
                     // IMPORTANT : filtrer NaN / ±Infinity
                     if (double.IsNaN(result) || double.IsInfinity(result))

@@ -45,6 +45,11 @@ public class FunctionStatusMappingTests
                     WakeUp = new List<string> { "08:00" },
                     ScaleDownTimeout = new List<ScaleDownTimeout>()
                 }
+            },
+            Scale: new ScaleConfig
+            {
+                Sources = [new ScaleSource("queue", "https://metrics.example.test/metrics")],
+                Triggers = [new ScaleTrigger(Query: "queue_depth", Threshold: 1, Source: "queue")]
             }
         );
 
@@ -85,6 +90,10 @@ public class FunctionStatusMappingTests
         // Schedule
         Assert.NotNull(result.Schedule);
         Assert.Single(result.Schedule.Default!.WakeUp);
+
+        // External autoscaling source and trigger remain visible in detailed status.
+        Assert.Equal("queue", Assert.Single(result.Scale!.Sources).Name);
+        Assert.Equal("queue", Assert.Single(result.Scale.Triggers).Source);
 
         // Pods
         Assert.Equal(2, result.Pods.Count);
@@ -207,4 +216,3 @@ public class FunctionStatusMappingTests
         Assert.Equal(1, result.NumberRequested);
     }
 }
-

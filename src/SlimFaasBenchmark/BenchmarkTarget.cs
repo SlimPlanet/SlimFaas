@@ -16,6 +16,7 @@ internal static class BenchmarkTarget
         var observations = new ConcurrentDictionary<string, ObservationAccumulator>(StringComparer.Ordinal);
         long requestCount = 0;
         long lastScaleWorkTicks = 0;
+        long externalScalePressure = 0;
 
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
@@ -36,8 +37,17 @@ internal static class BenchmarkTarget
                     $"# TYPE slimfaas_benchmark_target_requests_total counter\n" +
                     $"slimfaas_benchmark_target_requests_total {Volatile.Read(ref requestCount)}\n" +
                     $"# TYPE slimfaas_benchmark_scale_pressure gauge\n" +
-                    $"slimfaas_benchmark_scale_pressure {scalePressure}\n"),
+                    $"slimfaas_benchmark_scale_pressure {scalePressure}\n" +
+                    $"# TYPE slimfaas_benchmark_external_pressure gauge\n" +
+                    $"slimfaas_benchmark_external_pressure {Volatile.Read(ref externalScalePressure)}\n"),
                 "text/plain; version=0.0.4");
+        });
+        app.MapPut("/benchmark/external-pressure/{value:long}", (long value) =>
+        {
+            if (value < 0)
+                return Results.BadRequest("pressure must be greater than or equal to zero");
+            Interlocked.Exchange(ref externalScalePressure, value);
+            return Results.NoContent();
         });
         app.MapGet("/benchmark/observations/{runId}", (string runId) =>
         {

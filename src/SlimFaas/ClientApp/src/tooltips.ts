@@ -49,10 +49,10 @@ export const FN = {
     'Async retry configuration: HTTP timeout per attempt, retry delays in seconds between attempts, and HTTP status codes that trigger a retry (SlimFaas/DefaultAsync).',
 
   maxReplicas:
-    'Upper bound for the Prometheus-based N→M autoscaler (SlimFaas/Scale → ReplicaMax).',
+    'Upper bound for PromQL-based autoscaling, including external-source wake-up from zero (SlimFaas/Scale → ReplicaMax).',
 
   triggers:
-    'Prometheus metrics triggers for N→M autoscaling (SlimFaas/Scale → Triggers). Each trigger defines a metric, a threshold, and a metric type (AverageValue or Value).',
+    'OpenMetrics triggers for autoscaling. Pod metrics adjust N→M; named external sources can also wake a function from zero. Each trigger defines a metric, threshold, metric type, and optional source.',
 
   behavior:
     'Scale-up and scale-down stabilization and rate-limiting policies (SlimFaas/Scale → Behavior).',
@@ -103,4 +103,3 @@ export const JOB = {
   memResources:
     'Kubernetes Memory request / limit for this job.',
 } as const;
-

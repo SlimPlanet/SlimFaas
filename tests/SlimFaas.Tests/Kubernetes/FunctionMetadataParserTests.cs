@@ -111,4 +111,79 @@ public sealed class FunctionMetadataParserTests
         Assert.Null(metadata.Scale);
         Assert.NotNull(metadata.Schedule);
     }
+
+    [Fact]
+    public void Parse_NormalizesNamedExternalSourcesAndTriggerReferences()
+    {
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(
+            new Dictionary<string, string>
+            {
+                [FunctionAnnotationNames.Function] = "true",
+                [FunctionAnnotationNames.Scale] =
+                    """
+                    {
+                      "Sources": [{"Name":" redis ","Url":" https://metrics.example.test/openmetrics?tenant=one "}],
+                      "Triggers": [{"MetricName":"queue","Query":"queue_depth","Threshold":1,"Source":" redis "}]
+                    }
+                    """
+            },
+            "function");
+
+        ScaleConfig scale = Assert.IsType<ScaleConfig>(metadata.Scale);
+        ScaleSource source = Assert.Single(scale.Sources);
+        Assert.Equal("redis", source.Name);
+        Assert.Equal("https://metrics.example.test/openmetrics?tenant=one", source.Url);
+        Assert.Equal("redis", Assert.Single(scale.Triggers).Source);
+    }
+
+    [Theory]
+    [InlineData("ftp://metrics.example.test/metrics")]
+    [InlineData("/metrics")]
+    [InlineData("https://user:secret@metrics.example.test/metrics")]
+    [InlineData("https://metrics.example.test/metrics#private")]
+    public void NormalizeScaleConfig_RejectsInvalidExternalSourceUrls(string url)
+    {
+        var scale = new ScaleConfig
+        {
+            Sources = [new ScaleSource("source", url)]
+        };
+
+        Assert.Throws<FormatException>(() => FunctionMetadataParser.NormalizeScaleConfig(scale));
+    }
+
+    [Fact]
+    public void NormalizeScaleConfig_RejectsDuplicateSourceNamesCaseSensitively()
+    {
+        var duplicate = new ScaleConfig
+        {
+            Sources =
+            [
+                new ScaleSource("redis", "http://redis-one/metrics"),
+                new ScaleSource("redis", "http://redis-two/metrics")
+            ]
+        };
+        var distinctCase = duplicate with
+        {
+            Sources =
+            [
+                new ScaleSource("redis", "http://redis-one/metrics"),
+                new ScaleSource("Redis", "http://redis-two/metrics")
+            ]
+        };
+
+        Assert.Throws<FormatException>(() => FunctionMetadataParser.NormalizeScaleConfig(duplicate));
+        Assert.Equal(2, FunctionMetadataParser.NormalizeScaleConfig(distinctCase).Sources.Count);
+    }
+
+    [Fact]
+    public void NormalizeScaleConfig_RejectsUnknownTriggerSource()
+    {
+        var scale = new ScaleConfig
+        {
+            Sources = [new ScaleSource("known", "http://metrics/metrics")],
+            Triggers = [new ScaleTrigger(Query: "queue_depth", Threshold: 1, Source: "unknown")]
+        };
+
+        Assert.Throws<FormatException>(() => FunctionMetadataParser.NormalizeScaleConfig(scale));
+    }
 }

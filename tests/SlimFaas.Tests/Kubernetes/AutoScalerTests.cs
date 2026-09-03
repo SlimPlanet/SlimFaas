@@ -361,14 +361,13 @@ public sealed class AutoScalerTests
 
 
     [Fact]
-    public void FromZero_WithPositiveMetric_ShouldScaleFromOne()
+    public void FromZero_WithLocalResidualMetric_ShouldRemainAtZero()
     {
         var scaler = CreateAutoScaler();
         string key = "func";
         long now = 1_000;
 
-        // current = 0 → effectiveCurrent = 1
-        // metric = 10, thr = 5 → ratio = 2 → desired = ceil(1 * 2) = 2
+        // Pod-local triggers are ignored at zero; only an external source can wake.
         var cfg = MakeSimpleScaleConfig(metricValue: 10, threshold: 5);
 
         var desired = scaler.ComputeDesiredReplicas(
@@ -379,7 +378,7 @@ public sealed class AutoScalerTests
             maxReplicas: 100,
             nowUnixSeconds: now);
 
-        Assert.Equal(2, desired);
+        Assert.Equal(0, desired);
     }
 
     [Fact]

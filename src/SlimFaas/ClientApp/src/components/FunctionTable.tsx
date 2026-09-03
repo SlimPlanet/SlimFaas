@@ -207,7 +207,9 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new
                       <span className="function-table__scale-val">
                         {fn.Scale.Triggers.map((t, i) => (
                           <span key={i} className="function-table__trigger-item">
-                            <code className="function-table__trigger-code">{t.MetricName || t.Query}</code>
+                            <code className="function-table__trigger-code">
+                              {t.MetricName || t.Query}{t.Source ? ` @${t.Source}` : ''}
+                            </code>
                             <span className="function-table__replicas-info">{t.MetricType}&nbsp;≥&nbsp;{t.Threshold}</span>
                           </span>
                         ))}
@@ -286,4 +288,3 @@ const FunctionTable: React.FC<Props> = ({ functions, onWakeUp, coolingDown = new
 };
 
 export default FunctionTable;
-

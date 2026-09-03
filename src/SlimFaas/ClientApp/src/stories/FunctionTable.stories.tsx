@@ -67,8 +67,9 @@ const FUNCTIONS_ALL_DOWN: FunctionStatusDetailed[] = [
     Schedule: { TimeZoneID: 'GB', Default: { WakeUp: ['0 8 * * 1-5'], ScaleDownTimeout: [] } },
     Scale: {
       ReplicaMax: 5,
+      Sources: [{ Name: 'queue', Url: 'http://queue-exporter:9090/metrics' }],
       Triggers: [
-        { MetricType: 'AverageValue', MetricName: 'http_requests_per_second', Query: '', Threshold: 100 },
+        { MetricType: 'AverageValue', MetricName: 'queue_depth', Query: 'queue_depth', Threshold: 100, Source: 'queue' },
       ],
       Behavior: {
         ScaleUp: { StabilizationWindowSeconds: 0, Policies: [{ Type: 'Percent', Value: 100, PeriodSeconds: 15 }, { Type: 'Pods', Value: 4, PeriodSeconds: 15 }] },
@@ -214,4 +215,3 @@ export const Empty: Story = {
   name: 'No functions',
   args: { functions: [] },
 };
-

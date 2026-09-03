@@ -20,7 +20,13 @@ public record ScaleTrigger(
     ScaleMetricType MetricType = ScaleMetricType.AverageValue,
     string MetricName = "",
     string Query = "",
-    double Threshold = 0
+    double Threshold = 0,
+    string? Source = null
+);
+
+public record ScaleSource(
+    string Name = "",
+    string Url = ""
 );
 
 public record ScalePolicy(
@@ -74,6 +80,9 @@ public record ScaleConfig
 
     // Par défaut, pas de triggers si non fournis
     public IList<ScaleTrigger> Triggers { get; init; } = new List<ScaleTrigger>();
+
+    // Named external OpenMetrics endpoints available to triggers.
+    public IList<ScaleSource> Sources { get; init; } = new List<ScaleSource>();
 
     // Par défaut, comportement = defaults ci-dessus
     public ScaleBehavior Behavior { get; init; } = new();

@@ -9,13 +9,15 @@ internal static class AutoScalerTelemetry
         "slimfaas_autoscaler_trigger_value",
         "Latest value evaluated for an autoscaling trigger.",
         "function",
-        "metric");
+        "metric",
+        "source");
 
     private static readonly Gauge TriggerValid = Metrics.CreateGauge(
         "slimfaas_autoscaler_trigger_valid",
         "Whether the latest autoscaling trigger evaluation produced usable data.",
         "function",
-        "metric");
+        "metric",
+        "source");
 
     private static readonly Gauge CurrentReplicas = Metrics.CreateGauge(
         "slimfaas_autoscaler_current_replicas",
@@ -45,12 +47,13 @@ internal static class AutoScalerTelemetry
     public static void RecordTrigger(
         string key,
         string metricName,
+        string source,
         double value,
         bool isValid)
     {
         var metric = string.IsNullOrWhiteSpace(metricName) ? "unnamed" : metricName;
-        TriggerValue.WithLabels(key, metric).Set(isValid ? value : 0);
-        TriggerValid.WithLabels(key, metric).Set(isValid ? 1 : 0);
+        TriggerValue.WithLabels(key, metric, source).Set(isValid ? value : 0);
+        TriggerValid.WithLabels(key, metric, source).Set(isValid ? 1 : 0);
     }
 
     public static void RecordDecision(

@@ -1,0 +1,78 @@
+schemaVersion: 1
+name: slimfaas-external-metrics
+
+cluster:
+  nodes: 1
+  entrypointPort: 31120
+  nodeHttpPortBase: 31121
+  raftPortBase: 3172
+  nodeLogLevel: Information
+
+processPorts:
+  from: 32100
+  to: 32110
+
+state:
+  mode: ephemeral
+
+functions:
+  benchmark-external-scale:
+    command:
+      - dotnet
+      - src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll
+      - target
+    workingDirectory: ..
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "0"
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/ReplicasMin: "0"
+      SlimFaas/Scale: >
+        {
+          "ReplicaMax": 4,
+          "ScrapeIntervalMilliseconds": 1000,
+          "Sources": [
+            {
+              "Name": "benchmark-exporter",
+              "Url": "http://127.0.0.1:31180/metrics"
+            }
+          ],
+          "Triggers": [
+            {
+              "MetricType": "AverageValue",
+              "MetricName": "external_pressure",
+              "Query": "slimfaas_benchmark_external_pressure",
+              "Threshold": 1,
+              "Source": "benchmark-exporter"
+            }
+          ],
+          "Behavior": {
+            "ScaleUp": {
+              "StabilizationWindowSeconds": 0,
+              "Policies": []
+            },
+            "ScaleDown": {
+              "StabilizationWindowSeconds": 0,
+              "Policies": []
+            }
+          }
+        }
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://127.0.0.1:{port}"
+    health:
+      path: /health
+      periodSeconds: 1
+      timeoutSeconds: 2
+      startupTimeoutSeconds: 120
+
+processes:
+  benchmark-exporter:
+    command:
+      - dotnet
+      - src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll
+      - target
+      - --port
+      - "31180"
+    workingDirectory: ..
+    restartPolicy: always
