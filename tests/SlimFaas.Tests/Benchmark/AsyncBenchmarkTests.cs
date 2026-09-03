@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using SlimFaasBenchmark;
@@ -6,6 +8,46 @@ namespace SlimFaas.Tests.Benchmark;
 
 public sealed class AsyncBenchmarkTests
 {
+    [Fact]
+    public async Task Target_external_pressure_endpoint_controls_exported_metric()
+    {
+        int port = GetAvailablePort();
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        Task<int> target = BenchmarkTarget.RunAsync(
+            CommandArguments.Parse(["--port", port.ToString()]),
+            cancellation.Token);
+        using var client = new HttpClient
+        {
+            BaseAddress = new Uri($"http://127.0.0.1:{port}"),
+            Timeout = TimeSpan.FromSeconds(2)
+        };
+
+        try
+        {
+            await WaitUntilHealthyAsync(client, cancellation.Token);
+
+            using HttpResponseMessage invalid = await client.PutAsync(
+                "/benchmark/external-pressure/-1",
+                content: null,
+                cancellation.Token);
+            Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+
+            using HttpResponseMessage updated = await client.PutAsync(
+                "/benchmark/external-pressure/4",
+                content: null,
+                cancellation.Token);
+            Assert.Equal(HttpStatusCode.NoContent, updated.StatusCode);
+
+            string metrics = await client.GetStringAsync("/metrics", cancellation.Token);
+            Assert.Contains("slimfaas_benchmark_external_pressure 4", metrics, StringComparison.Ordinal);
+        }
+        finally
+        {
+            await cancellation.CancelAsync();
+            Assert.Equal(0, await target.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+    }
+
     [Fact]
     public void Statistics_compute_interpolated_percentiles_and_mean_inputs()
     {
@@ -204,6 +246,34 @@ public sealed class AsyncBenchmarkTests
             [],
             scaling,
             []);
+    }
+
+    private static int GetAvailablePort()
+    {
+        var listener = new TcpListener(IPAddress.Loopback, 0);
+        listener.Start();
+        int port = ((IPEndPoint)listener.LocalEndpoint).Port;
+        listener.Stop();
+        return port;
+    }
+
+    private static async Task WaitUntilHealthyAsync(HttpClient client, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            try
+            {
+                using HttpResponseMessage response = await client.GetAsync("/health", cancellationToken);
+                if (response.IsSuccessStatusCode)
+                    return;
+            }
+            catch (HttpRequestException)
+            {
+                // Kestrel is still starting.
+            }
+
+            await Task.Delay(25, cancellationToken);
+        }
     }
 
     private static LatencyAggregateResult Row(

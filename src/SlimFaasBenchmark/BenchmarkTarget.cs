@@ -10,7 +10,9 @@ internal static class BenchmarkTarget
     internal const string SentTicksHeader = "X-SlimFaas-Benchmark-Sent-Utc-Ticks";
     internal const string RequestIdHeader = "X-SlimFaas-Benchmark-Request-Id";
 
-    public static async Task<int> RunAsync(CommandArguments arguments)
+    public static async Task<int> RunAsync(
+        CommandArguments arguments,
+        CancellationToken cancellationToken = default)
     {
         int port = ResolvePort(arguments);
         var observations = new ConcurrentDictionary<string, ObservationAccumulator>(StringComparer.Ordinal);
@@ -102,7 +104,7 @@ internal static class BenchmarkTarget
             });
 
         Console.WriteLine($"SlimFaas benchmark target listening on http://127.0.0.1:{port}");
-        await app.RunAsync();
+        await app.RunAsync(cancellationToken);
         return 0;
     }
 
