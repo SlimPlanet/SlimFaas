@@ -197,6 +197,34 @@ namespace SlimFaas.Tests.Workers
                 Pods: new List<PodInformation>());
         }
 
+        private static DeploymentsInformations BuildExternalDeployments(
+            params (string Function, string Source, string Url, int TriggerCount)[] definitions)
+        {
+            var functions = definitions.Select(definition => new DeploymentInformation(
+                Deployment: definition.Function,
+                Namespace: "ns",
+                Pods: [],
+                Configuration: new SlimFaasConfiguration(),
+                Replicas: 0,
+                Scale: new ScaleConfig
+                {
+                    ScrapeIntervalMilliseconds = 1_000,
+                    Sources = [new ScaleSource(definition.Source, definition.Url)],
+                    Triggers = Enumerable.Range(0, definition.TriggerCount)
+                        .Select(index => new ScaleTrigger(
+                            MetricName: $"metric-{index}",
+                            Query: "external_pressure",
+                            Threshold: 1,
+                            Source: definition.Source))
+                        .ToList()
+                })).ToList();
+
+            return new DeploymentsInformations(
+                functions,
+                new SlimFaasDeploymentInformation(0, []),
+                []);
+        }
+
         private sealed class MapHttpHandler : HttpMessageHandler
         {
             private readonly ConcurrentDictionary<string, (HttpStatusCode code, string body)> _map;
@@ -294,7 +322,8 @@ namespace SlimFaas.Tests.Workers
             bool scrapingEnabled = true,
             int delayMs = 10_000,
             MetricsScrapingOptions? metricsScrapingOptions = null,
-            IMasterService? masterService = null) // le scraping se fait avant le premier Delay
+            IMasterService? masterService = null,
+            IExternalMetricsSourceHealthRegistry? healthRegistry = null) // le scraping se fait avant le premier Delay
         {
             // IReplicasService
             var replicas = new Mock<IReplicasService>();
@@ -337,7 +366,8 @@ namespace SlimFaas.Tests.Workers
                 requestedMetricsRegistry: requestedMetricsRegistry,
                 logger: logger,
                 slimFaasOptions: slimFaasOptions,
-                delay: delayMs
+                delay: delayMs,
+                externalHealthRegistry: healthRegistry
             );
         }
 
@@ -1155,6 +1185,167 @@ namespace SlimFaas.Tests.Workers
             Assert.NotEmpty(hydratedStore.Snapshot());
             Assert.True(db.GetCount("metrics:store:version") >= 2);
             Assert.Equal(1, db.GetCount("metrics:store"));
+        }
+
+        [Fact]
+        public async Task ExternalHttpsSourcesAreScrapedAtZeroReplicasOncePerSourceAndRemainIsolated()
+        {
+            const string urlA = "https://metrics-a.example.test/metrics?tenant=one";
+            const string urlB = "https://metrics-b.example.test/metrics";
+            var deployments = BuildExternalDeployments(
+                ("function-a", "queue", urlA, 2),
+                ("function-b", "queue", urlB, 1));
+            var requestCounts = new ConcurrentDictionary<string, int>(StringComparer.Ordinal);
+            var handler = new DelegateHttpHandler((request, _) =>
+            {
+                string url = request.RequestUri!.AbsoluteUri;
+                requestCounts.AddOrUpdate(url, 1, static (_, count) => count + 1);
+                string value = url == urlA ? "2" : "7";
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        $"external_pressure {value}\n",
+                        Encoding.UTF8,
+                        "text/plain")
+                });
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "external_pressure");
+            var health = new ExternalMetricsSourceHealthRegistry();
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry,
+                delayMs: 10_000,
+                healthRegistry: health);
+
+            await StartRunOnceAndStopAsync(worker);
+
+            Assert.Equal(1, requestCounts[urlA]);
+            Assert.Equal(1, requestCounts[urlB]);
+            var snapshot = store.Snapshot();
+            long timestamp = snapshot.Keys.Single();
+            string scopeA = MetricsSourceScope.ForExternal("function-a", "queue");
+            string scopeB = MetricsSourceScope.ForExternal("function-b", "queue");
+            Assert.Equal(2, snapshot[timestamp][scopeA]["source"]["external_pressure"]);
+            Assert.Equal(7, snapshot[timestamp][scopeB]["source"]["external_pressure"]);
+            Assert.True(health.IsHealthy(scopeA, timestamp, new HashSet<string> { "external_pressure" }, out _));
+            Assert.True(health.IsHealthy(scopeB, timestamp, new HashSet<string> { "external_pressure" }, out _));
+        }
+
+        [Fact]
+        public async Task ExternalSourceFailureImmediatelyInvalidatesPreviouslyScrapedMetrics()
+        {
+            const string url = "http://metrics.example.test/metrics";
+            var deployments = BuildExternalDeployments(("function", "queue", url, 1));
+            var requestCount = 0;
+            var handler = new DelegateHttpHandler((_, _) =>
+            {
+                int current = Interlocked.Increment(ref requestCount);
+                return Task.FromResult(current == 1
+                    ? new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("external_pressure 4\n", Encoding.UTF8, "text/plain")
+                    }
+                    : new HttpResponseMessage(HttpStatusCode.ServiceUnavailable)
+                    {
+                        Content = new StringContent(string.Empty)
+                    });
+            });
+            using var http = new HttpClient(handler);
+            var store = CreateStore(out var registry, "external_pressure");
+            var health = new ExternalMetricsSourceHealthRegistry();
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry,
+                delayMs: 20,
+                healthRegistry: health);
+            string scope = MetricsSourceScope.ForExternal("function", "queue");
+
+            await RunUntilAndStopAsync(
+                worker,
+                () => Volatile.Read(ref requestCount) >= 2 &&
+                      health.TryGet(scope, out ExternalMetricsSourceHealth? state) &&
+                      state is { LastAttemptSucceeded: false },
+                TimeSpan.FromSeconds(5));
+
+            Assert.Contains(store.Snapshot().Values, bucket => bucket.ContainsKey(scope));
+            Assert.False(health.IsHealthy(
+                scope,
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                new HashSet<string> { "external_pressure" },
+                out string reason));
+            Assert.Equal("last_scrape_failed", reason);
+        }
+
+        [Fact]
+        public async Task ExternalSourceUsesTheConfiguredResponseSizeLimit()
+        {
+            const string url = "https://metrics.example.test/metrics";
+            var deployments = BuildExternalDeployments(("function", "queue", url, 1));
+            using var http = new HttpClient(new DelegateHttpHandler((_, _) =>
+                Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        "external_pressure 123456789\n",
+                        Encoding.UTF8,
+                        "text/plain")
+                })));
+            var store = CreateStore(out var registry, "external_pressure");
+            var health = new ExternalMetricsSourceHealthRegistry();
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry,
+                delayMs: 10_000,
+                metricsScrapingOptions: new MetricsScrapingOptions { MaxResponseBytes = 8 },
+                healthRegistry: health);
+            string scope = MetricsSourceScope.ForExternal("function", "queue");
+
+            await StartRunOnceAndStopAsync(worker);
+
+            Assert.Empty(store.Snapshot());
+            Assert.True(health.TryGet(scope, out ExternalMetricsSourceHealth? state));
+            Assert.False(state!.LastAttemptSucceeded);
+        }
+
+        [Fact]
+        public async Task ExternalSourceUsesTheConfiguredRequestTimeout()
+        {
+            const string url = "https://metrics.example.test/metrics";
+            var deployments = BuildExternalDeployments(("function", "queue", url, 1));
+            using var http = new HttpClient(new DelegateHttpHandler(async (_, cancellationToken) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            }));
+            var store = CreateStore(out var registry, "external_pressure");
+            var health = new ExternalMetricsSourceHealthRegistry();
+            var worker = NewWorker(
+                deployments,
+                http,
+                isMaster: true,
+                store,
+                registry,
+                delayMs: 10_000,
+                metricsScrapingOptions: new MetricsScrapingOptions { RequestTimeoutSeconds = 1 },
+                healthRegistry: health);
+            string scope = MetricsSourceScope.ForExternal("function", "queue");
+
+            await RunUntilAndStopAsync(
+                worker,
+                () => health.TryGet(scope, out ExternalMetricsSourceHealth? state) &&
+                      state is { LastAttemptSucceeded: false },
+                TimeSpan.FromSeconds(5));
+
+            Assert.Empty(store.Snapshot());
         }
     }
 }

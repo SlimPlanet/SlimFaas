@@ -19,7 +19,8 @@ public class MetricsScrapingWorker(
     IRequestedMetricsRegistry requestedMetricsRegistry,
     ILogger<MetricsScrapingWorker> logger,
     IOptions<SlimFaasOptions> slimFaasOptions,
-    int delay = 0)
+    int delay = 0,
+    IExternalMetricsSourceHealthRegistry? externalHealthRegistry = null)
     : BackgroundService
 {
     private const string MetricsStoreKey = "metrics:store";
@@ -32,12 +33,22 @@ public class MetricsScrapingWorker(
     private readonly int _scrapeIntervalMilliseconds = delay > 0
         ? delay
         : slimFaasOptions.Value.MetricsScraping.ScrapeIntervalMilliseconds;
-    private readonly Dictionary<string, long> _nextScrapeByDeployment = new(StringComparer.Ordinal);
+    private readonly IExternalMetricsSourceHealthRegistry _externalHealthRegistry =
+        externalHealthRegistry ?? new ExternalMetricsSourceHealthRegistry();
+    private readonly Dictionary<string, long> _nextScrapeByScope = new(StringComparer.Ordinal);
     private DateTimeOffset _nextPersistenceUtc = DateTimeOffset.MinValue;
     private DateTimeOffset _nextLegacyHydrationUtc = DateTimeOffset.MinValue;
     private byte[]? _lastHydratedVersion;
     private byte[]? _lastLegacyPayloadHash;
     private bool _wasMaster;
+
+    private sealed record ScrapeTarget(
+        string Scope,
+        string Function,
+        string Source,
+        string Url,
+        int IntervalMilliseconds,
+        bool IsExternal);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -92,10 +103,10 @@ public class MetricsScrapingWorker(
                     continue;
                 }
 
-                var targetsByDeployment = deployments.GetMetricsTargets();
+                var targets = GetMetricsTargets(deployments);
 
                 // Si aucune cible annotée prometheus n'existe, on ne fait rien
-                if (targetsByDeployment.Count == 0)
+                if (targets.Count == 0)
                 {
                     await DelayUntilNextScrapeCycleAsync(
                         cycleStartedTimestamp,
@@ -114,15 +125,14 @@ public class MetricsScrapingWorker(
                     continue;
                 }
 
-                var dueTargets = SelectDueTargets(deployments, targetsByDeployment);
+                var dueTargets = SelectDueTargets(targets);
                 if (dueTargets.Count > 0)
                 {
                     var ts = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                     using var concurrency = new SemaphoreSlim(_metricsScrapingOptions.MaxConcurrentTargets);
                     var scrapeTasks = dueTargets
                         .Select(target => ScrapeTargetBoundedAsync(
-                            target.Deployment,
-                            target.Url,
+                            target,
                             ts,
                             requestedMetricNames,
                             concurrency,
@@ -199,46 +209,96 @@ public class MetricsScrapingWorker(
         return minimum;
     }
 
-    private List<(string Deployment, string Url)> SelectDueTargets(
-        DeploymentsInformations deployments,
-        IDictionary<string, IList<string>> targetsByDeployment)
+    private List<ScrapeTarget> GetMetricsTargets(DeploymentsInformations deployments)
     {
         var functions = deployments.Functions.ToDictionary(
             static function => function.Deployment,
             StringComparer.Ordinal);
-        var currentDeployments = targetsByDeployment.Keys.ToHashSet(StringComparer.Ordinal);
-        foreach (var staleDeployment in _nextScrapeByDeployment.Keys
-                     .Where(key => !currentDeployments.Contains(key))
+        var result = new List<ScrapeTarget>();
+
+        foreach (var (scope, urls) in deployments.GetMetricsTargets())
+        {
+            int interval = ResolveTargetInterval(functions.GetValueOrDefault(scope));
+            result.AddRange(urls.Select(url => new ScrapeTarget(
+                scope,
+                scope,
+                MetricsSourceScope.LocalSourceName,
+                url,
+                interval,
+                IsExternal: false)));
+        }
+
+        var externalScopes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (DeploymentInformation function in deployments.Functions)
+        {
+            ScaleConfig? scale = function.Scale;
+            if (scale is null || scale.Triggers.Count == 0 || scale.Sources.Count == 0)
+                continue;
+
+            var sources = scale.Sources.ToDictionary(static source => source.Name, StringComparer.Ordinal);
+            foreach (string sourceName in scale.Triggers
+                         .Select(static trigger => trigger.Source)
+                         .Where(static source => source is not null)
+                         .Select(static source => source!)
+                         .Distinct(StringComparer.Ordinal))
+            {
+                if (!sources.TryGetValue(sourceName, out ScaleSource? source))
+                    continue;
+
+                string scope = MetricsSourceScope.ForExternal(function.Deployment, sourceName);
+                externalScopes.Add(scope);
+                result.Add(new ScrapeTarget(
+                    scope,
+                    function.Deployment,
+                    sourceName,
+                    source.Url,
+                    ResolveTargetInterval(function),
+                    IsExternal: true));
+            }
+        }
+
+        _externalHealthRegistry.RetainScopes(externalScopes);
+        return result;
+    }
+
+    private int ResolveTargetInterval(DeploymentInformation? function)
+    {
+        if (!_hasDelayOverride && function?.Scale?.ScrapeIntervalMilliseconds is { } configured)
+            return configured;
+        return _scrapeIntervalMilliseconds;
+    }
+
+    private List<ScrapeTarget> SelectDueTargets(IReadOnlyCollection<ScrapeTarget> targets)
+    {
+        var currentScopes = targets.Select(static target => target.Scope).ToHashSet(StringComparer.Ordinal);
+        foreach (string staleScope in _nextScrapeByScope.Keys
+                     .Where(key => !currentScopes.Contains(key))
                      .ToArray())
         {
-            _nextScrapeByDeployment.Remove(staleDeployment);
+            _nextScrapeByScope.Remove(staleScope);
         }
 
         var now = Stopwatch.GetTimestamp();
-        var dueTargets = new List<(string Deployment, string Url)>();
-        foreach (var (deployment, urls) in targetsByDeployment)
+        var dueTargets = new List<ScrapeTarget>();
+        foreach (IGrouping<string, ScrapeTarget> group in targets.GroupBy(
+                     static target => target.Scope,
+                     StringComparer.Ordinal))
         {
-            if (_nextScrapeByDeployment.TryGetValue(deployment, out var nextScrape) && now < nextScrape)
+            if (_nextScrapeByScope.TryGetValue(group.Key, out long nextScrape) && now < nextScrape)
                 continue;
 
-            var intervalMilliseconds = _scrapeIntervalMilliseconds;
-            if (!_hasDelayOverride &&
-                functions.TryGetValue(deployment, out var function) &&
-                function.Scale?.ScrapeIntervalMilliseconds is { } configured)
-            {
-                intervalMilliseconds = configured;
-            }
-
-            _nextScrapeByDeployment[deployment] = now +
-                (long)(intervalMilliseconds / 1_000.0 * Stopwatch.Frequency);
-            dueTargets.AddRange(urls.Select(url => (deployment, url)));
+            ScrapeTarget first = group.First();
+            _nextScrapeByScope[group.Key] = now +
+                (long)(first.IntervalMilliseconds / 1_000.0 * Stopwatch.Frequency);
+            dueTargets.AddRange(group);
 
             if (logger.IsEnabled(LogLevel.Information))
             {
                 logger.LogInformation(
-                    "Scraping metrics for deployment {Deployment} with {TargetCount} targets",
-                    deployment,
-                    urls.Count);
+                    "Scraping metrics for function {Function}, source {Source}, with {TargetCount} targets",
+                    first.Function,
+                    first.Source,
+                    group.Count());
             }
         }
 
@@ -246,8 +306,7 @@ public class MetricsScrapingWorker(
     }
 
     private async Task ScrapeTargetBoundedAsync(
-        string deployment,
-        string url,
+        ScrapeTarget target,
         long timestamp,
         IReadOnlyCollection<string> requestedMetricNames,
         SemaphoreSlim concurrency,
@@ -256,7 +315,7 @@ public class MetricsScrapingWorker(
         await concurrency.WaitAsync(stoppingToken);
         try
         {
-            await ScrapeTargetAsync(deployment, url, timestamp, requestedMetricNames, stoppingToken);
+            await ScrapeTargetAsync(target, timestamp, requestedMetricNames, stoppingToken);
         }
         finally
         {
@@ -265,8 +324,7 @@ public class MetricsScrapingWorker(
     }
 
     private async Task ScrapeTargetAsync(
-        string deployment,
-        string url,
+        ScrapeTarget target,
         long timestamp,
         IReadOnlyCollection<string> requestedMetricNames,
         CancellationToken stoppingToken)
@@ -274,15 +332,15 @@ public class MetricsScrapingWorker(
         var started = Stopwatch.GetTimestamp();
         try
         {
-            var targetIdentity = GetTargetIdentityFromUrl(url);
+            var targetIdentity = target.IsExternal ? "source" : GetTargetIdentityFromUrl(target.Url);
             if (string.IsNullOrEmpty(targetIdentity))
             {
-                MetricsScrapingTelemetry.RecordFailure(deployment, "invalid_url");
+                RecordFailure(target, "invalid_url");
                 return;
             }
 
             var http = httpClientFactory.CreateClient(nameof(MetricsScrapingWorker));
-            using var req = new HttpRequestMessage(HttpMethod.Get, url);
+            using var req = new HttpRequestMessage(HttpMethod.Get, target.Url);
             using var scrapeTimeout = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
             scrapeTimeout.CancelAfter(TimeSpan.FromSeconds(_metricsScrapingOptions.RequestTimeoutSeconds));
             using var resp = await http.SendAsync(
@@ -291,7 +349,7 @@ public class MetricsScrapingWorker(
                 scrapeTimeout.Token);
             if (!resp.IsSuccessStatusCode)
             {
-                MetricsScrapingTelemetry.RecordFailure(deployment, "http_status");
+                RecordFailure(target, "http_status");
                 return;
             }
 
@@ -299,12 +357,14 @@ public class MetricsScrapingWorker(
             if (contentLength > _metricsScrapingOptions.MaxResponseBytes)
             {
                 logger.LogWarning(
-                    "Metrics scrape rejected for {Url}: Content-Length {ContentLength} exceeds " +
+                    "Metrics scrape rejected for function {Function}, source {Source}: " +
+                    "Content-Length {ContentLength} exceeds " +
                     "MaxResponseBytes {MaxResponseBytes}",
-                    url,
+                    target.Function,
+                    target.Source,
                     contentLength,
                     _metricsScrapingOptions.MaxResponseBytes);
-                MetricsScrapingTelemetry.RecordFailure(deployment, "response_too_large");
+                RecordFailure(target, "response_too_large");
                 return;
             }
 
@@ -319,19 +379,29 @@ public class MetricsScrapingWorker(
             if (parsed.Status != PrometheusStreamParseStatus.Success)
             {
                 logger.LogWarning(
-                    "Metrics scrape rejected for {Url}: Reason={Reason}, BytesRead={BytesRead}, " +
+                    "Metrics scrape rejected for function {Function}, source {Source}: " +
+                    "Reason={Reason}, BytesRead={BytesRead}, " +
                     "LinesRead={LinesRead}",
-                    url,
+                    target.Function,
+                    target.Source,
                     parsed.Status,
                     parsed.BytesRead,
                     parsed.LinesRead);
-                MetricsScrapingTelemetry.RecordFailure(deployment, "parse");
+                RecordFailure(target, "parse");
                 return;
             }
 
             if (parsed.Metrics.Count > 0)
-                metricsStore.Add(timestamp, deployment, targetIdentity, parsed.Metrics);
-            MetricsScrapingTelemetry.RecordSuccess(deployment);
+                metricsStore.Add(timestamp, target.Scope, targetIdentity, parsed.Metrics);
+            if (target.IsExternal)
+            {
+                _externalHealthRegistry.RecordSuccess(
+                    target.Scope,
+                    DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    target.IntervalMilliseconds,
+                    parsed.Metrics.Keys);
+            }
+            MetricsScrapingTelemetry.RecordSuccess(target.Function, target.Source);
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
@@ -340,20 +410,53 @@ public class MetricsScrapingWorker(
         catch (OperationCanceledException)
         {
             logger.LogWarning(
-                "Metrics scrape timed out after {TimeoutSeconds} seconds for {Url}",
+                "Metrics scrape timed out after {TimeoutSeconds} seconds for function {Function}, source {Source}",
                 _metricsScrapingOptions.RequestTimeoutSeconds,
-                url);
-            MetricsScrapingTelemetry.RecordFailure(deployment, "timeout");
+                target.Function,
+                target.Source);
+            RecordFailure(target, "timeout");
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "metrics scrape error for {Url}", url);
-            MetricsScrapingTelemetry.RecordFailure(deployment, "exception");
+            if (target.IsExternal)
+            {
+                // HttpRequestException messages may contain the full request URI.
+                // Keep configured query parameters out of logs.
+                logger.LogWarning(
+                    "Metrics scrape error for function {Function}, source {Source}: {ErrorType}",
+                    target.Function,
+                    target.Source,
+                    exception.GetType().Name);
+            }
+            else
+            {
+                logger.LogWarning(
+                    exception,
+                    "Metrics scrape error for function {Function}, source {Source}",
+                    target.Function,
+                    target.Source);
+            }
+            RecordFailure(target, "exception");
         }
         finally
         {
-            MetricsScrapingTelemetry.RecordDuration(deployment, Stopwatch.GetElapsedTime(started));
+            MetricsScrapingTelemetry.RecordDuration(
+                target.Function,
+                target.Source,
+                Stopwatch.GetElapsedTime(started));
         }
+    }
+
+    private void RecordFailure(ScrapeTarget target, string reason)
+    {
+        if (target.IsExternal)
+        {
+            _externalHealthRegistry.RecordFailure(
+                target.Scope,
+                DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                target.IntervalMilliseconds);
+        }
+        MetricsScrapingTelemetry.RecordFailure(target.Function, target.Source, reason);
     }
 
     private async Task PersistMetricsSnapshotIfDueAsync(CancellationToken stoppingToken)

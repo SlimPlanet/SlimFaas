@@ -9,7 +9,7 @@ internal static class MetricsScrapingTelemetry
         "Duration of one function metrics target scrape.",
         new HistogramConfiguration
         {
-            LabelNames = ["function"],
+            LabelNames = ["function", "source"],
             Buckets = Histogram.ExponentialBuckets(0.005, 2, 12)
         });
 
@@ -17,19 +17,33 @@ internal static class MetricsScrapingTelemetry
         "slimfaas_metrics_scrape_failures_total",
         "Number of function metrics scrape failures.",
         "function",
+        "source",
         "reason");
 
     private static readonly Gauge LastSuccess = Metrics.CreateGauge(
         "slimfaas_metrics_scrape_last_success_unixtime",
         "Unix timestamp of the latest successful function metrics scrape.",
-        "function");
+        "function",
+        "source");
 
-    public static void RecordDuration(string function, TimeSpan duration) =>
-        Duration.WithLabels(function).Observe(duration.TotalSeconds);
+    private static readonly Gauge SourceAvailable = Metrics.CreateGauge(
+        "slimfaas_metrics_source_available",
+        "Whether the latest external or pod metrics source scrape succeeded.",
+        "function",
+        "source");
 
-    public static void RecordFailure(string function, string reason) =>
-        Failures.WithLabels(function, reason).Inc();
+    public static void RecordDuration(string function, string source, TimeSpan duration) =>
+        Duration.WithLabels(function, source).Observe(duration.TotalSeconds);
 
-    public static void RecordSuccess(string function) =>
-        LastSuccess.WithLabels(function).Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+    public static void RecordFailure(string function, string source, string reason)
+    {
+        Failures.WithLabels(function, source, reason).Inc();
+        SourceAvailable.WithLabels(function, source).Set(0);
+    }
+
+    public static void RecordSuccess(string function, string source)
+    {
+        LastSuccess.WithLabels(function, source).Set(DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+        SourceAvailable.WithLabels(function, source).Set(1);
+    }
 }

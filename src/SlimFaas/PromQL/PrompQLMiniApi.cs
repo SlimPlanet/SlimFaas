@@ -8,9 +8,10 @@ namespace SlimFaas;
 
 public sealed class PromQlRequest
 {
-public required string Query { get; init; }
-public long? NowUnixSeconds { get; init; }
-public string? Deployment { get; init; }
+    public required string Query { get; init; }
+    public long? NowUnixSeconds { get; init; }
+    public required string Deployment { get; init; }
+    public string? Source { get; init; }
 }
 
 public sealed class ErrorResponse

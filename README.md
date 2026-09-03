@@ -64,7 +64,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - **Two-phase scaling model**
     - **`0 → N`**: driven by HTTP history, schedules, **and Kafka lag (SlimFaas Kafka)** to bring functions online only when they’re needed.
     - **`N → M`**: driven by a built-in PromQL mini-evaluator on top of an internal metrics store.
-    - Metrics-based autoscaling only runs when at least one pod exists — no reliance on non-existent metrics.
+    - Named external OpenMetrics sources can drive both **`0 → N`** and **`N → M`**, independently of function pods.
 
 - **PromQL-driven autoscaler**
     - Express scaling rules with PromQL-style queries, for example:
@@ -75,7 +75,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
     - Configure scale-up/scale-down policies and stabilization windows inspired by HPA/KEDA.
 
 - **Integrated metrics scraping**
-    - SlimFaas scrapes only the Prometheus-style HTTP metrics endpoints of pods with `prometheus.io/scrape: "true"`.
+    - SlimFaas scrapes pod endpoints with `prometheus.io/scrape: "true"` and named HTTP/HTTPS OpenMetrics sources configured per function.
     - It stores only the **metric keys that are requested** in autoscaling triggers or debug queries.
     - A single designated node scrapes and persists metrics; all other nodes read from the same store.
 

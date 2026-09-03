@@ -615,5 +615,95 @@ public class ReplicasScaleWorkerShould
             Times.Never);
     }
 
+    [Fact]
+    public async Task ExternalMetricCanWakeDeploymentFromZeroWithoutHttpTraffic()
+    {
+        DateTime now = DateTime.UtcNow;
+        long timestamp = new DateTimeOffset(now).ToUnixTimeSeconds();
+        const string function = "external-worker";
+        const string source = "queue";
+        string scope = MetricsSourceScope.ForExternal(function, source);
+        PromQlMiniEvaluator.SnapshotProvider snapshotProvider = () =>
+            new Dictionary<long, IReadOnlyDictionary<string,
+                IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>>
+            {
+                [timestamp] = new Dictionary<string,
+                    IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>
+                {
+                    [scope] = new Dictionary<string, IReadOnlyDictionary<string, double>>
+                    {
+                        ["source"] = new Dictionary<string, double> { ["queue_depth"] = 2 }
+                    }
+                }
+            };
+        var health = new ExternalMetricsSourceHealthRegistry();
+        health.RecordSuccess(scope, timestamp, 1_000, ["queue_depth"]);
+        var autoScaler = new AutoScaler(
+            new PromQlMiniEvaluator(snapshotProvider),
+            new InMemoryAutoScalerStore(),
+            externalHealthRegistry: health);
+        var deployment = new DeploymentInformation(
+            function,
+            "default",
+            [],
+            new SlimFaasConfiguration(),
+            Replicas: 0,
+            ReplicasAtStart: 1,
+            ReplicasMin: 0,
+            TimeoutSecondBeforeSetReplicasMin: 0,
+            Scale: new ScaleConfig
+            {
+                ReplicaMax = 4,
+                Sources = [new ScaleSource(source, "http://queue/metrics")],
+                Triggers =
+                [
+                    new ScaleTrigger(
+                        ScaleMetricType.AverageValue,
+                        "queue",
+                        "queue_depth",
+                        1,
+                        source)
+                ],
+                Behavior = new ScaleBehavior
+                {
+                    ScaleUp = new ScaleDirectionBehavior { Policies = [] },
+                    ScaleDown = new ScaleDirectionBehavior { Policies = [] }
+                }
+            });
+        var deployments = new DeploymentsInformations(
+            [deployment],
+            new SlimFaasDeploymentInformation(1, []),
+            []);
+        var kubernetesService = new Mock<IKubernetesService>();
+        kubernetesService.Setup(service => service.ListFunctionsAsync(
+                "default",
+                It.IsAny<DeploymentsInformations>()))
+            .ReturnsAsync(deployments);
+        var expected = new ReplicaRequest(
+            Replicas: 2,
+            Deployment: function,
+            Namespace: "default",
+            PodType: PodType.Deployment);
+        kubernetesService.Setup(service => service.ScaleAsync(expected)).ReturnsAsync(expected);
+        var history = new HistoryHttpMemoryService();
+        history.SetTickLastCall(function, now.AddMinutes(-1).Ticks);
+        var replicasService = new ReplicasService(
+            kubernetesService.Object,
+            history,
+            autoScaler,
+            Mock.Of<ILogger<ReplicasService>>(),
+            Mock.Of<IRequestedMetricsRegistry>(),
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
+            }),
+            () => now);
+
+        await replicasService.SyncDeploymentsAsync("default");
+        await replicasService.CheckScaleAsync("default");
+
+        kubernetesService.Verify(service => service.ScaleAsync(expected), Times.Once);
+    }
+
 
 }

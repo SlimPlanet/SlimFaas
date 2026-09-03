@@ -10,12 +10,15 @@ internal static class BenchmarkTarget
     internal const string SentTicksHeader = "X-SlimFaas-Benchmark-Sent-Utc-Ticks";
     internal const string RequestIdHeader = "X-SlimFaas-Benchmark-Request-Id";
 
-    public static async Task<int> RunAsync(CommandArguments arguments)
+    public static async Task<int> RunAsync(
+        CommandArguments arguments,
+        CancellationToken cancellationToken = default)
     {
         int port = ResolvePort(arguments);
         var observations = new ConcurrentDictionary<string, ObservationAccumulator>(StringComparer.Ordinal);
         long requestCount = 0;
         long lastScaleWorkTicks = 0;
+        long externalScalePressure = 0;
 
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
@@ -36,8 +39,17 @@ internal static class BenchmarkTarget
                     $"# TYPE slimfaas_benchmark_target_requests_total counter\n" +
                     $"slimfaas_benchmark_target_requests_total {Volatile.Read(ref requestCount)}\n" +
                     $"# TYPE slimfaas_benchmark_scale_pressure gauge\n" +
-                    $"slimfaas_benchmark_scale_pressure {scalePressure}\n"),
+                    $"slimfaas_benchmark_scale_pressure {scalePressure}\n" +
+                    $"# TYPE slimfaas_benchmark_external_pressure gauge\n" +
+                    $"slimfaas_benchmark_external_pressure {Volatile.Read(ref externalScalePressure)}\n"),
                 "text/plain; version=0.0.4");
+        });
+        app.MapPut("/benchmark/external-pressure/{value:long}", (long value) =>
+        {
+            if (value < 0)
+                return Results.BadRequest("pressure must be greater than or equal to zero");
+            Interlocked.Exchange(ref externalScalePressure, value);
+            return Results.NoContent();
         });
         app.MapGet("/benchmark/observations/{runId}", (string runId) =>
         {
@@ -92,7 +104,7 @@ internal static class BenchmarkTarget
             });
 
         Console.WriteLine($"SlimFaas benchmark target listening on http://127.0.0.1:{port}");
-        await app.RunAsync();
+        await app.RunAsync(cancellationToken);
         return 0;
     }
 

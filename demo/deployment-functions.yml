@@ -26,16 +26,23 @@ spec:
         prometheus.io/port: "5000"
         prometheus.io/scrape: "true"
 
-        # N -> M (AutoScaler Prometheus)
+        # 0 -> N and N -> M from the always-on SlimFaas queue metrics endpoint
         SlimFaas/Scale: >
           {
             "ReplicaMax": 10,
+            "Sources": [
+              {
+                "Name": "slimfaas",
+                "Url": "http://slimfaas.slimfaas-demo.svc.cluster.local:5000/metrics"
+              }
+            ],
             "Triggers": [
               {
-                "MetricType": "Value",
+                "MetricType": "AverageValue",
                 "MetricName": "max_over_time_queue_fibonacci1",
                 "Query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci1\"}[30s])",
-                "Threshold": 10
+                "Threshold": 10,
+                "Source": "slimfaas"
               }
             ],
             "Behavior": {

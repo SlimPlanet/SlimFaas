@@ -40,12 +40,19 @@ functions:
       SlimFaas/Scale: >
         {
           "ReplicaMax": 10,
+          "Sources": [
+            {
+              "Name": "slimfaas",
+              "Url": "http://127.0.0.1:30021/metrics"
+            }
+          ],
           "Triggers": [
             {
-              "MetricType": "Value",
+              "MetricType": "AverageValue",
               "MetricName": "max_over_time_queue_fibonacci1",
               "Query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci1\"}[30s])",
-              "Threshold": 10
+              "Threshold": 10,
+              "Source": "slimfaas"
             }
           ],
           "Behavior": {

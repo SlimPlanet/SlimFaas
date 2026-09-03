@@ -200,8 +200,13 @@ Metrics include:
 The metrics exported by `KafkaMonitoringWorker` can be used directly by the **SlimFaas PromQL-based autoscaler** (the HPA-like `SlimFaas/Scale` mechanism). Below are ready-to-use examples of PromQL queries that are compatible with the SlimFaas PromQL mini-evaluator and that you can plug into `SlimFaas/Scale.Triggers[].Query`.
 
 > All examples assume that:
-> - `slimfaaskafka_*` metrics are scraped by the SlimFaas metrics scraper,
+> - `slimfaas-kafka` has a Service exposing port `8080`,
+> - that Service is configured as the named source `slimfaas-kafka`,
 > - the label `function` corresponds to the SlimFaas function name (usually `${app}` in your annotations).
+
+Because this exporter is independent from the consumer function, these triggers can
+wake the consumer from zero. The source remains subject to the normal scrape timeout,
+size, freshness, and fail-safe scale-down checks.
 
 ### 1. Scale out based on Kafka pending messages (queue length)
 
@@ -212,12 +217,17 @@ annotations:
   SlimFaas/Scale: >
     {
       "ReplicaMax": 50,
+      "Sources": [{
+        "Name": "slimfaas-kafka",
+        "Url": "http://slimfaas-kafka.slimfaas-demo.svc.cluster.local:8080/metrics"
+      }],
       "Triggers": [
         {
-          "MetricType": "Value",
+          "MetricType": "AverageValue",
           "MetricName": "kafka_pending_messages_max_30s",
           "Query": "max_over_time(slimfaaskafka_pending_messages{function=\"${app}\"}[30s])",
-          "Threshold": 200
+          "Threshold": 200,
+          "Source": "slimfaas-kafka"
         }
       ]
     }
@@ -227,10 +237,10 @@ annotations:
 
 - PromQL: `max_over_time(slimfaaskafka_pending_messages{function="${app}"}[30s])`
     - Looks at the **maximum** pending messages for this function over the last 30 seconds.
-- `MetricType = "Value"`:
-    - The threshold is interpreted as the **total** value we’re willing to accept.
+- `MetricType = "AverageValue"`:
+    - The threshold is interpreted as pending messages per desired replica.
 - `Threshold = 200`:
-    - If the max pending messages in the last 30s is 400, the SlimFaas autoscaler will aim for roughly `2 × currentReplicas` (subject to policies and caps).
+    - If the max pending messages in the last 30s is 400, the SlimFaas autoscaler will aim for `2` replicas (subject to policies and caps), including from zero.
 - This is ideal when you want to **react to bursty Kafka queues**.
 
 ### 2. Scale based on average pending messages (smooth queue pressure)
@@ -243,12 +253,17 @@ annotations:
   SlimFaas/Scale: >
     {
       "ReplicaMax": 50,
+      "Sources": [{
+        "Name": "slimfaas-kafka",
+        "Url": "http://slimfaas-kafka.slimfaas-demo.svc.cluster.local:8080/metrics"
+      }],
       "Triggers": [
         {
-          "MetricType": "Value",
+          "MetricType": "AverageValue",
           "MetricName": "kafka_pending_messages_instant",
           "Query": "sum(slimfaaskafka_pending_messages{function=\"${app}\"})",
-          "Threshold": 100
+          "Threshold": 100,
+          "Source": "slimfaas-kafka"
         }
       ]
     }
@@ -284,12 +299,17 @@ annotations:
   SlimFaas/Scale: >
     {
       "ReplicaMax": 20,
+      "Sources": [{
+        "Name": "slimfaas-kafka",
+        "Url": "http://slimfaas-kafka.slimfaas-demo.svc.cluster.local:8080/metrics"
+      }],
       "Triggers": [
         {
           "MetricType": "Value",
           "MetricName": "kafka_wakeups_per_minute",
           "Query": "sum(rate(slimfaaskafka_wakeups_total{function=\"${app}\"}[1m]))",
-          "Threshold": 5
+          "Threshold": 5,
+          "Source": "slimfaas-kafka"
         }
       ]
     }
@@ -314,18 +334,24 @@ annotations:
   SlimFaas/Scale: >
     {
       "ReplicaMax": 50,
+      "Sources": [{
+        "Name": "slimfaas-kafka",
+        "Url": "http://slimfaas-kafka.slimfaas-demo.svc.cluster.local:8080/metrics"
+      }],
       "Triggers": [
         {
-          "MetricType": "Value",
+          "MetricType": "AverageValue",
           "MetricName": "kafka_pending_messages_max_30s",
           "Query": "max_over_time(slimfaaskafka_pending_messages{function=\"${app}\"}[30s])",
-          "Threshold": 200
+          "Threshold": 200,
+          "Source": "slimfaas-kafka"
         },
         {
           "MetricType": "Value",
           "MetricName": "kafka_wakeups_per_minute",
           "Query": "sum(rate(slimfaaskafka_wakeups_total{function=\"${app}\"}[1m]))",
-          "Threshold": 2
+          "Threshold": 2,
+          "Source": "slimfaas-kafka"
         }
       ],
       "Behavior": {

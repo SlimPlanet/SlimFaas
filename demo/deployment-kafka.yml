@@ -185,6 +185,20 @@ spec:
               memory: "64Mi"
               cpu: "20m"
 ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: slimfaas-kafka
+  namespace: slimfaas-demo
+spec:
+  selector:
+    app: slimfaas-kafka
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+  type: ClusterIP
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -272,4 +286,3 @@ spec:
             requests:
               memory: "64Mi"
               cpu: "10m"
-

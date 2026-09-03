@@ -42,6 +42,12 @@ export interface ScaleTrigger {
   MetricName: string;
   Query: string;
   Threshold: number;
+  Source?: string | null;
+}
+
+export interface ScaleSource {
+  Name: string;
+  Url: string;
 }
 
 export interface ScalePolicy {
@@ -62,7 +68,9 @@ export interface ScaleBehavior {
 
 export interface ScaleConfig {
   ReplicaMax: number | null;
+  ScrapeIntervalMilliseconds?: number | null;
   Triggers: ScaleTrigger[];
+  Sources: ScaleSource[];
   Behavior: ScaleBehavior;
 }
 

@@ -1,7 +1,7 @@
 # SlimFaas Autoscaling Guide
 
 > End-to-end autoscaling for SlimFaas functions:
-> **HTTP activity & schedules for `0 → N` + Prometheus / PromQL AutoScaler for `N → M`**
+> **HTTP activity, schedules, and external OpenMetrics sources for `0 → N`, plus PromQL autoscaling for `N → M`**
 
 ---
 
@@ -11,7 +11,7 @@
 2. [Core concepts](#core-concepts)
 3. [Autoscaling architecture](#autoscaling-architecture)
 4. [Configuring `0 → N` scale (HTTP history + schedule)](#configuring-0--n-scale-http-history--schedule)
-5. [Configuring `N → M` scale (Prometheus AutoScaler)](#configuring-n--m-scale-prometheus-autoscaler)
+5. [Configuring metrics-based scaling](#configuring-metrics-based-scaling)
 6. [PromQL support & current limitations](#promql-support--current-limitations)
 7. [Metrics scraping internals](#metrics-scraping-internals)
 8. [Debug HTTP endpoints](#debug-http-endpoints)
@@ -33,15 +33,17 @@ SlimFaas combines **two complementary autoscaling systems**:
     - optional **schedule configuration** (wake-up times, scale-down timeouts),
     - **function dependencies** (`DependsOn`).
 
-   👉 This system is the **only one allowed to bring a function from `0` to `> 0` replicas**.
+   Named external OpenMetrics triggers can also wake a function without HTTP activity.
 
-2. **`N → M` scaling (Prometheus AutoScaler)**
+2. **Metrics-based scaling (PromQL AutoScaler)**
    Driven by:
     - a Prometheus metrics scraping worker,
     - a small PromQL evaluator,
     - an `AutoScaler` that computes the desired number of replicas based on metrics.
 
-   👉 This system is used **only when the function already has at least one pod** (`replicas > 0`).
+   Pod-local triggers adjust existing capacity. Triggers attached to a named external
+   source can also scale from zero because the source remains available independently
+   from the function pods.
 
 When the Prometheus-based AutoScaler is enabled for a function (`SlimFaas/Scale` has at least one trigger), **scale-to-zero is allowed only if both systems agree**: the HTTP/schedule logic must decide that the function can go down to `ReplicasMin = 0`, *and* the metrics-based AutoScaler must also compute a desired replica count of `0`. If metrics still indicate that capacity is needed (`desired > 0`), SlimFaas keeps at least one replica running even if HTTP activity is idle. An empty `Triggers` list disables this metric veto.
 
@@ -81,7 +83,8 @@ For each function (deployment):
     - **time-dependent scale-down timeouts**.
 
 - **`Scale`**
-  Metrics-based autoscaling configuration, powered by Prometheus & PromQL, used for `N → M` scaling.
+  Metrics-based autoscaling configuration, powered by OpenMetrics and PromQL. Pod-local
+  triggers drive `N → M`; external-source triggers can also drive `0 → N`.
 
 ### How this is exposed in Kubernetes
 
@@ -140,7 +143,8 @@ flowchart LR
     DP[DependsOn] --> R
   end
 
-  subgraph Prometheus["Prometheus AutoScaler (N->M)"]
+  subgraph Prometheus["OpenMetrics / PromQL AutoScaler"]
+    ES[External sources] --> MSW
     MSW[MetricsScrapingWorker] --> MS[Metrics store]
     MS --> PQ[PromQL evaluator]
     PQ --> AS[AutoScaler]
@@ -156,7 +160,8 @@ flowchart LR
 - `ScaleReplicasWorker` periodically calls `CheckScaleAsync` if the node is the master.
 - `ReplicasService.CheckScaleAsync`:
     1. Computes a **desired replica count** using the **HTTP/schedule based system** (`0 → N` / `N → 0`).
-    2. If the function already has `replicas > 0` and at least one `SlimFaas/Scale` trigger, it invokes the **Prometheus AutoScaler** to adjust `N → M` and, when `ReplicasMin = 0`, to confirm whether scale-to-zero is actually allowed.
+    2. Invokes the PromQL AutoScaler when the function has replicas, or at zero when
+       at least one trigger uses an external source. Local pod triggers are ignored at zero.
 
 ---
 
@@ -216,10 +221,9 @@ There are two main situations where SlimFaas wakes a function up:
     - Dependencies are ready.
     - ⇒ SlimFaas scales the function up to `ReplicasAtStart`.
 
-This ensures:
-
-- **Only the `0 → N` system can wake a function from 0**,
-- The function will start with a known initial capacity before the Prometheus AutoScaler adjusts it.
+This ensures HTTP and schedules still start a function at `ReplicasAtStart`. An
+external metrics trigger may instead calculate the initial capacity directly from
+its signal, subject to `ReplicaMax`, policies, and stabilization.
 
 ### Time-based schedule (wake-up & scale-down timeout)
 
@@ -259,9 +263,12 @@ This allows you, for example:
 
 ---
 
-## Configuring `N → M` scale (Prometheus AutoScaler)
+## Configuring metrics-based scaling
 
-The Prometheus-based AutoScaler is activated by adding a `SlimFaas/Scale` annotation on the function’s Deployment. It **only runs when the function has at least one pod**.
+The PromQL AutoScaler is activated by adding a `SlimFaas/Scale` annotation on the
+function's Deployment. A trigger without `Source` reads the function pods and only
+runs while pods exist. A trigger with `Source` reads a named external endpoint and
+can run while the function has zero replicas.
 
 ### `SlimFaas/Scale` annotation structure (JSON)
 
@@ -274,12 +281,19 @@ metadata:
       {
         "ReplicaMax": 20,
         "ScrapeIntervalMilliseconds": 1000,
+        "Sources": [
+          {
+            "Name": "queue-exporter",
+            "Url": "https://queue-metrics.example.internal/metrics?tenant=orders"
+          }
+        ],
         "Triggers": [
           {
             "MetricType": "AverageValue",
-            "MetricName": "rps_per_pod",
-            "Query": "sum(rate(http_server_requests_seconds_count{namespace=\"${namespace}\",job=\"${app}\"}[1m]))",
-            "Threshold": 50
+            "MetricName": "pending_orders",
+            "Query": "orders_pending",
+            "Threshold": 50,
+            "Source": "queue-exporter"
           }
         ],
         "Behavior": {
@@ -322,6 +336,15 @@ Main fields:
     - `MetricName`: human-readable metric name (for doc / logs).
     - `Query`: PromQL query that **must return a scalar** (single numeric value).
     - `Threshold`: target value for the metric (per pod or total, depending on `MetricType`).
+    - `Source` (optional): case-sensitive name from `Sources`. If omitted, the
+      trigger retains the historical behavior and reads metrics from the function pods.
+
+- `Sources`
+  Named external OpenMetrics endpoints. Names must be unique within a function.
+  URLs must be absolute HTTP/HTTPS URLs without embedded credentials or fragments;
+  query parameters are accepted but are never included in logs or metric labels.
+  Only sources referenced by a trigger are scraped, once per scrape cycle even when
+  several triggers use the same source.
 
 - `Behavior`
   Configuration of scale-up / scale-down behavior:
@@ -359,6 +382,16 @@ When `ReplicasMin` is `0` and a `SlimFaas/Scale` configuration has at least one 
     - If it computes `desiredReplicas > 0`, SlimFaas keeps **at least one replica** running (or more, according to `desiredReplicas`), even if HTTP activity is idle.
 
 This provides an extra safety net against scaling to zero when metrics show that work may still be pending (for example due to queue length, high latency, etc.).
+
+An external trigger is also evaluated while the function is at zero. It can therefore
+wake the function directly to the calculated replica count. Local pod triggers are
+ignored at zero so samples left in the store cannot wake a function after its last pod
+has stopped.
+
+External-source health is deliberately fail-safe. A failed or timed-out scrape, an
+invalid response, a referenced metric missing or non-finite in the latest scrape, or
+data older than three scrape intervals makes that trigger invalid immediately. An
+invalid trigger blocks scale-down, while another valid trigger may still scale up.
 
 ### Policies and stabilization
 
@@ -671,7 +704,8 @@ scraping and storage pipeline that is optimized for autoscaling signals.
 
 At a high level:
 
-- Only the **metrics HTTP endpoint** is called on your pods.
+- The **metrics HTTP endpoint** is called on annotated pods and on external sources
+  referenced by triggers.
 - SlimFaas keeps in memory **only the metric keys that have been requested at least once**.
 - A single SlimFaas node is responsible for scraping and persisting metrics.
 - All nodes evaluate PromQL against a **shared, synchronized store** with a **30-minute retention window**.
@@ -682,12 +716,13 @@ At a high level:
 
 ### Scraping cycle (every 5 seconds)
 
-Every 5 seconds, a background worker (`MetricsScrapingWorker`) runs on the
-**designated scraping node** and performs the following steps:
+At the configured cadence, a background worker (`MetricsScrapingWorker`) runs on the
+master node and performs the following steps:
 
-1. Discover pods that:
+1. Discover targets that are either:
     - are part of your SlimFaas workloads, and
-    - expose Prometheus-compatible HTTP metrics via annotations.
+      expose Prometheus-compatible HTTP metrics via annotations, or
+    - named external sources referenced by at least one trigger.
 
 2. For each pod that has Prometheus HTTP annotations (for example):
 
@@ -701,6 +736,11 @@ Every 5 seconds, a background worker (`MetricsScrapingWorker`) runs on the
    ```text
    <scheme>://<pod-ip>:<port><path>
    ```
+
+   External source URLs come directly from `Scale.Sources`. They use the same HTTP
+   client timeout, response-size and parser limits as pod targets. Metrics are stored
+   in an isolated scope for each function/source pair, so identical metric names from
+   local pods or another source cannot mix.
 
 3. It sends a **single HTTP GET** to the metrics endpoint of each such pod and
    parses the standard Prometheus exposition format:
@@ -724,7 +764,10 @@ SlimFaas exposes the scaler state through `slimfaas_autoscaler_trigger_value`,
 `slimfaas_autoscaler_desired_replicas`, `slimfaas_autoscaler_ready_replicas` and
 `slimfaas_autoscaler_last_decision`. Scrape health is available through
 `slimfaas_metrics_scrape_duration_seconds`, `slimfaas_metrics_scrape_failures_total`
-and `slimfaas_metrics_scrape_last_success_unixtime`. Queries are never used as labels.
+and `slimfaas_metrics_scrape_last_success_unixtime`. The bounded `source` label is
+`pods` for local targets or the configured source name, and
+`slimfaas_metrics_source_available` reports the latest scrape availability. URLs and
+queries are never used as labels.
 
 ---
 
@@ -757,7 +800,8 @@ for example:
 
 ```bash
 curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
-    "query": "max_over_time(some_new_metric{function=\"fibonacci\"}[30s])"
+    "query": "max_over_time(some_new_metric{function=\"fibonacci\"}[30s])",
+    "deployment": "fibonacci"
   }'
 ```
 
@@ -772,7 +816,7 @@ becomes requested.
 
 ---
 
-### Scraping node, master node, and database synchronization
+### Master scraping and database synchronization
 
 In a SlimFaas cluster there are two important roles:
 
@@ -782,7 +826,7 @@ In a SlimFaas cluster there are two important roles:
     - runs `ScaleReplicasWorker`,
     - applies scaling changes to Kubernetes.
 
-- The **designated scraping node** (not the master)
+- The **master node** also owns metrics ingestion:
   Responsible for metrics ingestion:
     - runs `MetricsScrapingWorker`,
     - calls the metrics endpoints on your pods every 5 seconds,
@@ -790,7 +834,7 @@ In a SlimFaas cluster there are two important roles:
     - periodically serializes the metrics store to the SlimFaas database
       (for example under the key `metrics:store`).
 
-All **other** SlimFaas nodes, including the master, do **not** scrape your pods.
+All **other** SlimFaas nodes do **not** scrape targets.
 Instead, they:
 
 1. Periodically read the serialized metrics store from the SlimFaas database.
@@ -866,7 +910,8 @@ This endpoint also:
 {
   "query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci\"}[30s])",
   "nowUnixSeconds": 1732100000,
-  "deployment": "fibonacci"
+  "deployment": "fibonacci",
+  "source": "slimfaas"
 }
 ```
 
@@ -875,8 +920,10 @@ Fields:
 - `query` (required): the PromQL expression to evaluate.
 - `nowUnixSeconds` (optional): Unix timestamp (seconds) to use as “now” for range selectors.
   If omitted, the evaluator uses the **latest timestamp available in the store**.
-- `deployment` (optional): restricts evaluation to series scraped from this deployment.
-  Autoscaler evaluations always apply this isolation automatically.
+- `deployment` (required): function whose isolated metrics scope is evaluated.
+- `source` (optional): configured external source name. When present, the endpoint
+  applies the same source scope, freshness and metric-presence checks as the autoscaler.
+  When omitted, it evaluates the function's local pod metrics.
 
 #### Successful response (200)
 
@@ -894,7 +941,9 @@ This is the final scalar value returned by the PromQL mini-evaluator.
 
 ```bash
 curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
-    "query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci\"}[30s])"
+    "query": "max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci\"}[30s])",
+    "deployment": "fibonacci",
+    "source": "slimfaas"
   }'
 ```
 
@@ -910,7 +959,8 @@ Possible response:
 
 ```bash
 curl -X POST "http://localhost:5000/debug/promql/eval"   -H "Content-Type: application/json"   -d '{
-    "query": "sum(rate(http_server_requests_seconds_count{namespace=\"default\",job=\"fibonacci\"}[1m]))"
+    "query": "sum(rate(http_server_requests_seconds_count{namespace=\"default\",job=\"fibonacci\"}[1m]))",
+    "deployment": "fibonacci"
   }'
 ```
 
@@ -1092,10 +1142,10 @@ for each function:
      - Else:
          proposedReplicas = currentReplicas
 
-  4. Prometheus-based N→M system:
+  4. OpenMetrics / PromQL system:
 
      - If there is a SlimFaas/Scale annotation with at least one trigger
-       AND currentReplicas > 0:
+       AND either currentReplicas > 0 or at least one trigger has an external Source:
 
          desiredFromMetrics = AutoScaler(proposedReplicas, metrics...)
 
@@ -1116,8 +1166,9 @@ for each function:
 
 Key points:
 
-- The **HTTP/schedule system always runs first**, and is the only one that can propose a transition from `0` to `> 0`.
-- The **Prometheus AutoScaler only runs if `currentReplicas > 0`**.
+- The **HTTP/schedule system always runs first**. External metrics can independently
+  propose a transition from `0` to `> 0`.
+- At zero, only external triggers are evaluated; pod-local triggers are ignored.
 - When `ReplicasMin = 0` and a `SlimFaas/Scale` configuration has at least one trigger, **scale-to-zero requires both subsystems to agree**:
     - HTTP/schedule must declare the function idle enough to go down to 0,
     - metrics must also say that `desiredReplicas <= 0`.
@@ -1169,7 +1220,7 @@ Interpretation:
 - Scale-up/down formula:
 
   ```text
-  desiredReplicas = ceil(currentReplicas * (currentRps / 20))
+  desiredReplicas = ceil(currentRps / 20)
   ```
 
 - After 5 minutes with no activity (HTTP or schedule), the HTTP/schedule system **proposes** scaling the function down to 0.
@@ -1198,6 +1249,12 @@ metadata:
     SlimFaas/Scale: >
       {
         "ReplicaMax": 50,
+        "Sources": [
+          {
+            "Name": "slimfaas",
+            "Url": "http://slimfaas.default.svc.cluster.local:5000/metrics"
+          }
+        ],
         "Triggers": [
           {
             "MetricType": "AverageValue",
@@ -1209,7 +1266,8 @@ metadata:
             "MetricType": "Value",
             "MetricName": "queue_length",
             "Query": "sum(slimfaas_function_queue_ready_items{function=\"${app}\"})",
-            "Threshold": 200
+            "Threshold": 200,
+            "Source": "slimfaas"
           }
         ],
         "Behavior": {
@@ -1295,10 +1353,11 @@ spec:
     - Add a `ScaleDown` stabilization window.
     - Use smaller percent values (e.g., 50%) to avoid aggressive shrink.
 
-5. **Never rely on Prometheus to wake from 0**
-    - Prometheus metrics require pods to be running and scraped.
-    - In SlimFaas, **only HTTP/schedule controls 0 → N**.
-    - When `SlimFaas/Scale` has at least one trigger and `ReplicasMin = 0`, metrics also act as a **safety net** for 0 → N → 0 by vetoing scale-to-zero if they still indicate that capacity is needed.
+5. **Use an independent source for metric-based wake-up**
+    - Pod-local metrics disappear when the function reaches zero and cannot wake it.
+    - Configure `Sources` and `Triggers[].Source` for an exporter that remains available,
+      such as a queue, broker, or SlimFaas control-plane endpoint.
+    - Keep source names low-cardinality; URLs and PromQL text are never telemetry labels.
 
 6. **Document each trigger**
     - Use `MetricName` for clear semantic names.
@@ -1342,15 +1401,12 @@ To understand and debug autoscaling behavior:
 
 ## FAQ
 
-### Q1. Why does the AutoScaler never wake a function from 0?
+### Q1. How can the AutoScaler wake a function from 0?
 
-By design:
-
-- SlimFaas **only allows the HTTP/schedule system to wake functions from 0**.
-- The Prometheus AutoScaler only adjusts **existing** capacity.
-- When `SlimFaas/Scale` has at least one trigger, metrics can **prevent** a function from going back to 0 (by vetoing scale-to-zero), but they can **never** create the first replica from 0.
-
-This avoids relying on metrics that cannot exist while no pod is running.
+Attach the trigger to a named external OpenMetrics source that remains available while
+the function is stopped. SlimFaas evaluates external triggers at zero and applies the
+normal formula, limits, policies, and stabilization. A trigger without `Source` remains
+pod-local and is ignored at zero, preventing stale local samples from waking the function.
 
 ---
 

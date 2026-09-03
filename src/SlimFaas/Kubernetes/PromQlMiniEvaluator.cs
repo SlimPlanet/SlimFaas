@@ -55,8 +55,27 @@ public sealed class PromQlMiniEvaluator
         return compiled.Root.Eval(ctx).AsScalar();
     }
 
-    private EvalContext? BuildContext(long? nowUnixSeconds, string? deployment)
+    public double Evaluate(
+        CompiledPromQlQuery compiled,
+        long? nowUnixSeconds,
+        string? deployment,
+        TimeSpan instantSelectorLookback)
     {
+        ArgumentNullException.ThrowIfNull(compiled);
+        var ctx = BuildContext(
+            nowUnixSeconds,
+            deployment,
+            ValidateInstantSelectorLookback(instantSelectorLookback));
+        if (ctx is null) return double.NaN;
+        return compiled.Root.Eval(ctx).AsScalar();
+    }
+
+    private EvalContext? BuildContext(
+        long? nowUnixSeconds,
+        string? deployment,
+        TimeSpan? instantSelectorLookback = null)
+    {
+        TimeSpan lookback = instantSelectorLookback ?? _instantSelectorLookback;
         if (_metricsStore is not null)
         {
             if (_metricsStore.LatestTimestamp is not { } latestTimestamp)
@@ -65,7 +84,7 @@ public sealed class PromQlMiniEvaluator
             return new EvalContext(
                 _metricsStore,
                 nowUnixSeconds ?? latestTimestamp,
-                _instantSelectorLookback,
+                lookback,
                 deployment);
         }
 
@@ -76,7 +95,7 @@ public sealed class PromQlMiniEvaluator
         return new EvalContext(
             snapshot,
             nowUnixSeconds ?? snapshot.Keys.Max(),
-            _instantSelectorLookback,
+            lookback,
             deployment);
     }
 

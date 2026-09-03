@@ -84,6 +84,40 @@ curl http://127.0.0.1:30020/status-functions
 curl http://127.0.0.1:30020/function/fibonacci1/hello/local
 ```
 
+### Validate external OpenMetrics autoscaling
+
+The repository includes a reproducible local integration scenario with an auxiliary
+exporter that remains active while its function is at zero. Run:
+
+```bash
+.bin/slimfaas-local-external-metrics-test.sh
+```
+
+The script builds SlimFaas and `SlimFaasBenchmark`, validates
+`benchmarks/slimfaas.local.external-metrics.yaml`, starts a one-node local cluster,
+and changes the exported gauge to verify `0 → 2 → 4 → 0` through
+`/status-function/benchmark-external-scale`. It terminates the managed processes on
+exit and preserves logs under `artifacts/slimfaas-local-external-metrics/` on failure.
+
+The manifest demonstrates the local configuration shape:
+
+```json
+{
+  "Sources": [
+    { "Name": "benchmark-exporter", "Url": "http://127.0.0.1:31180/metrics" }
+  ],
+  "Triggers": [
+    {
+      "MetricType": "AverageValue",
+      "MetricName": "external_pressure",
+      "Query": "slimfaas_benchmark_external_pressure",
+      "Threshold": 1,
+      "Source": "benchmark-exporter"
+    }
+  ]
+}
+```
+
 ## Manifests and overlays
 
 Select another manifest with `-f` or `--file`. Repeat the option to apply
