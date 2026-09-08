@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.82.5
+
+- [48b7fc86](https://github.com/SlimPlanet/SlimFaas/commit/48b7fc869de28f2ac6e23d208371bb000f5dc39f) - docs: add guided onboarding, feature diagrams and standalone local demos (#334) (release), 2026-09-08 by *Guillaume Chervet*
+
+
+## 0.82.4
+
+
+
 ## v0.82.4
 
 - [8a7fb497](https://github.com/SlimPlanet/SlimFaas/commit/8a7fb49773b8481d5bb6843d44875a510fe38909) - chore: update .NET and client dependencies (release) (#330), 2026-09-02 by *Guillaume Chervet*
@@ -269,14 +278,5 @@
 
 - [36efd0dc](https://github.com/SlimPlanet/SlimFaas/commit/36efd0dc38884bf42056a72a5d3f2706f6c33667) - fix(#281): Remove AsyncBodyOffloadThresholdBytes configurability and clean up related code (#282) (release), 2026-07-03 by *Guillaume Chervet*
 - [aef91008](https://github.com/SlimPlanet/SlimFaas/commit/aef91008957b64c9ed5469f4ef09f7787ea99672) - add agent.md, 2026-07-03 by *Guillaume Chervet*
-
-
-## 0.73.0
-
-
-
-## v0.73.0
-
-- [d41acb3b](https://github.com/SlimPlanet/SlimFaas/commit/d41acb3b50359d913f883754b10136f1366d95e5) - feat(slimfaas): Allow async function to stream big payload (#273) (release), 2026-07-01 by *Silthian*
 
 
