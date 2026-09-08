@@ -1,0 +1,24 @@
+meta {
+  name: Ready
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/ready
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+  test("Expected response", function () {
+    expect(res.getBody()).to.equal("READY");
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

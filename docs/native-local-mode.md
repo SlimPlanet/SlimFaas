@@ -13,6 +13,8 @@ The existing `Local` orchestrator remains available for deterministic tests.
 The CLI uses the separate internal `Process` orchestrator and a single
 loopback-only, token-authenticated supervisor.
 
+For a ready-to-run demonstration without installing .NET or Node.js, use [Get Started in Local](get-started-local.md). The commands below are for development from a Git checkout.
+
 ## Quick start
 
 The repository contains a complete [`slimfaas.local.yaml`](../slimfaas.local.yaml)

@@ -1,6 +1,8 @@
 ﻿/* BEM styles for the cookie banner */
 
 .cookie-consent {
+    &__title { margin-top: 0; }
+    &__text--small { font-size: .9rem; }
     &__backdrop {
         position: fixed;
         inset: 0;
@@ -33,7 +35,7 @@
     }
 }
 
-/* Generic buttons following BEM-ish modifiers */
+/* Shared button block */
 .btn {
     border: none;
     padding: .6rem 1rem;
@@ -41,7 +43,7 @@
     font-weight: 600;
     cursor: pointer;
 
-    &--primary { background: #0000ff; color: #fff; }
+    &--primary { background: var(--color-primary); color: #fff; }
     &--secondary { background: #eaeaea; color: #111; }
     &--ghost { background: transparent; color: #111; border: 1px solid #ddd; }
 }

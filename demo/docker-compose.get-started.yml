@@ -1,0 +1,79 @@
+# Overlay for the guided tour. Paths are relative to the root docker-compose.yml.
+x-tour-function: &tour-function
+  image: axaguildev/fibonacci:dev
+  build:
+    context: src/Fibonacci
+    dockerfile: Dockerfile
+  environment: &tour-environment
+    ASPNETCORE_URLS: http://+:5000
+    SlimFaas__BaseUrl: http://slimfaas:30021
+  networks:
+    - slimfaas-net
+  healthcheck:
+    test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
+    interval: 2s
+    timeout: 3s
+    retries: 30
+  labels: &tour-labels
+    SlimFaas/Function: "true"
+    SlimFaas/Namespace: "default"
+    SlimFaas/ReplicasAtStart: "1"
+    SlimFaas/ReplicasMin: "0"
+    SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
+    SlimFaas/DefaultVisibility: "Public"
+    SlimFaas/NumberParallelRequest: "10"
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "5000"
+    prometheus.io/path: /metrics
+
+services:
+  slimfaas:
+    environment:
+      Data__DefaultVisibility: Public
+      SlimFaas__JobsConfiguration: |
+        {
+          "Configurations": {
+            "fibonacci": {
+              "Image": "slimfaas-tour-batch:local",
+              "Visibility": "Public",
+              "DependsOn": ["fibonacci1"],
+              "NumberParallelJob": 2,
+              "BackoffLimit": 1,
+              "TtlSecondsAfterFinished": 60,
+              "RestartPolicy": "Never"
+            }
+          },
+          "Schedules": {}
+        }
+  fibonacci1:
+    environment:
+      <<: *tour-environment
+    labels:
+      <<: *tour-labels
+      app: fibonacci1
+      SlimFaas/SubscribeEvents: ""
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
+      SlimFaas/NumberParallelRequestPerPod: "1"
+      SlimFaas/Scale: '{"ReplicaMax":4,"Triggers":[{"MetricType":"Value","MetricName":"queue","Query":"max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci1\"}[30s])","Threshold":10}]}'
+  fibonacci2:
+    <<: *tour-function
+    labels:
+      <<: *tour-labels
+      app: fibonacci2
+      SlimFaas/DependsOn: fibonacci1
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
+  fibonacci3:
+    <<: *tour-function
+    labels:
+      <<: *tour-labels
+      app: fibonacci3
+      SlimFaas/SubscribeEvents: fibo-public
+      SlimFaas/ReplicasAtStart: "2"
+  fibonacci4:
+    <<: *tour-function
+    labels:
+      <<: *tour-labels
+      app: fibonacci4
+      SlimFaas/DefaultVisibility: Private
+      SlimFaas/SubscribeEvents: Public:fibo-public
+      SlimFaas/ReplicasAtStart: "2"

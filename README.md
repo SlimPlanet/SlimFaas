@@ -12,7 +12,13 @@
 
 <div align="center">
 
-### 🌥️ Proud CNCF Landscape Project
+### Start exploring
+
+Choose [Kubernetes](docs/get-started-kubernetes.md), [native local processes](docs/get-started-local.md), or [Docker Compose](docs/get-started-docker-compose.md). Open the built-in dashboard and follow the [Guided Tour](docs/guided-tour.md) with cURL or the [Bruno collection](demo/bruno-slimfaas-demo). Find all runtime routes in the [API Reference](docs/api-reference.md).
+
+The [precompiled local demo](docs/get-started-local.md) packages the dashboard, functions and jobs without requiring a .NET or Node installation. It requires a release containing the new `SlimFaas-Local-*` bundles; source-based development remains available in [Local Mode](docs/native-local-mode.md).
+
+## 🌥️ Proud CNCF Landscape Project
 
 SlimFaas is part of the [Cloud Native Computing Foundation (CNCF) landscape](https://landscape.cncf.io).
 
@@ -36,7 +42,7 @@ SlimFaas is part of the [Cloud Native Computing Foundation (CNCF) landscape](htt
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/SlimPlanet/SlimFaas/badge)](https://scorecard.dev/viewer/?uri=github.com/SlimPlanet/SlimFaas)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10016/badge)](https://www.bestpractices.dev/projects/10016)
 
-SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform for Kubernetes (and Docker-Compose / Podman-Compose).
+SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform for Kubernetes, native local processes, Docker Compose and Podman Compose.
 It’s designed to be **fast**, **simple**, and **extremely slim** — with a very opinionated, **autoscaling-first** design:
 - `0 → N` wake-up from HTTP history & schedules,
 - `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
@@ -46,8 +52,6 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - temporary **Data Files** endpoints to ingest and stage binaries (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 - temporary **Data Sets** endpoints (`/data/sets`) to store small, Redis-like KV payloads (cache, JSON state, flags) with optional TTL — replicated through the cluster via a robust consensus layer.
 
-> **Looking for MCP integration?**
-> Check out **[SlimFaas MCP](https://slimfaas.dev/mcp)** — the companion runtime that converts *any* OpenAPI definition into MCP-ready tools on the fly.
 
 ---
 
@@ -169,7 +173,7 @@ Ideal for **agentic workflows** and **real-time ingestion**: upload once, get an
 
 Check out:
 
-- [Get Started](docs/get-started.md) – Deploy SlimFaas on Kubernetes or Docker Compose.
+- [Get Started](docs/get-started.md) – Choose Kubernetes, native local processes or Docker Compose.
 - [Local Mode](docs/native-local-mode.md) – Run functions, Jobs, development processes, and a supervised SlimFaas cluster directly on your machine.
 - Scaling
     - [Autoscaling](docs/autoscaling.md) – Configure `0 → N` / `N → M` autoscaling, PromQL triggers, metrics scraping, and debug endpoints.
@@ -187,7 +191,6 @@ Check out:
     - [Data Files](docs/data-files.md) – Ingest, store, and serve temporary binary artifacts.
     - [Data Sets](docs/data-sets.md) – Store replicated, Redis-like key-value payloads with optional TTL.
 - [How It Works](docs/how-it-works.md) – Understand SlimFaas architecture and request flows.
-- [MCP](docs/mcp.md) – Convert OpenAPI definitions into MCP-ready tools.
 
 ### Technical references
 

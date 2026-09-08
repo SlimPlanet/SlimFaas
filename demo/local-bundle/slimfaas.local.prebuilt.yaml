@@ -1,0 +1,27 @@
+# Overlay the checked-out manifest, preserving its functions, ports and callbacks.
+# Launchers provide the absolute bundle path, including paths containing spaces.
+functions:
+  fibonacci1:
+    command: ["${SLIMFAAS_DEMO_ROOT}/functions/fibonacci/Fibonacci${SLIMFAAS_DEMO_EXE_SUFFIX}"]
+    workingDirectory: functions/fibonacci
+  fibonacci2:
+    command: ["${SLIMFAAS_DEMO_ROOT}/functions/fibonacci/Fibonacci${SLIMFAAS_DEMO_EXE_SUFFIX}"]
+    workingDirectory: functions/fibonacci
+  fibonacci3:
+    command: ["${SLIMFAAS_DEMO_ROOT}/functions/fibonacci/Fibonacci${SLIMFAAS_DEMO_EXE_SUFFIX}"]
+    workingDirectory: functions/fibonacci
+  fibonacci4:
+    command: ["${SLIMFAAS_DEMO_ROOT}/functions/fibonacci/Fibonacci${SLIMFAAS_DEMO_EXE_SUFFIX}"]
+    workingDirectory: functions/fibonacci
+jobs:
+  fibonacci:
+    command: ["${SLIMFAAS_DEMO_ROOT}/jobs/fibonacci-batch/FibonacciBatch${SLIMFAAS_DEMO_EXE_SUFFIX}"]
+    workingDirectory: jobs/fibonacci-batch
+    ttlSecondsAfterFinished: 60
+    annotations:
+      SlimFaas/Schedules: '[]'
+  fibonacci5:
+    command: ["${SLIMFAAS_DEMO_ROOT}/jobs/fibonacci-batch/FibonacciBatch${SLIMFAAS_DEMO_EXE_SUFFIX}"]
+    workingDirectory: jobs/fibonacci-batch
+    annotations:
+      SlimFaas/Schedules: '[]'

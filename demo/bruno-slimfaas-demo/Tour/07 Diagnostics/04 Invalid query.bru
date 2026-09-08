@@ -1,0 +1,29 @@
+meta {
+  name: Invalid query
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/debug/promql/eval
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"Query":""}
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([400]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

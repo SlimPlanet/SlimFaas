@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "SlimFaas guided tour",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

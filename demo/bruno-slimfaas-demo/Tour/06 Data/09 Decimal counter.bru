@@ -1,0 +1,24 @@
+meta {
+  name: Decimal counter
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/data/sets/{{tourId}}-decimal/incrbyfloat?by=1.25
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+  test("Expected response", function () {
+    expect(String(res.getBody())).to.equal("1.25");
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

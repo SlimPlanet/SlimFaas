@@ -1,0 +1,30 @@
+meta {
+  name: Upload file
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/data/files?ttl=300000
+  body: file
+  auth: none
+}
+
+body:file {
+  file: @file(fixtures/hello.txt) @contentType(text/plain)
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) bru.setVar("fileId", res.getBody());
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+  The response captures fileId for later requests and cleanup.
+}

@@ -1,268 +1,36 @@
-﻿# Getting Started with SlimFaas
+# Get Started with SlimFaas
 
-This guide covers three primary ways to start using SlimFaas:
+Choose where your functions will run. Each guide opens the same live dashboard and leads into a shared, hands-on tour of functions, queues, events, jobs and data.
 
-1. **Kubernetes** (including local clusters via Docker Desktop)
-2. **Docker / Podman Compose** (for quick local testing)
-3. **Manual Installation** (for your own Kubernetes setup)
+- [Get Started with **Kubernetes**](get-started-kubernetes.md)
+  Deploy SlimFaas alongside your workloads. Start here to evaluate Kubernetes operations and a persistent three-node cluster.
+- [Get Started **in Local**](get-started-local.md)
+  Download the complete local demo and run real processes without installing .NET, Node.js, Docker or Kubernetes.
+- [Get Started with **Docker Compose**](get-started-docker-compose.md)
+  Run a container-based demonstration with the Docker orchestrator.
 
-For day-to-day development without Kubernetes or Docker, use
-[Native Local Mode](native-local-mode.md). You can also find
-[advanced installation details](#manual-installation-on-kubernetes) below.
+## Choose your environment
 
----
+| | Kubernetes | Local | Docker Compose |
+|---|---|---|---|
+| You need | A cluster, kubectl, a default StorageClass | Release bundle, curl, unzip, SHA-256 tool | Docker Engine and Compose v2, or Podman with Compose |
+| Functions run as | Kubernetes workloads | Native processes | Containers managed through the Docker API |
+| SlimFaas nodes in this demo | 3, persistent volumes | 3, persistent local directory | 1, persistent Docker volumes |
+| Dashboard | `http://127.0.0.1:30021` with port-forward | `http://127.0.0.1:30020` | `http://127.0.0.1:30021` |
+| Typical use | Cluster evaluation and deployment | Application development and debugging | Container-based local evaluation |
 
-## 1. Kubernetes Quick Start
+Use one demo at a time: the local cluster's direct node ports overlap with the other demos. The local entrypoint distributes requests among real SlimFaas/Raft nodes; it is not a simulated Kubernetes cluster.
 
-Below is an example workflow for running SlimFaas on Kubernetes locally (e.g., via Docker Desktop, kind or minikube).:
+## What you will discover
 
-```bash
-git clone https://github.com/SlimPlanet/SlimFaas.git
-cd slimfaas/demo
+After installation, keep the SlimFaas UI open while following the [Guided Tour](guided-tour.md). Send requests with cURL or the [downloadable Bruno collection](https://slimfaas.dev/downloads/slimfaas-demo.zip). Watch functions wake, traffic move through queues, and jobs appear.
 
-# Deploy SlimFaas (StatefulSet) and related ServiceAccount
-kubectl apply -f service-account-slimfaas.yml
-kubectl apply -f deployment-slimfaas.yml
+The tour includes API responses and cleanup commands. It explains which effects are visible in the dashboard and which must be checked through the API. Find every route, including aliases and internal interfaces, in the [API Reference](api-reference.md).
 
-# Expose SlimFaas Service as NodePort or Ingress
-kubectl apply -f slimfaas-nodeport.yml
-# Alternatively:
-# kubectl apply -f slimfaas-ingress.yml
+## Bring your own application
 
-# Deploy four sample Fibonacci functions
-kubectl apply -f deployment-functions.yml
+A function is an HTTP application. On Kubernetes, add SlimFaas annotations to its workload; locally, declare its command and health check in a manifest; with Docker, use container labels. See [Functions](functions.md) for routing and visibility, [Local Mode](native-local-mode.md) for manifests and IDE routing, and [How It Works](how-it-works.md) for the architecture.
 
-# Deploy MySQL (used by the Fibonacci functions)
-kubectl apply -f deployment-mysql.yml
+## Go further
 
-# Deploy Kafka and demo Consumer and Producer
-kubectl apply -f deployment-kafka.yml
-
-# (Optional) Run a single-page demo webapp on http://localhost:8000
-docker run -d -p 8000:8000 --rm axaguildev/fibonacci-webapp:latest
-```
-
-### Test Synchronous Calls
-If you used slimfaas-nodeport.yml, port 30021 might be exposed. You can call your functions via SlimFaas:
-
-- GET http://localhost:30021/function/fibonacci1/hello/guillaume → HTTP 200 (OK)
-- GET http://localhost:30021/function/fibonacci2/hello/elodie → HTTP 200 (OK)
-- GET http://localhost:30021/function/fibonacci3/hello/julie → HTTP 200 (OK)
-- GET http://localhost:30021/function/fibonacci4/hello/julie → HTTP 404 (Not Found)
-
-### Test Asynchronous Calls
-- GET http://localhost:30021/async-function/fibonacci1/hello/guillaume → HTTP 202 (Accepted)
-- GET http://localhost:30021/async-function/fibonacci2/hello/elodie → HTTP 202 (Accepted)
-- GET http://localhost:30021/async-function/fibonacci3/hello/julie → HTTP 202 (Accepted)
-- GET http://localhost:30021/async-function/fibonacci4/hello/julie → HTTP 404 (Not Found)
-
-### Wake Up a Function
-- GET http://localhost:30021/wake-function/fibonacci1 → HTTP 204 (No Content)
-- GET http://localhost:30021/wake-function/fibonacci2 → HTTP 204 (No Content)
-- GET http://localhost:30021/wake-function/fibonacci3 → HTTP 204 (No Content)
-- GET http://localhost:30021/wake-function/fibonacci4 → HTTP 204 (No Content)
-
-### List All Functions
-- GET http://localhost:30021/status-functions
-
-```json
-[
-  {"NumberReady":1,"numberRequested":1,"PodType":"Deployment","Visibility":"Public","Name":"fibonacci1"},
-  {"NumberReady":1,"numberRequested":1,"PodType":"Deployment","Visibility":"Public","Name":"fibonacci2"},
-  {"NumberReady":1,"numberRequested":1,"PodType":"Deployment","Visibility":"Public","Name":"fibonacci3"},
-  {"NumberReady":2,"numberRequested":2,"PodType":"Deployment","Visibility":"Private","Name":"fibonacci4"}
-]
-```
-
-### SlimFaas REST API
-
-Demo Bruno collection is available here: [Bruno Collection](https://github.com/SlimPlanet/SlimFaas/blob/main/demo/bruno-slimfaas-demo.json)
-
-### Single Page WebApp Demo
-If you ran the Fibonacci webapp container above:
-
-Browse to http://localhost:8000
-
----
-
-## 2. Docker / Podman Compose Quick Start
-
-> **Note:** This is for local testing only. For production, use Kubernetes. Works with Docker Compose or Podman Compose.
-
-```bash
-git clone https://github.com/SlimPlanet/SlimFaas.git
-cd slimfaas
-docker-compose up
-
-# with podman-compose on mac, use:
-chmod +x ./run-podman-compose.sh
-./run-podman-compose.sh up -d
-
-
-# with podman-compose on windows, use:
-.\run-podman-compose.ps1 up
-
-```
-
-When it’s ready:
-
-- GET http://localhost:30021/function/fibonacci1/hello/guillaume
-
-Enjoy SlimFaas!
-
----
-
-## 3. Manual Installation on Kubernetes
-
-You can also set up SlimFaas manually by adapting the sample manifests below. The key steps are:
-
-1. **Deploy SlimFaas** (as a StatefulSet or Deployment).
-2. **Expose SlimFaas** on an internal or external route (NodePort, Ingress, etc.).
-3. **Annotate** your function pods/Deployments with SlimFaas annotations to enable auto-scaling and routing.
-
-Example partial YAML (from *service-account-slimfaas.yml*):
-
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-    name: slimfaas
-    namespace: slimfaas-demo
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-    name: deployment-statefulset-manager
-    namespace: slimfaas-demo
-rules:
-    # On ajoute ici le droit de lister/voir les pods dans ce namespace
-    - apiGroups: [""]
-      resources: ["pods"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["apps"]
-      resources: ["deployments", "statefulsets"]
-      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-    - apiGroups: ["apps"]
-      resources: ["deployments/scale", "statefulsets/scale"]
-      verbs: ["get", "update", "patch"]
-    - apiGroups: ["batch"]
-      resources: ["jobs"]
-      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-    name: slimfaas-deployment-statefulset-manager
-    namespace: slimfaas-demo
-subjects:
-    - kind: ServiceAccount
-      name: slimfaas
-      namespace: slimfaas-demo
-roleRef:
-    kind: Role
-    name: deployment-statefulset-manager
-    apiGroup: rbac.authorization.k8s.io
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-    name: endpoints-viewer
-    namespace: slimfaas-demo
-rules:
-    - apiGroups: [""]
-      resources: ["endpoints"]
-      verbs: ["get", "list", "watch"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-    name: slimfaas-endpoints-viewer
-    namespace: slimfaas-demo
-subjects:
-    - kind: ServiceAccount
-      name: slimfaas
-      namespace: slimfaas-demo
-roleRef:
-    kind: Role
-    name: endpoints-viewer
-    apiGroup: rbac.authorization.k8s.io
-
-```
-
-Example partial YAML (from *deployment-slimfaas.yml*):
-
-Keep `podManagementPolicy: OrderedReady` for the SlimFaas StatefulSet. It
-ensures the first node establishes a healthy Raft member before the next node
-starts. `Parallel` can shorten startup, but has not been demonstrated safe for
-SlimData cold-start and membership recovery under load.
-
-```yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: slimfaas
-  namespace: slimfaas-demo
-spec:
-  podManagementPolicy: OrderedReady
-  replicas: 3
-  selector:
-    matchLabels:
-      app: slimfaas
-  serviceName: slimfaas
-  template:
-    metadata:
-      labels:
-        app: slimfaas
-    spec:
-      # ...
-      containers:
-        - name: slimfaas
-          image: docker.io/axaguildev/slimfaas:latest
-          ports:
-            - containerPort: 5000    # SlimFaas main port
-            - containerPort: 3262    # SlimData port
-          #env:
-          # ...
----
-apiVersion: v1
-kind: Service
-metadata:
-    name: slimfaas
-    namespace: slimfaas-demo
-spec:
-    selector:
-        app: slimfaas
-    ports:
-        - name: "http"
-          port: 5000
-        - name: "slimdata"
-          port: 3262
-```
-Example annotation for a function Deployment:
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fibonacci1
-  namespace: slimfaas-demo
-spec:
-  template:
-    metadata:
-      annotations:
-        SlimFaas/Function: "true" # Enable SlimFaas
-        SlimFaas/ReplicasMin: "0"
-        SlimFaas/ReplicasAtStart: "1"
-        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
-        SlimFaas/NumberParallelRequest: "10"
-        SlimFaas/DependsOn: "mysql,fibonacci2"
-        SlimFaas/SubscribeEvents: "Public:my-event-name1,Private:my-event-name2,my-event-name3"
-        SlimFaas/DefaultVisibility: "Public"
-        # ...
-    spec:
-      containers:
-        - name: fibonacci1
-          image: axaguildev/fibonacci:latest
-          # ...
-
-```
-For more details, see **How It Works** and the other documentation pages.
+Explore [WebSocket clients](clients.md), the [Kafka connector](kafka.md), and [Planet Saver](planet-saver.md) when your application needs them. These integrations have their own prerequisites and are not required for the introductory tour.

@@ -1,4 +1,4 @@
-﻿# SlimFaas User Interface
+# SlimFaas User Interface
 
 SlimFaas includes a web user interface that gives operators a live view of functions, jobs, queues, and network activity.
 
@@ -11,6 +11,10 @@ http://<slimfaas>/
 The UI is served by the SlimFaas application itself and uses the same backend endpoints as the API. It is intended for operational visibility and manual wake-up actions, not as a replacement for Kubernetes configuration.
 
 ---
+
+## Follow a request in the dashboard
+
+Start with [Get Started](get-started.md), then keep this UI open while following the [Guided Tour](guided-tour.md). Each exercise names the request to send from cURL or Bruno and the resulting state or traffic to observe. The UI provides visibility and wake actions; it does not contain a general API request editor or a browser for stored data contents.
 
 ## 1. What the Page Shows
 

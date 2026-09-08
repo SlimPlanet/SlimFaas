@@ -1,0 +1,46 @@
+@use './navbar' as navbar;
+.documentation {
+    display: grid; grid-template-columns: 235px minmax(0, 820px) 205px; gap: 2.5rem;
+    max-width: 1480px; margin: 0 auto; padding: 2.5rem 2rem 4rem; align-items: start;
+    &__sidebar { position: sticky; top: 102px; max-height: calc(100vh - 125px); overflow-y: auto; scrollbar-width: thin; }
+    &__main { min-width: 0; }
+    &__edit { font-size: .8rem; }
+    @media (max-width: 1250px) { grid-template-columns: 210px minmax(0, 1fr); gap: 2rem; }
+    @media (max-width: 800px) {
+        display: block; padding: 1.5rem 1rem 3rem;
+        &__sidebar { position: static; max-height: none; margin-bottom: 1.5rem; overflow: visible; }
+    }
+}
+.doc-toc {
+    font-size: .75rem;
+    &--desktop { position: sticky; top: 102px; max-height: calc(100vh - 125px); overflow-y: auto; scrollbar-width: thin; border-left: 1px solid var(--line); padding-left: 1rem; }
+    &--mobile { display: none; }
+    &__list { list-style: none; padding: 0; margin-top: .7rem; }
+    &__item { margin: .6rem 0; line-height: 1.5; }
+    &__item--nested { padding-left: .75rem; }
+    &__link { color: var(--muted); text-decoration: none; }
+    &__link:hover { color: var(--color-primary); }
+    @media (max-width: 1250px) {
+        &--desktop { display: none; }
+        &--mobile { display: block; background: var(--surface); border: 1px solid var(--line); padding: .8rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; font-size: .85rem; }
+    }
+}
+.doc-pagination {
+    display: flex; justify-content: space-between; gap: 1rem; margin: 3rem 0 1.5rem;
+    &__link { flex: 1; padding: 1rem; border: 1px solid var(--line); border-radius: 10px; text-decoration: none; font-weight: 600; }
+    &__link--next { text-align: right; }
+    &__direction { display: block; font-size: .75rem; font-weight: 400; color: var(--muted); }
+    @media (max-width: 800px) { flex-wrap: wrap; }
+}
+.code-block {
+    position: relative; border: 1px solid var(--line); border-radius: 10px; background: #f6f8fa; margin: 1.3rem 0;
+    &__copy { position: absolute; right: .6rem; top: .45rem; background: #fff; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; font-size: .7rem; padding: .15rem .55rem; }
+    &__feedback { @include navbar.visually-hidden; }
+}
+.doc-diagram {
+    overflow-x: auto; margin: 1.5rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: 10px; white-space: pre-wrap;
+    /* Mermaid owns its SVG subtree. */
+    svg { max-width: 100%; height: auto; display: block; margin: auto; }
+    &--error { font-family: monospace; font-size: .8rem; }
+    @media (max-width: 800px) { padding: .4rem; }
+}

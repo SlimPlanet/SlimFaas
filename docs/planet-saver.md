@@ -1,4 +1,4 @@
-﻿# SlimFaas Planet Saver [![npm version](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver.svg)](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver)
+# SlimFaas Planet Saver [![npm version](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver.svg)](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver)
 
 > **Important Note**: Starting from **0 replicas** to **1 replica** can be challenging because if no machine is available, the application must wait for a new machine to start. This startup process may exceed typical HTTP timeouts (for example, 7 minutes). **SlimPlanet** (via SlimFaas) solves this issue by providing a user-friendly interface that informs users the backend is starting, while the infrastructure wakes up in the background.
 
@@ -155,8 +155,8 @@ const behavior: {
 To see @axa-fr/slimfaas-planet-saver in action:
 
 ```bash
-git clone https://github.com/SlimPlanet/slimfaas.git
-cd slimfaas/src/SlimFaasPlanetSaver
+git clone https://github.com/SlimPlanet/SlimFaas.git
+cd SlimFaas/src/SlimFaasPlanetSaver
 npm install
 npm run dev
 ```

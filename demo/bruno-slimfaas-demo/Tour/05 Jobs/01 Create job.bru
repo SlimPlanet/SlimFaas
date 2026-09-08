@@ -1,0 +1,34 @@
+meta {
+  name: Create job
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/job/fibonacci
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"Args":["10"]}
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) bru.setVar("jobId", res.getBody().Id);
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([202]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+  The response captures jobId for later requests and cleanup.
+}

@@ -42,7 +42,7 @@ class MyDocument extends Document {
                         src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
                         height="0"
                         width="0"
-                        style={{ display: 'none', visibility: 'hidden' }}
+                        className="tracking-frame"
                     />
                 </noscript>
                 {/* End Google Tag Manager (noscript) */}

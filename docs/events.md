@@ -1,6 +1,6 @@
-﻿# Events in SlimFaas
+# Events in SlimFaas
 
-SlimFaas supports a basic “publish/subscribe” model for broadcasting events to all replicas of a function.
+SlimFaas supports a basic “publish/subscribe” model for broadcasting events to ready replicas of subscribed functions.
 This can be used to trigger internal actions or notify your functions of certain events.
 
 ---
@@ -36,14 +36,20 @@ metadata:
 
 ---
 
-## 3. Example
+## 3. Delivery behavior
+
+HTTP publication does not wake sleeping replicas or queue events durably. Wake subscribers and wait for readiness before publishing. A configured subscriber with no ready replicas can still lead to a `204` response, while no allowed subscription returns `404`. Per-target failures are logged, so `204` is not an acknowledgment from every replica.
+
+Connected WebSocket subscribers receive events through their registered clients. Use [async function calls](functions.md#2-asynchronous-functions) when work needs a durable queue, and the [Guided Tour](guided-tour.md#5-publish-an-event) to observe fan-out in the UI.
+
+## 4. Example
 ```bash
 curl -X POST -H "Content-Type: application/json" \
-     -d '{"data":"hello"}' \
-     http://localhost:30021/publish-event/my-event-name/hello
+     -d '{"input":10}' \
+     http://localhost:30021/publish-event/fibo-public/fibonacci
 
 ```
-All function replicas that have subscribed to `my-event-name` will receive a POST request at their /hello URL (e.g., `http://<pod_ip>:<pod_port>/hello`), and can handle it as needed.
+In the supplied demo, ready replicas subscribed to `fibo-public` receive a POST at `/fibonacci`. Use port `30020` instead in native local mode.
 
 
 ```mermaid

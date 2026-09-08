@@ -1,4 +1,4 @@
-﻿name: Reusable Site Build
+name: Reusable Site Build
 
 on:
   workflow_call:
@@ -31,6 +31,11 @@ jobs:
       - name: pnpm install
         working-directory: ${{ inputs.working_directory }}
         run: pnpm install --frozen-lockfile
+      - name: Documentation checks
+        working-directory: ${{ inputs.working_directory }}
+        run: |
+          pnpm lint
+          pnpm test
       - name: pnpm build
         working-directory: ${{ inputs.working_directory }}
         run: pnpm build

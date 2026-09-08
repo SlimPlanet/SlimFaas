@@ -21,6 +21,31 @@ export const DOCUMENTATION_CATALOG = {
         title: 'Get Started with SlimFaas',
         description: 'Install SlimFaas and deploy your first functions.',
     },
+    'get-started-kubernetes': {
+        sourcePath: 'docs/get-started-kubernetes.md', route: '/get-started/kubernetes',
+        label: 'With Kubernetes', title: 'Get Started with Kubernetes',
+        description: 'Install a three-node SlimFaas cluster and explore the dashboard on Kubernetes.',
+    },
+    'get-started-local': {
+        sourcePath: 'docs/get-started-local.md', route: '/get-started/local',
+        label: 'In Local', title: 'Get Started in Local',
+        description: 'Run real SlimFaas nodes, functions and jobs as native processes.',
+    },
+    'get-started-docker-compose': {
+        sourcePath: 'docs/get-started-docker-compose.md', route: '/get-started/docker-compose',
+        label: 'With Docker Compose', title: 'Get Started with Docker Compose',
+        description: 'Explore SlimFaas functions, events, jobs and data with Docker Compose.',
+    },
+    'guided-tour': {
+        sourcePath: 'docs/guided-tour.md', route: '/guided-tour',
+        label: 'Guided Tour', title: 'Discover SlimFaas Step by Step',
+        description: 'Follow requests from cURL or Bruno through the live SlimFaas dashboard.',
+    },
+    'api-reference': {
+        sourcePath: 'docs/api-reference.md', route: '/api-reference',
+        label: 'API Reference', title: 'SlimFaas API Reference',
+        description: 'HTTP routes, response contracts, streaming and internal interfaces.',
+    },
     'local-mode': {
         sourcePath: 'docs/native-local-mode.md',
         route: '/local-mode',
@@ -55,7 +80,7 @@ export const DOCUMENTATION_CATALOG = {
         route: '/events',
         label: 'Events',
         title: 'SlimFaas Events',
-        description: 'Publish and subscribe to synchronous and asynchronous events.',
+        description: 'Broadcast events to ready HTTP replicas and connected WebSocket clients.',
     },
     jobs: {
         sourcePath: 'docs/jobs.md',
@@ -121,13 +146,6 @@ export const DOCUMENTATION_CATALOG = {
         title: 'How SlimFaas Works',
         description: 'Understand the SlimFaas architecture and request flows.',
     },
-    mcp: {
-        sourcePath: 'docs/mcp.md',
-        route: '/mcp',
-        label: 'MCP',
-        title: 'SlimFaas MCP',
-        description: 'Convert OpenAPI definitions into MCP-ready tools.',
-    },
 } as const satisfies Record<string, DocumentationEntry>;
 
 export type DocumentationId = keyof typeof DOCUMENTATION_CATALOG;
@@ -141,3 +159,12 @@ export function getPublicRouteForSource(sourcePath: string): string | undefined 
         (entry) => entry.sourcePath === sourcePath,
     )?.route;
 }
+
+export const DOCUMENTATION_GROUPS: { label: string; ids: DocumentationId[] }[] = [
+    { label: 'Start here', ids: ['get-started', 'get-started-kubernetes', 'get-started-local', 'get-started-docker-compose', 'guided-tour'] },
+    { label: 'Features', ids: ['functions', 'events', 'jobs', 'data-sets', 'data-files', 'clients', 'planet-saver', 'kafka'] },
+    { label: 'Operate', ids: ['user-interface', 'autoscaling', 'opentelemetry', 'benchmarking'] },
+    { label: 'Reference', ids: ['api-reference', 'how-it-works', 'local-mode'] },
+];
+
+export const DOCUMENTATION_ORDER = DOCUMENTATION_GROUPS.flatMap(group => group.ids);

@@ -1,0 +1,29 @@
+meta {
+  name: Trusted function call
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/function/fibonacci1/fibonacci4
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"input":10}
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200, 400]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

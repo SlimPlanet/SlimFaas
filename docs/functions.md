@@ -1,4 +1,4 @@
-﻿# SlimFaas Functions (Sync & Async)
+# SlimFaas Functions (Sync & Async)
 
 SlimFaas offers **two main ways** to invoke functions: **synchronous** and **asynchronous** HTTP calls.
 Below is an overview of each.
@@ -21,7 +21,7 @@ If your function has scaled to zero, SlimFaas automatically **wakes it up** and 
 
 ## 2. Asynchronous Functions
 
-Asynchronous calls return immediately (HTTP 202 or 201), while SlimFaas queues the request and processes it in the background.
+Asynchronous calls return HTTP 202 after durable acceptance, while SlimFaas queues the request and processes it in the background.
 
 `202 Accepted` is returned only after the queue mutation is durably committed.
 FIFO order, retries, and callback behavior are unchanged. For request bodies
@@ -33,7 +33,7 @@ before it enqueues the message that refers to that body.
 
 - **Example**:
   GET http://localhost:30021/async-function/fibonacci1/hello/guillaume → 202 (Accepted), handled in background
-  synchronous mode also allows:
+  Asynchronous mode also supports:
 
 - **Limiting parallel requests** via annotations (e.g., `SlimFaas/NumberParallelRequest`).
 - **Retry pattern** on timeouts or specific HTTP status codes.
@@ -64,7 +64,7 @@ for the next attempt.
 You can explicitly “wake up” a function without invoking a specific route:
 
 - **Route**:
-  `GET http://<slimfaas>/wake-function/<functionName>`
+  `POST http://<slimfaas>/wake-function/<functionName>`
 
 - **Response**:
   `204 (No Content)`
@@ -81,7 +81,7 @@ SlimFaas exposes a route to check the readiness status of all registered functio
   `GET http://<slimfaas>/status-functions`
 
 - **Response**:
-  An array of objects with details like `NumberReady`, `numberRequested`, `PodType`, `Visibility`, etc.
+  An array of objects with details like `NumberReady`, `NumberRequested`, `PodType`, `Visibility`, etc.
 
 ```json
 [
@@ -91,8 +91,7 @@ SlimFaas exposes a route to check the readiness status of all registered functio
       "PodType": "Deployment",
       "Visibility": "Public",
       "Name": "fibonacci1"
-    },
-    ...
+    }
 ]
 ```
 

@@ -369,39 +369,26 @@ SlimFaas exposes HTTP endpoints to **trigger**, **list**, and **delete** jobs.
 
 To **trigger** a job, make an HTTP request to the **job endpoint**:
 
-```bash
+```http
 POST http://<slimfaas>/job/<jobName>
 ```
 
 * `<jobName>` corresponds to the name defined in `"Configurations"` (e.g., `"fibonacci"` in the example).
-* `<path>` can be any arbitrary suffix you want to pass along; SlimFaas ignores it or can forward it as part of the environment or request parameters to the job container.
+The route has no arbitrary path suffix. Creation returns `202` with a JSON `Id`; use that ID when inspecting or deleting an execution.
 
 **Example 1** (default parameters):
 
 ```bash
-curl -X POST http://localhost:30021/job/fibonacci
-{
-  "Args": ["42", "43"]
-}
+curl -X POST http://localhost:30021/job/fibonacci \
+  -H 'Content-Type: application/json' --data '{"Args":["10"]}'
 ```
 
 **Example 2** (overrides default configuration):
 
 ```bash
-curl -X POST http://localhost:30021/job/fibonacci
-{
-  "Image": "axaguildev/fibonacci-batch:1.0.1",         # Must match ImagesWhitelist
-  "Args": ["42", "43"],
-  "DependsOn": ["fibonacci2"],                          # Overrides default
-  "Resources": {                                         # Cannot exceed configured limits
-    "Requests": { "cpu": "200m", "memory": "200Mi" },
-    "Limits":   { "cpu": "200m", "memory": "200Mi" }
-  },
-  "Environments": [],  # Override and merge with default Environments configured
-  "BackoffLimit": 1,
-  "TtlSecondsAfterFinished": 100,
-  "RestartPolicy": "Never"
-}
+curl -X POST http://localhost:30021/job/fibonacci \
+  -H 'Content-Type: application/json' \
+  --data '{"Args":["10"],"DependsOn":["fibonacci2"],"Resources":{"Requests":{"cpu":"200m","memory":"200Mi"},"Limits":{"cpu":"200m","memory":"200Mi"}},"BackoffLimit":1,"TtlSecondsAfterFinished":100,"RestartPolicy":"Never"}'
 ```
 
 - SlimFaas merge parameters with the default configured value in `ConfigMap`
@@ -414,17 +401,22 @@ curl -X POST http://localhost:30021/job/fibonacci
 
 To **list jobs** (queued *and* already running/finished) for a queue or job family, send a `GET` request:
 
-```bash
+```http
 GET http://<slimfaas>/job/<queueName>
 ```
 
 **Example:**
 
 ```bash
-curl -X GET http://localhost:30021/job/daisy
+curl -X GET http://localhost:30021/job/fibonacci
+```
+
+Example response:
+
+```json
 [
   { "Id": "1", "Name": "daisy-slimfaas-job-12772", "Status": "Queued",   "PositionInQueue": 1, "InQueueTimestamp": 1, "StartTimestamp": -1 },
-  { "Id": "2", "Name": "daisy-slimfaas-job-12732", "Status": "Running",  "PositionInQueue": -1, , "InQueueTimestamp": 1, "StartTimestamp": 1 }
+  { "Id": "2", "Name": "daisy-slimfaas-job-12732", "Status": "Running",  "PositionInQueue": -1, "InQueueTimestamp": 1, "StartTimestamp": 1 }
 ]
 ```
 
@@ -439,7 +431,7 @@ curl -X GET http://localhost:30021/job/daisy
 
 To **delete a job** *after* it has left the queue, send a `DELETE` request with the job name and job ID:
 
-```bash
+```http
 DELETE http://<slimfaas>/job/<jobName>/{id}
 ```
 
@@ -472,12 +464,12 @@ Use the `Visibility` field in the job configuration:
 ## 5 Managing Cron Schedules
 
 SlimFaas ships with a companion API to create, list, and delete cron schedules at runtime.
-The routes live under `/job‑schedules` and are **Private by default** (cluster‑internal) unless the corresponding job is explicitly marked `Public`.
+The routes live under `/job-schedules`. Creation and deletion enforce the job configuration’s visibility. Listing dynamic schedules does not perform that same visibility check; control access at your gateway when needed.
 
 | **Verb & Path**                        | **Description**                                 |
 | -------------------------------------- | ----------------------------------------------- |
 | `POST /job-schedules/<jobName>`        | Add a new cron schedule for `<jobName>`.        |
-| `GET  /job-schedules/<jobName>`        | List every schedule configured for `<jobName>`. |
+| `GET  /job-schedules/<jobName>`        | List dynamic schedules stored for `<jobName>`. |
 | `DELETE /job-schedules/<jobName>/{id}` | Delete schedule *Id* from `<jobName>`.          |
 
 Request body for **`POST`**
@@ -499,28 +491,18 @@ Request body for **`POST`**
 }
 ```
 
-Only `Schedule` is mandatory. Any additional keys follow the same override/merge rules as a one‑off job trigger.
+Only `Schedule` is mandatory. Any additional keys follow the same override/merge rules as a one-off job trigger. Creation returns `201 {"Id":"..."}`; the returned ID is not a numeric position in the list.
 
 **Examples**
 
 ```bash
-# Run Fibonacci once a day at midnight
-curl -X POST http://<slimfaas>/job-schedules/fibonacci \
-     -d '{"Schedule":"0 0 * * *","Args":["42"]}'
-
-# Add a weekly run on Sundays at 00:00
-curl -X POST http://<slimfaas>/job-schedules/fibonacci \
-     -d '{"Schedule":"0 0 * * 0","Args":["42"]}'
-
-# List configured schedules
-curl -X GET  http://<slimfaas>/job-schedules/fibonacci
-[
-  {"Id":"0","Name":"fibonacci","Schedule":"0 0 * * *","Args":["42"]},
-  {"Id":"1","Name":"fibonacci","Schedule":"0 0 * * 0","Args":["42"]}
-]
-
-# Delete the first schedule (Id 0)
-curl -X DELETE http://<slimfaas>/job-schedules/fibonacci/0
+# Set BASE_URL to your demo; native local mode uses port 30020.
+export BASE_URL=http://127.0.0.1:30021
+SCHEDULE_ID=$(curl -fsS -X POST "$BASE_URL/job-schedules/fibonacci" \
+  -H 'Content-Type: application/json' \
+  --data '{"Schedule":"0 0 * * *","Args":["10"]}' | jq -r .Id)
+curl -fsS "$BASE_URL/job-schedules/fibonacci"
+curl -i -X DELETE "$BASE_URL/job-schedules/fibonacci/$SCHEDULE_ID"
 ```
 
 > **Behaviour**
@@ -528,7 +510,7 @@ curl -X DELETE http://<slimfaas>/job-schedules/fibonacci/0
 
 ### 5.1 Backup & Restore of Dynamic Schedules
 
-Dynamic schedules (created at runtime via `POST /job-schedules`) are stored in the internal SlimData Raft database. When nodes become desynchronised, you may need to delete the Raft volumes to recover — which also deletes your schedules.
+Dynamic schedules (created at runtime via `POST /job-schedules`) are stored in the internal SlimData Raft database. Deleting Raft storage also deletes these schedules. Export the schedules before a planned storage reset; ordinary follower recovery should preserve storage.
 
 To prevent data loss, SlimFaas can **automatically back up** all dynamic schedule data to a **separate volume** and **restore** it on cold start when the database is empty.
 

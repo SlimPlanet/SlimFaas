@@ -86,7 +86,7 @@ curl -X POST "http://<slimfaas>/data/sets/my-usecase.session-123.flag" \
 
 Let SlimFaas generate the id:
 ```bash
-ID=$(curl -s -X POST "http://<slimfaas>/data/sets" --data-binary "hello")
+ID=$(curl -fsS -X POST "http://<slimfaas>/data/sets" --data-binary "hello" | jq -r .)
 echo "created id=$ID"
 ```
 
@@ -307,3 +307,7 @@ Upgrading from a WAL created before `SLDC/1` requires a clean cluster restart:
 5. Verify the startup protocol/version log and ensure `slimdata_raft_skipped_command_total` remains zero.
 
 The readiness endpoint returns `503` while the local snapshot is being restored, the node has no active Raft consensus, or the leader protocol is incompatible. The liveness endpoint remains available so Kubernetes or OpenShift can keep the process alive while the cluster recovers.
+
+## Explore related routes
+
+For a complete executable example covering values, expiration and every counter operation, follow the [Guided Tour](guided-tour.md#7-store-values-counters-hashsets-and-files). The [API Reference](api-reference.md#hashsets) also documents the separate hashset facade, its single-value body contract and its different visibility behavior.

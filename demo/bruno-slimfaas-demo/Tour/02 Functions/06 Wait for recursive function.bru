@@ -1,0 +1,19 @@
+meta {
+  name: Wait for recursive function
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/function/fibonacci3/hello/tour
+  body: none
+  auth: none
+}
+
+tests {
+  test("Function is ready", function () { expect(res.getStatus()).to.equal(200); });
+}
+
+docs {
+  Wait for an HTTP response from the recursive demo before submitting its POST operation.
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Wake one
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/wake-function/fibonacci1
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([204]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

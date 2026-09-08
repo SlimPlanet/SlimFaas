@@ -1,6 +1,6 @@
 .footer {
     padding: 2rem;
-    background-color: #0000ff;
+    background-color: var(--color-primary);
     font-family: sans-serif;
 
     &__container {
@@ -25,7 +25,9 @@
         }
 
         &-logo {
-            /* Example styling; adjust as needed */
+            background: #fff;
+            padding: .75rem;
+            border-radius: 10px;
             max-width: 150px;
             height: auto;
             display: block;

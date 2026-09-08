@@ -1,0 +1,21 @@
+meta {
+  name: Unsupported job update
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/job/fibonacci
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([405]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}
