@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Regress startup connection failures without real sockets or wall-clock delays."""
+"""Regress bundle startup and cleanup failures without sockets or real delays."""
 import http.client
 import importlib.util
+import io
 import unittest
 import urllib.error
 from pathlib import Path
@@ -33,7 +34,7 @@ class ReadinessTests(unittest.TestCase):
             ConnectionResetError(10054, "Connection reset by peer"),
             http.client.RemoteDisconnected("Remote end closed connection without response"),
             urllib.error.URLError(ConnectionRefusedError("Not listening yet")),
-            urllib.error.HTTPError("http://127.0.0.1:30020/ready", 503, "Not ready", {}, None),
+            urllib.error.HTTPError("http://127.0.0.1:30020/ready", 503, "Not ready", {}, io.BytesIO()),
             TimeoutError("Still starting")
         ]
         for error in errors:
@@ -79,6 +80,34 @@ class ReadinessTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Invalid request"):
             bundle.wait_for_ready(request, self.process)
         request.assert_called_once()
+
+
+class FinishedJobCleanupTests(unittest.TestCase):
+    def test_deletes_only_the_observed_job_once(self):
+        request = Mock(return_value=(200, b""))
+        bundle.cleanup_finished_job(request, "smoke-job")
+        request.assert_called_once_with("/job/fibonacci/smoke-job", "DELETE")
+
+    def test_already_absent_job_does_not_fail_cleanup(self):
+        request = Mock(side_effect=urllib.error.HTTPError(
+            "http://127.0.0.1:30020/job/fibonacci/smoke-job", 404, "Not found", {}, io.BytesIO()))
+        bundle.cleanup_finished_job(request, "smoke-job")
+        request.assert_called_once_with("/job/fibonacci/smoke-job", "DELETE")
+
+    def test_other_cleanup_failures_propagate_without_replaying_mutations(self):
+        errors = [
+            urllib.error.HTTPError("http://127.0.0.1:30020/job/fibonacci/smoke-job", 500, "Server error", {}, io.BytesIO()),
+            urllib.error.HTTPError("http://127.0.0.1:30020/job/fibonacci/smoke-job", 403, "Forbidden", {}, io.BytesIO()),
+            ConnectionAbortedError(10053, "Acceptance unknown")
+        ]
+        for error in errors:
+            with self.subTest(error=error):
+                if isinstance(error, urllib.error.HTTPError):
+                    self.addCleanup(error.close)
+                request = Mock(side_effect=error)
+                with self.assertRaises(type(error)):
+                    bundle.cleanup_finished_job(request, "smoke-job")
+                request.assert_called_once()
 
 
 if __name__ == "__main__":

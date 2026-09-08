@@ -31,7 +31,21 @@ def wait_for_ready(request, process, timeout=120):
             # urllib can expose a raw socket error while reading the response,
             # including Windows WSAECONNABORTED (10053), outside URLError.
             last_error = error
+            if isinstance(error, urllib.error.HTTPError):
+                error.close()
         time.sleep(min(.25, max(0, deadline - time.monotonic())))
+
+
+def cleanup_finished_job(request, job_id):
+    """Delete only the smoke job, whose successful completion was already observed."""
+    try:
+        request("/job/fibonacci/" + job_id, "DELETE")
+    except urllib.error.HTTPError as error:
+        # Demo jobs have short retention, and each node refreshes its job view
+        # independently. A finished job may already be absent on this node.
+        if error.code != 404:
+            raise
+        error.close()
 
 
 def main():
@@ -93,7 +107,7 @@ def main():
                     if time.monotonic() > deadline:
                         raise TimeoutError(f"Packaged job did not succeed: {jobs}")
                     time.sleep(.25)
-                request("/job/fibonacci/" + job["Id"], "DELETE")
+                cleanup_finished_job(request, job["Id"])
                 print("Bundle passed: empty PATH, three-node startup, dashboard, four functions, sync, file, job.")
             except BaseException:
                 print(log_path.read_text(encoding="utf-8", errors="replace")[-14000:])

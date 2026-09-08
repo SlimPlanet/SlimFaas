@@ -437,6 +437,7 @@ jobs:
     needs: tags
     if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     strategy:
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-24.04
@@ -473,8 +474,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Test bundle readiness polling
-        run: python .bin/test-local-bundle-readiness.py
+      - name: Test bundle smoke helpers
+        run: python .bin/test-local-bundle-helpers.py
 
       # Build wwwroot before MSBuild evaluates static asset globs on a fresh checkout.
       - name: Build embedded dashboard
