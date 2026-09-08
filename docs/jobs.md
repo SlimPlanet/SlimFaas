@@ -222,7 +222,7 @@ You can define multiple jobs definition under the `"Configurations"` key. Each j
 | **Environments**            | Array of environment variables to inject into the job container (e.g., `[{ "name": "MY_ENV", "value": "someValue" }]`).                                                              |
 | **BackoffLimit**            | How many retries are allowed if the job fails before considering it “failed.” (Equivalent to `spec.backoffLimit` in a Kubernetes Job resource.)                                      |
 | **Visibility**              | Either **Public** or **Private**. If **Public**, the job can be triggered from anywhere (outside or inside the cluster). If **Private**, only from trusted pods or internal calls.   |
-| **NumberParallelJob**       | How many pods can run in parallel for this job. If you set `2`, SlimFaas can spin up to 2 concurrent pods for that job.                                                              |
+| **NumberParallelJob**       | Maximum concurrent executions for this job configuration. `Pending` and `Running` executions occupy slots; retained finished jobs do not.                                          |
 | **TtlSecondsAfterFinished** | Time to keep the job resources around after completion (in seconds). For example, `36000` keeps them for 10 hours, after which Kubernetes cleans them up.                            |
 | **RestartPolicy**           | The policy for restarting containers in a pod. Common values: `Never` (don’t restart), `OnFailure` (restart on failure).                                                             |
 
@@ -621,9 +621,33 @@ Set the `Visibility` field inside `Configurations`.
 
 ## 7. Concurrency and Scaling
 
-* `NumberParallelJob` controls simultaneous pods in a single job execution.
+* `NumberParallelJob` limits concurrent executions for each job configuration.
+  `Pending` and `Running` executions reserve slots, including jobs waiting for a
+  retry. `Succeeded` and `Failed` executions release their slots on the next
+  scheduler refresh, even while their resources are retained. The existing
+  `ImagePullBackOff` exemption also applies.
+* `TtlSecondsAfterFinished` controls how long finished resources remain available
+  for inspection. A high TTL does not delay queued work or keep function
+  dependencies awake. Finished jobs keep their terminal status in job listings
+  until cleanup; lowering TTL is not required to free concurrency slots.
+* In Kubernetes, terminal `Complete=True` and `Failed=True` conditions determine
+  completion. Failed pod attempts or partial successes alone do not finish a job
+  that is still executing or retrying.
 * **BackoffLimit** controls total retries.
 * SlimFaas manages creation, dependency checks, and honouring cron schedules without exceeding your limits.
+
+To verify slot reuse with a one-hour TTL using native local mode:
+
+```bash
+dotnet build src/SlimFaas/SlimFaas.csproj
+dotnet build src/FibonacciBatch/FibonacciBatch.csproj
+python3 .bin/test-local-job-concurrency.py
+```
+
+The smoke test uses temporary state and free loopback ports. It completes four
+executions at a parallel limit of four, then verifies a fifth succeeds within
+60 seconds while the first four remain listed. It covers both retained successes
+and retained failures, and stops its local supervisor when finished.
 
 ---
 

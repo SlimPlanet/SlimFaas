@@ -51,11 +51,13 @@ public class SlimJobsWorker(
         }
     }
 
-    private async Task DoJobOneCycle(IList<Job> jobs)
+    internal async Task DoJobOneCycle(IList<Job> jobs)
     {
         try
         {
-            jobs = jobs.Where(j => j.Status != JobStatus.ImagePullBackOff).ToList();
+            // Finished jobs remain listed until TTL cleanup, but no longer reserve
+            // execution slots or keep their dependencies awake.
+            jobs = jobs.Where(j => j.Status is JobStatus.Pending or JobStatus.Running).ToList();
             var jobsDictionary = new Dictionary<string, List<Job>>(StringComparer.OrdinalIgnoreCase);
             var configurations = jobConfiguration.Configuration.Configurations;
             foreach (var data in configurations)
