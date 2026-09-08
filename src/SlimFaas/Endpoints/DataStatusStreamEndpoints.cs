@@ -23,8 +23,9 @@ public static class DataStatusStreamEndpoints
         IFunctionAccessPolicy accessPolicy)
     {
         var settings = options.Value;
-        if (!settings.EnableFront || (!settings.ExposeDataMetadata &&
-            dataOptions.Value.DefaultVisibility != FunctionVisibility.Public && !accessPolicy.IsInternalRequest(context)))
+        bool dashboardAccess = settings.EnableFront && settings.ExposeDataMetadata;
+        if (!dashboardAccess && dataOptions.Value.DefaultVisibility != FunctionVisibility.Public &&
+            !accessPolicy.IsInternalRequest(context))
         {
             context.Response.StatusCode = StatusCodes.Status404NotFound;
             return;

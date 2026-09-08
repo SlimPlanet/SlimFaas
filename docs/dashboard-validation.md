@@ -15,9 +15,9 @@ The five-minute run measured actual canvas background draws while continuously p
 | Measure | Result |
 |---|---:|
 | Duration | 300.08 s |
-| Canvas draw rate | 59.96 frames/s |
+| Canvas draw rate | 59.95 frames/s |
 | 95th percentile frame gap | 17.6 ms |
-| JavaScript heap after GC, start / end | 17.9 / 19.9 MB |
+| JavaScript heap after GC, start / end | 13.8 / 19.8 MB |
 | Browser errors | 0 |
 | Event journal capacity | 5,000 |
 | Animated marker capacity | 200 |
@@ -54,7 +54,7 @@ For interactive scenarios, run `npm run storybook` and open **Dashboard / Live**
 
 ## Integration validation
 
-The complete .NET suite passed 1,196 tests (SlimFaas 932, SlimData 176, MCP 79, Kafka 9). Dashboard and documentation tests each passed 8 tests; dashboard, Storybook and documentation builds succeeded. Run these checks with Node 24 on PATH:
+The complete .NET suite passed 1,199 tests (SlimFaas 935, SlimData 176, MCP 79, Kafka 9). Dashboard and documentation tests each passed 8 tests; dashboard, Storybook and documentation builds succeeded. Run these checks with Node 24 on PATH:
 
 ```bash
 dotnet test

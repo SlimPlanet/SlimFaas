@@ -210,11 +210,6 @@ public sealed class NetworkActivityTracker
             });
         reader = channel.Reader;
 
-        if (!_enabled)
-        {
-            return true;
-        }
-
         if (!TryReserveStreamClient())
         {
             channel.Writer.TryComplete();
@@ -372,7 +367,6 @@ public sealed class NetworkActivityTracker
         }
     }
 }
-
 
 
 

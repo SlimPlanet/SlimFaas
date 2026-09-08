@@ -142,7 +142,9 @@ public class DataStatusStreamTests
     [InlineData(true, false, false, true, 200)]
     [InlineData(false, true, false, true, 200)]
     [InlineData(false, false, true, true, 200)]
-    [InlineData(true, true, true, false, 404)]
+    [InlineData(true, false, false, false, 404)]
+    [InlineData(true, true, false, false, 200)]
+    [InlineData(false, false, true, false, 200)]
     public async Task AccessRespectsMetadataOptionAndExistingDataPolicy(bool expose, bool isPublic, bool isInternal, bool front, int expected)
     {
         using var host = await Host(expose, isPublic, isInternal, front);
@@ -172,10 +174,12 @@ public class DataStatusStreamTests
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
-    public async Task ActivityAndInventoryShareClientLimitAndDisconnectionReleasesSlot()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ActivityAndInventoryShareClientLimitAndDisconnectionReleasesSlot(bool front)
     {
-        using var host = await Host(expose: true);
+        using var host = await Host(isPublic: true, front: front);
         var tracker = host.Services.GetRequiredService<NetworkActivityTracker>();
         Assert.True(tracker.TrySubscribe(out _, out var channel));
         using var denied = await host.GetTestClient().GetAsync("http://localhost:5000/status-data-stream");
