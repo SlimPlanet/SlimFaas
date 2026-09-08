@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.82.7
+
+- [ffff804f](https://github.com/SlimPlanet/SlimFaas/commit/ffff804f82f23bdb1cedca3211be9a63b7424084) - fix: release job concurrency slots before TTL cleanup (#337) (release), 2026-09-08 by *Guillaume Chervet*
+
+
+## 0.82.6
+
+
+
 ## v0.82.6
 
 - [b8a688ea](https://github.com/SlimPlanet/SlimFaas/commit/b8a688eadda28cb6e243ddb775fc990f9e398791) - docs: Restore CloMonitor Legal compliance detection (#336) (release), 2026-09-08 by *Copilot*
@@ -266,16 +275,5 @@
 ## v0.74.1
 
 - [6455b6e8](https://github.com/SlimPlanet/SlimFaas/commit/6455b6e8b7dd235845cd00c729b5e8e5c9c9ad41) - fix: slimfaas raft ram (#290) (release), 2026-07-17 by *Guillaume Chervet*
-
-
-## 0.74.0
-
-
-
-## v0.74.0
-
-- [b78130ce](https://github.com/SlimPlanet/SlimFaas/commit/b78130ce74d825271e68f7a7a534e674f4d988f9) - refactor: upgrade npm (#287) (release), 2026-07-09 by *Guillaume Chervet*
-- [51fbc12b](https://github.com/SlimPlanet/SlimFaas/commit/51fbc12b88ff43261ada6fa568ed06cb3feaa207) - feat(set): add redis like commands for caching (#286), 2026-07-09 by *Guillaume Chervet*
-- [ad658f79](https://github.com/SlimPlanet/SlimFaas/commit/ad658f796b8cc53722ee6ab1c6666b43c622924d) - fix: resolve issue 284 (#285), 2026-07-03 by *Guillaume Chervet*
 
 
