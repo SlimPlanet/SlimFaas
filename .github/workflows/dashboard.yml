@@ -22,7 +22,7 @@ jobs:
           cache-dependency-path: src/SlimFaas/ClientApp/package-lock.json
       - name: Install dashboard dependencies
         working-directory: src/SlimFaas/ClientApp
-        run: npm ci
+        run: npm ci --ignore-scripts
       - name: Test live models and stream handling
         working-directory: src/SlimFaas/ClientApp
         run: npm test
