@@ -11,6 +11,27 @@ SlimFaas provides an API to give your frontend detailed information about the st
 
 ---
 
+## From a sleeping backend to a ready screen
+
+Planet Saver polls SlimFaas and requests wake-up according to each configured function's behavior. With `WakeUp+BlockUI`, its overlay remains visible until the blocking functions are ready; `WakeUp` requests startup without blocking the page, and `None` does not request wake-up for that function.
+
+```mermaid
+flowchart TD
+    Browser["User opens the frontend"] --> Helper["Planet Saver watches function status"]
+    Helper --> Behavior{"Configured behavior"}
+    Behavior -->|"None"| Observe["Observe without requesting wake-up"]
+    Behavior -->|"WakeUp"| Wake["Request wake-up when needed"]
+    Behavior -->|"WakeUp+BlockUI"| Overlay["Display the startup overlay"]
+    Overlay --> Wake
+    Wake --> SlimFaas["SlimFaas starts the function replicas"]
+    SlimFaas --> Poll["Later status polls report ready replicas"]
+    Poll --> Ready{"All blocking functions ready?"}
+    Ready -->|"No"| Helper
+    Ready -->|"Yes"| Continue["Remove the overlay and let the user continue"]
+```
+
+This helper improves the browser experience during `0 → N` startup. Queue-driven `N → M` scaling is performed by the SlimFaas autoscaler; try the [async backlog exercise](guided-tour.md#scale-from-n-to-m-with-an-async-backlog) to see that separate behavior.
+
 ## Why Use @axa-fr/slimfaas-planet-saver?
 
 - **User-Friendly Zero-Replica**: Show users a “starting up” message instead of an error when your backend is scaling from zero.

@@ -53,37 +53,15 @@ In the supplied demo, ready replicas subscribed to `fibo-public` receive a POST 
 
 
 ```mermaid
-flowchart LR
-  %% SlimFaas Events: publish/subscribe broadcast to all replicas
-
-  subgraph Publish["1) Publish path (HTTP ingress)"]
-    P[Publisher<br/>Client / tool / pod]
-    GW[SlimFaas Gateway<br/>Publish Event Route]
-    VIS{Visibility rules<br/>Public / Private / Default}
-    AUTH["Private: trust check<br/>(trusted pods / same namespace)"]
-    BUS[Event Dispatcher / Bus]
-
-    P -->|POST /publish-event/<eventName>/<path><br/>JSON body| GW
-    GW --> VIS
-    VIS -->|Public| BUS
-    VIS -->|Private| AUTH
-    AUTH -->|allowed| BUS
-    AUTH -->|denied| DENY[Reject / ignore]
-    GW -->|204 No Content| P
-  end
-
-  subgraph Delivery["2) Delivery path (fan-out to replicas)"]
-    SUBS[Subscription Resolver<br/>SlimFaas/SubscribeEvents annotation]
-    TARGETS["Target function replicas<br/>(all subscribed pods)"]
-    POD1[(Replica #1)]
-    POD2[(Replica #2)]
-    PODN[(Replica #N)]
-
-    BUS --> SUBS
-    SUBS -->|Match: eventName| TARGETS
-    TARGETS -->|POST /<path><br/>same JSON payload| POD1
-    TARGETS -->|POST /<path><br/>same JSON payload| POD2
-    TARGETS -->|POST /<path><br/>same JSON payload| PODN
-  end
-
+flowchart TD
+    Publisher["Publisher"] -->|"POST /publish-event/event/path"| Gateway["SlimFaas: resolve allowed subscriptions"]
+    Gateway -->|"No allowed subscription"| Missing["404 Not Found"]
+    Gateway -->|"Allowed subscription"| Dispatch["Deliver to eligible targets"]
+    Dispatch -->|"Forward HTTP request"| ReplicaA["Ready HTTP replica A"]
+    Dispatch -->|"Forward HTTP request"| ReplicaB["Ready HTTP replica B"]
+    Dispatch -->|"PublishEvent message"| Client["Connected WebSocket subscriber"]
+    Sleeping["Sleeping or unready replica"] -.->|"Excluded from this publication"| Omitted["No durable replay and no wake-up"]
+    Dispatch --> Accepted["204 No Content; individual delivery failures are logged"]
 ```
+
+One publication can reach multiple ready replicas of the same function. `204` describes the publication response; it does not prove that every subscriber processed the payload.

@@ -35,6 +35,18 @@ For the Bash smoke script, install cURL and jq, then run:
 BASE_URL=http://127.0.0.1:30020 bash demo/smoke-tour.sh
 ```
 
+To observe scaling from one to several ready replicas with 800 async requests,
+keep the dashboard open and run the optional bounded workload separately:
+
+```bash
+BASE_URL=http://127.0.0.1:30020 bash demo/async-scale-tour.sh
+```
+
+It waits for an idle baseline, checks every submission, then verifies scale-out,
+queue drain and scale-down. Do not run another producer at the same time.
+Bruno provides the equivalent **Manual / Autoscaling** folder. Cancelling
+submission leaves already accepted work queued; let it finish before stopping.
+
 The source manifest is paired with `slimfaas.local.prebuilt.yaml`, which selects
 the packaged executables and disables automatic sample schedules. The tour
 creates its own schedules. Pass further `-f` overlays to the launcher to customize

@@ -28,11 +28,19 @@ This means your message streams remain **untouched** and your existing consumers
 
 Below is the logical architecture:
 
+```mermaid
+flowchart TD
+    Kafka["Kafka topics and consumer-group offsets"] -->|"Read metadata and offsets"| Connector["SlimFaasKafka: measure lag and recent activity"]
+    Connector -->|"Wake request when needed"| SlimFaas["SlimFaas: bring functions from 0 to N"]
+    SlimFaas --> Consumers["Ready consumer function replicas"]
+    Kafka -->|"Consume messages"| Consumers
+    Consumers -->|"Commit consumed offsets"| Kafka
+    Connector --> Metrics["Expose Kafka metrics"]
+    Metrics -->|"Scrape when configured and requested"| Autoscaler["SlimFaas PromQL autoscaler"]
+    Autoscaler -->|"Apply configured N to M scaling policy"| Consumers
 ```
-Kafka Topics  →  SlimFaasKafka  →  SlimFaas Orchestrator  →  Function Pods
-                    ↑   ↓                         ↑
-       Metadata & Offsets   Wake‑up events        |
-```
+
+The connector reads offsets to decide whether to wake a function; the function's consumer reads the messages. Scaling beyond the initial replicas additionally requires a configured `SlimFaas/Scale` trigger and metrics scraping, as shown below.
 
 ### Components
 

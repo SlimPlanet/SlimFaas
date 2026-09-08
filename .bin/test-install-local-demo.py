@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the installer offline against fixture releases and simulated platforms."""
 import hashlib
+import json
 import os
 import subprocess
 import sys
@@ -138,6 +139,35 @@ shutil.copyfile(source, args[args.index('--output') + 1])
     def test_musl_is_reported(self):
         self.executable("ldd", '#!/bin/sh\necho musl >&2\n')
         self.assertIn("require glibc", self.run_installer().stderr)
+
+    def test_launcher_validates_before_up_and_keeps_clean_out_of_validation(self):
+        self.release()
+        result = self.run_installer()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        runtime = self.destination / "runtime/SlimFaas"
+        runtime.write_text(f"#!{sys.executable}\n" + '''import json, os, pathlib, sys
+with (pathlib.Path(os.environ['FIXTURE_ROOT']) / 'launches.jsonl').open('a') as log:
+    log.write(json.dumps(sys.argv[1:]) + '\\n')
+if sys.argv[2] == 'validate' and os.environ.get('INVALID_MANIFEST') == 'true':
+    sys.exit(9)
+''')
+        manifests = ["-f", "slimfaas.local.yaml", "-f", "slimfaas.local.prebuilt.yaml"]
+        overlay = ["-f", "extra overlay.yaml", "--env-file", "demo env.txt"]
+        cases = [
+            (overlay, False, [["local", "validate", *manifests, *overlay], ["local", "up", *manifests, *overlay]]),
+            (["--clean", *overlay], False, [["local", "validate", *manifests, *overlay], ["local", "up", *manifests, *overlay, "--clean"]]),
+            (["--validate", *overlay], False, [["local", "validate", *manifests, *overlay]]),
+            (["--clean", *overlay], True, [["local", "validate", *manifests, *overlay]])
+        ]
+        log = self.root / "launches.jsonl"
+        for arguments, invalid, expected in cases:
+            with self.subTest(arguments=arguments, invalid=invalid):
+                log.write_text("")
+                result = subprocess.run(["sh", str(self.destination / "start.sh"), *arguments],
+                                        env=dict(self.environment, INVALID_MANIFEST=str(invalid).lower()),
+                                        cwd=self.root, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 9 if invalid else 0, result.stdout + result.stderr)
+                self.assertEqual([json.loads(line) for line in log.read_text().splitlines()], expected)
 
 
 if __name__ == "__main__":

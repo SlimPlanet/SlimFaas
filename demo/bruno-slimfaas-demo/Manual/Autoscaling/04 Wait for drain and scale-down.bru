@@ -1,0 +1,46 @@
+meta {
+  name: Wait for drain and scale-down
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/status-function/fibonacci1
+  body: none
+  auth: none
+}
+
+tests {
+  test("Queue drains and requested/ready replicas return to one or zero", async function () {
+    expect(bru.getVar("scalePeakReady")).to.be.greaterThan(1);
+    expect(res.getStatus()).to.equal(200);
+    const baseUrl = bru.getEnvVar("baseUrl").replace(/\/$/, "");
+    const deadline = Date.now() + 600000;
+    let emptySamples = 0;
+    while (Date.now() < deadline) {
+      const status = await bru.sendRequest({ method: "GET", url: req.getUrl() });
+      const metrics = await bru.sendRequest({ method: "GET", url: baseUrl + "/metrics" });
+      expect(status.status).to.equal(200);
+      expect(metrics.status).to.equal(200);
+      const gauges = metrics.data.split("\n").filter(line =>
+        /^slimfaas_function_queue_(ready|in_flight|retry_pending)_items\{/.test(line) &&
+        line.includes('function="fibonacci1"'));
+      const queue = gauges.length ? gauges.reduce((sum, line) =>
+        sum + Number(line.slice(line.lastIndexOf("}") + 1).trim().split(/\s+/)[0]), 0) : NaN;
+      const settled = queue === 0 && status.data.NumberRequested <= 1 && status.data.NumberReady <= 1;
+      emptySamples = settled ? emptySamples + 1 : 0;
+      if (emptySamples >= 3) {
+        console.log("Queue drained and scale-down observed. No tutorial data or job needs deleting.");
+        return;
+      }
+      await bru.sleep(2000);
+    }
+    throw new Error("Drain/scale-down not observed within ten minutes. Leave the demo running and inspect the UI and logs.");
+  });
+}
+
+docs {
+  Keep the UI open while the backlog shrinks and requested/ready replicas decrease.
+  Compose defaults to a five-minute scale-down stabilization window; native/Kubernetes demo policies are shorter.
+  This request only reads state. It does not purge the queue, reset storage or force replica counts.
+}

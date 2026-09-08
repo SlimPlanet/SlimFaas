@@ -1,0 +1,52 @@
+meta {
+  name: Establish one ready replica
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/wake-function/fibonacci1
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  bru.setVar("scaleBaseline", 0);
+  bru.setVar("scaleAccepted", 0);
+  bru.setVar("scalePeakReady", 0);
+}
+
+tests {
+  test("An empty queue and exactly one ready/requested replica", async function () {
+    expect(res.getStatus()).to.equal(204);
+    const baseUrl = bru.getEnvVar("baseUrl").replace(/\/$/, "");
+    const deadline = Date.now() + 420000;
+    while (Date.now() < deadline) {
+      const status = await bru.sendRequest({ method: "GET", url: baseUrl + "/status-function/fibonacci1" });
+      const metrics = await bru.sendRequest({ method: "GET", url: baseUrl + "/metrics" });
+      expect(status.status).to.equal(200);
+      expect(metrics.status).to.equal(200);
+      const gauges = metrics.data.split("\n").filter(line =>
+        /^slimfaas_function_queue_(ready|in_flight|retry_pending)_items\{/.test(line) &&
+        line.includes('function="fibonacci1"'));
+      const queue = gauges.length ? gauges.reduce((sum, line) =>
+        sum + Number(line.slice(line.lastIndexOf("}") + 1).trim().split(/\s+/)[0]), 0) : NaN;
+      if (status.data.NumberRequested === 1 && status.data.NumberReady === 1 && queue === 0) {
+        bru.setVar("scaleBaseline", 1);
+        console.log("Baseline N=1, sampled queue empty. Run the burst next.");
+        return;
+      }
+      await bru.sleep(2000);
+      const wake = await bru.sendRequest({ method: "POST", url: req.getUrl() });
+      expect(wake.status).to.equal(204);
+    }
+    throw new Error("Baseline not reached within seven minutes. Stop other producers and inspect the UI.");
+  });
+}
+
+docs {
+  Use the supplied tutorial demo and stop all other producers. Keep its UI open.
+  Run this folder in order. This request keeps one replica awake while earlier metrics and scale-down stabilization expire.
+  The queue check reads the three public queue gauges; the UI uses SSE snapshots, which can arrive at a different time.
+  See https://slimfaas.dev/guided-tour#scale-from-n-to-m-with-an-async-backlog.
+}

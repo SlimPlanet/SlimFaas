@@ -132,6 +132,18 @@ Inactivity can reduce replicas to the configured minimum, including zero. New ca
 
 Function visibility, path overrides and event subscription visibility are separate decisions. Trusted workload addresses and forwarded addresses participate in caller classification. Set up your ingress accordingly. Native local mode's shared loopback network cannot demonstrate pod isolation. Data sets/files have their own visibility setting; the [API Reference](api-reference.md) documents the current hashset behavior separately.
 
+### Queue metrics and function isolation
+
+The autoscaler evaluates application metrics within the function's own deployment.
+SlimFaas emits the three built-in queue gauges from its own metrics endpoint, so
+those series are additionally selected from the `slimfaas` source when their
+`function` label matches the function being scaled. Other functions' queue values
+and unrelated SlimFaas metrics remain excluded from scoped evaluations.
+
+The [guided scale-out exercise](guided-tour.md#scale-from-n-to-m-with-an-async-backlog)
+uses that queue signal to show one ready replica becoming several, followed by
+queue drain and scale-down.
+
 ## Data storage and replication
 
 ```mermaid

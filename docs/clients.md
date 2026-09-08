@@ -13,6 +13,30 @@ Client libraries:
 
 ---
 
+## A worker connects to SlimFaas
+
+The worker opens an outbound WebSocket and registers a virtual function. Callers continue to use the ordinary SlimFaas HTTP routes; SlimFaas transports requests and replies over the existing connection.
+
+```mermaid
+sequenceDiagram
+    participant Worker as Your process and client library
+    participant Gateway as SlimFaas
+    participant Caller as HTTP caller
+    Worker->>Gateway: Open /ws and register a function name/configuration
+    Gateway-->>Worker: Registration response
+    Caller->>Gateway: /function/virtual-name/path
+    Gateway->>Worker: SyncRequestStart, body chunks, SyncRequestEnd
+    Worker-->>Gateway: SyncResponseStart, body chunks, SyncResponseEnd
+    Gateway-->>Caller: Stream HTTP response
+    Caller->>Gateway: /async-function/virtual-name/path
+    Gateway->>Gateway: Durably enqueue
+    Gateway-->>Caller: 202 Accepted
+    Gateway->>Worker: Async request when capacity is available
+    Worker-->>Gateway: Completion callback with the element ID
+```
+
+Multiple connected clients with the same function name must use identical configuration. SlimFaas routes work to connected clients; starting more external worker processes remains your responsibility. See the examples below for event subscriptions and disconnect behavior.
+
 ## 1. Connection Endpoint
 
 Clients connect to SlimFaas with WebSocket:

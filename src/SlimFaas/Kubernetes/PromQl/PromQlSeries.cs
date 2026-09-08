@@ -86,11 +86,11 @@ internal sealed class EvalContext
         {
             _metricsStore.VisitSeries((_, deployment, podIp, metricKey, points) =>
             {
-                if (_deployment is not null &&
-                    !string.Equals(deployment, _deployment, StringComparison.Ordinal))
+                if (!IsDeploymentInScope(deployment, selector.MetricName))
                     return;
 
                 if (!TryParseMetricKey(metricKey, out var name, out var labels) ||
+                    !IsFunctionLabelInScope(deployment, labels) ||
                     !selector.Match(name, labels))
                 {
                     return;
@@ -122,8 +122,7 @@ internal sealed class EvalContext
 
             foreach (var (deployment, podMap) in depMap)
             {
-                if (_deployment is not null &&
-                    !string.Equals(deployment, _deployment, StringComparison.Ordinal))
+                if (!IsDeploymentInScope(deployment, selector.MetricName))
                     continue;
 
                 foreach (var (podIp, metrics) in podMap)
@@ -133,7 +132,7 @@ internal sealed class EvalContext
                         if (!TryParseMetricKey(metricKey, out var name, out var labels))
                             continue;
 
-                        if (!selector.Match(name, labels))
+                        if (!IsFunctionLabelInScope(deployment, labels) || !selector.Match(name, labels))
                             continue;
 
                         var baseKey = BuildSeriesKey(name, labels);
@@ -157,6 +156,23 @@ internal sealed class EvalContext
 
         return series;
     }
+
+    // Queue gauges are emitted by SlimFaas, not by the function's HTTP server.
+    // Only these built-in gauges may cross the deployment boundary, and only
+    // for the function being evaluated. Application metrics remain isolated.
+    private bool IsDeploymentInScope(string source, string metricName)
+        => _deployment is null ||
+           string.Equals(source, _deployment, StringComparison.Ordinal) ||
+           (string.Equals(source, "slimfaas", StringComparison.Ordinal) && metricName is
+               "slimfaas_function_queue_ready_items" or
+               "slimfaas_function_queue_in_flight_items" or
+               "slimfaas_function_queue_retry_pending_items");
+
+    private bool IsFunctionLabelInScope(string source, Dictionary<string, string> labels)
+        => _deployment is null ||
+           string.Equals(source, _deployment, StringComparison.Ordinal) ||
+           (labels.TryGetValue("function", out var function) &&
+            string.Equals(function, _deployment, StringComparison.Ordinal));
 
     private static long ToLookbackSeconds(TimeSpan lookback)
         => Math.Max(1L, (long)Math.Ceiling(lookback.TotalSeconds));

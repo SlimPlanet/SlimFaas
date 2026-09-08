@@ -24,6 +24,34 @@ Use `/data/files` when you need:
 
 ---
 
+## Follow a temporary artifact
+
+An upload returns an ID you can pass to a function or job. Consumers use that ID through the API; metadata is replicated through Raft, while binary bytes travel directly between nodes when needed.
+
+```mermaid
+sequenceDiagram
+    participant Producer
+    participant A as SlimFaas node A
+    participant Metadata as Replicated metadata
+    participant B as SlimFaas node B
+    participant Consumer as Function or job
+    Producer->>A: POST /data/files?ttl=60000 with raw bytes
+    A->>A: Store binary on disk
+    A->>Metadata: Commit ID, checksum, size and expiration
+    A-->>Producer: File ID
+    Producer->>Consumer: Pass the file ID
+    Consumer->>B: GET /data/files/id
+    B->>Metadata: Check metadata and expiration
+    opt Binary is not present on node B
+        B->>A: Pull binary from an available peer
+        A-->>B: Stream binary bytes
+    end
+    B-->>Consumer: Stream the file
+    Note over Metadata,Consumer: After expiration or deletion, a lookup returns 404
+```
+
+The [file exercise](guided-tour.md#files) uploads the supplied fixture and compares the downloaded bytes. The dashboard shows traffic; use API responses to verify the file itself.
+
 ## API summary
 
 Base path: `/data/files`
@@ -251,7 +279,7 @@ flowchart LR
   A -->|announce id + sha| BUS[(Cluster announce bus)]
 
 ```
-#### Sept 2: Background announce handling
+#### Step 2: Background announce handling
 ```mermaid
 flowchart LR
   %% 2) Background distribution — announce → async queue → worker → pull

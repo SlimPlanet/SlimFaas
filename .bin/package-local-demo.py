@@ -67,6 +67,7 @@ def main():
         shutil.copytree(REPOSITORY / "demo/bruno-slimfaas-demo", bundle / "demo/bruno-slimfaas-demo",
                         ignore=shutil.ignore_patterns("node_modules", ".DS_Store", "*.log"))
         shutil.copy2(REPOSITORY / "demo/smoke-tour.sh", bundle / "demo/smoke-tour.sh")
+        shutil.copy2(REPOSITORY / "demo/async-scale-tour.sh", bundle / "demo/async-scale-tour.sh")
         shutil.copy2(REPOSITORY / "LICENSE.md", bundle / "LICENSE.md")
         (bundle / "bundle-version.txt").write_text(args.version + "\n", encoding="utf-8")
         (bundle / "bundle-rid.txt").write_text(args.rid + "\n", encoding="utf-8")

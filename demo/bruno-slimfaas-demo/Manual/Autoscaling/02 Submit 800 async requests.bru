@@ -1,0 +1,63 @@
+meta {
+  name: Submit 800 async requests
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/async-function/fibonacci1/compute
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"input":10}
+}
+
+script:pre-request {
+  if (bru.getVar("scaleBaseline") !== 1) {
+    throw new Error("Run Establish one ready replica successfully before submitting load.");
+  }
+  bru.setVar("scaleBaseline", 0);
+  bru.setVar("scaleAccepted", 0);
+}
+
+tests {
+  test("All 800 bounded submissions return 202 without retries", async function () {
+    expect(res.getStatus()).to.equal(202);
+    let accepted = 1;
+    let next = 1;
+    let failure;
+    const url = req.getUrl();
+    await Promise.all(Array.from({ length: 16 }, async function () {
+      while (!failure && next < 800) {
+        next++;
+        try {
+          const response = await bru.sendRequest({
+            method: "POST", url, timeout: 15000,
+            headers: { "Content-Type": "application/json" }, data: { input: 10 }
+          });
+          if (response.status !== 202) throw new Error("Submission returned HTTP " + response.status);
+          accepted++;
+        } catch (error) {
+          failure = error;
+        }
+      }
+    }));
+    bru.setVar("scaleAccepted", accepted);
+    console.log("Accepted " + accepted + " requests. Watch requested/ready replicas and the queue in the UI.");
+    if (failure) throw new Error("Submission failed; acceptance may be unknown. No retry. Let accepted work drain. " + failure.message);
+    expect(accepted).to.equal(800);
+  });
+}
+
+docs {
+  The visible request submits the first item; the test script submits the other 799 using 16 producers.
+  Each handler waits about 100 ms. This consumes demo capacity; do not combine it with another workload.
+  Run Observe scale-out immediately afterwards, or run this whole Autoscaling folder in order.
+  Cancelling cannot remove requests already durably accepted. Leave SlimFaas running until the queue drains.
+}

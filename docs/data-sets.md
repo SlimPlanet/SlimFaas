@@ -15,14 +15,15 @@ Use it to store **small values** (cache entries, JSON state, flags, checkpoints)
 ## How it works (high-level)
 
 ```mermaid
-flowchart LR
-  C[Client] -->|HTTP| API[SlimFaas /data/sets]
-  API -->|SetAsync / GetAsync / DeleteAsync| DB[SlimData]
-  DB -->|Raft replication| N1[(Node A)]
-  DB -->|Raft replication| N2[(Node B)]
-  DB -->|Raft replication| N3[(Node C)]
-  DB --> TTL[TTL metadata]
-  TTL --> EXP[Auto-expire]
+flowchart TD
+    Client["Client"] --> Operation{"Data Sets operation"}
+    Operation -->|"POST value, counter mutation or DELETE"| Write["Validate ID, payload and TTL"]
+    Write --> Commit["SlimData: commit the mutation through Raft"]
+    Commit --> State["Replicated value and expiration metadata"]
+    Operation -->|"GET value or list"| Read["Read committed state and check expiration"]
+    State --> Read
+    Read -->|"Visible and unexpired"| Value["Return value or metadata"]
+    Read -->|"Missing or expired value"| Missing["404 for a value lookup"]
 ```
 
 ---
@@ -97,6 +98,26 @@ curl -X POST "http://<slimfaas>/data/sets/my-usecase.session-123.state?ttl=60000
 ```
 
 ---
+
+## Why an atomic counter matters
+
+Incrementing with one API call avoids a client-side read/modify/write race. Concurrent successful increments are applied as individual replicated mutations; each response contains the resulting value. A network failure can leave a client unsure whether its mutation committed, so blindly retrying increments can count twice.
+
+```mermaid
+sequenceDiagram
+    participant A as Client A
+    participant B as Client B
+    participant Store as SlimData committed counter
+    Note over Store: Counter starts at 0
+    A->>Store: POST /data/sets/count/incr
+    B->>Store: POST /data/sets/count/incr
+    Note over Store: Mutations are applied in committed order
+    Store-->>A: 1 if A commits first
+    Store-->>B: 2 if B commits second
+    Note over A,B: The opposite arrival order is also possible
+```
+
+Try the [values, TTL and counters exercise](guided-tour.md#7-store-values-counters-hashsets-and-files). Verify stored contents through the API; the dashboard has no data explorer.
 
 ## Atomic counters
 

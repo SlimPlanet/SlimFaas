@@ -8,6 +8,7 @@
     li { margin: .35rem 0; }
     > p:first-of-type { font-size: 1.15rem; color: var(--muted); }
     img { max-width: 100%; height: auto; }
+    a { overflow-wrap: anywhere; }
     hr { border: 0; border-top: 1px solid var(--line); margin: 2.5rem 0; }
     blockquote { background: var(--soft); border-left: 4px solid var(--color-primary); padding: 1rem 1.3rem; margin: 1.5rem 0; border-radius: 0 8px 8px 0; }
     blockquote p:last-child { margin-bottom: 0; }

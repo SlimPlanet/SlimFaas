@@ -17,6 +17,20 @@ if [ "${1:-}" = --validate ]; then
     shift
     exec "$runtime" local validate -f slimfaas.local.yaml -f slimfaas.local.prebuilt.yaml "$@"
 fi
+# --clean belongs to local up only. Preserve all other arguments, including
+# overlay paths containing spaces, when validating before startup.
+clean=false
+remaining=$#
+while [ "$remaining" -gt 0 ]; do
+    argument=$1
+    shift
+    case "$argument" in
+        --clean) clean=true ;;
+        *) set -- "$@" "$argument" ;;
+    esac
+    remaining=$((remaining - 1))
+done
 "$runtime" local validate -f slimfaas.local.yaml -f slimfaas.local.prebuilt.yaml "$@"
+if [ "$clean" = true ]; then set -- "$@" --clean; fi
 printf '%s\n' 'Dashboard: http://127.0.0.1:30020/ (wait for readiness)' 'Press Ctrl+C to stop. State is kept in .slimfaas/slimfaas-demo.'
 exec "$runtime" local up -f slimfaas.local.yaml -f slimfaas.local.prebuilt.yaml "$@"

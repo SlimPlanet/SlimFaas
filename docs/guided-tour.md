@@ -139,6 +139,100 @@ curl -i "$BASE_URL/function/fibonacci1/error"
 
 Expect `500` from the demo handler. Async errors and an empty `{}` callback payload deliberately trigger failure/retry behavior; those requests are manual so a normal tour run does not leave retrying work behind.
 
+### Scale from N to M with an async backlog
+
+**Objective:** start with **N = 1 ready replica**, enqueue enough work to exceed its processing capacity, observe **M > N ready replicas**, and watch the queue drain before capacity shrinks again. This demonstrates metric-driven scale-out after wake-up.
+
+**Prerequisites:** use the supplied `fibonacci1` demo and stop other producers. Finish the callback exercise first. Keep **Infrastructure Overview** and the network map open. The longer workload is optional and lives in **Bruno: `Manual / Autoscaling`**; it is excluded from the ordinary `Tour` run.
+
+The existing `SlimFaas/Scale` trigger evaluates:
+
+```promql
+max_over_time(slimfaas_function_queue_ready_items{function="fibonacci1"}[30s])
+```
+
+Its `MetricType` is `Value`, its threshold is `10`, and the sample allows one in-flight async request per pod, with a function-wide concurrency limit of `10`. These are **configuration values**, not settings applied by the commands below.
+
+| Tutorial environment | Replica ceiling | Scale-up behavior | Scale-down stabilization |
+|---|---|---|---|
+| Kubernetes | 10 | At most one additional pod per 10 seconds | 20 seconds, then at most one pod removed per 10 seconds |
+| Local, including the precompiled bundle | 10 | At most one additional process per 10 seconds | 20 seconds, then at most one process removed per 10 seconds |
+| Docker Compose tutorial overlay | 4 | Default policies: up to 4 pods or 100% per 15 seconds | Default 300-second stabilization |
+
+For this `Value` trigger, the initial recommendation is `ceil(current replicas × metric / 10)`, then bounded by the replica ceiling, policies and stabilization. For example, a metric of `80` with one current replica recommends `8` before those limits. This is not a promise that eight replicas immediately become ready.
+
+```mermaid
+flowchart TD
+    Start["One ready replica: N = 1"] --> Burst["Submit 800 async requests"]
+    Burst --> Queue["Requests accumulate in the durable queue"]
+    Queue --> Metric["Queue gauge and 30-second PromQL window"]
+    Metric --> Policy["Autoscaler applies threshold, replica ceiling and policies"]
+    Policy --> Requested["Requested replicas increase"]
+    Requested --> Ready["New replicas become ready: M greater than N"]
+    Ready --> Drain["More available workers drain the queue"]
+    Drain --> Cooldown["Stop producing; old samples and stabilization expire"]
+    Cooldown --> Down["Replicas decrease; idle scale-to-zero can follow"]
+```
+
+#### Run the complete experiment
+
+From the repository root or an updated local bundle:
+
+```bash
+BASE_URL="$BASE_URL" REQUESTS=800 CONCURRENCY=16 bash demo/async-scale-tour.sh
+```
+
+The script waits for readiness and an empty queue with exactly one ready/requested replica, then submits **800** requests to `/async-function/fibonacci1/compute` using **16** producers. The demo handler waits about **100 ms**; the input is intentionally small and does not create expensive Fibonacci computations. Every submission must return `202`; failed submissions are reported and are never retried automatically.
+
+The script samples the same SSE state used by the dashboard and prints `Submitted`, `Requested`, `Ready` and `Queue`. It requires both requested and ready replica counts to rise above one, waits for the queue to drain, and then waits for capacity to return to one or zero. Allow a few minutes in Local/Kubernetes; Compose's default scale-down stabilization can add approximately five minutes. The script reads that configured window when choosing its waiting deadline.
+
+**In the UI:** follow these changes in order:
+
+1. `fibonacci1` has one requested and one ready replica before load.
+2. Caller → queue traffic increases and the queue length grows.
+3. Requested replicas increase first; new pods/processes appear and then become ready. Ready replicas above one are the evidence of `N → M`.
+4. More queue → function activity appears and the backlog falls. Readiness can lag the requested count while images are pulled or processes start.
+5. After submissions stop, the queue reaches zero. The `max_over_time(...[30s])` sample window can still report earlier pressure, so replicas can briefly continue to increase after the queue drains. That window and stabilization then delay scale-down. Dependencies or running jobs can keep a replica awake.
+
+The **Queue** column counts available, running and retry-waiting items together. The trigger uses only **ready-to-dispatch** queue items, so the displayed queue length and PromQL value need not match. SSE snapshots and metric samples can also arrive at different times. The script checks observed state; it does not force replica counts or change annotations.
+
+#### Inspect the trigger while requests are running
+
+In a second terminal:
+
+```bash
+curl -fsS "$BASE_URL/status-function/fibonacci1" | jq '{Name, NumberRequested, NumberReady}'
+curl -fsS -X POST "$BASE_URL/debug/promql/eval" \
+  -H 'Content-Type: application/json' \
+  --data '{"Query":"max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci1\"}[30s])","Deployment":"fibonacci1"}' | jq .
+```
+
+The function status route reports replica counts. The PromQL response's `value` is the sampled queue metric, not a replica count. Use the dashboard's function details or the SSE state to inspect `Scale` and concurrency configuration. See [Autoscaling](autoscaling.md) for the full policy calculation and metric debugging.
+
+#### Run the burst yourself with cURL or Bruno
+
+To submit the same workload manually, first wake `fibonacci1`, wait for one ready/requested replica and an empty queue in the UI, then run:
+
+```bash
+export BASE_URL
+seq 1 800 | xargs -P 16 -I '{}' curl -sS --max-time 15 -o /dev/null \
+  -w '%{http_code}\n' -X POST "$BASE_URL/async-function/fibonacci1/compute" \
+  -H 'Content-Type: application/json' --data '{"input":10}'
+```
+
+Each printed line should be `202`. Unlike the complete script, this short command only submits work; observe replicas and queue completion in the UI. `CONCURRENCY` is the number of producers sending HTTP requests, not the number of replicas or function workers.
+
+In Bruno, run **`Manual / Autoscaling`** in order. The baseline request keeps one replica awake while earlier metrics expire. The burst request submits the same 800 calls, the observation request polls until more than one replica is ready, and the final request waits for queue drain and scale-down. The burst's script contains additional HTTP calls; allow the collection's scripts to run. Do not run these requests concurrently with the cURL workload.
+
+```bash
+# From demo/bruno-slimfaas-demo, with the optional Bruno CLI installed:
+bru run Manual/Autoscaling -r --env Local --bail
+```
+
+**Cleanup:** the successful handler creates no stored data or jobs. Let accepted work complete and leave SlimFaas running while the queue drains. Ctrl+C stops new submissions, but already accepted async work remains durable; restarting SlimFaas can resume it. There is no public queue-purge operation in this exercise. Do not reset shared state to cancel the test.
+
+**If scale-out does not appear:** check that the queue trigger is configured, its threshold is positive, `ReplicaMax > 1`, and metrics are being collected. An extremely short burst may finish before a metric sample; the supplied script uses 800 requests for this reason. If requested replicas increase but ready replicas do not, inspect process logs or pod/container startup failures and available resources. The test deliberately fails when it cannot observe scale-out, queue drain or scale-down before its deadlines.
+
 ## 5. Publish an event
 
 **Bruno:** `Tour / 04 Events`.

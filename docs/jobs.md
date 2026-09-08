@@ -5,6 +5,28 @@ SlimFaas lets you run **one‑off, batch, and scheduled (cron) jobs** either on�
 
 ---
 
+## From a trigger to a completed job
+
+HTTP requests and schedules feed the same job execution path. A job configuration supplies the executable/image, dependencies, concurrency and retry limits; it is distinct from each execution created from that configuration.
+
+```mermaid
+flowchart TD
+    Caller["Caller: POST /job/name"] --> Queue["Durably queue a job execution"]
+    Schedule["Cron schedule becomes due"] --> Queue
+    Queue --> Pending["Wait for dependencies and an available job slot"]
+    Pending --> Orchestrator["Kubernetes, Docker or native process orchestrator"]
+    Orchestrator --> Running["Run the configured program with its arguments"]
+    Running --> Result{"Execution result"}
+    Result -->|"Success"| Succeeded["Succeeded"]
+    Result -->|"Failure; retry allowed"| Retry["Retry within the configured backoff limit"]
+    Retry --> Running
+    Result -->|"Retry budget exhausted"| Failed["Failed"]
+    Succeeded --> Retention["Retain finished state until its configured TTL"]
+    Failed --> Retention
+```
+
+In the dashboard, **Jobs Overview** shows configurations and running work. List executions with `GET /job/name` and create/delete your own schedules in the [job exercise](guided-tour.md#6-run-jobs-and-manage-schedules). CPU/memory resource limits depend on the orchestrator; native local processes do not enforce container limits.
+
 ## 1. Why Use Jobs?
 
 * **Short‑lived or periodic tasks** — perform a specialised computation once or on a fixed cadence and then shut down.

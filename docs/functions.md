@@ -5,6 +5,53 @@ Below is an overview of each.
 
 ---
 
+## Follow an invocation
+
+For a synchronous call, the caller keeps its connection open while SlimFaas waits for a ready replica and proxies the response. A wake-up can therefore be visible before the first successful response.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Gateway as SlimFaas proxy
+    participant Orchestrator
+    participant Function as HTTP function
+    Caller->>Gateway: /function/name/path
+    opt No ready replica
+        Gateway->>Orchestrator: Request wake-up
+        Orchestrator->>Function: Start replicas and check readiness
+    end
+    Gateway->>Function: Forward HTTP request
+    Function-->>Gateway: Status, headers and response body
+    Gateway-->>Caller: Stream the response
+```
+
+An asynchronous call separates durable acceptance from execution. A worker dispatches eligible work within the function's concurrency limits. Failed attempts can be retried; handlers must tolerate duplicate delivery.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Gateway as SlimFaas
+    participant Queue as Durable queue
+    participant Worker
+    participant Function
+    Caller->>Gateway: /async-function/name/path
+    Gateway->>Queue: Enqueue and commit
+    Queue-->>Gateway: Durable acceptance
+    Gateway-->>Caller: 202 Accepted
+    Worker->>Queue: Claim eligible work
+    Worker->>Function: Dispatch when ready and capacity is available
+    alt Handler completes during the HTTP call
+        Function-->>Worker: Completion status
+        Worker->>Queue: Complete or schedule a retry
+    else Handler returns 202 for deferred completion
+        Function-->>Worker: 202, work continues
+        Function->>Gateway: Callback with the real element ID
+        Gateway->>Queue: Complete or retry the outstanding item
+    end
+```
+
+Watch both paths in the [Guided Tour](guided-tour.md#4-queue-work-retry-and-complete-callbacks), then [scale out with an async burst](guided-tour.md#scale-from-n-to-m-with-an-async-backlog).
+
 ## 1. Synchronous Functions
 
 Synchronous calls block until the underlying function pod handles the request and returns a response.
