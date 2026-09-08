@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { fixtureAddressId } from '../lib/fixtures';
 import FunctionTable from '../components/FunctionTable';
 import type { FunctionStatusDetailed } from '../types';
 
@@ -163,7 +164,7 @@ const FUNCTIONS_SOME_UP: FunctionStatusDetailed[] = FUNCTIONS_ALL_DOWN.map((fn, 
           Name: `${fn.Name}-pod-${j}`,
           Status: 'Running',
           Ready: true,
-          Ip: `10.0.0.${j + 1}`,
+          Ip: fixtureAddressId(j + 1),
         })),
       }
     : fn
@@ -177,7 +178,7 @@ const FUNCTIONS_ALL_UP: FunctionStatusDetailed[] = FUNCTIONS_ALL_DOWN.map((fn) =
     Name: `${fn.Name}-pod-${j}`,
     Status: 'Running',
     Ready: true,
-    Ip: `10.0.0.${j + 1}`,
+    Ip: fixtureAddressId(j + 1),
   })),
 }));
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { appendActivity, paginate, ttlLabel, formatBytes, readSse } from '../src/lib/live.ts';
 import { buildTopology, resolveSource, eventPath, filterNodes, selectedEvent } from '../src/lib/topology.ts';
-import { makeFixtures, fixtureEvents } from '../src/lib/fixtures.ts';
+import { makeFixtures, fixtureEvents, fixtureAddressId } from '../src/lib/fixtures.ts';
 
 function model(replicas = 6, jobs = 4) {
   const f = makeFixtures(replicas, jobs);
@@ -36,12 +36,20 @@ test('job routes retain associated functions and fall back to their configuratio
   assert.ok(eventPath(topology, fixtureEvents(1, 1)[0]).includes('queue:fibonacci1'));
   assert.deepEqual(eventPath(topology, fixtureEvents(2, 1)[0]), ['queue:fibonacci1', 'pod:fibonacci1/fibonacci1-00002']);
 });
-test('native loopback and unknown addresses stay external, mapped IPv4 resolves a pod', () => {
+test('opaque addresses resolve replicas while anonymous and unknown callers stay external', () => {
   const topology = model();
   assert.equal(resolveSource(topology, 'external', '127.0.0.1'), 'external:external');
   assert.equal(resolveSource(topology, 'external', '::1'), 'external:external');
   assert.equal(resolveSource(topology, 'external', 'unknown'), 'external:external');
-  assert.equal(resolveSource(topology, 'external', '::ffff:10.1.0.1'), 'pod:fibonacci1/fibonacci1-00000');
+  assert.equal(resolveSource(topology, 'external', null), 'external:external');
+  assert.equal(resolveSource(topology, 'external', fixtureAddressId(1)), 'pod:fibonacci1/fibonacci1-00000');
+  assert.equal(filterNodes(topology, fixtureAddressId(1))[0].id, 'pod:fibonacci1/fibonacci1-00000');
+  assert.deepEqual(eventPath(topology, { ...fixtureEvents(3, 1)[0], SourcePod: fixtureAddressId(1), TargetPod: fixtureAddressId(2) }),
+    ['pod:fibonacci1/fibonacci1-00000', 'node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00001']);
+  const refreshed = makeFixtures();
+  refreshed.functions[0].Pods!.forEach((pod, i) => { pod.Ip = fixtureAddressId(i + 100); });
+  const next = buildTopology(refreshed.functions, refreshed.jobs, refreshed.queues, refreshed.slimFaasNodes);
+  assert.deepEqual([...next.byId.keys()], [...topology.byId.keys()], 'selection identities survive address-token rotation');
 });
 test('history and duplicate ids stay bounded during sustained bursts', () => {
   let history = [];

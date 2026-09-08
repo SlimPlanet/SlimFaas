@@ -2,7 +2,7 @@ export interface PodStatus {
   Name: string;
   Status: string;
   Ready: boolean;
-  Ip: string;
+  Ip: string; // Legacy wire name: opaque server address token, never a literal IP.
 }
 
 export interface ResourcesConfiguration {
@@ -111,8 +111,8 @@ export interface NetworkActivityEvent {
   QueueName: string | null;
   TimestampMs: number;
   NodeId: string;
-  SourcePod: string | null;  // source pod name/IP, or the full name of a SlimFaas job run
-  TargetPod: string | null;  // target pod name or IP (e.g. the downstream pod receiving the request)
+  SourcePod: string | null;  // pod name, opaque address token or full SlimFaas job run name
+  TargetPod: string | null;  // pod name or opaque address token of the downstream replica
   CorrelationId?: string | null; // shared id used to pair related start/end events
 }
 

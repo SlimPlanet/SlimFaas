@@ -113,10 +113,12 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
             .ToList();
 
         var payload = new StatusStreamPayload(
-            Functions: functions,
+            Functions: functions.Select(StatusStreamPrivacy.ForBrowser).ToArray(),
             Queues: queues,
             Jobs: jobs,
-            RecentActivity: includeRecentActivity ? _activityTracker.GetRecent() : Array.Empty<NetworkActivityEvent>(),
+            RecentActivity: includeRecentActivity
+                ? _activityTracker.GetRecent().Select(StatusStreamPrivacy.ForBrowser).ToArray()
+                : Array.Empty<NetworkActivityEvent>(),
             SlimFaasReplicas: slimFaasInfo.Replicas,
             SlimFaasNodes: slimFaasNodes,
             FrontEnabled: _slimFaasOptions.Value.EnableFront,
@@ -224,5 +226,4 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
         }
     }
 }
-
 

@@ -68,7 +68,7 @@ public static class StatusStreamEndpoints
         }
 
         context.Response.ContentType = "text/event-stream";
-        context.Response.Headers.CacheControl = "no-cache";
+        context.Response.Headers.CacheControl = "no-cache, no-store";
         context.Response.Headers.Connection = "keep-alive";
         context.Response.Headers["X-Accel-Buffering"] = "no";
 
@@ -147,12 +147,12 @@ public static class StatusStreamEndpoints
 
         while (writtenEvents < maxEventsPerWake && reader.TryRead(out var firstEvent))
         {
-            var batch = new List<NetworkActivityEvent>(activityBatchSize) { firstEvent };
+            var batch = new List<NetworkActivityEvent>(activityBatchSize) { StatusStreamPrivacy.ForBrowser(firstEvent) };
             while (batch.Count < activityBatchSize
                    && writtenEvents + batch.Count < maxEventsPerWake
                    && reader.TryRead(out var nextEvent))
             {
-                batch.Add(nextEvent);
+                batch.Add(StatusStreamPrivacy.ForBrowser(nextEvent));
             }
 
             writtenEvents += batch.Count;
@@ -169,5 +169,4 @@ public static class StatusStreamEndpoints
         }
     }
 }
-
 

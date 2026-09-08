@@ -14,10 +14,10 @@ The five-minute run measured actual canvas background draws while continuously p
 
 | Measure | Result |
 |---|---:|
-| Duration | 300.08 s |
-| Canvas draw rate | 59.95 frames/s |
-| 95th percentile frame gap | 17.6 ms |
-| JavaScript heap after GC, start / end | 13.8 / 19.8 MB |
+| Duration | 300.09 s |
+| Canvas draw rate | 59.92 frames/s |
+| 95th percentile frame gap | 18.1 ms |
+| JavaScript heap after GC, start / end | 19.0 / 20.9 MB |
 | Browser errors | 0 |
 | Event journal capacity | 5,000 |
 | Animated marker capacity | 200 |
@@ -54,7 +54,7 @@ For interactive scenarios, run `npm run storybook` and open **Dashboard / Live**
 
 ## Integration validation
 
-The complete .NET suite passed 1,199 tests (SlimFaas 935, SlimData 176, MCP 79, Kafka 9). Dashboard and documentation tests each passed 8 tests; dashboard, Storybook and documentation builds succeeded. Run these checks with Node 24 on PATH:
+The complete .NET suite passed 1,214 tests (SlimFaas 950, SlimData 176, MCP 79, Kafka 9). Dashboard and documentation tests each passed 8 tests; dashboard, Storybook and documentation builds succeeded. Run these checks with Node 24 on PATH:
 
 ```bash
 dotnet test
@@ -97,3 +97,9 @@ The `osx-arm64` AOT executable validated the native demo manifest and ran its th
 The live API checks created set keys and files, observed a short TTL expire, changed a persistent key's TTL, checked exact sizes (2,500,000; 98,297; 128 bytes), and paged 105 prefix-matching keys as 100 + 5. The browser checks covered dialog keyboard navigation and focus restoration, wake failure feedback, restricted metadata without an automatic retry loop, copying a key, retaining stale rows after stream EOF, reconnecting, and mobile overflow. The screenshots use synthetic data in that native demo.
 
 Kubernetes IP attribution is covered by endpoint/helper tests; no live Kubernetes cluster was used. AOT dependency warnings from MemoryPack and System.Configuration are also present on the baseline. The full test suite initially encountered an existing adaptive-batcher timing timeout under concurrent builds; its isolated rerun and the complete subsequent run passed.
+
+## Address privacy follow-up
+
+The browser workload above was repeated with full-length opaque address tokens after the privacy change. Fifteen new backend cases cover IPv4, mapped IPv6, IPv6 scope IDs, loopback callers, unchanged workload names and the actual SSE wire output. Initial/periodic state, history, individual activity and batches expose matching tokens; a second subscriber receives consistent tokens. Raw deployment caches and access-controlled inter-node activity retain their internal addresses.
+
+The native AOT demo and browser follow-up passed Fibonacci, signed job sync/async calls through a successfully completed job, address-ID search, replica selection and mobile layout. All 25 captured browser SSE frames omitted literal loopback addresses; there were no browser errors. Existing Node topology tests also cover opaque-token correlation and stable selection identities after token rotation. Dashboard, Storybook, documentation and native AOT builds passed again. The public field names remain compatible, but consumers must treat the legacy `Ip` field as an opaque transient identifier.

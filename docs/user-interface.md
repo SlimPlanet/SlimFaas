@@ -63,6 +63,12 @@ This endpoint uses Server-Sent Events (SSE). It sends:
 - **`activity` events**: single live network activity events.
 - **`activity_batch` events**: grouped live network activity events during bursts.
 
+Replica and caller IP addresses are never sent in the stream's network address fields. Before serializing `state` (including `RecentActivity`), `activity` and `activity_batch`, the server replaces literal IPv4/IPv6 addresses with opaque `ip_…` tokens using HMAC-SHA-256 and a private random process key. Equivalent IPv4/mapped-IPv6 forms share a token. An unkeyed hash or public salt is not used because private address ranges can be enumerated.
+
+For wire compatibility, `Functions[].Pods[].Ip` keeps its existing name and string type, but contains an **address ID**, not a routable address. `SourcePod` and `TargetPod` carry the matching token or an existing pod/job execution name. The dashboard searches names and address IDs and retains replica selection by name. Loopback caller identities are omitted to avoid attributing local tools to a function sharing the same address.
+
+Tokens are consistent across subscribers and peer events served by one process; they change after a restart or when reconnecting to another node. Treat them as transient correlation identifiers, not persistent replica IDs. Raw addresses remain internal to routing and the access-controlled peer activity endpoint. No storage migration or client-side hashing is needed. Consumers that interpreted `Ip` as a network address must adapt to its opaque semantics.
+
 The browser reconnects automatically if the stream disconnects.
 
 ---

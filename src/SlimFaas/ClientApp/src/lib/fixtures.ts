@@ -1,12 +1,15 @@
 import type { FunctionStatusDetailed, JobConfigurationStatus, NetworkActivityEvent } from '../types.ts';
 
+// Synthetic opaque tokens for visual fixtures; production tokens are keyed on the server.
+export const fixtureAddressId = (index: number) => `ip_${index.toString(16).padStart(64, '0')}`;
+
 export function makeFixtures(replicas = 6, executions = 4) {
   const functions: FunctionStatusDetailed[] = [{
     Name: 'fibonacci1', NumberReady: replicas, NumberRequested: replicas, PodType: 'Deployment', Visibility: 'Public', Trust: 'Trusted',
     ReplicasMin: 0, ReplicasAtStart: 1, TimeoutSecondBeforeSetReplicasMin: 10, NumberParallelRequest: 10000, NumberParallelRequestPerPod: 10,
     Resources: { CpuRequest: '100m', CpuLimit: '500m', MemoryRequest: '64Mi', MemoryLimit: '256Mi' },
     Schedule: null, Scale: null, Retry: null, SubscribeEvents: [], PathsStartWithVisibility: [], DependsOn: [],
-    Pods: Array.from({ length: replicas }, (_, i) => ({ Name: `fibonacci1-${String(i).padStart(5, '0')}`, Ip: `10.1.${Math.floor(i / 250)}.${i % 250 + 1}`, Status: 'Running', Ready: true })),
+    Pods: Array.from({ length: replicas }, (_, i) => ({ Name: `fibonacci1-${String(i).padStart(5, '0')}`, Ip: fixtureAddressId(i + 1), Status: 'Running', Ready: true })),
   }];
   const jobs: JobConfigurationStatus[] = [{
     Name: 'daily-report', Image: 'ghcr.io/example/report:1.0', Visibility: 'Private', ImagesWhitelist: [], NumberParallelJob: 10000,
