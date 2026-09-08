@@ -1,0 +1,11 @@
+.segmented {
+  display: flex; border: 1px solid var(--line); border-radius: 8px; padding: 3px; background: #fff;
+  &__button { background: transparent; border: 0; border-radius: 5px; padding: .45rem 1rem; font-size: .85rem; color: var(--muted); }
+  &__button--active { background: var(--soft); color: var(--color-primary); font-weight: 650; }
+}
+.data-explorer {
+  &__description { font-size: .85rem; color: var(--muted); margin: 0 0 1.5rem; }
+  &__bytes, &__expiry-label { display: block; color: var(--muted); font-size: .7rem; margin-top: .2rem; }
+  &__expiry-label { color: var(--warning); }
+  &__updated { color: var(--muted); font-size: .75rem; text-align: right; }
+}

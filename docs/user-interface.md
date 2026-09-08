@@ -14,32 +14,27 @@ The UI is served by the SlimFaas application itself and uses the same backend en
 
 ## Follow a request in the dashboard
 
-Start with [Get Started](get-started.md), then keep this UI open while following the [Guided Tour](guided-tour.md). Each exercise names the request to send from cURL or Bruno and the resulting state or traffic to observe. The UI provides visibility and wake actions; it does not contain a general API request editor or a browser for stored data contents.
+Start with [Get Started](get-started.md), then keep this UI open while following the [Guided Tour](guided-tour.md). Each exercise names the request to send from cURL or Bruno and the resulting state or traffic to observe. The UI provides visibility, wake actions and a metadata-only data inventory. Use cURL or Bruno to invoke APIs or inspect stored contents.
 
 ## 1. What the Page Shows
 
-The page is split into two main sections:
+The dashboard follows the same visual language as slimfaas.dev: primary blue, light surfaces and compact component-owned controls.
 
-- **Infrastructure Overview**: shows all detected SlimFaas functions and their runtime state.
-- **Jobs Overview**: shows configured jobs, running jobs, and scheduled executions.
+- **Overview** presents function, replica, job and node counters, compact searchable tables, and wake-up actions.
+- **Live Stream → Traffic** opens the zoomable live canvas and its searchable actor list or event journal.
+- **Live Stream → Data** lists set keys and file metadata, with expiry and file sizes.
 
-When the live front features are enabled, the page also displays a network map that visualizes traffic between external callers, SlimFaas, queues, functions, and SlimFaas replicas.
+The views have stable links: `/#/overview`, `/#/live/traffic` and `/#/live/data`. Select a function or job name in Overview to open its configuration and paginated instance details. Tables show 100 items per page; completed jobs stay available until their configured retention expires. Executions are attached by the complete configuration name, so configurations such as `fibonacci` and `fibonacci5` never share the same execution row.
+
+![Dashboard Overview with compact functions and jobs](images/dashboard/overview.png)
 
 ---
 
 ## 2. Infrastructure Overview
 
-The infrastructure section lists every deployment, statefulset, daemonset, or websocket function detected by SlimFaas.
+Overview lists functions detected from deployments, statefulsets, daemonsets and WebSocket clients. Rows show visibility, ready/requested replicas and scale settings. Select a name to inspect configuration, resources, schedules, dependencies, retry settings and individual replicas in a side panel.
 
-For each function, the table shows:
-
-- **Name**: function name and the sync/async route pattern.
-- **Visibility**: public/private access and trust level.
-- **Scale**: ready/requested replicas, minimum replicas, start replicas, scale-down timeout, parallel request limits, schedules, dependencies, and autoscaling triggers.
-- **Resources**: CPU and memory requests/limits when available.
-- **Replicas**: pod-level status, readiness, and pod IPs.
-
-If a function has no ready replica, the UI shows it as down and allows it to be manually woken up.
+Replica and execution lists support search and pagination instead of expanding every instance into the main page. The side panel supports Escape to close and returns keyboard focus to its trigger.
 
 ---
 
@@ -64,7 +59,7 @@ GET /status-functions-stream
 
 This endpoint uses Server-Sent Events (SSE). It sends:
 
-- **`state` events**: periodic full snapshots containing functions, queue lengths, jobs, SlimFaas replicas, SlimFaas nodes, and front status.
+- **`state` events**: periodic full snapshots containing functions, queue lengths, jobs, SlimFaas replicas, SlimFaas nodes, front status, `LiveActivitySamplingRatio` and `MaxLiveEventsPerSecond`.
 - **`activity` events**: single live network activity events.
 - **`activity_batch` events**: grouped live network activity events during bursts.
 
@@ -74,16 +69,15 @@ The browser reconnects automatically if the stream disconnects.
 
 ## 5. Network Map
 
-When `SlimFaas:EnableFront` is enabled, the UI renders a live network map.
+![Live traffic map with jobs, SlimFaas nodes, queues and functions](images/dashboard/traffic.png)
 
-The map uses the activity stream to show messages moving between:
+When `SlimFaas:EnableFront` is enabled, Traffic draws a canvas map of external callers, managed jobs, SlimFaas nodes, queues and functions. The overview groups replicas and executions by workload. Zooming reveals individual instances with no fixed instance-count cap. Groups reserve space for their instances; offscreen points are omitted from drawing.
 
-- external callers
-- running job instances
-- SlimFaas
-- function pods
-- async queues
-- SlimFaas replicas in multi-node deployments
+Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the overview. Keyboard users can focus the canvas and use arrow keys, `+`, `-` and Home. The searchable actor table provides another way to select every instance. Selection focuses the map and filters the journal to the actor's connections. Clear selection to see all traffic.
+
+The journal retains at most 5,000 received events. **Pause** freezes the current view; **Resume live** returns to current traffic without replaying the paused interval. Moving markers are independently limited to 200; the actor inventory is not sampled. Reduced-motion preferences disable moving markers.
+
+Rates describe observed events, not guaranteed request throughput. Configured sampling and rate limits are identified in the UI; network interruptions and bounded server channels can also lose activity. The map aggregates repeated links and expands selected connections at detailed zoom.
 
 When a SlimFaas-managed job calls a function, the incoming activity is matched against
 the IP addresses of running jobs. The message then starts from the exact job instance:
@@ -92,7 +86,7 @@ the IP addresses of running jobs. The message then starts from the exact job ins
 - asynchronous calls are displayed as `Job -> SlimFaas -> Queue -> Function`
 
 If the running instance disappears from the current status snapshot while the event is
-being displayed, the animation falls back to the job configuration bubble. Calls that
+being displayed, the map falls back to the job configuration group. Calls that
 cannot be matched to a running job remain attached to the external caller node.
 
 In native local mode, all processes share the host IP. SlimFaas therefore routes local
@@ -136,11 +130,39 @@ awake. See [job concurrency and retention](jobs.md#7-concurrency-and-scaling).
 
 ---
 
+## Data inventory
+
+![Live file inventory with TTL and exact sizes](images/dashboard/data.png)
+
+Open **Live Stream → Data**, choose **Sets** or **Files**, and search by key prefix. The table shows stable key ordering, remaining TTL, exact expiration time and, for files, the size in bytes. **Persistent** means no expiration; **Expires soon** marks the next 60 seconds. New or changed metadata is briefly highlighted. The summary shows all visible set/file counts, known file volume and upcoming expirations; it is independent of the prefix filter.
+
+Only keys, expiration and file sizes are transmitted. The dashboard never fetches set values, file contents, hashes or filenames. Internal offload files and technical TTL keys are excluded. An unreadable file size appears as **Unknown** and is excluded from the volume total.
+
+```http
+GET /status-data-stream?kind=files&prefix=report&limit=100
+Accept: text/event-stream
+```
+
+The endpoint emits `data_state` snapshots with `Kind`, `ServerTimeMs`, `Entries`, `NextCursor`, `TotalCount`, `Summary` and `RefreshIntervalMs`. Each entry contains `Id`, nullable `ExpiresAtMs` (Unix milliseconds), and nullable `SizeBytes`. Use `after=<NextCursor>` for the next page; `limit` defaults to 100 and accepts 1–500. The cursor is an exclusive key boundary, so deleting its key does not invalidate it. Return to the first page to see new keys before that boundary.
+
+Snapshots use the node's locally applied Raft state and share one lazily refreshed metadata projection at `StatusStream.StateIntervalMilliseconds`. A freshly committed change may take an additional replication interval to reach a follower. Short-lived keys created and removed between snapshots may never appear. This inventory is not an audit log. The browser computes TTL countdowns using the server clock and labels disconnected inventory as stale.
+
+By default, metadata follows `Data:DefaultVisibility` and the existing internal-request policy. To let dashboard visitors inspect metadata while keeping `/data` private, explicitly enable:
+
+```bash
+SlimFaas__ExposeDataMetadata=true
+```
+
+This option grants access only to the metadata stream. Value/document read, write and delete permissions still follow `/data` configuration. `SlimFaas:EnableFront=false` disables the metadata stream. Disallowed access or ports return 404; invalid queries return 400; the shared status/metadata SSE client limit returns 429. An open Data view uses two SSE slots (status and metadata); allow at least two per viewer when setting a client limit. Permanent metadata access failures stop automatic reconnection; transient failures use bounded exponential retries and offer a Retry action.
+
+---
+
 ## 7. Main Backend Endpoints Used by the UI
 
 | Endpoint | Method | Used for |
 |---|---:|---|
 | `/status-functions-stream` | `GET` | Main SSE stream for the live dashboard |
+| `/status-data-stream` | `GET` | Paginated metadata-only SSE inventory |
 | `/status-functions` | `GET` | Function status list API |
 | `/status-function/{functionName}` | `GET` | Status for one function |
 | `/wake-function/{functionName}` | `POST` | Wake one function |
@@ -164,6 +186,7 @@ SlimFaas__StatusStream__StateIntervalMilliseconds=2000
 
 | appsettings.json key | Environment variable | Default value | Description |
 |---|---|---:|---|
+| `SlimFaas:ExposeDataMetadata` | `SlimFaas__ExposeDataMetadata` | `false` | Allow dashboard visitors to view keys, expiry and sizes independently of data value access. |
 | `SlimFaas:EnableFront` | `SlimFaas__EnableFront` | `true` | Enables dashboard/network front features. When disabled, activity tracking and peer sync are disabled and the UI shows a disabled-front message. |
 | `SlimFaas:StatusStream:StateIntervalMilliseconds` | `SlimFaas__StatusStream__StateIntervalMilliseconds` | `1000` | Interval between periodic SSE state snapshots. Must be greater than `0`. |
 | `SlimFaas:StatusStream:QueueLengthsCacheMilliseconds` | `SlimFaas__StatusStream__QueueLengthsCacheMilliseconds` | `1000` | Cache duration for queue length reads used by state snapshots. `0` disables this cache. |

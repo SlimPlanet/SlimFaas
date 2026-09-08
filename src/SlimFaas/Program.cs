@@ -283,6 +283,7 @@ serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAcc
 serviceCollectionSlimFaas.AddMemoryCache();
 serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
 serviceCollectionSlimFaas.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
+serviceCollectionSlimFaas.AddSingleton<DataStatusSnapshotCache>();
 serviceCollectionSlimFaas.AddSingleton<WakeUpGate>();
 serviceCollectionSlimFaas.AddSingleton<NetworkActivityTracker>();
 if (slimFaasOptions.EnableFront)

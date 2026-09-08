@@ -1,0 +1,22 @@
+:root {
+  --color-primary: #0000ff;
+  --color-primary-dark: #0000cc;
+  --ink: #15263f;
+  --muted: #51617a;
+  --line: #dce4ef;
+  --soft: #f0f0ff;
+  --surface: #f7f9fc;
+  --job: #7950b9;
+  --warning: #986300;
+  --success: #167354;
+  --danger: #bd303e;
+}
+body { background: var(--surface); color: var(--ink); font: 15px/1.6 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+a { color: var(--color-primary); text-underline-offset: .2em; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+:focus-visible { outline: 3px solid #6586ff; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

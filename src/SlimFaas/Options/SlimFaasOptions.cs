@@ -81,6 +81,9 @@ public class SlimFaasOptions
     /// </summary>
     public bool EnableFront { get; set; } = true;
 
+    /// <summary>Allow dashboard visitors to view data keys, expiry and file sizes, without granting value access.</summary>
+    public bool ExposeDataMetadata { get; set; }
+
     /// <summary>
     /// Typed configuration for the dashboard status stream and live network activity events.
     /// </summary>

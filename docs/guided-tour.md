@@ -16,7 +16,7 @@ export BASE_URL=http://127.0.0.1:30020
 export TOUR_ID="tour-$(date +%s)-$$"
 ```
 
-Open `$BASE_URL/` in your browser. The default dashboard includes **Infrastructure Overview**, **Jobs Overview**, and the live network map. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
+Open `$BASE_URL/` in your browser. The default dashboard includes **Infrastructure Overview**, **Overview → Jobs**, and the live network map. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
 
 ### Use Bruno
 
@@ -265,7 +265,7 @@ curl -fsS "$BASE_URL/status-jobs" | jq .
 
 Job creation returns `202` and `{"Id":"..."}`. The two status URLs are aliases. Listing `/job/fibonacci` shows executions; the dashboard status routes describe configurations and running work.
 
-**In the UI:** find the configuration in **Jobs Overview** and watch the running count. A small job can finish before the next snapshot, especially with the demo's short retention. Run it again while watching, or inspect execution logs. CLI Fibonacci jobs only calculate and print a result; they do not send HTTP traffic themselves.
+**In the UI:** find the configuration in **Overview → Jobs** and watch the running count. A small job can finish before the next snapshot, especially with the demo's short retention. Run it again while watching, or inspect execution logs. CLI Fibonacci jobs only calculate and print a result; they do not send HTTP traffic themselves.
 
 Create and list a dynamic cron schedule:
 
@@ -387,3 +387,9 @@ Expect `text/event-stream` with `state` events and live `activity` or `activity_
 ## Continue with your application
 
 Use the [API Reference](api-reference.md) to look up all routes, [How It Works](how-it-works.md) to understand their execution, and [UI reference](user-interface.md) for dashboard settings. Add [WebSocket clients](clients.md), [Kafka](kafka.md) or [Planet Saver](planet-saver.md) as needed. Stop the environment using the cleanup section of your installation guide.
+
+## Follow the live dashboard
+
+Open **Live Stream → Traffic** while running the job-to-function exercises. Search for a job execution and select it to focus its path through SlimFaas, queues and functions. Zoom out to see workload groups, or pause and inspect the event journal.
+
+During the data exercises, switch to **Live Stream → Data** and search for your `TOUR_ID` prefix. The Sets and Files views show keys and TTL, with document sizes for Files. Watch the countdown, create another entry to see its highlight, and return to the first page if a new key sorts before the current cursor. Values and document contents remain accessible through the API exercises, not the dashboard.

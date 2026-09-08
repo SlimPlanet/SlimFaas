@@ -120,7 +120,9 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
             SlimFaasReplicas: slimFaasInfo.Replicas,
             SlimFaasNodes: slimFaasNodes,
             FrontEnabled: _slimFaasOptions.Value.EnableFront,
-            FrontMessage: _slimFaasOptions.Value.EnableFront ? null : "SlimFaas front is disabled by configuration (SlimFaas:EnableFront=false).");
+            FrontMessage: _slimFaasOptions.Value.EnableFront ? null : "SlimFaas front is disabled by configuration (SlimFaas:EnableFront=false).",
+            LiveActivitySamplingRatio: _slimFaasOptions.Value.StatusStream.LiveEventSamplingRatio,
+            MaxLiveEventsPerSecond: _slimFaasOptions.Value.StatusStream.MaxLiveEventsPerSecond);
 
         string json = JsonSerializer.Serialize(payload, StatusStreamSerializerContext.Default.StatusStreamPayload);
         return $"event: state\ndata: {json}\n\n";

@@ -72,7 +72,16 @@
   </Target>
 
   <Target Name="NpmBuild" BeforeTargets="BeforeBuild" Condition="'$(SkipClientAppBuild)' != 'true'">
+    <ItemGroup>
+      <_PreviousDashboardAssets Include="wwwroot/**" />
+    </ItemGroup>
     <Exec WorkingDirectory="$(ClientAppDir)" Command="npm run build" />
+    <!-- Vite replaces hashed assets after project evaluation. Refresh the items so
+         incremental builds and the first clean build publish the current files. -->
+    <ItemGroup>
+      <Content Remove="@(_PreviousDashboardAssets)" />
+      <Content Include="wwwroot/**" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    </ItemGroup>
   </Target>
 
 </Project>

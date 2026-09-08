@@ -1,9 +1,9 @@
+import { appendActivity } from '../lib/live.ts';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
 
 const COOLDOWN_MS = 3000;
 const ACTIVITY_FLUSH_MS = 100;
-const ACTIVITY_STATE_LIMIT = 5000;
 const ACTIVITY_IMMEDIATE_FLUSH_SIZE = 200;
 
 function pick<T = unknown>(obj: unknown, pascal: string, camel: string): T | undefined {
@@ -175,6 +175,8 @@ function normalizePayload(raw: unknown): StatusStreamPayload {
     RecentActivity: normalizeActivity(pick(raw, 'RecentActivity', 'recentActivity')),
     SlimFaasReplicas: asNumber(pick(raw, 'SlimFaasReplicas', 'slimFaasReplicas'), 1),
     SlimFaasNodes: normalizeSlimFaasNodes(pick(raw, 'SlimFaasNodes', 'slimFaasNodes')),
+    LiveActivitySamplingRatio: asNumber(pick(raw, 'LiveActivitySamplingRatio', 'liveActivitySamplingRatio'), 1),
+    MaxLiveEventsPerSecond: asNumber(pick(raw, 'MaxLiveEventsPerSecond', 'maxLiveEventsPerSecond')),
     FrontEnabled: pick(raw, 'FrontEnabled', 'frontEnabled') as boolean | undefined,
     FrontMessage: pick(raw, 'FrontMessage', 'frontMessage') as string | null | undefined,
   };
@@ -186,6 +188,9 @@ export function useStatusStream() {
   const [jobs, setJobs] = useState<JobConfigurationStatus[]>([]);
   const [activity, setActivity] = useState<NetworkActivityEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [samplingRatio, setSamplingRatio] = useState(1);
+  const [maxLiveEventsPerSecond, setMaxLiveEventsPerSecond] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [coolingDown, setCoolingDown] = useState<Set<string>>(new Set());
   const [wakeAllCooling, setWakeAllCooling] = useState(false);
@@ -196,6 +201,7 @@ export function useStatusStream() {
   const [frontMessage, setFrontMessage] = useState<string | null>(null);
 
   const eventSourceRef = useRef<EventSource | null>(null);
+  const reconnectFailures = useRef(0);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const activityBufferRef = useRef<NetworkActivityEvent[]>([]);
   const activityFlushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -211,8 +217,7 @@ export function useStatusStream() {
     activityBufferRef.current = [];
 
     setActivity(prev => {
-      const next = [...prev, ...batch];
-      return next.length > ACTIVITY_STATE_LIMIT ? next.slice(-ACTIVITY_STATE_LIMIT) : next;
+      return appendActivity(prev, batch);
     });
 
     const queueTargets = new Set<string>();
@@ -277,8 +282,11 @@ export function useStatusStream() {
         setSlimFaasReplicas(payload.SlimFaasReplicas ?? 1);
         setSlimFaasNodes(payload.SlimFaasNodes ?? []);
         setFrontEnabled(payload.FrontEnabled ?? true);
+        setSamplingRatio(payload.LiveActivitySamplingRatio ?? 1);
+        setMaxLiveEventsPerSecond(payload.MaxLiveEventsPerSecond ?? 0);
         setFrontMessage(payload.FrontMessage ?? null);
         setError(null);
+        reconnectFailures.current = 0;
         setLoading(false);
 
         // Detect queue usage from current queue lengths only (live view).
@@ -288,13 +296,12 @@ export function useStatusStream() {
             queueFns.add(q.Name);
           }
         }
-        if (queueFns.size > 0) {
-          setFunctionsWithQueueActivity(prev => {
-            const next = new Set(prev);
-            queueFns.forEach(name => next.add(name));
-            return next.size !== prev.size ? next : prev;
-          });
-        }
+        const knownFunctions = new Set(payload.Functions.map(fn => fn.Name));
+        setFunctionsWithQueueActivity(prev => {
+          const next = new Set([...prev].filter(name => knownFunctions.has(name)));
+          queueFns.forEach(name => next.add(name));
+          return next.size === prev.size && [...next].every(name => prev.has(name)) ? prev : next;
+        });
       } catch (err) {
         console.warn('Unable to parse status stream state event.', err);
       }
@@ -319,13 +326,14 @@ export function useStatusStream() {
     });
 
     es.onerror = () => {
-      setError('Stream disconnected, reconnecting...');
+      reconnectFailures.current++;
+      setError(reconnectFailures.current < 6 ? 'Stream disconnected, reconnecting…' : 'Stream disconnected. Reload this page to reconnect.');
       es.close();
       eventSourceRef.current = null;
       // Reconnect after a short delay
-      reconnectTimer.current = setTimeout(() => connect(), 3000);
+      if (reconnectFailures.current < 6) reconnectTimer.current = setTimeout(() => connect(), Math.min(30000, 1000 * 2 ** reconnectFailures.current));
     };
-  }, []);
+  }, [enqueueActivityBatch]);
 
   useEffect(() => {
     connect();
@@ -351,9 +359,11 @@ export function useStatusStream() {
     if (coolingDown.has(functionName)) return;
     startCooldown(functionName);
     try {
-      await fetch(`/wake-function/${functionName}`, { method: 'POST' });
+      setActionError(null);
+      const response = await fetch(`/wake-function/${encodeURIComponent(functionName)}`, { method: 'POST' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
     } catch (err) {
-      console.warn(`Unable to wake function ${functionName}.`, err);
+      setActionError(`Unable to wake ${functionName}: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [coolingDown, startCooldown]);
 
@@ -362,9 +372,11 @@ export function useStatusStream() {
     setWakeAllCooling(true);
     setTimeout(() => setWakeAllCooling(false), COOLDOWN_MS);
     try {
-      await fetch('/wake-functions', { method: 'POST' });
+      setActionError(null);
+      const response = await fetch('/wake-functions', { method: 'POST' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
     } catch (err) {
-      console.warn('Unable to wake all functions.', err);
+      setActionError(`Unable to wake functions: ${err instanceof Error ? err.message : String(err)}`);
     }
   }, [wakeAllCooling]);
 
@@ -383,7 +395,7 @@ export function useStatusStream() {
     slimFaasReplicas,
     slimFaasNodes,
     frontEnabled,
-    frontMessage,
+    frontMessage, actionError, samplingRatio, maxLiveEventsPerSecond,
   };
 }
 

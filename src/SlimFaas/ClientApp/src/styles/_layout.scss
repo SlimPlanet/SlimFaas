@@ -1,20 +1,5 @@
-@use './variables' as *;
-
 .layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-
-  &__content {
-    flex: 1;
-    padding: $spacing-xl;
-    max-width: 1600px;
-    margin: 0 auto;
-    width: 100%;
-
-    @media screen and (max-width: $bp-tablet) {
-      padding: $spacing-md;
-    }
-  }
+  display: flex; flex-direction: column; min-height: 100vh;
+  &__content { flex: 1; width: 100%; max-width: 1560px; margin: 0 auto; padding: 2.5rem 2rem 4rem; }
+  @media (max-width: 760px) { &__content { padding: 1.5rem 1rem 2rem; } }
 }
-

@@ -1,52 +1,5 @@
-@use './variables' as *;
-
 .footer {
-  background-color: $color-primary;
-  color: #ffffff;
-  padding: $spacing-xl;
-  margin-top: auto;
-
-  &__container {
-    max-width: 1200px;
-    margin: 0 auto;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $spacing-md;
-  }
-
-  &__origin {
-    font-size: 0.9rem;
-  }
-
-  &__cncf {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: $spacing-sm;
-  }
-
-  &__cncf-text {
-    font-size: 0.85rem;
-  }
-
-  &__cncf-logo {
-    display: block;
-  }
-
-  &__policy {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.7);
-  }
-
-  &__policy-link {
-    color: rgba(255, 255, 255, 0.85);
-    text-decoration: underline;
-  }
-
-  &__copyright {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.7);
-  }
+  padding: 1.5rem 2rem; border-top: 1px solid var(--line); background: #fff; color: var(--muted); font-size: .75rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: .5rem 2rem;
+  &__origin, &__copyright { margin: 0; }
+  &__link { color: var(--muted); }
 }

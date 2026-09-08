@@ -133,6 +133,8 @@ export interface StatusStreamPayload {
   RecentActivity: NetworkActivityEvent[];
   SlimFaasReplicas: number;
   SlimFaasNodes: SlimFaasNodeInfo[] | null;
+  LiveActivitySamplingRatio?: number;
+  MaxLiveEventsPerSecond?: number;
   FrontEnabled?: boolean;
   FrontMessage?: string | null;
 }

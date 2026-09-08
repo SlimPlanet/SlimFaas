@@ -35,12 +35,15 @@ public record StatusStreamPayload(
     int SlimFaasReplicas = 1,
     IList<SlimFaasNodeInfo>? SlimFaasNodes = null,
     bool FrontEnabled = true,
-    string? FrontMessage = null);
+    string? FrontMessage = null,
+    double LiveActivitySamplingRatio = 1.0,
+    int MaxLiveEventsPerSecond = 0);
 
 public record QueueInfo(string Name, long Length);
 
 [JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(StatusStreamPayload))]
+[JsonSerializable(typeof(DataStatusPage))]
 [JsonSerializable(typeof(NetworkActivityEvent))]
 [JsonSerializable(typeof(List<NetworkActivityEvent>))]
 [JsonSerializable(typeof(QueueInfo))]
@@ -212,39 +215,30 @@ public sealed class NetworkActivityTracker
             return true;
         }
 
-        int maxSseClients = _options.MaxSseClients;
-        if (maxSseClients > 0)
+        if (!TryReserveStreamClient())
         {
-            while (true)
-            {
-                int current = Volatile.Read(ref _subscriberCount);
-                if (current >= maxSseClients)
-                {
-                    channel.Writer.TryComplete();
-                    return false;
-                }
-
-                if (Interlocked.CompareExchange(ref _subscriberCount, current + 1, current) == current)
-                {
-                    break;
-                }
-            }
+            channel.Writer.TryComplete();
+            return false;
         }
 
-        if (_subscribers.TryAdd(channel, 0))
-        {
-            if (maxSseClients <= 0)
-            {
-                Interlocked.Increment(ref _subscriberCount);
-            }
-
-            return true;
-        }
-
-        Interlocked.Decrement(ref _subscriberCount);
+        if (_subscribers.TryAdd(channel, 0)) return true;
+        ReleaseStreamClient();
         channel.Writer.TryComplete();
         return false;
     }
+
+    /// <summary>Share the configured client budget with metadata streams without allocating an activity channel.</summary>
+    public bool TryReserveStreamClient()
+    {
+        while (true)
+        {
+            int current = Volatile.Read(ref _subscriberCount);
+            if (_options.MaxSseClients > 0 && current >= _options.MaxSseClients) return false;
+            if (Interlocked.CompareExchange(ref _subscriberCount, current + 1, current) == current) return true;
+        }
+    }
+
+    public void ReleaseStreamClient() => Interlocked.Decrement(ref _subscriberCount);
 
     /// <summary>Unsubscribe from live events.</summary>
     public void Unsubscribe(Channel<NetworkActivityEvent> channel)
@@ -378,7 +372,6 @@ public sealed class NetworkActivityTracker
         }
     }
 }
-
 
 
 

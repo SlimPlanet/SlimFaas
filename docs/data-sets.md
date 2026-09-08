@@ -332,3 +332,9 @@ The readiness endpoint returns `503` while the local snapshot is being restored,
 ## Explore related routes
 
 For a complete executable example covering values, expiration and every counter operation, follow the [Guided Tour](guided-tour.md#7-store-values-counters-hashsets-and-files). The [API Reference](api-reference.md#hashsets) also documents the separate hashset facade, its single-value body contract and its different visibility behavior.
+
+## Live metadata inventory
+
+The built-in dashboard's **Live Stream → Data** tab shows set keys and their TTL without fetching values or documents. Search by prefix, inspect expiration and navigate pages of 100 entries. The inventory updates at the configured status interval; short-lived entries between snapshots may be missed.
+
+Metadata follows the existing data visibility policy unless `SlimFaas__ExposeDataMetadata=true` explicitly enables metadata access for dashboard visitors. This does not grant access to stored contents. See [the dashboard inventory and SSE API](user-interface.md#data-inventory).

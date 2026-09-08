@@ -1,188 +1,20 @@
-import React from 'react';
-import type { JobConfigurationStatus } from '../types';
-import Tip from './Tip';
-import { JOB } from '../tooltips';
-
-interface Props {
-  jobs: JobConfigurationStatus[];
+import { useState } from 'react';
+import type { JobConfigurationStatus } from '../types.ts';
+import { paginate } from '../lib/live.ts';
+import Pagination from './Pagination';
+import WorkloadDetails from './WorkloadDetails';
+export default function JobTable({ jobs }: { jobs: JobConfigurationStatus[] }) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
+  const matches = jobs.filter(job => job.Name.toLowerCase().includes(search.toLowerCase()));
+  const paged = paginate(matches, page);
+  const detail = jobs.find(job => job.Name === selected);
+  return <section className="workload-table" aria-label="Jobs">
+    <div className="section-heading"><div><h2 className="section-heading__title">Jobs</h2><p className="section-heading__description">Executions and schedules at a glance.</p></div><label className="field">Find a job<input className="field__input" type="search" value={search} placeholder="Search jobs…" onChange={e => { setSearch(e.target.value); setPage(0); }} /></label></div>
+    <div className="table-wrap"><table className="table"><thead className="table__head"><tr><th className="table__th">Job</th><th className="table__th">Visibility</th><th className="table__th">Running</th><th className="table__th">Retained</th><th className="table__th">Schedules</th></tr></thead><tbody>{paged.items.map(job => <tr className="table__row" key={job.Name}><td className="table__td"><button className="table__link" type="button" onClick={() => setSelected(job.Name)}>{job.Name}</button><span className="workload-table__subtitle">{job.Image}</span></td><td className="table__td"><span className="badge badge--neutral">{job.Visibility}</span></td><td className="table__td">{job.RunningJobs.filter(run => run.Status === 'Running').length} / {job.NumberParallelJob}</td><td className="table__td">{job.RunningJobs.length}</td><td className="table__td">{job.Schedules.length}</td></tr>)}</tbody></table></div>
+    {matches.length === 0 && <p className="empty-state">No matching job configurations.</p>}
+    <Pagination page={paged.page} pages={paged.pages} total={matches.length} onPage={setPage} />
+    {detail && <WorkloadDetails workload={detail} onClose={() => setSelected(null)} />}
+  </section>;
 }
-
-function formatTimestamp(ts: number | string | null | undefined): string {
-  if (ts == null) return '-';
-
-  const numeric = typeof ts === 'number' ? ts : Number(ts);
-  if (!Number.isFinite(numeric) || numeric <= 0) return '-';
-
-  let ms: number;
-
-  // .NET ticks (100ns since 0001-01-01)
-  if (numeric > 1_000_000_000_000_000) {
-    ms = (numeric - 621355968000000000) / 10_000;
-  }
-  // Unix milliseconds
-  else if (numeric > 1_000_000_000_000) {
-    ms = numeric;
-  }
-  // Unix seconds
-  else {
-    ms = numeric * 1000;
-  }
-
-  // JS Date range guard
-  if (!Number.isFinite(ms) || Math.abs(ms) > 8_640_000_000_000_000) {
-    return '-';
-  }
-
-  const d = new Date(ms);
-  return Number.isNaN(d.getTime()) ? '-' : d.toLocaleString();
-}
-
-const JobTable: React.FC<Props> = ({ jobs }) => {
-  return (
-    <div className="job-table">
-      <table className="job-table__table">
-        <thead className="job-table__head">
-          <tr>
-            <th className="job-table__th">Name</th>
-            <th className="job-table__th">Visibility</th>
-            <th className="job-table__th">Scale</th>
-            <th className="job-table__th">Resources</th>
-          </tr>
-        </thead>
-        <tbody className="job-table__body">
-          {jobs.map((job) => {
-            const retainedJobs = job.RunningJobs ?? [];
-            const runningCount = retainedJobs.filter((instance) => instance.Status === 'Running').length;
-            const schedules = job.Schedules ?? [];
-
-            return (
-              <React.Fragment key={job.Name}>
-                <tr className={`job-table__row${runningCount > 0 ? ' job-table__row--active' : ''}`}>
-
-                  {/* ── Name ── */}
-                  <td className="job-table__td job-table__td--name">
-                    <span className="job-table__fn-name">
-                      <Tip text={JOB.name}><span>📋 {job.Name}</span></Tip>
-                    </span>
-                  </td>
-
-                  {/* ── Visibility + Image ── */}
-                  <td className="job-table__td">
-                    <Tip text={JOB.visibility}>
-                      <span className={`job-table__badge job-table__badge--${(job.Visibility ?? '').toLowerCase()}`}>
-                        {job.Visibility ?? '-'}
-                      </span>
-                    </Tip>
-                    {job.Image ? (
-                      <div className="job-table__vis-group">
-                        <Tip text={JOB.image}><span className="job-table__vis-label">Image</span></Tip>
-                        <code className="job-table__image-code">{job.Image}</code>
-                      </div>
-                    ) : null}
-                    {job.ImagesWhitelist?.length ? (
-                      <div className="job-table__vis-group">
-                        <Tip text={JOB.whitelist}><span className="job-table__vis-label">Whitelist</span></Tip>
-                        {job.ImagesWhitelist.map((img) => (
-                          <code key={img} className="job-table__image-code">{img}</code>
-                        ))}
-                      </div>
-                    ) : null}
-                  </td>
-
-                  {/* ── Scale ── */}
-                  <td className="job-table__td job-table__td--scale">
-                    <div className="job-table__scale-row">
-                      <Tip text={JOB.parallel}><span className="job-table__scale-label">Parallel</span></Tip>
-                      <span className="job-table__scale-val">{job.NumberParallelJob}</span>
-                    </div>
-
-                    <div className="job-table__scale-row">
-                      <Tip text={JOB.running}><span className="job-table__scale-label">Running</span></Tip>
-                      <span className={`job-table__scale-val${runningCount > 0 ? ' job-table__scale-val--running' : ''}`}>
-                        {runningCount > 0 ? `${runningCount} job${runningCount > 1 ? 's' : ''}` : 'Idle'}
-                      </span>
-                    </div>
-
-                    {schedules.length > 0 ? (
-                      <div className="job-table__scale-row job-table__scale-row--top">
-                        <Tip text={JOB.schedules}><span className="job-table__scale-label">Schedules</span></Tip>
-                        <span className="job-table__scale-val">
-                          {schedules.map((s) => (
-                            <span key={s.Id} className="job-table__schedule-item">
-                              <code className="job-table__cron">{s.Schedule}</code>
-                              <span className="job-table__scale-info">next: {formatTimestamp(s.NextExecutionTimestamp)}</span>
-                            </span>
-                          ))}
-                        </span>
-                      </div>
-                    ) : null}
-
-                    {job.DependsOn?.length ? (
-                      <div className="job-table__scale-row">
-                        <Tip text={JOB.dependsOn}><span className="job-table__scale-label">Depends&nbsp;on</span></Tip>
-                        <span className="job-table__scale-val">
-                          {job.DependsOn.map((dep) => (
-                            <span key={dep} className="job-table__dep">{dep}</span>
-                          ))}
-                        </span>
-                      </div>
-                    ) : null}
-                  </td>
-
-                  {/* ── Resources ── */}
-                  <td className="job-table__td job-table__td--resources">
-                    {job.Resources ? (
-                      <>
-                        <div className="job-table__scale-row">
-                          <Tip text={JOB.cpuResources}><span className="job-table__scale-label">CPU</span></Tip>
-                          <span className="job-table__scale-val">
-                            {job.Resources.Requests?.['cpu'] ?? '-'}&nbsp;/&nbsp;{job.Resources.Limits?.['cpu'] ?? '-'}
-                          </span>
-                        </div>
-                        <div className="job-table__scale-row">
-                          <Tip text={JOB.memResources}><span className="job-table__scale-label">Mem</span></Tip>
-                          <span className="job-table__scale-val">
-                            {job.Resources.Requests?.['memory'] ?? '-'}&nbsp;/&nbsp;{job.Resources.Limits?.['memory'] ?? '-'}
-                          </span>
-                        </div>
-                      </>
-                    ) : (
-                      <span className="job-table__scale-info">-</span>
-                    )}
-                  </td>
-                </tr>
-
-                {/* Retain finished job details until their configured TTL expires. */}
-                {retainedJobs.length > 0 && (
-                  <tr className="job-table__row job-table__row--details">
-                    <td className="job-table__td job-table__td--details" colSpan={4}>
-                      <table className="job-table__sub-table">
-                        <thead>
-                          <tr><th>Name</th><th>Status</th><th>Element</th><th>Queued</th><th>Started</th></tr>
-                        </thead>
-                        <tbody>
-                          {retainedJobs.map((rj) => (
-                            <tr key={rj.ElementId}>
-                              <td>{rj.Name}</td>
-                              <td>{rj.Status}</td>
-                              <td>{rj.ElementId}</td>
-                              <td>{formatTimestamp(rj.InQueueTimestamp)}</td>
-                              <td>{formatTimestamp(rj.StartTimestamp)}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </td>
-                  </tr>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
-export default JobTable;
-

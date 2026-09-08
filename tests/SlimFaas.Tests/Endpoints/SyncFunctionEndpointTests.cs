@@ -78,18 +78,25 @@ public class SyncFunctionEndpointTests
         Assert.Equal(expected, response.StatusCode);
     }
 
-    [Fact(DisplayName = "Sync function activity identifies the calling job run")]
-    public async Task CallFunctionInSyncMode_FromJob_RecordsJobActivity()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CallFunctionInSyncMode_FromJob_RecordsJobActivity(bool localGateway)
     {
         const string jobRunName = "daily-report-slimfaas-job-a1";
         var tracker = new NetworkActivityTracker();
+        var sender = new Mock<ISendClient>();
+        sender.Setup(s => s.SendHttpRequestSync(It.IsAny<Microsoft.AspNetCore.Http.HttpContext>(),
+            "fibonacci", "compute", "", It.IsAny<SlimFaasSyncConfiguration>(), null,
+            It.IsAny<IProxy>(), NetworkActivityTracker.Actors.SlimFaas, jobRunName))
+            .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("ok") });
         var jobServiceMock = new Mock<IJobService>();
         jobServiceMock.SetupGet(service => service.Jobs).Returns(
         [
             new KubernetesJob(
                 jobRunName,
                 JobStatus.Running,
-                [],
+                ["10.42.0.17"],
                 [],
                 "element-1",
                 0,
@@ -104,7 +111,7 @@ public class SyncFunctionEndpointTests
                     .ConfigureServices(services =>
                     {
                         services.AddSingleton<HistoryHttpMemoryService>();
-                        services.AddSingleton<ISendClient, SendClientMock>();
+                        services.AddSingleton(sender.Object);
                         services.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         services.AddSingleton<IReplicasService, MemoryReplicas2ReplicasService>();
@@ -138,14 +145,18 @@ public class SyncFunctionEndpointTests
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
             "http://localhost:5000/function/fibonacci/compute");
-        request.Headers.TryAddWithoutValidation(LocalJobGateway.JobHeaderName, jobRunName);
-        request.Headers.TryAddWithoutValidation(
-            LocalJobGateway.SignatureHeaderName,
-            LocalJobGateway.CreateSignature(jobRunName, "test-token"));
+        if (localGateway)
+        {
+            request.Headers.TryAddWithoutValidation(LocalJobGateway.JobHeaderName, jobRunName);
+            request.Headers.TryAddWithoutValidation(LocalJobGateway.SignatureHeaderName,
+                LocalJobGateway.CreateSignature(jobRunName, "test-token"));
+        }
+        else request.Headers.TryAddWithoutValidation("X-Forwarded-For", "10.42.0.17");
 
         HttpResponseMessage response = await host.GetTestClient().SendAsync(request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        sender.VerifyAll();
         var events = tracker.GetRecent();
         Assert.Equal(2, events.Count);
         Assert.Equal(NetworkActivityTracker.EventTypes.RequestIn, events[0].Type);

@@ -17,6 +17,23 @@ namespace SlimFaas.Tests.Endpoints;
 
 public class JobStatusEndpointTests
 {
+    [Fact]
+    public async Task SharedNamePrefixesDoNotDuplicateExecutionsAcrossConfigurations()
+    {
+        var configuration = new Mock<IJobConfiguration>();
+        var names = new[] { "fibonacci", "fibonacci5", "fibonacci-slimfaas-job-nested" };
+        configuration.SetupGet(c => c.Configuration).Returns(new SlimFaasJobConfiguration(
+            names.ToDictionary(name => name, _ => new SlimfaasJob("image", []))));
+        var jobs = new Mock<IJobService>();
+        jobs.SetupGet(j => j.Jobs).Returns(names.Select(name => new SlimFaas.Kubernetes.Job(
+            name + KubernetesService.SlimfaasJobKey + "run", JobStatus.Running, [], [], name, 0, 0)).ToList());
+
+        var result = await JobStatusEndpoints.BuildJobStatusesAsync(configuration.Object, jobs.Object, null);
+
+        Assert.Equal(3, result.Sum(c => c.RunningJobs.Count));
+        foreach (var item in result) Assert.Equal(item.Name, Assert.Single(item.RunningJobs).ElementId);
+    }
+
     [Fact(DisplayName = "GET /jobs/status returns 200 with job configurations")]
     public async Task GetJobStatus_Returns200_WithConfigurations()
     {
@@ -260,6 +277,5 @@ public class JobStatusEndpointTests
         Assert.NotNull(result[0].Schedules[0].NextExecutionTimestamp);
     }
 }
-
 
 

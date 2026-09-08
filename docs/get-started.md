@@ -34,3 +34,7 @@ A function is an HTTP application. On Kubernetes, add SlimFaas annotations to it
 ## Go further
 
 Explore [WebSocket clients](clients.md), the [Kafka connector](kafka.md), and [Planet Saver](planet-saver.md) when your application needs them. These integrations have their own prerequisites and are not required for the introductory tour.
+
+### Dashboard metadata visibility
+
+The dashboard uses the SlimFaasSite visual theme and provides **Overview** plus **Live Stream → Traffic / Data**. Data metadata follows the data API's visibility policy by default. Operators may set `SlimFaas__ExposeDataMetadata=true` to expose only keys, expiry and file sizes to dashboard visitors while leaving the values private. The native local demo already exposes `/data` for its tutorial. See [the user interface](user-interface.md#data-inventory).

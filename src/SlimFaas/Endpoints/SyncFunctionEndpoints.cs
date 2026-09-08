@@ -145,7 +145,8 @@ public static class SyncFunctionEndpoints
                 syncConfiguration,
                 null,
                 proxy,
-                NetworkActivityTracker.Actors.SlimFaas).ConfigureAwait(false);
+                NetworkActivityTracker.Actors.SlimFaas,
+                activityCaller.SourcePod).ConfigureAwait(false);
 
             context.Response.StatusCode = (int)responseMessage.StatusCode;
             CopyFromTargetResponseHeaders(context, responseMessage);

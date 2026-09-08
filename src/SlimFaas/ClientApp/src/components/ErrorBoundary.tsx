@@ -27,8 +27,7 @@ class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         this.props.fallback ?? (
-          <div className="dashboard__error">
-            <span className="dashboard__error-icon">⚠️</span>
+          <div className="notice notice--error" role="alert">
             Section unavailable: {this.state.message}
           </div>
         )
@@ -39,4 +38,3 @@ class ErrorBoundary extends Component<Props, State> {
 }
 
 export default ErrorBoundary;
-

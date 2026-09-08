@@ -14,6 +14,9 @@ slimdata_batch_mode="${SLIMDATA_BATCH_MODE:-Global}"
 slimdata_batch_partitions="${SLIMDATA_BATCH_PARTITIONS:-8}"
 slimdata_low_load_fast_path="${SLIMDATA_LOW_LOAD_FAST_PATH:-false}"
 slimdata_low_load_rps="${SLIMDATA_LOW_LOAD_RPS:-10}"
+enable_front="${MEMORY_LAB_ENABLE_FRONT:-false}"
+data_stream="${MEMORY_LAB_DATA_STREAM:-0}"
+if [[ "$data_stream" == "1" ]]; then enable_front="true"; fi
 
 if [[ "$mode" != "trimmed" && "$mode" != "aot" ]]; then
   echo "Usage: .bin/memory-lab.sh [trimmed|aot] [mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [duration_seconds] [concurrency]" >&2
@@ -50,6 +53,8 @@ mkdir -p "$run_dir" "$publish_dir"
 {
   echo "timestamp=$timestamp"
   echo "mode=$mode"
+  echo "enable_front=$enable_front"
+  echo "data_stream=$data_stream"
   echo "scenario=$scenario"
   echo "duration_seconds=$duration_seconds"
   echo "warmup_seconds=$warmup_seconds"
@@ -68,7 +73,11 @@ mkdir -p "$run_dir" "$publish_dir"
 node_pids=()
 function_pid=""
 sampler_pid=""
+inventory_pid=""
 cleanup() {
+  if [[ -n "$inventory_pid" ]] && kill -0 "$inventory_pid" 2>/dev/null; then
+    kill "$inventory_pid" 2>/dev/null || true
+  fi
   if [[ -n "$sampler_pid" ]] && kill -0 "$sampler_pid" 2>/dev/null; then
     kill "$sampler_pid" 2>/dev/null || true
   fi
@@ -82,7 +91,7 @@ cleanup() {
   fi
   for _ in $(seq 1 50); do
     running=0
-    for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid"; do
+    for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid" "$inventory_pid"; do
       if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
         running=1
       fi
@@ -92,12 +101,12 @@ cleanup() {
     fi
     sleep 0.1
   done
-  for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid"; do
+  for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid" "$inventory_pid"; do
     if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
       kill -KILL "$pid" 2>/dev/null || true
     fi
   done
-  for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid"; do
+  for pid in ${node_pids[@]+"${node_pids[@]}"} "$function_pid" "$sampler_pid" "$inventory_pid"; do
     if [[ -n "$pid" ]]; then
       wait "$pid" 2>/dev/null || true
     fi
@@ -172,7 +181,7 @@ for index in 0 1 2; do
       SlimFaas__BaseSlimDataUrl='http://{pod_ip}:{pod_port_0}' \
       SlimFaas__BaseFunctionUrl='http://{pod_ip}:{pod_port}' \
       SlimFaas__BaseFunctionPodUrl='http://{pod_ip}:{pod_port}' \
-      SlimFaas__EnableFront="false" \
+      SlimFaas__EnableFront="$enable_front" \
       SlimFaas__WebSocketPort="0" \
       SlimFaas__Local__NodeCount="3" \
       SlimFaas__Local__NodeNamePrefix="slimfaas-" \
@@ -219,6 +228,20 @@ for attempt in $(seq 1 180); do
   fi
   sleep 1
 done
+
+if [[ "$data_stream" == "1" ]]; then
+  curl --fail --silent --show-error --no-buffer \
+    "http://127.0.0.1:30021/status-data-stream?kind=sets&limit=100" >"$run_dir/data-stream.sse" 2>"$run_dir/data-stream.log" &
+  inventory_pid="$!"
+  for attempt in $(seq 1 50); do
+    if [[ -s "$run_dir/data-stream.sse" ]]; then break; fi
+    if ! kill -0 "$inventory_pid" 2>/dev/null || [[ "$attempt" == "50" ]]; then
+      echo "Metadata stream did not connect; see $run_dir/data-stream.log" >&2
+      exit 1
+    fi
+    sleep 0.1
+  done
+fi
 
 collect_cluster_state() {
   local phase="$1"
@@ -326,6 +349,10 @@ dotnet "$lab_dll" load \
 load_status="${PIPESTATUS[0]}"
 set -e
 
+if [[ "$data_stream" == "1" ]] && ! kill -0 "$inventory_pid" 2>/dev/null; then
+  echo "Metadata stream disconnected during measurement" >&2
+  exit 1
+fi
 collect_cluster_state "after"
 
 echo "Cooldown: ${cooldown_seconds}s"

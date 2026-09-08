@@ -8,7 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "test": "node --test scripts/*.test.mts"
   },
   "dependencies": {
     "@axa-fr/slimfaas-planet-saver": "^0.82.2",
