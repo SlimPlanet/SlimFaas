@@ -73,7 +73,8 @@ const App: React.FC = () => {
   const allUp = functions.length > 0 && functions.every((f) => f.NumberReady > 0);
   const totalReady = functions.reduce((sum, f) => sum + (f.NumberReady ?? 0), 0);
   const totalRequested = functions.reduce((sum, f) => sum + (f.NumberRequested ?? 0), 0);
-  const totalRunningJobs = jobs.reduce((sum, j) => sum + (j.RunningJobs ?? []).length, 0);
+  const totalRunningJobs = jobs.reduce((sum, j) =>
+    sum + (j.RunningJobs ?? []).filter((instance) => instance.Status === 'Running').length, 0);
   const totalSchedules = jobs.reduce((sum, j) => sum + (j.Schedules ?? []).length, 0);
 
   return (

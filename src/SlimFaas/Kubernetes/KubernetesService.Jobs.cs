@@ -172,34 +172,9 @@ public partial class KubernetesService
                 labelSelector: $"slimfaas-job-name={v1Job.Metadata?.Name ?? ""}"
             );
 
-            IList<string> ips = pods.Items.Where(p => p.Status.PodIP != null).Select(p => p.Status.PodIP).ToList();
+            IList<string> ips = pods.Items.Where(p => p.Status?.PodIP != null).Select(p => p.Status.PodIP).ToList();
 
-            JobStatus status = v1Job.Status.Active > 0 ? JobStatus.Running : JobStatus.Pending;
-            if (v1Job.Status.Succeeded is > 0)
-            {
-                status = JobStatus.Succeeded;
-            }
-            else if (v1Job.Status.Failed is > 0)
-            {
-                status = JobStatus.Failed;
-            }
-
-            // Vérifier si un des pods est en PullBackOff ou ErrImagePull
-            foreach (V1Pod? pod in pods.Items)
-            {
-                if (pod.Status.ContainerStatuses == null)
-                {
-                    continue;
-                }
-
-                foreach (V1ContainerStatus? containerStatus in pod.Status.ContainerStatuses)
-                {
-                    if (containerStatus.State.Waiting is { Reason: "ImagePullBackOff" or "ErrImagePull" })
-                    {
-                        status = JobStatus.ImagePullBackOff;
-                    }
-                }
-            }
+            JobStatus status = ResolveJobStatus(v1Job.Status, pods.Items);
 
             List<string> dependsOn = new();
             if (v1Job.Metadata?.Annotations != null && v1Job.Metadata?.Annotations.ContainsKey(DependsOn) == true)
@@ -223,6 +198,38 @@ public partial class KubernetesService
         }
 
         return jobStatus;
+    }
+
+    internal static JobStatus ResolveJobStatus(V1JobStatus? jobStatus, IList<V1Pod> pods)
+    {
+        // Pod counters include previous attempts and partial completions. Only
+        // terminal Job conditions indicate that Kubernetes has finished the Job.
+        if (jobStatus?.Conditions?.Any(condition => condition is { Type: "Complete", Status: "True" }) == true)
+        {
+            return JobStatus.Succeeded;
+        }
+        if (jobStatus?.Conditions?.Any(condition => condition is { Type: "Failed", Status: "True" }) == true)
+        {
+            return JobStatus.Failed;
+        }
+
+        foreach (V1Pod pod in pods)
+        {
+            if (pod.Status?.ContainerStatuses == null)
+            {
+                continue;
+            }
+
+            foreach (V1ContainerStatus? containerStatus in pod.Status.ContainerStatuses)
+            {
+                if (containerStatus?.State?.Waiting is { Reason: "ImagePullBackOff" or "ErrImagePull" })
+                {
+                    return JobStatus.ImagePullBackOff;
+                }
+            }
+        }
+
+        return jobStatus?.Active > 0 ? JobStatus.Running : JobStatus.Pending;
     }
 
     public async Task DeleteJobAsync(string kubeNamespace, string jobName)

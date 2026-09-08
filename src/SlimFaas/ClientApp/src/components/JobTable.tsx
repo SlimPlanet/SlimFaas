@@ -51,8 +51,8 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
         </thead>
         <tbody className="job-table__body">
           {jobs.map((job) => {
-            const runningJobs = job.RunningJobs ?? [];
-            const runningCount = runningJobs.length;
+            const retainedJobs = job.RunningJobs ?? [];
+            const runningCount = retainedJobs.filter((instance) => instance.Status === 'Running').length;
             const schedules = job.Schedules ?? [];
 
             return (
@@ -152,8 +152,8 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
                   </td>
                 </tr>
 
-                {/* ── Running jobs always visible ── */}
-                {runningCount > 0 && (
+                {/* Retain finished job details until their configured TTL expires. */}
+                {retainedJobs.length > 0 && (
                   <tr className="job-table__row job-table__row--details">
                     <td className="job-table__td job-table__td--details" colSpan={4}>
                       <table className="job-table__sub-table">
@@ -161,7 +161,7 @@ const JobTable: React.FC<Props> = ({ jobs }) => {
                           <tr><th>Name</th><th>Status</th><th>Element</th><th>Queued</th><th>Started</th></tr>
                         </thead>
                         <tbody>
-                          {runningJobs.map((rj) => (
+                          {retainedJobs.map((rj) => (
                             <tr key={rj.ElementId}>
                               <td>{rj.Name}</td>
                               <td>{rj.Status}</td>

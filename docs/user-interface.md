@@ -128,6 +128,12 @@ It shows:
 
 If no job configuration is loaded, the section displays an empty state.
 
+The **Running** count includes only executions whose status is `Running`.
+Pending and finished executions remain visible in the details table; `Succeeded`
+and `Failed` entries are retained until their configured TTL expires. Retaining
+finished entries does not occupy parallel job slots or keep their dependencies
+awake. See [job concurrency and retention](jobs.md#7-concurrency-and-scaling).
+
 ---
 
 ## 7. Main Backend Endpoints Used by the UI

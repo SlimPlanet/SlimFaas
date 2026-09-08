@@ -90,6 +90,34 @@ export const WithRunningJobs: Story = {
   args: { jobs: JOBS_WITH_RUNNING },
 };
 
+export const RetainedFinishedJobs: Story = {
+  name: 'Finished jobs retained while idle',
+  args: {
+    jobs: [{
+      ...JOBS_IDLE[0],
+      RunningJobs: JOBS_WITH_RUNNING[0].RunningJobs.map((job, index) => ({
+        ...job,
+        Status: index === 0 ? 'Succeeded' : 'Failed',
+      })),
+    }],
+  },
+};
+
+export const MixedJobStates: Story = {
+  name: 'Running, pending and retained finished jobs',
+  args: {
+    jobs: [{
+      ...JOBS_IDLE[0],
+      RunningJobs: ['Running', 'Pending', 'Succeeded', 'Failed'].map((status, index) => ({
+        ...JOBS_WITH_RUNNING[0].RunningJobs[0],
+        Name: `fibonacci-slimfaas-job-${index}`,
+        ElementId: `elem-${index}`,
+        Status: status,
+      })),
+    }],
+  },
+};
+
 export const Empty: Story = {
   name: 'No job configurations',
   args: { jobs: [] },
