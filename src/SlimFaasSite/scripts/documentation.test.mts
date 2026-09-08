@@ -40,6 +40,11 @@ test('navigation includes each public document once except the home page', () =>
     assert.ok(!Object.values(DOCUMENTATION_CATALOG).some(page => page.route === '/mcp'));
 });
 
+test('website footer includes the Linux Foundation trademark disclaimer', async () => {
+    const footer = await readFile(path.resolve('src/SlimFaasSite/src/components/Footer.tsx'), 'utf8');
+    assert.match(footer, /Copyright .+ a Series of LF Projects, LLC/);
+});
+
 test('relative Markdown links and images resolve in the checked-out repository', async () => {
     for (const entry of Object.values(DOCUMENTATION_CATALOG)) {
         const source = path.resolve('../..', entry.sourcePath);
