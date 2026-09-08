@@ -1,0 +1,21 @@
+meta {
+  name: WebSocket upgrade required
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/ws
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([400, 404]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

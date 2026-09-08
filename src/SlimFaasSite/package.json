@@ -3,11 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build && node --experimental-strip-types scripts/generate-sitemap.mts",
+    "dev": "node scripts/prepare-assets.mts && next dev --turbopack",
+    "build": "node scripts/prepare-assets.mts && next build && node scripts/generate-sitemap.mts && node scripts/check-export.mts",
     "start": "next start",
     "lint": "eslint .",
-    "deploy": "gh-pages -d out"
+    "deploy": "gh-pages -d out",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test scripts/documentation.test.mts",
+    "check:export": "node scripts/check-export.mts"
   },
   "dependencies": {
     "cheerio": "^1.2.0",
@@ -37,5 +40,6 @@
     "overrides": {
       "postcss": ">=8.5.10"
     }
-  }
+  },
+  "type": "module"
 }

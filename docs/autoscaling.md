@@ -555,7 +555,15 @@ sum(max_over_time(work_inflight[10s]))
 ```
 
 Autoscaler evaluations are scoped to the function being scaled. Identically named
-metrics exposed by another function cannot contribute to its desired replica count.
+application metrics exposed by another function cannot contribute to its desired replica count.
+The three built-in queue gauges above are emitted by SlimFaas itself; evaluation also
+includes those series from the `slimfaas` metrics source, restricted to the current
+function's `function` label. This restriction also applies to unqualified selectors
+and regular-expression label matchers.
+
+Follow the [async backlog exercise](guided-tour.md#scale-from-n-to-m-with-an-async-backlog)
+to observe requested and ready replicas increase under load, the queue drain, and
+capacity decrease again. The supplied script checks the full transition.
 
 ### Practical examples for triggers
 

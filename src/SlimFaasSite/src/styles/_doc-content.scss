@@ -1,0 +1,27 @@
+/* Element selectors are intentionally scoped to rendered Markdown. */
+.doc-content {
+    h1 { font-size: clamp(2rem, 3vw, 3.1rem); line-height: 1.15; font-weight: 780; letter-spacing: -.035em; margin: 0 0 1.5rem; }
+    h2 { margin: 3rem 0 1rem; padding-top: .6rem; font-size: 1.6rem; letter-spacing: -.025em; }
+    h3 { margin: 2rem 0 .8rem; font-size: 1.15rem; }
+    :is(h1,h2,h3,h4,h5,h6) { scroll-margin-top: 110px; }
+    p, ul, ol { margin-bottom: 1.2rem; }
+    li { margin: .35rem 0; }
+    > p:first-of-type { font-size: 1.15rem; color: var(--muted); }
+    img { max-width: 100%; height: auto; }
+    a { overflow-wrap: anywhere; }
+    hr { border: 0; border-top: 1px solid var(--line); margin: 2.5rem 0; }
+    blockquote { background: var(--soft); border-left: 4px solid var(--color-primary); padding: 1rem 1.3rem; margin: 1.5rem 0; border-radius: 0 8px 8px 0; }
+    blockquote p:last-child { margin-bottom: 0; }
+    code { background: #eef1f6; padding: .15em .3em; border-radius: 4px; font-size: .86em; color: #243c72; overflow-wrap: anywhere; }
+    pre code { display: block; background: transparent; padding: 2.8rem 1.1rem 1.1rem; white-space: pre; overflow-x: auto; overflow-wrap: normal; line-height: 1.65; font-size: .82rem; }
+    @media (max-width: 800px) { h2 { font-size: 1.4rem; } }
+}
+.doc-table {
+    max-width: 100%; overflow-x: auto; margin: 1.5rem 0; border: 1px solid var(--line); border-radius: 10px;
+    /* The table subtree comes from Markdown. */
+    table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+    th { text-align: left; background: var(--surface); font-weight: 650; }
+    th, td { min-width: 115px; padding: .8rem 1rem; vertical-align: top; border-bottom: 1px solid var(--line); }
+    tr:last-child td { border-bottom: 0; }
+    td code { white-space: normal; }
+}

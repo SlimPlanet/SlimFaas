@@ -437,9 +437,10 @@ jobs:
     needs: tags
     if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
     strategy:
+      fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             rid: linux-x64
             zip: SlimFaas-linux-x64.zip
           - os: ubuntu-24.04-arm
@@ -448,7 +449,7 @@ jobs:
           - os: windows-latest
             rid: win-x64
             zip: SlimFaas-win-x64.zip
-          - os: macos-latest
+          - os: macos-15-intel
             rid: osx-x64
             zip: SlimFaas-osx-x64.zip
           - os: macos-14
@@ -469,6 +470,20 @@ jobs:
         with:
           global-json-file: global.json
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Test bundle smoke helpers
+        run: python .bin/test-local-bundle-helpers.py
+
+      # Build wwwroot before MSBuild evaluates static asset globs on a fresh checkout.
+      - name: Build embedded dashboard
+        working-directory: src/SlimFaas/ClientApp
+        run: |
+          npm ci
+          npm run build
+
       - name: Publish SlimFaas (${{ matrix.rid }})
         run: |
           dotnet publish ./src/SlimFaas/SlimFaas.csproj \
@@ -478,7 +493,8 @@ jobs:
             -p:PublishTrimmed=true \
             -p:SelfContained=true \
             -p:DebugType=none \
-            -p:DebugSymbols=false
+            -p:DebugSymbols=false \
+            -p:SkipClientAppBuild=true
         shell: bash
 
       - name: Validate native local CLI
@@ -498,6 +514,31 @@ jobs:
             --env-file .\.env.local.example
         if: runner.os == 'Windows'
         shell: powershell
+
+      - name: Build standalone local demo bundle
+        shell: bash
+        run: |
+          python .bin/package-local-demo.py --rid "${{ matrix.rid }}" \
+            --version "${{ needs.tags.outputs.new_version }}" --slimfaas-publish ./publish \
+            --output ./artifacts/local-demo
+
+      - name: Test local bundle without SDKs on PATH
+        shell: bash
+        run: python .bin/test-local-bundle.py "artifacts/local-demo/SlimFaas-Local-${{ matrix.rid }}.zip"
+
+      - name: Test local installer
+        if: runner.os != 'Windows'
+        shell: bash
+        run: python .bin/test-install-local-demo.py
+
+      - name: Upload local demo bundle and checksum
+        uses: actions/upload-artifact@v4
+        with:
+          name: SlimFaas-Local-${{ matrix.rid }}.zip
+          path: |
+            artifacts/local-demo/SlimFaas-Local-${{ matrix.rid }}.zip
+            artifacts/local-demo/SlimFaas-Local-${{ matrix.rid }}.zip.sha256
+          if-no-files-found: error
 
       - name: Zip artifact (Linux & macOS)
         if: runner.os != 'Windows'
@@ -540,7 +581,7 @@ jobs:
           tag_name: ${{ needs.tags.outputs.new_version }}
           name: "SlimFaas ${{ needs.tags.outputs.new_version }}"
           body: |
-            Native AOT builds for SlimFaas and SlimFaasMcp:
+            Native AOT builds for SlimFaas and SlimFaasMcp, plus standalone SlimFaas local demos:
 
             * Linux x64 and ARM64 (SlimFaas)
             * Windows x64
@@ -550,6 +591,7 @@ jobs:
           prerelease: false
           files: |
             SlimFaas-*.zip
+            SlimFaas-Local-*.zip.sha256
             SlimFaasMcp-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

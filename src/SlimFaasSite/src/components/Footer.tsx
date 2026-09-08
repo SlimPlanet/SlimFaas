@@ -14,7 +14,7 @@ const Footer: React.FC = () => {
 
                 <div className="footer__cncf">
                     <p className="footer__cncf-text">
-                        We are a Cloud Native Computing Foundation sandbox project.
+                        Proud CNCF Landscape Project.
                     </p>
 
                     <Image

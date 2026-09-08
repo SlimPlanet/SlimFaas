@@ -1,0 +1,21 @@
+meta {
+  name: Async root
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/async-function/fibonacci1
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([202]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

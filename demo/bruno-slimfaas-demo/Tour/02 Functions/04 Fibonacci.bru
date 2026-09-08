@@ -1,0 +1,32 @@
+meta {
+  name: Fibonacci
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/function/fibonacci1/fibonacci
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"input":10}
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+  test("Expected response", function () {
+    expect(res.getBody().result).to.equal(55);
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

@@ -1,9 +1,56 @@
-﻿# SlimFaas Functions (Sync & Async)
+# SlimFaas Functions (Sync & Async)
 
 SlimFaas offers **two main ways** to invoke functions: **synchronous** and **asynchronous** HTTP calls.
 Below is an overview of each.
 
 ---
+
+## Follow an invocation
+
+For a synchronous call, the caller keeps its connection open while SlimFaas waits for a ready replica and proxies the response. A wake-up can therefore be visible before the first successful response.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Gateway as SlimFaas proxy
+    participant Orchestrator
+    participant Function as HTTP function
+    Caller->>Gateway: /function/name/path
+    opt No ready replica
+        Gateway->>Orchestrator: Request wake-up
+        Orchestrator->>Function: Start replicas and check readiness
+    end
+    Gateway->>Function: Forward HTTP request
+    Function-->>Gateway: Status, headers and response body
+    Gateway-->>Caller: Stream the response
+```
+
+An asynchronous call separates durable acceptance from execution. A worker dispatches eligible work within the function's concurrency limits. Failed attempts can be retried; handlers must tolerate duplicate delivery.
+
+```mermaid
+sequenceDiagram
+    participant Caller
+    participant Gateway as SlimFaas
+    participant Queue as Durable queue
+    participant Worker
+    participant Function
+    Caller->>Gateway: /async-function/name/path
+    Gateway->>Queue: Enqueue and commit
+    Queue-->>Gateway: Durable acceptance
+    Gateway-->>Caller: 202 Accepted
+    Worker->>Queue: Claim eligible work
+    Worker->>Function: Dispatch when ready and capacity is available
+    alt Handler completes during the HTTP call
+        Function-->>Worker: Completion status
+        Worker->>Queue: Complete or schedule a retry
+    else Handler returns 202 for deferred completion
+        Function-->>Worker: 202, work continues
+        Function->>Gateway: Callback with the real element ID
+        Gateway->>Queue: Complete or retry the outstanding item
+    end
+```
+
+Watch both paths in the [Guided Tour](guided-tour.md#4-queue-work-retry-and-complete-callbacks), then [scale out with an async burst](guided-tour.md#scale-from-n-to-m-with-an-async-backlog).
 
 ## 1. Synchronous Functions
 
@@ -21,7 +68,7 @@ If your function has scaled to zero, SlimFaas automatically **wakes it up** and 
 
 ## 2. Asynchronous Functions
 
-Asynchronous calls return immediately (HTTP 202 or 201), while SlimFaas queues the request and processes it in the background.
+Asynchronous calls return HTTP 202 after durable acceptance, while SlimFaas queues the request and processes it in the background.
 
 `202 Accepted` is returned only after the queue mutation is durably committed.
 FIFO order, retries, and callback behavior are unchanged. For request bodies
@@ -33,7 +80,7 @@ before it enqueues the message that refers to that body.
 
 - **Example**:
   GET http://localhost:30021/async-function/fibonacci1/hello/guillaume → 202 (Accepted), handled in background
-  synchronous mode also allows:
+  Asynchronous mode also supports:
 
 - **Limiting parallel requests** via annotations (e.g., `SlimFaas/NumberParallelRequest`).
 - **Retry pattern** on timeouts or specific HTTP status codes.
@@ -64,7 +111,7 @@ for the next attempt.
 You can explicitly “wake up” a function without invoking a specific route:
 
 - **Route**:
-  `GET http://<slimfaas>/wake-function/<functionName>`
+  `POST http://<slimfaas>/wake-function/<functionName>`
 
 - **Response**:
   `204 (No Content)`
@@ -81,7 +128,7 @@ SlimFaas exposes a route to check the readiness status of all registered functio
   `GET http://<slimfaas>/status-functions`
 
 - **Response**:
-  An array of objects with details like `NumberReady`, `numberRequested`, `PodType`, `Visibility`, etc.
+  An array of objects with details like `NumberReady`, `NumberRequested`, `PodType`, `Visibility`, etc.
 
 ```json
 [
@@ -91,8 +138,7 @@ SlimFaas exposes a route to check the readiness status of all registered functio
       "PodType": "Deployment",
       "Visibility": "Public",
       "Name": "fibonacci1"
-    },
-    ...
+    }
 ]
 ```
 

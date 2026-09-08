@@ -1,0 +1,21 @@
+meta {
+  name: Peer activity
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/internal/activity-events?since=0
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200, 403]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

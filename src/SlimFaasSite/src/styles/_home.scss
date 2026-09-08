@@ -1,0 +1,13 @@
+.start-cards {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; padding: 0; list-style: none;
+    &__item { border: 1px solid #c4c4ff; border-radius: 12px; padding: 1.25rem; background: linear-gradient(150deg, var(--soft), #fff); font-size: .85rem; }
+    &__link { display: block; font-size: 1rem; font-weight: 700; text-decoration: none; margin-bottom: .6rem; }
+    @media (max-width: 800px) { grid-template-columns: 1fr; }
+}
+.community {
+    margin: 2rem 0; padding: 1.5rem; border: 1px solid #bcbcff; border-top: 5px solid var(--color-primary); border-radius: 12px; background: var(--soft);
+    &__title:first-child { margin-top: 0; }
+    &__logo { display: block; width: 220px; height: auto; }
+    &__links { display: flex; flex-wrap: wrap; gap: .6rem 1.5rem; list-style: none; padding: 0; }
+    &__link { font-weight: 600; }
+}

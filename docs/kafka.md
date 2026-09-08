@@ -1,4 +1,4 @@
-﻿# SlimFaas Kafka Connector [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas-kafka.svg?label=docker+pull+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-kafka?label=image+size+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-kafka?sort=semver&label=latest+version+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas-kafka)](https://artifacthub.io/packages/search?repo=slimfaas-kafka)
+# SlimFaas Kafka Connector [![Docker SlimFaas](https://img.shields.io/docker/pulls/axaguildev/slimfaas-kafka.svg?label=docker+pull+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Docker Image Size](https://img.shields.io/docker/image-size/axaguildev/slimfaas-kafka?label=image+size+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas/builds) [![Docker Image Version](https://img.shields.io/docker/v/axaguildev/slimfaas-kafka?sort=semver&label=latest+version+slimfaas-kafka)](https://hub.docker.com/r/axaguildev/slimfaas-kafka/builds) [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/slimfaas-kafka)](https://artifacthub.io/packages/search?repo=slimfaas-kafka)
 SlimFaas-Kafka is a lightweight micro‑service designed to **monitor Kafka topics** and automatically **wake up SlimFaas functions** when messages arrive or when recent Kafka activity indicates the function should stay awake.
 It enables full event‑driven autoscaling of SlimFaas functions based on Kafka queues — without consuming the messages itself.
 
@@ -28,11 +28,19 @@ This means your message streams remain **untouched** and your existing consumers
 
 Below is the logical architecture:
 
+```mermaid
+flowchart TD
+    Kafka["Kafka topics and consumer-group offsets"] -->|"Read metadata and offsets"| Connector["SlimFaasKafka: measure lag and recent activity"]
+    Connector -->|"Wake request when needed"| SlimFaas["SlimFaas: bring functions from 0 to N"]
+    SlimFaas --> Consumers["Ready consumer function replicas"]
+    Kafka -->|"Consume messages"| Consumers
+    Consumers -->|"Commit consumed offsets"| Kafka
+    Connector --> Metrics["Expose Kafka metrics"]
+    Metrics -->|"Scrape when configured and requested"| Autoscaler["SlimFaas PromQL autoscaler"]
+    Autoscaler -->|"Apply configured N to M scaling policy"| Consumers
 ```
-Kafka Topics  →  SlimFaasKafka  →  SlimFaas Orchestrator  →  Function Pods
-                    ↑   ↓                         ↑
-       Metadata & Offsets   Wake‑up events        |
-```
+
+The connector reads offsets to decide whether to wake a function; the function's consumer reads the messages. Scaling beyond the initial replicas additionally requires a configured `SlimFaas/Scale` trigger and metrics scraping, as shown below.
 
 ### Components
 
@@ -369,13 +377,13 @@ slimkafka:
         - Kafka__BootstrapServers=kafka:9092
         - Kafka__CheckIntervalSeconds=5
         - SlimFaas__BaseUrl=http://slimfaas:30021
-        - SlimKafka__Bindings__0__Topic=fibo-public
-        - SlimKafka__Bindings__0__ConsumerGroupId=fibonacci-listener-group
-        - SlimKafka__Bindings__0__FunctionName=fibonaccilistener
-        - SlimKafka__Bindings__0__MinPendingMessages=1
-        - SlimKafka__Bindings__0__CooldownSeconds=30
-        - SlimKafka__Bindings__0__ActivityKeepAliveSeconds=60
-        - SlimKafka__Bindings__0__MinConsumedDeltaForActivity=1
+        - SlimFaasKafka__Bindings__0__Topic=fibo-public
+        - SlimFaasKafka__Bindings__0__ConsumerGroupId=fibonacci-listener-group
+        - SlimFaasKafka__Bindings__0__FunctionName=fibonaccilistener
+        - SlimFaasKafka__Bindings__0__MinPendingMessages=1
+        - SlimFaasKafka__Bindings__0__CooldownSeconds=30
+        - SlimFaasKafka__Bindings__0__ActivityKeepAliveSeconds=60
+        - SlimFaasKafka__Bindings__0__MinConsumedDeltaForActivity=1
     networks:
         - slimfaas-net
 ```

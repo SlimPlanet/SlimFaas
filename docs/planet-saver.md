@@ -1,4 +1,4 @@
-﻿# SlimFaas Planet Saver [![npm version](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver.svg)](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver)
+# SlimFaas Planet Saver [![npm version](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver.svg)](https://badge.fury.io/js/%40axa-fr%2Fslimfaas-planet-saver)
 
 > **Important Note**: Starting from **0 replicas** to **1 replica** can be challenging because if no machine is available, the application must wait for a new machine to start. This startup process may exceed typical HTTP timeouts (for example, 7 minutes). **SlimPlanet** (via SlimFaas) solves this issue by providing a user-friendly interface that informs users the backend is starting, while the infrastructure wakes up in the background.
 
@@ -10,6 +10,27 @@ SlimFaas provides an API to give your frontend detailed information about the st
 ![SlimFaas Planet Saver](SlimFaasPlanetSaver.gif)
 
 ---
+
+## From a sleeping backend to a ready screen
+
+Planet Saver polls SlimFaas and requests wake-up according to each configured function's behavior. With `WakeUp+BlockUI`, its overlay remains visible until the blocking functions are ready; `WakeUp` requests startup without blocking the page, and `None` does not request wake-up for that function.
+
+```mermaid
+flowchart TD
+    Browser["User opens the frontend"] --> Helper["Planet Saver watches function status"]
+    Helper --> Behavior{"Configured behavior"}
+    Behavior -->|"None"| Observe["Observe without requesting wake-up"]
+    Behavior -->|"WakeUp"| Wake["Request wake-up when needed"]
+    Behavior -->|"WakeUp+BlockUI"| Overlay["Display the startup overlay"]
+    Overlay --> Wake
+    Wake --> SlimFaas["SlimFaas starts the function replicas"]
+    SlimFaas --> Poll["Later status polls report ready replicas"]
+    Poll --> Ready{"All blocking functions ready?"}
+    Ready -->|"No"| Helper
+    Ready -->|"Yes"| Continue["Remove the overlay and let the user continue"]
+```
+
+This helper improves the browser experience during `0 → N` startup. Queue-driven `N → M` scaling is performed by the SlimFaas autoscaler; try the [async backlog exercise](guided-tour.md#scale-from-n-to-m-with-an-async-backlog) to see that separate behavior.
 
 ## Why Use @axa-fr/slimfaas-planet-saver?
 
@@ -155,8 +176,8 @@ const behavior: {
 To see @axa-fr/slimfaas-planet-saver in action:
 
 ```bash
-git clone https://github.com/SlimPlanet/slimfaas.git
-cd slimfaas/src/SlimFaasPlanetSaver
+git clone https://github.com/SlimPlanet/SlimFaas.git
+cd SlimFaas/src/SlimFaasPlanetSaver
 npm install
 npm run dev
 ```

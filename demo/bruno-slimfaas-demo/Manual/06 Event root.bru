@@ -1,0 +1,21 @@
+meta {
+  name: Event root
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/publish-event/fibo-public
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([204]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

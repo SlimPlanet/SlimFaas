@@ -1,0 +1,29 @@
+meta {
+  name: Recursive call
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/function/fibonacci3/fibonacci-recursive
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"input":5}
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

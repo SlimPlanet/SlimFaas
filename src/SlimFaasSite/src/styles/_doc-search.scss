@@ -1,0 +1,9 @@
+.doc-search {
+    &__label { display: block; font-size: .8rem; font-weight: 650; margin-bottom: .45rem; }
+    &__input { width: 100%; border: 1px solid #b7c4da; border-radius: 8px; font-size: .85rem; padding: .6rem .7rem; background: var(--surface); }
+    &__results { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: .75rem; max-height: 380px; overflow-y: auto; margin-top: .5rem; }
+    &__status { font-size: .8rem; color: var(--muted); }
+    &__list { padding: 0; list-style: none; margin: 0; }
+    &__link { display: block; padding: .65rem 0; text-decoration: none; border-top: 1px solid var(--line); font-size: .85rem; }
+    &__excerpt { display: block; color: var(--muted); font-size: .75rem; margin-top: .25rem; }
+}

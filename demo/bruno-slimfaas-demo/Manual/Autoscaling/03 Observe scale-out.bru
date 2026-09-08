@@ -1,0 +1,38 @@
+meta {
+  name: Observe scale-out
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/status-function/fibonacci1
+  body: none
+  auth: none
+}
+
+tests {
+  test("Requested and ready replicas increase from N=1 to M greater than 1", async function () {
+    expect(bru.getVar("scaleAccepted")).to.equal(800);
+    expect(res.getStatus()).to.equal(200);
+    let status = res.getBody();
+    const deadline = Date.now() + 180000;
+    while (Date.now() < deadline) {
+      if (status.NumberRequested > 1 && status.NumberReady > 1) {
+        bru.setVar("scalePeakReady", status.NumberReady);
+        console.log("Observed N=1 -> M=" + status.NumberReady + " ready replicas; requested=" + status.NumberRequested);
+        return;
+      }
+      await bru.sleep(1000);
+      const response = await bru.sendRequest({ method: "GET", url: req.getUrl() });
+      expect(response.status).to.equal(200);
+      status = response.data;
+    }
+    throw new Error("No scale-out within three minutes. Inspect queue metrics, Scale configuration and process/pod readiness.");
+  });
+}
+
+docs {
+  The original HTTP response remains visible. Assertions poll subsequent status responses and log the observed growth.
+  More requested replicas alone do not prove scale-out: this assertion also requires more ready replicas.
+  Compare Infrastructure Overview, function details and queue-to-function traffic in the dashboard.
+}

@@ -1,0 +1,30 @@
+meta {
+  name: Read generated set
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/data/sets/{{setId}}
+  body: none
+  auth: none
+}
+
+tests {
+  test("Read reaches the expected state", async function () {
+    let observed = { status: res.getStatus(), body: res.getBody() };
+    const deadline = Date.now() + 10000;
+    while (observed.status !== 200 && [200, 404].includes(observed.status) && Date.now() < deadline) {
+      await bru.sleep(100);
+      const response = await bru.sendRequest({ method: "GET", url: req.getUrl() });
+      observed = { status: response.status, body: response.data };
+    }
+    expect(observed.status).to.equal(200);
+    expect(observed.body).to.equal("tour value");
+  });
+}
+
+docs {
+  Read assertions poll for up to 10 seconds if a follower has not yet applied a newly created/deleted ID. The original HTTP response stays visible in Bruno. Writes are never replayed.
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

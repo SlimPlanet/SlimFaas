@@ -1,0 +1,30 @@
+meta {
+  name: PromQL scalar
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/debug/promql/eval
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"Query":"1 + 1"}
+}
+
+tests {
+  test("Scalar result", function () { expect(res.getBody().value).to.equal(2); });
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

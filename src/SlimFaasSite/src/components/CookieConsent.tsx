@@ -79,7 +79,7 @@ export default function CookieConsent() {
             {showBanner && (
                 <div className="cookie-consent__backdrop">
                     <div className="cookie-consent__card">
-                        <h3 style={{ marginTop: 0 }}>Cookies & Privacy</h3>
+                        <h3 className="cookie-consent__title">Cookies & Privacy</h3>
                         <p className="cookie-consent__text">
                             We use cookies for measurement (analytics) and—optionally—ads. Choose “Accept all”, “Reject all”, or “Customize”.
                         </p>
@@ -95,7 +95,7 @@ export default function CookieConsent() {
             {showPrefs && (
                 <div className="cookie-consent__backdrop">
                     <div className="cookie-consent__card">
-                        <h3 style={{ marginTop: 0 }}>Cookie Preferences</h3>
+                        <h3 className="cookie-consent__title">Cookie Preferences</h3>
 
                         <div className="cookie-consent__row">
                             <label className="cookie-consent__label">
@@ -121,7 +121,7 @@ export default function CookieConsent() {
                             </label>
                         </div>
 
-                        <p className="cookie-consent__text" style={{ fontSize: '0.9rem' }}>
+                        <p className="cookie-consent__text cookie-consent__text--small">
                             You can change your choice anytime via “Cookie settings” in the footer. Until you accept, storage is denied.
                         </p>
 

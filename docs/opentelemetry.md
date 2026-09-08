@@ -28,7 +28,7 @@ SlimFaas provides built-in support for OpenTelemetry, enabling comprehensive obs
 | `ExcludedUrls`        |  Optional   | string array | List of URL path prefixes to exclude from tracing |                | `["/health", "/metrics"]` |
 
 **Configuration Priority (default behavior):**
-1. Configuration values from `appsettings.json` (highest priority)
+1. The `OpenTelemetry` configuration section, including `OpenTelemetry__*` environment overrides of `appsettings.json`
 2. Environment variables `OTEL_SERVICE_NAME` and `OTEL_EXPORTER_OTLP_ENDPOINT` (fallback if configuration values are not specified)
 3. If `Enable` is `true` and no `Endpoint` is found in either configuration or environment variables, the OpenTelemetry default value will be used.
 
@@ -52,22 +52,25 @@ SlimFaas provides built-in support for OpenTelemetry, enabling comprehensive obs
 
 ### Environment Variables
 
-```bash
-# Windows
+```bat
+:: Windows Command Prompt
 set OpenTelemetry__Enable=true
 set OpenTelemetry__ServiceName=SlimFaas
 set OpenTelemetry__Endpoint=http://localhost:4317
 set OpenTelemetry__EnableConsoleExporter=false
-set OpenTelemetry__ExcludedUrls__0=health
-set OpenTelemetry__ExcludedUrls__1=metrics
+set OpenTelemetry__ExcludedUrls__0=/health
+set OpenTelemetry__ExcludedUrls__1=/metrics
 
-# Linux/Mac
+```
+
+```bash
+# Linux/macOS
 export OpenTelemetry__Enable=true
 export OpenTelemetry__ServiceName=SlimFaas
 export OpenTelemetry__Endpoint=http://localhost:4317
 export OpenTelemetry__EnableConsoleExporter=false
-export OpenTelemetry__ExcludedUrls__0=heatlh
-export OpenTelemetry__ExcludedUrls__1=metrics
+export OpenTelemetry__ExcludedUrls__0=/health
+export OpenTelemetry__ExcludedUrls__1=/metrics
 ```
 
 ---

@@ -1,6 +1,8 @@
-﻿
-@use './_footer.scss';
-
-@use "./_navbar.scss";
-@use "./index.scss";
-@use "./_cookie-consent.scss";
+@use './index';
+@use './navbar';
+@use './documentation';
+@use './doc-search';
+@use './doc-content';
+@use './home';
+@use './footer';
+@use './cookie-consent';

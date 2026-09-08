@@ -1,0 +1,22 @@
+meta {
+  name: Complete callback
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/async-function-callback/fibonacci1/{{callbackElementId}}/success
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+  Set callbackElementId from the current function request SlimFaas-Element-Id header. Do not use an arbitrary or historical ID.
+}

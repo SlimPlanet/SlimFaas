@@ -1,0 +1,24 @@
+meta {
+  name: Decrement by
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{baseUrl}}/data/sets/{{tourId}}-count/decrby?by=2
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+  test("Expected response", function () {
+    expect(String(res.getBody())).to.equal("8");
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+}

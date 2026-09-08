@@ -1,0 +1,34 @@
+meta {
+  name: Create generated set
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/data/sets?ttl=300000
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: text/plain
+}
+
+body:text {
+  tour value
+}
+
+script:post-response {
+  if (res.getStatus() >= 200 && res.getStatus() < 300) bru.setVar("setId", res.getBody());
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run the Tour folder in order. See https://slimfaas.dev/guided-tour and https://slimfaas.dev/api-reference.
+  The response captures setId for later requests and cleanup.
+}
