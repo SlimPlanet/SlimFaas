@@ -2,6 +2,11 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://slimfaas.dev/</loc></url>
   <url><loc>https://slimfaas.dev/get-started</loc></url>
+  <url><loc>https://slimfaas.dev/get-started/kubernetes</loc></url>
+  <url><loc>https://slimfaas.dev/get-started/local</loc></url>
+  <url><loc>https://slimfaas.dev/get-started/docker-compose</loc></url>
+  <url><loc>https://slimfaas.dev/guided-tour</loc></url>
+  <url><loc>https://slimfaas.dev/api-reference</loc></url>
   <url><loc>https://slimfaas.dev/local-mode</loc></url>
   <url><loc>https://slimfaas.dev/functions</loc></url>
   <url><loc>https://slimfaas.dev/user-interface</loc></url>
@@ -16,5 +21,4 @@
   <url><loc>https://slimfaas.dev/data-files</loc></url>
   <url><loc>https://slimfaas.dev/data-sets</loc></url>
   <url><loc>https://slimfaas.dev/how-it-works</loc></url>
-  <url><loc>https://slimfaas.dev/mcp</loc></url>
 </urlset>
