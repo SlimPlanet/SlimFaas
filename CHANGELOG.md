@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.82.6
+
+- [b8a688ea](https://github.com/SlimPlanet/SlimFaas/commit/b8a688eadda28cb6e243ddb775fc990f9e398791) - docs: Restore CloMonitor Legal compliance detection (#336) (release), 2026-09-08 by *Copilot*
+
+
+## 0.82.5
+
+
+
 ## v0.82.5
 
 - [48b7fc86](https://github.com/SlimPlanet/SlimFaas/commit/48b7fc869de28f2ac6e23d208371bb000f5dc39f) - docs: add guided onboarding, feature diagrams and standalone local demos (#334) (release), 2026-09-08 by *Guillaume Chervet*
@@ -268,15 +277,5 @@
 - [b78130ce](https://github.com/SlimPlanet/SlimFaas/commit/b78130ce74d825271e68f7a7a534e674f4d988f9) - refactor: upgrade npm (#287) (release), 2026-07-09 by *Guillaume Chervet*
 - [51fbc12b](https://github.com/SlimPlanet/SlimFaas/commit/51fbc12b88ff43261ada6fa568ed06cb3feaa207) - feat(set): add redis like commands for caching (#286), 2026-07-09 by *Guillaume Chervet*
 - [ad658f79](https://github.com/SlimPlanet/SlimFaas/commit/ad658f796b8cc53722ee6ab1c6666b43c622924d) - fix: resolve issue 284 (#285), 2026-07-03 by *Guillaume Chervet*
-
-
-## 0.73.1
-
-
-
-## v0.73.1
-
-- [36efd0dc](https://github.com/SlimPlanet/SlimFaas/commit/36efd0dc38884bf42056a72a5d3f2706f6c33667) - fix(#281): Remove AsyncBodyOffloadThresholdBytes configurability and clean up related code (#282) (release), 2026-07-03 by *Guillaume Chervet*
-- [aef91008](https://github.com/SlimPlanet/SlimFaas/commit/aef91008957b64c9ed5469f4ef09f7787ea99672) - add agent.md, 2026-07-03 by *Guillaume Chervet*
 
 
