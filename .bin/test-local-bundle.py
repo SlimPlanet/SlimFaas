@@ -14,6 +14,26 @@ import zipfile
 from pathlib import Path
 
 
+def wait_for_ready(request, process, timeout=120):
+    """Poll startup only; reset/aborted sockets are normal before nodes are ready."""
+    deadline = time.monotonic() + timeout
+    last_error = None
+    while True:
+        if process.poll() is not None:
+            raise RuntimeError("Local supervisor exited before readiness")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise TimeoutError("Local bundle never became ready") from last_error
+        try:
+            if request("/ready", timeout=min(5, remaining))[0] == 200:
+                return
+        except (urllib.error.URLError, ConnectionError, TimeoutError) as error:
+            # urllib can expose a raw socket error while reading the response,
+            # including Windows WSAECONNABORTED (10053), outside URLError.
+            last_error = error
+        time.sleep(min(.25, max(0, deadline - time.monotonic())))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
@@ -49,25 +69,14 @@ def main():
             process = subprocess.Popen(command + ["up"] + manifests, env=environment, cwd=root,
                                        stdout=log, stderr=subprocess.STDOUT, **options)
             try:
-                def request(route, method="GET", data=None):
+                def request(route, method="GET", data=None, timeout=60):
                     payload = None if data is None else json.dumps(data).encode()
                     req = urllib.request.Request("http://127.0.0.1:30020" + route, data=payload, method=method,
                                                  headers={"Content-Type": "application/json"})
-                    with urllib.request.urlopen(req, timeout=60) as response:
+                    with urllib.request.urlopen(req, timeout=timeout) as response:
                         return response.status, response.read()
 
-                deadline = time.monotonic() + 120
-                while True:
-                    if process.poll() is not None:
-                        raise RuntimeError("Local supervisor exited before readiness")
-                    try:
-                        if request("/ready")[0] == 200:
-                            break
-                    except (urllib.error.URLError, TimeoutError):
-                        pass
-                    if time.monotonic() > deadline:
-                        raise TimeoutError("Local bundle never became ready")
-                    time.sleep(.25)
+                wait_for_ready(request, process)
                 assert b"<html" in request("/")[1].lower(), "Dashboard missing"
                 status = json.loads(request("/status-functions")[1])
                 assert len(status) == 4, status

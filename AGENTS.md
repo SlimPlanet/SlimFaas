@@ -129,6 +129,7 @@ standard SlimFaas runtime archives available separately. Build prerequisites are
 ```bash
 python3 .bin/package-local-demo.py --rid osx-arm64 --version local-check
 python3 .bin/test-local-bundle.py artifacts/local-demo/SlimFaas-Local-osx-arm64.zip
+python3 .bin/test-local-bundle-readiness.py
 python3 .bin/test-install-local-demo.py
 ```
 
@@ -136,6 +137,8 @@ Use the RID matching the build host. The native release workflow builds and test
 all five supported RIDs. Bundle smoke tests run the native runtime and packaged
 functions/jobs with an empty PATH. Changes to local manifests or sample workloads
 must preserve the bundle overlay and its guided-tour/Bruno fixtures.
+The readiness probe tolerates temporary connection failures during startup within
+a bounded deadline; requests exercising functions and job mutations are not retried.
 
 ### Docker
 

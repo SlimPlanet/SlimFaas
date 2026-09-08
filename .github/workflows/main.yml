@@ -473,6 +473,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Test bundle readiness polling
+        run: python .bin/test-local-bundle-readiness.py
+
       # Build wwwroot before MSBuild evaluates static asset globs on a fresh checkout.
       - name: Build embedded dashboard
         working-directory: src/SlimFaas/ClientApp
