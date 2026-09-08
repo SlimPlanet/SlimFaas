@@ -105,7 +105,7 @@ function normalizeFunctions(raw: unknown): FunctionStatusDetailed[] {
         Name: asString(pick(pod, 'Name', 'name')),
         Status: asString(pick(pod, 'Status', 'status')),
         Ready: Boolean(pick(pod, 'Ready', 'ready')),
-        Ip: asString(pick(pod, 'Ip', 'ip')),
+        Identity: asString(pick(pod, 'Identity', 'identity')),
       })),
     };
   });

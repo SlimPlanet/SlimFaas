@@ -28,7 +28,7 @@ public class StatusStreamPrivacyTests
     {
         var original = Event(first, equivalent);
         var projected = StatusStreamPrivacy.ForBrowser(original);
-        Assert.Matches("^ip_[0-9a-f]{64}$", projected.SourcePod!);
+        Assert.Matches("^id_[0-9a-f]{64}$", projected.SourcePod!);
         Assert.Equal(projected.SourcePod, projected.TargetPod);
         Assert.Equal(projected, StatusStreamPrivacy.ForBrowser(original));
         Assert.False(IPAddress.TryParse(projected.SourcePod, out _));
@@ -53,7 +53,7 @@ public class StatusStreamPrivacyTests
     {
         var projected = StatusStreamPrivacy.ForBrowser(Event(address, address));
         Assert.Null(projected.SourcePod);
-        Assert.StartsWith("ip_", projected.TargetPod);
+        Assert.StartsWith("id_", projected.TargetPod);
     }
 
     [Theory]
@@ -140,15 +140,16 @@ public class StatusStreamPrivacyTests
         Assert.Contains(frames, f => f.Type == activityType);
         foreach (var frame in frames)
         {
+            Assert.DoesNotContain("\"Ip\":", frame.Json);
             Assert.DoesNotContain(ipv4, frame.Json);
             Assert.DoesNotContain(ipv6, frame.Json);
         }
         using var state = JsonDocument.Parse(frames[0].Json);
         var pods = state.RootElement.GetProperty("Functions")[0].GetProperty("Pods");
-        var v4Token = pods[0].GetProperty("Ip").GetString();
-        var v6Token = pods[1].GetProperty("Ip").GetString();
-        Assert.StartsWith("ip_", v4Token);
-        Assert.StartsWith("ip_", v6Token);
+        var v4Token = pods[0].GetProperty("Identity").GetString();
+        var v6Token = pods[1].GetProperty("Identity").GetString();
+        Assert.StartsWith("id_", v4Token);
+        Assert.StartsWith("id_", v6Token);
         var recent = state.RootElement.GetProperty("RecentActivity")[0];
         Assert.Equal(v4Token, recent.GetProperty("SourcePod").GetString());
         Assert.Equal(v6Token, recent.GetProperty("TargetPod").GetString());
@@ -167,7 +168,7 @@ public class StatusStreamPrivacyTests
 
         // Neither the deployment cache nor internal peer transport may be modified.
         Assert.Equal(ipv4, deployments.Functions[0].Pods[0].Ip);
-        Assert.Equal(ipv4, host.Services.GetRequiredService<FunctionStatusCache>().GetAllDetailed(replicas.Object)[0].Pods[0].Ip);
+        Assert.Equal(ipv4, host.Services.GetRequiredService<FunctionStatusCache>().GetAllDetailed(replicas.Object)[0].Pods[0].Identity);
         Assert.Equal(ipv4, tracker.GetRecent()[0].SourcePod);
         client.DefaultRequestHeaders.Add("X-Forwarded-For", "10.0.0.10");
         var internalJson = await client.GetStringAsync("http://localhost:5000/internal/activity-events", cts.Token);

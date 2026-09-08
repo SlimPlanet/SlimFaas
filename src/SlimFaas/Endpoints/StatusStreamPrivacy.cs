@@ -6,7 +6,7 @@ namespace SlimFaas.Endpoints;
 
 /// <summary>
 /// Projects network addresses at the public SSE boundary. Raw events and deployment
-/// snapshots remain available to routing and authenticated inter-node aggregation.
+/// snapshots remain available to routing and access-controlled inter-node aggregation.
 /// </summary>
 internal static class StatusStreamPrivacy
 {
@@ -17,7 +17,7 @@ internal static class StatusStreamPrivacy
 
     public static FunctionStatusDetailed ForBrowser(FunctionStatusDetailed function) => function with
     {
-        Pods = function.Pods.Select(pod => pod with { Ip = ProtectAddress(pod.Ip)! }).ToArray()
+        Pods = function.Pods.Select(pod => pod with { Identity = ProtectAddress(pod.Identity)! }).ToArray()
     };
 
     public static NetworkActivityEvent ForBrowser(NetworkActivityEvent activity) => activity with
@@ -37,6 +37,6 @@ internal static class StatusStreamPrivacy
         if (source && IPAddress.IsLoopback(address)) return null;
 
         // Canonical text also retains IPv6 scope IDs, unlike the address bytes alone.
-        return "ip_" + Convert.ToHexStringLower(HMACSHA256.HashData(Key, Encoding.UTF8.GetBytes(address.ToString())));
+        return "id_" + Convert.ToHexStringLower(HMACSHA256.HashData(Key, Encoding.UTF8.GetBytes(address.ToString())));
     }
 }

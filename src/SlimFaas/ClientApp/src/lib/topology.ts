@@ -12,8 +12,6 @@ export interface Topology {
 }
 const CELL = 34;
 const GAP = 90;
-const ipKey = (value: string) => value.replace(/^::ffff:/, '');
-const isLoopback = (value: string) => value === '::1' || value.startsWith('127.');
 export const nodeId = (kind: string, name: string) => `${kind}:${name}`;
 
 export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[]): Topology {
@@ -44,10 +42,10 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
     const fnPods = [...(fn.Pods ?? [])].sort((a, b) => a.Name.localeCompare(b.Name));
     create('function', fn.Name, `${fn.NumberReady} / ${fn.NumberRequested} ready`, fnPods.map(p => {
       const id = nodeId('pod', `${fn.Name}/${p.Name}`);
-      pods.set(`${fn.Name}/${ipKey(p.Ip)}`, id); pods.set(`${fn.Name}/${p.Name}`, id);
+      pods.set(`${fn.Name}/${p.Identity}`, id); pods.set(`${fn.Name}/${p.Name}`, id);
       sourcePods.set(p.Name, id);
-      if (p.Ip && !isLoopback(ipKey(p.Ip))) sourcePods.set(ipKey(p.Ip), id);
-      return { id, label: p.Name, status: p.Ready ? 'Running' : p.Status, detail: p.Ip };
+      if (p.Identity) sourcePods.set(p.Identity, id);
+      return { id, label: p.Name, status: p.Ready ? 'Running' : p.Status, detail: p.Identity };
     }), fn.PodType);
   }
   for (const q of [...queues].sort((a, b) => a.Name.localeCompare(b.Name))) create('queue', q.Name, `${q.Length} queued`, []);
@@ -87,7 +85,7 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
 
 export function resolveSource(topology: Topology, actor: string, pod: string | null): string {
   if (pod) {
-    const resolved = topology.sourcePods.get(ipKey(pod));
+    const resolved = topology.sourcePods.get(pod);
     if (resolved) return resolved;
     const separator = pod.lastIndexOf('-slimfaas-job-');
     const jobId = nodeId('job', pod.slice(0, separator));
@@ -99,7 +97,7 @@ export function resolveSource(topology: Topology, actor: string, pod: string | n
 export function eventPath(topology: Topology, event: NetworkActivityEvent): string[] {
   const slim = topology.byId.has(nodeId('node', event.NodeId)) ? nodeId('node', event.NodeId) : 'slimfaas:slimfaas';
   const source = resolveSource(topology, event.Source, event.SourcePod);
-  const target = (event.TargetPod && topology.pods.get(`${event.Target}/${ipKey(event.TargetPod)}`)) || topology.actors.get(event.Target) || slim;
+  const target = (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target) || slim;
   const queue = nodeId('queue', event.QueueName ?? event.Target);
   let path: string[];
   if (event.Type === 'request_in') path = [source, slim];

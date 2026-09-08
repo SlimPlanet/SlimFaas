@@ -2,7 +2,7 @@ export interface PodStatus {
   Name: string;
   Status: string;
   Ready: boolean;
-  Ip: string; // Legacy wire name: opaque server address token, never a literal IP.
+  Identity: string; // Opaque server identity used to correlate activity with this replica.
 }
 
 export interface ResourcesConfiguration {

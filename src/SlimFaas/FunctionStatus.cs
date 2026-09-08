@@ -22,7 +22,7 @@ public record PodStatus(
     string Name,
     string Status,
     bool Ready,
-    string Ip);
+    string Identity);
 
 public record FunctionStatusDetailed(
     string Name,
