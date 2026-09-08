@@ -1,0 +1,12 @@
+{{- if .Values.jobsConfiguration }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "slimfaas.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "slimfaas.labels" . | nindent 4 }}
+data:
+  SlimFaas__JobsConfiguration: |
+    {{- .Values.jobsConfiguration | nindent 4 }}
+{{- end }}
