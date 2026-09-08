@@ -162,7 +162,7 @@ public sealed class SlimJobsWorkerConcurrencyTests
             Service.Verify(service => service.CreateJobAsync(name, It.IsAny<CreateJob>(), "fifth",
                 $"{name}{KubernetesService.SlimfaasJobKey}fifth", 3), Times.Once);
             Queue.Verify(queue => queue.ListCallbackAsync(name, It.Is<ListQueueItemStatus>(callback =>
-                callback.Items.Count == 1 && callback.Items[0].Id == "fifth" && callback.Items[0].HttpCode == 200)), Times.Once);
+                callback.Items != null && callback.Items.Count == 1 && callback.Items[0].Id == "fifth" && callback.Items[0].HttpCode == 200)), Times.Once);
         }
 
         public void Dispose() => Worker.Dispose();

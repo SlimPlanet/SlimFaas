@@ -641,7 +641,7 @@ To verify slot reuse with a one-hour TTL using native local mode:
 ```bash
 dotnet build src/SlimFaas/SlimFaas.csproj
 dotnet build src/FibonacciBatch/FibonacciBatch.csproj
-python3 .bin/test-local-job-concurrency.py
+python3 tests/SlimFaas.Tests/Local/test_job_concurrency.py
 ```
 
 The smoke test uses temporary state and free loopback ports. It completes four

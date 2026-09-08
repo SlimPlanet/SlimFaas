@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def yaml_mapping(mapping, indent=0):
@@ -57,6 +57,59 @@ def stop(process):
         else:
             os.killpg(process.pid, signal.SIGKILL)
         process.wait()
+
+
+def request(base_url, path, payload=None):
+    data = None if payload is None else json.dumps(payload).encode()
+    req = urllib.request.Request(base_url + path, data=data,
+                                 headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=5) as response:
+        body = response.read()
+        return json.loads(body) if body else None
+
+
+def wait_for_ready(base_url, process):
+    deadline = time.monotonic() + 120
+    while True:
+        if process.poll() is not None:
+            raise RuntimeError("Local supervisor exited before readiness")
+        try:
+            with urllib.request.urlopen(base_url + "/ready", timeout=5):
+                return
+        except (urllib.error.URLError, ConnectionError, TimeoutError) as error:
+            if isinstance(error, urllib.error.HTTPError):
+                error.close()
+            if time.monotonic() >= deadline:
+                raise TimeoutError("Local supervisor never became ready") from error
+            time.sleep(.25)
+
+
+def wait_for_jobs(base_url, name, expected, process):
+    deadline = time.monotonic() + 60
+    while True:
+        jobs = request(base_url, f"/job/{name}")
+        actual = {job["Id"]: job["Status"] for job in jobs}
+        if all(actual.get(job_id) == status for job_id, status in expected.items()):
+            return
+        if process.poll() is not None or time.monotonic() >= deadline:
+            raise TimeoutError(f"{name}: expected {expected}, observed {actual}")
+        time.sleep(.25)
+
+
+def exercise_slot_reuse(base_url, process):
+    for name, argument, status in (("ttl-success", "10", "Succeeded"),
+                                   ("ttl-failure", "invalid-number", "Failed")):
+        expected = {}
+        for _ in range(4):
+            # Mutations are issued once; only observation/readiness is polled.
+            job = request(base_url, f"/job/{name}", {"Args": [argument]})
+            expected[job["Id"]] = status
+        wait_for_jobs(base_url, name, expected, process)
+        fifth = request(base_url, f"/job/{name}", {"Args": ["10"]})
+        expected[fifth["Id"]] = "Succeeded"
+        wait_for_jobs(base_url, name, expected, process)
+        print(f"PASS {name}: fifth job succeeded; four {status} jobs still retained (TTL 3600s).",
+              flush=True)
 
 
 def main():
@@ -99,14 +152,6 @@ def main():
         manifest_path.write_text("\n".join(yaml_mapping(manifest)) + "\n", encoding="utf-8")
         subprocess.run([*runtime_command, "local", "validate", "-f", str(manifest_path)], check=True)
 
-        def request(path, payload=None):
-            data = None if payload is None else json.dumps(payload).encode()
-            req = urllib.request.Request(f"http://127.0.0.1:{entrypoint}{path}", data=data,
-                                         headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                body = response.read()
-                return json.loads(body) if body else None
-
         log_path = root / "supervisor.log"
         with log_path.open("w", encoding="utf-8") as log:
             process = subprocess.Popen(
@@ -115,42 +160,9 @@ def main():
                 start_new_session=os.name != "nt",
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0)
             try:
-                deadline = time.monotonic() + 120
-                while True:
-                    if process.poll() is not None:
-                        raise RuntimeError("Local supervisor exited before readiness")
-                    try:
-                        with urllib.request.urlopen(f"http://127.0.0.1:{entrypoint}/ready", timeout=5):
-                            break
-                    except (urllib.error.URLError, ConnectionError, TimeoutError):
-                        if time.monotonic() >= deadline:
-                            raise TimeoutError("Local supervisor never became ready")
-                        time.sleep(.25)
-
-                def wait_for_jobs(name, expected):
-                    deadline = time.monotonic() + 60
-                    while True:
-                        jobs = request(f"/job/{name}")
-                        actual = {job["Id"]: job["Status"] for job in jobs}
-                        if all(actual.get(job_id) == status for job_id, status in expected.items()):
-                            return
-                        if process.poll() is not None or time.monotonic() >= deadline:
-                            raise TimeoutError(f"{name}: expected {expected}, observed {actual}")
-                        time.sleep(.25)
-
-                for name, argument, status in (("ttl-success", "10", "Succeeded"),
-                                               ("ttl-failure", "invalid-number", "Failed")):
-                    expected = {}
-                    for _ in range(4):
-                        # Mutations are issued once; only observation/readiness is polled.
-                        job = request(f"/job/{name}", {"Args": [argument]})
-                        expected[job["Id"]] = status
-                    wait_for_jobs(name, expected)
-                    fifth = request(f"/job/{name}", {"Args": ["10"]})
-                    expected[fifth["Id"]] = "Succeeded"
-                    wait_for_jobs(name, expected)
-                    print(f"PASS {name}: fifth job succeeded; four {status} jobs still retained (TTL 3600s).",
-                          flush=True)
+                base_url = f"http://127.0.0.1:{entrypoint}"
+                wait_for_ready(base_url, process)
+                exercise_slot_reuse(base_url, process)
             except BaseException:
                 log.flush()
                 print(log_path.read_text(encoding="utf-8", errors="replace")[-14000:])
