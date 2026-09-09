@@ -1,4 +1,4 @@
-﻿﻿using MemoryPack;
+﻿using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
@@ -52,7 +52,11 @@ public class SlimJobsWorker(
 
             IList<Job> jobs;
             long version = watchSignals.Jobs.Version;
+            // Sans watch, ou tant qu'un flux (jobs/pods) est indisponible, la liste est
+            // resynchronisée à chaque cycle comme historiquement : le master ne doit
+            // jamais compter les slots d'exécution sur une liste potentiellement périmée.
             bool syncDue = !watchSignals.WatchEnabled
+                           || !watchSignals.Jobs.IsHealthy
                            || version != _observedJobsVersion
                            || DateTime.UtcNow - _lastJobsSyncUtc >= _jobsResyncInterval;
             if (syncDue)

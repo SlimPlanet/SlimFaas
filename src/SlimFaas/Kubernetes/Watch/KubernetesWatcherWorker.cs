@@ -10,6 +10,9 @@ namespace SlimFaas.Kubernetes.Watch;
 /// LIST-based synchronization code runs unchanged, so behavior is identical to
 /// polling, just event-driven. Streams reconnect with exponential backoff; after an
 /// errored reconnect a pulse is forced so no change can be missed during the gap.
+/// While a stream is down (RBAC without the "watch" verb, API server unreachable,
+/// ...) its signals are reported unhealthy so the workers fall back to their legacy
+/// polling cadence instead of the (slower) safety-net resync.
 /// Services are intentionally not watched (RBAC does not grant them).
 /// </summary>
 public class KubernetesWatcherWorker(
@@ -23,8 +26,22 @@ public class KubernetesWatcherWorker(
 
     internal sealed class DebounceChannel(KubernetesResourceSignal signal)
     {
+        private int _pending;
+
         public KubernetesResourceSignal Signal { get; } = signal;
-        public int Pending;
+
+        /// <summary>Arms the debounce window; returns false if it is already armed.</summary>
+        public bool TryArm() => Interlocked.Exchange(ref _pending, 1) == 0;
+
+        /// <summary>Disarms the debounce window so that the next event re-arms it.</summary>
+        public void Disarm() => Interlocked.Exchange(ref _pending, 0);
+    }
+
+    /// <summary>Outcome of one connected watch stream, once it ended.</summary>
+    private enum StreamEnd
+    {
+        Completed,
+        Error
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -82,129 +99,14 @@ public class KubernetesWatcherWorker(
         KubernetesWatchOptions options,
         CancellationToken stoppingToken)
     {
-        string? lastResourceVersion = null;
-        int backoffMilliseconds = options.ReconnectInitialDelayMilliseconds;
-        bool previousAttemptFailed = false;
-
-        async Task BackoffAsync()
-        {
-            int delay = backoffMilliseconds;
-            backoffMilliseconds = Math.Min(backoffMilliseconds * 2, options.ReconnectMaxDelayMilliseconds);
-            // Jitter ±20 % pour éviter les reconnexions synchronisées entre replicas.
-            delay += Random.Shared.Next(-delay / 5, delay / 5 + 1);
-            await Task.Delay(Math.Max(delay, 100), stoppingToken).ConfigureAwait(false);
-        }
+        var state = new WatchLoopState(options.ReconnectInitialDelayMilliseconds);
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                string url = string.Concat(
-                    client.BaseUri,
-                    target.PathTemplate,
-                    $"?watch=true&allowWatchBookmarks=true&timeoutSeconds={options.WatchTimeoutSeconds}");
-                if (!string.IsNullOrEmpty(lastResourceVersion))
-                {
-                    url += $"&resourceVersion={lastResourceVersion}";
-                }
-
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                if (client.Credentials != null)
-                {
-                    await client.Credentials.ProcessHttpRequestAsync(request, stoppingToken).ConfigureAwait(false);
-                }
-
-                using var response = await client.HttpClient
-                    .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, stoppingToken)
+                await RunOneConnectionAsync(client, target, channels, options, state, stoppingToken)
                     .ConfigureAwait(false);
-
-                if (response.StatusCode == System.Net.HttpStatusCode.Gone)
-                {
-                    // 410 : resourceVersion trop ancienne — trou dans l'historique.
-                    logger.LogWarning(
-                        "Watch stream {Target} received HTTP 410 Gone: resetting resourceVersion and signaling a resync",
-                        target.Name);
-                    lastResourceVersion = null;
-                    PulseAll(channels);
-                    await BackoffAsync().ConfigureAwait(false);
-                    continue;
-                }
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    // 403/404/5xx : dégradation en resync périodique uniquement.
-                    logger.LogWarning(
-                        "Watch stream {Target} failed with HTTP {StatusCode}: retrying after backoff (resync interval still applies)",
-                        target.Name,
-                        (int)response.StatusCode);
-                    previousAttemptFailed = true;
-                    await BackoffAsync().ConfigureAwait(false);
-                    continue;
-                }
-
-                backoffMilliseconds = options.ReconnectInitialDelayMilliseconds;
-                if (previousAttemptFailed)
-                {
-                    // Des événements ont pu être manqués pendant la coupure.
-                    previousAttemptFailed = false;
-                    PulseAll(channels);
-                }
-
-                await using Stream stream = await response.Content.ReadAsStreamAsync(stoppingToken).ConfigureAwait(false);
-                using var reader = new StreamReader(stream);
-                bool sawError = false;
-                while (!stoppingToken.IsCancellationRequested)
-                {
-                    string? line = await reader.ReadLineAsync(stoppingToken).ConfigureAwait(false);
-                    if (line is null)
-                    {
-                        break; // rotation serveur (timeoutSeconds) : reconnexion avec la RV courante
-                    }
-
-                    WatchEventInfo eventInfo = WatchEventLineParser.Parse(line);
-                    switch (eventInfo.Kind)
-                    {
-                        case WatchEventKind.Change:
-                            if (eventInfo.ResourceVersion is not null)
-                            {
-                                lastResourceVersion = eventInfo.ResourceVersion;
-                            }
-                            SignalDirty(channels, options, stoppingToken);
-                            break;
-                        case WatchEventKind.Bookmark:
-                            if (eventInfo.ResourceVersion is not null)
-                            {
-                                lastResourceVersion = eventInfo.ResourceVersion;
-                            }
-                            break;
-                        case WatchEventKind.Error:
-                            if (eventInfo.ErrorCode == 410)
-                            {
-                                lastResourceVersion = null;
-                            }
-                            logger.LogWarning(
-                                "Watch stream {Target} received an ERROR event (code {Code}): reconnecting",
-                                target.Name,
-                                eventInfo.ErrorCode);
-                            PulseAll(channels);
-                            sawError = true;
-                            break;
-                        default:
-                            logger.LogDebug("Watch stream {Target}: ignoring unknown line", target.Name);
-                            break;
-                    }
-
-                    if (sawError)
-                    {
-                        break;
-                    }
-                }
-
-                if (sawError)
-                {
-                    await BackoffAsync().ConfigureAwait(false);
-                }
-                // Fin de flux normale : reconnexion immédiate avec continuité de resourceVersion.
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -213,13 +115,10 @@ public class KubernetesWatcherWorker(
             catch (Exception ex)
             {
                 // Inclut TaskCanceledException issue du timeout HttpClient (~100 s).
-                logger.LogWarning(ex,
-                    "Watch stream {Target} interrupted: reconnecting after backoff",
-                    target.Name);
-                previousAttemptFailed = true;
+                MarkStreamDown(target, channels, state, ex, statusCode: null);
                 try
                 {
-                    await BackoffAsync().ConfigureAwait(false);
+                    await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -227,13 +126,202 @@ public class KubernetesWatcherWorker(
                 }
             }
         }
+
+        // Arrêt du worker : ne pas laisser les signaux en état dégradé.
+        MarkStreamUp(target, channels, state, logRecovery: false);
     }
 
-    private void SignalDirty(DebounceChannel[] channels, KubernetesWatchOptions options, CancellationToken ct)
+    private sealed class WatchLoopState(int initialBackoffMilliseconds)
+    {
+        public string? LastResourceVersion;
+        public int BackoffMilliseconds = initialBackoffMilliseconds;
+        public bool PreviousAttemptFailed;
+        public bool ReportedDown;
+    }
+
+    private async Task RunOneConnectionAsync(
+        k8s.Kubernetes client,
+        WatchTarget target,
+        DebounceChannel[] channels,
+        KubernetesWatchOptions options,
+        WatchLoopState state,
+        CancellationToken stoppingToken)
+    {
+        string url = string.Concat(
+            client.BaseUri,
+            target.PathTemplate,
+            $"?watch=true&allowWatchBookmarks=true&timeoutSeconds={options.WatchTimeoutSeconds}");
+        if (!string.IsNullOrEmpty(state.LastResourceVersion))
+        {
+            url += $"&resourceVersion={state.LastResourceVersion}";
+        }
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        if (client.Credentials != null)
+        {
+            await client.Credentials.ProcessHttpRequestAsync(request, stoppingToken).ConfigureAwait(false);
+        }
+
+        using var response = await client.HttpClient
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, stoppingToken)
+            .ConfigureAwait(false);
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Gone)
+        {
+            // 410 : resourceVersion trop ancienne — trou dans l'historique.
+            logger.LogWarning(
+                "Watch stream {Target} received HTTP 410 Gone: resetting resourceVersion and signaling a resync",
+                target.Name);
+            state.LastResourceVersion = null;
+            PulseAll(channels);
+            await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
+            return;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // 403/404/5xx : les workers retombent sur leur cadence de polling historique
+            // tant que le flux n'est pas rétabli.
+            MarkStreamDown(target, channels, state, exception: null, (int)response.StatusCode);
+            await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
+            return;
+        }
+
+        state.BackoffMilliseconds = options.ReconnectInitialDelayMilliseconds;
+        MarkStreamUp(target, channels, state, logRecovery: true);
+        if (state.PreviousAttemptFailed)
+        {
+            // Des événements ont pu être manqués pendant la coupure.
+            state.PreviousAttemptFailed = false;
+            PulseAll(channels);
+        }
+
+        await using Stream stream = await response.Content.ReadAsStreamAsync(stoppingToken).ConfigureAwait(false);
+        StreamEnd end = await ReadStreamAsync(stream, target, channels, options, state, stoppingToken)
+            .ConfigureAwait(false);
+        if (end == StreamEnd.Error)
+        {
+            await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
+        }
+        // Fin de flux normale : reconnexion immédiate avec continuité de resourceVersion.
+    }
+
+    private async Task<StreamEnd> ReadStreamAsync(
+        Stream stream,
+        WatchTarget target,
+        DebounceChannel[] channels,
+        KubernetesWatchOptions options,
+        WatchLoopState state,
+        CancellationToken stoppingToken)
+    {
+        using var reader = new StreamReader(stream);
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            string? line = await reader.ReadLineAsync(stoppingToken).ConfigureAwait(false);
+            if (line is null)
+            {
+                // Rotation serveur (timeoutSeconds) : reconnexion avec la RV courante.
+                return StreamEnd.Completed;
+            }
+
+            WatchEventInfo eventInfo = WatchEventLineParser.Parse(line);
+            switch (eventInfo.Kind)
+            {
+                case WatchEventKind.Change:
+                    state.LastResourceVersion = eventInfo.ResourceVersion ?? state.LastResourceVersion;
+                    SignalDirty(channels, options, stoppingToken);
+                    break;
+                case WatchEventKind.Bookmark:
+                    state.LastResourceVersion = eventInfo.ResourceVersion ?? state.LastResourceVersion;
+                    break;
+                case WatchEventKind.Error:
+                    if (eventInfo.ErrorCode == 410)
+                    {
+                        state.LastResourceVersion = null;
+                    }
+                    logger.LogWarning(
+                        "Watch stream {Target} received an ERROR event (code {Code}): reconnecting",
+                        target.Name,
+                        eventInfo.ErrorCode);
+                    PulseAll(channels);
+                    return StreamEnd.Error;
+                default:
+                    logger.LogDebug("Watch stream {Target}: ignoring unknown line", target.Name);
+                    break;
+            }
+        }
+
+        return StreamEnd.Completed;
+    }
+
+    private static async Task BackoffAsync(
+        KubernetesWatchOptions options,
+        WatchLoopState state,
+        CancellationToken stoppingToken)
+    {
+        int delay = state.BackoffMilliseconds;
+        state.BackoffMilliseconds = Math.Min(state.BackoffMilliseconds * 2, options.ReconnectMaxDelayMilliseconds);
+        // Jitter ±20 % pour éviter les reconnexions synchronisées entre replicas.
+        delay += Random.Shared.Next(-delay / 5, delay / 5 + 1);
+        await Task.Delay(Math.Max(delay, 100), stoppingToken).ConfigureAwait(false);
+    }
+
+    private void MarkStreamDown(
+        WatchTarget target,
+        DebounceChannel[] channels,
+        WatchLoopState state,
+        Exception? exception,
+        int? statusCode)
+    {
+        state.PreviousAttemptFailed = true;
+        if (state.ReportedDown)
+        {
+            // Déjà signalé : ne pas saturer les logs à chaque tentative de reconnexion.
+            logger.LogDebug(exception,
+                "Watch stream {Target} still unavailable (HTTP {StatusCode}): retrying after backoff",
+                target.Name,
+                statusCode);
+            return;
+        }
+
+        state.ReportedDown = true;
+        foreach (DebounceChannel channel in channels)
+        {
+            channel.Signal.ReportStreamDown();
+        }
+
+        logger.LogWarning(exception,
+            "Watch stream {Target} unavailable (HTTP {StatusCode}): falling back to the legacy polling cadence until the stream is restored. " +
+            "Check that the service account grants the \"watch\" verb on {Target}",
+            target.Name,
+            statusCode,
+            target.Name);
+    }
+
+    private void MarkStreamUp(WatchTarget target, DebounceChannel[] channels, WatchLoopState state, bool logRecovery)
+    {
+        if (!state.ReportedDown)
+        {
+            return;
+        }
+
+        state.ReportedDown = false;
+        foreach (DebounceChannel channel in channels)
+        {
+            channel.Signal.ReportStreamUp();
+        }
+
+        if (logRecovery)
+        {
+            logger.LogInformation("Watch stream {Target} restored: event-driven synchronization resumed", target.Name);
+        }
+    }
+
+    private static void SignalDirty(DebounceChannel[] channels, KubernetesWatchOptions options, CancellationToken ct)
     {
         foreach (DebounceChannel channel in channels)
         {
-            if (Interlocked.Exchange(ref channel.Pending, 1) == 0)
+            if (channel.TryArm())
             {
                 _ = DebounceThenPulseAsync(channel, options.DebounceMilliseconds, ct);
             }
@@ -256,10 +344,11 @@ public class KubernetesWatcherWorker(
         }
         catch (OperationCanceledException)
         {
+            // Arrêt en cours : on pulse quand même, un réveil superflu est sans effet.
         }
 
-        // Remise à zéro AVANT le pulse : un événement arrivant pendant le pulse ré-arme.
-        Interlocked.Exchange(ref channel.Pending, 0);
+        // Désarmement AVANT le pulse : un événement arrivant pendant le pulse ré-arme.
+        channel.Disarm();
         channel.Signal.Pulse();
     }
 }

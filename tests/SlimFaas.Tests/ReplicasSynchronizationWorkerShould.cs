@@ -178,4 +178,53 @@ public class ReplicasSynchronizationWorkerShould
 
         Assert.True(Volatile.Read(ref calls) >= 2);
     }
+
+    [Fact]
+    public async Task FallBackToLegacyCadenceWhileTheWatchStreamIsDown()
+    {
+        var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        // Resync très long : seule la cadence historique peut produire plusieurs syncs.
+        var (worker, replicasService, _) = CreateWorker(signals, legacyDelayMs: 20, resyncSeconds: 3600);
+        // Flux indisponible (ex. RBAC sans verbe "watch") avant même le démarrage.
+        signals.Functions.ReportStreamDown();
+
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await Task.Delay(500);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+
+        // ~25 cycles possibles en 500 ms à 20 ms : au moins 3 prouvent la cadence legacy.
+        replicasService.Verify(r => r.SyncDeploymentsAsync("unit-test"), Times.AtLeast(3));
+    }
+
+    [Fact]
+    public async Task ReturnToEventDrivenSyncWhenTheWatchStreamIsRestored()
+    {
+        var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        var (worker, replicasService, _) = CreateWorker(signals, legacyDelayMs: 20, resyncSeconds: 3600);
+        signals.Functions.ReportStreamDown();
+
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await Task.Delay(200);
+            signals.Functions.ReportStreamUp();
+            // Laisse finir le cycle en cours, puis compte les syncs : sans pulse et
+            // avec un resync de 3600 s, plus aucune sync ne doit se produire.
+            await Task.Delay(100);
+            replicasService.Invocations.Clear();
+            await Task.Delay(300);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+
+        replicasService.Verify(r => r.SyncDeploymentsAsync(It.IsAny<string>()), Times.Never);
+    }
 }

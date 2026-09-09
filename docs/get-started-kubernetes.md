@@ -43,6 +43,12 @@ kubectl -n slimfaas-demo get pods,pvc
 > | `JobsConfigurationResyncSeconds` | `60` | Safety-net resync for CronJob configurations |
 > | `DebounceMilliseconds` | `300` | Event burst coalescing window |
 > | `WatchTimeoutSeconds` | `60` | Watch stream rotation (server-side close) |
+>
+> If a watch stream cannot be established (for example the ServiceAccount lacks the
+> `watch` verb, or the API server is temporarily unreachable), SlimFaas logs a warning
+> once and automatically falls back to the legacy polling cadence for the affected
+> resources until the stream is restored, so an outdated RBAC never slows
+> synchronization down.
 
 The first manifest creates the namespace, ServiceAccount and RBAC. The SlimFaas manifest creates its configuration, StatefulSet and Service. Functions carry annotations for visibility, inactivity, concurrency, dependencies and scaling. `fibonacci2` depends on `fibonacci1` and MySQL; MySQL is included to demonstrate orchestration dependencies. The sample API itself does not query it.
 

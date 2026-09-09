@@ -11,6 +11,7 @@ namespace SlimFaas.Tests.Integration;
 // 3 s / 1 s / 1 s) so a few seconds of test represent minutes of real time; the
 // LIST-count ratio between the two modes is what matters.
 [Collection("KubernetesSyncIntegration")]
+[Trait("Category", "Integration")]
 public sealed class KubernetesSyncBenchmarkShould(ITestOutputHelper output)
 {
     private const int ObservationWindowMilliseconds = 4000;

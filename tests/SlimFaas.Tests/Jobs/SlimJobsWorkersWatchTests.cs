@@ -193,4 +193,55 @@ public class SlimJobsWorkersWatchTests
 
         jobConfiguration.Verify(c => c.SyncJobsConfigurationAsync(), Times.Once);
     }
+
+    [Fact]
+    public async Task ConfigurationSyncFallsBackToLegacyCadenceWhileTheWatchStreamIsDown()
+    {
+        var signals = new KubernetesWatchSignals { WatchEnabled = true };
+        var jobConfiguration = new Mock<IJobConfiguration>();
+        jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        // Resync très long : seule la cadence historique (0 ms ici) peut enchaîner les cycles.
+        SlimJobsConfigurationWorker worker = CreateConfigurationWorker(jobConfiguration, signals, resyncSeconds: 3600);
+        // Flux CronJob indisponible (ex. RBAC sans verbe "watch").
+        signals.JobsConfiguration.ReportStreamDown();
+
+        // 1er cycle : réveillé par le pulse du signalement ; 2e et 3e cycles : aucun
+        // pulse, ils ne peuvent aboutir que par la cadence historique.
+        await InvokeDoOneCycleAsync(worker, CancellationToken.None).WaitAsync(AssertTimeout);
+        await InvokeDoOneCycleAsync(worker, CancellationToken.None).WaitAsync(AssertTimeout);
+        await InvokeDoOneCycleAsync(worker, CancellationToken.None).WaitAsync(AssertTimeout);
+
+        jobConfiguration.Verify(c => c.SyncJobsConfigurationAsync(), Times.Exactly(3));
+    }
+
+    [Fact]
+    public async Task JobsSyncRunsEveryCycleWhileTheWatchStreamIsDown()
+    {
+        var signals = new KubernetesWatchSignals { WatchEnabled = true };
+        int syncCount = 0;
+        var thirdSync = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var jobService = CreateJobService(() =>
+        {
+            if (Interlocked.Increment(ref syncCount) >= 3)
+            {
+                thirdSync.TrySetResult();
+            }
+        });
+        SlimJobsWorker worker = CreateJobsWorker(jobService, signals, jobsResyncSeconds: 3600);
+        // Flux jobs/pods indisponible : le master ne doit jamais raisonner sur une
+        // liste périmée, la liste est resynchronisée à chaque cycle.
+        signals.Jobs.ReportStreamDown();
+
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await thirdSync.Task.WaitAsync(AssertTimeout);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+
+        Assert.True(Volatile.Read(ref syncCount) >= 3);
+    }
 }
