@@ -48,7 +48,7 @@ public class SlimQueuesWorkerOffloadTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>()));
+                It.IsAny<Stream?>(), It.IsAny<string?>()));
         if (responseTask is null)
         {
             sendSetup.ReturnsAsync(() => new HttpResponseMessage(HttpStatusCode.OK));
@@ -213,7 +213,7 @@ public class SlimQueuesWorkerOffloadTests
             It.IsAny<string?>(),
             It.IsAny<string?>(),
             It.IsAny<string?>(),
-            It.Is<Stream?>(stream => stream != null)), Times.AtLeastOnce);
+            It.Is<Stream?>(stream => stream != null), It.IsAny<string?>()), Times.AtLeastOnce);
         Assert.True(fakeFileStream.Disposed);
         dbMock.Verify(d => d.DeleteAsync(DataFileKeys.MetaKey(fileId)), Times.Never);
         fileSyncMock.Verify(
@@ -342,7 +342,7 @@ public class SlimQueuesWorkerOffloadTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>()))
+                It.IsAny<Stream?>(), It.IsAny<string?>()))
             .Returns(() =>
             {
                 if (Interlocked.Increment(ref sendCount) == messages.Length)
@@ -436,9 +436,9 @@ public class SlimQueuesWorkerOffloadTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>()))
+                It.IsAny<Stream?>(), It.IsAny<string?>()))
             .Returns((CustomRequest request, SlimFaasDefaultConfiguration _, string? _,
-                CancellationTokenSource? _, IProxy? _, string? _, string? _, string? _, Stream? _) =>
+                CancellationTokenSource? _, IProxy? _, string? _, string? _, string? _, Stream? _, string? _) =>
             {
                 lock (sentPaths)
                 {
@@ -509,7 +509,7 @@ public class SlimQueuesWorkerOffloadTests
             It.IsAny<string?>(),
             It.IsAny<string?>(),
             It.IsAny<string?>(),
-            It.Is<Stream?>(stream => stream == null)), Times.AtLeastOnce);
+            It.Is<Stream?>(stream => stream == null), It.IsAny<string?>()), Times.AtLeastOnce);
     }
 
     /// <summary>
@@ -561,7 +561,7 @@ public class SlimQueuesWorkerOffloadTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>()))
+                It.IsAny<Stream?>(), It.IsAny<string?>()))
             .ReturnsAsync(responseMessage);
 
         Mock<ISlimDataStatus> slimDataStatus = new();
@@ -618,7 +618,7 @@ public class SlimQueuesWorkerOffloadTests
             It.IsAny<string?>(),
             It.IsAny<string?>(),
             It.IsAny<string?>(),
-            It.IsAny<Stream?>()), Times.Never);
+            It.IsAny<Stream?>(), It.IsAny<string?>()), Times.Never);
 
         // Le code 500 appartient aux statuts retryables par défaut de la queue.
         queueMock.Verify(q => q.ListCallbackAsync(
@@ -715,7 +715,7 @@ public class SlimQueuesWorkerOffloadTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>()))
+                It.IsAny<Stream?>(), It.IsAny<string?>()))
             .Returns((
                 CustomRequest _,
                 SlimFaasDefaultConfiguration _,
@@ -725,7 +725,7 @@ public class SlimQueuesWorkerOffloadTests
                 string? _,
                 string? _,
                 string? _,
-                Stream? _) =>
+                Stream? _, string? _) =>
             {
                 capturedCancellation = cancellation;
                 return WaitForCancellationAsync(cancellation!.Token);

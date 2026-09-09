@@ -81,6 +81,12 @@ public class SlimFaasOptions
     /// </summary>
     public bool EnableFront { get; set; } = true;
 
+    /// <summary>Allow dashboard visitors to view data keys, expiry and file sizes, without granting value access.</summary>
+    public bool ExposeDataMetadata { get; set; }
+
+    /// <summary>Allow dashboard visitors to read application logs from managed instances.</summary>
+    public bool ExposeLogs { get; set; }
+
     /// <summary>
     /// Typed configuration for the dashboard status stream and live network activity events.
     /// </summary>
@@ -194,12 +200,12 @@ public class StatusStreamOptions
     /// <summary>
     /// Interval between peer activity scrapes in multi-node deployments.
     /// </summary>
-    public int PeerSyncIntervalMilliseconds { get; set; } = 2000;
+    public int PeerSyncIntervalMilliseconds { get; set; } = 500;
 
     /// <summary>
     /// Initial delay before the first peer activity scrape.
     /// </summary>
-    public int PeerSyncInitialDelayMilliseconds { get; set; } = 5000;
+    public int PeerSyncInitialDelayMilliseconds { get; set; } = 500;
 
     /// <summary>
     /// Maximum concurrent SSE clients per SlimFaas pod. 0 means unlimited.

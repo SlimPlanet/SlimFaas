@@ -11,6 +11,32 @@ namespace SlimFaas.Tests;
 public class SendClientShould
 {
     [Fact]
+    public async Task Queue_attempt_pairs_dequeue_and_dispatch_while_sync_and_publish_remain_independent()
+    {
+        var tracker = new SlimFaas.Endpoints.NetworkActivityTracker();
+        using var http = new HttpClient(new HttpMessageHandlerStub((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK))));
+        var sender = new SendClient(http, new Mock<ILogger<SendClient>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { BaseFunctionUrl = "http://localhost:5000" }), Mock.Of<INamespaceProvider>(), tracker);
+        var request = new CustomRequest([], [], "worker", "/", "POST", "");
+        for (int i = 0; i < 2; i++)
+        {
+            using var response = await sender.SendHttpRequestAsync(request, new SlimFaasDefaultConfiguration(),
+                reservedPodIp: "10.0.0.2", activityQueueName: "worker");
+        }
+        var events = tracker.GetRecent();
+        var starts = events.Where(e => e.Type == "dequeue").ToArray();
+        Assert.Equal(2, starts.Length); Assert.NotEqual(starts[0].Id, starts[1].Id);
+        foreach (var outgoing in events.Where(e => e.Type == "request_out"))
+        {
+            Assert.Contains(starts, e => e.Id == outgoing.CorrelationId && e.TargetPod == outgoing.TargetPod);
+            Assert.Equal("worker", outgoing.QueueName); Assert.Equal("10.0.0.2", outgoing.TargetPod);
+            Assert.Contains(events, e => e.Type == "request_end" && e.CorrelationId == outgoing.Id);
+        }
+        using var publication = await sender.SendHttpRequestAsync(request, new SlimFaasDefaultConfiguration());
+        Assert.Equal(2, tracker.GetRecent().Count(e => e.Type == "dequeue"));
+    }
+
+    [Fact]
     public async Task Async_request_retries_seekable_override_without_disposing_owned_stream()
     {
         var attempts = new List<byte[]>();

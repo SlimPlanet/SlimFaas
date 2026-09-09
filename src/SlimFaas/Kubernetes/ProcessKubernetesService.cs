@@ -2,6 +2,8 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SlimFaas.Local;
+using SlimFaas.Logs;
+using System.Runtime.CompilerServices;
 using SlimFaas.Options;
 
 namespace SlimFaas.Kubernetes;
@@ -11,7 +13,7 @@ namespace SlimFaas.Kubernetes;
 /// supervisor. The supervisor owns every process; nodes only observe topology
 /// and submit absolute desired state changes.
 /// </summary>
-public sealed class ProcessKubernetesService : IKubernetesService
+public sealed class ProcessKubernetesService : IKubernetesService, IInstanceLogProvider
 {
     public const string HttpClientName = "ProcessKubernetesService";
     public const string TokenHeaderName = "X-SlimFaas-Token";
@@ -107,6 +109,32 @@ public sealed class ProcessKubernetesService : IKubernetesService
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return;
         await EnsureSuccessAsync(response);
+    }
+
+    public async Task<LogSources> GetSourcesAsync(LogTarget target, CancellationToken ct)
+    {
+        var query = $"kind={Uri.EscapeDataString(target.Kind)}&name={Uri.EscapeDataString(target.Name)}&replica={Uri.EscapeDataString(target.Replica ?? "")}";
+        return await _client.GetFromJsonAsync($"v1/log-sources?{query}", LogJsonContext.Default.LogSources, ct)
+            ?? new LogSources("Logs unavailable", []);
+    }
+
+    public async IAsyncEnumerable<LogReadItem> ReadAsync(string source, [EnumeratorCancellation] CancellationToken ct)
+    {
+        var key = LogSourceIds.Parse(source);
+        if (!(await GetSourcesAsync(key.Target, ct)).Sources.Any(s => s.Id == source))
+            throw new FileNotFoundException("Source removed");
+        using var response = await _client.GetAsync($"v1/logs?source={Uri.EscapeDataString(source)}", HttpCompletionOption.ResponseHeadersRead, ct);
+        response.EnsureSuccessStatusCode();
+        await using var stream = await response.Content.ReadAsStreamAsync(ct);
+        using var reader = new StreamReader(stream);
+        while (await reader.ReadLineAsync(ct) is { } line)
+        {
+            var item = JsonSerializer.Deserialize(line, LogJsonContext.Default.LogReadItem);
+            if (item?.Status == "Source removed") throw new FileNotFoundException("Source removed or restarted");
+            if (item?.Status == "Access denied") throw new UnauthorizedAccessException("Log access denied");
+            if (item?.Status is not null) throw new IOException("Log stream interrupted");
+            if (item is not null) yield return item;
+        }
     }
 
     private static async Task EnsureSuccessAsync(HttpResponseMessage response)

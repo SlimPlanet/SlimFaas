@@ -2,6 +2,8 @@
 
 Keep the SlimFaas dashboard open while sending requests from a second terminal or Bruno. Follow a request from the caller to a function, through a queue, or into a job, then explore the data APIs.
 
+In **Live Stream → Traffic**, blue circles represent requests, purple diamonds publications and amber squares queue messages. Power icons show sleeping, starting and ready functions. Selecting an actor highlights its traffic; enable **Isolate selection** to hide other connections. Use **Animation speed** to slow the visual trip for inspection; it does not change request processing speed.
+
 ## Prepare your workspace
 
 Complete one of the [three installation guides](get-started.md) first. This tour uses the supplied Fibonacci demos, including the tutorial overlay for Compose. Run commands in Bash from the cloned repository root, or from the extracted precompiled local demo directory. Both contain the same `demo/` paths. Install `curl` and `jq`; Bruno is an alternative to the terminal examples.
@@ -16,7 +18,7 @@ export BASE_URL=http://127.0.0.1:30020
 export TOUR_ID="tour-$(date +%s)-$$"
 ```
 
-Open `$BASE_URL/` in your browser. The default dashboard includes **Infrastructure Overview**, **Jobs Overview**, and the live network map. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
+Open `$BASE_URL/` in your browser. The default dashboard includes **Infrastructure Overview**, **Overview → Jobs**, and the live network map. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
 
 ### Use Bruno
 
@@ -265,7 +267,7 @@ curl -fsS "$BASE_URL/status-jobs" | jq .
 
 Job creation returns `202` and `{"Id":"..."}`. The two status URLs are aliases. Listing `/job/fibonacci` shows executions; the dashboard status routes describe configurations and running work.
 
-**In the UI:** find the configuration in **Jobs Overview** and watch the running count. A small job can finish before the next snapshot, especially with the demo's short retention. Run it again while watching, or inspect execution logs. CLI Fibonacci jobs only calculate and print a result; they do not send HTTP traffic themselves.
+**In the UI:** find the configuration in **Overview → Jobs** and watch the running count. A small job can finish before the next snapshot, especially with the demo's short retention. Run it again while watching, or inspect execution logs. CLI Fibonacci jobs only calculate and print a result; they do not send HTTP traffic themselves.
 
 Create and list a dynamic cron schedule:
 
@@ -387,3 +389,17 @@ Expect `text/event-stream` with `state` events and live `activity` or `activity_
 ## Continue with your application
 
 Use the [API Reference](api-reference.md) to look up all routes, [How It Works](how-it-works.md) to understand their execution, and [UI reference](user-interface.md) for dashboard settings. Add [WebSocket clients](clients.md), [Kafka](kafka.md) or [Planet Saver](planet-saver.md) as needed. Stop the environment using the cleanup section of your installation guide.
+
+## Follow the live dashboard
+
+Open **Live Stream → Traffic** while running the job-to-function exercises. Search for a job execution and select it to focus its path through SlimFaas, queues and functions. Zoom out to see workload groups, or pause and inspect the event journal.
+
+During the data exercises, switch to **Live Stream → Data** and search for your `TOUR_ID` prefix. The Sets and Files views show keys and TTL, with document sizes for Files. Watch the countdown, create another entry to see its highlight, and return to the first page if a new key sorts before the current cursor. Values and document contents remain accessible through the API exercises, not the dashboard.
+
+## Explain replicas, the leader and background wake-ups
+
+In **Live Stream → Traffic**, select `fibonacci1` and choose **Show replicas**. Send synchronous or asynchronous requests from the earlier exercises: arrival rings identify the replica selected by SlimFaas. Queued messages start from the queue when dispatched; the technical dequeue and outbound records share one animation. Publications still fan out to their individual recipients. These animations illustrate routing, not measured request latency.
+
+The green **Leader** badge identifies the Raft leader; another node receives it after a leader change is observed. Select a replica, retained job execution or SlimFaas node to see its details and live logs together. Filter text with **Find in logs** to highlight matching text in yellow, or pause scrolling to inspect output. Log access is enabled explicitly in the demo configurations. Native nodes default to `cluster.nodeLogLevel: Error`, so an empty node log is expected when no errors occur; use `Information` in an overlay for a more verbose exercise.
+
+`fibonacci2` can wake even when you call only `fibonacci1`: the default native manifest schedules **`fibonacci5` every two minutes** (`*/2 * * * *`), and this job depends on **both `fibonacci1` and `fibonacci2`**. Pending/running jobs keep their dependencies awake. The React demo also wakes `fibonacci2` when its optional `?planetsaver=true` mode is enabled; **Wake Up All Functions** wakes it too. The dependency from `fibonacci2` to `fibonacci1` does not imply the reverse direction. These scheduled and dependency scenarios remain enabled for the tutorial.

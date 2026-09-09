@@ -13,7 +13,7 @@ The existing `Local` orchestrator remains available for deterministic tests.
 The CLI uses the separate internal `Process` orchestrator and a single
 loopback-only, token-authenticated supervisor.
 
-For a ready-to-run demonstration without installing .NET or Node.js, use [Get Started in Local](get-started-local.md). The commands below are for development from a Git checkout.
+For a ready-to-run demonstration without installing .NET or Node.js, use [Get Started in Local](get-started-local.md). That guide also provides the complete [Git clone, branch selection and npm/dotnet build workflow](get-started-local.md#run-from-a-git-clone). The commands below are a shorter path for development from a Git checkout.
 
 ## Quick start
 
@@ -22,7 +22,7 @@ demo.
 
 ### Run the demo from a Git clone
 
-With the .NET 10 SDK, Node.js, and npm installed, clone the repository and
+With the .NET 10 SDK (`10.0.103` or later), Node.js 24 or later, and npm installed, clone the repository and
 start the demo directly from its root:
 
 ```bash
@@ -486,3 +486,25 @@ by SlimFaas, and are never stopped by it.
 The YAML is intentionally static during a run. Detached mode, supervisor high
 availability, resource enforcement, and network isolation are outside this
 development-mode scope.
+
+## Stream managed instance logs in the dashboard
+
+Select a managed instance in **Live Stream → Traffic** to see its details and live logs together in the drawer. When log exposure is enabled, the viewer connects automatically; closing the drawer stops it. **Find in logs** filters the retained output and highlights matching text in yellow.
+
+The supervisor captures output from managed functions, jobs and SlimFaas nodes in its log directory. The dashboard reads an authorized instance through the authenticated supervisor channel; it does not receive a filesystem path. IDE `debugUrl` processes and external WebSocket clients have no captured log source.
+
+The base configuration keeps `SlimFaas:ExposeLogs=false`. The tutorial manifest explicitly enables it for its nodes:
+
+```yaml
+cluster:
+  exposeLogs: true
+  nodeLogLevel: Error
+```
+
+An explicit environment setting takes precedence over the manifest, including disabling tutorial logs:
+
+```bash
+SlimFaas__ExposeLogs=false dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
+```
+
+`cluster.exposeLogs` defaults to `false` for other manifests. Log level and log exposure are independent: `nodeLogLevel: Error` can leave only supervisor start/stop messages when there are no application errors. Log streaming follows the selected instance generation, detects file rotation/truncation, and stops when the viewer disconnects. See [instance logs](user-interface.md#instance-logs) for access semantics, filters and retention limits.

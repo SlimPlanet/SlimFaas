@@ -96,8 +96,10 @@ public class AsyncFunctionEndpointTests
         Assert.Equal(expected, response.StatusCode);
     }
 
-    [Fact(DisplayName = "Async function activity identifies and correlates the calling job run")]
-    public async Task CallFunctionInAsyncMode_FromJob_RecordsCorrelatedJobActivity()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CallFunctionInAsyncMode_FromJob_RecordsCorrelatedJobActivity(bool localGateway)
     {
         const string jobRunName = "daily-report-slimfaas-job-b2";
         var tracker = new NetworkActivityTracker();
@@ -107,7 +109,7 @@ public class AsyncFunctionEndpointTests
             new KubernetesJob(
                 jobRunName,
                 JobStatus.Running,
-                [],
+                ["10.42.0.17"],
                 [],
                 "element-2",
                 0,
@@ -161,10 +163,13 @@ public class AsyncFunctionEndpointTests
         using var request = new HttpRequestMessage(
             HttpMethod.Get,
             "http://localhost:5000/async-function/fibonacci/compute");
-        request.Headers.TryAddWithoutValidation(LocalJobGateway.JobHeaderName, jobRunName);
-        request.Headers.TryAddWithoutValidation(
-            LocalJobGateway.SignatureHeaderName,
-            LocalJobGateway.CreateSignature(jobRunName, "test-token"));
+        if (localGateway)
+        {
+            request.Headers.TryAddWithoutValidation(LocalJobGateway.JobHeaderName, jobRunName);
+            request.Headers.TryAddWithoutValidation(LocalJobGateway.SignatureHeaderName,
+                LocalJobGateway.CreateSignature(jobRunName, "test-token"));
+        }
+        else request.Headers.TryAddWithoutValidation("X-Forwarded-For", "10.42.0.17");
 
         HttpResponseMessage response = await host.GetTestClient().SendAsync(request);
 

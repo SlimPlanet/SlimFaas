@@ -1,10 +1,19 @@
 # Get Started in Local
 
-Download a ready-to-run SlimFaas demo, open its dashboard, and explore three nodes, four HTTP functions and jobs directly on your computer. The bundle includes SlimFaas and the sample applications: **no .NET or Node.js installation is required**.
+Run three SlimFaas nodes, four HTTP functions and jobs directly on your computer, then explore them in the dashboard. Choose how to start:
 
-> **Release availability:** this installation path requires a release containing `SlimFaas-Local-<rid>.zip` assets and their `.sha256` files. It becomes available when the first release with these new bundles is published. Older `SlimFaas-<rid>.zip` archives contain the server alone. Until the complete bundles are published, use [the source-based local guide](native-local-mode.md#quick-start).
+- [Run from a release bundle](#run-from-a-release-bundle): download the precompiled demo; no .NET or Node.js installation is required.
+- [Run from a Git clone](#run-from-a-git-clone): build with npm and dotnet to test `main`, a feature branch or your own changes.
 
-## Before you start
+Both paths open the same dashboard and lead into the [Guided Tour](guided-tour.md). Docker and Kubernetes are not required.
+
+## Run from a release bundle
+
+The bundle includes SlimFaas and the sample applications, ready to execute.
+
+> **Release availability:** this installation path requires a release containing `SlimFaas-Local-<rid>.zip` assets and their `.sha256` files. It becomes available when the first release with these new bundles is published. Older `SlimFaas-<rid>.zip` archives contain the server alone. Until the complete bundles are published, [run from a Git clone](#run-from-a-git-clone).
+
+### Before you start
 
 Use a Bash-compatible terminal with `curl`, `unzip`, and either `sha256sum` or `shasum`. On macOS these tools are normally present. On Linux, install missing tools through your distribution's package manager. On Windows, use Git Bash or WSL for installation; the extracted bundle also includes a PowerShell launcher.
 
@@ -21,7 +30,7 @@ The bundled sample applications include their own .NET runtime. Standard OS libr
 
 Keep ports `30020–30023`, `3262–3264` and `5000–5999` available. Stop other SlimFaas demos first because their ports overlap. Git, Docker and Kubernetes are not required.
 
-## Download and validate
+### Download and validate
 
 Run these commands in the directory where you want the demo installed:
 
@@ -49,7 +58,7 @@ Alternatively, download the ZIP and its matching `.sha256` file directly from th
 chmod +x start.sh runtime/SlimFaas functions/fibonacci/Fibonacci jobs/fibonacci-batch/FibonacciBatch
 ```
 
-## Start the demo
+### Start the demo
 
 From the extracted demo directory:
 
@@ -68,6 +77,38 @@ Leave this terminal running. The launcher validates the base manifest and its pr
 
 The bundle contains `runtime/`, `functions/fibonacci/`, `jobs/fibonacci-batch/`, `demo/bruno-slimfaas-demo/`, and the two manifests. The overlay replaces source-build commands with packaged executables, configures a longer job retention for observation and disables automatic sample schedules; the tour creates its own schedules.
 
+## Run from a Git clone
+
+Use this path to try a branch before it has a release, or to develop the dashboard and runtime together. Install **Git**, the **.NET 10 SDK** (`10.0.103` or a newer .NET 10 SDK, as selected by `global.json`), and **Node.js 24 or later with npm**. Keep ports `30020–30023`, `3262–3264` and `5000–5999` available.
+
+Clone the branch you want to test. Replace `main` with its name to build a feature branch:
+
+```bash
+git clone --branch main https://github.com/SlimPlanet/SlimFaas.git
+cd SlimFaas
+```
+
+From the repository root, install the dashboard dependencies, build its assets and build SlimFaas:
+
+```bash
+npm ci --ignore-scripts --prefix src/SlimFaas/ClientApp
+npm run build --prefix src/SlimFaas/ClientApp
+dotnet build src/SlimFaas -p:SkipClientAppBuild=true
+```
+
+The npm build writes the dashboard to `src/SlimFaas/wwwroot`. `SkipClientAppBuild=true` avoids rebuilding those assets during the .NET build. No global SlimFaas installation is needed: the following commands run the runtime from this checkout.
+
+Validate the manifest, then start the demo:
+
+```bash
+dotnet run --project src/SlimFaas --no-build -- local validate -f ../../slimfaas.local.yaml
+dotnet run --project src/SlimFaas --no-build -- local up -f ../../slimfaas.local.yaml
+```
+
+These single-line commands also work in PowerShell. Run them from the repository root; the manifest path is relative to the `src/SlimFaas` working directory used by `dotnet run`. Leave `local up` running. The source manifest starts three nodes and builds sample functions and jobs with dotnet when they launch, so the first request can take longer. It also enables the sample job schedules configured in `slimfaas.local.yaml`.
+
+Open the dashboard and run the checks below. To test a different branch or new edits, stop the demo with **Ctrl+C**, switch branches if needed, rerun the npm/.NET build commands, and start it again. `--no-build` uses the last build, so restart after rebuilding to see your changes. For overlays and IDE debugging, see the [Local Mode reference](native-local-mode.md).
+
 ## Open the dashboard
 
 Open **http://127.0.0.1:30020/**. This is the shared entrypoint for the dashboard, application requests and WebSocket connections. Ports `30021–30023` belong to individual nodes.
@@ -81,13 +122,13 @@ curl -fsS "$BASE_URL/status-functions"
 curl -fsS "$BASE_URL/function/fibonacci1/hello/local"
 ```
 
-Expect `200 READY`, four functions in the JSON list, and `Hello local!`. Retry readiness while the cluster starts. In **Infrastructure Overview**, find `fibonacci1` through `fibonacci4`. A successful synchronous request wakes its target and waits for readiness.
+Expect `200 READY`, four functions in the JSON list, and `Hello local!`. Retry readiness while the cluster starts. In **Overview**, find `fibonacci1` through `fibonacci4`. A successful synchronous request wakes its target and waits for readiness.
 
 The demo exposes the data APIs for local exploration and includes the `fibonacci` and `fibonacci5` job configurations. Local processes share the host network and have no container resource isolation.
 
 ## Discover the features
 
-Continue to the [Guided Tour](guided-tour.md), keeping the dashboard open. Run its commands from the extracted demo directory: the bundle preserves the same `demo/` paths as the repository.
+Continue to the [Guided Tour](guided-tour.md), keeping the dashboard open. Run its commands from the extracted demo directory or the repository root: both contain the same `demo/` paths.
 
 Open `demo/bruno-slimfaas-demo` in **Bruno Desktop** and select **Local**. This does not require Node.js. Alternatively, use the cURL commands with `jq`. The optional automated Bruno CLI requires Node on the machine running that test tool, independently of SlimFaas.
 
@@ -103,18 +144,24 @@ For developing your own functions, source builds, overlays and IDE debugging, us
 | Address already in use | Stop the conflicting demo, or supply a manifest overlay with different ports. Update callback URLs if changing the entrypoint. |
 | Function cannot start | Read its log in `.slimfaas/slimfaas-demo/logs`; verify executable permissions, platform and OS libraries. |
 | macOS blocks an executable | Use the normal macOS Privacy & Security approval for a release you trust. The installer does not disable OS protection. |
-| UI fails to load | Use the complete bundle and entrypoint port. The runtime directory must include its `wwwroot` dashboard assets. |
+| UI fails to load | Use the entrypoint port. A bundle must include `runtime/wwwroot`; in a Git checkout, rerun the npm build and the .NET build before restarting. |
 | Some replicas are down | Idle scale-to-zero is expected. Click **Wake Up** or send a synchronous request. |
 | `404` for `fibonacci4` | This function is private; caller classification differs on a shared host network. See the tour's private-access exercise. |
 
 ## Stop and reset
 
-Press **Ctrl+C** in the launcher terminal. SlimFaas stops its managed processes. Logs and persistent state remain below `.slimfaas/slimfaas-demo` inside the installation directory. Restart with the same launcher to keep that state.
+Press **Ctrl+C** in the terminal running the demo. SlimFaas stops its managed processes. Logs and persistent state remain below `.slimfaas/slimfaas-demo` inside the bundle directory or Git checkout. Restart with the same command to keep that state.
 
-To deliberately discard this demo's state and start again:
+With a release bundle, to deliberately discard this demo's state and start again:
 
 ```bash
 ./start.sh --clean
 ```
 
-PowerShell equivalent: `.\start.ps1 -Clean`. To uninstall, stop the demo and remove only its installation directory; no system service or global runtime was installed.
+PowerShell equivalent for a bundle: `.\start.ps1 -Clean`. From a Git checkout, use:
+
+```bash
+dotnet run --project src/SlimFaas --no-build -- local up -f ../../slimfaas.local.yaml --clean
+```
+
+To remove the demo, stop it and remove only its installation directory or checkout; no system service or global runtime was installed by these commands.

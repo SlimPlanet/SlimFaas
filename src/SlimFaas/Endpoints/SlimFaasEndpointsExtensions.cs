@@ -7,6 +7,8 @@ public static class SlimFaasEndpointsExtensions
         // Enregistrer tous les endpoints
         app.MapStatusEndpoints();
         app.MapStatusStreamEndpoints();
+        app.MapDataStatusStreamEndpoints();
+        app.MapLogStreamEndpoints();
         app.MapJobStatusEndpoints();
         app.MapJobEndpoints();
         app.MapJobScheduleEndpoints();
@@ -17,4 +19,3 @@ public static class SlimFaasEndpointsExtensions
         return app;
     }
 }
-

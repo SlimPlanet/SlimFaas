@@ -10,6 +10,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      '/status-log-sources': 'http://localhost:5000',
+      '/status-logs-stream': 'http://localhost:5000',
+      '/status-data-stream': 'http://localhost:5000',
       '/status-functions-stream': 'http://localhost:5000',
       '/status-functions': 'http://localhost:5000',
       '/status-jobs': 'http://localhost:5000',

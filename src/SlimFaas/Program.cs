@@ -21,6 +21,7 @@ using SlimFaas.Extensions;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
+using SlimFaas.Logs;
 using SlimFaas.Middleware;
 using SlimFaas.Options;
 using SlimFaas.Security;
@@ -283,6 +284,21 @@ serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAcc
 serviceCollectionSlimFaas.AddMemoryCache();
 serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
 serviceCollectionSlimFaas.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
+serviceCollectionSlimFaas.AddSingleton<StatusLeader>();
+serviceCollectionSlimFaas.AddSingleton<IInstanceLogProvider>(sp =>
+{
+    var orchestrator = sp.GetRequiredService<IKubernetesService>();
+    return orchestrator switch
+    {
+        IInstanceLogProvider local => local,
+        KubernetesService kube => new KubernetesInstanceLogs(kube.LogClient, sp.GetRequiredService<IReplicasService>(),
+            sp.GetRequiredService<IJobService>(), sp.GetRequiredService<INamespaceProvider>()),
+        DockerService docker => new DockerInstanceLogs(docker, sp.GetRequiredService<IReplicasService>(), sp.GetRequiredService<IJobService>()),
+        _ => new UnavailableInstanceLogs()
+    };
+});
+serviceCollectionSlimFaas.AddSingleton<LogStreamHub>();
+serviceCollectionSlimFaas.AddSingleton<DataStatusSnapshotCache>();
 serviceCollectionSlimFaas.AddSingleton<WakeUpGate>();
 serviceCollectionSlimFaas.AddSingleton<NetworkActivityTracker>();
 if (slimFaasOptions.EnableFront)

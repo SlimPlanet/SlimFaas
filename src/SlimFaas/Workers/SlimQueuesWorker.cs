@@ -249,9 +249,10 @@ public class SlimQueuesWorker(
                     requestCancellation,
                     proxy,
                     reservedIp,
-                    functionName,
+                    NetworkActivityTracker.Actors.SlimFaas,
                     null,
-                    offloadedStream);
+                    offloadedStream,
+                    activityQueueName: functionName);
             }
             catch
             {
@@ -272,12 +273,6 @@ public class SlimQueuesWorker(
                 function.Configuration.DefaultAsync.HttpStatusRetries.ToHashSet());
             active[message.Id] = tracked;
             _ = ObserveCompletionAsync(responseTask, tracked);
-            activityTracker.Record(
-                NetworkActivityTracker.EventTypes.Dequeue,
-                NetworkActivityTracker.Actors.SlimFaas,
-                functionName,
-                functionName,
-                targetPod: reservedIp);
         }
     }
 

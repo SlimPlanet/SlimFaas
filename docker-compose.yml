@@ -60,6 +60,9 @@ services:
       HOSTNAME: "slimfaas-1"
       SlimFaas__BaseSlimDataUrl: "http://localhost:3262/"
       SlimFaas__Orchestrator: "Docker"
+      # Set true to expose only keys, expiry and file sizes in the dashboard.
+      SlimFaas__ExposeDataMetadata: "false"
+      SlimFaas__ExposeLogs: "true"
       SlimData__Directory: "/database"
       SlimData__BackupDirectory: "/backup"
       SlimFaas__JobsConfiguration: |

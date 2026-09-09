@@ -1,0 +1,17 @@
+meta {
+  name: Live data metadata
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{baseUrl}}/status-data-stream?kind=files&limit=100
+  body: none
+  auth: none
+}
+
+docs {
+  Run individually and stop the stream manually. Lists file keys, expiry and sizes only.
+  Use kind=sets for set keys. Access follows Data visibility unless SlimFaas__ExposeDataMetadata=true.
+  See https://slimfaas.dev/user-interface#data-inventory.
+}

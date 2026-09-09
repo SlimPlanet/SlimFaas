@@ -89,7 +89,7 @@ internal class SendClientMock : ISendClient
 {
     public IList<SendData> SendDatas = new List<SendData>();
 
-    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null)
+    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null, string? activityQueueName = null)
     {
         HttpResponseMessage responseMessage = new HttpResponseMessage();
         responseMessage.StatusCode = HttpStatusCode.OK;
@@ -130,12 +130,12 @@ internal class WebSocketSendClientMock : IWebSocketSendClient
         Task.FromResult(200);
 
     public Task PublishEventAsync(string functionName, CustomRequest customRequest,
-        string eventName, CancellationToken ct = default) =>
+        string eventName, CancellationToken ct = default, string? activitySourcePod = null) =>
         Task.CompletedTask;
 
     public Task<(int StatusCode, Dictionary<string, string[]> Headers, System.Threading.Channels.ChannelReader<byte[]> BodyChunks, Func<Task> WaitForEnd)>
         SendSyncRequestStreamAsync(string functionName, string method, string path, string query,
-            Dictionary<string, string[]> headers, Stream? requestBodyStream, CancellationToken ct = default)
+            Dictionary<string, string[]> headers, Stream? requestBodyStream, CancellationToken ct = default, string? activitySourcePod = null)
     {
         var channel = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
         channel.Writer.TryComplete();

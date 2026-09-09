@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react';
+import { fixtureIdentity } from '../lib/fixtures';
 import FunctionTable from '../components/FunctionTable';
 import type { FunctionStatusDetailed } from '../types';
 
@@ -147,8 +148,8 @@ const FUNCTIONS_ALL_DOWN: FunctionStatusDetailed[] = [
     PathsStartWithVisibility: [],
     DependsOn: ['kafka'],
     Pods: [
-      { Name: 'ws-abc12345', Status: 'Running', Ready: true, Ip: 'abc12345' },
-      { Name: 'ws-def67890', Status: 'Running', Ready: true, Ip: 'def67890' },
+      { Name: 'ws-abc12345', Status: 'Running', Ready: true, Identity: 'abc12345' },
+      { Name: 'ws-def67890', Status: 'Running', Ready: true, Identity: 'def67890' },
     ],
   },
 ];
@@ -163,7 +164,7 @@ const FUNCTIONS_SOME_UP: FunctionStatusDetailed[] = FUNCTIONS_ALL_DOWN.map((fn, 
           Name: `${fn.Name}-pod-${j}`,
           Status: 'Running',
           Ready: true,
-          Ip: `10.0.0.${j + 1}`,
+          Identity: fixtureIdentity(j + 1),
         })),
       }
     : fn
@@ -177,7 +178,7 @@ const FUNCTIONS_ALL_UP: FunctionStatusDetailed[] = FUNCTIONS_ALL_DOWN.map((fn) =
     Name: `${fn.Name}-pod-${j}`,
     Status: 'Running',
     Ready: true,
-    Ip: `10.0.0.${j + 1}`,
+    Identity: fixtureIdentity(j + 1),
   })),
 }));
 

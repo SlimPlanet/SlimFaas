@@ -155,6 +155,8 @@ public sealed class LocalNodeManager : IAsyncDisposable
         return new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["HOSTNAME"] = $"slimfaas-{nodeIndex}",
+            ["SlimFaas__ExposeLogs"] = Environment.GetEnvironmentVariable("SlimFaas__ExposeLogs")
+                ?? _loaded.Manifest.Cluster.ExposeLogs.ToString(),
             ["SlimFaas__Orchestrator"] = "Process",
             ["SlimFaas__Namespace"] = _loaded.Manifest.Name,
             ["SlimFaas__Process__SupervisorUrl"] = _supervisorUri.ToString().TrimEnd('/'),

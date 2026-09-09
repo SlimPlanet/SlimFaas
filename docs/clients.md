@@ -13,6 +13,8 @@ Client libraries:
 
 ---
 
+The built-in [Live Stream dashboard](user-interface.md#5-network-map) shows synchronous WebSocket dispatch/completion and publication fan-out to connected replicas. These are server-side observation events; client registration and binary/text WebSocket protocols are unchanged.
+
 ## A worker connects to SlimFaas
 
 The worker opens an outbound WebSocket and registers a virtual function. Callers continue to use the ordinary SlimFaas HTTP routes; SlimFaas transports requests and replies over the existing connection.

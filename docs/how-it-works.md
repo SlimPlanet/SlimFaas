@@ -293,3 +293,13 @@ This design keeps your control plane healthy even under extreme load.
 The dashboard consumes `/status-functions-stream`: periodic `state` snapshots and live `activity`/`activity_batch` events. Animations are not a replay or an audit log. Peer nodes synchronize recent activity through an internal endpoint. See [User Interface](user-interface.md) for sampling, batching and stream limits.
 
 SlimFaas is compiled to native code with .NET AOT. Source-generated JSON and MemoryPack contracts keep serialization compatible with trimming. For reproducible measurements use [Benchmarks](benchmarking.md); for traces and exports use [OpenTelemetry](opentelemetry.md). Advanced development references cover [local cluster experiments](local-orchestrator.md) and [memory workloads](memory-profiling.md).
+
+### Dashboard metadata projection
+
+The optional `/status-data-stream` endpoint builds a metadata-only projection from locally applied SlimData state. A per-node lazy cache shares that projection across viewers at the existing state interval; no scan runs without requests. File lengths come from stored MemoryPack metadata, with no document reads or cluster file pulls. Only a bounded page is serialized to each viewer using the generated JSON context. Status and metadata streams share `MaxSseClients`. The data visibility policy applies unless `SlimFaas:ExposeDataMetadata` explicitly enables metadata access while the front is enabled. See [the dashboard contract](user-interface.md#data-inventory).
+
+### On-demand instance log readers
+
+The optional `SlimFaas:ExposeLogs` capability exposes managed function, job and SlimFaas-node output through `/status-log-sources` and `/status-logs-stream`. It requires the front to be enabled and defaults to false. A source reference contains resource identity rather than a network address or log path; each open revalidates managed ownership and instance generation. Kubernetes validates controller ownership, Docker resolves a known container, and native nodes use the supervisor's existing authenticated control channel.
+
+Per-node readers are shared only while viewed (four sources maximum) and use bounded line/byte buffers independent of client speed. The last disconnect cancels the upstream read. They reserve the same SSE client quota as Traffic/Data while leaving peer activity synchronization inactive. Native file tails, Docker stdout/stderr demultiplexing and Kubernetes follow requests use bounded streaming parsers, with generated JSON contracts for AOT. No SlimData payload or storage migration is required. See [instance logs](user-interface.md#instance-logs).

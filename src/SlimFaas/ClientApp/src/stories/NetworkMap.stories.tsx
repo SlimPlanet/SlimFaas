@@ -1,3 +1,4 @@
+import { fixtureIdentity } from '../lib/fixtures';
 import type { Meta, StoryObj } from '@storybook/react';
 import React from 'react';
 import NetworkMap from '../components/NetworkMap';
@@ -14,8 +15,8 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     Resources: { CpuRequest: '10m', CpuLimit: '50m', MemoryRequest: '96Mi', MemoryLimit: '96Mi' },
     Schedule: null, Scale: null, Retry: null, SubscribeEvents: [], PathsStartWithVisibility: [],
     DependsOn: [], Pods: [
-      { Name: 'fib1-pod-0', Status: 'Running', Ready: true, Ip: '10.0.0.1' },
-      { Name: 'fib1-pod-1', Status: 'Running', Ready: true, Ip: '10.0.0.2' },
+      { Name: 'fib1-pod-0', Status: 'Running', Ready: true, Identity: fixtureIdentity(1) },
+      { Name: 'fib1-pod-1', Status: 'Running', Ready: true, Identity: fixtureIdentity(2) },
     ],
   },
   {
@@ -26,7 +27,7 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     Resources: { CpuRequest: '10m', CpuLimit: '50m', MemoryRequest: '96Mi', MemoryLimit: '96Mi' },
     Schedule: null, Scale: null, Retry: null, SubscribeEvents: [], PathsStartWithVisibility: [],
     DependsOn: ['fibonacci1'], Pods: [
-      { Name: 'fib2-pod-0', Status: 'Running', Ready: true, Ip: '10.0.0.3' },
+      { Name: 'fib2-pod-0', Status: 'Running', Ready: true, Identity: fixtureIdentity(3) },
     ],
   },
   {
@@ -45,7 +46,7 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     Resources: { CpuRequest: '300m', CpuLimit: '600m', MemoryRequest: '512Mi', MemoryLimit: '1Gi' },
     Schedule: null, Scale: null, Retry: null, SubscribeEvents: [], PathsStartWithVisibility: [],
     DependsOn: [], Pods: [
-      { Name: 'mysql-0', Status: 'Running', Ready: true, Ip: '10.0.0.5' },
+      { Name: 'mysql-0', Status: 'Running', Ready: true, Identity: fixtureIdentity(5) },
     ],
   },
   {
@@ -57,8 +58,8 @@ const FUNCTIONS: FunctionStatusDetailed[] = [
     SubscribeEvents: [{ Name: 'chat', Visibility: 'Public' }],
     PathsStartWithVisibility: [], DependsOn: [],
     Pods: [
-      { Name: 'ws-aaa', Status: 'Running', Ready: true, Ip: 'aaa' },
-      { Name: 'ws-bbb', Status: 'Running', Ready: true, Ip: 'bbb' },
+      { Name: 'ws-aaa', Status: 'Running', Ready: true, Identity: 'aaa' },
+      { Name: 'ws-bbb', Status: 'Running', Ready: true, Identity: 'bbb' },
     ],
   },
 ];
@@ -102,11 +103,11 @@ const JOBS: JobConfigurationStatus[] = [
 ];
 
 const ACTIVITY: NetworkActivityEvent[] = [
-  { Id: 'evt-1', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 5000, NodeId: 'slimfaas-0', SourcePod: '192.168.1.50', TargetPod: null },
-  { Id: 'evt-2', Type: 'enqueue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 4500, NodeId: 'slimfaas-0', SourcePod: '192.168.1.50', TargetPod: null },
-  { Id: 'evt-3', Type: 'dequeue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 3000, NodeId: 'slimfaas-1', SourcePod: null, TargetPod: '10.0.0.1' },
-  { Id: 'evt-4', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 2000, NodeId: 'slimfaas-1', SourcePod: '10.0.0.3', TargetPod: null },
-  { Id: 'evt-5', Type: 'request_out', Source: 'slimfaas', Target: 'fibonacci2', QueueName: null, TimestampMs: now - 1500, NodeId: 'slimfaas-0', SourcePod: null, TargetPod: '10.0.0.3' },
+  { Id: 'evt-1', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 5000, NodeId: 'slimfaas-0', SourcePod: fixtureIdentity(50), TargetPod: null },
+  { Id: 'evt-2', Type: 'enqueue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 4500, NodeId: 'slimfaas-0', SourcePod: fixtureIdentity(50), TargetPod: null },
+  { Id: 'evt-3', Type: 'dequeue', Source: 'slimfaas', Target: 'fibonacci1', QueueName: 'fibonacci1', TimestampMs: now - 3000, NodeId: 'slimfaas-1', SourcePod: null, TargetPod: fixtureIdentity(1) },
+  { Id: 'evt-4', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 2000, NodeId: 'slimfaas-1', SourcePod: fixtureIdentity(3), TargetPod: null },
+  { Id: 'evt-5', Type: 'request_out', Source: 'slimfaas', Target: 'fibonacci2', QueueName: null, TimestampMs: now - 1500, NodeId: 'slimfaas-0', SourcePod: null, TargetPod: fixtureIdentity(3) },
   { Id: 'evt-6', Type: 'event_publish', Source: 'slimfaas', Target: 'ws-handler', QueueName: null, TimestampMs: now - 500, NodeId: 'slimfaas-1', SourcePod: null, TargetPod: 'aaa' },
 ];
 
@@ -131,7 +132,7 @@ const JOB_TO_FUNCTION_ACTIVITY: NetworkActivityEvent[] = [
     TimestampMs: now + 150,
     NodeId: 'slimfaas-0',
     SourcePod: null,
-    TargetPod: '10.0.0.1',
+    TargetPod: fixtureIdentity(1),
   },
   {
     Id: 'job-call-b-in',
@@ -153,7 +154,7 @@ const JOB_TO_FUNCTION_ACTIVITY: NetworkActivityEvent[] = [
     TimestampMs: now + 450,
     NodeId: 'slimfaas-1',
     SourcePod: null,
-    TargetPod: '10.0.0.3',
+    TargetPod: fixtureIdentity(3),
   },
 ];
 
@@ -163,7 +164,7 @@ const NATIVE_LOCAL_FUNCTIONS: FunctionStatusDetailed[] = FUNCTIONS
     ...fn,
     NumberReady: 1,
     NumberRequested: 1,
-    Pods: (fn.Pods ?? []).slice(0, 1).map(pod => ({ ...pod, Ip: '127.0.0.1' })),
+    Pods: (fn.Pods ?? []).slice(0, 1).map(pod => ({ ...pod, Identity: fixtureIdentity(127) })),
   }));
 
 const NATIVE_LOCAL_EXTERNAL_ACTIVITY: NetworkActivityEvent[] = [
@@ -175,7 +176,7 @@ const NATIVE_LOCAL_EXTERNAL_ACTIVITY: NetworkActivityEvent[] = [
     QueueName: null,
     TimestampMs: now,
     NodeId: 'slimfaas-0',
-    SourcePod: '127.0.0.1',
+    SourcePod: null,
     TargetPod: null,
   },
   {
@@ -187,7 +188,7 @@ const NATIVE_LOCAL_EXTERNAL_ACTIVITY: NetworkActivityEvent[] = [
     TimestampMs: now + 150,
     NodeId: 'slimfaas-0',
     SourcePod: null,
-    TargetPod: '127.0.0.1',
+    TargetPod: fixtureIdentity(127),
   },
 ];
 
@@ -338,12 +339,12 @@ export const LiveAnimation: Story = {
           });
         }
 
-        // Pod IPs per function (from FUNCTIONS mock data)
-        const podIps: Record<string, string[]> = {
-          fibonacci1: ['10.0.0.1', '10.0.0.2'],
-          fibonacci2: ['10.0.0.3'],
+        // Opaque identities per function (from FUNCTIONS mock data)
+        const podIdentities: Record<string, string[]> = {
+          fibonacci1: [fixtureIdentity(1), fixtureIdentity(2)],
+          fibonacci2: [fixtureIdentity(3)],
           kafka: [],
-          mysql: ['10.0.0.5'],
+          mysql: [fixtureIdentity(5)],
           'ws-handler': ['aaa', 'bbb'],
         };
 
@@ -355,9 +356,9 @@ export const LiveAnimation: Story = {
           QueueName: (type === 'enqueue' || type === 'dequeue') ? targetFn : null,
           TimestampMs: Date.now(),
           NodeId: counter % 2 === 0 ? 'slimfaas-0' : 'slimfaas-1',
-          SourcePod: type === 'request_in' ? (podIps[fnNames[(counter + 1) % fnNames.length]]?.[0] ?? null) : null,
+          SourcePod: type === 'request_in' ? (podIdentities[fnNames[(counter + 1) % fnNames.length]]?.[0] ?? null) : null,
           TargetPod: (type === 'dequeue' || type === 'request_out' || type === 'event_publish')
-            ? (podIps[targetFn]?.[counter % (podIps[targetFn]?.length || 1)] ?? null)
+            ? (podIdentities[targetFn]?.[counter % (podIdentities[targetFn]?.length || 1)] ?? null)
             : null,
         }]);
 

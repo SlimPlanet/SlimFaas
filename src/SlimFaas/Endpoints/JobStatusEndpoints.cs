@@ -41,15 +41,20 @@ public static class JobStatusEndpoints
         var configurations = jobConfiguration.Configuration.Configurations;
         var schedules = jobConfiguration.Configuration.Schedules;
         var currentJobs = jobService.Jobs;
+        // Index once and match the complete configuration name. A "fibonacci5"
+        // execution must never also appear under "fibonacci".
+        var jobsByConfiguration = currentJobs.ToLookup(job =>
+        {
+            int separator = job.Name.LastIndexOf(KubernetesService.SlimfaasJobKey, StringComparison.OrdinalIgnoreCase);
+            return separator > 0 ? job.Name[..separator] : job.Name;
+        }, StringComparer.OrdinalIgnoreCase);
         long nowUnix = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
 
         var result = new List<JobConfigurationStatus>();
 
         foreach (var (name, conf) in configurations)
         {
-            var running = currentJobs
-                .Where(j => j.Name.StartsWith(name + KubernetesService.SlimfaasJobKey, StringComparison.OrdinalIgnoreCase)
-                            || j.Name.StartsWith(name, StringComparison.OrdinalIgnoreCase))
+            var running = jobsByConfiguration[name]
                 .Select(j => new RunningJobStatus(
                     j.Name,
                     j.Status.ToString(),
@@ -103,4 +108,3 @@ public static class JobStatusEndpoints
         return result;
     }
 }
-

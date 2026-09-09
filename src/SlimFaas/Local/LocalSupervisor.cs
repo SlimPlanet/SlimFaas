@@ -4,6 +4,8 @@ using System.Text;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using SlimFaas.Kubernetes;
+using SlimFaas.Logs;
+using System.Text.Json;
 
 namespace SlimFaas.Local;
 
@@ -113,6 +115,38 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
                 await jobs.DeleteAsync(name, token);
                 return Results.NoContent();
             });
+
+        var logs = new LocalInstanceLogs(loaded, state, () =>
+            new DeploymentsInformations(functions.Snapshot(loaded.Manifest.Name),
+                new SlimFaasDeploymentInformation(loaded.Manifest.Cluster.Nodes, nodes?.Snapshot() ?? []), []),
+            jobs.Snapshot);
+        control.MapGet("/v1/log-sources", async (string kind, string name, string? replica, CancellationToken ct) =>
+            Results.Json(await logs.GetSourcesAsync(new LogTarget(kind, name, string.IsNullOrEmpty(replica) ? null : replica), ct), LogJsonContext.Default.LogSources));
+        control.MapGet("/v1/logs", async (HttpContext context, string source) =>
+        {
+            var ct = context.RequestAborted;
+            context.Response.ContentType = "application/x-ndjson";
+            await context.Response.StartAsync(ct);
+            await context.Response.Body.FlushAsync(ct);
+            string? status = null;
+            try
+            {
+                await foreach (var item in logs.ReadAsync(source, ct))
+                {
+                    await context.Response.WriteAsync(JsonSerializer.Serialize(item, LogJsonContext.Default.LogReadItem) + "\n", ct);
+                    await context.Response.Body.FlushAsync(ct);
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
+            catch (FileNotFoundException) { status = "Source removed"; }
+            catch (UnauthorizedAccessException) { status = "Access denied"; }
+            catch (IOException) { status = "Disconnected"; }
+            if (status is not null)
+            {
+                await context.Response.WriteAsync(JsonSerializer.Serialize(new LogReadItem("", Status: status), LogJsonContext.Default.LogReadItem) + "\n", ct);
+                await context.Response.Body.FlushAsync(ct);
+            }
+        });
 
         await control.StartAsync(cancellationToken);
         Uri controlUri = GetControlUri(control);

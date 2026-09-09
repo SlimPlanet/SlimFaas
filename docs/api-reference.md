@@ -23,7 +23,10 @@ See [tour steps 1–2](guided-tour.md#1-read-the-cluster-state).
 | GET | `/status-function/{functionName}` | `200`, one status; `404` if unknown. |
 | POST | `/wake-function/{functionName}` | `204`, request a wake-up; `404` if unknown. Does not wait for readiness. |
 | POST | `/wake-functions` | `204`, request wake-up for all discovered functions. |
-| GET | `/status-functions-stream` | SSE snapshots and activity. `429` when the configured subscriber limit is reached. |
+| GET | `/status-data-stream` | SSE metadata inventory. `kind=sets/files`, `prefix`, exclusive `after`, `limit=1..500` (default 100). Emits keys, Unix-ms expiry and file sizes only. `404` for disallowed access/port, `400` for invalid queries, `429` for the shared SSE client limit. See [Data inventory](user-interface.md#data-inventory). |
+| GET | `/status-log-sources` | Discover a managed instance’s log sources with `kind=function/job/slimfaas`, `name` and `replica`. Requires `EnableFront` and `ExposeLogs`. Returns `Id`, `Name`, `Container`; no paths or network addresses. |
+| GET | `/status-logs-stream` | SSE `log_state` and `log_batch` for a discovered `source`, with `tail=1..10000` (default 10000). Shared SSE quota and four source readers per node. `403` for disabled/denied access, `404` for an unavailable source/port, `400` for invalid queries, `429` for limits. See [instance logs](user-interface.md#instance-logs). |
+| GET | `/status-functions-stream` | SSE snapshots and activity with opaque address tokens instead of replica/caller IPs in `Pods[].Identity` and activity references. `429` when the configured subscriber limit is reached. |
 | GET | `/jobs/status` | `200`, job configurations and running-job status. |
 | GET | `/status-jobs` | Alias of `/jobs/status`. |
 

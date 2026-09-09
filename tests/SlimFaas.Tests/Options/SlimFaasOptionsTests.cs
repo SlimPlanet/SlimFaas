@@ -62,8 +62,8 @@ public class SlimFaasOptionsTests
         Assert.Equal(1000, options.StatusStream.StateIntervalMilliseconds);
         Assert.Equal(1000, options.StatusStream.QueueLengthsCacheMilliseconds);
         Assert.Equal(1000, options.StatusStream.JobsCacheMilliseconds);
-        Assert.Equal(2000, options.StatusStream.PeerSyncIntervalMilliseconds);
-        Assert.Equal(5000, options.StatusStream.PeerSyncInitialDelayMilliseconds);
+        Assert.Equal(500, options.StatusStream.PeerSyncIntervalMilliseconds);
+        Assert.Equal(500, options.StatusStream.PeerSyncInitialDelayMilliseconds);
         Assert.Equal(0, options.StatusStream.MaxSseClients);
         Assert.Equal(10000, options.StatusStream.SubscriberChannelCapacity);
         Assert.Equal(1000, options.StatusStream.RecentActivityLimit);

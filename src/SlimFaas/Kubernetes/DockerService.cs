@@ -1027,6 +1027,19 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             }
         }
 
+        internal async Task<InspectContainerResponse?> InspectLogContainerAsync(string name, CancellationToken ct)
+        {
+            using var response = await _http.GetAsync($"{_apiPrefix}/containers/{Uri.EscapeDataString(name)}/json", ct);
+            if (response.StatusCode == HttpStatusCode.NotFound) return null;
+            if (response.StatusCode == HttpStatusCode.Forbidden) throw new UnauthorizedAccessException("Log access denied");
+            response.EnsureSuccessStatusCode();
+            return await response.Content.ReadFromJsonAsync(DockerJson.Default.InspectContainerResponse, ct);
+        }
+
+        internal Task<HttpResponseMessage> OpenLogResponseAsync(string id, CancellationToken ct) =>
+            _http.GetAsync($"{_apiPrefix}/containers/{Uri.EscapeDataString(id)}/logs?stdout=1&stderr=1&follow=1&timestamps=1&tail=10000",
+                HttpCompletionOption.ResponseHeadersRead, ct);
+
         private async Task<string> GetContainerLogsAsync(string id, int tail = 200)
         {
             string url = $"{_apiPrefix}/containers/{id}/logs?stdout=1&stderr=1&tail={tail}";
@@ -1951,7 +1964,8 @@ namespace SlimFaas.Kubernetes
         [property: JsonPropertyName("Cmd")] string[]? Cmd,
         [property: JsonPropertyName("Labels")] Dictionary<string, string>? Labels,
         [property: JsonPropertyName("ExposedPorts")]
-        Dictionary<string, object>? ExposedPorts
+        Dictionary<string, object>? ExposedPorts,
+        [property: JsonPropertyName("Tty")] bool Tty = false
     );
 
     public record Inspect_State(

@@ -77,16 +77,22 @@ jobs:
           Remove-Item -Path .\coverage\lcov-report -Recurse -Force
         working-directory: ./src/SlimFaasPlanetSaver
 
+      - name: Test peer polling benchmark with coverage
+        run: python .bin/test-status-stream-benchmark.py --coverage status-stream-coverage.xml
+
       - name: Build and analyze
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverage.exclusions="src/Fibonacci/**/*,src/FibonacciReact/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths=status-stream-coverage.xml /d:sonar.coverage.exclusions="src/Fibonacci/**/*,src/FibonacciReact/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/test-status-stream-benchmark.py" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
           dotnet tool install --global dotnet-coverage
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
-          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
+          $testExitCode = $LASTEXITCODE
+          .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
+          if ($testExitCode -ne 0) { exit $testExitCode }
 
   unit_tests:
     name: Unit Tests

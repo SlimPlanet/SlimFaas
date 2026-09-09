@@ -25,7 +25,7 @@ public record NetworkActivityEvent(
 /// <summary>
 /// Represents the full stream payload sent via SSE.
 /// </summary>
-public record SlimFaasNodeInfo(string Name, string Status);
+public record SlimFaasNodeInfo(string Name, string Status, string? Role = null);
 
 public record StatusStreamPayload(
     IReadOnlyList<FunctionStatusDetailed> Functions,
@@ -35,12 +35,15 @@ public record StatusStreamPayload(
     int SlimFaasReplicas = 1,
     IList<SlimFaasNodeInfo>? SlimFaasNodes = null,
     bool FrontEnabled = true,
-    string? FrontMessage = null);
+    string? FrontMessage = null,
+    double LiveActivitySamplingRatio = 1.0,
+    int MaxLiveEventsPerSecond = 0);
 
 public record QueueInfo(string Name, long Length);
 
 [JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(StatusStreamPayload))]
+[JsonSerializable(typeof(DataStatusPage))]
 [JsonSerializable(typeof(NetworkActivityEvent))]
 [JsonSerializable(typeof(List<NetworkActivityEvent>))]
 [JsonSerializable(typeof(QueueInfo))]
@@ -95,7 +98,14 @@ public sealed class NetworkActivityTracker
     private readonly ConcurrentQueue<NetworkActivityEvent> _recentEvents = new();
     private readonly ConcurrentDictionary<Channel<NetworkActivityEvent>, byte> _subscribers = new();
     private readonly ConcurrentDictionary<string, byte> _knownIds = new();
-    private int _counter;
+    private long _counter;
+    private readonly object _subscriptionLock = new();
+    private long _liveSessionStartedAt;
+    public string InstanceId { get; } = Guid.NewGuid().ToString("N");
+
+    // Monotonic start of the current uninterrupted activity subscription session.
+    // Metadata streams deliberately do not start an activity session.
+    public long LiveSessionStartedAt => Volatile.Read(ref _liveSessionStartedAt);
     private int _recentEventsCount;
     private int _knownIdsCount;
     private int _knownIdsTrimInProgress;
@@ -131,7 +141,7 @@ public sealed class NetworkActivityTracker
         if (!_enabled) return string.Empty;
 
         var evt = new NetworkActivityEvent(
-            Id: $"{NodeId}-{Interlocked.Increment(ref _counter)}",
+            Id: $"{NodeId}-{InstanceId}-{Interlocked.Increment(ref _counter)}",
             Type: type,
             Source: source,
             Target: target,
@@ -207,51 +217,44 @@ public sealed class NetworkActivityTracker
             });
         reader = channel.Reader;
 
-        if (!_enabled)
+        if (!TryReserveStreamClient())
         {
-            return true;
+            channel.Writer.TryComplete();
+            return false;
         }
 
-        int maxSseClients = _options.MaxSseClients;
-        if (maxSseClients > 0)
+        lock (_subscriptionLock)
         {
-            while (true)
-            {
-                int current = Volatile.Read(ref _subscriberCount);
-                if (current >= maxSseClients)
-                {
-                    channel.Writer.TryComplete();
-                    return false;
-                }
-
-                if (Interlocked.CompareExchange(ref _subscriberCount, current + 1, current) == current)
-                {
-                    break;
-                }
-            }
+            if (_subscribers.IsEmpty)
+                Volatile.Write(ref _liveSessionStartedAt, System.Diagnostics.Stopwatch.GetTimestamp());
+            if (_subscribers.TryAdd(channel, 0)) return true;
         }
-
-        if (_subscribers.TryAdd(channel, 0))
-        {
-            if (maxSseClients <= 0)
-            {
-                Interlocked.Increment(ref _subscriberCount);
-            }
-
-            return true;
-        }
-
-        Interlocked.Decrement(ref _subscriberCount);
+        ReleaseStreamClient();
         channel.Writer.TryComplete();
         return false;
     }
 
+    /// <summary>Share the configured client budget with metadata streams without allocating an activity channel.</summary>
+    public bool TryReserveStreamClient()
+    {
+        while (true)
+        {
+            int current = Volatile.Read(ref _subscriberCount);
+            if (_options.MaxSseClients > 0 && current >= _options.MaxSseClients) return false;
+            if (Interlocked.CompareExchange(ref _subscriberCount, current + 1, current) == current) return true;
+        }
+    }
+
+    public void ReleaseStreamClient() => Interlocked.Decrement(ref _subscriberCount);
+
     /// <summary>Unsubscribe from live events.</summary>
     public void Unsubscribe(Channel<NetworkActivityEvent> channel)
     {
-        if (_subscribers.TryRemove(channel, out _))
+        lock (_subscriptionLock)
         {
-            Interlocked.Decrement(ref _subscriberCount);
+            if (_subscribers.TryRemove(channel, out _))
+                Interlocked.Decrement(ref _subscriberCount);
+            if (_subscribers.IsEmpty) Volatile.Write(ref _liveSessionStartedAt, 0);
         }
 
         channel.Writer.TryComplete();
@@ -287,11 +290,7 @@ public sealed class NetworkActivityTracker
             var channel = subscriber.Key;
             if (channel.Reader.Completion.IsCompleted)
             {
-                if (_subscribers.TryRemove(channel, out _))
-                {
-                    Interlocked.Decrement(ref _subscriberCount);
-                }
-
+                Unsubscribe(channel);
                 continue;
             }
 
@@ -378,8 +377,4 @@ public sealed class NetworkActivityTracker
         }
     }
 }
-
-
-
-
 

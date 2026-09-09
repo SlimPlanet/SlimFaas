@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
+using SlimFaas.Local;
 using SlimFaas.Options;
 using SlimFaas.Security;
 using SlimFaas.WebSocket;
@@ -65,14 +66,16 @@ public static class EventEndpoints
         functionPath ??= "";
 
         logger.LogDebug("Receiving event: {EventName}", eventName);
-        string callerIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-        var requestInId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas, sourcePod: callerIp);
+        var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
+        var caller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService,
+            context.Request.Headers.ContainsKey(LocalJobGateway.JobHeaderName)
+                ? FunctionEndpointsHelpers.GetLocalJobToken(context) : string.Empty);
+        var requestInId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, caller.Actor, NetworkActivityTracker.Actors.SlimFaas, sourcePod: caller.SourcePod);
 
         try
         {
-            activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
-                sourcePod: context.Connection.RemoteIpAddress?.ToString());
-            var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
+            activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, caller.Actor, NetworkActivityTracker.Actors.SlimFaas,
+                sourcePod: caller.SourcePod);
 
             if (functions.Count <= 0)
             {
@@ -103,7 +106,7 @@ public static class EventEndpoints
                         function.Deployment,
                         customRequest with { FunctionName = function.Deployment },
                         eventName,
-                        context.RequestAborted);
+                        context.RequestAborted, caller.SourcePod);
                     tasks.Add(wsTask);
                     continue;
                 }
@@ -128,7 +131,7 @@ public static class EventEndpoints
                         eventName, function.Deployment, pod.Name, pod.Ready);
 
                     activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, function.Deployment,
-                        targetPod: pod.Name);
+                        sourcePod: caller.SourcePod, targetPod: pod.Name);
 
                     historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
 
@@ -139,7 +142,7 @@ public static class EventEndpoints
                         eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
 
                     Task task = SendRequestAsync(queryString, sendClient, customRequest with { FunctionName = function.Deployment },
-                        baseUrl, pod.Name, logger, eventName, function.Configuration.DefaultPublish);
+                        baseUrl, pod.Name, logger, eventName, function.Configuration.DefaultPublish, caller.SourcePod);
                     tasks.Add(task);
                 }
             }
@@ -166,8 +169,8 @@ public static class EventEndpoints
         }
         finally
         {
-            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.External, NetworkActivityTracker.Actors.SlimFaas,
-                sourcePod: callerIp, correlationId: requestInId);
+            activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, caller.Actor, NetworkActivityTracker.Actors.SlimFaas,
+                sourcePod: caller.SourcePod, correlationId: requestInId);
         }
     }
 
@@ -179,7 +182,8 @@ public static class EventEndpoints
         string targetPod,
         ILogger logger,
         string eventName,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration)
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration,
+        string? activitySourcePod)
     {
         try
         {
@@ -190,7 +194,7 @@ public static class EventEndpoints
                 null,
                 null,
                 targetPod,
-                NetworkActivityTracker.Actors.SlimFaas);
+                NetworkActivityTracker.Actors.SlimFaas, activitySourcePod);
 
             logger.LogDebug(
                 "Response from event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent} is {StatusCode}",

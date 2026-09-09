@@ -19,6 +19,7 @@ public sealed class LocalManifest
 
 public sealed class LocalClusterManifest
 {
+    public bool ExposeLogs { get; set; }
     public int Nodes { get; set; } = 1;
     public int EntrypointPort { get; set; } = 30020;
     public int NodeHttpPortBase { get; set; } = 30021;

@@ -234,3 +234,7 @@ Add your logo via a pull request:
 
 - Logo must be in PNG format, 100 px wide and 100 px high.
 - Add your logo to the `docs/adopters_logo` folder.
+
+### Live operational dashboard
+
+The embedded [SlimFaas dashboard](docs/user-interface.md) pairs a compact infrastructure overview with a zoomable canvas traffic map for jobs, replicas and functions. Its Data tab streams keys, TTL and file sizes without reading stored contents. Traffic identifies the Raft leader and each visible replica destination; an opt-in log viewer follows managed functions, jobs and SlimFaas nodes with bounded, filterable output.

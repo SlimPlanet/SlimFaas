@@ -250,3 +250,16 @@ Available variables are:
 
 See [Native Local Development Mode](native-local-mode.md) for the process
 orchestrator and [Autoscaling](autoscaling.md) for the production scaling model.
+
+## Dashboard inventory overhead
+
+The memory lab can hold a metadata stream open while measuring the existing SlimData workloads. This also enables front tracking, and records both settings in the run manifest:
+
+```bash
+MEMORY_LAB_DATA_STREAM=1 WARMUP_SECONDS=2 COOLDOWN_SECONDS=1 \
+  .bin/memory-lab.sh aot slimdata-set 5 12
+```
+
+For a baseline with front tracking enabled and no inventory viewer, use `MEMORY_LAB_ENABLE_FRONT=true` without `MEMORY_LAB_DATA_STREAM`. Set `MEMORY_LAB_PUBLISH_DIR` and `MEMORY_LAB_SKIP_PUBLISH=1` to compare prebuilt binaries. The stream must connect and stay alive throughout measurement; its frames are saved in the run artifacts.
+
+For browser load, build the dashboard Storybook and open **Dashboard / Live / 10,000 jobs + 10,000 replicas**. It emits 1,000 events per second and refreshes the workload snapshot every second. Pan and zoom for five minutes; search for `fibonacci1-09999` and `daily-report-slimfaas-job-09999` to verify the final instances remain reachable. Record actual canvas draws, heap after collection, viewport and browser version.

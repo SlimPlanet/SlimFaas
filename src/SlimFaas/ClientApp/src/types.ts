@@ -2,7 +2,7 @@ export interface PodStatus {
   Name: string;
   Status: string;
   Ready: boolean;
-  Ip: string;
+  Identity: string; // Opaque server identity used to correlate activity with this replica.
 }
 
 export interface ResourcesConfiguration {
@@ -104,6 +104,7 @@ export interface FunctionStatusDetailed {
 // ---- Network Activity / Stream ----
 
 export interface NetworkActivityEvent {
+  ReceivedAt?: number; // Browser-only monotonic receipt time; never read from server JSON.
   Id: string;
   Type: string; // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish", "request_waiting", "request_started", "request_end"
   Source: string;
@@ -111,8 +112,8 @@ export interface NetworkActivityEvent {
   QueueName: string | null;
   TimestampMs: number;
   NodeId: string;
-  SourcePod: string | null;  // source pod name/IP, or the full name of a SlimFaas job run
-  TargetPod: string | null;  // target pod name or IP (e.g. the downstream pod receiving the request)
+  SourcePod: string | null;  // pod name, opaque address token or full SlimFaas job run name
+  TargetPod: string | null;  // pod name or opaque address token of the downstream replica
   CorrelationId?: string | null; // shared id used to pair related start/end events
 }
 
@@ -122,6 +123,7 @@ export interface QueueInfo {
 }
 
 export interface SlimFaasNodeInfo {
+  Role?: 'Leader' | 'Follower' | 'Unknown' | null;
   Name: string;
   Status: string;  // "Running", "Starting", "Pending"
 }
@@ -133,6 +135,8 @@ export interface StatusStreamPayload {
   RecentActivity: NetworkActivityEvent[];
   SlimFaasReplicas: number;
   SlimFaasNodes: SlimFaasNodeInfo[] | null;
+  LiveActivitySamplingRatio?: number;
+  MaxLiveEventsPerSecond?: number;
   FrontEnabled?: boolean;
   FrontMessage?: string | null;
 }
