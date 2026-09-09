@@ -53,6 +53,40 @@ export function filterLogs(lines: LogLine[], include: string, exclude: string, s
   });
 }
 
+export interface LogTextPart { text: string; match: boolean }
+
+/** Split only rendered lines, using the same literal, case-sensitive rules as the filter. */
+export function highlightLogText(text: string, include: string, sensitive: boolean): LogTextPart[] {
+  const term = sensitive ? include : include.toLowerCase();
+  const searchable = sensitive ? text : text.toLowerCase();
+  if (!term || !searchable.includes(term)) return [{ text, match: false }];
+
+  // Lowercasing can expand characters (İ → i + combining dot). Map folded offsets
+  // back to the original text so highlights never shift or change copied output.
+  let starts: number[] | undefined, ends: number[] | undefined;
+  if (searchable.length !== text.length) {
+    starts = []; ends = [];
+    let offset = 0;
+    for (const character of text) {
+      const width = character.toLowerCase().length;
+      for (let i = 0; i < width; i++) { starts.push(offset); ends.push(offset + character.length); }
+      offset += character.length;
+    }
+  }
+  const parts: LogTextPart[] = [];
+  let cursor = 0;
+  for (let index = searchable.indexOf(term); index >= 0; index = searchable.indexOf(term, index + term.length)) {
+    const start = Math.max(cursor, starts ? starts[index] : index);
+    const end = ends ? ends[index + term.length - 1] : index + term.length;
+    if (end <= cursor) continue;
+    if (start > cursor) parts.push({ text: text.slice(cursor, start), match: false });
+    parts.push({ text: text.slice(start, end), match: true });
+    cursor = end;
+  }
+  if (cursor < text.length) parts.push({ text: text.slice(cursor), match: false });
+  return parts;
+}
+
 export const LOG_ROW_HEIGHT = 24;
 export function logWindow(length: number, scrollTop: number, viewportHeight = 360) {
   const visible = Math.max(1, Math.ceil(viewportHeight / LOG_ROW_HEIGHT));

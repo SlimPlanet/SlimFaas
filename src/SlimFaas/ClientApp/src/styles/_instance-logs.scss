@@ -11,7 +11,7 @@
   &__lines { list-style: none; padding: 0; margin: 0; min-width: max-content; }
   &__line { height: 24px; white-space: pre; padding: 0 .75rem; }
   &__line:hover { background: var(--soft); }
-  &__line--match, &__line--match:hover { background: #fff2b0; color: var(--ink); }
+  &__match { background: #fff2b0; color: var(--ink); padding: 0; font: inherit; }
   &__number { display: inline-block; min-width: 5ch; margin-right: 1rem; color: var(--muted); user-select: none; }
   &__time { display: inline-block; min-width: 11ch; margin-right: 1rem; color: var(--muted); }
   &__spacer { display: block; }

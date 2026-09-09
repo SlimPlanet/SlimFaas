@@ -51,6 +51,8 @@ export const HighlightedSearch: StoryObj = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole('button', { name: 'Open replica details' }));
     await userEvent.type(canvas.getByRole('searchbox', { name: 'Find in logs' }), 'Warning');
-    await expect(canvas.getAllByRole('listitem')[0]).toHaveClass('log-view__line--match');
+    const row = canvas.getAllByRole('listitem')[0];
+    await expect(row.querySelector('mark')).toHaveTextContent('Warning');
+    await expect(row).not.toHaveClass('log-view__line--match');
   },
 };

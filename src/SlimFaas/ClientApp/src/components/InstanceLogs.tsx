@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLogStream } from '../hooks/useLogStream';
-import { filterLogs, logWindow, LOG_ROW_HEIGHT, type LogLine, type LogTarget } from '../lib/logs.ts';
+import { filterLogs, highlightLogText, logWindow, LOG_ROW_HEIGHT, type LogLine, type LogTarget } from '../lib/logs.ts';
 
 export default function InstanceLogs({ target, fill = false }: { target: LogTarget; fill?: boolean }) {
   const stream = useLogStream(target);
@@ -77,9 +77,10 @@ export function LogViewer({ lines, status = 'Live', discarded = 0, fill = false 
       {filtered.length ? <>
         <svg className="log-view__spacer" width="1" height={window.before} aria-hidden="true" />
         <ol className="log-view__lines" start={window.start + 1}>
-          {filtered.slice(window.start, window.end).map((line, index) => <li className={`log-view__line${include ? ' log-view__line--match' : ''}`} key={line.Id} aria-posinset={window.start + index + 1} aria-setsize={filtered.length}>
+          {filtered.slice(window.start, window.end).map((line, index) => <li className="log-view__line" key={line.Id} aria-posinset={window.start + index + 1} aria-setsize={filtered.length}>
             <span className="log-view__number">{line.Id}</span><time className="log-view__time">{line.TimestampMs == null ? '—' : new Date(line.TimestampMs).toLocaleTimeString()}</time>
-            <span className="log-view__text">{line.Text}</span>{line.Truncated && <span className="log-view__truncated"> [line truncated]</span>}
+            <span className="log-view__text">{highlightLogText(line.Text, include, sensitive).map((part, partIndex) => part.match
+              ? <mark className="log-view__match" key={partIndex}>{part.text}</mark> : part.text)}</span>{line.Truncated && <span className="log-view__truncated"> [line truncated]</span>}
           </li>)}
         </ol>
         <svg className="log-view__spacer" width="1" height={window.after} aria-hidden="true" />

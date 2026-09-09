@@ -18,6 +18,7 @@ let fixture = makeFixtures(3, 2), activeLogs = 0, logOpens = 0, sourceRequests =
 let failLogs = false, unavailable = false;
 let sourceStatus = 'Available', holdSources = false;
 const pendingSources = new Set();
+const logText = (source, id) => `${id % 9 ? 'Information' : 'Warning'}: ${source} request ${id} · Échec [a.*] 🍋 <script>plain text</script> · ${id % 9 ? 'Information' : 'Warning'}`;
 const stateStreams = new Set();
 const snapshot = () => ({ Functions: fixture.functions, Jobs: fixture.jobs, Queues: fixture.queues,
   SlimFaasNodes: fixture.slimFaasNodes, SlimFaasReplicas: 3, FrontEnabled: true });
@@ -43,7 +44,7 @@ const server = createServer(async (request, response) => {
     if (failLogs) { response.writeHead(503).end(); return; }
     activeLogs++; response.writeHead(200, { 'Content-Type': 'text/event-stream' });
     send(response, 'log_state', { Status: 'Live', Session: `session-${logOpens}`, DroppedLines: 0, MaxLines: 10000, MaxBytes: 8388608 });
-    const line = Id => ({ Id, Text: `${Id % 9 ? 'Information' : 'Warning'}: ${url.searchParams.get('source')} request ${Id} · Échec [a.*] 🍋 <script>plain text</script>`, TimestampMs: Date.now(), Truncated: false });
+    const line = Id => ({ Id, Text: logText(url.searchParams.get('source'), Id), TimestampMs: Date.now(), Truncated: false });
     for (let i = 0; i < 10; i++) send(response, 'log_batch', { Lines: Array.from({ length: 1000 }, (_, j) => line(i * 1000 + j + 1)) });
     let next = 10000;
     const interval = setInterval(() => send(response, 'log_batch', { Lines: [line(++next)] }), 100);
@@ -120,33 +121,46 @@ try {
     await until(() => viewport.evaluate(element => element.scrollHeight - element.scrollTop - element.clientHeight < 25));
   };
   await checkWindow();
-  assert.equal(await page.locator('.log-view__line--match').count(), 0);
+  assert.equal(await page.locator('.log-view__match').count(), 0);
   await page.getByRole('searchbox', { name: 'Find in logs' }).fill('Warning');
   await page.getByRole('searchbox', { name: 'Exclude text' }).fill('request 99');
   await page.getByRole('checkbox', { name: 'Case sensitive' }).check();
   assert.ok((await page.locator('.log-view__lines').innerText()).includes('Warning'));
   assert.ok(!(await page.locator('.log-view__lines').innerText()).includes('request 99'));
-  const highlighted = page.locator('.log-view__line--match');
-  assert.equal(await highlighted.count(), await page.locator('.log-view__line').count());
+  const highlighted = page.locator('mark.log-view__match');
+  assert.equal(await highlighted.count(), 2 * await page.locator('.log-view__line').count());
+  assert.ok((await highlighted.allTextContents()).every(text => text === 'Warning'));
   const latestMatch = async () => Number(await page.locator('.log-view__number').last().textContent());
   const previousMatch = await latestMatch();
   await until(async () => await latestMatch() > previousMatch);
   await page.getByRole('button', { name: 'Pause scrolling' }).click();
   const logBounds = await viewport.boundingBox();
   await page.mouse.move(logBounds.x + 180, logBounds.y + 48);
-  await until(() => page.locator('.log-view__line--match:hover').count());
-  assert.deepEqual(await page.evaluate(() => {
-    const style = getComputedStyle(document.querySelector('.log-view__line--match:hover'));
-    return { background: style.backgroundColor, color: style.color };
-  }),
-    { background: 'rgb(255, 242, 176)', color: 'rgb(21, 38, 63)' });
+  await until(() => page.locator('.log-view__line:hover mark').count());
+  const colors = await page.evaluate(() => {
+    const row = document.querySelector('.log-view__line:hover');
+    const style = getComputedStyle(row.querySelector('mark'));
+    return { background: style.backgroundColor, color: style.color,
+      unmarked: [row, ...row.querySelectorAll('.log-view__text, .log-view__number, .log-view__time')].map(element => getComputedStyle(element).backgroundColor) };
+  });
+  assert.equal(colors.background, 'rgb(255, 242, 176)');
+  assert.equal(colors.color, 'rgb(21, 38, 63)');
+  assert.ok(colors.unmarked.every(color => color !== colors.background));
+  const copied = await page.evaluate(() => {
+    const row = document.querySelector('.log-view__line:hover');
+    const range = document.createRange(); range.selectNodeContents(row.querySelector('.log-view__text'));
+    const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range);
+    const text = selection.toString(); selection.removeAllRanges();
+    return { text, id: Number(row.querySelector('.log-view__number').textContent) };
+  });
+  assert.equal(copied.text, logText('fibonacci1-00000/app', copied.id));
   await page.getByRole('searchbox', { name: 'Find in logs' }).fill('warning');
   await page.getByText('No lines match these filters.').waitFor();
   await page.getByRole('checkbox', { name: 'Case sensitive' }).uncheck();
   await highlighted.first().waitFor();
   await page.getByRole('searchbox', { name: 'Find in logs' }).fill('éCHEC [a.*] 🍋');
   await highlighted.first().waitFor();
-  assert.ok((await highlighted.first().textContent()).includes('Échec [a.*] 🍋'));
+  assert.equal(await highlighted.first().textContent(), 'Échec [a.*] 🍋');
   assert.equal(await page.locator('.log-view__text script').count(), 0);
   await page.getByRole('searchbox', { name: 'Find in logs' }).fill('Warning');
   await page.screenshot({ path: resolve(out, 'drawer-highlight.png') });
@@ -247,7 +261,7 @@ try {
   assert.equal(trafficOpens, trafficConnections);
   assert.deepEqual(errors, []);
   await writeFile(resolve(out, 'checks.json'), JSON.stringify({ overview: true, keyboardFocus: true, canvasFocusFallback: true, preservedCamera: true, modal: true, mobile: true,
-    resizedVirtualization: true, filtersAndFollow: true, yellowSearchHighlight: true, autoOpenInstanceStreams: true, closeCancellation: true,
+    resizedVirtualization: true, filtersAndFollow: true, matchingTextOnly: true, unchangedCopiedText: true, autoOpenInstanceStreams: true, closeCancellation: true,
     compactDisabledAndUnavailable: true, deniedWithoutRetries: true, discoveryCancellation: true, jobAndLeaderLogs: true,
     sourceAndInstanceSwitch: true, removedWhileTrafficPaused: true, reconnectCancellation: true, unchangedTrafficConnection: true,
     logOpens, sourceRequests, activeLogs, errors }, null, 2));

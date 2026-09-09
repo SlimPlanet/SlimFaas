@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { LogBuffer, filterLogs, cleanLogText, logWindow, LOG_BYTES, LOG_LINE_BYTES } from '../src/lib/logs.ts';
+import { LogBuffer, filterLogs, highlightLogText, cleanLogText, logWindow, LOG_BYTES, LOG_LINE_BYTES } from '../src/lib/logs.ts';
 const line = (Id, Text = `Message ${Id}`) => ({ Id, Text, TimestampMs: null, Truncated: false });
 test('log retention is bounded by count, identical text is retained and duplicate cursors are ignored', () => {
   const buffer = new LogBuffer();
@@ -35,6 +35,33 @@ test('ANSI color, OSC links and terminal controls cannot change the viewer', () 
   assert.equal(cleanLogText('\x1b[31mhello\x1b[0m\r\x00'), 'hello');
   assert.equal(cleanLogText('\x1b]8;;https://invalid\x07link\x1b]8;;\x07'), 'link');
   assert.equal(cleanLogText('<script>alert(1)</script>'), '<script>alert(1)</script>');
+});
+test('highlights every literal occurrence without changing surrounding text or case', () => {
+  assert.deepEqual(highlightLogText('Warning: warning then warning!', 'warning', false), [
+    { text: 'Warning', match: true }, { text: ': ', match: false },
+    { text: 'warning', match: true }, { text: ' then ', match: false },
+    { text: 'warning', match: true }, { text: '!', match: false },
+  ]);
+  assert.deepEqual(highlightLogText('Warning warning', 'warning', true), [
+    { text: 'Warning ', match: false }, { text: 'warning', match: true },
+  ]);
+  assert.deepEqual(highlightLogText('aaaa', 'aa', true), [{ text: 'aa', match: true }, { text: 'aa', match: true }]);
+  for (const query of ['', 'missing']) assert.deepEqual(highlightLogText('unchanged', query, false), [{ text: 'unchanged', match: false }]);
+});
+test('highlight offsets preserve Unicode expansions, context-sensitive lowercase and literal markup', () => {
+  for (const [text, query, expected] of [
+    ['İ before TARGET and target', 'target', ['TARGET', 'target']],
+    ['🍋 ÉCHO 🍋écho', 'écho', ['ÉCHO', 'écho']],
+    ['İ ΟΣ suffix', 'ος', ['ΟΣ']],
+    ['İ suffix', 'i', ['İ', 'i']],
+    ['literal [a.*] and [a.*] <script>$&</script>', '[a.*]', ['[a.*]', '[a.*]']],
+    ['<script>plain text</script>', '<script>', ['<script>']],
+  ] as const) {
+    const parts = highlightLogText(text, query, false);
+    assert.deepEqual(parts.filter(part => part.match).map(part => part.text), expected);
+    assert.equal(parts.map(part => part.text).join(''), text);
+    assert.equal(filterLogs([line(1, text)], query, '', false).length, 1);
+  }
 });
 test('virtual windows keep rendered rows bounded at the start, middle, end and after filtering', () => {
   for (const length of [0, 1, 10000]) for (const position of [0, 10000, 10000000]) {
