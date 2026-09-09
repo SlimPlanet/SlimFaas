@@ -1,6 +1,4 @@
 .traffic {
-  &__detail-tabs, &__detail-content { width: 100%; min-width: 0; }
-  &__detail-tabs { display: flex; gap: .5rem; }
   &__search { min-width: 200px; }
   @media (max-width: 700px) { &__search { flex-basis: 100%; } }
   &__caption { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem 1.25rem; color: var(--muted); font-size: .75rem; margin: 1rem 0; }
@@ -11,11 +9,11 @@
   &__legend-item--publication::before { background: var(--job); border-radius: 0; transform: rotate(45deg); }
   &__filters { background: var(--soft); padding: .5rem .75rem; border-radius: 8px; font-size: .8rem; }
   &__isolate { display: flex; align-items: center; gap: .4rem; font-size: .8rem; white-space: nowrap; }
-  &__selection { flex-wrap: wrap; }
   &__legend-item--queue::before { background: var(--warning); border-radius: 0; }
   &__legend-item--external::before { background: transparent; border: 1.5px solid var(--muted); box-sizing: border-box; }
-  &__selection { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem; background: var(--soft); border: 1px solid #c4c4ff; border-radius: 8px; overflow-wrap: anywhere; }
-  &__selection-detail, &__note { color: var(--muted); font-size: .75rem; margin: .3rem 0; }
+  &__selection { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; padding: 1rem; background: var(--soft); border: 1px solid #c4c4ff; border-radius: 8px; overflow-wrap: anywhere; }
+  &__selected-name { overflow-wrap: anywhere; text-align: left; min-width: 0; }
+  &__note { color: var(--muted); font-size: .75rem; margin: .3rem 0; }
 }
 .traffic-canvas {
   position: relative; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface);

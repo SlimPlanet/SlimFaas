@@ -86,6 +86,7 @@ export default function TrafficCanvas(props: Props) {
       const [x, y] = transform.invert([event.clientX - bounds.left, event.clientY - bounds.top]);
       const node = transform.k >= 0.48 ? index.find(x, y, 14 / transform.k) : undefined;
       const group = current.current.topology.groups.find(g => x >= g.x && x <= g.x + g.width && y >= g.y && y <= g.y + g.height);
+      if (node || group) canvas.focus({ preventScroll: true });
       if (node) current.current.onSelect(node.id);
       else if (group) current.current.onSelect(group.id);
     };

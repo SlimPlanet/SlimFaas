@@ -33,3 +33,15 @@ test('virtual windows keep rendered rows bounded at the start, middle, end and a
     assert.equal(window.before + window.after + (window.end - window.start) * 24, length * 24);
   }
 });
+test('a resized drawer fills its log viewport with bounded overscan, including partial rows', () => {
+  for (const height of [120, 361, 900, 2160]) for (const position of [0, 241, 120001, 239999]) {
+    const window = logWindow(10000, position, height);
+    const first = Math.min(Math.floor(position / 24), 10000 - Math.ceil(height / 24));
+    assert.ok(window.start <= first);
+    assert.ok(window.end >= Math.min(10000, first + Math.ceil(height / 24)));
+    assert.ok(window.end - window.start <= Math.ceil(height / 24) + 11);
+    assert.equal(window.before + window.after + (window.end - window.start) * 24, 240000);
+  }
+  assert.deepEqual(logWindow(0, 100000, 900), { start: 0, end: 0, before: 0, after: 0 });
+  assert.deepEqual(logWindow(3, 100000, 900), { start: 0, end: 3, before: 0, after: 0 });
+});

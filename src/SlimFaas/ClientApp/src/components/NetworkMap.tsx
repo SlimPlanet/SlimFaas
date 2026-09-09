@@ -6,6 +6,7 @@ import { matchesTraffic, SPEEDS, type Speed } from '../lib/traffic.ts';
 import TrafficCanvas from './TrafficCanvas';
 import Pagination from './Pagination';
 import InstanceLogs from './InstanceLogs';
+import TrafficDetails from './TrafficDetails';
 
 interface Props {
   functions: FunctionStatusDetailed[]; jobs: JobConfigurationStatus[]; queues: QueueInfo[];
@@ -26,6 +27,9 @@ export default function NetworkMap(props: Props) {
   const [search, setSearch] = useState('');
   const [detailTab, setDetailTab] = useState<'details' | 'logs'>('details');
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedLabel, setSelectedLabel] = useState('');
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const section = useRef<HTMLElement>(null);
   const [eventType, setEventType] = useState('all');
   const [isolate, setIsolate] = useState(false);
   const [speed, setSpeed] = useState<Speed>(() => {
@@ -56,12 +60,21 @@ export default function NetworkMap(props: Props) {
   const journal = paginate([...activity].reverse(), journalPage);
   const observed = input.activity.filter(e => e.ReceivedAt !== undefined && e.ReceivedAt > now - 1000).length;
 
-  const choose = (id: string) => { setSelected(id); setDetailTab('details'); setJournalPage(0); };
-  const logTarget = node?.parent && ['function', 'job', 'slimfaas'].includes(node.kind) ? {
+  const choose = (id: string) => {
+    if (id !== selected) setDetailTab('details');
+    setSelected(id); setSelectedLabel(topology.byId.get(id)?.label ?? id); setDetailsOpen(true); setJournalPage(0);
+  };
+  const clearSelection = () => { setDetailsOpen(false); setSelected(null); setIsolate(false); };
+  const instancePresent = !node?.parent || (node.kind === 'function'
+    ? props.functions.some(fn => fn.Name === topology.byId.get(node.parent!)?.label && fn.Pods?.some(pod => pod.Name === node.label))
+    : node.kind === 'job'
+      ? props.jobs.some(job => job.Name === topology.byId.get(node.parent!)?.label && job.RunningJobs.some(run => run.Name === node.label))
+      : props.slimFaasNodes.some(replica => replica.Name === node.label));
+  const logTarget = instancePresent && node?.parent && ['function', 'job', 'slimfaas'].includes(node.kind) ? {
     kind: node.kind as 'function' | 'job' | 'slimfaas', name: topology.byId.get(node.parent)!.label, replica: node.label,
   } : null;
 
-  return <section className="traffic" aria-label="Live traffic">
+  return <section ref={section} className="traffic" aria-label="Live traffic">
     <div className="toolbar">
       <label className="field field--grow traffic__search">Find an actor
         <input className="field__input" type="search" value={search} placeholder="Function, job, replica or execution…" onChange={e => { setSearch(e.target.value); setPage(0); }} />
@@ -89,26 +102,14 @@ export default function NetworkMap(props: Props) {
     <div className="traffic__legend" aria-label="Message legend"><span className="traffic__legend-item traffic__legend-item--function">Requests</span><span className="traffic__legend-item traffic__legend-item--publication">Publications</span><span className="traffic__legend-item traffic__legend-item--queue">Queue messages</span><span className="traffic__legend-item traffic__legend-item--external">Replies</span></div>
     <p className="traffic__note">Animation speed is independent of request latency. Delivery is best effort; the journal retains up to 5,000 received events.</p>
     {selected && <div className="traffic__selection">
-      <div><strong>{node?.label ?? 'Actor no longer present'}</strong><p className="traffic__selection-detail">{node ? `${node.kind} · ${node.status} · ${node.detail}` : 'The latest snapshot no longer contains this instance.'}</p></div>
-      <label className="traffic__isolate"><input type="checkbox" checked={isolate} onChange={event => { setIsolate(event.target.checked); setJournalPage(0); }} /> Isolate selection</label>
-      <button className="button button--quiet" type="button" onClick={() => { setSelected(null); setIsolate(false); }}>Clear selection</button>
-      {logTarget && <>
-        <div className="traffic__detail-tabs" role="tablist" aria-label="Instance details">
-          {(['details', 'logs'] as const).map(tab => <button key={tab} id={`instance-tab-${tab}`} aria-controls={`instance-panel-${tab}`}
-            type="button" role="tab" aria-selected={detailTab === tab} tabIndex={detailTab === tab ? 0 : -1}
-            className={`button ${detailTab === tab ? 'button--primary' : 'button--quiet'}`}
-            onClick={() => setDetailTab(tab)} onKeyDown={event => {
-              if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
-                event.preventDefault(); const next = event.key === 'Home' ? 'details' : event.key === 'End' ? 'logs' : tab === 'details' ? 'logs' : 'details';
-                setDetailTab(next); document.getElementById(`instance-tab-${next}`)?.focus();
-              }
-            }}>{tab === 'details' ? 'Details' : 'Logs'}</button>)}
-        </div>
-        <div className="traffic__detail-content" role="tabpanel" id={`instance-panel-${detailTab}`} aria-labelledby={`instance-tab-${detailTab}`}>
-          {detailTab === 'logs' ? <InstanceLogs key={selected} target={logTarget} /> : <p className="traffic__note">{node?.role ? `Raft role: ${node.role}. ` : ''}Traffic routes use the recorded destination. Select Logs to read this instance’s application output.</p>}
-        </div>
-      </>}
+      <button className="table__link traffic__selected-name" type="button" aria-haspopup="dialog" onClick={() => setDetailsOpen(true)}>{node?.label ?? selectedLabel} · Open details</button>
+      <button className="button button--quiet" type="button" onClick={clearSelection}>Clear selection</button>
     </div>}
+    {selected && detailsOpen && <TrafficDetails node={instancePresent ? node ?? null : null} title={node?.label ?? selectedLabel}
+      tab={detailTab} onTab={setDetailTab} isolate={isolate}
+      onIsolate={value => { setIsolate(value); setJournalPage(0); }} onClose={() => setDetailsOpen(false)} onClear={clearSelection}
+      fallbackFocus={() => section.current?.querySelector('canvas') ?? null}
+      logs={logTarget ? <InstanceLogs key={selected} target={logTarget} fill /> : undefined} />}
     <div className="section-heading"><h2 className="section-heading__title">{showJournal ? 'Event journal' : 'Actors'}</h2><button className="button button--quiet" type="button" onClick={() => setShowJournal(!showJournal)}>{showJournal ? 'Show actors' : `Event journal (${activity.length.toLocaleString()})`}</button></div>
     {showJournal ? <>
       <p className="traffic__note">Up to 5,000 received events. Pause to inspect a stable view. Select an actor to follow its connections.</p>

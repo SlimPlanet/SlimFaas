@@ -54,8 +54,10 @@ export function filterLogs(lines: LogLine[], include: string, exclude: string, s
 }
 
 export const LOG_ROW_HEIGHT = 24;
-export function logWindow(length: number, scrollTop: number) {
-  const start = Math.min(Math.max(0, length - 1), Math.max(0, Math.floor(scrollTop / LOG_ROW_HEIGHT) - 5));
-  const end = Math.min(length, start + 30);
+export function logWindow(length: number, scrollTop: number, viewportHeight = 360) {
+  const visible = Math.max(1, Math.ceil(viewportHeight / LOG_ROW_HEIGHT));
+  const first = Math.min(Math.max(0, length - visible), Math.max(0, Math.floor(scrollTop / LOG_ROW_HEIGHT)));
+  const start = Math.max(0, first - 5);
+  const end = Math.min(length, first + visible + 6);
   return { start, end, before: start * LOG_ROW_HEIGHT, after: (length - end) * LOG_ROW_HEIGHT };
 }

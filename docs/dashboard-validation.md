@@ -228,3 +228,24 @@ The production harness was rerun on the reference workstation with all **20,000 
 | Journal / animation / log-row DOM limits | 5,000 / 200 / 30 |
 
 The last replica and job execution remained searchable and selectable. Pause/resume, reduced motion and a 390 px mobile viewport passed. Non-overlap and all instance identities are covered by Node tests; logs have separate 10,000-line / 8 MiB text retention tests. The five-minute map measurement had no log panel open; log-reader cost and viewer behavior are measured separately above. Use the production load commands at the start of this report to reproduce.
+
+## Shared selection drawer
+
+The Traffic selection now uses Overview's modal right-hand drawer. Follow-up validation passed **1,276 .NET tests**, **32 dashboard Node tests**, **8 documentation tests**, and dashboard/Storybook/site builds. The new Node case covers viewport-dependent log virtualization at heights from 120 to 2,160 px, partial rows, empty results and shortened buffers. Rendered rows are bounded by visible rows plus 11 overscan rows; the earlier fixed 30-row observations above describe the former 360 px viewer.
+
+The production browser regression starts its own loopback SSE fixture and checks Overview function/job drawers, Escape from a populated search field, modal focus, canvas selection, focus restoration after a removed actor, preserved camera/isolation, mobile width, reduced motion, resized virtualization, log filters and Follow latest. It verifies no log request in Details, one active source while Logs is open, cancellation on close/tab/source changes, no previous-instance text, removal even while Traffic is paused, and cancellation of scheduled reconnects. It finishes with zero active log streams and no browser errors; opening and closing drawers never reconnects Traffic.
+
+```bash
+cd src/SlimFaas/ClientApp
+npm test
+npm run build
+PLAYWRIGHT_ROOT=/tmp/slimfaas-browser \
+CHROMIUM_EXECUTABLE=/absolute/path/to/chromium \
+node scripts/check-drawer.mjs
+```
+
+Use the external Playwright installation described above. `DASHBOARD_DRAWER_RESULTS` selects the screenshot/JSON directory; the default is `slimfaas-dashboard-drawer` under the system temporary directory. The browser harness does not add a dashboard dependency. Interactive drawer fixtures are under **Dashboard / Traffic selection**: Details, Live logs (10,000 lines), and Unavailable.
+
+The native three-node demo returned status and Fibonacci successfully. Browser checks opened actual replica logs, filtered newly emitted request markers, switched replicas, closed the stream with Escape and verified the 390 px mobile drawer. The refreshed screenshots above show this native run.
+
+The updated production load harness passed a **15.01-second screening** with 20,000 instances and 1,000 events/s: **59.82 draws/s**, p95 gap **17.7 ms**, post-GC heap **19.7 → 21.4 MB**, zero browser errors. This short UI follow-up does not replace the prior five-minute measurements. Backend log adapters, permissions and retention limits were not changed.

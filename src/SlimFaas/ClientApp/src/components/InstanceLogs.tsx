@@ -2,9 +2,9 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLogStream } from '../hooks/useLogStream';
 import { filterLogs, logWindow, LOG_ROW_HEIGHT, type LogLine, type LogTarget } from '../lib/logs.ts';
 
-export default function InstanceLogs({ target }: { target: LogTarget }) {
+export default function InstanceLogs({ target, fill = false }: { target: LogTarget; fill?: boolean }) {
   const stream = useLogStream(target);
-  return <div className="instance-logs">
+  return <div className={`instance-logs${fill ? ' instance-logs--fill' : ''}`}>
     <div className="toolbar">
       {stream.sources.length > 1 && <label className="field field--grow log-view__field">Log source
         <select className="field__input" value={stream.source} onChange={event => stream.setSource(event.target.value)}>
@@ -14,24 +14,31 @@ export default function InstanceLogs({ target }: { target: LogTarget }) {
       <span className={`badge ${stream.status === 'Live' ? 'badge--success' : 'badge--warning'}`} role="status">{stream.status}</span>
       <button className="button button--quiet" type="button" onClick={stream.retry}>Reconnect</button>
     </div>
-    <LogViewer key={`${stream.source}/${stream.state?.Session}`} lines={stream.lines} status={stream.status}
+    <LogViewer key={`${stream.source}/${stream.state?.Session}`} lines={stream.lines} status={stream.status} fill={fill}
       discarded={Math.max(stream.discarded, stream.state?.DroppedLines ?? 0)} />
     <p className="instance-logs__note">Application output · Up to 10,000 lines / 8 MiB · Filters apply to retained lines only.</p>
   </div>;
 }
 
-export function LogViewer({ lines, status = 'Live', discarded = 0 }: { lines: LogLine[]; status?: string; discarded?: number }) {
+export function LogViewer({ lines, status = 'Live', discarded = 0, fill = false }: { lines: LogLine[]; status?: string; discarded?: number; fill?: boolean }) {
   const [include, setInclude] = useState(''), [exclude, setExclude] = useState('');
   const [sensitive, setSensitive] = useState(false);
   const [following, setFollowing] = useState(true);
   const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(360);
   const [seen, setSeen] = useState(0);
   const viewport = useRef<HTMLDivElement>(null);
   const previousLines = useRef<LogLine[]>([]);
   const filtered = useMemo(() => filterLogs(lines, include, exclude, sensitive), [lines, include, exclude, sensitive]);
-  const window = logWindow(filtered.length, scrollTop);
+  const window = logWindow(filtered.length, scrollTop, viewportHeight);
   const newest = lines[lines.length - 1]?.Id ?? 0;
   const pending = following ? 0 : Math.max(0, newest - seen);
+  useLayoutEffect(() => {
+    const element = viewport.current!;
+    const resize = new ResizeObserver(() => setViewportHeight(element.clientHeight));
+    resize.observe(element);
+    return () => resize.disconnect();
+  }, []);
   useLayoutEffect(() => {
     const element = viewport.current;
     if (!element) return;
@@ -47,11 +54,11 @@ export function LogViewer({ lines, status = 'Live', discarded = 0 }: { lines: Lo
     }
     previousLines.current = filtered;
     setScrollTop(element.scrollTop);
-  }, [filtered, following, newest, lines]);
+  }, [filtered, following, newest, lines, viewportHeight]);
 
   const pauseScrolling = () => { if (following) { setFollowing(false); setSeen(newest); } };
   const resetFilter = () => { previousLines.current = []; setScrollTop(0); if (viewport.current) viewport.current.scrollTop = 0; };
-  return <div className="log-view">
+  return <div className={`log-view${fill ? ' log-view--fill' : ''}`}>
     <div className="toolbar">
       <label className="field field--grow log-view__field">Find in logs<input className="field__input" type="search" placeholder="Include text…" value={include} onChange={event => { setInclude(event.target.value); resetFilter(); }} /></label>
       <label className="field field--grow log-view__field">Exclude text<input className="field__input" type="search" placeholder="Hide matching lines…" value={exclude} onChange={event => { setExclude(event.target.value); resetFilter(); }} /></label>

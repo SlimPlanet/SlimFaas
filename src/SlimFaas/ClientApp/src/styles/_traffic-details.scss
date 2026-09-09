@@ -1,0 +1,8 @@
+.traffic-details {
+  &__controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .75rem; flex-shrink: 0; }
+  &__tabs { display: flex; gap: .5rem; flex-shrink: 0; }
+  &__content { min-width: 0; overflow-wrap: anywhere; }
+  &__content--logs { display: flex; flex-direction: column; flex: 1; min-height: 360px; }
+  &__status { margin-top: 0; font-size: .9rem; }
+  &__description { color: var(--muted); font-size: .85rem; }
+}

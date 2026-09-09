@@ -29,7 +29,8 @@ try {
  const search=page.getByRole('searchbox',{name:'Find an actor'});
  for(const id of ['fibonacci1-09999','daily-report-slimfaas-job-09999']){
    await search.fill(id); await page.getByRole('button',{name:id,exact:true}).click();
-   assert.equal(await page.locator('.traffic__selection strong').innerText(),id);
+   assert.equal(await page.getByRole('dialog').getByRole('heading',{level:2}).innerText(),id);
+   await page.keyboard.press('Escape');
    await page.locator('canvas').scrollIntoViewIfNeeded();
  }
  await search.fill('');await page.getByRole('button',{name:'Clear selection'}).click();
@@ -42,6 +43,7 @@ try {
  await page.waitForFunction(old=>document.querySelector('.traffic tbody').innerText!==old,paused);
  await page.getByRole('button',{name:'Show actors'}).click();
  await search.fill('daily-report');await page.getByRole('button',{name:'daily-report',exact:true}).click();
+ await page.keyboard.press('Escape');
  await page.locator('canvas').scrollIntoViewIfNeeded();
  for(let i=0;i<4;i++) await page.getByRole('button',{name:'Zoom in',exact:true}).click();
  await page.locator('canvas').focus();

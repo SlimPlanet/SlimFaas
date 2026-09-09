@@ -1,6 +1,7 @@
 .instance-logs {
   width: 100%; min-width: 0; padding-top: 1rem;
   &__note { color: var(--muted); font-size: .75rem; }
+  &--fill { display: flex; flex-direction: column; flex: 1; min-height: 0; padding-top: 0; }
 }
 .log-view {
   min-width: 0;
@@ -15,6 +16,8 @@
   &__spacer { display: block; }
   &__notice, &__truncated { color: var(--muted); font-size: .75rem; }
   &__empty { padding: 1rem; }
+  &--fill { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  &--fill &__viewport { flex: 1; height: auto; min-height: 120px; }
   @media (max-width: 700px) {
     &__time { display: none; }
     &__number { margin-right: .5rem; }
