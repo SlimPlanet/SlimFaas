@@ -13,7 +13,7 @@ The existing `Local` orchestrator remains available for deterministic tests.
 The CLI uses the separate internal `Process` orchestrator and a single
 loopback-only, token-authenticated supervisor.
 
-For a ready-to-run demonstration without installing .NET or Node.js, use [Get Started in Local](get-started-local.md). The commands below are for development from a Git checkout.
+For a ready-to-run demonstration without installing .NET or Node.js, use [Get Started in Local](get-started-local.md). That guide also provides the complete [Git clone, branch selection and npm/dotnet build workflow](get-started-local.md#run-from-a-git-clone). The commands below are a shorter path for development from a Git checkout.
 
 ## Quick start
 
@@ -22,7 +22,7 @@ demo.
 
 ### Run the demo from a Git clone
 
-With the .NET 10 SDK, Node.js, and npm installed, clone the repository and
+With the .NET 10 SDK (`10.0.103` or later), Node.js 24 or later, and npm installed, clone the repository and
 start the demo directly from its root:
 
 ```bash

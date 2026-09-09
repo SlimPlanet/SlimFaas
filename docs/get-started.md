@@ -5,7 +5,7 @@ Choose where your functions will run. Each guide opens the same live dashboard a
 - [Get Started with **Kubernetes**](get-started-kubernetes.md)
   Deploy SlimFaas alongside your workloads. Start here to evaluate Kubernetes operations and a persistent three-node cluster.
 - [Get Started **in Local**](get-started-local.md)
-  Download the complete local demo and run real processes without installing .NET, Node.js, Docker or Kubernetes.
+  Download the complete local demo, or build a Git branch with npm and dotnet. Run real processes without Docker or Kubernetes.
 - [Get Started with **Docker Compose**](get-started-docker-compose.md)
   Run a container-based demonstration with the Docker orchestrator.
 
@@ -13,7 +13,7 @@ Choose where your functions will run. Each guide opens the same live dashboard a
 
 | | Kubernetes | Local | Docker Compose |
 |---|---|---|---|
-| You need | A cluster, kubectl, a default StorageClass | Release bundle, curl, unzip, SHA-256 tool | Docker Engine and Compose v2, or Podman with Compose |
+| You need | A cluster, kubectl, a default StorageClass | Bundle and extraction tools, or Git + .NET 10 SDK + Node.js 24/npm | Docker Engine and Compose v2, or Podman with Compose |
 | Functions run as | Kubernetes workloads | Native processes | Containers managed through the Docker API |
 | SlimFaas nodes in this demo | 3, persistent volumes | 3, persistent local directory | 1, persistent Docker volumes |
 | Dashboard | `http://127.0.0.1:30021` with port-forward | `http://127.0.0.1:30020` | `http://127.0.0.1:30021` |
