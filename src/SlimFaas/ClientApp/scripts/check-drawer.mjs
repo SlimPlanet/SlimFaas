@@ -115,6 +115,7 @@ try {
   const viewport = page.locator('.log-view__viewport');
   const checkWindow = async () => {
     const height = await viewport.evaluate(element => element.clientHeight);
+    assert.ok(height < await page.evaluate(() => innerHeight), `Log viewport must fit the window, got ${height}px`);
     assert.ok(await page.locator('.log-view__line').count() <= Math.ceil(height / 24) + 11);
     await until(() => viewport.evaluate(element => element.scrollHeight - element.scrollTop - element.clientHeight < 25));
   };
@@ -164,7 +165,9 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   assert.equal(Math.round((await dialog.boundingBox()).width), 390);
-  assert.ok(await viewport.evaluate(element => element.clientHeight >= 120));
+  assert.ok(await viewport.evaluate(element => element.getBoundingClientRect().height >= 120));
+  assert.ok(await viewport.evaluate(element => element.clientHeight < innerHeight));
+  await checkWindow();
   assert.ok((await page.locator('.instance-logs__note').boundingBox()).y >= (await viewport.boundingBox()).y + (await viewport.boundingBox()).height);
   await page.screenshot({ path: resolve(out, 'drawer-logs-mobile.png') });
   await page.getByRole('button', { name: 'Close details' }).click();

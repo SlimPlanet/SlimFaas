@@ -49,7 +49,7 @@ public sealed class ManagedLocalProcessTests
         if (!OperatingSystem.IsWindows())
             return;
 
-        using var directory = new TemporaryDirectory();
+        await using var directory = new TemporaryDirectory();
         string wrapper = Path.Combine(directory.Path, "wrapper with spaces.cmd");
         string logPath = Path.Combine(directory.Path, "wrapper.log");
         File.WriteAllText(
@@ -79,7 +79,7 @@ public sealed class ManagedLocalProcessTests
     [Fact]
     public async Task StopAsync_TerminatesTheWholeChildProcessTree()
     {
-        using var directory = new TemporaryDirectory();
+        await using var directory = new TemporaryDirectory();
         string childPidPath = Path.Combine(directory.Path, "child.pid");
         List<string> command;
         if (OperatingSystem.IsWindows())
@@ -162,7 +162,7 @@ public sealed class ManagedLocalProcessTests
         throw new Xunit.Sdk.XunitException("Condition was not reached before the timeout.");
     }
 
-    private sealed class TemporaryDirectory : IDisposable
+    private sealed class TemporaryDirectory : IDisposable, IAsyncDisposable
     {
         public TemporaryDirectory()
         {
@@ -179,6 +179,24 @@ public sealed class ManagedLocalProcessTests
         {
             if (Directory.Exists(Path))
                 Directory.Delete(Path, recursive: true);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            // Windows can retain the process working-directory handle briefly after exit.
+            // Keep process-exit assertions separate; only retry the final directory removal.
+            await WaitForAsync(() =>
+            {
+                try
+                {
+                    Dispose();
+                    return true;
+                }
+                catch (IOException) when (OperatingSystem.IsWindows())
+                {
+                    return false;
+                }
+            });
         }
     }
 }
