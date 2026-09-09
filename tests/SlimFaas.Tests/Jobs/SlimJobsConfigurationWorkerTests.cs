@@ -122,26 +122,25 @@ public class SlimJobsConfigurationWorkerTests
         Assert.Null(exception);
     }
 
-    [Fact(DisplayName = "DoOneCycle: delay is respected (uses the configured milliseconds)")]
-    public async Task DoOneCycle_UsesConfiguredDelay()
+    [Fact(DisplayName = "DoOneCycle skips synchronization when its configured delay is cancelled")]
+    public async Task DoOneCycle_CancellationDuringConfiguredDelay_SkipsSync()
     {
-        // Arrange – a notable delay
         var jobConfigMock = new Mock<IJobConfiguration>();
         jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
-            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 200));
+            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: Timeout.Infinite));
 
-        using var cts = new CancellationTokenSource(50); // cancel before delay elapses
+        using var cts = new CancellationTokenSource();
 
-        var sw = System.Diagnostics.Stopwatch.StartNew();
+        // An infinite configured delay lets us cancel at the await boundary without racing
+        // two timers, whose continuations may run in either order on a busy CI worker.
+        Task cycle = InvokeDoOneCycleAsync(worker, cts.Token);
+        Assert.False(cycle.IsCompleted);
+        cts.Cancel();
+        await cycle.WaitAsync(TimeSpan.FromSeconds(10));
 
-        // Act – the cycle should be cancelled during the Task.Delay, so Sync is never called
-        await InvokeDoOneCycleAsync(worker, cts.Token);
-        sw.Stop();
-
-        // Assert – SyncJobsConfigurationAsync was NOT called because cancellation happened during delay
         jobConfigMock.Verify(c => c.SyncJobsConfigurationAsync(), Times.Never);
     }
 }

@@ -128,7 +128,16 @@ public sealed class ManagedLocalProcessTests
         {
             if (!File.Exists(path))
                 return false;
-            return int.TryParse(File.ReadAllText(path).Trim(), out childPid);
+            try
+            {
+                return int.TryParse(File.ReadAllText(path).Trim(), out childPid);
+            }
+            catch (IOException) when (OperatingSystem.IsWindows())
+            {
+                // PowerShell's Set-Content can still hold the newly created file open.
+                // Wait for a readable PID within the existing bounded startup deadline.
+                return false;
+            }
         });
         return childPid;
     }
