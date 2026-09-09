@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.83.0
+
+- [ef2f8c58](https://github.com/SlimPlanet/SlimFaas/commit/ef2f8c58bb88a95f9c849fea9ef71334af087a72) - feat(SlimFaas): Modernize the dashboard with scalable traffic, data and instance logs (release) (#339), 2026-09-09 by *Guillaume Chervet*
+
+
+## 0.82.7
+
+
+
 ## v0.82.7
 
 - [ffff804f](https://github.com/SlimPlanet/SlimFaas/commit/ffff804f82f23bdb1cedca3211be9a63b7424084) - fix: release job concurrency slots before TTL cleanup (#337) (release), 2026-09-08 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 ## v0.74.2
 
 - [1d04db0a](https://github.com/SlimPlanet/SlimFaas/commit/1d04db0a4022b5dfe2f0842fb61ec66ee9f27bc6) - fix: add ttl to set incr (#294) (release), 2026-07-17 by *Guillaume Chervet*
-
-
-## 0.74.1
-
-
-
-## v0.74.1
-
-- [6455b6e8](https://github.com/SlimPlanet/SlimFaas/commit/6455b6e8b7dd235845cd00c729b5e8e5c9c9ad41) - fix: slimfaas raft ram (#290) (release), 2026-07-17 by *Guillaume Chervet*
 
 
