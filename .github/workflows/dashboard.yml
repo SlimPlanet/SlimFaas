@@ -26,6 +26,8 @@ jobs:
       - name: Test live models and stream handling
         working-directory: src/SlimFaas/ClientApp
         run: npm test
+      - name: Test peer polling benchmark
+        run: python .bin/test-status-stream-benchmark.py
       - name: Build dashboard and reproducible scenarios
         working-directory: src/SlimFaas/ClientApp
         run: |

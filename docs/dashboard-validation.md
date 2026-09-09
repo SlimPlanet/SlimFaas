@@ -145,6 +145,12 @@ python3 .bin/status-stream-benchmark.py \
 
 For the comparison, restart the same demo with `SlimFaas__StatusStream__PeerSyncIntervalMilliseconds=2000` and change the label to `2000`. The label is descriptive and does not configure the server. The harness fails if any peer read returns a non-success response.
 
+Eight benchmark unit tests cover metric deltas, failed reads, stream parsing and its 5,000-event bound, readiness errors, cleanup and CLI validation. They run in the dashboard check and emit a Sonar generic coverage report in the analysis job. Python's standard-library `trace` records executed lines (including the reader threads); compiled line tables provide the executable-line denominator. The local result is **88/89 lines (98.9%)**, with no additional dependency. Only the test runner itself is excluded from coverage; the measured benchmark remains included and the quality gate is unchanged.
+
+```bash
+python3 .bin/test-status-stream-benchmark.py --coverage /tmp/status-stream-coverage.xml
+```
+
 ### Five-minute reactive map workload
 
 The production harness above was rerun on the same reference workstation with the new Fast animation, global traffic during selection, grouped markers, icons and status badges. The workload again contained **10,000 job executions + 10,000 replicas, 1,000 events/s, and a full new state every second**.

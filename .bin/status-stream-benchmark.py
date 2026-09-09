@@ -45,14 +45,16 @@ class Stream:
                     if line.startswith('event: '):
                         kind = line[7:]
                     if line.startswith('data: '):
-                        data = json.loads(line[6:])
-                        if kind == 'state':
-                            self.ready.set()
-                        elif kind in ('activity', 'activity_batch'):
-                            self.events.extend(data if isinstance(data, list) else [data])
+                        self.receive(kind, json.loads(line[6:]))
         except Exception as error:
             self.error = error
             self.ready.set()
+
+    def receive(self, kind, data):
+        if kind == 'state':
+            self.ready.set()
+        elif kind in ('activity', 'activity_batch'):
+            self.events.extend(data if isinstance(data, list) else [data])
 
     def close(self):
         self.stopped.set()
@@ -86,13 +88,17 @@ def measure(nodes, seconds, activity):
         stream.close()
 
 
-if __name__ == '__main__':
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--nodes', nargs='+', default=['http://127.0.0.1:30021', 'http://127.0.0.1:30022', 'http://127.0.0.1:30023'])
     parser.add_argument('--seconds', type=int, default=20)
     parser.add_argument('--interval-label', default='500')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.seconds < 1:
         parser.error('--seconds must be positive')
     for active in (True, False):
         print(json.dumps({'configuredIntervalMs': args.interval_label, **measure(args.nodes, args.seconds, active)}), flush=True)
+
+
+if __name__ == '__main__':
+    main()
