@@ -14,9 +14,11 @@ export default function InstanceLogs({ target, fill = false }: { target: LogTarg
       <span className={`badge ${stream.status === 'Live' ? 'badge--success' : 'badge--warning'}`} role="status">{stream.status}</span>
       <button className="button button--quiet" type="button" onClick={stream.retry}>Reconnect</button>
     </div>
-    <LogViewer key={`${stream.source}/${stream.state?.Session}`} lines={stream.lines} status={stream.status} fill={fill}
-      discarded={Math.max(stream.discarded, stream.state?.DroppedLines ?? 0)} />
-    <p className="instance-logs__note">Application output · Up to 10,000 lines / 8 MiB · Filters apply to retained lines only.</p>
+    {stream.source && <>
+      <LogViewer key={`${stream.source}/${stream.state?.Session}`} lines={stream.lines} status={stream.status} fill={fill}
+        discarded={Math.max(stream.discarded, stream.state?.DroppedLines ?? 0)} />
+      <p className="instance-logs__note">Application output · Up to 10,000 lines / 8 MiB · Filters apply to retained lines only.</p>
+    </>}
   </div>;
 }
 
@@ -75,7 +77,7 @@ export function LogViewer({ lines, status = 'Live', discarded = 0, fill = false 
       {filtered.length ? <>
         <svg className="log-view__spacer" width="1" height={window.before} aria-hidden="true" />
         <ol className="log-view__lines" start={window.start + 1}>
-          {filtered.slice(window.start, window.end).map((line, index) => <li className="log-view__line" key={line.Id} aria-posinset={window.start + index + 1} aria-setsize={filtered.length}>
+          {filtered.slice(window.start, window.end).map((line, index) => <li className={`log-view__line${include ? ' log-view__line--match' : ''}`} key={line.Id} aria-posinset={window.start + index + 1} aria-setsize={filtered.length}>
             <span className="log-view__number">{line.Id}</span><time className="log-view__time">{line.TimestampMs == null ? '—' : new Date(line.TimestampMs).toLocaleTimeString()}</time>
             <span className="log-view__text">{line.Text}</span>{line.Truncated && <span className="log-view__truncated"> [line truncated]</span>}
           </li>)}

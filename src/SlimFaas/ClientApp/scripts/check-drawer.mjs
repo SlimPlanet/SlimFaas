@@ -16,6 +16,8 @@ const out = process.env.DASHBOARD_DRAWER_RESULTS ?? resolve(tmpdir(), 'slimfaas-
 await mkdir(out, { recursive: true });
 let fixture = makeFixtures(3, 2), activeLogs = 0, logOpens = 0, sourceRequests = 0, trafficOpens = 0;
 let failLogs = false, unavailable = false;
+let sourceStatus = 'Available', holdSources = false;
+const pendingSources = new Set();
 const stateStreams = new Set();
 const snapshot = () => ({ Functions: fixture.functions, Jobs: fixture.jobs, Queues: fixture.queues,
   SlimFaasNodes: fixture.slimFaasNodes, SlimFaasReplicas: 3, FrontEnabled: true });
@@ -30,6 +32,8 @@ const server = createServer(async (request, response) => {
   }
   if (url.pathname === '/status-log-sources') {
     sourceRequests++;
+    if (holdSources) { pendingSources.add(response); response.on('close', () => pendingSources.delete(response)); return; }
+    if (sourceStatus !== 'Available') { response.writeHead(403, { 'Content-Type': 'application/json' }).end(JSON.stringify({ Status: sourceStatus })); return; }
     response.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ Status: 'Available',
       Sources: unavailable ? [] : ['app', 'sidecar'].map(Container => ({ Id: `${url.searchParams.get('replica')}/${Container}`, Name: url.searchParams.get('replica'), Container })) }));
     return;
@@ -39,7 +43,7 @@ const server = createServer(async (request, response) => {
     if (failLogs) { response.writeHead(503).end(); return; }
     activeLogs++; response.writeHead(200, { 'Content-Type': 'text/event-stream' });
     send(response, 'log_state', { Status: 'Live', Session: `session-${logOpens}`, DroppedLines: 0, MaxLines: 10000, MaxBytes: 8388608 });
-    const line = Id => ({ Id, Text: `${Id % 9 ? 'Information' : 'Warning'}: ${url.searchParams.get('source')} request ${Id} <script>plain text</script>`, TimestampMs: Date.now(), Truncated: false });
+    const line = Id => ({ Id, Text: `${Id % 9 ? 'Information' : 'Warning'}: ${url.searchParams.get('source')} request ${Id} · Échec [a.*] 🍋 <script>plain text</script>`, TimestampMs: Date.now(), Truncated: false });
     for (let i = 0; i < 10; i++) send(response, 'log_batch', { Lines: Array.from({ length: 1000 }, (_, j) => line(i * 1000 + j + 1)) });
     let next = 10000;
     const interval = setInterval(() => send(response, 'log_batch', { Lines: [line(++next)] }), 100);
@@ -79,25 +83,33 @@ try {
   await page.goto(`${base}/#/live/traffic`);
   const search = page.getByRole('searchbox', { name: 'Find an actor' });
   await search.fill('fibonacci1');
+  await page.getByRole('button', { name: 'fibonacci1', exact: true }).first().click();
+  await dialog.getByRole('heading', { name: 'Details', exact: true }).waitFor();
+  assert.equal(await dialog.getByRole('heading', { name: 'Logs', exact: true }).count(), 0);
+  assert.equal(sourceRequests, 0);
+  await page.keyboard.press('Escape');
   const replica = page.getByRole('button', { name: 'fibonacci1-00000', exact: true });
   await replica.click();
+  await until(() => activeLogs === 1);
   const camera = () => page.locator('canvas').evaluate(element => ({ ...element.__zoom }));
   const selectedCamera = await camera();
   await page.keyboard.press('Escape'); await until(async () => await dialog.count() === 0);
+  await until(() => activeLogs === 0);
   assert.deepEqual(await camera(), selectedCamera);
   const point = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes).byId.get('pod:fibonacci1/fibonacci1-00000');
   const position = await page.locator('canvas').evaluate((element, point) => ({ x: point.x * element.__zoom.k + element.__zoom.x, y: point.y * element.__zoom.k + element.__zoom.y }), { x: point.x, y: point.y });
   await page.locator('canvas').click({ position });
   await dialog.waitFor();
+  await until(() => activeLogs === 1);
   await page.keyboard.press('Escape'); await until(async () => await dialog.count() === 0);
+  await until(() => activeLogs === 0);
   assert.equal(await page.locator('canvas').evaluate(element => element === document.activeElement), true);
   await replica.click();
   const trafficConnections = trafficOpens;
-  assert.equal(sourceRequests, 0);
-  assert.equal(await page.getByRole('tab', { name: 'Details', exact: true }).getAttribute('aria-selected'), 'true');
+  await dialog.getByRole('heading', { name: 'Details', exact: true }).waitFor();
+  await dialog.getByRole('heading', { name: 'Logs', exact: true }).waitFor();
+  assert.equal(await dialog.getByRole('tab').count(), 0);
   await page.getByRole('checkbox', { name: 'Isolate selection' }).check();
-  await page.getByRole('tab', { name: 'Details', exact: true }).focus();
-  await page.keyboard.press('ArrowRight');
   await until(() => activeLogs === 1);
   await page.waitForFunction(() => document.querySelector('.log-view__summary')?.textContent.includes('10,000 retained'));
   const viewport = page.locator('.log-view__viewport');
@@ -107,13 +119,39 @@ try {
     await until(() => viewport.evaluate(element => element.scrollHeight - element.scrollTop - element.clientHeight < 25));
   };
   await checkWindow();
+  assert.equal(await page.locator('.log-view__line--match').count(), 0);
   await page.getByRole('searchbox', { name: 'Find in logs' }).fill('Warning');
   await page.getByRole('searchbox', { name: 'Exclude text' }).fill('request 99');
   await page.getByRole('checkbox', { name: 'Case sensitive' }).check();
   assert.ok((await page.locator('.log-view__lines').innerText()).includes('Warning'));
+  assert.ok(!(await page.locator('.log-view__lines').innerText()).includes('request 99'));
+  const highlighted = page.locator('.log-view__line--match');
+  assert.equal(await highlighted.count(), await page.locator('.log-view__line').count());
+  const latestMatch = async () => Number(await page.locator('.log-view__number').last().textContent());
+  const previousMatch = await latestMatch();
+  await until(async () => await latestMatch() > previousMatch);
+  await page.getByRole('button', { name: 'Pause scrolling' }).click();
+  const logBounds = await viewport.boundingBox();
+  await page.mouse.move(logBounds.x + 180, logBounds.y + 48);
+  await until(() => page.locator('.log-view__line--match:hover').count());
+  assert.deepEqual(await page.evaluate(() => {
+    const style = getComputedStyle(document.querySelector('.log-view__line--match:hover'));
+    return { background: style.backgroundColor, color: style.color };
+  }),
+    { background: 'rgb(255, 242, 176)', color: 'rgb(21, 38, 63)' });
+  await page.getByRole('searchbox', { name: 'Find in logs' }).fill('warning');
+  await page.getByText('No lines match these filters.').waitFor();
+  await page.getByRole('checkbox', { name: 'Case sensitive' }).uncheck();
+  await highlighted.first().waitFor();
+  await page.getByRole('searchbox', { name: 'Find in logs' }).fill('éCHEC [a.*] 🍋');
+  await highlighted.first().waitFor();
+  assert.ok((await highlighted.first().textContent()).includes('Échec [a.*] 🍋'));
+  assert.equal(await page.locator('.log-view__text script').count(), 0);
+  await page.getByRole('searchbox', { name: 'Find in logs' }).fill('Warning');
+  await page.screenshot({ path: resolve(out, 'drawer-highlight.png') });
   await page.getByRole('searchbox', { name: 'Find in logs' }).fill('');
   await page.getByRole('searchbox', { name: 'Exclude text' }).fill('');
-  await page.getByRole('button', { name: 'Pause scrolling' }).click();
+  assert.equal(await highlighted.count(), 0);
   await viewport.focus(); await page.keyboard.press('Home');
   await page.getByRole('button', { name: /Follow latest \(\d+ new\)/ }).waitFor();
   await page.getByRole('button', { name: /Follow latest/ }).click();
@@ -126,6 +164,8 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   assert.equal(Math.round((await dialog.boundingBox()).width), 390);
+  assert.ok(await viewport.evaluate(element => element.clientHeight >= 120));
+  assert.ok((await page.locator('.instance-logs__note').boundingBox()).y >= (await viewport.boundingBox()).y + (await viewport.boundingBox()).height);
   await page.screenshot({ path: resolve(out, 'drawer-logs-mobile.png') });
   await page.getByRole('button', { name: 'Close details' }).click();
   await until(() => activeLogs === 0);
@@ -139,14 +179,12 @@ try {
   await page.getByRole('combobox', { name: /Log source/ }).selectOption('fibonacci1-00000/sidecar');
   await until(() => activeLogs === 1 && logOpens === opened + 1);
   await page.waitForFunction(() => document.querySelector('.log-view__line')?.textContent.includes('/sidecar'));
-  await page.getByRole('tab', { name: 'Details', exact: true }).click();
-  await until(() => activeLogs === 0);
   await page.mouse.click(20, 100);
   await until(async () => await dialog.count() === 0);
+  await until(() => activeLogs === 0);
   assert.equal(await dialog.count(), 0);
   await page.getByRole('button', { name: 'fibonacci1-00001', exact: true }).click();
-  assert.equal(await page.getByRole('tab', { name: 'Details', exact: true }).getAttribute('aria-selected'), 'true');
-  await page.getByRole('tab', { name: 'Logs', exact: true }).click();
+  await dialog.getByRole('heading', { name: 'Details', exact: true }).waitFor();
   await page.waitForFunction(() => document.querySelector('.log-view__line')?.textContent.includes('fibonacci1-00001'));
   assert.ok(!(await page.locator('.log-view__lines').innerText()).includes('fibonacci1-00000'));
   await page.keyboard.press('Escape'); await until(() => activeLogs === 0);
@@ -161,9 +199,27 @@ try {
   await page.getByRole('button', { name: 'Clear selection', exact: true }).click();
   assert.equal(await page.locator('.traffic__filters').count(), 0);
   unavailable = true;
-  await replica.click(); await page.getByRole('tab', { name: 'Logs', exact: true }).click();
+  const beforeUnavailable = logOpens;
+  await replica.click();
   await page.getByText('Logs unavailable', { exact: true }).first().waitFor();
-  await page.keyboard.press('Escape'); unavailable = false; failLogs = true;
+  assert.equal(await page.locator('.log-view__viewport').count(), 0);
+  assert.equal(logOpens, beforeUnavailable);
+  await page.keyboard.press('Escape'); unavailable = false;
+  for (const status of ['Disabled', 'Access denied']) {
+    sourceStatus = status;
+    await replica.click(); await dialog.getByText(status, { exact: true }).waitFor();
+    assert.equal(await page.locator('.log-view__viewport').count(), 0);
+    assert.equal(logOpens, beforeUnavailable);
+    const discoveries = sourceRequests;
+    await new Promise(done => setTimeout(done, 1200));
+    assert.equal(sourceRequests, discoveries);
+    await page.keyboard.press('Escape');
+  }
+  sourceStatus = 'Available'; holdSources = true;
+  await replica.click(); await until(() => pendingSources.size === 1);
+  await page.keyboard.press('Escape'); await until(() => pendingSources.size === 0);
+  assert.equal(logOpens, beforeUnavailable);
+  holdSources = false; failLogs = true;
   await page.getByRole('button', { name: /Open details/ }).click();
   await page.getByText(/Logs unavailable · reconnecting/).first().waitFor();
   await page.keyboard.press('Escape'); const attempts = logOpens;
@@ -176,10 +232,20 @@ try {
   await page.getByRole('button', { name: 'Close details' }).click();
   await until(async () => await dialog.count() === 0);
   assert.equal(await page.locator('canvas').evaluate(element => element === document.activeElement), true);
+  await search.fill('');
+  for (const name of ['daily-report-slimfaas-job-00000', 'slimfaas-1']) {
+    await page.getByRole('button', { name, exact: true }).click();
+    await until(() => activeLogs === 1);
+    await dialog.getByRole('heading', { name: 'Details', exact: true }).waitFor();
+    await page.waitForFunction(name => document.querySelector('.log-view__line')?.textContent.includes(name), name);
+    if (name === 'slimfaas-1') assert.ok((await dialog.locator('.traffic-details__status').innerText()).includes('Leader'));
+    await page.keyboard.press('Escape'); await until(() => activeLogs === 0);
+  }
   assert.equal(trafficOpens, trafficConnections);
   assert.deepEqual(errors, []);
   await writeFile(resolve(out, 'checks.json'), JSON.stringify({ overview: true, keyboardFocus: true, canvasFocusFallback: true, preservedCamera: true, modal: true, mobile: true,
-    resizedVirtualization: true, filtersAndFollow: true, onDemandStreams: true, closeAndTabCancellation: true,
+    resizedVirtualization: true, filtersAndFollow: true, yellowSearchHighlight: true, autoOpenInstanceStreams: true, closeCancellation: true,
+    compactDisabledAndUnavailable: true, deniedWithoutRetries: true, discoveryCancellation: true, jobAndLeaderLogs: true,
     sourceAndInstanceSwitch: true, removedWhileTrafficPaused: true, reconnectCancellation: true, unchangedTrafficConnection: true,
     logOpens, sourceRequests, activeLogs, errors }, null, 2));
   console.log(`Drawer browser checks passed: ${out}`);

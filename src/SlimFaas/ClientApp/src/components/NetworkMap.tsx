@@ -25,7 +25,6 @@ export default function NetworkMap(props: Props) {
     return () => clearInterval(timer);
   }, [frozen]);
   const [search, setSearch] = useState('');
-  const [detailTab, setDetailTab] = useState<'details' | 'logs'>('details');
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedLabel, setSelectedLabel] = useState('');
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -61,7 +60,6 @@ export default function NetworkMap(props: Props) {
   const observed = input.activity.filter(e => e.ReceivedAt !== undefined && e.ReceivedAt > now - 1000).length;
 
   const choose = (id: string) => {
-    if (id !== selected) setDetailTab('details');
     setSelected(id); setSelectedLabel(topology.byId.get(id)?.label ?? id); setDetailsOpen(true); setJournalPage(0);
   };
   const clearSelection = () => { setDetailsOpen(false); setSelected(null); setIsolate(false); };
@@ -106,7 +104,7 @@ export default function NetworkMap(props: Props) {
       <button className="button button--quiet" type="button" onClick={clearSelection}>Clear selection</button>
     </div>}
     {selected && detailsOpen && <TrafficDetails node={instancePresent ? node ?? null : null} title={node?.label ?? selectedLabel}
-      tab={detailTab} onTab={setDetailTab} isolate={isolate}
+      isolate={isolate}
       onIsolate={value => { setIsolate(value); setJournalPage(0); }} onClose={() => setDetailsOpen(false)} onClear={clearSelection}
       fallbackFocus={() => section.current?.querySelector('canvas') ?? null}
       logs={logTarget ? <InstanceLogs key={selected} target={logTarget} fill /> : undefined} />}

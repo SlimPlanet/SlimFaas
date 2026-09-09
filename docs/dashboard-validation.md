@@ -233,7 +233,7 @@ The last replica and job execution remained searchable and selectable. Pause/res
 
 The Traffic selection now uses Overview's modal right-hand drawer. Follow-up validation passed **1,276 .NET tests**, **32 dashboard Node tests**, **8 documentation tests**, and dashboard/Storybook/site builds. The new Node case covers viewport-dependent log virtualization at heights from 120 to 2,160 px, partial rows, empty results and shortened buffers. Rendered rows are bounded by visible rows plus 11 overscan rows; the earlier fixed 30-row observations above describe the former 360 px viewer.
 
-The production browser regression starts its own loopback SSE fixture and checks Overview function/job drawers, Escape from a populated search field, modal focus, canvas selection, focus restoration after a removed actor, preserved camera/isolation, mobile width, reduced motion, resized virtualization, log filters and Follow latest. It verifies no log request in Details, one active source while Logs is open, cancellation on close/tab/source changes, no previous-instance text, removal even while Traffic is paused, and cancellation of scheduled reconnects. It finishes with zero active log streams and no browser errors; opening and closing drawers never reconnects Traffic.
+The production browser regression starts its own loopback SSE fixture and checks Overview function/job drawers, Escape from a populated search field, modal focus, canvas selection, focus restoration after a removed actor, preserved camera/isolation, mobile width, reduced motion, resized virtualization, log filters and Follow latest. It now verifies automatic log opening alongside Details for function replicas, job executions and the SlimFaas leader; no discovery for groups; compact disabled/denied/unavailable states; one active source; cancellation on close/source changes and during discovery; no previous-instance text; removal even while Traffic is paused; and cancellation of scheduled reconnects. It finishes with zero active log streams and no browser errors; opening and closing drawers never reconnects Traffic.
 
 ```bash
 cd src/SlimFaas/ClientApp
@@ -244,8 +244,17 @@ CHROMIUM_EXECUTABLE=/absolute/path/to/chromium \
 node scripts/check-drawer.mjs
 ```
 
-Use the external Playwright installation described above. `DASHBOARD_DRAWER_RESULTS` selects the screenshot/JSON directory; the default is `slimfaas-dashboard-drawer` under the system temporary directory. The browser harness does not add a dashboard dependency. Interactive drawer fixtures are under **Dashboard / Traffic selection**: Details, Live logs (10,000 lines), and Unavailable.
+Use the external Playwright installation described above. `DASHBOARD_DRAWER_RESULTS` selects the screenshot/JSON directory; the default is `slimfaas-dashboard-drawer` under the system temporary directory. The browser harness does not add a dashboard dependency. Interactive drawer fixtures are under **Dashboard / Traffic selection**: Group details, Details and live logs (10,000 lines), Unavailable, Disabled and Highlighted search. The highlighted-search story opens the drawer and types its search automatically.
 
 The native three-node demo returned status and Fibonacci successfully. Browser checks opened actual replica logs, filtered newly emitted request markers, switched replicas, closed the stream with Escape and verified the 390 px mobile drawer. The refreshed screenshots above show this native run.
 
 The updated production load harness passed a **15.01-second screening** with 20,000 instances and 1,000 events/s: **59.82 draws/s**, p95 gap **17.7 ms**, post-GC heap **19.7 → 21.4 MB**, zero browser errors. This short UI follow-up does not replace the prior five-minute measurements. Backend log adapters, permissions and retention limits were not changed.
+
+
+### Combined details, automatic logs and search highlights
+
+The combined drawer follow-up passed **1,276 .NET tests**, **33 dashboard Node tests**, **8 documentation tests**, dashboard/Storybook/site builds, and all five drawer Storybook scenarios in Chromium. No backend contracts, configuration defaults, dependencies or retention limits changed.
+
+The production browser regression exercises a 10,000-line stream, source/container changes, automatic opening for all three instance kinds, cancelled discovery and reconnects, and compact disabled/access-denied/unavailable states with no unauthorized stream request or retry loop. It ends with **zero active streams and zero browser errors**. Search checks cover entire-row yellow backgrounds including hover, new matching output, empty queries, case sensitivity, exclusions, literal punctuation, Unicode and escaped markup. Desktop resizing and the 390 px mobile drawer retain bounded virtualization; the footer stays below the viewport even when controls need more vertical space.
+
+The native three-node demo returned **HTTP 200** for status on the entrypoint and each node, and for Fibonacci. Browser checks confirmed that opening the drawer directly streams actual replica output beside its details, newly emitted request markers are filtered and highlighted, selecting another replica opens a fresh stream, and Escape closes the viewer. The desktop and mobile instance-log screenshots show this combined view. The prior five-minute traffic measurements above were not repeated for this presentation change.

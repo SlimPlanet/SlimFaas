@@ -21,6 +21,16 @@ test('filters operate on retained text, with explicit case sensitivity and exclu
   assert.deepEqual(filterLogs(lines, 'INFO', '', true).map(l => l.Id), [2]);
   assert.equal(filterLogs(lines, '', '', false).length, 3);
 });
+test('search remains literal for Unicode and punctuation, including newly retained matches', () => {
+  const buffer = new LogBuffer();
+  buffer.append([line(1, 'Échec [a.*] 🍋'), line(2, 'échec [a.*] probe'), line(3, 'plain text')]);
+  assert.deepEqual(filterLogs(buffer.lines, 'ÉCHEC [a.*]', 'probe', false).map(l => l.Id), [1]);
+  assert.deepEqual(filterLogs(buffer.lines, 'échec', '', true).map(l => l.Id), [2]);
+  assert.deepEqual(filterLogs(buffer.lines, '🍋', '', false).map(l => l.Id), [1]);
+  buffer.append([line(4, 'Échec [a.*] next request')]);
+  assert.deepEqual(filterLogs(buffer.lines, 'ÉCHEC [a.*]', 'probe', false).map(l => l.Id), [1, 4]);
+  assert.deepEqual(filterLogs(buffer.lines, '', 'probe', false).map(l => l.Id), [1, 3, 4]);
+});
 test('ANSI color, OSC links and terminal controls cannot change the viewer', () => {
   assert.equal(cleanLogText('\x1b[31mhello\x1b[0m\r\x00'), 'hello');
   assert.equal(cleanLogText('\x1b]8;;https://invalid\x07link\x1b]8;;\x07'), 'link');
