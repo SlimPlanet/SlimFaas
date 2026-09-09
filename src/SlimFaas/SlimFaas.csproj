@@ -64,6 +64,8 @@
   <!-- Build Vite/React dashboard into wwwroot -->
   <PropertyGroup>
     <ClientAppDir>ClientApp</ClientAppDir>
+    <!-- Storybook output is a development fixture, not runtime content. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);ClientApp/storybook-static/**</DefaultItemExcludes>
     <SkipClientAppBuild Condition="'$(SkipClientAppBuild)' == ''">false</SkipClientAppBuild>
   </PropertyGroup>
 

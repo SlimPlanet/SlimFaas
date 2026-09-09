@@ -105,3 +105,57 @@ The browser workload above was repeated with full-length opaque address tokens a
 The native AOT demo and browser follow-up passed Fibonacci, signed job sync/async calls through a successfully completed job, identifier search, replica selection and mobile layout. All 55 captured browser SSE frames omitted literal loopback addresses, the old `Ip` property and the `ip_` prefix; there were no browser errors. Existing Node topology tests also cover opaque-token correlation and stable selection identities after token rotation. Dashboard, Storybook, documentation and native AOT builds passed again. The public replica field is `Identity` (replacing `Ip`) and tokens use the generic `id_` prefix. SSE tests explicitly reject the old `Ip` JSON property; consumers must migrate to `Identity` and treat it as opaque.
 
 After renaming the wire field to `Identity`, a further 60-second production smoke run with the same 20,000-instance workload passed at 59.86 draws/s (p95 gap 17.6 ms), with post-GC heap 19.0 → 20.6 MB and no browser errors. Native publication, the complete .NET suite, dashboard/Storybook/site builds and browser integration checks were rerun for the renamed contract.
+
+## Reactive Traffic follow-up
+
+The follow-up fixes the first ignored activity batch, server-clock-based animation expiry and missing WebSocket dispatch events. Native integration also exposed an existing routing error: peer activity was queried on the first advertised port, which is the Raft port in local mode. Peer reads now select an application port, with tests for both native and Kubernetes port ordering. Default peer interval and initial delay are 500 ms, explicit overrides are preserved, and at most four peer reads run concurrently. Overview and Data request state-only streams and do not activate peer activity polling.
+
+The complete .NET suite passed **1,232 tests** (SlimFaas 968, SlimData 176, MCP 79, Kafka 9), and the dashboard passed **20 Node tests**. Regressions cover first/delayed receipts, duplicates, identical timestamps, peer restart with a backward clock, history-free bootstrap, concurrent reads, disconnect cleanup, selection/filter changes, buffered arrivals during pause, reconnect sessions, function power states and bounded marker aggregation. The WebSocket tests cover successful streaming, abort, send failure and publication fanout while preserving job identity. The client wire protocol and public `Identity` contract are unchanged.
+
+Dashboard and Storybook production builds passed with Node 24. Documentation lint, eight tests and the static export passed: 21 pages, 1,306 local links/assets and 324 search entries. Native AOT publication remains compatible; generated Storybook output is excluded from the runtime's content items. No dependencies or lockfile versions changed.
+
+The `osx-arm64` AOT demo ran on three isolated nodes. Twelve synchronous HTTP requests and three publications to four ready HTTP subscribers produced **93 events: 93 received, no duplicates** on a stream pinned to one node. A signed local job completed four rounds of synchronous requests, queued requests and publications; its **84 events** retained the execution identity and fanout targets. Two native WebSocket clients on another node served four synchronous requests and a publication to both clients: **21 emitted, 21 received, no duplicates**. Refeeding these exact receipts through the playback model represented all 21 as six aggregate markers, with none omitted.
+
+The production dashboard browser observed the remote WebSocket function despite its absence from the local inventory, searched its identity, selected both the function and an observed replica, retained global traffic during selection, and displayed active markers. Captured public frames omitted literal loopback addresses and the old `Ip` property. Storybook browser checks cover the isolated first event, deliberately old server timestamps, publications, an empty observed queue, all three persisted speeds, explicit isolation, pause/resume, reduced motion, keyboard canvas controls and a 390 px mobile viewport. See **Dashboard / Live / Reactive Traffic** for the interactive fixture.
+
+![Reactive traffic states, queue symbols and message legend](images/dashboard/traffic-reactive.png)
+
+![Reactive traffic on mobile](images/dashboard/traffic-reactive-mobile.png)
+
+### Peer polling cost and idle shutdown
+
+Both measurements use the same corrected native binary, three otherwise idle nodes, information-level node logging, one browser-equivalent observer, three seconds of warmup and twenty seconds per view. The baseline explicitly overrides the interval to 2,000 ms; the candidate uses the 500 ms default. Nodes are restarted between variants. CPU and peak RSS are summed across the three runtime processes; the local controller and this Python observer are excluded.
+
+| Interval | View | Successful peer reads | Failed reads | Node CPU (s) | Peak node RSS (MiB) |
+|---|---|---:|---:|---:|---:|
+| 2,000 ms | Traffic | 20 | 0 | 2.952 | 326.9 |
+| 2,000 ms | Overview | 0 | 0 | 2.841 | 362.1 |
+| 500 ms | Traffic | 80 | 0 | 2.562 | 330.9 |
+| 500 ms | Overview | 0 | 0 | 2.109 | 366.7 |
+
+Polling performs four times as many successful peer reads at the new default and stops without Traffic subscribers. These short single runs demonstrate polling frequency and shutdown, not a statistically significant CPU improvement or a throughput benchmark. RSS includes normal process growth between sequential views. No activity was generated during these cost measurements.
+
+With a native local demo running, reproduce from the repository root (substitute its HTTP ports if using an overlay):
+
+```bash
+python3 .bin/status-stream-benchmark.py \
+  --nodes http://127.0.0.1:30021 http://127.0.0.1:30022 http://127.0.0.1:30023 \
+  --interval-label 500
+```
+
+For the comparison, restart the same demo with `SlimFaas__StatusStream__PeerSyncIntervalMilliseconds=2000` and change the label to `2000`. The label is descriptive and does not configure the server. The harness fails if any peer read returns a non-success response.
+
+### Five-minute reactive map workload
+
+The production harness above was rerun on the same reference workstation with the new Fast animation, global traffic during selection, grouped markers, icons and status badges. The workload again contained **10,000 job executions + 10,000 replicas, 1,000 events/s, and a full new state every second**.
+
+| Measure | Result |
+|---|---:|
+| Duration | 300.08 s |
+| Canvas draw rate while panning/zooming | 59.86 frames/s |
+| 95th percentile frame gap | 17.5 ms |
+| JavaScript heap after GC, start / end | 20.1 / 21.9 MB |
+| Browser errors | 0 |
+| Journal / marker capacities | 5,000 / 200 |
+
+Search and selection of the final job execution and replica, a stable paused journal, live resumption, reduced motion and mobile overflow checks passed. The Node tests verify non-overlapping reserved groups and all 20,000 identities, independently of viewport culling. These results describe this synthetic rendering workload; they do not measure function latency or lossless production telemetry.

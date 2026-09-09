@@ -1,8 +1,9 @@
+import { functionState } from './live.ts';
 import type { FunctionStatusDetailed, JobConfigurationStatus, NetworkActivityEvent, QueueInfo, SlimFaasNodeInfo } from '../types.ts';
 
 export interface MapNode {
   id: string; label: string; kind: 'function' | 'job' | 'slimfaas' | 'queue' | 'external';
-  parent: string | null; x: number; y: number; status: string; detail: string;
+  state?: ReturnType<typeof functionState>; parent: string | null; x: number; y: number; status: string; detail: string;
 }
 export interface MapGroup extends MapNode { width: number; height: number; children: MapNode[] }
 export interface Topology {
@@ -14,7 +15,21 @@ const CELL = 34;
 const GAP = 90;
 export const nodeId = (kind: string, name: string) => `${kind}:${name}`;
 
-export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[]): Topology {
+export interface ObservedFunction { name: string; replicas: string[] }
+/** Event-only actors keep an honest unknown inventory state until a snapshot supplies it. */
+export function observedFunctions(functions: FunctionStatusDetailed[], events: NetworkActivityEvent[]): ObservedFunction[] {
+  const known = new Set(functions.map(fn => fn.Name));
+  const observed = new Map<string, Set<string>>();
+  for (const event of events) {
+    if (!event.Target || known.has(event.Target) || ['slimfaas', 'external'].includes(event.Target)) continue;
+    const replicas = observed.get(event.Target) ?? new Set<string>();
+    if (event.TargetPod) replicas.add(event.TargetPod);
+    observed.set(event.Target, replicas);
+  }
+  return [...observed].sort(([a], [b]) => a.localeCompare(b)).map(([name, replicas]) => ({ name, replicas: [...replicas].sort() }));
+}
+
+export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[], observed: ObservedFunction[] = []): Topology {
   const groups: MapGroup[] = [];
   const actors = new Map<string, string>(), pods = new Map<string, string>(), sourcePods = new Map<string, string>();
   const create = (kind: MapNode['kind'], label: string, status: string, children: Omit<MapNode, 'x' | 'y' | 'parent' | 'kind'>[], detail = '') => {
@@ -34,19 +49,28 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
     })), job.Image);
     for (const child of group.children) sourcePods.set(child.label, child.id);
   }
-  create('external', 'external', 'Callers', [], 'External callers');
+  create('external', 'external', 'People and external systems', [], 'External callers');
   create('slimfaas', 'slimfaas', `${slimNodes.length} nodes`, slimNodes.map(n => ({
     id: nodeId('node', n.Name), label: n.Name, status: n.Status, detail: 'SlimFaas node',
   })));
   for (const fn of [...functions].sort((a, b) => a.Name.localeCompare(b.Name))) {
     const fnPods = [...(fn.Pods ?? [])].sort((a, b) => a.Name.localeCompare(b.Name));
-    create('function', fn.Name, `${fn.NumberReady} / ${fn.NumberRequested} ready`, fnPods.map(p => {
+    const group = create('function', fn.Name, `${functionState(fn)} · ${fn.NumberReady} / ${fn.NumberRequested} ready`, fnPods.map(p => {
       const id = nodeId('pod', `${fn.Name}/${p.Name}`);
       pods.set(`${fn.Name}/${p.Identity}`, id); pods.set(`${fn.Name}/${p.Name}`, id);
       sourcePods.set(p.Name, id);
       if (p.Identity) sourcePods.set(p.Identity, id);
       return { id, label: p.Name, status: p.Ready ? 'Running' : p.Status, detail: p.Identity };
     }), fn.PodType);
+    group.state = functionState(fn);
+  }
+  for (const fn of observed) {
+    const group = create('function', fn.name, 'Observed traffic · inventory unknown', fn.replicas.map(identity => {
+      const id = nodeId('observed', `${fn.name}/${identity}`);
+      pods.set(`${fn.name}/${identity}`, id); sourcePods.set(identity, id);
+      return { id, label: `Replica ${identity.slice(-8)}`, status: 'Observed traffic', detail: identity };
+    }), 'Seen in activity; absent from this node’s current inventory');
+    actors.set(fn.name, group.id);
   }
   for (const q of [...queues].sort((a, b) => a.Name.localeCompare(b.Name))) create('queue', q.Name, `${q.Length} queued`, []);
 
@@ -96,7 +120,7 @@ export function resolveSource(topology: Topology, actor: string, pod: string | n
 
 export function eventPath(topology: Topology, event: NetworkActivityEvent): string[] {
   const slim = topology.byId.has(nodeId('node', event.NodeId)) ? nodeId('node', event.NodeId) : 'slimfaas:slimfaas';
-  const source = resolveSource(topology, event.Source, event.SourcePod);
+  const source = event.Source === 'slimfaas' && !event.SourcePod ? slim : resolveSource(topology, event.Source, event.SourcePod);
   const target = (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target) || slim;
   const queue = nodeId('queue', event.QueueName ?? event.Target);
   let path: string[];

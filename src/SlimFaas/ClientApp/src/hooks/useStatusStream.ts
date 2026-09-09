@@ -182,7 +182,8 @@ function normalizePayload(raw: unknown): StatusStreamPayload {
   };
 }
 
-export function useStatusStream() {
+export function useStatusStream(includeActivity = true) {
+  const [activitySession, setActivitySession] = useState(0);
   const [functions, setFunctions] = useState<FunctionStatusDetailed[]>([]);
   const [queues, setQueues] = useState<QueueInfo[]>([]);
   const [jobs, setJobs] = useState<JobConfigurationStatus[]>([]);
@@ -244,7 +245,8 @@ export function useStatusStream() {
 
   const enqueueActivityBatch = useCallback((events: NetworkActivityEvent[]) => {
     if (events.length === 0) return;
-    activityBufferRef.current.push(...events);
+    const receivedAt = performance.now();
+    activityBufferRef.current.push(...events.map(event => ({ ...event, ReceivedAt: receivedAt })));
 
     if (activityBufferRef.current.length >= ACTIVITY_IMMEDIATE_FLUSH_SIZE) {
       flushActivityBuffer();
@@ -266,12 +268,14 @@ export function useStatusStream() {
     }
     activityBufferRef.current = [];
 
-    const es = new EventSource('/status-functions-stream');
+    const es = new EventSource(`/status-functions-stream${includeActivity ? '' : '?activity=false'}`);
     eventSourceRef.current = es;
     // Start each SSE session with live-only activity (no historical replay).
     setActivity([]);
+    setActivitySession(session => session + 1);
 
     es.addEventListener('state', (e: MessageEvent) => {
+      if (eventSourceRef.current !== es) return;
       try {
         const payload = normalizePayload(JSON.parse(e.data));
         setFunctions(payload.Functions ?? []);
@@ -308,6 +312,7 @@ export function useStatusStream() {
     });
 
     es.addEventListener('activity', (e: MessageEvent) => {
+      if (eventSourceRef.current !== es) return;
       try {
         const evt = normalizeActivity([JSON.parse(e.data)])[0];
         if (!evt) return;
@@ -318,6 +323,7 @@ export function useStatusStream() {
     });
 
     es.addEventListener('activity_batch', (e: MessageEvent) => {
+      if (eventSourceRef.current !== es) return;
       try {
         enqueueActivityBatch(normalizeActivity(JSON.parse(e.data)));
       } catch (err) {
@@ -326,6 +332,7 @@ export function useStatusStream() {
     });
 
     es.onerror = () => {
+      if (eventSourceRef.current !== es) return;
       reconnectFailures.current++;
       setError(reconnectFailures.current < 6 ? 'Stream disconnected, reconnecting…' : 'Stream disconnected. Reload this page to reconnect.');
       es.close();
@@ -333,7 +340,7 @@ export function useStatusStream() {
       // Reconnect after a short delay
       if (reconnectFailures.current < 6) reconnectTimer.current = setTimeout(() => connect(), Math.min(30000, 1000 * 2 ** reconnectFailures.current));
     };
-  }, [enqueueActivityBatch]);
+  }, [enqueueActivityBatch, includeActivity]);
 
   useEffect(() => {
     connect();
@@ -384,7 +391,7 @@ export function useStatusStream() {
     functions,
     queues,
     jobs,
-    activity,
+    activity, activitySession,
     loading,
     error,
     wakeUp,
@@ -398,7 +405,6 @@ export function useStatusStream() {
     frontMessage, actionError, samplingRatio, maxLiveEventsPerSecond,
   };
 }
-
 
 
 

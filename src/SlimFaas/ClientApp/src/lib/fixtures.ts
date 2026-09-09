@@ -28,3 +28,14 @@ export function fixtureEvents(start: number, count: number, now = Date.now()): N
       SourcePod: `daily-report-slimfaas-job-${run}`, TargetPod: `fibonacci1-${run}` };
   });
 }
+
+export function makeReactiveFixtures() {
+  const fixture = makeFixtures(3, 2);
+  const base = fixture.functions[0];
+  fixture.functions.push(
+    { ...base, Name: 'image-resizer', NumberReady: 0, NumberRequested: 0, Pods: [] },
+    { ...base, Name: 'invoice-parser', NumberReady: 0, NumberRequested: 2, Pods: [{ Name: 'invoice-parser-0', Identity: fixtureIdentity(101), Ready: false, Status: 'Pending' }] },
+    { ...base, Name: 'report-renderer', NumberReady: 1, NumberRequested: 3, Pods: [{ Name: 'report-renderer-0', Identity: fixtureIdentity(102), Ready: true, Status: 'Running' }] },
+  );
+  return fixture;
+}

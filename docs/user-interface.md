@@ -69,26 +69,37 @@ Replica and caller IP addresses are never sent in the stream's network address f
 
 Tokens are consistent across subscribers and peer events served by one process; they change after a restart or when reconnecting to another node. Treat them as transient correlation identifiers, not persistent replica IDs. Raw addresses remain internal to routing and the access-controlled peer activity endpoint. No storage migration or client-side hashing is needed. Stream consumers must migrate from `Pods[].Ip` to `Pods[].Identity` and treat the value as opaque.
 
-The browser reconnects automatically if the stream disconnects.
+The browser reconnects automatically if the stream disconnects. Overview and Data use `?activity=false` on this endpoint to receive status snapshots without an activity subscription. The default remains a full Traffic stream. Both modes share the SSE client quota; metadata streams and status-only views do not activate peer activity scraping.
+
+Activity IDs are opaque and unique across process restarts. Peer activity uses an application HTTP port, excluding the Raft port even when it is listed first (as in native local mode). Peers are read with up to four requests concurrently while Traffic has subscribers, using a 500 ms interval by default. A relative bootstrap window avoids replaying older history and accommodates different host clocks. Subsequent reads overlap by one millisecond and deduplicate by event ID. The internal endpoint retains its array response and additionally supports `windowMs` (bounded to 60 seconds), `X-Activity-Watermark` and `X-Activity-Instance` response headers. Older peers without these headers are primed without replaying their history.
 
 ---
 
 ## 5. Network Map
 
-![Live traffic map with jobs, SlimFaas nodes, queues and functions](images/dashboard/traffic.png)
+![Live traffic map with jobs, SlimFaas nodes, queues and functions](images/dashboard/traffic-reactive.png)
 
 When `SlimFaas:EnableFront` is enabled, Traffic draws a canvas map of external callers, managed jobs, SlimFaas nodes, queues and functions. The overview groups replicas and executions by workload. Zooming reveals individual instances with no fixed instance-count cap. Groups reserve space for their instances; offscreen points are omitted from drawing.
 
-Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the overview. Keyboard users can focus the canvas and use arrow keys, `+`, `-` and Home. The searchable actor table provides another way to select every instance. Selection focuses the map and filters the journal to the actor's connections. Clear selection to see all traffic.
+Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the overview. Keyboard users can focus the canvas and use arrow keys, `+`, `-` and Home. The searchable actor table provides another way to select every instance. Selection focuses the map and highlights its connections while retaining other traffic. Enable **Isolate selection** to filter the map and journal to that actor. Active event-type and isolation filters are displayed above the map; **Clear filters** restores the global view.
 
-The journal retains at most 5,000 received events. **Pause** freezes the current view; **Resume live** returns to current traffic without replaying the paused interval. Moving markers are independently limited to 200; the actor inventory is not sampled. Reduced-motion preferences disable moving markers.
+The journal retains at most 5,000 received events. **Pause** freezes the current view; **Resume live** returns to current traffic without replaying the paused interval. Markers are grouped by route and event type and independently limited to 200; the actor inventory is not sampled. Each grouped marker shows its event count. The canvas reports any events omitted by the visual limit separately from the retained journal. Reduced-motion preferences replace movement with static activity highlights.
 
-Rates describe observed events, not guaranteed request throughput. Configured sampling and rate limits are identified in the UI; network interruptions and bounded server channels can also lose activity. The map aggregates repeated links and expands selected connections at detailed zoom.
+**Animation speed** offers **Fast (450 ms)**, **Normal (800 ms)** and **Slow (1,400 ms)** for a complete trip and remembers the choice in this browser. Fast is the default. This duration is a visual convention, not measured function latency. New arrivals use the browser's monotonic receipt clock, so an older server timestamp does not hide a live event. Returning from Pause, reconnecting or restoring a background tab does not replay stale animations.
 
-When a SlimFaas-managed job calls a function, the incoming activity is matched against
+Requests use blue circles, publications purple diamonds, queue messages amber squares and replies outlined circles. Queue groups show a FIFO symbol, directional arrows and their exact current length; an observed queue remains visible when empty. External callers use a person and incoming-arrow symbol, covering people and external systems.
+
+Functions absent from this node’s snapshot but present in received events appear as **Observed traffic · inventory unknown**. Their observed replica identifiers remain selectable; the UI does not infer a ready/requested count from events.
+
+Function groups include a power icon and a textual state: **Sleeping** (zero ready and requested), **Starting** (requested but none ready), **Scaling** (some ready, below requested capacity), **Ready** (requested capacity available), or **Error** when a failed/error pod state is explicitly reported and none are ready. Sleeping is an expected scale-to-zero state, not an error.
+
+Rates describe observed events, not guaranteed request throughput. The actual configured sampling percentage and per-node rate limit are displayed in the UI; network interruptions and bounded server channels can also lose activity. The map aggregates repeated links and expands selected connections at detailed zoom.
+
+When a SlimFaas-managed job calls a function or publishes an event, the incoming activity is matched against
 the IP addresses of running jobs. The message then starts from the exact job instance:
 
-- synchronous calls are displayed as `Job -> SlimFaas -> Function`
+- synchronous HTTP and WebSocket calls are displayed as `Job -> SlimFaas -> Function`
+- publications fan out from SlimFaas to each ready subscribed replica, retaining the job caller
 - asynchronous calls are displayed as `Job -> SlimFaas -> Queue -> Function`
 
 If the running instance disappears from the current status snapshot while the event is
@@ -197,8 +208,8 @@ SlimFaas__StatusStream__StateIntervalMilliseconds=2000
 | `SlimFaas:StatusStream:StateIntervalMilliseconds` | `SlimFaas__StatusStream__StateIntervalMilliseconds` | `1000` | Interval between periodic SSE state snapshots. Must be greater than `0`. |
 | `SlimFaas:StatusStream:QueueLengthsCacheMilliseconds` | `SlimFaas__StatusStream__QueueLengthsCacheMilliseconds` | `1000` | Cache duration for queue length reads used by state snapshots. `0` disables this cache. |
 | `SlimFaas:StatusStream:JobsCacheMilliseconds` | `SlimFaas__StatusStream__JobsCacheMilliseconds` | `1000` | Cache duration for job status snapshots. `0` disables this cache. |
-| `SlimFaas:StatusStream:PeerSyncIntervalMilliseconds` | `SlimFaas__StatusStream__PeerSyncIntervalMilliseconds` | `2000` | Interval between activity scrapes from peer SlimFaas nodes. Must be greater than `0`. |
-| `SlimFaas:StatusStream:PeerSyncInitialDelayMilliseconds` | `SlimFaas__StatusStream__PeerSyncInitialDelayMilliseconds` | `5000` | Initial delay before the first peer activity scrape. |
+| `SlimFaas:StatusStream:PeerSyncIntervalMilliseconds` | `SlimFaas__StatusStream__PeerSyncIntervalMilliseconds` | `500` | Interval between activity scrapes from peer SlimFaas nodes. Must be greater than `0`. |
+| `SlimFaas:StatusStream:PeerSyncInitialDelayMilliseconds` | `SlimFaas__StatusStream__PeerSyncInitialDelayMilliseconds` | `500` | Initial delay before the first peer activity scrape. |
 | `SlimFaas:StatusStream:MaxSseClients` | `SlimFaas__StatusStream__MaxSseClients` | `0` | Maximum concurrent SSE clients per SlimFaas pod. `0` means unlimited. |
 | `SlimFaas:StatusStream:SubscriberChannelCapacity` | `SlimFaas__StatusStream__SubscriberChannelCapacity` | `10000` | Bounded channel capacity per SSE subscriber for live activity events. Must be greater than `0`. |
 | `SlimFaas:StatusStream:RecentActivityLimit` | `SlimFaas__StatusStream__RecentActivityLimit` | `1000` | Maximum recent activity events retained in memory for snapshots and peer sync. Must be greater than `0`. |
@@ -217,6 +228,8 @@ env:
     value: "true"
   - name: SlimFaas__StatusStream__StateIntervalMilliseconds
     value: "1000"
+  - name: SlimFaas__StatusStream__PeerSyncIntervalMilliseconds
+    value: "500"
   - name: SlimFaas__StatusStream__MaxSseClients
     value: "100"
   - name: SlimFaas__StatusStream__MaxLiveEventsPerSecond

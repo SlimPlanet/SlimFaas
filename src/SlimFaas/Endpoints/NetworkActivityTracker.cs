@@ -98,7 +98,14 @@ public sealed class NetworkActivityTracker
     private readonly ConcurrentQueue<NetworkActivityEvent> _recentEvents = new();
     private readonly ConcurrentDictionary<Channel<NetworkActivityEvent>, byte> _subscribers = new();
     private readonly ConcurrentDictionary<string, byte> _knownIds = new();
-    private int _counter;
+    private long _counter;
+    private readonly object _subscriptionLock = new();
+    private long _liveSessionStartedAt;
+    public string InstanceId { get; } = Guid.NewGuid().ToString("N");
+
+    // Monotonic start of the current uninterrupted activity subscription session.
+    // Metadata streams deliberately do not start an activity session.
+    public long LiveSessionStartedAt => Volatile.Read(ref _liveSessionStartedAt);
     private int _recentEventsCount;
     private int _knownIdsCount;
     private int _knownIdsTrimInProgress;
@@ -134,7 +141,7 @@ public sealed class NetworkActivityTracker
         if (!_enabled) return string.Empty;
 
         var evt = new NetworkActivityEvent(
-            Id: $"{NodeId}-{Interlocked.Increment(ref _counter)}",
+            Id: $"{NodeId}-{InstanceId}-{Interlocked.Increment(ref _counter)}",
             Type: type,
             Source: source,
             Target: target,
@@ -216,7 +223,12 @@ public sealed class NetworkActivityTracker
             return false;
         }
 
-        if (_subscribers.TryAdd(channel, 0)) return true;
+        lock (_subscriptionLock)
+        {
+            if (_subscribers.IsEmpty)
+                Volatile.Write(ref _liveSessionStartedAt, System.Diagnostics.Stopwatch.GetTimestamp());
+            if (_subscribers.TryAdd(channel, 0)) return true;
+        }
         ReleaseStreamClient();
         channel.Writer.TryComplete();
         return false;
@@ -238,9 +250,11 @@ public sealed class NetworkActivityTracker
     /// <summary>Unsubscribe from live events.</summary>
     public void Unsubscribe(Channel<NetworkActivityEvent> channel)
     {
-        if (_subscribers.TryRemove(channel, out _))
+        lock (_subscriptionLock)
         {
-            Interlocked.Decrement(ref _subscriberCount);
+            if (_subscribers.TryRemove(channel, out _))
+                Interlocked.Decrement(ref _subscriberCount);
+            if (_subscribers.IsEmpty) Volatile.Write(ref _liveSessionStartedAt, 0);
         }
 
         channel.Writer.TryComplete();
@@ -276,11 +290,7 @@ public sealed class NetworkActivityTracker
             var channel = subscriber.Key;
             if (channel.Reader.Completion.IsCompleted)
             {
-                if (_subscribers.TryRemove(channel, out _))
-                {
-                    Interlocked.Decrement(ref _subscriberCount);
-                }
-
+                Unsubscribe(channel);
                 continue;
             }
 
@@ -367,6 +377,5 @@ public sealed class NetworkActivityTracker
         }
     }
 }
-
 
 

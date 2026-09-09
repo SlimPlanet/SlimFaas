@@ -104,6 +104,7 @@ export interface FunctionStatusDetailed {
 // ---- Network Activity / Stream ----
 
 export interface NetworkActivityEvent {
+  ReceivedAt?: number; // Browser-only monotonic receipt time; never read from server JSON.
   Id: string;
   Type: string; // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish", "request_waiting", "request_started", "request_end"
   Source: string;

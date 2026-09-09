@@ -1,4 +1,4 @@
-import type { NetworkActivityEvent } from '../types.ts';
+import type { NetworkActivityEvent, FunctionStatusDetailed } from '../types.ts';
 
 export const PAGE_SIZE = 100;
 export const EVENT_LIMIT = 5000;
@@ -16,7 +16,7 @@ export function appendActivity(previous: NetworkActivityEvent[], incoming: Netwo
     if (ids.has(e.Id)) return false;
     ids.add(e.Id);
     return true;
-  });
+  }).map(event => event.ReceivedAt === undefined ? { ...event, ReceivedAt: performance.now() } : event);
   return [...previous, ...fresh].slice(-EVENT_LIMIT);
 }
 
@@ -67,4 +67,10 @@ export async function readSse(body: ReadableStream<Uint8Array>, onEvent: (event:
     await reader.cancel().catch(() => { /* Preserve the original parser or network error. */ });
     reader.releaseLock();
   }
+}
+
+export function functionState(fn: FunctionStatusDetailed) {
+  if (fn.NumberReady === 0 && fn.Pods?.some(p => ['Failed', 'Error', 'CrashLoopBackOff', 'ImagePullBackOff'].includes(p.Status))) return 'Error';
+  if (fn.NumberReady === 0) return fn.NumberRequested > 0 ? 'Starting' : 'Sleeping';
+  return fn.NumberReady < fn.NumberRequested ? 'Scaling' : 'Ready';
 }

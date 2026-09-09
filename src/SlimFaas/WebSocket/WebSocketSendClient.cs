@@ -30,7 +30,8 @@ public interface IWebSocketSendClient
         string functionName,
         CustomRequest customRequest,
         string eventName,
-        CancellationToken ct = default);
+        CancellationToken ct = default,
+        string? activitySourcePod = null);
 
     /// <summary>
     /// Envoie une requête HTTP synchrone vers un client WebSocket en mode streaming binaire.
@@ -45,7 +46,8 @@ public interface IWebSocketSendClient
             string query,
             Dictionary<string, string[]> headers,
             Stream? requestBodyStream,
-            CancellationToken ct = default);
+            CancellationToken ct = default,
+            string? activitySourcePod = null);
 }
 
 public class WebSocketSendClient : IWebSocketSendClient
@@ -131,7 +133,8 @@ public class WebSocketSendClient : IWebSocketSendClient
         string functionName,
         CustomRequest customRequest,
         string eventName,
-        CancellationToken ct = default)
+        CancellationToken ct = default,
+        string? activitySourcePod = null)
     {
         var connections = _registry.GetConnections(functionName);
         if (connections.Count == 0) return;
@@ -153,7 +156,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             Payload = JsonSerializer.SerializeToElement(payload, AppJsonContext.Default.PublishEventPayload),
         };
 
-        await Task.WhenAll(connections.Select(c => SafeSendPublishEventAsync(functionName, c, envelope, ct)));
+        await Task.WhenAll(connections.Select(c => SafeSendPublishEventAsync(functionName, c, envelope, ct, activitySourcePod)));
     }
 
     public async Task<(int StatusCode, Dictionary<string, string[]> Headers, ChannelReader<byte[]> BodyChunks, Func<Task> WaitForEnd)>
@@ -164,7 +167,8 @@ public class WebSocketSendClient : IWebSocketSendClient
             string query,
             Dictionary<string, string[]> headers,
             Stream? requestBodyStream,
-            CancellationToken ct = default)
+            CancellationToken ct = default,
+            string? activitySourcePod = null)
     {
         int maxPerPod = _registry.GetConfiguration(functionName)?.NumberParallelRequestPerPod ?? int.MaxValue;
         var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod);
@@ -174,6 +178,15 @@ public class WebSocketSendClient : IWebSocketSendClient
             throw new InvalidOperationException($"No WebSocket client available for function '{functionName}'");
         }
 
+        var requestOutId = _activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut,
+            NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: activitySourcePod, targetPod: connection.ConnectionId);
+        int activityEnded = 0;
+        void EndActivity()
+        {
+            if (Interlocked.Exchange(ref activityEnded, 1) == 0)
+                _activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, NetworkActivityTracker.Actors.SlimFaas,
+                    functionName, sourcePod: activitySourcePod, targetPod: connection.ConnectionId, correlationId: requestOutId);
+        }
         var correlationId = Guid.NewGuid().ToString("D"); // 36 chars format for binary frames
 
         var pendingStream = new PendingSyncStream();
@@ -223,24 +236,32 @@ public class WebSocketSendClient : IWebSocketSendClient
 
             var responseStart = await pendingStream.ResponseStartTcs.Task.WaitAsync(responseTimeoutCts.Token);
             var responseCts = responseTimeoutCts;
+            // Observe completion even when the HTTP caller stops reading the body.
+            async Task CompleteAsync()
+            {
+                try { await pendingStream.ResponseEndTcs.Task.WaitAsync(responseCts.Token); }
+                finally
+                {
+                    connection.PendingSyncStreams.TryRemove(correlationId, out _);
+                    responseCts.Dispose();
+                    EndActivity();
+                }
+            }
+            Task completion = CompleteAsync();
+            // The HTTP path still awaits the same task and observes its exception.
+            _ = completion.ContinueWith(task => { _ = task.Exception; }, CancellationToken.None,
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
 
             return (
                 responseStart.StatusCode,
                 responseStart.Headers,
                 pendingStream.ResponseChunks.Reader,
-                async () =>
-                {
-                    try { await pendingStream.ResponseEndTcs.Task.WaitAsync(responseCts.Token); }
-                    finally
-                    {
-                        connection.PendingSyncStreams.TryRemove(correlationId, out _);
-                        responseCts.Dispose();
-                    }
-                }
+                () => completion
             );
         }
         catch (Exception)
         {
+            EndActivity();
             responseTimeoutCts?.Dispose();
             connection.PendingSyncStreams.TryRemove(correlationId, out _);
 
@@ -260,11 +281,12 @@ public class WebSocketSendClient : IWebSocketSendClient
         string functionName,
         WebSocketClientConnection connection,
         WebSocketEnvelope envelope,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? activitySourcePod)
     {
         try
         {
-            _activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, functionName, targetPod: connection.ConnectionId);
+            _activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: activitySourcePod, targetPod: connection.ConnectionId);
             await connection.SendAsync(envelope, ct);
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Failed to send WebSocket message to {ConnectionId}", connection.ConnectionId); }

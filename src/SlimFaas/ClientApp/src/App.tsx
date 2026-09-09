@@ -12,9 +12,9 @@ import Icon from './components/Icon';
 export default function App() {
   const [route, setRoute] = useState(window.location.hash || '#/overview');
   useEffect(() => { const change = () => setRoute(window.location.hash || '#/overview'); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change); }, []);
-  const stream = useStatusStream();
   const live = route.startsWith('#/live');
   const data = route === '#/live/data';
+  const stream = useStatusStream(live && !data);
   const ready = stream.functions.reduce((sum, fn) => sum + fn.NumberReady, 0);
   const running = stream.jobs.reduce((sum, job) => sum + job.RunningJobs.filter(run => run.Status === 'Running').length, 0);
   const allReady = stream.functions.length > 0 && stream.functions.every(fn => fn.NumberReady > 0);

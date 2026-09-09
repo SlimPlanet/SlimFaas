@@ -47,7 +47,16 @@ public static class StatusStreamEndpoints
             since = parsed;
         }
 
+        // Bootstrap relative to the peer's clock, including activity received while
+        // the subscription was being established, without replaying its history.
+        long watermark = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        if (context.Request.Query.TryGetValue("windowMs", out var windowValue)
+            && long.TryParse(windowValue.FirstOrDefault(), out long windowMs))
+            since = watermark - Math.Clamp(windowMs, 0, 60_000);
+
         var events = tracker.GetLocalSince(since);
+        context.Response.Headers["X-Activity-Watermark"] = watermark.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        context.Response.Headers["X-Activity-Instance"] = tracker.InstanceId;
         return Results.Json(events, StatusStreamSerializerContext.Default.ListNetworkActivityEvent);
     }
 
@@ -60,7 +69,18 @@ public static class StatusStreamEndpoints
     {
         var logger = loggerFactory.CreateLogger("StatusStreamEndpoints");
         var ct = context.RequestAborted;
-        if (!tracker.TrySubscribe(out var reader, out var channel))
+        bool includeActivity = !string.Equals(context.Request.Query["activity"], "false", StringComparison.OrdinalIgnoreCase);
+        Channel<NetworkActivityEvent> channel;
+        ChannelReader<NetworkActivityEvent> reader;
+        bool subscribed;
+        if (includeActivity) subscribed = tracker.TrySubscribe(out reader, out channel);
+        else
+        {
+            channel = Channel.CreateBounded<NetworkActivityEvent>(1);
+            reader = channel.Reader;
+            subscribed = tracker.TryReserveStreamClient();
+        }
+        if (!subscribed)
         {
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
             await context.Response.WriteAsync("Too many status stream clients.", ct);
@@ -75,7 +95,7 @@ public static class StatusStreamEndpoints
         try
         {
             // Send initial full state
-            await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: true, ct), ct);
+            await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: includeActivity, ct), ct);
             await context.Response.Body.FlushAsync(ct);
 
             // Then send periodic full state + activity events.
@@ -132,7 +152,8 @@ public static class StatusStreamEndpoints
         }
         finally
         {
-            tracker.Unsubscribe(channel);
+            if (includeActivity) tracker.Unsubscribe(channel);
+            else { channel.Writer.TryComplete(); tracker.ReleaseStreamClient(); }
         }
     }
 
@@ -169,4 +190,3 @@ public static class StatusStreamEndpoints
         }
     }
 }
-
