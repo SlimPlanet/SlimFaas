@@ -8,6 +8,42 @@ namespace SlimFaas.Tests.Local;
 public sealed class LocalLogTests
 {
     [Fact]
+    public async Task Final_append_between_eof_and_process_completion_is_drained()
+    {
+        string path = Path.GetTempFileName();
+        try
+        {
+            bool appended = false;
+            await using var file = new FollowingLogFile(path, async _ =>
+            {
+                if (!appended) { appended = true; await File.AppendAllTextAsync(path, "last output\n"); }
+                return false;
+            });
+            var lines = new List<LogReadItem>();
+            await foreach (var line in LogText.ReadLinesAsync(file, default)) lines.Add(line);
+            Assert.Equal("last output", Assert.Single(lines).Text);
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
+    public async Task Timestamp_changes_on_the_same_file_do_not_replay_retained_lines()
+    {
+        string path = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(path, "already consumed\n");
+            await using var file = new FollowingLogFile(path, _ => Task.FromResult(false));
+            await using var reader = LogText.ReadLinesAsync(file, default).GetAsyncEnumerator();
+            Assert.True(await reader.MoveNextAsync());
+            File.SetCreationTimeUtc(path, DateTime.UtcNow.AddDays(-1));
+            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddDays(1));
+            Assert.False(await reader.MoveNextAsync());
+        }
+        finally { File.Delete(path); }
+    }
+
+    [Fact]
     public async Task File_tail_starts_at_last_ten_thousand_lines_and_follows_append_then_completion()
     {
         string path = Path.GetTempFileName();

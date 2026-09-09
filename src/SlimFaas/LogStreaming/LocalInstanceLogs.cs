@@ -70,7 +70,6 @@ internal sealed class FollowingLogFile : Stream
     private readonly string _path;
     private readonly Func<CancellationToken, Task<bool>> _running;
     private FileStream _file;
-    private DateTime _created;
     private byte[]? _notice;
     private int _noticeOffset;
 
@@ -85,7 +84,6 @@ internal sealed class FollowingLogFile : Stream
     {
         var info = new FileInfo(_path);
         if (!info.Exists || info.LinkTarget is not null) throw new FileNotFoundException("Source removed");
-        _created = info.CreationTimeUtc;
         return new FileStream(_path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete,
             4096, FileOptions.Asynchronous);
     }
@@ -128,15 +126,29 @@ internal sealed class FollowingLogFile : Stream
             bool running = await _running(ct);
             var info = new FileInfo(_path);
             if (!info.Exists) throw new FileNotFoundException("Source removed");
-            if (info.CreationTimeUtc != _created || info.Length < _file.Position)
+            if (WasReplaced(info) || info.Length < _file.Position)
             {
                 await _file.DisposeAsync(); _file = Open(); SeekTail(_file);
                 _notice = "\n[Log file rotated or truncated]\n"u8.ToArray();
                 continue;
             }
+            if (_file.Length > _file.Position) continue;
             if (!running) return 0;
             await Task.Delay(200, ct);
         }
+    }
+
+    private bool WasReplaced(FileInfo path)
+    {
+        // Unix filesystems without birth time can report changing ctime/mtime
+        // as CreationTimeUtc. Compare the path with the *current open handle*,
+        // never a saved timestamp. Retry normally if a concurrent append changes
+        // metadata while taking these observations.
+        var handle = _file.SafeFileHandle;
+        var before = (File.GetCreationTimeUtc(handle), File.GetLastWriteTimeUtc(handle));
+        path.Refresh();
+        var after = (File.GetCreationTimeUtc(handle), File.GetLastWriteTimeUtc(handle));
+        return before == after && (path.CreationTimeUtc, path.LastWriteTimeUtc) != after;
     }
 
     protected override void Dispose(bool disposing) { if (disposing) _file.Dispose(); base.Dispose(disposing); }
