@@ -17,7 +17,7 @@ export function makeFixtures(replicas = 6, executions = 4) {
     RunningJobs: Array.from({ length: executions }, (_, i) => ({ Name: `daily-report-slimfaas-job-${String(i).padStart(5, '0')}`, Status: 'Running', ElementId: `execution-${i}`, InQueueTimestamp: 1788868800000, StartTimestamp: 1788868801000 })),
   }];
   return { functions, jobs, queues: [{ Name: 'fibonacci1', Length: 12 }], functionsWithQueueActivity: new Set(['fibonacci1']), slimFaasReplicas: 3,
-    slimFaasNodes: [0, 1, 2].map(i => ({ Name: `slimfaas-${i}`, Status: 'Running' })) };
+    slimFaasNodes: [0, 1, 2].map(i => ({ Name: `slimfaas-${i}`, Status: 'Running', Role: i === 1 ? 'Leader' as const : 'Follower' as const })) };
 }
 export function fixtureEvents(start: number, count: number, now = Date.now()): NetworkActivityEvent[] {
   return Array.from({ length: count }, (_, i) => {

@@ -106,6 +106,11 @@ public class WebSocketSendClient : IWebSocketSendClient
                 Payload = JsonSerializer.SerializeToElement(payload, AppJsonContext.Default.AsyncRequestPayload),
             };
 
+            var dequeueId = _activityTracker.Record(NetworkActivityTracker.EventTypes.Dequeue,
+                NetworkActivityTracker.Actors.SlimFaas, functionName, functionName, targetPod: connection.ConnectionId);
+            _activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut,
+                NetworkActivityTracker.Actors.SlimFaas, functionName, functionName,
+                targetPod: connection.ConnectionId, correlationId: dequeueId);
             await connection.SendAsync(envelope, ct);
             _logger.LogDebug("AsyncRequest sent via WebSocket to {FunctionName}/{ConnectionId} elementId={ElementId}", functionName, connection.ConnectionId, elementId);
 

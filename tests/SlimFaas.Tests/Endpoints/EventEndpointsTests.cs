@@ -100,7 +100,7 @@ public class EventEndpointsTests
                 It.IsAny<Proxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<string?>()))
+                It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -153,7 +153,7 @@ public class EventEndpointsTests
             It.IsAny<Proxy?>(),
             It.IsAny<string?>(),
             NetworkActivityTracker.Actors.SlimFaas,
-            It.IsAny<string?>()), Times.Once);
+            It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>()), Times.Once);
     }
 
     [Theory]
@@ -179,7 +179,7 @@ public class EventEndpointsTests
                 It.IsAny<Proxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<string?>()))
+                It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -331,7 +331,7 @@ public class EventEndpointsTests
                 It.IsAny<Proxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<string?>()))
+                It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK));
 
         var jobServiceMock = new Mock<IJobService>();
@@ -384,7 +384,7 @@ public class EventEndpointsTests
             It.IsAny<Proxy?>(),
             It.Is<string?>(targetPod => targetPod == "test-pod-0"),
             NetworkActivityTracker.Actors.SlimFaas,
-            It.IsAny<string?>()), Times.Once);
+            It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>()), Times.Once);
         sendClientMock.Verify(s => s.SendHttpRequestAsync(
             It.IsAny<CustomRequest>(),
             It.IsAny<SlimFaasDefaultConfiguration>(),
@@ -393,7 +393,7 @@ public class EventEndpointsTests
             It.IsAny<Proxy?>(),
             It.Is<string?>(targetPod => targetPod == "test-pod-1"),
             NetworkActivityTracker.Actors.SlimFaas,
-            It.IsAny<string?>()), Times.Once);
+            It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>()), Times.Once);
 
         NetworkActivityTracker activityTracker = host.Services.GetRequiredService<NetworkActivityTracker>();
         NetworkActivityEvent[] publishEvents = activityTracker.GetRecent()

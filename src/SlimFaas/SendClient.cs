@@ -10,7 +10,7 @@ namespace SlimFaas;
 
 public interface ISendClient
 {
-    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null);
+    Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null, string? activityQueueName = null);
 
     Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath,
         string functionQuery, SlimFaasSyncConfiguration slimFaasSyncConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null);
@@ -23,13 +23,16 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     private readonly string _namespaceSlimFaas = namespaceProvider.CurrentNamespace;
 
     public async Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest,
-        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null)
+        SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null, string? activityQueueName = null)
     {
         string source = string.IsNullOrWhiteSpace(activitySource)
             ? NetworkActivityTracker.Actors.SlimFaas
             : activitySource;
+        var dequeueId = activityQueueName is null ? null : activityTracker.Record(
+            NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas,
+            customRequest.FunctionName, activityQueueName, targetPod: reservedPodIp);
         var requestOutId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, customRequest.FunctionName,
-            sourcePod: activitySourcePod, targetPod: reservedPodIp);
+            activityQueueName, sourcePod: activitySourcePod, targetPod: reservedPodIp, correlationId: dequeueId);
 
         try
         {
@@ -69,7 +72,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         finally
         {
             activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd, source, customRequest.FunctionName,
-                sourcePod: activitySourcePod, targetPod: reservedPodIp, correlationId: requestOutId);
+                queueName: activityQueueName, sourcePod: activitySourcePod, targetPod: reservedPodIp, correlationId: requestOutId);
         }
     }
 

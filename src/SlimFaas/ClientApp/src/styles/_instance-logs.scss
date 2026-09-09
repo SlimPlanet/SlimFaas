@@ -1,0 +1,23 @@
+.instance-logs {
+  width: 100%; min-width: 0; padding-top: 1rem;
+  &__note { color: var(--muted); font-size: .75rem; }
+}
+.log-view {
+  min-width: 0;
+  &__case { display: flex; gap: .4rem; align-items: center; font-size: .8rem; }
+  &__summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .6rem 0; color: var(--muted); font-size: .8rem; }
+  &__viewport { height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); font: 12px/24px ui-monospace, SFMono-Regular, Consolas, monospace; overflow-anchor: none; }
+  &__lines { list-style: none; padding: 0; margin: 0; min-width: max-content; }
+  &__line { height: 24px; white-space: pre; padding: 0 .75rem; }
+  &__line:hover { background: var(--soft); }
+  &__number { display: inline-block; min-width: 5ch; margin-right: 1rem; color: var(--muted); user-select: none; }
+  &__time { display: inline-block; min-width: 11ch; margin-right: 1rem; color: var(--muted); }
+  &__spacer { display: block; }
+  &__notice, &__truncated { color: var(--muted); font-size: .75rem; }
+  &__empty { padding: 1rem; }
+  @media (max-width: 700px) {
+    &__time { display: none; }
+    &__number { margin-right: .5rem; }
+    &__field { min-width: 0; flex-basis: 100%; }
+  }
+}

@@ -3,6 +3,7 @@ import type { FunctionStatusDetailed, JobConfigurationStatus, NetworkActivityEve
 
 export interface MapNode {
   id: string; label: string; kind: 'function' | 'job' | 'slimfaas' | 'queue' | 'external';
+  role?: SlimFaasNodeInfo['Role'];
   state?: ReturnType<typeof functionState>; parent: string | null; x: number; y: number; status: string; detail: string;
 }
 export interface MapGroup extends MapNode { width: number; height: number; children: MapNode[] }
@@ -29,7 +30,12 @@ export function observedFunctions(functions: FunctionStatusDetailed[], events: N
   return [...observed].sort(([a], [b]) => a.localeCompare(b)).map(([name, replicas]) => ({ name, replicas: [...replicas].sort() }));
 }
 
-export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[], observed: ObservedFunction[] = []): Topology {
+export function observedQueues(queues: QueueInfo[], events: NetworkActivityEvent[]): string[] {
+  const known = new Set(queues.map(queue => queue.Name));
+  return [...new Set(events.flatMap(event => event.QueueName && !known.has(event.QueueName) ? [event.QueueName] : []))].sort();
+}
+
+export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[], observed: ObservedFunction[] = [], unknownQueues: string[] = []): Topology {
   const groups: MapGroup[] = [];
   const actors = new Map<string, string>(), pods = new Map<string, string>(), sourcePods = new Map<string, string>();
   const create = (kind: MapNode['kind'], label: string, status: string, children: Omit<MapNode, 'x' | 'y' | 'parent' | 'kind'>[], detail = '') => {
@@ -50,8 +56,8 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
     for (const child of group.children) sourcePods.set(child.label, child.id);
   }
   create('external', 'external', 'People and external systems', [], 'External callers');
-  create('slimfaas', 'slimfaas', `${slimNodes.length} nodes`, slimNodes.map(n => ({
-    id: nodeId('node', n.Name), label: n.Name, status: n.Status, detail: 'SlimFaas node',
+  create('slimfaas', 'slimfaas', `${slimNodes.length} nodes · ${slimNodes.find(n => n.Role === 'Leader')?.Name ?? 'Unknown'} leader`, slimNodes.map(n => ({
+    id: nodeId('node', n.Name), label: n.Name, status: `${n.Status} · ${n.Role ?? 'Unknown'}`, detail: 'SlimFaas node', role: n.Role,
   })));
   for (const fn of [...functions].sort((a, b) => a.Name.localeCompare(b.Name))) {
     const fnPods = [...(fn.Pods ?? [])].sort((a, b) => a.Name.localeCompare(b.Name));
@@ -73,6 +79,7 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
     actors.set(fn.name, group.id);
   }
   for (const q of [...queues].sort((a, b) => a.Name.localeCompare(b.Name))) create('queue', q.Name, `${q.Length} queued`, []);
+  for (const name of unknownQueues) create('queue', name, 'Queue length unknown', [], 'Seen in traffic; absent from this node’s inventory');
 
   // Reserve readable hub space even when neighboring workloads have thousands of instances.
   const hubWidth = Math.max(260, Math.min(1200, Math.max(...groups.map(g => g.width)) / 3));
@@ -126,8 +133,8 @@ export function eventPath(topology: Topology, event: NetworkActivityEvent): stri
   let path: string[];
   if (event.Type === 'request_in') path = [source, slim];
   else if (event.Type === 'enqueue') path = [source, slim, queue];
-  else if (event.Type === 'dequeue') path = [queue, target];
-  else if (event.Type === 'response' || event.Type === 'request_end') path = [target, slim, source];
+  else if (event.Type === 'dequeue' || (event.Type === 'request_out' && event.QueueName)) path = [queue, target];
+  else if (event.Type === 'response' || event.Type === 'request_end') path = event.QueueName ? [target, slim] : [target, slim, source];
   else path = [source, slim, target];
   return path.filter((id, i) => topology.byId.has(id) && (i === 0 || id !== path[i - 1]));
 }

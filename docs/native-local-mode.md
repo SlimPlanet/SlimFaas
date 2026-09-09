@@ -486,3 +486,23 @@ by SlimFaas, and are never stopped by it.
 The YAML is intentionally static during a run. Detached mode, supervisor high
 availability, resource enforcement, and network isolation are outside this
 development-mode scope.
+
+## Stream managed instance logs in the dashboard
+
+The supervisor captures output from managed functions, jobs and SlimFaas nodes in its log directory. The dashboard reads an authorized instance through the authenticated supervisor channel; it does not receive a filesystem path. IDE `debugUrl` processes and external WebSocket clients have no captured log source.
+
+The base configuration keeps `SlimFaas:ExposeLogs=false`. The tutorial manifest explicitly enables it for its nodes:
+
+```yaml
+cluster:
+  exposeLogs: true
+  nodeLogLevel: Error
+```
+
+An explicit environment setting takes precedence over the manifest, including disabling tutorial logs:
+
+```bash
+SlimFaas__ExposeLogs=false dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
+```
+
+`cluster.exposeLogs` defaults to `false` for other manifests. Log level and log exposure are independent: `nodeLogLevel: Error` can leave only supervisor start/stop messages when there are no application errors. Log streaming follows the selected instance generation, detects file rotation/truncation, and stops when the viewer disconnects. See [instance logs](user-interface.md#instance-logs) for access semantics, filters and retention limits.

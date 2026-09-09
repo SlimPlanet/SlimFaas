@@ -64,6 +64,7 @@ public partial class KubernetesService : IKubernetesService
 
     // ── Shared state ──────────────────────────────────────────────────────────
     private readonly k8s.Kubernetes _client;
+    internal k8s.Kubernetes LogClient => _client;
     private readonly ILogger<KubernetesService> _logger;
     private bool _serviceListForbidden;
 

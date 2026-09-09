@@ -29,6 +29,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
     private readonly IJobService? _jobService;
     private readonly IScheduleJobService? _scheduleJobService;
     private readonly ILogger<StatusStreamSnapshotCache> _logger;
+    private readonly StatusLeader? _leader;
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private readonly SemaphoreSlim _queuesLock = new(1, 1);
@@ -53,7 +54,8 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
         ILogger<StatusStreamSnapshotCache> logger,
         IJobConfiguration? jobConfiguration = null,
         IJobService? jobService = null,
-        IScheduleJobService? scheduleJobService = null)
+        IScheduleJobService? scheduleJobService = null,
+        StatusLeader? leader = null)
     {
         _replicasService = replicasService;
         _functionStatusCache = functionStatusCache;
@@ -64,6 +66,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
         _jobConfiguration = jobConfiguration;
         _jobService = jobService;
         _scheduleJobService = scheduleJobService;
+        _leader = leader;
     }
 
     public async Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct)
@@ -106,10 +109,12 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
         var queues = await GetQueuesAsync(functions, ct).ConfigureAwait(false);
         var jobs = await GetJobsAsync(ct).ConfigureAwait(false);
         var slimFaasInfo = _replicasService.Deployments.SlimFaas;
+        var leaderName = _leader?.FindLeader(slimFaasInfo.Pods);
         var slimFaasNodes = slimFaasInfo.Pods
             .Select(p => new SlimFaasNodeInfo(
                 p.Name,
-                p.Ready == true ? "Running" : (p.Started == true ? "Starting" : "Pending")))
+                p.Ready == true ? "Running" : (p.Started == true ? "Starting" : "Pending"),
+                leaderName is null ? "Unknown" : p.Name == leaderName ? "Leader" : "Follower"))
             .ToList();
 
         var payload = new StatusStreamPayload(
@@ -226,4 +231,3 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
         }
     }
 }
-

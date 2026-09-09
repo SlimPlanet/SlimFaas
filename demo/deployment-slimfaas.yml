@@ -113,6 +113,8 @@ spec:
             - name: SlimData__BackupDirectory
               value: "/backup"
             # Optional dashboard metadata access; document/value access is unchanged.
+            - name: SlimFaas__ExposeLogs
+              value: "true"
             - name: SlimFaas__ExposeDataMetadata
               value: "false"
             - name: Data__DefaultVisibility

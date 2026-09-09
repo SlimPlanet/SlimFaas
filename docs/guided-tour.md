@@ -395,3 +395,11 @@ Use the [API Reference](api-reference.md) to look up all routes, [How It Works](
 Open **Live Stream → Traffic** while running the job-to-function exercises. Search for a job execution and select it to focus its path through SlimFaas, queues and functions. Zoom out to see workload groups, or pause and inspect the event journal.
 
 During the data exercises, switch to **Live Stream → Data** and search for your `TOUR_ID` prefix. The Sets and Files views show keys and TTL, with document sizes for Files. Watch the countdown, create another entry to see its highlight, and return to the first page if a new key sorts before the current cursor. Values and document contents remain accessible through the API exercises, not the dashboard.
+
+## Explain replicas, the leader and background wake-ups
+
+In **Live Stream → Traffic**, select `fibonacci1` and choose **Show replicas**. Send synchronous or asynchronous requests from the earlier exercises: arrival rings identify the replica selected by SlimFaas. Queued messages start from the queue when dispatched; the technical dequeue and outbound records share one animation. Publications still fan out to their individual recipients. These animations illustrate routing, not measured request latency.
+
+The green **Leader** badge identifies the Raft leader; another node receives it after a leader change is observed. Select a replica, retained job execution or SlimFaas node and open **Logs** to follow its output, filter text or pause scrolling. Log access is enabled explicitly in the demo configurations. Native nodes default to `cluster.nodeLogLevel: Error`, so an empty node log is expected when no errors occur; use `Information` in an overlay for a more verbose exercise.
+
+`fibonacci2` can wake even when you call only `fibonacci1`: the default native manifest schedules **`fibonacci5` every two minutes** (`*/2 * * * *`), and this job depends on **both `fibonacci1` and `fibonacci2`**. Pending/running jobs keep their dependencies awake. The React demo also wakes `fibonacci2` when its optional `?planetsaver=true` mode is enabled; **Wake Up All Functions** wakes it too. The dependency from `fibonacci2` to `fibonacci1` does not imply the reverse direction. These scheduled and dependency scenarios remain enabled for the tutorial.

@@ -1,0 +1,19 @@
+meta {
+  name: Live instance logs
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/status-logs-stream?source={{logSourceId}}&tail=10000
+  body: none
+  auth: none
+}
+
+docs {
+  Run the Instance log sources request first, then run this individually and stop it manually.
+  Streams application output as written, with terminal controls removed; it may contain sensitive text.
+  Log retention is limited to 10000 lines / 8 MiB of text and 16 KiB per line.
+  After an instance restart, discover its sources again.
+  See https://slimfaas.dev/user-interface#instance-logs.
+}

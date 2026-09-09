@@ -123,6 +123,7 @@ export interface QueueInfo {
 }
 
 export interface SlimFaasNodeInfo {
+  Role?: 'Leader' | 'Follower' | 'Unknown' | null;
   Name: string;
   Status: string;  // "Running", "Starting", "Pending"
 }

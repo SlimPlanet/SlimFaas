@@ -160,11 +160,15 @@ function normalizeActivity(raw: unknown): NetworkActivityEvent[] {
   }));
 }
 
-function normalizeSlimFaasNodes(raw: unknown): SlimFaasNodeInfo[] {
-  return asArray(raw).map((entry) => ({
-    Name: asString(pick(entry, 'Name', 'name')),
-    Status: asString(pick(entry, 'Status', 'status')),
-  }));
+export function normalizeSlimFaasNodes(raw: unknown): SlimFaasNodeInfo[] {
+  return asArray(raw).map((entry) => {
+    const role = pick(entry, 'Role', 'role');
+    return {
+      Name: asString(pick(entry, 'Name', 'name')),
+      Status: asString(pick(entry, 'Status', 'status')),
+      Role: role === 'Leader' || role === 'Follower' ? role : 'Unknown',
+    };
+  });
 }
 
 function normalizePayload(raw: unknown): StatusStreamPayload {
@@ -405,7 +409,6 @@ export function useStatusStream(includeActivity = true) {
     frontMessage, actionError, samplingRatio, maxLiveEventsPerSecond,
   };
 }
-
 
 
 

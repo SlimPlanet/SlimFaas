@@ -93,7 +93,7 @@ Functions absent from this node’s snapshot but present in received events appe
 
 Function groups include a power icon and a textual state: **Sleeping** (zero ready and requested), **Starting** (requested but none ready), **Scaling** (some ready, below requested capacity), **Ready** (requested capacity available), or **Error** when a failed/error pod state is explicitly reported and none are ready. Sleeping is an expected scale-to-zero state, not an error.
 
-Rates describe observed events, not guaranteed request throughput. The actual configured sampling percentage and per-node rate limit are displayed in the UI; network interruptions and bounded server channels can also lose activity. The map aggregates repeated links and expands selected connections at detailed zoom.
+Rates describe observed events, not guaranteed request throughput. The actual configured sampling percentage and per-node rate limit are displayed in the UI; network interruptions and bounded server channels can also lose activity. The map aggregates repeated links. Whenever instances are visible at detailed zoom, trajectories retain their actual replica destination even without a selection. **Show replicas** frames a selected function; a brief arrival ring identifies the recipient. Traffic never pans the camera automatically.
 
 When a SlimFaas-managed job calls a function or publishes an event, the incoming activity is matched against
 the IP addresses of running jobs. The message then starts from the exact job instance:
@@ -123,6 +123,50 @@ GET /internal/activity-events?since=<unix-ms>
 ```
 
 This endpoint is intended for peer SlimFaas nodes inside the namespace.
+
+### Queue deliveries and the leader
+
+A queued delivery produces correlated `dequeue` and `request_out` records. Both remain in the journal, but the canvas represents the attempt once, starting at **Queue → destination replica**. A retry has a new attempt identity and remains visible. This applies to HTTP and WebSocket deliveries without changing the WebSocket client protocol. A queue observed through peer activity also remains visible when its inventory is absent locally; its label is **Queue length unknown** until a snapshot supplies the count.
+
+`SlimFaasNodes[].Role` is an optional `Leader`, `Follower` or `Unknown` field, separate from readiness. The map marks the current Raft leader in green with a crown and **Leader** label. The collapsed group names it too. During an election or when the known leader cannot be mapped to a managed node, the role is **Unknown**. Endpoint matching stays server-side and includes ports, including the three native demo nodes sharing loopback.
+
+### Instance logs
+
+Select a function replica, job execution or SlimFaas node on the map or in the actor list, then choose **Logs**. The viewer loads retained output and follows new lines. Use **Find in logs**, **Exclude text** and **Case sensitive** to filter the retained buffer. Select a container when a Kubernetes pod has more than one. Scroll upward or use **Pause scrolling** to inspect output; **Follow latest** returns to the latest lines. Reception continues while scrolling is paused.
+
+The viewer retains at most **10,000 lines and 8 MiB of UTF-8 text**, with **16 KiB per line**. Long lines and discarded history are indicated. Only the visible rows are rendered. Log output is displayed as text and terminal control sequences are removed. Filters do not search older output on disk or in the orchestrator.
+
+Reading logs requires both `SlimFaas:EnableFront` and the dedicated **`SlimFaas:ExposeLogs`** option. `ExposeLogs` defaults to `false`. Setting it to `true` grants dashboard visitors access to application output, which may contain addresses or sensitive text written by the application; it does not automatically redact that content. Traffic identities remain protected independently. Tutorial deployments enable logs explicitly.
+
+```json
+{
+  "SlimFaas": {
+    "EnableFront": true,
+    "ExposeLogs": true
+  }
+}
+```
+
+Logs are available for native managed processes, Kubernetes containers and Docker containers. External WebSocket clients and IDE processes attached with `debugUrl` show **Logs unavailable**: SlimFaas does not capture their stdout/stderr. Completed job logs remain available while the execution is retained by its orchestrator. Sources are tied to an instance generation; after a restart, use **Reconnect** to discover the current source. Closing Logs or selecting another instance stops the previous subscription.
+
+The public discovery request requires an instance name:
+
+```http
+GET /status-log-sources?kind=function&name=fibonacci1&replica=fibonacci1-0
+GET /status-logs-stream?source=<Id returned by discovery>&tail=10000
+```
+
+`kind` is `function`, `job` or `slimfaas`; `name` is the function/configuration name, or `slimfaas` for nodes. For jobs, `replica` is the full execution name. Discovery returns `Status` and `Sources` containing `Id`, `Name` and `Container`. Source references are portable across SlimFaas nodes and are revalidated against managed resources; they are not authorization tokens. Browser requests cannot supply a filesystem path or upstream URL.
+
+The SSE stream emits `log_state` (`Status`, `Session`, `DroppedLines`, `MaxLines`, `MaxBytes`) and `log_batch` (`Lines`, each with `Id`, `Text`, nullable `TimestampMs`, and `Truncated`). IDs order lines within the session; identical text can occur on multiple distinct lines. The initial tail is bounded to 1–10,000 lines and defaults to 10,000. Retention and byte limits can return fewer lines. Each batch contains at most 200 lines and 256 KiB of text.
+
+Each node shares at most four source readers across viewers. Logs also reserve the global `StatusStream.MaxSseClients` quota, without starting Traffic peer synchronization. Slow viewers do not block application logging; buffers discard old lines when needed. The UI shows disabled/access-denied, disconnected, ended and removed-source states. Failed connections retry automatically at most three times, then require **Reconnect**.
+
+Kubernetes requires namespace-scoped `get` on `pods/log`; function ownership validation also requires `get` on `replicasets`. The demo service account includes these permissions. No central log storage is introduced.
+
+![Live instance logs with retained-buffer filters](images/dashboard/instance-logs.png)
+
+[Mobile log viewer](images/dashboard/instance-logs-mobile.png) · [Leader identification](images/dashboard/traffic-leader.png)
 
 ---
 
@@ -203,6 +247,7 @@ SlimFaas__StatusStream__StateIntervalMilliseconds=2000
 
 | appsettings.json key | Environment variable | Default value | Description |
 |---|---|---:|---|
+| `SlimFaas:ExposeLogs` | `SlimFaas__ExposeLogs` | `false` | Allow dashboard visitors to stream managed instance output when the front is enabled. |
 | `SlimFaas:ExposeDataMetadata` | `SlimFaas__ExposeDataMetadata` | `false` | Allow dashboard visitors to view keys, expiry and sizes independently of data value access. |
 | `SlimFaas:EnableFront` | `SlimFaas__EnableFront` | `true` | Enables dashboard/network front features. When disabled, activity tracking and peer sync are disabled and the UI shows a disabled-front message. |
 | `SlimFaas:StatusStream:StateIntervalMilliseconds` | `SlimFaas__StatusStream__StateIntervalMilliseconds` | `1000` | Interval between periodic SSE state snapshots. Must be greater than `0`. |

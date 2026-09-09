@@ -14,6 +14,7 @@ interface Props {
 interface Camera { zoom: (factor: number) => void; fit: () => void; focus: (id: string) => void }
 
 export default function TrafficCanvas(props: Props) {
+  const [hover, setHover] = useState('');
   const [activityStatus, setActivityStatus] = useState('Waiting for live activity');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const camera = useRef<Camera | null>(null);
@@ -89,6 +90,15 @@ export default function TrafficCanvas(props: Props) {
       else if (group) current.current.onSelect(group.id);
     };
     canvas.addEventListener('click', click);
+    const hoverNode = (event: MouseEvent) => {
+      const bounds = canvas.getBoundingClientRect();
+      const [x, y] = transform.invert([event.clientX - bounds.left, event.clientY - bounds.top]);
+      const node = transform.k >= 0.48 ? index.find(x, y, 14 / transform.k) : undefined;
+      setHover(node ? `${node.label} · ${node.status}` : '');
+    };
+    const clearHover = () => setHover('');
+    canvas.addEventListener('mousemove', hoverNode);
+    canvas.addEventListener('mouseleave', clearHover);
     const keydown = (event: KeyboardEvent) => {
       if (event.key === '+' || event.key === '=') camera.current?.zoom(1.4);
       else if (event.key === '-') camera.current?.zoom(1 / 1.4);
@@ -123,7 +133,7 @@ export default function TrafficCanvas(props: Props) {
         }
         previousModel = model; dirty.current = true;
       }
-      const hadMarkers = playback.markers.size > 0;
+      const hadMarkers = playback.markers.size > 0 || playback.arrivals.size > 0;
       playback.update(events, activitySession, paused, now, model, speed, eventType, selected, isolate);
       const animations = [...playback.markers.values()];
       if (hadMarkers && !animations.length) dirty.current = true;
@@ -132,7 +142,7 @@ export default function TrafficCanvas(props: Props) {
         setActivityStatus(`${motion.matches ? 'Static activity · ' : ''}${count.toLocaleString()} events / ${animations.length} markers · grouped by route and type${playback.omitted ? ` · ${playback.omitted.toLocaleString()} not animated (visual limit)` : ''}`);
         lastStatusAt = now;
       }
-      if (!dirty.current && !animations.length) return;
+      if (!dirty.current && !animations.length && !playback.arrivals.size) return;
       dirty.current = false;
       const ratio = window.devicePixelRatio || 1;
       context.setTransform(ratio, 0, 0, ratio, 0, 0);
@@ -142,7 +152,7 @@ export default function TrafficCanvas(props: Props) {
       const [left, top] = transform.invert([0, 0]), [right, bottom] = transform.invert([width, height]);
       const visible = (x: number, y: number, w = 0, h = 0) => x + w >= left && y + h >= top && x <= right && y <= bottom;
 
-      // Aggregate identical edges. Instance edges are expanded only for the selected actor.
+      // Keep instance destinations; collapse their screen positions only at overview zoom.
       const edges = new Map<string, { from: string; to: string; count: number; kind: string; highlighted: boolean }>();
       for (const event of visibleEvents.slice(-1500)) {
         const path = displayPath(model, event, selected);
@@ -213,13 +223,27 @@ export default function TrafficCanvas(props: Props) {
         if (k < 0.48) continue;
         for (const child of group.children) {
           if (!visible(child.x - 10, child.y - 10, 20, 20)) continue;
-          context.fillStyle = child.status === 'Failed' || child.status === 'Error' ? '#bd303e' : colors[group.kind];
+          context.fillStyle = child.role === 'Leader' ? colors.success : child.status === 'Failed' || child.status === 'Error' ? '#bd303e' : colors[group.kind];
           context.globalAlpha = child.status === 'Pending' ? 0.45 : 1;
           context.beginPath();
           if (group.kind === 'job') context.roundRect(child.x - 5, child.y - 5, 10, 10, 2);
           else context.arc(child.x, child.y, 5, 0, Math.PI * 2);
           context.fill(); context.globalAlpha = 1;
-          if (k >= 3) {
+          if (child.role === 'Leader') {
+            context.strokeStyle = colors.success; context.lineWidth = 1.5 / k;
+            context.beginPath(); context.moveTo(child.x - 6, child.y - 10); context.lineTo(child.x - 6, child.y - 17);
+            context.lineTo(child.x - 2, child.y - 13); context.lineTo(child.x, child.y - 19);
+            context.lineTo(child.x + 2, child.y - 13); context.lineTo(child.x + 6, child.y - 17);
+            context.lineTo(child.x + 6, child.y - 10); context.closePath(); context.stroke();
+            context.font = `600 ${10 / k}px system-ui`; context.textAlign = 'center';
+            context.fillText('Leader', child.x, child.y + 15 / k); context.textAlign = 'left';
+          }
+          const arrival = playback.arrivals.get(child.id);
+          if (arrival && now >= arrival - 1000) {
+            context.strokeStyle = colors.success; context.lineWidth = 2 / k;
+            context.beginPath(); context.arc(child.x, child.y, 10, 0, Math.PI * 2); context.stroke();
+          }
+          if (k >= 3 && child.role !== 'Leader') {
             context.fillStyle = colors.ink; context.font = `${10 / k}px system-ui`; context.textAlign = 'center';
             context.fillText(child.label.length > 14 ? `…${child.label.slice(-13)}` : child.label, child.x, child.y + 14);
             context.textAlign = 'left';
@@ -260,6 +284,7 @@ export default function TrafficCanvas(props: Props) {
     frame = requestAnimationFrame(draw);
     return () => {
       cancelAnimationFrame(frame); resize.disconnect(); selection.on('.zoom', null);
+      canvas.removeEventListener('mousemove', hoverNode); canvas.removeEventListener('mouseleave', clearHover);
       canvas.removeEventListener('click', click); canvas.removeEventListener('keydown', keydown); camera.current = null;
     };
   }, []);
@@ -272,8 +297,10 @@ export default function TrafficCanvas(props: Props) {
       <button type="button" className="button button--quiet" aria-label="Zoom in" onClick={() => camera.current?.zoom(1.4)}>+</button>
       <button type="button" className="button button--quiet" aria-label="Zoom out" onClick={() => camera.current?.zoom(1 / 1.4)}>−</button>
       <button type="button" className="button button--quiet" onClick={() => camera.current?.fit()}>Fit map</button>
+      {props.selected && props.topology.byId.get(props.selected)?.kind === 'function' && <button type="button" className="button button--quiet" onClick={() => camera.current?.focus(props.selected!)}>Show replicas</button>}
     </div>
     <output className="traffic-canvas__activity" aria-live="off">{activityStatus}</output>
+    {hover && <output className="traffic-canvas__hover">{hover}</output>}
     <p className="traffic-canvas__hint">Scroll to zoom · Drag to explore · Select an instance below</p>
   </div>;
 }

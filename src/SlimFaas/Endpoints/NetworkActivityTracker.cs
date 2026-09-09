@@ -25,7 +25,7 @@ public record NetworkActivityEvent(
 /// <summary>
 /// Represents the full stream payload sent via SSE.
 /// </summary>
-public record SlimFaasNodeInfo(string Name, string Status);
+public record SlimFaasNodeInfo(string Name, string Status, string? Role = null);
 
 public record StatusStreamPayload(
     IReadOnlyList<FunctionStatusDetailed> Functions,
@@ -377,5 +377,4 @@ public sealed class NetworkActivityTracker
         }
     }
 }
-
 

@@ -1,0 +1,25 @@
+meta {
+  name: Instance log sources
+  type: http
+  seq: 12
+}
+
+get {
+  url: {{baseUrl}}/status-log-sources?kind=function&name=fibonacci1&replica=fibonacci1-0
+  body: none
+  auth: none
+}
+
+script:post-response {
+  const sources = res.getBody()?.Sources;
+  if (sources?.length) bru.setVar("logSourceId", sources[0].Id);
+}
+
+docs {
+  Run individually after waking fibonacci1. The replica name above is for the native demo;
+  choose a current instance from the dashboard actor list for another orchestrator.
+  Requires SlimFaas__EnableFront=true and SlimFaas__ExposeLogs=true (enabled in demos).
+  The first source is saved as logSourceId for the next manual request.
+  Use kind=job with its configuration name and full execution name, or kind=slimfaas.
+  See https://slimfaas.dev/user-interface#instance-logs.
+}

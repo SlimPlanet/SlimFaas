@@ -165,3 +165,64 @@ The production harness above was rerun on the same reference workstation with th
 | Journal / marker capacities | 5,000 / 200 |
 
 Search and selection of the final job execution and replica, a stable paused journal, live resumption, reduced motion and mobile overflow checks passed. The Node tests verify non-overlapping reserved groups and all 20,000 identities, independently of viewport culling. These results describe this synthetic rendering workload; they do not measure function latency or lossless production telemetry.
+
+## Exact deliveries, leader and instance logs
+
+The delivery/log follow-up passed **1,274 .NET tests** (SlimFaas 1,010; SlimData 176; MCP 79; Kafka 9) and **31 dashboard Node tests**, with dashboard/Storybook builds and an `osx-arm64` AOT publication. New regression cases cover paired async attempts in either order or separate batches, retries, filters/Pause, actual destinations, SSE role normalization, missing peer queue inventories, log permissions and source ownership, global quotas, shared readers, cancellation, Unicode, byte/line limits, Docker framing and native file lifecycle. Existing AOT dependency warnings remain unchanged; no dependencies or lockfiles changed. The existing SlimData adaptive-cooldown timing test timed out once during a repeated solution run; its isolated retry and the subsequent full suite passed.
+
+### Native and browser integration
+
+An ephemeral overlay ran the current AOT runtime on HTTP ports 31020–31023 and Raft ports 3362–3364, independently of the normal tutorial ports. It kept three Fibonacci replicas ready and disabled scheduled jobs only in the test overlay. The checked-in demo schedules and Planet Saver behavior are unchanged.
+
+- Twelve synchronous requests and three publications across three nodes produced **75 events, all 75 received without duplicates** on a pinned observer. A retained signed local job completed HTTP, async and publication calls with its execution identity intact.
+- Eighteen individually identified synchronous requests were distributed **6 / 6 / 6**. Every dispatch destination matched the managed process whose actual log contained that request marker.
+- Two native WebSocket clients handled **four sync requests, four async requests and a publication to both clients**. All **37 events** were received without duplicates. Each async attempt had a correlated dispatch with the actual connection identity. Both transports' eight paired technical events replayed as exactly **four Queue → replica deliveries**, in either arrival order. A remote queue remains drawable with an unknown-length label while its inventory is absent locally.
+- All three nodes agreed on the leader. Stopping that test process elected another node, updated all three views, and terminated its old log session. Browser checks also assert that the canvas renders the Leader label, covering normalization between the SSE payload and topology.
+- Log discovery/read succeeded for functions, a retained completed job and SlimFaas nodes. Source identifiers were portable across all three nodes. The completed job stream ended explicitly; a quiet node stayed Live with its supervisor startup line. An explicit `SlimFaas__ExposeLogs=false` override returned **403 Disabled** from both endpoints despite `cluster.exposeLogs: true`.
+- Browser checks covered on-demand opening, switching instance, closing Logs, text/exclusion/case filters, 10,000 retained rows with at most 30 DOM rows, paused scrolling/Follow latest, keyboard tabs, mobile and reduced motion. A failed stream made one initial request plus **three automatic retries**; manual reconnect worked and closing the tab cancelled the pending retry. Public Traffic frames contained neither literal loopback addresses nor the former `Ip` property.
+
+The native WebSocket async test attached clients to the leader. An additional attempt with clients attached only to a follower confirmed an existing runtime limitation: the queue worker runs on the leader and does not dispatch those follower-only connections. Cross-node WebSocket queue ownership is outside this display/log change; synchronous follower calls and publications were exercised successfully. Kubernetes/Docker ownership, container selection, permissions and stream decoding use real client adapters with HTTP fixtures; **no live Kubernetes cluster or Docker daemon was used**.
+
+Interactive fixtures: **Dashboard / Live / Reactive Traffic** (queue pairs and Change leader) and **Instance Log Stream** (10,000 lines plus live output).
+
+![Filtered logs from a native replica](images/dashboard/instance-logs.png)
+
+[Leader capture](images/dashboard/traffic-leader.png) · [Mobile logs](images/dashboard/instance-logs-mobile.png)
+
+### Reader cost and shutdown
+
+Three otherwise idle native nodes, six ready function processes, information-level node logging, one function log source, three seconds warmup and twenty seconds per phase. Node CPU is summed across the three runtimes; supervisor CPU is measured separately. File handles count the supervisor's writer plus any reader for that source.
+
+| View | Node CPU (s) | Supervisor CPU (s) | Peer activity reads | Source file handles |
+|---|---:|---:|---:|---:|
+| Closed, before | 2.469 | 0.560 | 0 | 1 |
+| Logs open | 2.435 | 0.560 | 0 | 2 |
+| Closed, after | 2.449 | 0.520 | 0 | 1 |
+
+The open viewer received 3,922 retained/live lines. Closing it returned the source to its sole writer handle. Unit tests independently check cancellation after the last subscriber, shared readers and slow-consumer bounds. These short single runs establish on-demand operation and cleanup; their small CPU differences are not statistically significant.
+
+### Async throughput screening
+
+Three alternating baseline/candidate runs used the previous `af6554bb` AOT publication and this follow-up, twelve concurrent clients, two seconds warmup, five seconds measured load and one second cooldown. The memory-lab harness used isolated HTTP/Raft/function ports. No Traffic or log viewer was open for this dispatch-path comparison.
+
+| Variant | Requests/s, runs 1 / 2 / 3 | Median requests/s | Failures |
+|---|---|---:|---:|
+| Before | 977.09 / 996.45 / 985.82 | 985.82 | 0 |
+| After | 958.30 / 983.60 / 987.61 | 983.60 | 0 |
+
+The median difference was **−0.23%**. This is a short screening result for queue acceptance, not a claim about end-to-end delivery capacity. Reproduce with the matching publications and `.bin/memory-lab.sh aot async 5 12`, `WARMUP_SECONDS=2`, `COOLDOWN_SECONDS=1`, `MEMORY_LAB_SKIP_PUBLISH=1` and `MEMORY_LAB_PUBLISH_DIR` pointing at each publication.
+
+### Five-minute workload with exact replica destinations
+
+The production harness was rerun on the reference workstation with all **20,000 instances**, **1,000 events/s** and full inventory replacement each second. Continuous keyboard panning and zooming produced:
+
+| Measure | Result |
+|---|---:|
+| Duration | 300.09 s |
+| Actual canvas draw rate | 59.92 frames/s |
+| 95th percentile frame gap | 17.4 ms |
+| Post-GC JavaScript heap, start / end | 19.6 / 21.9 MB |
+| Browser errors | 0 |
+| Journal / animation / log-row DOM limits | 5,000 / 200 / 30 |
+
+The last replica and job execution remained searchable and selectable. Pause/resume, reduced motion and a 390 px mobile viewport passed. Non-overlap and all instance identities are covered by Node tests; logs have separate 10,000-line / 8 MiB text retention tests. The five-minute map measurement had no log panel open; log-reader cost and viewer behavior are measured separately above. Use the production load commands at the start of this report to reproduce.

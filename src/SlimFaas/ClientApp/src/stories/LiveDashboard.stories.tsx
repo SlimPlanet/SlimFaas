@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { Meta, StoryObj } from '@storybook/react';
 import NetworkMap from '../components/NetworkMap';
+import { LogViewer } from '../components/InstanceLogs';
+import { LogBuffer, type LogLine } from '../lib/logs.ts';
 import { DataInventory } from '../components/DataExplorer';
 import { makeFixtures, fixtureEvents, makeReactiveFixtures } from '../lib/fixtures.ts';
 import { appendActivity } from '../lib/live.ts';
@@ -45,7 +47,8 @@ export const ReactiveTraffic: StoryObj = {
       const events = type === 'event_publish'
         ? [base, ...snapshot.functions[0].Pods!.map(pod => ({ ...base, Id: `${base.Id}-${pod.Name}`, Source: 'slimfaas', TargetPod: pod.Name }))]
         : [{ ...base, TargetPod: snapshot.functions[0].Pods![n % 3].Name, QueueName: type === 'enqueue' || type === 'dequeue' ? 'fibonacci1' : null }];
-      setActivity(previous => appendActivity(previous, events));
+      const delivery = type === 'dequeue' ? [...events, { ...events[0], Id: `${base.Id}-dispatch`, Type: 'request_out', CorrelationId: base.Id }] : events;
+      setActivity(previous => appendActivity(previous, delivery));
       if (type === 'enqueue' || type === 'dequeue') setSnapshot(previous => ({ ...previous, queues: [{ Name: 'fibonacci1', Length: type === 'enqueue' ? previous.queues[0].Length + 1 : 0 }] }));
     };
     useEffect(() => {
@@ -58,7 +61,31 @@ export const ReactiveTraffic: StoryObj = {
       <button className="button button--quiet" onClick={() => send('event_publish')}>Publish event</button>
       <button className="button button--quiet" onClick={() => send('enqueue')}>Enqueue</button>
       <button className="button button--quiet" onClick={() => send('dequeue')}>Drain queue</button>
+      <button className="button button--quiet" onClick={() => setSnapshot(previous => ({ ...previous, slimFaasNodes: previous.slimFaasNodes.map((node, index) => ({ ...node, Role: index === (previous.slimFaasNodes.findIndex(n => n.Role === 'Leader') + 1) % 3 ? 'Leader' : 'Follower' })) }))}>Change leader</button>
       <button className="button button--primary" onClick={() => setLive(!live)}>{live ? 'Stop synthetic traffic' : 'Start synthetic traffic'}</button>
     </div><NetworkMap {...snapshot} activity={activity} /></>;
+  },
+};
+
+export const InstanceLogStream: StoryObj = {
+  name: '10,000 retained log lines with live filtering',
+  render: () => {
+    const buffer = useMemo(() => {
+      const value = new LogBuffer();
+      value.append(Array.from({ length: 10000 }, (_, index) => ({ Id: index + 1, Text: `${index % 9 ? 'Information: request completed' : 'Warning: sample retry'} · replica fibonacci1-${index % 3} · message ${index + 1}`, TimestampMs: Date.now(), Truncated: false })));
+      return value;
+    }, []);
+    const [lines, setLines] = useState<LogLine[]>(buffer.lines);
+    const [live, setLive] = useState(false);
+    useEffect(() => {
+      if (!live) return;
+      let next = lines[lines.length - 1].Id;
+      const timer = setInterval(() => {
+        buffer.append([{ Id: ++next, Text: `Information: live request ${next} · replica fibonacci1-${next % 3}`, TimestampMs: Date.now(), Truncated: false }]);
+        setLines(buffer.lines);
+      }, 100);
+      return () => clearInterval(timer);
+    }, [live]);
+    return <><button className="button button--primary" onClick={() => setLive(!live)}>{live ? 'Stop log output' : 'Start log output'}</button><LogViewer lines={lines} discarded={buffer.discarded} /></>;
   },
 };

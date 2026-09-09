@@ -8,6 +8,7 @@ public static class SlimFaasEndpointsExtensions
         app.MapStatusEndpoints();
         app.MapStatusStreamEndpoints();
         app.MapDataStatusStreamEndpoints();
+        app.MapLogStreamEndpoints();
         app.MapJobStatusEndpoints();
         app.MapJobEndpoints();
         app.MapJobScheduleEndpoints();

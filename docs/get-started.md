@@ -38,3 +38,5 @@ Explore [WebSocket clients](clients.md), the [Kafka connector](kafka.md), and [P
 ### Dashboard metadata visibility
 
 The dashboard uses the SlimFaasSite visual theme and provides **Overview** plus **Live Stream → Traffic / Data**. Data metadata follows the data API's visibility policy by default. Operators may set `SlimFaas__ExposeDataMetadata=true` to expose only keys, expiry and file sizes to dashboard visitors while leaving the values private. The native local demo already exposes `/data` for its tutorial. See [the user interface](user-interface.md#data-inventory).
+
+The demo configurations also enable `SlimFaas__ExposeLogs=true` for the dashboard's instance log viewer. Production defaults keep log exposure disabled. Enabling it permits dashboard visitors to read application output as written; see [instance logs](user-interface.md#instance-logs). Native manifests use `cluster.exposeLogs`, with an explicit `SlimFaas__ExposeLogs` environment value taking precedence.

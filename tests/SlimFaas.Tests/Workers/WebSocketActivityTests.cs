@@ -76,6 +76,29 @@ public sealed class WebSocketActivityTests
     }
 
     [Fact]
+    public async Task Async_dispatch_pairs_dequeue_with_the_selected_connection_and_a_retry_gets_a_new_identity()
+    {
+        var (client, connection, tracker) = Setup();
+        for (int attempt = 0; attempt < 2; attempt++)
+        {
+            var pending = client.SendAsync("ws-function", new CustomRequest([], [], "ws-function", "/", "POST", ""), "element", false, attempt);
+            Assert.Single(connection.PendingCallbacks).Value.TrySetResult(200);
+            Assert.Equal(200, await pending);
+        }
+        var events = tracker.GetRecent();
+        var dequeue = events.Where(e => e.Type == "dequeue").ToArray();
+        var dispatch = events.Where(e => e.Type == "request_out").ToArray();
+        Assert.Equal(2, dequeue.Length); Assert.Equal(2, dispatch.Length);
+        Assert.NotEqual(dequeue[0].Id, dequeue[1].Id);
+        foreach (var outgoing in dispatch)
+        {
+            Assert.Contains(dequeue, e => e.Id == outgoing.CorrelationId);
+            Assert.Equal("ws-function", outgoing.QueueName);
+            Assert.Equal(connection.ConnectionId, outgoing.TargetPod);
+        }
+    }
+
+    [Fact]
     public async Task Publication_fanout_emits_one_event_for_each_replica_with_the_job_source()
     {
         var (client, _, tracker) = Setup(replicas: 3);

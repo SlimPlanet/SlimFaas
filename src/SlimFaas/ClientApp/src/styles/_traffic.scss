@@ -1,4 +1,6 @@
 .traffic {
+  &__detail-tabs, &__detail-content { width: 100%; min-width: 0; }
+  &__detail-tabs { display: flex; gap: .5rem; }
   &__search { min-width: 200px; }
   @media (max-width: 700px) { &__search { flex-basis: 100%; } }
   &__caption { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem 1.25rem; color: var(--muted); font-size: .75rem; margin: 1rem 0; }
@@ -19,6 +21,7 @@
   position: relative; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface);
   &__surface { width: 100%; height: clamp(420px, 62vh, 700px); display: block; touch-action: none; }
   &__activity { position: absolute; top: .6rem; left: .6rem; right: .6rem; width: fit-content; max-width: calc(100% - 1.2rem); background: #fffffff0; color: var(--muted); padding: .25rem .5rem; border-radius: 6px; font-size: .7rem; pointer-events: none; }
+  &__hover { position: absolute; top: 3rem; left: .6rem; right: .6rem; width: fit-content; background: var(--surface); border: 1px solid var(--line); padding: .4rem .6rem; border-radius: 6px; font-size: .75rem; pointer-events: none; }
   &__controls { position: absolute; bottom: 1rem; right: 1rem; display: flex; gap: .4rem; }
   &__hint { position: absolute; bottom: 1rem; left: 1rem; color: var(--muted); background: #fffffff0; padding: .3rem .6rem; border-radius: 6px; font-size: .7rem; pointer-events: none; margin: 0; }
   @media (max-width: 700px) { &__hint { display: none; } &__surface { height: 420px; } }

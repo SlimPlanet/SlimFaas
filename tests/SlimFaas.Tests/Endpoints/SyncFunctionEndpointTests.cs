@@ -33,7 +33,7 @@ public class SyncFunctionEndpointTests
         responseMessage.StatusCode = HttpStatusCode.OK;
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
         sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(),
-                It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>()))
+                It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>()))
             .ReturnsAsync(responseMessage);
 
         Mock<IJobService> jobServiceMock = new();

@@ -4,6 +4,7 @@ schemaVersion: 1
 name: slimfaas-demo
 
 cluster:
+  exposeLogs: true
   nodes: 3
   entrypointPort: 30020
   nodeHttpPortBase: 30021
