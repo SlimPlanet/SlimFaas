@@ -60,6 +60,8 @@ public class SlimJobsWorkersWatchTests
     public async Task JobsSyncRunsOnceThenReusesTheCachedListWhenWatchIsEnabled()
     {
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
+        // Flux watch tous connectés : le worker est en mode event-driven.
+        signals.MarkAllStreamsConnected();
         var firstSync = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var jobService = CreateJobService(() => firstSync.TrySetResult());
         SlimJobsWorker worker = CreateJobsWorker(jobService, signals, jobsResyncSeconds: 3600);
@@ -84,6 +86,7 @@ public class SlimJobsWorkersWatchTests
     public async Task JobsSignalPulseTriggersAResync()
     {
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         int syncCount = 0;
         var secondSync = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var jobService = CreateJobService(() =>
@@ -165,6 +168,7 @@ public class SlimJobsWorkersWatchTests
     public async Task ConfigurationSyncIsPulseDrivenWhenWatchIsEnabled()
     {
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         var jobConfiguration = new Mock<IJobConfiguration>();
         jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
         // Resync très long : seul un pulse peut débloquer le cycle.
@@ -185,6 +189,7 @@ public class SlimJobsWorkersWatchTests
     public async Task ConfigurationSyncFallsBackToResyncWithoutAnyPulse()
     {
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         var jobConfiguration = new Mock<IJobConfiguration>();
         jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
         SlimJobsConfigurationWorker worker = CreateConfigurationWorker(jobConfiguration, signals, resyncSeconds: 1);
@@ -198,6 +203,7 @@ public class SlimJobsWorkersWatchTests
     public async Task ConfigurationSyncFallsBackToLegacyCadenceWhileTheWatchStreamIsDown()
     {
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         var jobConfiguration = new Mock<IJobConfiguration>();
         jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
         // Resync très long : seule la cadence historique (0 ms ici) peut enchaîner les cycles.
@@ -218,6 +224,7 @@ public class SlimJobsWorkersWatchTests
     public async Task JobsSyncRunsEveryCycleWhileTheWatchStreamIsDown()
     {
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         int syncCount = 0;
         var thirdSync = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var jobService = CreateJobService(() =>

@@ -267,10 +267,48 @@ public sealed class FakeKubernetesCluster
             {
                 foreach (WatchStreamContent stream in streams)
                 {
-                    stream.WriteLine(line);
+                    // Fidélité au vrai API server : un watch filtré par labelSelector
+                    // ne reçoit que les événements des objets qui le satisfont.
+                    if (MatchesLabelSelector(stream.LabelSelector, obj))
+                    {
+                        stream.WriteLine(line);
+                    }
                 }
             }
         }
+    }
+
+    // Seules les deux formes utilisées par SlimFaas sont supportées : « le label
+    // existe » (key) et « le label est absent » (!key).
+    private static bool MatchesLabelSelector(string? selector, IKubernetesObject obj)
+    {
+        if (string.IsNullOrEmpty(selector))
+        {
+            return true;
+        }
+
+        IDictionary<string, string>? labels = (obj as IMetadata<V1ObjectMeta>)?.Metadata?.Labels;
+        if (selector.StartsWith('!'))
+        {
+            return labels == null || !labels.ContainsKey(selector[1..]);
+        }
+
+        return labels != null && labels.ContainsKey(selector);
+    }
+
+    private static string? ExtractLabelSelector(string path)
+    {
+        const string marker = "labelSelector=";
+        int start = path.IndexOf(marker, StringComparison.Ordinal);
+        if (start < 0)
+        {
+            return null;
+        }
+
+        start += marker.Length;
+        int end = path.IndexOf('&', start);
+        string raw = end < 0 ? path[start..] : path[start..end];
+        return Uri.UnescapeDataString(raw);
     }
 
     private IEnumerable<IKubernetesObject> CurrentObjectsOf(string resource) => resource switch
@@ -302,7 +340,7 @@ public sealed class FakeKubernetesCluster
         if (path.Contains("watch=true", StringComparison.Ordinal))
         {
             _watchConnectionCounts.AddOrUpdate(resource, 1, static (_, count) => count + 1);
-            var content = new WatchStreamContent();
+            var content = new WatchStreamContent(ExtractLabelSelector(path));
             List<WatchStreamContent> streams = _watchStreams.GetOrAdd(resource, static _ => new List<WatchStreamContent>());
             lock (_gate)
             {
@@ -318,7 +356,10 @@ public sealed class FakeKubernetesCluster
                 {
                     foreach (IKubernetesObject existing in CurrentObjectsOf(resource))
                     {
-                        content.WriteLine($"{{\"type\":\"ADDED\",\"object\":{KubernetesJson.Serialize(existing)}}}");
+                        if (MatchesLabelSelector(content.LabelSelector, existing))
+                        {
+                            content.WriteLine($"{{\"type\":\"ADDED\",\"object\":{KubernetesJson.Serialize(existing)}}}");
+                        }
                     }
                 }
             }
@@ -373,9 +414,12 @@ public sealed class FakeKubernetesCluster
 
     // HttpContent branché sur un Pipe : les événements watch écrits par les mutations
     // sont visibles immédiatement côté lecteur (pas de bufferisation).
-    private sealed class WatchStreamContent : HttpContent
+    private sealed class WatchStreamContent(string? labelSelector) : HttpContent
     {
         private readonly Pipe _pipe = new();
+
+        /// <summary>Sélecteur de label (décodé) du watch, null si non filtré.</summary>
+        public string? LabelSelector { get; } = labelSelector;
 
         public void WriteLine(string line)
         {

@@ -49,6 +49,13 @@ kubectl -n slimfaas-demo get pods,pvc
 > once and automatically falls back to the legacy polling cadence for the affected
 > resources until the stream is restored, so an outdated RBAC never slows
 > synchronization down.
+>
+> **Services are not watched** (the RBAC does not grant it): a change that only
+> touches a Service — such as re-pointing the selector of the Service in front of
+> the SlimFaas StatefulSet or of a function — is only picked up by the periodic
+> resync, so it can take up to `FunctionsResyncSeconds` (30 s by default) to
+> propagate instead of a few hundred milliseconds. Lower that value if Service
+> objects change frequently in your cluster.
 
 The first manifest creates the namespace, ServiceAccount and RBAC. The SlimFaas manifest creates its configuration, StatefulSet and Service. Functions carry annotations for visibility, inactivity, concurrency, dependencies and scaling. `fibonacci2` depends on `fibonacci1` and MySQL; MySQL is included to demonstrate orchestration dependencies. The sample API itself does not query it.
 

@@ -20,11 +20,22 @@ public sealed class KubernetesResourceSignal(TimeProvider? timeProvider = null)
     public long Version => Volatile.Read(ref _version);
 
     /// <summary>
-    /// True when every watch stream feeding this signal is connected (or none has
-    /// reported a failure yet). False while at least one stream is down: events may be
-    /// missed, so consumers should poll at their legacy cadence.
+    /// True when every watch stream feeding this signal is connected. False while at
+    /// least one stream is down — or, quand les flux attendus ont été déclarés via
+    /// <see cref="ExpectStream"/>, tant qu'ils ne se sont pas tous connectés : events
+    /// may be missed, so consumers should poll at their legacy cadence.
     /// </summary>
     public bool IsHealthy => Volatile.Read(ref _unhealthyStreams) == 0;
+
+    /// <summary>
+    /// Déclare qu'un flux watch alimentera ce signal : le signal reste indisponible
+    /// (les consommateurs gardent leur cadence historique) tant que ce flux n'a pas
+    /// signalé sa connexion via <see cref="ReportStreamUp"/>. Appelé à l'activation du
+    /// watch, avant le démarrage des hosted services — « watcher jamais démarré »
+    /// (exception au démarrage, mauvais orchestrateur) est ainsi indistinguable d'un
+    /// flux en panne, jamais d'un flux sain.
+    /// </summary>
+    public void ExpectStream() => Interlocked.Increment(ref _unhealthyStreams);
 
     public void Pulse()
     {
@@ -50,8 +61,8 @@ public sealed class KubernetesResourceSignal(TimeProvider? timeProvider = null)
     }
 
     /// <summary>
-    /// Reports that a stream previously reported down is connected again. Must be
-    /// paired with exactly one <see cref="ReportStreamDown"/>.
+    /// Reports that a stream is connected. Must be paired with exactly one
+    /// <see cref="ReportStreamDown"/> or <see cref="ExpectStream"/>.
     /// </summary>
     public void ReportStreamUp()
     {

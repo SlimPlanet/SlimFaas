@@ -95,6 +95,8 @@ public class ReplicasSynchronizationWorkerShould
     public async Task SyncImmediatelyWhenTheFunctionsSignalPulses()
     {
         var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        // Flux watch tous connectés : le worker est en mode event-driven.
+        signals.MarkAllStreamsConnected();
         // Resync très long : seule une impulsion peut déclencher la synchronisation.
         var (worker, replicasService, syncCalled) = CreateWorker(signals, legacyDelayMs: 10, resyncSeconds: 3600);
 
@@ -119,6 +121,7 @@ public class ReplicasSynchronizationWorkerShould
     public async Task SyncOnResyncFallbackWithoutAnyPulse()
     {
         var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         // Resync de 1 s : la synchronisation doit se produire sans aucune impulsion.
         var (worker, replicasService, syncCalled) = CreateWorker(signals, legacyDelayMs: 10, resyncSeconds: 1);
 
@@ -139,6 +142,7 @@ public class ReplicasSynchronizationWorkerShould
     public async Task KeepRunningWhenSyncThrows()
     {
         var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         var replicasService = new Mock<IReplicasService>();
         int calls = 0;
         var secondCall = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -183,6 +187,7 @@ public class ReplicasSynchronizationWorkerShould
     public async Task FallBackToLegacyCadenceWhileTheWatchStreamIsDown()
     {
         var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         // Resync très long : seule la cadence historique peut produire plusieurs syncs.
         var (worker, replicasService, _) = CreateWorker(signals, legacyDelayMs: 20, resyncSeconds: 3600);
         // Flux indisponible (ex. RBAC sans verbe "watch") avant même le démarrage.
@@ -206,6 +211,7 @@ public class ReplicasSynchronizationWorkerShould
     public async Task ReturnToEventDrivenSyncWhenTheWatchStreamIsRestored()
     {
         var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        signals.MarkAllStreamsConnected();
         var (worker, replicasService, _) = CreateWorker(signals, legacyDelayMs: 20, resyncSeconds: 3600);
         signals.Functions.ReportStreamDown();
 

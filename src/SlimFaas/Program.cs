@@ -117,6 +117,9 @@ serviceCollectionStarter.AddLogging(loggingBuilder =>
 var envOrConfig = slimFaasOptions.Orchestrator;
 startupLogger.LogInformation("Using orchestrator: {Orchestrator}", envOrConfig);
 var usePersistentConfigurationStorage = true;
+// Fixé par la branche default du switch : seule l'implémentation Kubernetes réelle
+// démarre le watcher (voir l'enregistrement de KubernetesWatcherWorker plus bas).
+var isKubernetesOrchestrator = false;
 switch (envOrConfig)
 {
     case "Docker":
@@ -185,6 +188,7 @@ switch (envOrConfig)
             bool useKubeConfig = bool.Parse(configurationRoot["UseKubeConfig"] ?? "false");
             return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig);
         });
+        isKubernetesOrchestrator = true;
         break;
 }
 
@@ -290,9 +294,12 @@ serviceCollectionSlimFaas.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemo
 serviceCollectionSlimFaas.AddSingleton<IKubernetesService>(sp =>
     serviceProviderStarter.GetService<IKubernetesService>()!);
 // Signaux de changement alimentés par les watch Kubernetes. Instance unique créée ici
-// pour que WatchEnabled soit fixé avant le démarrage des workers.
+// pour que WatchEnabled soit fixé avant le démarrage des workers. Le gating reprend
+// la décision du switch d'orchestrateur (pas de liste à maintenir en miroir) ; si le
+// watcher ne démarre jamais malgré tout, la dette de connexion des signaux maintient
+// les workers sur leur cadence historique.
 var kubernetesWatchSignals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals();
-if (envOrConfig is not ("Docker" or "Local" or "Process") && slimFaasOptions.KubernetesWatch.Enabled)
+if (isKubernetesOrchestrator && slimFaasOptions.KubernetesWatch.Enabled)
 {
     kubernetesWatchSignals.WatchEnabled = true;
     serviceCollectionSlimFaas.AddHostedService<SlimFaas.Kubernetes.Watch.KubernetesWatcherWorker>();

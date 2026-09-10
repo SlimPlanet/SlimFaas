@@ -58,9 +58,29 @@ public sealed class KubernetesWatchSyncCadence
     /// après un échec). Appeler <see cref="CommitSync"/> après une synchronisation
     /// réussie, <see cref="MarkSyncFailed"/> après un échec.
     /// </summary>
-    public async Task WaitForSyncDueAsync(CancellationToken cancellationToken) =>
+    public async Task WaitForSyncDueAsync(CancellationToken cancellationToken)
+    {
         _pendingVersion = await _signal.WaitForChangeAsync(_observedVersion, MaximumWait, cancellationToken)
             .ConfigureAwait(false);
+
+        // Espacement minimum entre deux synchronisations : sous un churn soutenu
+        // (pod en crash-loop...), les pulses successifs ne doivent pas déclencher le
+        // balayage LIST complet plus souvent que la cadence historique. Un changement
+        // isolé après une période calme reste traité à la latence du debounce.
+        if (!_hasSynced || _legacyDelay <= TimeSpan.Zero)
+        {
+            return;
+        }
+
+        TimeSpan remaining = _legacyDelay - _timeProvider.GetElapsedTime(_lastSyncTimestamp);
+        if (remaining > TimeSpan.Zero)
+        {
+            await Task.Delay(remaining, _timeProvider, cancellationToken).ConfigureAwait(false);
+            // Les événements arrivés pendant l'attente sont coalescés dans cette
+            // synchronisation.
+            _pendingVersion = _signal.Version;
+        }
+    }
 
     /// <summary>
     /// Variante interrogée depuis une boucle cadencée : true si un événement est

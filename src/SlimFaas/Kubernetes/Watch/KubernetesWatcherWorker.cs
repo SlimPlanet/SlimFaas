@@ -60,9 +60,18 @@ public class KubernetesWatcherWorker(
         var jobsChannel = new DebounceChannel(signals.Jobs);
         var jobsConfigurationChannel = new DebounceChannel(signals.JobsConfiguration);
 
+        // Deux watch pods disjoints par sélecteur de label, miroirs des LIST qu'ils
+        // déclenchent : les pods de jobs (label slimfaas-job-name, cf. ListJobsAsync)
+        // n'alimentent que le canal Jobs, les autres pods que le canal Functions —
+        // un cycle de vie de pod ne déclenche ainsi qu'un seul pipeline de re-list.
+        // La topologie (nombre de flux par canal) doit rester alignée avec la dette
+        // de connexion déclarée dans KubernetesWatchSignals.WatchEnabled.
+        string functionPodsSelector = Uri.EscapeDataString($"!{KubernetesService.SlimfaasJobName}");
+        string jobPodsSelector = Uri.EscapeDataString(KubernetesService.SlimfaasJobName);
         WatchTarget[] targets =
         [
-            new("pods", $"api/v1/namespaces/{ns}/pods", [signals.Functions, signals.Jobs]),
+            new("pods", $"api/v1/namespaces/{ns}/pods?labelSelector={functionPodsSelector}", [signals.Functions]),
+            new("job-pods", $"api/v1/namespaces/{ns}/pods?labelSelector={jobPodsSelector}", [signals.Jobs]),
             new("deployments", $"apis/apps/v1/namespaces/{ns}/deployments", [signals.Functions]),
             new("statefulsets", $"apis/apps/v1/namespaces/{ns}/statefulsets", [signals.Functions]),
             new("jobs", $"apis/batch/v1/namespaces/{ns}/jobs", [signals.Jobs]),
@@ -144,7 +153,12 @@ public class KubernetesWatcherWorker(
         public string? LastResourceVersion;
         public int BackoffMilliseconds = initialBackoffMilliseconds;
         public bool PreviousAttemptFailed;
-        public bool ReportedDown;
+
+        // Le flux démarre avec la dette de connexion déclarée à l'activation du watch
+        // (KubernetesResourceSignal.ExpectStream) : la première connexion prouvée la
+        // solde via MarkStreamUp, sans log de rétablissement.
+        public bool ReportedDown = true;
+        public bool WarnedDown;
         public int ConsecutiveEmptyStreams;
         public bool CurrentStreamDelivered;
     }
@@ -157,10 +171,11 @@ public class KubernetesWatcherWorker(
         WatchLoopState state,
         CancellationToken stoppingToken)
     {
+        char querySeparator = target.PathTemplate.Contains('?') ? '&' : '?';
         string url = string.Concat(
             client.BaseUri,
             target.PathTemplate,
-            $"?watch=true&allowWatchBookmarks=true&timeoutSeconds={options.WatchTimeoutSeconds}");
+            $"{querySeparator}watch=true&allowWatchBookmarks=true&timeoutSeconds={options.WatchTimeoutSeconds}");
         if (!string.IsNullOrEmpty(state.LastResourceVersion))
         {
             url += $"&resourceVersion={state.LastResourceVersion}";
@@ -349,7 +364,16 @@ public class KubernetesWatcherWorker(
         int? statusCode)
     {
         state.PreviousAttemptFailed = true;
-        if (state.ReportedDown)
+        if (!state.ReportedDown)
+        {
+            state.ReportedDown = true;
+            foreach (DebounceChannel channel in channels)
+            {
+                channel.Signal.ReportStreamDown();
+            }
+        }
+
+        if (state.WarnedDown)
         {
             // Déjà signalé : ne pas saturer les logs à chaque tentative de reconnexion.
             logger.LogDebug(exception,
@@ -359,12 +383,7 @@ public class KubernetesWatcherWorker(
             return;
         }
 
-        state.ReportedDown = true;
-        foreach (DebounceChannel channel in channels)
-        {
-            channel.Signal.ReportStreamDown();
-        }
-
+        state.WarnedDown = true;
         logger.LogWarning(exception,
             "Watch stream {Target} unavailable (HTTP {StatusCode}): falling back to the legacy polling cadence until the stream is restored. " +
             "Check that the service account grants the \"watch\" verb on {Target}",
@@ -375,20 +394,23 @@ public class KubernetesWatcherWorker(
 
     private void MarkStreamUp(WatchTarget target, DebounceChannel[] channels, WatchLoopState state, bool logRecovery)
     {
-        if (!state.ReportedDown)
+        if (state.ReportedDown)
         {
-            return;
+            state.ReportedDown = false;
+            foreach (DebounceChannel channel in channels)
+            {
+                channel.Signal.ReportStreamUp();
+            }
         }
 
-        state.ReportedDown = false;
-        foreach (DebounceChannel channel in channels)
+        if (state.WarnedDown)
         {
-            channel.Signal.ReportStreamUp();
-        }
+            if (logRecovery)
+            {
+                logger.LogInformation("Watch stream {Target} restored: event-driven synchronization resumed", target.Name);
+            }
 
-        if (logRecovery)
-        {
-            logger.LogInformation("Watch stream {Target} restored: event-driven synchronization resumed", target.Name);
+            state.WarnedDown = false;
         }
     }
 

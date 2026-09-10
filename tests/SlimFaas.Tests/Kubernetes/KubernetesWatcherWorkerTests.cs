@@ -101,11 +101,11 @@ public sealed class KubernetesWatcherWorkerTests
     {
         using var harness = new WatchHarness(FastOptions(), firstResponseStatus: HttpStatusCode.InternalServerError);
 
-        // Aucun événement écrit : le 1er pulse vient du signalement du flux en panne,
-        // le 2e de la reconnexion réussie après échec (des événements ont pu être
-        // manqués pendant la coupure).
+        // Aucun événement écrit : le flux démarre en dette de connexion (pas de pulse
+        // au signalement de la panne initiale), le pulse vient de la reconnexion
+        // réussie après échec (des événements ont pu être manqués pendant la coupure).
         await harness.WaitForRequestAsync(2);
-        await harness.WaitUntilAsync(() => harness.Signal.Version >= 2, "pulse after successful reconnect");
+        await harness.WaitUntilAsync(() => harness.Signal.Version >= 1, "pulse after successful reconnect");
         Assert.True(harness.Signal.IsHealthy);
     }
 
@@ -120,13 +120,14 @@ public sealed class KubernetesWatcherWorkerTests
         await harness.WaitForRequestAsync(4);
         await harness.WaitUntilAsync(() => harness.Signal.IsHealthy, "signal healthy after reconnect");
         // Pulse forcé après la reconnexion réussie.
-        await harness.WaitUntilAsync(() => harness.Signal.Version >= 2, "pulse after reconnect");
+        await harness.WaitUntilAsync(() => harness.Signal.Version >= 1, "pulse after reconnect");
 
-        // Exactement 2 pulses sur toute la séquence : 1 au signalement de la panne,
-        // 1 à la reconnexion. Les tentatives intermédiaires ne re-pulsent pas
-        // (pas de resync en rafale pendant l'indisponibilité).
+        // Exactement 1 pulse sur toute la séquence : celui de la reconnexion (la
+        // panne initiale ne pulse pas, le flux démarre en dette de connexion et les
+        // consommateurs sont déjà sur la cadence historique). Les tentatives
+        // intermédiaires ne re-pulsent pas (pas de resync en rafale).
         await Task.Delay(300);
-        Assert.Equal(2, harness.Signal.Version);
+        Assert.Equal(1, harness.Signal.Version);
     }
 
     private sealed class WatchHarness : IDisposable
@@ -143,6 +144,9 @@ public sealed class KubernetesWatcherWorkerTests
             HttpStatusCode? firstResponseStatus = null,
             int failureResponses = 1)
         {
+            // Comme à l'activation du watch : le flux est attendu, le signal reste
+            // indisponible tant que la connexion n'est pas établie.
+            Signal.ExpectStream();
             _handler = new StreamingHandler(firstResponseStatus, failureResponses);
             _client = new k8s.Kubernetes(
                 new KubernetesClientConfiguration { Host = "http://localhost" },
