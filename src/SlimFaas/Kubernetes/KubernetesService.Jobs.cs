@@ -164,17 +164,43 @@ public partial class KubernetesService
     {
         List<Job> jobStatus = new();
         k8s.Kubernetes client = _client;
-        V1JobList? jobList = await client.ListNamespacedJobAsync(kubeNamespace);
+
+        // Un seul LIST des pods portant le label slimfaas-job-name (sélecteur « le label
+        // existe »), en parallèle du LIST des jobs, au lieu d'un LIST de pods par job
+        // (pattern N+1). Les pods sont ensuite regroupés par valeur du label.
+        Task<V1JobList> jobListTask = client.ListNamespacedJobAsync(kubeNamespace);
+        Task<V1PodList> jobPodListTask = client.ListNamespacedPodAsync(
+            kubeNamespace,
+            labelSelector: SlimfaasJobName);
+        await Task.WhenAll(jobListTask, jobPodListTask);
+        V1JobList? jobList = jobListTask.Result;
+
+        Dictionary<string, List<V1Pod>> podsByJobName = new(StringComparer.Ordinal);
+        foreach (V1Pod pod in jobPodListTask.Result.Items)
+        {
+            if (pod.Metadata?.Labels != null &&
+                pod.Metadata.Labels.TryGetValue(SlimfaasJobName, out var podJobName) &&
+                !string.IsNullOrEmpty(podJobName))
+            {
+                if (!podsByJobName.TryGetValue(podJobName, out List<V1Pod>? list))
+                {
+                    list = new List<V1Pod>();
+                    podsByJobName[podJobName] = list;
+                }
+
+                list.Add(pod);
+            }
+        }
+
         foreach (V1Job v1Job in jobList)
         {
-            V1PodList? pods = await _client.ListNamespacedPodAsync(
-                kubeNamespace,
-                labelSelector: $"slimfaas-job-name={v1Job.Metadata?.Name ?? ""}"
-            );
+            List<V1Pod> pods = podsByJobName.TryGetValue(v1Job.Metadata?.Name ?? "", out List<V1Pod>? jobPods)
+                ? jobPods
+                : new List<V1Pod>();
 
-            IList<string> ips = pods.Items.Where(p => p.Status?.PodIP != null).Select(p => p.Status.PodIP).ToList();
+            IList<string> ips = pods.Where(p => p.Status?.PodIP != null).Select(p => p.Status.PodIP).ToList();
 
-            JobStatus status = ResolveJobStatus(v1Job.Status, pods.Items);
+            JobStatus status = ResolveJobStatus(v1Job.Status, pods);
 
             List<string> dependsOn = new();
             if (v1Job.Metadata?.Annotations != null && v1Job.Metadata?.Annotations.ContainsKey(DependsOn) == true)
@@ -191,9 +217,10 @@ public partial class KubernetesService
                 ips,
                 dependsOn,
                 v1Job.Labels().TryGetValue(SlimfaasJobElementId, out var jobElementId) ? jobElementId : "",
-                v1Job.Labels().TryGetValue(SlimfaasInQueueTimestamp, out var jobInQueueTimestamp) ? long.Parse(jobInQueueTimestamp) : 0,
-
-            v1Job.Labels().TryGetValue(SlimfaasJobStartTimestamp, out var jobStartTimestamp) ? long.Parse(jobStartTimestamp) : 0
+                v1Job.Labels().TryGetValue(SlimfaasInQueueTimestamp, out var jobInQueueTimestamp) &&
+                long.TryParse(jobInQueueTimestamp, out var inQueueTimestamp) ? inQueueTimestamp : 0,
+                v1Job.Labels().TryGetValue(SlimfaasJobStartTimestamp, out var jobStartTimestamp) &&
+                long.TryParse(jobStartTimestamp, out var startTimestamp) ? startTimestamp : 0
             ));
         }
 
