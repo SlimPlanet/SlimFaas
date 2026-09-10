@@ -59,6 +59,38 @@ curl http://127.0.0.1:30020/function/fibonacci1/hello/local
 Open <http://127.0.0.1:30020/> to view the live interface. Press `Ctrl+C` in
 the first terminal to stop the demo.
 
+### Understanding the Fibonacci scaling demo
+
+Enqueue work on `fibonacci1` and open **Live Stream → Scaling** at
+<http://127.0.0.1:30020/#/live/scaling> to observe the decisions:
+
+```bash
+curl -i -X POST http://127.0.0.1:30020/async-function/fibonacci1/fibonacci \
+  -H 'Content-Type: application/json' -d '{"input":10}'
+```
+
+Sustained queued work can scale the function up to its configured maximum of
+10 replicas. Three settings explain the subsequent descent:
+
+- The trigger uses `max_over_time(...[30s])`: a queue peak can remain visible
+  for 30 seconds after work drains.
+- `ScaleDown.StabilizationWindowSeconds: 20` holds recent high recommendations
+  for another stabilization window after the recommendation falls.
+- `Pods: 1`, `PeriodSeconds: 10` allows at most one replica removal per rolling
+  10-second window, producing a gradual `10 → 9 → 8 → … → 0` descent.
+
+These windows control different stages; the first reduction also depends on
+metric collection, reconciliation timing, and the observed workload. The HTTP
+inactivity timeout of 10 seconds releases the `ReplicasAtStart` activity floor;
+it does not bypass the scaling policies. The graph shows requested replica
+counts and final targets; process shutdown and readiness can lag those decisions.
+
+Earlier versions could remove two replicas on consecutive decisions because
+the first removal was missing from the period-budget calculation. That is a
+scaler bug, not an intended effect of the 20-second stabilization window.
+See [Policies and stabilization](autoscaling.md#policies-and-stabilization) for
+the budget rules, percentage rounding, and in-memory history limits.
+
 ### Run with an installed SlimFaas executable
 
 From a directory containing the manifest, run:

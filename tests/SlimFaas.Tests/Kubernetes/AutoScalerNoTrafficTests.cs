@@ -70,7 +70,7 @@ namespace SlimFaas.Tests.Kubernetes
         }
 
         [Fact]
-        public void ComputeDesiredReplicas_NoTraffic_ShouldStoreRawDesiredZero_AndScaleDownByOne()
+        public void ComputeDesiredReplicas_NoTraffic_ShouldStoreReplicaChange_AndScaleDownByOne()
         {
             // Arrange
             var evaluator = CreateEvaluatorWithDummySnapshot();
@@ -103,10 +103,9 @@ namespace SlimFaas.Tests.Kubernetes
             // Assert : on scale down d'un seul pod (9 -> 8)
             Assert.Equal(8, desired);
 
-            // Et on vérifie que ce qui est stocké dans le store est bien le rawDesired = 0,
-            // pas la valeur finale 8.
+            // The policy history records the change; raw recommendations are kept separately.
             storeMock.Verify(
-                s => s.AddSample("ns/app", now, 8),
+                s => s.AddSample("ns/app", now, 8, 9),
                 Times.Once);
         }
 
@@ -155,9 +154,9 @@ namespace SlimFaas.Tests.Kubernetes
             Assert.Equal(1, desired2);
             Assert.Equal(0, desired3);
 
-            // Et on vérifie accessoirement qu'on a bien stocké 3 rawDesired = 0
+            // The final change reaches zero from one replica.
             storeMock.Verify(
-                s => s.AddSample("ns/app", It.IsAny<long>(), 0),
+                s => s.AddSample("ns/app", It.IsAny<long>(), 0, 1),
                 Times.Exactly(1));
         }
     }

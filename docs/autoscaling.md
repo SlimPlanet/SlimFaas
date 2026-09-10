@@ -392,6 +392,25 @@ Conceptually:
 - For **scale-down**:
     - Each policy defines a **maximum allowed decrease**.
     - SlimFaas picks the **most conservative** policy (smallest allowed decrease).
+    - `PeriodSeconds` is a rolling budget, shared by successive decisions. A change
+      stops consuming that budget when its age reaches the configured period.
+      For example, `Pods: 1` over 10 seconds allows `10 → 9`, then holds at 9
+      until that removal expires before allowing `9 → 8`.
+    - The budget counts accepted replica changes, using the count before and after
+      the orchestrator's response and the time it was accepted. Failed writes,
+      unchanged counts, and recommendations blocked by an activity floor or
+      infrastructure protection do not consume capacity-change budget.
+    - For `Percent`, SlimFaas reconstructs the replica count at the start of each
+      policy's window as `current + removed - added`. The quota is
+      `floor(periodStartReplicas × Value / 100)`, minus the replicas already
+      removed in that window. A scale-up does not refund removals. For example,
+      50% of 10 allows five removals in total, even if spread across several decisions.
+      Floor rounding is conservative: 50% of 3 allows one removal, and 50% of 1
+      allows none. Use a suitable policy such as 100% if the last replica must sleep.
+    - Each policy uses its own period. An exhausted policy contributes **zero**
+      to the minimum and blocks further reduction, even if another policy has
+      budget left. `PeriodSeconds: 0` applies the limit independently on each
+      decision, without a rolling budget.
 
 - `StabilizationWindowSeconds`:
     - For scale-down, a non-zero window makes SlimFaas look at the **max desired replicas** in the recent window to avoid flapping.
@@ -399,6 +418,10 @@ Conceptually:
       does not change. The scale-down window therefore starts when demand falls,
       not when the last scale-up happened.
     - For scale-up, you can also use a stabilization window, but the default is usually `0`.
+
+Replica-change history is bounded and held in memory on each SlimFaas node;
+it is not persisted or replicated across leader changes. The dashboard playground
+uses a frozen copy of this same history and does not consume or refresh budgets.
 
 ---
 
