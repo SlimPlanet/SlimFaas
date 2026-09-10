@@ -142,6 +142,86 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
+    public async Task WriteAheadLog_restores_the_reserved_ip_of_dispatched_queue_elements_from_snapshot()
+    {
+        var root = GetTemporaryDirectory();
+        var walPath = Path.Combine(root, "wal");
+        var nowTicks = DateTime.UtcNow.Ticks;
+
+        try
+        {
+            await using (var state = CreateState(root, snapshotIntervalEntries: 4))
+            await using (var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state))
+            {
+                await AppendCommitWaitAsync(wal, new ListLeftPushBatchCommand
+                {
+                    Items =
+                    [
+                        new ListLeftPushBatchCommand.BatchItem
+                        {
+                            Key = "pinned-queue",
+                            Identifier = "pinned-item",
+                            NowTicks = nowTicks,
+                            RetryTimeout = 30,
+                            Retries = [1, 2],
+                            HttpStatusCodesWorthRetrying = [500],
+                            Value = Encoding.UTF8.GetBytes("pinned-value")
+                        }
+                    ]
+                });
+
+                await AppendCommitWaitAsync(wal, new ListRightPopCommand
+                {
+                    Key = "pinned-queue",
+                    Count = 1,
+                    NowTicks = nowTicks,
+                    IdTransaction = "tx-pinned",
+                    ReservedIps = ["10.42.0.7"]
+                });
+
+                for (var i = 0; i < 4; i++)
+                {
+                    await AppendCommitWaitAsync(wal, new AddKeyValueCommand
+                    {
+                        Operation = KeyValueOperation.Set,
+                        Key = "snapshot-filler",
+                        Value = Encoding.UTF8.GetBytes(i.ToString())
+                    });
+                }
+
+                await wal.FlushAsync(CancellationToken.None);
+                Assert.True(state.LastSnapshotSizeBytes > 0L);
+                Assert.Equal("10.42.0.7", state.SlimDataState.Queues["pinned-queue"][0].GetLastReservedIp());
+            }
+
+            await using (var restoredState = CreateState(root, snapshotIntervalEntries: 4))
+            {
+                await restoredState.RestoreAsync(CancellationToken.None);
+                await using var restoredWal = new WriteAheadLog(
+                    new WriteAheadLog.Options { Location = walPath },
+                    restoredState);
+                await restoredWal.InitializeAsync(CancellationToken.None);
+                using var replayTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var committedIndex = restoredWal.LastCommittedEntryIndex;
+                if (committedIndex > 0L)
+                    await restoredWal.WaitForApplyAsync(committedIndex, replayTimeout.Token);
+
+                var item = Assert.Single(restoredState.SlimDataState.Queues["pinned-queue"]);
+                var attempt = Assert.Single(item.RetryQueueElements);
+                Assert.Equal("tx-pinned", attempt.IdTransaction);
+                Assert.Equal(nowTicks, attempt.StartTimeStamp);
+                Assert.Equal("10.42.0.7", attempt.ReservedIp);
+                Assert.Equal("10.42.0.7", item.GetLastReservedIp());
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Restore_invalid_snapshot_clears_old_state_and_restoring_flag()
     {
         var root = GetTemporaryDirectory();
