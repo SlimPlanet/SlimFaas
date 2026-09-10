@@ -153,7 +153,9 @@ public sealed class SlimJobsWorkerConcurrencyTests
             Worker = new SlimJobsWorker(Queue.Object, Service.Object, Configuration.Object,
                 NullLogger<SlimJobsWorker>.Instance, History, Mock.Of<ISlimDataStatus>(),
                 Mock.Of<IMasterService>(), replicas.Object,
-                Microsoft.Extensions.Options.Options.Create(new WorkersOptions()));
+                Microsoft.Extensions.Options.Options.Create(new WorkersOptions()),
+                Microsoft.Extensions.Options.Options.Create(new SlimFaas.Options.SlimFaasOptions()),
+                new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals());
         }
 
         public void AssertDispatched(string name, int capacity)

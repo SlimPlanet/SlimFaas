@@ -17,6 +17,8 @@ public static class OptionsExtensions
                 "SlimFaas:StatusStream values are invalid.")
             .Validate(ValidateMetricsScrapingOptions,
                 "SlimFaas:MetricsScraping values are invalid.")
+            .Validate(ValidateKubernetesWatchOptions,
+                "SlimFaas:KubernetesWatch values are invalid.")
             .ValidateOnStart();
 
         services.AddOptions<SlimDataOptions>()
@@ -60,6 +62,19 @@ public static class OptionsExtensions
                && metrics.MaxLineBytes <= metrics.MaxResponseBytes
                && metrics.MaxSelectedSeriesPerTarget > 0
                && metrics.RequestTimeoutSeconds > 0;
+    }
+
+    private static bool ValidateKubernetesWatchOptions(SlimFaasOptions options)
+    {
+        var watch = options.KubernetesWatch;
+        return watch.FunctionsResyncSeconds > 0
+               && watch.JobsResyncSeconds > 0
+               && watch.JobsConfigurationResyncSeconds > 0
+               && watch.DebounceMilliseconds > 0
+               // Doit rester sous le timeout du HttpClient du client k8s (~100 s).
+               && watch.WatchTimeoutSeconds is > 0 and <= 90
+               && watch.ReconnectInitialDelayMilliseconds > 0
+               && watch.ReconnectMaxDelayMilliseconds >= watch.ReconnectInitialDelayMilliseconds;
     }
 
     private static bool ValidateSlimDataOptions(SlimDataOptions options)

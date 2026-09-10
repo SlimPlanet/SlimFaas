@@ -55,7 +55,9 @@ public partial class KubernetesService : IKubernetesService
     // ── Well-known resource / label names ─────────────────────────────────────
     private const string SlimfaasDeploymentName = "slimfaas";
 
-    private const string SlimfaasJobName = "slimfaas-job-name";
+    // Interne : réutilisé par KubernetesWatcherWorker pour scinder le watch des pods
+    // (pods de jobs / pods de fonctions) avec le même sélecteur que ListJobsAsync.
+    internal const string SlimfaasJobName = "slimfaas-job-name";
     private const string SlimfaasJobElementId = "slimfaas-job-element-id";
     private const string SlimfaasInQueueTimestamp = "slimfaas-in-queue-timestamp";
     private const string SlimfaasJobStartTimestamp = "slimfaas-job-start-timestamp";
@@ -67,6 +69,10 @@ public partial class KubernetesService : IKubernetesService
     internal k8s.Kubernetes LogClient => _client;
     private readonly ILogger<KubernetesService> _logger;
     private bool _serviceListForbidden;
+
+    // Authenticated client shared with the watch worker (same config, same auth,
+    // same connection pool) — see Watch/KubernetesWatcherWorker.
+    internal k8s.Kubernetes Client => _client;
 
     public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
     {

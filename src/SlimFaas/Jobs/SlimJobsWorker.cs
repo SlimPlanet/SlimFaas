@@ -1,8 +1,9 @@
-﻿﻿using MemoryPack;
+﻿using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Kubernetes.Watch;
 using SlimFaas.Options;
 
 namespace SlimFaas.Jobs;
@@ -17,10 +18,20 @@ public class SlimJobsWorker(
     ISlimDataStatus slimDataStatus,
     IMasterService masterService,
     IReplicasService replicasService,
-    IOptions<WorkersOptions> workersOptions)
+    IOptions<WorkersOptions> workersOptions,
+    IOptions<SlimFaasOptions> slimFaasOptions,
+    KubernetesWatchSignals watchSignals)
     : BackgroundService
 {
     private readonly int _delay = workersOptions.Value.JobsDelayMilliseconds;
+
+    // La boucle garde sa cadence de 1 s (queues SlimData) : la cadence watch est
+    // interrogée via IsSyncDue, pas attendue (voir KubernetesWatchSyncCadence).
+    private readonly KubernetesWatchSyncCadence _jobsSyncCadence = new(
+        watchSignals,
+        watchSignals.Jobs,
+        TimeSpan.FromMilliseconds(workersOptions.Value.JobsDelayMilliseconds),
+        TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsResyncSeconds));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -35,9 +46,28 @@ public class SlimJobsWorker(
     {
         try
         {
+            // La boucle reste cadencée à 1 s : elle traite aussi les queues SlimData
+            // (DoJobOneCycle), indépendantes des événements Kubernetes. Seule la
+            // synchronisation de la liste des jobs devient pilotée par les événements.
             await Task.Delay(_delay, stoppingToken);
 
-            var jobs = await jobService.SyncJobsAsync();
+            IList<Job> jobs;
+            // Sans watch, ou tant qu'un flux (jobs/pods) est indisponible, la liste est
+            // resynchronisée à chaque cycle comme historiquement : le master ne doit
+            // jamais compter les slots d'exécution sur une liste potentiellement périmée.
+            if (_jobsSyncCadence.IsSyncDue())
+            {
+                // Version capturée AVANT la sync (dans IsSyncDue) : un événement pendant
+                // la sync déclenche la synchronisation du cycle suivant. La version n'est
+                // validée qu'après le succès : un échec resynchronise au cycle suivant.
+                jobs = await jobService.SyncJobsAsync();
+                _jobsSyncCadence.CommitSync();
+            }
+            else
+            {
+                // Sûr : SyncJobsAsync publie la liste via Interlocked.Exchange.
+                jobs = jobService.Jobs;
+            }
 
             if (!masterService.IsMaster)
             {
@@ -107,6 +137,12 @@ public class SlimJobsWorker(
 
                 var elements = await jobQueue.DequeueAsync(jobName, Math.Min(numberJobReady, numberElementToDequeue));
                 if (elements == null || elements.Count == 0) continue;
+
+                // Read-after-write : les événements ADDED des jobs créés ci-dessous
+                // peuvent arriver après le prochain cycle (latence API + debounce). La
+                // liste est donc resynchronisée au cycle suivant pour que le comptage
+                // des slots d'exécution ne dépasse jamais NumberParallelJob.
+                _jobsSyncCadence.ForceNextSync();
 
                 var listCallBack = new ListQueueItemStatus();
                 listCallBack.Items = new List<QueueItemStatus>();

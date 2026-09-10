@@ -45,6 +45,10 @@ public partial class KubernetesService
         }
         catch (HttpOperationException e)
         {
+            // Contrat : un LIST en échec renvoie l'instance previousDeployments
+            // INCHANGÉE (résilience des appels de démarrage). Les consommateurs
+            // event-driven (ReplicasSynchronizationWorker) détectent ce fallback par
+            // identité de référence pour ne pas valider une synchronisation périmée.
             _logger.LogError(e, "Error while listing kubernetes functions");
             return previousDeployments;
         }

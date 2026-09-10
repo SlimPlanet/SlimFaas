@@ -14,6 +14,11 @@ public class SlimJobsConfigurationWorkerTests
 {
     // ── helpers ───────────────────────────────────────────────────────────────
 
+    private static IOptions<SlimFaasOptions> CreateSlimFaasOptions() =>
+        Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions());
+
+    private static SlimFaas.Kubernetes.Watch.KubernetesWatchSignals DisabledSignals() => new();
+
     private static IOptions<WorkersOptions> CreateWorkersOptions(int delayMs = 0) =>
         Microsoft.Extensions.Options.Options.Create(new WorkersOptions
         {
@@ -34,11 +39,11 @@ public class SlimJobsConfigurationWorkerTests
     {
         // Arrange
         var jobConfigMock = new Mock<IJobConfiguration>();
-        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
-            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 0));
+            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 0), CreateSlimFaasOptions(), DisabledSignals());
 
         // Act
         await InvokeDoOneCycleAsync(worker, CancellationToken.None);
@@ -57,7 +62,7 @@ public class SlimJobsConfigurationWorkerTests
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
-            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 0));
+            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 0), CreateSlimFaasOptions(), DisabledSignals());
 
         // Act & Assert – must NOT throw
         var exception = await Record.ExceptionAsync(
@@ -79,12 +84,12 @@ public class SlimJobsConfigurationWorkerTests
             {
                 if (Interlocked.Increment(ref callCount) >= 2)
                     twoCallsReached.TrySetResult();
-                return Task.CompletedTask;
+                return Task.FromResult(true);
             });
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
-            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 10));
+            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 10), CreateSlimFaasOptions(), DisabledSignals());
 
         using var cts = new CancellationTokenSource();
 
@@ -103,11 +108,11 @@ public class SlimJobsConfigurationWorkerTests
     {
         // Arrange
         var jobConfigMock = new Mock<IJobConfiguration>();
-        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
-            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 5));
+            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: 5), CreateSlimFaasOptions(), DisabledSignals());
 
         using var cts = new CancellationTokenSource();
 
@@ -126,11 +131,11 @@ public class SlimJobsConfigurationWorkerTests
     public async Task DoOneCycle_CancellationDuringConfiguredDelay_SkipsSync()
     {
         var jobConfigMock = new Mock<IJobConfiguration>();
-        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
-            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: Timeout.Infinite));
+            jobConfigMock.Object, logger, CreateWorkersOptions(delayMs: Timeout.Infinite), CreateSlimFaasOptions(), DisabledSignals());
 
         using var cts = new CancellationTokenSource();
 
