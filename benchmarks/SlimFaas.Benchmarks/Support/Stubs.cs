@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using SlimData;
 using SlimFaas;
 using SlimFaas.Jobs;
@@ -86,6 +86,70 @@ public static class BenchData
                 timeoutRetriesSeconds: [2, 4, 8],
                 retryQueueElements: ImmutableArray<QueueHttpTryElement>.Empty,
                 httpStatusRetries: [500, 502, 503]));
+        }
+
+        return builder.MoveToImmutable();
+    }
+
+    /// <summary>
+    /// Queue with a realistic mix of element states, as the Raft interpreter sees it
+    /// on every dequeue: available (never tried), running (try in flight), timed out
+    /// (try in flight past its HTTP timeout — will be marked 504 by the next pop) and
+    /// finished (try completed with a non-retryable code — will be evicted by the next
+    /// pop). Every element gets fresh <see cref="QueueHttpTryElement"/> instances so a
+    /// benchmark can rebuild a pristine queue in its iteration setup.
+    /// </summary>
+    public static ImmutableArray<QueueElement> BuildMixedStateQueue(int depth, long nowTicks, int payloadBytes = 256)
+    {
+        var payload = new byte[payloadBytes];
+        Random.Shared.NextBytes(payload);
+        var builder = ImmutableArray.CreateBuilder<QueueElement>(depth);
+        for (var i = 0; i < depth; i++)
+        {
+            var tries = (i % 4) switch
+            {
+                // available: never dispatched
+                0 => ImmutableArray<QueueHttpTryElement>.Empty,
+                // running: dispatched 1 s ago, 30 s timeout
+                1 => [new QueueHttpTryElement(nowTicks - TimeSpan.TicksPerSecond, $"tx-{i:D6}")],
+                // timed out: dispatched 60 s ago, still no answer
+                2 => [new QueueHttpTryElement(nowTicks - 60 * TimeSpan.TicksPerSecond, $"tx-{i:D6}")],
+                // finished: answered 200 half a second ago
+                _ => [new QueueHttpTryElement(nowTicks - TimeSpan.TicksPerSecond, $"tx-{i:D6}", nowTicks - TimeSpan.TicksPerSecond / 2, 200)],
+            };
+
+            builder.Add(new QueueElement(
+                value: payload,
+                id: $"element-{i:D6}",
+                insertTimeStamp: nowTicks - 2 * TimeSpan.TicksPerSecond,
+                httpTimeoutSeconds: 30,
+                timeoutRetriesSeconds: [2, 4, 8],
+                retryQueueElements: tries,
+                httpStatusRetries: [500, 502, 503, 504]));
+        }
+
+        return builder.MoveToImmutable();
+    }
+
+    /// <summary>
+    /// Queue where every element has one try in flight (the shape a callback batch
+    /// meets: the function answered, SlimFaas reports the HTTP code back).
+    /// </summary>
+    public static ImmutableArray<QueueElement> BuildRunningQueue(int depth, long nowTicks, int payloadBytes = 256)
+    {
+        var payload = new byte[payloadBytes];
+        Random.Shared.NextBytes(payload);
+        var builder = ImmutableArray.CreateBuilder<QueueElement>(depth);
+        for (var i = 0; i < depth; i++)
+        {
+            builder.Add(new QueueElement(
+                value: payload,
+                id: $"element-{i:D6}",
+                insertTimeStamp: nowTicks - 2 * TimeSpan.TicksPerSecond,
+                httpTimeoutSeconds: 30,
+                timeoutRetriesSeconds: [2, 4, 8],
+                retryQueueElements: [new QueueHttpTryElement(nowTicks - TimeSpan.TicksPerSecond, $"tx-{i:D6}")],
+                httpStatusRetries: [500, 502, 503, 504]));
         }
 
         return builder.MoveToImmutable();
