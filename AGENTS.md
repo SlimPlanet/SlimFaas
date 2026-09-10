@@ -342,6 +342,7 @@ technical references on GitHub.
 ### Documentation Format & Style
 
 - **Markdown (.md)** – Use standard GitHub-flavored Markdown
+- **Language** – Write short descriptions and documentation updates in English only
 - **Code Examples** – Always include executable examples with language markers:
   ```bash
   # Shell commands
