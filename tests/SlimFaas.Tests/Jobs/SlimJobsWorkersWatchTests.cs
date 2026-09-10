@@ -170,7 +170,7 @@ public class SlimJobsWorkersWatchTests
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
         signals.MarkAllStreamsConnected();
         var jobConfiguration = new Mock<IJobConfiguration>();
-        jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
         // Resync très long : seul un pulse peut débloquer le cycle.
         SlimJobsConfigurationWorker worker = CreateConfigurationWorker(jobConfiguration, signals, resyncSeconds: 3600);
 
@@ -191,7 +191,7 @@ public class SlimJobsWorkersWatchTests
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
         signals.MarkAllStreamsConnected();
         var jobConfiguration = new Mock<IJobConfiguration>();
-        jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
         SlimJobsConfigurationWorker worker = CreateConfigurationWorker(jobConfiguration, signals, resyncSeconds: 1);
 
         await InvokeDoOneCycleAsync(worker, CancellationToken.None).WaitAsync(AssertTimeout);
@@ -205,7 +205,7 @@ public class SlimJobsWorkersWatchTests
         var signals = new KubernetesWatchSignals { WatchEnabled = true };
         signals.MarkAllStreamsConnected();
         var jobConfiguration = new Mock<IJobConfiguration>();
-        jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfiguration.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
         // Resync très long : seule la cadence historique (0 ms ici) peut enchaîner les cycles.
         SlimJobsConfigurationWorker worker = CreateConfigurationWorker(jobConfiguration, signals, resyncSeconds: 3600);
         // Flux CronJob indisponible (ex. RBAC sans verbe "watch").

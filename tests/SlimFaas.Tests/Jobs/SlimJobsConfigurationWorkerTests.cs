@@ -39,7 +39,7 @@ public class SlimJobsConfigurationWorkerTests
     {
         // Arrange
         var jobConfigMock = new Mock<IJobConfiguration>();
-        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
@@ -84,7 +84,7 @@ public class SlimJobsConfigurationWorkerTests
             {
                 if (Interlocked.Increment(ref callCount) >= 2)
                     twoCallsReached.TrySetResult();
-                return Task.CompletedTask;
+                return Task.FromResult(true);
             });
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
@@ -108,7 +108,7 @@ public class SlimJobsConfigurationWorkerTests
     {
         // Arrange
         var jobConfigMock = new Mock<IJobConfiguration>();
-        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(
@@ -131,7 +131,7 @@ public class SlimJobsConfigurationWorkerTests
     public async Task DoOneCycle_CancellationDuringConfiguredDelay_SkipsSync()
     {
         var jobConfigMock = new Mock<IJobConfiguration>();
-        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).Returns(Task.CompletedTask);
+        jobConfigMock.Setup(c => c.SyncJobsConfigurationAsync()).ReturnsAsync(true);
 
         var logger = NullLogger<SlimJobsConfigurationWorker>.Instance;
         var worker = new SlimJobsConfigurationWorker(

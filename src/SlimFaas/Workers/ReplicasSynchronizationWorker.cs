@@ -33,8 +33,21 @@ public class ReplicasSynchronizationWorker(
             {
                 await _cadence.WaitForSyncDueAsync(stoppingToken);
 
-                await replicasService.SyncDeploymentsAsync(_namespace);
-                _cadence.CommitSync();
+                DeploymentsInformations before = replicasService.Deployments;
+                DeploymentsInformations after = await replicasService.SyncDeploymentsAsync(_namespace);
+                // Contrat avec ListFunctionsAsync (Kubernetes et Process) : un LIST en
+                // échec ne lève pas, il renvoie le snapshot précédent INCHANGÉ pour la
+                // résilience des appels de démarrage. La même instance signifie donc
+                // « pas de donnée fraîche » : l'événement consommé ne doit pas être
+                // validé, le retry suit la cadence historique au lieu du resync.
+                if (ReferenceEquals(before, after))
+                {
+                    _cadence.MarkSyncFailed();
+                }
+                else
+                {
+                    _cadence.CommitSync();
+                }
             }
             catch (Exception e)
             {

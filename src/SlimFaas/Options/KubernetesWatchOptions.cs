@@ -28,6 +28,14 @@ public class KubernetesWatchOptions
     /// <summary>Server-side watch timeout (stream rotation); must stay below the HttpClient timeout (100 s)</summary>
     public int WatchTimeoutSeconds { get; set; } = 60;
 
+    /// <summary>
+    /// Client-side deadline margin added to <see cref="WatchTimeoutSeconds"/> for each
+    /// watch connection: with ResponseHeadersRead the HttpClient timeout no longer
+    /// bounds body reads, so a connection whose server rotation never arrives
+    /// (stalled proxy) is abandoned after WatchTimeoutSeconds + this margin.
+    /// </summary>
+    public int WatchReadDeadlineMarginSeconds { get; set; } = 30;
+
     /// <summary>Initial reconnect delay after a watch stream failure</summary>
     public int ReconnectInitialDelayMilliseconds { get; set; } = 1000;
 

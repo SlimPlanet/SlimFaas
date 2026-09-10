@@ -9,7 +9,12 @@ public interface IJobConfiguration
 {
     SlimFaasJobConfiguration Configuration { get; set; }
 
-    Task SyncJobsConfigurationAsync();
+    /// <summary>
+    /// Resynchronise la configuration des jobs. Retourne false quand la lecture a
+    /// échoué (LIST CronJob en erreur HTTP : la configuration précédente est
+    /// conservée) — l'appelant ne doit alors pas considérer l'état comme frais.
+    /// </summary>
+    Task<bool> SyncJobsConfigurationAsync();
 }
 
 public class JobConfiguration : IJobConfiguration
@@ -121,11 +126,18 @@ public class JobConfiguration : IJobConfiguration
         return new SlimFaasJobConfiguration(mergedConfigurations, mergedSchedules.Count > 0 ? mergedSchedules : null);
     }
 
-    public async Task SyncJobsConfigurationAsync()
+    public async Task<bool> SyncJobsConfigurationAsync()
     {
         var configuration = await _service.ListJobsConfigurationAsync(_namespace);
 
-        if (configuration != null)
-            Interlocked.Exchange(ref _configuration, MergeJobConfigurations(configuration));
+        if (configuration == null)
+        {
+            // LIST en échec (l'orchestrateur a déjà loggé l'erreur HTTP) : la
+            // configuration précédente est conservée, l'appelant doit retenter.
+            return false;
+        }
+
+        Interlocked.Exchange(ref _configuration, MergeJobConfigurations(configuration));
+        return true;
     }
 }

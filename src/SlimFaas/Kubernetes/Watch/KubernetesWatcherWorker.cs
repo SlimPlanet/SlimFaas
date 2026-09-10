@@ -41,7 +41,8 @@ public class KubernetesWatcherWorker(
     private enum StreamEnd
     {
         Completed,
-        Error
+        Error,
+        Stalled
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -196,12 +197,16 @@ public class KubernetesWatcherWorker(
 
         if (response.StatusCode == System.Net.HttpStatusCode.Gone)
         {
-            // 410 : resourceVersion trop ancienne — trou dans l'historique.
+            // 410 : resourceVersion trop ancienne — trou dans l'historique. Le flux
+            // passe par le chemin panne/récupération : les workers retombent en
+            // cadence legacy pendant le trou et le pulse de rattrapage n'est émis
+            // qu'une fois le flux rétabli — un LIST déclenché avant la reconnexion
+            // ne peut pas voir ce qui se passe pendant le trou (ex. une suppression).
             logger.LogWarning(
                 "Watch stream {Target} received HTTP 410 Gone: resetting resourceVersion and signaling a resync",
                 target.Name);
             state.LastResourceVersion = null;
-            PulseAll(channels);
+            MarkStreamDown(target, channels, state, exception: null, statusCode: 410);
             await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
             return;
         }
@@ -215,24 +220,57 @@ public class KubernetesWatcherWorker(
             return;
         }
 
-        // Un 2xx ne suffit pas à déclarer le flux sain : tant que les fermetures
-        // immédiates s'enchaînent, la santé n'est restaurée qu'à la première ligne
-        // watch valide (ou à une fermeture après une durée de vie normale).
+        // Un 2xx prouve la connexion (le signal est rétabli, avec pulse de rattrapage
+        // si nécessaire) mais ne réinitialise NI le compteur de fermetures vides NI le
+        // backoff : sinon un proxy qui accepte puis referme aussitôt chaque flux
+        // remettrait le compteur à zéro à chaque 200 et le seuil ne serait jamais
+        // atteint. Seule une ligne watch valide, ou une fermeture après une durée de
+        // vie normale, restaure entièrement l'état (RestoreStreamHealth).
         bool suspicious = state.ConsecutiveEmptyStreams >= EmptyStreamUnhealthyThreshold;
         if (!suspicious)
         {
-            RestoreStreamHealth(target, channels, options, state);
+            MarkConnectionEstablished(target, channels, state);
         }
 
         state.CurrentStreamDelivered = false;
         long startedAt = Environment.TickCount64;
-        await using Stream stream = await response.Content.ReadAsStreamAsync(stoppingToken).ConfigureAwait(false);
-        StreamEnd end = await ReadStreamAsync(stream, target, channels, options, state, stoppingToken)
-            .ConfigureAwait(false);
-        if (end == StreamEnd.Error)
+
+        // Avec ResponseHeadersRead, HttpClient.Timeout ne borne plus les lectures du
+        // body ; timeoutSeconds n'est appliqué que côté serveur. Cette deadline
+        // client abandonne une connexion dont la rotation serveur n'arrive jamais
+        // (proxy/connexion gelés).
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        deadline.CancelAfter(TimeSpan.FromSeconds(
+            options.WatchTimeoutSeconds + options.WatchReadDeadlineMarginSeconds));
+
+        StreamEnd end;
+        try
         {
-            await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
-            return;
+            await using Stream stream = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
+            end = await ReadStreamAsync(stream, target, channels, options, state, deadline.Token)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!stoppingToken.IsCancellationRequested)
+        {
+            end = StreamEnd.Stalled;
+        }
+
+        switch (end)
+        {
+            case StreamEnd.Error:
+                await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
+                return;
+            case StreamEnd.Stalled when state.CurrentStreamDelivered:
+                // Le flux a livré puis s'est gelé : coupure franche, rattrapage à la
+                // reconnexion.
+                MarkStreamDown(target, channels, state, exception: null, statusCode: null);
+                await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
+                return;
+            case StreamEnd.Stalled:
+                // Gelé sans avoir rien livré : même traitement que les fermetures
+                // vides (compteur, seuil, backoff).
+                await HandleEmptyStreamAsync(target, channels, options, state, stoppingToken).ConfigureAwait(false);
+                return;
         }
 
         long lifetime = Environment.TickCount64 - startedAt;
@@ -247,10 +285,20 @@ public class KubernetesWatcherWorker(
         // 2xx refermé aussitôt sans une seule ligne watch : reconnexion sous backoff
         // pour ne pas marteler l'API server, et signalement du flux indisponible au
         // bout de quelques fermetures consécutives.
+        await HandleEmptyStreamAsync(target, channels, options, state, stoppingToken).ConfigureAwait(false);
+    }
+
+    private async Task HandleEmptyStreamAsync(
+        WatchTarget target,
+        DebounceChannel[] channels,
+        KubernetesWatchOptions options,
+        WatchLoopState state,
+        CancellationToken stoppingToken)
+    {
         state.ConsecutiveEmptyStreams++;
         if (state.ConsecutiveEmptyStreams == EmptyStreamUnhealthyThreshold)
         {
-            MarkStreamDown(target, channels, state, exception: null, (int)response.StatusCode);
+            MarkStreamDown(target, channels, state, exception: null, statusCode: null);
         }
 
         await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
@@ -276,9 +324,25 @@ public class KubernetesWatcherWorker(
     }
 
     /// <summary>
-    /// Déclare le flux opérationnel : compteurs et backoff remis à zéro, signal
-    /// rétabli, et pulse de rattrapage si des événements ont pu être manqués pendant
-    /// une coupure. Idempotent.
+    /// La connexion est établie (2xx) : signal rétabli et pulse de rattrapage si des
+    /// événements ont pu être manqués pendant une coupure. Ne réinitialise ni le
+    /// compteur de fermetures vides ni le backoff — seule une ligne watch valide ou
+    /// une durée de vie normale le font (<see cref="RestoreStreamHealth"/>). Idempotent.
+    /// </summary>
+    private void MarkConnectionEstablished(WatchTarget target, DebounceChannel[] channels, WatchLoopState state)
+    {
+        MarkStreamUp(target, channels, state, logRecovery: true);
+        if (state.PreviousAttemptFailed)
+        {
+            // Des événements ont pu être manqués pendant la coupure.
+            state.PreviousAttemptFailed = false;
+            PulseAll(channels);
+        }
+    }
+
+    /// <summary>
+    /// Le flux a fait ses preuves (ligne watch valide, ou durée de vie normale) :
+    /// compteurs et backoff remis à zéro en plus du rétablissement du signal. Idempotent.
     /// </summary>
     private void RestoreStreamHealth(
         WatchTarget target,
@@ -288,13 +352,7 @@ public class KubernetesWatcherWorker(
     {
         state.ConsecutiveEmptyStreams = 0;
         state.BackoffMilliseconds = options.ReconnectInitialDelayMilliseconds;
-        MarkStreamUp(target, channels, state, logRecovery: true);
-        if (state.PreviousAttemptFailed)
-        {
-            // Des événements ont pu être manqués pendant la coupure.
-            state.PreviousAttemptFailed = false;
-            PulseAll(channels);
-        }
+        MarkConnectionEstablished(target, channels, state);
     }
 
     private async Task<StreamEnd> ReadStreamAsync(
@@ -336,7 +394,11 @@ public class KubernetesWatcherWorker(
                         "Watch stream {Target} received an ERROR event (code {Code}): reconnecting",
                         target.Name,
                         eventInfo.ErrorCode);
-                    PulseAll(channels);
+                    // Chemin panne/récupération : signal indisponible pendant le trou
+                    // (cadence legacy) et pulse de rattrapage une fois le flux rétabli
+                    // — pulser avant la reconnexion ne peut pas couvrir ce qui se
+                    // passe pendant le trou.
+                    MarkStreamDown(target, channels, state, exception: null, eventInfo.ErrorCode);
                     return StreamEnd.Error;
                 default:
                     if (logger.IsEnabled(LogLevel.Debug))

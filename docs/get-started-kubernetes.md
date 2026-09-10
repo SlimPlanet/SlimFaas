@@ -45,6 +45,7 @@ kubectl -n slimfaas-demo get pods,pvc
 > | `JobsConfigurationResyncSeconds` | `60` | Safety-net resync for CronJob configurations |
 > | `DebounceMilliseconds` | `300` | Event burst coalescing window |
 > | `WatchTimeoutSeconds` | `60` | Watch stream rotation (server-side close) |
+> | `WatchReadDeadlineMarginSeconds` | `30` | Client-side margin over `WatchTimeoutSeconds` after which a stalled connection is abandoned |
 >
 > If a watch stream cannot be established (for example the ServiceAccount lacks the
 > `watch` verb, or the API server is temporarily unreachable), SlimFaas logs a warning

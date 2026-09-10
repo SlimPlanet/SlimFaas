@@ -130,6 +130,70 @@ public sealed class KubernetesWatcherWorkerTests
         Assert.Equal(1, harness.Signal.Version);
     }
 
+    [Fact]
+    public async Task RepeatedEmptyStreamClosuresReportTheSignalUnhealthyUntilAStreamDelivers()
+    {
+        // 6 réponses 200 refermées aussitôt (proxy/LB sans support du streaming),
+        // puis un vrai flux : le compteur de fermetures vides ne doit pas être remis
+        // à zéro par le simple 200 suivant, sinon le seuil n'est jamais atteint.
+        using var harness = new WatchHarness(FastOptions(), emptyStreamResponses: 6);
+
+        await harness.WaitForRequestAsync(4);
+        await WatchHarness.WaitUntilAsync(
+            () => !harness.Signal.IsHealthy,
+            "signal reported down after repeated empty closures");
+
+        // Les 200 vides suivants ne rétablissent pas la santé.
+        await harness.WaitForRequestAsync(6);
+        Assert.False(harness.Signal.IsHealthy);
+
+        // Un flux qui livre enfin une ligne watch valide rétablit la santé.
+        await harness.WaitForRequestAsync(7);
+        harness.WriteLine("{\"type\":\"BOOKMARK\",\"object\":{\"metadata\":{\"resourceVersion\":\"5\"}}}");
+        await WatchHarness.WaitUntilAsync(
+            () => harness.Signal.IsHealthy,
+            "signal restored once a stream delivers");
+    }
+
+    [Fact]
+    public async Task InStreamErrorEventMarksTheStreamDownUntilASuccessfulReconnection()
+    {
+        using var harness = new WatchHarness(FastOptions());
+        await harness.WaitForRequestAsync(1);
+        await WatchHarness.WaitUntilAsync(() => harness.Signal.IsHealthy, "initial connection healthy");
+
+        // Un événement ERROR du protocole doit passer par le chemin panne/récupération :
+        // signal indisponible pendant le trou (cadence legacy), puis pulse de
+        // rattrapage une fois le flux rétabli.
+        harness.WriteLine("{\"type\":\"ERROR\",\"object\":{\"code\":403}}");
+        await WatchHarness.WaitUntilAsync(() => !harness.Signal.IsHealthy, "signal down during the error gap");
+
+        await harness.WaitForRequestAsync(2);
+        await WatchHarness.WaitUntilAsync(() => harness.Signal.IsHealthy, "signal healthy after reconnection");
+        // 1 pulse à la coupure (transition down) + 1 pulse de rattrapage à la reconnexion.
+        await WatchHarness.WaitUntilAsync(() => harness.Signal.Version >= 2, "catch-up pulse after reconnection");
+    }
+
+    [Fact]
+    public async Task StalledStreamIsAbandonedAfterTheClientSideDeadline()
+    {
+        var options = FastOptions();
+        options.WatchTimeoutSeconds = 1;
+        options.WatchReadDeadlineMarginSeconds = 1; // deadline client : 2 s par connexion
+
+        // Le transport répond 200 puis ne produit jamais un octet et ne ferme jamais :
+        // HttpClient.Timeout ne s'applique plus après les headers (ResponseHeadersRead),
+        // sans deadline client la première connexion resterait ouverte indéfiniment.
+        using var harness = new WatchHarness(options);
+
+        await harness.WaitForRequestAsync(2);
+        // Connexions gelées consécutives : flux signalé indisponible, durablement.
+        await harness.WaitForRequestAsync(4);
+        await WatchHarness.WaitUntilAsync(() => !harness.Signal.IsHealthy, "stalled stream reported down");
+        await Task.Delay(300);
+        Assert.False(harness.Signal.IsHealthy);
+    }
+
     private sealed class WatchHarness : IDisposable
     {
         private readonly CancellationTokenSource _cts = new();
@@ -142,12 +206,13 @@ public sealed class KubernetesWatcherWorkerTests
         public WatchHarness(
             KubernetesWatchOptions options,
             HttpStatusCode? firstResponseStatus = null,
-            int failureResponses = 1)
+            int failureResponses = 1,
+            int emptyStreamResponses = 0)
         {
             // Comme à l'activation du watch : le flux est attendu, le signal reste
             // indisponible tant que la connexion n'est pas établie.
             Signal.ExpectStream();
-            _handler = new StreamingHandler(firstResponseStatus, failureResponses);
+            _handler = new StreamingHandler(firstResponseStatus, failureResponses, emptyStreamResponses);
             _client = new k8s.Kubernetes(
                 new KubernetesClientConfiguration { Host = "http://localhost" },
                 _handler);
@@ -241,10 +306,12 @@ public sealed class KubernetesWatcherWorkerTests
         }
     }
 
-    private sealed class StreamingHandler(HttpStatusCode? firstResponseStatus, int failureResponses) : DelegatingHandler
+    private sealed class StreamingHandler(HttpStatusCode? firstResponseStatus, int failureResponses, int emptyStreamResponses)
+        : DelegatingHandler
     {
         private readonly HttpStatusCode? _failureStatus = firstResponseStatus;
         private int _remainingFailures = failureResponses;
+        private int _remainingEmptyStreams = emptyStreamResponses;
         private WatchStreamContent? _currentContent;
 
         public List<string> Requests { get; } = new();
@@ -266,6 +333,20 @@ public sealed class KubernetesWatcherWorkerTests
             {
                 _remainingFailures--;
                 return Task.FromResult(new HttpResponseMessage(failure) { RequestMessage = request });
+            }
+
+            if (_remainingEmptyStreams > 0)
+            {
+                // Proxy/LB qui accepte la requête (200) puis referme aussitôt le body
+                // sans livrer une seule ligne watch.
+                _remainingEmptyStreams--;
+                var emptyContent = new WatchStreamContent();
+                emptyContent.Complete();
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = emptyContent,
+                    RequestMessage = request
+                });
             }
 
             var content = new WatchStreamContent();

@@ -39,8 +39,16 @@ public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
         {
             await _cadence.WaitForSyncDueAsync(stoppingToken);
 
-            await jobConfiguration.SyncJobsConfigurationAsync();
-            _cadence.CommitSync();
+            // Un LIST CronJob en échec ne lève pas (configuration null conservée) :
+            // ne pas valider l'événement consommé, retenter à la cadence historique.
+            if (await jobConfiguration.SyncJobsConfigurationAsync())
+            {
+                _cadence.CommitSync();
+            }
+            else
+            {
+                _cadence.MarkSyncFailed();
+            }
         }
         catch (Exception e)
         {
