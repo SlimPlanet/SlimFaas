@@ -78,19 +78,24 @@ public sealed class ClusterFileAnnounceWorkerTests
         var sha = "sha1";
 
         // file already present => no pull
+        var existenceChecked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         repo.Setup(r => r.ExistsAsync(id, sha, It.IsAny<CancellationToken>()))
+            .Callback(() => existenceChecked.TrySetResult())
             .ReturnsAsync(true);
 
-        var worker = new ClusterFileAnnounceWorker(queue, sync.Object, repo.Object, logger.Object);
+        using var worker = new ClusterFileAnnounceWorker(queue, sync.Object, repo.Object, logger.Object);
 
         await worker.StartAsync(CancellationToken.None);
-
-        Assert.True(queue.TryEnqueue(new AnnouncedFile(id, sha, null)));
-
-        // small delay to allow worker to process
-        await Task.Delay(150);
-
-        await worker.StopAsync(CancellationToken.None);
+        try
+        {
+            Assert.True(queue.TryEnqueue(new AnnouncedFile(id, sha, null)));
+            await existenceChecked.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        finally
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await worker.StopAsync(timeout.Token);
+        }
 
         repo.VerifyAll();
         sync.VerifyNoOtherCalls();
