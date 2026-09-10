@@ -233,7 +233,7 @@ The current byte window and the cause of the latest snapshot request are exposed
 
 ## CPU-aware rate limiting
 
-SlimFaas includes built-in **load shedding** to protect your cluster during traffic spikes by automatically rejecting requests when CPU usage exceeds configurable thresholds.
+SlimFaas includes built-in **load shedding**, enabled by default, to protect your cluster during traffic spikes by automatically rejecting requests when CPU usage reaches configurable thresholds.
 
 ### Key Features
 
@@ -244,10 +244,12 @@ SlimFaas includes built-in **load shedding** to protect your cluster during traf
 
 ### How It Works
 
-1. **Monitoring**: A background service continuously samples CPU usage at a configurable interval.
-2. **Activation**: When CPU exceeds the `CpuHighThreshold`, the middleware starts rejecting requests with `429 Too Many Requests`.
-3. **Deactivation**: When CPU drops below the `CpuLowThreshold`, normal processing resumes.
+1. **Monitoring**: A background service continuously samples process CPU usage at a configurable interval, normalized by the number of processors available to the .NET runtime.
+2. **Activation**: A sample at or above `CpuHighThreshold` (80% by default) activates rejection of non-exempt requests with `429 Too Many Requests`.
+3. **Deactivation**: A sample at or below `CpuLowThreshold` (60% by default) clears the limitation. Samples between the thresholds preserve the previous state.
 4. **Exemptions**: The SlimData port (used for internal cluster communication) is always exempt from rate limiting.
+
+Both transitions happen during CPU sampling, even when no requests arrive or only health probes are called. For example, samples of 85%, 50%, then 70% leave requests allowed after the 50% sample without restarting the pod. Previously, the middleware evaluated transitions only on non-exempt requests and could miss that recovery between calls.
 
 ### Configuration
 
@@ -261,11 +263,12 @@ Add the following to your `appsettings.json`:
       "CpuHighThreshold": 80.0,
       "CpuLowThreshold": 60.0,
       "SampleIntervalMs": 1000,
-      "RetryAfterSeconds": 30,
+      "RetryAfterSeconds": 5,
       "ExcludedPaths": [
         "/health",
         "/ready",
-        "/metrics"
+        "/metrics",
+        "/SlimData"
       ]
     }
   }
@@ -296,6 +299,41 @@ The CPU rate limiting middleware automatically exempts the **SlimData port** (co
 - Only external/public traffic on other ports is subject to rate limiting
 
 This design keeps your control plane healthy even under extreme load.
+
+### Diagnose healthy probes with blocked function calls
+
+`/health`, `/ready`, `/metrics` and `/SlimData` (including its subroutes) are excluded by default. A pod can therefore return `200` on its probes while rejecting `/function/...` and `/status-functions` with `429` and `Retry-After: 5`. A browser's error handling or wake-up overlay can make this appear to be a stalled application. An HTTP timeout without a response is a different symptom and does not, by itself, identify CPU limiting as the cause.
+
+When monitoring is enabled, each pod exposes two gauges on `/metrics` after the first CPU sample, without additional labels:
+
+| Metric | Meaning |
+| --- | --- |
+| `slimfaas_cpu_usage_percent` | Latest CPU percentage used by the limiter. |
+| `slimfaas_cpu_rate_limiting_active` | `1` while limiting, otherwise `0`. |
+
+`SlimFaas.RateLimiting.CpuMonitoringWorker` logs `CPU rate limiting activated` at Warning level and `CPU rate limiting deactivated` at Information level once per transition. `High CPU usage detected` remains a Warning for each sample at or above the high threshold. These gauges are absent when CPU monitoring is disabled.
+
+Before restarting a pod, capture the failing request's status, response body and timing in the browser's Network panel and directly against each SlimFaas pod. For example, set your namespace and forward the first pod's public HTTP port (5000 by default):
+
+```bash
+SLIMFAAS_NAMESPACE=default
+kubectl -n "$SLIMFAAS_NAMESPACE" port-forward pod/slimfaas-0 15000:5000
+```
+
+In another terminal, set a read-only function path for your environment:
+
+```bash
+SLIMFAAS_FUNCTION_PATH=/function/fibonacci1/hello/local
+for path in /health /ready /status-functions "$SLIMFAAS_FUNCTION_PATH"; do
+  curl --include --max-time 10 --write-out '\nHTTP %{http_code} in %{time_total}s\n' \
+    "http://127.0.0.1:15000$path"
+done
+curl --silent --max-time 10 http://127.0.0.1:15000/metrics | rg '^slimfaas_cpu_'
+```
+
+Repeat for the other pods and retain their logs, including the interval before the failure. Compare direct responses with those through the ingress. If requests expire without `429`, investigate routing, downstream connections and deployment synchronization rather than assuming the limiter caused the incident.
+
+For a controlled development comparison, set `SlimFaas__RateLimiting__Enabled=false` in the SlimFaas deployment configuration and replay the same workload for a comparable duration. This temporarily removes CPU load shedding. A successful request immediately after the rollout is insufficient evidence: restarting alone also resets process state. Restore the setting after the comparison; the normal recovery path requires no restart.
 
 ---
 

@@ -121,9 +121,12 @@ public class SlimQueuesWorkerOffloadTests
     private static Mock<ISlimFaasQueue> BuildQueueMock(string functionName, QueueData queueData)
     {
         Mock<ISlimFaasQueue> queueMock = new();
+        var dequeued = 0;
         queueMock
             .Setup(q => q.DequeueAsync(functionName, It.IsAny<int>(), It.IsAny<IList<string>?>()))
-            .ReturnsAsync(new List<QueueData> { queueData });
+            .ReturnsAsync(() => Interlocked.Exchange(ref dequeued, 1) == 0
+                ? new List<QueueData> { queueData }
+                : []);
         queueMock
             .Setup(q => q.CountElementAsync(It.IsAny<string>(), It.IsAny<List<CountType>>(), It.IsAny<int>()))
             .ReturnsAsync(1L);
@@ -140,6 +143,36 @@ public class SlimQueuesWorkerOffloadTests
             .Setup(q => q.GetDispatchStateAsync(functionName))
             .ReturnsAsync(new QueueDispatchState(1, 0, 0, []));
         return queueMock;
+    }
+
+    private static Task ObserveCallback(
+        Mock<ISlimFaasQueue> queue, string functionName, string elementId, int httpCode)
+    {
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        queue.Setup(q => q.ListCallbackAsync(
+                functionName,
+                It.Is<ListQueueItemStatus>(status => status.Items != null &&
+                    status.Items.Any(item => item.Id == elementId && item.HttpCode == httpCode))))
+            .Callback(() => completed.TrySetResult())
+            .Returns(Task.CompletedTask);
+        return completed.Task;
+    }
+
+    private static async Task RunUntilAsync(SlimQueuesWorker worker, Task completed)
+    {
+        using (worker)
+        {
+            await worker.StartAsync(CancellationToken.None);
+            try
+            {
+                await completed.WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            finally
+            {
+                using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await worker.StopAsync(timeout.Token);
+            }
+        }
     }
 
     /// <summary>
@@ -170,6 +203,11 @@ public class SlimQueuesWorkerOffloadTests
         fileSyncMock
             .Setup(f => f.PullFileIfMissingAsync(fileId, sha256, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new FilePullResult(fakeFileStream));
+        var cleanupCompleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fileSyncMock
+            .Setup(f => f.BroadcastFileDeleteAsync(fileId, It.IsAny<CancellationToken>()))
+            .Callback(() => cleanupCompleted.TrySetResult())
+            .Returns(Task.CompletedTask);
 
         // --- Queue : contient UN message avec OffloadedFileId ---
         var customRequest = new CustomRequest(
@@ -188,12 +226,7 @@ public class SlimQueuesWorkerOffloadTests
         var (worker, sendClientMock) = BuildWorker(queueMock.Object, replicasService, fileSyncMock.Object, dbMock.Object);
 
         // --- Act ---
-        using var cts = new CancellationTokenSource();
-        Task task = worker.StartAsync(cts.Token);
-
-        await Task.Delay(500);
-        await cts.CancelAsync();
-        await task;
+        await RunUntilAsync(worker, cleanupCompleted.Task);
 
         // --- Assert ---
 
@@ -252,12 +285,7 @@ public class SlimQueuesWorkerOffloadTests
             fileSync.Object,
             db.Object,
             Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError)));
-        using var stopping = new CancellationTokenSource();
-
-        await worker.StartAsync(stopping.Token);
-        await Task.Delay(250);
-        await stopping.CancelAsync();
-        await worker.StopAsync(CancellationToken.None);
+        await RunUntilAsync(worker, ObserveCallback(queue, functionName, "retry-element", 500));
 
         db.Verify(service => service.DeleteAsync(DataFileKeys.MetaKey(fileId)), Times.Never);
         fileSync.Verify(
@@ -492,12 +520,7 @@ public class SlimQueuesWorkerOffloadTests
         var replicasService = BuildReplicasService(functionName);
         var (worker, sendClientMock) = BuildWorker(queueMock.Object, replicasService, fileSyncMock.Object, dbMock.Object);
 
-        using var cts = new CancellationTokenSource();
-        Task task = worker.StartAsync(cts.Token);
-
-        await Task.Delay(500);
-        await cts.CancelAsync();
-        await task;
+        await RunUntilAsync(worker, ObserveCallback(queueMock, functionName, "element-id-2", 200));
 
         // SendHttpRequestAsync doit avoir été appelé avec stream = null
         sendClientMock.Verify(s => s.SendHttpRequestAsync(
@@ -590,12 +613,7 @@ public class SlimQueuesWorkerOffloadTests
             workersOptions,
             new NetworkActivityTracker());
 
-        using var cts = new CancellationTokenSource();
-        Task task = worker.StartAsync(cts.Token);
-
-        await Task.Delay(500);
-        await cts.CancelAsync();
-        await task;
+        await RunUntilAsync(worker, ObserveCallback(queueMock, functionName, "element-id-3", 500));
 
         // db.GetAsync doit avoir été appelé
         dbMock.Verify(d => d.GetAsync(DataFileKeys.MetaKey(fileId)), Times.AtLeastOnce);
@@ -660,12 +678,7 @@ public class SlimQueuesWorkerOffloadTests
             fileSync.Object,
             db.Object,
             Task.FromException<HttpResponseMessage>(new HttpRequestException("failed")));
-        using var stopping = new CancellationTokenSource();
-
-        await worker.StartAsync(stopping.Token);
-        await Task.Delay(250);
-        await stopping.CancelAsync();
-        await worker.StopAsync(CancellationToken.None);
+        await RunUntilAsync(worker, ObserveCallback(queue, functionName, "faulted-element", 500));
 
         Assert.True(stream.Disposed);
     }
@@ -705,6 +718,7 @@ public class SlimQueuesWorkerOffloadTests
             db.Object,
             masterService: master);
         CancellationTokenSource? capturedCancellation = null;
+        var requestCanceled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         sendClient.Reset();
         sendClient.Setup(s => s.SendHttpRequestAsync(
                 It.IsAny<CustomRequest>(),
@@ -716,7 +730,7 @@ public class SlimQueuesWorkerOffloadTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<Stream?>(), It.IsAny<string?>()))
-            .Returns((
+            .Returns(async (
                 CustomRequest _,
                 SlimFaasDefaultConfiguration _,
                 string? _,
@@ -728,14 +742,10 @@ public class SlimQueuesWorkerOffloadTests
                 Stream? _, string? _) =>
             {
                 capturedCancellation = cancellation;
-                return WaitForCancellationAsync(cancellation!.Token);
+                using var registration = cancellation!.Token.Register(() => requestCanceled.TrySetResult());
+                return await WaitForCancellationAsync(cancellation.Token);
             });
-        using var stopping = new CancellationTokenSource();
-
-        await worker.StartAsync(stopping.Token);
-        await Task.Delay(250);
-        await stopping.CancelAsync();
-        await worker.StopAsync(CancellationToken.None);
+        await RunUntilAsync(worker, Task.WhenAll(requestCanceled.Task, stream.DisposedTask));
 
         Assert.NotNull(capturedCancellation);
         Assert.True(capturedCancellation.IsCancellationRequested);
@@ -750,13 +760,17 @@ public class SlimQueuesWorkerOffloadTests
 
     private sealed class TrackingMemoryStream(byte[] buffer) : MemoryStream(buffer)
     {
+        private readonly TaskCompletionSource _disposed = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public bool Disposed { get; private set; }
+        public Task DisposedTask => _disposed.Task;
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
                 Disposed = true;
             base.Dispose(disposing);
+            if (disposing)
+                _disposed.TrySetResult();
         }
     }
 }

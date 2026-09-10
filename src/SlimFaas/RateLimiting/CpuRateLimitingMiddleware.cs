@@ -7,21 +7,17 @@ public class CpuRateLimitingMiddleware
     private readonly RequestDelegate _next;
     private readonly RateLimitingOptions _options;
     private readonly ICpuMetrics _cpuMetrics;
-    private readonly ILogger<CpuRateLimitingMiddleware> _logger;
     private readonly int[] _excludedPorts;
-    private bool _isLimiting;
 
     public CpuRateLimitingMiddleware(
         RequestDelegate next,
         IOptions<RateLimitingOptions> options,
         ICpuMetrics cpuMetrics,
-        ILogger<CpuRateLimitingMiddleware> logger,
         int[] excludedPorts)
     {
         _next = next;
         _options = options.Value;
         _cpuMetrics = cpuMetrics;
-        _logger = logger;
         _excludedPorts = excludedPorts;
     }
 
@@ -44,18 +40,7 @@ public class CpuRateLimitingMiddleware
             return;
         }
 
-        double currentCpu = _cpuMetrics.CurrentCpuPercent;
-
-        if (currentCpu >= _options.CpuHighThreshold)
-        {
-            StartCpuRateLimiting(currentCpu);
-        }
-        else if (currentCpu <= _options.CpuLowThreshold)
-        {
-            StopCpuRateLimiting(currentCpu);
-        }
-
-        if (_isLimiting)
+        if (_cpuMetrics.IsLimiting)
         {
             context.Response.StatusCode = StatusCodes.Status429TooManyRequests;
 
@@ -69,39 +54,5 @@ public class CpuRateLimitingMiddleware
         }
 
         await _next(context);
-    }
-
-    private void StartCpuRateLimiting(double currentCpu)
-    {
-        if (_isLimiting)
-        {
-            return;
-        }
-
-        _isLimiting = true;
-        if (_logger.IsEnabled(LogLevel.Warning))
-        {
-            _logger.LogWarning(
-                "CPU rate limiting activated. CPU: {CpuPercent:F2}%, Threshold: {Threshold}%",
-                currentCpu,
-                _options.CpuHighThreshold);
-        }
-    }
-
-    private void StopCpuRateLimiting(double currentCpu)
-    {
-        if (!_isLimiting)
-        {
-            return;
-        }
-
-        _isLimiting = false;
-        if (_logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation(
-                "CPU rate limiting deactivated. CPU: {CpuPercent:F2}%, Threshold: {Threshold}%",
-                currentCpu,
-                _options.CpuLowThreshold);
-        }
     }
 }
