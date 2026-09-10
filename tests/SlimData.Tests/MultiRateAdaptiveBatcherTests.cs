@@ -173,10 +173,9 @@ public sealed class MultiRateAdaptiveBatcherTests
             "commands",
             3,
             enqueueOptions: new AdaptiveBatchEnqueueOptions(TimeSpan.FromMilliseconds(5)));
-        await DrainContinuationsAsync();
+        await time.WaitForTimerAsync(TimeSpan.FromMilliseconds(5));
 
         time.Advance(TimeSpan.FromMilliseconds(4));
-        await DrainContinuationsAsync();
         Assert.False(normal.IsCompleted);
         Assert.False(urgent.IsCompleted);
 
@@ -207,9 +206,8 @@ public sealed class MultiRateAdaptiveBatcherTests
             "commands",
             7,
             enqueueOptions: new AdaptiveBatchEnqueueOptions(TimeSpan.FromMilliseconds(5)));
-        await DrainContinuationsAsync();
+        await time.WaitForTimerAsync(TimeSpan.FromMilliseconds(5));
         time.Advance(TimeSpan.FromMilliseconds(4));
-        await DrainContinuationsAsync();
         Assert.False(pending.IsCompleted);
 
         time.Advance(TimeSpan.FromMilliseconds(1));
@@ -230,9 +228,8 @@ public sealed class MultiRateAdaptiveBatcherTests
 
         Assert.Equal(1, await batcher.EnqueueAsync<int, int>("commands", 1).WaitAsync(TimeSpan.FromSeconds(5)));
         Task<int> pending = batcher.EnqueueAsync<int, int>("commands", 2);
-        await DrainContinuationsAsync();
+        await time.WaitForTimerAsync(TimeSpan.FromMilliseconds(100));
         time.Advance(TimeSpan.FromMilliseconds(99));
-        await DrainContinuationsAsync();
         Assert.False(pending.IsCompleted);
 
         time.Advance(TimeSpan.FromMilliseconds(1));
@@ -251,12 +248,6 @@ public sealed class MultiRateAdaptiveBatcherTests
             "commands",
             1,
             enqueueOptions: new AdaptiveBatchEnqueueOptions(TimeSpan.FromMilliseconds(-1))));
-    }
-
-    private static async Task DrainContinuationsAsync()
-    {
-        for (var index = 0; index < 10; index++)
-            await Task.Yield();
     }
 
     private static async Task WaitUntilAsync(Func<bool> condition)
@@ -286,6 +277,14 @@ public sealed class MultiRateAdaptiveBatcherTests
             lock (_gate)
                 return _timestamp;
         }
+
+        // Advancing fake time before the worker arms its timer can move its deadline
+        // into the future. Task.Yield does not guarantee that the timer was registered.
+        public Task WaitForTimerAsync(TimeSpan dueTimestamp) => WaitUntilAsync(() =>
+        {
+            lock (_gate)
+                return _timers.Any(timer => timer.IsScheduledFor(dueTimestamp.Ticks));
+        });
 
         public override ITimer CreateTimer(
             TimerCallback callback,
@@ -364,6 +363,12 @@ public sealed class MultiRateAdaptiveBatcherTests
             {
                 lock (_gate)
                     return !_disposed && _dueTimestamp <= now;
+            }
+
+            public bool IsScheduledFor(long timestamp)
+            {
+                lock (_gate)
+                    return !_disposed && _dueTimestamp == timestamp;
             }
 
             public void Fire(long now)
