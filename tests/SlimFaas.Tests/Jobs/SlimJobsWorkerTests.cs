@@ -74,7 +74,9 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            workersOptions
+            workersOptions,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
+            new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals()
         );
 
         using CancellationTokenSource cts = new();
@@ -147,7 +149,9 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            workersOptions
+            workersOptions,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
+            new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals()
         );
 
         using CancellationTokenSource cts = new();
@@ -240,7 +244,9 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            workersOptions
+            workersOptions,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
+            new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals()
         );
 
         using CancellationTokenSource cts = new();
@@ -341,7 +347,9 @@ public class SlimJobsWorkerTests
             _slimDataStatusMock.Object,
             _masterServiceMock.Object,
             _replicasServiceMock.Object,
-            workersOptions
+            workersOptions,
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
+            new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals()
         );
 
         using CancellationTokenSource cts = new();

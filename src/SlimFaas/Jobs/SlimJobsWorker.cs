@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Kubernetes.Watch;
 using SlimFaas.Options;
 
 namespace SlimFaas.Jobs;
@@ -17,10 +18,19 @@ public class SlimJobsWorker(
     ISlimDataStatus slimDataStatus,
     IMasterService masterService,
     IReplicasService replicasService,
-    IOptions<WorkersOptions> workersOptions)
+    IOptions<WorkersOptions> workersOptions,
+    IOptions<SlimFaasOptions> slimFaasOptions,
+    KubernetesWatchSignals watchSignals)
     : BackgroundService
 {
     private readonly int _delay = workersOptions.Value.JobsDelayMilliseconds;
+
+    private readonly TimeSpan _jobsResyncInterval =
+        TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsResyncSeconds);
+
+    // Version -1 : la première itération synchronise toujours (état initial).
+    private long _observedJobsVersion = -1;
+    private DateTime _lastJobsSyncUtc = DateTime.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -35,9 +45,29 @@ public class SlimJobsWorker(
     {
         try
         {
+            // La boucle reste cadencée à 1 s : elle traite aussi les queues SlimData
+            // (DoJobOneCycle), indépendantes des événements Kubernetes. Seule la
+            // synchronisation de la liste des jobs devient pilotée par les événements.
             await Task.Delay(_delay, stoppingToken);
 
-            var jobs = await jobService.SyncJobsAsync();
+            IList<Job> jobs;
+            long version = watchSignals.Jobs.Version;
+            bool syncDue = !watchSignals.WatchEnabled
+                           || version != _observedJobsVersion
+                           || DateTime.UtcNow - _lastJobsSyncUtc >= _jobsResyncInterval;
+            if (syncDue)
+            {
+                // Version capturée AVANT la sync : un événement pendant la sync
+                // déclenche la synchronisation du cycle suivant.
+                jobs = await jobService.SyncJobsAsync();
+                _observedJobsVersion = version;
+                _lastJobsSyncUtc = DateTime.UtcNow;
+            }
+            else
+            {
+                // Sûr : SyncJobsAsync publie la liste via Interlocked.Exchange.
+                jobs = jobService.Jobs;
+            }
 
             if (!masterService.IsMaster)
             {

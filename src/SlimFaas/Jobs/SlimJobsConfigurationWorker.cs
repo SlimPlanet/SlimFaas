@@ -1,8 +1,9 @@
-﻿using MemoryPack;
+using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
+using SlimFaas.Kubernetes.Watch;
 using SlimFaas.Options;
 
 namespace SlimFaas.Jobs;
@@ -10,10 +11,19 @@ namespace SlimFaas.Jobs;
 
 public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
     ILogger<SlimJobsConfigurationWorker> logger,
-    IOptions<WorkersOptions> workersOptions)
+    IOptions<WorkersOptions> workersOptions,
+    IOptions<SlimFaasOptions> slimFaasOptions,
+    KubernetesWatchSignals watchSignals)
     : BackgroundService
 {
-    private readonly int _delay = workersOptions.Value.JobsConfigurationDelayMilliseconds;
+    // Avec les watch actifs, les événements CronJob pilotent la synchronisation et le
+    // délai devient un resync de sécurité ; sans watch, l'attente est équivalente au
+    // Task.Delay historique (aucun pulse n'arrive jamais).
+    private readonly TimeSpan _maximumWait = watchSignals.WatchEnabled
+        ? TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsConfigurationResyncSeconds)
+        : TimeSpan.FromMilliseconds(workersOptions.Value.JobsConfigurationDelayMilliseconds);
+
+    private long _observedVersion = watchSignals.JobsConfiguration.Version;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -27,7 +37,10 @@ public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
     {
         try
         {
-            await Task.Delay(_delay, stoppingToken);
+            _observedVersion = await watchSignals.JobsConfiguration.WaitForChangeAsync(
+                _observedVersion,
+                _maximumWait,
+                stoppingToken);
 
             await jobConfiguration.SyncJobsConfigurationAsync();
 
