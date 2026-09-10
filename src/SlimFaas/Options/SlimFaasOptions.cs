@@ -96,6 +96,11 @@ public class SlimFaasOptions
     /// Resource limits applied when scraping Prometheus endpoints.
     /// </summary>
     public MetricsScrapingOptions MetricsScraping { get; set; } = new();
+
+    /// <summary>
+    /// Watch-driven Kubernetes synchronization (Kubernetes orchestrator only).
+    /// </summary>
+    public KubernetesWatchOptions KubernetesWatch { get; set; } = new();
 }
 
 public sealed class LocalOrchestratorOptions
