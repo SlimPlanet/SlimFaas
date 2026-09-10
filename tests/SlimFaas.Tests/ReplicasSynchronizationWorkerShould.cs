@@ -1,4 +1,4 @@
-﻿﻿using System.Collections;
+﻿using System.Collections;
 using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -32,78 +32,150 @@ public class DeploymentsTestData : IEnumerable<object[]>
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 }
-/*
+
+// Live tests for the watch-driven synchronization behavior of
+// ReplicasSynchronizationWorker: legacy cadence when watch is disabled, pulse-driven
+// sync when enabled, resync fallback, and error resilience.
 public class ReplicasSynchronizationWorkerShould
 {
-    [Theory]
-    [ClassData(typeof(DeploymentsTestData))]
-    public async Task SynchroniseDeploymentsShouldCallKubernetesApiWhenMaster(DeploymentsInformations deploymentsInformations)
+    private static readonly TimeSpan AssertTimeout = TimeSpan.FromSeconds(10);
+
+    private static (ReplicasSynchronizationWorker Worker, Mock<IReplicasService> ReplicasService, TaskCompletionSource SyncCalled)
+        CreateWorker(SlimFaas.Kubernetes.Watch.KubernetesWatchSignals signals, int legacyDelayMs, int resyncSeconds)
     {
-        Mock<ILogger<ReplicasSynchronizationWorker>> logger = new();
-        Mock<IKubernetesService> kubernetesService = new();
-        kubernetesService.Setup(k => k.ListFunctionsAsync(It.IsAny<string>())).ReturnsAsync(deploymentsInformations);
-        Mock<IMasterService> masterService = new();
-        HistoryHttpMemoryService historyHttpService = new();
-        Mock<ILogger<ReplicasService>> loggerReplicasService = new();
-        ReplicasService replicasService =
-            new(kubernetesService.Object, historyHttpService, loggerReplicasService.Object);
-        masterService.Setup(ms => ms.IsMaster).Returns(true);
-        Mock<IRaftCluster> raftCluster = new();
-        raftCluster.Setup(ms => ms.LeadershipToken.IsCancellationRequested).Returns(false);
-        raftCluster.Setup(ms => ms.Leader).Returns((new Mock<RaftClusterMember>()).Object);
-        Mock<IDatabaseService> databaseServiceMock = new ();
-        databaseServiceMock.Setup(db => db.GetAsync(ReplicasSynchronizationWorker.kubernetesDeployments)).ReturnsAsync(String.Empty);
-        databaseServiceMock.Setup(db => db.SetAsync(ReplicasSynchronizationWorker.kubernetesDeployments, It.IsAny<string>()));
+        var replicasService = new Mock<IReplicasService>();
+        var syncCalled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        replicasService
+            .Setup(r => r.SyncDeploymentsAsync(It.IsAny<string>()))
+            .Callback(() => syncCalled.TrySetResult())
+            .ReturnsAsync(new DeploymentsInformations(
+                new List<DeploymentInformation>(),
+                new SlimFaasDeploymentInformation(1, new List<PodInformation>()),
+                new List<PodInformation>()));
 
-        ReplicasSynchronizationWorker service = new(replicasService, raftCluster.Object, databaseServiceMock.Object, logger.Object, 100);
-        Task task = service.StartAsync(CancellationToken.None);
-        await Task.Delay(300);
+        var namespaceProvider = new Mock<INamespaceProvider>();
+        namespaceProvider.SetupGet(n => n.CurrentNamespace).Returns("unit-test");
 
-        Assert.True(task.IsCompleted);
-        kubernetesService.Verify(v => v.ListFunctionsAsync(It.IsAny<string>()));
-        databaseServiceMock.Verify(v => v.SetAsync(It.IsAny<string>(), It.IsAny<string>()));
+        var worker = new ReplicasSynchronizationWorker(
+            replicasService.Object,
+            new Mock<ILogger<ReplicasSynchronizationWorker>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new WorkersOptions
+            {
+                ReplicasSynchronizationDelayMilliseconds = legacyDelayMs
+            }),
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                KubernetesWatch = new KubernetesWatchOptions { FunctionsResyncSeconds = resyncSeconds }
+            }),
+            signals,
+            namespaceProvider.Object);
+        return (worker, replicasService, syncCalled);
     }
 
     [Fact]
-    public async Task LogErrorWhenExceptionIsThrown()
+    public async Task SyncOnLegacyCadenceWhenWatchIsDisabled()
     {
-        Mock<ILogger<ReplicasSynchronizationWorker>> logger = new Mock<ILogger<ReplicasSynchronizationWorker>>();
-        Mock<IKubernetesService> kubernetesService = new Mock<IKubernetesService>();
-        kubernetesService.Setup(k => k.ListFunctionsAsync(It.IsAny<string>(), It.IsAny<DeploymentsInformations>())).Throws(new Exception());
-        Mock<IRaftCluster> raftCluster = new();
-        raftCluster.Setup(ms => ms.LeadershipToken).Returns(() => new CancellationToken());
-        raftCluster.Setup(ms => ms.Leader).Returns((new Mock<RaftClusterMember>()).Object);
-        HistoryHttpMemoryService historyHttpService = new HistoryHttpMemoryService();
-        Mock<ILogger<ReplicasService>> loggerReplicasService = new Mock<ILogger<ReplicasService>>();
+        var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = false };
+        var (worker, replicasService, syncCalled) = CreateWorker(signals, legacyDelayMs: 50, resyncSeconds: 3600);
 
-        var autoScaler = new AutoScaler(null, null, null);
-        var metricsRegistry = new Mock<IRequestedMetricsRegistry>().Object;
-        var slimFaasOptions = Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+        await worker.StartAsync(CancellationToken.None);
+        try
         {
-            PodScaledUpByDefaultWhenInfrastructureHasNeverCalled = false
-        });
+            await syncCalled.Task.WaitAsync(AssertTimeout);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
 
-        ReplicasService replicasService =
-            new ReplicasService(kubernetesService.Object,
-                historyHttpService,
-                autoScaler,
-                loggerReplicasService.Object,
-                metricsRegistry,
-                slimFaasOptions);
-
-
-        Mock<IDatabaseService> databaseService = new Mock<IDatabaseService>();
-        ReplicasSynchronizationWorker service = new ReplicasSynchronizationWorker(replicasService, raftCluster.Object, databaseService.Object, logger.Object, 10);
-        Task task = service.StartAsync(CancellationToken.None);
-        await Task.Delay(100);
-
-        logger.Verify(l => l.Log(
-            LogLevel.Error,
-            It.IsAny<EventId>(),
-            It.IsAny<It.IsAnyType>(),
-            It.IsAny<Exception>(),
-            (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()), Times.AtLeastOnce);
-
-        Assert.True(task.IsCompleted);
+        replicasService.Verify(r => r.SyncDeploymentsAsync("unit-test"), Times.AtLeastOnce);
     }
-}*/
+
+    [Fact]
+    public async Task SyncImmediatelyWhenTheFunctionsSignalPulses()
+    {
+        var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        // Resync très long : seule une impulsion peut déclencher la synchronisation.
+        var (worker, replicasService, syncCalled) = CreateWorker(signals, legacyDelayMs: 10, resyncSeconds: 3600);
+
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await Task.Delay(300);
+            replicasService.Verify(r => r.SyncDeploymentsAsync(It.IsAny<string>()), Times.Never);
+
+            signals.Functions.Pulse();
+            await syncCalled.Task.WaitAsync(AssertTimeout);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+
+        replicasService.Verify(r => r.SyncDeploymentsAsync("unit-test"), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task SyncOnResyncFallbackWithoutAnyPulse()
+    {
+        var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        // Resync de 1 s : la synchronisation doit se produire sans aucune impulsion.
+        var (worker, replicasService, syncCalled) = CreateWorker(signals, legacyDelayMs: 10, resyncSeconds: 1);
+
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await syncCalled.Task.WaitAsync(AssertTimeout);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+
+        replicasService.Verify(r => r.SyncDeploymentsAsync("unit-test"), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task KeepRunningWhenSyncThrows()
+    {
+        var signals = new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals { WatchEnabled = true };
+        var replicasService = new Mock<IReplicasService>();
+        int calls = 0;
+        var secondCall = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        replicasService
+            .Setup(r => r.SyncDeploymentsAsync(It.IsAny<string>()))
+            .Callback(() =>
+            {
+                if (Interlocked.Increment(ref calls) >= 2)
+                {
+                    secondCall.TrySetResult();
+                }
+            })
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        var namespaceProvider = new Mock<INamespaceProvider>();
+        namespaceProvider.SetupGet(n => n.CurrentNamespace).Returns("unit-test");
+        var worker = new ReplicasSynchronizationWorker(
+            replicasService.Object,
+            new Mock<ILogger<ReplicasSynchronizationWorker>>().Object,
+            Microsoft.Extensions.Options.Options.Create(new WorkersOptions()),
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+            {
+                KubernetesWatch = new KubernetesWatchOptions { FunctionsResyncSeconds = 1 }
+            }),
+            signals,
+            namespaceProvider.Object);
+
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await secondCall.Task.WaitAsync(AssertTimeout);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+
+        Assert.True(Volatile.Read(ref calls) >= 2);
+    }
+}
