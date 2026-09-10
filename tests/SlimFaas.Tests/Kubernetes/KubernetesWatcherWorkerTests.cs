@@ -105,7 +105,7 @@ public sealed class KubernetesWatcherWorkerTests
         // au signalement de la panne initiale), le pulse vient de la reconnexion
         // réussie après échec (des événements ont pu être manqués pendant la coupure).
         await harness.WaitForRequestAsync(2);
-        await harness.WaitUntilAsync(() => harness.Signal.Version >= 1, "pulse after successful reconnect");
+        await WatchHarness.WaitUntilAsync(() => harness.Signal.Version >= 1, "pulse after successful reconnect");
         Assert.True(harness.Signal.IsHealthy);
     }
 
@@ -115,12 +115,12 @@ public sealed class KubernetesWatcherWorkerTests
         // 3 refus consécutifs (ex. RBAC sans verbe "watch"), puis le flux s'ouvre.
         using var harness = new WatchHarness(FastOptions(), firstResponseStatus: HttpStatusCode.Forbidden, failureResponses: 3);
 
-        await harness.WaitUntilAsync(() => !harness.Signal.IsHealthy, "signal reported unhealthy");
+        await WatchHarness.WaitUntilAsync(() => !harness.Signal.IsHealthy, "signal reported unhealthy");
 
         await harness.WaitForRequestAsync(4);
-        await harness.WaitUntilAsync(() => harness.Signal.IsHealthy, "signal healthy after reconnect");
+        await WatchHarness.WaitUntilAsync(() => harness.Signal.IsHealthy, "signal healthy after reconnect");
         // Pulse forcé après la reconnexion réussie.
-        await harness.WaitUntilAsync(() => harness.Signal.Version >= 1, "pulse after reconnect");
+        await WatchHarness.WaitUntilAsync(() => harness.Signal.Version >= 1, "pulse after reconnect");
 
         // Exactement 1 pulse sur toute la séquence : celui de la reconnexion (la
         // panne initiale ne pulse pas, le flux démarre en dette de connexion et les
@@ -208,7 +208,7 @@ public sealed class KubernetesWatcherWorkerTests
             throw new TimeoutException($"Expected at least {count} watch requests, got {RequestCount}.");
         }
 
-        public async Task WaitUntilAsync(Func<bool> predicate, string description)
+        public static async Task WaitUntilAsync(Func<bool> predicate, string description)
         {
             var deadline = DateTime.UtcNow.AddSeconds(10);
             while (DateTime.UtcNow < deadline)

@@ -16,6 +16,9 @@ public sealed class KubernetesServiceListJobsTests
 {
     private const string JobNameLabel = "slimfaas-job-name";
 
+    private static readonly string[] ExpectedJobAIps = ["10.0.0.1", "10.0.0.2"];
+    private static readonly string[] ExpectedJobADependsOn = ["dep-1", "dep-2"];
+
     [Fact]
     public async Task ListJobsMakesExactlyTwoApiCallsRegardlessOfJobCount()
     {
@@ -52,9 +55,9 @@ public sealed class KubernetesServiceListJobsTests
             IList<Job> jobs = await service.ListJobsAsync("test");
 
             Job jobA = Assert.Single(jobs, j => j.Name == "job-a");
-            Assert.Equal(new[] { "10.0.0.1", "10.0.0.2" }, jobA.Ips);
+            Assert.Equal(ExpectedJobAIps, jobA.Ips);
             Assert.Equal(JobStatus.Running, jobA.Status);
-            Assert.Equal(new[] { "dep-1", "dep-2" }, jobA.DependsOn);
+            Assert.Equal(ExpectedJobADependsOn, jobA.DependsOn);
 
             // job-b a un pod en ImagePullBackOff : le statut doit le refléter.
             Job jobB = Assert.Single(jobs, j => j.Name == "job-b");

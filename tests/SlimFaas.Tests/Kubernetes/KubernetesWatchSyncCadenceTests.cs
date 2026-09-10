@@ -54,8 +54,14 @@ public class KubernetesWatchSyncCadenceTests
 
         // ... est retenté à la cadence historique (50 ms), pas au resync de sécurité
         // (3600 s) : l'attente suivante doit aboutir sans aucun nouveau pulse.
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         await cadence.WaitForSyncDueAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
+        stopwatch.Stop();
         cadence.CommitSync();
+
+        Assert.True(
+            stopwatch.Elapsed < TimeSpan.FromSeconds(5),
+            $"Expected the retry to be due at the legacy cadence (~50 ms), waited {stopwatch.ElapsedMilliseconds} ms");
     }
 
     [Fact]

@@ -85,9 +85,12 @@ public class KubernetesWatcherWorker(
             [signals.JobsConfiguration] = jobsConfigurationChannel
         };
 
-        logger.LogInformation(
-            "KubernetesWatcherWorker starting: watching pods/deployments/statefulsets/jobs/cronjobs in namespace {Namespace}",
-            ns);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "KubernetesWatcherWorker starting: watching pods/deployments/statefulsets/jobs/cronjobs in namespace {Namespace}",
+                ns);
+        }
 
         Task[] loops = targets
             .Select(target => RunWatchLoopAsync(
@@ -336,7 +339,11 @@ public class KubernetesWatcherWorker(
                     PulseAll(channels);
                     return StreamEnd.Error;
                 default:
-                    logger.LogDebug("Watch stream {Target}: ignoring unknown line", target.Name);
+                    if (logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.LogDebug("Watch stream {Target}: ignoring unknown line", target.Name);
+                    }
+
                     break;
             }
         }
@@ -376,10 +383,14 @@ public class KubernetesWatcherWorker(
         if (state.WarnedDown)
         {
             // Déjà signalé : ne pas saturer les logs à chaque tentative de reconnexion.
-            logger.LogDebug(exception,
-                "Watch stream {Target} still unavailable (HTTP {StatusCode}): retrying after backoff",
-                target.Name,
-                statusCode);
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug(exception,
+                    "Watch stream {Target} still unavailable (HTTP {StatusCode}): retrying after backoff",
+                    target.Name,
+                    statusCode);
+            }
+
             return;
         }
 
@@ -405,7 +416,7 @@ public class KubernetesWatcherWorker(
 
         if (state.WarnedDown)
         {
-            if (logRecovery)
+            if (logRecovery && logger.IsEnabled(LogLevel.Information))
             {
                 logger.LogInformation("Watch stream {Target} restored: event-driven synchronization resumed", target.Name);
             }
