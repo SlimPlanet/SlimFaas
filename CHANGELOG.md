@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.1
+
+- [a7116414](https://github.com/SlimPlanet/SlimFaas/commit/a711641435dbaac74f3ec6140f2ab956f6c030d7) - perf: event-driven Kubernetes sync via watch streams and jobs N+1 fix (#340) (release), 2026-09-10 by *Guillaume Delahaye*
+
+
+## 0.84.0
+
+
+
 ## v0.84.0
 
 - [f61f8c65](https://github.com/SlimPlanet/SlimFaas/commit/f61f8c65f2486b592b685ea2c5e649c58038dc31) - feat: add external autoscaling sources with opt-in wake-up (#341) (release), 2026-09-10 by *Guillaume Chervet*
@@ -266,14 +275,5 @@
 
 - [02bf9318](https://github.com/SlimPlanet/SlimFaas/commit/02bf931887397e4b4e94079d4f9c31ce73cf9bc4) - fix: enhance raft shot (release), 2026-07-22 by *Guillaume Chervet*
 - [55954212](https://github.com/SlimPlanet/SlimFaas/commit/5595421261ffc5d322cc6cd174e7b1dee7b1605d) - chore: update .net packages (release), 2026-07-22 by *Guillaume Chervet*
-
-
-## 0.74.3
-
-
-
-## v0.74.3
-
-- [86a94748](https://github.com/SlimPlanet/SlimFaas/commit/86a94748baa83b47da0303b647e0e71d059d4f3f) - fix: set ttl was broken (release) (#295), 2026-07-18 by *Guillaume Chervet*
 
 
