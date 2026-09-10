@@ -1546,3 +1546,8 @@ and cannot apply its isolation. Do not activate new annotations during a mixed-v
 
 Run the [controllable exporter demo](https://github.com/SlimPlanet/SlimFaas/tree/main/demo/external-autoscaling)
 with `slimfaas.local.external-metrics.yaml`, or its Kubernetes manifests.
+
+
+## Explain and preview a decision
+
+The dashboard’s **Live Stream → Scaling** view exposes the actual decision stages, trigger/source health, recent changes and application outcome. Its playground evaluates alternative thresholds, queries and policies against an isolated copy of the current context, including stabilization history. It does not affect collection, histories or capacity. See [Scaling diagnostics and playground](user-interface.md#scaling-diagnostics-and-playground) for examples and limits, and the [simulation API](api-reference.md#scaling-simulation-request).

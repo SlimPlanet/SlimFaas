@@ -34,6 +34,14 @@ public sealed class ExternalMetricsSourceStore
     internal ExternalSourceObservation Get(string identity) =>
         _observations.GetValueOrDefault(identity) ?? new(ScalerState.Unavailable, 0);
 
+    // An isolated read model for the playground; copying health must not emit telemetry.
+    internal ExternalMetricsSourceStore Capture()
+    {
+        var copy = new ExternalMetricsSourceStore();
+        foreach (var observation in _observations.ToArray()) copy._observations[observation.Key] = observation.Value;
+        return copy;
+    }
+
     internal void Record(ExternalMetricsSource source, ScalerState state, long timestamp)
     {
         _observations.AddOrUpdate(source.Identity,

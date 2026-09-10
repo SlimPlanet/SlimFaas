@@ -143,3 +143,10 @@ alongside `valid=0`; zero in that diagnostic gauge is not a scaling instruction.
 Use the existing function desired/current/ready replica gauges for final decisions.
 
 See [configuration and failure behavior](autoscaling.md#external-metrics-and-opt-in-wake-up).
+
+
+## Interactive scaling diagnostics
+
+Open **Live Stream → Scaling** to inspect real trigger values, source health, policy/stabilization constraints and replica application outcomes. The view reads structured decisions from the leader; it does not scrape Prometheus supervision metrics to reconstruct decisions. Existing metric names and labels are preserved.
+
+Playground previews emit no production scaling telemetry and do not extend real decision histories. Their results and capture time are returned directly to the browser. The bounded live journal is for recent troubleshooting rather than persistent audit storage; use your existing metrics/logs pipeline for longer retention. See [Scaling diagnostics and playground](user-interface.md#scaling-diagnostics-and-playground).

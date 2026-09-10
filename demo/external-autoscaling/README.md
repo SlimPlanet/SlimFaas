@@ -70,3 +70,16 @@ Its control endpoints are only demo fixtures; keep the exporter inside the demo 
 
 See [the autoscaling guide](../../docs/autoscaling.md#external-metrics-and-opt-in-wake-up)
 for syntax, failure behavior and production rollout/rollback steps.
+
+
+### Inspect and simulate in the dashboard
+
+Open `http://127.0.0.1:30020/#/live/scaling?function=worker` during the demo. The live view explains the exporter signal, policies, inactivity and replica application. Use **Simulate next decision** with a hypothetical value of `73` to preview wake-up without changing the exporter or waking the real worker. Changing the threshold from `10` to `20` previews a raw target of four instead of eight.
+
+With the exporter at zero and the worker asleep, run the read-only multi-viewer smoke check:
+
+```bash
+python3 .bin/test-scaling-dashboard.py --viewers 6 --seconds 15
+```
+
+Then run `.bin/test-external-metrics-demo.py` for the actual exporter-driven `0 → 8 → 0` sequence. The new dashboard routes resolve the leader automatically, including through a follower’s HTTP port.

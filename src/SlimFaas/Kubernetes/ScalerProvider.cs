@@ -25,7 +25,7 @@ internal interface IScalerProvider
     ValueTask<ScalerResult> GetAsync(ScalerContext context, CancellationToken cancellationToken);
 }
 
-internal sealed record ScalerTriggerResult(ScaleTrigger Trigger, ScalerResult Result);
+internal sealed record ScalerTriggerResult(ScaleTrigger Trigger, ScalerResult Result, int Index = -1);
 
 internal sealed record ScalerEvaluation(IReadOnlyList<ScalerTriggerResult> Triggers)
 {

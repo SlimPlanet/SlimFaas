@@ -13,6 +13,7 @@ def main():
     parser.add_argument("--slimfaas", default="http://127.0.0.1:30020")
     parser.add_argument("--exporter", default="http://127.0.0.1:9090")
     parser.add_argument("--timeout", type=float, default=90)
+    parser.add_argument("--node-http-port-base", type=int, default=30021)
     args = parser.parse_args()
 
     def request(url, method="GET", payload=None):
@@ -44,7 +45,7 @@ def main():
         return current["NumberRequested"] == count and current["NumberReady"] == count
 
     def leader_port():
-        for port in range(30021, 30024):
+        for port in range(args.node_http_port_base, args.node_http_port_base + 3):
             metrics = request(f"http://127.0.0.1:{port}/metrics")
             if 'slimfaas_scaler_source_available{function="worker",source="jobs",provider="prometheus"} 1' in metrics:
                 return port

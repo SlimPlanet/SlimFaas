@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Reflection;
+using SlimFaas.Scaling;
 using Microsoft.Extensions.Logging;
 using Moq;
 using SlimFaas.Kubernetes;
@@ -28,17 +28,8 @@ namespace SlimFaas.Tests.Kubernetes
             int desired,
             long nowUnixSeconds)
         {
-            var mi = typeof(AutoScaler).GetMethod(
-                "ApplyScaleUpPolicies",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-
-            Assert.NotNull(mi);
-
-            var result = mi!.Invoke(
-                scaler,
-                new object[] { key, behavior, currentReplicas, desired, nowUnixSeconds });
-
-            return Assert.IsType<int>(result);
+            return MetricsScalingCalculator.ApplyScaleUpPolicies(scaler.CaptureHistory(key).Decisions,
+                behavior, currentReplicas, desired, nowUnixSeconds);
         }
 
         private static int InvokeApplyScaleDownPolicies(
@@ -49,17 +40,8 @@ namespace SlimFaas.Tests.Kubernetes
             int desired,
             long nowUnixSeconds)
         {
-            var mi = typeof(AutoScaler).GetMethod(
-                "ApplyScaleDownPolicies",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-
-            Assert.NotNull(mi);
-
-            var result = mi!.Invoke(
-                scaler,
-                new object[] { key, behavior, currentReplicas, desired, nowUnixSeconds });
-
-            return Assert.IsType<int>(result);
+            return MetricsScalingCalculator.ApplyScaleDownPolicies(scaler.CaptureHistory(key).Decisions,
+                behavior, currentReplicas, desired, nowUnixSeconds);
         }
 
         [Fact]

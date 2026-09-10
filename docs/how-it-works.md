@@ -323,3 +323,12 @@ Health is process-local and is reset on leadership changes; persisted samples al
 activate an external signal. Only the leader collects, using the existing bounded HTTP worker.
 
 See [external sources and migration](autoscaling.md#external-metrics-and-opt-in-wake-up).
+
+
+## Scaling diagnostics and simulation
+
+`MetricsScalingCalculator` calculates trigger recommendations, bounds, policies and stabilization from explicit observations and read-only histories. `ScalingDecisionCalculator` combines that result with the captured HTTP/schedule, dependency and infrastructure context. `AutoScaler` and `ReplicasService` retain the production history/telemetry writes and orchestrator calls. Real cycles publish diagnostic decisions before application and record accepted or failed requests afterward.
+
+The dashboard reads a separate bounded in-memory diagnostic journal. The journal has no role in making scaling decisions and is reset across leadership changes. Simulations use request-local metric and health copies plus copied autoscaler histories; compilation caches for edited queries are also request-local. They share the calculators without invoking production writes or the side effects of the existing PromQL debug endpoint.
+
+Followers resolve the leader from configured Raft membership and reuse the configured application-port resolution for HTTP relays. State frames are briefly cached per function and leader, with a maximum of eight cache entries per node. Internal endpoints require the front, allowed ports and a direct connection from a recognized SlimFaas member IP; browser-supplied upstream addresses are not accepted. See [the UI guide](user-interface.md#scaling-diagnostics-and-playground).
