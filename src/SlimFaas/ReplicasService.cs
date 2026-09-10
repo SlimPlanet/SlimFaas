@@ -3,6 +3,7 @@ using NodaTime;
 using NodaTime.TimeZones;
 using Microsoft.Extensions.Options;
 using SlimFaas.Options;
+using SlimFaas.Scaling;
 
 namespace SlimFaas;
 
@@ -20,7 +21,9 @@ public class ReplicasService(
     ILogger<ReplicasService> logger,
     IRequestedMetricsRegistry metricsRegistry,
     IOptions<SlimFaasOptions> slimFaasOptions,
-    Func<DateTime>? nowProvider = null)
+    Func<DateTime>? nowProvider = null,
+    ScalingDiagnosticsStore? diagnostics = null,
+    ExternalMetricsSourceStore? externalSources = null)
     : IReplicasService
 {
     private readonly bool _isTurnOnByDefault = slimFaasOptions.Value.PodScaledUpByDefaultWhenInfrastructureHasNeverCalled;
@@ -66,6 +69,7 @@ public class ReplicasService(
     public async Task CheckScaleAsync(string kubeNamespace)
     {
         var currentDeployments = _deployments;
+        string? diagnosticSession = diagnostics?.Session;
         var nowUtc = _nowProvider();
         long nowUnixSeconds = new DateTimeOffset(nowUtc).ToUnixTimeSeconds();
 
@@ -89,114 +93,35 @@ public class ReplicasService(
                     externalOnly: function.Replicas == 0);
         }
         var dependencyDemand = GetExternalDependencyDemand(currentDeployments, evaluations);
+        diagnostics?.Retain(currentDeployments.Functions.Select(f => f.Deployment).ToHashSet(StringComparer.Ordinal));
 
         List<Task<ReplicaRequest?>> tasks = new();
         var deferredDecisions = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (DeploymentInformation deploymentInformation in currentDeployments.Functions)
         {
-            long tickLastCall = deploymentInformation.ReplicasStartAsSoonAsOneFunctionRetrieveARequest
-                ? maximumTicks
-                : ticksLastCall[deploymentInformation.Deployment];
-
-            if (_isTurnOnByDefault && tickLastCall == 0)
-            {
-                tickLastCall = nowUtc.Ticks;
-            }
-
-            var lastTicksFromSchedule = GetLastTicksFromSchedule(deploymentInformation, nowUtc);
-            if (lastTicksFromSchedule.HasValue && lastTicksFromSchedule > tickLastCall)
-            {
-                tickLastCall = lastTicksFromSchedule.Value;
-            }
-
-            foreach (DeploymentInformation information in currentDeployments.Functions
-                         .Where(f => f.DependsOn != null && f.DependsOn.Contains(deploymentInformation.Deployment)))
-            {
-                if (tickLastCall < ticksLastCall[information.Deployment])
-                    tickLastCall = ticksLastCall[information.Deployment];
-            }
-
-            var timeoutSeconds = TimeSpan.FromSeconds(GetTimeoutSecondBeforeSetReplicasMin(deploymentInformation, nowUtc));
-            bool timeElapsedWithoutRequest =
-                (TimeSpan.FromTicks(tickLastCall) + timeoutSeconds) < TimeSpan.FromTicks(nowUtc.Ticks) &&
-                !dependencyDemand.Contains(deploymentInformation.Deployment);
-
+            var context = CaptureContext(currentDeployments, deploymentInformation, nowUtc,
+                ticksLastCall, maximumTicks, dependencyDemand, _isTurnOnByDefault);
             if (logger.IsEnabled(LogLevel.Debug))
-            {
-                var timeLeft = (TimeSpan.FromTicks(tickLastCall) + timeoutSeconds) - TimeSpan.FromTicks(nowUtc.Ticks);
                 logger.LogDebug("Time left without request for scale down {Deployment} is {TimeLeft}",
-                    deploymentInformation.Deployment, timeLeft);
-            }
-
+                    deploymentInformation.Deployment, TimeSpan.FromTicks(context.EffectiveActivityTicks)
+                        + TimeSpan.FromSeconds(context.TimeoutSeconds) - TimeSpan.FromTicks(nowUtc.Ticks));
             int currentScale = deploymentInformation.Replicas;
-            int desiredReplicas = currentScale;
-
             evaluations.TryGetValue(deploymentInformation.Deployment, out var evaluation);
-            bool externalWake = currentScale == 0 && deploymentInformation.Scale?.ScaleFromZero == true &&
-                evaluation?.HasActiveExternalSignal == true;
-            bool dependenciesReady = DependsOnReady(currentDeployments, deploymentInformation);
             bool deferDecision = deploymentInformation.Scale?.Triggers.Any(t => t.Source is not null) == true;
-            int? desiredFromMetrics = null;
-            if (evaluation is not null && (currentScale > 0 || (externalWake && dependenciesReady)))
-                desiredFromMetrics = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds,
-                    evaluation, recordDecision: !deferDecision);
-
-            // --- 1. SYSTÈME 0 -> N / N -> ReplicasMin (historique HTTP + schedule) ---
-            if (timeElapsedWithoutRequest)
+            MetricsScalingDecision? metrics = null;
+            if (ScalingDecisionCalculator.NeedsMetrics(context, evaluation))
+                metrics = autoScaler.ComputeDecision(deploymentInformation, nowUnixSeconds, evaluation!, !deferDecision);
+            var decision = ScalingDecisionCalculator.Calculate(context, evaluation, metrics,
+                SourceDiagnostics(deploymentInformation, nowUnixSeconds));
+            if (decision.Reasons.Any(r => r.Code == "InfrastructureBlocked"))
             {
-                // HTTP/schedule disent : "on peut descendre à ReplicasMin"
-                var replicasMin = deploymentInformation.ReplicasMin;
-
-                // ⚠️ Cas particulier : ReplicasMin == 0
-                // On n'autorise le passage à 0 que si Prometheus (si activé) est d'accord.
-                if (desiredFromMetrics.HasValue)
-                {
-                    // HTTP voudrait 0 mais les métriques disent qu'il faut encore >= 1 pod
-                    // => on reste "au chaud" avec au moins 1 pod, ou plus si Prometheus le demande.
-                    desiredReplicas = Math.Max(replicasMin, desiredFromMetrics.Value);
-                }
-                else
-                {
-                    // Comportement historique : ramener à ReplicasMin (qui peut être > 0)
-                    desiredReplicas = replicasMin;
-                }
+                var failure = HasInfrastructurePodFailure(deploymentInformation);
+                logger.LogWarning("Skip scale-up for {Deployment} because a pod is blocked by Infrastructure Error: {PodFailureReason}: {PodFailureMessage}",
+                    deploymentInformation.Deployment, failure?.Reason, failure?.Message);
             }
-            else if ((currentScale == 0 || currentScale < deploymentInformation.ReplicasMin)
-                     && DependsOnReady(currentDeployments, deploymentInformation))
-            {
-                // Sortie de 0 ou mise à niveau jusqu'à ReplicasAtStart
-                desiredReplicas = deploymentInformation.ReplicasAtStart;
-            }
-            else if (desiredFromMetrics.HasValue)
-            {
-                // --- 2. SYSTÈME N -> M (AutoScaler Prometheus) --- .
-                desiredReplicas = Math.Max(desiredFromMetrics.Value, deploymentInformation.ReplicasAtStart);
-            }
-
-            if (externalWake)
-            {
-                if (!dependenciesReady)
-                    desiredReplicas = currentScale;
-                else if (desiredFromMetrics.HasValue)
-                    desiredReplicas = Math.Max(desiredReplicas, desiredFromMetrics.Value);
-            }
-            if (currentScale == 0 && deploymentInformation.Scale?.ScaleFromZero == true &&
-                deploymentInformation.Scale.ReplicaMax is { } maximum)
-                desiredReplicas = Math.Min(desiredReplicas, maximum);
-
-            // 🔒 Protection : si un pod est bloqué "exceeded quota", on n'essaie plus de scaler vers le haut
-            bool isScaleUp = desiredReplicas > currentScale;
-            var podFailure = HasInfrastructurePodFailure(deploymentInformation);
-            if (isScaleUp && podFailure != null)
-            {
-                logger.LogWarning(
-                    "Skip scale-up for {Deployment} from {CurrentScale} to {DesiredReplicas} because a pod is blocked by Infrastructure Error: {PodFailureReason}: {PodFailureMessage}",
-                    deploymentInformation.Deployment, currentScale, desiredReplicas, podFailure.Value.Reason, podFailure.Value.Message);
-
-                // On laisse le nombre de pods inchangé
-                desiredReplicas = currentScale;
-            }
+            int desiredReplicas = decision.Target;
+            diagnostics?.Record(decision, deploymentInformation.Scale, diagnosticSession);
 
             if (desiredReplicas == currentScale)
             {
@@ -207,7 +132,7 @@ public class ReplicasService(
                 deploymentInformation.Deployment, currentScale, desiredReplicas);
 
             if (deferDecision) deferredDecisions.Add(deploymentInformation.Deployment);
-            tasks.Add(kubernetesService.ScaleAsync(new ReplicaRequest(
+            tasks.Add(ApplyScaleAsync(decision, deploymentInformation.Scale, diagnosticSession, new ReplicaRequest(
                 Replicas: desiredReplicas,
                 Deployment: deploymentInformation.Deployment,
                 Namespace: kubeNamespace,
@@ -242,7 +167,60 @@ public class ReplicasService(
         }
     }
 
-    private static HashSet<string> GetExternalDependencyDemand(DeploymentsInformations deployments,
+    private async Task<ReplicaRequest?> ApplyScaleAsync(ScalingDecision decision, ScaleConfig? configuration, string? session, ReplicaRequest request)
+    {
+        try
+        {
+            diagnostics?.Record(decision with { Application = "Sent" }, configuration, session);
+            var result = await kubernetesService.ScaleAsync(request);
+            diagnostics?.Record(decision with { Application = result is null ? "Failed" : "Accepted",
+                AcceptedReplicas = result?.Replicas }, configuration, session);
+            return result;
+        }
+        catch
+        {
+            diagnostics?.Record(decision with { Application = "Failed" }, configuration, session);
+            throw;
+        }
+    }
+
+    internal ScalingEnvironment CaptureSimulationEnvironment(DateTime nowUtc)
+    {
+        var deployments = Deployments;
+        var ticks = deployments.Functions.ToDictionary(f => f.Deployment,
+            f => historyHttpService.GetTicksLastCall(f.Deployment), StringComparer.Ordinal);
+        return new(deployments, ticks, _isTurnOnByDefault, nowUtc);
+    }
+
+    internal IReadOnlyList<ScalingSourceDiagnostic> SourceDiagnostics(DeploymentInformation function, long now)
+        => (function.Scale?.Sources ?? []).Where(s => s is not null).Select(source =>
+        {
+            var resolved = ExternalMetricsSource.Resolve(function.Namespace, function.Deployment, function.Scale!, source.Name);
+            var observation = resolved is null ? null : externalSources?.Get(resolved.Identity);
+            int interval = function.Scale!.ScrapeIntervalMilliseconds ?? slimFaasOptions.Value.MetricsScraping.ScrapeIntervalMilliseconds;
+            string state = resolved is null ? "Misconfigured" : observation?.State == ScalerState.Valid &&
+                now - observation.LastSuccess >= interval * 3 / 1000.0 ? "Stale" : observation?.State.ToString() ?? "Unavailable";
+            return new ScalingSourceDiagnostic(source.Name, state,
+                observation?.LastSuccess > 0 ? observation.LastSuccess * 1000 : null, interval);
+        }).ToArray();
+
+    internal static ScalingFunctionContext CaptureContext(DeploymentsInformations deployments, DeploymentInformation function,
+        DateTime nowUtc, IReadOnlyDictionary<string, long> ticks, long maximumTicks,
+        IReadOnlySet<string> dependencyDemand, bool turnOnByDefault)
+    {
+        long http = ticks.GetValueOrDefault(function.Deployment);
+        long effective = function.ReplicasStartAsSoonAsOneFunctionRetrieveARequest ? maximumTicks : http;
+        if (turnOnByDefault && effective == 0) effective = nowUtc.Ticks;
+        long? schedule = GetLastTicksFromSchedule(function, nowUtc);
+        if (schedule > effective) effective = schedule.Value;
+        foreach (var dependent in deployments.Functions.Where(f => f.DependsOn?.Contains(function.Deployment) == true))
+            effective = Math.Max(effective, ticks.GetValueOrDefault(dependent.Deployment));
+        return new(function, nowUtc, http, schedule, effective,
+            GetTimeoutSecondBeforeSetReplicasMin(function, nowUtc), dependencyDemand.Contains(function.Deployment),
+            DependsOnReady(deployments, function), HasInfrastructurePodFailure(function)?.Reason);
+    }
+
+    internal static HashSet<string> GetExternalDependencyDemand(DeploymentsInformations deployments,
         IReadOnlyDictionary<string, ScalerEvaluation> evaluations)
     {
         var functions = deployments.Functions.ToDictionary(f => f.Deployment, StringComparer.Ordinal);

@@ -1,3 +1,4 @@
+using SlimFaas.Scaling;
 using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
@@ -208,6 +209,7 @@ serviceCollectionStarter.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>
 
 // AutoScaler (utilisé par ReplicasService)
 serviceCollectionStarter.AddSingleton<ExternalMetricsSourceStore>();
+serviceCollectionStarter.AddSingleton<ScalingDiagnosticsStore>();
 serviceCollectionStarter.AddSingleton<IScalerProvider>(sp => new PrometheusScalerProvider(
     sp.GetRequiredService<PromQlMiniEvaluator>(),
     sp.GetRequiredService<ExternalMetricsSourceStore>(),
@@ -248,6 +250,8 @@ serviceCollectionSlimFaas.AddSingleton<PromQlMiniEvaluator>(sp =>
 serviceCollectionSlimFaas.AddSingleton<IAutoScalerStore>(sp =>
     serviceProviderStarter.GetRequiredService<IAutoScalerStore>());
 
+serviceCollectionSlimFaas.AddSingleton<ScalingDiagnosticsStore>(sp =>
+    serviceProviderStarter.GetRequiredService<ScalingDiagnosticsStore>());
 serviceCollectionSlimFaas.AddSingleton<AutoScaler>(sp =>
     serviceProviderStarter.GetRequiredService<AutoScaler>());
 serviceCollectionSlimFaas.AddHostedService<SlimQueuesWorker>();
@@ -297,6 +301,11 @@ serviceCollectionSlimFaas.AddMemoryCache();
 serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
 serviceCollectionSlimFaas.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
 serviceCollectionSlimFaas.AddSingleton<StatusLeader>();
+serviceCollectionSlimFaas.AddSingleton<ScalingSimulationService>();
+serviceCollectionSlimFaas.AddSingleton<ScalingLeaderClient>();
+serviceCollectionSlimFaas.AddSingleton<IScalingLeaderClient>(sp => sp.GetRequiredService<ScalingLeaderClient>());
+serviceCollectionSlimFaas.AddHttpClient(ScalingLeaderClient.HttpClientName)
+    .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler { AllowAutoRedirect = false, UseProxy = false });
 serviceCollectionSlimFaas.AddSingleton<IInstanceLogProvider>(sp =>
 {
     var orchestrator = sp.GetRequiredService<IKubernetesService>();
@@ -629,6 +638,7 @@ app.MapDataHashsetRoutes();
 app.MapDataSetRoutes();
 app.MapDataFileRoutes();
 app.MapDebugRoutes();
+app.MapScalingEndpoints();
 
 // Map SlimFaas endpoints (remplace SlimProxyMiddleware)
 app.MapSlimFaasEndpoints();

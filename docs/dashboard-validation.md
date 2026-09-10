@@ -270,3 +270,30 @@ The search follow-up passed **35 dashboard Node tests**, **1,276 .NET tests**, a
 The native three-node demo returned status and Fibonacci successfully and streamed actual replica logs with highlighted request markers. Desktop and mobile screenshots show text matches, with the mobile log viewport scrolled horizontally to expose long message text. Stream lifecycle, filtering, Follow latest and viewport bounds remain covered by the existing regression. Backend contracts, dependencies and storage limits are unchanged.
 
 Windows CI also exposed two unrelated fixture races: PowerShell can still hold a newly created PID file open, and delayed cancellation timers can run after the job worker's delay under load. The process fixture now waits for a readable PID within its existing startup deadline. The worker test explicitly cancels an infinite configured delay, verifying cancellation without depending on timer ordering. Runtime behavior and process-termination assertions remain unchanged.
+
+
+## Scaling diagnostics and playground validation
+
+Build the dashboard, then run its production browser regression with Node 24 and an external Playwright Core installation:
+
+```bash
+(cd src/SlimFaas/ClientApp && npm test && npm run build)
+(cd src/SlimFaas/ClientApp && PLAYWRIGHT_ROOT=/tmp/slimfaas-scaling-browser CHROMIUM_EXECUTABLE=/absolute/path/to/chromium node scripts/check-scaling.mjs)
+```
+
+`SCALING_BROWSER_RESULTS` selects the screenshots and JSON output directory. The harness verifies preview inputs (including an explicit zero), a new leader session, function changes, reconnect state, keyboard focus, 390 px layout, stream disposal and absence of a Traffic subscription. It uses the production bundle and introduces no repository dependency.
+
+For the real native runtime, start the external-metrics demo with the exporter at zero, then run:
+
+```bash
+python3 .bin/test-scaling-dashboard.py --viewers 6 --seconds 20
+python3 .bin/test-external-metrics-demo.py
+```
+
+The first script opens viewers across all three node HTTP ports and sends read-only simulations through each node. It checks that the worker stays at zero while every preview requests eight replicas. Pass `--pids` with comma-separated node process IDs to include RSS samples in `artifacts/scaling-dashboard-smoke.json`. These are short observations, not a comparative leak or performance benchmark. The second script drives the actual exporter through wake-up, failure retention and return to zero.
+
+Use `--nodes` for alternative HTTP ports in the viewer script. The exporter smoke supports `--slimfaas` and `--node-http-port-base`; both can run against native manifest overlays without interrupting another local cluster.
+
+The implementation passed **1,337 .NET tests**, **40 dashboard tests**, the documentation site build and a native `osx-arm64` AOT publication. The native three-node run served 126 frames to six viewers with no stream errors; previews requested eight replicas while the real worker stayed at zero. The exporter smoke then verified real `0 → 8 → 0` scaling and retained eight replicas during an exporter failure. The standard native demo also returned function status and `Hello local!` successfully.
+
+The mixed memory-lab smoke completed 3,740 operations without failures over ten seconds at concurrency four. Both memory observations are short smoke checks, without a comparative baseline. Native screenshots show the [desktop view](images/dashboard/scaling-desktop.png) and [390 px mobile view](images/dashboard/scaling-mobile.png); the production browser regression also verifies stream lifecycle and keyboard focus.

@@ -49,6 +49,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - `N → M` scaling powered by PromQL, plus opt-in `0 → N` wake-up from independent OpenMetrics exporters,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
 - built-in **User Interface** at the SlimFaas root address to see functions, jobs, queues, and real-time messages.
+- **[Scaling diagnostics and playground](docs/user-interface.md#scaling-diagnostics-and-playground)** to explain live decisions and preview changes without modifying production.
 - temporary **Data Files** endpoints to ingest and stage binaries (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 - temporary **Data Sets** endpoints (`/data/sets`) to store small, Redis-like KV payloads (cache, JSON state, flags) with optional TTL — replicated through the cluster via a robust consensus layer.
 
