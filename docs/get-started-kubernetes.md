@@ -28,6 +28,22 @@ kubectl -n slimfaas-demo rollout status statefulset/slimfaas --timeout=300s
 kubectl -n slimfaas-demo get pods,pvc
 ```
 
+> **Note — Kubernetes watch:** SlimFaas keeps its view of the cluster up to date
+> through Kubernetes **watch** streams on pods, deployments, statefulsets, jobs and
+> cronjobs (the `watch` verb granted by `demo/service-account-slimfaas.yml` is
+> required). Synchronization is event-driven: full LIST calls only run when
+> something actually changed, with a periodic safety-net resync. The behavior is
+> configurable under `SlimFaas:KubernetesWatch`:
+>
+> | Key | Default | Description |
+> |---|---|---|
+> | `Enabled` | `true` | Set to `false` to restore the legacy fixed-cadence polling |
+> | `FunctionsResyncSeconds` | `30` | Safety-net resync for deployments/pods/statefulsets |
+> | `JobsResyncSeconds` | `30` | Safety-net resync for jobs |
+> | `JobsConfigurationResyncSeconds` | `60` | Safety-net resync for CronJob configurations |
+> | `DebounceMilliseconds` | `300` | Event burst coalescing window |
+> | `WatchTimeoutSeconds` | `60` | Watch stream rotation (server-side close) |
+
 The first manifest creates the namespace, ServiceAccount and RBAC. The SlimFaas manifest creates its configuration, StatefulSet and Service. Functions carry annotations for visibility, inactivity, concurrency, dependencies and scaling. `fibonacci2` depends on `fibonacci1` and MySQL; MySQL is included to demonstrate orchestration dependencies. The sample API itself does not query it.
 
 The `fibonacci` job is configured by SlimFaas. The additional `fibonacci5` CronJob is suspended in Kubernetes and discovered by SlimFaas through its annotations. Functions can scale to zero before you finish these steps, so their absence from the pod list alone is not a startup failure.
