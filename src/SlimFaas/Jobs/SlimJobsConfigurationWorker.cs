@@ -17,21 +17,13 @@ public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
     : BackgroundService
 {
     // Avec les watch actifs et le flux CronJob connecté, les événements pilotent la
-    // synchronisation et le délai devient un resync de sécurité. Sans watch, ou tant
-    // que le flux est indisponible (RBAC sans verbe "watch", API server injoignable),
-    // l'attente est équivalente au Task.Delay historique.
-    private readonly TimeSpan _legacyDelay =
-        TimeSpan.FromMilliseconds(workersOptions.Value.JobsConfigurationDelayMilliseconds);
-
-    private readonly TimeSpan _resyncInterval =
-        TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsConfigurationResyncSeconds);
-
-    // Version observée capturée à la construction, donc avant le démarrage de tout
-    // hosted service : le watcher ne peut pas encore avoir pulsé.
-    private long _observedVersion = watchSignals.JobsConfiguration.Version;
-
-    private TimeSpan MaximumWait =>
-        watchSignals.WatchEnabled && watchSignals.JobsConfiguration.IsHealthy ? _resyncInterval : _legacyDelay;
+    // synchronisation et le délai devient un resync de sécurité ; sinon l'attente est
+    // équivalente au Task.Delay historique (voir KubernetesWatchSyncCadence).
+    private readonly KubernetesWatchSyncCadence _cadence = new(
+        watchSignals,
+        watchSignals.JobsConfiguration,
+        TimeSpan.FromMilliseconds(workersOptions.Value.JobsConfigurationDelayMilliseconds),
+        TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsConfigurationResyncSeconds));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -45,16 +37,14 @@ public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
     {
         try
         {
-            _observedVersion = await watchSignals.JobsConfiguration.WaitForChangeAsync(
-                _observedVersion,
-                MaximumWait,
-                stoppingToken);
+            await _cadence.WaitForSyncDueAsync(stoppingToken);
 
             await jobConfiguration.SyncJobsConfigurationAsync();
-
+            _cadence.CommitSync();
         }
         catch (Exception e)
         {
+            _cadence.MarkSyncFailed();
             logger.LogError(e, "Global error in slimFaas jobs configuration worker");
         }
     }

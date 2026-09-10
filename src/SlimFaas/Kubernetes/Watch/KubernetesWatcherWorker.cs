@@ -131,12 +131,22 @@ public class KubernetesWatcherWorker(
         MarkStreamUp(target, channels, state, logRecovery: false);
     }
 
+    // Un flux accepté (2xx) qui se ferme aussitôt sans avoir livré une seule ligne
+    // watch valide (proxy/LB sans support du streaming, par exemple) ne prouve rien :
+    // en dessous de cette durée de vie, la reconnexion subit le backoff au lieu de
+    // boucler à chaud, et au bout de EmptyStreamUnhealthyThreshold fermetures
+    // consécutives le flux est signalé indisponible.
+    internal const int MinimumStreamLifetimeMilliseconds = 5000;
+    internal const int EmptyStreamUnhealthyThreshold = 3;
+
     private sealed class WatchLoopState(int initialBackoffMilliseconds)
     {
         public string? LastResourceVersion;
         public int BackoffMilliseconds = initialBackoffMilliseconds;
         public bool PreviousAttemptFailed;
         public bool ReportedDown;
+        public int ConsecutiveEmptyStreams;
+        public bool CurrentStreamDelivered;
     }
 
     private async Task RunOneConnectionAsync(
@@ -187,6 +197,78 @@ public class KubernetesWatcherWorker(
             return;
         }
 
+        // Un 2xx ne suffit pas à déclarer le flux sain : tant que les fermetures
+        // immédiates s'enchaînent, la santé n'est restaurée qu'à la première ligne
+        // watch valide (ou à une fermeture après une durée de vie normale).
+        bool suspicious = state.ConsecutiveEmptyStreams >= EmptyStreamUnhealthyThreshold;
+        if (!suspicious)
+        {
+            RestoreStreamHealth(target, channels, options, state);
+        }
+
+        state.CurrentStreamDelivered = false;
+        long startedAt = Environment.TickCount64;
+        await using Stream stream = await response.Content.ReadAsStreamAsync(stoppingToken).ConfigureAwait(false);
+        StreamEnd end = await ReadStreamAsync(stream, target, channels, options, state, stoppingToken)
+            .ConfigureAwait(false);
+        if (end == StreamEnd.Error)
+        {
+            await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
+            return;
+        }
+
+        long lifetime = Environment.TickCount64 - startedAt;
+        if (state.CurrentStreamDelivered || lifetime >= MinimumStreamLifetimeMilliseconds)
+        {
+            // Fin de flux normale (rotation serveur, y compris sur un namespace
+            // inactif) : reconnexion immédiate avec continuité de resourceVersion.
+            RestoreStreamHealth(target, channels, options, state);
+            return;
+        }
+
+        // 2xx refermé aussitôt sans une seule ligne watch : reconnexion sous backoff
+        // pour ne pas marteler l'API server, et signalement du flux indisponible au
+        // bout de quelques fermetures consécutives.
+        state.ConsecutiveEmptyStreams++;
+        if (state.ConsecutiveEmptyStreams == EmptyStreamUnhealthyThreshold)
+        {
+            MarkStreamDown(target, channels, state, exception: null, (int)response.StatusCode);
+        }
+
+        await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Première ligne watch valide de la connexion courante : le flux est prouvé
+    /// opérationnel, y compris s'il était considéré suspect.
+    /// </summary>
+    private void OnWatchLineDelivered(
+        WatchTarget target,
+        DebounceChannel[] channels,
+        KubernetesWatchOptions options,
+        WatchLoopState state)
+    {
+        if (state.CurrentStreamDelivered)
+        {
+            return;
+        }
+
+        state.CurrentStreamDelivered = true;
+        RestoreStreamHealth(target, channels, options, state);
+    }
+
+    /// <summary>
+    /// Déclare le flux opérationnel : compteurs et backoff remis à zéro, signal
+    /// rétabli, et pulse de rattrapage si des événements ont pu être manqués pendant
+    /// une coupure. Idempotent.
+    /// </summary>
+    private void RestoreStreamHealth(
+        WatchTarget target,
+        DebounceChannel[] channels,
+        KubernetesWatchOptions options,
+        WatchLoopState state)
+    {
+        state.ConsecutiveEmptyStreams = 0;
         state.BackoffMilliseconds = options.ReconnectInitialDelayMilliseconds;
         MarkStreamUp(target, channels, state, logRecovery: true);
         if (state.PreviousAttemptFailed)
@@ -195,15 +277,6 @@ public class KubernetesWatcherWorker(
             state.PreviousAttemptFailed = false;
             PulseAll(channels);
         }
-
-        await using Stream stream = await response.Content.ReadAsStreamAsync(stoppingToken).ConfigureAwait(false);
-        StreamEnd end = await ReadStreamAsync(stream, target, channels, options, state, stoppingToken)
-            .ConfigureAwait(false);
-        if (end == StreamEnd.Error)
-        {
-            await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
-        }
-        // Fin de flux normale : reconnexion immédiate avec continuité de resourceVersion.
     }
 
     private async Task<StreamEnd> ReadStreamAsync(
@@ -228,10 +301,12 @@ public class KubernetesWatcherWorker(
             switch (eventInfo.Kind)
             {
                 case WatchEventKind.Change:
+                    OnWatchLineDelivered(target, channels, options, state);
                     state.LastResourceVersion = eventInfo.ResourceVersion ?? state.LastResourceVersion;
                     SignalDirty(channels, options, stoppingToken);
                     break;
                 case WatchEventKind.Bookmark:
+                    OnWatchLineDelivered(target, channels, options, state);
                     state.LastResourceVersion = eventInfo.ResourceVersion ?? state.LastResourceVersion;
                     break;
                 case WatchEventKind.Error:

@@ -25,12 +25,13 @@ public class SlimJobsWorker(
 {
     private readonly int _delay = workersOptions.Value.JobsDelayMilliseconds;
 
-    private readonly TimeSpan _jobsResyncInterval =
-        TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsResyncSeconds);
-
-    // Version -1 : la première itération synchronise toujours (état initial).
-    private long _observedJobsVersion = -1;
-    private DateTime _lastJobsSyncUtc = DateTime.MinValue;
+    // La boucle garde sa cadence de 1 s (queues SlimData) : la cadence watch est
+    // interrogée via IsSyncDue, pas attendue (voir KubernetesWatchSyncCadence).
+    private readonly KubernetesWatchSyncCadence _jobsSyncCadence = new(
+        watchSignals,
+        watchSignals.Jobs,
+        TimeSpan.FromMilliseconds(workersOptions.Value.JobsDelayMilliseconds),
+        TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsResyncSeconds));
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -51,21 +52,16 @@ public class SlimJobsWorker(
             await Task.Delay(_delay, stoppingToken);
 
             IList<Job> jobs;
-            long version = watchSignals.Jobs.Version;
             // Sans watch, ou tant qu'un flux (jobs/pods) est indisponible, la liste est
             // resynchronisée à chaque cycle comme historiquement : le master ne doit
             // jamais compter les slots d'exécution sur une liste potentiellement périmée.
-            bool syncDue = !watchSignals.WatchEnabled
-                           || !watchSignals.Jobs.IsHealthy
-                           || version != _observedJobsVersion
-                           || DateTime.UtcNow - _lastJobsSyncUtc >= _jobsResyncInterval;
-            if (syncDue)
+            if (_jobsSyncCadence.IsSyncDue())
             {
-                // Version capturée AVANT la sync : un événement pendant la sync
-                // déclenche la synchronisation du cycle suivant.
+                // Version capturée AVANT la sync (dans IsSyncDue) : un événement pendant
+                // la sync déclenche la synchronisation du cycle suivant. La version n'est
+                // validée qu'après le succès : un échec resynchronise au cycle suivant.
                 jobs = await jobService.SyncJobsAsync();
-                _observedJobsVersion = version;
-                _lastJobsSyncUtc = DateTime.UtcNow;
+                _jobsSyncCadence.CommitSync();
             }
             else
             {
@@ -141,6 +137,12 @@ public class SlimJobsWorker(
 
                 var elements = await jobQueue.DequeueAsync(jobName, Math.Min(numberJobReady, numberElementToDequeue));
                 if (elements == null || elements.Count == 0) continue;
+
+                // Read-after-write : les événements ADDED des jobs créés ci-dessous
+                // peuvent arriver après le prochain cycle (latence API + debounce). La
+                // liste est donc resynchronisée au cycle suivant pour que le comptage
+                // des slots d'exécution ne dépasse jamais NumberParallelJob.
+                _jobsSyncCadence.ForceNextSync();
 
                 var listCallBack = new ListQueueItemStatus();
                 listCallBack.Items = new List<QueueItemStatus>();

@@ -214,9 +214,24 @@ public class ReplicasSynchronizationWorkerShould
         {
             await Task.Delay(200);
             signals.Functions.ReportStreamUp();
-            // Laisse finir le cycle en cours, puis compte les syncs : sans pulse et
-            // avec un resync de 3600 s, plus aucune sync ne doit se produire.
-            await Task.Delay(100);
+            // Attend la quiescence (un cycle legacy en vol peut encore synchroniser
+            // après le rétablissement, avec un retard arbitraire sur un runner CI
+            // chargé), puis compte les syncs : sans pulse et avec un resync de
+            // 3600 s, plus aucune sync ne doit se produire.
+            var deadline = DateTime.UtcNow.AddSeconds(5);
+            int observed = replicasService.Invocations.Count;
+            DateTime quietSince = DateTime.UtcNow;
+            while (DateTime.UtcNow < deadline && DateTime.UtcNow - quietSince < TimeSpan.FromMilliseconds(250))
+            {
+                await Task.Delay(50);
+                int current = replicasService.Invocations.Count;
+                if (current != observed)
+                {
+                    observed = current;
+                    quietSince = DateTime.UtcNow;
+                }
+            }
+
             replicasService.Invocations.Clear();
             await Task.Delay(300);
         }
