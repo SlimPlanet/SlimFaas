@@ -221,6 +221,61 @@ public sealed class SlimPersistentStateTests
         }
     }
 
+    /// <summary>
+    /// Snapshots/v0.84.0-6-0.snapshot is the real file written by SlimData 0.84.0 (commit
+    /// a9ac6475) for this exact sequence: set snapshot-key, add snapshot-hash, push
+    /// pinned-item + idle-item on pinned-queue, ListRightPop 1 element with reserved IP
+    /// 10.42.0.7 (transaction tx-pinned), then two "snapshot-filler" sets (values 0 and 1),
+    /// snapshot interval 6 entries. It has no trailer, so the reserved IP is lost: that is
+    /// the behavior of the release, which this test pins for backward compatibility.
+    /// The reverse direction (0.84.0 restoring a snapshot written by the current code and
+    /// ignoring the trailer) was verified once against the real 0.84.0 code when the
+    /// trailer was introduced; SlimDataSnapshotSerializerTests keeps the body byte-identical
+    /// to the legacy layout so that it stays true.
+    /// </summary>
+    [Fact]
+    public async Task Restore_reads_a_snapshot_file_written_by_version_0_84_0()
+    {
+        var root = GetTemporaryDirectory();
+        var fixture = Path.Combine(AppContext.BaseDirectory, "Snapshots", "v0.84.0-6-0.snapshot");
+        var nowTicks = new DateTime(2026, 9, 10, 12, 0, 0, DateTimeKind.Utc).Ticks;
+
+        try
+        {
+            Assert.True(File.Exists(fixture), $"Missing fixture {fixture}");
+            await using var state = CreateState(root, snapshotIntervalEntries: 6);
+
+            await InvokeRestoreAsync(state, new FileInfo(fixture), CancellationToken.None);
+
+            var data = state.SlimDataState;
+            Assert.Equal("snapshot-value", Encoding.UTF8.GetString(data.KeyValues["snapshot-key"].Span));
+            Assert.Equal("1", Encoding.UTF8.GetString(data.KeyValues["snapshot-filler"].Span));
+            Assert.Equal("hash-value", Encoding.UTF8.GetString(data.Hashsets["snapshot-hash"]["field"].Span));
+
+            var queue = data.Queues["pinned-queue"];
+            Assert.Equal(["pinned-item", "idle-item"], queue.Select(e => e.Id));
+            var pinned = queue[0];
+            Assert.Equal("pinned-value", Encoding.UTF8.GetString(pinned.Value.Span));
+            Assert.Equal(nowTicks, pinned.InsertTimeStamp);
+            Assert.Equal(30, pinned.HttpTimeoutSeconds);
+            Assert.Equal([1, 2], pinned.TimeoutRetriesSeconds.ToArray());
+            Assert.Equal([500], pinned.HttpStatusRetries.ToArray());
+            var attempt = Assert.Single(pinned.RetryQueueElements);
+            Assert.Equal("tx-pinned", attempt.IdTransaction);
+            Assert.Equal(nowTicks, attempt.StartTimeStamp);
+            Assert.Equal(0, attempt.EndTimeStamp);
+            Assert.Equal(0, attempt.HttpCode);
+            Assert.Equal(string.Empty, attempt.ReservedIp); // 0.84.0 never persisted it
+            Assert.Empty(queue[1].RetryQueueElements);
+            Assert.Equal("idle-value", Encoding.UTF8.GetString(queue[1].Value.Span));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public async Task Restore_invalid_snapshot_clears_old_state_and_restoring_flag()
     {
