@@ -9,6 +9,9 @@ public interface IAutoScalerStore
     /// </summary>
     void AddSample(string key, long timestampUnixSeconds, int desiredReplicas);
 
+    /// <summary>Records a replica change, including the count before the change.</summary>
+    void AddSample(string key, long timestampUnixSeconds, int desiredReplicas, int previousReplicas);
+
     /// <summary>
     /// Récupère tous les échantillons >= fromTimestampUnixSeconds pour un déploiement.
     /// </summary>
@@ -19,11 +22,13 @@ public readonly struct AutoScaleSample
 {
     public long TimestampUnixSeconds { get; }
     public int DesiredReplicas { get; }
+    public int? PreviousReplicas { get; }
 
-    public AutoScaleSample(long timestampUnixSeconds, int desiredReplicas)
+    public AutoScaleSample(long timestampUnixSeconds, int desiredReplicas, int? previousReplicas = null)
     {
         TimestampUnixSeconds = timestampUnixSeconds;
         DesiredReplicas = desiredReplicas;
+        PreviousReplicas = previousReplicas;
     }
 }
 
@@ -39,11 +44,17 @@ public sealed class InMemoryAutoScalerStore : IAutoScalerStore
     }
 
     public void AddSample(string key, long timestampUnixSeconds, int desiredReplicas)
+        => AddSample(key, new AutoScaleSample(timestampUnixSeconds, desiredReplicas));
+
+    public void AddSample(string key, long timestampUnixSeconds, int desiredReplicas, int previousReplicas)
+        => AddSample(key, new AutoScaleSample(timestampUnixSeconds, desiredReplicas, previousReplicas));
+
+    private void AddSample(string key, AutoScaleSample sample)
     {
         var list = _samples.GetOrAdd(key, _ => new List<AutoScaleSample>());
         lock (list)
         {
-            list.Add(new AutoScaleSample(timestampUnixSeconds, desiredReplicas));
+            list.Add(sample);
             var overflow = list.Count - _maxSamplesPerKey;
             if (overflow > 0)
             {

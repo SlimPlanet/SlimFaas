@@ -96,7 +96,6 @@ public class ReplicasService(
         diagnostics?.Retain(currentDeployments.Functions.Select(f => f.Deployment).ToHashSet(StringComparer.Ordinal));
 
         List<Task<ReplicaRequest?>> tasks = new();
-        var deferredDecisions = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (DeploymentInformation deploymentInformation in currentDeployments.Functions)
         {
@@ -108,10 +107,9 @@ public class ReplicasService(
                         + TimeSpan.FromSeconds(context.TimeoutSeconds) - TimeSpan.FromTicks(nowUtc.Ticks));
             int currentScale = deploymentInformation.Replicas;
             evaluations.TryGetValue(deploymentInformation.Deployment, out var evaluation);
-            bool deferDecision = deploymentInformation.Scale?.Triggers.Any(t => t.Source is not null) == true;
             MetricsScalingDecision? metrics = null;
             if (ScalingDecisionCalculator.NeedsMetrics(context, evaluation))
-                metrics = autoScaler.ComputeDecision(deploymentInformation, nowUnixSeconds, evaluation!, !deferDecision);
+                metrics = autoScaler.ComputeDecision(deploymentInformation, nowUnixSeconds, evaluation!, recordDecision: false);
             var decision = ScalingDecisionCalculator.Calculate(context, evaluation, metrics,
                 SourceDiagnostics(deploymentInformation, nowUnixSeconds));
             if (decision.Reasons.Any(r => r.Code == "InfrastructureBlocked"))
@@ -131,7 +129,6 @@ public class ReplicasService(
             logger.LogInformation("Scale {Deployment} from {CurrentScale} to {DesiredReplicas}",
                 deploymentInformation.Deployment, currentScale, desiredReplicas);
 
-            if (deferDecision) deferredDecisions.Add(deploymentInformation.Deployment);
             tasks.Add(ApplyScaleAsync(decision, deploymentInformation.Scale, diagnosticSession, new ReplicaRequest(
                 Replicas: desiredReplicas,
                 Deployment: deploymentInformation.Deployment,
@@ -142,28 +139,21 @@ public class ReplicasService(
 
         if (tasks.Count > 0)
         {
-            List<DeploymentInformation> updatedFunctions = new();
-            ReplicaRequest?[] replicaRequests = await Task.WhenAll(tasks);
-            var requestsByDeployment = replicaRequests
-                .Where(r => r is not null)
-                .ToDictionary(r => r!.Deployment, r => r!, StringComparer.Ordinal);
-
-            foreach (DeploymentInformation function in currentDeployments.Functions)
+            try
             {
-                if (requestsByDeployment.TryGetValue(function.Deployment, out var updatedRequest))
-                {
-                    updatedFunctions.Add(function with { Replicas = updatedRequest.Replicas });
-                    if (deferredDecisions.Contains(function.Deployment))
-                        autoScaler.RecordAppliedDecision(function.Deployment, nowUnixSeconds, updatedRequest.Replicas);
-                }
-                else
-                {
-                    updatedFunctions.Add(function);
-                }
+                await Task.WhenAll(tasks);
             }
-
-            var updatedDeployments = currentDeployments with { Functions = updatedFunctions };
-            Interlocked.Exchange(ref _deployments, updatedDeployments);
+            finally
+            {
+                // Preserve successful writes even if another function's write failed.
+                var requestsByDeployment = tasks.Where(t => t.IsCompletedSuccessfully)
+                    .Select(t => t.Result).Where(r => r is not null)
+                    .ToDictionary(r => r!.Deployment, r => r!, StringComparer.Ordinal);
+                var updatedFunctions = currentDeployments.Functions.Select(function =>
+                    requestsByDeployment.TryGetValue(function.Deployment, out var request)
+                        ? function with { Replicas = request.Replicas } : function).ToList();
+                Interlocked.Exchange(ref _deployments, currentDeployments with { Functions = updatedFunctions });
+            }
         }
     }
 
@@ -173,6 +163,9 @@ public class ReplicasService(
         {
             diagnostics?.Record(decision with { Application = "Sent" }, configuration, session);
             var result = await kubernetesService.ScaleAsync(request);
+            if (result is not null && configuration?.Triggers.Count > 0)
+                autoScaler.RecordAppliedDecision(decision.Function, new DateTimeOffset(_nowProvider()).ToUnixTimeSeconds(),
+                    decision.CurrentReplicas, result.Replicas);
             diagnostics?.Record(decision with { Application = result is null ? "Failed" : "Accepted",
                 AcceptedReplicas = result?.Replicas }, configuration, session);
             return result;
