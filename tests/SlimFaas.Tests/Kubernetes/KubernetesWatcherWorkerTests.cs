@@ -100,15 +100,33 @@ public sealed class KubernetesWatcherWorkerTests
     public async Task FailedConnectionForcesAPulseOnSuccessfulReconnect()
     {
         using var harness = new WatchHarness(FastOptions(), firstResponseStatus: HttpStatusCode.InternalServerError);
-        const long observed = 0;
 
-        // Aucun événement écrit : le pulse vient uniquement de la reconnexion réussie
-        // après échec (des événements ont pu être manqués pendant la coupure).
-        long version = await harness.Signal
-            .WaitForChangeAsync(observed, TimeSpan.FromSeconds(5), CancellationToken.None)
-            .WaitAsync(AssertTimeout);
-        Assert.True(version > observed);
-        Assert.True(harness.RequestCount >= 2);
+        // Aucun événement écrit : le 1er pulse vient du signalement du flux en panne,
+        // le 2e de la reconnexion réussie après échec (des événements ont pu être
+        // manqués pendant la coupure).
+        await harness.WaitForRequestAsync(2);
+        await harness.WaitUntilAsync(() => harness.Signal.Version >= 2, "pulse after successful reconnect");
+        Assert.True(harness.Signal.IsHealthy);
+    }
+
+    [Fact]
+    public async Task PersistentFailureReportsTheSignalUnhealthyUntilTheStreamIsRestored()
+    {
+        // 3 refus consécutifs (ex. RBAC sans verbe "watch"), puis le flux s'ouvre.
+        using var harness = new WatchHarness(FastOptions(), firstResponseStatus: HttpStatusCode.Forbidden, failureResponses: 3);
+
+        await harness.WaitUntilAsync(() => !harness.Signal.IsHealthy, "signal reported unhealthy");
+
+        await harness.WaitForRequestAsync(4);
+        await harness.WaitUntilAsync(() => harness.Signal.IsHealthy, "signal healthy after reconnect");
+        // Pulse forcé après la reconnexion réussie.
+        await harness.WaitUntilAsync(() => harness.Signal.Version >= 2, "pulse after reconnect");
+
+        // Exactement 2 pulses sur toute la séquence : 1 au signalement de la panne,
+        // 1 à la reconnexion. Les tentatives intermédiaires ne re-pulsent pas
+        // (pas de resync en rafale pendant l'indisponibilité).
+        await Task.Delay(300);
+        Assert.Equal(2, harness.Signal.Version);
     }
 
     private sealed class WatchHarness : IDisposable
@@ -120,9 +138,12 @@ public sealed class KubernetesWatcherWorkerTests
 
         public KubernetesResourceSignal Signal { get; } = new();
 
-        public WatchHarness(KubernetesWatchOptions options, HttpStatusCode? firstResponseStatus = null)
+        public WatchHarness(
+            KubernetesWatchOptions options,
+            HttpStatusCode? firstResponseStatus = null,
+            int failureResponses = 1)
         {
-            _handler = new StreamingHandler(firstResponseStatus);
+            _handler = new StreamingHandler(firstResponseStatus, failureResponses);
             _client = new k8s.Kubernetes(
                 new KubernetesClientConfiguration { Host = "http://localhost" },
                 _handler);
@@ -183,6 +204,22 @@ public sealed class KubernetesWatcherWorkerTests
             throw new TimeoutException($"Expected at least {count} watch requests, got {RequestCount}.");
         }
 
+        public async Task WaitUntilAsync(Func<bool> predicate, string description)
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (predicate())
+                {
+                    return;
+                }
+
+                await Task.Delay(20);
+            }
+
+            throw new TimeoutException($"Condition not met: {description}.");
+        }
+
         public void Dispose()
         {
             _cts.Cancel();
@@ -200,9 +237,10 @@ public sealed class KubernetesWatcherWorkerTests
         }
     }
 
-    private sealed class StreamingHandler(HttpStatusCode? firstResponseStatus) : DelegatingHandler
+    private sealed class StreamingHandler(HttpStatusCode? firstResponseStatus, int failureResponses) : DelegatingHandler
     {
-        private HttpStatusCode? _pendingFailureStatus = firstResponseStatus;
+        private readonly HttpStatusCode? _failureStatus = firstResponseStatus;
+        private int _remainingFailures = failureResponses;
         private WatchStreamContent? _currentContent;
 
         public List<string> Requests { get; } = new();
@@ -220,9 +258,9 @@ public sealed class KubernetesWatcherWorkerTests
                 Requests.Add(request.RequestUri!.PathAndQuery);
             }
 
-            if (_pendingFailureStatus is { } failure)
+            if (_failureStatus is { } failure && _remainingFailures > 0)
             {
-                _pendingFailureStatus = null;
+                _remainingFailures--;
                 return Task.FromResult(new HttpResponseMessage(failure) { RequestMessage = request });
             }
 

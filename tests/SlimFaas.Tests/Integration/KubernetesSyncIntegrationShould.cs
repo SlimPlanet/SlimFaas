@@ -12,6 +12,7 @@ public sealed class KubernetesSyncIntegrationCollection;
 // at every checkpoint — proving the watch-driven path changes only the trigger, not
 // the synchronized state.
 [Collection("KubernetesSyncIntegration")]
+[Trait("Category", "Integration")]
 public sealed class KubernetesSyncIntegrationShould
 {
     [Fact]

@@ -166,7 +166,9 @@ public sealed class KubernetesSyncStack : IAsyncDisposable
         _client.Dispose();
     }
 
-    public static async Task WaitUntilAsync(Func<bool> predicate, string description, int timeoutSeconds = 5)
+    // Marge large : les runners CI partagés peuvent être lents, la convergence réelle
+    // se mesure en dizaines de millisecondes.
+    public static async Task WaitUntilAsync(Func<bool> predicate, string description, int timeoutSeconds = 20)
     {
         var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
         while (DateTime.UtcNow < deadline)

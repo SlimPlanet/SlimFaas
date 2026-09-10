@@ -173,10 +173,11 @@ public partial class KubernetesService
             kubeNamespace,
             labelSelector: SlimfaasJobName);
         await Task.WhenAll(jobListTask, jobPodListTask);
-        V1JobList? jobList = jobListTask.Result;
+        V1JobList? jobList = await jobListTask;
+        V1PodList jobPodList = await jobPodListTask;
 
         Dictionary<string, List<V1Pod>> podsByJobName = new(StringComparer.Ordinal);
-        foreach (V1Pod pod in jobPodListTask.Result.Items)
+        foreach (V1Pod pod in jobPodList.Items)
         {
             if (pod.Metadata?.Labels != null &&
                 pod.Metadata.Labels.TryGetValue(SlimfaasJobName, out var podJobName) &&

@@ -16,14 +16,22 @@ public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
     KubernetesWatchSignals watchSignals)
     : BackgroundService
 {
-    // Avec les watch actifs, les événements CronJob pilotent la synchronisation et le
-    // délai devient un resync de sécurité ; sans watch, l'attente est équivalente au
-    // Task.Delay historique (aucun pulse n'arrive jamais).
-    private readonly TimeSpan _maximumWait = watchSignals.WatchEnabled
-        ? TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsConfigurationResyncSeconds)
-        : TimeSpan.FromMilliseconds(workersOptions.Value.JobsConfigurationDelayMilliseconds);
+    // Avec les watch actifs et le flux CronJob connecté, les événements pilotent la
+    // synchronisation et le délai devient un resync de sécurité. Sans watch, ou tant
+    // que le flux est indisponible (RBAC sans verbe "watch", API server injoignable),
+    // l'attente est équivalente au Task.Delay historique.
+    private readonly TimeSpan _legacyDelay =
+        TimeSpan.FromMilliseconds(workersOptions.Value.JobsConfigurationDelayMilliseconds);
 
+    private readonly TimeSpan _resyncInterval =
+        TimeSpan.FromSeconds(slimFaasOptions.Value.KubernetesWatch.JobsConfigurationResyncSeconds);
+
+    // Version observée capturée à la construction, donc avant le démarrage de tout
+    // hosted service : le watcher ne peut pas encore avoir pulsé.
     private long _observedVersion = watchSignals.JobsConfiguration.Version;
+
+    private TimeSpan MaximumWait =>
+        watchSignals.WatchEnabled && watchSignals.JobsConfiguration.IsHealthy ? _resyncInterval : _legacyDelay;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -39,7 +47,7 @@ public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
         {
             _observedVersion = await watchSignals.JobsConfiguration.WaitForChangeAsync(
                 _observedVersion,
-                _maximumWait,
+                MaximumWait,
                 stoppingToken);
 
             await jobConfiguration.SyncJobsConfigurationAsync();
