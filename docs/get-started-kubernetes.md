@@ -28,6 +28,38 @@ kubectl -n slimfaas-demo rollout status statefulset/slimfaas --timeout=300s
 kubectl -n slimfaas-demo get pods,pvc
 ```
 
+> **Note — Kubernetes watch:** SlimFaas keeps its view of the cluster up to date
+> through Kubernetes **watch** streams on pods, deployments, statefulsets, jobs and
+> cronjobs (the `watch` verb granted by `demo/service-account-slimfaas.yml` is
+> required). Synchronization is event-driven: full LIST calls only run when
+> something actually changed, with a periodic safety-net resync. The design — and
+> how it stays Native AOT compatible without the client's `Watcher<T>` — is
+> described in [How SlimFaas Works](how-it-works.md#event-driven-kubernetes-synchronization-watch-as-signal).
+> The behavior is configurable under `SlimFaas:KubernetesWatch`:
+>
+> | Key | Default | Description |
+> |---|---|---|
+> | `Enabled` | `true` | Set to `false` to restore the legacy fixed-cadence polling |
+> | `FunctionsResyncSeconds` | `30` | Safety-net resync for deployments/pods/statefulsets |
+> | `JobsResyncSeconds` | `30` | Safety-net resync for jobs |
+> | `JobsConfigurationResyncSeconds` | `60` | Safety-net resync for CronJob configurations |
+> | `DebounceMilliseconds` | `300` | Event burst coalescing window |
+> | `WatchTimeoutSeconds` | `60` | Watch stream rotation (server-side close) |
+> | `WatchReadDeadlineMarginSeconds` | `30` | Client-side margin over `WatchTimeoutSeconds` after which a stalled connection is abandoned |
+>
+> If a watch stream cannot be established (for example the ServiceAccount lacks the
+> `watch` verb, or the API server is temporarily unreachable), SlimFaas logs a warning
+> once and automatically falls back to the legacy polling cadence for the affected
+> resources until the stream is restored, so an outdated RBAC never slows
+> synchronization down.
+>
+> **Services are not watched** (the RBAC does not grant it): a change that only
+> touches a Service — such as re-pointing the selector of the Service in front of
+> the SlimFaas StatefulSet or of a function — is only picked up by the periodic
+> resync, so it can take up to `FunctionsResyncSeconds` (30 s by default) to
+> propagate instead of a few hundred milliseconds. Lower that value if Service
+> objects change frequently in your cluster.
+
 The first manifest creates the namespace, ServiceAccount and RBAC. The SlimFaas manifest creates its configuration, StatefulSet and Service. Functions carry annotations for visibility, inactivity, concurrency, dependencies and scaling. `fibonacci2` depends on `fibonacci1` and MySQL; MySQL is included to demonstrate orchestration dependencies. The sample API itself does not query it.
 
 The `fibonacci` job is configured by SlimFaas. The additional `fibonacci5` CronJob is suspended in Kubernetes and discovered by SlimFaas through its annotations. Functions can scale to zero before you finish these steps, so their absence from the pod list alone is not a startup failure.

@@ -38,6 +38,18 @@ Each SlimFaas node serves requests and observes the cluster. `ReplicasSynchroniz
 
 SlimData holds replicated queue state, configuration and small values. `ClusterMembershipAnnounceWorker` announces a member to a leader; `SlimDataMembershipReconciliationWorker` reconciles membership with the orchestrator topology. Node readiness includes Raft recovery and protocol compatibility.
 
+### Event-driven Kubernetes synchronization (watch-as-signal)
+
+On Kubernetes, the synchronization workers are driven by **watch streams** instead of fixed-cadence polling: watch events on pods, deployments, statefulsets, jobs and cronjobs only signal *that* something changed, and the existing LIST-based synchronization then runs unchanged — the synchronized state is identical to polling, just triggered by events, with a periodic resync as a safety net (see the configuration reference in [Get started on Kubernetes](get-started-kubernetes.md)).
+
+**How the watch is Native AOT compatible.** SlimFaas references `KubernetesClient.Aot`, the trimming/AOT variant of the official client. That package replaces the reflection-based deserialization of LIST/GET calls with source-generated `System.Text.Json` contexts, but it does **not** ship `Watcher<T>`/`WatchAsync`: the standard client's watch machinery deserializes every event into typed models (`V1Pod`, `V1Deployment`, ...) through reflection, which is incompatible with trimming and Native AOT. SlimFaas works around this by never needing that machinery:
+
+- **Transport — raw HTTP, only the client's plumbing.** `KubernetesWatcherWorker` builds its own `HttpRequestMessage` (`GET {BaseUri}.../pods?watch=true&allowWatchBookmarks=true...`) and borrows only three pieces of the client, none of which serialize anything: `client.BaseUri` (API server URL), `client.Credentials.ProcessHttpRequestAsync` (ServiceAccount Bearer token with its rotation, or mTLS) and `client.HttpClient` (the configured TLS pipeline). This is the same hand-rolled pattern `ScaleAsync` already used, so the path was AOT-proven before the watcher existed. The response is read with `ResponseHeadersRead` and `StreamReader.ReadLineAsync` — a Kubernetes watch stream is line-delimited JSON.
+- **Parsing — three scalar fields, zero reflection.** The watch-as-signal design never materializes the Kubernetes object carried by an event. `WatchEventLineParser` extracts only the event `type` (`ADDED`/`MODIFIED`/`DELETED` pulse a version counter, `BOOKMARK`, `ERROR`), `object.metadata.resourceVersion` (stream continuity across the 60 s server-side rotations) and `object.code` (410 Gone detection inside ERROR events). It uses `Utf8JsonReader` — a forward-only BCL `ref struct` with no reflection and no dynamic code generation, AOT/trim-safe by construction — with UTF-8 literal property comparisons (`ValueTextEquals("type"u8)`); everything else in the line (the full spec/status) is skipped without ever being interpreted, and a malformed line yields `Unknown` instead of throwing.
+- **State — the typed path stays on the supported client.** The actual cluster state is still obtained by the existing LIST calls (`ListNamespacedPodAsync`, ...), which go through the AOT client's typed APIs and their source-generated serialization. The type-rich work therefore remains entirely on the path `KubernetesClient.Aot` already supports; the watch only decides *when* those LISTs run.
+
+This split is validated by the CI, which publishes Native AOT builds for linux x64/arm64, win-x64 and osx x64/arm64 — reflective code on the watch path would be broken or flagged by the trimmer.
+
 ## Synchronous calls
 
 ```mermaid

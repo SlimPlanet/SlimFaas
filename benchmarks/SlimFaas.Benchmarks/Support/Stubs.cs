@@ -150,7 +150,7 @@ public sealed class StubJobConfiguration : IJobConfiguration
 {
     public SlimFaasJobConfiguration Configuration { get; set; } = new(new Dictionary<string, SlimfaasJob>());
 
-    public Task SyncJobsConfigurationAsync() => Task.CompletedTask;
+    public Task<bool> SyncJobsConfigurationAsync() => Task.FromResult(true);
 }
 
 /// <summary>
