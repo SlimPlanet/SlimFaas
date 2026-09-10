@@ -32,8 +32,10 @@ kubectl -n slimfaas-demo get pods,pvc
 > through Kubernetes **watch** streams on pods, deployments, statefulsets, jobs and
 > cronjobs (the `watch` verb granted by `demo/service-account-slimfaas.yml` is
 > required). Synchronization is event-driven: full LIST calls only run when
-> something actually changed, with a periodic safety-net resync. The behavior is
-> configurable under `SlimFaas:KubernetesWatch`:
+> something actually changed, with a periodic safety-net resync. The design — and
+> how it stays Native AOT compatible without the client's `Watcher<T>` — is
+> described in [How SlimFaas Works](how-it-works.md#event-driven-kubernetes-synchronization-watch-as-signal).
+> The behavior is configurable under `SlimFaas:KubernetesWatch`:
 >
 > | Key | Default | Description |
 > |---|---|---|
