@@ -145,9 +145,8 @@ namespace SlimFaas.Tests.Kubernetes
         {
             // current = 8, raw desired = 1
             // Policy: Pods, Value = 2, Period = 30s
-            // Historique: dans la fenêtre, desired = 10 puis 9
-            // baseline = max(10,9) = 10
-            // alreadyDown = baseline(10) - current(8) = 2
+            // Historique: dans la fenêtre, 10 -> 9 puis 9 -> 8
+            // alreadyDown = 1 + 1 = 2
             // remainingDown = 2 - 2 = 0 => aucun scale-down autorisé
             // => on ne bouge pas : final = current = 8
 
@@ -170,8 +169,8 @@ namespace SlimFaas.Tests.Kubernetes
 
             var samples = new List<AutoScaleSample>
             {
-                new AutoScaleSample(timestampUnixSeconds: 1975, desiredReplicas: 10),
-                new AutoScaleSample(timestampUnixSeconds: 1985, desiredReplicas: 9),
+                new AutoScaleSample(timestampUnixSeconds: 1975, desiredReplicas: 9, previousReplicas: 10),
+                new AutoScaleSample(timestampUnixSeconds: 1985, desiredReplicas: 8, previousReplicas: 9),
             };
 
             var storeMock = new Mock<IAutoScalerStore>();

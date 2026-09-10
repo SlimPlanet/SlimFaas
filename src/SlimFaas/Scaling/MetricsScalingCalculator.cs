@@ -177,39 +177,32 @@ internal static class MetricsScalingCalculator
             if (policy.Value <= 0)
                 continue;
 
-            var baseDelta = ComputeDelta(policy, currentReplicas);
-            if (baseDelta <= 0)
-                continue;
-
+            long removed = 0, added = 0;
             if (policy.PeriodSeconds > 0)
             {
                 var fromTs = nowUnixSeconds - policy.PeriodSeconds;
-                var samples = decisions.Where(s => s.TimestampUnixSeconds >= fromTs).ToArray();
-
-                // baseline = max(desired) dans la fenêtre => point le plus haut
-                var baseline = currentReplicas;
-                if (samples.Length > 0)
+                foreach (var sample in decisions)
                 {
-                    baseline = samples[0].DesiredReplicas;
-                    for (var i = 1; i < samples.Length; i++)
-                    {
-                        if (samples[i].DesiredReplicas > baseline)
-                            baseline = samples[i].DesiredReplicas;
-                    }
+                    // A change expires exactly at PeriodSeconds. Recommendations have no previous count.
+                    if (sample.TimestampUnixSeconds <= fromTs || sample.TimestampUnixSeconds > nowUnixSeconds ||
+                        sample.PreviousReplicas is not { } previous) continue;
+                    long delta = (long)sample.DesiredReplicas - previous;
+                    if (delta < 0) removed -= delta;
+                    else added += delta;
                 }
-
-                var alreadyDown = Math.Max(0, baseline - currentReplicas);
-                var remainingDown = Math.Max(0, policy.Value - alreadyDown);
-                if (remainingDown <= 0)
-                    continue;
-
-                baseDelta = Math.Min(baseDelta, remainingDown);
-                if (baseDelta <= 0)
-                    continue;
             }
 
-            if (minAllowedDelta is null || baseDelta < minAllowedDelta.Value)
-                minAllowedDelta = baseDelta;
+            long periodStart = Math.Clamp(currentReplicas + removed - added, 0, int.MaxValue);
+            long quota = policy.Type switch
+            {
+                ScalePolicyType.Pods => policy.Value,
+                // Integer arithmetic preserves floor rounding without overflow or floating-point error.
+                ScalePolicyType.Percent => periodStart * policy.Value / 100,
+                _ => 0
+            };
+            // Adding replicas does not refund removals. Zero must participate in the conservative minimum.
+            int remaining = (int)Math.Clamp(quota - removed, 0, currentReplicas);
+            minAllowedDelta = Math.Min(minAllowedDelta ?? remaining, remaining);
         }
 
         if (minAllowedDelta is null)
