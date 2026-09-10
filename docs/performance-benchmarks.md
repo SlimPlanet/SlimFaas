@@ -1,7 +1,8 @@
 # SlimFaas performance benchmarks
 
 This document tracks the methodology and results of the micro-benchmarks used to
-validate the performance commits of the `claude/performance-improvements-9h83ah` branch.
+validate the performance commits of the `claude/performance-improvements-9h83ah` branch
+(PR #313) and of its follow-ups (theme 6, branch `claude/slimdata-queue`).
 
 ## Infrastructure
 
@@ -49,6 +50,7 @@ Two benchmark styles are used:
 | 3. Per-HTTP-request allocations (port check, visibility, pod selection) | `HttpHotPathBenchmarks` | before/after (+ A/B for the port check) |
 | 4. Recurring worker cost (NodaTime schedules, PromQL registry) | `SchedulingBenchmarks` | before/after |
 | 5. Cost of one `PayloadBytes` evaluation (3× → 1× per snapshot) | `SlimDataStateBenchmarks` | unit cost × avoided calls |
+| 6. SlimData queue commands applied by the Raft state machine (dequeue, HTTP callbacks, push) | `SlimDataQueueBenchmarks` | before/after |
 
 ## Results
 
@@ -219,3 +221,82 @@ The unit cost of `PayloadBytes` is unchanged after the commit (41.35 µs vs the
 drops from 3 to 1 per snapshot, i.e. ≈ 85 µs of state walking saved per snapshot on
 the test state (more on larger real states).
 **Measured gain (operation count reduction × unit cost) → commit kept.**
+
+---
+
+### Commit "perf: single-pass queue dequeue and O(N + M) callback application" (theme 6)
+
+Follow-up of the "SlimData queue data structure" item listed as future work in PR #313
+(branch `claude/slimdata-queue`). Benchmarks and non-regression tests were added in a
+preceding commit and measured on the unmodified code.
+
+Tests: SlimData.Tests **194 green** (176 existing + 18 new in `SlimDataQueueCommandTests`,
+all green before and after the change), SlimFaas.Tests **1073 green**.
+
+Measurement environment (a different machine from the sections above — only the
+before/after pairs of this section are comparable with each other):
+
+```
+BenchmarkDotNet v0.15.8, Windows 11 (10.0.26200), .NET SDK 10.0.302, .NET 10.0.10 X64 RyuJIT x86-64-v3
+Intel Core i7-10750H CPU 2.60GHz, 1 CPU, 12 logical and 6 physical cores
+Job=ShortRunInProcess  InvocationCount=16  IterationCount=20  WarmupCount=5  DOTNET_TieredCompilation=0
+```
+
+The commands mutate queue elements in place, so every invocation consumes a pristine
+state from a pool rebuilt in an unmeasured `[IterationSetup]`. A pool of 16 states keeps
+the working set cache-resident (with 64+ fresh states per iteration the measurement was
+dominated by cache misses and ±30 % variance). Tiered compilation is disabled because
+each benchmark completes in ≈100 ms — before tier-1 code gets installed — so with
+tiering on, the second benchmark of a run measured tier-0 code and the third tier-1.
+Run with:
+
+```bash
+DOTNET_TieredCompilation=0 dotnet run -c Release --project benchmarks/SlimFaas.Benchmarks -- --filter '*SlimDataQueue*' --iterationCount 20 --warmupCount 5
+```
+
+**Design decision — the flat `ImmutableArray<QueueElement>` per key is kept.** A dequeue
+has to visit every element anyway: whether an element is running, timed out or waiting
+for a retry depends on the current time, so an id index or a tree structure would not
+remove the O(N) scan, would slow down iteration, and would change the snapshot format.
+What was wrong were the algorithms on top of the array, not the array.
+
+| Method | QueueDepth | Before | After | Gain |
+|---|---|---:|---:|---|
+| ListRightPop (10 elements, mixed-state queue) | 50 | 3.10 µs / 3.97 KB | 1.88 µs / 1.95 KB | 1.6× faster, −51 % alloc |
+| ListRightPop | 500 | 43.15 µs / 15.58 KB | 12.89 µs / 8.28 KB | **3.3× faster**, −47 % alloc |
+| ListCallback (50 results) | 50 | 4.15 µs / 4.93 KB | 4.26 µs / 2.81 KB | time unchanged (within variance), −43 % alloc |
+| ListCallback | 500 | 19.62 µs / 21.08 KB | 17.02 µs / 9.86 KB | −13 % time, −53 % alloc |
+| ListCallbackBatch (50 results) | 50 | 9.44 µs / 23.82 KB | 3.43 µs / 2.81 KB | 2.8× faster, −88 % alloc |
+| ListCallbackBatch | 500 | 93.19 µs / 375.41 KB | 16.84 µs / 9.86 KB | **5.5× faster, −97 % alloc** |
+| ListLeftPushBatch (10 messages) | 50 | 9.24 µs / 10.03 KB | 7.54 µs / 9.65 KB | −18 % time |
+| ListLeftPushBatch | 500 | 29.74 µs / 54.46 KB | 19.25 µs / 19.58 KB | 1.5× faster, −64 % alloc |
+
+What changed:
+
+- `QueueElementExtensions.GetState` classifies an element (Available / Running /
+  WaitingForRetry / Finished) in **one evaluation**; the historical
+  `IsFinished` → `IsRunning` → `IsWaitingForRetry` chain evaluated the timeout condition
+  up to six times per element. `GetQueueAvailableElement` (the SlimFaas count path of
+  theme 2) now relies on it.
+- `DoListRightPopAsync`: **one pass** replaces five (timeout marking, finished selection,
+  an O(N × F) reference-equality filter to drop the F finished elements, transaction-id
+  scan, availability selection). The kept array is only rebuilt when an element is
+  evicted, candidates are capped at `Count`, and the new try is appended with a single
+  `ImmutableArray.Add` instead of a builder round-trip.
+- `DoListCallbackAsync` / `DoListCallbackBatchAsync` share `ApplyCallbacks`: the M
+  callbacks are indexed by identifier (allocation ∝ M, duplicates chained in command
+  order) and the queue is walked once — **O(N + M)**. The batch command used to do a
+  linear search per callback and a full `ToBuilder()` / `ToImmutable()` copy per
+  eviction (O(N × M) time, one N-sized copy per evicted element — the 375 KB above).
+- `DoListLeftPushBatchAsync`: new elements are appended with one `AddRange` instead of a
+  builder copy followed by a `ToImmutable()` copy; the identifier set is pre-sized.
+
+Side effect on theme 2 (`QueueCountBenchmarks.CountOnly`, the SlimFaas count path that
+calls `GetQueueAvailableElement`), same environment and settings, `--filter '*QueueCount*'`:
+
+| Method | QueueDepth | Before | After | Gain |
+|---|---|---:|---:|---|
+| CountOnly | 50 | 547.2 ns / 880 B | 329.8 ns / 880 B | 1.7× faster |
+| CountOnly | 500 | 5,140.8 ns / 8080 B | 3,121.6 ns / 8080 B | 1.6× faster |
+
+**Measured gain → commit kept.**

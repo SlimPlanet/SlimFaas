@@ -3,6 +3,15 @@ using System.Collections.Immutable;
 
 namespace SlimData;
 
+/// <summary>Mutually exclusive dispatch states of a queue element at a given instant.</summary>
+public enum QueueElementState
+{
+    Available,
+    Running,
+    WaitingForRetry,
+    Finished,
+}
+
 public static class QueueElementExtensions
 {
     // ---------- Petites aides internes (inlinables) ----------
@@ -128,6 +137,62 @@ public static class QueueElementExtensions
         return false;
     }
 
+    // ---------- Classification en une seule évaluation ----------
+
+    /// <summary>
+    /// Classifies the element in one evaluation, equivalent to testing
+    /// <see cref="IsFinished"/>, then <see cref="IsRunning"/>, then
+    /// <see cref="IsWaitingForRetry"/> (the order used by <see cref="GetQueueAvailableElement"/>),
+    /// but computing the timeout condition once instead of up to six times.
+    /// The four states are mutually exclusive.
+    /// </summary>
+    public static QueueElementState GetState(this QueueElement e, long nowTicks)
+    {
+        var tries = e.RetryQueueElements;
+        if (tries.IsDefaultOrEmpty)
+            return QueueElementState.Available;
+
+        var count = tries.Length;
+        var last = tries[count - 1];
+        var retries = e.TimeoutRetriesSeconds;
+        var ended = last.EndTimeStamp > 0;
+        var timeout = last.EndTimeStamp == 0 && (last.StartTimeStamp + e.HttpTimeoutTicks) <= nowTicks;
+
+        // IsFinished
+        if (ended && !e.HttpStatusRetries.Contains(last.HttpCode))
+            return QueueElementState.Finished;
+        if (retries.IsDefaultOrEmpty)
+        {
+            if (ended || timeout)
+                return QueueElementState.Finished;
+        }
+        else if (retries.Length < count && (timeout || ended))
+        {
+            return QueueElementState.Finished;
+        }
+
+        // IsRunning
+        if (last.EndTimeStamp == 0 && !timeout)
+            return QueueElementState.Running;
+
+        // IsWaitingForRetry
+        if (!retries.IsDefaultOrEmpty && count <= retries.Length)
+        {
+            var retryTicks = SecondsToTicks(retries[count - 1]);
+            if (timeout)
+            {
+                if ((nowTicks - last.StartTimeStamp) <= (e.HttpTimeoutTicks + retryTicks))
+                    return QueueElementState.WaitingForRetry;
+            }
+            else if (last.EndTimeStamp != 0 && (nowTicks - last.EndTimeStamp) <= retryTicks)
+            {
+                return QueueElementState.WaitingForRetry;
+            }
+        }
+
+        return QueueElementState.Available;
+    }
+
     // ---------- Sélections mono-pass ----------
     public static ImmutableArray<QueueElement> GetQueueTimeoutElement(this ImmutableArray<QueueElement> elements, long nowTicks)
     {
@@ -174,10 +239,7 @@ public static class QueueElementExtensions
 
         foreach (var e in elements)
         {
-            // ordre : on élimine rapidement les cas fréquents
-            if (e.IsFinished(nowTicks)) continue;
-            if (e.IsRunning(nowTicks)) continue;
-            if (e.IsWaitingForRetry(nowTicks)) continue;
+            if (e.GetState(nowTicks) != QueueElementState.Available) continue;
 
             builder.Add(e);
             if (builder.Count == maximum) break;
