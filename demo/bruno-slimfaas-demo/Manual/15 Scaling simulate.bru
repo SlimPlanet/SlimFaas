@@ -1,0 +1,29 @@
+meta {
+  name: Scaling simulate
+  type: http
+  seq: 15
+}
+
+post {
+  url: {{baseUrl}}/debug/scaling/simulate
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"Function":"fibonacci1"}
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200, 503]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. Read-only next-decision preview; no orchestrator request is sent. See https://slimfaas.dev/api-reference#scaling-simulation-request.
+}
