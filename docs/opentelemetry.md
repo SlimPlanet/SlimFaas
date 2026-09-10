@@ -119,3 +119,27 @@ This will output telemetry data directly to the console alongside the OTLP expor
 ---
 
 **Enjoy distributed tracing with SlimFaas!** 🚀
+
+
+## External autoscaling sources
+
+Existing `slimfaas_autoscaler_*` and `slimfaas_metrics_scrape_*` names and labels remain
+unchanged. External sources additionally expose:
+
+| Metric | Meaning |
+|---|---|
+| `slimfaas_scaler_source_available` | Last external scrape succeeded (1/0) |
+| `slimfaas_scaler_source_last_success_unixtime` | Last successful scrape timestamp |
+| `slimfaas_scaler_source_scrapes_total` | Scrape outcomes, with a bounded `state` label |
+| `slimfaas_scaler_trigger_valid` | Latest trigger evaluation is usable (1/0), including freshness |
+| `slimfaas_scaler_trigger_state` | One active state: Valid, Unavailable, Timeout, InvalidMetric, Stale or Misconfigured |
+| `slimfaas_scaler_trigger_value` | Latest usable trigger value |
+| `slimfaas_scaler_trigger_desired_replicas` | Recommendation before aggregate policies |
+
+Source metrics carry `function`, `source`, `provider`; trigger metrics also carry `metric`.
+Source/trigger series are removed when configuration removes them; a former leader marks
+its sources unavailable. URLs and PromQL queries are never metric labels. An invalid trigger publishes value zero
+alongside `valid=0`; zero in that diagnostic gauge is not a scaling instruction.
+Use the existing function desired/current/ready replica gauges for final decisions.
+
+See [configuration and failure behavior](autoscaling.md#external-metrics-and-opt-in-wake-up).

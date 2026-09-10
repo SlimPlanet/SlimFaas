@@ -207,7 +207,15 @@ serviceCollectionStarter.AddSingleton<PromQlMiniEvaluator>(sp =>
 serviceCollectionStarter.AddSingleton<IAutoScalerStore, InMemoryAutoScalerStore>();
 
 // AutoScaler (utilisé par ReplicasService)
-serviceCollectionStarter.AddSingleton<AutoScaler>();
+serviceCollectionStarter.AddSingleton<ExternalMetricsSourceStore>();
+serviceCollectionStarter.AddSingleton<IScalerProvider>(sp => new PrometheusScalerProvider(
+    sp.GetRequiredService<PromQlMiniEvaluator>(),
+    sp.GetRequiredService<ExternalMetricsSourceStore>(),
+    sp.GetRequiredService<IOptions<SlimFaasOptions>>().Value.MetricsScraping.ScrapeIntervalMilliseconds,
+    sp.GetRequiredService<ILogger<PrometheusScalerProvider>>()));
+serviceCollectionStarter.AddSingleton<AutoScaler>(sp => new AutoScaler(
+    sp.GetRequiredService<IScalerProvider>(), sp.GetRequiredService<IAutoScalerStore>(),
+    sp.GetRequiredService<ILogger<AutoScaler>>()));
 serviceCollectionStarter.AddSingleton<IRequestedMetricsRegistry, RequestedMetricsRegistry>();
 serviceCollectionStarter.AddSingleton<IMetricsScrapingGuard, MetricsScrapingGuard>();
 serviceCollectionStarter.AddSingleton<IMetricsStore, InMemoryMetricsStore>();
@@ -253,6 +261,10 @@ serviceCollectionSlimFaas.AddHostedService<HistorySynchronizationWorker>();
 serviceCollectionSlimFaas.AddHostedService<MetricsWorker>();
 serviceCollectionSlimFaas.AddHostedService<SlimDataDiagnosticsWorker>();
 serviceCollectionSlimFaas.AddHostedService<HealthWorker>();
+serviceCollectionSlimFaas.AddSingleton<ExternalMetricsSourceStore>(sp =>
+    serviceProviderStarter.GetRequiredService<ExternalMetricsSourceStore>());
+serviceCollectionSlimFaas.AddSingleton<IScalerProvider>(sp =>
+    serviceProviderStarter.GetRequiredService<IScalerProvider>());
 serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();

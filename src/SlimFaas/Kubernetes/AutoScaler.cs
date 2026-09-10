@@ -1,49 +1,68 @@
-using System.Collections.Concurrent;
-
 namespace SlimFaas.Kubernetes;
 
 public sealed class AutoScaler
 {
-    private readonly PromQlMiniEvaluator _evaluator;
+    private readonly IScalerProvider _provider;
     private readonly IAutoScalerStore _store;
     private readonly InMemoryAutoScalerStore _recommendationStore = new();
     private readonly ILogger<AutoScaler>? _logger;
-    private readonly ConcurrentDictionary<string, CachedQuery> _queryCache =
-        new(StringComparer.Ordinal);
-
-    private sealed record CachedQuery(CompiledPromQlQuery? Query, string? Error);
     private readonly record struct TriggerComputation(int DesiredReplicas, bool HasInvalidTrigger);
 
-    public AutoScaler(
-        PromQlMiniEvaluator evaluator,
-        IAutoScalerStore store,
-        ILogger<AutoScaler>? logger = null)
+    internal AutoScaler(IScalerProvider provider, IAutoScalerStore store, ILogger<AutoScaler>? logger = null)
     {
-        _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
+        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _logger = logger;
     }
+
+    internal async ValueTask<ScalerEvaluation> EvaluateAsync(DeploymentInformation deployment,
+        long nowUnixSeconds, bool externalOnly = false, CancellationToken cancellationToken = default)
+        => await EvaluateAsync(deployment.Namespace, deployment.Deployment, deployment.Scale,
+            nowUnixSeconds, externalOnly, cancellationToken);
+
+    private async ValueTask<ScalerEvaluation> EvaluateAsync(string ns, string function, ScaleConfig? config,
+        long now, bool externalOnly = false, CancellationToken cancellationToken = default)
+    {
+        var results = new List<ScalerTriggerResult>();
+        if (config is null) return new(results);
+        foreach (var trigger in config.Triggers)
+        {
+            if (externalOnly && trigger.Source is null) continue;
+            ScalerResult result;
+            try
+            {
+                result = await _provider.GetAsync(new(ns, function, config, trigger, now), cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (OperationCanceledException) { result = new(ScalerState.Timeout); }
+            catch (Exception exception)
+            {
+                _logger?.LogWarning(exception, "Scaling provider failed for {Function}", function);
+                result = new(ScalerState.Unavailable);
+            }
+            results.Add(new(trigger, result));
+        }
+        return new(results);
+    }
+
+    internal int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds,
+        ScalerEvaluation evaluation, bool recordDecision = true)
+    {
+        AutoScalerTelemetry.RecordReadyReplicas(deployment.Deployment,
+            deployment.Pods.Count(p => p.Ready == true));
+        return ComputeDesiredReplicas(deployment.Deployment, deployment.Scale, deployment.Replicas,
+            deployment.ReplicasMin, deployment.Scale?.ReplicaMax, nowUnixSeconds, evaluation, recordDecision);
+    }
+
+    internal void RecordAppliedDecision(string function, long nowUnixSeconds, int replicas)
+        => _store.AddSample(function, nowUnixSeconds, replicas);
 
     public int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds)
     {
         if (deployment is null) throw new ArgumentNullException(nameof(deployment));
 
-        var scale = deployment.Scale;
-        var current = deployment.Replicas;
-        var min = deployment.ReplicasMin;
-        int? max = scale?.ReplicaMax;
-
-        var desired = ComputeDesiredReplicas(
-            deployment.Deployment,
-            scale,
-            current,
-            min,
-            max,
-            nowUnixSeconds);
-        AutoScalerTelemetry.RecordReadyReplicas(
-            deployment.Deployment,
-            deployment.Pods?.Count(static pod => pod.Ready == true) ?? 0);
-        return desired;
+        var evaluation = EvaluateAsync(deployment, nowUnixSeconds).AsTask().GetAwaiter().GetResult();
+        return ComputeDesiredReplicas(deployment, nowUnixSeconds, evaluation);
     }
 
     public int ComputeDesiredReplicas(
@@ -53,6 +72,11 @@ public sealed class AutoScaler
     int minReplicas,
     int? maxReplicas,
     long nowUnixSeconds)
+        => ComputeDesiredReplicas(key, scaleConfig, currentReplicas, minReplicas, maxReplicas,
+            nowUnixSeconds, EvaluateAsync("", key, scaleConfig, nowUnixSeconds).AsTask().GetAwaiter().GetResult(), true);
+
+    private int ComputeDesiredReplicas(string key, ScaleConfig? scaleConfig, int currentReplicas,
+        int minReplicas, int? maxReplicas, long nowUnixSeconds, ScalerEvaluation evaluation, bool recordDecision)
 {
     if (currentReplicas < 0) currentReplicas = 0;
     if (minReplicas < 0) minReplicas = 0;
@@ -72,7 +96,7 @@ public sealed class AutoScaler
         currentReplicas,
         minReplicas,
         maxReplicas,
-        nowUnixSeconds);
+        evaluation);
 
     var desired = triggerComputation.DesiredReplicas;
     _recommendationStore.AddSample(key, nowUnixSeconds, desired);
@@ -122,7 +146,7 @@ public sealed class AutoScaler
         desired = 0;
 
     // 4. On enregistre UNIQUEMENT quand on change réellement la cible
-    if (desired != currentReplicas)
+    if (recordDecision && desired != currentReplicas)
     {
         _store.AddSample(key, nowUnixSeconds, desired);
     }
@@ -137,140 +161,45 @@ public sealed class AutoScaler
 }
 
 
-    private TriggerComputation ComputeFromTriggers(
-        string key,
-        ScaleConfig config,
-        int currentReplicas,
-        int minReplicas,
-        int? maxReplicas,
-        long nowUnixSeconds)
+    private TriggerComputation ComputeFromTriggers(string key, ScaleConfig config, int currentReplicas,
+        int minReplicas, int? maxReplicas, ScalerEvaluation evaluation)
     {
-        double? maxDesired = null;
+        int? maxDesired = null;
         var hasInvalidTrigger = false;
-
-        foreach (var trigger in config.Triggers)
+        foreach (var item in evaluation.Triggers)
         {
-            if (string.IsNullOrWhiteSpace(trigger.Query))
+            var trigger = item.Trigger;
+            var result = item.Result;
+            if (result.State != ScalerState.Valid || !double.IsFinite(result.Value) || result.Value < 0 ||
+                !double.IsFinite(trigger.Threshold) || trigger.Threshold <= 0)
             {
                 hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-
-            if (trigger.Threshold <= 0)
-            {
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-
-            double metricValue;
-            try
-            {
-                var cachedQuery = _queryCache.GetOrAdd(trigger.Query, CompileQuery);
-                if (cachedQuery.Query is null)
-                {
-                    hasInvalidTrigger = true;
-                    _logger?.LogWarning(
-                        "Invalid PromQL query '{Query}' for metric '{MetricName}': {Error}",
-                        trigger.Query,
-                        trigger.MetricName,
-                        cachedQuery.Error);
+                if (trigger.Source is null)
                     AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                    continue;
-                }
-
-                metricValue = _evaluator.Evaluate(cachedQuery.Query, nowUnixSeconds, key);
-            }
-            catch (FormatException ex)
-            {
-                _logger?.LogWarning(ex,
-                    "Invalid PromQL query '{Query}' for metric '{MetricName}'",
-                    trigger.Query,
-                    trigger.MetricName);
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger?.LogWarning(ex,
-                    "InvalidOperationException while evaluating PromQL query '{Query}'",
-                    trigger.Query);
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-            catch (ArgumentException ex)
-            {
-                _logger?.LogWarning(ex,
-                    "ArgumentException while evaluating PromQL query '{Query}'",
-                    trigger.Query);
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
+                else
+                    ExternalScalerTelemetry.RecordTrigger(key, trigger,
+                        result with { State = result.State == ScalerState.Valid ? ScalerState.InvalidMetric : result.State }, 0);
                 continue;
             }
 
-            if (double.IsNaN(metricValue) || double.IsInfinity(metricValue))
-            {
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-
-            if (metricValue < 0)
-            {
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-
-            AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, metricValue, isValid: true);
-
-            var effectiveCurrent = currentReplicas == 0 ? 1 : currentReplicas;
-            var ratio = metricValue / trigger.Threshold;
-            var desiredForTriggerDouble = trigger.MetricType == ScaleMetricType.AverageValue
-                ? ratio
-                : effectiveCurrent * ratio;
-            var desiredForTrigger = (int)Math.Ceiling(desiredForTriggerDouble);
-
-            if (desiredForTrigger < 0)
-                desiredForTrigger = 0;
-
-            if (maxReplicas.HasValue && desiredForTrigger > maxReplicas.Value)
-                desiredForTrigger = maxReplicas.Value;
-
-            if (desiredForTrigger < minReplicas)
-                desiredForTrigger = minReplicas;
-
-            if (maxDesired is null || desiredForTrigger > maxDesired.Value)
-                maxDesired = desiredForTrigger;
+            var ratio = result.Value / trigger.Threshold;
+            var rawDesired = currentReplicas == 0 && !result.IsActive ? 0 :
+                trigger.MetricType == ScaleMetricType.AverageValue ? ratio : Math.Max(1, currentReplicas) * ratio;
+            // Saturate before conversion: a very large finite metric must never wrap to zero.
+            var desired = (int)Math.Min(int.MaxValue, Math.Ceiling(rawDesired));
+            if (trigger.Source is null)
+                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, result.Value, isValid: true);
+            else
+                ExternalScalerTelemetry.RecordTrigger(key, trigger, result, desired);
+            if (maxReplicas.HasValue) desired = Math.Min(desired, maxReplicas.Value);
+            desired = Math.Max(desired, minReplicas);
+            maxDesired = Math.Max(maxDesired ?? desired, desired);
         }
 
         if (maxDesired is null)
-        {
-            return new TriggerComputation(
-                Clamp(currentReplicas, minReplicas, maxReplicas),
-                HasInvalidTrigger: true);
-        }
-
-        var desired = (int)maxDesired.Value;
-        if (hasInvalidTrigger && desired < currentReplicas)
-            desired = currentReplicas;
-
-        return new TriggerComputation(desired, hasInvalidTrigger);
-    }
-
-    private static CachedQuery CompileQuery(string query)
-    {
-        try
-        {
-            return new CachedQuery(PromQlQueryCompiler.Compile(query), null);
-        }
-        catch (FormatException exception)
-        {
-            return new CachedQuery(null, exception.Message);
-        }
+            return new(Clamp(currentReplicas, minReplicas, maxReplicas), true);
+        var recommendation = hasInvalidTrigger ? Math.Max(currentReplicas, maxDesired.Value) : maxDesired.Value;
+        return new(recommendation, hasInvalidTrigger);
     }
 
     private static int Clamp(int value, int min, int? max)

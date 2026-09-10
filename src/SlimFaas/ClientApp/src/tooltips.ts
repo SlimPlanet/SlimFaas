@@ -49,10 +49,10 @@ export const FN = {
     'Async retry configuration: HTTP timeout per attempt, retry delays in seconds between attempts, and HTTP status codes that trigger a retry (SlimFaas/DefaultAsync).',
 
   maxReplicas:
-    'Upper bound for the Prometheus-based N→M autoscaler (SlimFaas/Scale → ReplicaMax).',
+    'Upper bound for metrics-based autoscaling (SlimFaas/Scale → ReplicaMax).',
 
   triggers:
-    'Prometheus metrics triggers for N→M autoscaling (SlimFaas/Scale → Triggers). Each trigger defines a metric, a threshold, and a metric type (AverageValue or Value).',
+    'Metrics triggers for autoscaling, with optional external sources and opt-in wake-up (SlimFaas/Scale → Triggers). Each trigger defines a metric, a threshold, and a metric type (AverageValue or Value).',
 
   behavior:
     'Scale-up and scale-down stabilization and rate-limiting policies (SlimFaas/Scale → Behavior).',

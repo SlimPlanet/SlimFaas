@@ -46,7 +46,7 @@ SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform f
 It’s designed to be **fast**, **simple**, and **extremely slim** — with a very opinionated, **autoscaling-first** design:
 - `0 → N` wake-up from HTTP history & schedules,
 - `0 → N` wake-up from **Kafka lag** via the companion **SlimFaas Kafka** service,
-- `N → M` scaling powered by PromQL,
+- `N → M` scaling powered by PromQL, plus opt-in `0 → N` wake-up from independent OpenMetrics exporters,
 - internal metrics store, debug endpoints, and scale-to-zero out of the box.
 - built-in **User Interface** at the SlimFaas root address to see functions, jobs, queues, and real-time messages.
 - temporary **Data Files** endpoints to ingest and stage binaries (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
@@ -68,7 +68,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - **Two-phase scaling model**
     - **`0 → N`**: driven by HTTP history, schedules, **and Kafka lag (SlimFaas Kafka)** to bring functions online only when they’re needed.
     - **`N → M`**: driven by a built-in PromQL mini-evaluator on top of an internal metrics store.
-    - Metrics-based autoscaling only runs when at least one pod exists — no reliance on non-existent metrics.
+    - Existing local-metric configurations run while pods exist; independent external sources can opt into wake-up with `ScaleFromZero: true`.
 
 - **PromQL-driven autoscaler**
     - Express scaling rules with PromQL-style queries, for example:
@@ -79,7 +79,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
     - Configure scale-up/scale-down policies and stabilization windows inspired by HPA/KEDA.
 
 - **Integrated metrics scraping**
-    - SlimFaas scrapes only the Prometheus-style HTTP metrics endpoints of pods with `prometheus.io/scrape: "true"`.
+    - SlimFaas scrapes annotated pod endpoints and explicitly configured external HTTP/HTTPS OpenMetrics sources.
     - It stores only the **metric keys that are requested** in autoscaling triggers or debug queries.
     - A single designated node scrapes and persists metrics; all other nodes read from the same store.
 
@@ -238,3 +238,11 @@ Add your logo via a pull request:
 ### Live operational dashboard
 
 The embedded [SlimFaas dashboard](docs/user-interface.md) pairs a compact infrastructure overview with a zoomable canvas traffic map for jobs, replicas and functions. Its Data tab streams keys, TTL and file sizes without reading stored contents. Traffic identifies the Raft leader and each visible replica destination; an opt-in log viewer follows managed functions, jobs and SlimFaas nodes with bounded, filterable output.
+
+
+### External metrics autoscaling
+
+Scale running functions from independent Prometheus/OpenMetrics exporters and optionally
+wake them from zero with `SlimFaas/Scale.ScaleFromZero: true`. Existing annotations keep
+their behavior. See [configuration and rollout](docs/autoscaling.md#external-metrics-and-opt-in-wake-up)
+and the [native/Kubernetes exporter demo](demo/external-autoscaling/README.md).

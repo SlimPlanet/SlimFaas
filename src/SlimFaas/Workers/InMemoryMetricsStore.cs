@@ -57,6 +57,11 @@ public interface IMetricsStore
 
     void Add(long timestamp, string deployment, string podIp, IReadOnlyDictionary<string, double> metrics);
 
+    // External signals require atomic admission: a truncated sum could remove capacity.
+    // Stores which cannot guarantee complete admission must reject the scrape.
+    bool TryAddComplete(long timestamp, string deployment, string podIp, IReadOnlyDictionary<string, double> metrics)
+        => false;
+
     IReadOnlyDictionary<long,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> Snapshot();
 
@@ -111,6 +116,25 @@ public sealed class InMemoryMetricsStore : IMetricsStore
         {
             lock (_sync)
                 return _state.SeriesById.Count;
+        }
+    }
+
+    public bool TryAddComplete(long timestamp, string deployment, string podIp, IReadOnlyDictionary<string, double> metrics)
+    {
+        lock (_sync)
+        {
+            AdvanceRetentionWindow(_state, timestamp);
+            if (timestamp < _state.LatestTimestamp.GetValueOrDefault(timestamp) - _retentionSeconds)
+                return false;
+            var newSeries = 0;
+            foreach (var key in metrics.Keys)
+            {
+                if (!_registry.IsRequestedKey(key)) return false;
+                if (!_state.SeriesIds.ContainsKey(new SeriesIdentity(deployment, podIp, key))) newSeries++;
+            }
+            if (newSeries > _maxSeries - _state.SeriesById.Count) return false;
+            Add(timestamp, deployment, podIp, metrics);
+            return true;
         }
     }
 

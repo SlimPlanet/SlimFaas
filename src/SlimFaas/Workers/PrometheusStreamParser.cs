@@ -10,7 +10,8 @@ internal enum PrometheusStreamParseStatus
     Success,
     ResponseTooLarge,
     LineTooLong,
-    TooManySeries
+    TooManySeries,
+    InvalidSample
 }
 
 internal readonly record struct PrometheusStreamParseResult(
@@ -27,7 +28,8 @@ internal static class PrometheusStreamParser
         Stream stream,
         IReadOnlyCollection<string> requestedMetricNames,
         MetricsScrapingOptions options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool rejectInvalidSamples = false)
     {
         ArgumentNullException.ThrowIfNull(stream);
         ArgumentNullException.ThrowIfNull(requestedMetricNames);
@@ -45,6 +47,7 @@ internal static class PrometheusStreamParser
         long bytesRead = 0L;
         long linesRead = 0L;
         var lineLength = 0;
+        var invalidSample = false;
 
         try
         {
@@ -87,9 +90,9 @@ internal static class PrometheusStreamParser
                             lineBuffer.AsSpan(0, lengthWithoutCarriageReturn),
                             requestedMetricNames,
                             metrics,
-                            options.MaxSelectedSeriesPerTarget))
+                            options.MaxSelectedSeriesPerTarget, rejectInvalidSamples, ref invalidSample))
                     {
-                        return Rejected(PrometheusStreamParseStatus.TooManySeries, metrics, bytesRead, linesRead);
+                        return Rejected(invalidSample ? PrometheusStreamParseStatus.InvalidSample : PrometheusStreamParseStatus.TooManySeries, metrics, bytesRead, linesRead);
                     }
 
                     lineLength = 0;
@@ -105,9 +108,9 @@ internal static class PrometheusStreamParser
                         lineBuffer.AsSpan(0, lengthWithoutCarriageReturn),
                         requestedMetricNames,
                         metrics,
-                        options.MaxSelectedSeriesPerTarget))
+                        options.MaxSelectedSeriesPerTarget, rejectInvalidSamples, ref invalidSample))
                 {
-                    return Rejected(PrometheusStreamParseStatus.TooManySeries, metrics, bytesRead, linesRead);
+                    return Rejected(invalidSample ? PrometheusStreamParseStatus.InvalidSample : PrometheusStreamParseStatus.TooManySeries, metrics, bytesRead, linesRead);
                 }
             }
 
@@ -138,7 +141,7 @@ internal static class PrometheusStreamParser
         ReadOnlySpan<byte> line,
         IReadOnlyCollection<string> requestedMetricNames,
         Dictionary<string, double> metrics,
-        int maxSelectedSeries)
+        int maxSelectedSeries, bool rejectInvalidSamples, ref bool invalidSample)
     {
         var index = SkipWhitespace(line, 0);
         if (index >= line.Length || line[index] == (byte)'#' || !IsMetricNameStart(line[index]))
@@ -158,26 +161,26 @@ internal static class PrometheusStreamParser
         {
             index = FindLabelSetEnd(line, index);
             if (index < 0)
-                return true;
+                return IgnoreInvalidSample(rejectInvalidSamples, ref invalidSample);
         }
 
         var keyEnd = index;
         if (index >= line.Length || !IsWhitespace(line[index]))
-            return true;
+            return IgnoreInvalidSample(rejectInvalidSamples, ref invalidSample);
 
         index = SkipWhitespace(line, index);
         var valueStart = index;
         while (index < line.Length && !IsWhitespace(line[index]))
             index++;
         if (valueStart == index)
-            return true;
+            return IgnoreInvalidSample(rejectInvalidSamples, ref invalidSample);
 
         var valueBytes = line[valueStart..index];
         if (!Utf8Parser.TryParse(valueBytes, out double value, out var consumed) ||
             consumed != valueBytes.Length ||
             !double.IsFinite(value))
         {
-            return true;
+            return IgnoreInvalidSample(rejectInvalidSamples, ref invalidSample);
         }
 
         index = SkipWhitespace(line, index);
@@ -187,12 +190,12 @@ internal static class PrometheusStreamParser
             while (index < line.Length && !IsWhitespace(line[index]))
             {
                 if (line[index] is < (byte)'0' or > (byte)'9')
-                    return true;
+                    return IgnoreInvalidSample(rejectInvalidSamples, ref invalidSample);
                 index++;
             }
 
             if (timestampStart == index || SkipWhitespace(line, index) != line.Length)
-                return true;
+                return IgnoreInvalidSample(rejectInvalidSamples, ref invalidSample);
         }
 
         var key = Encoding.UTF8.GetString(line[nameStart..keyEnd]);
@@ -201,6 +204,12 @@ internal static class PrometheusStreamParser
 
         metrics[key] = value;
         return true;
+    }
+
+    private static bool IgnoreInvalidSample(bool reject, ref bool invalidSample)
+    {
+        invalidSample |= reject;
+        return !reject;
     }
 
     private static int FindLabelSetEnd(ReadOnlySpan<byte> line, int openingBrace)

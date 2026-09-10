@@ -1,7 +1,7 @@
 # SlimFaas Autoscaling Guide
 
 > End-to-end autoscaling for SlimFaas functions:
-> **HTTP activity & schedules for `0 → N` + Prometheus / PromQL AutoScaler for `N → M`**
+> **HTTP activity & schedules + PromQL metrics, with opt-in external-metric wake-up**
 
 ---
 
@@ -20,6 +20,7 @@
 11. [Best practices](#best-practices)
 12. [Observability & debugging](#observability--debugging)
 13. [FAQ](#faq)
+14. [External metrics and opt-in wake-up](#external-metrics-and-opt-in-wake-up)
 
 ---
 
@@ -33,7 +34,7 @@ SlimFaas combines **two complementary autoscaling systems**:
     - optional **schedule configuration** (wake-up times, scale-down timeouts),
     - **function dependencies** (`DependsOn`).
 
-   👉 This system is the **only one allowed to bring a function from `0` to `> 0` replicas**.
+   This remains the default wake-up mechanism. External sources can also wake a function when `ScaleFromZero: true` is explicitly configured.
 
 2. **`N → M` scaling (Prometheus AutoScaler)**
    Driven by:
@@ -41,7 +42,7 @@ SlimFaas combines **two complementary autoscaling systems**:
     - a small PromQL evaluator,
     - an `AutoScaler` that computes the desired number of replicas based on metrics.
 
-   👉 This system is used **only when the function already has at least one pod** (`replicas > 0`).
+   Existing triggers run when `replicas > 0`. Triggers referencing an external source can also run at zero when `ScaleFromZero: true`.
 
 When the Prometheus-based AutoScaler is enabled for a function (`SlimFaas/Scale` has at least one trigger), **scale-to-zero is allowed only if both systems agree**: the HTTP/schedule logic must decide that the function can go down to `ReplicasMin = 0`, *and* the metrics-based AutoScaler must also compute a desired replica count of `0`. If metrics still indicate that capacity is needed (`desired > 0`), SlimFaas keeps at least one replica running even if HTTP activity is idle. An empty `Triggers` list disables this metric veto.
 
@@ -218,7 +219,7 @@ There are two main situations where SlimFaas wakes a function up:
 
 This ensures:
 
-- **Only the `0 → N` system can wake a function from 0**,
+- **Existing configurations keep HTTP/schedule wake-up**; external wake-up requires explicit opt-in,
 - The function will start with a known initial capacity before the Prometheus AutoScaler adjusts it.
 
 ### Time-based schedule (wake-up & scale-down timeout)
@@ -261,7 +262,7 @@ This allows you, for example:
 
 ## Configuring `N → M` scale (Prometheus AutoScaler)
 
-The Prometheus-based AutoScaler is activated by adding a `SlimFaas/Scale` annotation on the function’s Deployment. It **only runs when the function has at least one pod**.
+The Prometheus-based AutoScaler is activated by adding a `SlimFaas/Scale` annotation on the function’s Deployment. For configurations without `ScaleFromZero: true`, it runs only when the function has at least one pod.
 
 ### `SlimFaas/Scale` annotation structure (JSON)
 
@@ -1077,7 +1078,8 @@ to understand “what SlimFaas sees” when making autoscaling decisions.
 
 ## Decision algorithm details
 
-High-level logic for each periodic tick of `CheckScaleAsync`:
+The following describes the legacy path, retained for configurations without external wake-up.
+See [external metrics](#external-metrics-and-opt-in-wake-up) for the additive path.
 
 ```text
 for each function:
@@ -1124,8 +1126,8 @@ for each function:
 
 Key points:
 
-- The **HTTP/schedule system always runs first**, and is the only one that can propose a transition from `0` to `> 0`.
-- The **Prometheus AutoScaler only runs if `currentReplicas > 0`**.
+- HTTP/schedule wake-up is preserved. External signals are evaluated before dependency ordering so dependencies can start first.
+- Existing configurations evaluate metrics only if `currentReplicas > 0`; `ScaleFromZero: true` additionally evaluates external triggers at zero.
 - When `ReplicasMin = 0` and a `SlimFaas/Scale` configuration has at least one trigger, **scale-to-zero requires both subsystems to agree**:
     - HTTP/schedule must declare the function idle enough to go down to 0,
     - metrics must also say that `desiredReplicas <= 0`.
@@ -1177,7 +1179,7 @@ Interpretation:
 - Scale-up/down formula:
 
   ```text
-  desiredReplicas = ceil(currentReplicas * (currentRps / 20))
+  desiredReplicas = ceil(currentRps / 20)
   ```
 
 - After 5 minutes with no activity (HTTP or schedule), the HTTP/schedule system **proposes** scaling the function down to 0.
@@ -1303,10 +1305,10 @@ spec:
     - Add a `ScaleDown` stabilization window.
     - Use smaller percent values (e.g., 50%) to avoid aggressive shrink.
 
-5. **Never rely on Prometheus to wake from 0**
-    - Prometheus metrics require pods to be running and scraped.
-    - In SlimFaas, **only HTTP/schedule controls 0 → N**.
-    - When `SlimFaas/Scale` has at least one trigger and `ReplicasMin = 0`, metrics also act as a **safety net** for 0 → N → 0 by vetoing scale-to-zero if they still indicate that capacity is needed.
+5. **Use an independent exporter for metric-driven wake-up**
+    - Function-local metrics disappear when the function stops.
+    - An external exporter must stay available at zero worker replicas.
+    - Enable `ScaleFromZero: true` explicitly. Keep HTTP/schedule wake-up for existing workloads.
 
 6. **Document each trigger**
     - Use `MetricName` for clear semantic names.
@@ -1350,15 +1352,13 @@ To understand and debug autoscaling behavior:
 
 ## FAQ
 
-### Q1. Why does the AutoScaler never wake a function from 0?
+### Q1. Why does my AutoScaler not wake a function from zero?
 
-By design:
-
-- SlimFaas **only allows the HTTP/schedule system to wake functions from 0**.
-- The Prometheus AutoScaler only adjusts **existing** capacity.
-- When `SlimFaas/Scale` has at least one trigger, metrics can **prevent** a function from going back to 0 (by vetoing scale-to-zero), but they can **never** create the first replica from 0.
-
-This avoids relying on metrics that cannot exist while no pod is running.
+Existing configurations deliberately preserve HTTP/schedule wake-up. To enable external
+wake-up, declare `Sources`, reference a source from a trigger, and set `ScaleFromZero: true`.
+Check source availability, a positive metric, dependency readiness and scale-up policies.
+A policy containing only percentages permits no increase from zero; include a `Pods` policy.
+Local metrics never wake a function using old observations left in the store.
 
 ---
 
@@ -1415,3 +1415,134 @@ Yes.
 - This lets you, for example, scale based on:
     - both RPS and queue length,
     - or RPS and CPU usage, etc.
+
+
+## External metrics and opt-in wake-up
+
+`SlimFaas/Scale` accepts named HTTP/HTTPS Prometheus/OpenMetrics exposition endpoints.
+SlimFaas scrapes these URLs itself and runs its existing PromQL subset locally; the URL is
+not a Prometheus `/api/v1/query` endpoint. No Redis/Kafka-specific integration is required.
+
+Add these annotations under **`spec.template.metadata.annotations`** in Kubernetes,
+or `functions.<name>.annotations` in native local mode:
+
+```yaml
+SlimFaas/ReplicasMin: "0"
+SlimFaas/ReplicasAtStart: "1"
+SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+SlimFaas/Scale: |
+  {
+    "ReplicaMax": 20,
+    "ScaleFromZero": true,
+    "ScrapeIntervalMilliseconds": 5000,
+    "Sources": [
+      {"Name": "jobs", "Url": "http://jobs-exporter.default.svc.cluster.local:9090/metrics"}
+    ],
+    "Triggers": [
+      {
+        "Source": "jobs",
+        "MetricType": "AverageValue",
+        "MetricName": "pending_jobs",
+        "Query": "sum(jobs_pending{queue=\"emails\"})",
+        "Threshold": 10
+      }
+    ],
+    "Behavior": {
+      "ScaleUp": {
+        "StabilizationWindowSeconds": 0,
+        "Policies": [{"Type": "Pods", "Value": 20, "PeriodSeconds": 15}]
+      },
+      "ScaleDown": {
+        "StabilizationWindowSeconds": 300,
+        "Policies": [{"Type": "Percent", "Value": 100, "PeriodSeconds": 15}]
+      }
+    }
+  }
+```
+
+`jobs_pending` is an example gauge, not a metric guaranteed by every exporter. It should
+explicitly emit zero when there is no work. With `jobs_pending{queue="emails"} 73`, the
+raw target is `ceil(73 / 10) = 8`. The example allows `0 → 8` immediately; the default
+scale-up policies instead allow at most four pods on the initial step.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `Sources` | Empty | Sources owned by this function |
+| `Sources[].Name` | Required | Unique, nonblank name, at most 128 characters, no control characters |
+| `Sources[].Url` | Required | Absolute HTTP/HTTPS exposition URL, without embedded credentials or fragment |
+| `Triggers[].Source` | Absent | Historical local scope, including existing built-in SlimFaas queue gauges |
+| `ScaleFromZero` | `false` | Permit active external triggers to wake a zero-replica function |
+
+Source cadence inherits the function's `ScrapeIntervalMilliseconds`, then the global
+setting. Multiple triggers referencing one source share its scrape. The exporter must
+remain running independently of the scaled function. Existing `prometheus.io/*` pod
+annotations are unnecessary for external-only scaling and retain their original meaning.
+
+To mix sources, add ordinary triggers without `Source` alongside external triggers.
+Each external trigger sees only its named source; local triggers retain their historical
+scope. Equal metric names, labels or exporter URLs do not merge sources across functions
+or namespaces. Changing an URL starts a new source history. Formulas remain:
+
+```text
+AverageValue: ceil(metricValue / Threshold)
+Value:        ceil(max(currentReplicas, 1) * metricValue / Threshold)
+```
+
+The engine takes the maximum valid recommendation, then applies limits, policies and
+stabilization. At zero, only external triggers participate in metric wake-up; missing
+local metrics are expected and do not prevent it. `ReplicasAtStart` continues to govern
+HTTP/schedule wake-up and is not an intermediate step for a metric-only wake-up. If both
+request capacity, the HTTP request remains respected, within `ReplicaMax` for the new
+wake-up path. Dependencies wake first, without synthesizing HTTP requests or consuming
+the worker's scale-up policy while it waits. Infrastructure/quota protection still applies.
+
+Returning to zero requires HTTP/schedule inactivity and a zero metric recommendation
+after stabilization. External activity does not reset the HTTP inactivity clock. When
+`PodScaledUpByDefaultWhenInfrastructureHasNeverCalled` is enabled, its existing initial
+keep-warm behavior also remains in effect.
+
+### External-source failures
+
+A failed scrape immediately invalidates that source's previous observations. A missing
+selector in the latest scrape, a malformed selected sample, a nonfinite result or data
+at least three effective scrape intervals old is invalid, including for range queries.
+Missing data is never replaced by zero. Any invalid trigger blocks metric-driven
+scale-down, while another valid trigger may still scale up, subject to replica limits.
+Unknown source names, duplicate definitions and unsupported URLs become `Misconfigured`
+triggers instead of silently disabling the complete Scale configuration.
+
+Only the leader scrapes. On startup or leadership change, persisted history is retained
+but external source health requires a new successful scrape. The existing streaming size,
+line, selected-series, concurrency and timeout limits also apply to external URLs. There
+are no immediate retries beyond the next scheduled cycle. A scrape that cannot fit completely
+in the bounded store is rejected atomically, preventing a partial sum from removing capacity.
+HTTPS uses normal certificate
+validation; authentication is outside this feature.
+
+### Debugging and rollout
+
+Add `source` together with `deployment` to the existing debug endpoint. Query the
+leader's direct HTTP port for external sources; followers have no trusted source health
+until they become leader and successfully scrape. The URL below assumes port 30023 is the leader:
+
+```bash
+curl -X POST http://127.0.0.1:30023/debug/promql/eval \
+  -H 'Content-Type: application/json' \
+  -d '{"deployment":"worker","source":"jobs","query":"sum(jobs_pending{queue=\"emails\"})"}'
+```
+
+An unknown source or unusable observation returns HTTP 400 with a diagnostic. Requests
+without `source` keep their existing scope and do not include external series.
+See [observability](opentelemetry.md#external-autoscaling-sources) for source metrics.
+
+1. Upgrade all SlimFaas instances with existing annotations first.
+2. Add sources and triggers to a pilot function with `ScaleFromZero: false`.
+3. Check source health and scaling while replicas are already running.
+4. Set `ScaleFromZero: true` to enable external wake-up.
+
+For rollback, restore the previous annotations **before** restoring the older image.
+Turning off `ScaleFromZero` alone is insufficient: older images do not understand `Source`
+and cannot apply its isolation. Do not activate new annotations during a mixed-version rollout.
+
+Run the [controllable exporter demo](https://github.com/SlimPlanet/SlimFaas/tree/main/demo/external-autoscaling)
+with `slimfaas.local.external-metrics.yaml`, or its Kubernetes manifests.

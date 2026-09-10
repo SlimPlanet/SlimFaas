@@ -303,3 +303,23 @@ The optional `/status-data-stream` endpoint builds a metadata-only projection fr
 The optional `SlimFaas:ExposeLogs` capability exposes managed function, job and SlimFaas-node output through `/status-log-sources` and `/status-logs-stream`. It requires the front to be enabled and defaults to false. A source reference contains resource identity rather than a network address or log path; each open revalidates managed ownership and instance generation. Kubernetes validates controller ownership, Docker resolves a known container, and native nodes use the supervisor's existing authenticated control channel.
 
 Per-node readers are shared only while viewed (four sources maximum) and use bounded line/byte buffers independent of client speed. The last disconnect cancels the upstream read. They reserve the same SSE client quota as Traffic/Data while leaving peer activity synchronization inactive. Native file tails, Docker stdout/stderr demultiplexing and Kubernetes follow requests use bounded streaming parsers, with generated JSON contracts for AOT. No SlimData payload or storage migration is required. See [instance logs](user-interface.md#instance-logs).
+
+
+### Autoscaling signal providers
+
+Autoscaling obtains observations through the internal `IScalerProvider` contract.
+`PrometheusScalerProvider` owns PromQL compilation/evaluation and source-health checks;
+it reuses the existing scraper, compiled evaluator and metrics store. Providers return a
+state, numeric value and activity flag and have no Kubernetes replica-writing dependency.
+`AutoScaler` owns threshold formulas, aggregation and stabilization/policies;
+`ReplicasService` combines this with HTTP activity, schedules and dependency readiness.
+Providers are registered explicitly through DI, compatible with native AOT.
+
+External series use reserved internal identities containing namespace, function, source
+and a URL fingerprint, within the existing MemoryPack snapshot shape. Historical local
+identities and queue-gauge scope are unchanged. External evaluation filters series before
+PromQL runs and requires selected series to be present in the latest successful scrape.
+Health is process-local and is reset on leadership changes; persisted samples alone cannot
+activate an external signal. Only the leader collects, using the existing bounded HTTP worker.
+
+See [external sources and migration](autoscaling.md#external-metrics-and-opt-in-wake-up).

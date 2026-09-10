@@ -20,8 +20,11 @@ public record ScaleTrigger(
     ScaleMetricType MetricType = ScaleMetricType.AverageValue,
     string MetricName = "",
     string Query = "",
-    double Threshold = 0
+    double Threshold = 0,
+    string? Source = null
 );
+
+public record ScaleSource(string Name = "", string Url = "");
 
 public record ScalePolicy(
     ScalePolicyType Type = ScalePolicyType.Percent,
@@ -71,6 +74,12 @@ public record ScaleConfig
 
     // Optional per-function metrics scrape interval. Null keeps the global value.
     public int? ScrapeIntervalMilliseconds { get; init; } = null;
+
+    // Opt-in: existing configurations never wake from metrics alone.
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ScaleFromZero { get; init; }
+
+    public IList<ScaleSource> Sources { get; init; } = new List<ScaleSource>();
 
     // Par défaut, pas de triggers si non fournis
     public IList<ScaleTrigger> Triggers { get; init; } = new List<ScaleTrigger>();

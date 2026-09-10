@@ -79,7 +79,19 @@ public class ReplicasService(
             maximumTicks = Math.Max(maximumTicks, tickLastCall);
         }
 
+        // Read signals once, before dependency ordering, without consuming any scale policies.
+        var evaluations = new Dictionary<string, ScalerEvaluation>(StringComparer.Ordinal);
+        foreach (var function in currentDeployments.Functions)
+        {
+            if (function.Scale?.Triggers.Count > 0 &&
+                (function.Replicas > 0 || function.Scale.ScaleFromZero))
+                evaluations[function.Deployment] = await autoScaler.EvaluateAsync(function, nowUnixSeconds,
+                    externalOnly: function.Replicas == 0);
+        }
+        var dependencyDemand = GetExternalDependencyDemand(currentDeployments, evaluations);
+
         List<Task<ReplicaRequest?>> tasks = new();
+        var deferredDecisions = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (DeploymentInformation deploymentInformation in currentDeployments.Functions)
         {
@@ -107,7 +119,8 @@ public class ReplicasService(
 
             var timeoutSeconds = TimeSpan.FromSeconds(GetTimeoutSecondBeforeSetReplicasMin(deploymentInformation, nowUtc));
             bool timeElapsedWithoutRequest =
-                (TimeSpan.FromTicks(tickLastCall) + timeoutSeconds) < TimeSpan.FromTicks(nowUtc.Ticks);
+                (TimeSpan.FromTicks(tickLastCall) + timeoutSeconds) < TimeSpan.FromTicks(nowUtc.Ticks) &&
+                !dependencyDemand.Contains(deploymentInformation.Deployment);
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
@@ -119,12 +132,15 @@ public class ReplicasService(
             int currentScale = deploymentInformation.Replicas;
             int desiredReplicas = currentScale;
 
-            // --- Calcul commun : désir des métriques (Prometheus), si activées ---
+            evaluations.TryGetValue(deploymentInformation.Deployment, out var evaluation);
+            bool externalWake = currentScale == 0 && deploymentInformation.Scale?.ScaleFromZero == true &&
+                evaluation?.HasActiveExternalSignal == true;
+            bool dependenciesReady = DependsOnReady(currentDeployments, deploymentInformation);
+            bool deferDecision = deploymentInformation.Scale?.Triggers.Any(t => t.Source is not null) == true;
             int? desiredFromMetrics = null;
-            if (deploymentInformation.Scale?.Triggers.Count > 0 && currentScale > 0)
-            {
-                desiredFromMetrics = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds);
-            }
+            if (evaluation is not null && (currentScale > 0 || (externalWake && dependenciesReady)))
+                desiredFromMetrics = autoScaler.ComputeDesiredReplicas(deploymentInformation, nowUnixSeconds,
+                    evaluation, recordDecision: !deferDecision);
 
             // --- 1. SYSTÈME 0 -> N / N -> ReplicasMin (historique HTTP + schedule) ---
             if (timeElapsedWithoutRequest)
@@ -158,6 +174,17 @@ public class ReplicasService(
                 desiredReplicas = Math.Max(desiredFromMetrics.Value, deploymentInformation.ReplicasAtStart);
             }
 
+            if (externalWake)
+            {
+                if (!dependenciesReady)
+                    desiredReplicas = currentScale;
+                else if (desiredFromMetrics.HasValue)
+                    desiredReplicas = Math.Max(desiredReplicas, desiredFromMetrics.Value);
+            }
+            if (currentScale == 0 && deploymentInformation.Scale?.ScaleFromZero == true &&
+                deploymentInformation.Scale.ReplicaMax is { } maximum)
+                desiredReplicas = Math.Min(desiredReplicas, maximum);
+
             // 🔒 Protection : si un pod est bloqué "exceeded quota", on n'essaie plus de scaler vers le haut
             bool isScaleUp = desiredReplicas > currentScale;
             var podFailure = HasInfrastructurePodFailure(deploymentInformation);
@@ -179,6 +206,7 @@ public class ReplicasService(
             logger.LogInformation("Scale {Deployment} from {CurrentScale} to {DesiredReplicas}",
                 deploymentInformation.Deployment, currentScale, desiredReplicas);
 
+            if (deferDecision) deferredDecisions.Add(deploymentInformation.Deployment);
             tasks.Add(kubernetesService.ScaleAsync(new ReplicaRequest(
                 Replicas: desiredReplicas,
                 Deployment: deploymentInformation.Deployment,
@@ -200,6 +228,8 @@ public class ReplicasService(
                 if (requestsByDeployment.TryGetValue(function.Deployment, out var updatedRequest))
                 {
                     updatedFunctions.Add(function with { Replicas = updatedRequest.Replicas });
+                    if (deferredDecisions.Contains(function.Deployment))
+                        autoScaler.RecordAppliedDecision(function.Deployment, nowUnixSeconds, updatedRequest.Replicas);
                 }
                 else
                 {
@@ -210,6 +240,26 @@ public class ReplicasService(
             var updatedDeployments = currentDeployments with { Functions = updatedFunctions };
             Interlocked.Exchange(ref _deployments, updatedDeployments);
         }
+    }
+
+    private static HashSet<string> GetExternalDependencyDemand(DeploymentsInformations deployments,
+        IReadOnlyDictionary<string, ScalerEvaluation> evaluations)
+    {
+        var functions = deployments.Functions.ToDictionary(f => f.Deployment, StringComparer.Ordinal);
+        var demanded = new HashSet<string>(StringComparer.Ordinal);
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+        var pending = new Stack<string>(evaluations.Where(e => e.Value.HasActiveExternalSignal).Select(e => e.Key));
+        while (pending.TryPop(out var name))
+        {
+            if (!visited.Add(name) || !functions.TryGetValue(name, out var function)) continue;
+            foreach (var dependency in function.DependsOn ?? [])
+                if (functions.ContainsKey(dependency))
+                {
+                    demanded.Add(dependency);
+                    pending.Push(dependency);
+                }
+        }
+        return demanded;
     }
 
     record TimeToScaleDownTimeout(int Hours, int Minutes, int Value, DateTime DateTime);

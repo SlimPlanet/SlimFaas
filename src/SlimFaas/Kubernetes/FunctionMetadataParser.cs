@@ -145,6 +145,7 @@ public static class FunctionMetadataParser
         return scale with
         {
             Triggers = scale.Triggers ?? [],
+            Sources = scale.Sources ?? [],
             Behavior = behavior with
             {
                 ScaleUp = scaleUp with { Policies = upPolicies },

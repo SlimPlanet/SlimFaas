@@ -82,7 +82,7 @@ namespace SlimFaas.Tests.Kubernetes
                 .Setup(s => s.GetSamples(It.IsAny<string>(), It.IsAny<long>()))
                 .Returns(Array.Empty<AutoScaleSample>());
 
-            var scaler = new AutoScaler(evaluator, storeMock.Object);
+            var scaler = new AutoScaler(new PrometheusScalerProvider(evaluator), storeMock.Object);
 
             var config = CreateScaleConfigForPodsScaleDown(
                 stabilizationWindowSeconds: 0,
@@ -124,7 +124,7 @@ namespace SlimFaas.Tests.Kubernetes
                 .Setup(s => s.GetSamples(It.IsAny<string>(), It.IsAny<long>()))
                 .Returns(Array.Empty<AutoScaleSample>());
 
-            var scaler = new AutoScaler(evaluator, storeMock.Object);
+            var scaler = new AutoScaler(new PrometheusScalerProvider(evaluator), storeMock.Object);
 
             var config = CreateScaleConfigForPodsScaleDown(
                 stabilizationWindowSeconds: 0,   // pas de stabilisation

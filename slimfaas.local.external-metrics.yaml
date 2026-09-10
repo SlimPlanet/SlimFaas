@@ -1,0 +1,39 @@
+# Standalone demo; run separately from slimfaas.local.yaml (same cluster ports).
+schemaVersion: 1
+name: external-metrics-demo
+cluster:
+  nodes: 3
+  entrypointPort: 30020
+  nodeHttpPortBase: 30021
+  raftPortBase: 3262
+  nodeLogLevel: Warning
+state:
+  mode: ephemeral
+processes:
+  jobs-exporter:
+    command: [python3, demo/external-autoscaling/exporter.py, --port, "{port}"]
+    port: 9090
+functions:
+  worker:
+    command: [python3, demo/external-autoscaling/exporter.py, --worker, --port, "{port}"]
+    annotations:
+      SlimFaas/Function: "true"
+      SlimFaas/ReplicasMin: "0"
+      SlimFaas/ReplicasAtStart: "1"
+      SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
+      SlimFaas/Scale: |
+        {
+          "ReplicaMax": 20,
+          "ScaleFromZero": true,
+          "ScrapeIntervalMilliseconds": 1000,
+          "Sources": [{"Name": "jobs", "Url": "http://127.0.0.1:9090/metrics"}],
+          "Triggers": [{"Source": "jobs", "MetricType": "AverageValue", "MetricName": "pending_jobs", "Query": "sum(jobs_pending{queue=\"emails\"})", "Threshold": 10}],
+          "Behavior": {
+            "ScaleUp": {"StabilizationWindowSeconds": 0, "Policies": [{"Type": "Pods", "Value": 20, "PeriodSeconds": 15}]},
+            "ScaleDown": {"StabilizationWindowSeconds": 20, "Policies": [{"Type": "Percent", "Value": 100, "PeriodSeconds": 15}]}
+          }
+        }
+    health:
+      path: /health
+      periodSeconds: 1
+      startupTimeoutSeconds: 30

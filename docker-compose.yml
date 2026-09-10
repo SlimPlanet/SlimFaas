@@ -1,4 +1,5 @@
-﻿networks:
+﻿# Optional external exporter demo: see demo/external-autoscaling/README.md.
+networks:
   slimfaas-net:
     driver: bridge
 

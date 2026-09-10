@@ -17,7 +17,7 @@ namespace SlimFaas.Tests.Kubernetes
                 new Dictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>>();
 
             var evaluator = new PromQlMiniEvaluator(provider);
-            return new AutoScaler(evaluator, storeMock.Object, logger: null);
+            return new AutoScaler(new PrometheusScalerProvider(evaluator), storeMock.Object, logger: null);
         }
 
         private static int InvokeApplyScaleUpPolicies(
