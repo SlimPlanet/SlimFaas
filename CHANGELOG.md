@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.3
+
+- [96914ddf](https://github.com/SlimPlanet/SlimFaas/commit/96914ddf5bba855a70eda9a14e9a89ba52f9d1df) - fix: resume CPU rate limiting after idle recovery (#345) (release), 2026-09-10 by *Guillaume Chervet*
+
+
+## 0.84.2
+
+
+
 ## v0.84.2
 
 - [59a8bb73](https://github.com/SlimPlanet/SlimFaas/commit/59a8bb73bf876199cb9aad8a091f9f6321bbae58) - fix: enforce scale-down policy budgets (#350) (release), 2026-09-10 by *Guillaume Chervet*
@@ -265,14 +274,5 @@
 ## v0.74.6
 
 - [7679e085](https://github.com/SlimPlanet/SlimFaas/commit/7679e085cc89a3765f2a9f7b87bb50e5d57a655a) - fix: metrics regex timeout (#297) (release), 2026-07-23 by *Guillaume Chervet*
-
-
-## 0.74.5
-
-
-
-## v0.74.5
-
-- [281b94f8](https://github.com/SlimPlanet/SlimFaas/commit/281b94f862ec62d792397f37f81912e18cc8875a) - refactor: update npm lib (release) (#296), 2026-07-22 by *Guillaume Chervet*
 
 
