@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.2
+
+- [59a8bb73](https://github.com/SlimPlanet/SlimFaas/commit/59a8bb73bf876199cb9aad8a091f9f6321bbae58) - fix: enforce scale-down policy budgets (#350) (release), 2026-09-10 by *Guillaume Chervet*
+
+
+## 0.84.1
+
+
+
 ## v0.84.1
 
 - [a7116414](https://github.com/SlimPlanet/SlimFaas/commit/a711641435dbaac74f3ec6140f2ab956f6c030d7) - perf: event-driven Kubernetes sync via watch streams and jobs N+1 fix (#340) (release), 2026-09-10 by *Guillaume Delahaye*
@@ -265,15 +274,5 @@
 ## v0.74.5
 
 - [281b94f8](https://github.com/SlimPlanet/SlimFaas/commit/281b94f862ec62d792397f37f81912e18cc8875a) - refactor: update npm lib (release) (#296), 2026-07-22 by *Guillaume Chervet*
-
-
-## 0.74.4
-
-
-
-## v0.74.4
-
-- [02bf9318](https://github.com/SlimPlanet/SlimFaas/commit/02bf931887397e4b4e94079d4f9c31ce73cf9bc4) - fix: enhance raft shot (release), 2026-07-22 by *Guillaume Chervet*
-- [55954212](https://github.com/SlimPlanet/SlimFaas/commit/5595421261ffc5d322cc6cd174e7b1dee7b1605d) - chore: update .net packages (release), 2026-07-22 by *Guillaume Chervet*
 
 
