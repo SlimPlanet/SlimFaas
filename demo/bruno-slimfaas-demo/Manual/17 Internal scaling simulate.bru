@@ -1,0 +1,29 @@
+meta {
+  name: Internal scaling simulate
+  type: http
+  seq: 17
+}
+
+post {
+  url: {{baseUrl}}/internal/scaling/simulate
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"Function":"fibonacci1"}
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200, 403]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. Leader-only peer route restricted to direct SlimFaas member connections; expect 403 from outside the cluster. See https://slimfaas.dev/api-reference#internal-interfaces.
+}

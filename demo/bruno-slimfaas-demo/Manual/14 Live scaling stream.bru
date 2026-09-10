@@ -1,0 +1,21 @@
+meta {
+  name: Live scaling stream
+  type: http
+  seq: 14
+}
+
+get {
+  url: {{baseUrl}}/status-scaling-stream?function=fibonacci1
+  body: none
+  auth: none
+}
+
+tests {
+  test("Expected HTTP status", function () {
+    expect([200, 429]).to.include(res.getStatus());
+  });
+}
+
+docs {
+  Run individually. Leader-backed scaling_state SSE frames; shares the dashboard SSE quota. See https://slimfaas.dev/user-interface and https://slimfaas.dev/api-reference.
+}

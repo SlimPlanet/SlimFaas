@@ -132,7 +132,7 @@ See [tour diagnostics](guided-tour.md#8-inspect-metrics-and-live-updates) and [A
 | GET | `/metrics` | Prometheus exposition text. |
 | POST | `/debug/promql/eval` | JSON with `Query`, optional `NowUnixSeconds`, `Deployment` and `Source`. `Source` requires a configured source and `Deployment`; query the leader for trusted external-source health. `200 {"value":2}` for the scalar query `1 + 1`; `400` for invalid/no-data/nonfinite result; evaluation failure can return `500`. |
 | POST | `/debug/scaling/simulate` | Read-only next-decision preview for a configured function; see the request example below. Requires the front and an allowed port. |
-| GET | `/status-scaling-stream?function=worker` | Leader-backed `scaling_state` SSE frames, with incremental recent events and session resets; shares the dashboard SSE quota. |
+| GET | `/status-scaling-stream` (`?function=worker`) | Leader-backed `scaling_state` SSE frames, with incremental recent events and session resets; shares the dashboard SSE quota. |
 | GET | `/debug/store` | `200`, requested metric names and sample-store counts. |
 
 `/debug/promql/eval` registers referenced metrics for scraping. A query over a new series may need samples before it returns a finite result. The scaling playground only reads collected observations and does not register metrics. These are diagnostic routes and do not apply the data or function visibility policies.
