@@ -44,6 +44,8 @@ internal sealed class EvalContext
     private readonly IMetricsStore? _metricsStore;
     private readonly long _instantSelectorLookbackSeconds;
     private readonly string? _deployment;
+    private readonly string? _externalSource;
+    private readonly long? _requiredTimestamp;
 
     public readonly long Now;
 
@@ -51,24 +53,28 @@ internal sealed class EvalContext
         IReadOnlyDictionary<long, IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyDictionary<string, double>>>> store,
         long now,
         TimeSpan instantSelectorLookback,
-        string? deployment = null)
+        string? deployment = null, string? externalSource = null, long? requiredTimestamp = null)
     {
         _snapshot = store;
         Now = now;
         _instantSelectorLookbackSeconds = ToLookbackSeconds(instantSelectorLookback);
         _deployment = deployment;
+        _externalSource = externalSource;
+        _requiredTimestamp = requiredTimestamp;
     }
 
     public EvalContext(
         IMetricsStore metricsStore,
         long now,
         TimeSpan instantSelectorLookback,
-        string? deployment = null)
+        string? deployment = null, string? externalSource = null, long? requiredTimestamp = null)
     {
         _metricsStore = metricsStore;
         Now = now;
         _instantSelectorLookbackSeconds = ToLookbackSeconds(instantSelectorLookback);
         _deployment = deployment;
+        _externalSource = externalSource;
+        _requiredTimestamp = requiredTimestamp;
     }
 
     // Returns all series (seriesKey → SortedList<timestamp, value>) matching the selector.
@@ -95,6 +101,9 @@ internal sealed class EvalContext
                 {
                     return;
                 }
+
+                if (_requiredTimestamp.HasValue && !points.Any(p => p.Timestamp == _requiredTimestamp.Value))
+                    return;
 
                 SortedList<long, double>? selectedPoints = null;
                 for (var index = 0; index < points.Count; index++)
@@ -154,6 +163,9 @@ internal sealed class EvalContext
             }
         }
 
+        if (_requiredTimestamp.HasValue)
+            foreach (var key in series.Where(s => !s.Value.ContainsKey(_requiredTimestamp.Value)).Select(s => s.Key).ToArray())
+                series.Remove(key);
         return series;
     }
 
@@ -161,15 +173,18 @@ internal sealed class EvalContext
     // Only these built-in gauges may cross the deployment boundary, and only
     // for the function being evaluated. Application metrics remain isolated.
     private bool IsDeploymentInScope(string source, string metricName)
-        => _deployment is null ||
+        => _externalSource is not null
+            ? string.Equals(source, _externalSource, StringComparison.Ordinal)
+            : !source.StartsWith(ExternalMetricsSource.Prefix, StringComparison.Ordinal) &&
+              (_deployment is null ||
            string.Equals(source, _deployment, StringComparison.Ordinal) ||
            (string.Equals(source, "slimfaas", StringComparison.Ordinal) && metricName is
                "slimfaas_function_queue_ready_items" or
                "slimfaas_function_queue_in_flight_items" or
-               "slimfaas_function_queue_retry_pending_items");
+               "slimfaas_function_queue_retry_pending_items"));
 
     private bool IsFunctionLabelInScope(string source, Dictionary<string, string> labels)
-        => _deployment is null ||
+        => _externalSource is not null || _deployment is null ||
            string.Equals(source, _deployment, StringComparison.Ordinal) ||
            (labels.TryGetValue("function", out var function) &&
             string.Equals(function, _deployment, StringComparison.Ordinal));

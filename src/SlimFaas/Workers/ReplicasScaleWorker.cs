@@ -1,6 +1,8 @@
 ﻿﻿﻿using Microsoft.Extensions.Options;
   using SlimFaas.Kubernetes;
   using SlimFaas.Options;
+using SlimFaas.Scaling;
+using DotNext.Net.Cluster.Consensus.Raft;
 
 namespace SlimFaas;
 
@@ -9,7 +11,9 @@ public class ScaleReplicasWorker(
     IMasterService masterService,
     ILogger<ScaleReplicasWorker> logger,
     IOptions<WorkersOptions> workersOptions,
-    INamespaceProvider namespaceProvider)
+    INamespaceProvider namespaceProvider,
+    ScalingDiagnosticsStore? diagnostics = null,
+    IRaftCluster? cluster = null)
     : BackgroundService
 {
     private readonly int _delay = workersOptions.Value.ScaleReplicasDelayMilliseconds;
@@ -22,11 +26,16 @@ public class ScaleReplicasWorker(
             try
             {
                 await Task.Delay(_delay, stoppingToken);
-                if (!masterService.IsMaster)
+                bool isMaster = masterService.IsMaster;
+                diagnostics?.SetLeadership(isMaster);
+                if (!isMaster)
                 {
                     continue;
                 }
 
+                // Cancellation ends the diagnostic session immediately, even during an in-flight replica write.
+                using var leadership = (cluster?.LeadershipToken ?? CancellationToken.None)
+                    .Register(() => diagnostics?.SetLeadership(false));
                 await replicasService.CheckScaleAsync(_namespace);
             }
             catch (Exception e)

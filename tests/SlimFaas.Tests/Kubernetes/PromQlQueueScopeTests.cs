@@ -75,7 +75,7 @@ public sealed class PromQlQueueScopeTests
     [InlineData(true, 0, 0)]
     public void AutoScalerUsesItsOwnQueueForScaleOutAndScaleToZero(bool indexedStore, double queue, int expected)
     {
-        var scaler = new AutoScaler(CreateEvaluator(indexedStore, queue), new InMemoryAutoScalerStore());
+        var scaler = new AutoScaler(new PrometheusScalerProvider(CreateEvaluator(indexedStore, queue)), new InMemoryAutoScalerStore());
         var config = new ScaleConfig
         {
             ReplicaMax = 10,

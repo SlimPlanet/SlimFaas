@@ -508,3 +508,22 @@ SlimFaas__ExposeLogs=false dotnet run --project src/SlimFaas -- local up -f ../.
 ```
 
 `cluster.exposeLogs` defaults to `false` for other manifests. Log level and log exposure are independent: `nodeLogLevel: Error` can leave only supervisor start/stop messages when there are no application errors. Log streaming follows the selected instance generation, detects file rotation/truncation, and stops when the viewer disconnects. See [instance logs](user-interface.md#instance-logs) for access semantics, filters and retention limits.
+
+
+## External metrics demo
+
+`slimfaas.local.external-metrics.yaml` runs a Python standard-library exporter as an
+auxiliary process and scales independent workers from zero. It uses the same
+`SlimFaas/Scale` JSON as Kubernetes, with a loopback exporter URL. Run it separately
+from the main demo because their cluster ports overlap:
+
+```bash
+dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.external-metrics.yaml
+dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.external-metrics.yaml
+curl -X PUT 'http://127.0.0.1:9090/pending?value=73'
+curl http://127.0.0.1:30020/status-functions
+```
+
+See [external autoscaling](autoscaling.md#external-metrics-and-opt-in-wake-up) for the
+opt-in flag, dependency behavior, rollout and rollback. This optional source-checkout
+demo requires Python 3.10+; the standard precompiled tutorial bundle is unchanged.

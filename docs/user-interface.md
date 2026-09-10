@@ -23,8 +23,9 @@ The dashboard follows the same visual language as slimfaas.dev: primary blue, li
 - **Overview** presents function, replica, job and node counters, compact searchable tables, and wake-up actions.
 - **Live Stream → Traffic** opens the zoomable live canvas and its searchable actor list or event journal.
 - **Live Stream → Data** lists set keys and file metadata, with expiry and file sizes.
+- **Live Stream → Scaling** explains each function’s scaling decisions and offers a read-only playground.
 
-The views have stable links: `/#/overview`, `/#/live/traffic` and `/#/live/data`. Select a function or job name in Overview to open its configuration and paginated instance details. Tables show 100 items per page; completed jobs stay available until their configured retention expires. Executions are attached by the complete configuration name, so configurations such as `fibonacci` and `fibonacci5` never share the same execution row.
+The views have stable links: `/#/overview`, `/#/live/traffic`, `/#/live/data` and `/#/live/scaling`. Select a function or job name in Overview to open its configuration and paginated instance details. Tables show 100 items per page; completed jobs stay available until their configured retention expires. Executions are attached by the complete configuration name, so configurations such as `fibonacci` and `fibonacci5` never share the same execution row.
 
 ![Dashboard Overview with compact functions and jobs](images/dashboard/overview.png)
 
@@ -288,3 +289,34 @@ env:
 ```
 
 Use lower intervals for more reactive dashboards and higher intervals for lower backend load. In high-traffic clusters, prefer setting `MaxLiveEventsPerSecond`, `LiveEventSamplingRatio`, and `LiveActivityBatchSize` instead of disabling the front entirely.
+
+
+## Scaling diagnostics and playground
+
+Open **Live Stream → Scaling**, select a function, or use **Inspect scaling and open playground** in its Overview details. A direct link can select a function: `/#/live/scaling?function=worker`.
+
+![Live scaling diagnostics and a read-only eight-replica preview in the native demo](images/dashboard/scaling-desktop.png)
+
+The live view distinguishes ready replicas, the orchestrator’s requested count, the raw metric target, policy/stabilization results and the final decision. For `jobs_pending = 73` and threshold `10`, the raw target is eight; the default first scale-up permits four. An accepted request means the orchestrator accepted the target, not that four replicas are ready.
+
+Each trigger shows its source, query, value, threshold and state. An absent or invalid observation displays `—`, never zero. `NotEvaluated` identifies triggers intentionally skipped by the real cycle, including local metrics at zero. During dependency waits, observed triggers can show their raw target while policy and stabilization steps remain unevaluated. Reasons explain inactivity, HTTP/schedule demand, dependency readiness, disabled external wake-up, invalid signals, policies, stabilization and reported infrastructure blocks. The inactivity countdown alone is not a promise to scale down: other gates can retain capacity.
+
+The journal records changes in target, application status, trigger/source state and decision reasons. It retains at most 15 minutes and 300 events per function, within a shared 8 MiB diagnostic budget. Large frames and older events can be omitted; the UI marks truncation. History is in memory, and a new leader session restarts it. It is separate from the histories used by the autoscaler.
+
+### Try a scenario
+
+The playground starts from the current configuration. Change the initial replica count, maximum, `ScaleFromZero`, trigger thresholds/types, configured source selection, PromQL queries or Behavior JSON, then select **Simulate next decision**. An empty simulated-value input uses collected data; entering `0` substitutes a valid zero. The result identifies substituted observations.
+
+The server compares the current configuration and scenario using the same captured metric points, source health, HTTP/schedule context, dependency readiness and decision histories. For a value of 73, changing the threshold from 10 to 20 changes the raw target from eight to four; existing policy budgets may still hold the final target. Results show their capture time and stay fixed until another simulation. **Reset to current configuration** reloads the form without applying anything.
+
+A simulation does not call exporters, register metrics, alter real histories or supervision metrics, wake dependencies, save annotations or send replica requests. It evaluates one decision, without predicting future dependency readiness or orchestrator success. Only already collected metrics are available: a new query cannot enable new collection. Sources must already exist in the function configuration. Existing annotations and `/debug/promql/eval` keep their behavior.
+
+Simulation requests are limited to 64 KiB, 32 trigger overrides, 2,048 characters per query and bounded expression complexity. Two simulations can run concurrently per leader, with a five-second execution budget. Captured metric data is limited to 8 MiB per simulation; exceeding the budget returns an explicit error. Behavior overrides accept at most 16 policies per direction, with periods/stabilization up to one day. No new dashboard dependency is required.
+
+### Streams and cluster behavior
+
+Scaling opens the status stream with `activity=false` plus `/status-scaling-stream?function=worker`. These consume two slots in the existing SSE budget and do not activate Traffic collection. Changing the function or leaving the view cancels its stream; temporary failures reconnect with bounded retries, while permanent access errors stop reconnecting.
+
+Diagnostics and simulations come from the leader. A follower relays requests through its configured cluster membership, using bounded HTTP responses and shared short-lived frame caching. The browser never supplies a peer URL. A leader change resets the displayed journal; unavailable data is marked and the last received decision remains visible during reconnects.
+
+Both new public endpoints require the front to be enabled and use the existing allowed-port filter. Peer endpoints additionally require a direct connection from a SlimFaas member IP; forwarded headers do not grant peer access. Upgrade all nodes before using the new view; older peers can temporarily report that diagnostics are unavailable. No annotation migration is needed. WebSocket-only workers absent from the orchestrator’s scaling inventory have no scaling decision to inspect.

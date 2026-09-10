@@ -88,7 +88,7 @@ public class ReplicasScaleWorkerShould
 
         var evaluator = new PromQlMiniEvaluator(snapshotProvider);
         var store = new InMemoryAutoScalerStore();
-        return new AutoScaler(evaluator, store, logger: null);
+        return new AutoScaler(new PrometheusScalerProvider(evaluator), store, logger: null);
     }
 
     [Theory]

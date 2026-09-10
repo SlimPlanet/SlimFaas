@@ -38,6 +38,7 @@ export interface PathVisibility {
 }
 
 export interface ScaleTrigger {
+  Source?: string | null;
   MetricType: string;
   MetricName: string;
   Query: string;
@@ -61,6 +62,9 @@ export interface ScaleBehavior {
 }
 
 export interface ScaleConfig {
+  Sources?: { Name: string; Url: string }[];
+  ScaleFromZero?: boolean;
+  ScrapeIntervalMilliseconds?: number | null;
   ReplicaMax: number | null;
   Triggers: ScaleTrigger[];
   Behavior: ScaleBehavior;

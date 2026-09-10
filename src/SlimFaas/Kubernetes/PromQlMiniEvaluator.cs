@@ -55,6 +55,19 @@ public sealed class PromQlMiniEvaluator
         return compiled.Root.Eval(ctx).AsScalar();
     }
 
+    internal double EvaluateExternal(CompiledPromQlQuery query, long nowUnixSeconds,
+        string sourceIdentity, long scrapeTimestamp, TimeSpan lookback)
+    {
+        EvalContext context;
+        if (_metricsStore is not null)
+            context = new EvalContext(_metricsStore, nowUnixSeconds, lookback,
+                externalSource: sourceIdentity, requiredTimestamp: scrapeTimestamp);
+        else
+            context = new EvalContext(_snapshotProvider!(), nowUnixSeconds, lookback,
+                externalSource: sourceIdentity, requiredTimestamp: scrapeTimestamp);
+        return query.Root.Eval(context).AsScalar();
+    }
+
     private EvalContext? BuildContext(long? nowUnixSeconds, string? deployment)
     {
         if (_metricsStore is not null)

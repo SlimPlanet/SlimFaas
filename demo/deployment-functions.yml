@@ -1,3 +1,4 @@
+# Optional external exporter demo: see demo/external-autoscaling/README.md.
 apiVersion: apps/v1
 kind: Deployment
 metadata:

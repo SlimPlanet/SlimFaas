@@ -130,10 +130,12 @@ See [tour diagnostics](guided-tour.md#8-inspect-metrics-and-live-updates) and [A
 | Method | Route | Contract / response |
 |---|---|---|
 | GET | `/metrics` | Prometheus exposition text. |
-| POST | `/debug/promql/eval` | JSON with `Query`, optional `NowUnixSeconds` and `Deployment`. `200 {"value":2}` for the scalar query `1 + 1`; `400` for invalid/no-data/nonfinite result; evaluation failure can return `500`. |
+| POST | `/debug/promql/eval` | JSON with `Query`, optional `NowUnixSeconds`, `Deployment` and `Source`. `Source` requires a configured source and `Deployment`; query the leader for trusted external-source health. `200 {"value":2}` for the scalar query `1 + 1`; `400` for invalid/no-data/nonfinite result; evaluation failure can return `500`. |
+| POST | `/debug/scaling/simulate` | Read-only next-decision preview for a configured function; see the request example below. Requires the front and an allowed port. |
+| GET | `/status-scaling-stream?function=worker` | Leader-backed `scaling_state` SSE frames, with incremental recent events and session resets; shares the dashboard SSE quota. |
 | GET | `/debug/store` | `200`, requested metric names and sample-store counts. |
 
-Evaluating a query registers referenced metrics for scraping. A query over a new series may need samples before it returns a finite result. These are diagnostic routes and do not apply the data or function visibility policies.
+`/debug/promql/eval` registers referenced metrics for scraping. A query over a new series may need samples before it returns a finite result. The scaling playground only reads collected observations and does not register metrics. These are diagnostic routes and do not apply the data or function visibility policies.
 
 ## WebSocket transport
 
@@ -164,3 +166,20 @@ Raft consensus additionally uses DotNext's protocol handler on the internal list
 ## Application routes versus SlimFaas routes
 
 `/hello`, `/fibonacci`, `/download`, `/error`, `/compute` and `/computeWithCallback` belong to the Fibonacci demo. They become accessible through `/function/{name}/...` or `/async-function/{name}/...`. Kafka producer `/send/{value}` similarly belongs to an optional example application. These are examples of forwarding, not additional SlimFaas API route families.
+
+
+## Scaling simulation request
+
+```bash
+curl -X POST http://localhost:30020/debug/scaling/simulate \
+  -H 'Content-Type: application/json' \
+  -d '{"Function":"worker","CurrentReplicas":0,"ScaleFromZero":true,"Triggers":[{"Index":0,"Query":"sum(jobs_pending)","Source":"jobs","MetricType":"AverageValue","Threshold":20,"Value":73}]}'
+```
+
+`Function` is required. Optional overrides are `CurrentReplicas`, `ReplicaMax`, `ClearReplicaMax`, `ScaleFromZero`, `Behavior` and `Triggers`. Each trigger override identifies a configured zero-based `Index` and supplies `Query`, `Source` (null for the historical scope), `MetricType`, `Threshold` and optional `Value`. Omitting/null `Value` uses collected observations. `ClearReplicaMax: true` removes the maximum only in the preview; it cannot accompany a numeric `ReplicaMax`. Source definitions and URLs are never accepted as overrides.
+
+The `200` response contains `CapturedAtMs`, `Current`, `Simulated` and `Limitations`. Each decision includes raw/policy/stabilized/final targets, reasons, source/trigger states and the frozen activity/dependency context. Preview application status is `Preview`; no orchestrator request is sent. Invalid input returns `400`, disabled front/disallowed ports/unknown function `404`, an oversized request `413`, non-JSON content `415`, exhausted simulation slots `429`, and leader/data-budget unavailability `503`.
+
+The scaling SSE emits `scaling_state` with `Session`, `Status`, `ServerTimeMs`, `Function`, `Decision`, `Configuration`, observed requested/ready counts, `Events`, `Truncated` and `RefreshIntervalMs`. The first frame includes retained history; subsequent frames include only newer events. Event IDs are ordered within a session. Reset the client history when `Session` changes. A `scaling_error` event terminates a started stream on leader failure so the client can reconnect. Public SSE failures before the first frame use the corresponding HTTP status; exhausted viewer slots return `429`.
+
+`/internal/scaling/state` and `/internal/scaling/simulate` are leader-only peer routes, additionally restricted to direct SlimFaas member connections matched by IP. They do not forward recursively. See [the UI guide](user-interface.md#scaling-diagnostics-and-playground) for retention, limits and deployment behavior.

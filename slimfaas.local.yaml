@@ -1,3 +1,4 @@
+# Optional external exporter demo: see demo/external-autoscaling/README.md.
 # The native demo exposes Data publicly. In private deployments, optionally set
 # SlimFaas__ExposeDataMetadata=true on the runtime to enable dashboard metadata only.
 schemaVersion: 1

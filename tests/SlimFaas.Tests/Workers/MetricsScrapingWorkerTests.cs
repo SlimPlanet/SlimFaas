@@ -294,7 +294,8 @@ namespace SlimFaas.Tests.Workers
             bool scrapingEnabled = true,
             int delayMs = 10_000,
             MetricsScrapingOptions? metricsScrapingOptions = null,
-            IMasterService? masterService = null) // le scraping se fait avant le premier Delay
+            IMasterService? masterService = null,
+            ExternalMetricsSourceStore? externalSources = null) // le scraping se fait avant le premier Delay
         {
             // IReplicasService
             var replicas = new Mock<IReplicasService>();
@@ -337,7 +338,8 @@ namespace SlimFaas.Tests.Workers
                 requestedMetricsRegistry: requestedMetricsRegistry,
                 logger: logger,
                 slimFaasOptions: slimFaasOptions,
-                delay: delayMs
+                delay: delayMs,
+                externalSources: externalSources
             );
         }
 
@@ -376,6 +378,91 @@ namespace SlimFaas.Tests.Workers
 
                 await Task.Delay(20);
             }
+        }
+
+        [Fact]
+        public async Task ExternalExporterScrapesWithoutFunctionPodsAndDrivesWakeAndSleep()
+        {
+            var config = new ScaleConfig
+            {
+                ScaleFromZero = true,
+                ReplicaMax = 20,
+                Sources = [new("jobs", "http://exporter:9090/metrics")],
+                Triggers = [new(Query: "sum(metric_one)", Threshold: 10, Source: "jobs"),
+                    new(Query: "max(metric_one)", Threshold: 10, Source: "jobs")],
+                Behavior = new()
+                {
+                    ScaleUp = new() { Policies = [new(ScalePolicyType.Pods, 20, 0)] },
+                    ScaleDown = new() { Policies = [new(ScalePolicyType.Pods, 20, 0)] }
+                }
+            };
+            var function = new DeploymentInformation("worker", "ns", [], new(), 0, Scale: config);
+            var deployments = new DeploymentsInformations([function], new(1, []), []);
+            var store = CreateStore(out var registry, "metric_one");
+            var health = new ExternalMetricsSourceStore();
+            var source = ExternalMetricsSource.Resolve("ns", "worker", config, "jobs")!;
+            var provider = new PrometheusScalerProvider(new PromQlMiniEvaluator(store), health);
+            var engine = new AutoScaler(provider, new InMemoryAutoScalerStore());
+            var requestCount = 0;
+            using var http = new HttpClient(new DelegateHttpHandler((_, _) =>
+            {
+                Interlocked.Increment(ref requestCount);
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("metric_one 73\n") });
+            }));
+            using var worker = NewWorker(deployments, http, true, store, registry, externalSources: health,
+                scrapingEnabled: false);
+            await RunUntilAndStopAsync(worker, () => health.Get(source.Identity).State == ScalerState.Valid,
+                TimeSpan.FromSeconds(5));
+            Assert.Equal(1, requestCount); // both triggers share one scrape
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var evaluation = await engine.EvaluateAsync(function, now, externalOnly: true);
+            Assert.Equal(8, engine.ComputeDesiredReplicas(function, now, evaluation));
+
+            using var emptyHttp = new HttpClient(new MapHttpHandler([(source.Url, HttpStatusCode.OK, "metric_one 0\n")]));
+            using var drainedWorker = NewWorker(deployments, emptyHttp, true, store, registry, externalSources: health,
+                scrapingEnabled: false);
+            await RunUntilAndStopAsync(drainedWorker, () =>
+                {
+                    var observation = provider.GetAsync(new("ns", "worker", config, config.Triggers[0], now), default).Result;
+                    return observation.State == ScalerState.Valid && observation.Value == 0;
+                },
+                TimeSpan.FromSeconds(5));
+            evaluation = await engine.EvaluateAsync(function with { Replicas = 8 }, now);
+            Assert.Equal(0, engine.ComputeDesiredReplicas(function with { Replicas = 8 }, now, evaluation));
+        }
+
+        [Theory]
+        [InlineData(200, "")]
+        [InlineData(200, "<html>unavailable</html>")]
+        [InlineData(200, "metric_one NaN")]
+        [InlineData(503, "metric_one 0")]
+        public async Task FailedExternalScrapeDoesNotExposeOldZero(int statusCode, string body)
+        {
+            var config = new ScaleConfig
+            {
+                Sources = [new("jobs", "http://exporter:9090/metrics")],
+                Triggers = [new(Query: "metric_one", Threshold: 10, Source: "jobs")]
+            };
+            var function = new DeploymentInformation("worker", "ns", [], new(), 8, Scale: config);
+            var store = CreateStore(out var registry, "metric_one");
+            var health = new ExternalMetricsSourceStore();
+            var source = ExternalMetricsSource.Resolve("ns", "worker", config, "jobs")!;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            store.Add(now, source.Identity, "exporter", new Dictionary<string, double> { ["metric_one"] = 0 });
+            // Availability differs by failure type; the HTTP handler must actually have completed.
+            var expected = statusCode == 200 ? ScalerState.InvalidMetric : ScalerState.Unavailable;
+            var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var observedHttp = new HttpClient(new DelegateHttpHandler((_, _) =>
+            {
+                completed.TrySetResult();
+                return Task.FromResult(new HttpResponseMessage((HttpStatusCode)statusCode) { Content = new StringContent(body) });
+            }));
+            using var observedWorker = NewWorker(new([function], new(1, []), []), observedHttp, true, store, registry, externalSources: health);
+            await RunUntilAndStopAsync(observedWorker, () => completed.Task.IsCompleted && health.Get(source.Identity).State == expected,
+                TimeSpan.FromSeconds(5));
+            var engine = new AutoScaler(new PrometheusScalerProvider(new PromQlMiniEvaluator(store), health), new InMemoryAutoScalerStore());
+            var evaluation = await engine.EvaluateAsync(function, now);
+            Assert.Equal(8, engine.ComputeDesiredReplicas(function, now, evaluation));
         }
 
         // --- Tests ---

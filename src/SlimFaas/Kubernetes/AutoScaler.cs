@@ -1,49 +1,70 @@
-using System.Collections.Concurrent;
+using SlimFaas.Scaling;
 
 namespace SlimFaas.Kubernetes;
 
 public sealed class AutoScaler
 {
-    private readonly PromQlMiniEvaluator _evaluator;
+    private readonly IScalerProvider _provider;
     private readonly IAutoScalerStore _store;
     private readonly InMemoryAutoScalerStore _recommendationStore = new();
     private readonly ILogger<AutoScaler>? _logger;
-    private readonly ConcurrentDictionary<string, CachedQuery> _queryCache =
-        new(StringComparer.Ordinal);
+    private readonly object _historyLock = new();
 
-    private sealed record CachedQuery(CompiledPromQlQuery? Query, string? Error);
-    private readonly record struct TriggerComputation(int DesiredReplicas, bool HasInvalidTrigger);
-
-    public AutoScaler(
-        PromQlMiniEvaluator evaluator,
-        IAutoScalerStore store,
-        ILogger<AutoScaler>? logger = null)
+    internal AutoScaler(IScalerProvider provider, IAutoScalerStore store, ILogger<AutoScaler>? logger = null)
     {
-        _evaluator = evaluator ?? throw new ArgumentNullException(nameof(evaluator));
+        _provider = provider ?? throw new ArgumentNullException(nameof(provider));
         _store = store ?? throw new ArgumentNullException(nameof(store));
         _logger = logger;
+    }
+
+    internal async ValueTask<ScalerEvaluation> EvaluateAsync(DeploymentInformation deployment,
+        long nowUnixSeconds, bool externalOnly = false, CancellationToken cancellationToken = default)
+        => await EvaluateAsync(deployment.Namespace, deployment.Deployment, deployment.Scale,
+            nowUnixSeconds, externalOnly, cancellationToken);
+
+    private async ValueTask<ScalerEvaluation> EvaluateAsync(string ns, string function, ScaleConfig? config,
+        long now, bool externalOnly = false, CancellationToken cancellationToken = default)
+    {
+        var results = new List<ScalerTriggerResult>();
+        if (config is null) return new(results);
+        for (int index = 0; index < config.Triggers.Count; index++)
+        {
+            var trigger = config.Triggers[index];
+            if (externalOnly && trigger.Source is null) continue;
+            ScalerResult result;
+            try
+            {
+                result = await _provider.GetAsync(new(ns, function, config, trigger, now), cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (OperationCanceledException) { result = new(ScalerState.Timeout); }
+            catch (Exception exception)
+            {
+                _logger?.LogWarning(exception, "Scaling provider failed for {Function}", function);
+                result = new(ScalerState.Unavailable);
+            }
+            results.Add(new(trigger, result, index));
+        }
+        return new(results);
+    }
+
+    internal int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds,
+        ScalerEvaluation evaluation, bool recordDecision = true)
+    {
+        return ComputeDecision(deployment, nowUnixSeconds, evaluation, recordDecision).Target;
+    }
+
+    internal void RecordAppliedDecision(string function, long nowUnixSeconds, int replicas)
+    {
+        lock (_historyLock) _store.AddSample(function, nowUnixSeconds, replicas);
     }
 
     public int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds)
     {
         if (deployment is null) throw new ArgumentNullException(nameof(deployment));
 
-        var scale = deployment.Scale;
-        var current = deployment.Replicas;
-        var min = deployment.ReplicasMin;
-        int? max = scale?.ReplicaMax;
-
-        var desired = ComputeDesiredReplicas(
-            deployment.Deployment,
-            scale,
-            current,
-            min,
-            max,
-            nowUnixSeconds);
-        AutoScalerTelemetry.RecordReadyReplicas(
-            deployment.Deployment,
-            deployment.Pods?.Count(static pod => pod.Ready == true) ?? 0);
-        return desired;
+        var evaluation = EvaluateAsync(deployment, nowUnixSeconds).AsTask().GetAwaiter().GetResult();
+        return ComputeDesiredReplicas(deployment, nowUnixSeconds, evaluation);
     }
 
     public int ComputeDesiredReplicas(
@@ -53,436 +74,50 @@ public sealed class AutoScaler
     int minReplicas,
     int? maxReplicas,
     long nowUnixSeconds)
-{
-    if (currentReplicas < 0) currentReplicas = 0;
-    if (minReplicas < 0) minReplicas = 0;
+        => ComputeDesiredReplicas(key, scaleConfig, currentReplicas, minReplicas, maxReplicas,
+            nowUnixSeconds, EvaluateAsync("", key, scaleConfig, nowUnixSeconds).AsTask().GetAwaiter().GetResult(), true);
 
-    // Pas de config => clamp simple
-    if (scaleConfig is null || scaleConfig.Triggers.Count == 0)
+    internal ScalingHistory CaptureHistory(string key)
     {
-        var clamped = Clamp(currentReplicas, minReplicas, maxReplicas);
-        // Ici tu peux choisir de ne PAS stocker, ce n'est pas critique pour les policies
-        return clamped;
+        lock (_historyLock)
+            return new(_store.GetSamples(key, long.MinValue).ToArray(),
+                _recommendationStore.GetSamples(key, long.MinValue).ToArray());
     }
 
-    // 1. Calcul brut via triggers (PromQL + formule HPA)
-    var triggerComputation = ComputeFromTriggers(
-        key,
-        scaleConfig,
-        currentReplicas,
-        minReplicas,
-        maxReplicas,
-        nowUnixSeconds);
-
-    var desired = triggerComputation.DesiredReplicas;
-    _recommendationStore.AddSample(key, nowUnixSeconds, desired);
-
-    var behavior = scaleConfig.Behavior ?? new ScaleBehavior();
-
-    // 2. Policies + Stabilization (UP / DOWN)
-    if (desired > currentReplicas)
+    internal MetricsScalingDecision ComputeDecision(DeploymentInformation deployment, long now,
+        ScalerEvaluation evaluation, bool recordDecision = true)
     {
-        desired = ApplyScaleUpPolicies(
-            key,
-            behavior.ScaleUp,
-            currentReplicas,
-            desired,
-            nowUnixSeconds);
-
-        desired = ApplyStabilizationWindow(
-            key,
-            behavior.ScaleUp.StabilizationWindowSeconds,
-            desired,
-            isScaleUp: true,
-            nowUnixSeconds);
-    }
-    else if (desired < currentReplicas)
-    {
-        desired = ApplyScaleDownPolicies(
-            key,
-            behavior.ScaleDown,
-            currentReplicas,
-            desired,
-            nowUnixSeconds);
-
-        desired = ApplyStabilizationWindow(
-            key,
-            behavior.ScaleDown.StabilizationWindowSeconds,
-            desired,
-            isScaleUp: false,
-            nowUnixSeconds);
-    }
-    // else desired == currentReplicas : pas de scale, on ne touche pas à l’historique
-
-    // 3. Clamp final
-    desired = Clamp(desired, minReplicas, maxReplicas);
-
-    // Scale-to-zero seulement si minReplicas == 0
-    if (desired <= 0 && minReplicas == 0)
-        desired = 0;
-
-    // 4. On enregistre UNIQUEMENT quand on change réellement la cible
-    if (desired != currentReplicas)
-    {
-        _store.AddSample(key, nowUnixSeconds, desired);
+        AutoScalerTelemetry.RecordReadyReplicas(deployment.Deployment, deployment.Pods.Count(p => p.Ready == true));
+        return ComputeDecision(deployment.Deployment, deployment.Scale, deployment.Replicas,
+            deployment.ReplicasMin, deployment.Scale?.ReplicaMax, now, evaluation, recordDecision);
     }
 
-    AutoScalerTelemetry.RecordDecision(
-        key,
-        currentReplicas,
-        desired,
-        triggerComputation.HasInvalidTrigger);
+    private int ComputeDesiredReplicas(string key, ScaleConfig? config, int current, int min, int? max,
+        long now, ScalerEvaluation evaluation, bool recordDecision)
+        => ComputeDecision(key, config, current, min, max, now, evaluation, recordDecision).Target;
 
-    return desired;
-}
-
-
-    private TriggerComputation ComputeFromTriggers(
-        string key,
-        ScaleConfig config,
-        int currentReplicas,
-        int minReplicas,
-        int? maxReplicas,
-        long nowUnixSeconds)
+    private MetricsScalingDecision ComputeDecision(string key, ScaleConfig? config, int current, int min, int? max,
+        long now, ScalerEvaluation evaluation, bool recordDecision)
     {
-        double? maxDesired = null;
-        var hasInvalidTrigger = false;
-
-        foreach (var trigger in config.Triggers)
+        lock (_historyLock)
         {
-            if (string.IsNullOrWhiteSpace(trigger.Query))
+            var result = MetricsScalingCalculator.Calculate(config, current, min, max, now, evaluation, CaptureHistory(key));
+            if (config is null || config.Triggers.Count == 0) return result;
+            _recommendationStore.AddSample(key, now, result.Recommendation);
+            if (recordDecision && result.Target != Math.Max(0, current)) _store.AddSample(key, now, result.Target);
+            foreach (var trigger in result.Triggers)
             {
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
+                var configuredTrigger = config.Triggers[trigger.Index];
+                bool valid = trigger.State == nameof(ScalerState.Valid);
+                if (configuredTrigger.Source is null)
+                    AutoScalerTelemetry.RecordTrigger(key, configuredTrigger.MetricName, trigger.Value ?? 0, valid);
+                else
+                    ExternalScalerTelemetry.RecordTrigger(key, configuredTrigger,
+                        new ScalerResult(Enum.Parse<ScalerState>(trigger.State), trigger.Value ?? 0, trigger.Value > 0),
+                        trigger.RawTarget ?? 0);
             }
-
-            if (trigger.Threshold <= 0)
-            {
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-
-            double metricValue;
-            try
-            {
-                var cachedQuery = _queryCache.GetOrAdd(trigger.Query, CompileQuery);
-                if (cachedQuery.Query is null)
-                {
-                    hasInvalidTrigger = true;
-                    _logger?.LogWarning(
-                        "Invalid PromQL query '{Query}' for metric '{MetricName}': {Error}",
-                        trigger.Query,
-                        trigger.MetricName,
-                        cachedQuery.Error);
-                    AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                    continue;
-                }
-
-                metricValue = _evaluator.Evaluate(cachedQuery.Query, nowUnixSeconds, key);
-            }
-            catch (FormatException ex)
-            {
-                _logger?.LogWarning(ex,
-                    "Invalid PromQL query '{Query}' for metric '{MetricName}'",
-                    trigger.Query,
-                    trigger.MetricName);
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-            catch (InvalidOperationException ex)
-            {
-                _logger?.LogWarning(ex,
-                    "InvalidOperationException while evaluating PromQL query '{Query}'",
-                    trigger.Query);
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-            catch (ArgumentException ex)
-            {
-                _logger?.LogWarning(ex,
-                    "ArgumentException while evaluating PromQL query '{Query}'",
-                    trigger.Query);
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-
-            if (double.IsNaN(metricValue) || double.IsInfinity(metricValue))
-            {
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-
-            if (metricValue < 0)
-            {
-                hasInvalidTrigger = true;
-                AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, 0, isValid: false);
-                continue;
-            }
-
-            AutoScalerTelemetry.RecordTrigger(key, trigger.MetricName, metricValue, isValid: true);
-
-            var effectiveCurrent = currentReplicas == 0 ? 1 : currentReplicas;
-            var ratio = metricValue / trigger.Threshold;
-            var desiredForTriggerDouble = trigger.MetricType == ScaleMetricType.AverageValue
-                ? ratio
-                : effectiveCurrent * ratio;
-            var desiredForTrigger = (int)Math.Ceiling(desiredForTriggerDouble);
-
-            if (desiredForTrigger < 0)
-                desiredForTrigger = 0;
-
-            if (maxReplicas.HasValue && desiredForTrigger > maxReplicas.Value)
-                desiredForTrigger = maxReplicas.Value;
-
-            if (desiredForTrigger < minReplicas)
-                desiredForTrigger = minReplicas;
-
-            if (maxDesired is null || desiredForTrigger > maxDesired.Value)
-                maxDesired = desiredForTrigger;
-        }
-
-        if (maxDesired is null)
-        {
-            return new TriggerComputation(
-                Clamp(currentReplicas, minReplicas, maxReplicas),
-                HasInvalidTrigger: true);
-        }
-
-        var desired = (int)maxDesired.Value;
-        if (hasInvalidTrigger && desired < currentReplicas)
-            desired = currentReplicas;
-
-        return new TriggerComputation(desired, hasInvalidTrigger);
-    }
-
-    private static CachedQuery CompileQuery(string query)
-    {
-        try
-        {
-            return new CachedQuery(PromQlQueryCompiler.Compile(query), null);
-        }
-        catch (FormatException exception)
-        {
-            return new CachedQuery(null, exception.Message);
+            AutoScalerTelemetry.RecordDecision(key, Math.Max(0, current), result.Target, result.HasInvalidTriggers);
+            return result;
         }
     }
-
-    private static int Clamp(int value, int min, int? max)
-    {
-        if (value < min)
-            value = min;
-        if (max.HasValue && value > max.Value)
-            value = max.Value;
-        return value;
-    }
-
-    private int ApplyScaleUpPolicies(
-    string key,
-    ScaleDirectionBehavior behavior,
-    int currentReplicas,
-    int desired,
-    long nowUnixSeconds)
-{
-    if (behavior.Policies is null || behavior.Policies.Count == 0)
-        return desired;
-
-    if (desired <= currentReplicas)
-        return desired;
-
-    var requestedDelta = desired - currentReplicas;
-    var maxAllowedDelta = 0;
-
-    foreach (var policy in behavior.Policies)
-    {
-        if (policy.Value <= 0)
-            continue;
-
-        var baseDelta = ComputeDelta(policy, currentReplicas);
-        if (baseDelta <= 0)
-            continue;
-
-        // Pas de contrainte temporelle => on applique juste la limite "classique"
-        if (policy.PeriodSeconds <= 0)
-        {
-            if (baseDelta > maxAllowedDelta)
-                maxAllowedDelta = baseDelta;
-            continue;
-        }
-
-        // Avec PeriodSeconds : on ne veut PAS plusieurs scale-up successifs
-        // dans la même fenêtre. Chaque "sample" représente déjà une décision
-        // de scale (up ou down). Pour Pods, on considère qu'une décision
-        // a consommé toute la "Value" pour la fenêtre.
-        var fromTs = nowUnixSeconds - policy.PeriodSeconds;
-        var samples = _store.GetSamples(key, fromTs);
-
-        int remainingForPolicy;
-
-        if (samples.Count == 0)
-        {
-            // Aucun scale récent dans cette fenêtre => on peut utiliser la full Value.
-            remainingForPolicy = policy.Value;
-        }
-        else
-        {
-            // Au moins un scale (up ou down) récent => on considère que la "Value"
-            // est déjà consommée pour cette fenêtre.
-            remainingForPolicy = 0;
-        }
-
-        if (remainingForPolicy <= 0)
-            continue;
-
-        var allowedForPolicy = Math.Min(baseDelta, remainingForPolicy);
-        if (allowedForPolicy > maxAllowedDelta)
-            maxAllowedDelta = allowedForPolicy;
-    }
-
-    if (maxAllowedDelta <= 0)
-        return currentReplicas;
-
-    var finalDelta = Math.Min(requestedDelta, maxAllowedDelta);
-    return currentReplicas + finalDelta;
-}
-
-
-    /// <summary>
-    /// Scale DOWN : applique Value + PeriodSeconds de manière conservative.
-    /// </summary>
-    private int ApplyScaleDownPolicies(
-        string key,
-        ScaleDirectionBehavior behavior,
-        int currentReplicas,
-        int desired,
-        long nowUnixSeconds)
-    {
-        if (behavior.Policies is null || behavior.Policies.Count == 0)
-            return desired;
-
-        if (desired >= currentReplicas)
-            return desired;
-
-        var requestedDelta = currentReplicas - desired;
-        int? minAllowedDelta = null;
-
-        foreach (var policy in behavior.Policies)
-        {
-            if (policy.Value <= 0)
-                continue;
-
-            var baseDelta = ComputeDelta(policy, currentReplicas);
-            if (baseDelta <= 0)
-                continue;
-
-            if (policy.PeriodSeconds > 0)
-            {
-                var fromTs = nowUnixSeconds - policy.PeriodSeconds;
-                var samples = _store.GetSamples(key, fromTs);
-
-                // baseline = max(desired) dans la fenêtre => point le plus haut
-                var baseline = currentReplicas;
-                if (samples.Count > 0)
-                {
-                    baseline = samples[0].DesiredReplicas;
-                    for (var i = 1; i < samples.Count; i++)
-                    {
-                        if (samples[i].DesiredReplicas > baseline)
-                            baseline = samples[i].DesiredReplicas;
-                    }
-                }
-
-                var alreadyDown = Math.Max(0, baseline - currentReplicas);
-                var remainingDown = Math.Max(0, policy.Value - alreadyDown);
-                if (remainingDown <= 0)
-                    continue;
-
-                baseDelta = Math.Min(baseDelta, remainingDown);
-                if (baseDelta <= 0)
-                    continue;
-            }
-
-            if (minAllowedDelta is null || baseDelta < minAllowedDelta.Value)
-                minAllowedDelta = baseDelta;
-        }
-
-        if (minAllowedDelta is null)
-            return currentReplicas;
-
-        var finalDelta = Math.Min(requestedDelta, minAllowedDelta.Value);
-        return currentReplicas - finalDelta;
-    }
-
-    private static int ComputeDelta(ScalePolicy policy, int currentReplicas)
-    {
-        if (policy.Value <= 0)
-            return 0;
-
-        return policy.Type switch
-        {
-            ScalePolicyType.Pods    => policy.Value,
-            ScalePolicyType.Percent => currentReplicas <= 0
-                ? 0
-                : (int)Math.Floor(currentReplicas * (policy.Value / 100.0)),
-            _ => 0
-        };
-    }
-
-    private int ApplyStabilizationWindow(
-        string key,
-        int stabilizationWindowSeconds,
-        int desired,
-        bool isScaleUp,
-        long nowUnixSeconds)
-    {
-        if (stabilizationWindowSeconds <= 0)
-            return desired;
-
-        var fromTs = nowUnixSeconds - stabilizationWindowSeconds;
-        var samples = (isScaleUp ? _store : _recommendationStore)
-            .GetSamples(key, fromTs);
-        if (samples.Count == 0)
-            return desired;
-
-        if (isScaleUp)
-        {
-            // Option 2 : scale UP stabilisé
-            // On ne laisse pas la nouvelle recommandation dépasser
-            // le max des recommandations récentes dans la fenêtre.
-            // => Ne peut que réduire "desired", jamais l'augmenter.
-
-            var maxRecent = samples[0].DesiredReplicas;
-            for (var i = 1; i < samples.Count; i++)
-            {
-                var v = samples[i].DesiredReplicas;
-                if (v > maxRecent)
-                    maxRecent = v;
-            }
-
-            // Si le nouveau desired est plus agressif que tout ce qu'on a
-            // recommandé récemment, on le rabaisse à maxRecent.
-            if (desired > maxRecent)
-                return maxRecent;
-
-            return desired;
-        }
-
-        // Scale DOWN : comportement conservateur type HPA :
-        // on ne descend pas plus bas que la plus grande recommandation récente.
-        var maxDesired = desired;
-        for (var i = 0; i < samples.Count; i++)
-        {
-            var v = samples[i].DesiredReplicas;
-            if (v > maxDesired)
-                maxDesired = v;
-        }
-
-        return maxDesired;
-    }
-
 }

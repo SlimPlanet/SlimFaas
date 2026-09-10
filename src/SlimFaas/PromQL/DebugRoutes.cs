@@ -9,11 +9,14 @@ public static class DebugRoutes
     {
         var group = app.MapGroup("/debug");
 
-        group.MapPost("/promql/eval", (
+        group.MapPost("/promql/eval", async (
                 PromQlRequest req,
                 PromQlMiniEvaluator eval,
                 IMetricsScrapingGuard guard,
-                IRequestedMetricsRegistry registry) =>
+                IRequestedMetricsRegistry registry,
+                IReplicasService replicas,
+                IScalerProvider provider,
+                CancellationToken cancellationToken) =>
             {
                 // Active le scraping côté PromQL
                 guard.EnablePromql();
@@ -27,7 +30,21 @@ public static class DebugRoutes
                 double result;
                 try
                 {
-                    result = eval.Evaluate(req.Query, req.NowUnixSeconds, req.Deployment);
+                    if (req.Source is not null)
+                    {
+                        var function = replicas.Deployments.Functions.FirstOrDefault(f => f.Deployment == req.Deployment);
+                        if (function?.Scale is not { } scale ||
+                            ExternalMetricsSource.Resolve(function.Namespace, function.Deployment, scale, req.Source) is null)
+                            return Results.BadRequest(new ErrorResponse { Error = "source requires a deployment and a configured external source" });
+                        var observation = await provider.GetAsync(new(function.Namespace, function.Deployment, scale,
+                            new ScaleTrigger(Query: req.Query, Source: req.Source),
+                            req.NowUnixSeconds ?? DateTimeOffset.UtcNow.ToUnixTimeSeconds()), cancellationToken);
+                        if (observation.State != ScalerState.Valid)
+                            return Results.BadRequest(new ErrorResponse { Error = $"External source signal is {observation.State}" });
+                        result = observation.Value;
+                    }
+                    else
+                        result = eval.Evaluate(req.Query, req.NowUnixSeconds, req.Deployment);
 
                     // IMPORTANT : filtrer NaN / ±Infinity
                     if (double.IsNaN(result) || double.IsInfinity(result))

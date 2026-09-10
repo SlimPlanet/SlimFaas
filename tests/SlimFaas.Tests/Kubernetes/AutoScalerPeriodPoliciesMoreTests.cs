@@ -92,7 +92,7 @@ namespace SlimFaas.Tests.Kubernetes
                         .OrderBy(x => x.TimestampUnixSeconds)
                         .ToArray());
 
-            var scaler = new AutoScaler(evaluator, storeMock.Object);
+            var scaler = new AutoScaler(new PrometheusScalerProvider(evaluator), storeMock.Object);
 
             var config = CreateScaleConfigPodsUpWithPeriod(
                 podsPerScale: 1,
@@ -157,7 +157,7 @@ namespace SlimFaas.Tests.Kubernetes
                         .OrderBy(x => x.TimestampUnixSeconds)
                         .ToArray());
 
-            var scaler = new AutoScaler(evaluator, storeMock.Object);
+            var scaler = new AutoScaler(new PrometheusScalerProvider(evaluator), storeMock.Object);
 
             var config = CreateScaleConfigPodsUpWithPeriod(
                 podsPerScale: 1,
