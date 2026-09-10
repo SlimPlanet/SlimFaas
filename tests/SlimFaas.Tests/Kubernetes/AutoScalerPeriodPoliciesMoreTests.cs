@@ -78,10 +78,10 @@ namespace SlimFaas.Tests.Kubernetes
             var storeMock = new Mock<IAutoScalerStore>();
 
             storeMock
-                .Setup(s => s.AddSample(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<int>()))
-                .Callback<string, long, int>((key, ts, desired) =>
+                .Setup(s => s.AddSample(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>()))
+                .Callback<string, long, int, int>((key, ts, desired, previous) =>
                 {
-                    samples.Add(new AutoScaleSample(ts, desired));
+                    samples.Add(new AutoScaleSample(ts, desired, previous));
                 });
 
             storeMock
@@ -143,10 +143,10 @@ namespace SlimFaas.Tests.Kubernetes
             var storeMock = new Mock<IAutoScalerStore>();
 
             storeMock
-                .Setup(s => s.AddSample(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<int>()))
-                .Callback<string, long, int>((key, ts, desired) =>
+                .Setup(s => s.AddSample(It.IsAny<string>(), It.IsAny<long>(), It.IsAny<int>(), It.IsAny<int>()))
+                .Callback<string, long, int, int>((key, ts, desired, previous) =>
                 {
-                    samples.Add(new AutoScaleSample(ts, desired));
+                    samples.Add(new AutoScaleSample(ts, desired, previous));
                 });
 
             storeMock

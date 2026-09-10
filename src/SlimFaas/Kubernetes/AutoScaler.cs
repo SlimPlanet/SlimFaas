@@ -54,9 +54,10 @@ public sealed class AutoScaler
         return ComputeDecision(deployment, nowUnixSeconds, evaluation, recordDecision).Target;
     }
 
-    internal void RecordAppliedDecision(string function, long nowUnixSeconds, int replicas)
+    internal void RecordAppliedDecision(string function, long nowUnixSeconds, int previousReplicas, int replicas)
     {
-        lock (_historyLock) _store.AddSample(function, nowUnixSeconds, replicas);
+        if (replicas == previousReplicas) return;
+        lock (_historyLock) _store.AddSample(function, nowUnixSeconds, replicas, previousReplicas);
     }
 
     public int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds)
@@ -104,7 +105,7 @@ public sealed class AutoScaler
             var result = MetricsScalingCalculator.Calculate(config, current, min, max, now, evaluation, CaptureHistory(key));
             if (config is null || config.Triggers.Count == 0) return result;
             _recommendationStore.AddSample(key, now, result.Recommendation);
-            if (recordDecision && result.Target != Math.Max(0, current)) _store.AddSample(key, now, result.Target);
+            if (recordDecision) RecordAppliedDecision(key, now, Math.Max(0, current), result.Target);
             foreach (var trigger in result.Triggers)
             {
                 var configuredTrigger = config.Triggers[trigger.Index];
