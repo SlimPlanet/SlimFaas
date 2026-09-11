@@ -79,7 +79,7 @@ public sealed class ReactiveStreamTests
         const string job = "daily-report-slimfaas-job-123";
         var policy = new Mock<IFunctionAccessPolicy>();
         policy.Setup(p => p.GetAllowedSubscribers(It.IsAny<HttpContext>(), "test-event"))
-            .Callback<HttpContext, string>((context, _) => Assert.Equal(job, context.Request.Headers[LocalJobGateway.JobHeaderName]))
+            .Callback<HttpContext, string>((context, _) => Assert.Equal(job, context.Request.Headers[LocalWorkloadGateway.JobHeaderName]))
             .Returns([new DeploymentInformation("ws-function", "websocket-virtual", [], new SlimFaasConfiguration(), Replicas: 1)]);
         var websocket = new Mock<IWebSocketSendClient>();
         websocket.Setup(w => w.PublishEventAsync("ws-function", It.IsAny<CustomRequest>(), "test-event", It.IsAny<CancellationToken>(), It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>())).Returns(Task.CompletedTask);
@@ -88,13 +88,13 @@ public sealed class ReactiveStreamTests
             services.AddSingleton(Mock.Of<ISendClient>()); services.AddSingleton<HistoryHttpMemoryService>(); services.AddSingleton(Mock.Of<INamespaceProvider>());
         });
         using var client = host.GetTestClient();
-        client.DefaultRequestHeaders.Add(LocalJobGateway.JobHeaderName, job);
-        client.DefaultRequestHeaders.Add(LocalJobGateway.SignatureHeaderName, validSignature ? LocalJobGateway.CreateSignature(job, "test-token") : "invalid");
+        client.DefaultRequestHeaders.Add(LocalWorkloadGateway.JobHeaderName, job);
+        client.DefaultRequestHeaders.Add(LocalWorkloadGateway.SignatureHeaderName, validSignature ? LocalWorkloadGateway.CreateSignature(job, "test-token") : "invalid");
         using var response = await client.PostAsync("http://localhost:5000/publish-event/test-event", new StringContent("test-payload"));
         Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
         var activity = host.Services.GetRequiredService<NetworkActivityTracker>().GetRecent();
         Assert.All(activity, e => Assert.Equal(validSignature ? "daily-report" : "external", e.Source));
         if (validSignature) Assert.All(activity, e => Assert.Equal(job, e.SourcePod));
-        websocket.Verify(w => w.PublishEventAsync("ws-function", It.Is<CustomRequest>(r => r.Headers.All(h => h.Key != LocalJobGateway.JobHeaderName && h.Key != LocalJobGateway.SignatureHeaderName)), "test-event", It.IsAny<CancellationToken>(), It.Is<string?>(s => validSignature ? s == job : s != job), activityCorrelationId: It.IsAny<string?>()), Times.Once);
+        websocket.Verify(w => w.PublishEventAsync("ws-function", It.Is<CustomRequest>(r => r.Headers.All(h => h.Key != LocalWorkloadGateway.JobHeaderName && h.Key != LocalWorkloadGateway.SignatureHeaderName)), "test-event", It.IsAny<CancellationToken>(), It.Is<string?>(s => validSignature ? s == job : s != job), activityCorrelationId: It.IsAny<string?>()), Times.Once);
     }
 }

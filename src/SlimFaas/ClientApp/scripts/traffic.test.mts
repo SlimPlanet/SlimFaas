@@ -331,3 +331,74 @@ test('job isolation retains the caller context on downstream request and respons
   update(player, events, { ...settings, now: 1000 });
   assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'node:slimfaas-0']]);
 });
+
+test('recursive requests enter from their known caller pod and return to that same pod', () => {
+  const caller = fixture.functions[0].Pods[0].Name;
+  const source = { Source: 'fibonacci1', SourcePod: caller };
+  const events = [incoming(), sent(), returned(), ended(),
+    incoming('inner', source), sent('inner-out', { ...source, CorrelationId: 'inner' }),
+    returned('inner-reply', { ...source, CorrelationId: 'inner-out' }),
+    incoming('inner-end', { ...source, Type: 'request_end', CorrelationId: 'inner' })];
+  const player = new TrafficPlayback();
+  update(player, events);
+  assert.deepEqual(paths(player).sort(), [['external:external', 'node:slimfaas-0'],
+    [`pod:fibonacci1/${caller}`, 'node:slimfaas-0']].sort());
+  update(player, events, { now: 550 });
+  update(player, events, { now: 1000 });
+  update(player, events, { now: 1450 });
+  assert.deepEqual(paths(player).sort(), [['node:slimfaas-0', 'external:external'],
+    ['node:slimfaas-0', `pod:fibonacci1/${caller}`]].sort());
+  assert.ok([...player.markers.values()].every(marker => marker.count === 1));
+});
+
+const queueDispatch = (id = 'take', extra = {}) => sent(id, { Type: 'dequeue', QueueName: 'fibonacci1', CorrelationId: null, ...extra });
+const queueEnd = (id = 'queue-end', extra = {}) => incoming(id, { Type: 'request_end', QueueName: 'fibonacci1',
+  Source: 'fibonacci1', SourcePod: fixture.functions[0].Pods[3].Name, CorrelationId: 'take', ...extra });
+
+test('queued replies return once to their queue after dispatch, regardless of batch order', () => {
+  for (const reverse of [false, true]) {
+    const player = new TrafficPlayback();
+    const events = [queueDispatch(), sent('transport', { QueueName: 'fibonacci1', CorrelationId: 'take' }),
+      returned('http-end', { QueueName: 'fibonacci1', CorrelationId: 'transport' }), queueEnd(), queueEnd()];
+    if (reverse) events.reverse();
+    update(player, events);
+    assert.deepEqual(paths(player), [['queue:fibonacci1', 'pod:fibonacci1/fibonacci1-00003']]);
+    assert.equal(count(player), 1);
+    update(player, events, { now: 550 });
+    assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'queue:fibonacci1']]);
+    assert.equal(count(player), 1);
+    assert.equal([...player.markers.values()][0].kind, 'reply');
+    update(player, events, { now: 1000 });
+    assert.equal(count(player), 0);
+    assert.equal(player.visualKind(events.find(e => e.Id === 'http-end')), null);
+  }
+});
+
+test('HTTP acceptance alone never completes a queue request; its callback may arrive later', () => {
+  const player = new TrafficPlayback();
+  const events = [queueDispatch(), sent('transport', { QueueName: 'fibonacci1', CorrelationId: 'take' }),
+    returned('accepted', { QueueName: 'fibonacci1', CorrelationId: 'transport' })];
+  update(player, events); update(player, events, { now: 550 });
+  assert.equal(count(player), 0);
+  update(player, events, { now: 10_000 });
+  assert.equal(count(player), 0);
+  update(player, [...events, queueEnd('callback', { ReceivedAt: 10_001 })], { now: 10_001 });
+  assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'queue:fibonacci1']]);
+  const orphan = new TrafficPlayback();
+  update(orphan, [queueEnd()]); update(orphan, [queueEnd()], { now: 6000 });
+  assert.equal(count(orphan), 0);
+});
+
+test('queue retry attempts retain separate dispatch and completion counts', () => {
+  const player = new TrafficPlayback();
+  const first = [queueDispatch(), queueEnd()];
+  update(player, first); update(player, first, { now: 550 });
+  assert.equal(count(player), 1);
+  const events = [...first, queueDispatch('retry', { ReceivedAt: 1000 }),
+    queueEnd('retry-end', { CorrelationId: 'retry', ReceivedAt: 1000 })];
+  update(player, events, { now: 1000 });
+  assert.deepEqual(paths(player), [['queue:fibonacci1', 'pod:fibonacci1/fibonacci1-00003']]);
+  update(player, events, { now: 1450 });
+  assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'queue:fibonacci1']]);
+  assert.equal(count(player), 1);
+});

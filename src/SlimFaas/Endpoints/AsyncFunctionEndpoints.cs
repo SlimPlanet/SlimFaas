@@ -105,9 +105,9 @@ public static class AsyncFunctionEndpoints
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
             context,
             jobService,
-            context.Request.Headers.ContainsKey(LocalJobGateway.JobHeaderName)
-                ? FunctionEndpointsHelpers.GetLocalJobToken(context)
-                : string.Empty);
+            FunctionEndpointsHelpers.HasLocalWorkloadIdentity(context)
+                ? FunctionEndpointsHelpers.GetLocalWorkloadToken(context)
+                : string.Empty, replicasService);
 
         CustomRequest customRequest = await FunctionEndpointsHelpers.InitCustomRequest(
             context,

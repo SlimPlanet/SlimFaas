@@ -83,9 +83,9 @@ public static class SyncFunctionEndpoints
         var activityCaller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(
             context,
             jobService,
-            context.Request.Headers.ContainsKey(LocalJobGateway.JobHeaderName)
-                ? FunctionEndpointsHelpers.GetLocalJobToken(context)
-                : string.Empty);
+            FunctionEndpointsHelpers.HasLocalWorkloadIdentity(context)
+                ? FunctionEndpointsHelpers.GetLocalWorkloadToken(context)
+                : string.Empty, replicasService);
         var requestInId = activityTracker.Record(
             NetworkActivityTracker.EventTypes.RequestIn,
             activityCaller.Actor,

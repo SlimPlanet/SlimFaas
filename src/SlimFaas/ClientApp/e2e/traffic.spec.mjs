@@ -1,12 +1,13 @@
 import { test as base, expect } from '@playwright/test';
 import { writeFile } from 'node:fs/promises';
-import { buildTopology } from '../src/lib/topology.ts';
+import { buildTopology, observedQueues } from '../src/lib/topology.ts';
 import { startNative } from './native.mjs';
 import { observeCanvas } from './canvas-observer.mjs';
 
 const test = base.extend({
-  cluster: async ({}, use, info) => {
-    const cluster = await startNative(info.outputPath('runtime.log'));
+  scenario: ['cold', { option: true }],
+  cluster: async ({ scenario }, use, info) => {
+    const cluster = await startNative(info.outputPath('runtime.log'), scenario);
     try {
       await expect.poll(async () => {
         cluster.check();
@@ -28,15 +29,19 @@ async function viewer(browser, url) {
   await expect(page.getByRole('button', { name: 'Event journal (0)', exact: true })).toBeVisible();
   return { page, errors };
 }
-function geometry(state, event) {
-  const model = buildTopology(state.Functions, state.Jobs, [], state.SlimFaasNodes);
+function geometry(state, event, events = []) {
+  const usedQueues = new Set(events.filter(e => e.Type === 'enqueue' || e.Type === 'dequeue').map(e => e.Target));
+  const model = buildTopology(state.Functions, state.Jobs, state.Queues.filter(q => q.Length > 0 || usedQueues.has(q.Name)),
+    state.SlimFaasNodes, [], observedQueues(state.Queues, events));
   const point = id => {
     const node = model.byId.get(id);
     expect(node, id).toBeTruthy();
     return { x: node.x + (node.parent ? 0 : node.width / 2), y: node.y + (node.parent ? 0 : node.height / 2) };
   };
   return { external: point('external:external'), slim: point(`node:${event.NodeId}`),
-    pod: event.TargetPod ? point(model.pods.get(`${event.Target}/${event.TargetPod}`)) : null };
+    pod: event.TargetPod ? point(model.pods.get(`${event.Target}/${event.TargetPod}`)) : null,
+    queue: event.QueueName ? point(`queue:${event.QueueName}`) : null,
+    sourcePod: event.SourcePod ? point(model.sourcePods.get(event.SourcePod)) : null };
 }
 function onSegment(point, from, to) {
   const dx = to.x - from.x, dy = to.y - from.y;
@@ -56,6 +61,7 @@ function trip(frames, from, to, predicate) {
   for (let i = 1; i < samples.length; i++) expect(samples[i].progress).toBeGreaterThanOrEqual(samples[i - 1].progress - 0.01);
   // No duplicated markers on the same physical hop in any frame.
   expect(new Set(samples.map(sample => sample.time)).size).toBe(samples.length);
+  expect(samples.every(sample => sample.marker.count === 1)).toBe(true);
   return { first: samples[0].time, last: samples.at(-1).time, color: samples[0].marker.color };
 }
 async function capture(page, info, name) {
@@ -150,4 +156,92 @@ test('publication draws one incoming trip followed by one delivery to each of tw
     await page.screenshot({ path: info.outputPath('mobile.png'), fullPage: true });
     expect(errors).toEqual([]);
   } finally { await page.close(); }
+});
+
+test.describe('recursive function calls', () => {
+  test.use({ scenario: 'recursive' });
+  test('one external request receives one response; internal calls belong to known Fibonacci pods', async ({ browser, request, cluster }, info) => {
+    const viewers = await Promise.all([viewer(browser, cluster.url), viewer(browser, cluster.peerUrl)]);
+    try {
+      for (const { page } of viewers) await expect.poll(() => page.evaluate(() => window.__traffic.state.Functions.find(f => f.Name === 'fibonacci3')?.NumberReady)).toBe(2);
+      const response = await request.post(`${cluster.url}/function/fibonacci3/fibonacci-recursive`, { data: { input: 12 }, timeout: 60_000 });
+      expect(response.status()).toBe(200);
+      expect(await response.json()).toEqual({ result: 144, numberCall: 287 });
+      await viewers[0].page.screenshot({ path: info.outputPath('recursive-traffic.png'), fullPage: true });
+      for (const [index, { page, errors }] of viewers.entries()) {
+        await expect.poll(() => page.evaluate(() => window.__traffic.events.filter(e => e.Type === 'request_end').length)).toBe(574);
+        await expect.poll(() => page.evaluate(() => window.__traffic.frames.some(f => f.markers.some(m => m.outlined)))).toBe(true);
+        await expect(page.locator('.traffic-canvas__activity')).toContainText('0 events / 0 markers');
+        const { events, frames, state } = await capture(page, info, `recursive-${index}`);
+        const incoming = events.filter(e => e.Type === 'request_in');
+        const external = incoming.filter(e => e.Source === 'external');
+        expect(incoming).toHaveLength(287); expect(external).toHaveLength(1);
+        const pods = state.Functions.find(f => f.Name === 'fibonacci3').Pods.map(p => p.Name);
+        for (const ingress of incoming.filter(e => e.Source !== 'external')) {
+          expect(ingress.Source).toBe('fibonacci3'); expect(pods).toContain(ingress.SourcePod);
+          const completion = events.filter(e => e.Type === 'request_end' && e.CorrelationId === ingress.Id);
+          expect(completion).toHaveLength(1);
+          expect(completion[0].SourcePod).toBe(ingress.SourcePod);
+        }
+        expect(events.filter(e => e.Type === 'request_end' && e.Source === 'external')).toHaveLength(1);
+        const position = geometry(state, external[0]);
+        const enter = trip(frames, position.external, position.slim, m => m.shape === 'circle' && !m.outlined);
+        const exit = trip(frames, position.slim, position.external, m => m.outlined);
+        expect(exit.first).toBeGreaterThan(enter.last); expect(enter.color).toBe('#0000ff'); expect(exit.color).not.toBe(enter.color);
+        expect(frames.some(f => f.markers.some(m => m.count > 1))).toBe(true);
+        for (const pod of pods) {
+          const source = geometry(state, { ...external[0], SourcePod: pod }).sourcePod;
+          expect(frames.some(f => f.markers.some(m => {
+            const p = onSegment(m, source, position.slim); return p !== null && p > 0.2 && p < 0.8;
+          }))).toBe(true);
+        }
+        expect(errors).toEqual([]);
+      }
+    } finally { for (const { page } of viewers) await page.close(); }
+  });
+});
+
+for (const callback of [false, true]) test.describe(callback ? 'async callback' : 'async HTTP completion', () => {
+  test.use({ scenario: callback ? 'async-callback' : 'async' });
+  test('the actual replica returns once to its queue after logical completion', async ({ browser, request, cluster }, info) => {
+    const viewers = await Promise.all([viewer(browser, cluster.url), viewer(browser, cluster.peerUrl)]);
+    try {
+      for (const { page } of viewers) await expect.poll(() => page.evaluate(() => window.__traffic.state.Functions.find(f => f.Name === 'fibonacci1')?.NumberReady)).toBe(1);
+      const response = await request.post(`${cluster.url}/async-function/fibonacci1/${callback ? 'computeWithCallback' : 'fibonacci'}`, { data: { input: 12 } });
+      expect(response.status()).toBe(202);
+      if (callback) {
+        await expect.poll(() => cluster.callbacksReceived).toBe(1);
+        for (const { page } of viewers) {
+          await expect.poll(() => page.evaluate(() => window.__traffic.events.filter(e => e.Type === 'request_end' && e.Target === 'fibonacci1').length)).toBe(1);
+          await expect(page.locator('.traffic-canvas__activity')).toContainText('0 events / 0 markers');
+          const before = await capture(page, info, page === viewers[0].page ? 'callback-held-local' : 'callback-held-peer');
+          expect(before.events.filter(e => e.Type === 'request_end' && e.QueueName && e.Target === 'slimfaas')).toHaveLength(0);
+          expect(before.frames.flatMap(f => f.markers).filter(m => m.outlined)).toHaveLength(0);
+        }
+        await cluster.releaseCallbacks();
+      }
+      for (const [index, { page, errors }] of viewers.entries()) {
+        await expect.poll(() => page.evaluate(() => window.__traffic.events.filter(e => e.Type === 'request_end' && e.QueueName && e.Target === 'slimfaas').length)).toBe(1);
+        await expect.poll(() => page.evaluate(() => window.__traffic.frames.some(f => f.markers.some(m => m.outlined)))).toBe(true);
+        if (index === 0) await page.screenshot({ path: info.outputPath('async-queue-return.png'), fullPage: true });
+        await expect(page.locator('.traffic-canvas__activity')).toContainText('0 events / 0 markers');
+        const { events, frames, state } = await capture(page, info, `async-${index}`);
+        const dispatches = events.filter(e => e.Type === 'dequeue'); expect(dispatches).toHaveLength(1);
+        const dispatch = dispatches[0];
+        const completion = events.find(e => e.Type === 'request_end' && e.Target === 'slimfaas');
+        expect(completion.CorrelationId).toBe(dispatch.Id); expect(completion.SourcePod).toBe(dispatch.TargetPod);
+        const { pod, queue, slim } = geometry(state, dispatch, events);
+        const outward = trip(frames, queue, pod, m => m.shape === 'square');
+        const home = trip(frames, pod, queue, m => m.outlined);
+        expect(home.first).toBeGreaterThan(outward.last); expect(home.color).not.toBe(outward.color);
+        // Every drawn reply lies on the replica-to-queue route. No technical
+        // response creates another trip, including toward any SlimFaas node.
+        for (const marker of frames.flatMap(f => f.markers).filter(m => m.outlined)) {
+          expect(onSegment(marker, pod, queue)).not.toBeNull(); expect(marker.count).toBe(1);
+        }
+        expect(Math.hypot(queue.x - slim.x, queue.y - slim.y)).toBeGreaterThan(10);
+        expect(errors).toEqual([]);
+      }
+    } finally { for (const { page } of viewers) await page.close(); }
+  });
 });

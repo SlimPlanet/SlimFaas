@@ -129,12 +129,20 @@ being displayed, the map falls back to the job configuration group. Calls that
 cannot be matched to a running job remain attached to the external caller node.
 
 In native local mode, all processes share the host IP. SlimFaas therefore routes local
-entrypoint URLs declared in each Job's command or environment through a per-execution
-loopback gateway. The gateway adds the Job execution identity, allowing the same
-`Job -> SlimFaas -> Function` and `Job -> SlimFaas -> Queue -> Function` animations
-without relying on a distinct process IP. Loopback addresses are not treated as
+entrypoint URLs declared in managed function and Job commands or environments through
+a per-replica or per-execution loopback gateway. Its signed identity identifies the
+known function pod or Job execution without relying on a distinct process IP. Loopback addresses are not treated as
 function replica identities, so requests sent from local tools such as `curl` or Bruno
 remain attached to the external caller node.
+
+For recursive function calls, the caller is the exact pod found in SlimFaas's inventory.
+An internal exchange follows **caller pod → SlimFaas → destination pod**, with replies
+returning along the reverse path. The caller and destination can be the same pod.
+A single external POST to `fibonacci3/fibonacci-recursive` therefore produces exactly
+one incoming message from External and one final response to External; recursive
+calls and their replies stay between SlimFaas and the function pods.
+
+![Recursive calls between known function pods](images/dashboard/traffic-recursive.png)
 
 The map is live-only for animations. Historical activity is not replayed into the animation stream when a new browser session starts.
 
@@ -149,6 +157,15 @@ This endpoint is intended for peer SlimFaas nodes inside the namespace.
 ### Queue deliveries and the leader
 
 A queued delivery produces correlated `dequeue` and `request_out` records. Both remain in the journal, but the canvas represents the attempt once, starting at **Queue → destination replica**. A retry has a new attempt identity and remains visible. This applies to HTTP and WebSocket deliveries without changing the WebSocket client protocol. A queue observed through peer activity also remains visible when its inventory is absent locally; its label is **Queue length unknown** until a snapshot supplies the count.
+
+A queued HTTP attempt ends with one **destination replica → Queue** reply. The
+transport response remains in the journal, while the worker's correlated logical
+completion drives the animation. An HTTP `202` from the function does not finish
+that attempt: for callback-based processing, the queue reply waits for completion.
+Replies use the distinct outlined response marker, including when HTTP responses
+arrive before the dispatch animation finishes.
+
+![Asynchronous reply returning to the function queue](images/dashboard/traffic-async-queue.png)
 
 `SlimFaasNodes[].Role` is an optional `Leader`, `Follower` or `Unknown` field, separate from readiness. The map marks the current Raft leader in green with a crown and **Leader** label. The collapsed group names it too. During an election or when the known leader cannot be mapped to a managed node, the role is **Unknown**. Endpoint matching stays server-side and includes ports, including the three native demo nodes sharing loopback.
 

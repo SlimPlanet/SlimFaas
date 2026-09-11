@@ -28,7 +28,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         string source = string.IsNullOrWhiteSpace(activitySource)
             ? NetworkActivityTracker.Actors.SlimFaas
             : activitySource;
-        var dequeueId = activityQueueName is null ? null : activityTracker.Record(
+        var dequeueId = activityQueueName is null ? null : activityCorrelationId ?? activityTracker.Record(
             NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas,
             customRequest.FunctionName, activityQueueName, targetPod: reservedPodIp);
         var requestOutId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, customRequest.FunctionName,

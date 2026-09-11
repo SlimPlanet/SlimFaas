@@ -40,26 +40,36 @@ public static class FunctionEndpointsHelpers
     internal static NetworkActivityCaller ResolveNetworkActivityCaller(
         HttpContext context,
         IJobService jobService,
-        string localJobToken = "")
+        string localJobToken = "",
+        IReplicasService? replicasService = null)
     {
         IList<Kubernetes.Job> jobs = jobService.Jobs ?? Array.Empty<Kubernetes.Job>();
-        string localJobName = context.Request.Headers[LocalJobGateway.JobHeaderName]
+        string localPodName = context.Request.Headers[LocalWorkloadGateway.PodHeaderName].ToString().Trim();
+        string podSignature = context.Request.Headers[LocalWorkloadGateway.PodSignatureHeaderName].ToString().Trim();
+        context.Request.Headers.Remove(LocalWorkloadGateway.PodHeaderName);
+        context.Request.Headers.Remove(LocalWorkloadGateway.PodSignatureHeaderName);
+        string localJobName = context.Request.Headers[LocalWorkloadGateway.JobHeaderName]
             .FirstOrDefault()?
             .Trim() ?? string.Empty;
-        string suppliedSignature = context.Request.Headers[LocalJobGateway.SignatureHeaderName]
+        string suppliedSignature = context.Request.Headers[LocalWorkloadGateway.SignatureHeaderName]
             .FirstOrDefault()?
             .Trim() ?? string.Empty;
-        context.Request.Headers.Remove(LocalJobGateway.JobHeaderName);
-        context.Request.Headers.Remove(LocalJobGateway.SignatureHeaderName);
+        context.Request.Headers.Remove(LocalWorkloadGateway.JobHeaderName);
+        context.Request.Headers.Remove(LocalWorkloadGateway.SignatureHeaderName);
         if (!string.IsNullOrEmpty(localJobName) &&
             !string.IsNullOrEmpty(localJobToken) &&
             SignaturesEqual(
                 suppliedSignature,
-                LocalJobGateway.CreateSignature(localJobName, localJobToken)) &&
+                LocalWorkloadGateway.CreateSignature(localJobName, localJobToken)) &&
             TryCreateJobCaller(localJobName, out NetworkActivityCaller localCaller))
         {
             return localCaller;
         }
+
+        var podCaller = ResolvePodCaller(replicasService,
+            NormalizeNetworkAddress(context.Connection.RemoteIpAddress?.ToString() ?? string.Empty),
+            localPodName, podSignature, localJobToken);
+        if (podCaller.HasValue) return podCaller.Value;
 
         if (jobs.Count == 0)
         {
@@ -95,12 +105,41 @@ public static class FunctionEndpointsHelpers
         return new NetworkActivityCaller(NetworkActivityTracker.Actors.External, fallbackIp);
     }
 
-    internal static string GetLocalJobToken(HttpContext context)
+    private static NetworkActivityCaller? ResolvePodCaller(
+        IReplicasService? replicasService, string callerIp, string localPodName, string podSignature, string token)
+    {
+        bool signedPod = !string.IsNullOrEmpty(localPodName) && !string.IsNullOrEmpty(token) &&
+                         SignaturesEqual(podSignature, LocalWorkloadGateway.CreatePodSignature(localPodName, token));
+        // A native replica and an external tool can have the same loopback IP.
+        // Only the supervisor's signed identity distinguishes them. Other pods
+        // are resolved from the actual connection address and the known inventory.
+        bool uniqueAddress = IPAddress.TryParse(callerIp, out var address) && !IPAddress.IsLoopback(address);
+        if (!signedPod && !uniqueAddress) return null;
+        NetworkActivityCaller? podCaller = null;
+        foreach (var function in replicasService?.Deployments?.Functions ?? [])
+        foreach (var pod in function.Pods)
+        {
+            bool matches = signedPod
+                ? string.Equals(pod.Name, localPodName, StringComparison.Ordinal)
+                : uniqueAddress && string.Equals(NormalizeNetworkAddress(pod.Ip), callerIp, StringComparison.OrdinalIgnoreCase);
+            if (!matches) continue;
+            // Shared host-network addresses cannot identify an individual pod.
+            if (podCaller.HasValue) return new NetworkActivityCaller(NetworkActivityTracker.Actors.External, string.Empty);
+            podCaller = new NetworkActivityCaller(function.Deployment, pod.Name);
+        }
+        return podCaller;
+    }
+
+    internal static string GetLocalWorkloadToken(HttpContext context)
         => context.RequestServices
             .GetService<IOptions<SlimFaasOptions>>()?
             .Value
             .Process
             .Token ?? string.Empty;
+
+    internal static bool HasLocalWorkloadIdentity(HttpContext context)
+        => context.Request.Headers.ContainsKey(LocalWorkloadGateway.JobHeaderName) ||
+           context.Request.Headers.ContainsKey(LocalWorkloadGateway.PodHeaderName);
 
     private static bool TryCreateJobCaller(
         string jobName,

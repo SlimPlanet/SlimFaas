@@ -53,12 +53,12 @@ jobs:
         working-directory: src/SlimFaas/ClientApp
         run: |
           npm ci --ignore-scripts
-          npx playwright install --with-deps chromium
+          ./node_modules/.bin/playwright install --with-deps chromium
       - name: Publish native runtime and real function
         run: |
           dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r linux-x64 -o artifacts/traffic-e2e/runtime
           dotnet publish src/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
-      - name: Test cold start and publication on three nodes
+      - name: Test traffic animations on three nodes
         working-directory: src/SlimFaas/ClientApp
         run: npm run test:e2e
       - name: Upload browser and runtime diagnostics

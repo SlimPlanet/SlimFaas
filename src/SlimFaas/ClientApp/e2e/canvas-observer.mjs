@@ -27,17 +27,22 @@ export function observeCanvas() {
   });
   wrap('beginPath', function() { path = []; });
   wrap('arc', function(x, y, radius) { path.push({ arc: true, x, y, radius }); });
+  wrap('rect', function(x, y, width, height) { path.push({ rect: true, x, y, width, height }); });
   wrap('moveTo', function(x, y) { path.push({ x, y }); });
   wrap('lineTo', function(x, y) { path.push({ x, y }); });
-  wrap('fillText', function(text) { if (frame && text === 'Waiting for a ready replica') frame.waiting = true; });
+  wrap('fillText', function(text) {
+    if (frame && text === 'Waiting for a ready replica') frame.waiting = true;
+    if (frame?.markers.length && /^×\d+$/.test(text)) frame.markers.at(-1).count = Number(text.slice(1));
+  });
   for (const method of ['fill', 'stroke']) wrap(method, function() {
     if (!frame) return;
     const scale = this.getTransform().a / devicePixelRatio;
     const circle = path.length === 1 && path[0].arc && Math.abs(path[0].radius * scale - 4) < 0.01;
+    const square = path.length === 1 && path[0].rect && Math.abs(path[0].width * scale - 8) < 0.01;
     const diamond = path.length === 4 && path.every(p => !p.arc) && Math.abs((path[1].x - path[3].x) * scale - 10) < 0.01;
-    if (circle || diamond) frame.markers.push({
-      x: path[0].x, y: diamond ? path[1].y : path[0].y,
-      shape: diamond ? 'diamond' : 'circle', color: method === 'fill' ? this.fillStyle : this.strokeStyle, outlined: method === 'stroke',
+    if (circle || diamond || square) frame.markers.push({
+      x: path[0].x + (square ? path[0].width / 2 : 0), y: diamond ? path[1].y : path[0].y + (square ? path[0].height / 2 : 0),
+      shape: diamond ? 'diamond' : square ? 'square' : 'circle', color: method === 'fill' ? this.fillStyle : this.strokeStyle, outlined: method === 'stroke', count: 1,
     });
   });
 }

@@ -147,9 +147,9 @@ public class SyncFunctionEndpointTests
             "http://localhost:5000/function/fibonacci/compute");
         if (localGateway)
         {
-            request.Headers.TryAddWithoutValidation(LocalJobGateway.JobHeaderName, jobRunName);
-            request.Headers.TryAddWithoutValidation(LocalJobGateway.SignatureHeaderName,
-                LocalJobGateway.CreateSignature(jobRunName, "test-token"));
+            request.Headers.TryAddWithoutValidation(LocalWorkloadGateway.JobHeaderName, jobRunName);
+            request.Headers.TryAddWithoutValidation(LocalWorkloadGateway.SignatureHeaderName,
+                LocalWorkloadGateway.CreateSignature(jobRunName, "test-token"));
         }
         else request.Headers.TryAddWithoutValidation("X-Forwarded-For", "10.42.0.17");
 

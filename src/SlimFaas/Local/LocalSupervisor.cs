@@ -18,7 +18,7 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
         EnsureClusterPortsAvailable();
         using LocalStateStore state = LocalStateStore.Open(loaded, clean);
         var allocator = new LocalPortAllocator(loaded, state);
-        await using var functions = new LocalFunctionManager(loaded, allocator, state);
+        await using var functions = new LocalFunctionManager(loaded, allocator, state, _token);
         await using var jobs = new LocalJobManager(loaded, state, _token);
         await using var processes = new LocalProcessManager(loaded, allocator, state);
         allocator.Prune(functions.PortAllocationIds

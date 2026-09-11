@@ -39,7 +39,7 @@ export class TrafficPlayback {
   private records = new Map<string, Receipt>();
   private children = new Map<string, Set<string>>();
   private pending = new Set<string>();
-  private dispatches = new Map<string, { view: string; shown: boolean }>();
+  private dispatches = new Map<string, { view: string; shown: boolean; end?: number }>();
   private previous: readonly NetworkActivityEvent[] | null = null;
   private session: number | undefined;
   private paused = false;
@@ -68,6 +68,9 @@ export class TrafficPlayback {
   /** The same presentation rules apply to moving markers and their static links. */
   visualKind(event: NetworkActivityEvent): MessageKind | null {
     if (event.Type === 'request_waiting' || event.Type === 'request_started') return null;
+    // The HTTP response is transport metadata. The queue worker records the
+    // logical completion separately, including a deferred 202 callback.
+    if (messageKind(event) === 'reply' && event.QueueName && event.Target !== 'slimfaas') return null;
     const receipt = this.records.get(event.Id);
     const parent = this.records.get(event.CorrelationId ?? '');
     if (event.Type === 'event_publish' && event.Target === 'slimfaas' && parent?.animated) return null;
@@ -118,7 +121,7 @@ export class TrafficPlayback {
           if (this.dispatches.size > HISTORY_LIMIT) this.dispatches.delete(this.dispatches.keys().next().value!);
         }
         if (paused || duplicate || (event.ReceivedAt === undefined ? resumed : event.ReceivedAt <= this.resumeAfter)
-          || now - receipt.received >= SPEEDS[speed] || !matchesTraffic(topology, event, type, selected, isolate)) receipt.end = now;
+          || now - receipt.received >= SPEEDS[speed] || !matchesTraffic(topology, event, type, selected, isolate)) receipt.end = duplicate && dispatch ? this.dispatches.get(dispatch)?.end ?? now : now;
         else this.pending.add(event.Id);
         if (this.records.size > HISTORY_LIMIT) {
           const oldest = this.records.keys().next().value!;
@@ -190,7 +193,7 @@ export class TrafficPlayback {
         const dispatch = dispatchIdentity(event);
         if (dispatch) {
           const previous = this.dispatches.get(dispatch)!;
-          if (previous.shown) { finish(); continue; }
+          if (previous.shown) { finish(previous.end ?? now); continue; }
           previous.shown = true;
         }
         const key = JSON.stringify([path, dispatch ? 'queue' : event.Type]);
@@ -201,6 +204,7 @@ export class TrafficPlayback {
           receipt.animated = true;
           finish(now + SPEEDS[speed]);
         } else { this.omitted++; finish(); }
+        if (dispatch) this.dispatches.get(dispatch)!.end = receipt.end;
         if (parent) this.markers.delete(`waiting:${parent.event.Id}`);
         if (['request_out', 'dequeue', 'event_publish'].includes(event.Type)) {
           this.arrivals.set(path[path.length - 1], receipt.end! + 1000);

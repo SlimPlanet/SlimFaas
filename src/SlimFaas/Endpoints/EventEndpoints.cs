@@ -68,8 +68,8 @@ public static class EventEndpoints
         logger.LogDebug("Receiving event: {EventName}", eventName);
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
         var caller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService,
-            context.Request.Headers.ContainsKey(LocalJobGateway.JobHeaderName)
-                ? FunctionEndpointsHelpers.GetLocalJobToken(context) : string.Empty);
+            FunctionEndpointsHelpers.HasLocalWorkloadIdentity(context)
+                ? FunctionEndpointsHelpers.GetLocalWorkloadToken(context) : string.Empty, replicasService);
         var requestInId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, caller.Actor, NetworkActivityTracker.Actors.SlimFaas, sourcePod: caller.SourcePod);
 
         try

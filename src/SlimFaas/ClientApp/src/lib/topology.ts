@@ -134,7 +134,9 @@ export function eventPath(topology: Topology, event: NetworkActivityEvent): stri
   if (event.Type === 'request_in') path = [source, slim];
   else if (event.Type === 'enqueue') path = [source, slim, queue];
   else if (event.Type === 'dequeue' || (event.Type === 'request_out' && event.QueueName)) path = [queue, target];
-  else if (event.Type === 'response' || event.Type === 'request_end') path = event.Target === 'slimfaas' ? [slim, source] : [target, slim];
+  else if (event.Type === 'response' || event.Type === 'request_end') path = event.QueueName
+    ? [event.Target === 'slimfaas' ? source : target, queue]
+    : event.Target === 'slimfaas' ? [slim, source] : [target, slim];
   else if (event.Type === 'request_waiting' || event.Type === 'request_started') path = [slim];
   else if (event.Type === 'request_out' || event.Type === 'event_publish') path = event.Target === 'slimfaas' ? [source, slim] : [slim, target];
   else path = [source, slim, target];
