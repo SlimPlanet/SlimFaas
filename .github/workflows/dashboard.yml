@@ -57,7 +57,7 @@ jobs:
       - name: Publish native runtime and real function
         run: |
           dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r linux-x64 -o artifacts/traffic-e2e/runtime
-          dotnet publish src/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
+          dotnet publish samples/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
       - name: Test traffic animations on three nodes
         working-directory: src/SlimFaas/ClientApp
         run: npm run test:e2e

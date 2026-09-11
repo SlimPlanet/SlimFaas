@@ -6,6 +6,14 @@ This document provides essential guidelines for AI agents (like GitHub Copilot) 
 
 ---
 
+## 🗂️ Repository layout
+
+- `src/`: the products only — `SlimFaas`, `SlimData`, `SlimFaasMcp`, `SlimFaasKafka`, plus the `SlimFaasPlanetSaver` npm package and the `SlimFaasSite` documentation site.
+- `samples/`: demo and non-regression workloads used by the docs, the Docker Compose tours, the local demos and the CI images — `Fibonacci`, `FibonacciBatch`, `FibonacciKafkaListener`, `FibonacciKafkaProducer`, `FibonacciReact`, `CalculatorApi`, `GmailMailerApi`, `ConsoleApp1`.
+- `benchmarks/`: `SlimFaasBenchmark` (the HTTP load and comparison runner used by `.bin/slimfaas-local-*.sh` and the perf-regression tests) and `SlimFaas.Benchmarks` (BenchmarkDotNet micro-benchmarks).
+- `tests/`, `tools/`, `client/`, `docs/`, `demo/`: test projects, developer tools, client SDKs, documentation and Compose demos.
+- Every .NET Docker image is built with the repository root as build context (`docker build -f <path>/Dockerfile .`), so `Directory.Build.props`, `.editorconfig` and `eng/` apply inside the image build exactly as on a developer machine.
+
 ## 📦 Core Technologies
 
 ### SlimFaas, SlimData & SlimFaasMcp: AOT Compilation
@@ -130,8 +138,8 @@ dotnet run --project src/SlimFaas/SlimFaas.csproj
 dotnet run --project src/SlimFaas/SlimFaas.csproj
 
 # Run examples
-dotnet run --project src/Fibonacci/Fibonacci.csproj
-dotnet run --project src/FibonacciBatch/FibonacciBatch.csproj
+dotnet run --project samples/Fibonacci/Fibonacci.csproj
+dotnet run --project samples/FibonacciBatch/FibonacciBatch.csproj
 
 # Validate and run the native local demo (paths are relative to the src/SlimFaas launch profile)
 dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml
@@ -499,7 +507,7 @@ BENCHMARK_PHASE=screening SCREENING_DURATION_SECONDS=10 SCREENING_WARMUP_SECONDS
    - SlimFaas is designed for **slim footprint and fast execution**
    - Avoid large allocations; use pooling/streaming where possible
    - Profile impact on memory and startup time
-   - For changes touching `src/SlimData/`, `src/SlimFaas/Data/`, batching, queues, metrics cardinality, HTTP client pooling, or high-throughput request paths, run the relevant performance tests: `.bin/slimdata-benchmark.sh`, `.bin/slimdata-batch-modes-benchmark.sh`, `.bin/memory-lab.sh`, or `dotnet run --project src/SlimFaasBenchmark/SlimFaasBenchmark.csproj`.
+   - For changes touching `src/SlimData/`, `src/SlimFaas/Data/`, batching, queues, metrics cardinality, HTTP client pooling, or high-throughput request paths, run the relevant performance tests: `.bin/slimdata-benchmark.sh`, `.bin/slimdata-batch-modes-benchmark.sh`, `.bin/memory-lab.sh`, or `dotnet run --project benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj`.
 
 6. **Kubernetes-First Mindset**
    - Test with proper Kubernetes API interactions

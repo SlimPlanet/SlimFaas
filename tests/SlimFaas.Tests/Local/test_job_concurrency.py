@@ -117,7 +117,7 @@ def main():
     parser.add_argument("--runtime", type=Path,
                         default=ROOT / "src/SlimFaas/bin/Debug/net10.0/SlimFaas.dll")
     parser.add_argument("--batch", type=Path,
-                        default=ROOT / "src/FibonacciBatch/bin/Debug/net10.0/FibonacciBatch.dll")
+                        default=ROOT / "samples/FibonacciBatch/bin/Debug/net10.0/FibonacciBatch.dll")
     args = parser.parse_args()
     runtime, batch = args.runtime.resolve(), args.batch.resolve()
     for path in (runtime, batch):

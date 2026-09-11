@@ -62,18 +62,18 @@ jobs:
             file: "./Dockerfile"
             platforms: "linux/amd64,linux/arm64"
           - name: fibonacci-api
-            context: "./src/Fibonacci"
-            file: "./src/Fibonacci/Dockerfile"
+            context: "."
+            file: "./samples/Fibonacci/Dockerfile"
           - name: slimfaas-mcp
-            context: "./src/SlimFaasMcp"
+            context: "."
             file: "./src/SlimFaasMcp/Dockerfile"
             platforms: "linux/amd64,linux/arm64"
           - name: fibonacci-batch
-            context: "./src/FibonacciBatch"
-            file: "./src/FibonacciBatch/Dockerfile"
+            context: "."
+            file: "./samples/FibonacciBatch/Dockerfile"
           - name: fibonacci-webapp
-            context: "./src/FibonacciReact"
-            file: "./src/FibonacciReact/Dockerfile"
+            context: "./samples/FibonacciReact"
+            file: "./samples/FibonacciReact/Dockerfile"
     steps:
       - name: Call reusable Docker build (no push)
         uses: ./.github/workflows/Docker.yml

@@ -4,25 +4,25 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaas", "src\SlimFaas\Sl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaas.Tests", "tests\SlimFaas.Tests\SlimFaas.Tests.csproj", "{A9BEA991-B9D5-4526-BD3A-63B8434FAC81}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fibonacci", "src\Fibonacci\Fibonacci.csproj", "{8D37956E-F212-4F86-98C1-4B50E1FBCB20}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fibonacci", "samples\Fibonacci\Fibonacci.csproj", "{8D37956E-F212-4F86-98C1-4B50E1FBCB20}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimData", "src\SlimData\SlimData.csproj", "{4CAF5B5F-0101-4394-838F-4BD225DAD27D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimData.Tests", "tests\SlimData.Tests\SlimData.Tests.csproj", "{4F9BBB0F-39E6-47F1-A1A0-C5154743081E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FibonacciBatch", "src\FibonacciBatch\FibonacciBatch.csproj", "{F52A7A0E-6ED3-4933-91DE-9B2175EEAA83}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FibonacciBatch", "samples\FibonacciBatch\FibonacciBatch.csproj", "{F52A7A0E-6ED3-4933-91DE-9B2175EEAA83}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasBenchmark", "src\SlimFaasBenchmark\SlimFaasBenchmark.csproj", "{3A154D28-5099-43F9-B03F-394A6749DCA3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasBenchmark", "benchmarks\SlimFaasBenchmark\SlimFaasBenchmark.csproj", "{3A154D28-5099-43F9-B03F-394A6749DCA3}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasMcp", "src\SlimFaasMcp\SlimFaasMcp.csproj", "{E43ECB94-4D54-4E97-834B-45AADBC300DD}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasMcp.Tests", "tests\SlimFaasMcp.Tests\SlimFaasMcp.Tests.csproj", "{B840F7FA-2900-49FA-84B5-326BAEA85B21}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GmailMailerApi", "src\GmailMailerApi\GmailMailerApi.csproj", "{96376DBF-6071-4E55-B6AC-CC51D1A50846}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GmailMailerApi", "samples\GmailMailerApi\GmailMailerApi.csproj", "{96376DBF-6071-4E55-B6AC-CC51D1A50846}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CalculatorApi", "src\CalculatorApi\CalculatorApi.csproj", "{C677E191-12D7-4F45-8777-32438A92CC35}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CalculatorApi", "samples\CalculatorApi\CalculatorApi.csproj", "{C677E191-12D7-4F45-8777-32438A92CC35}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp1", "src\ConsoleApp1\ConsoleApp1.csproj", "{FB416D23-6DD2-450F-B2DB-DDEFC8B39B61}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConsoleApp1", "samples\ConsoleApp1\ConsoleApp1.csproj", "{FB416D23-6DD2-450F-B2DB-DDEFC8B39B61}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaasKafka", "src\SlimFaasKafka\SlimFaasKafka.csproj", "{D771C816-4642-443B-A155-7DCA8C130864}"
 EndProject
@@ -35,6 +35,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SlimFaas.Benchmarks", "benchmarks\SlimFaas.Benchmarks\SlimFaas.Benchmarks.csproj", "{0E2D92C7-DCD1-47E5-AFC9-8449C0FDB3BE}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72D-47B6-A68D-7590B98EB39B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5A3F0B1C-9E2D-4C77-8A61-2F0E6B7D9C41}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -243,6 +245,12 @@ Global
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{8D37956E-F212-4F86-98C1-4B50E1FBCB20} = {5A3F0B1C-9E2D-4C77-8A61-2F0E6B7D9C41}
+		{F52A7A0E-6ED3-4933-91DE-9B2175EEAA83} = {5A3F0B1C-9E2D-4C77-8A61-2F0E6B7D9C41}
+		{3A154D28-5099-43F9-B03F-394A6749DCA3} = {66320409-64EC-F7C5-3DEF-65E7510DAAD1}
+		{96376DBF-6071-4E55-B6AC-CC51D1A50846} = {5A3F0B1C-9E2D-4C77-8A61-2F0E6B7D9C41}
+		{C677E191-12D7-4F45-8777-32438A92CC35} = {5A3F0B1C-9E2D-4C77-8A61-2F0E6B7D9C41}
+		{FB416D23-6DD2-450F-B2DB-DDEFC8B39B61} = {5A3F0B1C-9E2D-4C77-8A61-2F0E6B7D9C41}
 		{0E2D92C7-DCD1-47E5-AFC9-8449C0FDB3BE} = {66320409-64EC-F7C5-3DEF-65E7510DAAD1}
 	EndGlobalSection
 EndGlobal

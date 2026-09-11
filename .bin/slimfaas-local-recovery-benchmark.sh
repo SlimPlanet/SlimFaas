@@ -21,7 +21,7 @@ if [[ "${RECOVERY_SKIP_BUILD:-false}" == "true" ]]; then
   echo "Skipping build; using existing Release binaries"
 else
   dotnet build "$repo_root/src/SlimFaas/SlimFaas.csproj" -c Release -p:SkipClientAppBuild=true --nologo
-  dotnet build "$repo_root/src/SlimFaasBenchmark/SlimFaasBenchmark.csproj" -c Release --nologo
+  dotnet build "$repo_root/benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj" -c Release --nologo
 fi
 
 dotnet "$slimfaas_dll" local validate -f "$manifest"

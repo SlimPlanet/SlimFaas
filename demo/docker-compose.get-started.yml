@@ -2,8 +2,8 @@
 x-tour-function: &tour-function
   image: axaguildev/fibonacci:dev
   build:
-    context: src/Fibonacci
-    dockerfile: Dockerfile
+    context: .
+    dockerfile: samples/Fibonacci/Dockerfile
   environment: &tour-environment
     ASPNETCORE_URLS: http://+:5000
     SlimFaas__BaseUrl: http://slimfaas:30021

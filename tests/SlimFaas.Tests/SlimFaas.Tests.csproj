@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj" />
-    <ProjectReference Include="..\..\src\SlimFaasBenchmark\SlimFaasBenchmark.csproj" />
+    <ProjectReference Include="..\..\benchmarks\SlimFaasBenchmark\SlimFaasBenchmark.csproj" />
   </ItemGroup>
 
 </Project>

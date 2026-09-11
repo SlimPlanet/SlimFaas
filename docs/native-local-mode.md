@@ -163,7 +163,7 @@ functions:
   fibonacci:
     environment:
       UNUSED_IN_DEV: null
-    command: ["dotnet", "watch", "run", "--project", "src/Fibonacci"]
+    command: ["dotnet", "watch", "run", "--project", "samples/Fibonacci"]
 ```
 
 Only the effective merged document must be complete. Runtime paths,
@@ -322,7 +322,7 @@ alongside the SlimFaas cluster:
 processes:
   fibonacci-front:
     command: ["npm", "run", "dev", "--", "--host", "127.0.0.1", "--port", "{port}"]
-    workingDirectory: src/FibonacciReact
+    workingDirectory: samples/FibonacciReact
     environment:
       BROWSER: "none"
       VITE_SLIMFAAS_URL: "http://127.0.0.1:30020"
@@ -398,7 +398,7 @@ For example, a one-off asset generator can be declared as:
 processes:
   generate-assets:
     command: ["npm", "run", "generate"]
-    workingDirectory: src/FibonacciReact
+    workingDirectory: samples/FibonacciReact
     restartPolicy: never
 ```
 
@@ -411,7 +411,7 @@ CronJobs. For example:
 jobs:
   fibonacci5:
     command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
-    workingDirectory: src/FibonacciBatch
+    workingDirectory: samples/FibonacciBatch
     annotations:
       SlimFaas/Job: "true"
       SlimFaas/DefaultVisibility: "Public"
