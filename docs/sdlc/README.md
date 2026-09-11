@@ -135,6 +135,7 @@ docs/architecture/             architecture contract, code-to-page map, template
 .github/prompts/               Copilot prompts wrapping docs/sdlc/<name>.md
 .github/pull_request_template.md, .github/ISSUE_TEMPLATE/
 .bin/check-agent-rules.py      rule mirror check
+.bin/check-before-pr.py        runs both checkers; Claude Code hook before gh pr create
 .bin/check-architecture-docs.py, .bin/test-check-architecture-docs.py
 ```
 
