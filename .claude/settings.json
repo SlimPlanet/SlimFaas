@@ -1,0 +1,69 @@
+{
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(git status *)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git diff)",
+      "Bash(git log *)",
+      "Bash(git log)",
+      "Bash(git branch *)",
+      "Bash(git branch)",
+      "Bash(git worktree list *)",
+      "Bash(git worktree list)",
+      "Bash(git fetch *)",
+      "Bash(dotnet build *)",
+      "Bash(dotnet test *)",
+      "Bash(dotnet test)",
+      "Bash(dotnet format --verify-no-changes *)",
+      "Bash(dotnet run --project src/SlimFaas -- local validate *)",
+      "Bash(npm test *)",
+      "Bash(npm test)",
+      "Bash(npm run build *)",
+      "Bash(npm run build)",
+      "Bash(pnpm build *)",
+      "Bash(pnpm build)",
+      "Bash(pnpm test *)",
+      "Bash(pnpm test)",
+      "Bash(pnpm run coverage *)",
+      "Bash(pnpm run coverage)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr diff *)",
+      "Bash(gh issue view *)",
+      "Bash(gh run list *)",
+      "Bash(python .bin/check-agent-rules.py *)",
+      "Bash(python .bin/check-agent-rules.py)",
+      "Bash(python .bin/check-architecture-docs.py *)",
+      "Bash(python .bin/check-architecture-docs.py)",
+      "Bash(python .bin/check-before-pr.py)",
+      "Bash(python .bin/test-check-architecture-docs.py)"
+    ],
+    "deny": [
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(rm -rf *)",
+      "Read(./.env.local)",
+      "Read(./slimfaas.local.secrets.yaml)",
+      "Read(./**/.env)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .bin/check-before-pr.py",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
