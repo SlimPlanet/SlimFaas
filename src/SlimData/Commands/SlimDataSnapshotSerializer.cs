@@ -1,3 +1,4 @@
+using System.Buffers.Binary;
 using System.Collections.Immutable;
 using System.Text;
 using DotNext.IO;
@@ -199,8 +200,9 @@ internal static class SlimDataSnapshotSerializer
 
     /// <summary>
     /// Reads the trailer when present. A stream ending right after the body is a legacy
-    /// snapshot (tries keep an empty reserved IP); anything else that is not a valid
-    /// trailer is corruption.
+    /// snapshot (tries keep an empty reserved IP). As soon as one byte follows the body the
+    /// whole trailer must be there and nothing may follow it: a partial trailer or extra
+    /// data is corruption and is rejected instead of silently dropping the reserved IPs.
     /// </summary>
     private static async ValueTask ReadTrailerAsync<TReader>(
         TReader reader,
@@ -208,16 +210,14 @@ internal static class SlimDataSnapshotSerializer
         CancellationToken token)
         where TReader : notnull, IAsyncBinaryReader
     {
-        uint magic;
-        try
-        {
-            magic = await reader.ReadLittleEndianAsync<uint>(token).ConfigureAwait(false);
-        }
-        catch (EndOfStreamException)
-        {
-            return;
-        }
+        Memory<byte> magicBytes = new byte[sizeof(uint)];
+        if (!await TryReadAsync(reader, magicBytes[..1], token).ConfigureAwait(false))
+            return; // Legacy snapshot: the stream ends right after the body.
 
+        // The first trailer byte is present, so the rest of the header is mandatory:
+        // a truncation here propagates as EndOfStreamException like any other truncation.
+        await reader.ReadAsync(magicBytes[1..], token).ConfigureAwait(false);
+        var magic = BinaryPrimitives.ReadUInt32LittleEndian(magicBytes.Span);
         if (magic != TrailerMagic)
             throw new InvalidDataException($"Unexpected data 0x{magic:X8} after the SlimData snapshot body.");
 
@@ -234,6 +234,31 @@ internal static class SlimDataSnapshotSerializer
 
         for (var i = 0; i < count; i++)
             tries[i].ReservedIp = await ReadStringAsync(reader, token).ConfigureAwait(false);
+
+        if (await TryReadAsync(reader, new byte[1], token).ConfigureAwait(false))
+            throw new InvalidDataException("Unexpected data after the SlimData snapshot trailer.");
+    }
+
+    /// <summary>
+    /// Fills <paramref name="destination"/> from the reader; <see langword="false"/> when
+    /// the stream is exhausted before the first requested byte (a truncation after the
+    /// first byte still throws <see cref="EndOfStreamException"/> on a full read).
+    /// </summary>
+    private static async ValueTask<bool> TryReadAsync<TReader>(
+        TReader reader,
+        Memory<byte> destination,
+        CancellationToken token)
+        where TReader : notnull, IAsyncBinaryReader
+    {
+        try
+        {
+            await reader.ReadAsync(destination, token).ConfigureAwait(false);
+            return true;
+        }
+        catch (EndOfStreamException)
+        {
+            return false;
+        }
     }
 
     private static async ValueTask<int> ReadCountAsync<TReader>(TReader reader, CancellationToken token)

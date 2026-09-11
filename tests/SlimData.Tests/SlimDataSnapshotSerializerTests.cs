@@ -86,6 +86,78 @@ public sealed class SlimDataSnapshotSerializerTests
         await Assert.ThrowsAsync<EndOfStreamException>(() => ReadAsync(bytes[..^3]).AsTask());
     }
 
+    /// <summary>
+    /// A stream that ends after 1 to 3 trailer bytes is a truncated new-format snapshot,
+    /// not a legacy one: accepting it would silently reset every reserved IP.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task Partial_trailer_header_is_rejected_instead_of_being_read_as_legacy(int trailerBytes)
+    {
+        var snapshot = CreateSnapshot();
+        var bodyLength = (await WriteLegacyAsync(snapshot)).Length;
+        var bytes = (await WriteAsync(snapshot))[..(bodyLength + trailerBytes)];
+
+        await Assert.ThrowsAsync<EndOfStreamException>(() => ReadAsync(bytes).AsTask());
+    }
+
+    [Fact]
+    public async Task Every_truncation_inside_the_trailer_is_rejected()
+    {
+        var snapshot = CreateSnapshot();
+        var bodyLength = (await WriteLegacyAsync(snapshot)).Length;
+        var full = await WriteAsync(snapshot);
+
+        for (var length = bodyLength + 1; length < full.Length; length++)
+        {
+            var error = await Record.ExceptionAsync(() => ReadAsync(full[..length]).AsTask());
+            Assert.True(
+                error is EndOfStreamException,
+                $"Truncation at {length} of {full.Length} bytes: {error?.GetType().Name ?? "accepted"}");
+        }
+    }
+
+    /// <summary>
+    /// Same boundary on the real 0.84.0 file: restored, given a reserved IP, written by the
+    /// current serializer, then truncated 1 to 3 bytes into the trailer. The rewritten body
+    /// has the same length as the file (dictionaries may enumerate in another order).
+    /// </summary>
+    [Fact]
+    public async Task Real_0_84_0_snapshot_rewritten_with_a_partial_trailer_is_rejected()
+    {
+        var fixture = Path.Combine(AppContext.BaseDirectory, "Snapshots", "v0.84.0-6-0.snapshot");
+        Assert.True(File.Exists(fixture), $"Missing fixture {fixture}");
+        var legacy = await File.ReadAllBytesAsync(fixture);
+
+        var restored = await ReadAsync(legacy);
+        var attempt = Assert.Single(restored.Queues["pinned-queue"][0].RetryQueueElements);
+        Assert.Equal(string.Empty, attempt.ReservedIp);
+        attempt.ReservedIp = "10.42.0.7";
+        var bodyLength = (await WriteLegacyAsync(restored)).Length;
+        Assert.Equal(legacy.Length, bodyLength);
+        var current = await WriteAsync(restored);
+        Assert.True(current.Length > bodyLength);
+
+        Assert.Equal("10.42.0.7", Assert.Single((await ReadAsync(current)).Queues["pinned-queue"][0].RetryQueueElements).ReservedIp);
+        Assert.Equal(string.Empty, Assert.Single((await ReadAsync(current[..bodyLength])).Queues["pinned-queue"][0].RetryQueueElements).ReservedIp);
+        for (var extra = 1; extra <= 3; extra++)
+        {
+            var truncated = current[..(bodyLength + extra)];
+            await Assert.ThrowsAsync<EndOfStreamException>(() => ReadAsync(truncated).AsTask());
+        }
+    }
+
+    [Fact]
+    public async Task Data_after_the_trailer_is_rejected()
+    {
+        var bytes = (await WriteAsync(CreateSnapshot())).Concat("JUNK"u8.ToArray()).ToArray();
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => ReadAsync(bytes).AsTask());
+        Assert.Contains("after the SlimData snapshot trailer", error.Message);
+    }
+
     [Fact]
     public async Task Trailer_with_unknown_magic_is_rejected()
     {

@@ -285,6 +285,8 @@ SlimData__SnapshotIntervalBytes=33554432
 
 The current byte window is exposed as `slimdata_wal_bytes_since_snapshot`. The one-hot gauge `slimdata_snapshot_last_trigger` reports the latest request cause with the `cause` label (`bytes`, `entries`, or `incompatible`).
 
+The snapshot layout, the reserved pod IPs it persists for in-flight asynchronous requests and the compatibility rules between releases are described in [How SlimFaas works](how-it-works.md#snapshot-layout-and-reserved-pod-ips).
+
 Raft membership changes are serialized and bounded by configurable timeouts. The announcement timeout must be greater than the membership change timeout:
 
 ```bash
