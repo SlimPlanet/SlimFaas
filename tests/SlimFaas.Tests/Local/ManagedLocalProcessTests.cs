@@ -117,7 +117,7 @@ public sealed class ManagedLocalProcessTests
 
         await process.StopAsync(null, TimeSpan.FromSeconds(5));
 
-        await WaitForAsync(() => !IsRunning(childPid));
+        await WaitForAsync(() => !IsRunning(childPid), ShutdownDeadline);
         Assert.True(process.HasExited);
     }
 
@@ -138,7 +138,7 @@ public sealed class ManagedLocalProcessTests
                 // Wait for a readable PID within the existing bounded startup deadline.
                 return false;
             }
-        });
+        }, StartupDeadline);
         return childPid;
     }
 
@@ -159,16 +159,26 @@ public sealed class ManagedLocalProcessTests
         }
     }
 
-    private static async Task WaitForAsync(Func<bool> condition)
+    // Spawning PowerShell on a shared Windows runner (with coverage instrumentation in the
+    // SonarCloud job) can take several seconds, so the startup deadline is generous. A
+    // passing run is not slower: the condition is polled every 100 ms (issue #359).
+    private static readonly TimeSpan StartupDeadline = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan ShutdownDeadline = TimeSpan.FromSeconds(30);
+
+    private static async Task WaitForAsync(Func<bool> condition, TimeSpan timeout)
     {
-        for (var attempt = 0; attempt < 100; attempt++)
+        long startedAt = Stopwatch.GetTimestamp();
+        while (true)
         {
             if (condition())
                 return;
+            if (Stopwatch.GetElapsedTime(startedAt) >= timeout)
+                break;
             await Task.Delay(100);
         }
 
-        throw new Xunit.Sdk.XunitException("Condition was not reached before the timeout.");
+        throw new Xunit.Sdk.XunitException(
+            $"Condition was not reached within {timeout.TotalSeconds:F0} s.");
     }
 
     private sealed class TemporaryDirectory : IDisposable, IAsyncDisposable
@@ -205,7 +215,7 @@ public sealed class ManagedLocalProcessTests
                 {
                     return false;
                 }
-            });
+            }, ShutdownDeadline);
         }
     }
 }
