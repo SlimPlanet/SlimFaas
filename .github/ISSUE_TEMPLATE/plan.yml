@@ -1,0 +1,37 @@
+name: Implementation plan
+description: Track a multi-phase change. One pull request per phase; tick phases as they merge. Used by humans, GitHub Copilot and Claude Code (see docs/sdlc/plan-issue.md).
+title: "plan: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why this change is needed and what outcome is expected. Link related issues.
+    validations:
+      required: true
+  - type: textarea
+    id: phases
+    attributes:
+      label: Phases
+      description: Each phase is one reviewable pull request. Keep this list current as PRs merge.
+      value: |
+        - [ ] Phase 0: baseline / preparation
+        - [ ] Phase 1: ...
+        - [ ] Phase 2: ...
+    validations:
+      required: true
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation and architecture pages impacted
+      description: List the docs/*.md pages and the architecture pages (docs/architecture/README.md map) each phase must update.
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification
+      description: Tests, benchmarks, local chain or manual checks that prove each phase works.
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
