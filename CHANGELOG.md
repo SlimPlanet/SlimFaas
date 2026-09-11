@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.84.5
+
+- [b10640f0](https://github.com/SlimPlanet/SlimFaas/commit/b10640f036963f33af3702740254e921173cda42) - fix(dashboard): order request and publication animations (#355) (release), 2026-09-11 by *Guillaume Chervet*
+- [9e1bf449](https://github.com/SlimPlanet/SlimFaas/commit/9e1bf44967d344ef2115ef09e046aee1147b42ba) - doc: Clarify AGENTS.md language requirement for short descriptions (#349), 2026-09-11 by *Copilot*
+
+
+## 0.84.4
+
+
+
 ## v0.84.4
 
 - [608bb6ca](https://github.com/SlimPlanet/SlimFaas/commit/608bb6ca995b6f54085831ff21d0283a5b02d62c) - fix: recover job dispatch after stalled SlimData operations (#353) (release), 2026-09-11 by *Guillaume Chervet*
@@ -264,15 +274,5 @@
 ## v0.74.8
 
 - [4d836f83](https://github.com/SlimPlanet/SlimFaas/commit/4d836f83c4e3c7df865cb2869c10a85108a6ed43) - fix: memory leak (release) (#300), 2026-07-25 by *Guillaume Chervet*
-
-
-## 0.74.7
-
-
-
-## v0.74.7
-
-- [e9201134](https://github.com/SlimPlanet/SlimFaas/commit/e9201134dc1021726a907d9e887826eb30908c6a) - fix: files ram decrease (#299) (release), 2026-07-24 by *Guillaume Chervet*
-- [0c2aaead](https://github.com/SlimPlanet/SlimFaas/commit/0c2aaeadd288ff07896edd2ba80889a3c95b4677) - fix: metrics limit used ram (#298), 2026-07-23 by *Guillaume Chervet*
 
 
