@@ -185,8 +185,7 @@ public partial class KubernetesService
                 }
             }
 
-            _logger.LogDebug("JobConfiguration: ");
-            _logger.LogDebug(jobs[name].ToString());
+            _logger.LogDebug("JobConfiguration: {JobConfiguration}", jobs[name]);
         }
 
         if (jobs.Count != 0)

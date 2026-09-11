@@ -48,15 +48,15 @@ internal sealed class AdvancedDebugProvider : Disposable, ILoggerProvider
         public bool IsEnabled(LogLevel logLevel) => Debugger.IsAttached && logLevel is not LogLevel.None;
 
         /// <inheritdoc />
-        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception,
-            Func<TState, Exception, string> formatter)
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter)
         {
             if (!IsEnabled(logLevel))
             {
                 return;
             }
 
-            string message = formatter?.Invoke(state, exception);
+            string? message = formatter?.Invoke(state, exception);
 
             if (string.IsNullOrEmpty(message))
             {
@@ -109,7 +109,7 @@ internal class LeaderChangedEvent : TaskCompletionSource<IClusterMember>
     {
     }
 
-    internal void OnLeaderChanged(ICluster sender, IClusterMember leader)
+    internal void OnLeaderChanged(ICluster sender, IClusterMember? leader)
     {
         if (leader is not null)
         {
@@ -133,8 +133,8 @@ public class RaftClusterTests
     private protected static readonly TimeSpan BusyMembershipCatchUpTimeout = TimeSpan.FromSeconds(60);
 
     private static IHost CreateHost<TStartup>(int port, IDictionary<string, string> configuration,
-        IClusterMemberLifetime configurator = null,
-        Func<TimeSpan, IRaftClusterMember, IFailureDetector> failureDetectorFactory = null)
+        IClusterMemberLifetime? configurator = null,
+        Func<TimeSpan, IRaftClusterMember, IFailureDetector>? failureDetectorFactory = null)
         where TStartup : class =>
         new HostBuilder()
             .ConfigureWebHost(webHost => webHost.UseKestrel(options => options.ListenLocalhost(port))
@@ -158,7 +158,7 @@ public class RaftClusterTests
                 .UseStartup<TStartup>()
             )
             .ConfigureHostOptions(static options => options.ShutdownTimeout = DefaultTimeout)
-            .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(configuration))
+            .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(configuration.ToDictionary(kv => kv.Key, kv => (string?)kv.Value)))
             .ConfigureLogging(builder => builder.AddDebugLogger(port.ToString()).SetMinimumLevel(LogLevel.Debug))
             .JoinCluster()
             .Build();
@@ -486,6 +486,7 @@ public class RaftClusterTests
        Assert.Single(listLength);
 
         IList<QueueData>? listRightPop = await databaseServiceSlave.ListRightPopAsync("listKey1", Guid.NewGuid().ToString());
+        Assert.NotNull(listRightPop);
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(listRightPop.First().Data));
 
         ListQueueItemStatus queueItemStatus = new()

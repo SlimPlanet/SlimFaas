@@ -103,8 +103,10 @@ public sealed class LocalNodeManager : IAsyncDisposable
                         restart = node.Process is null && DateTimeOffset.UtcNow >= node.NextStart;
                     }
 
+#pragma warning disable CA1508 // assigned inside the lock above; the analyzer does not track it
                     if (exitedProcess is not null)
                         await exitedProcess.DisposeAsync();
+#pragma warning restore CA1508
                     if (restart)
                         StartNode(node);
                     await ProbeAsync(node, cancellationToken);

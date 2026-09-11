@@ -25,7 +25,7 @@ public static class McpContentBuilder
 
             if (mimeLow.StartsWith("image/"))
             {
-                contentArr.Add(new JsonObject {
+                contentArr.Add((JsonNode)new JsonObject {
                     ["type"]     = "image",
                     ["mimeType"] = mime,
                     ["data"]     = base64
@@ -33,7 +33,7 @@ public static class McpContentBuilder
             }
             else if (mimeLow.StartsWith("audio/"))
             {
-                contentArr.Add(new JsonObject {
+                contentArr.Add((JsonNode)new JsonObject {
                     ["type"]     = "audio",
                     ["mimeType"] = mime,
                     ["data"]     = base64
@@ -43,7 +43,7 @@ public static class McpContentBuilder
             {
                 var uri  = $"slimfaas://tool-result/{Guid.NewGuid():N}";
                 var name = string.IsNullOrWhiteSpace(r.FileName) ? "download" : r.FileName!;
-                contentArr.Add(new JsonObject {
+                contentArr.Add((JsonNode)new JsonObject {
                     ["type"] = "resource",
                     ["resource"] = new JsonObject {
                         ["uri"]      = uri,
@@ -57,7 +57,7 @@ public static class McpContentBuilder
         }
         else
         {
-            contentArr.Add(new JsonObject {
+            contentArr.Add((JsonNode)new JsonObject {
                 ["type"] = "text",
                 ["text"] = r.Text ?? ""
             });

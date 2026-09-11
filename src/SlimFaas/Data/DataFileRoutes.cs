@@ -121,11 +121,8 @@ public static class DataFileRoutes
             }
 
             Stream contentStream = context.Request.Body;
-            string? actualContentType = null;
-            string? actualFileName = null;
-
-            var finalContentType = actualContentType ?? contentType ?? "application/octet-stream" ;
-            var finalFileName = actualFileName ?? fileName ?? elementId;
+            var finalContentType = contentType;
+            var finalFileName = fileName ?? elementId;
 
             // Persiste localement + calcule sha/len + announce-only cluster
             var put = await fileSync.BroadcastFilePutAsync(

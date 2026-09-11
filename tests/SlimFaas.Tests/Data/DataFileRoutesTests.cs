@@ -231,6 +231,7 @@ public sealed class DataFileRoutesTests
         Assert.Equal(ttlMs, storedTtl);
 
         var meta = MemoryPackSerializer.Deserialize<DataSetMetadata>(storedMetaBytes!);
+        Assert.NotNull(meta);
         Assert.Equal("sha1", meta.Sha256Hex);
         Assert.Equal(payload.Length, meta.Length);
         Assert.Equal("application/octet-stream", meta.ContentType);

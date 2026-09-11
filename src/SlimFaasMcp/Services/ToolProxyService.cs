@@ -71,11 +71,11 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         {
             Name = e.Name,
             Description = e.Summary,
-            InputSchema = McpTool.GenerateInputSchema(e.Parameters),
+            InputSchema = McpTool.GenerateInputSchema(e.Parameters ?? []),
             OutputSchema = e.ResponseSchema ?? new JsonObject(),
             Endpoint = new McpTool.EndpointInfo
             {
-                Url = CombineBaseUrl(baseUrl, e.Url),
+                Url = CombineBaseUrl(baseUrl, e.Url ?? ""),
                 Method = e.Verb,
                 ContentType = string.IsNullOrWhiteSpace(e.ContentType) ? GetContentType(e) : e.ContentType
             }
@@ -86,7 +86,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         {
             if (mcpPrompt.ActiveTools != null && mcpPrompt.ActiveTools.Count > 0)
             {
-                tools = tools.Where(t => mcpPrompt.ActiveTools.Contains(t.Name)).ToList();
+                tools = tools.Where(t => t.Name is not null && mcpPrompt.ActiveTools.Contains(t.Name)).ToList();
             }
 
             if (mcpPrompt.Tools != null)
@@ -94,7 +94,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                 foreach (McpPrompt.McpToolOverride ov in mcpPrompt.Tools)
                 {
                     McpTool? tool = tools.FirstOrDefault(t => t.Name == ov.Name);
-                    JsonNode inputSchema = ov.InputSchema;
+                    JsonNode? inputSchema = ov.InputSchema;
 
                     if (tool != null)
                     {
@@ -163,9 +163,11 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             input.GetRawText(),
             AppJsonContext.Default.DictionaryStringJsonElement)!;
 
+        List<Parameter> parameters = endpoint.Parameters ?? [];
+
         // Path
         string? callUrl = endpoint.Url;
-        foreach (Parameter parameter in endpoint.Parameters.Where(p => p.In == "path"))
+        foreach (Parameter parameter in parameters.Where(p => p.In == "path"))
         {
             callUrl = callUrl?.Replace($"{{{parameter.Name}}}",
                 parameter.Name != null && inputDict.TryGetValue(parameter.Name, out JsonElement v) ? v.ToString() : "");
@@ -179,10 +181,13 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         string fullUrl = baseUrl + callUrl;
 
         // Query
-        IEnumerable<string> queryParams = endpoint.Parameters
+        IEnumerable<string> queryParams = parameters
             .Where(p => p is { In: "query", Name: not null } && inputDict.ContainsKey(p.Name))
             .Select(p =>
-                $"{p.Name}={Uri.EscapeDataString(inputDict[p.Name].ValueKind == JsonValueKind.String ? inputDict[p.Name].GetString()! : inputDict[p.Name].GetRawText())}");
+            {
+                JsonElement value = inputDict[p.Name!];
+                return $"{p.Name}={Uri.EscapeDataString(value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText())}";
+            });
         if (queryParams.Any())
         {
             fullUrl += "?" + string.Join('&', queryParams);
@@ -190,9 +195,9 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
 
         // Décision de type de corps
         string? declaredContentType = endpoint.ContentType;
-        bool hasFormParams = endpoint.Parameters.Any(p =>
+        bool hasFormParams = parameters.Any(p =>
             string.Equals(p.In, "formData", StringComparison.OrdinalIgnoreCase));
-        bool hasBinaryBody = endpoint.Parameters.Any(p =>
+        bool hasBinaryBody = parameters.Any(p =>
             string.Equals(p.In, "body", StringComparison.OrdinalIgnoreCase) &&
             string.Equals(p.Format, "binary", StringComparison.OrdinalIgnoreCase));
 
@@ -237,7 +242,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         if (treatAsMultipart)
         {
             MultipartFormDataContent mp = new();
-            foreach (Parameter p in endpoint.Parameters.Where(x =>
+            foreach (Parameter p in parameters.Where(x =>
                          string.Equals(x.In, "formData", StringComparison.OrdinalIgnoreCase)))
             {
                 if (string.IsNullOrEmpty(p.Name))
@@ -298,7 +303,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             }
             string multipartSummary =
                 "multipart/form-data; fields=[" +
-                string.Join(", ", endpoint.Parameters
+                string.Join(", ", parameters
                     .Where(x => string.Equals(x.In, "formData", StringComparison.OrdinalIgnoreCase))
                     .Select(x => x.Name)
                     .Where(n => !string.IsNullOrEmpty(n))) +
@@ -353,7 +358,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         {
             // JSON
             StringContent? body = null;
-            if (endpoint.Parameters.Any(p => p.In == "body"))
+            if (parameters.Any(p => p.In == "body"))
             {
                 string payload = inputDict.Count == 1 && inputDict.ContainsKey("body")
                     ? inputDict["body"].GetRawText()

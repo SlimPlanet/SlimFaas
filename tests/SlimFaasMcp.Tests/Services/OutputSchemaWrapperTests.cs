@@ -91,6 +91,7 @@ public class OutputSchemaWrapperTests
         var wrapped = OutputSchemaWrapper.WrapForStructuredContent(original);
 
         // Assert (comparaison structurelle via sérialisation)
+        Assert.NotNull(wrapped);
         Assert.Equal(original.ToJsonString(), wrapped.ToJsonString());
     }
 

@@ -402,7 +402,7 @@ public sealed class LocalFunctionManagerTests
         public async ValueTask DisposeAsync()
         {
             await _stopping.CancelAsync();
-            _listener.Stop();
+            _listener.Dispose();
             if (_loop is not null)
                 await _loop;
             _stopping.Dispose();

@@ -302,6 +302,7 @@ public sealed class KubernetesWatcherWorkerTests
             }
 
             _client.Dispose();
+            _handler.Dispose();
             _cts.Dispose();
         }
     }
@@ -317,6 +318,16 @@ public sealed class KubernetesWatcherWorkerTests
         public List<string> Requests { get; } = new();
 
         public void WriteLine(string line) => _currentContent?.WriteLine(line);
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                _currentContent?.Dispose();
+            }
+
+            base.Dispose(disposing);
+        }
 
         public void CompleteCurrentStream() => _currentContent?.Complete();
 
