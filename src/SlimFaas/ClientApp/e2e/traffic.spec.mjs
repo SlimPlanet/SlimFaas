@@ -224,6 +224,16 @@ for (const callback of [false, true]) test.describe(callback ? 'async callback' 
         await expect.poll(() => page.evaluate(() => window.__traffic.events.filter(e => e.Type === 'request_end' && e.QueueName && e.Target === 'slimfaas').length)).toBe(1);
         await expect.poll(() => page.evaluate(() => window.__traffic.frames.some(f => f.markers.some(m => m.outlined)))).toBe(true);
         if (index === 0) await page.screenshot({ path: info.outputPath('async-queue-return.png'), fullPage: true });
+        // The activity label is throttled and can still display its previous
+        // idle value just after a deferred callback starts animating. Wait for
+        // the actual reply to reach the queue before accepting that label.
+        await expect.poll(async () => {
+          const observation = await page.evaluate(() => window.__traffic);
+          const dispatch = observation.events.find(e => e.Type === 'dequeue');
+          const { pod, queue } = geometry(observation.state, dispatch, observation.events);
+          return observation.frames.some(frame => frame.markers.some(marker =>
+            marker.outlined && (onSegment(marker, pod, queue) ?? -1) > 0.85));
+        }).toBe(true);
         await expect(page.locator('.traffic-canvas__activity')).toContainText('0 events / 0 markers');
         const { events, frames, state } = await capture(page, info, `async-${index}`);
         const dispatches = events.filter(e => e.Type === 'dequeue'); expect(dispatches).toHaveLength(1);
