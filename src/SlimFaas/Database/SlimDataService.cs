@@ -434,9 +434,12 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             Content = new ByteArrayContent(payload)
         };
         HttpClient httpClient = _batchHttpClient ??= _httpClientFactory.CreateClient(HttpClientName);
+        // The body is consumed in full below. Keep HttpClient.Timeout active until
+        // it has arrived; ResponseHeadersRead leaves body reads without a deadline
+        // and can permanently block this producer's ordered mutation queue.
         using var response = await httpClient.SendAsync(
                 request,
-                HttpCompletionOption.ResponseHeadersRead,
+                HttpCompletionOption.ResponseContentRead,
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -651,8 +654,18 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         var committedIndex = _cluster.AuditTrail.LastCommittedEntryIndex;
         if (committedIndex > 0L)
         {
-            await _cluster.AuditTrail.WaitForApplyAsync(committedIndex, cancellationToken)
-                .ConfigureAwait(false);
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(ReadBarrierTimeout);
+            try
+            {
+                await _cluster.AuditTrail.WaitForApplyAsync(committedIndex, timeout.Token)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new SlimDataUnavailableException(
+                    "Raft local log application timed out while reading SlimData.", ex);
+            }
         }
     }
 
