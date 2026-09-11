@@ -108,14 +108,21 @@ public sealed class MultiRateAdaptiveBatcherTests
         Assert.Equal(0, drained.Bytes);
     }
 
+    /// <summary>
+    /// Runs on the manual clock: the first batch only flushes once the fake time crosses the
+    /// coalescence window, and after the provider drops both delays the next item must
+    /// complete without the clock moving at all. A wall-clock threshold measured the CI
+    /// runner instead of the batcher (issue #356).
+    /// </summary>
     [Fact]
     public async Task Dynamic_timing_provider_can_remove_local_delay_and_coalescence()
     {
+        var time = new ManualTimeProvider();
         var timing = new AdaptiveBatchTiming(
             TimeSpan.FromMilliseconds(100),
             TimeSpan.FromMilliseconds(100));
         var batchSizes = new List<int>();
-        await using var batcher = new MultiRateAdaptiveBatcher();
+        await using var batcher = new MultiRateAdaptiveBatcher(timeProvider: time);
         batcher.RegisterKind<int, int>(
             "dynamic",
             (requests, _) =>
@@ -131,22 +138,24 @@ public sealed class MultiRateAdaptiveBatcherTests
 
         var first = batcher.EnqueueAsync<int, int>("dynamic", 1);
         var second = batcher.EnqueueAsync<int, int>("dynamic", 2);
+        await time.WaitForTimerAsync(TimeSpan.FromMilliseconds(100));
+        time.Advance(TimeSpan.FromMilliseconds(99));
+        Assert.False(first.IsCompleted);
+        Assert.False(second.IsCompleted);
+
+        time.Advance(TimeSpan.FromMilliseconds(1));
         var firstBatchResults = await Task
             .WhenAll(first, second)
             .WaitAsync(TimeSpan.FromSeconds(5));
         Assert.Equal(new[] { 1, 2 }, firstBatchResults);
         Assert.Equal(2, Assert.Single(batchSizes));
 
+        // Zero delay and zero coalescence: the item must flush without the clock advancing.
         timing = new AdaptiveBatchTiming(TimeSpan.Zero, TimeSpan.Zero);
-        var startedAt = System.Diagnostics.Stopwatch.GetTimestamp();
         Assert.Equal(3, await batcher
             .EnqueueAsync<int, int>("dynamic", 3)
             .WaitAsync(TimeSpan.FromSeconds(5)));
-        var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(startedAt);
-
-        Assert.True(
-            elapsed < TimeSpan.FromMilliseconds(75),
-            $"Expected the fast path below 75 ms, measured {elapsed.TotalMilliseconds:F1} ms.");
+        Assert.Equal(new[] { 2, 1 }, batchSizes);
     }
 
     [Fact]
