@@ -1,0 +1,200 @@
+# TEMPORARY suppression list for the analyzer rollout (https://github.com/SlimPlanet/SlimFaas/issues/358).
+#
+# Every rule listed here still has occurrences in the code base as of 2026-09-11 (count in the comment).
+# The build is green only because of this file. Each remediation PR fixes the occurrences of one or
+# more rules and DELETES the corresponding lines. Never add a rule here: new code must be clean.
+# The file is removed entirely at the end of the rollout.
+is_global = true
+global_level = 90
+
+# --- ASP.NET Core ---
+# 1
+dotnet_diagnostic.ASP0013.severity = none
+# 1
+dotnet_diagnostic.ASP0019.severity = none
+# 4
+dotnet_diagnostic.ASPDEPR002.severity = none
+
+# --- Trimming / AOT ---
+# 5
+dotnet_diagnostic.IL2026.severity = none
+# 5
+dotnet_diagnostic.IL3050.severity = none
+
+# --- Compiler ---
+# 1 (duplicate using)
+dotnet_diagnostic.CS0105.severity = none
+# 1 (unused variable)
+dotnet_diagnostic.CS0168.severity = none
+# 1 (field never assigned)
+dotnet_diagnostic.CS0649.severity = none
+# 4
+dotnet_diagnostic.CS8600.severity = none
+# 1
+dotnet_diagnostic.CS8601.severity = none
+# 22
+dotnet_diagnostic.CS8602.severity = none
+# 14
+dotnet_diagnostic.CS8604.severity = none
+# 1
+dotnet_diagnostic.CS8620.severity = none
+# 2
+dotnet_diagnostic.CS8622.severity = none
+# 2
+dotnet_diagnostic.CS8625.severity = none
+# 1
+dotnet_diagnostic.CS8767.severity = none
+
+# --- Security ---
+# 2 (ServerCertificateValidationCallback accepts any certificate)
+dotnet_diagnostic.CA5359.severity = none
+# 1 (P/Invoke without DefaultDllImportSearchPaths)
+dotnet_diagnostic.CA5392.severity = none
+# 6
+dotnet_diagnostic.CA5394.severity = none
+
+# --- Reliability / usage (CA2xxx) ---
+# 20
+dotnet_diagnostic.CA2000.severity = none
+# 43 (SlimFaasClient only, the rule is off for applications)
+dotnet_diagnostic.CA2007.severity = none
+# 10
+dotnet_diagnostic.CA2012.severity = none
+# 2
+dotnet_diagnostic.CA2016.severity = none
+# 2
+dotnet_diagnostic.CA2022.severity = none
+# 18
+dotnet_diagnostic.CA2025.severity = none
+# 8
+dotnet_diagnostic.CA2201.severity = none
+# 7
+dotnet_diagnostic.CA2213.severity = none
+# 1
+dotnet_diagnostic.CA2215.severity = none
+# 16
+dotnet_diagnostic.CA2234.severity = none
+# 1
+dotnet_diagnostic.CA2249.severity = none
+# 1
+dotnet_diagnostic.CA2254.severity = none
+
+# --- Logging (dedicated phase) ---
+# 371
+dotnet_diagnostic.CA1848.severity = none
+# 166
+dotnet_diagnostic.CA1873.severity = none
+
+# --- Design (CA10xx) ---
+# 11
+dotnet_diagnostic.CA1001.severity = none
+# 2
+dotnet_diagnostic.CA1008.severity = none
+# 2
+dotnet_diagnostic.CA1027.severity = none
+# 3
+dotnet_diagnostic.CA1028.severity = none
+# 1
+dotnet_diagnostic.CA1030.severity = none
+# 19
+dotnet_diagnostic.CA1032.severity = none
+# 1
+dotnet_diagnostic.CA1033.severity = none
+# 11
+dotnet_diagnostic.CA1034.severity = none
+# 11
+dotnet_diagnostic.CA1050.severity = none
+# 7
+dotnet_diagnostic.CA1052.severity = none
+# 6
+dotnet_diagnostic.CA1063.severity = none
+# 7
+dotnet_diagnostic.CA1068.severity = none
+
+# --- Globalization (CA13xx) ---
+# 2
+dotnet_diagnostic.CA1304.severity = none
+# 44
+dotnet_diagnostic.CA1305.severity = none
+# 46
+dotnet_diagnostic.CA1307.severity = none
+# 27
+dotnet_diagnostic.CA1308.severity = none
+# 21
+dotnet_diagnostic.CA1310.severity = none
+# 2
+dotnet_diagnostic.CA1311.severity = none
+
+# --- Maintainability (CA15xx) ---
+# 7
+dotnet_diagnostic.CA1508.severity = none
+# 1
+dotnet_diagnostic.CA1510.severity = none
+# 6
+dotnet_diagnostic.CA1512.severity = none
+# 1
+dotnet_diagnostic.CA1513.severity = none
+
+# --- Naming (CA17xx) ---
+# 16
+dotnet_diagnostic.CA1707.severity = none
+# 1
+dotnet_diagnostic.CA1710.severity = none
+# 13
+dotnet_diagnostic.CA1711.severity = none
+# 4
+dotnet_diagnostic.CA1716.severity = none
+# 4
+dotnet_diagnostic.CA1724.severity = none
+# 10
+dotnet_diagnostic.CA1725.severity = none
+# 1
+dotnet_diagnostic.CA1727.severity = none
+
+# --- Performance (CA18xx) ---
+# 1
+dotnet_diagnostic.CA1802.severity = none
+# 8
+dotnet_diagnostic.CA1805.severity = none
+# 2
+dotnet_diagnostic.CA1806.severity = none
+# 2
+dotnet_diagnostic.CA1812.severity = none
+# 28
+dotnet_diagnostic.CA1815.severity = none
+# 3
+dotnet_diagnostic.CA1816.severity = none
+# 4
+dotnet_diagnostic.CA1820.severity = none
+# 9
+dotnet_diagnostic.CA1822.severity = none
+# 19
+dotnet_diagnostic.CA1823.severity = none
+# 11
+dotnet_diagnostic.CA1835.severity = none
+# 3
+dotnet_diagnostic.CA1847.severity = none
+# 48
+dotnet_diagnostic.CA1849.severity = none
+# 1
+dotnet_diagnostic.CA1850.severity = none
+# 5
+dotnet_diagnostic.CA1852.severity = none
+# 5
+dotnet_diagnostic.CA1854.severity = none
+# 33
+dotnet_diagnostic.CA1859.severity = none
+# 2
+dotnet_diagnostic.CA1860.severity = none
+# 11
+dotnet_diagnostic.CA1861.severity = none
+# 3
+dotnet_diagnostic.CA1862.severity = none
+# 4
+dotnet_diagnostic.CA1865.severity = none
+# 3
+dotnet_diagnostic.CA1866.severity = none
+# 4
+dotnet_diagnostic.CA1867.severity = none
+# 1
+dotnet_diagnostic.CA1869.severity = none
