@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.4
+
+- [608bb6ca](https://github.com/SlimPlanet/SlimFaas/commit/608bb6ca995b6f54085831ff21d0283a5b02d62c) - fix: recover job dispatch after stalled SlimData operations (#353) (release), 2026-09-11 by *Guillaume Chervet*
+
+
+## 0.84.3
+
+
+
 ## v0.84.3
 
 - [96914ddf](https://github.com/SlimPlanet/SlimFaas/commit/96914ddf5bba855a70eda9a14e9a89ba52f9d1df) - fix: resume CPU rate limiting after idle recovery (#345) (release), 2026-09-10 by *Guillaume Chervet*
@@ -265,14 +274,5 @@
 
 - [e9201134](https://github.com/SlimPlanet/SlimFaas/commit/e9201134dc1021726a907d9e887826eb30908c6a) - fix: files ram decrease (#299) (release), 2026-07-24 by *Guillaume Chervet*
 - [0c2aaead](https://github.com/SlimPlanet/SlimFaas/commit/0c2aaeadd288ff07896edd2ba80889a3c95b4677) - fix: metrics limit used ram (#298), 2026-07-23 by *Guillaume Chervet*
-
-
-## 0.74.6
-
-
-
-## v0.74.6
-
-- [7679e085](https://github.com/SlimPlanet/SlimFaas/commit/7679e085cc89a3765f2a9f7b87bb50e5d57a655a) - fix: metrics regex timeout (#297) (release), 2026-07-23 by *Guillaume Chervet*
 
 
