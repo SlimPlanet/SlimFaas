@@ -10,7 +10,7 @@ public class SchemaHelpersTests
     // ---------- Helpers ----------
     private static JsonObject AsObj(JsonNode? n) => Assert.IsType<JsonObject>(n);
     private static JsonArray AsArr(JsonNode? n) => Assert.IsType<JsonArray>(n);
-    private static JsonValue AsVal(JsonNode? n) => Assert.IsType<JsonValue>(n);
+    private static JsonValue AsVal(JsonNode? n) => Assert.IsType<JsonValue>(n, exactMatch: false);
 
     private static JsonObject Obj(params (string k, object? v)[] kvs)
     {

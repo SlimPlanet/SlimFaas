@@ -33,7 +33,7 @@ public class ScheduleJobBackupDataTests
         Assert.NotNull(deserialized);
         Assert.Equal(2, deserialized!.Hashsets.Count);
         Assert.Equal(2, deserialized.Hashsets["ScheduleJob:fibonacci"].Count);
-        Assert.Equal(1, deserialized.Hashsets["ScheduleJob:default"].Count);
+        Assert.Single(deserialized.Hashsets["ScheduleJob:default"]);
         Assert.Equal(
             Convert.ToBase64String(new byte[] { 1, 2, 3 }),
             deserialized.Hashsets["ScheduleJob:fibonacci"]["id-1"]);

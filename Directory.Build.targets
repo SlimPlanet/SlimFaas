@@ -1,0 +1,33 @@
+<Project>
+
+  <!--
+    Evaluated after each csproj, so properties defined by the project (PublishAot, IsTestProject, ...)
+    are available here.
+  -->
+
+  <!-- Trimming / AOT analyzers run at build time (not only at publish) for every AOT project. -->
+  <PropertyGroup Condition="'$(PublishAot)' == 'true' Or '$(PublishTrimmed)' == 'true'">
+    <IsAotCompatible>true</IsAotCompatible>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnableAotAnalyzer>true</EnableAotAnalyzer>
+    <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
+    <!--
+      IL2104 / IL3053 are the per-assembly summaries ILLink and ILC emit for third-party assemblies that
+      produce trim/AOT warnings (MemoryPack.Core, System.Configuration.ConfigurationManager, ...). They cannot
+      be fixed here; our own code is checked by the analyzers above, whose IL2xxx/IL3xxx diagnostics stay errors.
+    -->
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);IL2104;IL3053</WarningsNotAsErrors>
+  </PropertyGroup>
+
+  <!--
+    Analyzer profiles. They are added to EditorConfigFiles directly: GlobalAnalyzerConfigFiles is turned
+    into EditorConfigFiles statically by Microsoft.Managed.Core.targets, which is imported before this file.
+  -->
+  <ItemGroup>
+    <!-- Temporary: rules still being remediated (see the file header and issue #358). -->
+    <EditorConfigFiles Include="$(MSBuildThisFileDirectory)eng\remediation.globalconfig" />
+    <!-- Test projects get a relaxed profile (naming, culture, disposables, ...). -->
+    <EditorConfigFiles Include="$(MSBuildThisFileDirectory)eng\tests.globalconfig" Condition="'$(IsTestProject)' == 'true'" />
+  </ItemGroup>
+
+</Project>

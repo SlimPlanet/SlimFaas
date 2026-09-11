@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <RootNamespace>SlimFaas.Tests</RootNamespace>
     <EnableStaticNativeInstrumentation>False</EnableStaticNativeInstrumentation>

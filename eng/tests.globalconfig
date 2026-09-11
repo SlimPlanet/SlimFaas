@@ -1,0 +1,28 @@
+# Analyzer profile applied to every test project (attached by Directory.Build.targets when IsTestProject=true).
+# Rules that add nothing to test code are switched off here so they do not have to be suppressed test by test.
+is_global = true
+global_level = 100
+
+# Test method names use underscores (Given_When_Then style).
+dotnet_diagnostic.CA1707.severity = none
+# Test fixtures are instantiated by the runner via reflection.
+dotnet_diagnostic.CA1812.severity = none
+# Inline constant arrays and literal strings in test data are fine.
+dotnet_diagnostic.CA1861.severity = none
+# Tests build URIs from strings and hit fixed loopback addresses.
+dotnet_diagnostic.CA2234.severity = none
+# Random data in tests does not need a cryptographic generator.
+dotnet_diagnostic.CA5394.severity = none
+# Fakes, handlers and clients created inline are owned by the test host or the test lifetime.
+dotnet_diagnostic.CA2000.severity = none
+# Culture-sensitive string APIs on literal test data.
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1310.severity = none
+# Test types: top-level types without namespace, nested fakes, static-only helpers.
+dotnet_diagnostic.CA1050.severity = none
+dotnet_diagnostic.CA1034.severity = none
+dotnet_diagnostic.CA1822.severity = none
+# Micro-optimisations are irrelevant in tests.
+dotnet_diagnostic.CA1859.severity = none
+dotnet_diagnostic.CA1852.severity = none
