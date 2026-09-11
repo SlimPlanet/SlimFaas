@@ -33,7 +33,7 @@ public class SyncFunctionEndpointTests
         responseMessage.StatusCode = HttpStatusCode.OK;
         Mock<ISendClient> sendClientMock = new Mock<ISendClient>();
         sendClientMock.Setup(s => s.SendHttpRequestAsync(It.IsAny<CustomRequest>(),
-                It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>()))
+                It.IsAny<SlimFaasDefaultConfiguration>(), It.IsAny<string?>(), It.IsAny<CancellationTokenSource?>(), It.IsAny<Proxy?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), It.IsAny<string?>()))
             .ReturnsAsync(responseMessage);
 
         Mock<IJobService> jobServiceMock = new();
@@ -88,7 +88,7 @@ public class SyncFunctionEndpointTests
         var sender = new Mock<ISendClient>();
         sender.Setup(s => s.SendHttpRequestSync(It.IsAny<Microsoft.AspNetCore.Http.HttpContext>(),
             "fibonacci", "compute", "", It.IsAny<SlimFaasSyncConfiguration>(), null,
-            It.IsAny<IProxy>(), NetworkActivityTracker.Actors.SlimFaas, jobRunName))
+            It.IsAny<IProxy>(), NetworkActivityTracker.Actors.SlimFaas, jobRunName, activityCorrelationId: It.IsAny<string?>()))
             .ReturnsAsync(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("ok") });
         var jobServiceMock = new Mock<IJobService>();
         jobServiceMock.SetupGet(service => service.Jobs).Returns(
@@ -147,9 +147,9 @@ public class SyncFunctionEndpointTests
             "http://localhost:5000/function/fibonacci/compute");
         if (localGateway)
         {
-            request.Headers.TryAddWithoutValidation(LocalJobGateway.JobHeaderName, jobRunName);
-            request.Headers.TryAddWithoutValidation(LocalJobGateway.SignatureHeaderName,
-                LocalJobGateway.CreateSignature(jobRunName, "test-token"));
+            request.Headers.TryAddWithoutValidation(LocalWorkloadGateway.JobHeaderName, jobRunName);
+            request.Headers.TryAddWithoutValidation(LocalWorkloadGateway.SignatureHeaderName,
+                LocalWorkloadGateway.CreateSignature(jobRunName, "test-token"));
         }
         else request.Headers.TryAddWithoutValidation("X-Forwarded-For", "10.42.0.17");
 
@@ -157,6 +157,7 @@ public class SyncFunctionEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         sender.VerifyAll();
+        Assert.Equal(tracker.GetRecent()[0].Id, sender.Invocations.Single().Arguments[9]);
         var events = tracker.GetRecent();
         Assert.Equal(2, events.Count);
         Assert.Equal(NetworkActivityTracker.EventTypes.RequestIn, events[0].Type);

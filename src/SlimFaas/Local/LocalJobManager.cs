@@ -80,7 +80,7 @@ public sealed class LocalJobManager : IAsyncDisposable
             return;
 
         ManagedLocalProcess? process;
-        LocalJobGateway? gateway;
+        LocalWorkloadGateway? gateway;
         lock (runtime.Gate)
         {
             process = runtime.Process;
@@ -105,7 +105,7 @@ public sealed class LocalJobManager : IAsyncDisposable
             if (runtime.Process is not null || runtime.Completed)
                 return;
 
-            runtime.Gateway ??= new LocalJobGateway(
+            runtime.Gateway ??= new LocalWorkloadGateway(
                 _loaded.Manifest.Cluster.EntrypointPort,
                 runtime.Command.JobFullName,
                 _token);
@@ -170,7 +170,7 @@ public sealed class LocalJobManager : IAsyncDisposable
                 foreach (JobRuntime runtime in _jobs.Values)
                 {
                     ManagedLocalProcess? completedProcess = null;
-                    LocalJobGateway? gatewayToDispose = null;
+                    LocalWorkloadGateway? gatewayToDispose = null;
                     bool restart = false;
                     bool remove = false;
                     lock (runtime.Gate)
@@ -331,7 +331,7 @@ public sealed class LocalJobManager : IAsyncDisposable
         public ProcessCreateJobCommand Command { get; } = command;
         public LocalJobManifest Manifest { get; } = manifest;
         public ManagedLocalProcess? Process { get; set; }
-        public LocalJobGateway? Gateway { get; set; }
+        public LocalWorkloadGateway? Gateway { get; set; }
         public JobStatus Status { get; set; } = JobStatus.Pending;
         public int Attempts { get; set; } = 1;
         public long StartTimestamp { get; set; }

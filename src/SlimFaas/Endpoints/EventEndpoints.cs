@@ -68,14 +68,14 @@ public static class EventEndpoints
         logger.LogDebug("Receiving event: {EventName}", eventName);
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
         var caller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService,
-            context.Request.Headers.ContainsKey(LocalJobGateway.JobHeaderName)
-                ? FunctionEndpointsHelpers.GetLocalJobToken(context) : string.Empty);
+            FunctionEndpointsHelpers.HasLocalWorkloadIdentity(context)
+                ? FunctionEndpointsHelpers.GetLocalWorkloadToken(context) : string.Empty, replicasService);
         var requestInId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestIn, caller.Actor, NetworkActivityTracker.Actors.SlimFaas, sourcePod: caller.SourcePod);
 
         try
         {
-            activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, caller.Actor, NetworkActivityTracker.Actors.SlimFaas,
-                sourcePod: caller.SourcePod);
+            var publicationId = activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, caller.Actor, NetworkActivityTracker.Actors.SlimFaas,
+                sourcePod: caller.SourcePod, correlationId: requestInId);
 
             if (functions.Count <= 0)
             {
@@ -106,7 +106,7 @@ public static class EventEndpoints
                         function.Deployment,
                         customRequest with { FunctionName = function.Deployment },
                         eventName,
-                        context.RequestAborted, caller.SourcePod);
+                        context.RequestAborted, caller.SourcePod, publicationId);
                     tasks.Add(wsTask);
                     continue;
                 }
@@ -130,8 +130,8 @@ public static class EventEndpoints
                     logger.LogInformation("Publish-event {EventName} : Deployment {Deployment} Pod {PodName} is ready: {PodReady}",
                         eventName, function.Deployment, pod.Name, pod.Ready);
 
-                    activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, function.Deployment,
-                        sourcePod: caller.SourcePod, targetPod: pod.Name);
+                    var deliveryId = activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, function.Deployment,
+                        sourcePod: caller.SourcePod, targetPod: pod.Name, correlationId: publicationId);
 
                     historyHttpService.SetTickLastCall(function.Deployment, lastSetTicks);
 
@@ -142,7 +142,7 @@ public static class EventEndpoints
                         eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
 
                     Task task = SendRequestAsync(queryString, sendClient, customRequest with { FunctionName = function.Deployment },
-                        baseUrl, pod.Name, logger, eventName, function.Configuration.DefaultPublish, caller.SourcePod);
+                        baseUrl, pod.Name, logger, eventName, function.Configuration.DefaultPublish, caller.SourcePod, deliveryId);
                     tasks.Add(task);
                 }
             }
@@ -183,7 +183,7 @@ public static class EventEndpoints
         ILogger logger,
         string eventName,
         SlimFaasDefaultConfiguration slimFaasDefaultConfiguration,
-        string? activitySourcePod)
+        string? activitySourcePod, string activityCorrelationId)
     {
         try
         {
@@ -194,7 +194,7 @@ public static class EventEndpoints
                 null,
                 null,
                 targetPod,
-                NetworkActivityTracker.Actors.SlimFaas, activitySourcePod);
+                NetworkActivityTracker.Actors.SlimFaas, activitySourcePod, activityCorrelationId: activityCorrelationId);
 
             logger.LogDebug(
                 "Response from event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent} is {StatusCode}",

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test": "node --test scripts/*.test.mts"
+    "test": "node --test scripts/*.test.mts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@axa-fr/slimfaas-planet-saver": "^0.82.2",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "1.63.0",
     "@storybook/addon-docs": "^10.6.0",
     "@storybook/react": "^10.6.0",
     "@storybook/react-vite": "^10.6.0",

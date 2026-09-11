@@ -5,20 +5,22 @@ using SlimFaas.Local;
 
 namespace SlimFaas.Tests.Local;
 
-public sealed class LocalJobGatewayTests
+public sealed class LocalWorkloadGatewayTests
 {
-    [Fact]
-    public async Task Gateway_AttributesAndForwardsHttpRequest()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Gateway_AttributesAndForwardsHttpRequest(bool functionPod)
     {
         var upstream = new TcpListener(IPAddress.Loopback, 0);
         upstream.Start();
         int upstreamPort = ((IPEndPoint)upstream.LocalEndpoint).Port;
         try
         {
-            await using var gateway = new LocalJobGateway(
+            await using var gateway = new LocalWorkloadGateway(
                 upstreamPort,
                 "report-slimfaas-job-run1",
-                "test-token");
+                "test-token", functionPod);
             gateway.Start();
             Task<string> receivedRequest = ReceiveRequestAsync(upstream);
             using var client = new HttpClient
@@ -32,7 +34,7 @@ public sealed class LocalJobGatewayTests
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             Assert.Contains(
-                "X-SlimFaas-Job: report-slimfaas-job-run1\r\n",
+                $"{(functionPod ? LocalWorkloadGateway.PodHeaderName : LocalWorkloadGateway.JobHeaderName)}: report-slimfaas-job-run1\r\n",
                 request,
                 StringComparison.Ordinal);
         }
@@ -43,7 +45,7 @@ public sealed class LocalJobGatewayTests
     }
 
     [Fact]
-    public void AddJobIdentity_ReplacesCallerHeaderAndClosesRegularHttpConnection()
+    public void AddIdentity_ReplacesCallerHeaderAndClosesRegularHttpConnection()
     {
         byte[] request = Encoding.ASCII.GetBytes(
             "POST /function/worker HTTP/1.1\r\n" +
@@ -53,10 +55,10 @@ public sealed class LocalJobGatewayTests
             "Content-Length: 4\r\n\r\n" +
             "body");
 
-        byte[] result = LocalJobGateway.AddJobIdentity(
+        byte[] result = LocalWorkloadGateway.AddIdentity(
             request,
             "report-slimfaas-job-run1",
-            LocalJobGateway.CreateSignature(
+            LocalWorkloadGateway.CreateSignature(
                 "report-slimfaas-job-run1",
                 "test-token"));
         string text = Encoding.ASCII.GetString(result);
@@ -75,7 +77,7 @@ public sealed class LocalJobGatewayTests
     }
 
     [Fact]
-    public void AddJobIdentity_PreservesWebSocketUpgrade()
+    public void AddIdentity_PreservesWebSocketUpgrade()
     {
         byte[] request = Encoding.ASCII.GetBytes(
             "GET /ws HTTP/1.1\r\n" +
@@ -84,10 +86,10 @@ public sealed class LocalJobGatewayTests
             "Upgrade: websocket\r\n\r\n");
 
         string result = Encoding.ASCII.GetString(
-            LocalJobGateway.AddJobIdentity(
+            LocalWorkloadGateway.AddIdentity(
                 request,
                 "report-slimfaas-job-run1",
-                LocalJobGateway.CreateSignature(
+                LocalWorkloadGateway.CreateSignature(
                     "report-slimfaas-job-run1",
                     "test-token")));
 

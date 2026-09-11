@@ -18,6 +18,7 @@ internal sealed record TrackedHttpRequest(
     CustomRequest CustomRequest,
     string Id,
     string TargetIp,
+    string ActivityId,
     Stream? OffloadedStream,
     CancellationTokenSource Cancellation,
     IReadOnlySet<int> HttpStatusRetries);
@@ -27,7 +28,7 @@ internal readonly record struct CompletedHttpRequest(
     int StatusCode,
     Exception? Error);
 
-internal readonly record struct Awaiting202Request(string Id, string TargetIp);
+internal readonly record struct Awaiting202Request(string Id, string TargetIp, string ActivityId);
 
 internal sealed record PreparedHttpMessage(
     QueueData Message,
@@ -239,6 +240,9 @@ public class SlimQueuesWorker(
                 ? message.ReservedIp
                 : index < reservedIps.Count ? reservedIps[index] : string.Empty;
             var requestCancellation = new CancellationTokenSource();
+            string activityId = activityTracker.Record(
+                NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas,
+                functionName, functionName, targetPod: reservedIp);
             Task<HttpResponseMessage> responseTask;
             try
             {
@@ -252,7 +256,8 @@ public class SlimQueuesWorker(
                     NetworkActivityTracker.Actors.SlimFaas,
                     null,
                     offloadedStream,
-                    activityQueueName: functionName);
+                    activityQueueName: functionName,
+                    activityCorrelationId: activityId);
             }
             catch
             {
@@ -268,6 +273,7 @@ public class SlimQueuesWorker(
                 customRequest,
                 message.Id,
                 reservedIp,
+                activityId,
                 offloadedStream,
                 requestCancellation,
                 function.Configuration.DefaultAsync.HttpStatusRetries.ToHashSet());
@@ -454,6 +460,7 @@ public class SlimQueuesWorker(
     {
         long generation = Volatile.Read(ref _trackingGeneration);
         var callbacks = new Dictionary<string, List<QueueItemStatus>>(StringComparer.Ordinal);
+        var completedActivities = new Dictionary<string, List<TrackedHttpRequest>>(StringComparer.Ordinal);
         var terminalOffloads = new List<string>();
         while (_completedRequests.TryDequeue(out CompletedHttpRequest completed))
         {
@@ -485,22 +492,18 @@ public class SlimQueuesWorker(
             if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
             {
                 GetOrAdd(awaiting202Requests, request.FunctionName)
-                    .Add(new Awaiting202Request(request.Id, request.TargetIp));
+                    .Add(new Awaiting202Request(request.Id, request.TargetIp, request.ActivityId));
                 continue;
             }
 
-            activityTracker.Record(
-                NetworkActivityTracker.EventTypes.RequestEnd,
-                request.FunctionName,
-                NetworkActivityTracker.Actors.SlimFaas,
-                request.FunctionName,
-                targetPod: request.TargetIp);
             if (!callbacks.TryGetValue(request.FunctionName, out List<QueueItemStatus>? statuses))
             {
                 statuses = [];
                 callbacks.Add(request.FunctionName, statuses);
+                completedActivities.Add(request.FunctionName, []);
             }
             statuses.Add(new QueueItemStatus(request.Id, completed.StatusCode));
+            completedActivities[request.FunctionName].Add(request);
             if (!string.IsNullOrEmpty(request.CustomRequest.OffloadedFileId) &&
                 !request.HttpStatusRetries.Contains(completed.StatusCode))
             {
@@ -513,6 +516,8 @@ public class SlimQueuesWorker(
             await slimFaasQueue.ListCallbackAsync(
                 functionName,
                 new ListQueueItemStatus { Items = statuses }).ConfigureAwait(false);
+            foreach (TrackedHttpRequest request in completedActivities[functionName])
+                RecordCompletion(functionName, request.TargetIp, request.ActivityId);
         }
 
         if (terminalOffloads.Count > 0)
@@ -577,14 +582,14 @@ public class SlimQueuesWorker(
             if (runningIds.Contains(item.Id))
                 continue;
             pending.RemoveAt(index);
-            activityTracker.Record(
-                NetworkActivityTracker.EventTypes.RequestEnd,
-                functionName,
-                NetworkActivityTracker.Actors.SlimFaas,
-                functionName,
-                targetPod: item.TargetIp);
+            RecordCompletion(functionName, item.TargetIp, item.ActivityId);
         }
     }
+
+    private void RecordCompletion(string functionName, string pod, string activityId)
+        => activityTracker.Record(NetworkActivityTracker.EventTypes.RequestEnd,
+            functionName, NetworkActivityTracker.Actors.SlimFaas, functionName,
+            sourcePod: pod, correlationId: activityId);
 
     private void UpdateLastCallIfWorkRemains(
         int functionReplicas,

@@ -7,30 +7,34 @@ using System.Text;
 namespace SlimFaas.Local;
 
 /// <summary>
-/// Gives one native local Job execution its own loopback entrypoint. Native
-/// processes share the host IP, so the proxy adds the execution name to the
+/// Gives one native local workload its own loopback entrypoint. Native
+/// processes share the host IP, so the proxy adds the workload identity to the
 /// first HTTP request before forwarding it to the regular local entrypoint.
 /// </summary>
-internal sealed class LocalJobGateway : IAsyncDisposable
+internal sealed class LocalWorkloadGateway : IAsyncDisposable
 {
     internal const string JobHeaderName = "X-SlimFaas-Job";
     internal const string SignatureHeaderName = "X-SlimFaas-Job-Signature";
+    internal const string PodHeaderName = "X-SlimFaas-Pod";
+    internal const string PodSignatureHeaderName = "X-SlimFaas-Pod-Signature";
     private const int MaximumHeaderBytes = 64 * 1024;
 
     private readonly TcpListener _listener = new(IPAddress.Loopback, 0);
     private readonly int _targetPort;
-    private readonly string _jobFullName;
+    private readonly string _workloadName;
     private readonly string _signature;
+    private readonly bool _functionPod;
     private readonly CancellationTokenSource _stopping = new();
     private readonly ConcurrentDictionary<long, Task> _connections = new();
     private Task? _acceptTask;
     private long _connectionId;
 
-    public LocalJobGateway(int targetPort, string jobFullName, string token)
+    public LocalWorkloadGateway(int targetPort, string workloadName, string token, bool functionPod = false)
     {
         _targetPort = targetPort;
-        _jobFullName = jobFullName;
-        _signature = CreateSignature(jobFullName, token);
+        _workloadName = workloadName;
+        _functionPod = functionPod;
+        _signature = functionPod ? CreatePodSignature(workloadName, token) : CreateSignature(workloadName, token);
     }
 
     public int Port { get; private set; }
@@ -84,10 +88,10 @@ internal sealed class LocalJobGateway : IAsyncDisposable
                 if (requestStart.Length == 0)
                     return;
 
-                byte[] attributedRequest = AddJobIdentity(
+                byte[] attributedRequest = AddIdentity(
                     requestStart,
-                    _jobFullName,
-                    _signature);
+                    _workloadName,
+                    _signature, _functionPod);
                 await upstreamStream.WriteAsync(attributedRequest, cancellationToken);
 
                 Task toUpstream = clientStream.CopyToAsync(upstreamStream, cancellationToken);
@@ -124,13 +128,14 @@ internal sealed class LocalJobGateway : IAsyncDisposable
         }
 
         throw new InvalidDataException(
-            $"The local Job request headers exceed {MaximumHeaderBytes} bytes.");
+            $"The local workload request headers exceed {MaximumHeaderBytes} bytes.");
     }
 
-    internal static byte[] AddJobIdentity(
+    internal static byte[] AddIdentity(
         byte[] requestStart,
-        string jobFullName,
-        string signature)
+        string workloadName,
+        string signature,
+        bool functionPod = false)
     {
         int headerEnd = FindHeaderEnd(requestStart, requestStart.Length);
         if (headerEnd < 0 ||
@@ -143,7 +148,7 @@ internal sealed class LocalJobGateway : IAsyncDisposable
         string[] lines = headerText.Split("\r\n", StringSplitOptions.None);
         bool isUpgrade = lines.Skip(1).Any(line =>
             line.StartsWith("Upgrade:", StringComparison.OrdinalIgnoreCase));
-        var output = new StringBuilder(headerText.Length + jobFullName.Length + 64);
+        var output = new StringBuilder(headerText.Length + workloadName.Length + 64);
         output.Append(lines[0]).Append("\r\n");
         foreach (string line in lines.Skip(1))
         {
@@ -151,13 +156,16 @@ internal sealed class LocalJobGateway : IAsyncDisposable
                 continue;
             if (line.StartsWith($"{SignatureHeaderName}:", StringComparison.OrdinalIgnoreCase))
                 continue;
+            if (line.StartsWith($"{PodHeaderName}:", StringComparison.OrdinalIgnoreCase) ||
+                line.StartsWith($"{PodSignatureHeaderName}:", StringComparison.OrdinalIgnoreCase))
+                continue;
             if (!isUpgrade && line.StartsWith("Connection:", StringComparison.OrdinalIgnoreCase))
                 continue;
             output.Append(line).Append("\r\n");
         }
 
-        output.Append(JobHeaderName).Append(": ").Append(jobFullName).Append("\r\n");
-        output.Append(SignatureHeaderName).Append(": ").Append(signature).Append("\r\n");
+        output.Append(functionPod ? PodHeaderName : JobHeaderName).Append(": ").Append(workloadName).Append("\r\n");
+        output.Append(functionPod ? PodSignatureHeaderName : SignatureHeaderName).Append(": ").Append(signature).Append("\r\n");
         if (!isUpgrade)
             output.Append("Connection: close\r\n");
         output.Append("\r\n");
@@ -170,10 +178,13 @@ internal sealed class LocalJobGateway : IAsyncDisposable
         return result;
     }
 
-    internal static string CreateSignature(string jobFullName, string token)
+    internal static string CreateSignature(string workloadName, string token)
         => Convert.ToHexString(HMACSHA256.HashData(
             Encoding.UTF8.GetBytes(token),
-            Encoding.UTF8.GetBytes(jobFullName)));
+            Encoding.UTF8.GetBytes(workloadName)));
+
+    internal static string CreatePodSignature(string podName, string token)
+        => CreateSignature("pod:" + podName, token);
 
     private static int FindHeaderEnd(byte[] buffer, int length)
     {

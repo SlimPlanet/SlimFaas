@@ -60,13 +60,13 @@ internal class NeverReadyReplicasService : IReplicasService
     public Task SyncDeploymentsFromSlimData(DeploymentsInformations deploymentsInformations) => Task.CompletedTask;
 }
 
-// Flip Ready en place (sans recréer les records)
-internal class FlipReadyQuicklyReplicasService : IReplicasService
+// Readiness is released by the test after observing the wait event.
+internal class ControlledReadyReplicasService : IReplicasService
 {
-    private readonly DeploymentsInformations _deployments;
-    private readonly DeploymentInformation _function; // référence gardée pour modifier ses pods
+    private DeploymentsInformations _deployments;
+    private readonly DeploymentInformation _function;
 
-    public FlipReadyQuicklyReplicasService(int httpTimeoutSeconds = 2, int flipDelayMs = 100)
+    public ControlledReadyReplicasService(int httpTimeoutSeconds = 10)
     {
         // Fonction "fibonacci" : EndpointReady = true dès le départ
         _function = new DeploymentInformation(
@@ -97,23 +97,15 @@ internal class FlipReadyQuicklyReplicasService : IReplicasService
             new List<PodInformation>()
         );
 
-        // Après un court délai, on bascule le/les pods en Ready=true (modif en place)
-        _ = Task.Run(async () =>
-        {
-            await Task.Delay(flipDelayMs).ConfigureAwait(false);
-
-            // On modifie la LISTE pods existante (même référence) :
-            // - on ne recrée NI la fonction NI Deployments
-            var pods = _function.Pods;
-            for (int j = 0; j < pods.Count; j++)
-            {
-                // PodInformation est un record => on remplace l'élément par une copie Ready=true
-                pods[j] = pods[j] with { Ready = true };
-            }
-        });
     }
 
-    public DeploymentsInformations Deployments => _deployments;
+    public void SetReady()
+    {
+        var ready = _function with { Pods = _function.Pods.Select(pod => pod with { Ready = true }).ToList() };
+        Volatile.Write(ref _deployments, _deployments with { Functions = [ready] });
+    }
+
+    public DeploymentsInformations Deployments => Volatile.Read(ref _deployments);
 
     public Task<DeploymentsInformations> SyncDeploymentsAsync(string kubeNamespace) => throw new NotImplementedException();
     public Task CheckScaleAsync(string kubeNamespace) => throw new NotImplementedException();
@@ -124,10 +116,10 @@ internal class FlipReadyQuicklyReplicasService : IReplicasService
 // === Client HTTP sync pilotable pour forcer un 504 si besoin ===
 internal class SendClientGatewayTimeout : ISendClient
 {
-    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null, string? activityQueueName = null)
+    public Task<HttpResponseMessage> SendHttpRequestAsync(CustomRequest customRequest, SlimFaasDefaultConfiguration slimFaasDefaultConfiguration, string? baseUrl = null, CancellationTokenSource? cancellationToken = null, IProxy? proxy = null, string? reservedPodIp = null, string? activitySource = null, string? activitySourcePod = null, Stream? bodyOverrideStream = null, string? activityQueueName = null, string? activityCorrelationId = null)
         => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
 
-    public Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath, string functionQuery, SlimFaasSyncConfiguration slimFaasSyncConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null)
+    public Task<HttpResponseMessage> SendHttpRequestSync(HttpContext httpContext, string functionName, string functionPath, string functionQuery, SlimFaasSyncConfiguration slimFaasSyncConfiguration, string? baseUrl = null, IProxy? proxy = null, string? activitySource = null, string? activitySourcePod = null, string? activityCorrelationId = null)
         => Task.FromResult(new HttpResponseMessage(HttpStatusCode.GatewayTimeout));
 }
 
@@ -189,15 +181,25 @@ public class TimeoutReadyEndpointTests
     }
 }
 
-// === TEST 2 : Pod devient prêt rapidement -> succès < 2s ===
+// A request waits for a known pod, then dispatches using its ready snapshot.
 public class FlipReadyEndpointTests
 {
     [Fact]
-    public async Task Sync_Succeeds_When_Pod_Becomes_Ready_Quickly()
+    public async Task Sync_Dispatches_When_Known_Pod_Becomes_Ready()
     {
-        // Timeout max 2s, mais on flip READY après ~100ms
-        var replicas = new FlipReadyQuicklyReplicasService(httpTimeoutSeconds: 2, flipDelayMs: 100);
-        var sendClientOk = new SendClientMock(); // déjà défini dans TestHelpers, retourne 200 OK
+        var replicas = new ControlledReadyReplicasService();
+        var tracker = new NetworkActivityTracker();
+        var (reader, channel) = tracker.Subscribe();
+        var sendClient = new Mock<ISendClient>();
+        sendClient.Setup(client => client.SendHttpRequestSync(It.IsAny<HttpContext>(), "fibonacci", "compute", "",
+                It.IsAny<SlimFaasSyncConfiguration>(), null, It.IsAny<IProxy?>(), It.IsAny<string?>(),
+                It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns<HttpContext, string, string, string, SlimFaasSyncConfiguration, string?, IProxy?, string?, string?, string?>(
+                (_, _, _, _, _, _, proxy, _, _, _) =>
+                {
+                    Assert.Equal("10.0.0.42", proxy!.GetNextIP());
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK));
+                });
 
         var wakeUpFunctionMock = new Mock<IWakeUpFunction>();
         var jobServiceMock = new Mock<IJobService>();
@@ -212,7 +214,7 @@ public class FlipReadyEndpointTests
                     .ConfigureServices(s =>
                     {
                         s.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
-                        s.AddSingleton<ISendClient>(sendClientOk);
+                        s.AddSingleton<ISendClient>(sendClient.Object);
                         s.AddSingleton<ISlimFaasQueue, MemorySlimFaasQueue>();
                         s.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
                         s.AddSingleton<IReplicasService>(replicas);
@@ -224,7 +226,7 @@ public class FlipReadyEndpointTests
                         s.AddMemoryCache();
                         s.AddSingleton<FunctionStatusCache>();
                         s.AddSingleton<WakeUpGate>();
-                        s.AddSingleton<NetworkActivityTracker>();
+                        s.AddSingleton(tracker);
                         s.AddRouting();
                     })
                     .Configure(app =>
@@ -237,12 +239,23 @@ public class FlipReadyEndpointTests
 
         var client = host.GetTestClient();
 
-        var sw = Stopwatch.StartNew();
-        HttpResponseMessage response = await client.GetAsync("http://localhost:5000/function/fibonacci/compute");
-        sw.Stop();
+        try
+        {
+            Task<HttpResponseMessage> pending = client.GetAsync("http://localhost:5000/function/fibonacci/compute");
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            NetworkActivityEvent waiting;
+            do { waiting = await reader.ReadAsync(deadline.Token); }
+            while (waiting.Type != NetworkActivityTracker.EventTypes.RequestWaiting);
+            Assert.False(pending.IsCompleted);
+            sendClient.VerifyNoOtherCalls();
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-        // doit être nettement < 2s (large marge CI)
-        Assert.True(sw.Elapsed < TimeSpan.FromMilliseconds(1200), $"Elapsed too high: {sw.Elapsed.TotalMilliseconds} ms");
+            replicas.SetReady();
+            using HttpResponseMessage response = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var started = Assert.Single(tracker.GetRecent(), e => e.Type == NetworkActivityTracker.EventTypes.RequestStarted);
+            Assert.Equal(waiting.CorrelationId, started.CorrelationId);
+            sendClient.VerifyAll();
+        }
+        finally { tracker.Unsubscribe(channel); }
     }
 }

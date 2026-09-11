@@ -455,6 +455,14 @@ Use the stable local entrypoint in Job environment variables rather than a
 direct node port. URLs hard-coded inside the application cannot be rewritten
 and remain displayed as external callers.
 
+Managed function replicas also receive a per-replica loopback gateway for local
+entrypoint URLs declared in their command or environment. SlimFaas signs the pod
+identity and resolves it against its inventory, so recursive function calls appear
+between the actual function pods and SlimFaas. Only the initial caller and final
+response involve External. Use `cluster.entrypointPort` in application URLs to
+retain this attribution. Processes launched independently through `debugUrl` do
+not receive automatic environment rewriting.
+
 ## Entrypoint and load balancing
 
 `cluster.entrypointPort` is the stable TCP entrypoint used by applications and

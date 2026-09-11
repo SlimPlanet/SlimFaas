@@ -201,3 +201,204 @@ test('unselected destinations remain exact and a leader is searchable independen
   assert.match(leader.status, /Running.*Leader/);
   assert.match(model.byId.get('slimfaas:slimfaas').status, /slimfaas-1/);
 });
+
+const incoming = (id = 'in', extra = {}) => event(id, { Type: 'request_in', Source: 'external', SourcePod: null, Target: 'slimfaas', TargetPod: null, ...extra });
+const sent = (id = 'out', extra = {}) => event(id, { Type: 'request_out', Source: 'slimfaas', SourcePod: null, CorrelationId: 'in', ...extra });
+const returned = (id = 'reply', extra = {}) => sent(id, { Type: 'request_end', CorrelationId: 'out', ...extra });
+const ended = (extra = {}) => incoming('end', { Type: 'request_end', CorrelationId: 'in', ...extra });
+const paths = player => [...player.markers.values()].map(marker => marker.path);
+
+test('fast synchronous exchanges play four ordered hops, even in reverse batch order', () => {
+  for (const reverse of [false, true]) {
+    const player = new TrafficPlayback();
+    const events = [incoming(), sent(), returned(), ended()];
+    if (reverse) events.reverse();
+    update(player, events);
+    assert.deepEqual(paths(player), [['external:external', 'node:slimfaas-0']]);
+    update(player, events, { now: 550 });
+    assert.deepEqual(paths(player), [['node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00003']]);
+    update(player, events, { now: 1000 });
+    assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'node:slimfaas-0']]);
+    assert.equal([...player.markers.values()][0].kind, 'reply');
+    update(player, events, { now: 1450 });
+    assert.deepEqual(paths(player), [['node:slimfaas-0', 'external:external']]);
+    update(player, events, { now: 1900 });
+    assert.equal(player.markers.size, 0);
+  }
+});
+test('cold start waits on SlimFaas; readiness metadata never dispatches a message', () => {
+  const player = new TrafficPlayback();
+  const wait = sent('wait', { Type: 'request_waiting', TargetPod: null });
+  const ready = sent('ready', { Type: 'request_started', TargetPod: null, ReceivedAt: 600 });
+  update(player, [incoming(), wait]);
+  update(player, [incoming(), wait], { now: 550 });
+  assert.deepEqual(paths(player), [['node:slimfaas-0']]);
+  assert.ok([...player.markers.values()][0].waiting);
+  update(player, [incoming(), wait, ready], { now: 600 });
+  assert.deepEqual(paths(player), [['node:slimfaas-0']]);
+  update(player, [incoming(), wait, ready, sent('out', { ReceivedAt: 650 })], { now: 650 });
+  assert.deepEqual(paths(player), [['node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00003']]);
+});
+test('a dispatch before the inventory update retains its exact replica destination', () => {
+  const player = new TrafficPlayback();
+  const empty = buildTopology(fixture.functions.map(fn => ({ ...fn, Pods: [], NumberReady: 0 })), fixture.jobs, fixture.queues, fixture.slimFaasNodes);
+  const events = [incoming(), sent()];
+  update(player, events, { topology: empty });
+  update(player, events, { topology: empty, now: 550 });
+  assert.equal(player.markers.size, 0);
+  update(player, events, { topology: model, now: 1000 });
+  assert.deepEqual(paths(player), [['node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00003']]);
+});
+test('publication ingress and transport produce one arrival and one delivery per replica', () => {
+  for (const reverse of [false, true]) {
+    const player = new TrafficPlayback();
+    const events = [incoming(), incoming('publication', { Type: 'event_publish', CorrelationId: 'in' }), ended()];
+    for (let i = 0; i < 2; i++) {
+      const TargetPod = fixture.functions[0].Pods[i].Name;
+      events.push(sent(`delivery-${i}`, { Type: 'event_publish', CorrelationId: 'publication', TargetPod }),
+        sent(`transport-${i}`, { CorrelationId: `delivery-${i}`, TargetPod }),
+        returned(`done-${i}`, { CorrelationId: `transport-${i}`, TargetPod }));
+    }
+    if (reverse) events.reverse();
+    update(player, events);
+    assert.deepEqual(paths(player), [['external:external', 'node:slimfaas-0']]);
+    assert.equal([...player.markers.values()][0].kind, 'publication');
+    update(player, events, { now: 550 });
+    assert.deepEqual(paths(player).sort(), [0, 1].map(i => ['node:slimfaas-0', `pod:fibonacci1/fibonacci1-0000${i}`]));
+    assert.ok([...player.markers.values()].every(m => m.kind === 'publication' && m.count === 1));
+    update(player, events, { now: 1000 });
+    assert.equal(player.markers.size, 0);
+  }
+});
+test('an error before dispatch returns only from SlimFaas and clears waiting', () => {
+  const player = new TrafficPlayback();
+  const events = [incoming(), sent('wait', { Type: 'request_waiting', TargetPod: null })];
+  update(player, events); update(player, events, { now: 550 });
+  update(player, [...events, ended({ ReceivedAt: 600 })], { now: 600 });
+  assert.deepEqual(paths(player), [['node:slimfaas-0', 'external:external']]);
+});
+test('late parents order children without fabricating absent request legs', () => {
+  const player = new TrafficPlayback();
+  update(player, [sent()]);
+  assert.equal(player.markers.size, 0);
+  const events = [sent(), incoming('in', { ReceivedAt: 200 })];
+  update(player, events, { now: 200 });
+  assert.deepEqual(paths(player), [['external:external', 'node:slimfaas-0']]);
+  update(player, events, { now: 650 });
+  assert.deepEqual(paths(player), [['node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00003']]);
+  const orphan = new TrafficPlayback();
+  update(orphan, [returned()]); update(orphan, [returned()], { now: 6000 });
+  assert.equal(orphan.markers.size, 0);
+});
+test('pause, filtering and new sessions discard scheduled legs as well as active markers', () => {
+  for (const change of [{ paused: true }, { type: 'event_publish' }, { session: 2 }]) {
+    const player = new TrafficPlayback();
+    const events = [incoming(), sent(), returned(), ended()];
+    update(player, events);
+    update(player, change.session ? [] : events, { ...change, now: 200 });
+    update(player, change.session ? [] : events, { ...change, now: 3000 });
+    assert.equal(player.markers.size, 0);
+  }
+});
+test('concurrent calls retain independent ordering and aggregate matching hops', () => {
+  const player = new TrafficPlayback();
+  const events = [incoming('one'), incoming('two'), sent('one-out', { CorrelationId: 'one' }), sent('two-out', { CorrelationId: 'two' })];
+  update(player, events);
+  assert.equal(count(player), 2); assert.equal(player.markers.size, 1);
+  update(player, events, { now: 550 });
+  assert.equal(count(player), 2); assert.equal(player.markers.size, 1);
+});
+test('publication-only filtering keeps its ingress without duplicate transport links', () => {
+  const player = new TrafficPlayback();
+  const events = [incoming(), incoming('publication', { Type: 'event_publish', CorrelationId: 'in' }),
+    sent('delivery', { Type: 'event_publish', CorrelationId: 'publication' }), sent('transport', { CorrelationId: 'delivery' }), returned('done', { CorrelationId: 'transport' })];
+  update(player, events, { type: 'event_publish' });
+  assert.deepEqual(paths(player), [['external:external', 'node:slimfaas-0']]);
+  update(player, events, { type: 'event_publish', now: 550 });
+  assert.deepEqual(paths(player), [['node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00003']]);
+  assert.equal(player.visualKind(events[3]), null);
+  assert.equal(player.visualKind(events[4]), null);
+});
+test('job isolation retains the caller context on downstream request and response hops', () => {
+  const extra = { SourcePod: fixture.jobs[0].RunningJobs[0].Name };
+  const player = new TrafficPlayback();
+  const events = [incoming('in', extra), sent('out', extra), returned('reply', extra), ended(extra)];
+  const settings = { selected: `job:${fixture.jobs[0].Name}`, isolate: true };
+  update(player, events, settings);
+  assert.equal(count(player), 1);
+  update(player, events, { ...settings, now: 550 });
+  assert.deepEqual(paths(player), [['node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00003']]);
+  update(player, events, { ...settings, now: 1000 });
+  assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'node:slimfaas-0']]);
+});
+
+test('recursive requests enter from their known caller pod and return to that same pod', () => {
+  const caller = fixture.functions[0].Pods[0].Name;
+  const source = { Source: 'fibonacci1', SourcePod: caller };
+  const events = [incoming(), sent(), returned(), ended(),
+    incoming('inner', source), sent('inner-out', { ...source, CorrelationId: 'inner' }),
+    returned('inner-reply', { ...source, CorrelationId: 'inner-out' }),
+    incoming('inner-end', { ...source, Type: 'request_end', CorrelationId: 'inner' })];
+  const player = new TrafficPlayback();
+  update(player, events);
+  assert.deepEqual(paths(player).sort(), [['external:external', 'node:slimfaas-0'],
+    [`pod:fibonacci1/${caller}`, 'node:slimfaas-0']].sort());
+  update(player, events, { now: 550 });
+  update(player, events, { now: 1000 });
+  update(player, events, { now: 1450 });
+  assert.deepEqual(paths(player).sort(), [['node:slimfaas-0', 'external:external'],
+    ['node:slimfaas-0', `pod:fibonacci1/${caller}`]].sort());
+  assert.ok([...player.markers.values()].every(marker => marker.count === 1));
+});
+
+const queueDispatch = (id = 'take', extra = {}) => sent(id, { Type: 'dequeue', QueueName: 'fibonacci1', CorrelationId: null, ...extra });
+const queueEnd = (id = 'queue-end', extra = {}) => incoming(id, { Type: 'request_end', QueueName: 'fibonacci1',
+  Source: 'fibonacci1', SourcePod: fixture.functions[0].Pods[3].Name, CorrelationId: 'take', ...extra });
+
+test('queued replies return once to their queue after dispatch, regardless of batch order', () => {
+  for (const reverse of [false, true]) {
+    const player = new TrafficPlayback();
+    const events = [queueDispatch(), sent('transport', { QueueName: 'fibonacci1', CorrelationId: 'take' }),
+      returned('http-end', { QueueName: 'fibonacci1', CorrelationId: 'transport' }), queueEnd(), queueEnd()];
+    if (reverse) events.reverse();
+    update(player, events);
+    assert.deepEqual(paths(player), [['queue:fibonacci1', 'pod:fibonacci1/fibonacci1-00003']]);
+    assert.equal(count(player), 1);
+    update(player, events, { now: 550 });
+    assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'queue:fibonacci1']]);
+    assert.equal(count(player), 1);
+    assert.equal([...player.markers.values()][0].kind, 'reply');
+    update(player, events, { now: 1000 });
+    assert.equal(count(player), 0);
+    assert.equal(player.visualKind(events.find(e => e.Id === 'http-end')), null);
+  }
+});
+
+test('HTTP acceptance alone never completes a queue request; its callback may arrive later', () => {
+  const player = new TrafficPlayback();
+  const events = [queueDispatch(), sent('transport', { QueueName: 'fibonacci1', CorrelationId: 'take' }),
+    returned('accepted', { QueueName: 'fibonacci1', CorrelationId: 'transport' })];
+  update(player, events); update(player, events, { now: 550 });
+  assert.equal(count(player), 0);
+  update(player, events, { now: 10_000 });
+  assert.equal(count(player), 0);
+  update(player, [...events, queueEnd('callback', { ReceivedAt: 10_001 })], { now: 10_001 });
+  assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'queue:fibonacci1']]);
+  const orphan = new TrafficPlayback();
+  update(orphan, [queueEnd()]); update(orphan, [queueEnd()], { now: 6000 });
+  assert.equal(count(orphan), 0);
+});
+
+test('queue retry attempts retain separate dispatch and completion counts', () => {
+  const player = new TrafficPlayback();
+  const first = [queueDispatch(), queueEnd()];
+  update(player, first); update(player, first, { now: 550 });
+  assert.equal(count(player), 1);
+  const events = [...first, queueDispatch('retry', { ReceivedAt: 1000 }),
+    queueEnd('retry-end', { CorrelationId: 'retry', ReceivedAt: 1000 })];
+  update(player, events, { now: 1000 });
+  assert.deepEqual(paths(player), [['queue:fibonacci1', 'pod:fibonacci1/fibonacci1-00003']]);
+  update(player, events, { now: 1450 });
+  assert.deepEqual(paths(player), [['pod:fibonacci1/fibonacci1-00003', 'queue:fibonacci1']]);
+  assert.equal(count(player), 1);
+});

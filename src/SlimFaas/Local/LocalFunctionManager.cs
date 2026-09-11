@@ -8,6 +8,7 @@ public sealed class LocalFunctionManager : IAsyncDisposable
     private readonly LoadedLocalManifest _loaded;
     private readonly LocalPortAllocator _ports;
     private readonly LocalStateStore _state;
+    private readonly string _token;
     private readonly HttpClient _healthClient = new();
     private readonly Dictionary<string, FunctionRuntime> _functions;
     private readonly CancellationTokenSource _stopping = new();
@@ -17,11 +18,13 @@ public sealed class LocalFunctionManager : IAsyncDisposable
     public LocalFunctionManager(
         LoadedLocalManifest loaded,
         LocalPortAllocator ports,
-        LocalStateStore state)
+        LocalStateStore state,
+        string token = "")
     {
         _loaded = loaded;
         _ports = ports;
         _state = state;
+        _token = token;
         _functions = loaded.Manifest.Functions.ToDictionary(
             item => item.Key,
             item =>
@@ -272,6 +275,17 @@ public sealed class LocalFunctionManager : IAsyncDisposable
 
             try
             {
+                if (!string.IsNullOrEmpty(_token))
+                {
+                    replica.Gateway ??= new LocalWorkloadGateway(
+                        _loaded.Manifest.Cluster.EntrypointPort, $"{function.Name}-{replica.Index}", _token, functionPod: true);
+                    replica.Gateway.Start();
+                    command = command.Select(value => LocalJobManager.RewriteEntrypointUrls(
+                        value, _loaded.Manifest.Cluster.EntrypointPort, replica.Gateway.Port)).ToList();
+                    foreach (string name in environment.Keys.ToArray())
+                        environment[name] = LocalJobManager.RewriteEntrypointUrls(
+                            environment[name], _loaded.Manifest.Cluster.EntrypointPort, replica.Gateway.Port);
+                }
                 string logPath = Path.Combine(_state.LogsDirectory, $"{function.Name}-{replica.Index}.log");
                 replica.Process = ManagedLocalProcess.Start(
                     command,
@@ -379,24 +393,34 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         ManagedLocalProcess? process = replica.Process;
         replica.Process = null;
         replica.Ready = false;
-        if (process is null)
-            return;
-
-        Uri? shutdownUri = null;
-        TimeSpan timeout = TimeSpan.FromSeconds(5);
-        if (function.Manifest.Shutdown is not null && replica.Port.HasValue)
+        LocalWorkloadGateway? gateway = replica.Gateway;
+        replica.Gateway = null;
+        try
         {
-            string path = LocalManifestLoader.ExpandTemplate(
-                function.Manifest.Shutdown.Path,
-                replica.Port.Value,
-                replica.Index);
-            shutdownUri = new Uri($"http://127.0.0.1:{replica.Port.Value}{path}");
-            timeout = TimeSpan.FromSeconds(function.Manifest.Shutdown.TimeoutSeconds);
-        }
+            if (process is null)
+                return;
 
-        await process.StopAsync(shutdownUri, timeout, cancellationToken);
-        await process.DisposeAsync();
-        Interlocked.Increment(ref _resourceVersion);
+            Uri? shutdownUri = null;
+            TimeSpan timeout = TimeSpan.FromSeconds(5);
+            if (function.Manifest.Shutdown is not null && replica.Port.HasValue)
+            {
+                string path = LocalManifestLoader.ExpandTemplate(
+                    function.Manifest.Shutdown.Path,
+                    replica.Port.Value,
+                    replica.Index);
+                shutdownUri = new Uri($"http://127.0.0.1:{replica.Port.Value}{path}");
+                timeout = TimeSpan.FromSeconds(function.Manifest.Shutdown.TimeoutSeconds);
+            }
+
+            await process.StopAsync(shutdownUri, timeout, cancellationToken);
+            await process.DisposeAsync();
+            Interlocked.Increment(ref _resourceVersion);
+        }
+        finally
+        {
+            if (gateway is not null)
+                await gateway.DisposeAsync();
+        }
     }
 
     private static PodInformation ToPod(FunctionRuntime function, ReplicaRuntime replica)
@@ -483,6 +507,7 @@ public sealed class LocalFunctionManager : IAsyncDisposable
         public int Index { get; } = index;
         public int? Port { get; set; }
         public ManagedLocalProcess? Process { get; set; }
+        public LocalWorkloadGateway? Gateway { get; set; }
         public bool Ready { get; set; }
         public DateTimeOffset StartedAt { get; set; }
         public DateTimeOffset NextStart { get; set; }

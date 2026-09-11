@@ -29,8 +29,9 @@ test('job routes retain associated functions and fall back to their configuratio
   const topology = model();
   const event = fixtureEvents(3, 1)[0];
   const path = eventPath(topology, event);
-  assert.deepEqual(path, ['run:daily-report-slimfaas-job-00003', 'node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00003']);
-  assert.ok(selectedEvent(topology, event, 'job:daily-report'));
+  assert.deepEqual(path, ['node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00003']);
+  assert.deepEqual(eventPath(topology, { ...event, Type: 'request_in', Target: 'slimfaas' }), ['run:daily-report-slimfaas-job-00003', 'node:slimfaas-0']);
+  assert.ok(selectedEvent(topology, { ...event, Type: 'request_in' }, 'job:daily-report'));
   assert.ok(selectedEvent(topology, event, 'function:fibonacci1'));
   assert.equal(resolveSource(topology, 'daily-report', 'daily-report-slimfaas-job-deleted'), 'job:daily-report');
   assert.ok(eventPath(topology, fixtureEvents(1, 1)[0]).includes('queue:fibonacci1'));
@@ -45,7 +46,8 @@ test('opaque addresses resolve replicas while anonymous and unknown callers stay
   assert.equal(resolveSource(topology, 'external', fixtureIdentity(1)), 'pod:fibonacci1/fibonacci1-00000');
   assert.equal(filterNodes(topology, fixtureIdentity(1))[0].id, 'pod:fibonacci1/fibonacci1-00000');
   assert.deepEqual(eventPath(topology, { ...fixtureEvents(3, 1)[0], SourcePod: fixtureIdentity(1), TargetPod: fixtureIdentity(2) }),
-    ['pod:fibonacci1/fibonacci1-00000', 'node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00001']);
+    ['node:slimfaas-0', 'pod:fibonacci1/fibonacci1-00001']);
+  assert.deepEqual(eventPath(topology, { ...fixtureEvents(3, 1)[0], Type: 'request_in', SourcePod: fixtureIdentity(1), Target: 'slimfaas' }), ['pod:fibonacci1/fibonacci1-00000', 'node:slimfaas-0']);
   const refreshed = makeFixtures();
   refreshed.functions[0].Pods!.forEach((pod, i) => { pod.Identity = fixtureIdentity(i + 100); });
   const next = buildTopology(refreshed.functions, refreshed.jobs, refreshed.queues, refreshed.slimFaasNodes);

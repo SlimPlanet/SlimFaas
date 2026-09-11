@@ -86,9 +86,30 @@ Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the
 
 The journal retains at most 5,000 received events. **Pause** freezes the current view; **Resume live** returns to current traffic without replaying the paused interval. Markers are grouped by route and event type and independently limited to 200; the actor inventory is not sampled. Each grouped marker shows its event count. The canvas reports any events omitted by the visual limit separately from the retained journal. Reduced-motion preferences replace movement with static activity highlights.
 
-**Animation speed** offers **Fast (450 ms)**, **Normal (800 ms)** and **Slow (1,400 ms)** for a complete trip and remembers the choice in this browser. Fast is the default. This duration is a visual convention, not measured function latency. New arrivals use the browser's monotonic receipt clock, so an older server timestamp does not hide a live event. Returning from Pause, reconnecting or restoring a background tab does not replay stale animations.
+**Animation speed** offers **Fast (450 ms)**, **Normal (800 ms)** and **Slow (1,400 ms)** for each hop between two actors and remembers the choice in this browser. Fast is the default. This duration is a visual convention, not measured function latency. New arrivals use the browser's monotonic receipt clock, so an older server timestamp does not hide a live event. Returning from Pause, reconnecting or restoring a background tab does not replay stale animations.
 
-Requests use blue circles, publications purple diamonds, queue messages amber squares and replies outlined circles. Queue groups show a FIFO symbol, directional arrows and their exact current length; an observed queue remains visible when empty. External callers use a person and incoming-arrow symbol, covering people and external systems.
+Requests use blue circles, publications purple diamonds, queue messages amber squares and replies grey outlined circles. Queue groups show a FIFO symbol, directional arrows and their exact current length; an observed queue remains visible when empty. External callers use a person and incoming-arrow symbol, covering people and external systems.
+
+### Ordered request and publication paths
+
+![A synchronous request waiting on SlimFaas while its function starts](images/dashboard/traffic-cold-start.png)
+
+At low request volume, each synchronous call follows these steps:
+
+1. The caller sends a message to the SlimFaas replica handling the request.
+2. If the function is sleeping, the marker waits on SlimFaas with **Waiting for a ready replica**. Readiness notifications do not create additional trips.
+3. An actual dispatch moves the message to the selected function replica. If its inventory snapshot is late, the map waits for its identifier instead of drawing to an empty function group.
+4. The reply travels back to SlimFaas, then back to the original caller, using grey outlined circles.
+
+Steps stay ordered even when the server finishes faster than the animation or delivers several events in one SSE batch. A managed job or known function caller retains its identity on the first and last hops. Waiting reflects observed server activity; the movement duration remains a visual convention.
+
+![A publication delivered to two ready replicas](images/dashboard/traffic-publication.png)
+
+A publication has one incoming trip, followed by one purple diamond from SlimFaas to each ready subscribed replica. The canvas merges publication and HTTP transport records for the same delivery and omits the publication's technical replies. All received records remain available in the journal.
+
+`CorrelationId` links an activity to its preceding activity: dispatches to their ingress, publication deliveries to their publication, and completions to their corresponding start. The JSON shape is unchanged. Queue delivery correlations retain their existing meaning. Older uncorrelated events show their individual physical hop; incomplete correlated events never invent missing hops. Missing parents are discarded after five seconds; unfinished playback is bounded to 5,000 records and expires after five minutes. Pause, reconnect and background-tab restoration discard pending animations.
+
+See [dashboard validation](dashboard-validation.md#ordered-traffic-end-to-end-tests-issue-352) for automated native-runtime browser tests and reproduction commands.
 
 Functions absent from this node’s snapshot but present in received events appear as **Observed traffic · inventory unknown**. Their observed replica identifiers remain selectable; the UI does not infer a ready/requested count from events.
 
@@ -108,12 +129,20 @@ being displayed, the map falls back to the job configuration group. Calls that
 cannot be matched to a running job remain attached to the external caller node.
 
 In native local mode, all processes share the host IP. SlimFaas therefore routes local
-entrypoint URLs declared in each Job's command or environment through a per-execution
-loopback gateway. The gateway adds the Job execution identity, allowing the same
-`Job -> SlimFaas -> Function` and `Job -> SlimFaas -> Queue -> Function` animations
-without relying on a distinct process IP. Loopback addresses are not treated as
+entrypoint URLs declared in managed function and Job commands or environments through
+a per-replica or per-execution loopback gateway. Its signed identity identifies the
+known function pod or Job execution without relying on a distinct process IP. Loopback addresses are not treated as
 function replica identities, so requests sent from local tools such as `curl` or Bruno
 remain attached to the external caller node.
+
+For recursive function calls, the caller is the exact pod found in SlimFaas's inventory.
+An internal exchange follows **caller pod → SlimFaas → destination pod**, with replies
+returning along the reverse path. The caller and destination can be the same pod.
+A single external POST to `fibonacci3/fibonacci-recursive` therefore produces exactly
+one incoming message from External and one final response to External; recursive
+calls and their replies stay between SlimFaas and the function pods.
+
+![Recursive calls between known function pods](images/dashboard/traffic-recursive.png)
 
 The map is live-only for animations. Historical activity is not replayed into the animation stream when a new browser session starts.
 
@@ -128,6 +157,15 @@ This endpoint is intended for peer SlimFaas nodes inside the namespace.
 ### Queue deliveries and the leader
 
 A queued delivery produces correlated `dequeue` and `request_out` records. Both remain in the journal, but the canvas represents the attempt once, starting at **Queue → destination replica**. A retry has a new attempt identity and remains visible. This applies to HTTP and WebSocket deliveries without changing the WebSocket client protocol. A queue observed through peer activity also remains visible when its inventory is absent locally; its label is **Queue length unknown** until a snapshot supplies the count.
+
+A queued HTTP attempt ends with one **destination replica → Queue** reply. The
+transport response remains in the journal, while the worker's correlated logical
+completion drives the animation. An HTTP `202` from the function does not finish
+that attempt: for callback-based processing, the queue reply waits for completion.
+Replies use the distinct outlined response marker, including when HTTP responses
+arrive before the dispatch animation finishes.
+
+![Asynchronous reply returning to the function queue](images/dashboard/traffic-async-queue.png)
 
 `SlimFaasNodes[].Role` is an optional `Leader`, `Follower` or `Unknown` field, separate from readiness. The map marks the current Raft leader in green with a crown and **Leader** label. The collapsed group names it too. During an election or when the known leader cannot be mapped to a managed node, the role is **Unknown**. Endpoint matching stays server-side and includes ports, including the three native demo nodes sharing loopback.
 
