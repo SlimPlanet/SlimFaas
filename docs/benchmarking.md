@@ -68,7 +68,7 @@ Run the standard profile before changing the runtime, then run the exact same
 matrix after the change. Compare the two structured reports with:
 
 ```bash
-dotnet run --project src/SlimFaasBenchmark -- compare \
+dotnet run --project benchmarks/SlimFaasBenchmark -- compare \
   --baseline artifacts/slimfaas-local-benchmark/baseline/results.json \
   --candidate artifacts/slimfaas-local-benchmark/candidate/results.json \
   --output artifacts/slimfaas-local-benchmark/comparison
@@ -82,7 +82,7 @@ BENCHMARK_PROFILE=async-queue \
 BENCHMARK_RUN_ROOT=artifacts/slimfaas-local-benchmark/async-candidate \
 .bin/slimfaas-local-benchmark.sh
 
-dotnet run --project src/SlimFaasBenchmark -- compare \
+dotnet run --project benchmarks/SlimFaasBenchmark -- compare \
   --profile async \
   --baseline artifacts/slimfaas-local-benchmark/async-baseline/results.json \
   --candidate artifacts/slimfaas-local-benchmark/async-candidate/results.json \

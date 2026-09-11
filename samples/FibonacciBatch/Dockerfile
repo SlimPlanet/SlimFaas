@@ -1,10 +1,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /repo
-# Le contexte de build est la racine du dépôt pour inclure src/FibonacciBatch et client/dotnet/SlimFaasClient
+# Le contexte de build est la racine du dépôt pour inclure samples/FibonacciBatch et client/dotnet/SlimFaasClient
 COPY . .
-RUN dotnet restore "src/FibonacciBatch/FibonacciBatch.csproj"
-RUN dotnet publish "src/FibonacciBatch/FibonacciBatch.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet restore "samples/FibonacciBatch/FibonacciBatch.csproj"
+RUN dotnet publish "samples/FibonacciBatch/FibonacciBatch.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0 AS final
 WORKDIR /app
