@@ -29,8 +29,8 @@ public class SlimWorkerShould
                 It.IsAny<IProxy?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?, string?>((req, _, _, _, _, _, _, _, _, _) => capturedRequest = req)
+                It.IsAny<string?>(), It.IsAny<Stream?>(), It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>()))
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?, string?, string?>((req, _, _, _, _, _, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
@@ -133,7 +133,7 @@ public class SlimWorkerShould
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>(), It.IsAny<string?>()),
+                It.IsAny<Stream?>(), It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>()),
             Times.Once());
 
         // Vérification que les headers ont été ajoutés
@@ -230,8 +230,8 @@ public class SlimWorkerShould
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>(), It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?, string?>((req, _, _, _, _, _, _, _, _, _) => capturedRequest = req)
+                It.IsAny<Stream?>(), It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>()))
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?, string?, string?>((req, _, _, _, _, _, _, _, _, _, _) => capturedRequest = req)
             .ReturnsAsync(responseMessage);
 
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();

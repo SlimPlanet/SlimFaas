@@ -31,7 +31,7 @@ public interface IWebSocketSendClient
         CustomRequest customRequest,
         string eventName,
         CancellationToken ct = default,
-        string? activitySourcePod = null);
+        string? activitySourcePod = null, string? activityCorrelationId = null);
 
     /// <summary>
     /// Envoie une requête HTTP synchrone vers un client WebSocket en mode streaming binaire.
@@ -47,7 +47,7 @@ public interface IWebSocketSendClient
             Dictionary<string, string[]> headers,
             Stream? requestBodyStream,
             CancellationToken ct = default,
-            string? activitySourcePod = null);
+            string? activitySourcePod = null, string? activityCorrelationId = null);
 }
 
 public class WebSocketSendClient : IWebSocketSendClient
@@ -139,7 +139,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         CustomRequest customRequest,
         string eventName,
         CancellationToken ct = default,
-        string? activitySourcePod = null)
+        string? activitySourcePod = null, string? activityCorrelationId = null)
     {
         var connections = _registry.GetConnections(functionName);
         if (connections.Count == 0) return;
@@ -161,7 +161,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             Payload = JsonSerializer.SerializeToElement(payload, AppJsonContext.Default.PublishEventPayload),
         };
 
-        await Task.WhenAll(connections.Select(c => SafeSendPublishEventAsync(functionName, c, envelope, ct, activitySourcePod)));
+        await Task.WhenAll(connections.Select(c => SafeSendPublishEventAsync(functionName, c, envelope, ct, activitySourcePod, activityCorrelationId)));
     }
 
     public async Task<(int StatusCode, Dictionary<string, string[]> Headers, ChannelReader<byte[]> BodyChunks, Func<Task> WaitForEnd)>
@@ -173,7 +173,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             Dictionary<string, string[]> headers,
             Stream? requestBodyStream,
             CancellationToken ct = default,
-            string? activitySourcePod = null)
+            string? activitySourcePod = null, string? activityCorrelationId = null)
     {
         int maxPerPod = _registry.GetConfiguration(functionName)?.NumberParallelRequestPerPod ?? int.MaxValue;
         var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod);
@@ -184,7 +184,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         }
 
         var requestOutId = _activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut,
-            NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: activitySourcePod, targetPod: connection.ConnectionId);
+            NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: activitySourcePod, targetPod: connection.ConnectionId, correlationId: activityCorrelationId);
         int activityEnded = 0;
         void EndActivity()
         {
@@ -287,11 +287,11 @@ public class WebSocketSendClient : IWebSocketSendClient
         WebSocketClientConnection connection,
         WebSocketEnvelope envelope,
         CancellationToken ct,
-        string? activitySourcePod)
+        string? activitySourcePod, string? activityCorrelationId)
     {
         try
         {
-            _activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: activitySourcePod, targetPod: connection.ConnectionId);
+            _activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: activitySourcePod, targetPod: connection.ConnectionId, correlationId: activityCorrelationId);
             await connection.SendAsync(envelope, ct);
         }
         catch (Exception ex) { _logger.LogWarning(ex, "Failed to send WebSocket message to {ConnectionId}", connection.ConnectionId); }

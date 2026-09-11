@@ -297,3 +297,25 @@ Use `--nodes` for alternative HTTP ports in the viewer script. The exporter smok
 The implementation passed **1,337 .NET tests**, **40 dashboard tests**, the documentation site build and a native `osx-arm64` AOT publication. The native three-node run served 126 frames to six viewers with no stream errors; previews requested eight replicas while the real worker stayed at zero. The exporter smoke then verified real `0 → 8 → 0` scaling and retained eight replicas during an exporter failure. The standard native demo also returned function status and `Hello local!` successfully.
 
 The mixed memory-lab smoke completed 3,740 operations without failures over ten seconds at concurrency four. Both memory observations are short smoke checks, without a comparative baseline. Native screenshots show the [desktop view](images/dashboard/scaling-desktop.png) and [390 px mobile view](images/dashboard/scaling-mobile.png); the production browser regression also verifies stream lifecycle and keyboard focus.
+
+
+## Ordered traffic end-to-end tests (issue #352)
+
+Playwright runs the production dashboard served by three real native SlimFaas nodes and real Fibonacci processes. Tests use a temporary manifest and state directory, with no scheduled jobs or unrelated functions. They send each POST exactly once and poll only readiness or observations.
+
+The cold-start test holds Fibonacci startup behind a test-owned HTTP gate until both the receiving node's browser and a peer browser have drawn the wait on SlimFaas. It then verifies all four physical hops, their order, and the different reply color. The publication test checks one incoming diamond followed by exactly one delivery to each of two ready replicas. Canvas drawing calls and real SSE frames are observed without replacing the renderer or mocking responses.
+
+Use Node 24 and .NET 10. Build the runtime for the host RID (`osx-arm64` below; CI uses `linux-x64`):
+
+```bash
+(cd src/SlimFaas/ClientApp && npm ci --ignore-scripts && npx playwright install chromium)
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 -o artifacts/traffic-e2e/runtime
+dotnet publish src/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
+(cd src/SlimFaas/ClientApp && npm run test:e2e)
+```
+
+`SLIMFAAS_E2E_RUNTIME` overrides the native executable. `SLIMFAAS_E2E_PORT_BASE` defaults to 38020: the entrypoint uses that port, HTTP nodes use +1 through +3, Raft uses +100 through +102, and function processes use +200 through +299. Use an unused range when running beside another local cluster.
+
+The dashboard workflow runs this suite on pull requests. Reports, screenshots, canvas/SSE observations and runtime logs are saved under `artifacts/traffic-e2e/`; Playwright traces are retained on failure. The fixture stops the native supervisor and its child processes after each test. Backend correlation tests and dashboard model tests additionally cover batch order, duplicate delivery records, concurrent calls, delayed inventories, missing parents, cancellation, pause and reconnection.
+
+Local validation used macOS ARM64, Node 24.21.0 and Chromium 153.0.8010.12. Both native Playwright scenarios passed, along with 50 dashboard model tests, the full .NET suite and dashboard/Storybook/documentation builds. A 30-second production-canvas smoke with 10,000 replicas, 10,000 job executions and 1,000 events/s measured 59.95 draws/s, a 17.6 ms p95 frame gap and zero browser errors; post-GC heap changed from 20.1 to 26.4 MB. This short run validates bounded-load behavior, not a long-duration memory guarantee.

@@ -86,9 +86,30 @@ Scroll or use the zoom buttons, drag to pan and use **Fit map** to return to the
 
 The journal retains at most 5,000 received events. **Pause** freezes the current view; **Resume live** returns to current traffic without replaying the paused interval. Markers are grouped by route and event type and independently limited to 200; the actor inventory is not sampled. Each grouped marker shows its event count. The canvas reports any events omitted by the visual limit separately from the retained journal. Reduced-motion preferences replace movement with static activity highlights.
 
-**Animation speed** offers **Fast (450 ms)**, **Normal (800 ms)** and **Slow (1,400 ms)** for a complete trip and remembers the choice in this browser. Fast is the default. This duration is a visual convention, not measured function latency. New arrivals use the browser's monotonic receipt clock, so an older server timestamp does not hide a live event. Returning from Pause, reconnecting or restoring a background tab does not replay stale animations.
+**Animation speed** offers **Fast (450 ms)**, **Normal (800 ms)** and **Slow (1,400 ms)** for each hop between two actors and remembers the choice in this browser. Fast is the default. This duration is a visual convention, not measured function latency. New arrivals use the browser's monotonic receipt clock, so an older server timestamp does not hide a live event. Returning from Pause, reconnecting or restoring a background tab does not replay stale animations.
 
-Requests use blue circles, publications purple diamonds, queue messages amber squares and replies outlined circles. Queue groups show a FIFO symbol, directional arrows and their exact current length; an observed queue remains visible when empty. External callers use a person and incoming-arrow symbol, covering people and external systems.
+Requests use blue circles, publications purple diamonds, queue messages amber squares and replies grey outlined circles. Queue groups show a FIFO symbol, directional arrows and their exact current length; an observed queue remains visible when empty. External callers use a person and incoming-arrow symbol, covering people and external systems.
+
+### Ordered request and publication paths
+
+![A synchronous request waiting on SlimFaas while its function starts](images/dashboard/traffic-cold-start.png)
+
+At low request volume, each synchronous call follows these steps:
+
+1. The caller sends a message to the SlimFaas replica handling the request.
+2. If the function is sleeping, the marker waits on SlimFaas with **Waiting for a ready replica**. Readiness notifications do not create additional trips.
+3. An actual dispatch moves the message to the selected function replica. If its inventory snapshot is late, the map waits for its identifier instead of drawing to an empty function group.
+4. The reply travels back to SlimFaas, then back to the original caller, using grey outlined circles.
+
+Steps stay ordered even when the server finishes faster than the animation or delivers several events in one SSE batch. A managed job or known function caller retains its identity on the first and last hops. Waiting reflects observed server activity; the movement duration remains a visual convention.
+
+![A publication delivered to two ready replicas](images/dashboard/traffic-publication.png)
+
+A publication has one incoming trip, followed by one purple diamond from SlimFaas to each ready subscribed replica. The canvas merges publication and HTTP transport records for the same delivery and omits the publication's technical replies. All received records remain available in the journal.
+
+`CorrelationId` links an activity to its preceding activity: dispatches to their ingress, publication deliveries to their publication, and completions to their corresponding start. The JSON shape is unchanged. Queue delivery correlations retain their existing meaning. Older uncorrelated events show their individual physical hop; incomplete correlated events never invent missing hops. Missing parents are discarded after five seconds; unfinished playback is bounded to 5,000 records and expires after five minutes. Pause, reconnect and background-tab restoration discard pending animations.
+
+See [dashboard validation](dashboard-validation.md#ordered-traffic-end-to-end-tests-issue-352) for automated native-runtime browser tests and reproduction commands.
 
 Functions absent from this node’s snapshot but present in received events appear as **Observed traffic · inventory unknown**. Their observed replica identifiers remain selectable; the UI does not infer a ready/requested count from events.
 

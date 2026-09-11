@@ -3,7 +3,7 @@ import * as d3 from 'd3';
 import type { NetworkActivityEvent } from '../types.ts';
 import { selectedEvent, type MapNode, type MapGroup, type Topology } from '../lib/topology.ts';
 
-import { TrafficPlayback, displayPath, messageKind, markerProgress, type Speed } from '../lib/traffic.ts';
+import { TrafficPlayback, displayPath, markerProgress, type Speed } from '../lib/traffic.ts';
 import { drawSymbol } from '../lib/canvasSymbols.ts';
 
 interface Props {
@@ -23,7 +23,7 @@ export default function TrafficCanvas(props: Props) {
   const [playback] = useState(() => new TrafficPlayback());
   current.current = props;
   useLayoutEffect(() => {
-    playback.update(props.events, props.activitySession, props.paused, performance.now(), props.topology,
+    playback.update(props.events, props.activitySession, props.paused || document.hidden, performance.now(), props.topology,
       props.speed, props.eventType, props.selected, props.isolate);
     dirty.current = true;
   }, [props.events, props.activitySession, props.paused, props.topology, props.speed, props.eventType, props.selected, props.isolate, props.visibleEvents]);
@@ -135,7 +135,7 @@ export default function TrafficCanvas(props: Props) {
         previousModel = model; dirty.current = true;
       }
       const hadMarkers = playback.markers.size > 0 || playback.arrivals.size > 0;
-      playback.update(events, activitySession, paused, now, model, speed, eventType, selected, isolate);
+      playback.update(events, activitySession, paused || document.hidden, now, model, speed, eventType, selected, isolate);
       const animations = [...playback.markers.values()];
       if (hadMarkers && !animations.length) dirty.current = true;
       if (now - lastStatusAt > 250) {
@@ -156,9 +156,10 @@ export default function TrafficCanvas(props: Props) {
       // Keep instance destinations; collapse their screen positions only at overview zoom.
       const edges = new Map<string, { from: string; to: string; count: number; kind: string; highlighted: boolean }>();
       for (const event of visibleEvents.slice(-1500)) {
+        const kind = playback.visualKind(event);
+        if (kind === null) continue;
         const path = displayPath(model, event, selected);
         for (let i = 1; i < path.length; i++) {
-          const kind = messageKind(event);
           const key = JSON.stringify([path[i - 1], path[i], kind]);
           const edge = edges.get(key);
           if (edge) { edge.count++; edge.highlighted ||= selectedEvent(model, event, selected); }
@@ -258,6 +259,14 @@ export default function TrafficCanvas(props: Props) {
       for (const animation of animations) {
         const positions = animation.path.map(position).filter(p => p !== null)
           .filter((p, i, path) => i === 0 || p.x !== path[i - 1].x || p.y !== path[i - 1].y);
+        if (animation.waiting && positions.length) {
+          const point = positions[0];
+          context.strokeStyle = colors.queue; context.lineWidth = 2 / k;
+          context.beginPath(); context.arc(point.x, point.y, 9 / k, 0, Math.PI * 2); context.stroke();
+          context.fillStyle = colors.ink; context.font = `${11 / k}px system-ui`;
+          context.fillText('Waiting for a ready replica', point.x + 14 / k, point.y - 10 / k);
+          continue;
+        }
         if (positions.length < 2) continue;
         const progress = markerProgress(now, animation.start, animation.duration) * (positions.length - 1);
         const i = Math.min(positions.length - 2, Math.floor(progress)), fraction = progress - i;
@@ -282,8 +291,15 @@ export default function TrafficCanvas(props: Props) {
       context.globalAlpha = 1;
 
     };
+    const visibility = () => {
+      const p = current.current;
+      playback.update(p.events, p.activitySession, p.paused || document.hidden, performance.now(), p.topology, p.speed, p.eventType, p.selected, p.isolate);
+      dirty.current = true;
+    };
+    document.addEventListener('visibilitychange', visibility);
     frame = requestAnimationFrame(draw);
     return () => {
+      document.removeEventListener('visibilitychange', visibility);
       cancelAnimationFrame(frame); resize.disconnect(); selection.on('.zoom', null);
       canvas.removeEventListener('mousemove', hoverNode); canvas.removeEventListener('mouseleave', clearHover);
       canvas.removeEventListener('click', click); canvas.removeEventListener('keydown', keydown); camera.current = null;

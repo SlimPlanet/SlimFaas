@@ -20,7 +20,7 @@ public record NetworkActivityEvent(
     string NodeId,        // hostname of the SlimFaas node that recorded the event
     string? SourcePod = null,   // source pod name or IP (including a full SlimFaas job run name)
     string? TargetPod = null,   // target pod name or IP (e.g. the downstream pod receiving the request)
-    string? CorrelationId = null); // shared id used to pair related start/end events while keeping Id unique
+    string? CorrelationId = null); // preceding activity id: ingress/dispatch/publication; completion still references its start
 
 /// <summary>
 /// Represents the full stream payload sent via SSE.
@@ -377,4 +377,3 @@ public sealed class NetworkActivityTracker
         }
     }
 }
-

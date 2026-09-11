@@ -35,5 +35,40 @@ jobs:
           npm run build-storybook
         env:
           STORYBOOK_DISABLE_TELEMETRY: '1'
+  traffic-e2e:
+    name: Native traffic animations (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/SlimFaas/ClientApp/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install browser test dependencies
+        working-directory: src/SlimFaas/ClientApp
+        run: |
+          npm ci --ignore-scripts
+          npx playwright install --with-deps chromium
+      - name: Publish native runtime and real function
+        run: |
+          dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r linux-x64 -o artifacts/traffic-e2e/runtime
+          dotnet publish src/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
+      - name: Test cold start and publication on three nodes
+        working-directory: src/SlimFaas/ClientApp
+        run: npm run test:e2e
+      - name: Upload browser and runtime diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: traffic-e2e
+          path: |
+            artifacts/traffic-e2e/results/
+            artifacts/traffic-e2e/report/
+          retention-days: 7
   documentation:
     uses: ./.github/workflows/SiteBuild.yml

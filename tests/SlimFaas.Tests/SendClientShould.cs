@@ -1,4 +1,4 @@
-﻿﻿using System.Net;
+﻿using System.Net;
 using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
@@ -10,6 +10,19 @@ namespace SlimFaas.Tests;
 
 public class SendClientShould
 {
+    [Fact]
+    public async Task Cancellation_before_a_target_is_acquired_does_not_invent_a_downstream_completion()
+    {
+        var tracker = new SlimFaas.Endpoints.NetworkActivityTracker();
+        using var http = new HttpClient(new HttpMessageHandlerStub((_, _) => throw new InvalidOperationException("No dispatch expected")));
+        var sender = new SendClient(http, Mock.Of<ILogger<SendClient>>(),
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions { BaseFunctionUrl = "http://{pod_ip}/" }), Mock.Of<INamespaceProvider>(), tracker);
+        var context = new DefaultHttpContext { RequestAborted = new CancellationToken(true) };
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => sender.SendHttpRequestSync(
+            context, "worker", "/", "", new SlimFaasSyncConfiguration(), proxy: Mock.Of<IProxy>(), activityCorrelationId: "incoming"));
+        Assert.Empty(tracker.GetRecent());
+    }
+
     [Fact]
     public async Task Queue_attempt_pairs_dequeue_and_dispatch_while_sync_and_publish_remain_independent()
     {
@@ -127,7 +140,7 @@ public class SendClientShould
         CustomRequest customRequest =
             new CustomRequest(new List<CustomHeader> { new() { Key = "key", Values = new[] { "value1" } } },
                 new byte[1], "fibonacci", "health", httpMethod, "");
-        HttpResponseMessage response = await sendClient.SendHttpRequestAsync(customRequest, new SlimFaasDefaultConfiguration());
+        HttpResponseMessage response = await sendClient.SendHttpRequestAsync(customRequest, new SlimFaasDefaultConfiguration(), activityCorrelationId: "publication-delivery");
 
         Uri expectedUri = new Uri("http://fibonacci:8080/health");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
@@ -138,6 +151,8 @@ public class SendClientShould
         Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestOut, events[0].Type);
         Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestEnd, events[1].Type);
         Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.Actors.SlimFaas, events[0].Source);
+        Assert.Equal("publication-delivery", events[0].CorrelationId);
+        Assert.Equal(events[0].Id, events[1].CorrelationId);
     }
 
 
@@ -189,7 +204,7 @@ public class SendClientShould
 
         SlimFaasSyncConfiguration slimFaasSyncConfiguration = new();
 
-        HttpResponseMessage response = await sendClient.SendHttpRequestSync(httpContext, "fibonacci", "health", "", slimFaasSyncConfiguration);
+        HttpResponseMessage response = await sendClient.SendHttpRequestSync(httpContext, "fibonacci", "health", "", slimFaasSyncConfiguration, activityCorrelationId: "incoming-request");
 
         Uri expectedUri = new Uri("http://fibonacci:8080/health");
         Assert.NotNull(sendedRequest);
@@ -201,6 +216,8 @@ public class SendClientShould
         Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestOut, events[0].Type);
         Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.EventTypes.RequestEnd, events[1].Type);
         Assert.Equal(SlimFaas.Endpoints.NetworkActivityTracker.Actors.SlimFaas, events[0].Source);
+        Assert.Equal("incoming-request", events[0].CorrelationId);
+        Assert.Equal(events[0].Id, events[1].CorrelationId);
     }
 
     [Fact]

@@ -82,7 +82,7 @@ public sealed class ReactiveStreamTests
             .Callback<HttpContext, string>((context, _) => Assert.Equal(job, context.Request.Headers[LocalJobGateway.JobHeaderName]))
             .Returns([new DeploymentInformation("ws-function", "websocket-virtual", [], new SlimFaasConfiguration(), Replicas: 1)]);
         var websocket = new Mock<IWebSocketSendClient>();
-        websocket.Setup(w => w.PublishEventAsync("ws-function", It.IsAny<CustomRequest>(), "test-event", It.IsAny<CancellationToken>(), It.IsAny<string?>())).Returns(Task.CompletedTask);
+        websocket.Setup(w => w.PublishEventAsync("ws-function", It.IsAny<CustomRequest>(), "test-event", It.IsAny<CancellationToken>(), It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>())).Returns(Task.CompletedTask);
         using var host = await Host(services => {
             services.AddSingleton(policy.Object); services.AddSingleton(websocket.Object);
             services.AddSingleton(Mock.Of<ISendClient>()); services.AddSingleton<HistoryHttpMemoryService>(); services.AddSingleton(Mock.Of<INamespaceProvider>());
@@ -95,6 +95,6 @@ public sealed class ReactiveStreamTests
         var activity = host.Services.GetRequiredService<NetworkActivityTracker>().GetRecent();
         Assert.All(activity, e => Assert.Equal(validSignature ? "daily-report" : "external", e.Source));
         if (validSignature) Assert.All(activity, e => Assert.Equal(job, e.SourcePod));
-        websocket.Verify(w => w.PublishEventAsync("ws-function", It.Is<CustomRequest>(r => r.Headers.All(h => h.Key != LocalJobGateway.JobHeaderName && h.Key != LocalJobGateway.SignatureHeaderName)), "test-event", It.IsAny<CancellationToken>(), It.Is<string?>(s => validSignature ? s == job : s != job)), Times.Once);
+        websocket.Verify(w => w.PublishEventAsync("ws-function", It.Is<CustomRequest>(r => r.Headers.All(h => h.Key != LocalJobGateway.JobHeaderName && h.Key != LocalJobGateway.SignatureHeaderName)), "test-event", It.IsAny<CancellationToken>(), It.Is<string?>(s => validSignature ? s == job : s != job), activityCorrelationId: It.IsAny<string?>()), Times.Once);
     }
 }

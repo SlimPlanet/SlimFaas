@@ -98,7 +98,7 @@ public static class SyncFunctionEndpoints
             if (function.Namespace == "websocket-virtual")
             {
                 var wsResult = await HandleSyncFunctionViaWebSocket(
-                    functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct, activityCaller.SourcePod);
+                    functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct, activityCaller.SourcePod, requestInId);
                 return wsResult;
             }
 
@@ -114,7 +114,7 @@ public static class SyncFunctionEndpoints
                     NetworkActivityTracker.EventTypes.RequestWaiting,
                     NetworkActivityTracker.Actors.SlimFaas,
                     functionName,
-                    sourcePod: activityCaller.SourcePod);
+                    sourcePod: activityCaller.SourcePod, correlationId: requestInId);
             }
 
             if (!functionWasReady)
@@ -133,7 +133,7 @@ public static class SyncFunctionEndpoints
                     NetworkActivityTracker.EventTypes.RequestStarted,
                     NetworkActivityTracker.Actors.SlimFaas,
                     functionName,
-                    sourcePod: activityCaller.SourcePod);
+                    sourcePod: activityCaller.SourcePod, correlationId: requestInId);
             }
 
             var proxy = new Proxy(replicasService, functionName, function);
@@ -146,7 +146,7 @@ public static class SyncFunctionEndpoints
                 null,
                 proxy,
                 NetworkActivityTracker.Actors.SlimFaas,
-                activityCaller.SourcePod).ConfigureAwait(false);
+                activityCaller.SourcePod, requestInId).ConfigureAwait(false);
 
             context.Response.StatusCode = (int)responseMessage.StatusCode;
             CopyFromTargetResponseHeaders(context, responseMessage);
@@ -196,7 +196,8 @@ public static class SyncFunctionEndpoints
         HistoryHttpMemoryService historyHttpService,
         IWebSocketSendClient webSocketSendClient,
         CancellationToken ct,
-        string? activitySourcePod)
+        string? activitySourcePod,
+        string activityCorrelationId)
     {
         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
 
@@ -225,7 +226,7 @@ public static class SyncFunctionEndpoints
                     headers,
                     bodyStream,
                     ct,
-                    activitySourcePod);
+                    activitySourcePod, activityCorrelationId);
 
             // Écrire la réponse HTTP
             context.Response.StatusCode = statusCode;

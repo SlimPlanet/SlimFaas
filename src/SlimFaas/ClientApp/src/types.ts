@@ -118,7 +118,7 @@ export interface NetworkActivityEvent {
   NodeId: string;
   SourcePod: string | null;  // pod name, opaque address token or full SlimFaas job run name
   TargetPod: string | null;  // pod name or opaque address token of the downstream replica
-  CorrelationId?: string | null; // shared id used to pair related start/end events
+  CorrelationId?: string | null; // Preceding activity id; completions reference their corresponding start.
 }
 
 export interface QueueInfo {

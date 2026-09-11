@@ -82,7 +82,7 @@ public sealed class AsyncQueueWorkerTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>(), It.IsAny<string?>()))
+                It.IsAny<Stream?>(), It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>()))
             .Callback(() => sendStarted.TrySetResult())
             .Returns(response.Task);
         SlimQueuesWorker worker = BuildWorker(
@@ -142,9 +142,9 @@ public sealed class AsyncQueueWorkerTests
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
                 It.IsAny<string?>(),
-                It.IsAny<Stream?>(), It.IsAny<string?>()))
-            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?, string?>(
-                (_, _, _, cancellation, _, _, _, _, _, _) => sendStarted.TrySetResult(cancellation!))
+                It.IsAny<Stream?>(), It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>()))
+            .Callback<CustomRequest, SlimFaasDefaultConfiguration, string?, CancellationTokenSource?, IProxy?, string?, string?, string?, Stream?, string?, string?>(
+                (_, _, _, cancellation, _, _, _, _, _, _, _) => sendStarted.TrySetResult(cancellation!))
             .Returns(neverCompletes.Task);
         SlimQueuesWorker worker = BuildWorker(
             queue.Object,

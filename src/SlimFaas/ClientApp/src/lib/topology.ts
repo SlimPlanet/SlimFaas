@@ -128,19 +128,24 @@ export function resolveSource(topology: Topology, actor: string, pod: string | n
 export function eventPath(topology: Topology, event: NetworkActivityEvent): string[] {
   const slim = topology.byId.has(nodeId('node', event.NodeId)) ? nodeId('node', event.NodeId) : 'slimfaas:slimfaas';
   const source = event.Source === 'slimfaas' && !event.SourcePod ? slim : resolveSource(topology, event.Source, event.SourcePod);
-  const target = (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target) || slim;
+  const target = event.Target === 'slimfaas' ? slim : (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target) || slim;
   const queue = nodeId('queue', event.QueueName ?? event.Target);
   let path: string[];
   if (event.Type === 'request_in') path = [source, slim];
   else if (event.Type === 'enqueue') path = [source, slim, queue];
   else if (event.Type === 'dequeue' || (event.Type === 'request_out' && event.QueueName)) path = [queue, target];
-  else if (event.Type === 'response' || event.Type === 'request_end') path = event.QueueName ? [target, slim] : [target, slim, source];
+  else if (event.Type === 'response' || event.Type === 'request_end') path = event.Target === 'slimfaas' ? [slim, source] : [target, slim];
+  else if (event.Type === 'request_waiting' || event.Type === 'request_started') path = [slim];
+  else if (event.Type === 'request_out' || event.Type === 'event_publish') path = event.Target === 'slimfaas' ? [source, slim] : [slim, target];
   else path = [source, slim, target];
   return path.filter((id, i) => topology.byId.has(id) && (i === 0 || id !== path[i - 1]));
 }
 
 export function selectedEvent(topology: Topology, event: NetworkActivityEvent, selected: string | null): boolean {
   if (!selected) return true;
+  const caller = resolveSource(topology, event.Source, event.SourcePod);
+  if (caller === selected || topology.byId.get(caller)?.parent === selected) return true;
+  if (['request_waiting', 'request_started'].includes(event.Type) && topology.actors.get(event.Target) === selected) return true;
   return eventPath(topology, event).some(id => id === selected || topology.byId.get(id)?.parent === selected);
 }
 

@@ -47,8 +47,9 @@ public sealed class WebSocketActivityTests
         var (client, connection, tracker) = Setup();
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         const string job = "daily-report-slimfaas-job-123";
-        var result = await client.SendSyncRequestStreamAsync("ws-function", "GET", "/hello", "", [], null, cancellation.Token, job);
+        var result = await client.SendSyncRequestStreamAsync("ws-function", "GET", "/hello", "", [], null, cancellation.Token, job, "incoming");
         var start = Assert.Single(tracker.GetRecent());
+        Assert.Equal("incoming", start.CorrelationId);
         Assert.Equal("request_out", start.Type); Assert.Equal(job, start.SourcePod); Assert.Equal(connection.ConnectionId, start.TargetPod);
         if (abort)
         {
@@ -103,9 +104,9 @@ public sealed class WebSocketActivityTests
     {
         var (client, _, tracker) = Setup(replicas: 3);
         const string job = "daily-report-slimfaas-job-123";
-        await client.PublishEventAsync("ws-function", new CustomRequest([], [], "ws-function", "/", "POST", ""), "report", default, job);
+        await client.PublishEventAsync("ws-function", new CustomRequest([], [], "ws-function", "/", "POST", ""), "report", default, job, "publication");
         var events = tracker.GetRecent();
         Assert.Equal(3, events.Count); Assert.Equal(3, events.Select(e => e.TargetPod).Distinct().Count());
-        Assert.All(events, e => { Assert.Equal("event_publish", e.Type); Assert.Equal(job, e.SourcePod); Assert.Equal("ws-function", e.Target); });
+        Assert.All(events, e => { Assert.Equal("publication", e.CorrelationId); Assert.Equal("event_publish", e.Type); Assert.Equal(job, e.SourcePod); Assert.Equal("ws-function", e.Target); });
     }
 }
