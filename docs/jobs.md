@@ -27,6 +27,32 @@ flowchart TD
 
 In the dashboard, **Jobs Overview** shows configurations and running work. List executions with `GET /job/name` and create/delete your own schedules in the [job exercise](guided-tour.md#6-run-jobs-and-manage-schedules). CPU/memory resource limits depend on the orchestrator; native local processes do not enforce container limits.
 
+### Recovery after a temporary SlimData interruption
+
+An HTTP `202 Accepted` response means the job has been queued; execution still waits
+for dependencies, an available concurrency slot and the cluster leader. A temporary
+SlimData interruption can delay dispatch. Once the cluster can make progress again,
+SlimFaas retries queue operations without requiring a node restart.
+
+Queue reads wait at most five seconds per attempt for the committed Raft log to be
+applied locally. An expiration is reported as a SlimData unavailability error and
+retried; if those retries are exhausted, the jobs worker can try again on a later
+cycle. Internal mutation requests keep their HTTP timeout active until the complete
+response body arrives, including when the response headers have already arrived.
+The default internal HTTP timeout is 100 seconds.
+
+If a mutation response is lost or times out, SlimFaas retries the same ordered batch
+against the current leader. Its producer, generation, sequence and request IDs are
+preserved so SlimData can return the previously committed result without applying
+the queue mutation twice. These transport retries are separate from retries of the
+job program itself. This does not provide an exactly-once guarantee for external
+side effects performed by a job.
+
+If jobs remain queued after recovery, check dependency readiness, active jobs and
+the node logs for `Raft local log application timed out` or
+`Retrying the same ordered SlimData batch`. Retained `Succeeded` and `Failed` jobs
+do not occupy concurrency slots.
+
 ## 1. Why Use Jobs?
 
 * **Short‑lived or periodic tasks** — perform a specialised computation once or on a fixed cadence and then shut down.
