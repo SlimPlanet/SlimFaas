@@ -76,6 +76,7 @@ public class ScheduleJobServiceTests
         var result = await _sut.CreateScheduleJobAsync("test-func", job, isMessageComeFromNamespaceInternal: false);
 
         // Assert
+        Assert.NotNull(result.Error);
         Assert.Equal("visibility_private", result.Error.Key);
         _dbMock.VerifyNoOtherCalls();
     }

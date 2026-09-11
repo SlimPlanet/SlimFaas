@@ -138,11 +138,11 @@ public class McpTool
             }
             else if (parameter.In == "body" && parameter.Schema is not null)
             {
-                schemaNode = SchemaHelpers.ToJsonNode(parameter.Schema);
+                schemaNode = SchemaHelpers.ToJsonNode(parameter.Schema) ?? new JsonObject();
             }
             else if (parameter.Schema is not null)
             {
-                schemaNode = SchemaHelpers.ToJsonNode(parameter.Schema);
+                schemaNode = SchemaHelpers.ToJsonNode(parameter.Schema) ?? new JsonObject();
             }
             else
             {

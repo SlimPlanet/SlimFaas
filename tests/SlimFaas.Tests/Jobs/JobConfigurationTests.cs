@@ -168,6 +168,7 @@ public class JobConfigurationTests
 
         // Vérifie la configuration Default
         SlimfaasJob defaultJob = jobConfiguration.Configuration.Configurations["Default"];
+        Assert.NotNull(defaultJob.Resources);
         Assert.Equal("500m", defaultJob.Resources.Limits["cpu"]);
         Assert.Equal("512Mi", defaultJob.Resources.Limits["memory"]);
         Assert.Equal("200m", defaultJob.Resources.Requests["cpu"]);

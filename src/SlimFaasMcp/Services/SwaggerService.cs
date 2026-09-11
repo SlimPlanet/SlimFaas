@@ -24,10 +24,6 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 {
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
     private static readonly TimeSpan s_slidingExpiration = TimeSpan.FromMinutes(20);
-    private static readonly JsonSerializerOptions s_yamlJsonOptions = new()
-    {
-        TypeInfoResolver = AppJsonContext.Default
-    };
 
     public async Task<JsonDocument> GetSwaggerAsync(
         string swaggerUrl,
@@ -61,8 +57,11 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         }
         else
         {
-            JsonNode node = YamlSerializer.Deserialize<JsonNode>(swaggerStr, s_yamlJsonOptions)
-                            ?? throw new JsonException("Unable to deserialize Swagger YAML into JsonNode.");
+            // YamlSerializer.Deserialize<T> goes through reflection-based JSON serialization, which is not
+            // AOT/trim safe. The representation-model conversion is.
+            YamlStream yaml = YamlSerializer.Parse(swaggerStr);
+            JsonNode node = (yaml.Documents.Count > 0 ? yaml.Documents[0].ToJsonNode() : null)
+                            ?? throw new JsonException("Unable to convert Swagger YAML into JsonNode.");
             doc = JsonDocument.Parse(node.ToJsonString());
         }
 

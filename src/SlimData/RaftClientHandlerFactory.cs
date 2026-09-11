@@ -34,7 +34,9 @@ internal sealed class RaftClientHandlerFactory : IHttpMessageHandlerFactory
             EnableMultipleHttp2Connections = false,
             UseProxy = false
         };
+#pragma warning disable CA5359 // Raft members talk over self-signed intra-cluster TLS; hardening tracked in #346
         handler.SslOptions.RemoteCertificateValidationCallback = AllowCertificate;
+#pragma warning restore CA5359
         return handler;
     }
 

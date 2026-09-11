@@ -277,6 +277,7 @@ public class DockerServiceTests
         Assert.NotNull(lastCreateBody);
         Assert.Equal("python:3.11", lastCreateBody!.Image);
         Assert.Equal(jobFullName, lastCreateBody.Name);
+        Assert.NotNull(lastCreateBody.Labels);
         Assert.Contains(lastCreateBody.Labels, kv => kv.Key == "slimfaas-job-name" && kv.Value == jobFullName);
         Assert.Contains(lastCreateBody.Labels, kv => kv.Key == "slimfaas-job-element-id" && kv.Value == elementId);
         Assert.Contains(lastCreateBody.Labels, kv => kv.Key == "SlimFaas/Namespace" && kv.Value == ns);
@@ -648,7 +649,7 @@ internal class FakeDockerHandler : HttpMessageHandler
             return full.Contains(_p, StringComparison.Ordinal);
         }
 
-        private static HttpResponseMessage MakeJson(object obj, int status)
+        private static HttpResponseMessage MakeJson(object? obj, int status)
         {
             HttpResponseMessage msg = new((HttpStatusCode)status);
             msg.Content = new StringContent(JsonSerializer.Serialize(obj), Encoding.UTF8, "application/json");

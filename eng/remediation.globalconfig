@@ -7,49 +7,7 @@
 is_global = true
 global_level = 90
 
-# --- ASP.NET Core ---
-# 1
-dotnet_diagnostic.ASP0013.severity = none
-# 1
-dotnet_diagnostic.ASP0019.severity = none
-# 4
-dotnet_diagnostic.ASPDEPR002.severity = none
-
-# --- Trimming / AOT ---
-# 5
-dotnet_diagnostic.IL2026.severity = none
-# 5
-dotnet_diagnostic.IL3050.severity = none
-
-# --- Compiler ---
-# 1 (duplicate using)
-dotnet_diagnostic.CS0105.severity = none
-# 1 (unused variable)
-dotnet_diagnostic.CS0168.severity = none
-# 1 (field never assigned)
-dotnet_diagnostic.CS0649.severity = none
-# 4
-dotnet_diagnostic.CS8600.severity = none
-# 1
-dotnet_diagnostic.CS8601.severity = none
-# 22
-dotnet_diagnostic.CS8602.severity = none
-# 14
-dotnet_diagnostic.CS8604.severity = none
-# 1
-dotnet_diagnostic.CS8620.severity = none
-# 2
-dotnet_diagnostic.CS8622.severity = none
-# 2
-dotnet_diagnostic.CS8625.severity = none
-# 1
-dotnet_diagnostic.CS8767.severity = none
-
 # --- Security ---
-# 2 (ServerCertificateValidationCallback accepts any certificate)
-dotnet_diagnostic.CA5359.severity = none
-# 1 (P/Invoke without DefaultDllImportSearchPaths)
-dotnet_diagnostic.CA5392.severity = none
 # 6
 dotnet_diagnostic.CA5394.severity = none
 
@@ -58,8 +16,6 @@ dotnet_diagnostic.CA5394.severity = none
 dotnet_diagnostic.CA2000.severity = none
 # 43 (SlimFaasClient only, the rule is off for applications)
 dotnet_diagnostic.CA2007.severity = none
-# 10
-dotnet_diagnostic.CA2012.severity = none
 # 2
 dotnet_diagnostic.CA2016.severity = none
 # 2
@@ -68,16 +24,10 @@ dotnet_diagnostic.CA2022.severity = none
 dotnet_diagnostic.CA2025.severity = none
 # 8
 dotnet_diagnostic.CA2201.severity = none
-# 7
-dotnet_diagnostic.CA2213.severity = none
-# 1
-dotnet_diagnostic.CA2215.severity = none
 # 16
 dotnet_diagnostic.CA2234.severity = none
 # 1
 dotnet_diagnostic.CA2249.severity = none
-# 1
-dotnet_diagnostic.CA2254.severity = none
 
 # --- Logging (dedicated phase) ---
 # 371
@@ -126,8 +76,6 @@ dotnet_diagnostic.CA1310.severity = none
 dotnet_diagnostic.CA1311.severity = none
 
 # --- Maintainability (CA15xx) ---
-# 7
-dotnet_diagnostic.CA1508.severity = none
 # 1
 dotnet_diagnostic.CA1510.severity = none
 # 6
@@ -156,8 +104,6 @@ dotnet_diagnostic.CA1727.severity = none
 dotnet_diagnostic.CA1802.severity = none
 # 8
 dotnet_diagnostic.CA1805.severity = none
-# 2
-dotnet_diagnostic.CA1806.severity = none
 # 2
 dotnet_diagnostic.CA1812.severity = none
 # 28

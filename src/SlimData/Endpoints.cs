@@ -393,7 +393,7 @@ public class Endpoints
                 return;
             }
 
-            var values = await ListRightPopCommand(provider, key, transactionId, count, reservedIps, cluster, source);
+            var values = await ListRightPopCommand(provider, key, transactionId.ToString(), count, reservedIps, cluster, source);
             var bin = MemoryPackSerializer.Serialize(values);
             await context.Response.Body.WriteAsync(bin, context.RequestAborted);
         });
@@ -449,7 +449,7 @@ public class Endpoints
                     delayMs = Math.Min(100, delayMs * 2); // backoff 4,8,16,32,64,100...
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await Task.Delay(delayMs, source.Token);
                 delayMs = Math.Min(100, delayMs * 2);
@@ -483,14 +483,17 @@ public class Endpoints
     public static async Task<ListLeftPushBatchResponse> ListLeftPushBatchCommand(IRaftCluster cluster, byte[] value,
         CancellationTokenSource source)
     {
-        var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value);
+        var listLeftPushBatchRequest = MemoryPackSerializer.Deserialize<ListLeftPushBatchRequest>(value)
+                                       ?? throw new InvalidDataException("ListLeftPushBatch payload is empty");
 
         List<ListLeftPushBatchCommand.BatchItem> batchItems = new(listLeftPushBatchRequest.Items.Length);
         foreach (var item in listLeftPushBatchRequest.Items)
         {
             var key = item.Key;
-            var listLeftPushInput = MemoryPackSerializer.Deserialize<ListLeftPushInput>(item.Payload);
-            var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(listLeftPushInput.RetryInformation);
+            var listLeftPushInput = MemoryPackSerializer.Deserialize<ListLeftPushInput>(item.Payload)
+                                    ?? throw new InvalidDataException($"ListLeftPushBatch item '{key}' payload is empty");
+            var retryInformation = MemoryPackSerializer.Deserialize<RetryInformation>(listLeftPushInput.RetryInformation)
+                                   ?? throw new InvalidDataException($"ListLeftPushBatch item '{key}' retry information is empty");
 
             var batchItem = new ListLeftPushBatchCommand.BatchItem();
             batchItem.Key = key;
@@ -538,7 +541,14 @@ public class Endpoints
             var value = memoryStream.ToArray();
             
             var list = MemoryPackSerializer.Deserialize<ListQueueItemStatus>(value);
-            await ListCallbackCommandAsync(provider, key, list, cluster, source);
+            if (list is null)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("invalid callback payload", context.RequestAborted);
+                return;
+            }
+
+            await ListCallbackCommandAsync(provider, key.ToString(), list, cluster, source);
         });
     }
 

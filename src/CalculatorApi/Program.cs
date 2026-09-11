@@ -50,13 +50,10 @@ app.UseSwaggerUI(c =>
 app.MapGet("/", () => Results.Redirect("/swagger"))
    .ExcludeFromDescription();
 
+// Endpoint metadata (WithSummary / WithDescription) replaces the deprecated WithOpenApi callbacks;
+// Swashbuckle reads it to fill the operation summary and description.
 var group = app.MapGroup("/api/v1/calculator")
-    .WithTags("Calculator")
-    .WithOpenApi(g => new(g)
-    {
-        Summary = "Calculator operations",
-        Description = "Group of basic arithmetic endpoints operating on two numbers."
-    });
+    .WithTags("Calculator");
 
 
 // ADD
@@ -70,15 +67,8 @@ group.MapPost("/add",
 .Accepts<CalculationRequest>("application/json")
 .Produces<CalculationResult>(StatusCodes.Status200OK, "application/json")
 .Produces<ProblemDetails>(StatusCodes.Status400BadRequest, "application/json")
-.WithOpenApi(op =>
-{
-    op.Summary = "Add two numbers";
-    op.Description = "Returns the sum of operands `A` and `B`. Uses IEEE 754 double-precision.";
-    EnsureRequestBody(op, "Request body containing the two operands.", required: true);
-    op.Responses["200"].Description = "Successful addition result.";
-    op.Responses["400"].Description = "Invalid request payload.";
-    return op;
-});
+.WithSummary("Add two numbers")
+.WithDescription("Returns the sum of operands `A` and `B`. Uses IEEE 754 double-precision.");
 
 // MULTIPLY
 group.MapPost("/multiply",
@@ -91,15 +81,8 @@ group.MapPost("/multiply",
 .Accepts<CalculationRequest>("application/json")
 .Produces<CalculationResult>(StatusCodes.Status200OK, "application/json")
 .Produces<ProblemDetails>(StatusCodes.Status400BadRequest, "application/json")
-.WithOpenApi(op =>
-{
-    op.Summary = "Multiply two numbers";
-    op.Description = "Returns the product of operands `A` and `B`. Uses IEEE 754 double-precision.";
-    EnsureRequestBody(op, "Request body containing the two operands.", required: true);
-    op.Responses["200"].Description = "Successful multiplication result.";
-    op.Responses["400"].Description = "Invalid request payload.";
-    return op;
-});
+.WithSummary("Multiply two numbers")
+.WithDescription("Returns the product of operands `A` and `B`. Uses IEEE 754 double-precision.");
 
 // DIVIDE
 group.MapPost("/divide",
@@ -120,28 +103,11 @@ group.MapPost("/divide",
 .Accepts<CalculationRequest>("application/json")
 .Produces<CalculationResult>(StatusCodes.Status200OK, "application/json")
 .Produces<ProblemDetails>(StatusCodes.Status400BadRequest, "application/json")
-.WithOpenApi(op =>
-{
-    op.Summary = "Divide two numbers";
-    op.Description = "Returns `A / B`. `B` must be non-zero. Uses IEEE 754 double-precision.";
-    EnsureRequestBody(op, "Request body containing the two operands.", required: true);
-    op.Responses["200"].Description = "Successful division result.";
-    op.Responses["400"].Description = "Invalid request payload (e.g., division by zero).";
-    return op;
-});
+.WithSummary("Divide two numbers")
+.WithDescription("Returns `A / B`. `B` must be non-zero. Uses IEEE 754 double-precision.");
 
 app.Run();
 
-// Helper to mutate/initialize RequestBody (because OpenApiRequestBody is a class, not a record)
-static void EnsureRequestBody(OpenApiOperation op, string description, bool required = true)
-{
-    var requestBody = op.RequestBody as OpenApiRequestBody ?? new OpenApiRequestBody();
-
-    requestBody.Description = description;
-    requestBody.Required = required;
-    op.RequestBody = requestBody;
-
-}
 static ProblemDetails CreateProblem(string title, string detail, string instance, int status = StatusCodes.Status400BadRequest)
     => new()
     {
