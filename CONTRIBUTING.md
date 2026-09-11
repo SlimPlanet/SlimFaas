@@ -26,9 +26,9 @@ Prerequisites (SDK versions, Node, pnpm, uv) are listed in the "Running the Proj
 
 Pull requests are squash-merged, and the PR title becomes the commit message on `main`. That message drives automated versioning, so:
 
-- Use Conventional Commits: `type(scope): imperative summary`, for example `feat(SlimFaas): add job retention policy` or `fix(slimdata): flush WAL before snapshot`.
+- Use Conventional Commits: `type(scope): imperative summary`, for example `feat(slimfaas): add job retention policy` or `fix(slimdata): flush WAL before snapshot`.
 - `fix` bumps the patch version, `feat` bumps the minor version, `BREAKING` anywhere in the message bumps the major version.
-- A commit message on `main` containing `(release)` publishes a stable version. `(alpha)` and `(beta)` publish pre-releases from any branch. Only maintainers merge to `main`. Do not use the words `release`, `alpha` or `beta` in titles or commit messages unless you intend to publish.
+- A commit message on `main` containing `(release)` publishes a stable version. `(alpha)` and `(beta)` publish pre-releases from any branch. Only maintainers merge to `main`. The squash commit concatenates every commit message of the branch, so do not use the words `release`, `alpha` or `beta` in titles or commit messages unless you intend to publish.
 
 Details and pitfalls: [`docs/sdlc/release.md`](docs/sdlc/release.md) and [`GOVERNANCE.md`](GOVERNANCE.md) sections 2 and 3.
 
