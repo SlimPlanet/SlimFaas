@@ -484,3 +484,6 @@ wwwroot/
 slimfaas.local.debug.yaml
 slimfaas.local.secrets.yaml
 .slimfaas
+# Claude Code: per-task worktrees and personal overrides
+.claude/worktrees/
+.claude/settings.local.json
