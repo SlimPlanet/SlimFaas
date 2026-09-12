@@ -264,6 +264,10 @@ run_e2e() {
   local run_root="$output/e2e/$label"
   local dll="$dir/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll"
   mkdir -p "$run_root"
+  if [[ -s "$run_root/results.json" ]]; then
+    log "Reusing the existing $label results in $run_root (delete results.json to re-run)"
+    return
+  fi
   dotnet "$dll" local validate -f "$manifest" >"$run_root/validate.log" 2>&1 ||
     { cat "$run_root/validate.log" >&2; exit 1; }
   log "Starting the $label three-node cluster ($dll)"
@@ -279,6 +283,7 @@ run_e2e() {
   done
   [[ "$ready" == 1 ]] || { echo "$label cluster did not become ready; see $run_root/slimfaas-local.log" >&2; exit 1; }
   log "Running the $run_profile matrix against $label"
+  local driver_status=0
   dotnet "$driver_dll" run --profile "$run_profile" \
     --slimfaas-url http://127.0.0.1:31020 --direct-url http://127.0.0.1:31080 \
     --node-urls http://127.0.0.1:31021,http://127.0.0.1:31022,http://127.0.0.1:31023 \
@@ -288,7 +293,17 @@ run_e2e() {
     --scale-messages "$scale_messages" --scale-concurrency "$scale_concurrency" --scale-timeout "$scale_timeout" \
     --async-paced-messages "$async_paced_messages" --async-paced-interval-ms "$async_paced_interval_ms" \
     --async-burst-messages "$async_burst_messages" --async-burst-concurrency "$async_burst_concurrency" \
-    --output "$run_root" >"$run_root/driver.log" 2>&1 || { tail -30 "$run_root/driver.log" >&2; stop_cluster; summarize_resources "$run_root"; exit 1; }
+    --output "$run_root" >"$run_root/driver.log" 2>&1 || driver_status=$?
+  if [[ ! -s "$run_root/results.json" ]]; then
+    tail -30 "$run_root/driver.log" >&2
+    stop_cluster
+    summarize_resources "$run_root"
+    exit 1
+  fi
+  # The driver exits non-zero when a case recorded failed or timed-out requests; the
+  # results are still complete and the comparison reports those errors, so the run
+  # goes on (the verdict is in the comparison, not in this exit code).
+  [[ "$driver_status" == 0 ]] || log "The $label driver reported errors (exit $driver_status): see $run_root/summary.md"
   stop_cluster
   summarize_resources "$run_root"
   sleep 2
