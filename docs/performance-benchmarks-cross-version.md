@@ -80,7 +80,12 @@ results under `artifacts/perf-compare/`.
 
 ### Environment
 
-<!-- ENVIRONMENT -->
+```
+Linux x86_64 container, 4 vCPU (Intel Xeon @ 2.10GHz), 15 GB RAM, 20 000 open files (hard limit)
+.NET SDK 10.0.112, Release builds without the dashboard (-p:SkipClientAppBuild=true)
+2026-09-12, one session: v0.79.2 (b004682) and v0.84.6 (f1d97a8 + this document's benchmark files) for the end-to-end tier,
+v0.74.0 (043a686) and v0.84.6 for the micro tier
+```
 
 Shared, virtualized CPUs: absolute numbers are not publishable, and the end-to-end matrix
 runs the three SlimFaas nodes, the target and the driver on the same four cores. Only the
@@ -90,7 +95,98 @@ the raw reports).
 
 ## Results
 
-<!-- RESULTS -->
+### End-to-end, standard profile (v0.79.2 → v0.84.6)
+
+`--profile standard`, one repetition per case (10 s measured after 2 s warm-up, payloads
+64 B / 4 KiB / 256 KiB / 2 MiB, closed-loop concurrency 1 and 16, scaling burst of 200
+messages at concurrency 32). One repetition instead of three because v0.79.2 cannot
+sustain the three-repetition matrix on this host (see *Resource usage* below). Raw
+artifacts: `artifacts/perf-compare/e2e-standard-v0.79.2/`.
+
+#### Synchronous proxy overhead (same target process called directly and through SlimFaas)
+
+| payload | concurrency | added p50 v0.79.2 | added p50 v0.84.6 | reduction | throughput v0.79.2 | throughput v0.84.6 |
+|---:|---:|---:|---:|---:|---:|---:|
+| 64 B | 1 | 0.390 ms | 0.374 ms | −4 % | 1 875/s | 1 968/s |
+| 64 B | 16 | 1.149 ms | 0.995 ms | −13 % | 10 799/s | 12 273/s |
+| 4 KiB | 1 | 0.585 ms | 0.473 ms | −19 % | 1 183/s | 1 266/s |
+| 4 KiB | 16 | 0.922 ms | 0.863 ms | −6 % | 7 070/s | 7 068/s |
+| 256 KiB | 1 | 2.346 ms | 1.189 ms | **−49 %** | 91/s | 88/s |
+| 256 KiB | 16 | 6.180 ms | 2.068 ms | **−67 %** | 1 593/s | 2 561/s (+61 %) |
+| 2 MiB | 1 | 9.510 ms | 2.513 ms | **−74 %** | 60/s | 85/s (+42 %) |
+| 2 MiB | 16 | 40.590 ms | 17.262 ms | **−57 %** | 318/s | 593/s (+86 %) |
+
+The added p95 / p99 and throughput guardrails of `SlimFaasBenchmark compare` pass on
+every case. The proxy overhead for bodies of 256 KiB and above is divided by 2 to 4; for
+small bodies the gain is within 4–19 % (the median small-payload reduction, 9.8 %, is
+below the 20 % the sync acceptance rule asks for, so the sync verdict of the comparison
+is *FAIL* — the rule was written for a single sync optimization, not for a release
+comparison, and is reported here as is).
+
+#### Asynchronous ingress and delivery (HTTP 202 latency, and client send → handler start)
+
+| payload | concurrency | HTTP p95 v0.79.2 | HTTP p95 v0.84.6 | arrival p95 v0.79.2 | arrival p95 v0.84.6 | messages/s v0.79.2 | messages/s v0.84.6 |
+|---:|---:|---:|---:|---:|---:|---:|---:|
+| 64 B | 1 | 237.4 ms | 13.6 ms | 614.3 ms | 44.0 ms | 12.5 | 87 (×6.9) |
+| 64 B | 16 | 240.1 ms | 17.5 ms | 703.9 ms | 51.1 ms | 68.8 | 1 221 (×17.7) |
+| 4 KiB | 1 | 239.3 ms | 19.5 ms | 476.1 ms | 47.4 ms | 6.4 | 70 (×10.9) |
+| 4 KiB | 16 | 244.0 ms | 27.0 ms | 715.0 ms | 70.1 ms | 68.3 | 901 (×13.2) |
+| 256 KiB | 1 | 253.5 ms | 73.8 ms | 545.8 ms | 184.3 ms | 12.6 | 20 (×1.6) |
+| 256 KiB | 16 | 762.0 ms | 2 279.5 ms | 10 814.2 ms | 5 578.8 ms | 19.8 (5 failed) | 31 (×1.6, 0 failed) |
+| 2 MiB | 1 | 481.9 ms | 72.4 ms | 726.2 ms | 86.4 ms | 3.3 | 28 (×8.3) |
+| 2 MiB | 16 | 485.7 ms | 146.5 ms | 912.7 ms | 386.7 ms | 33.3 | 154 (×4.6) |
+
+No message was lost or duplicated by either version. v0.79.2 dispatched the queue on a
+polling fallback: its HTTP-202 and arrival latencies cluster around 240 ms and 470–710 ms
+whatever the load. v0.84.6 (#311 signal-driven dispatch, #313, #343) accepts and
+delivers in tens of milliseconds and sustains 7 to 18 times more messages per second for
+bodies up to 4 KiB. The 256 KiB / concurrency 16 case is the one where both versions
+saturate the host (see *Resource usage*): v0.79.2 failed 5 of 380 messages there,
+v0.84.6 failed none but its 202 p95 is worse than the baseline's on this single
+repetition.
+
+#### Scaling burst (scale-to-zero → PromQL scale-out, 200 messages, 4 replicas)
+
+| milestone from first send | v0.79.2 | v0.84.6 |
+|---|---:|---:|
+| first ready replica | 3.06 s | 4.21 s |
+| 4 ready replicas | 8.72 s | 19.11 s |
+| queue drained | 33.42 s | 29.62 s |
+
+One observation each, on a host that was already saturated by the previous async cases:
+the drain time (the user-visible end of the burst) improved, the time to 4 ready
+replicas doubled. The scale-out policy changed in the window (#309 reactive PromQL
+scaling with stabilization, #350 scale-down budgets), so this milestone deserves a
+dedicated multi-repetition run before drawing a conclusion; it is reported, not
+interpreted.
+
+#### Resource usage of the SlimFaas nodes during the run
+
+Sampled every 5 s from `/proc` (`resources-summary.md` of each run):
+
+| | v0.79.2 | v0.84.6 |
+|---|---:|---:|
+| peak open file descriptors (any node) | **19 999 (limit hit)** | 19 168 |
+| descriptors at the end of the run | 375 / 332 / 19 999 | 535 / 440 / 453 |
+| peak resident memory (any node) | 646 MB | 657 MB |
+| async messages failed | 5 | 0 |
+
+The descriptor count of both versions climbs from ~300 to ~19 000 while the 256 KiB and
+2 MiB async cases run and falls back afterwards; the errors logged by v0.79.2 name Raft
+write-ahead-log files (`wal/data/<entry>`), so the growth follows the log. v0.79.2
+crossed the 20 000 hard limit of the container and one node stayed at the limit until
+the end (`Too many open files` on `wal/data/...`); with the three-repetition matrix the
+same node exhausted its descriptors after ≈ 5 300 messages and the run had to be aborted
+(`artifacts/perf-compare/aborted-e2e-async-full-matrix-v0.79.2/`). v0.84.6 stayed 4 %
+below the limit on this host and released the descriptors afterwards, which is why its
+run completed, but the margin is thin: **large-body async bursts still need a generous
+`ulimit -n` (or a smaller write-ahead-log segment count) on both versions.** This is the
+one finding of this review that is not an improvement.
+
+<!-- RESULTS-ASYNC -->
+
+<!-- RESULTS-MICRO -->
+
 
 ## Reproducing
 
