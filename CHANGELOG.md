@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.84.6
+
+- [5fde3b93](https://github.com/SlimPlanet/SlimFaas/commit/5fde3b9377cba35e11e711e1e38fa7aad64eb358) - perf(SlimData): single-pass queue dequeue (~3×), O(N + M) callbacks (~5×), reserved IP kept across snapshots (#343) (release), 2026-09-12 by *Guillaume Delahaye*
+- [59e421ce](https://github.com/SlimPlanet/SlimFaas/commit/59e421ce5f093ae23bbd220c52bb8b40fdea8bef) - test(SlimFaas): give the child process tree test explicit deadlines (#360), 2026-09-11 by *Guillaume Delahaye*
+- [1c8f7bf8](https://github.com/SlimPlanet/SlimFaas/commit/1c8f7bf812a3c84139f9794377ee2cd459615a79) - test(SlimData): make the dynamic timing batcher test deterministic (#357), 2026-09-11 by *Guillaume Delahaye*
+
+
+## 0.84.5
+
+
+
 ## v0.84.5
 
 - [b10640f0](https://github.com/SlimPlanet/SlimFaas/commit/b10640f036963f33af3702740254e921173cda42) - fix(dashboard): order request and publication animations (#355) (release), 2026-09-11 by *Guillaume Chervet*
@@ -265,14 +276,5 @@
 ## v0.75.0
 
 - [a0d44698](https://github.com/SlimPlanet/SlimFaas/commit/a0d44698461f0431dec86be96af2f6a008b25cfd) - feat(slimdata): batch & benchmark (release), 2026-07-26 by *Guillaume Chervet*
-
-
-## 0.74.8
-
-
-
-## v0.74.8
-
-- [4d836f83](https://github.com/SlimPlanet/SlimFaas/commit/4d836f83c4e3c7df865cb2869c10a85108a6ed43) - fix: memory leak (release) (#300), 2026-07-25 by *Guillaume Chervet*
 
 
