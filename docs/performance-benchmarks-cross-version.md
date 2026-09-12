@@ -147,18 +147,58 @@ repetition.
 
 #### Scaling burst (scale-to-zero → PromQL scale-out, 200 messages, 4 replicas)
 
-| milestone from first send | v0.79.2 | v0.84.6 |
-|---|---:|---:|
-| first ready replica | 3.06 s | 4.21 s |
-| 4 ready replicas | 8.72 s | 19.11 s |
-| queue drained | 33.42 s | 29.62 s |
+The single observation of the standard run (4 ready replicas at 8.7 s vs 19.1 s) was
+re-measured in a dedicated series: five alternating rounds per version, each on a fresh
+cluster with a minimal latency matrix beforehand so the host is idle when the burst
+starts (`artifacts/perf-compare/scale-rounds/round-{1..5}/`). Milestones are measured
+from the first client send:
 
-One observation each, on a host that was already saturated by the previous async cases:
-the drain time (the user-visible end of the burst) improved, the time to 4 ready
-replicas doubled. The scale-out policy changed in the window (#309 reactive PromQL
-scaling with stabilization, #350 scale-down budgets), so this milestone deserves a
-dedicated multi-repetition run before drawing a conclusion; it is reported, not
-interpreted.
+| milestone | v0.79.2 (5 rounds) | v0.84.6 (5 rounds) |
+|---|---:|---:|
+| desired replicas ≥ 1 (wake-up from zero) | 1.01–1.04 s (median 1.03 s) | 0.99–1.05 s (median 1.03 s) |
+| ready replicas ≥ 1 | 2.0–4.2 s (median 2.05 s) | 2.1–5.3 s (median 2.09 s) |
+| desired replicas ≥ 4 (scale-out decision) | 5.2–9.6 s (median 5.19 s) | **16.75–16.94 s (median 16.90 s)** |
+| ready replicas ≥ 4 | 8.3–12.9 s (median 8.38 s) | **19.0–20.1 s (median 20.04 s)** |
+| queue drained | 28.5–31.7 s (median 29.61 s) | 29.6–30.6 s (median 29.63 s) |
+
+The regression is real, deterministic (five values within 0.2 s of each other) and sits
+in the scale-out *decision*, not in process startup: the first replica becomes ready at
+the same time, and once the decision is taken the three extra replicas are ready 2–3 s
+later in both versions.
+
+**Root cause (confirmed by experiment).** The benchmark manifest declares
+`"ScaleUp": { "StabilizationWindowSeconds": 0, "Policies": [] }`. Both versions replace an
+empty policy list by the default scale-up policy *Percent 100 / 15 s*
+(`FunctionMetadataParser`, unchanged since v0.77.0), and that policy consumes its whole
+budget as soon as **any** scale decision is present in the last 15 s
+(`MetricsScalingCalculator.ApplyScaleUpPolicies`). Since #341/#350 (2026-09-10),
+`ReplicasService.ApplyScaleAsync` records every applied scale — including the wake-up from
+0 to 1 replica triggered by the first request — through `AutoScaler.RecordAppliedDecision`
+when the function has PromQL triggers. v0.79.2 only recorded metric-driven decisions, so
+its history was empty when the metric first exceeded the threshold. Wake-up at ≈ 1 s +
+15 s budget + one scrape interval = the 16.8–16.9 s observed.
+
+Confirmation: the same burst with an explicit scale-up policy that has no period budget
+(`"Policies": [ { "Type": "Pods", "Value": 100, "PeriodSeconds": 0 } ]`,
+`artifacts/perf-compare/policy-experiment/`):
+
+| explicit policy, no period | desired ≥ 4 | ready ≥ 4 | drained |
+|---|---:|---:|---:|
+| v0.84.6, 3 runs | 3.0 / 6.3 / 6.3 s | 5.2 / 8.4 / 8.5 s | 18.6 / 21.6 / 21.7 s |
+| v0.79.2, 2 runs (control) | 6.4 / 9.5 s | 8.5 / 10.5 s | 29.6 / 29.7 s |
+
+With the budget out of the way v0.84.6 scales out as fast as v0.79.2 and drains the
+burst 8–11 s sooner (its faster async dispatch, hidden in the default-policy runs by the
+late scale-out). Consequences:
+
+- **Any function with PromQL triggers and default (or empty) scale-up policies now waits
+  15 s after a scale-from-zero before it can scale out further**, whatever the load. This
+  is a behavior change of #341/#350, not a performance regression of the proxy or the
+  queue. Whether the wake-up should count against the scale-up budget is a product
+  decision; if it should not, the fix is local (skip `RecordAppliedDecision` for the
+  0 → N wake-up, or exclude `PreviousReplicas == 0` samples in `ApplyScaleUpPolicies`).
+- Until then, functions that must burst right after a wake-up need an explicit scale-up
+  policy (`Pods` or `Percent` with `PeriodSeconds: 0`, or a shorter period).
 
 #### Resource usage of the SlimFaas nodes during the run
 
@@ -287,7 +327,7 @@ Reading guide:
 | Sync proxy overhead | added p50 −49 to −74 % (256 KiB–2 MiB), −4 to −19 % (64 B–4 KiB); throughput +42 to +86 % on large bodies | #310, #313, #317 |
 | Hot-path CPU and allocations | snapshot reads 200–250× / zero alloc, schedule evaluation 62×, PromQL registry 25×, count path 40×, Raft queue commands 2–5.6× with 2–37× fewer bytes | #313, #343 |
 | Kubernetes API load | jobs sync 1 + N → 2 requests; functions/jobs/CronJob polling every 1–3 s → watch events + 30–60 s resync (not measurable off-cluster) | #340 |
-| Scale-out burst | drain 33.4 → 29.6 s; time to 4 ready replicas 8.7 → 19.1 s on a saturated host — one observation, needs a dedicated run | #309, #350 |
+| Scale-out burst | **regression**: 4 ready replicas at 8.4 s → 20.0 s (5 rounds each, deterministic). Cause: since #341/#350 the wake-up from zero is recorded as a scale decision and consumes the default 15 s scale-up budget; with an explicit no-period policy v0.84.6 is as fast as v0.79.2 and drains the burst 8–11 s sooner | #341, #350 (regression), #311 (drain) |
 | Open descriptors of the write-ahead log | both versions climb to the 20 000 limit under 256 KiB–2 MiB async load; each crossed it once in two runs | not addressed in the window |
 
 
