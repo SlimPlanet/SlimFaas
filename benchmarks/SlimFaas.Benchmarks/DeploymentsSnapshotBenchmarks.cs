@@ -39,6 +39,9 @@ public class DeploymentsSnapshotBenchmarks
             kubernetes,
             new StubJobConfiguration(),
             new StubJobQueue(),
+#if BASELINE_API
+            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
+#endif
             new StubNamespaceProvider(),
             NullLogger<JobService>.Instance);
         _jobService.SyncJobsAsync().GetAwaiter().GetResult();

@@ -8,15 +8,35 @@
         <IsPackable>false</IsPackable>
         <!-- BenchmarkDotNet requires an optimized build. -->
         <Optimize>true</Optimize>
+        <!--
+          Cross-version builds (benchmarks/compare-versions.sh):
+          - SlimFaasSourceRoot: root of the SlimFaas checkout the benchmarks are compiled
+            against (defaults to this repository). Pointing it at a git worktree of an older
+            commit measures that commit with the very same benchmark code.
+          - BaselineApi=true: compile against a checkout that predates PR #313 (before
+            2026-08-14): removes the benchmarks whose subject did not exist yet and adapts
+            the few constructor / interface signatures that changed since.
+        -->
+        <SlimFaasSourceRoot Condition="'$(SlimFaasSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../</SlimFaasSourceRoot>
+        <BaselineApi Condition="'$(BaselineApi)' == ''">false</BaselineApi>
     </PropertyGroup>
+
+    <PropertyGroup Condition="'$(BaselineApi)' == 'true'">
+        <DefineConstants>$(DefineConstants);BASELINE_API</DefineConstants>
+    </PropertyGroup>
+
+    <ItemGroup Condition="'$(BaselineApi)' == 'true'">
+        <!-- SlimDataStateSnapshot (theme 5) was introduced by PR #313 itself. -->
+        <Compile Remove="SlimDataStateBenchmarks.cs" />
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="BenchmarkDotNet" Version="0.15.8" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj" />
-        <ProjectReference Include="..\..\src\SlimData\SlimData.csproj" />
+        <ProjectReference Include="$(SlimFaasSourceRoot)src/SlimFaas/SlimFaas.csproj" />
+        <ProjectReference Include="$(SlimFaasSourceRoot)src/SlimData/SlimData.csproj" />
     </ItemGroup>
 
 </Project>

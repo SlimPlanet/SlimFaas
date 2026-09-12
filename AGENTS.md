@@ -479,7 +479,7 @@ BENCHMARK_PHASE=screening SCREENING_DURATION_SECONDS=10 SCREENING_WARMUP_SECONDS
    - SlimFaas is designed for **slim footprint and fast execution**
    - Avoid large allocations; use pooling/streaming where possible
    - Profile impact on memory and startup time
-   - For changes touching `src/SlimData/`, `src/SlimFaas/Data/`, batching, queues, metrics cardinality, HTTP client pooling, or high-throughput request paths, run the relevant performance tests: `.bin/slimdata-benchmark.sh`, `.bin/slimdata-batch-modes-benchmark.sh`, `.bin/memory-lab.sh`, or `dotnet run --project src/SlimFaasBenchmark/SlimFaasBenchmark.csproj`.
+   - For changes touching `src/SlimData/`, `src/SlimFaas/Data/`, batching, queues, metrics cardinality, HTTP client pooling, or high-throughput request paths, run the relevant performance tests: `.bin/slimdata-benchmark.sh`, `.bin/slimdata-batch-modes-benchmark.sh`, `.bin/memory-lab.sh`, or `dotnet run --project src/SlimFaasBenchmark/SlimFaasBenchmark.csproj`. To prove a gain objectively against a reference commit (same machine, same session, same driver), run `benchmarks/compare-versions.sh --baseline <ref>` and record the before/after tables (see `docs/performance-benchmarks-cross-version.md`).
 
 6. **Kubernetes-First Mindset**
    - Test with proper Kubernetes API interactions
