@@ -177,11 +177,49 @@ write-ahead-log files (`wal/data/<entry>`), so the growth follows the log. v0.79
 crossed the 20 000 hard limit of the container and one node stayed at the limit until
 the end (`Too many open files` on `wal/data/...`); with the three-repetition matrix the
 same node exhausted its descriptors after ≈ 5 300 messages and the run had to be aborted
-(`artifacts/perf-compare/aborted-e2e-async-full-matrix-v0.79.2/`). v0.84.6 stayed 4 %
-below the limit on this host and released the descriptors afterwards, which is why its
-run completed, but the margin is thin: **large-body async bursts still need a generous
-`ulimit -n` (or a smaller write-ahead-log segment count) on both versions.** This is the
-one finding of this review that is not an improvement.
+(`artifacts/perf-compare/aborted-e2e-async-full-matrix-v0.79.2/`). In this run v0.84.6 stayed 4 %
+below the limit and released the descriptors afterwards; in the async-queue run below the
+roles are reversed. **Large-body async bursts need a generous `ulimit -n` (or a bounded
+number of open write-ahead-log files) on both versions.** This is the one finding of this
+review that is not an improvement.
+
+### End-to-end, async-queue profile (v0.79.2 → v0.84.6)
+
+`--profile async-queue`, one repetition: the same latency matrix plus a paced scenario
+(100 messages, one every 100 ms — how fast an almost idle queue wakes up) and a burst
+(1 000 messages at concurrency 64 — coalescing and back-pressure). Raw artifacts:
+`artifacts/perf-compare/e2e-async-v0.79.2/`.
+
+| scenario | v0.79.2 | v0.84.6 | change |
+|---|---:|---:|---:|
+| paced — accepted messages/s | 4.9 | 9.1 | ×1.9 (the driver is the bottleneck at 10/s) |
+| paced — HTTP 202 p95 | 152.0 ms | 15.2 ms | **−90 %** |
+| paced — arrival p95 (send → handler start) | 614.4 ms | 25.7 ms | **−96 %** |
+| burst — messages/s | 275.7 | 1 362.9 | **×4.9** |
+| burst — HTTP 202 p95 | 276.4 ms | 58.2 ms | −79 % |
+| burst — arrival p95 | 781.7 ms | 168.1 ms | −78 % |
+| lost / duplicated messages (all scenarios) | 0 / 0 | 0 / 0 | — |
+
+The async acceptance rules of `SlimFaasBenchmark compare --profile async` pass on the
+latency reductions (median HTTP p95 −81.5 %, median arrival p95 −89.3 %, 2 MiB HTTP p50
+−88.6 %) and fail on two guardrails, both explained by the host rather than the code:
+
+- *256 KiB at concurrency 16*: −31.5 % messages/s and a 6.1 s arrival p95 for v0.84.6.
+  This is the case where the candidate's nodes hit the 20 000-descriptor limit in this
+  run (98 `Too many open files` errors on the Raft write-ahead log, see *Resource usage*
+  below); in the standard-profile run above the same case had gone the other way.
+- *Raft entries per message ×2.26*: v0.84.6 batches more commands per message on the
+  paced scenario (3.6 vs 1.6 Raft entries per message) while spending 78 % less CPU per
+  message overall; the ×2 guardrail was written for a single async optimization.
+
+The sync matrix of this run confirms the standard-profile numbers (added p50 −8 to
+−22 % for 64 B–4 KiB, −49 to −81 % for 256 KiB–2 MiB).
+
+Resource usage in this run: v0.79.2 peaked at 16 161 descriptors (no error), v0.84.6 at
+19 999 (98 errors, no lost message). Over the two end-to-end runs, each version crossed
+the limit once and stayed under it once: **the descriptor growth of the write-ahead log
+under large-body async load is a property of both versions, not something the window
+fixed or broke.**
 
 <!-- RESULTS-ASYNC -->
 

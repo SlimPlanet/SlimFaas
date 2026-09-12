@@ -56,6 +56,7 @@ done
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 output="${output:-$repo_root/artifacts/perf-compare/$timestamp}"
 mkdir -p "$output"
+output="$(cd "$output" && pwd)"   # absolute: worktree paths are injected into MSBuild properties
 log() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 
 case "$profile" in
