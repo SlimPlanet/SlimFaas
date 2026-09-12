@@ -32,4 +32,9 @@
     <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Real snapshot files produced by released versions; see SlimPersistentStateTests. -->
+    <None Include="Snapshots\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

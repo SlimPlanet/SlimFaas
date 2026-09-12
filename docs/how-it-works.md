@@ -228,6 +228,19 @@ SlimData__SnapshotIntervalBytes=33554432
 
 The current byte window and the cause of the latest snapshot request are exposed as `slimdata_wal_bytes_since_snapshot` and `slimdata_snapshot_last_trigger{cause="bytes|entries|incompatible"}`.
 
+### Snapshot layout and reserved pod IPs
+
+When the dispatch worker dequeues an asynchronous request, it reserves a pod IP for it within the per-pod concurrency limit (`NumberParallelRequestPerPod`) and SlimData stores that IP on the queue try. On every dispatch cycle the worker reads the running tries and their reserved IPs from the queue state and keeps those pod slots occupied before reserving pods for the next messages.
+
+SlimData snapshots persist the reserved IP of every queue try so that this accounting survives a snapshot restore (node restart, follower catch-up, snapshot installed by the leader). The snapshot **body** keeps the historical layout unchanged; the reserved IPs travel in a **trailer** written after the body. A node running a release without the trailer reads the body and ignores what follows.
+
+Compatibility rules between releases:
+
+- **Rolling upgrade**: a snapshot written by the current release restores on an older node with empty reserved IPs. Nothing else is lost.
+- **Older snapshot**: a snapshot written by a release without the trailer (0.84.4 and earlier) restores on the current release with empty reserved IPs. Requests that were running when the snapshot was taken no longer count against their pod until they complete, time out or are retried, so a pod may temporarily receive more concurrent requests than its limit.
+- **Downgrade**: an older release drops the reserved IPs on its first restore, with the same transient effect. The body is unchanged in both directions, so no data migration is needed.
+- **Corruption**: a trailer that is truncated, carries an unknown magic or version, describes a different number of tries than the body, or is followed by extra data is rejected and the restore fails. A truncated new-format snapshot is never read as an older one, so reserved IPs are never dropped silently.
+
 ---
 
 

@@ -159,74 +159,83 @@ public static class SlimDataInterpreter
     internal static ValueTask DoListRightPopAsync(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
     {
         var queues = slimDataState.Queues;
+        if (!queues.TryGetValue(listRightPopCommand.Key, out var queue))
+            return default;
 
-        if (queues.TryGetValue(listRightPopCommand.Key, out var queue))
+        var nowTicks = listRightPopCommand.NowTicks;
+        var idTransaction = listRightPopCommand.IdTransaction;
+        var maximum = listRightPopCommand.Count;
+
+        // Single pass over the queue: expire the tries that timed out, drop the finished
+        // elements, detect an already applied transaction and pick the elements to
+        // dispatch. Element state only depends on the element itself and on nowTicks,
+        // so evaluating it once per element is equivalent to the historical
+        // timeout / finished / transaction / available passes.
+        ImmutableArray<QueueElement>.Builder? kept = null;
+        QueueElement[]? candidates = null;
+        var candidateCount = 0;
+        var transactionAlreadyApplied = false;
+
+        for (var i = 0; i < queue.Length; i++)
         {
-            var nowTicks = listRightPopCommand.NowTicks;
-
-            var queueTimeoutElements = queue.GetQueueTimeoutElement(nowTicks);
-            for (int i = 0; i < queueTimeoutElements.Length; i++)
+            var element = queue[i];
+            var tries = element.RetryQueueElements;
+            if (!tries.IsDefaultOrEmpty)
             {
-                var qe = queueTimeoutElements[i];
-                if (qe.RetryQueueElements.IsDefaultOrEmpty) continue;
-                var last = qe.RetryQueueElements[^1];
-                last.EndTimeStamp = nowTicks;
-                last.HttpCode = 504;
-            }
-
-            var finished = queue.GetQueueFinishedElement(nowTicks);
-            if (!finished.IsDefaultOrEmpty)
-            {
-                var keep = ImmutableArray.CreateBuilder<QueueElement>(queue.Length - finished.Length);
-                for (int i = 0; i < queue.Length; i++)
+                var last = tries[^1];
+                if (last.EndTimeStamp == 0 && last.StartTimeStamp + element.HttpTimeoutTicks <= nowTicks)
                 {
-                    var e = queue[i];
-                    bool isFinished = false;
-                    for (int j = 0; j < finished.Length; j++)
-                    {
-                        if (ReferenceEquals(e, finished[j])) { isFinished = true; break; }
-                    }
-                    if (!isFinished) keep.Add(e);
-                }
-                queue = keep.MoveToImmutable();
-            }
-
-            bool idTxAlreadyExists = false;
-            if (!queue.IsDefaultOrEmpty)
-            {
-                for (int i = 0; i < queue.Length; i++)
-                {
-                    var e = queue[i];
-                    if (!e.RetryQueueElements.IsDefaultOrEmpty &&
-                        e.RetryQueueElements[^1].IdTransaction == listRightPopCommand.IdTransaction)
-                    {
-                        idTxAlreadyExists = true;
-                        break;
-                    }
+                    last.EndTimeStamp = nowTicks;
+                    last.HttpCode = 504;
                 }
             }
 
-            if (!idTxAlreadyExists)
+            var elementState = element.GetState(nowTicks);
+            if (elementState == QueueElementState.Finished)
             {
-                var available = queue.GetQueueAvailableElement(nowTicks, listRightPopCommand.Count);
-                for (int i = 0; i < available.Length; i++)
-                {
-                    var e = available[i];
-                    var b = e.RetryQueueElements.IsDefault ? ImmutableArray.CreateBuilder<QueueHttpTryElement>() : e.RetryQueueElements.ToBuilder();
-                    b.Add(new QueueHttpTryElement(
-                        listRightPopCommand.NowTicks,
-                        listRightPopCommand.IdTransaction,
-                        reservedIp: (listRightPopCommand.ReservedIps is { Count: > 0 } && i < listRightPopCommand.ReservedIps.Count)
-                            ? listRightPopCommand.ReservedIps[i]
-                            : string.Empty));
-                    e.RetryQueueElements = b.ToImmutable();
-                }
+                kept ??= CopyPrefix(queue, i);
+                continue;
             }
 
-            queues = queues.SetItem(listRightPopCommand.Key, queue);
+            kept?.Add(element);
+
+            if (transactionAlreadyApplied)
+                continue;
+
+            if (!tries.IsDefaultOrEmpty && tries[^1].IdTransaction == idTransaction)
+            {
+                transactionAlreadyApplied = true;
+                continue;
+            }
+
+            if (elementState == QueueElementState.Available && candidateCount < maximum)
+            {
+                candidates ??= new QueueElement[Math.Min(maximum, queue.Length - i)];
+                candidates[candidateCount++] = element;
+            }
         }
 
-        slimDataState.Queues = queues;
+        if (kept is not null)
+            queue = kept.DrainToImmutable();
+
+        if (!transactionAlreadyApplied)
+        {
+            var reservedIps = listRightPopCommand.ReservedIps;
+            for (var i = 0; i < candidateCount; i++)
+            {
+                var element = candidates![i];
+                var attempt = new QueueHttpTryElement(
+                    nowTicks,
+                    idTransaction,
+                    reservedIp: reservedIps is { Count: > 0 } && i < reservedIps.Count
+                        ? reservedIps[i]
+                        : string.Empty);
+                var tries = element.RetryQueueElements;
+                element.RetryQueueElements = tries.IsDefault ? [attempt] : tries.Add(attempt);
+            }
+        }
+
+        slimDataState.Queues = queues.SetItem(listRightPopCommand.Key, queue);
         return default;
     }
 
@@ -238,24 +247,25 @@ public static class SlimDataInterpreter
 
         var pendingQueues = new Dictionary<
             string,
-            (ImmutableArray<QueueElement>.Builder Items, HashSet<string> Identifiers)>(StringComparer.Ordinal);
+            (ImmutableArray<QueueElement> Existing, List<QueueElement> Added, HashSet<string> Identifiers)>(StringComparer.Ordinal);
         foreach (var item in cmd.Items)
         {
             if (!pendingQueues.TryGetValue(item.Key, out var pending))
             {
-                ImmutableArray<QueueElement> current = queues.TryGetValue(item.Key, out var existing)
-                    ? existing
+                ImmutableArray<QueueElement> existing = queues.TryGetValue(item.Key, out var current)
+                    ? current
                     : ImmutableArray<QueueElement>.Empty;
-                pending = (
-                    current.ToBuilder(),
-                    current.Select(static element => element.Id).ToHashSet(StringComparer.Ordinal));
+                var identifiers = new HashSet<string>(existing.Length, StringComparer.Ordinal);
+                foreach (var element in existing)
+                    identifiers.Add(element.Id);
+                pending = (existing, [], identifiers);
                 pendingQueues.Add(item.Key, pending);
             }
 
             if (!pending.Identifiers.Add(item.Identifier))
                 continue;
 
-            var qe = new QueueElement(
+            pending.Added.Add(new QueueElement(
                 item.Value,
                 item.Identifier,
                 item.NowTicks,
@@ -263,12 +273,14 @@ public static class SlimDataInterpreter
                 item.Retries is null ? ImmutableArray<int>.Empty : item.Retries.ToImmutableArray(),
                 ImmutableArray<QueueHttpTryElement>.Empty,
                 item.HttpStatusCodesWorthRetrying is null ? ImmutableHashSet<int>.Empty : item.HttpStatusCodesWorthRetrying.ToImmutableHashSet()
-            );
-            pending.Items.Add(qe);
+            ));
         }
 
         foreach ((string key, var pending) in pendingQueues)
-            queues = queues.SetItem(key, pending.Items.ToImmutable());
+        {
+            if (pending.Added.Count > 0)
+                queues = queues.SetItem(key, pending.Existing.AddRange(CollectionsMarshal.AsSpan(pending.Added)));
+        }
 
         state.Queues = queues;
         return default;
@@ -277,52 +289,10 @@ public static class SlimDataInterpreter
     internal static ValueTask DoListCallbackAsync(ListCallbackCommand cmd, SlimDataState state)
     {
         var queues = state.Queues;
-        if (!queues.TryGetValue(cmd.Key, out var arr))
+        if (!queues.TryGetValue(cmd.Key, out var queue))
             return default;
 
-        var positions = new Dictionary<string, int>(arr.Length, StringComparer.Ordinal);
-        for (var index = 0; index < arr.Length; index++)
-            positions.TryAdd(arr[index].Id, index);
-        HashSet<int>? removed = null;
-
-        for (int i = 0; i < cmd.CallbackElements.Count; i++)
-        {
-            var cb = cmd.CallbackElements[i];
-            if (!positions.TryGetValue(cb.Identifier, out var idx) || removed?.Contains(idx) == true)
-                continue;
-
-            var qe = arr[idx];
-            if (cb.HttpCode == DeleteFromQueueCode)
-            {
-                (removed ??= []).Add(idx);
-                continue;
-            }
-
-            if (!qe.RetryQueueElements.IsDefaultOrEmpty)
-            {
-                var last = qe.RetryQueueElements[^1];
-                last.EndTimeStamp = cmd.NowTicks;
-                last.HttpCode = cb.HttpCode;
-
-                if (qe.IsFinished(cmd.NowTicks))
-                    (removed ??= []).Add(idx);
-            }
-        }
-
-        if (removed is not null)
-        {
-            var remaining = ImmutableArray.CreateBuilder<QueueElement>(arr.Length - removed.Count);
-            for (var index = 0; index < arr.Length; index++)
-            {
-                if (!removed.Contains(index))
-                    remaining.Add(arr[index]);
-            }
-            arr = remaining.MoveToImmutable();
-        }
-
-        queues = queues.SetItem(cmd.Key, arr);
-        state.Queues = queues;
-
+        state.Queues = queues.SetItem(cmd.Key, ApplyCallbacks(queue, cmd.CallbackElements, cmd.NowTicks));
         return default;
     }
 
@@ -334,49 +304,98 @@ public static class SlimDataInterpreter
 
         foreach (var item in batch.Items)
         {
-            if (!queues.TryGetValue(item.Key, out var arr) || item.CallbackElements is null || item.CallbackElements.Count == 0)
+            if (!queues.TryGetValue(item.Key, out var queue) || item.CallbackElements is null || item.CallbackElements.Count == 0)
                 continue;
 
-            var work = arr;
-
-            for (int i = 0; i < item.CallbackElements.Count; i++)
-            {
-                var cb = item.CallbackElements[i];
-
-                int idx = -1;
-                for (int j = 0; j < work.Length; j++)
-                {
-                    if (work[j].Id == cb.Identifier) { idx = j; break; }
-                }
-                if (idx < 0) continue;
-
-                var qe = work[idx];
-                if (cb.HttpCode == DeleteFromQueueCode)
-                {
-                    var b = work.ToBuilder();
-                    b.RemoveAt(idx);
-                    work = b.ToImmutable();
-                }
-                else if (!qe.RetryQueueElements.IsDefaultOrEmpty)
-                {
-                    var last = qe.RetryQueueElements[^1];
-                    last.EndTimeStamp = item.NowTicks;
-                    last.HttpCode = cb.HttpCode;
-
-                    if (qe.IsFinished(item.NowTicks))
-                    {
-                        var b = work.ToBuilder();
-                        b.RemoveAt(idx);
-                        work = b.ToImmutable();
-                    }
-                }
-            }
-
-            queues = queues.SetItem(item.Key, work);
+            queues = queues.SetItem(item.Key, ApplyCallbacks(queue, item.CallbackElements, item.NowTicks));
         }
 
         state.Queues = queues;
         return default;
+    }
+
+    /// <summary>
+    /// Applies HTTP callbacks to a queue in one pass: O(N + M) for N elements and
+    /// M callbacks, with allocations proportional to M (the callback index) plus one
+    /// right-sized array when at least one element is evicted. Callbacks carrying the
+    /// same identifier are applied in command order until the element is evicted.
+    /// Returns the same array instance when nothing was evicted.
+    /// </summary>
+    private static ImmutableArray<QueueElement> ApplyCallbacks(
+        ImmutableArray<QueueElement> queue,
+        IList<CallbackElement> callbacks,
+        long nowTicks)
+    {
+        if (queue.IsDefaultOrEmpty || callbacks.Count == 0)
+            return queue;
+
+        // Index callbacks by identifier; duplicates are chained in command order.
+        // Built backwards so that first[id] is the earliest callback and next[] walks forward.
+        CallbackElement? single = callbacks.Count == 1 ? callbacks[0] : null;
+        Dictionary<string, int>? first = null;
+        int[]? next = null;
+        if (single is null)
+        {
+            first = new Dictionary<string, int>(callbacks.Count, StringComparer.Ordinal);
+            next = new int[callbacks.Count];
+            for (var i = callbacks.Count - 1; i >= 0; i--)
+            {
+                var identifier = callbacks[i].Identifier;
+                next[i] = first.TryGetValue(identifier, out var following) ? following : -1;
+                first[identifier] = i;
+            }
+        }
+
+        ImmutableArray<QueueElement>.Builder? kept = null;
+        for (var i = 0; i < queue.Length; i++)
+        {
+            var element = queue[i];
+            var evicted = false;
+            if (single is not null)
+            {
+                if (single.Identifier == element.Id)
+                    evicted = ApplyCallback(element, single.HttpCode, nowTicks);
+            }
+            else if (first!.TryGetValue(element.Id, out var index))
+            {
+                for (; index >= 0 && !evicted; index = next![index])
+                    evicted = ApplyCallback(element, callbacks[index].HttpCode, nowTicks);
+            }
+
+            if (evicted)
+            {
+                kept ??= CopyPrefix(queue, i);
+                continue;
+            }
+
+            kept?.Add(element);
+        }
+
+        return kept is null ? queue : kept.DrainToImmutable();
+    }
+
+    /// <summary>Records one HTTP result on the element; returns true when the element must leave the queue.</summary>
+    private static bool ApplyCallback(QueueElement element, int httpCode, long nowTicks)
+    {
+        if (httpCode == DeleteFromQueueCode)
+            return true;
+
+        var tries = element.RetryQueueElements;
+        if (tries.IsDefaultOrEmpty)
+            return false;
+
+        var last = tries[^1];
+        last.EndTimeStamp = nowTicks;
+        last.HttpCode = httpCode;
+        return element.IsFinished(nowTicks);
+    }
+
+    /// <summary>Builder holding the first <paramref name="length"/> elements of <paramref name="queue"/>, sized for at least one eviction.</summary>
+    private static ImmutableArray<QueueElement>.Builder CopyPrefix(ImmutableArray<QueueElement> queue, int length)
+    {
+        var builder = ImmutableArray.CreateBuilder<QueueElement>(queue.Length - 1);
+        builder.AddRange(queue, length);
+        return builder;
     }
 
     internal static ValueTask DoAddHashSetAsync(AddHashSetCommand cmd, SlimDataState state)

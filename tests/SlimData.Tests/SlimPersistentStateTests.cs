@@ -142,6 +142,141 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
+    public async Task WriteAheadLog_restores_the_reserved_ip_of_dispatched_queue_elements_from_snapshot()
+    {
+        var root = GetTemporaryDirectory();
+        var walPath = Path.Combine(root, "wal");
+        var nowTicks = DateTime.UtcNow.Ticks;
+
+        try
+        {
+            await using (var state = CreateState(root, snapshotIntervalEntries: 4))
+            await using (var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state))
+            {
+                await AppendCommitWaitAsync(wal, new ListLeftPushBatchCommand
+                {
+                    Items =
+                    [
+                        new ListLeftPushBatchCommand.BatchItem
+                        {
+                            Key = "pinned-queue",
+                            Identifier = "pinned-item",
+                            NowTicks = nowTicks,
+                            RetryTimeout = 30,
+                            Retries = [1, 2],
+                            HttpStatusCodesWorthRetrying = [500],
+                            Value = Encoding.UTF8.GetBytes("pinned-value")
+                        }
+                    ]
+                });
+
+                await AppendCommitWaitAsync(wal, new ListRightPopCommand
+                {
+                    Key = "pinned-queue",
+                    Count = 1,
+                    NowTicks = nowTicks,
+                    IdTransaction = "tx-pinned",
+                    ReservedIps = ["10.42.0.7"]
+                });
+
+                for (var i = 0; i < 4; i++)
+                {
+                    await AppendCommitWaitAsync(wal, new AddKeyValueCommand
+                    {
+                        Operation = KeyValueOperation.Set,
+                        Key = "snapshot-filler",
+                        Value = Encoding.UTF8.GetBytes(i.ToString())
+                    });
+                }
+
+                await wal.FlushAsync(CancellationToken.None);
+                Assert.True(state.LastSnapshotSizeBytes > 0L);
+                Assert.Equal("10.42.0.7", state.SlimDataState.Queues["pinned-queue"][0].GetLastReservedIp());
+            }
+
+            await using (var restoredState = CreateState(root, snapshotIntervalEntries: 4))
+            {
+                await restoredState.RestoreAsync(CancellationToken.None);
+                await using var restoredWal = new WriteAheadLog(
+                    new WriteAheadLog.Options { Location = walPath },
+                    restoredState);
+                await restoredWal.InitializeAsync(CancellationToken.None);
+                using var replayTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                var committedIndex = restoredWal.LastCommittedEntryIndex;
+                if (committedIndex > 0L)
+                    await restoredWal.WaitForApplyAsync(committedIndex, replayTimeout.Token);
+
+                var item = Assert.Single(restoredState.SlimDataState.Queues["pinned-queue"]);
+                var attempt = Assert.Single(item.RetryQueueElements);
+                Assert.Equal("tx-pinned", attempt.IdTransaction);
+                Assert.Equal(nowTicks, attempt.StartTimeStamp);
+                Assert.Equal("10.42.0.7", attempt.ReservedIp);
+                Assert.Equal("10.42.0.7", item.GetLastReservedIp());
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    /// <summary>
+    /// Snapshots/v0.84.0-6-0.snapshot is the real file written by SlimData 0.84.0 (commit
+    /// a9ac6475) for this exact sequence: set snapshot-key, add snapshot-hash, push
+    /// pinned-item + idle-item on pinned-queue, ListRightPop 1 element with reserved IP
+    /// 10.42.0.7 (transaction tx-pinned), then two "snapshot-filler" sets (values 0 and 1),
+    /// snapshot interval 6 entries. It has no trailer, so the reserved IP is lost: that is
+    /// the behavior of the release, which this test pins for backward compatibility.
+    /// The reverse direction (0.84.0 restoring a snapshot written by the current code and
+    /// ignoring the trailer) was verified once against the real 0.84.0 code when the
+    /// trailer was introduced; SlimDataSnapshotSerializerTests keeps the body byte-identical
+    /// to the legacy layout so that it stays true.
+    /// </summary>
+    [Fact]
+    public async Task Restore_reads_a_snapshot_file_written_by_version_0_84_0()
+    {
+        var root = GetTemporaryDirectory();
+        var fixture = Path.Combine(AppContext.BaseDirectory, "Snapshots", "v0.84.0-6-0.snapshot");
+        var nowTicks = new DateTime(2026, 9, 10, 12, 0, 0, DateTimeKind.Utc).Ticks;
+
+        try
+        {
+            Assert.True(File.Exists(fixture), $"Missing fixture {fixture}");
+            await using var state = CreateState(root, snapshotIntervalEntries: 6);
+
+            await InvokeRestoreAsync(state, new FileInfo(fixture), CancellationToken.None);
+
+            var data = state.SlimDataState;
+            Assert.Equal("snapshot-value", Encoding.UTF8.GetString(data.KeyValues["snapshot-key"].Span));
+            Assert.Equal("1", Encoding.UTF8.GetString(data.KeyValues["snapshot-filler"].Span));
+            Assert.Equal("hash-value", Encoding.UTF8.GetString(data.Hashsets["snapshot-hash"]["field"].Span));
+
+            var queue = data.Queues["pinned-queue"];
+            Assert.Equal(["pinned-item", "idle-item"], queue.Select(e => e.Id));
+            var pinned = queue[0];
+            Assert.Equal("pinned-value", Encoding.UTF8.GetString(pinned.Value.Span));
+            Assert.Equal(nowTicks, pinned.InsertTimeStamp);
+            Assert.Equal(30, pinned.HttpTimeoutSeconds);
+            Assert.Equal([1, 2], pinned.TimeoutRetriesSeconds.ToArray());
+            Assert.Equal([500], pinned.HttpStatusRetries.ToArray());
+            var attempt = Assert.Single(pinned.RetryQueueElements);
+            Assert.Equal("tx-pinned", attempt.IdTransaction);
+            Assert.Equal(nowTicks, attempt.StartTimeStamp);
+            Assert.Equal(0, attempt.EndTimeStamp);
+            Assert.Equal(0, attempt.HttpCode);
+            Assert.Equal(string.Empty, attempt.ReservedIp); // 0.84.0 never persisted it
+            Assert.Empty(queue[1].RetryQueueElements);
+            Assert.Equal("idle-value", Encoding.UTF8.GetString(queue[1].Value.Span));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task Restore_invalid_snapshot_clears_old_state_and_restoring_flag()
     {
         var root = GetTemporaryDirectory();
