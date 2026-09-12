@@ -180,7 +180,74 @@ fi
 manifest="$repo_root/benchmarks/slimfaas.local.benchmark.yaml"
 driver_dll="$repo_root/src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll"
 local_pid=""
+sampler_pid=""
+
+# Every 5 s, record the open file descriptors and resident memory of every SlimFaas
+# process of the cluster (nodes, local supervisor, benchmark target) into
+# <run_root>/resources.csv. Linux /proc only; a no-op elsewhere. The v0.79.2 baseline
+# exhausted the 20 000 descriptors of the measurement container under the async matrix
+# (see docs/performance-benchmarks-cross-version.md), so resource growth is part of
+# the comparison.
+sample_resources() {
+  local csv="$1/resources.csv" pid kind fds rss cmd
+  [[ -d /proc/self/fd ]] || return 0
+  echo "epoch_seconds,pid,kind,open_fds,rss_kb" >"$csv"
+  while :; do
+    for pid in $(pgrep -f 'SlimFaas\.dll|SlimFaasBenchmark\.dll target' 2>/dev/null); do
+      cmd="$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)"
+      case "$cmd" in
+        *"local up"*) kind=supervisor ;;
+        *"SlimFaasBenchmark.dll target"*) kind=target ;;
+        *SlimFaas.dll*) kind=node ;;
+        *) continue ;;
+      esac
+      fds="$(ls "/proc/$pid/fd" 2>/dev/null | wc -l)"
+      rss="$(awk '/^VmRSS:/ {print $2}' "/proc/$pid/status" 2>/dev/null || echo 0)"
+      echo "$(date +%s),$pid,$kind,$fds,${rss:-0}" >>"$csv"
+    done
+    sleep 5
+  done
+}
+
+summarize_resources() {
+  local run_root="$1"
+  [[ -s "$run_root/resources.csv" ]] || return 0
+  python3 - "$run_root/resources.csv" >"$run_root/resources-summary.md" <<'PY' || true
+import csv, sys
+from collections import defaultdict
+rows = list(csv.DictReader(open(sys.argv[1])))
+if not rows:
+    sys.exit(0)
+first, last = defaultdict(dict), defaultdict(dict)
+peak_fds, peak_rss = defaultdict(int), defaultdict(int)
+for r in rows:
+    key = (r["kind"], r["pid"])
+    first.setdefault(key, r)
+    last[key] = r
+    peak_fds[key] = max(peak_fds[key], int(r["open_fds"]))
+    peak_rss[key] = max(peak_rss[key], int(r["rss_kb"]))
+print("| process | pid | open fds first / peak / last | RSS peak (MB) |")
+print("|---|---:|---:|---:|")
+for key in sorted(peak_fds, key=lambda k: (k[0], int(k[1]))):
+    f, l = first[key], last[key]
+    print(f"| {key[0]} | {key[1]} | {f['open_fds']} / {peak_fds[key]} / {l['open_fds']} | {peak_rss[key] / 1024:,.0f} |")
+nodes = [k for k in peak_fds if k[0] == "node"]
+if nodes:
+    print()
+    print(f"Nodes: peak open fds = {max(peak_fds[k] for k in nodes)}, peak RSS = {max(peak_rss[k] for k in nodes) / 1024:,.0f} MB, samples every 5 s over {int(rows[-1]['epoch_seconds']) - int(rows[0]['epoch_seconds'])} s.")
+PY
+}
+
+stop_sampler() {
+  if [[ -n "$sampler_pid" ]] && kill -0 "$sampler_pid" 2>/dev/null; then
+    kill "$sampler_pid" 2>/dev/null || true
+    wait "$sampler_pid" 2>/dev/null || true
+  fi
+  sampler_pid=""
+}
+
 stop_cluster() {
+  stop_sampler
   if [[ -n "$local_pid" ]] && kill -0 "$local_pid" 2>/dev/null; then
     kill -TERM "$local_pid" 2>/dev/null || true
     for _ in $(seq 1 100); do kill -0 "$local_pid" 2>/dev/null || break; sleep 0.1; done
@@ -202,6 +269,8 @@ run_e2e() {
   log "Starting the $label three-node cluster ($dll)"
   ( cd "$repo_root" && exec dotnet "$dll" local up -f "$manifest" --clean ) >"$run_root/slimfaas-local.log" 2>&1 &
   local_pid=$!
+  sample_resources "$run_root" &
+  sampler_pid=$!
   local ready=0 attempt
   for attempt in $(seq 1 180); do
     kill -0 "$local_pid" 2>/dev/null || { echo "slimfaas local ($label) exited before readiness; see $run_root/slimfaas-local.log" >&2; exit 1; }
@@ -219,8 +288,9 @@ run_e2e() {
     --scale-messages "$scale_messages" --scale-concurrency "$scale_concurrency" --scale-timeout "$scale_timeout" \
     --async-paced-messages "$async_paced_messages" --async-paced-interval-ms "$async_paced_interval_ms" \
     --async-burst-messages "$async_burst_messages" --async-burst-concurrency "$async_burst_concurrency" \
-    --output "$run_root" >"$run_root/driver.log" 2>&1 || { tail -30 "$run_root/driver.log" >&2; stop_cluster; exit 1; }
+    --output "$run_root" >"$run_root/driver.log" 2>&1 || { tail -30 "$run_root/driver.log" >&2; stop_cluster; summarize_resources "$run_root"; exit 1; }
   stop_cluster
+  summarize_resources "$run_root"
   sleep 2
 }
 
