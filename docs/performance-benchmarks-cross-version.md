@@ -221,9 +221,75 @@ the limit once and stayed under it once: **the descriptor growth of the write-ah
 under large-body async load is a property of both versions, not something the window
 fixed or broke.**
 
-<!-- RESULTS-ASYNC -->
 
-<!-- RESULTS-MICRO -->
+### Micro-benchmarks (v0.74.0 → v0.84.6)
+
+Same benchmark code compiled against both commits, `DOTNET_TieredCompilation=0`,
+10 measured iterations after 3 warm-ups, in-process toolchain, `MemoryDiagnoser`
+(BenchmarkDotNet v0.15.8). Raw artifacts and the full BenchmarkDotNet reports:
+`artifacts/perf-compare/micro-v0.74.0/micro/`; the table is the output of
+`benchmarks/compare-microbenchmarks.py`.
+
+| Benchmark (subject) | Params | v0.74.0 mean / alloc | v0.84.6 mean / alloc | Time | Alloc |
+|---|---|---:|---:|---:|---:|
+| `ReplicasService.Deployments` read (per proxied request, ~100×/s by workers) | — | 134.98 ns / 288 B | 0.68 ns / 0 B | **199×** | zero alloc |
+| `JobService.Jobs` read | — | 174.42 ns / 240 B | 0.69 ns / 0 B | **254×** | zero alloc |
+| Find one function in the snapshot | — | 175.32 ns / 288 B | 37.93 ns / 0 B | 4.6× | zero alloc |
+| Port check, array overload (kept for reference) | — | 51.65 ns / 152 B | 53.61 ns / 152 B | 1.0× | 1.0× |
+| Port check, overload used by the middleware since #313 | — | (array overload) | 5.58 ns / 0 B | 9.3×¹ | zero alloc |
+| Proxy pod acquire + release (sync call) | — | 905.95 ns / 544 B | 781.86 ns / 408 B | 1.16× | 1.33× |
+| Path-prefix visibility resolution | — | 789.28 ns / 528 B | 690.68 ns / 528 B | 1.14× | 1.0× |
+| `KubernetesService.ListJobsAsync`, client-side cost | 10 jobs | 104.45 µs / 73.47 KB | 60.30 µs / 35.99 KB | 1.73× | 2.04× |
+| `KubernetesService.ListJobsAsync`, client-side cost | 50 jobs | 420.02 µs / 352.88 KB | 263.35 µs / 148.81 KB | 1.59× | 2.37× |
+| `KubernetesService.ListJobsAsync`, **API round trips per sync** | 10 / 50 jobs | 11 / 51 | 2 / 2 | **5.5× / 25.5×** | — |
+| Queue count, count-only path (`GetQueueAvailableElement`) | depth 50 | 548.41 ns / 880 B | 401.59 ns / 880 B | 1.37× | 1.0× |
+| Queue count, count-only path | depth 500 | 4.74 µs / 7.89 KB | 3.62 µs / 7.89 KB | 1.31× | 1.0× |
+| Queue count, historical materializing path (reference) | depth 50 | 16.15 µs / 106.14 KB | 14.77 µs / 106.14 KB | 1.09× | 1.0× |
+| Queue count, historical materializing path (reference) | depth 500 | 157.66 µs / 1,058.88 KB | 164.59 µs / 1,058.88 KB | 0.96× | 1.0× |
+| Wake-up schedule evaluation (per scheduled function, every 1 s) | — | 32.88 µs / 46.42 KB | 534.18 ns / 592 B | **62×** | **80×** |
+| PromQL query re-registration (per trigger, every sync) | — | 989.96 ns / 1.29 KB | 39.53 ns / 0 B | **25×** | zero alloc |
+| Raft `ListRightPop` (dequeue 10, mixed-state queue) | depth 50 | 4.69 µs / 3.86 KB | 2.20 µs / 2.29 KB | 2.1× | 1.7× |
+| Raft `ListRightPop` | depth 500 | 55.09 µs / 15.62 KB | 15.07 µs / 8.44 KB | **3.7×** | 1.9× |
+| Raft `ListCallback` (50 HTTP results) | depth 50 | 13.08 µs / 23.86 KB | 4.09 µs / 2.97 KB | 3.2× | 8.0× |
+| Raft `ListCallback` | depth 500 | 95.41 µs / 375.45 KB | 17.05 µs / 10.03 KB | **5.6×** | **37×** |
+| Raft `ListCallbackBatch` (50 HTTP results) | depth 50 | 14.46 µs / 23.86 KB | 4.10 µs / 2.62 KB | 3.5× | 9.1× |
+| Raft `ListCallbackBatch` | depth 500 | 83.75 µs / 375.45 KB | 18.08 µs / 10.03 KB | **4.6×** | **37×** |
+| Raft `ListLeftPushBatch` (10 messages) | depth 50 | 12.23 µs / 23.78 KB | 8.04 µs / 9.73 KB | 1.5× | 2.4× |
+| Raft `ListLeftPushBatch` | depth 500 | 32.75 µs / 164.41 KB | 21.45 µs / 19.74 KB | 1.5× | 8.3× |
+| `SlimDataStateSnapshot.PayloadBytes` (v0.84.6 only; evaluated 1× instead of 3× per Raft snapshot) | — | — | 37.42 µs / 3.92 KB | ≈ 75 µs saved per snapshot | — |
+
+¹ The middleware went from the array overload (53.61 ns / 152 B per request) to the
+allocation-free overload (5.58 ns / 0 B); the array overload itself is unchanged.
+
+Reading guide:
+
+- The two "reference" rows are paths that were **not** modified (the historical
+  materializing count is reproduced by the benchmark itself); they measure the run-to-run
+  noise of this comparison: ±9 %. Gains below that level (proxy acquire/release, visibility
+  resolution) are real for allocations, indicative for time.
+- Production counting switched from the materializing path to the count-only path (#313):
+  for a 50-element queue that is 16.15 µs / 106 KB → 0.40 µs / 880 B (**40× faster, 120×
+  fewer bytes**) per count, three counts per function per second on every replica before
+  #313, one since.
+- `ListJobsAsync` is what a Kubernetes API server sees: 1 + N requests per second per
+  replica before #340, 2 per change event (or per 30 s) since. The benchmark measures the
+  client side only; the round-trip count is printed by the benchmark and checked by
+  `KubernetesServiceListJobsTests`.
+- The Raft queue commands run on the leader and on every follower for every dequeue and
+  every callback; the 375 KB → 10 KB allocation of a 50-callback batch on a 500-element
+  queue (#343) is GC pressure removed from every node.
+
+## Summary
+
+| Area | Objective evidence (this host, one session) | Commits |
+|---|---|---|
+| Async ingress and delivery | HTTP-202 p95 240 ms → 14–27 ms, arrival p95 700 ms → 44–70 ms (64 B–4 KiB); 7 to 18× more messages/s; burst of 1 000 at 276 → 1 363 msg/s; paced wake-up p95 614 → 26 ms; no message lost in either version | #302, #311, #313, #343 |
+| Sync proxy overhead | added p50 −49 to −74 % (256 KiB–2 MiB), −4 to −19 % (64 B–4 KiB); throughput +42 to +86 % on large bodies | #310, #313, #317 |
+| Hot-path CPU and allocations | snapshot reads 200–250× / zero alloc, schedule evaluation 62×, PromQL registry 25×, count path 40×, Raft queue commands 2–5.6× with 2–37× fewer bytes | #313, #343 |
+| Kubernetes API load | jobs sync 1 + N → 2 requests; functions/jobs/CronJob polling every 1–3 s → watch events + 30–60 s resync (not measurable off-cluster) | #340 |
+| Scale-out burst | drain 33.4 → 29.6 s; time to 4 ready replicas 8.7 → 19.1 s on a saturated host — one observation, needs a dedicated run | #309, #350 |
+| Open descriptors of the write-ahead log | both versions climb to the 20 000 limit under 256 KiB–2 MiB async load; each crossed it once in two runs | not addressed in the window |
+
 
 
 ## Reproducing
