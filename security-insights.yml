@@ -1,0 +1,195 @@
+header:
+  schema-version: 2.2.0
+  last-updated: '2026-09-12'
+  last-reviewed: '2026-09-12'
+  url: https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/security-insights.yml
+  comment: |
+    OpenSSF Security Insights manifest for SlimFaas (https://github.com/ossf/security-insights-spec).
+    Update it when maintainers, security tooling, release artifacts or policy documents change.
+    Validate with: cue vet -d '#SecurityInsights' schema.cue security-insights.yml
+
+project:
+  name: SlimFaas
+  homepage: https://slimfaas.dev
+  funding: https://www.cncf.io/projects/slimfaas/
+  steward:
+    uri: https://www.cncf.io
+    comment: SlimFaas is a Cloud Native Computing Foundation (CNCF) sandbox project.
+  administrators:
+    - name: Guillaume Chervet
+      affiliation: AXA France
+      email: guillaume.chervet@axa.fr
+      social: https://github.com/guillaume-chervet
+      primary: true
+    - name: Guillaume Delahaye
+      affiliation: AXA France
+      email: guillaume.delahaye@axa.fr
+      social: https://github.com/g7ed6e
+      primary: false
+    - name: Lilian Delouvy
+      affiliation: AXA France
+      email: lilian.delouvy@axa.fr
+      social: https://github.com/lilian-delouvy
+      primary: false
+    - name: Antoine Blancke
+      affiliation: AXA France
+      email: antoine.blancke@axa.fr
+      social: https://github.com/antoineblancke
+      primary: false
+  documentation:
+    quickstart-guide: https://github.com/SlimPlanet/SlimFaas/blob/main/docs/get-started.md
+    detailed-guide: https://slimfaas.dev
+    code-of-conduct: https://github.com/cncf/foundation/blob/main/code-of-conduct.md
+    release-process: https://github.com/SlimPlanet/SlimFaas/blob/main/GOVERNANCE.md#3-automated-semantic-versioning
+    support-policy: https://github.com/SlimPlanet/SlimFaas/blob/main/SECURITY.md#supported-versions
+  repositories:
+    - name: SlimFaas
+      url: https://github.com/SlimPlanet/SlimFaas
+      comment: |
+        Single repository holding the SlimFaas runtime and dashboard, SlimData (Raft key-value store),
+        SlimFaasMcp, the SlimFaasPlanetSaver npm package, the .NET and Python clients,
+        the documentation site and the demo applications.
+  vulnerability-reporting:
+    reports-accepted: true
+    bug-bounty-available: false
+    contact:
+      name: SlimFaas maintainers
+      email: guillaume.chervet@axa.fr
+      primary: true
+    policy: https://github.com/SlimPlanet/SlimFaas/blob/main/SECURITY.md
+    in-scope:
+      - SlimFaas runtime, embedded dashboard and HTTP/WebSocket API
+      - SlimData (Raft key-value store)
+      - SlimFaasMcp
+      - SlimFaasPlanetSaver npm package
+      - .NET and Python clients
+      - Published container images and native release archives
+      - CI/CD pipeline of the repository
+    out-of-scope:
+      - Fibonacci demo workloads and the demo/ folder (reports welcome, lower priority)
+    comment: |
+      Preferred channel: GitHub private vulnerability reporting
+      (https://github.com/SlimPlanet/SlimFaas/security/advisories/new). Otherwise e-mail the maintainers
+      listed in MAINTAINERS.md. Do not open a public issue for security problems.
+
+repository:
+  url: https://github.com/SlimPlanet/SlimFaas
+  status: active
+  bug-fixes-only: false
+  accepts-change-request: true
+  accepts-automated-change-request: true
+  no-third-party-packages: false
+  core-team:
+    - name: Guillaume Chervet
+      affiliation: AXA France
+      email: guillaume.chervet@axa.fr
+      social: https://github.com/guillaume-chervet
+      primary: true
+    - name: Guillaume Delahaye
+      affiliation: AXA France
+      email: guillaume.delahaye@axa.fr
+      social: https://github.com/g7ed6e
+      primary: false
+    - name: Lilian Delouvy
+      affiliation: AXA France
+      email: lilian.delouvy@axa.fr
+      social: https://github.com/lilian-delouvy
+      primary: false
+    - name: Antoine Blancke
+      affiliation: AXA France
+      email: antoine.blancke@axa.fr
+      social: https://github.com/antoineblancke
+      primary: false
+  documentation:
+    contributing-guide: https://github.com/SlimPlanet/SlimFaas/blob/main/CONTRIBUTING.md
+    review-policy: https://github.com/SlimPlanet/SlimFaas/blob/main/GOVERNANCE.md#22-maintainers
+    security-policy: https://github.com/SlimPlanet/SlimFaas/blob/main/SECURITY.md
+    governance: https://github.com/SlimPlanet/SlimFaas/blob/main/GOVERNANCE.md
+    dependency-management-policy: https://github.com/SlimPlanet/SlimFaas/blob/main/docs/dependency-management.md
+  license:
+    url: https://github.com/SlimPlanet/SlimFaas/blob/main/LICENSE.md
+    expression: Apache-2.0
+  release:
+    changelog: https://github.com/SlimPlanet/SlimFaas/blob/main/CHANGELOG.md
+    automated-pipeline: true
+    distribution-points:
+      - uri: https://github.com/SlimPlanet/SlimFaas/releases
+        comment: GitHub releases with native AOT archives for SlimFaas and SlimFaasMcp and standalone local demo bundles (sha256 checksums attached).
+      - uri: pkg:docker/axaguildev/slimfaas
+        comment: SlimFaas container image on Docker Hub (also axaguildev/slimfaas-dotnet, axaguildev/slimfaas-mcp, axaguildev/slimfaas-kafka).
+      - uri: pkg:npm/%40axa-fr/slimfaas-planet-saver
+        comment: SlimFaasPlanetSaver JavaScript package on npm.
+      - uri: pkg:nuget/SlimFaasClient
+        comment: .NET client on NuGet.org.
+      - uri: pkg:pypi/slimfaas-client
+        comment: Python client on PyPI.
+  security:
+    assessments:
+      self:
+        comment: |
+          Continuous self-assessment through OpenSSF Scorecard (weekly and on every push to main) and
+          CLOMonitor (daily). No third-party security audit has been performed yet.
+        evidence: https://clomonitor.io/projects/cncf/slimfaas
+        date: '2026-09-12'
+    champions:
+      - name: Guillaume Chervet
+        email: guillaume.chervet@axa.fr
+        primary: true
+    tools:
+      - name: Dependabot
+        type: SCA
+        rulesets:
+          - default
+        integration:
+          adhoc: true
+          ci: false
+          release: false
+        results:
+          adhoc:
+            name: Dependabot alerts and weekly update pull requests
+            predicate-uri: https://docs.github.com/code-security/dependabot
+            location: https://github.com/SlimPlanet/SlimFaas/security/dependabot
+        comment: Weekly grouped updates for NuGet, npm/pnpm, Docker base images and GitHub Actions; see .github/dependabot.yml.
+      - name: OpenSSF Scorecard
+        type: other
+        version: 2.4.1
+        rulesets:
+          - default
+        integration:
+          adhoc: true
+          ci: true
+          release: false
+        results:
+          ci:
+            name: Scorecard supply-chain security results
+            predicate-uri: https://github.com/ossf/scorecard
+            location: https://scorecard.dev/viewer/?uri=github.com/SlimPlanet/SlimFaas
+        comment: Runs from .github/workflows/scorecard.yml on push to main and weekly; SARIF uploaded to GitHub code scanning.
+      - name: SonarCloud
+        type: SAST
+        rulesets:
+          - default
+        integration:
+          adhoc: false
+          ci: true
+          release: false
+        results:
+          ci:
+            name: SonarCloud analysis
+            predicate-uri: https://sonarcloud.io
+            location: https://sonarcloud.io/project/overview?id=SlimPlanet_SlimFaas
+        comment: Static analysis of the .NET and JavaScript code on every pull request from a branch of the main repository.
+      - name: FOSSA
+        type: other
+        rulesets:
+          - CNCF allowed third-party licence policy
+        integration:
+          adhoc: false
+          ci: true
+          release: false
+        results:
+          ci:
+            name: FOSSA licence compliance
+            predicate-uri: https://fossa.com
+            location: https://app.fossa.com/projects/git%2Bgithub.com%2FSlimPlanet%2FSlimFaas
+        comment: Licence scanning of direct and transitive dependencies on every pull request.
