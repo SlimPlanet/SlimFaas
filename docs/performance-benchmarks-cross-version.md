@@ -7,6 +7,19 @@ which records the numbers reported by each performance pull request on the machi
 author, every number below was produced **in one session, on one machine, by one benchmark
 harness, against two builds of SlimFaas that differ only by their git commit**.
 
+Key findings (details and tables in [Results](#results), one-line recap in [Summary](#summary)):
+
+- **Improvements** — async acceptance p95 240 ms → 14–27 ms and 7–18× more messages/s,
+  sync proxy overhead −49 to −74 % on 256 KiB–2 MiB bodies, hot-path reads 200× with zero
+  allocation, Raft queue commands 2–5.6×, jobs synchronization 1 + N → 2 API requests.
+- **Regression** — after a scale-from-zero, a function with PromQL triggers and default
+  scale-up policies now waits 15 s before scaling out (4 ready replicas at 8.4 s → 20.0 s,
+  five rounds each, deterministic). Cause: since #341/#350 the wake-up is recorded as a
+  scale decision and consumes the default *Percent 100 / 15 s* budget. See
+  [Scaling burst](#scaling-burst-scale-to-zero--promql-scale-out-200-messages-4-replicas).
+- **Unchanged risk** — both versions climb to the 20 000 open-file limit of the host under
+  256 KiB–2 MiB async load (write-ahead-log files).
+
 ## What changed in the window
 
 Performance-related commits between v0.74.0 and v0.84.6 (`git log 043a686..f1d97a8`):
