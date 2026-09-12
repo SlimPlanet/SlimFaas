@@ -214,6 +214,9 @@ We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **kee
 - **Slack Channel**
   Join our channel on the [CNCF Slack](https://cloud-native.slack.com/archives/C08CRC77VDE) to connect with other SlimFaas users.
 
+- **Contributing**
+  Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [development lifecycle](docs/sdlc/README.md) shared by contributors, GitHub Copilot and Claude Code; project rules for humans and AI agents are in [AGENTS.md](AGENTS.md).
+
 - **Code of Conduct**
   SlimFaas follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 

@@ -1,0 +1,40 @@
+name: Feature request
+description: Propose a new capability or a change in behaviour.
+title: "feat: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What cannot be done today, or what is painful.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How SlimFaas should behave. Sketch configuration, annotations or API if relevant.
+    validations:
+      required: true
+  - type: checkboxes
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - label: SlimFaas runtime (proxy, workers, scaling, jobs)
+        - label: SlimData (Raft, queues, persistence)
+        - label: SlimFaasMcp
+        - label: Dashboard or Planet Saver
+        - label: Clients (.NET, Python, WebSocket protocol)
+        - label: Native local mode
+        - label: Documentation or website
+  - type: textarea
+    id: docs
+    attributes:
+      label: Documentation and architecture impact
+      description: Which pages in docs/ would change. Architecture changes need Mermaid diagrams (see docs/architecture/README.md).
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered

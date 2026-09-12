@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in SlimFaas, SlimData, SlimFaasMcp, the dashboard or a client does not behave as documented.
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Describe the problem and how it differs from the documented behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Manifests, annotations, requests or commands needed to reproduce. Include any useful information.
+      placeholder: |
+        1. Deploy with ...
+        2. Call ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: Expected vs actual
+      placeholder: |
+        Expected: ...
+        Actual: ...
+  - type: input
+    id: version
+    attributes:
+      label: SlimFaas version or image tag
+      placeholder: "0.83.0, axaguildev/slimfaas:latest, native bundle SlimFaas-Local-osx-arm64"
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment mode
+      options:
+        - Kubernetes
+        - Docker Compose
+        - Native local (slimfaas local up)
+        - Other (describe below)
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: Relevant SlimFaas logs, dashboard screenshots or metrics. Redact secrets.
+      render: text
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional details
+      description: Installed packages, client versions, cluster size, anything else that helps.

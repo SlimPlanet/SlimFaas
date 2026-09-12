@@ -2,7 +2,7 @@
 
 ## 🎯 Overview
 
-This document provides essential guidelines for AI agents (like GitHub Copilot) working on the **SlimFaas**, **SlimData**, **SlimFaasMcp**, and client packages. It covers compilation strategies, execution commands, testing procedures, and documentation requirements.
+This document provides essential guidelines for AI agents (GitHub Copilot, Claude Code and others) and human contributors working on the **SlimFaas**, **SlimData**, **SlimFaasMcp**, and client packages. It covers compilation strategies, execution commands, testing procedures, and documentation requirements. It is the single source of truth: Claude Code loads it through `CLAUDE.md`, GitHub Copilot loads it natively and through `.github/copilot-instructions.md`, and the shared development lifecycle in `docs/sdlc/README.md` builds on it.
 
 ---
 
@@ -231,7 +231,7 @@ open coveragereport/index.html
 
 ✅ **Always**:
 - Write tests for new features or bug fixes
-- Use meaningful test names (e.g., `WhenScalingUpWith_TenRequests_ShouldCreateNewReplicas()`)
+- Use meaningful, underscore-separated test names following `Subject_Behavior[_WhenCondition]` (e.g., `CheckBindingsAsync_WakesFunction_WhenPendingExceedsThresholdAndNoCooldown()`)
 - Mock external dependencies (Kubernetes API, HTTP calls)
 - Test both success and failure paths
 - Ensure tests are AOT-compatible (avoid reflection where possible)
@@ -249,6 +249,16 @@ open coveragereport/index.html
 ### Golden Rule: Always Update Documentation
 
 **Every code change that affects user-facing behavior, configuration, or architecture MUST be accompanied by documentation updates.**
+
+### Architecture Golden Rule: Keep the Diagrams True
+
+**Every code change to components, workers, endpoints, request/queue/job flows, state machines, persistence or Raft behavior, or cross-project contracts MUST update the architecture page mapped to that code area, in the same pull request, with Mermaid diagrams.**
+
+- The code → page map, the page template and the full contract live in `docs/architecture/README.md`.
+- Diagrams use Mermaid (`flowchart` for components, `sequenceDiagram` for flows, `stateDiagram-v2` for lifecycles), name the real types found in the code, and are followed by a `Source:` line listing the code paths they cover.
+- Every architecture page ends with a `Last verified: <date> against <commit>` line. When a change in a mapped area does not alter the architecture (rename, pure refactor, bug fix), re-read the page and bump that line so the review still sees it.
+- If no page covers the code you change, create one from `docs/architecture/TEMPLATE.md` and add a row to the map.
+- `python .bin/check-architecture-docs.py` fails when mapped code changed without its page; run it before opening a pull request (the `/document-architecture` workflow in `docs/sdlc/document-architecture.md` walks through the update).
 
 ### Documentation Files to Update
 
@@ -319,10 +329,10 @@ technical references on GitHub.
   - Document behavior modes such as `WakeUp`, `WakeUp+BlockUI`, and `None`
   - Keep examples aligned with `src/SlimFaasPlanetSaver/README.md`
 
-- **`how-it-works.md`** – Architecture deep-dive
-  - Document internal workers and components
-  - Explain request flow for sync/async/jobs
-  - Update diagrams if design changes
+- **`how-it-works.md`** – Architecture deep-dive (system-level architecture page)
+  - Document internal workers and components with their real type names
+  - Explain request flow for sync/async/jobs with `sequenceDiagram` blocks
+  - Update the Mermaid diagrams whenever the design changes; see the Architecture Golden Rule above and `docs/architecture/README.md`
 
 - **`opentelemetry.md`** – Observability
   - Document metrics, traces, and logs integration
@@ -334,10 +344,9 @@ technical references on GitHub.
   - Explain real-time message streaming
   - Add screenshots if UI changes
 
-- **`mcp.md`** – Model Context Protocol
-  - Document OpenAPI to MCP conversion
-  - Explain tool generation
-  - Provide integration examples
+- **`architecture/slimfaas-mcp.md`** – SlimFaasMcp architecture (GitHub-only; the website has no `/mcp` page)
+  - Document the OpenAPI to MCP conversion pipeline and tool generation
+  - Keep the component and sequence diagrams aligned with `src/SlimFaasMcp/`
 
 ### Documentation Format & Style
 
@@ -384,6 +393,7 @@ Before committing code changes:
 - [ ] Did dependencies or lockfiles change? → Confirm the pull request passes FOSSA License Compliance
 - [ ] Did I test the documentation examples? → Ensure they still work
 - [ ] Did I fix a bug that affects deployment? → Document the workaround or fix
+- [ ] Did I change components, flows, state machines or contracts? → Update the mapped architecture page and its Mermaid diagrams, then run `python .bin/check-architecture-docs.py`
 
 ---
 
@@ -495,6 +505,25 @@ BENCHMARK_PHASE=screening SCREENING_DURATION_SECONDS=10 SCREENING_WARMUP_SECONDS
    - CLI and manifest orchestration live under `src/SlimFaas/Local/`.
    - Validate with `dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml` and use `slimfaas.local.debug.yaml` for `debugUrl` IDE routing scenarios.
 
+## 🔁 SDLC Workflows
+
+The development lifecycle is written once, tool-neutral, in `docs/sdlc/` and wrapped for each assistant. Humans follow the same documents.
+
+| Stage | Document | Claude Code skill | GitHub Copilot prompt |
+|-------|----------|-------------------|-----------------------|
+| Lifecycle overview, roles, diagrams | `docs/sdlc/README.md` | – | – |
+| Plan a multi-phase change in an issue | `docs/sdlc/plan-issue.md` | `/plan-issue` | `/plan-issue` |
+| Create the worktree/branch and first build | `docs/sdlc/start-work.md` | `/start-work` | `/start-work` |
+| Keep architecture pages and diagrams true | `docs/sdlc/document-architecture.md` | `/document-architecture` | `/document-architecture` |
+| Gates to pass before opening a PR | `docs/sdlc/pre-pr-checklist.md` | `/pre-pr-checklist` | `/pre-pr-checklist` |
+| Title convention, template, CI checks | `docs/sdlc/open-pr.md` | `/open-pr` | `/open-pr` |
+| How `(release)`, `(alpha)`, `(beta)` publish | `docs/sdlc/release.md` | `/release` | `/release` |
+| Reviewer checklist | `docs/sdlc/review.md` | `/review` | `/review` |
+
+Path-scoped rules live in `.claude/rules/<topic>.md` (Claude Code) and `.github/instructions/<topic>.instructions.md` (Copilot). Both files of a topic carry the same body; `python .bin/check-agent-rules.py` fails when they drift. Change the rule body in both places at once.
+
+Pull request titles are squash-commit messages and drive versioning (`fix` → patch, `feat` → minor, `BREAKING` → major). A message on `main` containing `(release)` publishes a version; never use the words `release`, `alpha` or `beta` in titles or commits unless you intend to publish. See `docs/sdlc/release.md`.
+
 ### File Organization
 
 ```
@@ -510,16 +539,21 @@ SlimFaas/
 ├── client/
 │   ├── dotnet/SlimFaasClient/ # .NET WebSocket client package + tests
 │   └── python/slimfaas-client/ # Python WebSocket client package + tests
-├── .bin/                       # Benchmark and release helper scripts
+├── .bin/                       # Benchmark, release and SDLC checker scripts (check-*.py)
 ├── tests/
 │   ├── SlimFaas.Tests/
 │   ├── SlimData.Tests/
 │   └── ...
 ├── tools/SlimFaas.MemoryLab/   # Memory/performance workload tool
 ├── docs/                      # Markdown docs and assets → published to web
+│   ├── architecture/          # Architecture map, template and GitHub-only pages
+│   └── sdlc/                  # Development lifecycle shared by humans, Copilot and Claude Code
 ├── demo/                      # Kubernetes/Compose deployment manifests
+├── .claude/                    # Claude Code: rules/, skills/, settings.json (worktrees/ is ignored)
+├── .github/                    # Workflows, copilot-instructions.md, instructions/, prompts/, templates
 ├── README.md                   # Project overview
-├── AGENTS.md                   # This file
+├── AGENTS.md                   # This file (single source of truth)
+├── CLAUDE.md                   # Imports this file for Claude Code
 └── global.json                 # .NET SDK version
 ```
 
@@ -546,8 +580,10 @@ SlimFaas/
 - **Scaling**: See `docs/autoscaling.md`
 - **Clients**: See `docs/clients.md`
 - **Contributing**: See `CONTRIBUTING.md`
+- **Development lifecycle**: See `docs/sdlc/README.md`
+- **Architecture pages and diagrams**: See `docs/architecture/README.md`
 
 ---
 
-**Last Updated**: 2026-09-02
+**Last Updated**: 2026-09-11
 **Target Audience**: AI Agents, Contributors, Maintainers
