@@ -385,7 +385,7 @@ grp.MapGet("/", async Task<Ok<List<McpTool>>> (
         // ⬇️ applique le même wrapping pour que l’UI annonce le bon schéma
         foreach (var t in tools)
             if (HasKnownOutputSchema(t.OutputSchema))
-                t.OutputSchema = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema);
+                t.OutputSchema = OutputSchemaWrapper.WrapForStructuredContent(t.OutputSchema) ?? new JsonObject();
             else
                 t.OutputSchema = new JsonObject();
     }

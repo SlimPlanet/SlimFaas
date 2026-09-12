@@ -91,6 +91,7 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var json = await response.Content.ReadFromJsonAsync<JsonNode>();
         var returnedTools = json?["result"]?["tools"]?.AsArray();
+        Assert.NotNull(returnedTools);
         Assert.Single(returnedTools);
         Assert.Equal("getPets", returnedTools![0]!["name"]!.GetValue<string>());
     }
@@ -105,7 +106,8 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         response.EnsureSuccessStatusCode();
 
         var json  = await response.Content.ReadFromJsonAsync<JsonNode>();
-        var error = json?["error"]!.AsObject();
+        Assert.NotNull(json);
+        var error = json["error"]!.AsObject();
         Assert.Equal(-32602, error["code"]!.GetValue<int>());
     }
 
@@ -137,6 +139,7 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
 
         var json    = await response.Content.ReadFromJsonAsync<JsonNode>();
         var content = json?["result"]?["content"]?.AsArray();
+        Assert.NotNull(content);
         Assert.Single(content);
         var first = content![0]!.AsObject();
         Assert.Equal("text", first["type"]!.GetValue<string>());
@@ -158,7 +161,8 @@ public class McpEndpointTests : IClassFixture<WebApplicationFactory<Program>>
         res.EnsureSuccessStatusCode();
 
         var json  = await res.Content.ReadFromJsonAsync<JsonNode>();
-        var error = json?["error"]!.AsObject();
+        Assert.NotNull(json);
+        var error = json["error"]!.AsObject();
         Assert.Equal(-32601, error["code"]!.GetValue<int>());
     }
 

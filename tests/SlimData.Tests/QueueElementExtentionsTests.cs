@@ -194,7 +194,7 @@ public class QueueElementExtensionsTests
         Assert.Equal("3", availableElements[1].Id);
         Assert.Equal("4", availableElements[2].Id);
 
-        Assert.Equal(1, runningElements.Length);
+        Assert.Single(runningElements);
         Assert.Equal("1", runningElements[0].Id);
 
         Assert.Equal(4, finishedElements.Length);

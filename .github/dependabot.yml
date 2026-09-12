@@ -22,7 +22,7 @@ updates:
 
   # FibonacciReact — SlimFaas demo
   - package-ecosystem: npm
-    directory: "/src/FibonacciReact"
+    directory: "/samples/FibonacciReact"
     schedule: { interval: weekly, day: monday, time: "07:10", timezone: "Europe/Paris" }
     open-pull-requests-limit: 5
     commit-message: { prefix: "deps(pnpm:site-demo-fibonacci-react)", include: scope }
@@ -57,15 +57,15 @@ updates:
     schedule: { interval: weekly, day: monday, time: "07:31", timezone: "Europe/Paris" }
     commit-message: { prefix: "deps(docker:slimfaas-mcp)", include: scope }
   - package-ecosystem: docker
-    directory: "/src/Fibonacci"
+    directory: "/samples/Fibonacci"
     schedule: { interval: weekly, day: monday, time: "07:32", timezone: "Europe/Paris" }
     commit-message: { prefix: "deps(docker:fibonacci-api)", include: scope }
   - package-ecosystem: docker
-    directory: "/src/FibonacciBatch"
+    directory: "/samples/FibonacciBatch"
     schedule: { interval: weekly, day: monday, time: "07:33", timezone: "Europe/Paris" }
     commit-message: { prefix: "deps(docker:fibonacci-batch)", include: scope }
   - package-ecosystem: docker
-    directory: "/src/FibonacciReact"
+    directory: "/samples/FibonacciReact"
     schedule: { interval: weekly, day: monday, time: "07:34", timezone: "Europe/Paris" }
     commit-message: { prefix: "deps(docker:fibonacci-webapp)", include: scope }
 

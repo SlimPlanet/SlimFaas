@@ -186,7 +186,32 @@ end_of_line = lf
 [*.{cmd,bat}]
 end_of_line = crlf
 
-# Suppress AOT warnings that are handled
+# ---------------------------------------------------------------------------
+# Analyzer policy (AnalysisLevel=latest-all is enabled for every project by Directory.Build.props).
+# Every rule switched off here is a deliberate, repository-wide decision with its reason.
+# Rules that are merely not fixed yet live in eng/remediation.globalconfig, not here.
+# Test projects get an extra profile from eng/tests.globalconfig.
+# ---------------------------------------------------------------------------
 [*.cs]
 # ASP0000: BuildServiceProvider called from application code (justified in Program.cs)
 dotnet_diagnostic.ASP0000.severity = none
+# CA2007: ConfigureAwait(false) brings nothing in ASP.NET Core / generic host applications (no SynchronizationContext).
+# The SlimFaasClient NuGet library re-enables it in its own .editorconfig.
+dotnet_diagnostic.CA2007.severity = none
+# CA1062: argument null checks on public members are redundant with nullable reference types enabled everywhere.
+dotnet_diagnostic.CA1062.severity = none
+# CA1515: these are applications, not libraries; making every type internal is churn without benefit.
+dotnet_diagnostic.CA1515.severity = none
+# CA1303: no localization, literal strings in exceptions and logs are intended.
+dotnet_diagnostic.CA1303.severity = none
+# CA1031: background workers and request pipelines deliberately catch every exception to stay alive and log.
+dotnet_diagnostic.CA1031.severity = none
+# CA1002 / CA2227 / CA1819: DTOs and Raft commands are serialized by MemoryPack and System.Text.Json,
+# which require settable List<T>/array properties.
+dotnet_diagnostic.CA1002.severity = none
+dotnet_diagnostic.CA2227.severity = none
+dotnet_diagnostic.CA1819.severity = none
+# CA1054 / CA1055 / CA1056: configuration-driven URLs are strings by design in ASP.NET Core options.
+dotnet_diagnostic.CA1054.severity = none
+dotnet_diagnostic.CA1055.severity = none
+dotnet_diagnostic.CA1056.severity = none

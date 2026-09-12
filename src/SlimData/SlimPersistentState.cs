@@ -224,14 +224,15 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
                 "SlimData Raft command exceeds the maximum allowed size.");
         }
 
-        if (entry.Length is < 0L || entry.Length < SlimDataCommandCodec.HeaderLength)
+        if (entry.Length < SlimDataCommandCodec.HeaderLength)
         {
+            bool negativeLength = entry.Length < 0L;
             return SkipIncompatibleEntry(
                 entry,
-                entry.Length < 0L
+                negativeLength
                     ? SlimDataCommandViolation.InvalidLength
                     : SlimDataCommandViolation.Truncated,
-                entry.Length < 0L
+                negativeLength
                     ? "SlimData Raft command has a negative serialized length."
                     : $"SlimData Raft command is shorter than its {SlimDataCommandCodec.HeaderLength}-byte envelope.");
         }

@@ -36,7 +36,7 @@ functions:
   benchmark-scale:
     command:
       - dotnet
-      - src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll
+      - benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll
       - target
     workingDirectory: ..
     annotations:
@@ -85,7 +85,7 @@ processes:
   benchmark-target:
     command:
       - dotnet
-      - src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll
+      - benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll
       - target
       - --port
       - "31080"

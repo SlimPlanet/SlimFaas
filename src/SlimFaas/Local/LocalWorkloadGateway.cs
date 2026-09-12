@@ -205,7 +205,7 @@ internal sealed class LocalWorkloadGateway : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _stopping.CancelAsync();
-        _listener.Stop();
+        _listener.Dispose();
         if (_acceptTask is not null)
             await _acceptTask;
         await Task.WhenAll(_connections.Values);

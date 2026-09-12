@@ -38,7 +38,7 @@ processes:
       - 127.0.0.1
       - --port
       - "{port}"
-    workingDirectory: src/FibonacciReact
+    workingDirectory: samples/FibonacciReact
     environment:
       BROWSER: "none"
       VITE_SLIMFAAS_URL: "http://127.0.0.1:30020"

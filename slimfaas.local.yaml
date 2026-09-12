@@ -30,7 +30,7 @@ functions:
       - --no-launch-profile
       - --artifacts-path
       - ../../.slimfaas/build/fibonacci1-{replica}
-    workingDirectory: src/Fibonacci
+    workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
@@ -87,7 +87,7 @@ functions:
       - --no-launch-profile
       - --artifacts-path
       - ../../.slimfaas/build/fibonacci2-{replica}
-    workingDirectory: src/Fibonacci
+    workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
@@ -119,7 +119,7 @@ functions:
       - --no-launch-profile
       - --artifacts-path
       - ../../.slimfaas/build/fibonacci3-{replica}
-    workingDirectory: src/Fibonacci
+    workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
@@ -150,7 +150,7 @@ functions:
       - --no-launch-profile
       - --artifacts-path
       - ../../.slimfaas/build/fibonacci4-{replica}
-    workingDirectory: src/Fibonacci
+    workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "120"
@@ -174,7 +174,7 @@ functions:
 jobs:
   fibonacci:
     command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
-    workingDirectory: src/FibonacciBatch
+    workingDirectory: samples/FibonacciBatch
     annotations:
       SlimFaas/Job: "true"
       SlimFaas/DefaultVisibility: "Public"
@@ -192,7 +192,7 @@ jobs:
 
   fibonacci5:
     command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
-    workingDirectory: src/FibonacciBatch
+    workingDirectory: samples/FibonacciBatch
     annotations:
       SlimFaas/Job: "true"
       SlimFaas/DefaultVisibility: "Public"

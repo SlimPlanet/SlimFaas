@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 
 namespace SlimData.ClusterFiles;
@@ -46,6 +47,7 @@ internal sealed class LinuxFileCacheControl(
 internal static partial class LinuxFileCacheNative
 {
     [LibraryImport("libc", EntryPoint = "posix_fadvise")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.SafeDirectories)]
     internal static partial int PosixFadvise(
         int fileDescriptor,
         long offset,
@@ -57,6 +59,8 @@ internal sealed class FileCacheDroppingReadStream(
     FileStream inner,
     IFileCacheControl cacheControl) : Stream
 {
+    [SuppressMessage("Usage", "CA2213:Disposable fields should be disposed",
+        Justification = "Disposed exactly once through Interlocked.Exchange in Dispose(bool) and DisposeAsync.")]
     private FileStream? _inner = inner;
 
     private FileStream Inner =>
@@ -126,6 +130,6 @@ internal sealed class FileCacheDroppingReadStream(
             await stream.DisposeAsync().ConfigureAwait(false);
         }
 
-        GC.SuppressFinalize(this);
+        await base.DisposeAsync().ConfigureAwait(false);
     }
 }

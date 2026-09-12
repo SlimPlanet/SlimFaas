@@ -2,8 +2,6 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <RootNamespace>SlimFaas.Tests</RootNamespace>
     <EnableStaticNativeInstrumentation>False</EnableStaticNativeInstrumentation>
@@ -27,7 +25,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj" />
-    <ProjectReference Include="..\..\src\SlimFaasBenchmark\SlimFaasBenchmark.csproj" />
+    <ProjectReference Include="..\..\benchmarks\SlimFaasBenchmark\SlimFaasBenchmark.csproj" />
   </ItemGroup>
 
 </Project>

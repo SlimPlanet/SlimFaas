@@ -123,8 +123,8 @@ services:
   fibonacci1:
     image: axaguildev/fibonacci:dev
     build:
-      context: src/Fibonacci
-      dockerfile: ./Dockerfile
+      context: .
+      dockerfile: samples/Fibonacci/Dockerfile
     ports:
       - "5000:5000"
     environment:
@@ -154,8 +154,8 @@ services:
     #image: slimkafka:dev
     # ou build localement le projet SlimKafka si tu as le code à côté :
     build:
-     context: ./src/SlimFaasKafka
-     dockerfile: Dockerfile
+     context: .
+     dockerfile: src/SlimFaasKafka/Dockerfile
     depends_on:
       kafka:
         condition: service_healthy
@@ -187,8 +187,8 @@ services:
 
   fibonacci-kafka-producer:
     build:
-      context: ./src/FibonacciKafkaProducer
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: samples/FibonacciKafkaProducer/Dockerfile
     depends_on:
       kafka:
         condition: service_healthy
@@ -201,8 +201,8 @@ services:
 
   fibonacci-kafka-listener:
     build:
-      context: ./src/FibonacciKafkaListener
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: samples/FibonacciKafkaListener/Dockerfile
     depends_on:
       kafka:
         condition: service_healthy

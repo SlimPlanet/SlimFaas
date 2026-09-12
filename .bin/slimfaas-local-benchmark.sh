@@ -8,9 +8,9 @@ timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 run_root="${BENCHMARK_RUN_ROOT:-$repo_root/artifacts/slimfaas-local-benchmark/$profile-$timestamp}"
 manifest="$repo_root/benchmarks/slimfaas.local.benchmark.yaml"
 slimfaas_project="$repo_root/src/SlimFaas/SlimFaas.csproj"
-benchmark_project="$repo_root/src/SlimFaasBenchmark/SlimFaasBenchmark.csproj"
+benchmark_project="$repo_root/benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj"
 slimfaas_dll="$repo_root/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll"
-benchmark_dll="$repo_root/src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll"
+benchmark_dll="$repo_root/benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll"
 local_log="$run_root/slimfaas-local.log"
 
 case "$profile" in

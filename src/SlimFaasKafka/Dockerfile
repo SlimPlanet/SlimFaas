@@ -1,16 +1,12 @@
-# Build stage
+# Build context: the repository root, so the shared build settings (Directory.Build.*, .editorconfig, eng/) apply.
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-WORKDIR /src
-
-# Copier les fichiers projet
-COPY SlimFaasKafka.csproj ./
-RUN dotnet restore
-
-# Copier le reste du code
-COPY . ./
-
-# Build / publish
-RUN dotnet publish -c Release -o /app/publish
+WORKDIR /repo
+COPY Directory.Build.props Directory.Build.targets global.json .editorconfig ./
+COPY eng/ eng/
+COPY src/SlimFaasKafka/SlimFaasKafka.csproj src/SlimFaasKafka/
+RUN dotnet restore src/SlimFaasKafka/SlimFaasKafka.csproj
+COPY src/SlimFaasKafka/ src/SlimFaasKafka/
+RUN dotnet publish src/SlimFaasKafka/SlimFaasKafka.csproj -c Release -o /app/publish --no-restore
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final

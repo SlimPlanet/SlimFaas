@@ -86,7 +86,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths=status-stream-coverage.xml /d:sonar.coverage.exclusions="src/Fibonacci/**/*,src/FibonacciReact/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/test-status-stream-benchmark.py" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths=status-stream-coverage.xml /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
           dotnet tool install --global dotnet-coverage
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
@@ -271,7 +271,7 @@ jobs:
       image_name: "axaguildev/slimfaas-kafka"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/SlimFaasKafka"
+      image_context: "."
       image_file: "./src/SlimFaasKafka/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:
@@ -286,8 +286,8 @@ jobs:
       image_name: "axaguildev/fibonacci-kafka-producer"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/FibonacciKafkaProducer"
-      image_file: "./src/FibonacciKafkaProducer/Dockerfile"
+      image_context: "."
+      image_file: "./samples/FibonacciKafkaProducer/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -301,8 +301,8 @@ jobs:
       image_name: "axaguildev/fibonacci-kafka-listener"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/FibonacciKafkaListener"
-      image_file: "./src/FibonacciKafkaListener/Dockerfile"
+      image_context: "."
+      image_file: "./samples/FibonacciKafkaListener/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -316,8 +316,8 @@ jobs:
       image_name: "axaguildev/fibonacci-api"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/Fibonacci"
-      image_file: "./src/Fibonacci/Dockerfile"
+      image_context: "."
+      image_file: "./samples/Fibonacci/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -331,7 +331,7 @@ jobs:
       image_name: "axaguildev/slimfaas-mcp"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/SlimFaasMcp"
+      image_context: "."
       image_file: "./src/SlimFaasMcp/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
       readme_url: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/README.md
@@ -352,7 +352,7 @@ jobs:
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
       image_context: "."
-      image_file: "./src/FibonacciBatch/Dockerfile"
+      image_file: "./samples/FibonacciBatch/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
@@ -366,8 +366,8 @@ jobs:
       image_name: "axaguildev/fibonacci-webapp"
       image_version: "${{ needs.tags.outputs.new_version }}"
       image_build_args: ""
-      image_context: "./src/FibonacciReact"
-      image_file: "./src/FibonacciReact/Dockerfile"
+      image_context: "./samples/FibonacciReact"
+      image_file: "./samples/FibonacciReact/Dockerfile"
       platforms: "linux/amd64,linux/arm64"
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}

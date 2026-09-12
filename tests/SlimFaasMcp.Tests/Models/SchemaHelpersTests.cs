@@ -10,7 +10,7 @@ public class SchemaHelpersTests
     // ---------- Helpers ----------
     private static JsonObject AsObj(JsonNode? n) => Assert.IsType<JsonObject>(n);
     private static JsonArray AsArr(JsonNode? n) => Assert.IsType<JsonArray>(n);
-    private static JsonValue AsVal(JsonNode? n) => Assert.IsType<JsonValue>(n);
+    private static JsonValue AsVal(JsonNode? n) => Assert.IsType<JsonValue>(n, exactMatch: false);
 
     private static JsonObject Obj(params (string k, object? v)[] kvs)
     {
@@ -34,12 +34,12 @@ public class SchemaHelpersTests
     [Fact]
     public void Primitives_Are_Converted()
     {
-        Assert.Equal("hello", SchemaHelpers.ToJsonNode("hello").GetValue<string>());
-        Assert.True(SchemaHelpers.ToJsonNode(true).GetValue<bool>());
-        Assert.Equal(42, SchemaHelpers.ToJsonNode(42).GetValue<int>());
-        Assert.Equal(42L, SchemaHelpers.ToJsonNode(42L).GetValue<long>());
-        Assert.Equal(3.14, SchemaHelpers.ToJsonNode(3.14).GetValue<double>(), 3);
-        Assert.Equal(1.23m, SchemaHelpers.ToJsonNode(1.23m).GetValue<decimal>());
+        Assert.Equal("hello", AsVal(SchemaHelpers.ToJsonNode("hello")).GetValue<string>());
+        Assert.True(AsVal(SchemaHelpers.ToJsonNode(true)).GetValue<bool>());
+        Assert.Equal(42, AsVal(SchemaHelpers.ToJsonNode(42)).GetValue<int>());
+        Assert.Equal(42L, AsVal(SchemaHelpers.ToJsonNode(42L)).GetValue<long>());
+        Assert.Equal(3.14, AsVal(SchemaHelpers.ToJsonNode(3.14)).GetValue<double>(), 3);
+        Assert.Equal(1.23m, AsVal(SchemaHelpers.ToJsonNode(1.23m)).GetValue<decimal>());
     }
 
     [Fact]
@@ -93,13 +93,13 @@ public class SchemaHelpersTests
     public void JsonElement_Primitives_Are_Converted()
     {
         using var sDoc = JsonDocument.Parse("\"txt\"");
-        Assert.Equal("txt", SchemaHelpers.ToJsonNode(sDoc.RootElement).GetValue<string>());
+        Assert.Equal("txt", AsVal(SchemaHelpers.ToJsonNode(sDoc.RootElement)).GetValue<string>());
 
         using var nDoc = JsonDocument.Parse("123");
-        Assert.Equal(123, SchemaHelpers.ToJsonNode(nDoc.RootElement).GetValue<long>());
+        Assert.Equal(123, AsVal(SchemaHelpers.ToJsonNode(nDoc.RootElement)).GetValue<long>());
 
         using var bDoc = JsonDocument.Parse("true");
-        Assert.True(SchemaHelpers.ToJsonNode(bDoc.RootElement).GetValue<bool>());
+        Assert.True(AsVal(SchemaHelpers.ToJsonNode(bDoc.RootElement)).GetValue<bool>());
     }
 
     [Fact]

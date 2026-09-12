@@ -6,6 +6,14 @@ This document provides essential guidelines for AI agents (like GitHub Copilot) 
 
 ---
 
+## 🗂️ Repository layout
+
+- `src/`: the products only — `SlimFaas`, `SlimData`, `SlimFaasMcp`, `SlimFaasKafka`, plus the `SlimFaasPlanetSaver` npm package and the `SlimFaasSite` documentation site.
+- `samples/`: demo and non-regression workloads used by the docs, the Docker Compose tours, the local demos and the CI images — `Fibonacci`, `FibonacciBatch`, `FibonacciKafkaListener`, `FibonacciKafkaProducer`, `FibonacciReact`, `CalculatorApi`, `GmailMailerApi`, `ConsoleApp1`.
+- `benchmarks/`: `SlimFaasBenchmark` (the HTTP load and comparison runner used by `.bin/slimfaas-local-*.sh` and the perf-regression tests) and `SlimFaas.Benchmarks` (BenchmarkDotNet micro-benchmarks).
+- `tests/`, `tools/`, `client/`, `docs/`, `demo/`: test projects, developer tools, client SDKs, documentation and Compose demos.
+- Every .NET Docker image is built with the repository root as build context (`docker build -f <path>/Dockerfile .`), so `Directory.Build.props`, `.editorconfig` and `eng/` apply inside the image build exactly as on a developer machine.
+
 ## 📦 Core Technologies
 
 ### SlimFaas, SlimData & SlimFaasMcp: AOT Compilation
@@ -48,6 +56,26 @@ The native .NET services below have `<PublishAot>true</PublishAot>` in their `.c
 - **Dependencies**: Only use NuGet packages with AOT support (e.g., `KubernetesClient.Aot`, `MemoryPack`, `prometheus-net`)
 - **Source-generated serialization**: Add new JSON payloads to existing `JsonSerializerContext` partials (for example `src/SlimFaasMcp/AppJsonContext.cs` or `src/SlimFaas/Local/ProcessControlContracts.cs`) and keep SlimData command payloads `MemoryPackable`.
 
+### Build quality: warnings are errors, all analyzers are on
+
+`Directory.Build.props` at the repository root applies to every project (including `client/dotnet/SlimFaasClient`, `tools/` and `benchmarks/`):
+
+- `TreatWarningsAsErrors=true` and `CodeAnalysisTreatWarningsAsErrors=true`: any compiler, NuGet restore, analyzer or trim/AOT warning fails the build.
+- `AnalysisLevel=latest-all` and `EnforceCodeStyleInBuild=true`: every .NET code-quality rule of the current SDK plus the `.editorconfig` code-style rules run at build time.
+- `Directory.Build.targets` turns on `IsAotCompatible` and the trim/AOT/single-file analyzers for every project that publishes with `PublishAot` or `PublishTrimmed`, so IL2xxx/IL3xxx diagnostics show up at `dotnet build`, not only at publish.
+
+Three files decide which rules apply:
+
+- `.editorconfig` (root): the repository-wide policy. Every rule set to `none` there is a deliberate decision with a one-line reason. Add a rule there only with a justification.
+- `eng/tests.globalconfig`: extra rules switched off for test projects only (`IsTestProject=true`).
+- `eng/remediation.globalconfig`: **temporary**. Rules that still have occurrences in the code base while [issue #358](https://github.com/SlimPlanet/SlimFaas/issues/358) is being worked through. Never add a rule to this file; a remediation PR fixes the occurrences of a rule and deletes its line.
+
+Rules for new or modified code:
+
+- New code must be clean under every rule, including those still listed in `eng/remediation.globalconfig`.
+- Do not use a project-wide `<NoWarn>`. A justified exception is scoped: `#pragma warning disable XXXX // reason` around the smallest block, `[SuppressMessage("...", "XXXX", Justification = "...")]` on the member, or a `.editorconfig` section for a folder.
+- Per-project csproj files keep only what is specific to them (target framework, output type, packages, AOT switches). `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors` and the analyzer settings are inherited and must not be redeclared.
+
 ### Web UI styling: BEM is required
 
 All web interfaces in this repository, including SlimFaasSite, the SlimFaas and SlimFaasMcp dashboards, Planet Saver and demo applications, must use BEM for new or modified application styles:
@@ -87,8 +115,8 @@ Every dependency or lockfile change must comply with the [CNCF third-party licen
 # Build the entire solution
 dotnet build
 
-# Fast backend-only SlimFaas build (skip embedded dashboard ClientApp)
-dotnet build src/SlimFaas/SlimFaas.csproj -p:SkipClientAppBuild=true
+# Fast backend-only build (skip the embedded SlimFaas and SlimFaasMcp ClientApp builds)
+dotnet build -p:SkipClientAppBuild=true
 
 # Build with AOT compilation (creates native executable)
 dotnet publish -c Release
@@ -110,8 +138,8 @@ dotnet run --project src/SlimFaas/SlimFaas.csproj
 dotnet run --project src/SlimFaas/SlimFaas.csproj
 
 # Run examples
-dotnet run --project src/Fibonacci/Fibonacci.csproj
-dotnet run --project src/FibonacciBatch/FibonacciBatch.csproj
+dotnet run --project samples/Fibonacci/Fibonacci.csproj
+dotnet run --project samples/FibonacciBatch/FibonacciBatch.csproj
 
 # Validate and run the native local demo (paths are relative to the src/SlimFaas launch profile)
 dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml
@@ -479,7 +507,7 @@ BENCHMARK_PHASE=screening SCREENING_DURATION_SECONDS=10 SCREENING_WARMUP_SECONDS
    - SlimFaas is designed for **slim footprint and fast execution**
    - Avoid large allocations; use pooling/streaming where possible
    - Profile impact on memory and startup time
-   - For changes touching `src/SlimData/`, `src/SlimFaas/Data/`, batching, queues, metrics cardinality, HTTP client pooling, or high-throughput request paths, run the relevant performance tests: `.bin/slimdata-benchmark.sh`, `.bin/slimdata-batch-modes-benchmark.sh`, `.bin/memory-lab.sh`, or `dotnet run --project src/SlimFaasBenchmark/SlimFaasBenchmark.csproj`.
+   - For changes touching `src/SlimData/`, `src/SlimFaas/Data/`, batching, queues, metrics cardinality, HTTP client pooling, or high-throughput request paths, run the relevant performance tests: `.bin/slimdata-benchmark.sh`, `.bin/slimdata-batch-modes-benchmark.sh`, `.bin/memory-lab.sh`, or `dotnet run --project benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj`.
 
 6. **Kubernetes-First Mindset**
    - Test with proper Kubernetes API interactions
