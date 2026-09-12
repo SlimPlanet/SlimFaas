@@ -200,6 +200,8 @@ Check out:
 - [Unified SlimData mutation batching](docs/slimdata-unified-batching.md)
 - [SlimData batch modes](docs/slimdata-batch-modes.md)
 - [Environment-variable breaking changes](docs/BREAKING_CHANGES_ENVIRONMENT_VARIABLES.md)
+- [Dependency management policy](docs/dependency-management.md)
+- [Security policy](SECURITY.md)
 
 We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **keep your serverless workloads slim**.
 
@@ -218,6 +220,21 @@ We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **kee
   SlimFaas follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
 Enjoy SlimFaas!
+
+## Software Bill of Materials (SBOM)
+
+SlimFaas publishes a Software Bill of Materials so that adopters can audit what ships in each release.
+
+- **Release archives**: starting with the next release, every [GitHub release](https://github.com/SlimPlanet/SlimFaas/releases) will carry `SlimFaas-<version>-sbom.spdx.json` and `SlimFaasMcp-<version>-sbom.spdx.json` (SPDX) together with CycloneDX variants, signed with Sigstore. Progress is tracked in [#367](https://github.com/SlimPlanet/SlimFaas/issues/367).
+- **Container images**: the same work attaches BuildKit SBOM and provenance attestations to the `axaguildev/*` images; read them with `docker buildx imagetools inspect axaguildev/slimfaas:<version> --format '{{ json .SBOM }}'`.
+- **Generate one yourself** from a checkout:
+
+```bash
+dotnet tool install --global CycloneDX
+dotnet CycloneDX src/SlimFaas/SlimFaas.csproj --output sbom --json
+```
+
+The dependency selection, update and pinning rules are described in the [dependency management policy](docs/dependency-management.md); the [security policy](SECURITY.md) explains how to report a vulnerability.
 
 ---
 

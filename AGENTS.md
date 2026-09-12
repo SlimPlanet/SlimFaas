@@ -339,6 +339,17 @@ technical references on GitHub.
   - Explain tool generation
   - Provide integration examples
 
+- **`dependency-management.md`** – Dependency policy (linked from `security-insights.yml`)
+  - Update when an ecosystem, lockfile, update cadence or pinning rule changes
+  - Keep the licence rules aligned with the "Dependency License Compliance" section above
+
+#### 3. **Security files** (Root)
+
+- **`SECURITY.md`** – Supported versions, reporting channel and response targets
+- **`security-insights.yml`** – OpenSSF Security Insights manifest read by CLOMonitor
+  - Update `last-updated` and the relevant section when maintainers, security tools, release distribution points or policy URLs change
+  - Validate before committing: `cue vet -d '#SecurityInsights' schema.cue security-insights.yml` (schema from https://github.com/ossf/security-insights-spec)
+
 ### Documentation Format & Style
 
 - **Markdown (.md)** – Use standard GitHub-flavored Markdown
@@ -420,6 +431,8 @@ All workflows live in `.github/workflows/`:
 
 7. **scorecard.yml** – Supply-chain security:
    - Runs OpenSSF Scorecard analysis and uploads SARIF results
+
+`GITHUB_TOKEN` is read-only at the top of every workflow. A job that must write (create a GitHub release, push to `gh-pages`, publish with OIDC) declares its own `permissions:` block; do not raise the top-level permissions. Checkouts in jobs that never push use `persist-credentials: false`.
 
 ### Running Locally Before Commit
 
