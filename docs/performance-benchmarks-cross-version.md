@@ -12,10 +12,12 @@ Key findings (details and tables in [Results](#results), one-line recap in [Summ
 - **Improvements** — async acceptance p95 240 ms → 14–27 ms and 7–18× more messages/s,
   sync proxy overhead −49 to −74 % on 256 KiB–2 MiB bodies, hot-path reads 200× with zero
   allocation, Raft queue commands 2–5.6×, jobs synchronization 1 + N → 2 API requests.
-- **Regression** — after a scale-from-zero, a function with PromQL triggers and default
-  scale-up policies now waits 15 s before scaling out (4 ready replicas at 8.4 s → 20.0 s,
-  five rounds each, deterministic). Cause: since #341/#350 the wake-up is recorded as a
-  scale decision and consumes the default *Percent 100 / 15 s* budget. See
+- **Regression, found and fixed** — in v0.84.6, after a scale-from-zero, a function with
+  PromQL triggers and default scale-up policies waited 15 s before scaling out (4 ready
+  replicas at 8.4 s → 20.0 s, five rounds each, deterministic). Cause: since #341/#350 the
+  wake-up was recorded as a scale decision and consumed the default *Percent 100 / 15 s*
+  budget (#370). Fixed by #371: on the fixed build 4 replicas are ready at 5.2–7.5 s and the
+  burst drains 9–11 s sooner than on v0.79.2. See
   [Scaling burst](#scaling-burst-scale-to-zero--promql-scale-out-200-messages-4-replicas).
 - **Unchanged risk** — both versions climb to the 20 000 open-file limit of the host under
   256 KiB–2 MiB async load (write-ahead-log files).
@@ -213,6 +215,23 @@ late scale-out). Consequences:
 - Until then, functions that must burst right after a wake-up need an explicit scale-up
   policy (`Pods` or `Percent` with `PeriodSeconds: 0`, or a shorter period).
 
+**Fixed by [#371](https://github.com/SlimPlanet/SlimFaas/pull/371)** (merged 2026-09-13,
+`da5a5723`, closes #370): an accepted increase the metric policies did not produce is
+recorded as a wake-up and no longer consumes the scale-up budget, while it still counts as
+an accepted addition for the scale-down budgets of #350. Same burst, default policies,
+three rounds on the merged `main` (`artifacts/perf-compare/scale-rounds-postfix/`):
+
+| milestone from first send | v0.79.2 (5 rounds) | v0.84.6 (5 rounds) | main after #371 (3 rounds) |
+|---|---:|---:|---:|
+| ready replicas ≥ 1 | 2.0–4.2 s | 2.1–5.3 s | 2.1–4.2 s |
+| desired replicas ≥ 4 | 5.2–9.6 s | 16.75–16.94 s | **3.2–5.3 s** |
+| ready replicas ≥ 4 | 8.3–12.9 s | 19.0–20.1 s | **5.2–7.5 s** |
+| queue drained | 28.5–31.7 s | 29.6–30.6 s | **18.6–20.6 s** |
+
+The scale-out is now taken one scrape interval after the first replica is ready, and the
+faster async dispatch of the window shows in the drain time: the 200-message burst is
+served 9–11 s sooner than on v0.79.2.
+
 #### Resource usage of the SlimFaas nodes during the run
 
 Sampled every 5 s from `/proc` (`resources-summary.md` of each run):
@@ -340,7 +359,7 @@ Reading guide:
 | Sync proxy overhead | added p50 −49 to −74 % (256 KiB–2 MiB), −4 to −19 % (64 B–4 KiB); throughput +42 to +86 % on large bodies | #310, #313, #317 |
 | Hot-path CPU and allocations | snapshot reads 200–250× / zero alloc, schedule evaluation 62×, PromQL registry 25×, count path 40×, Raft queue commands 2–5.6× with 2–37× fewer bytes | #313, #343 |
 | Kubernetes API load | jobs sync 1 + N → 2 requests; functions/jobs/CronJob polling every 1–3 s → watch events + 30–60 s resync (not measurable off-cluster) | #340 |
-| Scale-out burst | **regression**: 4 ready replicas at 8.4 s → 20.0 s (5 rounds each, deterministic). Cause: since #341/#350 the wake-up from zero is recorded as a scale decision and consumes the default 15 s scale-up budget; with an explicit no-period policy v0.84.6 is as fast as v0.79.2 and drains the burst 8–11 s sooner | #341, #350 (regression), #311 (drain) |
+| Scale-out burst | **regression in v0.84.6, fixed by #371**: 4 ready replicas at 8.4 s → 20.0 s (5 rounds each, deterministic) because since #341/#350 the wake-up from zero consumed the default 15 s scale-up budget; after #371: 4 ready replicas at 5.2–7.5 s and the burst drains 9–11 s sooner than v0.79.2 (3 rounds) | #341, #350 (regression), #371 (fix), #311 (drain) |
 | Open descriptors of the write-ahead log | both versions climb to the 20 000 limit under 256 KiB–2 MiB async load; each crossed it once in two runs | not addressed in the window |
 
 
