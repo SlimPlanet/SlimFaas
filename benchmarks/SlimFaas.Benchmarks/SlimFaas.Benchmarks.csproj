@@ -8,6 +8,9 @@
         <IsPackable>false</IsPackable>
         <!-- BenchmarkDotNet requires an optimized build. -->
         <Optimize>true</Optimize>
+        <!-- Measurement code, not shipped: analysed by SonarCloud as test code (no coverage
+             requirement, test-code rule set), like the test projects. -->
+        <SonarQubeTestProject>true</SonarQubeTestProject>
         <!--
           Cross-version builds (benchmarks/compare-versions.sh):
           - SlimFaasSourceRoot: root of the SlimFaas checkout the benchmarks are compiled
