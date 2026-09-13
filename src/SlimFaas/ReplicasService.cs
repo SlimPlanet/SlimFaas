@@ -129,7 +129,12 @@ public class ReplicasService(
             logger.LogInformation("Scale {Deployment} from {CurrentScale} to {DesiredReplicas}",
                 deploymentInformation.Deployment, currentScale, desiredReplicas);
 
-            tasks.Add(ApplyScaleAsync(decision, deploymentInformation.Scale, diagnosticSession, new ReplicaRequest(
+            // A count the metric policies did not produce (wake-up to ReplicasAtStart on HTTP,
+            // schedule or dependency activity, external wake-up, activity floor) must not
+            // consume the scale-up policy budget: the first metric-driven scale-out after a
+            // scale-from-zero would otherwise wait a full policy period (issue #370).
+            bool wakeUp = metrics is null || desiredReplicas != metrics.Target;
+            tasks.Add(ApplyScaleAsync(decision, deploymentInformation.Scale, diagnosticSession, wakeUp, new ReplicaRequest(
                 Replicas: desiredReplicas,
                 Deployment: deploymentInformation.Deployment,
                 Namespace: kubeNamespace,
@@ -157,7 +162,8 @@ public class ReplicasService(
         }
     }
 
-    private async Task<ReplicaRequest?> ApplyScaleAsync(ScalingDecision decision, ScaleConfig? configuration, string? session, ReplicaRequest request)
+    private async Task<ReplicaRequest?> ApplyScaleAsync(ScalingDecision decision, ScaleConfig? configuration, string? session,
+        bool wakeUp, ReplicaRequest request)
     {
         try
         {
@@ -165,7 +171,7 @@ public class ReplicasService(
             var result = await kubernetesService.ScaleAsync(request);
             if (result is not null && configuration?.Triggers.Count > 0)
                 autoScaler.RecordAppliedDecision(decision.Function, new DateTimeOffset(_nowProvider()).ToUnixTimeSeconds(),
-                    decision.CurrentReplicas, result.Replicas);
+                    decision.CurrentReplicas, result.Replicas, wakeUp);
             diagnostics?.Record(decision with { Application = result is null ? "Failed" : "Accepted",
                 AcceptedReplicas = result?.Replicas }, configuration, session);
             return result;

@@ -388,6 +388,13 @@ Conceptually:
 - For **scale-up**:
     - Each policy defines a **maximum allowed increase** (either percentage or absolute pod count).
     - SlimFaas picks the **most aggressive** policy (maximum allowed increase).
+    - `PeriodSeconds` is a budget consumed by the previous **steps produced by the policies**
+      within the window. A wake-up to `ReplicasAtStart` triggered by HTTP activity, a
+      schedule or dependency demand is not such a step (the policies did not produce that
+      count): the first metric-driven scale-out after a scale-from-zero is evaluated as soon
+      as the metrics exceed the threshold, without waiting for the period to elapse. A
+      metric-driven scale from zero (external source with `ScaleFromZero: true`) is a
+      policy step and consumes the budget like any other.
 
 - For **scale-down**:
     - Each policy defines a **maximum allowed decrease**.

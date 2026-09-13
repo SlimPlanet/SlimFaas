@@ -141,6 +141,88 @@ namespace SlimFaas.Tests.Kubernetes
         }
 
         [Fact]
+        public void ScaleUp_DefaultPolicies_IgnoreWakeUpWithinWindow()
+        {
+            // Issue #370: the wake-up 0 -> 1 applied 5 s ago is in the history, but it was
+            // not produced by the policies. With the default scale-up policies
+            // (Percent 100 / Pods 4 per 15 s) the first metric-driven scale-out must go
+            // through: 1 -> 4.
+            const string key = "deploy-wake-up";
+            const long now = 1000;
+            const int current = 1;
+            const int rawDesired = 4;
+
+            var samples = new List<AutoScaleSample>
+            {
+                new AutoScaleSample(timestampUnixSeconds: 995, desiredReplicas: 1, previousReplicas: 0, wakeUp: true),
+            };
+
+            var storeMock = new Mock<IAutoScalerStore>();
+            storeMock
+                .Setup(s => s.GetSamples(key, It.Is<long>(ts => ts <= now)))
+                .Returns(samples);
+
+            var scaler = CreateAutoScalerWithStore(storeMock);
+
+            var finalDesired = InvokeApplyScaleUpPolicies(
+                scaler,
+                key,
+                ScaleDirectionBehavior.DefaultScaleUp(),
+                current,
+                rawDesired,
+                now);
+
+            Assert.Equal(4, finalDesired);
+        }
+
+        [Fact]
+        public void ScaleUp_DefaultPolicies_MetricDrivenScaleFromZeroStillConsumesBudget()
+        {
+            // A policy-limited scale from zero (raw 8, Pods 4 => 0 -> 4) is a policy step:
+            // the next scale-out within the window is held at the current count.
+            const string key = "deploy-metric-from-zero";
+            const long now = 1000;
+            const int current = 4;
+            const int rawDesired = 8;
+
+            var samples = new List<AutoScaleSample>
+            {
+                new AutoScaleSample(timestampUnixSeconds: 995, desiredReplicas: 4, previousReplicas: 0),
+            };
+
+            var storeMock = new Mock<IAutoScalerStore>();
+            storeMock
+                .Setup(s => s.GetSamples(key, It.Is<long>(ts => ts <= now)))
+                .Returns(samples);
+
+            var scaler = CreateAutoScalerWithStore(storeMock);
+
+            var finalDesired = InvokeApplyScaleUpPolicies(
+                scaler,
+                key,
+                ScaleDirectionBehavior.DefaultScaleUp(),
+                current,
+                rawDesired,
+                now);
+
+            Assert.Equal(current, finalDesired);
+        }
+
+        [Fact]
+        public void InMemoryStore_KeepsTheWakeUpFlag()
+        {
+            var store = new InMemoryAutoScalerStore();
+            store.AddSample("deploy", 990, 1, 0, wakeUp: true);
+            store.AddSample("deploy", 995, 4, 1);
+
+            var samples = store.GetSamples("deploy", 0);
+
+            Assert.Collection(samples,
+                s => { Assert.True(s.WakeUp); Assert.Equal(0, s.PreviousReplicas); },
+                s => { Assert.False(s.WakeUp); Assert.Equal(1, s.PreviousReplicas); });
+        }
+
+        [Fact]
         public void ScaleDown_PodsPolicy_WithPeriodSeconds_LimitsDeltaWithinWindow()
         {
             // current = 8, raw desired = 1
