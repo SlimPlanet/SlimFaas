@@ -189,7 +189,6 @@ end_of_line = crlf
 # ---------------------------------------------------------------------------
 # Analyzer policy (AnalysisLevel=latest-all is enabled for every project by Directory.Build.props).
 # Every rule switched off here is a deliberate, repository-wide decision with its reason.
-# Rules that are merely not fixed yet live in eng/remediation.globalconfig, not here.
 # Test projects get an extra profile from eng/tests.globalconfig.
 # ---------------------------------------------------------------------------
 [*.cs]

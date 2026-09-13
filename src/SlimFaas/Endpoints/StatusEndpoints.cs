@@ -71,7 +71,7 @@ public static class StatusEndpoints
             var name = function.Deployment;
             if (!gate.TryEnter(name)) continue; // déjà en cours
 
-#pragma warning disable CS4014
+#pragma warning disable CS4014 // fire-and-forget by design; completion is observed in ContinueWith
             var t = wakeUpFunction.WakeUpInBackgroundAsync(name);
             _ = t.ContinueWith(task =>
             {
@@ -101,7 +101,7 @@ public static class StatusEndpoints
         if (!gate.TryEnter(functionName))
             return Results.NoContent(); // déjà réveillée / en cours
 
-#pragma warning disable CS4014
+#pragma warning disable CS4014 // fire-and-forget by design; completion is observed in ContinueWith
         var t = wakeUpFunction.WakeUpInBackgroundAsync(functionName);
 
         _ = t.ContinueWith(task =>

@@ -15,7 +15,7 @@ using SlimFaas.Options;
 
 namespace SlimFaas.Database;
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
 public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 {
     private const string UnifiedBatchKind = "commands";

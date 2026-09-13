@@ -32,7 +32,7 @@ public record struct DeleteHashSetCommand : ICommand<DeleteHashSetCommand>
             .ConfigureAwait(false);
     }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
     public static async ValueTask<DeleteHashSetCommand> ReadFromAsync<TReader>(TReader reader, CancellationToken token)
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
