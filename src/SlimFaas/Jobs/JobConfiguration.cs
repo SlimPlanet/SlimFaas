@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -52,7 +52,7 @@ public class JobConfiguration : IJobConfiguration
             }
             if (!string.IsNullOrEmpty(json))
             {
-                logger.LogInformation("JobConfiguration: {Json}", json);
+                logger.LogJobConfiguration(json);
                 slimfaasJobConfiguration = JsonSerializer.Deserialize(json, SlimfaasJobConfigurationSerializerContext.Default.SlimFaasJobConfiguration);
 
                 var configurations = new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase);
@@ -72,7 +72,7 @@ public class JobConfiguration : IJobConfiguration
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error parsing SlimFaas job configuration");
+            logger.LogErrorParsingSlimFaasJobConfiguration(ex);
         }
 
         if (slimfaasJobConfiguration is null or { Configurations: null })

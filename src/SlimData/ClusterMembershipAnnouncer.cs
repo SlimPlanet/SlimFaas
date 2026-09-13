@@ -36,11 +36,11 @@ internal sealed class ClusterMembershipAnnouncer(
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested)
             {
-                logger.LogDebug("Membership announcement to {Candidate} timed out", candidate);
+                logger.LogMembershipAnnouncementToTimedOut(candidate);
             }
             catch (HttpRequestException ex)
             {
-                logger.LogDebug(ex, "Membership announcement to {Candidate} failed", candidate);
+                logger.LogMembershipAnnouncementToFailed(ex, candidate);
             }
         }
     }
@@ -109,7 +109,7 @@ internal sealed class ClusterMembershipAnnounceWorker(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Unable to announce this SlimData member to the cluster");
+                logger.LogUnableToAnnounceThisSlimDataMember(ex);
             }
         }
     }

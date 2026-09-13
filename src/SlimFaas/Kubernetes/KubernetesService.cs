@@ -111,17 +111,13 @@ public partial class KubernetesService : IKubernetesService, IDisposable
         {
             _serviceListForbidden = true;
 
-            _logger.LogWarning(ex,
-                "Insufficient RBAC permissions to list Services in namespace {Namespace}. ServiceName will be null in PodInformation.",
-                kubeNamespace);
+            _logger.LogInsufficientRBACPermissionsToListServices(ex, kubeNamespace);
 
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
-                "Error while listing Services in namespace {Namespace}. ServiceName will be null in PodInformation.",
-                kubeNamespace);
+            _logger.LogErrorWhileListingServicesInNamespace(ex, kubeNamespace);
 
             return null;
         }

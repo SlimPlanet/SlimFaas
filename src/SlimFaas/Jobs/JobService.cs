@@ -1,4 +1,4 @@
-﻿﻿﻿using System.Text.Json.Serialization;
+﻿﻿using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using MemoryPack;
 using SlimData;
@@ -77,7 +77,7 @@ public class JobService(
         }
         catch (RegexMatchTimeoutException ex)
         {
-            logger.LogError(ex, "Regex job pattern {Pattern} generated a timeout", pattern);
+            logger.LogRegexJobPatternGeneratedTimeout(ex, pattern);
             return false;
         }
     }

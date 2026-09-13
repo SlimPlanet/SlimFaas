@@ -22,7 +22,7 @@ public static partial class JobEndpoints
     {
         if (functionName.Length < 3 || functionName.Length > 30 || !FunctionNamePattern().IsMatch(functionName))
         {
-            logger.LogWarning("Invalid function name: {FunctionName}. Must match pattern [a-z0-9_-] and be between 3 and 30 characters", functionName);
+            logger.LogInvalidFunctionNameMustMatchPattern(functionName);
             return false;
         }
         return true;
@@ -79,12 +79,11 @@ public static partial class JobEndpoints
             return Results.BadRequest();
         }
 
-        logger.LogInformation("Create job {JobName} with {CreateJob}", functionName, createJob);
+        logger.LogCreateJobWith(functionName, createJob);
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("Create job details {CreateJob} ",
-                JsonSerializer.Serialize(createJob, CreateJobSerializerContext.Default.CreateJob));
+            logger.LogCreateJobDetails(JsonSerializer.Serialize(createJob, CreateJobSerializerContext.Default.CreateJob));
         }
 
         bool isMessageComeFromNamespaceInternal =
@@ -94,8 +93,7 @@ public static partial class JobEndpoints
 
         if (!result.IsSuccess)
         {
-            logger.LogWarning("Job HTTP Status {HttpStatusCode} with error {ErrorKey}",
-                400, result.Error?.Key);
+            logger.LogJobHTTPStatusWithError(400, result.Error?.Key);
             return Results.BadRequest();
         }
 
@@ -131,7 +129,7 @@ public static partial class JobEndpoints
         bool isMessageComeFromNamespaceInternal =
             FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService);
 
-        logger.LogInformation("Delete job {JobName} with {Id}", functionName, elementId);
+        logger.LogDeleteJobWith(functionName, elementId);
 
         bool isSuccess = await jobService.DeleteJobAsync(functionName, elementId, isMessageComeFromNamespaceInternal);
 

@@ -172,6 +172,7 @@ public class HistorySynchronizationWorkerShould
     public async Task LogErrorWhenExceptionIsThrown()
     {
         var logger = new Mock<ILogger<HistorySynchronizationWorker>>();
+        logger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         var redisMockService = new DatabaseMockService();
         var historyHttpRedisService = new HistoryHttpDatabaseService(redisMockService);
         var historyHttpMemoryService = new HistoryHttpMemoryService();

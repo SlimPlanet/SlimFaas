@@ -77,7 +77,7 @@ public static class StatusEndpoints
             {
                 gate.Exit(name);
                 if (task.IsFaulted && task.Exception is not null)
-                    logger.LogError(task.Exception, "WakeAll failed for {FunctionName}", name);
+                    logger.LogWakeAllFailedFor(task.Exception, name);
             }, TaskScheduler.Default);
 #pragma warning restore CS4014
         }
@@ -108,7 +108,7 @@ public static class StatusEndpoints
         {
             gate.Exit(functionName);
             if (task.IsFaulted && task.Exception is not null)
-                logger.LogError(task.Exception, "Wake failed for {FunctionName}", functionName);
+                logger.LogWakeFailedFor(task.Exception, functionName);
         }, TaskScheduler.Default);
 #pragma warning restore CS4014
 

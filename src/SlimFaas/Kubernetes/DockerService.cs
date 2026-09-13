@@ -1,4 +1,4 @@
-﻿// File: DockerService.cs
+// File: DockerService.cs
 // .NET 9 / AOT-friendly — pure Docker REST (also works with Podman compat API)
 
 using System.Diagnostics.CodeAnalysis;
@@ -109,7 +109,7 @@ namespace SlimFaas.Kubernetes
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[Startup] PurgeStaleTemplates failed (continuing)");
+                _logger.LogStartupPurgeStaleTemplatesFailedContinuing(ex);
             }
         }
 
@@ -133,8 +133,10 @@ namespace SlimFaas.Kubernetes
             // Supprimer aussi les vieux templates portant des labels compose (voir §2)
             foreach (var c in allTpl.DistinctBy(x => x.ID))
             {
-                _logger.LogInformation("[Startup] Removing stale template id={Id} name={Name} state={State}",
-                    c.ID, c.Names?.FirstOrDefault(), c.State);
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogStartupRemovingStaleTemplateIdName(c.ID, c.Names?.FirstOrDefault(), c.State);
+                }
                 await StopContainerIfRunningAsync(c.ID);
                 await RemoveContainerAsync(c.ID, force: true);
 
@@ -151,8 +153,7 @@ namespace SlimFaas.Kubernetes
 public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
 {
     await EnsureStartupCleanupOnceAsync();
-    _logger.LogInformation("[Scale] {Deployment} ns={Ns} desired={Desired}",
-        request.Deployment, request.Namespace, request.Replicas);
+    _logger.LogScaleNsDesired(request.Deployment, request.Namespace, request.Replicas);
 
     string deployment = request.Deployment;
     string ns = request.Namespace;
@@ -225,31 +226,30 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
 
                     if (confirmed.Count == 0)
                     {
-                        _logger.LogWarning("[Scale] {Deployment} desired=0: template creation failed, skip cleanup this tick.",
-                            deployment);
+                        _logger.LogScaleDesired0TemplateCreationFailed(deployment);
                         return request;
                     }
                 }
                 else
                 {
-                    _logger.LogWarning("[Scale] {Deployment} desired=0: cannot inspect source; skip cleanup this tick.",
-                        deployment);
+                    _logger.LogScaleDesired0CannotInspectSource(deployment);
                     return request;
                 }
             }
             else
             {
                 // pas de source : on ne peut pas créer de template (pas grave, on nettoie quand même)
-                _logger.LogInformation("[Scale] {Deployment} desired=0: no source found to build template; continuing cleanup.",
-                    deployment);
+                _logger.LogScaleDesired0NoSourceFound(deployment);
             }
         }
 
         // b) Supprimer TOUS les non-templates (quel que soit l'état)
         foreach (var c in nonTemplate)
         {
-            _logger.LogInformation("[Scale] Stop/Remove (desired=0) {Deployment} id={Id} name={Name} state={State}",
-                deployment, c.ID, c.Names?.FirstOrDefault(), c.State);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogScaleStopRemoveDesired0Id(deployment, c.ID, c.Names?.FirstOrDefault(), c.State);
+            }
             await StopContainerIfRunningAsync(c.ID);
             await RemoveContainerAsync(c.ID, force: true);
         }
@@ -285,8 +285,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
                 || (started is null && created is not null &&
                     (DateTimeOffset.UtcNow - created.Value).TotalSeconds < ScaleUpWarmupSeconds))
             {
-                _logger.LogInformation("[Scale] {Deployment} ns={Ns} scale-up: replica récent détecté (state={State}) → on attend",
-                    deployment, ns, c.State);
+                _logger.LogScaleNsScaleUpReplicaCent(deployment, ns, c.State);
                 return request; // ⟵ évite la création en double
             }
         }
@@ -294,8 +293,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         // 3) S'il y a déjà assez de réplicas ACTIFS, ne rien créer
         if (existing >= desired)
         {
-            _logger.LogInformation("[Scale] {Deployment} ns={Ns} scale-up: {Existing} actif(s) ≥ desired={Desired} → skip",
-                deployment, ns, existing, desired);
+            _logger.LogScaleNsScaleUpActifDesired(deployment, ns, existing, desired);
             return request;
         }
 
@@ -312,7 +310,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         withTemplate = withTemplate.Where(c => c.Labels is not null
                                             && c.Labels.TryGetValue(Function, out var v)
                                             && IsTrueLike(v)).ToList();
-        _logger.LogInformation("[withTemplate] Count={Count}", withTemplate.Count);
+        _logger.LogWithTemplateCount(withTemplate.Count);
 
         InspectContainerResponse? templateInspect = null;
 
@@ -325,7 +323,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             var source = active.FirstOrDefault() ?? all.FirstOrDefault();
             if (source is null)
             {
-                _logger.LogWarning("[Scale] {Deployment} ns={Ns} scale-up failed: no container or template found", deployment, ns);
+                _logger.LogScaleNsScaleUpFailedNo(deployment, ns);
                 return request;
             }
 
@@ -381,9 +379,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
 
             if (IsStarting(insp) || IsWithinWarmup(insp, WarmupSeconds))
             {
-                _logger.LogInformation(
-                    "[Scale] Skip down {Deployment} (desired={Desired}) -> warmup/starting; since {StartedAt:u}",
-                    deployment, desired, insp.State?.StartedAt?.ToUniversalTime());
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogScaleSkipDownDesiredWarmupStarting(deployment, desired, insp.State?.StartedAt?.ToUniversalTime());
+                }
                 return request;
             }
         }
@@ -391,8 +390,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         // Retirer l'excédent parmi les RUNNING
         foreach (var c in running.Take(current - desired))
         {
-            _logger.LogInformation("[Scale] Stop/Remove {Deployment} id={Id} name={Name}",
-                deployment, c.ID, c.Names?.FirstOrDefault());
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogScaleStopRemoveIdName(deployment, c.ID, c.Names?.FirstOrDefault());
+            }
             await StopContainerIfRunningAsync(c.ID);
             await RemoveContainerAsync(c.ID, force: true);
         }
@@ -453,8 +454,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             .Where(c => !IsTemplate(c) && !NameLooksLikeTemplate(c) && IsRunning(c.State))
             .ToList();
 
-        _logger.LogDebug("DockerService: Deployment {Deployment} has {Count} running non-template containers",
-            deploymentName, runningNonTemplate.Count);
+        _logger.LogDockerServiceDeploymentHasRunningNonTemplate(deploymentName, runningNonTemplate.Count);
 
         List<PodInformation> pods = new();
         foreach (ContainerSummary c in runningNonTemplate)
@@ -472,8 +472,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             string ip = ExtractPreferredIPAddress(insp);
             List<int> ports = GetAllContainerPortsNoHeuristic(insp);
 
-            _logger.LogDebug("DockerService: Pod {Pod} IP={IP} Ports=[{Ports}] Ready={Ready}",
-                name, ip, string.Join(",", ports), ready);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDockerServicePodIPPortsReady(name, ip, string.Join(",", ports), ready);
+            }
 
             pods.Add(new PodInformation(
                 name ?? c.ID[..12],
@@ -669,20 +671,19 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
             string id = createRes?.Id ??
                         throw new InvalidOperationException("Docker returned no container id for job creation.");
-            _logger.LogInformation("Job create: name={Name} id={Id}", jobFullName, id);
+            _logger.LogJobCreateNameId(jobFullName, id);
             try
             {
                 await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
                 await Task.Delay(150);
                 InspectContainerResponse? insp = await TryInspectContainerAsync(id);
-                _logger.LogInformation("Job started: {Name} state={State} exit={Exit} error={Err}",
-                    jobFullName, insp?.State?.Running, insp?.State?.ExitCode, insp?.State?.Error);
+                _logger.LogJobStartedStateExitError(jobFullName, insp?.State?.Running, insp?.State?.ExitCode, insp?.State?.Error);
             }
             catch (HttpRequestException ex)
             {
                 // Optional: grab last logs to understand failure
                 string tail = await GetContainerLogsAsync(id);
-                _logger.LogError(ex, "Failed to start job {Job}. Logs tail:\n{Logs}", jobFullName, tail);
+                _logger.LogFailedToStartJobLogsTail(ex, jobFullName, tail);
                 throw;
             }
         }
@@ -808,7 +809,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             string? id = await ResolveContainerIdByNameAsync(jobName);
             if (id is null)
             {
-                _logger.LogWarning("DeleteJob: container '{JobName}' not found.", jobName);
+                _logger.LogDeleteJobContainerNotFound(jobName);
                 return;
             }
 
@@ -940,7 +941,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 createBody,
                 DockerJson.Default.CreateContainerRequest,
                 DockerJson.Default.CreateContainerResponse);
-            _logger.LogInformation("[Template] Created template for {Deployment} in ns={Ns} name={Name}", deployment, ns, name);
+            _logger.LogTemplateCreatedTemplateForInNs(deployment, ns, name);
             // Ne PAS démarrer : on veut juste une “carcasse” pour porter les métadonnées
         }
 
@@ -1158,13 +1159,12 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
     try
     {
         await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
-        _logger.LogInformation("[Scale-UP] Started replica {Deployment} id={Id} (template label removed)",
-            deployment, id);
+        _logger.LogScaleUPStartedReplicaIdTemplate(deployment, id);
     }
     catch (HttpRequestException ex)
     {
         string logs = await GetContainerLogsAsync(id);
-        _logger.LogWarning(ex, "Start failed for replica {Name} (id={Id}). Logs tail:\n{Logs}", name, id, logs);
+        _logger.LogStartFailedForReplicaIdLogs(ex, name, id, logs);
 
         if (createBody.HostConfig?.PortBindings is not null)
         {
@@ -1342,7 +1342,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             }
             catch (Exception e)
             {
-                _logger.LogWarning(e, "Image pull failed or skipped for {Image}", image);
+                _logger.LogImagePullFailedOrSkippedFor(e, image);
             }
         }
 

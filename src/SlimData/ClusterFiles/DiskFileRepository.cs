@@ -106,7 +106,7 @@ public sealed class DiskFileRepository : IFileRepository
             try { id = Base64UrlCodec.Decode(safe); }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to decode Base64 filename, skipping. path={Path}", metaPath);
+                _logger.LogFailedToDecodeBase64FilenameSkipping(ex, metaPath);
                 continue;
             }
 
@@ -117,7 +117,7 @@ public sealed class DiskFileRepository : IFileRepository
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to read metadata file, skipping. path={Path}", metaPath);
+                _logger.LogFailedToReadMetadataFileSkipping(ex, metaPath);
                 continue;
             }
 
@@ -191,7 +191,7 @@ public sealed class DiskFileRepository : IFileRepository
     private static void TryDelete(string path, ILogger<DiskFileRepository> logger)
     {
         try { if (File.Exists(path)) File.Delete(path); }
-        catch (Exception ex) { logger.LogWarning(ex, "Failed to delete temporary file. path={Path}", path); }
+        catch (Exception ex) { logger.LogFailedToDeleteTemporaryFilePath(ex, path); }
     }
 
     private static async Task<FileMetadata?> ReadMetadataAsync(string metaPath, CancellationToken ct)
@@ -266,7 +266,7 @@ public sealed class DiskFileRepository : IFileRepository
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete orphan .tmp file. path={Path}", tmp);
+                    _logger.LogFailedToDeleteOrphanTmpFile(ex, tmp);
                 }
             }
 

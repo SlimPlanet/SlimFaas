@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
@@ -20,8 +20,7 @@ internal sealed class RaftClientHandlerFactory : IHttpMessageHandlerFactory
 
     public HttpMessageHandler CreateHandler(string name)
     {
-        _logger.LogInformation("RaftClientHandlerFactory.CreateHandler({Name}) with ConnectTimeout {ConnectTimeout}ms", 
-            name, _options.ConnectTimeoutMilliseconds);
+        _logger.LogRaftClientHandlerFactoryCreateHandlerWithConnectTimeoutMs(name, _options.ConnectTimeoutMilliseconds);
         
         var handler = new SocketsHttpHandler
         {

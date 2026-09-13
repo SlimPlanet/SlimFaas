@@ -1,4 +1,4 @@
-﻿using MemoryPack;
+using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
@@ -77,7 +77,7 @@ public class SlimJobsWorker(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Global error in slimFaas jobs worker");
+            logger.LogGlobalErrorInSlimFaasJobsWorker(e);
         }
     }
 
@@ -163,7 +163,7 @@ public class SlimJobsWorker(
                     catch (Exception e)
                     {
                         listCallBack.Items.Add(new QueueItemStatus(element.Id, 500));
-                        logger.LogError(e, "Error in SlimJobsWorker");
+                        logger.LogErrorInSlimJobsWorker(e);
                     }
                 }
 
@@ -175,7 +175,7 @@ public class SlimJobsWorker(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Job worker error");
+            logger.LogJobWorkerError(e);
         }
     }
 

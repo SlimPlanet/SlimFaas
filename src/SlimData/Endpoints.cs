@@ -1,4 +1,4 @@
-﻿using DotNext;
+using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
@@ -276,17 +276,17 @@ public static class Endpoints
         }
         catch (SlimDataUnavailableException e)
         {
-            logger.LogWarning(e, "SlimData is unavailable for {Path}", context.Request.Path);
+            logger.LogSlimDataIsUnavailableFor(e, context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         }
         catch (InvalidDataException e)
         {
-            logger.LogWarning(e, "Invalid SlimData request for {Path}", context.Request.Path);
+            logger.LogInvalidSlimDataRequestFor(e, context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Unexpected error on {Path}", context.Request.Path);
+            logger.LogUnexpectedErrorOn(e, context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         }
         finally

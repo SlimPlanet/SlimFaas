@@ -51,7 +51,7 @@ public static class ClusterFileTransferRoutes
         if (!string.IsNullOrWhiteSpace(tagsHeader))
             ctx.Response.Headers[FileSyncProtocol.TagsHeaderName] = tagsHeader;
 
-        log.LogDebug("HEAD ok. Id={Id} Len={Len}", id, meta.Length);
+        log.LogHEADOkIdLen(id, meta.Length);
         return Results.Ok();
     }
 
@@ -88,7 +88,7 @@ public static class ClusterFileTransferRoutes
         if (!string.IsNullOrWhiteSpace(tagsHeader))
             ctx.Response.Headers[FileSyncProtocol.TagsHeaderName] = tagsHeader;
 
-        log.LogDebug("GET streaming (range enabled). Id={Id} Len={Len}", id, meta.Length);
+        log.LogGETStreamingRangeEnabledIdLen(id, meta.Length);
 
         return Results.File(
             fileStream: stream,

@@ -158,7 +158,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             }
             catch (SlimFaasRegistrationException ex)
             {
-                _logger.LogError("SlimFaas registration failed (fatal): {Error}", ex.Message);
+                _logger.LogSlimFaasRegistrationFailedFatal(ex.Message);
                 throw;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -167,10 +167,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(
-                    "WebSocket disconnected ({Error}). Reconnecting in {Delay:F1} s…",
-                    ex.Message,
-                    _options.ReconnectDelay);
+                _logger.LogWebSocketDisconnectedReconnectingIn(ex.Message, _options.ReconnectDelay);
                 await Task.Delay(TimeSpan.FromSeconds(_options.ReconnectDelay), ct).ConfigureAwait(false);
             }
         }
@@ -225,14 +222,14 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
     private async Task ConnectAndLoopAsync(CancellationToken ct)
     {
-        _logger.LogInformation("Connecting to SlimFaas WebSocket at {Uri} …", _uri);
+        _logger.LogConnectingToSlimFaasWebSocketAt(_uri);
         _connectionId = null;
 
         using var ws = new ClientWebSocket();
         _ws = ws;
 
         await ws.ConnectAsync(_uri, ct).ConfigureAwait(false);
-        _logger.LogInformation("Connected. Registering function '{FunctionName}' …", _config.FunctionName);
+        _logger.LogConnectedRegisteringFunction(_config.FunctionName);
 
         await RegisterAsync(ws, ct).ConfigureAwait(false);
 
@@ -317,7 +314,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             }
 
             _connectionId = resp.ConnectionId;
-            _logger.LogInformation("Registered successfully. connectionId={ConnectionId}", _connectionId);
+            _logger.LogRegisteredSuccessfullyConnectionId(_connectionId);
             return;
         }
     }
@@ -357,7 +354,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to deserialize WebSocket message");
+                _logger.LogFailedToDeserializeWebSocketMessage(ex);
                 continue;
             }
 
@@ -374,7 +371,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
     {
         if (data.Length < BinaryFrame.HeaderSize)
         {
-            _logger.LogWarning("Received binary frame too short ({Length} bytes)", data.Length);
+            _logger.LogReceivedBinaryFrameTooShortBytes(data.Length);
             return;
         }
 
@@ -392,7 +389,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to deserialize SyncRequestStart");
+                    _logger.LogFailedToDeserializeSyncRequestStart(ex);
                     return;
                 }
                 if (startDto == null) return;
@@ -445,7 +442,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             }
 
             default:
-                _logger.LogDebug("Unexpected binary frame type: {Type}", type);
+                _logger.LogUnexpectedBinaryFrameType(type);
                 break;
         }
     }
@@ -472,11 +469,11 @@ public sealed class SlimFaasClient : IAsyncDisposable
                 break;
 
             case SlimFaasMessageType.Pong:
-                _logger.LogDebug("Pong received");
+                _logger.LogPongReceived();
                 break;
 
             default:
-                _logger.LogDebug("Unhandled message type: {Type}", envelope.Type);
+                _logger.LogUnhandledMessageType(envelope.Type);
                 break;
         }
     }
@@ -485,9 +482,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
     {
         if (OnAsyncRequest == null)
         {
-            _logger.LogWarning(
-                "Received AsyncRequest for {ElementId} but no handler registered. Returning 500.",
-                req.ElementId);
+            _logger.LogReceivedAsyncRequestForButNoHandler(req.ElementId);
             await SendCallbackInternalAsync(ws, req.ElementId, 500, ct).ConfigureAwait(false);
             return;
         }
@@ -499,7 +494,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "AsyncRequest handler threw an exception for {ElementId}", req.ElementId);
+            _logger.LogAsyncRequestHandlerThrewAnExceptionFor(ex, req.ElementId);
             statusCode = 500;
         }
 
@@ -514,7 +509,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
     {
         if (OnPublishEvent == null)
         {
-            _logger.LogDebug("Received PublishEvent '{EventName}' but no handler registered.", evt.EventName);
+            _logger.LogReceivedPublishEventButNoHandlerRegistered(evt.EventName);
             return;
         }
 
@@ -524,7 +519,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "PublishEvent handler threw an exception for event '{EventName}'", evt.EventName);
+            _logger.LogPublishEventHandlerThrewAnExceptionFor(ex, evt.EventName);
         }
     }
 
@@ -532,7 +527,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
     {
         if (OnSyncRequest == null)
         {
-            _logger.LogWarning("Received SyncRequest for {CorrelationId} but no handler registered. Returning 500.", req.CorrelationId);
+            _logger.LogReceivedSyncRequestForButNoHandler(req.CorrelationId);
             await req.Response.StartAsync(500, ct: ct).ConfigureAwait(false);
             await req.Response.CompleteAsync(ct).ConfigureAwait(false);
             return;
@@ -546,7 +541,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "SyncRequest handler threw an exception for {CorrelationId}", req.CorrelationId);
+            _logger.LogSyncRequestHandlerThrewAnExceptionFor(ex, req.CorrelationId);
             try
             {
                 await req.Response.StartAsync(500, ct: ct).ConfigureAwait(false);

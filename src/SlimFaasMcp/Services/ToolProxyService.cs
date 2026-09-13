@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -50,12 +50,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             bodyForLog = Truncate(bodyForLog, 4000);
         }
 
-        logger.LogDebug(
-            "SlimFaasMcp → API {Method} {Url}\nHeaders: {Headers}\nBody: {Body}",
-            method,
-            url,
-            headersForLog,
-            bodyForLog ?? "<no body>");
+        logger.LogSlimFaasMcpAPIHeadersBody(method, url, headersForLog, bodyForLog ?? "<no body>");
     }
 
     public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl,

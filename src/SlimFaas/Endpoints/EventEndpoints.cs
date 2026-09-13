@@ -66,7 +66,7 @@ public static class EventEndpoints
     {
         functionPath ??= "";
 
-        logger.LogDebug("Receiving event: {EventName}", eventName);
+        logger.LogReceivingEvent(eventName);
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
         var caller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService,
             FunctionEndpointsHelpers.HasLocalWorkloadIdentity(context)
@@ -80,7 +80,7 @@ public static class EventEndpoints
 
             if (functions.Count <= 0)
             {
-                logger.LogDebug("Publish-event {EventName} : Return 404 from event", eventName);
+                logger.LogPublishEventReturn404FromEvent(eventName);
                 return Results.NotFound();
             }
 
@@ -94,7 +94,7 @@ public static class EventEndpoints
 
             foreach (DeploymentInformation function in functions)
             {
-                logger.LogDebug("Publish-event list {EventName} : Deployment {Deployment}", eventName, function.Deployment);
+                logger.LogPublishEventListDeployment(eventName, function.Deployment);
 
                 // --- Fonctions WebSocket virtuelles (Namespace = "websocket-virtual") ---
                 if (function.Namespace == "websocket-virtual")
@@ -115,8 +115,7 @@ public static class EventEndpoints
                 // --- Fonctions HTTP classiques ---
                 foreach (var pod in function.Pods ?? Enumerable.Empty<PodInformation>())
                 {
-                    logger.LogDebug("Publish-event pod {Ready} endpoint {EndpointReady} IP: {Deployment}",
-                        pod.Ready, function.EndpointReady, pod.Ip);
+                    logger.LogPublishEventPodEndpointIP(pod.Ready, function.EndpointReady, pod.Ip);
 
                     if (pod.Ready is not true || !function.EndpointReady)
                     {
@@ -128,8 +127,7 @@ public static class EventEndpoints
                         calledFunctions.Add(function);
                     }
 
-                    logger.LogInformation("Publish-event {EventName} : Deployment {Deployment} Pod {PodName} is ready: {PodReady}",
-                        eventName, function.Deployment, pod.Name, pod.Ready);
+                    logger.LogPublishEventDeploymentPodIsReady(eventName, function.Deployment, pod.Name, pod.Ready);
 
                     var deliveryId = activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, function.Deployment,
                         sourcePod: caller.SourcePod, targetPod: pod.Name, correlationId: publicationId);
@@ -139,8 +137,10 @@ public static class EventEndpoints
                     string baseFunctionPodUrl = slimFaasOptions.Value.BaseFunctionPodUrl;
 
                     var baseUrl = SlimDataEndpoint.Get(pod, baseFunctionPodUrl, namespaceProvider.CurrentNamespace);
-                    logger.LogDebug("Sending event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent}",
-                        eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
+                    if (logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.LogSendingEventToAtWithPath(eventName, function.Deployment, baseUrl, functionPath, context.Request.QueryString.ToUriComponent());
+                    }
 
                     Task task = SendRequestAsync(queryString, sendClient, customRequest with { FunctionName = function.Deployment },
                         baseUrl, pod.Name, logger, eventName, function.Configuration.DefaultPublish, caller.SourcePod, deliveryId);
@@ -197,16 +197,11 @@ public static class EventEndpoints
                 targetPod,
                 NetworkActivityTracker.Actors.SlimFaas, activitySourcePod, activityCorrelationId: activityCorrelationId);
 
-            logger.LogDebug(
-                "Response from event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent} is {StatusCode}",
-                eventName, customRequest.FunctionName, baseUrl, customRequest.Path, queryString,
-                responseMessage.StatusCode);
+            logger.LogResponseFromEventToAtWith(eventName, customRequest.FunctionName, baseUrl, customRequest.Path, queryString, responseMessage.StatusCode);
         }
         catch (Exception e)
         {
-            logger.LogError(e,
-                "Error in sending event {EventName} to {FunctionDeployment} at {BaseUrl} with path {FunctionPath} and query {UriComponent}",
-                eventName, customRequest.FunctionName, baseUrl, customRequest.Path, queryString);
+            logger.LogErrorInSendingEventToAt(e, eventName, customRequest.FunctionName, baseUrl, customRequest.Path, queryString);
         }
     }
 }

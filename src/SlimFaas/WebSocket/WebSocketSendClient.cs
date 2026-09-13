@@ -78,7 +78,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod);
         if (connection == null)
         {
-            _logger.LogWarning("No WebSocket client available for function {FunctionName}", functionName);
+            _logger.LogNoWebSocketClientAvailableForFunction(functionName);
             return 503;
         }
 
@@ -112,7 +112,7 @@ public class WebSocketSendClient : IWebSocketSendClient
                 NetworkActivityTracker.Actors.SlimFaas, functionName, functionName,
                 targetPod: connection.ConnectionId, correlationId: dequeueId);
             await connection.SendAsync(envelope, ct);
-            _logger.LogDebug("AsyncRequest sent via WebSocket to {FunctionName}/{ConnectionId} elementId={ElementId}", functionName, connection.ConnectionId, elementId);
+            _logger.LogAsyncRequestSentViaWebSocketToElementId(functionName, connection.ConnectionId, elementId);
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(300));
@@ -120,12 +120,12 @@ public class WebSocketSendClient : IWebSocketSendClient
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("WebSocket async request timed out for {FunctionName}/{ElementId}", functionName, elementId);
+            _logger.LogWebSocketAsyncRequestTimedOutFor(functionName, elementId);
             return 504;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error sending WebSocket async request to {FunctionName}/{ElementId}", functionName, elementId);
+            _logger.LogErrorSendingWebSocketAsyncRequestTo(ex, functionName, elementId);
             return 500;
         }
         finally
@@ -179,7 +179,7 @@ public class WebSocketSendClient : IWebSocketSendClient
         var connection = _registry.SelectNextRoundRobin(functionName, maxPerPod);
         if (connection == null)
         {
-            _logger.LogWarning("No WebSocket client available for sync stream to {FunctionName}", functionName);
+            _logger.LogNoWebSocketClientAvailableForSync(functionName);
             throw new InvalidOperationException($"No WebSocket client available for function '{functionName}'");
         }
 
@@ -231,9 +231,7 @@ public class WebSocketSendClient : IWebSocketSendClient
             var endFrame = BinaryFrame.Encode(WebSocketMessageType.SyncRequestEnd, correlationId, BinaryFrame.FlagEndOfStream);
             await connection.SendBinaryAsync(endFrame, ct);
 
-            _logger.LogDebug(
-                "SyncRequest stream sent to {FunctionName}/{ConnectionId} correlationId={CorrelationId}",
-                functionName, connection.ConnectionId, correlationId);
+            _logger.LogSyncRequestStreamSentToCorrelationId(functionName, connection.ConnectionId, correlationId);
 
             // 4. Attend SyncResponseStart du client (avec timeout)
             responseTimeoutCts = CancellationTokenSource.CreateLinkedTokenSource(ct, pendingStream.Cts.Token);
@@ -294,6 +292,6 @@ public class WebSocketSendClient : IWebSocketSendClient
             _activityTracker.Record(NetworkActivityTracker.EventTypes.EventPublish, NetworkActivityTracker.Actors.SlimFaas, functionName, sourcePod: activitySourcePod, targetPod: connection.ConnectionId, correlationId: activityCorrelationId);
             await connection.SendAsync(envelope, ct);
         }
-        catch (Exception ex) { _logger.LogWarning(ex, "Failed to send WebSocket message to {ConnectionId}", connection.ConnectionId); }
+        catch (Exception ex) { _logger.LogFailedToSendWebSocketMessageTo(ex, connection.ConnectionId); }
     }
 }

@@ -164,6 +164,7 @@ public class SlimWorkerShould
         replicasService.Setup(rs => rs.Deployments).Throws(new InvalidOperationException());
         HistoryHttpMemoryService historyHttpService = new HistoryHttpMemoryService();
         Mock<ILogger<SlimQueuesWorker>> logger = new Mock<ILogger<SlimQueuesWorker>>();
+        logger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         SlimFaasQueue redisQueue = new SlimFaasQueue(new DatabaseMockService());
         Mock<ISlimDataStatus> slimDataStatus = new Mock<ISlimDataStatus>();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);

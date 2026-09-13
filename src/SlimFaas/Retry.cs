@@ -1,4 +1,4 @@
-﻿namespace SlimFaas;
+namespace SlimFaas;
 
 public static class Retry
 {
@@ -18,7 +18,7 @@ public static class Retry
                 if (attempt >= 0)
                 {
                     var delay = delays[attempt];
-                    logger.LogWarning("Try {Attempt} : wait number {Delay} second", attempt, delay);
+                    logger.LogTryWaitNumberSecond(attempt, delay);
                     await Task.Delay(delay * 1000);
                 }
 
@@ -29,7 +29,7 @@ public static class Retry
                 if (IsNonRetryable(ex))
                     throw;
 
-                logger.LogError(ex, "SlimData Service DoAsync");
+                logger.LogSlimDataServiceDoAsync(ex);
                 exceptions.Add(ex);
             }
         }
@@ -55,7 +55,7 @@ public static class Retry
                 if (attempt >= 0)
                 {
                     var delay = delays[attempt];
-                    logger.LogWarning("Try {Attempt} : wait number {Delay} second", attempt, delay);
+                    logger.LogTryWaitNumberSecond2(attempt, delay);
                     await Task.Delay(delay * 1000);
                 }
                 await action();
@@ -66,7 +66,7 @@ public static class Retry
                 if (IsNonRetryable(ex))
                     throw;
 
-                logger.LogError(ex, "SlimData Service DoAsync");
+                logger.LogSlimDataServiceDoAsync2(ex);
                 exceptions.Add(ex);
             }
         }
@@ -91,7 +91,7 @@ public static class Retry
             if (attempt >= 0)
             {
                 var delay = delays[attempt];
-                logger.LogWarning("DoRequestAsync Try {Attempt} : wait number {Delay} second", attempt + 1, delay);
+                logger.LogDoRequestAsyncTryWaitNumberSecond(attempt + 1, delay);
                 await Task.Delay(delay * 1000);
             }
 
@@ -124,7 +124,7 @@ public static class Retry
         }
         catch (HttpRequestException ex)
         {
-            logger.LogError(ex, "Network exception");
+            logger.LogNetworkException(ex);
 
             var fallbackResponse = new HttpResponseMessage(System.Net.HttpStatusCode.InternalServerError)
             {

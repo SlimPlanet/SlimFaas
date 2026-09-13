@@ -40,7 +40,7 @@ public sealed class AutoScaler
             catch (OperationCanceledException) { result = new(ScalerState.Timeout); }
             catch (Exception exception)
             {
-                _logger?.LogWarning(exception, "Scaling provider failed for {Function}", function);
+                _logger?.LogScalingProviderFailedFor(exception, function);
                 result = new(ScalerState.Unavailable);
             }
             results.Add(new(trigger, result, index));

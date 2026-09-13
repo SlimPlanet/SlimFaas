@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Data;
 using System.Diagnostics;
@@ -413,12 +413,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             catch (Exception ex) when (IsRetryableBatchFailure(ex, cancellationToken))
             {
                 attempt++;
-                _logger.LogWarning(
-                    ex,
-                    "Retrying the same ordered SlimData batch. Producer={ProducerId}, Sequence={Sequence}, Attempt={Attempt}",
-                    partition.ProducerId,
-                    sequence,
-                    attempt);
+                _logger.LogRetryingTheSameOrderedSlimDataBatch(ex, partition.ProducerId, sequence, attempt);
                 await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
             }
         }

@@ -56,10 +56,7 @@ using var loggerFactory = LoggerFactory.Create(builder =>
     builder.AddDebug();
 });
 var startupLogger = loggerFactory.CreateLogger("SlimFaas.Startup");
-startupLogger.LogInformation(
-    "SlimData command protocol {Protocol}, assembly {AssemblyVersion}",
-    SlimDataCommandProtocol.Current,
-    SlimDataCommandProtocol.AssemblyVersion);
+startupLogger.LogSlimDataCommandProtocolAssembly(SlimDataCommandProtocol.Current, SlimDataCommandProtocol.AssemblyVersion);
 
 // Bind options
 var slimFaasOptions = new SlimFaasOptions();
@@ -115,7 +112,7 @@ serviceCollectionStarter.AddLogging(loggingBuilder =>
 });
 
 var envOrConfig = slimFaasOptions.Orchestrator;
-startupLogger.LogInformation("Using orchestrator: {Orchestrator}", envOrConfig);
+startupLogger.LogUsingOrchestrator(envOrConfig);
 var usePersistentConfigurationStorage = true;
 // Fixé par la branche default du switch : seule l'implémentation Kubernetes réelle
 // démarre le watcher (voir l'enregistrement de KubernetesWatcherWorker plus bas).
@@ -364,19 +361,18 @@ string podDataDirectoryPersistantStorage = string.Empty;
 
 var namespaceProvider = serviceProviderStarter.GetRequiredService<INamespaceProvider>();
 string namespace_ = namespaceProvider.CurrentNamespace;
-startupLogger.LogInformation("Using namespace: {Namespace}", namespace_);
+startupLogger.LogUsingNamespace(namespace_);
 
 await replicasService.SyncDeploymentsAsync(namespace_);
 string hostname = Environment.GetEnvironmentVariable("HOSTNAME") ?? Dns.GetHostName();
-startupLogger.LogInformation("Current hostname: {Hostname}", hostname);
+startupLogger.LogCurrentHostname(hostname);
 while (replicasService.Deployments.SlimFaas.Pods.Any(p => p.Name.Contains(hostname, StringComparison.Ordinal)) == false)
 {
     foreach (PodInformation podInformation in replicasService.Deployments.SlimFaas.Pods)
     {
-        startupLogger.LogInformation("Current SlimFaas pod: {PodName} {PodIp} {PodStarted}",
-            podInformation.Name, podInformation.Ip, podInformation.Started);
+        startupLogger.LogCurrentSlimFaasPod(podInformation.Name, podInformation.Ip, podInformation.Started);
     }
-    startupLogger.LogInformation("Waiting current pod to be ready");
+    startupLogger.LogWaitingCurrentPodToBeReady();
     await Task.Delay(1000);
     await replicasService.SyncDeploymentsAsync(namespace_);
 }
@@ -384,13 +380,13 @@ while (replicasService.Deployments.SlimFaas.Pods.Any(p => p.Name.Contains(hostna
 if (replicasService.Deployments.SlimFaas.Pods.Count == 1)
 {
     slimDataAllowColdStart = true;
-    startupLogger.LogInformation("Starting SlimFaas, coldstart: {ColdStart}", slimDataAllowColdStart);
+    startupLogger.LogStartingSlimFaasColdstart(slimDataAllowColdStart);
 }
 
 while (!slimDataAllowColdStart &&
        replicasService.Deployments.SlimFaas.Pods.Count(p => !string.IsNullOrEmpty(p.Ip)) < 2)
 {
-    startupLogger.LogInformation("Waiting for at least 2 pods to be ready");
+    startupLogger.LogWaitingForAtLeast2Pods();
     await Task.Delay(1000);
     await replicasService.SyncDeploymentsAsync(namespace_);
 }
@@ -408,19 +404,18 @@ foreach (PodInformation podInformation in slimFaasPods
         // the complete topology, including the current member.
         if (!isCurrentPod || envOrConfig is "Local" or "Process")
         {
-            startupLogger.LogInformation("Adding node {SlimDataEndpoint} {Hostname} {PodName}",
-                slimDataEndpoint, hostname, podInformation.Name);
+            startupLogger.LogAddingNode(slimDataEndpoint, hostname, podInformation.Name);
             Startup.AddClusterMemberBeforeStart(slimDataEndpoint);
         }
     }
     catch (Exception ex)
     {
-        startupLogger.LogError(ex, "Error adding node");
+        startupLogger.LogErrorAddingNode(ex);
     }
 }
 
 PodInformation currentPod = slimFaasPods.First(p => p.Name.Contains(hostname, StringComparison.Ordinal));
-startupLogger.LogInformation("Starting node {PodName}", currentPod.Name);
+startupLogger.LogStartingNode(currentPod.Name);
 podDataDirectoryPersistantStorage = Path.Combine(slimDataDirectory, currentPod.Name);
 if (!Directory.Exists(podDataDirectoryPersistantStorage))
 {
@@ -438,7 +433,7 @@ else
 }
 
 publicEndPoint = SlimDataEndpoint.Get(currentPod, slimFaasOptions.BaseSlimDataUrl, namespace_);
-startupLogger.LogInformation("Node started {PodName} {PublicEndpoint}", currentPod.Name, publicEndPoint);
+startupLogger.LogNodeStarted(currentPod.Name, publicEndPoint);
 
 
 
@@ -453,8 +448,7 @@ bool hasExistingState =
 // Avec un StatefulSet, le premier pod est typiquement ...-0
 bool isFirstPod = hostname.EndsWith("-0", StringComparison.OrdinalIgnoreCase);
 
-startupLogger.LogInformation("SlimData state dir: {Directory}, hasExistingState={HasExistingState}, isFirstPod={IsFirstPod}, slimDataAllowColdStart={AllowColdStart}",
-    podDataDirectoryPersistantStorage, hasExistingState, isFirstPod, slimDataAllowColdStart);
+startupLogger.LogSlimDataStateDirHasExistingStateIsFirstPodSlimDataAllowColdStart(podDataDirectoryPersistantStorage, hasExistingState, isFirstPod, slimDataAllowColdStart);
 
 // Règle :
 // - Si on a déjà un état sur disque -> on ne fait PAS de cold start.
@@ -537,7 +531,7 @@ foreach (KeyValuePair<string,string> keyValuePair in slimDataDefaultConfiguratio
 }
 foreach (KeyValuePair<string,string> keyValuePair in slimDataConfiguration)
 {
-    startupLogger.LogInformation("SlimData configuration: {Key}={Value}", keyValuePair.Key, keyValuePair.Value);
+    startupLogger.LogSlimDataConfiguration(keyValuePair.Key, keyValuePair.Value);
 }
 
 builder.Configuration["publicEndPoint"] = slimDataConfiguration["publicEndPoint"];
@@ -576,13 +570,13 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
 
     if (slimfaasPorts == null)
     {
-        startupLogger.LogWarning("No Slimfaas ports");
+        startupLogger.LogNoSlimfaasPorts();
         return;
     }
-    startupLogger.LogInformation("Initializing Slimfaas ports");
+    startupLogger.LogInitializingSlimfaasPorts();
     foreach (int slimFaasPort in slimfaasPorts.Ports.Where(p => p != uri.Port))
     {
-        startupLogger.LogInformation("Slimfaas listening on port {Port}", slimFaasPort);
+        startupLogger.LogSlimfaasListeningOnPort(slimFaasPort);
         serverOptions.ListenAnyIP(slimFaasPort, listenOptions =>
         {
             listenOptions.Protocols = HttpProtocols.Http1AndHttp2;
@@ -594,7 +588,7 @@ builder.WebHost.ConfigureKestrel((context, serverOptions) =>
     int wsPort = slimFaasOptions.WebSocketPort;
     if (wsPort > 0 && !slimfaasPorts.Ports.Contains(wsPort) && wsPort != uri.Port)
     {
-        startupLogger.LogInformation("SlimFaas WebSocket listening on port {WsPort}", wsPort);
+        startupLogger.LogSlimFaasWebSocketListeningOnPort(wsPort);
         serverOptions.ListenAnyIP(wsPort, listenOptions =>
         {
             listenOptions.Protocols = HttpProtocols.Http1;
@@ -621,7 +615,7 @@ app.UseCors(builder =>
     string slimFaasCorsAllowOrigin = slimFaasOptions.CorsAllowOrigin;
     if (slimFaasCorsAllowOrigin == "*")
     {
-        startupLogger.LogInformation("CORS Allowing all origins");
+        startupLogger.LogCORSAllowingAllOrigins();
         builder
             .AllowAnyOrigin()
             .AllowAnyMethod()
@@ -667,11 +661,11 @@ if (!string.IsNullOrEmpty(publicEndPoint))
         Uri slimDataUri = new(publicEndPoint);
         int slimDataPort = slimDataUri.Port;
         excludedPorts.Add(slimDataPort);
-        startupLogger.LogInformation("SlimData port {SlimDataPort} will be excluded from rate limiting", slimDataPort);
+        startupLogger.LogSlimDataPortWillBeExcludedFrom(slimDataPort);
     }
     catch (Exception ex)
     {
-        startupLogger.LogWarning(ex, "Failed to extract SlimData port from publicEndPoint: {PublicEndPoint}", publicEndPoint);
+        startupLogger.LogFailedToExtractSlimDataPortFrom(ex, publicEndPoint);
     }
 }
 

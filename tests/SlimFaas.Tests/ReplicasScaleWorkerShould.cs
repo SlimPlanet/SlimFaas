@@ -178,6 +178,7 @@ public class ReplicasScaleWorkerShould
     public async Task LogErrorWhenExceptionIsThrown()
     {
         Mock<ILogger<ScaleReplicasWorker>> logger = new();
+        logger.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
         Mock<IMasterService> masterService = new();
         masterService.Setup(ms => ms.IsMaster).Returns(true);
         Mock<IReplicasService> replicaService = new();

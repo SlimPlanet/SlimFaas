@@ -53,7 +53,7 @@ public sealed class SlimDataDiagnosticsWorker(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Unable to record SlimData diagnostics");
+                logger.LogUnableToRecordSlimDataDiagnostics(ex);
                 await Task.Delay(Interval, stoppingToken).ConfigureAwait(false);
             }
         }

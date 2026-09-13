@@ -161,7 +161,7 @@ public class MetricsScrapingWorker(
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Global error in MetricsScrapingWorker");
+                logger.LogGlobalErrorInMetricsScrapingWorker(e);
             }
 
             try
@@ -178,7 +178,7 @@ public class MetricsScrapingWorker(
             }
             catch (Exception e)
             {
-                logger.LogWarning(e, "Unexpected error during delay in MetricsScrapingWorker");
+                logger.LogUnexpectedErrorDuringDelayInMetricsScrapingWorker(e);
             }
         }
     }
@@ -259,10 +259,7 @@ public class MetricsScrapingWorker(
 
             if (logger.IsEnabled(LogLevel.Information))
             {
-                logger.LogInformation(
-                    "Scraping metrics for deployment {Deployment} with {TargetCount} targets",
-                    deployment,
-                    urls.Count);
+                logger.LogScrapingMetricsForDeploymentWithTargets(deployment, urls.Count);
             }
         }
 
@@ -330,12 +327,7 @@ public class MetricsScrapingWorker(
             var contentLength = resp.Content.Headers.ContentLength;
             if (contentLength > _metricsScrapingOptions.MaxResponseBytes)
             {
-                logger.LogWarning(
-                    "Metrics scrape rejected for {Url}: Content-Length {ContentLength} exceeds " +
-                    "MaxResponseBytes {MaxResponseBytes}",
-                    url,
-                    contentLength,
-                    _metricsScrapingOptions.MaxResponseBytes);
+                logger.LogMetricsScrapeRejectedForContentLength(url, contentLength, _metricsScrapingOptions.MaxResponseBytes);
                 RecordFailure("response_too_large", ScalerState.InvalidMetric);
                 return;
             }
@@ -351,13 +343,7 @@ public class MetricsScrapingWorker(
                 rejectInvalidSamples: source is not null);
             if (parsed.Status != PrometheusStreamParseStatus.Success)
             {
-                logger.LogWarning(
-                    "Metrics scrape rejected for {Url}: Reason={Reason}, BytesRead={BytesRead}, " +
-                    "LinesRead={LinesRead}",
-                    url,
-                    parsed.Status,
-                    parsed.BytesRead,
-                    parsed.LinesRead);
+                logger.LogMetricsScrapeRejectedForReasonBytesRead(url, parsed.Status, parsed.BytesRead, parsed.LinesRead);
                 RecordFailure("parse", ScalerState.InvalidMetric);
                 return;
             }
@@ -393,15 +379,12 @@ public class MetricsScrapingWorker(
         }
         catch (OperationCanceledException)
         {
-            logger.LogWarning(
-                "Metrics scrape timed out after {TimeoutSeconds} seconds for {Url}",
-                _metricsScrapingOptions.RequestTimeoutSeconds,
-                url);
+            logger.LogMetricsScrapeTimedOutAfterSeconds(_metricsScrapingOptions.RequestTimeoutSeconds, url);
             RecordFailure("timeout", ScalerState.Timeout);
         }
         catch (Exception exception)
         {
-            logger.LogWarning(exception, "metrics scrape error for {Url}", url);
+            logger.LogMetricsScrapeErrorFor(exception, url);
             RecordFailure("exception", ScalerState.Unavailable);
         }
         finally
@@ -443,7 +426,7 @@ public class MetricsScrapingWorker(
         }
         catch (Exception e)
         {
-            logger.LogWarning(e, "Unable to persist metrics store to database");
+            logger.LogUnableToPersistMetricsStoreTo(e);
         }
     }
 
@@ -507,7 +490,7 @@ public class MetricsScrapingWorker(
         }
         catch (Exception e)
         {
-            logger.LogWarning(e, "Unable to hydrate metrics store from database");
+            logger.LogUnableToHydrateMetricsStoreFrom(e);
         }
     }
 

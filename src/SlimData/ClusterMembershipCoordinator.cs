@@ -54,13 +54,7 @@ public sealed class ClusterMembershipCoordinator(
                     .ConfigureAwait(false);
                 if (!protocol.IsCompatible)
                 {
-                    logger.LogWarning(
-                        "SlimData member addition rejected because its command protocol is incompatible. Endpoint={Endpoint}, ExpectedProtocol={ExpectedProtocol}, ActualProtocol={ActualProtocol}, AssemblyVersion={AssemblyVersion}, Reason={Reason}",
-                        endpoint,
-                        Commands.SlimDataCommandProtocol.Current,
-                        protocol.Protocol,
-                        protocol.AssemblyVersion,
-                        protocol.Reason);
+                    logger.LogSlimDataMemberAdditionRejectedBecauseIts(endpoint, Commands.SlimDataCommandProtocol.Current, protocol.Protocol, protocol.AssemblyVersion, protocol.Reason);
                     return false;
                 }
 
@@ -70,46 +64,26 @@ public sealed class ClusterMembershipCoordinator(
                         Commands.SlimDataCommandProtocol.AssemblyVersion,
                         StringComparison.Ordinal))
                 {
-                    logger.LogInformation(
-                        "Adding SlimData member from a different compatible build during rolling update. Endpoint={Endpoint}, Protocol={Protocol}, LocalAssemblyVersion={LocalAssemblyVersion}, RemoteAssemblyVersion={RemoteAssemblyVersion}",
-                        endpoint,
-                        protocol.Protocol,
-                        Commands.SlimDataCommandProtocol.AssemblyVersion,
-                        assemblyVersion);
+                    logger.LogAddingSlimDataMemberFromDifferentCompatible(endpoint, protocol.Protocol, Commands.SlimDataCommandProtocol.AssemblyVersion, assemblyVersion);
                 }
             }
 
-            logger.LogInformation(
-                "Starting SlimData membership {Operation}. Endpoint={Endpoint}, LastLogIndex={LastLogIndex}, CommittedLogIndex={CommittedLogIndex}, TimeoutSeconds={TimeoutSeconds}",
-                add ? "addition" : "removal",
-                endpoint,
-                cluster.AuditTrail.LastEntryIndex,
-                cluster.AuditTrail.LastCommittedEntryIndex,
-                _changeTimeout.TotalSeconds);
+            logger.LogStartingSlimDataMembershipEndpointLastLogIndexCommittedLogIndex(add ? "addition" : "removal", endpoint, cluster.AuditTrail.LastEntryIndex, cluster.AuditTrail.LastCommittedEntryIndex, _changeTimeout.TotalSeconds);
 
             var changed = add
                 ? await cluster.AddMemberAsync(endpoint, timeout.Token).ConfigureAwait(false)
                 : await cluster.RemoveMemberAsync(endpoint, timeout.Token).ConfigureAwait(false);
 
-            logger.Log(
-                changed ? LogLevel.Information : LogLevel.Warning,
-                "SlimData membership {Operation} completed. Endpoint={Endpoint}, Applied={Applied}, DurationMilliseconds={DurationMilliseconds}, LastLogIndex={LastLogIndex}, CommittedLogIndex={CommittedLogIndex}",
-                add ? "addition" : "removal",
-                endpoint,
-                changed,
-                Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds,
-                cluster.AuditTrail.LastEntryIndex,
-                cluster.AuditTrail.LastCommittedEntryIndex);
+            LogLevel level = changed ? LogLevel.Information : LogLevel.Warning;
+            if (logger.IsEnabled(level))
+            {
+                logger.LogSlimDataMembershipCompletedEndpointAppliedDurationMilliseconds(level, add ? "addition" : "removal", endpoint, changed, Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds, cluster.AuditTrail.LastEntryIndex, cluster.AuditTrail.LastCommittedEntryIndex);
+            }
             return changed;
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested && timeout.IsCancellationRequested)
         {
-            logger.LogWarning(
-                "SlimData membership {Operation} timed out. Endpoint={Endpoint}, TimeoutSeconds={TimeoutSeconds}, DurationMilliseconds={DurationMilliseconds}",
-                add ? "addition" : "removal",
-                endpoint,
-                _changeTimeout.TotalSeconds,
-                Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds);
+            logger.LogSlimDataMembershipTimedOutEndpointTimeoutSeconds(add ? "addition" : "removal", endpoint, _changeTimeout.TotalSeconds, Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds);
             throw;
         }
         finally

@@ -1,4 +1,4 @@
-﻿using MemoryPack;
+using MemoryPack;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 
@@ -65,7 +65,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Global error in SlimFaas schedule jobs worker");
+            logger.LogGlobalErrorInSlimFaasScheduleJobs(e);
         }
     }
     const long OneYearInMilliseconds = 31622400000;
@@ -73,8 +73,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
     {
         var executionKey = $"{ScheduleJobService.ScheduleJob}{configurationName}:{id}";
         var timeStamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();
-        logger.LogDebug("Checking schedule job {ScheduleId} in configuration {ConfigurationName} at timestamp {TimeStamp}",
-            id, configurationName, timeStamp);
+        logger.LogCheckingScheduleJobInConfigurationAt(id, configurationName, timeStamp);
         var lastestExecutionTimeStampFromDatabaseBytes = await databaseService.GetAsync(executionKey);
         if (lastestExecutionTimeStampFromDatabaseBytes == null)
         {
@@ -82,14 +81,12 @@ public class SlimScheduleJobsWorker( IJobService jobService,
             return;
         }
         var lastestExecutionTimeStampFromDatabase = MemoryPackSerializer.Deserialize<long>(lastestExecutionTimeStampFromDatabaseBytes);
-        logger.LogDebug("Last execution timestamp for schedule job {ScheduleId} in configuration {ConfigurationName} is {LastExecutionTimeStamp}",
-            id, configurationName, lastestExecutionTimeStampFromDatabase);
+        logger.LogLastExecutionTimestampForScheduleJob(id, configurationName, lastestExecutionTimeStampFromDatabase);
         var cronSchedule = scheduleConfiguration.Schedule;
         var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
 
         bool runJob = latestExecutionTimeStamp > lastestExecutionTimeStampFromDatabase;
-        logger.LogDebug("Should run job for schedule {ScheduleId} in configuration {ConfigurationName}: {RunJob} at timestamp {LatestExecutionTimeStamp} (lastest: {LastestExecutionTimeStampFromDatabase})",
-            id, configurationName, runJob, latestExecutionTimeStamp, lastestExecutionTimeStampFromDatabase);
+        logger.LogShouldRunJobForScheduleIn(id, configurationName, runJob, latestExecutionTimeStamp, lastestExecutionTimeStampFromDatabase);
         if (!runJob)
         {
             return;
@@ -108,13 +105,11 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         if (result.IsSuccess)
         {
             await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(latestExecutionTimeStamp), OneYearInMilliseconds);
-            logger.LogInformation("Enqueued job for schedule {ScheduleId} in configuration {ConfigurationName}",
-                id, configurationName);
+            logger.LogEnqueuedJobForScheduleInConfiguration(id, configurationName);
         }
         else
         {
-            logger.LogError("Failed to enqueue job for schedule {ScheduleId} in configuration {ConfigurationName}: {Error}",
-                id, configurationName, result.Error?.Key);
+            logger.LogFailedToEnqueueJobForSchedule(id, configurationName, result.Error?.Key);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
@@ -175,7 +175,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _logger.LogWarning(ex, "Unable to read queue length for function {FunctionName}.", fn.Name);
+                    _logger.LogUnableToReadQueueLengthFor(ex, fn.Name);
                     queues.Add(new QueueInfo(fn.Name, 0));
                 }
             }
@@ -225,7 +225,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "Unable to build jobs snapshot for status stream.");
+                _logger.LogUnableToBuildJobsSnapshotFor(ex);
                 _cachedJobs = Array.Empty<JobConfigurationStatus>();
             }
 

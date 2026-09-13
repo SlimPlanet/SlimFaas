@@ -32,7 +32,7 @@ public class NetworkActivitySyncWorker(
         {
             try { await ScrapeAllPeersAsync(stoppingToken); }
             catch (Exception ex) when (ex is not OperationCanceledException)
-            { logger.LogDebug(ex, "Could not synchronize peer activity"); }
+            { logger.LogCouldNotSynchronizePeerActivity(ex); }
             await Task.Delay(options.PeerSyncIntervalMilliseconds, stoppingToken);
         }
     }
@@ -63,7 +63,7 @@ public class NetworkActivitySyncWorker(
                 if (tracker.LiveSessionStartedAt != session || !tracker.HasSubscribers) return;
                 try { await ScrapePeerAsync(peer.Key, peer.Url, session, token); }
                 catch (Exception ex) when (!ct.IsCancellationRequested)
-                { logger.LogDebug(ex, "Could not read activity from {Peer}", peer.Key); }
+                { logger.LogCouldNotReadActivityFrom(ex, peer.Key); }
             });
     }
 

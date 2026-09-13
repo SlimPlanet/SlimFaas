@@ -240,7 +240,7 @@ public static class FunctionEndpointsHelpers
             {
                 return pathStartWith.Visibility;
             }
-            logger.LogWarning("PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:", pathStartWith);
+            logger.LogPathStartWithVisibilityShouldBePrefixedByPublic(pathStartWith);
         }
         return function.Visibility;
     }
@@ -273,23 +273,23 @@ public static class FunctionEndpointsHelpers
         var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
         var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
 
-        logger.LogDebug("ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
+        logger.LogForwardedForRemoteIp(forwardedFor, remoteIp);
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
             foreach (var podIp in podIps)
             {
-                logger.LogDebug("PodIp: {PodIp}", podIp);
+                logger.LogPodIp(podIp);
             }
         }
 
         if (IsInternalIp(forwardedFor, podIps) || IsInternalIp(remoteIp, podIps))
         {
-            logger.LogDebug("Request come from internal namespace ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
+            logger.LogRequestComeFromInternalNamespaceForwardedFor(forwardedFor, remoteIp);
             return true;
         }
 
-        logger.LogDebug("Request come from external namespace ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
+        logger.LogRequestComeFromExternalNamespaceForwardedFor(forwardedFor, remoteIp);
         return false;
     }
 
@@ -383,11 +383,7 @@ public static class FunctionEndpointsHelpers
             }
         }
 
-        logger.LogDebug(
-            "Request body offload check. ShouldOffload={ShouldOffload} ContentLength={ContentLength} Threshold={Threshold}",
-            shouldOffload,
-            contextRequest.ContentLength,
-            bodyOffloadThresholdBytes);
+        logger.LogRequestBodyOffloadCheckShouldOffloadContentLength(shouldOffload, contextRequest.ContentLength, bodyOffloadThresholdBytes);
         if (shouldOffload)
         {
             offloadedFileId = DataFileKeys.CreateInternalOffloadId();
@@ -419,10 +415,7 @@ public static class FunctionEndpointsHelpers
 
             var metaKey = DataFileKeys.MetaKey(offloadedFileId);
             if(logger.IsEnabled(LogLevel.Debug)) {
-                logger.LogDebug(
-                    "Offloading request metadata. MetaKey={MetaKey} Tags={Tags}",
-                    metaKey,
-                    string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
+                logger.LogOffloadingRequestMetadataMetaKeyTags(metaKey, string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
             }
             var metaBytes = MemoryPackSerializer.Serialize(meta);
             await db!.SetQueueMetadataAsync(metaKey, metaBytes);

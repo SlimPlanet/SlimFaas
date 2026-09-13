@@ -158,7 +158,7 @@ public partial class KubernetesService
 
         V1Job? jobResponse = await client.CreateNamespacedJobAsync(job, kubeNamespace);
 
-        _logger.LogInformation("Job created with name: {JobName}", jobResponse.Metadata.Name);
+        _logger.LogJobCreatedWithName(jobResponse.Metadata.Name);
     }
 
     public async Task<IList<Job>> ListJobsAsync(string ns)

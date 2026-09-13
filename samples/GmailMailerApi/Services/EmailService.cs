@@ -1,4 +1,4 @@
-﻿using GmailMailerApi.Models;
+using GmailMailerApi.Models;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -72,7 +72,7 @@ public sealed class EmailService(SmtpOptions options, ILogger<EmailService> logg
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Failed sending email via SMTP: {Message}", ex.Message);
+            _log.LogFailedSendingEmailViaSMTP(ex, ex.Message);
             throw;
         }
         finally

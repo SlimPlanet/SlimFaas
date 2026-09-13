@@ -7,10 +7,5 @@
 is_global = true
 global_level = 90
 
-# --- Logging (dedicated phase) ---
-# 371
-dotnet_diagnostic.CA1848.severity = none
-# 166
-dotnet_diagnostic.CA1873.severity = none
 
 # --- Performance (CA18xx) ---

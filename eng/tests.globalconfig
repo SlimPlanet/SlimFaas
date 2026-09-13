@@ -34,3 +34,6 @@ dotnet_diagnostic.CA1001.severity = none
 dotnet_diagnostic.CA1052.severity = none
 # Tests read streams to assert exceptions and side effects, not byte counts.
 dotnet_diagnostic.CA2022.severity = none
+# Tests log through mocks and test loggers; LoggerMessage delegates and argument guards bring nothing there.
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none

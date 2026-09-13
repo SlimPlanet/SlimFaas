@@ -126,7 +126,7 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogCritical(ex, "The centralized SlimData command batch coordinator stopped unexpectedly");
+            _logger.LogTheCentralizedSlimDataCommandBatchCoordinator(ex);
             FailPending(ex);
         }
         finally

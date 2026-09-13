@@ -153,9 +153,7 @@ public class WebSocketConnectionRegistry
         bag.Add(connection);
         Interlocked.Increment(ref _connectionCounter);
 
-        _logger.LogInformation(
-            "WebSocket client registered: connectionId={ConnectionId}, functionName={FunctionName}",
-            connection.ConnectionId, name);
+        _logger.LogWebSocketClientRegisteredConnectionIdFunctionName(connection.ConnectionId, name);
 
         return (true, null);
     }
@@ -182,9 +180,7 @@ public class WebSocketConnectionRegistry
 
         Interlocked.Decrement(ref _connectionCounter);
 
-        _logger.LogInformation(
-            "WebSocket client unregistered: connectionId={ConnectionId}, functionName={FunctionName}",
-            connection.ConnectionId, connection.FunctionName);
+        _logger.LogWebSocketClientUnregisteredConnectionIdFunctionName(connection.ConnectionId, connection.FunctionName);
     }
 
     /// <summary>

@@ -31,10 +31,7 @@ public sealed class LocalKubernetesService : IKubernetesService
 
         int replicas = Math.Clamp(request.Replicas, 0, 1);
         Volatile.Write(ref _functionReplicas, replicas);
-        _logger.LogInformation(
-            "Local function {FunctionName} scaled to {Replicas}",
-            request.Deployment,
-            replicas);
+        _logger.LogLocalFunctionScaledTo(request.Deployment, replicas);
         return Task.FromResult<ReplicaRequest?>(request with { Replicas = replicas });
     }
 
