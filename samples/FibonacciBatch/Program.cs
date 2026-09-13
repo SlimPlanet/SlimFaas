@@ -297,7 +297,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
     }
     catch (SlimFaasRegistrationException ex)
     {
-        Console.Error.WriteLine($"[WS] ERREUR d'enregistrement (fatale) : {ex.Message}");
+        await Console.Error.WriteLineAsync($"[WS] ERREUR d'enregistrement (fatale) : {ex.Message}");
         Environment.Exit(1);
     }
     catch (OperationCanceledException)

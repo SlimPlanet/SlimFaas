@@ -294,7 +294,7 @@ public class WebSocketQueuesWorker(
     }
 
     private static Dictionary<string, TrackedWebSocketRequest> GetOrAdd(
-        IDictionary<string, Dictionary<string, TrackedWebSocketRequest>> dictionary,
+        Dictionary<string, Dictionary<string, TrackedWebSocketRequest>> dictionary,
         string key)
     {
         if (!dictionary.TryGetValue(key, out Dictionary<string, TrackedWebSocketRequest>? value))

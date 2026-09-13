@@ -1356,7 +1356,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         private static bool GetBool(IReadOnlyDictionary<string, string> labels, string key, bool defVal)
             => labels.TryGetValue(key, out string? v) && bool.TryParse(v, out bool b) ? b : defVal;
 
-        private static IList<string> SplitCsv(IReadOnlyDictionary<string, string> labels, string key)
+        private static string[] SplitCsv(Dictionary<string, string> labels, string key)
         {
             if (!labels.TryGetValue(key, out string? v) || string.IsNullOrWhiteSpace(v))
             {
@@ -1873,7 +1873,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
 // Essaie de lire/parse le label
         private static Dictionary<string, List<CreateContainer_PortBinding>>? TryParsePublishedBindingsLabel(
-            IReadOnlyDictionary<string, string>? labels)
+            Dictionary<string, string>? labels)
         {
             if (labels is null)
             {

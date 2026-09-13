@@ -10,7 +10,7 @@ public static class Cron
         if (string.IsNullOrWhiteSpace(cronDefinition))
             return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must not be empty"));
 
-        var parts = cronDefinition.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var parts = cronDefinition.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 5)
             return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
 
@@ -60,7 +60,7 @@ public static class Cron
         if (string.IsNullOrWhiteSpace(cronDefinition))
             return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must not be empty"));
 
-        var parts = cronDefinition.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var parts = cronDefinition.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 5)
             return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
 

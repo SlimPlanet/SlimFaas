@@ -250,7 +250,7 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
         if (_disposed) return;
         _disposed = true;
 
-        _disposeCts.Cancel();
+        await _disposeCts.CancelAsync().ConfigureAwait(false);
         try { if (_loopTask is not null) await _loopTask.ConfigureAwait(false); } catch { /* ignore */ }
 
         _signal.Dispose();

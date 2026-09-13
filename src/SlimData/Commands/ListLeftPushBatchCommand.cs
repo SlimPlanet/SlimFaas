@@ -5,14 +5,14 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
+public record struct ListLeftPushBatchCommand : ICommand<ListLeftPushBatchCommand>
 {
     public const int Id = 14; // Choisis un ID libre
     static int ICommand<ListLeftPushBatchCommand>.Id => Id;
 
     public List<BatchItem> Items { get; set; }
 
-    public struct BatchItem
+    public record struct BatchItem
     {
         public string Key { get; set; }
         public string Identifier { get; set; }

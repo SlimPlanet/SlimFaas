@@ -640,7 +640,7 @@ internal static class BenchmarkComparer
     }
 
     private static void AddAsyncCriteriaFailures(
-        ICollection<string> failures,
+        List<string> failures,
         AsyncAcceptanceCriteria criteria)
     {
         if (!criteria.HttpP95TargetPassed)

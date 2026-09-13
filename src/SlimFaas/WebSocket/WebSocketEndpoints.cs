@@ -70,7 +70,7 @@ public static class WebSocketEndpoints
             // Annuler tous les sync streams en cours
             foreach (var (_, stream) in connection.PendingSyncStreams)
             {
-                stream.Cts.Cancel();
+                await stream.Cts.CancelAsync();
                 stream.ResponseChunks.Writer.TryComplete(new OperationCanceledException("WebSocket disconnected"));
                 stream.ResponseStartTcs.TrySetCanceled();
                 stream.ResponseEndTcs.TrySetCanceled();
@@ -102,7 +102,7 @@ public static class WebSocketEndpoints
                     await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", ct);
                     return;
                 }
-                ms.Write(buffer, 0, result.Count);
+                await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct);
             }
             while (!result.EndOfMessage);
 

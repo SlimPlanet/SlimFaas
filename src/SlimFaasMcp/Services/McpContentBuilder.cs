@@ -129,7 +129,7 @@ public static class McpContentBuilder
         return false;
     }
 
-    private static JsonNode WrapStructuredNode(JsonNode parsed)
+    private static JsonObject WrapStructuredNode(JsonNode parsed)
     {
         switch (parsed)
         {

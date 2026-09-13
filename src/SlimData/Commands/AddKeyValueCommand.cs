@@ -6,13 +6,13 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
+public record struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
 {
     private const byte SerializationVersion = 3;
     public const int Id = 2;
     static int ICommand<AddKeyValueCommand>.Id => Id;
 
-    public struct BatchItem
+    public record struct BatchItem
     {
         public KeyValueOperation Operation { get; set; }
         public string Key { get; set; }

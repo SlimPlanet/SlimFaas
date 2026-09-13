@@ -14,18 +14,19 @@ public class SyncFunction
 
 public static class SyncFunctionEndpoints
 {
+    private static readonly string[] s_allHttpMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
     public static void MapSyncFunctionEndpoints(this IEndpointRouteBuilder app)
     {
         // Toutes les routes /function/{functionName}/**
         app.MapMethods("/function/{functionName}/{**functionPath}",
-            new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
+            s_allHttpMethods,
             HandleSyncFunction)
             .WithName("HandleSyncFunction")
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
 
         app.MapMethods("/function/{functionName}",
-            new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
+            s_allHttpMethods,
             (string functionName, HttpContext context,
                 ILogger<SyncFunction> logger,
                 HistoryHttpMemoryService historyHttpService,

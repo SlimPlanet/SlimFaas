@@ -5,7 +5,7 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct AddHashSetCommand : ICommand<AddHashSetCommand>
+public record struct AddHashSetCommand : ICommand<AddHashSetCommand>
 {
     public const int Id = 1;
     static int ICommand<AddHashSetCommand>.Id => Id;

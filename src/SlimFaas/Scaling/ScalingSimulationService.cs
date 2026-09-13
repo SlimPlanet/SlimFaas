@@ -84,7 +84,7 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
     }
 
     private static ScalingDecision Calculate(DeploymentInformation function, ScalingEnvironment environment,
-        IReadOnlyDictionary<string, ScalerEvaluation> evaluations, ScalingHistory history,
+        Dictionary<string, ScalerEvaluation> evaluations, ScalingHistory history,
         ExternalMetricsSourceStore health, int interval)
     {
         var deployments = environment.Deployments with { Functions = environment.Deployments.Functions
@@ -108,8 +108,8 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
         return ScalingDecisionCalculator.Calculate(context, evaluation, calculation, sourceDiagnostics);
     }
 
-    private static async Task<ScalerEvaluation> Evaluate(DeploymentInformation function, IScalerProvider provider,
-        DateTime now, bool externalOnly, IReadOnlyDictionary<int, ScalingTriggerOverride>? overrides, CancellationToken ct)
+    private static async Task<ScalerEvaluation> Evaluate(DeploymentInformation function, PrometheusScalerProvider provider,
+        DateTime now, bool externalOnly, Dictionary<int, ScalingTriggerOverride>? overrides, CancellationToken ct)
     {
         var results = new List<ScalerTriggerResult>();
         for (int i = 0; i < function.Scale!.Triggers.Count; i++)

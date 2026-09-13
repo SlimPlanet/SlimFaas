@@ -602,7 +602,7 @@ public static partial class LocalManifestLoader
         int period,
         int timeout,
         int startupTimeout,
-        ICollection<string> errors)
+        List<string> errors)
     {
         if (string.IsNullOrEmpty(path) || !path.StartsWith('/'))
             errors.Add($"{prefix}.path must start with '/'.");
@@ -617,8 +617,8 @@ public static partial class LocalManifestLoader
     private static void ValidateLocalProcessDependencies(
         string source,
         IEnumerable<string> dependencies,
-        IReadOnlyDictionary<string, LocalProcessManifest> processes,
-        ICollection<string> errors)
+        Dictionary<string, LocalProcessManifest> processes,
+        List<string> errors)
     {
         foreach (string dependency in dependencies)
         {
@@ -639,13 +639,13 @@ public static partial class LocalManifestLoader
         }
     }
 
-    private static void ValidatePort(string name, int port, ICollection<string> errors)
+    private static void ValidatePort(string name, int port, List<string> errors)
     {
         if (port is < IPEndPoint.MinPort or > IPEndPoint.MaxPort)
             errors.Add($"{name} must be between 1 and 65535.");
     }
 
-    private static void ValidatePortRange(string name, int firstPort, int count, ICollection<string> errors)
+    private static void ValidatePortRange(string name, int firstPort, int count, List<string> errors)
     {
         ValidatePort(name, firstPort, errors);
         if (firstPort > IPEndPoint.MaxPort - count + 1)

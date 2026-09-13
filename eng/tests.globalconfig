@@ -26,3 +26,5 @@ dotnet_diagnostic.CA1822.severity = none
 # Micro-optimisations are irrelevant in tests.
 dotnet_diagnostic.CA1859.severity = none
 dotnet_diagnostic.CA1852.severity = none
+# Blocking calls inside async test methods have no throughput impact.
+dotnet_diagnostic.CA1849.severity = none

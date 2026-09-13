@@ -53,10 +53,11 @@ public sealed class EmailService(SmtpOptions options, ILogger<EmailService> logg
                 using var ms = new MemoryStream();
                 await file.CopyToAsync(ms, ct);
                 ms.Position = 0;
-                bodyBuilder.Attachments.Add(
+                await bodyBuilder.Attachments.AddAsync(
                     file.FileName,
-                    ms.ToArray(),
-                    ContentType.Parse(file.ContentType ?? "application/octet-stream"));
+                    ms,
+                    ContentType.Parse(file.ContentType ?? "application/octet-stream"),
+                    ct);
             }
         }
 

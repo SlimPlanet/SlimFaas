@@ -99,7 +99,7 @@ public sealed class ScalingLeaderClient(IMasterService master, IReplicasService 
             while ((count = await input.ReadAsync(chunk, timeout.Token)) > 0)
             {
                 if (buffer.Length + count > 1024 * 1024) throw new ScalingSimulationException(503, "Leader response is too large.");
-                buffer.Write(chunk, 0, count);
+                await buffer.WriteAsync(chunk.AsMemory(0, count), timeout.Token);
             }
             if (!response.IsSuccessStatusCode)
             {

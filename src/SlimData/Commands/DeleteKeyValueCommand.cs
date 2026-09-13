@@ -5,7 +5,7 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
+public record struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
 {
     public const int Id = 3;
     static int ICommand<DeleteKeyValueCommand>.Id => Id;

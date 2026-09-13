@@ -8,7 +8,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
     private readonly HashSet<string> _inProgress = new(StringComparer.Ordinal);
     private readonly int _maxDepth = Math.Max(2, maxDepth);
 
-    private static void CopyIfPresent(JsonElement src, string name, IDictionary<string, object> dst)
+    private static void CopyIfPresent(JsonElement src, string name, Dictionary<string, object> dst)
     {
         if (!src.TryGetProperty(name, out var v)) return;
         switch (v.ValueKind)
@@ -29,7 +29,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
         }
     }
 
-    private static void MergeSiblingMetadata(JsonElement schemaNode, IDictionary<string, object> dst)
+    private static void MergeSiblingMetadata(JsonElement schemaNode, Dictionary<string, object> dst)
     {
         // Priorité : si dst n’a pas la clé, on copie depuis le nœud courant.
         // Useful OAS keys list (adjust as needed)

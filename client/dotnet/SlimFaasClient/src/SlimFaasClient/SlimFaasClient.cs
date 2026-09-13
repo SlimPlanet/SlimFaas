@@ -334,7 +334,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
                 result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
                 if (result.MessageType == WebSocketMessageType.Close)
                     return;
-                ms.Write(buffer, 0, result.Count);
+                await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct);
             }
             while (!result.EndOfMessage);
 
@@ -694,7 +694,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             {
                 return null;
             }
-            ms.Write(buffer, 0, result.Count);
+            await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct);
         }
         while (!result.EndOfMessage);
 

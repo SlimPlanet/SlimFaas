@@ -30,7 +30,7 @@ try
 }
 catch (Exception exception)
 {
-    Console.Error.WriteLine(exception);
+    await Console.Error.WriteLineAsync(exception.ToString());
     return 1;
 }
 
@@ -754,7 +754,7 @@ static async Task<int> ValidateSlimDataStateAsync(
         expected.Counters.Count,
         failures.Count);
     foreach (var failure in failures.Take(20))
-        Console.Error.WriteLine($"validation failed: {failure}");
+        await Console.Error.WriteLineAsync($"validation failed: {failure}");
     return failures.Count;
 }
 

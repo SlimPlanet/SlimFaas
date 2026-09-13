@@ -245,7 +245,7 @@ internal static class BenchmarkRunner
 
         if (resourceMonitorCancellation is not null && resourceMonitor is not null)
         {
-            resourceMonitorCancellation.Cancel();
+            await resourceMonitorCancellation.CancelAsync();
             IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
             asyncResources = BuildResourceUsage(resourceSamples, successful.LongLength);
         }
@@ -406,7 +406,7 @@ internal static class BenchmarkRunner
         throw new TimeoutException($"Queue for '{function}' did not drain after {timeout.TotalSeconds:F0}s.");
     }
 
-    private static IReadOnlyList<LatencyAggregateResult> AggregateLatency(
+    private static LatencyAggregateResult[] AggregateLatency(
         IReadOnlyList<LatencyRunResult> runs)
     {
         return runs.GroupBy(run => new { run.Mode, run.PayloadBytes, run.Concurrency })
@@ -453,9 +453,9 @@ internal static class BenchmarkRunner
     }
 
     private static double? AsyncMedian(
-        IReadOnlyList<TargetObservationSummary> values,
+        TargetObservationSummary[] values,
         Func<TargetObservationSummary, double> selector) =>
-        values.Count == 0 ? null : Statistics.Median(values.Select(selector));
+        values.Length == 0 ? null : Statistics.Median(values.Select(selector));
 
     private static double? MedianNullable(IEnumerable<double?> values)
     {
@@ -463,7 +463,7 @@ internal static class BenchmarkRunner
         return snapshot.Length == 0 ? null : Statistics.Median(snapshot);
     }
 
-    private static IReadOnlyList<SyncOverheadResult> ComputeSyncOverhead(
+    private static SyncOverheadResult[] ComputeSyncOverhead(
         IReadOnlyList<LatencyAggregateResult> latency)
     {
         return latency.Where(result => result.Mode == "direct")
@@ -584,7 +584,7 @@ internal static class BenchmarkRunner
             : await WaitForAsyncDeliveryAsync(
                 client, options.DirectUrl, runId, successful.Length, options.AsyncDrainTimeout);
         await WaitForQueueToDrainAsync(client, options.NodeUrls, options.Function, options.AsyncDrainTimeout);
-        resourceMonitorCancellation.Cancel();
+        await resourceMonitorCancellation.CancelAsync();
         IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
         AsyncResourceUsage? resources = BuildResourceUsage(resourceSamples, successful.LongLength);
         using HttpResponseMessage _ = await client.DeleteAsync(
@@ -810,8 +810,8 @@ internal static class BenchmarkRunner
                     options.ScaleFunction,
                     timeout.Token);
                 await Task.WhenAll(statusTask, queueTask);
-                (int requested, int ready) = statusTask.Result;
-                QueueDepth queue = queueTask.Result;
+                (int requested, int ready) = await statusTask;
+                QueueDepth queue = await queueTask;
                 timeline.Add(new ScaleTimelineSample(
                     elapsed,
                     requested,
@@ -857,7 +857,7 @@ internal static class BenchmarkRunner
             }
         }
         BurstResult burst = burstTask.IsCompletedSuccessfully
-            ? burstTask.Result
+            ? await burstTask
             : new BurstResult(0, options.ScaleMessages, null, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
 
         return new ScaleResult(

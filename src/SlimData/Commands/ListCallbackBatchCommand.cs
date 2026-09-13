@@ -5,14 +5,14 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
+public record struct ListCallbackBatchCommand : ICommand<ListCallbackBatchCommand>
 {
     public const int Id = 16; // Réserve un ID libre
     static int ICommand<ListCallbackBatchCommand>.Id => Id;
 
     public List<BatchItem> Items { get; set; }
 
-    public struct BatchItem
+    public record struct BatchItem
     {
         public string Key { get; set; }
         public long NowTicks { get; set; }

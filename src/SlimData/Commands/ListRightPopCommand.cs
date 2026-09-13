@@ -5,7 +5,7 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct ListRightPopCommand : ICommand<ListRightPopCommand>
+public record struct ListRightPopCommand : ICommand<ListRightPopCommand>
 {
     public const int Id = 19;
     static int ICommand<ListRightPopCommand>.Id => Id;

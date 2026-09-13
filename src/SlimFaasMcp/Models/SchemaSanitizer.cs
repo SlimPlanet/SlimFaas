@@ -153,7 +153,7 @@ public static class SchemaSanitizer
 
     // --- Utilitaires ----------------------------------------------------
 
-    private static IReadOnlyList<string> Combine(IReadOnlyList<string> prefix, string next)
+    private static string[] Combine(IReadOnlyList<string> prefix, string next)
     {
         var arr = new string[prefix.Count + 1];
         for (int i = 0; i < prefix.Count; i++) arr[i] = prefix[i];

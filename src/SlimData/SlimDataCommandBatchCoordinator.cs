@@ -207,7 +207,7 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _channel.Writer.TryComplete();
-        _shutdown.Cancel();
+        await _shutdown.CancelAsync().ConfigureAwait(false);
         try
         {
             await _worker.ConfigureAwait(false);

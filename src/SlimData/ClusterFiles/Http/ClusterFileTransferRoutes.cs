@@ -5,11 +5,13 @@ namespace SlimData.ClusterFiles.Http;
 
 public static class ClusterFileTransferRoutes
 {
+    private static readonly string[] s_headMethod = ["HEAD"];
+
     public static IEndpointRouteBuilder MapClusterFileTransferRoutes(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/cluster/files");
 
-        group.MapMethods("/{id}", new[] { "HEAD" }, HeadAsync);
+        group.MapMethods("/{id}", s_headMethod, HeadAsync);
         group.MapGet("/{id}", GetAsync);
 
         return endpoints;

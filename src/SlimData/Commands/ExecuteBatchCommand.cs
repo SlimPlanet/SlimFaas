@@ -4,7 +4,7 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct ExecuteBatchCommand : ICommand<ExecuteBatchCommand>
+public record struct ExecuteBatchCommand : ICommand<ExecuteBatchCommand>
 {
     public const int Id = 20;
     static int ICommand<ExecuteBatchCommand>.Id => Id;

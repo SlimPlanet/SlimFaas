@@ -179,8 +179,8 @@ public sealed class SlimDataMembershipReconciliationWorker(
     }
 
     private void ResetObservedMembers(
-        IReadOnlyDictionary<MembershipEndpointKey, Uri> desired,
-        IReadOnlyDictionary<MembershipEndpointKey, Uri> current)
+        Dictionary<MembershipEndpointKey, Uri> desired,
+        Dictionary<MembershipEndpointKey, Uri> current)
     {
         foreach (var endpoint in _missingCycles.Keys.ToArray())
         {

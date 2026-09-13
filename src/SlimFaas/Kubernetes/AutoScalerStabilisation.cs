@@ -26,7 +26,7 @@ public interface IAutoScalerStore
     IReadOnlyList<AutoScaleSample> GetSamples(string key, long fromTimestampUnixSeconds);
 }
 
-public readonly struct AutoScaleSample
+public readonly record struct AutoScaleSample
 {
     public long TimestampUnixSeconds { get; }
     public int DesiredReplicas { get; }

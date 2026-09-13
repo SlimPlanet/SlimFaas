@@ -188,7 +188,7 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
         }
     }
 
-    private IList<PodInformation> CreateInitialNodeSnapshot()
+    private List<PodInformation> CreateInitialNodeSnapshot()
         => Enumerable.Range(0, loaded.Manifest.Cluster.Nodes)
             .Select(index => new PodInformation(
                 Name: $"slimfaas-{index}",

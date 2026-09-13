@@ -99,7 +99,7 @@ public sealed class LocalKubernetesService : IKubernetesService
     public Task DeleteJobAsync(string kubeNamespace, string jobName)
         => Task.CompletedTask;
 
-    private IList<PodInformation> CreateSlimFaasPods()
+    private List<PodInformation> CreateSlimFaasPods()
     {
         var result = new List<PodInformation>(_options.NodeCount);
         for (var index = 0; index < _options.NodeCount; index++)

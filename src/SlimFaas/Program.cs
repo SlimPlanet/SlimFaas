@@ -737,8 +737,8 @@ app.Run(async context =>
     await context.Response.WriteAsync("404");
 });
 
-app.Run();
-serviceProviderStarter.Dispose();
+await app.RunAsync();
+await serviceProviderStarter.DisposeAsync();
 
 public partial class Program;
 

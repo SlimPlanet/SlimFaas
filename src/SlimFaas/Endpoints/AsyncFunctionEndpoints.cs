@@ -19,13 +19,14 @@ public class AsyncFunction
 
 public static class AsyncFunctionEndpoints
 {
+    private static readonly string[] s_allHttpMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
     private const long AsyncBodyOffloadThresholdBytes = 1 * 1024L * 1024L;
 
     public static void MapAsyncFunctionEndpoints(this IEndpointRouteBuilder app)
     {
         // POST /async-function/{functionName}/**
         app.MapMethods("/async-function/{functionName}/{**functionPath}",
-            new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
+            s_allHttpMethods,
             HandleAsyncFunction)
             .WithName("HandleAsyncFunction")
             .Produces(202)
@@ -34,7 +35,7 @@ public static class AsyncFunctionEndpoints
             .AddEndpointFilter<HostPortEndpointFilter>();
 
         app.MapMethods("/async-function/{functionName}",
-            new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
+            s_allHttpMethods,
             (string functionName, HttpContext context,
                 ILogger<AsyncFunction> logger,
                 IReplicasService replicasService,

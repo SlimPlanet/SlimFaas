@@ -78,13 +78,3 @@ dotnet_diagnostic.CA1725.severity = none
 dotnet_diagnostic.CA1727.severity = none
 
 # --- Performance (CA18xx) ---
-
-# --- Batch B2 (larger refactors, see #358) ---
-# 28 (value types without equality members)
-dotnet_diagnostic.CA1815.severity = none
-# 48 (synchronous calls in async methods)
-dotnet_diagnostic.CA1849.severity = none
-# 33 (concrete types for private members)
-dotnet_diagnostic.CA1859.severity = none
-# 11 (constant array arguments)
-dotnet_diagnostic.CA1861.severity = none

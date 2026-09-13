@@ -162,7 +162,7 @@ internal sealed class KeyedAsyncLock
         }
         finally
         {
-            waiter.CancellationRegistration.Dispose();
+            await waiter.CancellationRegistration.DisposeAsync().ConfigureAwait(false);
         }
     }
 

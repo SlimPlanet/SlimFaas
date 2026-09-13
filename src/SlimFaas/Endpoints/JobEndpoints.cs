@@ -14,6 +14,7 @@ public class Job
 
 public static partial class JobEndpoints
 {
+    private static readonly string[] s_putAndPatch = ["PUT", "PATCH"];
     [GeneratedRegex(@"^[a-z0-9_\-]+$", RegexOptions.None, matchTimeoutMilliseconds: 1000)]
     private static partial Regex FunctionNamePattern();
 
@@ -51,7 +52,7 @@ public static partial class JobEndpoints
             .AddEndpointFilter<HostPortEndpointFilter>();
 
         // Bloquer PUT et PATCH
-        app.MapMethods("/job/{functionName}", new[] { "PUT", "PATCH" },
+        app.MapMethods("/job/{functionName}", s_putAndPatch,
             () => Results.StatusCode((int)HttpStatusCode.MethodNotAllowed))
             .AddEndpointFilter<HostPortEndpointFilter>();
     }

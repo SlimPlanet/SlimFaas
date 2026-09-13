@@ -18,6 +18,6 @@ try
 }
 catch (Exception exception)
 {
-    Console.Error.WriteLine(exception);
+    await Console.Error.WriteLineAsync(exception.ToString());
     return 1;
 }

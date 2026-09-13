@@ -7,7 +7,7 @@ namespace SlimData.Commands;
 
 public record CallbackElement(string Identifier, int HttpCode);
 
-public struct ListCallbackCommand() : ICommand<ListCallbackCommand>
+public record struct ListCallbackCommand() : ICommand<ListCallbackCommand>
 {
     public const int Id = 15;
     static int ICommand<ListCallbackCommand>.Id => Id;

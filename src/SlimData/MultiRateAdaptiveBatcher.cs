@@ -548,7 +548,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         if (_disposed)
             return;
         _disposed = true;
-        _disposeCts.Cancel();
+        await _disposeCts.CancelAsync().ConfigureAwait(false);
         _signal.Pulse();
         try
         {

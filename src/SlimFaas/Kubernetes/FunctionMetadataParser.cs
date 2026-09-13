@@ -192,7 +192,7 @@ public static class FunctionMetadataParser
         return result;
     }
 
-    private static IList<string> ParseCsv(IReadOnlyDictionary<string, string> values, string key)
+    private static string[] ParseCsv(IReadOnlyDictionary<string, string> values, string key)
         => values.TryGetValue(key, out string? raw) && !string.IsNullOrWhiteSpace(raw)
             ? raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
             : [];
@@ -226,7 +226,7 @@ public static class FunctionMetadataParser
         }
     }
 
-    private static IList<T> ParseVisibilityList<T>(
+    private static List<T> ParseVisibilityList<T>(
         IReadOnlyDictionary<string, string> values,
         string key,
         FunctionVisibility defaultVisibility,

@@ -406,7 +406,7 @@ public partial class KubernetesService
         }
     }
 
-    private static IEnumerable<PodInformation> MapPodInformations(
+    private static List<PodInformation> MapPodInformations(
         V1PodList v1PodList,
         V1ServiceList? serviceList,
         ILogger<KubernetesService> logger)

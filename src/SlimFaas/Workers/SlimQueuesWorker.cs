@@ -627,7 +627,7 @@ public class SlimQueuesWorker(
             }).ConfigureAwait(false);
     }
 
-    private static object? FormatTags(IDictionary<string, string>? tags) =>
+    private static string? FormatTags(IDictionary<string, string>? tags) =>
         tags is null || tags.Count == 0
             ? null
             : string.Join(", ", tags.Select(pair => $"{pair.Key}={pair.Value}"));
