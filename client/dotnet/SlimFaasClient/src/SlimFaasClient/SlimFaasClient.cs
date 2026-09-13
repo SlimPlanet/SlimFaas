@@ -168,8 +168,27 @@ public sealed class SlimFaasClient : IAsyncDisposable
             catch (Exception ex)
             {
                 _logger.LogWebSocketDisconnectedReconnectingIn(ex.Message, _options.ReconnectDelay);
-                await Task.Delay(TimeSpan.FromSeconds(_options.ReconnectDelay), ct).ConfigureAwait(false);
+                if (!await WaitBeforeReconnectAsync(ct).ConfigureAwait(false))
+                {
+                    break;
+                }
             }
+        }
+    }
+
+    /// <summary>
+    /// Attend le délai de reconnexion. Retourne false si <paramref name="ct"/> est annulé pendant l'attente.
+    /// </summary>
+    private async Task<bool> WaitBeforeReconnectAsync(CancellationToken ct)
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(_options.ReconnectDelay), ct).ConfigureAwait(false);
+            return true;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            return false;
         }
     }
 

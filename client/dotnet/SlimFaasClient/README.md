@@ -102,6 +102,15 @@ await using var client = new SlimFaasClient.SlimFaasClient(
     new Uri("ws://slimfaas:5003/ws"), config, options);
 ```
 
+### Connection lifecycle
+
+`RunForeverAsync(ct)` owns the connection until `ct` is cancelled:
+
+- After a clean close by the server it reconnects immediately; after a network error or an unreachable server it waits `ReconnectDelay` seconds and retries, forever.
+- It **returns normally** when `ct` is cancelled, whether the cancellation happens while connected, while connecting or during the reconnect delay. It never surfaces an `OperationCanceledException` for its own token.
+- It **throws** `SlimFaasRegistrationException` when SlimFaas refuses the registration (name already used by a Kubernetes function, configuration mismatch): this is fatal and is not retried.
+- `IsConnected` is `true` only between a successful registration and the next disconnection; `ConnectionId` is `null` outside that window. `SendCallbackAsync` and the sync response methods throw `InvalidOperationException` while disconnected.
+
 ## Long-running requests (status 202)
 
 Return `202` from the handler to acknowledge the request without completing it yet,
@@ -154,3 +163,5 @@ client.OnAsyncRequest = async req =>
 ```bash
 dotnet test
 ```
+
+The suite in `tests/SlimFaasClient.Tests` contains unit tests for the models and serialization, plus end-to-end protocol tests: `SlimFaasClientWebSocketTests` starts an in-process Kestrel WebSocket server (`FakeSlimFaasServer`) that speaks the SlimFaas protocol and drives a real `SlimFaasClient` through registration, async requests and callbacks, publish events, streamed sync requests, keepalive pings, malformed frames and reconnection. No running SlimFaas instance is needed.

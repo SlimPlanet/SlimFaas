@@ -363,6 +363,16 @@ public sealed class SlimFaasClientWebSocketTests
     }
 
     [Fact]
+    public void RegistrationException_HasTheStandardConstructors()
+    {
+        var inner = new InvalidOperationException("inner");
+
+        new SlimFaasRegistrationException().Message.Should().NotBeNull();
+        new SlimFaasRegistrationException("refused").Message.Should().Be("refused");
+        new SlimFaasRegistrationException("refused", inner).InnerException.Should().BeSameAs(inner);
+    }
+
+    [Fact]
     public async Task SendCallbackAsync_ThrowsWhenNotConnected()
     {
         await using var client = new SlimFaasClient(new Uri("ws://127.0.0.1:1/ws"), TestHelpers.MakeConfig());
@@ -430,11 +440,16 @@ public sealed class SlimFaasClientWebSocketTests
         {
             receivedRequest = req;
             using var ms = new MemoryStream();
+#pragma warning disable CA1835 // the array-based overloads are part of the public surface and exercised on purpose
+            var scratch = new byte[3];
+            var read = await req.Body.ReadAsync(scratch, 0, scratch.Length, CancellationToken.None);
+            ms.Write(scratch, 0, read);
             await req.Body.CopyToAsync(ms);
             receivedBody = Encoding.UTF8.GetString(ms.ToArray());
             await req.Response.StartAsync(201, new Dictionary<string, string[]> { ["Content-Type"] = ["text/plain"] });
             await req.Response.WriteAsync("hello "u8.ToArray());
-            await req.Response.WriteAsync("world"u8.ToArray().AsMemory(0, 5), CancellationToken.None);
+            await req.Response.WriteAsync("world"u8.ToArray(), 0, 5, CancellationToken.None);
+#pragma warning restore CA1835
             await req.Response.CompleteAsync();
         };
         using var cts = new CancellationTokenSource();
