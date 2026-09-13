@@ -197,8 +197,10 @@ public sealed class LocalJobManager : IAsyncDisposable
                         }
                     }
 
+#pragma warning disable CA1508 // assigned inside the lock above; the analyzer does not track it
                     if (completedProcess is not null)
                         await completedProcess.DisposeAsync();
+#pragma warning restore CA1508
                     if (restart)
                         Start(runtime);
                     if (remove &&

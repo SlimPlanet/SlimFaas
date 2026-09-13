@@ -551,9 +551,8 @@ serviceCollectionSlimFaas.AddHostedService(sp =>
         interval: TimeSpan.FromSeconds(30)));
 
 
-builder.Host
-    .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(slimDataConfiguration!))
-    .JoinCluster();
+builder.Configuration.AddInMemoryCollection(slimDataConfiguration!);
+builder.Host.JoinCluster();
 
 Uri uri = new(publicEndPoint);
 var slimfaasPorts = serviceProviderStarter.GetService<ISlimFaasPorts>();

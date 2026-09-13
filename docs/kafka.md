@@ -371,8 +371,8 @@ Minimal example:
 ```yaml
 slimkafka:
     build:
-        context: ./src/SlimFaasKafka
-        dockerfile: Dockerfile
+        context: .
+        dockerfile: src/SlimFaasKafka/Dockerfile
     environment:
         - Kafka__BootstrapServers=kafka:9092
         - Kafka__CheckIntervalSeconds=5

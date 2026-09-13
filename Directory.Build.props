@@ -1,0 +1,30 @@
+<Project>
+
+  <!--
+    Shared build settings for every project in the repository.
+    Per-project files (csproj) only keep what is specific to them: target framework,
+    output type, package references, AOT/trimming switches, etc.
+  -->
+
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!-- Warnings are errors everywhere: compiler, NuGet restore, analyzers, trimming/AOT. -->
+  <PropertyGroup>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <!-- .NET code-quality analyzers: every rule of the latest SDK, plus IDE code-style rules at build time. -->
+  <PropertyGroup>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-all</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+</Project>

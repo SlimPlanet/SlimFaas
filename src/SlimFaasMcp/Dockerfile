@@ -1,4 +1,4 @@
-﻿# Node.js LTS (24.x) sur Alpine, utilisé uniquement pour fournir node/npm/corepack/pnpm au build
+# Node.js LTS (24.x) sur Alpine, utilisé uniquement pour fournir node/npm/corepack/pnpm au build
 FROM --platform=$BUILDPLATFORM node:24-alpine3.22 AS node
 ARG PNPM_VERSION=10.14.0
 RUN corepack enable \
@@ -23,11 +23,14 @@ COPY --from=node /usr/local/ /usr/local/
 WORKDIR /src
 
 FROM --platform=$BUILDPLATFORM build AS publish
-COPY . .
+# Build context: the repository root, so the shared build settings (Directory.Build.*, .editorconfig, eng/) apply.
+COPY Directory.Build.props Directory.Build.targets global.json .editorconfig ./
+COPY eng/ eng/
+COPY src/SlimFaasMcp/ src/SlimFaasMcp/
 ARG RUNTIME_ID=x64
 
-# Si ton csproj déclenche des commandes pnpm pendant publish, Node+pnpm sont maintenant dispo.
-RUN dotnet publish "./SlimFaasMcp.csproj" -c Release -a "$RUNTIME_ID" -o /app/publish \
+# Le csproj déclenche npm ci / npm run build pendant le publish ; Node+pnpm sont disponibles.
+RUN dotnet publish "./src/SlimFaasMcp/SlimFaasMcp.csproj" -c Release -a "$RUNTIME_ID" -o /app/publish \
     -p:DebugType=none \
     -p:DebugSymbols=false
 

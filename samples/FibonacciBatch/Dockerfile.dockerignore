@@ -1,0 +1,19 @@
+# Exclusions pour le build Docker de fibonacci-batch.
+# Le contexte de build est la racine du dépôt : on ne garde que ce qui est nécessaire pour compiler
+# samples/FibonacciBatch/ et client/dotnet/SlimFaasClient/, plus les fichiers de build partagés
+# (Directory.Build.*, .editorconfig, eng/) qui portent la politique d'analyse du dépôt.
+*
+!Directory.Build.props
+!Directory.Build.targets
+!global.json
+!.editorconfig
+!eng/
+!samples/FibonacciBatch/
+!client/dotnet/SlimFaasClient/
+
+# Artefacts de compilation et dépendances locales
+**/bin/
+**/obj/
+**/node_modules/
+**/.dockerignore
+**/Dockerfile*

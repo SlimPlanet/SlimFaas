@@ -361,7 +361,7 @@ The native local manifest uses the same annotations under `jobs.<name>`:
 jobs:
   fibonacci5:
     command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
-    workingDirectory: src/FibonacciBatch
+    workingDirectory: samples/FibonacciBatch
     annotations:
       SlimFaas/Job: "true"
       SlimFaas/DefaultVisibility: "Public"
@@ -666,7 +666,7 @@ To verify slot reuse with a one-hour TTL using native local mode:
 
 ```bash
 dotnet build src/SlimFaas/SlimFaas.csproj
-dotnet build src/FibonacciBatch/FibonacciBatch.csproj
+dotnet build samples/FibonacciBatch/FibonacciBatch.csproj
 python3 tests/SlimFaas.Tests/Local/test_job_concurrency.py
 ```
 

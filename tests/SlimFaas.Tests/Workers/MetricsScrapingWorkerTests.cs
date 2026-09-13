@@ -423,7 +423,7 @@ namespace SlimFaas.Tests.Workers
                 scrapingEnabled: false);
             await RunUntilAndStopAsync(drainedWorker, () =>
                 {
-                    var observation = provider.GetAsync(new("ns", "worker", config, config.Triggers[0], now), default).Result;
+                    var observation = provider.GetAsync(new("ns", "worker", config, config.Triggers[0], now), default).AsTask().Result;
                     return observation.State == ScalerState.Valid && observation.Value == 0;
                 },
                 TimeSpan.FromSeconds(5));

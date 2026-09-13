@@ -20,7 +20,7 @@ Keep port `30021` free. Stop a native-local demo first because its node ports ov
 The tutorial overlay extends the repository's Compose example with the remaining Fibonacci functions and correct callback addresses. Build the job image first, then start only the core services. The first command builds **FibonacciBatch**, the program executed by jobs created through the SlimFaas API. These job containers are created on demand, so `docker compose up` does not build their image. The tag `slimfaas-tour-batch:local` must match `Configurations.fibonacci.Image` in the overlay. The final `.` supplies the repository root as the build context because FibonacciBatch also references the .NET client under `client/dotnet/SlimFaasClient`.
 
 ```bash
-docker build -f src/FibonacciBatch/Dockerfile -t slimfaas-tour-batch:local .
+docker build -f samples/FibonacciBatch/Dockerfile -t slimfaas-tour-batch:local .
 docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
 docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml logs -f slimfaas
 ```
@@ -54,7 +54,7 @@ The repository includes Podman setup helpers. On macOS:
 ./run-podman-compose.sh -f docker-compose.yml -f demo/docker-compose.get-started.yml up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
 ```
 
-Build the batch image with `podman build -f src/FibonacciBatch/Dockerfile -t slimfaas-tour-batch:local .` first. See the helper's output for socket configuration. On Windows, use the PowerShell helper `run-podman-compose.ps1` with the same Compose arguments. The tour's multiline cURL commands use Bash; Bruno provides the same requests on Windows.
+Build the batch image with `podman build -f samples/FibonacciBatch/Dockerfile -t slimfaas-tour-batch:local .` first. See the helper's output for socket configuration. On Windows, use the PowerShell helper `run-podman-compose.ps1` with the same Compose arguments. The tour's multiline cURL commands use Bash; Bruno provides the same requests on Windows.
 
 ## Troubleshooting
 

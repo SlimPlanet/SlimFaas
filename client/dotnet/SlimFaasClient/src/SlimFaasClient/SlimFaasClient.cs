@@ -76,7 +76,6 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
     private ClientWebSocket? _ws;
     private string? _connectionId;
-    private CancellationTokenSource? _cts;
 
     // ---------------------------------------------------------------------------
     // Callbacks
@@ -203,7 +202,6 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        _cts?.Cancel();
         if (_ws != null)
         {
             if (_ws.State == WebSocketState.Open)
@@ -216,7 +214,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             }
             _ws.Dispose();
         }
-        _cts?.Dispose();
+        _sendLock.Dispose();
     }
 
     // ---------------------------------------------------------------------------

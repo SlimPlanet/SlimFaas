@@ -62,7 +62,7 @@ Performance-related commits between v0.74.0 and v0.84.6 (`git log 043a686..f1d97
   exports into the tables below.
 - **End-to-end tier** — the three-node native-local cluster of each commit is started with
   the current checkout's manifest (`benchmarks/slimfaas.local.benchmark.yaml`), benchmark
-  target and load driver (`src/SlimFaasBenchmark`, see [benchmarking.md](benchmarking.md)).
+  target and load driver (`benchmarks/SlimFaasBenchmark`, see [benchmarking.md](benchmarking.md)).
   Only the `SlimFaas.dll` under test changes between the two runs; the driver, the target
   process, the ports and the matrix are identical. `SlimFaasBenchmark compare` produces the
   before/after tables and applies the acceptance rules documented in benchmarking.md.

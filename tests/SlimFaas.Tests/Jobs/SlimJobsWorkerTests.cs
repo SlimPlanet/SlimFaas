@@ -371,7 +371,8 @@ public class SlimJobsWorkerTests
         _jobQueueMock.Verify(q => q.ListCallbackAsync(
             "myjob",
             It.Is<ListQueueItemStatus>(list =>
-                list.Items.Count == 1
+                list.Items != null
+                && list.Items.Count == 1
                 && list.Items[0].Id == "fakeId"
                 && list.Items[0].HttpCode == 200
             )

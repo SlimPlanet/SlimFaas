@@ -325,7 +325,7 @@ Use Node 24 and .NET 10. Build the runtime for the host RID (`osx-arm64` below; 
 ```bash
 (cd src/SlimFaas/ClientApp && npm ci --ignore-scripts && ./node_modules/.bin/playwright install chromium)
 dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64 -o artifacts/traffic-e2e/runtime
-dotnet publish src/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
+dotnet publish samples/Fibonacci/Fibonacci.csproj -c Release -o artifacts/traffic-e2e/fibonacci
 (cd src/SlimFaas/ClientApp && npm run test:e2e)
 ```
 
