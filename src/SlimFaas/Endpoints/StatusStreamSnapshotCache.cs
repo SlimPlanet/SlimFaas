@@ -11,7 +11,7 @@ public interface IStatusStreamSnapshotCache
     Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct);
 }
 
-public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
+public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDisposable
 {
     private static readonly CountType[] QueueCountTypes =
     [
@@ -34,6 +34,13 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private readonly SemaphoreSlim _queuesLock = new(1, 1);
     private readonly SemaphoreSlim _jobsLock = new(1, 1);
+
+    public void Dispose()
+    {
+        _stateLock.Dispose();
+        _queuesLock.Dispose();
+        _jobsLock.Dispose();
+    }
 
     private string? _cachedStateFrameWithoutRecentActivity;
     private DateTimeOffset _stateExpiresAt;

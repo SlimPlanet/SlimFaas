@@ -26,7 +26,7 @@ namespace SlimFaas.Kubernetes;
 /// <c>Models</c> sub-folder.
 /// </summary>
 [ExcludeFromCodeCoverage]
-public partial class KubernetesService : IKubernetesService
+public partial class KubernetesService : IKubernetesService, IDisposable
 {
     // ── Annotation keys ───────────────────────────────────────────────────────
     private const string Schedule = "SlimFaas/Schedule";
@@ -58,6 +58,20 @@ public partial class KubernetesService : IKubernetesService
 
     // ── Shared state ──────────────────────────────────────────────────────────
     private readonly k8s.Kubernetes _client;
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _client.Dispose();
+        }
+    }
     internal k8s.Kubernetes LogClient => _client;
     private readonly ILogger<KubernetesService> _logger;
     private bool _serviceListForbidden;

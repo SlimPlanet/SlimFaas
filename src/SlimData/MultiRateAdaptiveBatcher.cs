@@ -17,12 +17,14 @@ public readonly record struct AdaptiveBatchQueueStatistics(
     long ForcedFlushes = 0,
     double LastLatencySensitiveWaitMilliseconds = 0);
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1032:Implement standard exception constructors", Justification = "Always raised with the batch kind it describes.")]
 public sealed class BatchQueueFullException(string kind)
     : Exception($"Adaptive batch queue '{kind}' is full.")
 {
     public string Kind { get; } = kind;
 }
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1032:Implement standard exception constructors", Justification = "Always raised with the batch kind and sizes it describes.")]
 public sealed class BatchItemTooLargeException(string kind, long itemBytes, long maximumBytes)
     : Exception($"Adaptive batch item for '{kind}' is {itemBytes} bytes; maximum is {maximumBytes} bytes.")
 {
@@ -184,8 +186,8 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
     public async Task<TRes> EnqueueAsync<TReq, TRes>(
         string kind,
         TReq request,
-        CancellationToken cancellationToken = default,
-        AdaptiveBatchEnqueueOptions enqueueOptions = default)
+        AdaptiveBatchEnqueueOptions enqueueOptions = default,
+        CancellationToken cancellationToken = default)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_kinds.TryGetValue(kind, out Kind? registeredKind))

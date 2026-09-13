@@ -99,7 +99,7 @@ public static class SyncFunctionEndpoints
             if (function.Namespace == "websocket-virtual")
             {
                 var wsResult = await HandleSyncFunctionViaWebSocket(
-                    functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct, activityCaller.SourcePod, requestInId);
+                    functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, activityCaller.SourcePod, requestInId, ct);
                 return wsResult;
             }
 
@@ -196,9 +196,9 @@ public static class SyncFunctionEndpoints
         ILogger logger,
         HistoryHttpMemoryService historyHttpService,
         IWebSocketSendClient webSocketSendClient,
-        CancellationToken ct,
         string? activitySourcePod,
-        string activityCorrelationId)
+        string activityCorrelationId,
+        CancellationToken ct)
     {
         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
 
@@ -226,8 +226,8 @@ public static class SyncFunctionEndpoints
                     context.Request.QueryString.ToUriComponent(),
                     headers,
                     bodyStream,
-                    ct,
-                    activitySourcePod, activityCorrelationId);
+                    activitySourcePod, activityCorrelationId,
+                    ct);
 
             // Écrire la réponse HTTP
             context.Response.StatusCode = statusCode;

@@ -72,7 +72,7 @@ public static class StatusEndpoints
             if (!gate.TryEnter(name)) continue; // déjà en cours
 
 #pragma warning disable CS4014
-            var t = wakeUpFunction.FireAndForgetWakeUpAsync(name);
+            var t = wakeUpFunction.WakeUpInBackgroundAsync(name);
             _ = t.ContinueWith(task =>
             {
                 gate.Exit(name);
@@ -102,7 +102,7 @@ public static class StatusEndpoints
             return Results.NoContent(); // déjà réveillée / en cours
 
 #pragma warning disable CS4014
-        var t = wakeUpFunction.FireAndForgetWakeUpAsync(functionName);
+        var t = wakeUpFunction.WakeUpInBackgroundAsync(functionName);
 
         _ = t.ContinueWith(task =>
         {

@@ -667,6 +667,10 @@ public static partial class LocalManifestLoader
 
 public sealed class LocalManifestException : Exception
 {
+    public LocalManifestException()
+    {
+    }
+
     public LocalManifestException(string message) : base(message)
     {
     }

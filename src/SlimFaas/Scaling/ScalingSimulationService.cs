@@ -7,9 +7,11 @@ namespace SlimFaas.Scaling;
 
 public sealed class ScalingSimulationService(IReplicasService replicas, AutoScaler autoScaler,
     IMetricsStore metrics, ExternalMetricsSourceStore sources, IOptions<SlimFaasOptions> options,
-    TimeProvider? clock = null)
+    TimeProvider? clock = null) : IDisposable
 {
     private readonly SemaphoreSlim _budget = new(2, 2);
+
+    public void Dispose() => _budget.Dispose();
 
     public async Task<ScalingSimulationResponse> SimulateAsync(ScalingSimulationRequest request, CancellationToken ct)
     {
@@ -170,6 +172,7 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
     }
 }
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1032:Implement standard exception constructors", Justification = "Always raised with the HTTP status it maps to.")]
 public sealed class ScalingSimulationException(int statusCode, string message) : Exception(message)
 {
     public int StatusCode { get; } = statusCode;

@@ -88,7 +88,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
 
         bool runJob = latestExecutionTimeStamp > lastestExecutionTimeStampFromDatabase;
-        logger.LogDebug("Should run job for schedule {ScheduleId} in configuration {ConfigurationName}: {RunJob} at timestamp {LatestExecutionTimeStamp} (lastest: {lastestExecutionTimeStampFromDatabase})",
+        logger.LogDebug("Should run job for schedule {ScheduleId} in configuration {ConfigurationName}: {RunJob} at timestamp {LatestExecutionTimeStamp} (lastest: {LastestExecutionTimeStampFromDatabase})",
             id, configurationName, runJob, latestExecutionTimeStamp, lastestExecutionTimeStampFromDatabase);
         if (!runJob)
         {

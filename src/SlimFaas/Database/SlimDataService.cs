@@ -218,14 +218,14 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public async Task<KeyValueCommandResult> SetAsync(
         string key,
         byte[]? value = null,
-        long? timeToLiveMs = null,
+        long? timeToLiveMilliseconds = null,
         KeyValueOperation operation = KeyValueOperation.Set,
         long integerDelta = 0,
         decimal floatDelta = 0)
     {
         var mutation = NewOperation(SlimDataBatchOperationKind.KeyValue, key);
         mutation.Value = value ?? [];
-        mutation.ExpireAtUtcTicks = ToExpireAtUtcTicks(timeToLiveMs);
+        mutation.ExpireAtUtcTicks = ToExpireAtUtcTicks(timeToLiveMilliseconds);
         mutation.KeyValueOperation = operation;
         mutation.IntegerDelta = integerDelta;
         mutation.FloatDelta = floatDelta;
@@ -247,11 +247,11 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public async Task HashSetAsync(
         string key,
         IDictionary<string, byte[]> values,
-        long? timeToLiveMs = null)
+        long? timeToLiveMilliseconds = null)
     {
         var mutation = NewOperation(SlimDataBatchOperationKind.AddHashSet, key);
         mutation.HashValues = new Dictionary<string, byte[]>(values);
-        mutation.ExpireAtUtcTicks = ToExpireAtUtcTicks(timeToLiveMs);
+        mutation.ExpireAtUtcTicks = ToExpireAtUtcTicks(timeToLiveMilliseconds);
         _ = await EnqueueMutationAsync(mutation).ConfigureAwait(false);
     }
 

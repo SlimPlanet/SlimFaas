@@ -2,7 +2,7 @@
 
 namespace SlimFaas.Kubernetes;
 
-public class JobResourceValidator
+public static class JobResourceValidator
 {
     public static CreateJobResources ValidateResources(CreateJobResources? defaultConfig, CreateJobResources? requestedConfig)
     {

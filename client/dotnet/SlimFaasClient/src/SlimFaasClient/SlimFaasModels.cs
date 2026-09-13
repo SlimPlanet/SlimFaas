@@ -6,6 +6,7 @@ namespace SlimFaasClient;
 // Protocole WebSocket (doit correspondre à WebSocketMessageType côté serveur)
 // ---------------------------------------------------------------------------
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1027:Mark enums with FlagsAttribute", Justification = "Message type discriminator, not a set of flags.")]
 public enum SlimFaasMessageType
 {
     Register = 0,
@@ -481,6 +482,7 @@ public class SlimFaasSyncRequest
 /// Encapsule l'envoi de SyncResponseStart, SyncResponseChunk et SyncResponseEnd
 /// pour une corrélation donnée.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1710:Identifiers should have correct suffix", Justification = "Public API of the NuGet package; renaming would break consumers.")]
 public sealed class SyncResponseWriter : Stream
 {
     private readonly Func<string, SlimFaasSyncResponse, CancellationToken, Task> _sendStart;
@@ -549,20 +551,20 @@ public sealed class SyncResponseWriter : Stream
     public override void Write(byte[] buffer, int offset, int count)
         => WriteAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
 
-    public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+    public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
         if (_completed) throw new InvalidOperationException("Response already completed.");
-        if (!_started) await StartAsync(ct: ct);
+        if (!_started) await StartAsync(ct: cancellationToken);
         if (count > 0)
-            await _sendChunk(_correlationId, buffer.AsMemory(offset, count), ct);
+            await _sendChunk(_correlationId, buffer.AsMemory(offset, count), cancellationToken);
     }
 
-    public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
+    public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
         if (_completed) throw new InvalidOperationException("Response already completed.");
-        if (!_started) await StartAsync(ct: ct);
+        if (!_started) await StartAsync(ct: cancellationToken);
         if (buffer.Length > 0)
-            await _sendChunk(_correlationId, buffer, ct);
+            await _sendChunk(_correlationId, buffer, cancellationToken);
     }
 }
 

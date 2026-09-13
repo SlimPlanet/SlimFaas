@@ -29,7 +29,8 @@ public partial class EnqueueJobResultSerializerContext : JsonSerializerContext;
 
 public enum JobStatusResult
 {
-    Queued =40,
+    None = 0,
+    Queued = 40,
 }
 
 

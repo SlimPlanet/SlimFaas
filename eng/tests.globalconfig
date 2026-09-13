@@ -28,3 +28,7 @@ dotnet_diagnostic.CA1859.severity = none
 dotnet_diagnostic.CA1852.severity = none
 # Blocking calls inside async test methods have no throughput impact.
 dotnet_diagnostic.CA1849.severity = none
+# Fixtures own disposables for the duration of a test; the runner tears them down.
+dotnet_diagnostic.CA1001.severity = none
+# xUnit classes are shaped by the runner (static-only helper classes, fixtures).
+dotnet_diagnostic.CA1052.severity = none

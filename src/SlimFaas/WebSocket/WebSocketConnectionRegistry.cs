@@ -29,7 +29,7 @@ public class PendingSyncStream
 /// Représente une connexion WebSocket d'un client (job ou fonction virtuelle).
 /// Conceptuellement équivalent à un "pod" avec une IP.
 /// </summary>
-public class WebSocketClientConnection
+public sealed class WebSocketClientConnection : IDisposable
 {
     public string ConnectionId { get; } = Guid.NewGuid().ToString("N");
     public string FunctionName { get; set; } = string.Empty;
@@ -49,6 +49,12 @@ public class WebSocketClientConnection
     public bool IsAlive => Socket.State == WebSocketState.Open;
 
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+
+    public void Dispose()
+    {
+        _sendLock.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     public async Task SendAsync(WebSocketEnvelope envelope, CancellationToken ct)
     {

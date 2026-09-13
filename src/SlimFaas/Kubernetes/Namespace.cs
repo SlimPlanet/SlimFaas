@@ -2,7 +2,7 @@
 
 namespace SlimFaas.Kubernetes;
 
-public class Namespace
+public static class Namespace
 {
     /// <summary>
     /// Gets the namespace from Kubernetes service account or returns default

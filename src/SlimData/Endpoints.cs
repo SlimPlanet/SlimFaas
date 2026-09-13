@@ -66,7 +66,7 @@ public sealed record LpReq(
     CancellationToken Ct
 );
 
-public class Endpoints
+public static class Endpoints
 {
     private static readonly TimeSpan ReplicationTimeout = TimeSpan.FromSeconds(5);
     public delegate Task RespondDelegate(IRaftCluster cluster, SlimPersistentState provider,
@@ -856,10 +856,27 @@ public class Endpoints
 
 public class TooManyRequestsException : Exception
 {
+    public TooManyRequestsException()
+    {
+    }
+
+    public TooManyRequestsException(string message)
+        : base(message)
+    {
+    }
+
+    public TooManyRequestsException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }
 
 public sealed class SlimDataUnavailableException : Exception
 {
+    public SlimDataUnavailableException()
+    {
+    }
+
     public SlimDataUnavailableException(string message)
         : base(message)
     {

@@ -688,12 +688,12 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         }
 
 
-        public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
+        public async Task<IList<Job>> ListJobsAsync(string ns)
         {
             FiltersLabelArray filters = new(new List<string>
             {
                 SlimfaasJobName, // presence
-                $"{NamespaceLabel}={kubeNamespace}"
+                $"{NamespaceLabel}={ns}"
             });
             string filterJson = JsonSerializer.Serialize(filters, DockerJson.Default.FiltersLabelArray);
             string url = $"{_apiPrefix}/containers/json?all=1&filters={WebUtility.UrlEncode(filterJson)}";
@@ -1942,6 +1942,7 @@ namespace SlimFaas.Kubernetes
         Inspect_HostConfig? HostConfig = null
     );
 
+#pragma warning disable CA1707 // names mirror the Docker Engine API objects
     public record Inspect_HostConfig(
         [property: JsonPropertyName("Memory")] long? Memory = null,
         [property: JsonPropertyName("CpuPeriod")] long? CpuPeriod = null,
@@ -2062,6 +2063,7 @@ namespace SlimFaas.Kubernetes
         [JsonPropertyName("HostIp")] public string? HostIp { get; init; }
         [JsonPropertyName("HostPort")] public string? HostPort { get; set; }
     }
+#pragma warning restore CA1707
 
 
     [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

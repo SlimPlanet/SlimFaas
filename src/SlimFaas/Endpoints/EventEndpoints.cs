@@ -107,7 +107,7 @@ public static class EventEndpoints
                         function.Deployment,
                         customRequest with { FunctionName = function.Deployment },
                         eventName,
-                        context.RequestAborted, caller.SourcePod, publicationId);
+                        caller.SourcePod, publicationId, context.RequestAborted);
                     tasks.Add(wsTask);
                     continue;
                 }

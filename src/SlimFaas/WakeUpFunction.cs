@@ -4,7 +4,7 @@ namespace SlimFaas;
 
 public interface IWakeUpFunction
 {
-    Task FireAndForgetWakeUpAsync(string functionName);
+    Task WakeUpInBackgroundAsync(string functionName);
 }
 
 public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<WakeUpFunction> logger) : IWakeUpFunction
@@ -18,7 +18,7 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
         return function;
     }
 
-    public async Task FireAndForgetWakeUpAsync(string functionName)
+    public async Task WakeUpInBackgroundAsync(string functionName)
     {
         lock (_lock)
         {

@@ -18,7 +18,7 @@ public sealed class ClusterMembershipCoordinator(
     IRaftHttpCluster cluster,
     IHttpClientFactory httpClientFactory,
     IOptions<SlimDataMembershipOptions> options,
-    ILogger<ClusterMembershipCoordinator> logger) : IClusterMembershipCoordinator
+    ILogger<ClusterMembershipCoordinator> logger) : IClusterMembershipCoordinator, IDisposable
 {
     private readonly SemaphoreSlim _membershipGate = new(1, 1);
     private readonly TimeSpan _changeTimeout = TimeSpan.FromSeconds(options.Value.ChangeTimeoutSeconds);
@@ -127,4 +127,6 @@ public sealed class ClusterMembershipCoordinator(
         return ((IRaftCluster)cluster).Members.Any(member =>
             member.EndPoint is UriEndPoint address && Startup.SameEndpoint(address.Uri, endpoint));
     }
+
+    public void Dispose() => _membershipGate.Dispose();
 }

@@ -35,46 +35,4 @@ dotnet_diagnostic.CA1848.severity = none
 # 166
 dotnet_diagnostic.CA1873.severity = none
 
-# --- Design (CA10xx) ---
-# 11
-dotnet_diagnostic.CA1001.severity = none
-# 2
-dotnet_diagnostic.CA1008.severity = none
-# 2
-dotnet_diagnostic.CA1027.severity = none
-# 3
-dotnet_diagnostic.CA1028.severity = none
-# 1
-dotnet_diagnostic.CA1030.severity = none
-# 19
-dotnet_diagnostic.CA1032.severity = none
-# 1
-dotnet_diagnostic.CA1033.severity = none
-# 11
-dotnet_diagnostic.CA1034.severity = none
-# 11
-dotnet_diagnostic.CA1050.severity = none
-# 7
-dotnet_diagnostic.CA1052.severity = none
-# 6
-dotnet_diagnostic.CA1063.severity = none
-# 7
-dotnet_diagnostic.CA1068.severity = none
-
-# --- Naming (CA17xx) ---
-# 16
-dotnet_diagnostic.CA1707.severity = none
-# 1
-dotnet_diagnostic.CA1710.severity = none
-# 13
-dotnet_diagnostic.CA1711.severity = none
-# 4
-dotnet_diagnostic.CA1716.severity = none
-# 4
-dotnet_diagnostic.CA1724.severity = none
-# 10
-dotnet_diagnostic.CA1725.severity = none
-# 1
-dotnet_diagnostic.CA1727.severity = none
-
 # --- Performance (CA18xx) ---

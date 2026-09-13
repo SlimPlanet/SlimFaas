@@ -141,13 +141,13 @@ internal static class BenchmarkRunner
         await WaitUntilAsync(
             async () => await IsSuccessAsync(client, new Uri(options.SlimFaasUrl, "ready"), timeout.Token),
             TimeSpan.FromMilliseconds(500),
-            timeout.Token,
-            "SlimFaas entrypoint did not become ready within 180 seconds.");
+            "SlimFaas entrypoint did not become ready within 180 seconds.",
+            timeout.Token);
         await WaitUntilAsync(
             async () => await IsSuccessAsync(client, new Uri(options.DirectUrl, "health"), timeout.Token),
             TimeSpan.FromMilliseconds(250),
-            timeout.Token,
-            "The direct benchmark target did not become ready within 180 seconds.");
+            "The direct benchmark target did not become ready within 180 seconds.",
+            timeout.Token);
         await WaitUntilAsync(
             async () =>
             {
@@ -159,8 +159,8 @@ internal static class BenchmarkRunner
                 return status is { NumberReady: > 0 };
             },
             TimeSpan.FromMilliseconds(250),
-            timeout.Token,
-            $"Function '{options.Function}' did not become ready within 180 seconds.");
+            $"Function '{options.Function}' did not become ready within 180 seconds.",
+            timeout.Token);
 
         // Let topology and Raft synchronization settle before collecting latency samples.
         await Task.Delay(TimeSpan.FromSeconds(2), timeout.Token);
@@ -769,8 +769,8 @@ internal static class BenchmarkRunner
                 return requested == 0 && ready == 0;
             },
             TimeSpan.FromMilliseconds(250),
-            waitForZero.Token,
-            $"Scale function '{options.ScaleFunction}' did not reach zero before the burst.");
+            $"Scale function '{options.ScaleFunction}' did not reach zero before the burst.",
+            waitForZero.Token);
 
         byte[] payload = CreatePayload(256);
         Uri scaleUri = new(options.SlimFaasUrl,
@@ -1057,8 +1057,8 @@ internal static class BenchmarkRunner
     private static async Task WaitUntilAsync(
         Func<Task<bool>> predicate,
         TimeSpan delay,
-        CancellationToken cancellationToken,
-        string timeoutMessage)
+        string timeoutMessage,
+        CancellationToken cancellationToken)
     {
         try
         {

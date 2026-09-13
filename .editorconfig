@@ -221,3 +221,22 @@ dotnet_diagnostic.CA1308.severity = none
 # CA1812: internal services and options are instantiated by the DI container, the test runner or serializers,
 # which the analyzer cannot see.
 dotnet_diagnostic.CA1812.severity = none
+# CA1034: nested public types (Raft command batch items, MCP tool sub-objects) are deliberately scoped to their owner.
+dotnet_diagnostic.CA1034.severity = none
+# CA1028: byte-backed enums are part of the SlimData wire format (MemoryPack payloads, Raft log entries).
+dotnet_diagnostic.CA1028.severity = none
+# CA1711: type-name suffixes (Queue, Delegate, Collection, ...) describe the role of the type; no BCL derivation is implied.
+dotnet_diagnostic.CA1711.severity = none
+# CA1724: type names that collide with namespaces of frameworks we do not reference (Microsoft.AspNetCore.Components.Endpoints)
+# or with the root namespace of the client package (SlimFaasClient, public API).
+dotnet_diagnostic.CA1724.severity = none
+# CA1716: identifiers that are Visual Basic keywords (Event, Namespace, function) are fine in a C#-only code base.
+dotnet_diagnostic.CA1716.severity = none
+
+# Sample programs use top-level statements and declare their helper types next to them.
+[samples/**.cs]
+dotnet_diagnostic.CA1050.severity = none
+
+# BenchmarkDotNet methods are named Scenario_Variant by convention.
+[benchmarks/**.cs]
+dotnet_diagnostic.CA1707.severity = none

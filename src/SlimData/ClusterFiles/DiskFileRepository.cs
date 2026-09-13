@@ -80,7 +80,7 @@ public sealed class DiskFileRepository : IFileRepository
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
             var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks, tags);
-            await WriteMetadataAsync(metaPath, meta, ct, _logger).ConfigureAwait(false);
+            await WriteMetadataAsync(metaPath, meta, _logger, ct).ConfigureAwait(false);
 
             return new FilePutResult(shaHex, contentType, total);
         }
@@ -200,7 +200,7 @@ public sealed class DiskFileRepository : IFileRepository
         return MemoryPackSerializer.Deserialize<FileMetadata>(bytes);
     }
 
-    private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, CancellationToken ct, ILogger<DiskFileRepository> logger)
+    private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, ILogger<DiskFileRepository> logger, CancellationToken ct)
     {
         var tmp = metaPath + ".tmp." + Guid.NewGuid().ToString("N");
         try

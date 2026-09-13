@@ -12,10 +12,12 @@ internal sealed class KeyedAsyncLock
     private long _inFlightBytes;
     private int _pendingTransfers;
 
-    internal sealed class Entry
+    internal sealed class Entry : IDisposable
     {
         public int RefCount;
         public readonly SemaphoreSlim Semaphore = new(1, 1);
+
+        public void Dispose() => Semaphore.Dispose();
     }
 
     private sealed class BytesWaiter
@@ -253,7 +255,7 @@ internal sealed class KeyedAsyncLock
         }
 
         if (dispose)
-            entry.Semaphore.Dispose();
+            entry.Dispose();
     }
 
     public sealed class Releaser : IAsyncDisposable, IDisposable

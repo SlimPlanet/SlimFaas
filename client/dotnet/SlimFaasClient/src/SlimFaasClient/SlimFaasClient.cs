@@ -12,7 +12,9 @@ namespace SlimFaasClient;
 /// </summary>
 public class SlimFaasRegistrationException : Exception
 {
+    public SlimFaasRegistrationException() { }
     public SlimFaasRegistrationException(string message) : base(message) { }
+    public SlimFaasRegistrationException(string message, Exception innerException) : base(message, innerException) { }
 }
 
 /// <summary>

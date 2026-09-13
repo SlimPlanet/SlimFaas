@@ -213,5 +213,5 @@ public class FakeProxy : IProxy
         return DefaultPorts;
     }
 
-    public IList<int>? GetPorts(string? ip) => GetPorts();
+    public IList<int>? GetPorts(string? target) => GetPorts();
 }

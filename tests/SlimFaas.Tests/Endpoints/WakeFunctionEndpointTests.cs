@@ -19,11 +19,11 @@ public class WakeFunctionEndpointTests
     [InlineData("/wake-function/fibonacci", HttpStatusCode.NoContent, 1)]
     [InlineData("/wake-function/wrong", HttpStatusCode.NotFound, 0)]
     public async Task JustWakeFunctionAndReturnOk(string path, HttpStatusCode expectedHttpStatusCode,
-        int numberFireAndForgetWakeUpAsyncCall)
+        int numberWakeUpInBackgroundAsyncCall)
     {
         Mock<IWakeUpFunction> wakeUpFunctionMock = new();
         Mock<IJobService> jobServiceMock = new();
-        wakeUpFunctionMock.Setup(k => k.FireAndForgetWakeUpAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
+        wakeUpFunctionMock.Setup(k => k.WakeUpInBackgroundAsync(It.IsAny<string>())).Returns(Task.CompletedTask);
 
         using IHost host = await new HostBuilder()
             .ConfigureWebHost(webBuilder =>
@@ -57,7 +57,7 @@ public class WakeFunctionEndpointTests
 
         HttpResponseMessage response = await host.GetTestClient().PostAsync($"http://localhost:5000{path}", new StringContent(""));
 
-        wakeUpFunctionMock.Verify(k => k.FireAndForgetWakeUpAsync(It.IsAny<string>()), Times.AtMost(numberFireAndForgetWakeUpAsyncCall));
+        wakeUpFunctionMock.Verify(k => k.WakeUpInBackgroundAsync(It.IsAny<string>()), Times.AtMost(numberWakeUpInBackgroundAsyncCall));
         Assert.Equal(expectedHttpStatusCode, response.StatusCode);
     }
 }
