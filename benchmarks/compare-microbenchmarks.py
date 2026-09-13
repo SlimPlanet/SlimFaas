@@ -9,12 +9,23 @@ A directory is scanned recursively for *-report-brief.json (the export enabled i
 benchmarks/SlimFaas.Benchmarks/Program.cs). Benchmarks are matched on
 "<Type>.<Method>(<Parameters>)"; the ones present in only one export are listed
 separately (a subject that did not exist yet in the baseline, for example).
+
+Every path is resolved relative to the current directory and must stay inside it
+(run the script from the comparison output directory, as compare-versions.sh does).
 """
 import argparse
 import glob
 import json
 import os
 import sys
+
+
+def confine(root, path, option):
+    """Resolve a CLI-supplied path under root and refuse one that escapes it."""
+    full = os.path.normpath(os.path.join(root, path))
+    if full != root and not full.startswith(root + os.sep):
+        sys.exit(f"--{option} must stay inside the current directory {root}: {path}")
+    return full
 
 
 def load(path):
@@ -78,9 +89,10 @@ def main():
     parser.add_argument("--candidate-label", default="candidate")
     parser.add_argument("--output")
     args = parser.parse_args()
+    root = os.path.normpath(os.getcwd())
 
-    before = load(args.baseline)
-    after = load(args.candidate)
+    before = load(confine(root, args.baseline, "baseline"))
+    after = load(confine(root, args.candidate, "candidate"))
     common = [key for key in after if key in before]
     only_before = [key for key in before if key not in after]
     only_after = [key for key in after if key not in before]
@@ -115,8 +127,9 @@ def main():
     lines.append("Time gain = baseline mean / candidate mean (>1 = faster now); Alloc gain = baseline bytes / candidate bytes (>1 = fewer allocations now).")
     text = "\n".join(lines) + "\n"
     if args.output:
-        os.makedirs(os.path.dirname(os.path.abspath(args.output)), exist_ok=True)
-        with open(args.output, "w", encoding="utf-8") as handle:
+        output = confine(root, args.output, "output")
+        os.makedirs(os.path.dirname(output), exist_ok=True)
+        with open(output, "w", encoding="utf-8") as handle:
             handle.write(text)
     sys.stdout.write(text)
 
