@@ -120,8 +120,13 @@ internal static class MetricsScalingCalculator
         // dans la même fenêtre. Chaque "sample" représente déjà une décision
         // de scale (up ou down). Pour Pods, on considère qu'une décision
         // a consommé toute la "Value" pour la fenêtre.
+        // A wake-up (HTTP, schedule, dependency or external activity applied a count the
+        // policies did not produce) is what makes the metrics observable in the first
+        // place: it is not a scale-up step and does not consume the budget, otherwise the
+        // first metric-driven scale-out after a scale-from-zero waits a full period
+        // (issue #370). Metric-driven steps, from zero included, keep consuming it.
         var fromTs = nowUnixSeconds - policy.PeriodSeconds;
-        var samples = decisions.Where(s => s.TimestampUnixSeconds >= fromTs).ToArray();
+        var samples = decisions.Where(s => s.TimestampUnixSeconds >= fromTs && !s.WakeUp).ToArray();
 
         int remainingForPolicy;
 
