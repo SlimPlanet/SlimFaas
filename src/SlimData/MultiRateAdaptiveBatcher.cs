@@ -380,7 +380,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
         }
     }
 
-    private List<PendingItem> DrainBatch(Kind kind)
+    private static List<PendingItem> DrainBatch(Kind kind)
     {
         var batch = new List<PendingItem>(kind.MaxBatchSize);
         var usedBytes = 0;
@@ -418,7 +418,7 @@ public sealed class MultiRateAdaptiveBatcher : IAsyncDisposable
             (long)(Math.Max(0, milliseconds) * 1000d));
     }
 
-    private PendingItem? Peek(Kind kind)
+    private static PendingItem? Peek(Kind kind)
     {
         lock (kind.QueueGate)
             return kind.Queue.TryPeek(out PendingItem? item) ? item : null;

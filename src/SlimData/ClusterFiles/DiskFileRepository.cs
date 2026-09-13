@@ -59,7 +59,7 @@ public sealed class DiskFileRepository : IFileRepository
                 {
                     while (true)
                     {
-                        var read = await content.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
+                        var read = await content.ReadAsync(buffer, ct).ConfigureAwait(false);
                         if (read <= 0) break;
 
                         hash.AppendData(buffer, 0, read);

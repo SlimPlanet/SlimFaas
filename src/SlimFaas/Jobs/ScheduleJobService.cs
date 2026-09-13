@@ -65,7 +65,7 @@ public class ScheduleJobService(
             return new ResultWithError<CreateScheduleJobResult>(null , new ErrorResult("visibility_private"));
         }
 
-        if (createJob.Image != string.Empty && !jobService.IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
+        if (!string.IsNullOrEmpty(createJob.Image) && !jobService.IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
         {
             return new ResultWithError<CreateScheduleJobResult>(null , new ErrorResult("image_not_allowed"));
         }

@@ -146,13 +146,7 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             _logger.LogInformation("ScheduleJobBackupWorker: restoring from {Path}", BackupFilePath);
             var json = await File.ReadAllTextAsync(BackupFilePath, ct);
             var jsonLength = json.Length;
-            string jsonHash;
-            using (var sha256 = SHA256.Create())
-            {
-                var jsonBytes = Encoding.UTF8.GetBytes(json);
-                var hashBytes = sha256.ComputeHash(jsonBytes);
-                jsonHash = Convert.ToHexString(hashBytes);
-            }
+            string jsonHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
             _logger.LogDebug("ScheduleJobBackupWorker: restore JSON metadata: length={Length}, sha256={Hash}", jsonLength, jsonHash);
 
             var backupData = JsonSerializer.Deserialize(json, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);

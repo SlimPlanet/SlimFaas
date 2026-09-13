@@ -15,7 +15,7 @@ namespace SlimFaas.Tests;
 public class JobServiceAdditionalTests
 {
     // ---------- petits alias/mocks utilitaires ----------
-    private static readonly string Ns = "unit-tests";
+    private const string Ns = "unit-tests";
     private readonly Mock<IJobConfiguration> _conf;
     private readonly Mock<IKubernetesService> _kube;
     private readonly Mock<IJobQueue> _queue;

@@ -31,10 +31,8 @@ internal sealed class KeyedAsyncLock
         int maxPendingTransfers = 128,
         TimeSpan? queueWaitTimeout = null)
     {
-        if (maxInFlightBytes <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxInFlightBytes));
-        if (maxPendingTransfers <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxPendingTransfers));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxInFlightBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPendingTransfers);
 
         var timeout = queueWaitTimeout ?? TimeSpan.FromSeconds(30);
         if (timeout <= TimeSpan.Zero)
@@ -51,8 +49,7 @@ internal sealed class KeyedAsyncLock
     public async ValueTask<Releaser> AcquireAsync(string key, long bytesToReserve, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(key);
-        if (bytesToReserve < 0)
-            throw new ArgumentOutOfRangeException(nameof(bytesToReserve));
+        ArgumentOutOfRangeException.ThrowIfNegative(bytesToReserve);
 
         Entry entry;
         lock (_gate)

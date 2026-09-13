@@ -10,8 +10,6 @@ using SlimFaas;
 
 public sealed class DataHashsetRoutesTests
 {
-    private const string TtlSuffix = "${slimfaas-timetolive}$";
-    private const string TtlField = "__ttl__";
 
     [Fact]
     public async Task Post_hashset_sets_value_and_returns_id()

@@ -48,7 +48,7 @@ public static class MetricsExtensions
 
         raw = raw.Trim();
 
-        return raw.StartsWith("/", StringComparison.Ordinal)
+        return raw.StartsWith('/')
             ? raw
             : "/" + raw;
     }

@@ -190,7 +190,7 @@ public static class AsyncFunctionEndpoints
             return Results.BadRequest();
         }
 
-        int statusCode = status.ToLowerInvariant() == "success" ? 200 : 500;
+        int statusCode = string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) ? 200 : 500;
 
         var items = new ListQueueItemStatus
         {

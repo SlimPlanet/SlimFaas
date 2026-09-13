@@ -360,8 +360,8 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             StringContent? body = null;
             if (parameters.Any(p => p.In == "body"))
             {
-                string payload = inputDict.Count == 1 && inputDict.ContainsKey("body")
-                    ? inputDict["body"].GetRawText()
+                string payload = inputDict.Count == 1 && inputDict.TryGetValue("body", out JsonElement bodyElement)
+                    ? bodyElement.GetRawText()
                     : JsonSerializer.Serialize(inputDict, AppJsonContext.Default.DictionaryStringJsonElement);
 
                 body = new StringContent(payload, Encoding.UTF8, "application/json");

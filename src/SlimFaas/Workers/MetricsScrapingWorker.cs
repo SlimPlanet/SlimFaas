@@ -196,7 +196,7 @@ public class MetricsScrapingWorker(
         return null;
     }
 
-    private async Task DelayUntilNextScrapeCycleAsync(
+    private static async Task DelayUntilNextScrapeCycleAsync(
         long cycleStartedTimestamp,
         int intervalMilliseconds,
         CancellationToken stoppingToken)

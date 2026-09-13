@@ -107,9 +107,9 @@ public class SlimJobsWorker(
                     historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
                 }
 
-                if (jobsDictionary.ContainsKey(jobConfigurationName))
+                if (jobsDictionary.TryGetValue(jobConfigurationName, out var jobsForConfiguration))
                 {
-                    jobsDictionary[jobConfigurationName].Add(job);
+                    jobsForConfiguration.Add(job);
                 }
             }
 

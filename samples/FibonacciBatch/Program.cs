@@ -30,8 +30,7 @@ static void RunFibonacciMode(string[] args)
     {
         Console.WriteLine($"Calculating Fibonacci for {arg}");
         int i = int.Parse(arg, CultureInfo.InvariantCulture);
-        var fibonacci = new Fibonacci();
-        var result = fibonacci.Run(i);
+        var result = Fibonacci.Run(i);
         Console.WriteLine($"Fibonacci for {arg} is {result}");
     }
 }
@@ -149,8 +148,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
             // Si le corps contient un nombre, on calcule Fibonacci
             if (int.TryParse(body.Trim(), out int n))
             {
-                var fib = new Fibonacci();
-                var result = fib.Run(n);
+                var result = Fibonacci.Run(n);
                 Console.WriteLine($"[WS]   Fibonacci({n}) = {result}");
             }
         }
@@ -238,8 +236,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
                 var resultObj = new JsonObject { ["request"] = JsonNode.Parse(rawBody) };
                 if (fibInput.HasValue && fibInput.Value >= 0 && fibInput.Value <= 40)
                 {
-                    var fib = new Fibonacci();
-                    var fibResult = fib.Run(fibInput.Value);
+                    var fibResult = Fibonacci.Run(fibInput.Value);
                     resultObj["fibonacci"] = JsonValue.Create(fibResult);
                     resultObj["input"] = JsonValue.Create(fibInput.Value);
                     Console.WriteLine($"[WS]   Fibonacci({fibInput.Value}) = {fibResult}");
@@ -287,7 +284,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
         });
 
         // Envoi en un seul chunk (ou découper si voulu)
-        await req.Response.WriteAsync(responseBytes, 0, responseBytes.Length);
+        await req.Response.WriteAsync(responseBytes);
         await req.Response.CompleteAsync();
     };
 
@@ -313,9 +310,9 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
 // Algorithme Fibonacci
 // ─────────────────────────────────────────────────────────────────────────────
 
-internal class Fibonacci
+internal static class Fibonacci
 {
-    public int Run(int i)
+    public static int Run(int i)
     {
         if (i <= 2)
         {

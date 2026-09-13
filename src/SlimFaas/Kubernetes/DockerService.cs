@@ -19,26 +19,16 @@ namespace SlimFaas.Kubernetes
         private const string TemplateLabel = "SlimFaas/template";
 
         // ---- SlimFaas keys reused for parity with KubernetesService ----
-        private const string ReplicasMin = "SlimFaas/ReplicasMin";
-        private const string Schedule = "SlimFaas/Schedule";
-        private const string Configuration = "SlimFaas/Configuration";
         private const string Function = "SlimFaas/Function"; // ← label key for functions
         private const string FunctionTrue = "true";
         private const string AppLabel = "app"; // group containers by "deployment"
         private const string NamespaceLabel = "SlimFaas/Namespace";
 
-        private const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
         private const string DependsOn = "SlimFaas/DependsOn";
         private const string SubscribeEvents = "SlimFaas/SubscribeEvents";
-        private const string DefaultVisibility = "SlimFaas/DefaultVisibility";
         private const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
 
-        private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
-            "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
 
-        private const string TimeoutSecondBeforeSetReplicasMin = "SlimFaas/TimeoutSecondBeforeSetReplicasMin";
-        private const string NumberParallelRequest = "SlimFaas/NumberParallelRequest";
-        private const string DefaultTrust = "SlimFaas/DefaultTrust";
         private const string PublishedPortsLabel = "SlimFaas/PublishedPorts";
 
         private const string SlimfaasJobName = "slimfaas-job-name";
@@ -107,7 +97,7 @@ namespace SlimFaas.Kubernetes
         }
 
         // champ de classe
-        private int _startupCleanupDone = 0;
+        private int _startupCleanupDone;
 
         private async Task EnsureStartupCleanupOnceAsync()
         {
@@ -889,7 +879,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             existing = existing.Where(c => c.Labels is not null
                                            && c.Labels.TryGetValue(Function, out var v)
                                            && IsTrueLike(v)).ToList();
-            if (existing.Any())
+            if (existing.Count > 0)
             {
                 return; // déjà un template
             }
@@ -1490,7 +1480,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         private static void ApplyCpuLimit(CreateContainer_HostConfig hc, string cpu)
         {
             // Accept "500m", "0.5", "1", "2"
-            if (cpu.EndsWith("m", StringComparison.OrdinalIgnoreCase))
+            if (cpu.EndsWith('m') || cpu.EndsWith('M'))
             {
                 string num = cpu[..^1];
                 if (double.TryParse(num, NumberStyles.Float, CultureInfo.InvariantCulture, out double milli))
@@ -1540,17 +1530,17 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 mul = 1024L * 1024 * 1024 * 1024;
                 value = value[..^2];
             }
-            else if (value.EndsWith("K", StringComparison.OrdinalIgnoreCase))
+            else if (value.EndsWith('K') || value.EndsWith('k'))
             {
                 mul = 1000;
                 value = value[..^1];
             }
-            else if (value.EndsWith("M", StringComparison.OrdinalIgnoreCase))
+            else if (value.EndsWith('M') || value.EndsWith('m'))
             {
                 mul = 1000L * 1000;
                 value = value[..^1];
             }
-            else if (value.EndsWith("G", StringComparison.OrdinalIgnoreCase))
+            else if (value.EndsWith('G') || value.EndsWith('g'))
             {
                 mul = 1000L * 1000 * 1000;
                 value = value[..^1];

@@ -310,10 +310,10 @@ app.MapPost("/computeWithCallback", async (
 
 app.Run();
 
-internal class RequestCounter
+internal sealed class RequestCounter
 {
-    private int _inProgress   = 0;
-    private int _completed    = 0;
+    private int _inProgress;
+    private int _completed;
 
     public void Begin() => Interlocked.Increment(ref _inProgress);
 
@@ -328,8 +328,10 @@ internal class RequestCounter
     public string State    => _inProgress > 0 ? "processing" : "idle";
 }
 
-internal class Fibonacci
+internal sealed class Fibonacci
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Resolved from the DI container as an instance service by the endpoints.")]
     public int Run(int i)
     {
         if (i <= 2)

@@ -29,11 +29,9 @@ namespace SlimFaas.Kubernetes;
 public partial class KubernetesService : IKubernetesService
 {
     // ── Annotation keys ───────────────────────────────────────────────────────
-    private const string ReplicasMin = "SlimFaas/ReplicasMin";
     private const string Schedule = "SlimFaas/Schedule";
     private const string Configuration = "SlimFaas/Configuration";
     private const string Function = "SlimFaas/Function";
-    private const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
     private const string DependsOn = JobAnnotationNames.DependsOn;
     private const string SubscribeEvents = "SlimFaas/SubscribeEvents";
     private const string DefaultVisibility = JobAnnotationNames.DefaultVisibility;
@@ -44,13 +42,7 @@ public partial class KubernetesService : IKubernetesService
     private const string NumberParallelJob = JobAnnotationNames.NumberParallelJob;
     private const string JobSchedules = JobAnnotationNames.Schedules;
 
-    private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
-        "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
 
-    private const string TimeoutSecondBeforeSetReplicasMin = "SlimFaas/TimeoutSecondBeforeSetReplicasMin";
-    private const string NumberParallelRequest = "SlimFaas/NumberParallelRequest";
-    private const string NumberParallelRequestPerPod = "SlimFaas/NumberParallelRequestPerPod";
-    private const string DefaultTrust = "SlimFaas/DefaultTrust";
 
     // ── Well-known resource / label names ─────────────────────────────────────
     private const string SlimfaasDeploymentName = "slimfaas";

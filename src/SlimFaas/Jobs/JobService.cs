@@ -101,11 +101,11 @@ public class JobService(
             return new ResultWithError<EnqueueJobResult>(null , new ErrorResult("visibility_private"));
         }
 
-        if (createJob.Image != string.Empty && !IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
+        if (!string.IsNullOrEmpty(createJob.Image) && !IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
         {
             return new ResultWithError<EnqueueJobResult>(null , new ErrorResult("image_not_allowed"));
         }
-        var image = createJob.Image != string.Empty ? createJob.Image : conf.Image;
+        var image = !string.IsNullOrEmpty(createJob.Image) ? createJob.Image : conf.Image;
 
         var environments = (conf.Environments?.ToList() ?? [])
             .Where(env => (createJob.Environments ?? new List<EnvVarInput>())

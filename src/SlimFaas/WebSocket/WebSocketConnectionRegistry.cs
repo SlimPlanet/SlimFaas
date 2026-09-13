@@ -100,7 +100,7 @@ public class WebSocketConnectionRegistry
     private readonly ConcurrentDictionary<string, WebSocketFunctionConfiguration> _registeredConfigurations = new();
 
     private readonly ILogger<WebSocketConnectionRegistry> _logger;
-    private int _connectionCounter = 0;
+    private int _connectionCounter;
 
     public WebSocketConnectionRegistry(ILogger<WebSocketConnectionRegistry> logger)
     {

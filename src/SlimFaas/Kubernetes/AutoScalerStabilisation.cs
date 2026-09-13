@@ -55,7 +55,7 @@ public sealed class InMemoryAutoScalerStore : IAutoScalerStore
 
     public InMemoryAutoScalerStore(int maxSamplesPerKey = 1024)
     {
-        if (maxSamplesPerKey <= 0) throw new ArgumentOutOfRangeException(nameof(maxSamplesPerKey));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSamplesPerKey);
         _maxSamplesPerKey = maxSamplesPerKey;
     }
 

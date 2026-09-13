@@ -56,7 +56,7 @@ public static class WebSocketEndpoints
         }
         finally
         {
-            if (connection.FunctionName != string.Empty)
+            if (!string.IsNullOrEmpty(connection.FunctionName))
             {
                 registry.Unregister(connection);
             }

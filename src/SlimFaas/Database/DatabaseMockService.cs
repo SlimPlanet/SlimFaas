@@ -205,12 +205,11 @@ public class DatabaseMockService : IDatabaseService
 
     public Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes, int maximum = Int32.MaxValue)
     {
-        if (!queue.ContainsKey(key))
+        if (!queue.TryGetValue(key, out var list))
         {
             return Task.FromResult<IList<QueueData>>(new List<QueueData>());
         }
 
-        var list = queue[key];
 
         return Task.FromResult<IList<QueueData>>(list);
     }

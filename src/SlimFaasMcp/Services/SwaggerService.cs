@@ -51,7 +51,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         JsonDocument doc;
 
         var trimmed = swaggerStr.TrimStart();
-        if (trimmed.StartsWith("{", StringComparison.Ordinal) || trimmed.StartsWith("[", StringComparison.Ordinal))
+        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
         {
             doc = JsonDocument.Parse(swaggerStr);
         }
@@ -369,7 +369,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 {
                     var set = req.EnumerateArray().Select(e => e.GetString())
                         .Where(s => !string.IsNullOrWhiteSpace(s)).ToHashSet();
-                    okRequired = set.Count <= 1 && (!set.Any() || set.Contains(only.Name));
+                    okRequired = set.Count <= 1 && (set.Count == 0 || set.Contains(only.Name));
                 }
 
                 if (okRequired)

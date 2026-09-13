@@ -61,14 +61,6 @@ dotnet_diagnostic.CA1063.severity = none
 # 7
 dotnet_diagnostic.CA1068.severity = none
 
-# --- Maintainability (CA15xx) ---
-# 1
-dotnet_diagnostic.CA1510.severity = none
-# 6
-dotnet_diagnostic.CA1512.severity = none
-# 1
-dotnet_diagnostic.CA1513.severity = none
-
 # --- Naming (CA17xx) ---
 # 16
 dotnet_diagnostic.CA1707.severity = none
@@ -86,47 +78,13 @@ dotnet_diagnostic.CA1725.severity = none
 dotnet_diagnostic.CA1727.severity = none
 
 # --- Performance (CA18xx) ---
-# 1
-dotnet_diagnostic.CA1802.severity = none
-# 8
-dotnet_diagnostic.CA1805.severity = none
-# 2
-dotnet_diagnostic.CA1812.severity = none
-# 28
+
+# --- Batch B2 (larger refactors, see #358) ---
+# 28 (value types without equality members)
 dotnet_diagnostic.CA1815.severity = none
-# 3
-dotnet_diagnostic.CA1816.severity = none
-# 4
-dotnet_diagnostic.CA1820.severity = none
-# 9
-dotnet_diagnostic.CA1822.severity = none
-# 19
-dotnet_diagnostic.CA1823.severity = none
-# 11
-dotnet_diagnostic.CA1835.severity = none
-# 3
-dotnet_diagnostic.CA1847.severity = none
-# 48
+# 48 (synchronous calls in async methods)
 dotnet_diagnostic.CA1849.severity = none
-# 1
-dotnet_diagnostic.CA1850.severity = none
-# 5
-dotnet_diagnostic.CA1852.severity = none
-# 5
-dotnet_diagnostic.CA1854.severity = none
-# 33
+# 33 (concrete types for private members)
 dotnet_diagnostic.CA1859.severity = none
-# 2
-dotnet_diagnostic.CA1860.severity = none
-# 11
+# 11 (constant array arguments)
 dotnet_diagnostic.CA1861.severity = none
-# 3
-dotnet_diagnostic.CA1862.severity = none
-# 4
-dotnet_diagnostic.CA1865.severity = none
-# 3
-dotnet_diagnostic.CA1866.severity = none
-# 4
-dotnet_diagnostic.CA1867.severity = none
-# 1
-dotnet_diagnostic.CA1869.severity = none

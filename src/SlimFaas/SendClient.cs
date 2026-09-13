@@ -217,7 +217,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     }
 
 
-    private void CopyFromOriginalRequestContentAndHeaders(CustomRequest context, HttpRequestMessage requestMessage, Stream? bodyOverrideStream = null)
+    private static void CopyFromOriginalRequestContentAndHeaders(CustomRequest context, HttpRequestMessage requestMessage, Stream? bodyOverrideStream = null)
     {
         string requestMethod = context.Method;
 
@@ -245,7 +245,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         }
     }
 
-    private HttpRequestMessage CreateTargetMessage(CustomRequest context, Uri targetUri, Stream? bodyOverrideStream = null)
+    private static HttpRequestMessage CreateTargetMessage(CustomRequest context, Uri targetUri, Stream? bodyOverrideStream = null)
     {
         HttpRequestMessage requestMessage = new();
         CopyFromOriginalRequestContentAndHeaders(context, requestMessage, bodyOverrideStream);
@@ -484,7 +484,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     }
 
 
-    private HttpRequestMessage CreateTargetMessage(HttpContext context, Uri targetUri)
+    private static HttpRequestMessage CreateTargetMessage(HttpContext context, Uri targetUri)
     {
         HttpRequestMessage requestMessage = new();
         CopyFromOriginalRequestContentAndHeaders(context, requestMessage);
@@ -538,7 +538,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         return requestMessage;
     }
 
-    private void CopyFromOriginalRequestContentAndHeaders(HttpContext context, HttpRequestMessage requestMessage)
+    private static void CopyFromOriginalRequestContentAndHeaders(HttpContext context, HttpRequestMessage requestMessage)
     {
         string requestMethod = context.Request.Method;
 

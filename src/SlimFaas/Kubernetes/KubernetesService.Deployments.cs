@@ -108,8 +108,8 @@ public partial class KubernetesService
             try
             {
                 IDictionary<string, string>? annotations = deploymentListItem.Spec.Template?.Metadata?.Annotations;
-                if (annotations == null || !annotations.ContainsKey(Function) ||
-                    annotations[Function].ToLowerInvariant() != "true")
+                if (annotations == null || !annotations.TryGetValue(Function, out string? functionAnnotation) ||
+                    !string.Equals(functionAnnotation, "true", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
@@ -350,8 +350,8 @@ public partial class KubernetesService
             try
             {
                 IDictionary<string, string>? annotations = deploymentListItem.Spec.Template?.Metadata?.Annotations;
-                if (annotations == null || !annotations.ContainsKey(Function) ||
-                    annotations[Function].ToLowerInvariant() != "true")
+                if (annotations == null || !annotations.TryGetValue(Function, out string? functionAnnotation) ||
+                    !string.Equals(functionAnnotation, "true", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

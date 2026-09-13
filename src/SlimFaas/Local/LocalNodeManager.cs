@@ -217,7 +217,7 @@ public sealed class LocalNodeManager : IAsyncDisposable
         }
     }
 
-    private IReadOnlyList<string> SelfCommand()
+    private static IReadOnlyList<string> SelfCommand()
     {
         string processPath = Environment.ProcessPath
                              ?? throw new InvalidOperationException("Unable to locate the SlimFaas executable.");

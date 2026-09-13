@@ -474,7 +474,7 @@ public class Endpoints
             context.Response.ContentType = "application/octet-stream";
             context.Response.ContentLength = responseBytes.Length;
 
-            await context.Response.Body.WriteAsync(responseBytes, 0, responseBytes.Length, source.Token);
+            await context.Response.Body.WriteAsync(responseBytes, source.Token);
             await context.Response.Body.FlushAsync(source.Token);
         });
         await task;
@@ -653,7 +653,7 @@ public class Endpoints
             context.Response.StatusCode = StatusCodes.Status200OK;
             context.Response.ContentType = "application/octet-stream";
             context.Response.ContentLength = bytes.Length;
-            await context.Response.Body.WriteAsync(bytes, 0, bytes.Length, source.Token);
+            await context.Response.Body.WriteAsync(bytes, source.Token);
             await context.Response.Body.FlushAsync(source.Token);
         });
         await task;

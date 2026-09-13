@@ -173,7 +173,7 @@ public class FakeProxy : IProxy
     // Pour un usage direct (sans itérations multiples), on peut définir
     // des valeurs simples à retourner si la queue d'itérations est vide.
     public string DefaultIp { get; set; } = "";
-    public IList<int>? DefaultPorts { get; set; } = null;
+    public IList<int>? DefaultPorts { get; set; }
 
     public string GetNextIP()
     {
