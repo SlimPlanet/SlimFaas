@@ -701,6 +701,13 @@ public static class SlimDataInterpreter
         return default;
     }
 
+    /// <summary>
+    /// The Do*Async handlers apply their command synchronously and return a completed ValueTask
+    /// (they are also exposed to the DotNext command pipeline). The batch path consumes that
+    /// ValueTask here instead of discarding it.
+    /// </summary>
+    private static void Apply(ValueTask completed) => completed.AsTask().GetAwaiter().GetResult();
+
     private static SlimDataCommandBatchResponse ApplyBatchRequest(
         SlimDataCommandBatchRequest request,
         SlimDataState state)
@@ -784,7 +791,7 @@ public static class SlimDataInterpreter
                 };
             }
 
-            DoListLeftPushBatchAsync(new ListLeftPushBatchCommand { Items = items }, state);
+            Apply(DoListLeftPushBatchAsync(new ListLeftPushBatchCommand { Items = items }, state));
             i = end;
         }
 
@@ -856,7 +863,7 @@ public static class SlimDataInterpreter
             case SlimDataBatchOperationKind.KeyValue:
             {
                 var keyValueResult = new KeyValueCommandResult();
-                DoAddKeyValueAsync(
+                Apply(DoAddKeyValueAsync(
                     new AddKeyValueCommand
                     {
                         Items =
@@ -874,7 +881,7 @@ public static class SlimDataInterpreter
                         ]
                     },
                     state,
-                    keyValueResult);
+                    keyValueResult));
                 result.KeyValueResult = keyValueResult;
                 result.Applied = keyValueResult.Applied;
                 result.ErrorMessage = keyValueResult.ErrorMessage;
@@ -882,11 +889,11 @@ public static class SlimDataInterpreter
             }
 
             case SlimDataBatchOperationKind.DeleteKeyValue:
-                DoDeleteKeyValueAsync(new DeleteKeyValueCommand { Key = operation.Key }, state);
+                Apply(DoDeleteKeyValueAsync(new DeleteKeyValueCommand { Key = operation.Key }, state));
                 break;
 
             case SlimDataBatchOperationKind.AddHashSet:
-                DoAddHashSetAsync(
+                Apply(DoAddHashSetAsync(
                     new AddHashSetCommand
                     {
                         Key = operation.Key,
@@ -896,21 +903,21 @@ public static class SlimDataInterpreter
                                 static item => (ReadOnlyMemory<byte>)item.Value),
                         ExpireAtUtcTicks = operation.ExpireAtUtcTicks
                     },
-                    state);
+                    state));
                 break;
 
             case SlimDataBatchOperationKind.DeleteHashSet:
-                DoDeleteHashSetAsync(
+                Apply(DoDeleteHashSetAsync(
                     new DeleteHashSetCommand
                     {
                         Key = operation.Key,
                         DictionaryKey = operation.DictionaryKey
                     },
-                    state);
+                    state));
                 break;
 
             case SlimDataBatchOperationKind.ListLeftPush:
-                DoListLeftPushBatchAsync(
+                Apply(DoListLeftPushBatchAsync(
                     new ListLeftPushBatchCommand
                     {
                         Items =
@@ -927,12 +934,12 @@ public static class SlimDataInterpreter
                             }
                         ]
                     },
-                    state);
+                    state));
                 result.ElementId = operation.ElementId;
                 break;
 
             case SlimDataBatchOperationKind.ListRightPop:
-                DoListRightPopAsync(
+                Apply(DoListRightPopAsync(
                     new ListRightPopCommand
                     {
                         Key = operation.Key,
@@ -941,12 +948,12 @@ public static class SlimDataInterpreter
                         IdTransaction = operation.TransactionId,
                         ReservedIps = operation.ReservedIps.ToList()
                     },
-                    state);
+                    state));
                 result.QueueItems = GetPoppedQueueItems(operation, state);
                 break;
 
             case SlimDataBatchOperationKind.ListCallback:
-                DoListCallbackAsync(
+                Apply(DoListCallbackAsync(
                     new ListCallbackCommand
                     {
                         Key = operation.Key,
@@ -955,7 +962,7 @@ public static class SlimDataInterpreter
                             .Select(static item => new CallbackElement(item.Id, item.HttpCode))
                             .ToList()
                     },
-                    state);
+                    state));
                 break;
 
             default:

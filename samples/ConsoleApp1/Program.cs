@@ -13,7 +13,7 @@ var fib2 = "/async-function/fibonacci2/compute";
 int pairs = 10000;
 
 // (Optionnel) délai entre paires pour bien voir les logs côté serveur
-TimeSpan? interPairDelay = TimeSpan.FromMilliseconds(10);
+TimeSpan interPairDelay = TimeSpan.FromMilliseconds(10);
 
 using var http = new HttpClient { BaseAddress = new Uri(baseAddress) };
 
@@ -49,8 +49,7 @@ for (int i = 0; i < pairs; i++)
         Console.WriteLine($"[{i}] <- {(k==0 ? "fib1" : "fib2")} {((int)r.StatusCode)} {r.ReasonPhrase} body={txt}");
     }
 
-    if (interPairDelay is not null)
-        await Task.Delay(interPairDelay.Value);
+    await Task.Delay(interPairDelay);
 }
 
 Console.WriteLine("Done.");

@@ -79,7 +79,7 @@ public sealed class LocalTcpGateway : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await _stopping.CancelAsync();
-        _listener.Stop();
+        _listener.Dispose();
         if (_acceptTask is not null)
             await _acceptTask;
         _stopping.Dispose();

@@ -13,7 +13,7 @@ REPOSITORY = Path(__file__).resolve().parent.parent
 RIDS = ("linux-x64", "linux-arm64", "osx-x64", "osx-arm64", "win-x64")
 
 
-def publish(project, rid, destination, aot=False):
+def publish(project, rid, destination, aot=False, folder="src"):
     if aot:
         # Build before MSBuild evaluates wwwroot globs on a fresh checkout.
         dashboard = REPOSITORY / "src/SlimFaas/ClientApp"
@@ -22,7 +22,7 @@ def publish(project, rid, destination, aot=False):
             subprocess.run([npm, "ci"], cwd=dashboard, check=True)
         subprocess.run([npm, "run", "build"], cwd=dashboard, check=True)
     subprocess.run([
-        "dotnet", "publish", str(REPOSITORY / "src" / project / f"{project}.csproj"),
+        "dotnet", "publish", str(REPOSITORY / folder / project / f"{project}.csproj"),
         "-c", "Release", "-r", rid, "-o", str(destination),
         "--self-contained", "true", "-p:UseAppHost=true",
         f"-p:PublishAot={str(aot).lower()}", f"-p:PublishTrimmed={str(aot).lower()}",
@@ -47,8 +47,8 @@ def main():
             shutil.copytree(args.slimfaas_publish.resolve(), bundle / "runtime")
         else:
             publish("SlimFaas", args.rid, bundle / "runtime", aot=True)
-        publish("Fibonacci", args.rid, bundle / "functions/fibonacci")
-        publish("FibonacciBatch", args.rid, bundle / "jobs/fibonacci-batch")
+        publish("Fibonacci", args.rid, bundle / "functions/fibonacci", folder="samples")
+        publish("FibonacciBatch", args.rid, bundle / "jobs/fibonacci-batch", folder="samples")
         suffix = ".exe" if args.rid == "win-x64" else ""
         for executable in ("runtime/SlimFaas", "functions/fibonacci/Fibonacci", "jobs/fibonacci-batch/FibonacciBatch"):
             path = bundle / (executable + suffix)

@@ -2,8 +2,6 @@
 
     <PropertyGroup>
         <TargetFramework>net10.0</TargetFramework>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
         <RuntimeIdentifiers>linux-x64;win-x64;osx-arm64</RuntimeIdentifiers>
         <PublishTrimmed>true</PublishTrimmed>
         <TrimMode>full</TrimMode>
@@ -29,13 +27,13 @@
     <ClientAppDir>$(MSBuildProjectDirectory)\ClientApp</ClientAppDir>
   </PropertyGroup>
 
-  <Target Name="BuildClientApp" BeforeTargets="Publish;Build">
+  <Target Name="BuildClientApp" BeforeTargets="Publish;Build" Condition="'$(SkipClientAppBuild)' != 'true'">
     <Message Importance="high" Text="Building ClientApp (npm run build)..." />
     <Exec WorkingDirectory="$(ClientAppDir)" Command="npm ci" />
     <Exec WorkingDirectory="$(ClientAppDir)" Command="npm run build" />
   </Target>
 
-  <Target Name="CopyClientAppToWwwroot" AfterTargets="BuildClientApp" BeforeTargets="Publish">
+  <Target Name="CopyClientAppToWwwroot" AfterTargets="BuildClientApp" BeforeTargets="Publish" Condition="'$(SkipClientAppBuild)' != 'true'">
     <ItemGroup>
       <_ClientDist Include="$(ClientAppDir)\dist\**\*" />
     </ItemGroup>
@@ -47,12 +45,12 @@
   </Target>
 
   <!-- DEBUG (F5) : build front avant le démarrage -->
-  <Target Name="BuildClientAppDebug" BeforeTargets="Build" Condition="'$(Configuration)'=='Debug'">
+  <Target Name="BuildClientAppDebug" BeforeTargets="Build" Condition="'$(Configuration)'=='Debug' And '$(SkipClientAppBuild)' != 'true'">
     <Exec WorkingDirectory="$(ClientAppDir)" Command="npm ci" />
     <Exec WorkingDirectory="$(ClientAppDir)" Command="npm run build" />
   </Target>
 
-  <Target Name="CopyClientAppToWwwrootDebug" AfterTargets="BuildClientAppDebug" Condition="'$(Configuration)'=='Debug'">
+  <Target Name="CopyClientAppToWwwrootDebug" AfterTargets="BuildClientAppDebug" Condition="'$(Configuration)'=='Debug' And '$(SkipClientAppBuild)' != 'true'">
     <ItemGroup>
       <_ClientDist Include="$(ClientAppDir)\dist\**\*" />
     </ItemGroup>

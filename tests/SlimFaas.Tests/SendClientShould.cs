@@ -191,7 +191,7 @@ public class SendClientShould
         DefaultHttpContext httpContext = new();
         HttpRequest httpContextRequest = httpContext.Request;
         string authorization = "bearer value1";
-        httpContextRequest.Headers.Add("Authorization", authorization);
+        httpContextRequest.Headers.Append("Authorization", authorization);
         httpContextRequest.Method = httpMethod;
         httpContextRequest.Path = "/fibonacci/health";
         httpContextRequest.Host = new HostString("fibonacci");

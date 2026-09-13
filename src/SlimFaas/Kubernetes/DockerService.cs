@@ -766,8 +766,9 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
                 IList<string> dependsOn = SplitCsv(labels, DependsOn);
                 labels.TryGetValue(SlimfaasJobElementId, out string? elementId);
-                long.TryParse(labels.GetValueOrDefault(SlimfaasInQueueTimestamp), out long inQueue);
-                long.TryParse(labels.GetValueOrDefault(SlimfaasJobStartTimestamp), out long startTs);
+                // A missing or malformed label yields 0, which the callers treat as "unknown".
+                _ = long.TryParse(labels.GetValueOrDefault(SlimfaasInQueueTimestamp), out long inQueue);
+                _ = long.TryParse(labels.GetValueOrDefault(SlimfaasJobStartTimestamp), out long startTs);
 
 
                 int ttlSec = 0;
@@ -1637,14 +1638,15 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
             baseAddress = uri;
 
+#pragma warning disable CA5359 // Self-signed TLS on the Docker socket in dev; hardening tracked in #346
             HttpClient http = new(new SocketsHttpHandler
             {
-                // En dev, tolère un TLS autosigné. ⚠️ À durcir en prod.
                 SslOptions = new SslClientAuthenticationOptions
                 {
                     RemoteCertificateValidationCallback = static (_, __, ___, ____) => true
                 }
             });
+#pragma warning restore CA5359
 
             return http;
         }
