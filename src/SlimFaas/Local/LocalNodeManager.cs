@@ -199,7 +199,7 @@ public sealed class LocalNodeManager : IAsyncDisposable
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeout.CancelAfter(TimeSpan.FromSeconds(1));
             using HttpResponseMessage response = await _healthClient.GetAsync(
-                $"http://127.0.0.1:{HttpPort(node)}/ready",
+                new Uri($"http://127.0.0.1:{HttpPort(node)}/ready"),
                 timeout.Token);
             ready = response.IsSuccessStatusCode;
         }

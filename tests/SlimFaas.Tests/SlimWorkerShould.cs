@@ -161,7 +161,7 @@ public class SlimWorkerShould
     {
         Mock<IServiceProvider> serviceProvider = new Mock<IServiceProvider>();
         Mock<IReplicasService> replicasService = new Mock<IReplicasService>();
-        replicasService.Setup(rs => rs.Deployments).Throws(new Exception());
+        replicasService.Setup(rs => rs.Deployments).Throws(new InvalidOperationException());
         HistoryHttpMemoryService historyHttpService = new HistoryHttpMemoryService();
         Mock<ILogger<SlimQueuesWorker>> logger = new Mock<ILogger<SlimQueuesWorker>>();
         SlimFaasQueue redisQueue = new SlimFaasQueue(new DatabaseMockService());

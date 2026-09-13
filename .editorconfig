@@ -232,6 +232,12 @@ dotnet_diagnostic.CA1711.severity = none
 dotnet_diagnostic.CA1724.severity = none
 # CA1716: identifiers that are Visual Basic keywords (Event, Namespace, function) are fine in a C#-only code base.
 dotnet_diagnostic.CA1716.severity = none
+# CA2025: the rule flags every fan-out (start tasks, await Task.WhenAll/WhenAny, then dispose) although the
+# disposable outlives the awaits; it cannot follow WhenAll and produced only false positives here.
+dotnet_diagnostic.CA2025.severity = none
+# CA5394: Random.Shared is used for retry jitter, activity sampling and initial target selection only;
+# tokens and signatures come from System.Security.Cryptography.
+dotnet_diagnostic.CA5394.severity = none
 
 # Sample programs use top-level statements and declare their helper types next to them.
 [samples/**.cs]

@@ -216,7 +216,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         HttpMethod httpMethod = new(endpoint.Verb ?? "GET");
         if (string.Equals(endpoint.Verb, "GET", StringComparison.OrdinalIgnoreCase))
         {
-            HttpRequestMessage reqGet = new(HttpMethod.Get, fullUrl);
+            using HttpRequestMessage reqGet = new(HttpMethod.Get, fullUrl);
             reqGet.Headers.Accept.ParseAdd("application/json");
             if (additionalHeaders != null)
             {
@@ -289,6 +289,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                     }
 
                     byte[] bytes = Convert.FromBase64String(Strip(b64!));
+#pragma warning disable CA2000 // the multipart content owns and disposes its parts
                     ByteArrayContent part = new(bytes);
                     part.Headers.ContentType =
                         new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(mime) ? "application/octet-stream" : mime);
@@ -301,6 +302,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                         p.Name!);
                 }
             }
+#pragma warning restore CA2000
             string multipartSummary =
                 "multipart/form-data; fields=[" +
                 string.Join(", ", parameters
@@ -372,17 +374,20 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             reqMsg = new HttpRequestMessage(httpMethod, fullUrl) { Content = body };
         }
 
-        reqMsg.Headers.Accept.ParseAdd("*/*");
-        if (additionalHeaders != null)
+        using (reqMsg)
         {
-            foreach (KeyValuePair<string, string> header in additionalHeaders)
+            reqMsg.Headers.Accept.ParseAdd("*/*");
+            if (additionalHeaders != null)
             {
-                reqMsg.Headers.Add(header.Key, header.Value);
+                foreach (KeyValuePair<string, string> header in additionalHeaders)
+                {
+                    reqMsg.Headers.Add(header.Key, header.Value);
+                }
             }
-        }
 
-        resp = await _httpClient.SendAsync(reqMsg);
-        return await ToProxyCallResult(resp);
+            resp = await _httpClient.SendAsync(reqMsg);
+            return await ToProxyCallResult(resp);
+        }
     }
 
     private static string CombineBaseUrl(string? baseUrl, string endpointUrl)

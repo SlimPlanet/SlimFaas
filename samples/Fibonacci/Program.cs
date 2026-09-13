@@ -193,7 +193,7 @@ app.MapPost("/fibonacci-recursive", async (
 app.MapGet("/error", async () =>
 {
     await Task.Delay(100);
-    throw new Exception("Error");
+    throw new InvalidOperationException("Error");
 });
 
 

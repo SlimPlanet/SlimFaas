@@ -732,7 +732,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 }
 
                 if (!string.IsNullOrWhiteSpace(insp.State?.Error) &&
-                    insp.State!.Error!.IndexOf("pull", StringComparison.OrdinalIgnoreCase) >= 0)
+                    insp.State!.Error!.Contains("pull", StringComparison.OrdinalIgnoreCase))
                 {
                     status = JobStatus.ImagePullBackOff;
                 }
@@ -1020,7 +1020,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
         internal async Task<InspectContainerResponse?> InspectLogContainerAsync(string name, CancellationToken ct)
         {
-            using var response = await _http.GetAsync($"{_apiPrefix}/containers/{Uri.EscapeDataString(name)}/json", ct);
+            using var response = await _http.GetAsync(new Uri($"{_apiPrefix}/containers/{Uri.EscapeDataString(name)}/json", UriKind.RelativeOrAbsolute), ct);
             if (response.StatusCode == HttpStatusCode.NotFound) return null;
             if (response.StatusCode == HttpStatusCode.Forbidden) throw new UnauthorizedAccessException("Log access denied");
             response.EnsureSuccessStatusCode();
@@ -1028,13 +1028,13 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         }
 
         internal Task<HttpResponseMessage> OpenLogResponseAsync(string id, CancellationToken ct) =>
-            _http.GetAsync($"{_apiPrefix}/containers/{Uri.EscapeDataString(id)}/logs?stdout=1&stderr=1&follow=1&timestamps=1&tail=10000",
+            _http.GetAsync(new Uri($"{_apiPrefix}/containers/{Uri.EscapeDataString(id)}/logs?stdout=1&stderr=1&follow=1&timestamps=1&tail=10000", UriKind.RelativeOrAbsolute),
                 HttpCompletionOption.ResponseHeadersRead, ct);
 
         private async Task<string> GetContainerLogsAsync(string id, int tail = 200)
         {
             string url = $"{_apiPrefix}/containers/{id}/logs?stdout=1&stderr=1&tail={tail}";
-            using HttpResponseMessage res = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            using HttpResponseMessage res = await _http.GetAsync(new Uri(url, UriKind.RelativeOrAbsolute), HttpCompletionOption.ResponseHeadersRead);
             res.EnsureSuccessStatusCode();
             return await res.Content.ReadAsStringAsync();
         }
@@ -1583,6 +1583,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             if (candidate.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
             {
                 string path = candidate.Replace("unix://", "", StringComparison.OrdinalIgnoreCase);
+#pragma warning disable CA2000 // the HttpClient created below owns the handler
                 SocketsHttpHandler handler = new()
                 {
                     ConnectCallback = async (ctx, ct) =>
@@ -1604,6 +1605,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                         return new NetworkStream(sock, true);
                     }
                 };
+#pragma warning restore CA2000
                 baseAddress = new Uri("http://localhost"); // hôte bidon requis par HttpClient
                 return new HttpClient(handler);
             }
@@ -1629,6 +1631,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             baseAddress = uri;
 
 #pragma warning disable CA5359 // Self-signed TLS on the Docker socket in dev; hardening tracked in #346
+#pragma warning disable CA2000 // the HttpClient owns the handler
             HttpClient http = new(new SocketsHttpHandler
             {
                 SslOptions = new SslClientAuthenticationOptions
@@ -1636,6 +1639,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                     RemoteCertificateValidationCallback = static (_, __, ___, ____) => true
                 }
             });
+#pragma warning restore CA2000
 #pragma warning restore CA5359
 
             return http;
@@ -1665,7 +1669,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
         private async Task<T?> GetAsync<T>(string path, JsonTypeInfo<T> typeInfo)
         {
-            using HttpResponseMessage res = await _http.GetAsync(path, HttpCompletionOption.ResponseHeadersRead);
+            using HttpResponseMessage res = await _http.GetAsync(new Uri(path, UriKind.RelativeOrAbsolute), HttpCompletionOption.ResponseHeadersRead);
             if (!res.IsSuccessStatusCode)
             {
                 return default;
@@ -1682,8 +1686,9 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             JsonTypeInfo<TRes> resTypeInfo)
         {
             string json = JsonSerializer.Serialize(body, reqTypeInfo);
+            using StringContent content = new(json, Encoding.UTF8, "application/json");
             using HttpResponseMessage res =
-                await _http.PostAsync(path, new StringContent(json, Encoding.UTF8, "application/json"));
+                await _http.PostAsync(new Uri(path, UriKind.RelativeOrAbsolute), content);
             res.EnsureSuccessStatusCode();
             await using Stream s = await res.Content.ReadAsStreamAsync();
             if (s.CanSeek && s.Length == 0)
@@ -1696,7 +1701,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
         private async Task PostAsync(string path, HttpContent? body)
         {
-            using HttpResponseMessage res = await _http.PostAsync(path, body);
+            using HttpResponseMessage res = await _http.PostAsync(new Uri(path, UriKind.RelativeOrAbsolute), body);
             if (!res.IsSuccessStatusCode)
             {
                 string err = await res.Content.ReadAsStringAsync();
@@ -1706,7 +1711,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
         private async Task DeleteAsync(string path)
         {
-            using HttpResponseMessage res = await _http.DeleteAsync(path);
+            using HttpResponseMessage res = await _http.DeleteAsync(new Uri(path, UriKind.RelativeOrAbsolute));
             if (!res.IsSuccessStatusCode)
             {
                 string err = await res.Content.ReadAsStringAsync();

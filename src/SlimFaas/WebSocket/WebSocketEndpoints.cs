@@ -48,7 +48,7 @@ public static class WebSocketEndpoints
         }
 
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
-        var connection = new WebSocketClientConnection { Socket = socket };
+        using var connection = new WebSocketClientConnection { Socket = socket };
 
         try
         {

@@ -146,8 +146,10 @@ public sealed class DiskFileRepository : IFileRepository
     public Task<Stream> OpenReadAsync(string id, CancellationToken ct)
     {
         var (filePath, _) = GetPaths(id);
+#pragma warning disable CA2000 // ownership is transferred to the returned FileCacheDroppingReadStream
         var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
+#pragma warning restore CA2000
 
         return Task.FromResult<Stream>(new FileCacheDroppingReadStream(fs, _cacheControl));
     }

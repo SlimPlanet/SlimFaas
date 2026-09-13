@@ -160,7 +160,9 @@ public sealed class LocalSupervisor(LoadedLocalManifest loaded, bool clean)
                 jobs.StartAsync(cancellationToken),
                 processes.StartAsync(cancellationToken),
                 nodeManager.StartAsync(cancellationToken));
+#pragma warning disable CA2000 // disposed in the finally block below
             gateway = new LocalTcpGateway(loaded.Manifest.Cluster.EntrypointPort, nodeManager);
+#pragma warning restore CA2000
             gateway.Start();
 
             Console.WriteLine(

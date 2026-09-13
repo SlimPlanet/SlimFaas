@@ -7,28 +7,6 @@
 is_global = true
 global_level = 90
 
-# --- Security ---
-# 6
-dotnet_diagnostic.CA5394.severity = none
-
-# --- Reliability / usage (CA2xxx) ---
-# 20
-dotnet_diagnostic.CA2000.severity = none
-# 43 (SlimFaasClient only, the rule is off for applications)
-dotnet_diagnostic.CA2007.severity = none
-# 2
-dotnet_diagnostic.CA2016.severity = none
-# 2
-dotnet_diagnostic.CA2022.severity = none
-# 18
-dotnet_diagnostic.CA2025.severity = none
-# 8
-dotnet_diagnostic.CA2201.severity = none
-# 16
-dotnet_diagnostic.CA2234.severity = none
-# 1
-dotnet_diagnostic.CA2249.severity = none
-
 # --- Logging (dedicated phase) ---
 # 371
 dotnet_diagnostic.CA1848.severity = none

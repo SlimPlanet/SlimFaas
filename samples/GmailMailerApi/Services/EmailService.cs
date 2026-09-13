@@ -22,7 +22,7 @@ public sealed class EmailService(SmtpOptions options, ILogger<EmailService> logg
         if (string.IsNullOrWhiteSpace(req.Text) && string.IsNullOrWhiteSpace(req.Html))
             throw new ArgumentException("Provide at least 'Text' or 'Html' body.");
 
-        var message = new MimeMessage();
+        using var message = new MimeMessage();
 
         // From
         var fromName = string.IsNullOrWhiteSpace(_opt.SenderDisplayName) ? _opt.Username : _opt.SenderDisplayName;

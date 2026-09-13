@@ -176,7 +176,7 @@ public class HistorySynchronizationWorkerShould
         var historyHttpRedisService = new HistoryHttpDatabaseService(redisMockService);
         var historyHttpMemoryService = new HistoryHttpMemoryService();
         var replicasService = new Mock<IReplicasService>();
-        replicasService.Setup(r => r.Deployments).Throws(new Exception());
+        replicasService.Setup(r => r.Deployments).Throws(new InvalidOperationException());
 
         var slimDataStatus = new Mock<ISlimDataStatus>();
         slimDataStatus.Setup(s => s.WaitForReadyAsync()).Returns(Task.CompletedTask);

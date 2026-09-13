@@ -102,7 +102,7 @@ public static class Retry
                 return responseMessage;
             }
             responseMessage.Dispose();
-            exceptions.Add(new Exception($"DoRequestAsync received code Http {statusCode}"));
+            exceptions.Add(new HttpRequestException($"DoRequestAsync received code Http {statusCode}", null, responseMessage.StatusCode));
         }
 
         throw new AggregateException(exceptions);

@@ -156,7 +156,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                       ports is null ||
                       ports.Count == 0)))
                 {
-                    throw new Exception("Not port or IP available");
+                    throw new InvalidOperationException("Not port or IP available");
                 }
 
                 targetUrl = string.IsNullOrWhiteSpace(endpointUrl)
@@ -374,7 +374,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                (string.IsNullOrWhiteSpace(endpointUrl) &&
                 (ports == null || string.IsNullOrEmpty(ip) || ports.Count == 0)))
            {
-               throw new Exception("Not port or IP available");
+               throw new InvalidOperationException("Not port or IP available");
            }
 
            return string.IsNullOrWhiteSpace(endpointUrl)

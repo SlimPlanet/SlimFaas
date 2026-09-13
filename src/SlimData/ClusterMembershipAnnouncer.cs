@@ -25,7 +25,9 @@ internal sealed class ClusterMembershipAnnouncer(
             if (Startup.SameEndpoint(candidate, address.Uri))
                 continue;
 
+#pragma warning disable CA2000 // using declaration; the analyzer does not follow CancelAfter
             using var attempt = CancellationTokenSource.CreateLinkedTokenSource(token);
+#pragma warning restore CA2000
             attempt.CancelAfter(_attemptTimeout);
             try
             {

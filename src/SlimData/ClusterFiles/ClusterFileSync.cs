@@ -125,7 +125,9 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             HttpResponseMessage? headResp = null;
             try
             {
-                var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
+#pragma warning disable CA2000 // using declaration; the analyzer does not see through SendWithRedirectAsync
+                using var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
+#pragma warning restore CA2000
                 headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, ct).ConfigureAwait(false);
                 _logger.LogDebug("GET {FileUri} {StatusCode}", fileUri, headResp.StatusCode);
                 if (headResp.StatusCode == HttpStatusCode.NotFound)

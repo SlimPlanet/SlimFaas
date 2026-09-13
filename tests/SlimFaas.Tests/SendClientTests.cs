@@ -149,7 +149,7 @@ namespace SlimFaas.Tests
 
             // Act + Assert
             // On s’attend à ce que la méthode lève une Exception("Not port or IP available")
-            await Assert.ThrowsAsync<Exception>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
                 await SendClient.ComputeTargetUrlAsync(
                     functionUrl,

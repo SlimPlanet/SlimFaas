@@ -442,7 +442,7 @@ app.MapGet("/{oauth?}/.well-known/oauth-protected-resource",
             var meta = System.Text.Json.JsonSerializer.Deserialize(
                            json,
                            AppJsonContext.Default.OAuthProtectedResourceMetadata)
-                       ?? throw new Exception("JSON vide");
+                       ?? throw new InvalidOperationException("JSON vide");
 
             return Results.Json(meta, AppJsonContext.Default.OAuthProtectedResourceMetadata);
         }

@@ -154,7 +154,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
         {
             try
             {
-                await ConnectAndLoopAsync(ct);
+                await ConnectAndLoopAsync(ct).ConfigureAwait(false);
             }
             catch (SlimFaasRegistrationException ex)
             {
@@ -171,7 +171,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
                     "WebSocket disconnected ({Error}). Reconnecting in {Delay:F1} s…",
                     ex.Message,
                     _options.ReconnectDelay);
-                await Task.Delay(TimeSpan.FromSeconds(_options.ReconnectDelay), ct);
+                await Task.Delay(TimeSpan.FromSeconds(_options.ReconnectDelay), ct).ConfigureAwait(false);
             }
         }
     }
@@ -195,7 +195,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             Payload = JsonSerializer.SerializeToElement(callback, SlimFaasClientJsonContext.Default.AsyncCallbackDto),
         };
 
-        await SendEnvelopeAsync(_ws, envelope, ct);
+        await SendEnvelopeAsync(_ws, envelope, ct).ConfigureAwait(false);
     }
 
     // ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             {
                 try
                 {
-                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disposing", CancellationToken.None);
+                    await _ws.CloseAsync(WebSocketCloseStatus.NormalClosure, "Disposing", CancellationToken.None).ConfigureAwait(false);
                 }
                 catch { /* ignore */ }
             }
@@ -231,10 +231,10 @@ public sealed class SlimFaasClient : IAsyncDisposable
         using var ws = new ClientWebSocket();
         _ws = ws;
 
-        await ws.ConnectAsync(_uri, ct);
+        await ws.ConnectAsync(_uri, ct).ConfigureAwait(false);
         _logger.LogInformation("Connected. Registering function '{FunctionName}' …", _config.FunctionName);
 
-        await RegisterAsync(ws, ct);
+        await RegisterAsync(ws, ct).ConfigureAwait(false);
 
         using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var pingTask = _options.PingInterval > 0
@@ -243,11 +243,11 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
         try
         {
-            await ReceiveLoopAsync(ws, ct);
+            await ReceiveLoopAsync(ws, ct).ConfigureAwait(false);
         }
         finally
         {
-            await pingCts.CancelAsync();
+            await pingCts.CancelAsync().ConfigureAwait(false);
             await pingTask.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
             _ws = null;
             _connectionId = null;
@@ -293,13 +293,13 @@ public sealed class SlimFaasClient : IAsyncDisposable
             Payload = JsonSerializer.SerializeToElement(payloadDto, SlimFaasClientJsonContext.Default.RegisterPayloadDto),
         };
 
-        await SendEnvelopeAsync(ws, envelope, ct);
+        await SendEnvelopeAsync(ws, envelope, ct).ConfigureAwait(false);
 
         // Attend la réponse d'enregistrement
         var buffer = new byte[_options.ReceiveBufferSize];
         while (!ct.IsCancellationRequested)
         {
-            var message = await ReceiveFullMessageAsync(ws, buffer, ct);
+            var message = await ReceiveFullMessageAsync(ws, buffer, ct).ConfigureAwait(false);
             if (message == null) continue;
 
             var response = JsonSerializer.Deserialize(message, SlimFaasClientJsonContext.Default.SlimFaasEnvelope);
@@ -333,10 +333,10 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
             do
             {
-                result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+                result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct).ConfigureAwait(false);
                 if (result.MessageType == WebSocketMessageType.Close)
                     return;
-                await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct);
+                await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct).ConfigureAwait(false);
             }
             while (!result.EndOfMessage);
 
@@ -363,7 +363,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
             if (envelope == null) continue;
 
-            await HandleEnvelopeAsync(ws, envelope, ct);
+            await HandleEnvelopeAsync(ws, envelope, ct).ConfigureAwait(false);
         }
     }
 
@@ -488,14 +488,14 @@ public sealed class SlimFaasClient : IAsyncDisposable
             _logger.LogWarning(
                 "Received AsyncRequest for {ElementId} but no handler registered. Returning 500.",
                 req.ElementId);
-            await SendCallbackInternalAsync(ws, req.ElementId, 500, ct);
+            await SendCallbackInternalAsync(ws, req.ElementId, 500, ct).ConfigureAwait(false);
             return;
         }
 
         int statusCode;
         try
         {
-            statusCode = await OnAsyncRequest(req);
+            statusCode = await OnAsyncRequest(req).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -506,7 +506,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
         // 202 = le client gérera le callback lui-même via SendCallbackAsync
         if (statusCode != 202)
         {
-            await SendCallbackInternalAsync(ws, req.ElementId, statusCode, ct);
+            await SendCallbackInternalAsync(ws, req.ElementId, statusCode, ct).ConfigureAwait(false);
         }
     }
 
@@ -520,7 +520,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
         try
         {
-            await OnPublishEvent(evt);
+            await OnPublishEvent(evt).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -533,24 +533,24 @@ public sealed class SlimFaasClient : IAsyncDisposable
         if (OnSyncRequest == null)
         {
             _logger.LogWarning("Received SyncRequest for {CorrelationId} but no handler registered. Returning 500.", req.CorrelationId);
-            await req.Response.StartAsync(500, ct: ct);
-            await req.Response.CompleteAsync(ct);
+            await req.Response.StartAsync(500, ct: ct).ConfigureAwait(false);
+            await req.Response.CompleteAsync(ct).ConfigureAwait(false);
             return;
         }
 
         try
         {
-            await OnSyncRequest(req);
+            await OnSyncRequest(req).ConfigureAwait(false);
             // Auto-complete if the handler forgot to call CompleteAsync
-            await req.Response.CompleteAsync(ct);
+            await req.Response.CompleteAsync(ct).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "SyncRequest handler threw an exception for {CorrelationId}", req.CorrelationId);
             try
             {
-                await req.Response.StartAsync(500, ct: ct);
-                await req.Response.CompleteAsync(ct);
+                await req.Response.StartAsync(500, ct: ct).ConfigureAwait(false);
+                await req.Response.CompleteAsync(ct).ConfigureAwait(false);
             }
             catch { /* ignore — response may have been partially sent */ }
         }
@@ -571,7 +571,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
         };
         var json = JsonSerializer.SerializeToUtf8Bytes(dto, SlimFaasClientJsonContext.Default.SyncResponseStartDto);
         var frame = BinaryFrame.Encode(SlimFaasMessageType.SyncResponseStart, correlationId, json);
-        await SendBinaryAsync(_ws, frame, ct);
+        await SendBinaryAsync(_ws, frame, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -583,7 +583,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             throw new InvalidOperationException("WebSocket is not connected.");
 
         var frame = BinaryFrame.Encode(SlimFaasMessageType.SyncResponseChunk, correlationId, chunk.Span);
-        await SendBinaryAsync(_ws, frame, ct);
+        await SendBinaryAsync(_ws, frame, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -595,7 +595,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
             throw new InvalidOperationException("WebSocket is not connected.");
 
         var frame = BinaryFrame.Encode(SlimFaasMessageType.SyncResponseEnd, correlationId, BinaryFrame.FlagEndOfStream);
-        await SendBinaryAsync(_ws, frame, ct);
+        await SendBinaryAsync(_ws, frame, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -606,7 +606,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
         if (_ws == null || _ws.State != WebSocketState.Open) return;
 
         var frame = BinaryFrame.Encode(SlimFaasMessageType.SyncCancel, correlationId);
-        await SendBinaryAsync(_ws, frame, ct);
+        await SendBinaryAsync(_ws, frame, ct).ConfigureAwait(false);
     }
 
     private async Task SendCallbackInternalAsync(ClientWebSocket ws, string elementId, int statusCode, CancellationToken ct)
@@ -618,14 +618,14 @@ public sealed class SlimFaasClient : IAsyncDisposable
             CorrelationId = elementId,
             Payload = JsonSerializer.SerializeToElement(callback, SlimFaasClientJsonContext.Default.AsyncCallbackDto),
         };
-        await SendEnvelopeAsync(ws, envelope, ct);
+        await SendEnvelopeAsync(ws, envelope, ct).ConfigureAwait(false);
     }
 
     private async Task PingLoopAsync(ClientWebSocket ws, CancellationToken ct)
     {
         while (!ct.IsCancellationRequested && ws.State == WebSocketState.Open)
         {
-            await Task.Delay(TimeSpan.FromSeconds(_options.PingInterval), ct);
+            await Task.Delay(TimeSpan.FromSeconds(_options.PingInterval), ct).ConfigureAwait(false);
             try
             {
                 var ping = new SlimFaasEnvelope
@@ -633,7 +633,7 @@ public sealed class SlimFaasClient : IAsyncDisposable
                     Type = SlimFaasMessageType.Ping,
                     CorrelationId = Guid.NewGuid().ToString("N"),
                 };
-                await SendEnvelopeAsync(ws, ping, ct);
+                await SendEnvelopeAsync(ws, ping, ct).ConfigureAwait(false);
             }
             catch (Exception)
             {
@@ -649,14 +649,14 @@ public sealed class SlimFaasClient : IAsyncDisposable
         var json = JsonSerializer.Serialize(envelope, SlimFaasClientJsonContext.Default.SlimFaasEnvelope);
         var bytes = Encoding.UTF8.GetBytes(json);
 
-        await _sendLock.WaitAsync(ct);
+        await _sendLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             await ws.SendAsync(
                 new ArraySegment<byte>(bytes),
                 WebSocketMessageType.Text,
                 endOfMessage: true,
-                ct);
+                ct).ConfigureAwait(false);
         }
         finally
         {
@@ -666,14 +666,14 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
     private async Task SendBinaryAsync(ClientWebSocket ws, byte[] frame, CancellationToken ct)
     {
-        await _sendLock.WaitAsync(ct);
+        await _sendLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             await ws.SendAsync(
                 new ArraySegment<byte>(frame),
                 WebSocketMessageType.Binary,
                 endOfMessage: true,
-                ct);
+                ct).ConfigureAwait(false);
         }
         finally
         {
@@ -691,12 +691,12 @@ public sealed class SlimFaasClient : IAsyncDisposable
 
         do
         {
-            result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct);
+            result = await ws.ReceiveAsync(new ArraySegment<byte>(buffer), ct).ConfigureAwait(false);
             if (result.MessageType == WebSocketMessageType.Close)
             {
                 return null;
             }
-            await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct);
+            await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct).ConfigureAwait(false);
         }
         while (!result.EndOfMessage);
 

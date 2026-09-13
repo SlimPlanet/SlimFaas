@@ -377,7 +377,9 @@ public static class FunctionEndpointsHelpers
             else
             {
                 shouldOffload = true;
+#pragma warning disable CA2000 // returned to the caller, which disposes the offloaded content
                 offloadContent = new PrefixedReadStream(bodyProbe, contextRequest.Body);
+#pragma warning restore CA2000
             }
         }
 

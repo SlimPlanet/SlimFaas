@@ -1,0 +1,3 @@
+# The NuGet client is a library consumed from arbitrary hosts: ConfigureAwait(false) is required.
+[*.cs]
+dotnet_diagnostic.CA2007.severity = warning

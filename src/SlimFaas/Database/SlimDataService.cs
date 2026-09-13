@@ -87,9 +87,11 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             var producerId = partitionCount == 1
                 ? baseProducerId
                 : $"{baseProducerId}:partition:{index}";
+#pragma warning disable CA2000 // owned by the BatchPartition, disposed with the service
             var batcher = new MultiRateAdaptiveBatcher(
                 idleStop: TimeSpan.FromSeconds(15),
                 maxWaitPerTick: TimeSpan.FromSeconds(5));
+#pragma warning restore CA2000
             var partition = new BatchPartition(kind, producerId, batcher);
             _batchPartitions[index] = partition;
             batcher.RegisterKind<SlimDataBatchOperation, SlimDataBatchOperationResult>(

@@ -181,7 +181,7 @@ public class ReplicasScaleWorkerShould
         Mock<IMasterService> masterService = new();
         masterService.Setup(ms => ms.IsMaster).Returns(true);
         Mock<IReplicasService> replicaService = new();
-        replicaService.Setup(r => r.CheckScaleAsync(It.IsAny<string>())).Throws(new Exception());
+        replicaService.Setup(r => r.CheckScaleAsync(It.IsAny<string>())).Throws(new InvalidOperationException());
 
         HistoryHttpMemoryService historyHttpService = new();
         historyHttpService.SetTickLastCall("fibonacci2", DateTime.UtcNow.Ticks);

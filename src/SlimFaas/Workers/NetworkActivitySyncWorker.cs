@@ -98,7 +98,7 @@ public class NetworkActivitySyncWorker(
             string query = cursor == null || attempt > 0
                 ? $"windowMs={(long)Math.Ceiling(Stopwatch.GetElapsedTime(windowStart).TotalMilliseconds) + 1}"
                 : $"since={Math.Max(0, cursor.TimestampMs - 1)}";
-            using var response = await _client!.GetAsync($"{url}/internal/activity-events?{query}", timeout.Token);
+            using var response = await _client!.GetAsync(new Uri($"{url}/internal/activity-events?{query}"), timeout.Token);
             if (!response.IsSuccessStatusCode) return;
             var json = await response.Content.ReadAsStringAsync(timeout.Token);
             var events = JsonSerializer.Deserialize(json, StatusStreamSerializerContext.Default.ListNetworkActivityEvent) ?? [];

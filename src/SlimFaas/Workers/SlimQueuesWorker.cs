@@ -240,7 +240,9 @@ public class SlimQueuesWorker(
             string reservedIp = !string.IsNullOrWhiteSpace(message.ReservedIp)
                 ? message.ReservedIp
                 : index < reservedIps.Count ? reservedIps[index] : string.Empty;
+#pragma warning disable CA2000 // owned by the in-flight request bookkeeping, disposed on completion
             var requestCancellation = new CancellationTokenSource();
+#pragma warning restore CA2000
             string activityId = activityTracker.Record(
                 NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas,
                 functionName, functionName, targetPod: reservedIp);

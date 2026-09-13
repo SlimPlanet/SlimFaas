@@ -414,7 +414,7 @@ public sealed class ChannelStream : Stream
         => ReadAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
 
     public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        => await ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+        => await ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
@@ -424,7 +424,7 @@ public sealed class ChannelStream : Stream
         while (_currentChunk == null || _currentOffset >= _currentChunk.Length)
         {
             // Attendre le prochain chunk depuis le channel
-            if (!await _reader.WaitToReadAsync(cancellationToken))
+            if (!await _reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 // Channel complété → fin du stream
                 _completed = true;
@@ -517,7 +517,7 @@ public sealed class SyncResponseWriter : Stream
         {
             StatusCode = statusCode,
             Headers = headers ?? [],
-        }, ct);
+        }, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -527,9 +527,9 @@ public sealed class SyncResponseWriter : Stream
     public async Task CompleteAsync(CancellationToken ct = default)
     {
         if (_completed) return;
-        if (!_started) await StartAsync(ct: ct);
+        if (!_started) await StartAsync(ct: ct).ConfigureAwait(false);
         _completed = true;
-        await _sendEnd(_correlationId, ct);
+        await _sendEnd(_correlationId, ct).ConfigureAwait(false);
     }
 
     // ── Stream overrides ─────────────────────────────────────────────────
@@ -554,17 +554,17 @@ public sealed class SyncResponseWriter : Stream
     public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
         if (_completed) throw new InvalidOperationException("Response already completed.");
-        if (!_started) await StartAsync(ct: cancellationToken);
+        if (!_started) await StartAsync(ct: cancellationToken).ConfigureAwait(false);
         if (count > 0)
-            await _sendChunk(_correlationId, buffer.AsMemory(offset, count), cancellationToken);
+            await _sendChunk(_correlationId, buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
     }
 
     public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
         if (_completed) throw new InvalidOperationException("Response already completed.");
-        if (!_started) await StartAsync(ct: cancellationToken);
+        if (!_started) await StartAsync(ct: cancellationToken).ConfigureAwait(false);
         if (buffer.Length > 0)
-            await _sendChunk(_correlationId, buffer, cancellationToken);
+            await _sendChunk(_correlationId, buffer, cancellationToken).ConfigureAwait(false);
     }
 }
 

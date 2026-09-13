@@ -89,7 +89,7 @@ static async Task<int> RunHttpCardinalityAsync(Arguments arguments)
     for (var index = 0; index < hosts; index++)
     {
         using var response = await client.GetAsync(
-            $"http://pod-{index}.ephemeral.test/health",
+            new Uri($"http://pod-{index}.ephemeral.test/health"),
             HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
     }
@@ -214,7 +214,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
 
     var payload = CreatePayload(payloadBytes);
     var filePayload = CreatePayload(fileBytes);
-    var handler = new SocketsHttpHandler
+    using var handler = new SocketsHttpHandler
     {
         AutomaticDecompression = DecompressionMethods.None,
         MaxConnectionsPerServer = Math.Max(32, concurrency * 2),
@@ -222,7 +222,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
         UseProxy = false
     };
-    using var client = new HttpClient(handler)
+    using var client = new HttpClient(handler, disposeHandler: false)
     {
         Timeout = TimeSpan.FromSeconds(30)
     };
@@ -686,7 +686,7 @@ static async Task<int> ValidateSlimDataStateAsync(
     {
         var node = validationIndex++ % nodeCount;
         using var response = await client.GetAsync(
-            $"http://127.0.0.1:{firstPort + node}/data/sets/{id}",
+            new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
             cancellationToken);
         if (!shouldExist)
         {
@@ -709,7 +709,7 @@ static async Task<int> ValidateSlimDataStateAsync(
     {
         var node = validationIndex++ % nodeCount;
         using var response = await client.GetAsync(
-            $"http://127.0.0.1:{firstPort + node}/data/hashsets/{id}",
+            new Uri($"http://127.0.0.1:{firstPort + node}/data/hashsets/{id}"),
             cancellationToken);
         if (!shouldExist)
         {
@@ -732,7 +732,7 @@ static async Task<int> ValidateSlimDataStateAsync(
     {
         var node = validationIndex++ % nodeCount;
         using var response = await client.GetAsync(
-            $"http://127.0.0.1:{firstPort + node}/data/sets/{id}",
+            new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
             cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -772,7 +772,7 @@ static async Task WaitForQueueDrainAsync(
         for (var node = 0; node < nodeCount; node++)
         {
             var metrics = await client.GetStringAsync(
-                $"http://127.0.0.1:{firstPort + node}/metrics",
+                new Uri($"http://127.0.0.1:{firstPort + node}/metrics"),
                 cancellationToken);
             var value = ReadMetric(metrics, metricName);
             allDrained &= value == 0d;

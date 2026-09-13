@@ -167,7 +167,9 @@ public class WebSocketQueuesWorker(
             }
 
             historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+#pragma warning disable CA2000 // owned by the TrackedWebSocketRequest, disposed on completion
             var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+#pragma warning restore CA2000
             var tracked = new TrackedWebSocketRequest(
                 Volatile.Read(ref _trackingGeneration),
                 functionName,
