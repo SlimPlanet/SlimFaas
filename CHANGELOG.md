@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.8
+
+- [4da3d1de](https://github.com/SlimPlanet/SlimFaas/commit/4da3d1defc243c50353f620c0fdf590c983b8bdd) - build: enforce warnings-as-errors and all .NET analyzers repository-wide (#358, phases 0-1) (#361), 2026-09-13 by *Guillaume Delahaye*
+
+
+## 0.84.7
+
+
+
 ## v0.84.7
 
 - [da5a5723](https://github.com/SlimPlanet/SlimFaas/commit/da5a57234923394e210f07df124fb016cf900c5a) - fix(autoscaling): a wake-up no longer consumes the scale-up policy budget (#371) (release), 2026-09-13 by *Guillaume Delahaye*
@@ -267,14 +276,5 @@
 ## v0.76.1
 
 - [d25deb5c](https://github.com/SlimPlanet/SlimFaas/commit/d25deb5c13b7a477d7b3a6c4e00961d617f63a5e) - feature(slimfaas): add mode local (#303) (release), 2026-07-28 by *Guillaume Chervet*
-
-
-## 0.76.0
-
-
-
-## v0.76.0
-
-- [4ea80568](https://github.com/SlimPlanet/SlimFaas/commit/4ea80568c21d7164adfbb0ccdda58402e60e2430) - feat: multi batch and low latency (#302) (release), 2026-07-26 by *Guillaume Chervet*
 
 
