@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.7
+
+- [da5a5723](https://github.com/SlimPlanet/SlimFaas/commit/da5a57234923394e210f07df124fb016cf900c5a) - fix(autoscaling): a wake-up no longer consumes the scale-up policy budget (#371) (release), 2026-09-13 by *Guillaume Delahaye*
+
+
+## 0.84.6
+
+
+
 ## v0.84.6
 
 - [5fde3b93](https://github.com/SlimPlanet/SlimFaas/commit/5fde3b9377cba35e11e711e1e38fa7aad64eb358) - perf(SlimData): single-pass queue dequeue (~3×), O(N + M) callbacks (~5×), reserved IP kept across snapshots (#343) (release), 2026-09-12 by *Guillaume Delahaye*
@@ -267,14 +276,5 @@
 ## v0.76.0
 
 - [4ea80568](https://github.com/SlimPlanet/SlimFaas/commit/4ea80568c21d7164adfbb0ccdda58402e60e2430) - feat: multi batch and low latency (#302) (release), 2026-07-26 by *Guillaume Chervet*
-
-
-## 0.75.0
-
-
-
-## v0.75.0
-
-- [a0d44698](https://github.com/SlimPlanet/SlimFaas/commit/a0d44698461f0431dec86be96af2f6a008b25cfd) - feat(slimdata): batch & benchmark (release), 2026-07-26 by *Guillaume Chervet*
 
 
