@@ -574,7 +574,7 @@ public static partial class LocalManifestLoader
 
         if (authority.StartsWith("[", StringComparison.Ordinal))
         {
-            int closingBracket = authority.IndexOf(']');
+            int closingBracket = authority.IndexOf(']', StringComparison.Ordinal);
             return closingBracket >= 0 &&
                    closingBracket + 1 < authority.Length &&
                    authority[closingBracket + 1] == ':' &&

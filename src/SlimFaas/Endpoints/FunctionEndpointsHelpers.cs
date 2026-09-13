@@ -201,7 +201,7 @@ public static class FunctionEndpointsHelpers
             return string.Empty;
         }
 
-        int closingBracket = candidate.IndexOf(']');
+        int closingBracket = candidate.IndexOf(']', StringComparison.Ordinal);
         if (candidate[0] == '['
             && closingBracket > 0)
         {
@@ -306,7 +306,7 @@ public static class FunctionEndpointsHelpers
             {
                 continue;
             }
-            if (ipAddress.Contains(podIp))
+            if (ipAddress.Contains(podIp, StringComparison.Ordinal))
             {
                 return true;
             }

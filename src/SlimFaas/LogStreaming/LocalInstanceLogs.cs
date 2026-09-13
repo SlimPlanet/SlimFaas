@@ -2,6 +2,7 @@ using System.Runtime.CompilerServices;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
 
+using System.Globalization;
 namespace SlimFaas.Logs;
 
 public sealed class LocalInstanceLogs(LoadedLocalManifest manifest, LocalStateStore state,
@@ -48,7 +49,7 @@ public sealed class LocalInstanceLogs(LoadedLocalManifest manifest, LocalStateSt
         if (!available.Sources.Any(s => s.Id == source)) throw new FileNotFoundException("Source removed");
         // The filename is derived only after matching a managed resource. Never
         // accept directories, symlinks or a browser-supplied filesystem path.
-        if (Path.GetFileName(key.Instance) != key.Instance || key.Instance.Contains('\\'))
+        if (Path.GetFileName(key.Instance) != key.Instance || key.Instance.Contains('\\', StringComparison.Ordinal))
             throw new FileNotFoundException("Source removed");
         string path = Path.Combine(state.LogsDirectory, key.Instance + ".log");
         await using var stream = new FollowingLogFile(path, async token =>

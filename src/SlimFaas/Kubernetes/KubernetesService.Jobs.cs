@@ -3,6 +3,7 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 
+using System.Globalization;
 namespace SlimFaas.Kubernetes;
 
 public partial class KubernetesService
@@ -128,8 +129,8 @@ public partial class KubernetesService
                             {
                                 { SlimfaasJobName, jobFullName },
                                 { SlimfaasJobElementId, elementId },
-                                { SlimfaasInQueueTimestamp, inQueueTimestamp.ToString() },
-                                { SlimfaasJobStartTimestamp, DateTime.UtcNow.Ticks.ToString() }
+                                { SlimfaasInQueueTimestamp, inQueueTimestamp.ToString(CultureInfo.InvariantCulture) },
+                                { SlimfaasJobStartTimestamp, DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture) }
                             }
                         },
                     Spec = new V1PodSpec

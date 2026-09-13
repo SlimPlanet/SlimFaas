@@ -61,20 +61,6 @@ dotnet_diagnostic.CA1063.severity = none
 # 7
 dotnet_diagnostic.CA1068.severity = none
 
-# --- Globalization (CA13xx) ---
-# 2
-dotnet_diagnostic.CA1304.severity = none
-# 44
-dotnet_diagnostic.CA1305.severity = none
-# 46
-dotnet_diagnostic.CA1307.severity = none
-# 27
-dotnet_diagnostic.CA1308.severity = none
-# 21
-dotnet_diagnostic.CA1310.severity = none
-# 2
-dotnet_diagnostic.CA1311.severity = none
-
 # --- Maintainability (CA15xx) ---
 # 1
 dotnet_diagnostic.CA1510.severity = none

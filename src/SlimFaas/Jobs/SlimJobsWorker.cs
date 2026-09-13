@@ -95,7 +95,7 @@ public class SlimJobsWorker(
                 jobsDictionary.Add(data.Key.ToLowerInvariant(), new List<Job>());
             }
 
-            foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey)))
+            foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey, StringComparison.Ordinal)))
             {
                 var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
                 string jobConfigurationName = jobNameSplits[0];

@@ -1,5 +1,6 @@
 using System.Net.Mime;
 
+using System.Globalization;
 namespace SlimData.ClusterFiles.Http;
 
 public static class ClusterFileTransferRoutes
@@ -43,7 +44,7 @@ public static class ClusterFileTransferRoutes
         ctx.Response.ContentLength = meta.Length;
         ctx.Response.Headers.ETag = $"\"{meta.Sha256Hex}\"";
         if (meta.ExpireAtUtcTicks is { } exp && exp > 0)
-            ctx.Response.Headers["X-SlimFaas-ExpireAtUtcTicks"] = exp.ToString();
+            ctx.Response.Headers["X-SlimFaas-ExpireAtUtcTicks"] = exp.ToString(CultureInfo.InvariantCulture);
         var tagsHeader = FileSyncProtocol.BuildTagsHeaderValue(meta.Tags);
         if (!string.IsNullOrWhiteSpace(tagsHeader))
             ctx.Response.Headers[FileSyncProtocol.TagsHeaderName] = tagsHeader;
@@ -80,7 +81,7 @@ public static class ClusterFileTransferRoutes
         ctx.Response.Headers["Accept-Ranges"] = "bytes";
         ctx.Response.Headers.ETag = $"\"{meta.Sha256Hex}\"";
         if (meta.ExpireAtUtcTicks is { } exp && exp > 0)
-            ctx.Response.Headers["X-SlimFaas-ExpireAtUtcTicks"] = exp.ToString();
+            ctx.Response.Headers["X-SlimFaas-ExpireAtUtcTicks"] = exp.ToString(CultureInfo.InvariantCulture);
         var tagsHeader = FileSyncProtocol.BuildTagsHeaderValue(meta.Tags);
         if (!string.IsNullOrWhiteSpace(tagsHeader))
             ctx.Response.Headers[FileSyncProtocol.TagsHeaderName] = tagsHeader;

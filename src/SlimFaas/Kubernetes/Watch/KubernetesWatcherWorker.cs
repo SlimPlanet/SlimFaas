@@ -175,7 +175,7 @@ public class KubernetesWatcherWorker(
         WatchLoopState state,
         CancellationToken stoppingToken)
     {
-        char querySeparator = target.PathTemplate.Contains('?') ? '&' : '?';
+        char querySeparator = target.PathTemplate.Contains('?', StringComparison.Ordinal) ? '&' : '?';
         string url = string.Concat(
             client.BaseUri,
             target.PathTemplate,

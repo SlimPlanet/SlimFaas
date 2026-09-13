@@ -60,8 +60,8 @@ public class JobService(
     private static string ConvertPatternToRegex(string pattern)
     {
         return "^" + Regex.Escape(pattern)
-                       .Replace("\\*", ".*")  // '*' devient '.*'
-                       .Replace(":", "\\:")    // Échapper les deux-points
+                       .Replace("\\*", ".*", StringComparison.Ordinal)  // '*' devient '.*'
+                       .Replace(":", "\\:", StringComparison.Ordinal)    // Échapper les deux-points
                    + "$";
     }
 

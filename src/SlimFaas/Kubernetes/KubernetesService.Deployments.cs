@@ -4,6 +4,7 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 
+using System.Globalization;
 namespace SlimFaas.Kubernetes;
 
 public partial class KubernetesService
@@ -108,20 +109,20 @@ public partial class KubernetesService
             {
                 IDictionary<string, string>? annotations = deploymentListItem.Spec.Template?.Metadata?.Annotations;
                 if (annotations == null || !annotations.ContainsKey(Function) ||
-                    annotations[Function].ToLower() != "true")
+                    annotations[Function].ToLowerInvariant() != "true")
                 {
                     continue;
                 }
 
                 string? name = deploymentListItem.Metadata.Name;
-                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
+                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name, StringComparison.Ordinal)).ToList();
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
                 StringBuilder resourceVersionBuilder = new($"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}");
                 foreach (PodInformation pod in pods)
                 {
-                    resourceVersionBuilder.Append($"-{pod.ResourceVersion}");
+                    resourceVersionBuilder.Append(CultureInfo.InvariantCulture, $"-{pod.ResourceVersion}");
                 }
 
                 var resourceVersion = resourceVersionBuilder.ToString();
@@ -350,13 +351,13 @@ public partial class KubernetesService
             {
                 IDictionary<string, string>? annotations = deploymentListItem.Spec.Template?.Metadata?.Annotations;
                 if (annotations == null || !annotations.ContainsKey(Function) ||
-                    annotations[Function].ToLower() != "true")
+                    annotations[Function].ToLowerInvariant() != "true")
                 {
                     continue;
                 }
 
                 string? name = deploymentListItem.Metadata.Name;
-                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
+                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name, StringComparison.Ordinal)).ToList();
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);

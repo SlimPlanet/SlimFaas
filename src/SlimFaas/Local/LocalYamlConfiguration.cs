@@ -104,7 +104,7 @@ internal static partial class LocalYamlConfiguration
                 if (trimmed.StartsWith("export ", StringComparison.Ordinal))
                     trimmed = trimmed["export ".Length..].TrimStart();
 
-                int separator = trimmed.IndexOf('=');
+                int separator = trimmed.IndexOf('=', StringComparison.Ordinal);
                 if (separator <= 0)
                     throw InvalidEnvironmentLine(path, index);
 

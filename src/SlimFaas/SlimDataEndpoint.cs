@@ -1,4 +1,5 @@
-﻿﻿using SlimFaas.Kubernetes;
+﻿using System.Globalization;
+﻿using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
 
@@ -14,25 +15,25 @@ public static class SlimDataEndpoint
         string namespaceSlimFaas = namespaceOverride ?? "default";
         if (!string.IsNullOrEmpty(baseSlimDataUrl))
         {
-            baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_name}", podInformation.Name);
-            baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_ip}", podInformation.Ip);
-            baseSlimDataUrl = baseSlimDataUrl.Replace("{service_name}", podInformation.ServiceName ?? "slimfaas");
+            baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_name}", podInformation.Name, StringComparison.Ordinal);
+            baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_ip}", podInformation.Ip, StringComparison.Ordinal);
+            baseSlimDataUrl = baseSlimDataUrl.Replace("{service_name}", podInformation.ServiceName ?? "slimfaas", StringComparison.Ordinal);
             var ports = podInformation.Ports;
             if (ports != null)
             {
                 if (ports.Count > 0)
                 {
-                    baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_port}", ports[0].ToString());
+                    baseSlimDataUrl = baseSlimDataUrl.Replace("{pod_port}", ports[0].ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
                 }
                 foreach (int port in ports)
                 {
                     var index = ports.IndexOf(port);
-                    baseSlimDataUrl = baseSlimDataUrl.Replace($"{{pod_port_{index}}}", port.ToString());
+                    baseSlimDataUrl = baseSlimDataUrl.Replace($"{{pod_port_{index}}}", port.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
                 }
             }
 
-            baseSlimDataUrl = baseSlimDataUrl.Replace("{namespace}", namespaceSlimFaas);
-            baseSlimDataUrl = baseSlimDataUrl.Replace("{function_name}", podInformation.DeploymentName);
+            baseSlimDataUrl = baseSlimDataUrl.Replace("{namespace}", namespaceSlimFaas, StringComparison.Ordinal);
+            baseSlimDataUrl = baseSlimDataUrl.Replace("{function_name}", podInformation.DeploymentName, StringComparison.Ordinal);
         }
 
         return baseSlimDataUrl;

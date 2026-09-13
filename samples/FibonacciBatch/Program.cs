@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using SlimFaasClient;
 
+using System.Globalization;
 // ─────────────────────────────────────────────────────────────────────────────
 // Mode détection
 // ─────────────────────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ static void RunFibonacciMode(string[] args)
     foreach (string arg in args)
     {
         Console.WriteLine($"Calculating Fibonacci for {arg}");
-        int i = int.Parse(arg);
+        int i = int.Parse(arg, CultureInfo.InvariantCulture);
         var fibonacci = new Fibonacci();
         var result = fibonacci.Run(i);
         Console.WriteLine($"Fibonacci for {arg} is {result}");

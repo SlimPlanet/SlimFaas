@@ -333,7 +333,7 @@ public class OpenApiSchemaExpander(JsonElement root, int maxDepth = 64)
     }
 
     private static string UnescapeJsonPointer(string token) =>
-        token.Replace("~1", "/").Replace("~0", "~");
+        token.Replace("~1", "/", StringComparison.Ordinal).Replace("~0", "~", StringComparison.Ordinal);
 
     private JsonElement ResolveRef(string refPath)
     {

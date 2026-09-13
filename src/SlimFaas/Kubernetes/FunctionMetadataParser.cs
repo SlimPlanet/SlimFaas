@@ -240,7 +240,7 @@ public static class FunctionMetadataParser
         {
             string value = token;
             FunctionVisibility visibility = defaultVisibility;
-            int separator = token.IndexOf(':');
+            int separator = token.IndexOf(':', StringComparison.Ordinal);
             if (separator > 0)
             {
                 string prefix = token[..separator];

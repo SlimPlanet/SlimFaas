@@ -10,6 +10,7 @@ using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Workers;
 
+using System.Globalization;
 namespace SlimFaas;
 
 internal sealed record TrackedHttpRequest(
@@ -235,7 +236,7 @@ public class SlimQueuesWorker(
             customRequest.Headers.Add(new CustomHeader(
                 SlimfaasLastTry,
                 [message.IsLastTry.ToString().ToLowerInvariant()]));
-            customRequest.Headers.Add(new CustomHeader(SlimfaasTryNumber, [message.TryNumber.ToString()]));
+            customRequest.Headers.Add(new CustomHeader(SlimfaasTryNumber, [message.TryNumber.ToString(CultureInfo.InvariantCulture)]));
             string reservedIp = !string.IsNullOrWhiteSpace(message.ReservedIp)
                 ? message.ReservedIp
                 : index < reservedIps.Count ? reservedIps[index] : string.Empty;

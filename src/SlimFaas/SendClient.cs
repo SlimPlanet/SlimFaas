@@ -6,6 +6,7 @@ using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
+using System.Globalization;
 namespace SlimFaas;
 
 public interface ISendClient
@@ -111,7 +112,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
             string functionUrl = baseUrl ?? _baseFunctionUrl;
             string targetUrl;
-            if (functionUrl.Contains("{pod_ip}") && proxy != null)
+            if (functionUrl.Contains("{pod_ip}", StringComparison.Ordinal) && proxy != null)
             {
                 const int maxAttempts = 10;
                 IList<int>? ports = null;
@@ -349,7 +350,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         string customRequestPath,
         string customRequestQuery, string namespaceSlimFaas, IProxy? proxy = null, string? reservedPodIp = null)
     {
-        if (functionUrl.Contains("{pod_ip}") && proxy != null)
+        if (functionUrl.Contains("{pod_ip}", StringComparison.Ordinal) && proxy != null)
         {
            var target = reservedPodIp;
            var ports = proxy.GetPorts(target);
@@ -381,7 +382,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                : CombinePaths(endpointUrl, customRequestPath + customRequestQuery);
         }
 
-        return CombinePaths(functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas), customRequestPath +
+        return CombinePaths(functionUrl.Replace("{function_name}", customRequestFunctionName, StringComparison.Ordinal).Replace("{namespace}", namespaceSlimFaas, StringComparison.Ordinal), customRequestPath +
                customRequestQuery);
     }
 
@@ -407,14 +408,14 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
     private static string BuildPodTargetUrl(string functionUrl, string pathAndQuery, string ip, IList<int> ports)
     {
-        string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), pathAndQuery);
+        string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip, StringComparison.Ordinal), pathAndQuery);
         if (ports is { Count: > 0 })
         {
-            url = url.Replace("{pod_port}", ports[0].ToString());
+            url = url.Replace("{pod_port}", ports[0].ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
             foreach (int port in ports)
             {
                 var index = ports.IndexOf(port);
-                url = url.Replace($"{{pod_port_{index}}}", port.ToString());
+                url = url.Replace($"{{pod_port_{index}}}", port.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
             }
         }
 

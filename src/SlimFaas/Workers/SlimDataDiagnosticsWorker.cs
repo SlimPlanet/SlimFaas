@@ -4,6 +4,7 @@ using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using SlimData;
 using SlimFaas.Database;
 
+using System.Globalization;
 namespace SlimFaas.Workers;
 
 public sealed class SlimDataDiagnosticsWorker(
@@ -366,7 +367,7 @@ public sealed class SlimDataDiagnosticsWorker(
 
         foreach (var line in File.ReadLines(statisticsPath))
         {
-            var separator = line.IndexOf(' ');
+            var separator = line.IndexOf(' ', StringComparison.Ordinal);
             if (separator <= 0 || !long.TryParse(line.AsSpan(separator + 1), out var value))
                 continue;
 

@@ -857,8 +857,8 @@ static int RunComparison(Arguments arguments)
     var builder = new StringBuilder();
     builder.AppendLine("# SlimData batch-mode benchmark");
     builder.AppendLine();
-    builder.AppendLine($"Generated: {DateTimeOffset.UtcNow:O}");
-    builder.AppendLine($"Baseline: `{baselineVariant}`");
+    builder.AppendLine(CultureInfo.InvariantCulture, $"Generated: {DateTimeOffset.UtcNow:O}");
+    builder.AppendLine(CultureInfo.InvariantCulture, $"Baseline: `{baselineVariant}`");
     builder.AppendLine();
     builder.AppendLine("## Individual runs");
     builder.AppendLine();
@@ -973,7 +973,7 @@ static int RunComparison(Arguments arguments)
     }
 
     builder.AppendLine();
-    builder.AppendLine($"Overall adoption result: **{(adoptionPass ? "PASS" : "FAIL")}**.");
+    builder.AppendLine(CultureInfo.InvariantCulture, $"Overall adoption result: **{(adoptionPass ? "PASS" : "FAIL")}**.");
     builder.AppendLine();
     builder.AppendLine("Low-load runs require at least 90% of the target rate, p95 < 50 ms and p99 < 75 ms. Unpaced runs require throughput >= 90% of baseline, p99 <= 120% and RSS <= 115%. The overall adoption result passes when at least one candidate is adoptable. A partitioned candidate is recommended only when its median high-load throughput gain is at least 10%.");
     builder.AppendLine();
@@ -1285,7 +1285,7 @@ static double SumWalFiles(string path)
     double result = 0d;
     foreach (var line in File.ReadLines(path))
     {
-        var separator = line.IndexOf(' ');
+        var separator = line.IndexOf(' ', StringComparison.Ordinal);
         if (separator > 0 &&
             double.TryParse(
                 line.AsSpan(0, separator),

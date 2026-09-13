@@ -658,9 +658,9 @@ internal static class BenchmarkComparer
     private static string BuildMarkdown(BenchmarkComparisonReport report)
     {
         var builder = new StringBuilder();
-        builder.AppendLine($"# SlimFaas {report.Profile} optimization comparison");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"# SlimFaas {report.Profile} optimization comparison");
         builder.AppendLine();
-        builder.AppendLine($"Overall verdict: **{(report.Passed ? "PASS" : "FAIL")}**.");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Overall verdict: **{(report.Passed ? "PASS" : "FAIL")}**.");
         builder.AppendLine();
         builder.AppendLine("## Acceptance criteria");
         builder.AppendLine();
@@ -678,8 +678,8 @@ internal static class BenchmarkComparer
                 asyncCriteria.LargePayloadMedianHttpP50ReductionPercent,
                 AsyncLargePayloadP50MinimumReductionPercent,
                 asyncCriteria.LargePayloadTargetPassed);
-            builder.AppendLine($"| async p99 and throughput guardrails | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(asyncCriteria.TailAndThroughputGuardrailsPassed ? "PASS" : "FAIL")} |");
-            builder.AppendLine($"| CPU / memory / Raft guardrails | {FormatResources(asyncCriteria)} | +{MaximumCpuRegressionPercent:F0}% / +{MaximumMemoryRegressionPercent:F0}% / x{MaximumRaftEntryRatio:F0} | {(asyncCriteria.ResourceGuardrailsPassed ? "PASS" : "FAIL")} |");
+            builder.AppendLine(CultureInfo.InvariantCulture, $"| async p99 and throughput guardrails | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(asyncCriteria.TailAndThroughputGuardrailsPassed ? "PASS" : "FAIL")} |");
+            builder.AppendLine(CultureInfo.InvariantCulture, $"| CPU / memory / Raft guardrails | {FormatResources(asyncCriteria)} | +{MaximumCpuRegressionPercent:F0}% / +{MaximumMemoryRegressionPercent:F0}% / x{MaximumRaftEntryRatio:F0} | {(asyncCriteria.ResourceGuardrailsPassed ? "PASS" : "FAIL")} |");
         }
         else
         {
@@ -693,7 +693,7 @@ internal static class BenchmarkComparer
         builder.AppendLine(report.Profile == "async"
             ? $"| sync p95/p99 and throughput guardrails (informational) | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(report.SyncGuardrailsPassed ? "PASS" : "OBSERVE")} |"
             : $"| sync p95/p99 and throughput guardrails | — | max {MaximumGuardrailRegressionPercent:F0}% regression | {(report.SyncGuardrailsPassed ? "PASS" : "FAIL")} |");
-        builder.AppendLine($"| candidate errors/timeouts | {(report.CandidateHasNoFailures ? "0" : "present")} | 0 | {(report.CandidateHasNoFailures ? "PASS" : "FAIL")} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| candidate errors/timeouts | {(report.CandidateHasNoFailures ? "0" : "present")} | 0 | {(report.CandidateHasNoFailures ? "PASS" : "FAIL")} |");
 
         builder.AppendLine();
         builder.AppendLine("## Synchronous comparison");
@@ -738,11 +738,11 @@ internal static class BenchmarkComparer
         builder.AppendLine();
         builder.AppendLine("| milestone | baseline | candidate |");
         builder.AppendLine("|---|---:|---:|");
-        builder.AppendLine($"| first ready replica | {FormatNullable(report.Scaling.BaselineReadyOneMilliseconds)} | {FormatNullable(report.Scaling.CandidateReadyOneMilliseconds)} |");
-        builder.AppendLine($"| target ready replicas | {FormatNullable(report.Scaling.BaselineReadyTargetMilliseconds)} | {FormatNullable(report.Scaling.CandidateReadyTargetMilliseconds)} |");
-        builder.AppendLine($"| queue drained | {FormatNullable(report.Scaling.BaselineQueueDrainedMilliseconds)} | {FormatNullable(report.Scaling.CandidateQueueDrainedMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| first ready replica | {FormatNullable(report.Scaling.BaselineReadyOneMilliseconds)} | {FormatNullable(report.Scaling.CandidateReadyOneMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| target ready replicas | {FormatNullable(report.Scaling.BaselineReadyTargetMilliseconds)} | {FormatNullable(report.Scaling.CandidateReadyTargetMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| queue drained | {FormatNullable(report.Scaling.BaselineQueueDrainedMilliseconds)} | {FormatNullable(report.Scaling.CandidateQueueDrainedMilliseconds)} |");
         builder.AppendLine();
-        builder.AppendLine($"Scaling verdict: **{report.Scaling.Verdict}** (failures: {report.Scaling.CandidateFailed}, timed out: {report.Scaling.CandidateTimedOut}).");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Scaling verdict: **{report.Scaling.Verdict}** (failures: {report.Scaling.CandidateFailed}, timed out: {report.Scaling.CandidateTimedOut}).");
 
         if (report.Failures.Count > 0)
         {
@@ -750,13 +750,13 @@ internal static class BenchmarkComparer
             builder.AppendLine("## Failed criteria");
             builder.AppendLine();
             foreach (string failure in report.Failures)
-                builder.AppendLine($"- {failure}");
+                builder.AppendLine(CultureInfo.InvariantCulture, $"- {failure}");
         }
 
         builder.AppendLine();
-        builder.AppendLine($"Baseline: `{report.BaselinePath}`");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Baseline: `{report.BaselinePath}`");
         builder.AppendLine();
-        builder.AppendLine($"Candidate: `{report.CandidatePath}`");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Candidate: `{report.CandidatePath}`");
         return builder.ToString();
     }
 

@@ -170,7 +170,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         foreach (Parameter parameter in parameters.Where(p => p.In == "path"))
         {
             callUrl = callUrl?.Replace($"{{{parameter.Name}}}",
-                parameter.Name != null && inputDict.TryGetValue(parameter.Name, out JsonElement v) ? v.ToString() : "");
+                parameter.Name != null && inputDict.TryGetValue(parameter.Name, out JsonElement v) ? v.ToString() : "", StringComparison.Ordinal);
         }
 
         if (callUrl != null && !callUrl.StartsWith('/'))
@@ -392,7 +392,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             return endpointUrl;
         }
 
-        if (endpointUrl.StartsWith("http"))
+        if (endpointUrl.StartsWith("http", StringComparison.Ordinal))
         {
             return endpointUrl;
         }
@@ -458,18 +458,18 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         string? fileName = disp?.FileNameStar ?? disp?.FileName;
 
         bool isJson = mediaType is not null &&
-                      (mediaType == "application/json" || mediaType.EndsWith("+json"));
-        bool isText = mediaType is not null && mediaType.StartsWith("text/");
+                      (mediaType == "application/json" || mediaType.EndsWith("+json", StringComparison.Ordinal));
+        bool isText = mediaType is not null && mediaType.StartsWith("text/", StringComparison.Ordinal);
 
         // Heuristique "binaire" explicite + fallback générique
         bool looksBinary =
             (mediaType is not null && (
-                mediaType.StartsWith("application/octet-stream")
-                || mediaType.StartsWith("image/")
-                || mediaType.StartsWith("audio/") // ✅ explicite audio
-                || mediaType.StartsWith("video/") // ✅ explicite video
-                || mediaType.StartsWith("application/pdf")
-                || mediaType.StartsWith("application/zip")
+                mediaType.StartsWith("application/octet-stream", StringComparison.Ordinal)
+                || mediaType.StartsWith("image/", StringComparison.Ordinal)
+                || mediaType.StartsWith("audio/", StringComparison.Ordinal) // ✅ explicite audio
+                || mediaType.StartsWith("video/", StringComparison.Ordinal) // ✅ explicite video
+                || mediaType.StartsWith("application/pdf", StringComparison.Ordinal)
+                || mediaType.StartsWith("application/zip", StringComparison.Ordinal)
                 || (!isText && !isJson) // tout le reste non-texte/non-json
             ))
             || fileName is not null; // attachment

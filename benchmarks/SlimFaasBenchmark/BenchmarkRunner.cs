@@ -1138,7 +1138,7 @@ internal static class BenchmarkRunner
         var builder = new StringBuilder();
         builder.AppendLine("# SlimFaas local latency and scaling benchmark");
         builder.AppendLine();
-        builder.AppendLine($"Generated at `{report.FinishedAtUtc:O}` on `{report.OperatingSystem}` with `{report.Framework}`.");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Generated at `{report.FinishedAtUtc:O}` on `{report.OperatingSystem}` with `{report.Framework}`.");
         builder.AppendLine();
         builder.AppendLine("## Synchronous overhead");
         builder.AppendLine();
@@ -1181,18 +1181,18 @@ internal static class BenchmarkRunner
         builder.AppendLine();
         builder.AppendLine("## Scaling burst");
         builder.AppendLine();
-        builder.AppendLine($"Burst: `{scale.Messages}` messages, concurrency `{scale.Concurrency}`, target `{scale.TargetReplicas}` replicas.");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Burst: `{scale.Messages}` messages, concurrency `{scale.Concurrency}`, target `{scale.TargetReplicas}` replicas.");
         builder.AppendLine();
         builder.AppendLine("| milestone from first send | observed time |");
         builder.AppendLine("|---|---:|");
-        builder.AppendLine($"| first HTTP 202 | {FormatNullable(scale.FirstAcceptedMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| first HTTP 202 | {FormatNullable(scale.FirstAcceptedMilliseconds)} |");
         builder.AppendLine(FormattableString.Invariant(
             $"| all HTTP 202 responses | {scale.AllAcceptedMilliseconds:F3} ms |"));
-        builder.AppendLine($"| desired replicas >= 1 | {FormatNullable(scale.RequestedOneMilliseconds)} |");
-        builder.AppendLine($"| ready replicas >= 1 | {FormatNullable(scale.ReadyOneMilliseconds)} |");
-        builder.AppendLine($"| desired replicas >= {scale.TargetReplicas} | {FormatNullable(scale.RequestedTargetMilliseconds)} |");
-        builder.AppendLine($"| ready replicas >= {scale.TargetReplicas} | {FormatNullable(scale.ReadyTargetMilliseconds)} |");
-        builder.AppendLine($"| queue drained | {FormatNullable(scale.QueueDrainedMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| desired replicas >= 1 | {FormatNullable(scale.RequestedOneMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| ready replicas >= 1 | {FormatNullable(scale.ReadyOneMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| desired replicas >= {scale.TargetReplicas} | {FormatNullable(scale.RequestedTargetMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| ready replicas >= {scale.TargetReplicas} | {FormatNullable(scale.ReadyTargetMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| queue drained | {FormatNullable(scale.QueueDrainedMilliseconds)} |");
         builder.AppendLine();
         builder.AppendLine(FormattableString.Invariant(
             $"Peak observed ready queue: `{scale.PeakReadyQueue:F0}`. Timed out: `{scale.TimedOut}`."));

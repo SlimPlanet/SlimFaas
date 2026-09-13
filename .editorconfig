@@ -215,3 +215,6 @@ dotnet_diagnostic.CA1819.severity = none
 dotnet_diagnostic.CA1054.severity = none
 dotnet_diagnostic.CA1055.severity = none
 dotnet_diagnostic.CA1056.severity = none
+# CA1308: lower-casing is a domain requirement (Kubernetes resource names, MIME types, HTTP header values),
+# not a normalization for comparison; ToUpperInvariant would produce wrong output.
+dotnet_diagnostic.CA1308.severity = none

@@ -492,7 +492,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
                 ip,
                 deploymentName,
                 ports,
-                insp.Created?.ToUniversalTime().Ticks.ToString() ?? DateTime.UtcNow.Ticks.ToString()
+                insp.Created?.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture) ?? DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture)
             ));
         }
 
@@ -1001,7 +1001,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             string imageName = image;
             string tag = "latest";
             int idx = image.LastIndexOf(':');
-            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@'))
+            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@', StringComparison.Ordinal))
             {
                 imageName = image[..idx];
                 tag = image[(idx + 1)..];
@@ -1264,7 +1264,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 ExtractPreferredIPAddress(insp),
                 deploymentName,
                 GetAllContainerPortsNoHeuristic(insp),
-                insp.Created?.ToUniversalTime().Ticks.ToString() ?? DateTime.UtcNow.Ticks.ToString()
+                insp.Created?.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture) ?? DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture)
             );
 
 
@@ -1334,7 +1334,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             string imageName = image;
             string tag = "latest";
             int idx = image.LastIndexOf(':');
-            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@'))
+            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@', StringComparison.Ordinal))
             {
                 imageName = image[..idx];
                 tag = image[(idx + 1)..];
@@ -1818,7 +1818,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             {
                 foreach (var key in insp.NetworkSettings.Ports.Keys)
                 {
-                    int? idx = key?.IndexOf('/');
+                    int? idx = key?.IndexOf('/', StringComparison.Ordinal);
                     if (idx > 0 && int.TryParse(key!.AsSpan(0, idx.Value), out int p))
                     {
                         set.Add(p);
@@ -1831,7 +1831,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             {
                 foreach (var key in insp.Config.ExposedPorts.Keys)
                 {
-                    int? idx = key?.IndexOf('/');
+                    int? idx = key?.IndexOf('/', StringComparison.Ordinal);
                     if (idx > 0 && int.TryParse(key!.AsSpan(0, idx.Value), out int p))
                     {
                         set.Add(p);
