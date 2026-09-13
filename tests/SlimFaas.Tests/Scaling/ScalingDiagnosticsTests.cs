@@ -56,6 +56,29 @@ public sealed class ScalingDiagnosticsTests
     }
 
     [Fact]
+    public async Task HttpWakeUpDoesNotConsumeTheScaleUpBudget()
+    {
+        // Issue #370: a wake-up 0 -> ReplicasAtStart on HTTP activity (no usable metric yet)
+        // must not hold the first metric-driven scale-out for a full policy period.
+        var f = new ScalingTestFixture(); await f.SetFunctions();
+        f.Http.SetTickLastCall(f.Name, f.Time.Now.UtcDateTime.Ticks);
+        await f.Replicas.CheckScaleAsync("default"); Assert.Equal(1, f.Replicas.Deployments.Functions[0].Replicas);
+        var wakeUp = Assert.Single(f.Scaler.CaptureHistory(f.Name).Decisions);
+        Assert.True(wakeUp.WakeUp); Assert.Equal(0, wakeUp.PreviousReplicas); Assert.Equal(1, wakeUp.DesiredReplicas);
+
+        f.Time.Now = f.Time.Now.AddSeconds(2); f.Scrape(73);
+        await f.Replicas.CheckScaleAsync("default"); Assert.Equal(5, f.Replicas.Deployments.Functions[0].Replicas);
+        var step = f.Scaler.CaptureHistory(f.Name).Decisions[^1];
+        Assert.False(step.WakeUp); Assert.Equal(1, step.PreviousReplicas); Assert.Equal(5, step.DesiredReplicas);
+
+        // The metric-driven step consumed the budget: held until the period elapses.
+        f.Time.Now = f.Time.Now.AddSeconds(2); f.Scrape(73);
+        await f.Replicas.CheckScaleAsync("default"); Assert.Equal(5, f.Replicas.Deployments.Functions[0].Replicas);
+        f.Time.Now = f.Time.Now.AddSeconds(16); f.Scrape(73);
+        await f.Replicas.CheckScaleAsync("default"); Assert.Equal(8, f.Replicas.Deployments.Functions[0].Replicas);
+    }
+
+    [Fact]
     public async Task ExplicitPolicyPreviewCanWakeToEightAndHypotheticalZeroStaysDistinctFromNoData()
     {
         var f = new ScalingTestFixture(); await f.SetFunctions(); f.Scrape(73);

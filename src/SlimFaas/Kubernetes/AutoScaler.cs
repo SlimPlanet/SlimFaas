@@ -54,10 +54,17 @@ public sealed class AutoScaler
         return ComputeDecision(deployment, nowUnixSeconds, evaluation, recordDecision).Target;
     }
 
-    internal void RecordAppliedDecision(string function, long nowUnixSeconds, int previousReplicas, int replicas)
+    internal void RecordAppliedDecision(string function, long nowUnixSeconds, int previousReplicas, int replicas,
+        bool wakeUp = false)
     {
         if (replicas == previousReplicas) return;
-        lock (_historyLock) _store.AddSample(function, nowUnixSeconds, replicas, previousReplicas);
+        lock (_historyLock)
+        {
+            // The historical overload is kept for policy steps so that alternate
+            // IAutoScalerStore implementations (and test doubles) keep working unchanged.
+            if (wakeUp) _store.AddSample(function, nowUnixSeconds, replicas, previousReplicas, wakeUp: true);
+            else _store.AddSample(function, nowUnixSeconds, replicas, previousReplicas);
+        }
     }
 
     public int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds)
