@@ -170,10 +170,11 @@ run_micro() {
 if [[ "$run_micro" == true ]]; then
   run_micro baseline "$baseline_dir"
   run_micro candidate "$candidate_dir"
-  python3 "$repo_root/benchmarks/compare-microbenchmarks.py" \
-    --baseline "$output/micro/baseline" --candidate "$output/micro/candidate" \
+  # The merge script confines its paths to the current directory: run it from $output.
+  (cd "$output" && python3 "$repo_root/benchmarks/compare-microbenchmarks.py" \
+    --baseline micro/baseline --candidate micro/candidate \
     --baseline-label "$baseline_ref" --candidate-label "$candidate_ref" \
-    --output "$output/micro/comparison.md" >/dev/null
+    --output micro/comparison.md >/dev/null)
   log "Micro-benchmark comparison: $output/micro/comparison.md"
 fi
 
