@@ -129,11 +129,14 @@ public class ReplicasService(
             logger.LogInformation("Scale {Deployment} from {CurrentScale} to {DesiredReplicas}",
                 deploymentInformation.Deployment, currentScale, desiredReplicas);
 
-            // A count the metric policies did not produce (wake-up to ReplicasAtStart on HTTP,
-            // schedule or dependency activity, external wake-up, activity floor) must not
-            // consume the scale-up policy budget: the first metric-driven scale-out after a
-            // scale-from-zero would otherwise wait a full policy period (issue #370).
-            bool wakeUp = metrics is null || desiredReplicas != metrics.Target;
+            // An increase the metric policies did not produce (wake-up to ReplicasAtStart on
+            // HTTP, schedule or dependency activity, external wake-up beyond the metric
+            // target) must not consume the scale-up policy budget: the first metric-driven
+            // scale-out after a scale-from-zero would otherwise wait a full policy period
+            // (issue #370). The change is still recorded with its previous count, so the
+            // scale-down budgets of #350 keep seeing it as an accepted addition; reductions
+            // are never flagged.
+            bool wakeUp = desiredReplicas > currentScale && (metrics is null || desiredReplicas != metrics.Target);
             tasks.Add(ApplyScaleAsync(decision, deploymentInformation.Scale, diagnosticSession, wakeUp, new ReplicaRequest(
                 Replicas: desiredReplicas,
                 Deployment: deploymentInformation.Deployment,

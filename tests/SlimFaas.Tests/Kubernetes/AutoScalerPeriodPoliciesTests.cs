@@ -209,6 +209,48 @@ namespace SlimFaas.Tests.Kubernetes
         }
 
         [Fact]
+        public void ScaleDown_PercentPolicy_StillCountsTheWakeUpAsAnAddition()
+        {
+            // #350 semantics must survive: the wake-up 0 -> 1 is an accepted addition, so the
+            // period-start count of a Percent policy is current + removed - added = 0 and
+            // the quota is 0: the freshly woken replica cannot be removed inside the window.
+            const string key = "deploy-wake-up-then-down";
+            const long now = 1000;
+            const int current = 1;
+            const int rawDesired = 0;
+
+            var samples = new List<AutoScaleSample>
+            {
+                new AutoScaleSample(timestampUnixSeconds: 995, desiredReplicas: 1, previousReplicas: 0, wakeUp: true),
+            };
+
+            var storeMock = new Mock<IAutoScalerStore>();
+            storeMock
+                .Setup(s => s.GetSamples(key, It.Is<long>(ts => ts <= now)))
+                .Returns(samples);
+
+            var scaler = CreateAutoScalerWithStore(storeMock);
+
+            var heldInsideWindow = InvokeApplyScaleDownPolicies(
+                scaler,
+                key,
+                ScaleDirectionBehavior.DefaultScaleDown(),
+                current,
+                rawDesired,
+                now);
+            var allowedAfterWindow = InvokeApplyScaleDownPolicies(
+                scaler,
+                key,
+                ScaleDirectionBehavior.DefaultScaleDown(),
+                current,
+                rawDesired,
+                now + 15);
+
+            Assert.Equal(current, heldInsideWindow);
+            Assert.Equal(0, allowedAfterWindow);
+        }
+
+        [Fact]
         public void InMemoryStore_KeepsTheWakeUpFlag()
         {
             var store = new InMemoryAutoScalerStore();

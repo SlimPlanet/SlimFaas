@@ -394,7 +394,8 @@ Conceptually:
       count): the first metric-driven scale-out after a scale-from-zero is evaluated as soon
       as the metrics exceed the threshold, without waiting for the period to elapse. A
       metric-driven scale from zero (external source with `ScaleFromZero: true`) is a
-      policy step and consumes the budget like any other.
+      policy step and consumes the budget like any other. The wake-up is still recorded
+      as an accepted addition for the scale-down budgets below.
 
 - For **scale-down**:
     - Each policy defines a **maximum allowed decrease**.
