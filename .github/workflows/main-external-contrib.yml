@@ -1,4 +1,4 @@
-﻿name: SlimFaas main external contrib CI
+name: SlimFaas main external contrib CI
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@v6
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
