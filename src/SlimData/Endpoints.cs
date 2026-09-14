@@ -1,4 +1,4 @@
-﻿using DotNext;
+using DotNext;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Commands;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
@@ -66,7 +66,7 @@ public sealed record LpReq(
     CancellationToken Ct
 );
 
-public class Endpoints
+public static class Endpoints
 {
     private static readonly TimeSpan ReplicationTimeout = TimeSpan.FromSeconds(5);
     public delegate Task RespondDelegate(IRaftCluster cluster, SlimPersistentState provider,
@@ -276,17 +276,17 @@ public class Endpoints
         }
         catch (SlimDataUnavailableException e)
         {
-            logger.LogWarning(e, "SlimData is unavailable for {Path}", context.Request.Path);
+            logger.LogSlimDataIsUnavailableFor(e, context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
         }
         catch (InvalidDataException e)
         {
-            logger.LogWarning(e, "Invalid SlimData request for {Path}", context.Request.Path);
+            logger.LogInvalidSlimDataRequestFor(e, context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status400BadRequest;
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Unexpected error on {Path}", context.Request.Path);
+            logger.LogUnexpectedErrorOn(e, context.Request.Path);
             context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         }
         finally
@@ -474,7 +474,7 @@ public class Endpoints
             context.Response.ContentType = "application/octet-stream";
             context.Response.ContentLength = responseBytes.Length;
 
-            await context.Response.Body.WriteAsync(responseBytes, 0, responseBytes.Length, source.Token);
+            await context.Response.Body.WriteAsync(responseBytes, source.Token);
             await context.Response.Body.FlushAsync(source.Token);
         });
         await task;
@@ -653,7 +653,7 @@ public class Endpoints
             context.Response.StatusCode = StatusCodes.Status200OK;
             context.Response.ContentType = "application/octet-stream";
             context.Response.ContentLength = bytes.Length;
-            await context.Response.Body.WriteAsync(bytes, 0, bytes.Length, source.Token);
+            await context.Response.Body.WriteAsync(bytes, source.Token);
             await context.Response.Body.FlushAsync(source.Token);
         });
         await task;
@@ -856,10 +856,27 @@ public class Endpoints
 
 public class TooManyRequestsException : Exception
 {
+    public TooManyRequestsException()
+    {
+    }
+
+    public TooManyRequestsException(string message)
+        : base(message)
+    {
+    }
+
+    public TooManyRequestsException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
 }
 
 public sealed class SlimDataUnavailableException : Exception
 {
+    public SlimDataUnavailableException()
+    {
+    }
+
     public SlimDataUnavailableException(string message)
         : base(message)
     {

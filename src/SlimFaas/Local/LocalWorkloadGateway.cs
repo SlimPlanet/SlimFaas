@@ -122,7 +122,7 @@ internal sealed class LocalWorkloadGateway : IAsyncDisposable
             if (read == 0)
                 return request.ToArray();
 
-            request.Write(buffer, 0, read);
+            await request.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
             if (FindHeaderEnd(request.GetBuffer(), checked((int)request.Length)) >= 0)
                 return request.ToArray();
         }

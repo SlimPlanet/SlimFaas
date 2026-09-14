@@ -12,10 +12,12 @@ internal sealed class KeyedAsyncLock
     private long _inFlightBytes;
     private int _pendingTransfers;
 
-    internal sealed class Entry
+    internal sealed class Entry : IDisposable
     {
         public int RefCount;
         public readonly SemaphoreSlim Semaphore = new(1, 1);
+
+        public void Dispose() => Semaphore.Dispose();
     }
 
     private sealed class BytesWaiter
@@ -31,10 +33,8 @@ internal sealed class KeyedAsyncLock
         int maxPendingTransfers = 128,
         TimeSpan? queueWaitTimeout = null)
     {
-        if (maxInFlightBytes <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxInFlightBytes));
-        if (maxPendingTransfers <= 0)
-            throw new ArgumentOutOfRangeException(nameof(maxPendingTransfers));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxInFlightBytes);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxPendingTransfers);
 
         var timeout = queueWaitTimeout ?? TimeSpan.FromSeconds(30);
         if (timeout <= TimeSpan.Zero)
@@ -51,8 +51,7 @@ internal sealed class KeyedAsyncLock
     public async ValueTask<Releaser> AcquireAsync(string key, long bytesToReserve, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(key);
-        if (bytesToReserve < 0)
-            throw new ArgumentOutOfRangeException(nameof(bytesToReserve));
+        ArgumentOutOfRangeException.ThrowIfNegative(bytesToReserve);
 
         Entry entry;
         lock (_gate)
@@ -165,7 +164,7 @@ internal sealed class KeyedAsyncLock
         }
         finally
         {
-            waiter.CancellationRegistration.Dispose();
+            await waiter.CancellationRegistration.DisposeAsync().ConfigureAwait(false);
         }
     }
 
@@ -256,7 +255,7 @@ internal sealed class KeyedAsyncLock
         }
 
         if (dispose)
-            entry.Semaphore.Dispose();
+            entry.Dispose();
     }
 
     public sealed class Releaser : IAsyncDisposable, IDisposable

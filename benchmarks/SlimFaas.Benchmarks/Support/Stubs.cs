@@ -179,7 +179,7 @@ public sealed class StubKubernetesService(DeploymentsInformations deployments, I
 
 public sealed class StubMetricsRegistry : IRequestedMetricsRegistry
 {
-    public void RegisterMetricName(string metricName)
+    public static void RegisterMetricName(string metricName)
     {
     }
 

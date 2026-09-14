@@ -39,21 +39,11 @@ public sealed class RaftAppendEntriesCommitIndexGuard(
             var clampedRequests = Interlocked.Increment(ref _clampedRequests);
             if (clampedRequests is 1L || clampedRequests % 100L is 0L)
             {
-                logger.LogWarning(
-                    "Bounded Raft AppendEntries commit index to the last entry carried by the request. RequestedCommitIndex={RequestedCommitIndex}, ClampedCommitIndex={ClampedCommitIndex}, PrecedingRecordIndex={PrecedingRecordIndex}, EntriesCount={EntriesCount}, TotalClampedRequests={TotalClampedRequests}",
-                    requestedCommitIndex,
-                    clampedCommitIndex,
-                    precedingRecordIndex,
-                    entriesCount,
-                    clampedRequests);
+                logger.LogBoundedRaftAppendEntriesCommitIndexTo(requestedCommitIndex, clampedCommitIndex, precedingRecordIndex, entriesCount, clampedRequests);
             }
             else
             {
-                logger.LogDebug(
-                    "Bounded Raft AppendEntries commit index. RequestedCommitIndex={RequestedCommitIndex}, ClampedCommitIndex={ClampedCommitIndex}, TotalClampedRequests={TotalClampedRequests}",
-                    requestedCommitIndex,
-                    clampedCommitIndex,
-                    clampedRequests);
+                logger.LogBoundedRaftAppendEntriesCommitIndexRequestedCommitIndex(requestedCommitIndex, clampedCommitIndex, clampedRequests);
             }
         }
 

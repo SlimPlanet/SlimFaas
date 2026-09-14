@@ -1,5 +1,6 @@
 ﻿using System.IO.Hashing;
 
+using System.Globalization;
 namespace SlimFaas.Jobs;
 
 public static class IdGenerator
@@ -15,5 +16,5 @@ public static class IdGenerator
     /// Si vous préférez un texte en hexadécimal (toujours 8 caractères).
     /// </summary>
     public static string GetId32Hex(ReadOnlySpan<byte> data)
-        => GetId32(data).ToString("x8");
+        => GetId32(data).ToString("x8", CultureInfo.InvariantCulture);
 }

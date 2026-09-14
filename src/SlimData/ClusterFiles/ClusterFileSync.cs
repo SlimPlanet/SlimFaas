@@ -75,12 +75,12 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             catch (Exception ex) when (IsNotImplemented(ex))
             {
                 // Nœud pas prêt / pas de listener enregistré => on ignore (best effort)
-                _logger.LogWarning("FileSync announce skipped (remote returned 501 Not Implemented). Node={Node}", SafeNode(member));
+                _logger.LogFileSyncAnnounceSkippedRemoteReturned501(SafeNode(member));
             }
             catch (Exception ex)
             {
                 // Best effort: on ne casse pas l'upload, on log et on continue.
-                _logger.LogWarning(ex, "FileSync announce failed. Node={Node}", SafeNode(member));
+                _logger.LogFileSyncAnnounceFailedNode(ex, SafeNode(member));
             }
         }
         return put;
@@ -121,13 +121,15 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             var baseUri = RemoveLastPathSegment(SafeNode(member));
             // /cluster/files/{id}?sha=...
             var fileUri = new Uri($"{baseUri}/cluster/files/{Uri.EscapeDataString(id)}?sha={Uri.EscapeDataString(sha256Hex)}");
-            _logger.LogDebug("GET {Node}", fileUri);
+            _logger.LogGET(fileUri);
             HttpResponseMessage? headResp = null;
             try
             {
-                var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
+#pragma warning disable CA2000 // using declaration; the analyzer does not see through SendWithRedirectAsync
+                using var headReq = new HttpRequestMessage(HttpMethod.Head, fileUri);
+#pragma warning restore CA2000
                 headResp = await HttpRedirect.SendWithRedirectAsync(http, headReq, ct).ConfigureAwait(false);
-                _logger.LogDebug("GET {FileUri} {StatusCode}", fileUri, headResp.StatusCode);
+                _logger.LogGET2(fileUri, headResp.StatusCode);
                 if (headResp.StatusCode == HttpStatusCode.NotFound)
                 {
                     continue;
@@ -135,14 +137,14 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 
                 if (!headResp.IsSuccessStatusCode)
                 {
-                    _logger.LogWarning("HEAD failed on node {Node}. Status={Status}", fileUri, (int)headResp.StatusCode);
+                    _logger.LogHEADFailedOnNodeStatus(fileUri, (int)headResp.StatusCode);
                     continue;
                 }
 
                 var length = headResp.Content.Headers.ContentLength;
                 if (length is null || length <= 0)
                 {
-                    _logger.LogWarning("HEAD ok but no Content-Length from node {Node}", fileUri);
+                    _logger.LogHEADOkButNoContentLength(fileUri);
                     continue;
                 }
 
@@ -167,7 +169,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                         }
                         else
                         {
-                            _logger.LogWarning("Invalid tags header from node {Node}. Id={Id}", fileUri, id);
+                            _logger.LogInvalidTagsHeaderFromNodeId(fileUri, id);
                         }
                     }
                 }
@@ -194,10 +196,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
 
                     if (_logger.IsEnabled(LogLevel.Debug))
                     {
-                        _logger.LogDebug(
-                            "GET {FileUri} {StatusCode}. Length={Len} ContentType={ContentType} ExpireAtUtcTicks={ExpireAtUtcTicks} Tags={Tags}",
-                            fileUri, headResp.StatusCode, length.Value, contentType, expireAtUtcTicks,
-                            tags == null ? "null" : string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
+                        _logger.LogGETLengthContentTypeExpireAtUtcTicksTags(fileUri, headResp.StatusCode, length.Value, contentType, expireAtUtcTicks, tags == null ? "null" : string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
                     }
 
                     var put = await _repo.SaveAsync(
@@ -212,9 +211,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                     // Vérif intégrité
                     if (!put.Sha256Hex.Equals(sha256Hex, StringComparison.OrdinalIgnoreCase) || put.Length != length.Value)
                     {
-                        _logger.LogWarning(
-                            "Cluster pull integrity mismatch from {Node}. Id={Id} ExpectedSha={Sha} ActualSha={ActSha} ExpectedLen={Len} ActualLen={ActLen}",
-                            fileUri, id, sha256Hex, put.Sha256Hex, length.Value, put.Length);
+                        _logger.LogClusterPullIntegrityMismatchFromId(fileUri, id, sha256Hex, put.Sha256Hex, length.Value, put.Length);
 
                         await _repo.DeleteAsync(id, ct).ConfigureAwait(false);
                         continue; // essaie un autre nœud
@@ -229,7 +226,7 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Range pull failed from node {Node}. Id={Id}", SafeNode(member), id);
+                    _logger.LogRangePullFailedFromNodeId(ex, SafeNode(member), id);
                     // essaie le suivant
                     continue;
                 }
@@ -267,14 +264,15 @@ public sealed class ClusterFileSync : IClusterFileSync, IAsyncDisposable
             catch (Exception ex) when (IsNotImplemented(ex))
             {
                 // Mixed-version clusters fall back to the convergent orphan cleaner.
-                _logger.LogDebug(
-                    "File delete signal skipped because the remote node does not support it. Node={Node}",
-                    SafeNode(member));
+                if (_logger.IsEnabled(LogLevel.Debug))
+                {
+                    _logger.LogFileDeleteSignalSkippedBecauseThe(SafeNode(member));
+                }
             }
             catch (Exception ex)
             {
                 // Deletion is best effort. Missing signals are repaired by orphan cleanup.
-                _logger.LogWarning(ex, "File delete signal failed. Node={Node} Id={Id}", SafeNode(member), id);
+                _logger.LogFileDeleteSignalFailedNodeId(ex, SafeNode(member), id);
             }
         }
     }

@@ -79,14 +79,14 @@ internal sealed class RatePerBucketNode(MetricSelector selector, TimeSpan window
     private static bool TryExtractLabel(string seriesKey, string label, out string value)
     {
         value = "";
-        var idx = seriesKey.IndexOf('{');
+        var idx = seriesKey.IndexOf('{', StringComparison.Ordinal);
         if (idx < 0) return false;
         var j = seriesKey.LastIndexOf('}');
         if (j < idx) return false;
         var content = seriesKey.Substring(idx + 1, j - idx - 1);
         foreach (var part in content.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            var eq = part.IndexOf('=');
+            var eq = part.IndexOf('=', StringComparison.Ordinal);
             if (eq <= 0) continue;
             var k = part[..eq];
             if (!string.Equals(k, label, StringComparison.Ordinal)) continue;

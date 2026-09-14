@@ -1,4 +1,4 @@
-﻿﻿﻿using System.Text.Json.Serialization;
+﻿﻿using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using MemoryPack;
 using SlimData;
@@ -29,7 +29,8 @@ public partial class EnqueueJobResultSerializerContext : JsonSerializerContext;
 
 public enum JobStatusResult
 {
-    Queued =40,
+    None = 0,
+    Queued = 40,
 }
 
 
@@ -60,8 +61,8 @@ public class JobService(
     private static string ConvertPatternToRegex(string pattern)
     {
         return "^" + Regex.Escape(pattern)
-                       .Replace("\\*", ".*")  // '*' devient '.*'
-                       .Replace(":", "\\:")    // Échapper les deux-points
+                       .Replace("\\*", ".*", StringComparison.Ordinal)  // '*' devient '.*'
+                       .Replace(":", "\\:", StringComparison.Ordinal)    // Échapper les deux-points
                    + "$";
     }
 
@@ -76,7 +77,7 @@ public class JobService(
         }
         catch (RegexMatchTimeoutException ex)
         {
-            logger.LogError(ex, "Regex job pattern {Pattern} generated a timeout", pattern);
+            logger.LogRegexJobPatternGeneratedTimeout(ex, pattern);
             return false;
         }
     }
@@ -101,11 +102,11 @@ public class JobService(
             return new ResultWithError<EnqueueJobResult>(null , new ErrorResult("visibility_private"));
         }
 
-        if (createJob.Image != string.Empty && !IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
+        if (!string.IsNullOrEmpty(createJob.Image) && !IsImageAllowed(conf.ImagesWhitelist, createJob.Image))
         {
             return new ResultWithError<EnqueueJobResult>(null , new ErrorResult("image_not_allowed"));
         }
-        var image = createJob.Image != string.Empty ? createJob.Image : conf.Image;
+        var image = !string.IsNullOrEmpty(createJob.Image) ? createJob.Image : conf.Image;
 
         var environments = (conf.Environments?.ToList() ?? [])
             .Where(env => (createJob.Environments ?? new List<EnvVarInput>())

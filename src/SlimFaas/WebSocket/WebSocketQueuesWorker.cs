@@ -88,7 +88,7 @@ public class WebSocketQueuesWorker(
                 }
                 catch (Exception exception)
                 {
-                    logger.LogError(exception, "Error in WebSocketQueuesWorker");
+                    logger.LogErrorInWebSocketQueuesWorker(exception);
                 }
             }
         }
@@ -153,10 +153,7 @@ public class WebSocketQueuesWorker(
             }
             catch (Exception exception)
             {
-                logger.LogError(
-                    exception,
-                    "Failed to deserialize CustomRequest for WebSocket function {FunctionName}",
-                    functionName);
+                logger.LogFailedToDeserializeCustomRequestForWebSocket(exception, functionName);
                 await slimFaasQueue.ListCallbackAsync(
                     functionName,
                     new ListQueueItemStatus
@@ -167,7 +164,9 @@ public class WebSocketQueuesWorker(
             }
 
             historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
+#pragma warning disable CA2000 // owned by the TrackedWebSocketRequest, disposed on completion
             var requestCancellation = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+#pragma warning restore CA2000
             var tracked = new TrackedWebSocketRequest(
                 Volatile.Read(ref _trackingGeneration),
                 functionName,
@@ -223,19 +222,11 @@ public class WebSocketQueuesWorker(
             historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
             if (completed.Error is not null)
             {
-                logger.LogWarning(
-                    completed.Error,
-                    "WebSocket async request failed for {FunctionName}/{ElementId}",
-                    request.FunctionName,
-                    request.Id);
+                logger.LogWebSocketAsyncRequestFailedFor(completed.Error, request.FunctionName, request.Id);
             }
             else
             {
-                logger.LogDebug(
-                    "WebSocket async completed for {FunctionName} elementId={ElementId} statusCode={StatusCode}",
-                    request.FunctionName,
-                    request.Id,
-                    completed.StatusCode);
+                logger.LogWebSocketAsyncCompletedForElementIdStatusCode(request.FunctionName, request.Id, completed.StatusCode);
             }
             if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
                 continue;
@@ -294,7 +285,7 @@ public class WebSocketQueuesWorker(
     }
 
     private static Dictionary<string, TrackedWebSocketRequest> GetOrAdd(
-        IDictionary<string, Dictionary<string, TrackedWebSocketRequest>> dictionary,
+        Dictionary<string, Dictionary<string, TrackedWebSocketRequest>> dictionary,
         string key)
     {
         if (!dictionary.TryGetValue(key, out Dictionary<string, TrackedWebSocketRequest>? value))

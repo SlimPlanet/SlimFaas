@@ -28,7 +28,7 @@ public sealed class FibonacciKafkaListener : BackgroundService
         using var consumer = new ConsumerBuilder<Null, string>(config).Build();
         consumer.Subscribe(topic);
 
-        _logger.LogInformation("FibonacciKafkaListener started. Topic={Topic}, GroupId={GroupId}", topic, groupId);
+        _logger.LogFibonacciKafkaListenerStartedTopicGroupId(topic, groupId);
 
         try
         {
@@ -39,18 +39,17 @@ public sealed class FibonacciKafkaListener : BackgroundService
                     var cr = consumer.Consume(stoppingToken);
                     if (cr is null) continue;
 
-                    _logger.LogInformation("Received message from Kafka: Topic={Topic}, Partition={Partition}, Offset={Offset}, Value={Value}",
-                        cr.Topic, cr.Partition.Value, cr.Offset.Value, cr.Message.Value);
+                    _logger.LogReceivedMessageFromKafkaTopicPartition(cr.Topic, cr.Partition.Value, cr.Offset.Value, cr.Message.Value);
 
                     if (int.TryParse(cr.Message.Value, out var n))
                     {
                         var fib = Fibonacci(n);
-                        _logger.LogInformation("Computed Fibonacci({N}) = {Fib}", n, fib);
+                        _logger.LogComputedFibonacci(n, fib);
                     }
                 }
                 catch (ConsumeException ex)
                 {
-                    _logger.LogError(ex, "Kafka consume error");
+                    _logger.LogKafkaConsumeError(ex);
                 }
             }
         }
@@ -61,7 +60,7 @@ public sealed class FibonacciKafkaListener : BackgroundService
         finally
         {
             consumer.Close();
-            _logger.LogInformation("FibonacciKafkaListener stopped.");
+            _logger.LogFibonacciKafkaListenerStopped();
         }
     }
 

@@ -31,10 +31,7 @@ public sealed class LocalKubernetesService : IKubernetesService
 
         int replicas = Math.Clamp(request.Replicas, 0, 1);
         Volatile.Write(ref _functionReplicas, replicas);
-        _logger.LogInformation(
-            "Local function {FunctionName} scaled to {Replicas}",
-            request.Deployment,
-            replicas);
+        _logger.LogLocalFunctionScaledTo(request.Deployment, replicas);
         return Task.FromResult<ReplicaRequest?>(request with { Replicas = replicas });
     }
 
@@ -99,7 +96,7 @@ public sealed class LocalKubernetesService : IKubernetesService
     public Task DeleteJobAsync(string kubeNamespace, string jobName)
         => Task.CompletedTask;
 
-    private IList<PodInformation> CreateSlimFaasPods()
+    private List<PodInformation> CreateSlimFaasPods()
     {
         var result = new List<PodInformation>(_options.NodeCount);
         for (var index = 0; index < _options.NodeCount; index++)

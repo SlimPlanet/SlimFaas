@@ -33,19 +33,11 @@ public sealed class SlimDataProtocolCompatibility(ILogger<SlimDataProtocolCompat
 
         if (compatible)
         {
-            logger.LogInformation(
-                "SlimData Raft protocol is compatible. Protocol={Protocol}, Leader={Leader}, Reason={Reason}",
-                SlimDataCommandProtocol.Current,
-                leader,
-                reason);
+            logger.LogSlimDataRaftProtocolIsCompatibleProtocol(SlimDataCommandProtocol.Current, leader, reason);
         }
         else
         {
-            logger.LogWarning(
-                "SlimData Raft protocol is incompatible or unavailable. ExpectedProtocol={Protocol}, Leader={Leader}, Reason={Reason}",
-                SlimDataCommandProtocol.Current,
-                leader,
-                reason);
+            logger.LogSlimDataRaftProtocolIsIncompatibleOr(SlimDataCommandProtocol.Current, leader, reason);
         }
     }
 }
@@ -195,7 +187,7 @@ internal sealed class SlimDataProtocolCompatibilityWorker(
             catch (Exception ex)
             {
                 compatibility.Update(false, GetLeaderUri(), ex.Message);
-                logger.LogDebug(ex, "Unable to verify the SlimData leader protocol");
+                logger.LogUnableToVerifyTheSlimDataLeader(ex);
             }
 
             try

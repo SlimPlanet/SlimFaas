@@ -12,7 +12,7 @@ namespace SlimFaas.Tests.PerfRegression;
 // Non-regression test protecting the "no backup file rewrite when nothing changed"
 // behavior ("recurring worker cost" theme), whatever the internal change-detection
 // mechanism (hash of the serialized JSON or incremental hash of the raw data).
-public class ScheduleJobBackupSkipRegressionTests : IDisposable
+public sealed class ScheduleJobBackupSkipRegressionTests : IDisposable
 {
     private readonly string _tempDir;
     private readonly string _stateDir;

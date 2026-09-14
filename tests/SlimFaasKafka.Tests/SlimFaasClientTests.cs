@@ -18,6 +18,7 @@ public class SlimFaasClientTests
     {
         handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
         loggerMock = new Mock<ILogger<SlimFaasClient>>();
+        loggerMock.Setup(x => x.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
 
         handlerMock
             .Protected()
@@ -123,6 +124,7 @@ public class SlimFaasClientTests
         // Arrange : ton implémentation actuelle log en Error mais ne relance pas
         var handlerMock = new Mock<HttpMessageHandler>(MockBehavior.Strict);
         var loggerMock = new Mock<ILogger<SlimFaasClient>>();
+        loggerMock.Setup(x => x.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
 
         handlerMock
             .Protected()
