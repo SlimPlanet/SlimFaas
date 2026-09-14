@@ -20,6 +20,17 @@
     <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
   </PropertyGroup>
 
+  <!--
+    NuGet audit covers direct and transitive packages, at every severity; a known vulnerability
+    (NU1901-NU1904) fails restore. Versions are managed centrally in Directory.Packages.props, where
+    a vulnerable transitive package can be pinned without adding a direct reference.
+  -->
+  <PropertyGroup>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditMode>all</NuGetAuditMode>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+  </PropertyGroup>
+
   <!-- .NET code-quality analyzers: every rule of the latest SDK, plus IDE code-style rules at build time. -->
   <PropertyGroup>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
