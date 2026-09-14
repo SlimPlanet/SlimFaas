@@ -504,7 +504,11 @@ functions retain their own telemetry configuration.
 
 `Ctrl+C` and, on Unix, `SIGTERM` call configured function shutdown hooks, then
 stop functions, Jobs, auxiliary processes, SlimFaas nodes, and their complete
-descendant process trees. Forced termination such as `kill -9`, `SIGKILL`, or
+descendant process trees. The supervisor only returns once every managed
+process has exited, so its data and log files are released by then. On
+Windows, `Ctrl+C` and `Ctrl+Break` also reach the managed processes directly;
+a process that is already stopping on its own is waited for rather than
+terminated again. Forced termination such as `kill -9`, `SIGKILL`, or
 `taskkill /F` does not let SlimFaas execute this cleanup and can leave child
 processes running.
 
