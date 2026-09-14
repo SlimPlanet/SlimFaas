@@ -101,7 +101,7 @@ public static class FileSyncProtocol
 
         foreach (var pair in pairs)
         {
-            var idx = pair.IndexOf(TagKvSep);
+            var idx = pair.IndexOf(TagKvSep, StringComparison.Ordinal);
             if (idx <= 0 || idx == pair.Length - 1)
                 return false;
 

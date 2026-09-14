@@ -16,10 +16,12 @@ public interface IScalingLeaderClient
 
 public sealed class ScalingLeaderClient(IMasterService master, IReplicasService replicas, StatusLeader leader,
     ScalingDiagnosticsStore diagnostics, ScalingSimulationService simulator, IHttpClientFactory clients,
-    IOptions<SlimFaasOptions> options, INamespaceProvider namespaceProvider) : IScalingLeaderClient
+    IOptions<SlimFaasOptions> options, INamespaceProvider namespaceProvider) : IScalingLeaderClient, IDisposable
 {
     public const string HttpClientName = "ScalingDiagnostics";
     private readonly SemaphoreSlim _gate = new(1, 1);
+
+    public void Dispose() => _gate.Dispose();
     private readonly Dictionary<string, (string Leader, long Time, ScalingState State)> _cache = new(StringComparer.Ordinal);
 
     public async Task<ScalingState> GetStateAsync(string function, CancellationToken ct)
@@ -99,7 +101,7 @@ public sealed class ScalingLeaderClient(IMasterService master, IReplicasService 
             while ((count = await input.ReadAsync(chunk, timeout.Token)) > 0)
             {
                 if (buffer.Length + count > 1024 * 1024) throw new ScalingSimulationException(503, "Leader response is too large.");
-                buffer.Write(chunk, 0, count);
+                await buffer.WriteAsync(chunk.AsMemory(0, count), timeout.Token);
             }
             if (!response.IsSuccessStatusCode)
             {

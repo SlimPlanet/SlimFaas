@@ -141,13 +141,13 @@ internal static class BenchmarkRunner
         await WaitUntilAsync(
             async () => await IsSuccessAsync(client, new Uri(options.SlimFaasUrl, "ready"), timeout.Token),
             TimeSpan.FromMilliseconds(500),
-            timeout.Token,
-            "SlimFaas entrypoint did not become ready within 180 seconds.");
+            "SlimFaas entrypoint did not become ready within 180 seconds.",
+            timeout.Token);
         await WaitUntilAsync(
             async () => await IsSuccessAsync(client, new Uri(options.DirectUrl, "health"), timeout.Token),
             TimeSpan.FromMilliseconds(250),
-            timeout.Token,
-            "The direct benchmark target did not become ready within 180 seconds.");
+            "The direct benchmark target did not become ready within 180 seconds.",
+            timeout.Token);
         await WaitUntilAsync(
             async () =>
             {
@@ -159,8 +159,8 @@ internal static class BenchmarkRunner
                 return status is { NumberReady: > 0 };
             },
             TimeSpan.FromMilliseconds(250),
-            timeout.Token,
-            $"Function '{options.Function}' did not become ready within 180 seconds.");
+            $"Function '{options.Function}' did not become ready within 180 seconds.",
+            timeout.Token);
 
         // Let topology and Raft synchronization settle before collecting latency samples.
         await Task.Delay(TimeSpan.FromSeconds(2), timeout.Token);
@@ -245,7 +245,7 @@ internal static class BenchmarkRunner
 
         if (resourceMonitorCancellation is not null && resourceMonitor is not null)
         {
-            resourceMonitorCancellation.Cancel();
+            await resourceMonitorCancellation.CancelAsync();
             IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
             asyncResources = BuildResourceUsage(resourceSamples, successful.LongLength);
         }
@@ -406,7 +406,7 @@ internal static class BenchmarkRunner
         throw new TimeoutException($"Queue for '{function}' did not drain after {timeout.TotalSeconds:F0}s.");
     }
 
-    private static IReadOnlyList<LatencyAggregateResult> AggregateLatency(
+    private static LatencyAggregateResult[] AggregateLatency(
         IReadOnlyList<LatencyRunResult> runs)
     {
         return runs.GroupBy(run => new { run.Mode, run.PayloadBytes, run.Concurrency })
@@ -453,9 +453,9 @@ internal static class BenchmarkRunner
     }
 
     private static double? AsyncMedian(
-        IReadOnlyList<TargetObservationSummary> values,
+        TargetObservationSummary[] values,
         Func<TargetObservationSummary, double> selector) =>
-        values.Count == 0 ? null : Statistics.Median(values.Select(selector));
+        values.Length == 0 ? null : Statistics.Median(values.Select(selector));
 
     private static double? MedianNullable(IEnumerable<double?> values)
     {
@@ -463,7 +463,7 @@ internal static class BenchmarkRunner
         return snapshot.Length == 0 ? null : Statistics.Median(snapshot);
     }
 
-    private static IReadOnlyList<SyncOverheadResult> ComputeSyncOverhead(
+    private static SyncOverheadResult[] ComputeSyncOverhead(
         IReadOnlyList<LatencyAggregateResult> latency)
     {
         return latency.Where(result => result.Mode == "direct")
@@ -584,7 +584,7 @@ internal static class BenchmarkRunner
             : await WaitForAsyncDeliveryAsync(
                 client, options.DirectUrl, runId, successful.Length, options.AsyncDrainTimeout);
         await WaitForQueueToDrainAsync(client, options.NodeUrls, options.Function, options.AsyncDrainTimeout);
-        resourceMonitorCancellation.Cancel();
+        await resourceMonitorCancellation.CancelAsync();
         IReadOnlyList<ClusterResourceSnapshot> resourceSamples = await resourceMonitor;
         AsyncResourceUsage? resources = BuildResourceUsage(resourceSamples, successful.LongLength);
         using HttpResponseMessage _ = await client.DeleteAsync(
@@ -769,8 +769,8 @@ internal static class BenchmarkRunner
                 return requested == 0 && ready == 0;
             },
             TimeSpan.FromMilliseconds(250),
-            waitForZero.Token,
-            $"Scale function '{options.ScaleFunction}' did not reach zero before the burst.");
+            $"Scale function '{options.ScaleFunction}' did not reach zero before the burst.",
+            waitForZero.Token);
 
         byte[] payload = CreatePayload(256);
         Uri scaleUri = new(options.SlimFaasUrl,
@@ -810,8 +810,8 @@ internal static class BenchmarkRunner
                     options.ScaleFunction,
                     timeout.Token);
                 await Task.WhenAll(statusTask, queueTask);
-                (int requested, int ready) = statusTask.Result;
-                QueueDepth queue = queueTask.Result;
+                (int requested, int ready) = await statusTask;
+                QueueDepth queue = await queueTask;
                 timeline.Add(new ScaleTimelineSample(
                     elapsed,
                     requested,
@@ -857,7 +857,7 @@ internal static class BenchmarkRunner
             }
         }
         BurstResult burst = burstTask.IsCompletedSuccessfully
-            ? burstTask.Result
+            ? await burstTask
             : new BurstResult(0, options.ScaleMessages, null, Stopwatch.GetElapsedTime(started).TotalMilliseconds);
 
         return new ScaleResult(
@@ -1057,8 +1057,8 @@ internal static class BenchmarkRunner
     private static async Task WaitUntilAsync(
         Func<Task<bool>> predicate,
         TimeSpan delay,
-        CancellationToken cancellationToken,
-        string timeoutMessage)
+        string timeoutMessage,
+        CancellationToken cancellationToken)
     {
         try
         {
@@ -1138,7 +1138,7 @@ internal static class BenchmarkRunner
         var builder = new StringBuilder();
         builder.AppendLine("# SlimFaas local latency and scaling benchmark");
         builder.AppendLine();
-        builder.AppendLine($"Generated at `{report.FinishedAtUtc:O}` on `{report.OperatingSystem}` with `{report.Framework}`.");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Generated at `{report.FinishedAtUtc:O}` on `{report.OperatingSystem}` with `{report.Framework}`.");
         builder.AppendLine();
         builder.AppendLine("## Synchronous overhead");
         builder.AppendLine();
@@ -1181,18 +1181,18 @@ internal static class BenchmarkRunner
         builder.AppendLine();
         builder.AppendLine("## Scaling burst");
         builder.AppendLine();
-        builder.AppendLine($"Burst: `{scale.Messages}` messages, concurrency `{scale.Concurrency}`, target `{scale.TargetReplicas}` replicas.");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"Burst: `{scale.Messages}` messages, concurrency `{scale.Concurrency}`, target `{scale.TargetReplicas}` replicas.");
         builder.AppendLine();
         builder.AppendLine("| milestone from first send | observed time |");
         builder.AppendLine("|---|---:|");
-        builder.AppendLine($"| first HTTP 202 | {FormatNullable(scale.FirstAcceptedMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| first HTTP 202 | {FormatNullable(scale.FirstAcceptedMilliseconds)} |");
         builder.AppendLine(FormattableString.Invariant(
             $"| all HTTP 202 responses | {scale.AllAcceptedMilliseconds:F3} ms |"));
-        builder.AppendLine($"| desired replicas >= 1 | {FormatNullable(scale.RequestedOneMilliseconds)} |");
-        builder.AppendLine($"| ready replicas >= 1 | {FormatNullable(scale.ReadyOneMilliseconds)} |");
-        builder.AppendLine($"| desired replicas >= {scale.TargetReplicas} | {FormatNullable(scale.RequestedTargetMilliseconds)} |");
-        builder.AppendLine($"| ready replicas >= {scale.TargetReplicas} | {FormatNullable(scale.ReadyTargetMilliseconds)} |");
-        builder.AppendLine($"| queue drained | {FormatNullable(scale.QueueDrainedMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| desired replicas >= 1 | {FormatNullable(scale.RequestedOneMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| ready replicas >= 1 | {FormatNullable(scale.ReadyOneMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| desired replicas >= {scale.TargetReplicas} | {FormatNullable(scale.RequestedTargetMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| ready replicas >= {scale.TargetReplicas} | {FormatNullable(scale.ReadyTargetMilliseconds)} |");
+        builder.AppendLine(CultureInfo.InvariantCulture, $"| queue drained | {FormatNullable(scale.QueueDrainedMilliseconds)} |");
         builder.AppendLine();
         builder.AppendLine(FormattableString.Invariant(
             $"Peak observed ready queue: `{scale.PeakReadyQueue:F0}`. Timed out: `{scale.TimedOut}`."));

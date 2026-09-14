@@ -26,7 +26,7 @@ public interface IAutoScalerStore
     IReadOnlyList<AutoScaleSample> GetSamples(string key, long fromTimestampUnixSeconds);
 }
 
-public readonly struct AutoScaleSample
+public readonly record struct AutoScaleSample
 {
     public long TimestampUnixSeconds { get; }
     public int DesiredReplicas { get; }
@@ -55,7 +55,7 @@ public sealed class InMemoryAutoScalerStore : IAutoScalerStore
 
     public InMemoryAutoScalerStore(int maxSamplesPerKey = 1024)
     {
-        if (maxSamplesPerKey <= 0) throw new ArgumentOutOfRangeException(nameof(maxSamplesPerKey));
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxSamplesPerKey);
         _maxSamplesPerKey = maxSamplesPerKey;
     }
 

@@ -6,6 +6,7 @@ namespace SlimFaasClient;
 // Protocole WebSocket (doit correspondre à WebSocketMessageType côté serveur)
 // ---------------------------------------------------------------------------
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1027:Mark enums with FlagsAttribute", Justification = "Message type discriminator, not a set of flags.")]
 public enum SlimFaasMessageType
 {
     Register = 0,
@@ -413,7 +414,7 @@ public sealed class ChannelStream : Stream
         => ReadAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
 
     public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
-        => await ReadAsync(buffer.AsMemory(offset, count), cancellationToken);
+        => await ReadAsync(buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
 
     public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
     {
@@ -423,7 +424,7 @@ public sealed class ChannelStream : Stream
         while (_currentChunk == null || _currentOffset >= _currentChunk.Length)
         {
             // Attendre le prochain chunk depuis le channel
-            if (!await _reader.WaitToReadAsync(cancellationToken))
+            if (!await _reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 // Channel complété → fin du stream
                 _completed = true;
@@ -481,6 +482,7 @@ public class SlimFaasSyncRequest
 /// Encapsule l'envoi de SyncResponseStart, SyncResponseChunk et SyncResponseEnd
 /// pour une corrélation donnée.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1710:Identifiers should have correct suffix", Justification = "Public API of the NuGet package; renaming would break consumers.")]
 public sealed class SyncResponseWriter : Stream
 {
     private readonly Func<string, SlimFaasSyncResponse, CancellationToken, Task> _sendStart;
@@ -515,7 +517,7 @@ public sealed class SyncResponseWriter : Stream
         {
             StatusCode = statusCode,
             Headers = headers ?? [],
-        }, ct);
+        }, ct).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -525,9 +527,9 @@ public sealed class SyncResponseWriter : Stream
     public async Task CompleteAsync(CancellationToken ct = default)
     {
         if (_completed) return;
-        if (!_started) await StartAsync(ct: ct);
+        if (!_started) await StartAsync(ct: ct).ConfigureAwait(false);
         _completed = true;
-        await _sendEnd(_correlationId, ct);
+        await _sendEnd(_correlationId, ct).ConfigureAwait(false);
     }
 
     // ── Stream overrides ─────────────────────────────────────────────────
@@ -549,20 +551,20 @@ public sealed class SyncResponseWriter : Stream
     public override void Write(byte[] buffer, int offset, int count)
         => WriteAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
 
-    public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken ct)
+    public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
     {
         if (_completed) throw new InvalidOperationException("Response already completed.");
-        if (!_started) await StartAsync(ct: ct);
+        if (!_started) await StartAsync(ct: cancellationToken).ConfigureAwait(false);
         if (count > 0)
-            await _sendChunk(_correlationId, buffer.AsMemory(offset, count), ct);
+            await _sendChunk(_correlationId, buffer.AsMemory(offset, count), cancellationToken).ConfigureAwait(false);
     }
 
-    public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken ct = default)
+    public override async ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
     {
         if (_completed) throw new InvalidOperationException("Response already completed.");
-        if (!_started) await StartAsync(ct: ct);
+        if (!_started) await StartAsync(ct: cancellationToken).ConfigureAwait(false);
         if (buffer.Length > 0)
-            await _sendChunk(_correlationId, buffer, ct);
+            await _sendChunk(_correlationId, buffer, cancellationToken).ConfigureAwait(false);
     }
 }
 

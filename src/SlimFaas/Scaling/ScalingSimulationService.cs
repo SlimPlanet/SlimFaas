@@ -7,9 +7,11 @@ namespace SlimFaas.Scaling;
 
 public sealed class ScalingSimulationService(IReplicasService replicas, AutoScaler autoScaler,
     IMetricsStore metrics, ExternalMetricsSourceStore sources, IOptions<SlimFaasOptions> options,
-    TimeProvider? clock = null)
+    TimeProvider? clock = null) : IDisposable
 {
     private readonly SemaphoreSlim _budget = new(2, 2);
+
+    public void Dispose() => _budget.Dispose();
 
     public async Task<ScalingSimulationResponse> SimulateAsync(ScalingSimulationRequest request, CancellationToken ct)
     {
@@ -84,7 +86,7 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
     }
 
     private static ScalingDecision Calculate(DeploymentInformation function, ScalingEnvironment environment,
-        IReadOnlyDictionary<string, ScalerEvaluation> evaluations, ScalingHistory history,
+        Dictionary<string, ScalerEvaluation> evaluations, ScalingHistory history,
         ExternalMetricsSourceStore health, int interval)
     {
         var deployments = environment.Deployments with { Functions = environment.Deployments.Functions
@@ -108,8 +110,8 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
         return ScalingDecisionCalculator.Calculate(context, evaluation, calculation, sourceDiagnostics);
     }
 
-    private static async Task<ScalerEvaluation> Evaluate(DeploymentInformation function, IScalerProvider provider,
-        DateTime now, bool externalOnly, IReadOnlyDictionary<int, ScalingTriggerOverride>? overrides, CancellationToken ct)
+    private static async Task<ScalerEvaluation> Evaluate(DeploymentInformation function, PrometheusScalerProvider provider,
+        DateTime now, bool externalOnly, Dictionary<int, ScalingTriggerOverride>? overrides, CancellationToken ct)
     {
         var results = new List<ScalerTriggerResult>();
         for (int i = 0; i < function.Scale!.Triggers.Count; i++)
@@ -170,6 +172,7 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
     }
 }
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1032:Implement standard exception constructors", Justification = "Always raised with the HTTP status it maps to.")]
 public sealed class ScalingSimulationException(int statusCode, string message) : Exception(message)
 {
     public int StatusCode { get; } = statusCode;

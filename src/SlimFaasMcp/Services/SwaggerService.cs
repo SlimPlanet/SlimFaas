@@ -51,7 +51,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         JsonDocument doc;
 
         var trimmed = swaggerStr.TrimStart();
-        if (trimmed.StartsWith("{") || trimmed.StartsWith("["))
+        if (trimmed.StartsWith('{') || trimmed.StartsWith('['))
         {
             doc = JsonDocument.Parse(swaggerStr);
         }
@@ -237,7 +237,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
 
                 endpoints.Add(new Endpoint
                 {
-                    Name           = verb.ToLowerInvariant() + url.Replace("/", "_").Replace("{", "").Replace("}", ""),
+                    Name           = verb.ToLowerInvariant() + url.Replace("/", "_", StringComparison.Ordinal).Replace("{", "", StringComparison.Ordinal).Replace("}", "", StringComparison.Ordinal),
                     Url            = url,
                     Verb           = verb,
                     Summary        = summary,
@@ -256,7 +256,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         if (param.TryGetProperty("$ref", out var refProp))
         {
             var refPath = refProp.GetString();
-            if (refPath is not null && refPath.StartsWith("#/parameters/"))
+            if (refPath is not null && refPath.StartsWith("#/parameters/", StringComparison.Ordinal))
             {
                 var name = refPath.Substring("#/parameters/".Length);
                 if (root.TryGetProperty("parameters", out var globals) &&
@@ -369,7 +369,7 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                 {
                     var set = req.EnumerateArray().Select(e => e.GetString())
                         .Where(s => !string.IsNullOrWhiteSpace(s)).ToHashSet();
-                    okRequired = set.Count <= 1 && (!set.Any() || set.Contains(only.Name));
+                    okRequired = set.Count <= 1 && (set.Count == 0 || set.Contains(only.Name));
                 }
 
                 if (okRequired)

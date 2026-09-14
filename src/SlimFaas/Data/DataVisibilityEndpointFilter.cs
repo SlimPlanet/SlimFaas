@@ -22,8 +22,10 @@ public sealed class DataVisibilityEndpointFilter(
         if (accessPolicy.IsInternalRequest(context.HttpContext))
             return await next(context);
 
-        logger.LogDebug("Denied /data access (DefaultVisibility=Private) for Remote={RemoteIp}",
-            context.HttpContext.Connection.RemoteIpAddress?.ToString());
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogDeniedDataAccessDefaultVisibilityPrivateFor(context.HttpContext.Connection.RemoteIpAddress?.ToString());
+        }
 
         // même choix que tes fonctions privées : on “cache” => 404
         return Results.NotFound();

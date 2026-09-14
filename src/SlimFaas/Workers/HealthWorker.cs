@@ -1,4 +1,4 @@
-﻿﻿using DotNext.Net.Cluster.Consensus.Raft;
+﻿using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Options;
@@ -26,11 +26,11 @@ public class HealthWorker(
                 var consensusUnavailable = raftCluster.Leader is null || raftCluster.ConsensusToken.IsCancellationRequested;
                 if (consensusUnavailable && !consensusWasUnavailable)
                 {
-                    logger.LogWarning("Raft cluster has no active consensus; the pod remains alive but is not ready");
+                    logger.LogRaftClusterHasNoActiveConsensus();
                 }
                 else if (!consensusUnavailable && consensusWasUnavailable)
                 {
-                    logger.LogInformation("Raft cluster consensus is available again");
+                    logger.LogRaftClusterConsensusIsAvailableAgain();
                 }
 
                 consensusWasUnavailable = consensusUnavailable;
@@ -41,7 +41,7 @@ public class HealthWorker(
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Global Error in HealthWorker");
+                logger.LogGlobalErrorInHealthWorker(e);
             }
         }
     }

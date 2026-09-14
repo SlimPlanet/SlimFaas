@@ -81,10 +81,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         var kafkaOptionsAtStart = _kafkaOptionsMonitor.CurrentValue;
-        _logger.LogInformation(
-            "KafkaMonitoringWorker started. BootstrapServers = {BootstrapServers}, ClientId = {ClientId}",
-            kafkaOptionsAtStart.BootstrapServers,
-            kafkaOptionsAtStart.ClientId);
+        _logger.LogKafkaMonitoringWorkerStartedBootstrapServersClientId(kafkaOptionsAtStart.BootstrapServers, kafkaOptionsAtStart.ClientId);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -93,7 +90,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
 
             if (bindingsOptions.Bindings.Count == 0)
             {
-                _logger.LogDebug("No bindings configured, skipping check");
+                _logger.LogNoBindingsConfiguredSkippingCheck();
             }
             else
             {
@@ -107,7 +104,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Unexpected error while checking Kafka bindings");
+                    _logger.LogUnexpectedErrorWhileCheckingKafkaBindings(ex);
                 }
             }
 
@@ -122,7 +119,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
             }
         }
 
-        _logger.LogInformation("KafkaMonitoringWorker stopped");
+        _logger.LogKafkaMonitoringWorkerStopped();
     }
 
     // NOTE: reste private, on l'appellera en test via réflexion.
@@ -148,12 +145,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
 
                 if (!usedAdmin)
                 {
-                    _logger.LogInformation(
-                        "Binding topic={Topic}, group={Group}, function={Function} is using consumer-only heuristic " +
-                        "(no visibility on consumer group offsets: recent-consumption keep-alive is limited).",
-                        binding.Topic,
-                        binding.ConsumerGroupId,
-                        binding.FunctionName);
+                    _logger.LogBindingTopicGroupFunctionIsUsing(binding.Topic, binding.ConsumerGroupId, binding.FunctionName);
                 }
 
                 PendingMessagesGauge
@@ -210,15 +202,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
 
                 if (_logger.IsEnabled(LogLevel.Debug))
                 {
-                    _logger.LogDebug(
-                        "Binding topic={Topic}, group={Group}, function={Function} has {Pending} pending messages, consumedDelta={ConsumedDelta}, recentActivity={RecentActivity}, usedAdmin={UsedAdmin}",
-                        binding.Topic,
-                        binding.ConsumerGroupId,
-                        binding.FunctionName,
-                        pending,
-                        consumedDelta,
-                        recentActivity,
-                        usedAdmin);
+                    _logger.LogBindingTopicGroupFunctionHasPending(binding.Topic, binding.ConsumerGroupId, binding.FunctionName, pending, consumedDelta, recentActivity, usedAdmin);
                 }
 
                 var shouldWakeForPending = pending >= binding.MinPendingMessages;
@@ -234,15 +218,7 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                                 ? "pending"
                                 : "activity";
 
-                        _logger.LogInformation(
-                            "Triggering wake up for function {Function} (pending={Pending}, recentActivity={RecentActivity}, reason={Reason}, usedAdmin={UsedAdmin}) on topic={Topic}, group={Group}",
-                            binding.FunctionName,
-                            pending,
-                            recentActivity,
-                            reason,
-                            usedAdmin,
-                            binding.Topic,
-                            binding.ConsumerGroupId);
+                        _logger.LogTriggeringWakeUpForFunctionPending(binding.FunctionName, pending, recentActivity, reason, usedAdmin, binding.Topic, binding.ConsumerGroupId);
 
                         await _slimFaasClient.WakeAsync(binding.FunctionName, cancellationToken);
                         _lastWakeUp[wakeKey] = now;
@@ -255,22 +231,14 @@ public sealed class KafkaMonitoringWorker : BackgroundService
                     {
                         if (_logger.IsEnabled(LogLevel.Debug))
                         {
-                            _logger.LogDebug(
-                                "Cooldown still active for topic={Topic}, group={Group}, function={Function}",
-                                binding.Topic,
-                                binding.ConsumerGroupId,
-                                binding.FunctionName);
+                            _logger.LogCooldownStillActiveForTopicGroup(binding.Topic, binding.ConsumerGroupId, binding.FunctionName);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Unexpected error while checking binding topic={Topic}, group={Group}",
-                    binding.Topic,
-                    binding.ConsumerGroupId);
+                _logger.LogUnexpectedErrorWhileCheckingBindingTopic(ex, binding.Topic, binding.ConsumerGroupId);
             }
         }
     }

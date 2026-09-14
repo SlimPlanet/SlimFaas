@@ -71,7 +71,7 @@ public sealed class SlimDataExpirationCleaner
                 continue;
 
             var baseKey = ttlKey[..^SlimDataInterpreter.TimeToLivePostfix.Length];
-            _logger.LogDebug("Deleting expired keyvalue. key={Key}", baseKey);
+            _logger.LogDeletingExpiredKeyvalueKey(baseKey);
 
             try
             {
@@ -79,7 +79,7 @@ public sealed class SlimDataExpirationCleaner
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to delete expired keyvalue. key={Key}", baseKey);
+                _logger.LogFailedToDeleteExpiredKeyvalueKey(ex, baseKey);
             }
         }
 
@@ -100,12 +100,12 @@ public sealed class SlimDataExpirationCleaner
 
             try
             {
-                _logger.LogDebug("Deleting expired keyvalue. key={Key}", key);
+                _logger.LogDeletingExpiredKeyvalueKey2(key);
                 await _db.HashSetDeleteAsync(key, "").ConfigureAwait(false);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to delete expired hashset. key={Key}", key);
+                _logger.LogFailedToDeleteExpiredHashsetKey(ex, key);
             }
         }
 
@@ -118,14 +118,14 @@ public sealed class SlimDataExpirationCleaner
             var exp = entry.Metadata.ExpireAtUtcTicks;
             if (exp is long t && t > 0 && t <= nowTicks)
             {
-                _logger.LogDebug("Deleting expired local file by disk metadata. id={Id} expireAt={ExpireAt}", entry.Id, t);
+                _logger.LogDeletingExpiredLocalFileByDisk(entry.Id, t);
                 try
                 {
                     await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete expired local file. id={Id}", entry.Id);
+                    _logger.LogFailedToDeleteExpiredLocalFile(ex, entry.Id);
                 }
                 continue;
             }
@@ -153,16 +153,14 @@ public sealed class SlimDataExpirationCleaner
                 if (!IsConfirmedOrphan(candidateKey))
                     continue;
 
-                _logger.LogDebug(
-                    "Deleting confirmed local file without Raft metadata. id={Id}",
-                    entry.Id);
+                _logger.LogDeletingConfirmedLocalFileWithoutRaft(entry.Id);
                 try
                 {
                     await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete local file without Raft metadata. id={Id}", entry.Id);
+                    _logger.LogFailedToDeleteLocalFileWithout(ex, entry.Id);
                 }
                 continue;
             }
@@ -180,17 +178,14 @@ public sealed class SlimDataExpirationCleaner
                 if (!IsConfirmedOrphan(candidateKey))
                     continue;
 
-                _logger.LogDebug(
-                    "Deleting confirmed orphaned offload file. id={Id} QueueElementId={QueueElementId}",
-                    entry.Id,
-                    fileQueueElementId);
+                _logger.LogDeletingConfirmedOrphanedOffloadFileId(entry.Id, fileQueueElementId);
                 try
                 {
                     await _files.DeleteAsync(entry.Id, ct).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete orphaned offload file. id={Id}", entry.Id);
+                    _logger.LogFailedToDeleteOrphanedOffloadFile(ex, entry.Id);
                 }
             }
         }
@@ -212,7 +207,7 @@ public sealed class SlimDataExpirationCleaner
             }
             catch
             {
-                _logger.LogWarning("Failed to read metadata. key={Key} Value={Value}", key, kv.Value);
+                _logger.LogFailedToReadMetadataKeyValue(key, kv.Value);
                 continue;
             }
 
@@ -234,10 +229,7 @@ public sealed class SlimDataExpirationCleaner
             if (!IsConfirmedOrphan(candidateKey))
                 continue;
 
-            _logger.LogDebug(
-                "Deleting confirmed orphaned offload metadata. key={Key} QueueElementId={QueueElementId}",
-                key,
-                queueElementId);
+            _logger.LogDeletingConfirmedOrphanedOffloadMetadataKey(key, queueElementId);
             confirmedOrphanMetadata.Add(key);
         }
         await DeleteOrphanMetadataAsync(confirmedOrphanMetadata).ConfigureAwait(false);
@@ -247,13 +239,13 @@ public sealed class SlimDataExpirationCleaner
         {
             var deleted = await _files.CleanupOrphanTempFilesAsync(ct).ConfigureAwait(false);
             if (deleted > 0)
-                _logger.LogInformation("Cleaned up {Count} orphan .tmp file(s) from disk.", deleted);
+                _logger.LogCleanedUpOrphanTmpFileFrom(deleted);
             else
-                _logger.LogDebug("No orphan .tmp files found during cleanup.");
+                _logger.LogNoOrphanTmpFilesFoundDuring();
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to cleanup orphan .tmp files.");
+            _logger.LogFailedToCleanupOrphanTmpFiles(ex);
         }
 
         foreach (var candidateKey in _orphanCandidates.Keys.ToArray())
@@ -285,7 +277,7 @@ public sealed class SlimDataExpirationCleaner
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to delete orphaned offload metadata. key={Key}", key);
+            _logger.LogFailedToDeleteOrphanedOffloadMetadata(ex, key);
         }
     }
 

@@ -133,8 +133,7 @@ internal sealed class HttpRangeReadStream : Stream
     {
         try
         {
-            if (_respStream is IAsyncDisposable ad) await ad.DisposeAsync().ConfigureAwait(false);
-            else _respStream?.Dispose();
+            if (_respStream is not null) await _respStream.DisposeAsync().ConfigureAwait(false);
         }
         catch { /* ignore */ }
         finally

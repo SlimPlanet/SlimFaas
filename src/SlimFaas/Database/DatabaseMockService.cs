@@ -6,7 +6,7 @@ using SlimData.Commands;
 
 namespace SlimFaas;
 
-public class DatabaseMockService : IDatabaseService
+public sealed class DatabaseMockService : IDatabaseService
 {
     private readonly ConcurrentDictionary<string, IDictionary<string, byte[]>> hashSet = new();
     private readonly ConcurrentDictionary<string, byte[]> keys = new();
@@ -135,7 +135,7 @@ public class DatabaseMockService : IDatabaseService
         return Task.FromResult(result);
     }
 
-    public Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveSeconds = null)
+    public Task HashSetAsync(string key, IDictionary<string, byte[]> values, long? timeToLiveMilliseconds = null)
     {
         if (hashSet.ContainsKey(key))
         {
@@ -205,12 +205,11 @@ public class DatabaseMockService : IDatabaseService
 
     public Task<IList<QueueData>> ListCountElementAsync(string key, IList<CountType> countTypes, int maximum = Int32.MaxValue)
     {
-        if (!queue.ContainsKey(key))
+        if (!queue.TryGetValue(key, out var list))
         {
             return Task.FromResult<IList<QueueData>>(new List<QueueData>());
         }
 
-        var list = queue[key];
 
         return Task.FromResult<IList<QueueData>>(list);
     }

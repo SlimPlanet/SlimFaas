@@ -143,8 +143,8 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
 
     private static string? ResolveWindowsExecutable(string executable, string workingDirectory)
     {
-        bool containsDirectory = executable.Contains(Path.DirectorySeparatorChar) ||
-                                 executable.Contains(Path.AltDirectorySeparatorChar);
+        bool containsDirectory = executable.Contains(Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+                                 executable.Contains(Path.AltDirectorySeparatorChar, StringComparison.Ordinal);
         IEnumerable<string> directories = containsDirectory
             ? [workingDirectory]
             : new[] { workingDirectory }

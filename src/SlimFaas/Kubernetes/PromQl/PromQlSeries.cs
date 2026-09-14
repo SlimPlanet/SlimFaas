@@ -199,7 +199,7 @@ internal sealed class EvalContext
     {
         name = key;
         labels = new Dictionary<string, string>(StringComparer.Ordinal);
-        var i = key.IndexOf('{');
+        var i = key.IndexOf('{', StringComparison.Ordinal);
         if (i < 0) return true;
 
         var j = key.LastIndexOf('}');
@@ -211,7 +211,7 @@ internal sealed class EvalContext
 
         foreach (var pair in SplitLabels(content))
         {
-            var eq = pair.IndexOf('=');
+            var eq = pair.IndexOf('=', StringComparison.Ordinal);
             if (eq <= 0) continue;
             var k = pair[..eq].Trim();
             var v = pair[(eq + 1)..].Trim();
@@ -253,7 +253,7 @@ internal sealed class EvalContext
             first = false;
             sb.Append(kv.Key);
             sb.Append("=\"");
-            sb.Append(kv.Value.Replace("\"", "\\\""));
+            sb.Append(kv.Value.Replace("\"", "\\\"", StringComparison.Ordinal));
             sb.Append('"');
         }
         sb.Append('}');

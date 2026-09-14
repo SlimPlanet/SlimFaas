@@ -64,13 +64,13 @@ app.MapGet("/health", () => "OK");
 
 app.MapGet("/hello/{name}", ([FromServices] ILogger<Fibonacci> logger, string name) =>
 {
-    logger.LogInformation("Hello Called with name: {Name}", name);
+    logger.LogHelloCalledWithName(name);
     return $"Hello {name}!";
 });
 
 app.MapGet("/download", ([FromServices] ILogger<Fibonacci> logger) =>
 {
-    logger.LogInformation("Download Called");
+    logger.LogDownloadCalled();
     string path = Path.Combine(Directory.GetCurrentDirectory(), "dog.png");
     return Results.File(path, "image/png");
 });
@@ -82,15 +82,18 @@ app.MapPost("/fibonacci", (
     [FromServices] Fibonacci fibonacci,
     FibonacciInput input) =>
 {
-    logger.LogInformation("Fibonacci Called with input: {Input}", input.Input);
+    logger.LogFibonacciCalledWithInput(input.Input);
     // Log Authorization header if present
     if (httpContext.Request.Headers.TryGetValue("Authorization", out var authHeader))
     {
-        logger.LogInformation("Authorization Header: {Auth}", authHeader.ToString());
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogAuthorizationHeader(authHeader.ToString());
+        }
     }
     var output = new FibonacciOutput();
     output.Result = fibonacci.Run(input.Input);
-    logger.LogInformation("Fibonacci output: {Output}", output.Result);
+    logger.LogFibonacciOutput(output.Result);
     return Results.Ok(output);
 });
 
@@ -102,7 +105,7 @@ app.MapPost("/fibonacci4", async (
 {
     try
     {
-        logger.LogInformation("Fibonacci4 Internal Called: {Input}", input.Input);
+        logger.LogFibonacci4InternalCalled(input.Input);
 
         using var resp = await client.PostAsJsonAsync(
             $"{slimFaasBaseUrl}/function/fibonacci4/fibonacci",
@@ -118,7 +121,7 @@ app.MapPost("/fibonacci4", async (
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Error in Fibonacci Recursive Internal");
+        logger.LogErrorInFibonacciRecursiveInternal(ex);
         return Results.BadRequest(new FibonacciRecursiveOutput());
     }
 });
@@ -129,14 +132,14 @@ app.MapPost("/send-private-fibonacci-event", async (
     [FromServices] HttpClient client,
     FibonacciInput input) =>
 {
-    logger.LogInformation("Fibonacci Private Event Called");
+    logger.LogFibonacciPrivateEventCalled();
 
     using var response = await client.PostAsJsonAsync(
         $"{slimFaasBaseUrl}/publish-event/fibo-private/fibonacci",
         input, FibonacciInputSerializerContext.Default.FibonacciInput);
 
-    logger.LogInformation("Response status code: {StatusCode}", response.StatusCode);
-    logger.LogInformation("Fibonacci Internal Event End");
+    logger.LogResponseStatusCode(response.StatusCode);
+    logger.LogFibonacciInternalEventEnd();
     return Results.StatusCode((int)response.StatusCode);
 });
 
@@ -149,7 +152,7 @@ app.MapPost("/fibonacci-recursive", async (
     try
     {
         var client = factory.CreateClient("internal");
-        logger.LogInformation("Fibonacci Recursive Internal Called: {Input}", input.Input);
+        logger.LogFibonacciRecursiveInternalCalled(input.Input);
 
         if (input.Input <= 2)
             return Results.Ok(new FibonacciRecursiveOutput { Result = 1, NumberCall = 1 });
@@ -180,12 +183,12 @@ app.MapPost("/fibonacci-recursive", async (
             Result = res1!.Result + res2!.Result,
             NumberCall = res1.NumberCall + res2.NumberCall + 1
         };
-        logger.LogInformation("Current output: {Result}", output.Result);
+        logger.LogCurrentOutput(output.Result);
         return Results.Ok(output);
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "Error in Fibonacci Recursive Internal");
+        logger.LogErrorInFibonacciRecursiveInternal2(ex);
         return Results.BadRequest(new FibonacciRecursiveOutput());
     }
 });
@@ -193,7 +196,7 @@ app.MapPost("/fibonacci-recursive", async (
 app.MapGet("/error", async () =>
 {
     await Task.Delay(100);
-    throw new Exception("Error");
+    throw new InvalidOperationException("Error");
 });
 
 
@@ -310,10 +313,10 @@ app.MapPost("/computeWithCallback", async (
 
 app.Run();
 
-internal class RequestCounter
+internal sealed class RequestCounter
 {
-    private int _inProgress   = 0;
-    private int _completed    = 0;
+    private int _inProgress;
+    private int _completed;
 
     public void Begin() => Interlocked.Increment(ref _inProgress);
 
@@ -328,8 +331,10 @@ internal class RequestCounter
     public string State    => _inProgress > 0 ? "processing" : "idle";
 }
 
-internal class Fibonacci
+internal sealed class Fibonacci
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Resolved from the DI container as an instance service by the endpoints.")]
     public int Run(int i)
     {
         if (i <= 2)

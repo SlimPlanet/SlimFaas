@@ -64,17 +64,17 @@ The native .NET services below have `<PublishAot>true</PublishAot>` in their `.c
 - `AnalysisLevel=latest-all` and `EnforceCodeStyleInBuild=true`: every .NET code-quality rule of the current SDK plus the `.editorconfig` code-style rules run at build time.
 - `Directory.Build.targets` turns on `IsAotCompatible` and the trim/AOT/single-file analyzers for every project that publishes with `PublishAot` or `PublishTrimmed`, so IL2xxx/IL3xxx diagnostics show up at `dotnet build`, not only at publish.
 
-Three files decide which rules apply:
+Two files decide which rules apply:
 
 - `.editorconfig` (root): the repository-wide policy. Every rule set to `none` there is a deliberate decision with a one-line reason. Add a rule there only with a justification.
 - `eng/tests.globalconfig`: extra rules switched off for test projects only (`IsTestProject=true`).
-- `eng/remediation.globalconfig`: **temporary**. Rules that still have occurrences in the code base while [issue #358](https://github.com/SlimPlanet/SlimFaas/issues/358) is being worked through. Never add a rule to this file; a remediation PR fixes the occurrences of a rule and deletes its line.
 
 Rules for new or modified code:
 
-- New code must be clean under every rule, including those still listed in `eng/remediation.globalconfig`.
+- New code must be clean under every rule.
 - Do not use a project-wide `<NoWarn>`. A justified exception is scoped: `#pragma warning disable XXXX // reason` around the smallest block, `[SuppressMessage("...", "XXXX", Justification = "...")]` on the member, or a `.editorconfig` section for a folder.
 - Per-project csproj files keep only what is specific to them (target framework, output type, packages, AOT switches). `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors` and the analyzer settings are inherited and must not be redeclared.
+- Logging goes through `[LoggerMessage]` source-generated methods (CA1848). Each `Foo.cs` that logs has a `Foo.Log.cs` companion declaring `internal static partial class FooLog` with one extension method per message; add new messages there instead of calling `LogInformation("...", args)` directly, and wrap calls whose arguments are expensive to compute in `if (logger.IsEnabled(LogLevel.X))` (CA1873).
 
 ### Web UI styling: BEM is required
 

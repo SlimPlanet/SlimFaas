@@ -1,4 +1,4 @@
-﻿// File: DockerService.cs
+// File: DockerService.cs
 // .NET 9 / AOT-friendly — pure Docker REST (also works with Podman compat API)
 
 using System.Diagnostics.CodeAnalysis;
@@ -19,26 +19,16 @@ namespace SlimFaas.Kubernetes
         private const string TemplateLabel = "SlimFaas/template";
 
         // ---- SlimFaas keys reused for parity with KubernetesService ----
-        private const string ReplicasMin = "SlimFaas/ReplicasMin";
-        private const string Schedule = "SlimFaas/Schedule";
-        private const string Configuration = "SlimFaas/Configuration";
         private const string Function = "SlimFaas/Function"; // ← label key for functions
         private const string FunctionTrue = "true";
         private const string AppLabel = "app"; // group containers by "deployment"
         private const string NamespaceLabel = "SlimFaas/Namespace";
 
-        private const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
         private const string DependsOn = "SlimFaas/DependsOn";
         private const string SubscribeEvents = "SlimFaas/SubscribeEvents";
-        private const string DefaultVisibility = "SlimFaas/DefaultVisibility";
         private const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
 
-        private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
-            "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
 
-        private const string TimeoutSecondBeforeSetReplicasMin = "SlimFaas/TimeoutSecondBeforeSetReplicasMin";
-        private const string NumberParallelRequest = "SlimFaas/NumberParallelRequest";
-        private const string DefaultTrust = "SlimFaas/DefaultTrust";
         private const string PublishedPortsLabel = "SlimFaas/PublishedPorts";
 
         private const string SlimfaasJobName = "slimfaas-job-name";
@@ -107,7 +97,7 @@ namespace SlimFaas.Kubernetes
         }
 
         // champ de classe
-        private int _startupCleanupDone = 0;
+        private int _startupCleanupDone;
 
         private async Task EnsureStartupCleanupOnceAsync()
         {
@@ -119,7 +109,7 @@ namespace SlimFaas.Kubernetes
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "[Startup] PurgeStaleTemplates failed (continuing)");
+                _logger.LogStartupPurgeStaleTemplatesFailedContinuing(ex);
             }
         }
 
@@ -143,8 +133,10 @@ namespace SlimFaas.Kubernetes
             // Supprimer aussi les vieux templates portant des labels compose (voir §2)
             foreach (var c in allTpl.DistinctBy(x => x.ID))
             {
-                _logger.LogInformation("[Startup] Removing stale template id={Id} name={Name} state={State}",
-                    c.ID, c.Names?.FirstOrDefault(), c.State);
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogStartupRemovingStaleTemplateIdName(c.ID, c.Names?.FirstOrDefault(), c.State);
+                }
                 await StopContainerIfRunningAsync(c.ID);
                 await RemoveContainerAsync(c.ID, force: true);
 
@@ -161,8 +153,7 @@ namespace SlimFaas.Kubernetes
 public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
 {
     await EnsureStartupCleanupOnceAsync();
-    _logger.LogInformation("[Scale] {Deployment} ns={Ns} desired={Desired}",
-        request.Deployment, request.Namespace, request.Replicas);
+    _logger.LogScaleNsDesired(request.Deployment, request.Namespace, request.Replicas);
 
     string deployment = request.Deployment;
     string ns = request.Namespace;
@@ -235,31 +226,30 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
 
                     if (confirmed.Count == 0)
                     {
-                        _logger.LogWarning("[Scale] {Deployment} desired=0: template creation failed, skip cleanup this tick.",
-                            deployment);
+                        _logger.LogScaleDesired0TemplateCreationFailed(deployment);
                         return request;
                     }
                 }
                 else
                 {
-                    _logger.LogWarning("[Scale] {Deployment} desired=0: cannot inspect source; skip cleanup this tick.",
-                        deployment);
+                    _logger.LogScaleDesired0CannotInspectSource(deployment);
                     return request;
                 }
             }
             else
             {
                 // pas de source : on ne peut pas créer de template (pas grave, on nettoie quand même)
-                _logger.LogInformation("[Scale] {Deployment} desired=0: no source found to build template; continuing cleanup.",
-                    deployment);
+                _logger.LogScaleDesired0NoSourceFound(deployment);
             }
         }
 
         // b) Supprimer TOUS les non-templates (quel que soit l'état)
         foreach (var c in nonTemplate)
         {
-            _logger.LogInformation("[Scale] Stop/Remove (desired=0) {Deployment} id={Id} name={Name} state={State}",
-                deployment, c.ID, c.Names?.FirstOrDefault(), c.State);
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogScaleStopRemoveDesired0Id(deployment, c.ID, c.Names?.FirstOrDefault(), c.State);
+            }
             await StopContainerIfRunningAsync(c.ID);
             await RemoveContainerAsync(c.ID, force: true);
         }
@@ -295,8 +285,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
                 || (started is null && created is not null &&
                     (DateTimeOffset.UtcNow - created.Value).TotalSeconds < ScaleUpWarmupSeconds))
             {
-                _logger.LogInformation("[Scale] {Deployment} ns={Ns} scale-up: replica récent détecté (state={State}) → on attend",
-                    deployment, ns, c.State);
+                _logger.LogScaleNsScaleUpReplicaCent(deployment, ns, c.State);
                 return request; // ⟵ évite la création en double
             }
         }
@@ -304,8 +293,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         // 3) S'il y a déjà assez de réplicas ACTIFS, ne rien créer
         if (existing >= desired)
         {
-            _logger.LogInformation("[Scale] {Deployment} ns={Ns} scale-up: {Existing} actif(s) ≥ desired={Desired} → skip",
-                deployment, ns, existing, desired);
+            _logger.LogScaleNsScaleUpActifDesired(deployment, ns, existing, desired);
             return request;
         }
 
@@ -322,7 +310,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         withTemplate = withTemplate.Where(c => c.Labels is not null
                                             && c.Labels.TryGetValue(Function, out var v)
                                             && IsTrueLike(v)).ToList();
-        _logger.LogInformation("[withTemplate] Count={Count}", withTemplate.Count);
+        _logger.LogWithTemplateCount(withTemplate.Count);
 
         InspectContainerResponse? templateInspect = null;
 
@@ -335,7 +323,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             var source = active.FirstOrDefault() ?? all.FirstOrDefault();
             if (source is null)
             {
-                _logger.LogWarning("[Scale] {Deployment} ns={Ns} scale-up failed: no container or template found", deployment, ns);
+                _logger.LogScaleNsScaleUpFailedNo(deployment, ns);
                 return request;
             }
 
@@ -391,9 +379,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
 
             if (IsStarting(insp) || IsWithinWarmup(insp, WarmupSeconds))
             {
-                _logger.LogInformation(
-                    "[Scale] Skip down {Deployment} (desired={Desired}) -> warmup/starting; since {StartedAt:u}",
-                    deployment, desired, insp.State?.StartedAt?.ToUniversalTime());
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogScaleSkipDownDesiredWarmupStarting(deployment, desired, insp.State?.StartedAt?.ToUniversalTime());
+                }
                 return request;
             }
         }
@@ -401,8 +390,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
         // Retirer l'excédent parmi les RUNNING
         foreach (var c in running.Take(current - desired))
         {
-            _logger.LogInformation("[Scale] Stop/Remove {Deployment} id={Id} name={Name}",
-                deployment, c.ID, c.Names?.FirstOrDefault());
+            if (_logger.IsEnabled(LogLevel.Information))
+            {
+                _logger.LogScaleStopRemoveIdName(deployment, c.ID, c.Names?.FirstOrDefault());
+            }
             await StopContainerIfRunningAsync(c.ID);
             await RemoveContainerAsync(c.ID, force: true);
         }
@@ -463,8 +454,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             .Where(c => !IsTemplate(c) && !NameLooksLikeTemplate(c) && IsRunning(c.State))
             .ToList();
 
-        _logger.LogDebug("DockerService: Deployment {Deployment} has {Count} running non-template containers",
-            deploymentName, runningNonTemplate.Count);
+        _logger.LogDockerServiceDeploymentHasRunningNonTemplate(deploymentName, runningNonTemplate.Count);
 
         List<PodInformation> pods = new();
         foreach (ContainerSummary c in runningNonTemplate)
@@ -482,8 +472,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             string ip = ExtractPreferredIPAddress(insp);
             List<int> ports = GetAllContainerPortsNoHeuristic(insp);
 
-            _logger.LogDebug("DockerService: Pod {Pod} IP={IP} Ports=[{Ports}] Ready={Ready}",
-                name, ip, string.Join(",", ports), ready);
+            if (_logger.IsEnabled(LogLevel.Debug))
+            {
+                _logger.LogDockerServicePodIPPortsReady(name, ip, string.Join(",", ports), ready);
+            }
 
             pods.Add(new PodInformation(
                 name ?? c.ID[..12],
@@ -492,7 +484,7 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
                 ip,
                 deploymentName,
                 ports,
-                insp.Created?.ToUniversalTime().Ticks.ToString() ?? DateTime.UtcNow.Ticks.ToString()
+                insp.Created?.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture) ?? DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture)
             ));
         }
 
@@ -679,31 +671,30 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
             string id = createRes?.Id ??
                         throw new InvalidOperationException("Docker returned no container id for job creation.");
-            _logger.LogInformation("Job create: name={Name} id={Id}", jobFullName, id);
+            _logger.LogJobCreateNameId(jobFullName, id);
             try
             {
                 await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
                 await Task.Delay(150);
                 InspectContainerResponse? insp = await TryInspectContainerAsync(id);
-                _logger.LogInformation("Job started: {Name} state={State} exit={Exit} error={Err}",
-                    jobFullName, insp?.State?.Running, insp?.State?.ExitCode, insp?.State?.Error);
+                _logger.LogJobStartedStateExitError(jobFullName, insp?.State?.Running, insp?.State?.ExitCode, insp?.State?.Error);
             }
             catch (HttpRequestException ex)
             {
                 // Optional: grab last logs to understand failure
                 string tail = await GetContainerLogsAsync(id);
-                _logger.LogError(ex, "Failed to start job {Job}. Logs tail:\n{Logs}", jobFullName, tail);
+                _logger.LogFailedToStartJobLogsTail(ex, jobFullName, tail);
                 throw;
             }
         }
 
 
-        public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
+        public async Task<IList<Job>> ListJobsAsync(string ns)
         {
             FiltersLabelArray filters = new(new List<string>
             {
                 SlimfaasJobName, // presence
-                $"{NamespaceLabel}={kubeNamespace}"
+                $"{NamespaceLabel}={ns}"
             });
             string filterJson = JsonSerializer.Serialize(filters, DockerJson.Default.FiltersLabelArray);
             string url = $"{_apiPrefix}/containers/json?all=1&filters={WebUtility.UrlEncode(filterJson)}";
@@ -742,7 +733,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 }
 
                 if (!string.IsNullOrWhiteSpace(insp.State?.Error) &&
-                    insp.State!.Error!.IndexOf("pull", StringComparison.OrdinalIgnoreCase) >= 0)
+                    insp.State!.Error!.Contains("pull", StringComparison.OrdinalIgnoreCase))
                 {
                     status = JobStatus.ImagePullBackOff;
                 }
@@ -818,7 +809,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             string? id = await ResolveContainerIdByNameAsync(jobName);
             if (id is null)
             {
-                _logger.LogWarning("DeleteJob: container '{JobName}' not found.", jobName);
+                _logger.LogDeleteJobContainerNotFound(jobName);
                 return;
             }
 
@@ -889,7 +880,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             existing = existing.Where(c => c.Labels is not null
                                            && c.Labels.TryGetValue(Function, out var v)
                                            && IsTrueLike(v)).ToList();
-            if (existing.Any())
+            if (existing.Count > 0)
             {
                 return; // déjà un template
             }
@@ -950,7 +941,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 createBody,
                 DockerJson.Default.CreateContainerRequest,
                 DockerJson.Default.CreateContainerResponse);
-            _logger.LogInformation("[Template] Created template for {Deployment} in ns={Ns} name={Name}", deployment, ns, name);
+            _logger.LogTemplateCreatedTemplateForInNs(deployment, ns, name);
             // Ne PAS démarrer : on veut juste une “carcasse” pour porter les métadonnées
         }
 
@@ -1001,7 +992,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             string imageName = image;
             string tag = "latest";
             int idx = image.LastIndexOf(':');
-            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@'))
+            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@', StringComparison.Ordinal))
             {
                 imageName = image[..idx];
                 tag = image[(idx + 1)..];
@@ -1030,7 +1021,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
         internal async Task<InspectContainerResponse?> InspectLogContainerAsync(string name, CancellationToken ct)
         {
-            using var response = await _http.GetAsync($"{_apiPrefix}/containers/{Uri.EscapeDataString(name)}/json", ct);
+            using var response = await _http.GetAsync(new Uri($"{_apiPrefix}/containers/{Uri.EscapeDataString(name)}/json", UriKind.RelativeOrAbsolute), ct);
             if (response.StatusCode == HttpStatusCode.NotFound) return null;
             if (response.StatusCode == HttpStatusCode.Forbidden) throw new UnauthorizedAccessException("Log access denied");
             response.EnsureSuccessStatusCode();
@@ -1038,13 +1029,13 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         }
 
         internal Task<HttpResponseMessage> OpenLogResponseAsync(string id, CancellationToken ct) =>
-            _http.GetAsync($"{_apiPrefix}/containers/{Uri.EscapeDataString(id)}/logs?stdout=1&stderr=1&follow=1&timestamps=1&tail=10000",
+            _http.GetAsync(new Uri($"{_apiPrefix}/containers/{Uri.EscapeDataString(id)}/logs?stdout=1&stderr=1&follow=1&timestamps=1&tail=10000", UriKind.RelativeOrAbsolute),
                 HttpCompletionOption.ResponseHeadersRead, ct);
 
         private async Task<string> GetContainerLogsAsync(string id, int tail = 200)
         {
             string url = $"{_apiPrefix}/containers/{id}/logs?stdout=1&stderr=1&tail={tail}";
-            using HttpResponseMessage res = await _http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+            using HttpResponseMessage res = await _http.GetAsync(new Uri(url, UriKind.RelativeOrAbsolute), HttpCompletionOption.ResponseHeadersRead);
             res.EnsureSuccessStatusCode();
             return await res.Content.ReadAsStringAsync();
         }
@@ -1168,13 +1159,12 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
     try
     {
         await PostAsync($"{_apiPrefix}/containers/{id}/start", null);
-        _logger.LogInformation("[Scale-UP] Started replica {Deployment} id={Id} (template label removed)",
-            deployment, id);
+        _logger.LogScaleUPStartedReplicaIdTemplate(deployment, id);
     }
     catch (HttpRequestException ex)
     {
         string logs = await GetContainerLogsAsync(id);
-        _logger.LogWarning(ex, "Start failed for replica {Name} (id={Id}). Logs tail:\n{Logs}", name, id, logs);
+        _logger.LogStartFailedForReplicaIdLogs(ex, name, id, logs);
 
         if (createBody.HostConfig?.PortBindings is not null)
         {
@@ -1264,7 +1254,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 ExtractPreferredIPAddress(insp),
                 deploymentName,
                 GetAllContainerPortsNoHeuristic(insp),
-                insp.Created?.ToUniversalTime().Ticks.ToString() ?? DateTime.UtcNow.Ticks.ToString()
+                insp.Created?.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture) ?? DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture)
             );
 
 
@@ -1334,7 +1324,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             string imageName = image;
             string tag = "latest";
             int idx = image.LastIndexOf(':');
-            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@'))
+            if (idx > 0 && idx < image.Length - 1 && !image.Contains('@', StringComparison.Ordinal))
             {
                 imageName = image[..idx];
                 tag = image[(idx + 1)..];
@@ -1352,7 +1342,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             }
             catch (Exception e)
             {
-                _logger.LogWarning(e, "Image pull failed or skipped for {Image}", image);
+                _logger.LogImagePullFailedOrSkippedFor(e, image);
             }
         }
 
@@ -1366,7 +1356,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         private static bool GetBool(IReadOnlyDictionary<string, string> labels, string key, bool defVal)
             => labels.TryGetValue(key, out string? v) && bool.TryParse(v, out bool b) ? b : defVal;
 
-        private static IList<string> SplitCsv(IReadOnlyDictionary<string, string> labels, string key)
+        private static string[] SplitCsv(Dictionary<string, string> labels, string key)
         {
             if (!labels.TryGetValue(key, out string? v) || string.IsNullOrWhiteSpace(v))
             {
@@ -1490,7 +1480,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
         private static void ApplyCpuLimit(CreateContainer_HostConfig hc, string cpu)
         {
             // Accept "500m", "0.5", "1", "2"
-            if (cpu.EndsWith("m", StringComparison.OrdinalIgnoreCase))
+            if (cpu.EndsWith('m') || cpu.EndsWith('M'))
             {
                 string num = cpu[..^1];
                 if (double.TryParse(num, NumberStyles.Float, CultureInfo.InvariantCulture, out double milli))
@@ -1540,17 +1530,17 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                 mul = 1024L * 1024 * 1024 * 1024;
                 value = value[..^2];
             }
-            else if (value.EndsWith("K", StringComparison.OrdinalIgnoreCase))
+            else if (value.EndsWith('K') || value.EndsWith('k'))
             {
                 mul = 1000;
                 value = value[..^1];
             }
-            else if (value.EndsWith("M", StringComparison.OrdinalIgnoreCase))
+            else if (value.EndsWith('M') || value.EndsWith('m'))
             {
                 mul = 1000L * 1000;
                 value = value[..^1];
             }
-            else if (value.EndsWith("G", StringComparison.OrdinalIgnoreCase))
+            else if (value.EndsWith('G') || value.EndsWith('g'))
             {
                 mul = 1000L * 1000 * 1000;
                 value = value[..^1];
@@ -1593,6 +1583,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             if (candidate.StartsWith("unix://", StringComparison.OrdinalIgnoreCase))
             {
                 string path = candidate.Replace("unix://", "", StringComparison.OrdinalIgnoreCase);
+#pragma warning disable CA2000 // the HttpClient created below owns the handler
                 SocketsHttpHandler handler = new()
                 {
                     ConnectCallback = async (ctx, ct) =>
@@ -1614,6 +1605,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                         return new NetworkStream(sock, true);
                     }
                 };
+#pragma warning restore CA2000
                 baseAddress = new Uri("http://localhost"); // hôte bidon requis par HttpClient
                 return new HttpClient(handler);
             }
@@ -1639,6 +1631,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             baseAddress = uri;
 
 #pragma warning disable CA5359 // Self-signed TLS on the Docker socket in dev; hardening tracked in #346
+#pragma warning disable CA2000 // the HttpClient owns the handler
             HttpClient http = new(new SocketsHttpHandler
             {
                 SslOptions = new SslClientAuthenticationOptions
@@ -1646,6 +1639,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
                     RemoteCertificateValidationCallback = static (_, __, ___, ____) => true
                 }
             });
+#pragma warning restore CA2000
 #pragma warning restore CA5359
 
             return http;
@@ -1675,7 +1669,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
         private async Task<T?> GetAsync<T>(string path, JsonTypeInfo<T> typeInfo)
         {
-            using HttpResponseMessage res = await _http.GetAsync(path, HttpCompletionOption.ResponseHeadersRead);
+            using HttpResponseMessage res = await _http.GetAsync(new Uri(path, UriKind.RelativeOrAbsolute), HttpCompletionOption.ResponseHeadersRead);
             if (!res.IsSuccessStatusCode)
             {
                 return default;
@@ -1692,8 +1686,9 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             JsonTypeInfo<TRes> resTypeInfo)
         {
             string json = JsonSerializer.Serialize(body, reqTypeInfo);
+            using StringContent content = new(json, Encoding.UTF8, "application/json");
             using HttpResponseMessage res =
-                await _http.PostAsync(path, new StringContent(json, Encoding.UTF8, "application/json"));
+                await _http.PostAsync(new Uri(path, UriKind.RelativeOrAbsolute), content);
             res.EnsureSuccessStatusCode();
             await using Stream s = await res.Content.ReadAsStreamAsync();
             if (s.CanSeek && s.Length == 0)
@@ -1706,7 +1701,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
         private async Task PostAsync(string path, HttpContent? body)
         {
-            using HttpResponseMessage res = await _http.PostAsync(path, body);
+            using HttpResponseMessage res = await _http.PostAsync(new Uri(path, UriKind.RelativeOrAbsolute), body);
             if (!res.IsSuccessStatusCode)
             {
                 string err = await res.Content.ReadAsStringAsync();
@@ -1716,7 +1711,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
         private async Task DeleteAsync(string path)
         {
-            using HttpResponseMessage res = await _http.DeleteAsync(path);
+            using HttpResponseMessage res = await _http.DeleteAsync(new Uri(path, UriKind.RelativeOrAbsolute));
             if (!res.IsSuccessStatusCode)
             {
                 string err = await res.Content.ReadAsStringAsync();
@@ -1818,7 +1813,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             {
                 foreach (var key in insp.NetworkSettings.Ports.Keys)
                 {
-                    int? idx = key?.IndexOf('/');
+                    int? idx = key?.IndexOf('/', StringComparison.Ordinal);
                     if (idx > 0 && int.TryParse(key!.AsSpan(0, idx.Value), out int p))
                     {
                         set.Add(p);
@@ -1831,7 +1826,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
             {
                 foreach (var key in insp.Config.ExposedPorts.Keys)
                 {
-                    int? idx = key?.IndexOf('/');
+                    int? idx = key?.IndexOf('/', StringComparison.Ordinal);
                     if (idx > 0 && int.TryParse(key!.AsSpan(0, idx.Value), out int p))
                     {
                         set.Add(p);
@@ -1883,7 +1878,7 @@ public async Task CreateJobAsync(string kubeNamespace, string name, CreateJob cr
 
 // Essaie de lire/parse le label
         private static Dictionary<string, List<CreateContainer_PortBinding>>? TryParsePublishedBindingsLabel(
-            IReadOnlyDictionary<string, string>? labels)
+            Dictionary<string, string>? labels)
         {
             if (labels is null)
             {
@@ -1952,6 +1947,7 @@ namespace SlimFaas.Kubernetes
         Inspect_HostConfig? HostConfig = null
     );
 
+#pragma warning disable CA1707 // names mirror the Docker Engine API objects
     public record Inspect_HostConfig(
         [property: JsonPropertyName("Memory")] long? Memory = null,
         [property: JsonPropertyName("CpuPeriod")] long? CpuPeriod = null,
@@ -2072,6 +2068,7 @@ namespace SlimFaas.Kubernetes
         [JsonPropertyName("HostIp")] public string? HostIp { get; init; }
         [JsonPropertyName("HostPort")] public string? HostPort { get; set; }
     }
+#pragma warning restore CA1707
 
 
     [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]

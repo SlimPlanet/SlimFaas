@@ -1,5 +1,6 @@
 using Confluent.Kafka;
 
+using System.Globalization;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration
@@ -20,7 +21,7 @@ app.MapPost("/send/{n:int}", async (int n, IConfiguration config) =>
     };
 
     using var producer = new ProducerBuilder<Null, string>(producerConfig).Build();
-    var value = n.ToString();
+    var value = n.ToString(CultureInfo.InvariantCulture);
 
     var dr = await producer.ProduceAsync(topic, new Message<Null, string> { Value = value });
     return Results.Ok(new
