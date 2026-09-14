@@ -72,7 +72,7 @@ public static class JobMetadataParser
             ? raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList()
             : [];
 
-    private static IList<ScheduleCreateJob> ParseSchedules(
+    private static List<ScheduleCreateJob> ParseSchedules(
         IReadOnlyDictionary<string, string> annotations)
     {
         if (!annotations.TryGetValue(JobAnnotationNames.Schedules, out string? raw) ||

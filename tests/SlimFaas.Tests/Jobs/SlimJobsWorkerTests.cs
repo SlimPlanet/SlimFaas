@@ -1,4 +1,4 @@
-﻿using MemoryPack;
+using MemoryPack;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -12,6 +12,10 @@ namespace SlimFaas.Tests.Jobs;
 
 public class SlimJobsWorkerTests
 {
+    // Borne haute pour attendre le signal d'un mock : généreuse pour les runners
+    // lents (instrumentation de couverture), jamais atteinte en fonctionnement normal.
+    private static readonly TimeSpan SignalTimeout = TimeSpan.FromSeconds(10);
+
     // Comme vous l'aviez déjà dans votre code
     private readonly HistoryHttpMemoryService _historyHttpMemoryService;
     private readonly Mock<IJobConfiguration> _jobConfigurationMock;
@@ -41,31 +45,14 @@ public class SlimJobsWorkerTests
             .Returns(Task.CompletedTask);
     }
 
-    /// <summary>
-    ///     Cas : le worker n'est pas "master".
-    ///     On vérifie qu'aucune synchro de jobs ni dequeue n'a lieu.
-    /// </summary>
-    [Fact]
-    public async Task ExecuteAsync_NotMaster_NoSyncNoDequeue()
+    private SlimJobsWorker CreateWorker()
     {
-        // ARRANGE
-        _masterServiceMock.Setup(m => m.IsMaster).Returns(false);
-
-        // On mocke une configuration vide pour éviter toute exception
-        SlimFaasJobConfiguration fakeSlimFaasJobConfig = new(new Dictionary<string, SlimfaasJob>());
-        _jobConfigurationMock
-            .Setup(c => c.Configuration)
-            .Returns(fakeSlimFaasJobConfig);
-        _jobServiceMock
-            .Setup(s => s.SyncJobsAsync())
-            .ReturnsAsync(new List<Job>());
-
         var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
         {
             JobsDelayMilliseconds = 10
         });
 
-        SlimJobsWorker worker = new(
+        return new SlimJobsWorker(
             _jobQueueMock.Object,
             _jobServiceMock.Object,
             _jobConfigurationMock.Object,
@@ -78,15 +65,57 @@ public class SlimJobsWorkerTests
             Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
             new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals()
         );
+    }
 
-        using CancellationTokenSource cts = new();
-        // On annule vite le cycle principal du BackgroundService
-        cts.CancelAfter(200);
+    /// <summary>
+    ///     Démarre le worker, attend que le mock instrumenté signale que le cycle
+    ///     observé a été atteint, puis arrête le worker. Aucun budget temps réel :
+    ///     seul un blocage franc (au-delà de <see cref="SignalTimeout" />) fait échouer le test.
+    /// </summary>
+    private static async Task RunUntilSignalAsync(SlimJobsWorker worker, TaskCompletionSource signal)
+    {
+        await worker.StartAsync(CancellationToken.None);
+        try
+        {
+            await signal.Task.WaitAsync(SignalTimeout);
+        }
+        finally
+        {
+            await worker.StopAsync(CancellationToken.None);
+        }
+    }
+
+    private static TaskCompletionSource CreateSignal() =>
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+    /// <summary>
+    ///     Cas : le worker n'est pas "master".
+    ///     On vérifie qu'aucune synchro de jobs ni dequeue n'a lieu.
+    /// </summary>
+    [Fact]
+    public async Task ExecuteAsync_NotMaster_NoSyncNoDequeue()
+    {
+        // ARRANGE
+        // Le cycle est considéré atteint dès que le worker a consulté IsMaster.
+        TaskCompletionSource cycleReached = CreateSignal();
+        _masterServiceMock
+            .Setup(m => m.IsMaster)
+            .Returns(false)
+            .Callback(() => cycleReached.TrySetResult());
+
+        // On mocke une configuration vide pour éviter toute exception
+        SlimFaasJobConfiguration fakeSlimFaasJobConfig = new(new Dictionary<string, SlimfaasJob>());
+        _jobConfigurationMock
+            .Setup(c => c.Configuration)
+            .Returns(fakeSlimFaasJobConfig);
+        _jobServiceMock
+            .Setup(s => s.SyncJobsAsync())
+            .ReturnsAsync(new List<Job>());
+
+        SlimJobsWorker worker = CreateWorker();
 
         // ACT
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(300);
-        await worker.StopAsync(CancellationToken.None);
+        await RunUntilSignalAsync(worker, cycleReached);
 
         // ASSERT
         _masterServiceMock.Verify(m => m.IsMaster, Times.AtLeastOnce);
@@ -120,10 +149,13 @@ public class SlimJobsWorkerTests
             .Setup(s => s.SyncJobsAsync())
             .ReturnsAsync(new List<Job>());
 
-        // QueueCount => 0
+        // QueueCount => 0. C'est la dernière étape du cycle pour ce job : son appel
+        // signale que le cycle complet a été exécuté.
+        TaskCompletionSource countReached = CreateSignal();
         _jobQueueMock
             .Setup(q => q.CountElementAsync("myjob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(new List<QueueData>());
+            .ReturnsAsync(new List<QueueData>())
+            .Callback(() => countReached.TrySetResult());
 
         // On simulera des déploiements vides
         DeploymentsInformations emptyDeployments = new(
@@ -135,32 +167,10 @@ public class SlimJobsWorkerTests
             .Setup(r => r.Deployments)
             .Returns(emptyDeployments);
 
-        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
-        {
-            JobsDelayMilliseconds = 10
-        });
-
-        SlimJobsWorker worker = new(
-            _jobQueueMock.Object,
-            _jobServiceMock.Object,
-            _jobConfigurationMock.Object,
-            _loggerMock.Object,
-            _historyHttpMemoryService,
-            _slimDataStatusMock.Object,
-            _masterServiceMock.Object,
-            _replicasServiceMock.Object,
-            workersOptions,
-            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
-            new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals()
-        );
-
-        using CancellationTokenSource cts = new();
-        cts.CancelAfter(200);
+        SlimJobsWorker worker = CreateWorker();
 
         // ACT
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(300);
-        await worker.StopAsync(CancellationToken.None);
+        await RunUntilSignalAsync(worker, countReached);
 
         // ASSERT
         _jobServiceMock.Verify(s => s.SyncJobsAsync(), Times.AtLeastOnce);
@@ -183,19 +193,16 @@ public class SlimJobsWorkerTests
         // ARRANGE
         _masterServiceMock.Setup(m => m.IsMaster).Returns(true);
 
-        SlimFaasJobConfiguration fakeSlimFaasJobConfig = new(
-            new Dictionary<string, SlimfaasJob>
-            {
-                {
-                    "myJob", new SlimfaasJob(
-                        "myImage",
-                        new List<string> { "myImage" },
-                        NumberParallelJob: 2,
-                        DependsOn: new List<string> { "dependencyA" }
-                    )
-                }
-            }
-        );
+        // Le worker indexe les configurations par nom en minuscules : le dictionnaire
+        // doit être insensible à la casse pour que "myJob" soit retrouvé sous "myjob".
+        var config = new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase);
+        config.Add("myJob", new SlimfaasJob(
+            "myImage",
+            new List<string> { "myImage" },
+            NumberParallelJob: 2,
+            DependsOn: new List<string> { "dependencyA" }
+        ));
+        SlimFaasJobConfiguration fakeSlimFaasJobConfig = new(config);
 
         _jobConfigurationMock
             .Setup(c => c.Configuration)
@@ -206,12 +213,16 @@ public class SlimJobsWorkerTests
             .Setup(s => s.SyncJobsAsync())
             .ReturnsAsync(new List<Job>());
 
-        // CountElement => 1 élément dispo
+        // CountElement => 1 élément dispo, dépendant de "dependencyA"
+        CreateJob createJobObj = new(new List<string> { "arg1" }, DependsOn: ["dependencyA"]);
+        JobInQueue createJobInQueue = new(createJobObj, "myjob1", 1);
+        byte[] dataBytes = MemoryPackSerializer.Serialize(createJobInQueue);
         _jobQueueMock
-            .Setup(q => q.CountElementAsync("myJob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
-            .ReturnsAsync(new List<QueueData> { new("1", [byte.MinValue], 0, true, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond) });
+            .Setup(q => q.CountElementAsync("myjob", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
+            .ReturnsAsync(new List<QueueData> { new("1", dataBytes, 0, true, DateTime.UtcNow.Ticks, 30L * TimeSpan.TicksPerSecond) });
 
-        // "dependencyA" à 0 réplicas => skip
+        // "dependencyA" à 0 réplicas => skip. La lecture des déploiements est l'étape
+        // de vérification des dépendances : elle signale que la décision a été prise.
         DeploymentsInformations deployments = new(
             new List<DeploymentInformation>
             {
@@ -226,39 +237,22 @@ public class SlimJobsWorkerTests
             new SlimFaasDeploymentInformation(0, new List<PodInformation>()),
             Array.Empty<PodInformation>()
         );
+        TaskCompletionSource dependenciesChecked = CreateSignal();
         _replicasServiceMock
             .Setup(r => r.Deployments)
-            .Returns(deployments);
+            .Returns(deployments)
+            .Callback(() => dependenciesChecked.TrySetResult());
 
-        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
-        {
-            JobsDelayMilliseconds = 10
-        });
-
-        SlimJobsWorker worker = new(
-            _jobQueueMock.Object,
-            _jobServiceMock.Object,
-            _jobConfigurationMock.Object,
-            _loggerMock.Object,
-            _historyHttpMemoryService,
-            _slimDataStatusMock.Object,
-            _masterServiceMock.Object,
-            _replicasServiceMock.Object,
-            workersOptions,
-            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
-            new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals()
-        );
-
-        using CancellationTokenSource cts = new();
-        cts.CancelAfter(200);
+        SlimJobsWorker worker = CreateWorker();
 
         // ACT
-        await worker.StartAsync(cts.Token);
-        await worker.StopAsync(CancellationToken.None);
+        await RunUntilSignalAsync(worker, dependenciesChecked);
 
         // ASSERT
+        _jobQueueMock.Verify(q => q.CountElementAsync("myjob", It.IsAny<IList<CountType>>(), It.IsAny<int>()),
+            Times.AtLeastOnce);
         // Dequeue n'a pas lieu car la dépendance n'est pas prête
-        _jobQueueMock.Verify(q => q.DequeueAsync("myJob", It.IsAny<int>()), Times.Never);
+        _jobQueueMock.Verify(q => q.DequeueAsync(It.IsAny<string>(), It.IsAny<int>()), Times.Never);
         _jobServiceMock.Verify(
             s => s.CreateJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<long>()), Times.Never);
@@ -322,43 +316,24 @@ public class SlimJobsWorkerTests
             .Setup(q => q.DequeueAsync("myjob", It.IsAny<int>()))
             .ReturnsAsync(queueDataList);
 
-        // On s'attend à un callback après la création
-        _jobQueueMock
-            .Setup(q => q.ListCallbackAsync("myjob", It.IsAny<ListQueueItemStatus>()))
-            .Returns(Task.CompletedTask);
-
         // On s'attend à ce que CreateJobAsync soit appelé
         _jobServiceMock
             .Setup(s => s.CreateJobAsync("myjob", It.IsAny<CreateJob>(), It.IsAny<string>(), It.IsAny<string>(),
                 It.IsAny<long>()))
             .Returns(Task.CompletedTask);
 
-        var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
-        {
-            JobsDelayMilliseconds = 10
-        });
+        // On s'attend à un callback après la création : c'est la dernière étape du
+        // cycle, son appel signale que dequeue + création ont bien eu lieu.
+        TaskCompletionSource callbackReached = CreateSignal();
+        _jobQueueMock
+            .Setup(q => q.ListCallbackAsync("myjob", It.IsAny<ListQueueItemStatus>()))
+            .Returns(Task.CompletedTask)
+            .Callback(() => callbackReached.TrySetResult());
 
-        SlimJobsWorker worker = new(
-            _jobQueueMock.Object,
-            _jobServiceMock.Object,
-            _jobConfigurationMock.Object,
-            _loggerMock.Object,
-            _historyHttpMemoryService,
-            _slimDataStatusMock.Object,
-            _masterServiceMock.Object,
-            _replicasServiceMock.Object,
-            workersOptions,
-            Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions()),
-            new SlimFaas.Kubernetes.Watch.KubernetesWatchSignals()
-        );
-
-        using CancellationTokenSource cts = new();
-        cts.CancelAfter(200);
+        SlimJobsWorker worker = CreateWorker();
 
         // ACT
-        await worker.StartAsync(cts.Token);
-        await Task.Delay(300);
-        await worker.StopAsync(CancellationToken.None);
+        await RunUntilSignalAsync(worker, callbackReached);
 
         // ASSERT
         // numberParallelJob = 2 => on devrait tenter de dépiler 2 messages
@@ -378,6 +353,4 @@ public class SlimJobsWorkerTests
             )
         ), Times.AtLeastOnce);
     }
-
-
 }

@@ -25,7 +25,9 @@ internal sealed class ClusterMembershipAnnouncer(
             if (Startup.SameEndpoint(candidate, address.Uri))
                 continue;
 
+#pragma warning disable CA2000 // using declaration; the analyzer does not follow CancelAfter
             using var attempt = CancellationTokenSource.CreateLinkedTokenSource(token);
+#pragma warning restore CA2000
             attempt.CancelAfter(_attemptTimeout);
             try
             {
@@ -34,11 +36,11 @@ internal sealed class ClusterMembershipAnnouncer(
             }
             catch (OperationCanceledException) when (!token.IsCancellationRequested)
             {
-                logger.LogDebug("Membership announcement to {Candidate} timed out", candidate);
+                logger.LogMembershipAnnouncementToTimedOut(candidate);
             }
             catch (HttpRequestException ex)
             {
-                logger.LogDebug(ex, "Membership announcement to {Candidate} failed", candidate);
+                logger.LogMembershipAnnouncementToFailed(ex, candidate);
             }
         }
     }
@@ -107,7 +109,7 @@ internal sealed class ClusterMembershipAnnounceWorker(
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Unable to announce this SlimData member to the cluster");
+                logger.LogUnableToAnnounceThisSlimDataMember(ex);
             }
         }
     }

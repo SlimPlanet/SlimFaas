@@ -71,13 +71,13 @@ public static class StatusEndpoints
             var name = function.Deployment;
             if (!gate.TryEnter(name)) continue; // déjà en cours
 
-#pragma warning disable CS4014
-            var t = wakeUpFunction.FireAndForgetWakeUpAsync(name);
+#pragma warning disable CS4014 // fire-and-forget by design; completion is observed in ContinueWith
+            var t = wakeUpFunction.WakeUpInBackgroundAsync(name);
             _ = t.ContinueWith(task =>
             {
                 gate.Exit(name);
                 if (task.IsFaulted && task.Exception is not null)
-                    logger.LogError(task.Exception, "WakeAll failed for {FunctionName}", name);
+                    logger.LogWakeAllFailedFor(task.Exception, name);
             }, TaskScheduler.Default);
 #pragma warning restore CS4014
         }
@@ -101,14 +101,14 @@ public static class StatusEndpoints
         if (!gate.TryEnter(functionName))
             return Results.NoContent(); // déjà réveillée / en cours
 
-#pragma warning disable CS4014
-        var t = wakeUpFunction.FireAndForgetWakeUpAsync(functionName);
+#pragma warning disable CS4014 // fire-and-forget by design; completion is observed in ContinueWith
+        var t = wakeUpFunction.WakeUpInBackgroundAsync(functionName);
 
         _ = t.ContinueWith(task =>
         {
             gate.Exit(functionName);
             if (task.IsFaulted && task.Exception is not null)
-                logger.LogError(task.Exception, "Wake failed for {FunctionName}", functionName);
+                logger.LogWakeFailedFor(task.Exception, functionName);
         }, TaskScheduler.Default);
 #pragma warning restore CS4014
 

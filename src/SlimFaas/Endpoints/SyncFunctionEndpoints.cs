@@ -14,18 +14,19 @@ public class SyncFunction
 
 public static class SyncFunctionEndpoints
 {
+    private static readonly string[] s_allHttpMethods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"];
     public static void MapSyncFunctionEndpoints(this IEndpointRouteBuilder app)
     {
         // Toutes les routes /function/{functionName}/**
         app.MapMethods("/function/{functionName}/{**functionPath}",
-            new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
+            s_allHttpMethods,
             HandleSyncFunction)
             .WithName("HandleSyncFunction")
             .DisableAntiforgery()
             .AddEndpointFilter<HostPortEndpointFilter>();
 
         app.MapMethods("/function/{functionName}",
-            new[] { "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS" },
+            s_allHttpMethods,
             (string functionName, HttpContext context,
                 ILogger<SyncFunction> logger,
                 HistoryHttpMemoryService historyHttpService,
@@ -68,7 +69,7 @@ public static class SyncFunctionEndpoints
 
         if (function is null)
         {
-            logger.LogDebug("{FunctionName} not found 404", functionName);
+            logger.LogNotFound404(functionName);
             return Results.NotFound();
         }
 
@@ -76,7 +77,7 @@ public static class SyncFunctionEndpoints
         if (visibility == FunctionVisibility.Private &&
             !FunctionEndpointsHelpers.MessageComeFromNamespaceInternal(logger, context, replicasService, jobService))
         {
-            logger.LogDebug("{FunctionName} not found 404 because is private 404", functionName);
+            logger.LogNotFound404BecauseIsPrivate(functionName);
             return Results.NotFound();
         }
 
@@ -98,7 +99,7 @@ public static class SyncFunctionEndpoints
             if (function.Namespace == "websocket-virtual")
             {
                 var wsResult = await HandleSyncFunctionViaWebSocket(
-                    functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, ct, activityCaller.SourcePod, requestInId);
+                    functionName, functionPath, context, logger, historyHttpService, webSocketSendClient, activityCaller.SourcePod, requestInId, ct);
                 return wsResult;
             }
 
@@ -158,12 +159,12 @@ public static class SyncFunctionEndpoints
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
+            logger.LogRequestAbortedByClientFor(functionName);
             return Results.StatusCode(499); // Client Closed Request
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Unhandled sync error for {FunctionName}", functionName);
+            logger.LogUnhandledSyncErrorFor(ex, functionName);
             return Results.StatusCode(503);
         }
         finally
@@ -195,9 +196,9 @@ public static class SyncFunctionEndpoints
         ILogger logger,
         HistoryHttpMemoryService historyHttpService,
         IWebSocketSendClient webSocketSendClient,
-        CancellationToken ct,
         string? activitySourcePod,
-        string activityCorrelationId)
+        string activityCorrelationId,
+        CancellationToken ct)
     {
         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
 
@@ -225,8 +226,8 @@ public static class SyncFunctionEndpoints
                     context.Request.QueryString.ToUriComponent(),
                     headers,
                     bodyStream,
-                    ct,
-                    activitySourcePod, activityCorrelationId);
+                    activitySourcePod, activityCorrelationId,
+                    ct);
 
             // Écrire la réponse HTTP
             context.Response.StatusCode = statusCode;
@@ -253,7 +254,7 @@ public static class SyncFunctionEndpoints
         }
         catch (InvalidOperationException ex)
         {
-            logger.LogWarning(ex, "No WebSocket client available for {FunctionName}", functionName);
+            logger.LogNoWebSocketClientAvailableFor(ex, functionName);
             if (!context.Response.HasStarted)
             {
                 return Results.StatusCode(503);
@@ -262,7 +263,7 @@ public static class SyncFunctionEndpoints
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            logger.LogDebug("Request aborted by client for {FunctionName}", functionName);
+            logger.LogRequestAbortedByClientFor2(functionName);
             if (!context.Response.HasStarted)
             {
                 return Results.StatusCode(499);
@@ -294,21 +295,19 @@ public static class SyncFunctionEndpoints
 
                 if (IsFunctionReady(function))
                 {
-                    logger.LogDebug("WaitForAnyPodStartedAsync: {FunctionName} is ready (EndpointReady={EndpointReady}).",
-                        functionName, function.EndpointReady);
+                    logger.LogWaitForAnyPodStartedAsyncIsReadyEndpointReady(functionName, function.EndpointReady);
                     return function;
                 }
 
                 foreach (var pod in function.Pods ?? Enumerable.Empty<PodInformation>())
                 {
-                    logger.LogDebug("Pod {PodName} Ready={Ready} IP={Ip}", pod.Name, pod.Ready, pod.Ip);
+                    logger.LogPodReadyIP(pod.Name, pod.Ready, pod.Ip);
                 }
 
                 var remaining = timeout - sw.Elapsed;
                 if (remaining <= TimeSpan.Zero)
                 {
-                    logger.LogWarning("WaitForAnyPodStartedAsync: timeout ({Timeout}s) atteint pour {FunctionName}.",
-                        timeout.TotalSeconds, functionName);
+                    logger.LogWaitForAnyPodStartedAsyncTimeoutAtteintPour(timeout.TotalSeconds, functionName);
                     return function;
                 }
 
@@ -320,7 +319,7 @@ public static class SyncFunctionEndpoints
         }
         catch (OperationCanceledException)
         {
-            logger.LogDebug("WaitForAnyPodStartedAsync: annulé pour {FunctionName}.", functionName);
+            logger.LogWaitForAnyPodStartedAsyncAnnulPour(functionName);
             return function;
         }
     }

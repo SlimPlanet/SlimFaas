@@ -53,7 +53,7 @@ public class SlimJobsConfigurationWorker(IJobConfiguration jobConfiguration,
         catch (Exception e)
         {
             _cadence.MarkSyncFailed();
-            logger.LogError(e, "Global error in slimFaas jobs configuration worker");
+            logger.LogGlobalErrorInSlimFaasJobsConfiguration(e);
         }
     }
 }

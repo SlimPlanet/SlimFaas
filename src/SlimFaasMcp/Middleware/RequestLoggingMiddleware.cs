@@ -73,13 +73,7 @@ public sealed class RequestLoggingMiddleware
             request.Body.Position = 0;
         }
 
-        _logger.LogDebug(
-            "Incoming HTTP {Method} {Path}{Query} Headers: {Headers} Body: {Body}",
-            request.Method,
-            request.Path.Value,
-            request.QueryString.HasValue ? request.QueryString.Value : string.Empty,
-            headers,
-            bodyPreview);
+        _logger.LogIncomingHTTPHeadersBody(request.Method, request.Path.Value, request.QueryString.HasValue ? request.QueryString.Value : string.Empty, headers, bodyPreview);
 
         await _next(context);
     }

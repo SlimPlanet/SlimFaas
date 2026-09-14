@@ -147,7 +147,7 @@ public sealed class QueueHttpTryElement
     public string ReservedIp { get; set; }
 }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
 public static class SlimDataInterpreter
 {
     public const int DeleteFromQueueCode = 1000;

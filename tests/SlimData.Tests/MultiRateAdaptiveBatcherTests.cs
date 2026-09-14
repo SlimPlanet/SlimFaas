@@ -97,7 +97,7 @@ public sealed class MultiRateAdaptiveBatcherTests
             coalesceWindow: TimeSpan.FromMilliseconds(100));
 
         using var cancellation = new CancellationTokenSource();
-        var pending = batcher.EnqueueAsync<byte[], int>("bytes", new byte[4], cancellation.Token);
+        var pending = batcher.EnqueueAsync<byte[], int>("bytes", new byte[4], cancellationToken: cancellation.Token);
         cancellation.Cancel();
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
@@ -312,8 +312,7 @@ public sealed class MultiRateAdaptiveBatcherTests
 
         public void Advance(TimeSpan duration)
         {
-            if (duration < TimeSpan.Zero)
-                throw new ArgumentOutOfRangeException(nameof(duration));
+            ArgumentOutOfRangeException.ThrowIfLessThan(duration, TimeSpan.Zero);
             lock (_gate)
             {
                 _timestamp += duration.Ticks;

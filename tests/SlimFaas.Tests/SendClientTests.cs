@@ -149,7 +149,7 @@ namespace SlimFaas.Tests
 
             // Act + Assert
             // On s’attend à ce que la méthode lève une Exception("Not port or IP available")
-            await Assert.ThrowsAsync<Exception>(async () =>
+            await Assert.ThrowsAsync<InvalidOperationException>(async () =>
             {
                 await SendClient.ComputeTargetUrlAsync(
                     functionUrl,
@@ -173,7 +173,7 @@ public class FakeProxy : IProxy
     // Pour un usage direct (sans itérations multiples), on peut définir
     // des valeurs simples à retourner si la queue d'itérations est vide.
     public string DefaultIp { get; set; } = "";
-    public IList<int>? DefaultPorts { get; set; } = null;
+    public IList<int>? DefaultPorts { get; set; }
 
     public string GetNextIP()
     {
@@ -213,5 +213,5 @@ public class FakeProxy : IProxy
         return DefaultPorts;
     }
 
-    public IList<int>? GetPorts(string? ip) => GetPorts();
+    public IList<int>? GetPorts(string? target) => GetPorts();
 }

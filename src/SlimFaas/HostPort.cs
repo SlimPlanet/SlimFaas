@@ -1,6 +1,6 @@
 ﻿namespace SlimFaas;
 
-public class HostPort
+public static class HostPort
 {
     public static bool IsSamePort(int[] requestPorts, int[] ports)
     {

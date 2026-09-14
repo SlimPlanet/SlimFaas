@@ -1,4 +1,4 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -50,12 +50,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             bodyForLog = Truncate(bodyForLog, 4000);
         }
 
-        logger.LogDebug(
-            "SlimFaasMcp → API {Method} {Url}\nHeaders: {Headers}\nBody: {Body}",
-            method,
-            url,
-            headersForLog,
-            bodyForLog ?? "<no body>");
+        logger.LogSlimFaasMcpAPIHeadersBody(method, url, headersForLog, bodyForLog ?? "<no body>");
     }
 
     public async Task<List<McpTool>> GetToolsAsync(string swaggerUrl,
@@ -170,7 +165,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         foreach (Parameter parameter in parameters.Where(p => p.In == "path"))
         {
             callUrl = callUrl?.Replace($"{{{parameter.Name}}}",
-                parameter.Name != null && inputDict.TryGetValue(parameter.Name, out JsonElement v) ? v.ToString() : "");
+                parameter.Name != null && inputDict.TryGetValue(parameter.Name, out JsonElement v) ? v.ToString() : "", StringComparison.Ordinal);
         }
 
         if (callUrl != null && !callUrl.StartsWith('/'))
@@ -216,7 +211,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         HttpMethod httpMethod = new(endpoint.Verb ?? "GET");
         if (string.Equals(endpoint.Verb, "GET", StringComparison.OrdinalIgnoreCase))
         {
-            HttpRequestMessage reqGet = new(HttpMethod.Get, fullUrl);
+            using HttpRequestMessage reqGet = new(HttpMethod.Get, fullUrl);
             reqGet.Headers.Accept.ParseAdd("application/json");
             if (additionalHeaders != null)
             {
@@ -289,6 +284,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                     }
 
                     byte[] bytes = Convert.FromBase64String(Strip(b64!));
+#pragma warning disable CA2000 // the multipart content owns and disposes its parts
                     ByteArrayContent part = new(bytes);
                     part.Headers.ContentType =
                         new MediaTypeHeaderValue(string.IsNullOrWhiteSpace(mime) ? "application/octet-stream" : mime);
@@ -301,6 +297,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                         p.Name!);
                 }
             }
+#pragma warning restore CA2000
             string multipartSummary =
                 "multipart/form-data; fields=[" +
                 string.Join(", ", parameters
@@ -360,8 +357,8 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             StringContent? body = null;
             if (parameters.Any(p => p.In == "body"))
             {
-                string payload = inputDict.Count == 1 && inputDict.ContainsKey("body")
-                    ? inputDict["body"].GetRawText()
+                string payload = inputDict.Count == 1 && inputDict.TryGetValue("body", out JsonElement bodyElement)
+                    ? bodyElement.GetRawText()
                     : JsonSerializer.Serialize(inputDict, AppJsonContext.Default.DictionaryStringJsonElement);
 
                 body = new StringContent(payload, Encoding.UTF8, "application/json");
@@ -372,17 +369,20 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             reqMsg = new HttpRequestMessage(httpMethod, fullUrl) { Content = body };
         }
 
-        reqMsg.Headers.Accept.ParseAdd("*/*");
-        if (additionalHeaders != null)
+        using (reqMsg)
         {
-            foreach (KeyValuePair<string, string> header in additionalHeaders)
+            reqMsg.Headers.Accept.ParseAdd("*/*");
+            if (additionalHeaders != null)
             {
-                reqMsg.Headers.Add(header.Key, header.Value);
+                foreach (KeyValuePair<string, string> header in additionalHeaders)
+                {
+                    reqMsg.Headers.Add(header.Key, header.Value);
+                }
             }
-        }
 
-        resp = await _httpClient.SendAsync(reqMsg);
-        return await ToProxyCallResult(resp);
+            resp = await _httpClient.SendAsync(reqMsg);
+            return await ToProxyCallResult(resp);
+        }
     }
 
     private static string CombineBaseUrl(string? baseUrl, string endpointUrl)
@@ -392,7 +392,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             return endpointUrl;
         }
 
-        if (endpointUrl.StartsWith("http"))
+        if (endpointUrl.StartsWith("http", StringComparison.Ordinal))
         {
             return endpointUrl;
         }
@@ -458,18 +458,18 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         string? fileName = disp?.FileNameStar ?? disp?.FileName;
 
         bool isJson = mediaType is not null &&
-                      (mediaType == "application/json" || mediaType.EndsWith("+json"));
-        bool isText = mediaType is not null && mediaType.StartsWith("text/");
+                      (mediaType == "application/json" || mediaType.EndsWith("+json", StringComparison.Ordinal));
+        bool isText = mediaType is not null && mediaType.StartsWith("text/", StringComparison.Ordinal);
 
         // Heuristique "binaire" explicite + fallback générique
         bool looksBinary =
             (mediaType is not null && (
-                mediaType.StartsWith("application/octet-stream")
-                || mediaType.StartsWith("image/")
-                || mediaType.StartsWith("audio/") // ✅ explicite audio
-                || mediaType.StartsWith("video/") // ✅ explicite video
-                || mediaType.StartsWith("application/pdf")
-                || mediaType.StartsWith("application/zip")
+                mediaType.StartsWith("application/octet-stream", StringComparison.Ordinal)
+                || mediaType.StartsWith("image/", StringComparison.Ordinal)
+                || mediaType.StartsWith("audio/", StringComparison.Ordinal) // ✅ explicite audio
+                || mediaType.StartsWith("video/", StringComparison.Ordinal) // ✅ explicite video
+                || mediaType.StartsWith("application/pdf", StringComparison.Ordinal)
+                || mediaType.StartsWith("application/zip", StringComparison.Ordinal)
                 || (!isText && !isJson) // tout le reste non-texte/non-json
             ))
             || fileName is not null; // attachment

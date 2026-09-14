@@ -21,7 +21,7 @@ public partial class KubernetesService
         }
         catch (HttpOperationException e)
         {
-            _logger.LogError(e, "Error while listing kubernetes cron jobs");
+            _logger.LogErrorWhileListingKubernetesCronJobs(e);
             return null;
         }
     }
@@ -51,7 +51,7 @@ public partial class KubernetesService
 
             if (!suspend)
             {
-                _logger.LogWarning("CronJob {CronJobName} is not suspended, skipping it in the SlimFaas job configuration.", name);
+                _logger.LogCronJobIsNotSuspendedSkippingIt(name);
                 continue;
             }
 
@@ -181,11 +181,11 @@ public partial class KubernetesService
                 }
                 catch (Exception e)
                 {
-                    _logger.LogError(e, "Error parsing SlimFaas/Schedules annotation for CronJob {CronJobName}", name);
+                    _logger.LogErrorParsingSlimFaasSchedulesAnnotationFor(e, name);
                 }
             }
 
-            _logger.LogDebug("JobConfiguration: {JobConfiguration}", jobs[name]);
+            _logger.LogJobConfiguration(jobs[name]);
         }
 
         if (jobs.Count != 0)
@@ -193,7 +193,7 @@ public partial class KubernetesService
             return new SlimFaasJobConfiguration(jobs, schedules.Count > 0 ? schedules : null);
         }
 
-        _logger.LogDebug("No SlimFaas job configurations found in the cluster.");
+        _logger.LogNoSlimFaasJobConfigurationsFoundIn();
 
         return null;
     }

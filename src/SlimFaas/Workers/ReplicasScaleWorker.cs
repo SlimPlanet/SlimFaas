@@ -1,4 +1,4 @@
-﻿﻿﻿using Microsoft.Extensions.Options;
+﻿﻿using Microsoft.Extensions.Options;
   using SlimFaas.Kubernetes;
   using SlimFaas.Options;
 using SlimFaas.Scaling;
@@ -40,7 +40,7 @@ public class ScaleReplicasWorker(
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Global Error in ScaleReplicasWorker");
+                logger.LogGlobalErrorInScaleReplicasWorker(e);
             }
         }
     }

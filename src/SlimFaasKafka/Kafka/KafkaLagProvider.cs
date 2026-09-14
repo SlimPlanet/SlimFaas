@@ -74,32 +74,17 @@ public sealed class KafkaLagProvider : IKafkaLagProvider
         }
         catch (ListConsumerGroupOffsetsException ex)
         {
-            _logger.LogWarning(
-                ex,
-                "AdminClient.ListConsumerGroupOffsetsAsync failed for group '{GroupId}', topic '{Topic}'. " +
-                "Falling back to consumer-only heuristic (no visibility on consumer group offsets).",
-                binding.ConsumerGroupId,
-                binding.Topic);
+            _logger.LogAdminClientListConsumerGroupOffsetsAsyncFailedForGroupTopic(ex, binding.ConsumerGroupId, binding.Topic);
         }
         catch (KafkaException ex) when (
             ex.Error.Code == ErrorCode.GroupAuthorizationFailed ||
             ex.Error.Code == ErrorCode.TopicAuthorizationFailed)
         {
-            _logger.LogWarning(
-                ex,
-                "Not authorized to read consumer group offsets for group '{GroupId}', topic '{Topic}'. " +
-                "Falling back to consumer-only heuristic (no visibility on consumer group offsets).",
-                binding.ConsumerGroupId,
-                binding.Topic);
+            _logger.LogNotAuthorizedToReadConsumerGroup(ex, binding.ConsumerGroupId, binding.Topic);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(
-                ex,
-                "Unexpected error while using AdminClient for group '{GroupId}', topic '{Topic}'. " +
-                "Falling back to consumer-only heuristic.",
-                binding.ConsumerGroupId,
-                binding.Topic);
+            _logger.LogUnexpectedErrorWhileUsingAdminClientFor(ex, binding.ConsumerGroupId, binding.Topic);
         }
 
         var fallback = GetPendingUsingConsumerOnly(adminClient, consumer, binding, timeout);

@@ -572,7 +572,7 @@ internal class FakeDockerHandler : HttpMessageHandler
 
         if (request.Content != null && request.Method == HttpMethod.Post)
         {
-            string body = await request.Content.ReadAsStringAsync();
+            string body = await request.Content.ReadAsStringAsync(cancellationToken);
             _lastBodies.Add((full, body));
         }
 

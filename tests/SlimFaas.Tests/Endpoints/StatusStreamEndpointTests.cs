@@ -56,7 +56,7 @@ public class StatusStreamEndpointTests
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cts.Token);
         var stream = await response.Content.ReadAsStreamAsync(cts.Token);
         var buffer = new byte[4096];
-        _ = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+        _ = await stream.ReadAsync(buffer, cts.Token);
 
         Assert.Equal(0, replicasService.SyncDeploymentsCallCount);
     }
@@ -105,7 +105,7 @@ public class StatusStreamEndpointTests
 
         var stream = await response.Content.ReadAsStreamAsync(cts.Token);
         var buffer = new byte[4096];
-        _ = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+        _ = await stream.ReadAsync(buffer, cts.Token);
 
         jobConfigMock.Verify(c => c.SyncJobsConfigurationAsync(), Times.Never);
         jobServiceMock.Verify(s => s.SyncJobsAsync(), Times.Never);
@@ -153,7 +153,7 @@ public class StatusStreamEndpointTests
         // Read first chunk - should contain "event: state"
         var stream = await response.Content.ReadAsStreamAsync(cts.Token);
         var buffer = new byte[4096];
-        var read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+        var read = await stream.ReadAsync(buffer, cts.Token);
         var text = System.Text.Encoding.UTF8.GetString(buffer, 0, read);
 
         Assert.Contains("event: state", text);
@@ -344,7 +344,7 @@ public class StatusStreamEndpointTests
 
         var stream = await response.Content.ReadAsStreamAsync(cts.Token);
         var buffer = new byte[8192];
-        var read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+        var read = await stream.ReadAsync(buffer, cts.Token);
         var text = System.Text.Encoding.UTF8.GetString(buffer, 0, read);
 
         Assert.Contains("NodeId", text);
@@ -395,7 +395,7 @@ public class StatusStreamEndpointTests
         var text = "";
         while (CountOccurrences(text, "event: state") < 2)
         {
-            var read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+            var read = await stream.ReadAsync(buffer, cts.Token);
             Assert.True(read > 0, "The SSE stream ended before sending two state events.");
             text += System.Text.Encoding.UTF8.GetString(buffer, 0, read);
         }
@@ -504,7 +504,7 @@ public class StatusStreamEndpointTests
         var text = "";
         while (CountOccurrences(text, "event: state") < 2)
         {
-            var read = await stream.ReadAsync(buffer, 0, buffer.Length, cts.Token);
+            var read = await stream.ReadAsync(buffer, cts.Token);
             Assert.True(read > 0, "The SSE stream ended before sending two state events.");
             text += System.Text.Encoding.UTF8.GetString(buffer, 0, read);
         }

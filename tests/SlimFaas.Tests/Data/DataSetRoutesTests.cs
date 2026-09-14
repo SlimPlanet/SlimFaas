@@ -20,7 +20,6 @@ using Xunit;
 
 public sealed class DataSetRoutesTests
 {
-    private const string TtlSuffix = "${slimfaas-timetolive}$";
 
     private static KeyValueCommandResult Applied(byte[]? value = null)
     {

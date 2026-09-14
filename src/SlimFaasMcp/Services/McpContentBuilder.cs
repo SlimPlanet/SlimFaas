@@ -23,7 +23,7 @@ public static class McpContentBuilder
             var mimeLow = mime.ToLowerInvariant();
             var base64  = Convert.ToBase64String(r.Bytes);
 
-            if (mimeLow.StartsWith("image/"))
+            if (mimeLow.StartsWith("image/", StringComparison.Ordinal))
             {
                 contentArr.Add((JsonNode)new JsonObject {
                     ["type"]     = "image",
@@ -31,7 +31,7 @@ public static class McpContentBuilder
                     ["data"]     = base64
                 });
             }
-            else if (mimeLow.StartsWith("audio/"))
+            else if (mimeLow.StartsWith("audio/", StringComparison.Ordinal))
             {
                 contentArr.Add((JsonNode)new JsonObject {
                     ["type"]     = "audio",
@@ -96,7 +96,7 @@ public static class McpContentBuilder
         if (string.IsNullOrWhiteSpace(text)) return false;
 
         var m = (mime ?? "").ToLowerInvariant();
-        var looksJsonMime = m == "application/json" || m.EndsWith("+json") || m.StartsWith("application/ld+json");
+        var looksJsonMime = m == "application/json" || m.EndsWith("+json", StringComparison.Ordinal) || m.StartsWith("application/ld+json", StringComparison.Ordinal);
         var looksMaybeJson = looksJsonMime || StartsWithJson(text);
 
         if (!looksMaybeJson) return false;
@@ -129,7 +129,7 @@ public static class McpContentBuilder
         return false;
     }
 
-    private static JsonNode WrapStructuredNode(JsonNode parsed)
+    private static JsonObject WrapStructuredNode(JsonNode parsed)
     {
         switch (parsed)
         {

@@ -52,8 +52,10 @@ public sealed class DefaultFunctionAccessPolicy(
 
         var isInternal = candidates.Any(c => MatchesTrusted(c, trustedIps));
 
-        logger.LogDebug("IsInternalRequest={IsInternal} Remote={RemoteIp} XFF={Xff}",
-            isInternal, remoteIp, context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "");
+        if (logger.IsEnabled(LogLevel.Debug))
+        {
+            logger.LogIsInternalRequestRemoteXFF(isInternal, remoteIp, context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "");
+        }
 
         context.Items[s_internalCacheKey] = isInternal;
         return isInternal;

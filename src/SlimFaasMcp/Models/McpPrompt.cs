@@ -12,7 +12,7 @@ namespace SlimFaasMcp.Models;
 )]
 [JsonSerializable(typeof(McpPrompt))]
 [JsonSerializable(typeof(List<McpPrompt.McpToolOverride>))]
-internal partial class LocalJsonContext : JsonSerializerContext { }
+internal sealed partial class LocalJsonContext : JsonSerializerContext { }
 
 
 public class McpPrompt

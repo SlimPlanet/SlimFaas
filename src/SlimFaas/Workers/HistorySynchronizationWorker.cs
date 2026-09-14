@@ -1,4 +1,4 @@
-﻿﻿using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
@@ -34,35 +34,31 @@ public class HistorySynchronizationWorker(
                     long ticksMemory = historyHttpMemoryService.GetTicksLastCall(function.Deployment);
                     if (ticksInDatabase > nowTicks)
                     {
-                        logger.LogWarning(
-                            "HistorySynchronizationWorker: ticksInDatabase is superior to now ticks {TimeSpan} for {Function}",
-                            TimeSpan.FromTicks(ticksInDatabase - nowTicks), function.Deployment);
+                        logger.LogHistorySynchronizationWorkerTicksInDatabaseIsSuperiorToNow(TimeSpan.FromTicks(ticksInDatabase - nowTicks), function.Deployment);
                         ticksInDatabase = nowTicks;
                         isDatabaseTicksUpdated = true;
                     }
                     if (ticksMemory > nowTicks)
                     {
-                        logger.LogWarning(
-                            "HistorySynchronizationWorker: ticksMemory is superior to now ticks {TimeSpan} for {Function}",
-                            TimeSpan.FromTicks(ticksMemory - nowTicks), function.Deployment);
+                        logger.LogHistorySynchronizationWorkerTicksMemoryIsSuperiorToNow(TimeSpan.FromTicks(ticksMemory - nowTicks), function.Deployment);
                         ticksMemory = nowTicks;
                     }
 
                     if (ticksInDatabase > ticksMemory || isDatabaseTicksUpdated)
                     {
-                        logger.LogDebug("HistorySynchronizationWorker: Synchronizing history for {Function} to {Ticks} from Database", function.Deployment, ticksInDatabase);
+                        logger.LogHistorySynchronizationWorkerSynchronizingHistoryForToFrom(function.Deployment, ticksInDatabase);
                         historyHttpMemoryService.SetTickLastCall(function.Deployment, ticksInDatabase);
                     }
                     else if (ticksInDatabase < ticksMemory)
                     {
-                        logger.LogDebug("HistorySynchronizationWorker: Synchronizing history for {Function} to {Ticks} from Memory", function.Deployment, ticksMemory);
+                        logger.LogHistorySynchronizationWorkerSynchronizingHistoryForToFrom2(function.Deployment, ticksMemory);
                         await historyHttpDatabaseService.SetTickLastCallAsync(function.Deployment, ticksMemory);
                     }
                 }
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Global Error in HistorySynchronizationWorker");
+                logger.LogGlobalErrorInHistorySynchronizationWorker(e);
             }
         }
     }

@@ -1,10 +1,10 @@
-﻿using SlimFaas.Kubernetes;
+using SlimFaas.Kubernetes;
 
 namespace SlimFaas;
 
 public interface IWakeUpFunction
 {
-    Task FireAndForgetWakeUpAsync(string functionName);
+    Task WakeUpInBackgroundAsync(string functionName);
 }
 
 public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<WakeUpFunction> logger) : IWakeUpFunction
@@ -18,7 +18,7 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
         return function;
     }
 
-    public async Task FireAndForgetWakeUpAsync(string functionName)
+    public async Task WakeUpInBackgroundAsync(string functionName)
     {
         lock (_lock)
         {
@@ -39,19 +39,19 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
                 if (function != null)
                 {
                     historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-                    logger.LogInformation("1: Waking up function {FunctionName} {SetTickLastCall}", functionName, DateTime.UtcNow.Ticks);
+                    logger.Log1WakingUpFunction(functionName, DateTime.UtcNow.Ticks);
                     await Task.Delay(1000);
                     function = SearchFunction(replicasService, functionName);
                     if (function == null)
                     {
-                        logger.LogWarning("Function {FunctionName} not found after delay", functionName);
+                        logger.LogFunctionNotFoundAfterDelay(functionName);
                         return;
                     }
                     var numberPods = function.Pods.Count(p => p.Ready.HasValue && p.Ready.Value);
                     while (numberPods == 0)
                     {
                         historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
-                        logger.LogInformation("2: Waking up function {FunctionName} {SetTickLastCall}", functionName, DateTime.UtcNow.Ticks);
+                        logger.Log2WakingUpFunction(functionName, DateTime.UtcNow.Ticks);
                         function = SearchFunction(replicasService, functionName);
                         if (function != null)
                         {
@@ -63,7 +63,7 @@ public class WakeUpFunction(IServiceScopeFactory serviceScopeFactory, ILogger<Wa
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error in wake up function");
+                logger.LogErrorInWakeUpFunction(e);
                 throw;
             }
             finally
