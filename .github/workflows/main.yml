@@ -582,7 +582,7 @@ jobs:
           merge-multiple: true
 
       - name: Create GitHub Release & upload assets
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.tags.outputs.new_version }}
           name: "SlimFaas ${{ needs.tags.outputs.new_version }}"
