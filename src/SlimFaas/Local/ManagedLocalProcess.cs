@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text;
 
@@ -217,13 +218,41 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
         try
         {
             _process.Kill(entireProcessTree: true);
-            await _process.WaitForExitAsync(cancellationToken);
         }
         catch (InvalidOperationException)
         {
             // The process exited between the checks.
+            return;
         }
+        catch (Exception exception) when (IsAlreadyTerminating(exception))
+        {
+            // Windows refuses to terminate a process that is already terminating,
+            // for example a child that received the same Ctrl+Break or Ctrl+C as
+            // the supervisor. It still holds its files until it is gone, so wait
+            // for it within the same budget instead of abandoning it.
+            using var terminating = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            terminating.CancelAfter(timeout);
+            try
+            {
+                await _process.WaitForExitAsync(terminating.Token);
+                return;
+            }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new InvalidOperationException(
+                    $"Process {_process.Id} could not be terminated and did not exit within {timeout}.",
+                    exception);
+            }
+        }
+
+        await _process.WaitForExitAsync(cancellationToken);
     }
+
+    private static bool IsAlreadyTerminating(Exception exception) =>
+        exception is Win32Exception ||
+        (exception is AggregateException aggregate &&
+         aggregate.InnerExceptions.Count > 0 &&
+         aggregate.InnerExceptions.All(inner => inner is Win32Exception));
 
     private void WriteLine(string tag, string? value)
     {

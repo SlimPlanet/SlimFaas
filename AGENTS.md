@@ -172,6 +172,9 @@ The readiness probe tolerates temporary connection failures during startup withi
 a bounded deadline; requests exercising functions and job mutations are not retried.
 Cleanup tolerates HTTP 404 only after the smoke job's successful completion has
 been observed, since demo retention and per-node job views can make it absent.
+The smoke test fails when the supervisor exits with a non-zero code after being
+asked to stop, and removes the extracted bundle itself with a bounded retry,
+because Windows refuses to delete a file a stopping node still holds.
 
 ### Docker
 
