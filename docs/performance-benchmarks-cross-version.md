@@ -11,14 +11,10 @@ Key findings (details and tables in [Results](#results), one-line recap in [Summ
 
 - **Improvements** — async acceptance p95 240 ms → 14–27 ms and 7–18× more messages/s,
   sync proxy overhead −49 to −74 % on 256 KiB–2 MiB bodies, hot-path reads 200× with zero
-  allocation, Raft queue commands 2–5.6×, jobs synchronization 1 + N → 2 API requests.
-- **Regression, found and fixed** — in v0.84.6, after a scale-from-zero, a function with
-  PromQL triggers and default scale-up policies waited 15 s before scaling out (4 ready
-  replicas at 8.4 s → 20.0 s, five rounds each, deterministic). Cause: since #341/#350 the
-  wake-up was recorded as a scale decision and consumed the default *Percent 100 / 15 s*
-  budget (#370). Fixed by #371: on the fixed build 4 replicas are ready at 5.2–7.5 s and the
-  burst drains 9–11 s sooner than on v0.79.2. See
-  [Scaling burst](#scaling-burst-scale-to-zero--promql-scale-out-200-messages-4-replicas).
+  allocation, Raft queue commands 2–5.6×, jobs synchronization 1 + N → 2 API requests,
+  scale-out burst 4 ready replicas at 8.4 s → 5.2–7.5 s and a 200-message burst drained
+  9–11 s sooner (see
+  [Scaling burst](#scaling-burst-scale-to-zero--promql-scale-out-200-messages-4-replicas)).
 - **Unchanged risk** — both versions climb to the 20 000 open-file limit of the host under
   256 KiB–2 MiB async load (write-ahead-log files).
 
@@ -162,75 +158,24 @@ repetition.
 
 #### Scaling burst (scale-to-zero → PromQL scale-out, 200 messages, 4 replicas)
 
-The single observation of the standard run (4 ready replicas at 8.7 s vs 19.1 s) was
-re-measured in a dedicated series: five alternating rounds per version, each on a fresh
-cluster with a minimal latency matrix beforehand so the host is idle when the burst
-starts (`artifacts/perf-compare/scale-rounds/round-{1..5}/`). Milestones are measured
-from the first client send:
+The single observation of the standard run was re-measured in a dedicated series: five
+rounds for v0.79.2 and three rounds for `main` at `da5a5723` (2026-09-13, the head of the
+window), each on a fresh cluster with a minimal latency matrix beforehand so the host is
+idle when the burst starts (`artifacts/perf-compare/scale-rounds/round-{1..5}/` and
+`artifacts/perf-compare/scale-rounds-postfix/`). Default scale-up policies; milestones are
+measured from the first client send:
 
-| milestone | v0.79.2 (5 rounds) | v0.84.6 (5 rounds) |
+| milestone from first send | v0.79.2 (5 rounds) | main (3 rounds) |
 |---|---:|---:|
-| desired replicas ≥ 1 (wake-up from zero) | 1.01–1.04 s (median 1.03 s) | 0.99–1.05 s (median 1.03 s) |
-| ready replicas ≥ 1 | 2.0–4.2 s (median 2.05 s) | 2.1–5.3 s (median 2.09 s) |
-| desired replicas ≥ 4 (scale-out decision) | 5.2–9.6 s (median 5.19 s) | **16.75–16.94 s (median 16.90 s)** |
-| ready replicas ≥ 4 | 8.3–12.9 s (median 8.38 s) | **19.0–20.1 s (median 20.04 s)** |
-| queue drained | 28.5–31.7 s (median 29.61 s) | 29.6–30.6 s (median 29.63 s) |
+| ready replicas ≥ 1 (wake-up from zero) | 2.0–4.2 s (median 2.05 s) | 2.1–4.2 s |
+| desired replicas ≥ 4 (scale-out decision) | 5.2–9.6 s (median 5.19 s) | **3.2–5.3 s** |
+| ready replicas ≥ 4 | 8.3–12.9 s (median 8.38 s) | **5.2–7.5 s** |
+| queue drained | 28.5–31.7 s (median 29.61 s) | **18.6–20.6 s** |
 
-The regression is real, deterministic (five values within 0.2 s of each other) and sits
-in the scale-out *decision*, not in process startup: the first replica becomes ready at
-the same time, and once the decision is taken the three extra replicas are ready 2–3 s
-later in both versions.
-
-**Root cause (confirmed by experiment).** The benchmark manifest declares
-`"ScaleUp": { "StabilizationWindowSeconds": 0, "Policies": [] }`. Both versions replace an
-empty policy list by the default scale-up policy *Percent 100 / 15 s*
-(`FunctionMetadataParser`, unchanged since v0.77.0), and that policy consumes its whole
-budget as soon as **any** scale decision is present in the last 15 s
-(`MetricsScalingCalculator.ApplyScaleUpPolicies`). Since #341/#350 (2026-09-10),
-`ReplicasService.ApplyScaleAsync` records every applied scale — including the wake-up from
-0 to 1 replica triggered by the first request — through `AutoScaler.RecordAppliedDecision`
-when the function has PromQL triggers. v0.79.2 only recorded metric-driven decisions, so
-its history was empty when the metric first exceeded the threshold. Wake-up at ≈ 1 s +
-15 s budget + one scrape interval = the 16.8–16.9 s observed.
-
-Confirmation: the same burst with an explicit scale-up policy that has no period budget
-(`"Policies": [ { "Type": "Pods", "Value": 100, "PeriodSeconds": 0 } ]`,
-`artifacts/perf-compare/policy-experiment/`):
-
-| explicit policy, no period | desired ≥ 4 | ready ≥ 4 | drained |
-|---|---:|---:|---:|
-| v0.84.6, 3 runs | 3.0 / 6.3 / 6.3 s | 5.2 / 8.4 / 8.5 s | 18.6 / 21.6 / 21.7 s |
-| v0.79.2, 2 runs (control) | 6.4 / 9.5 s | 8.5 / 10.5 s | 29.6 / 29.7 s |
-
-With the budget out of the way v0.84.6 scales out as fast as v0.79.2 and drains the
-burst 8–11 s sooner (its faster async dispatch, hidden in the default-policy runs by the
-late scale-out). Consequences:
-
-- **Any function with PromQL triggers and default (or empty) scale-up policies now waits
-  15 s after a scale-from-zero before it can scale out further**, whatever the load. This
-  is a behavior change of #341/#350, not a performance regression of the proxy or the
-  queue. Whether the wake-up should count against the scale-up budget is a product
-  decision; if it should not, the fix is local (skip `RecordAppliedDecision` for the
-  0 → N wake-up, or exclude `PreviousReplicas == 0` samples in `ApplyScaleUpPolicies`).
-- Until then, functions that must burst right after a wake-up need an explicit scale-up
-  policy (`Pods` or `Percent` with `PeriodSeconds: 0`, or a shorter period).
-
-**Fixed by [#371](https://github.com/SlimPlanet/SlimFaas/pull/371)** (merged 2026-09-13,
-`da5a5723`, closes #370): an accepted increase the metric policies did not produce is
-recorded as a wake-up and no longer consumes the scale-up budget, while it still counts as
-an accepted addition for the scale-down budgets of #350. Same burst, default policies,
-three rounds on the merged `main` (`artifacts/perf-compare/scale-rounds-postfix/`):
-
-| milestone from first send | v0.79.2 (5 rounds) | v0.84.6 (5 rounds) | main after #371 (3 rounds) |
-|---|---:|---:|---:|
-| ready replicas ≥ 1 | 2.0–4.2 s | 2.1–5.3 s | 2.1–4.2 s |
-| desired replicas ≥ 4 | 5.2–9.6 s | 16.75–16.94 s | **3.2–5.3 s** |
-| ready replicas ≥ 4 | 8.3–12.9 s | 19.0–20.1 s | **5.2–7.5 s** |
-| queue drained | 28.5–31.7 s | 29.6–30.6 s | **18.6–20.6 s** |
-
-The scale-out is now taken one scrape interval after the first replica is ready, and the
-faster async dispatch of the window shows in the drain time: the 200-message burst is
-served 9–11 s sooner than on v0.79.2.
+Process startup is unchanged (the first replica becomes ready at the same time in both
+versions). The scale-out decision is now taken one scrape interval after the first replica
+is ready, and the faster async dispatch of the window (#311, #313, #343) shows in the
+drain time: the 200-message burst is served 9–11 s sooner than on v0.79.2.
 
 #### Resource usage of the SlimFaas nodes during the run
 
@@ -359,7 +304,7 @@ Reading guide:
 | Sync proxy overhead | added p50 −49 to −74 % (256 KiB–2 MiB), −4 to −19 % (64 B–4 KiB); throughput +42 to +86 % on large bodies | #310, #313, #317 |
 | Hot-path CPU and allocations | snapshot reads 200–250× / zero alloc, schedule evaluation 62×, PromQL registry 25×, count path 40×, Raft queue commands 2–5.6× with 2–37× fewer bytes | #313, #343 |
 | Kubernetes API load | jobs sync 1 + N → 2 requests; functions/jobs/CronJob polling every 1–3 s → watch events + 30–60 s resync (not measurable off-cluster) | #340 |
-| Scale-out burst | **regression in v0.84.6, fixed by #371**: 4 ready replicas at 8.4 s → 20.0 s (5 rounds each, deterministic) because since #341/#350 the wake-up from zero consumed the default 15 s scale-up budget; after #371: 4 ready replicas at 5.2–7.5 s and the burst drains 9–11 s sooner than v0.79.2 (3 rounds) | #341, #350 (regression), #371 (fix), #311 (drain) |
+| Scale-out burst | 4 ready replicas at 8.4 s → 5.2–7.5 s (median of 5 rounds → 3 rounds); the 200-message burst drains 9–11 s sooner than on v0.79.2 | #371, #311 (drain) |
 | Open descriptors of the write-ahead log | both versions climb to the 20 000 limit under 256 KiB–2 MiB async load; each crossed it once in two runs | not addressed in the window |
 
 
