@@ -1,0 +1,22 @@
+apiVersion: v2
+name: slimfaas
+description: >
+  SlimFaas is a lightweight, plug-and-play Function-as-a-Service (FaaS) platform
+  for Kubernetes with autoscaling-first design including scale-to-zero, PromQL-driven
+  autoscaling, sync/async functions, and batch jobs.
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - faas
+  - serverless
+  - autoscaling
+  - scale-to-zero
+  - kubernetes
+home: https://slimfaas.dev
+sources:
+  - https://github.com/SlimPlanet/SlimFaas
+maintainers:
+  - name: SlimPlanet
+    url: https://github.com/SlimPlanet
+icon: https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/documentation/SlimFaas.png
