@@ -214,11 +214,40 @@ public sealed class SlimFaasClientWebSocketTests
         }
     }
 
-    private static async Task StopAsync(SlimFaasClient client, CancellationTokenSource cts, Task run)
+    /// <summary>
+    /// Owns a client and its RunForeverAsync loop; disposal cancels the loop, waits for it and
+    /// disposes the client, so a failed assertion never leaves a reconnect loop running.
+    /// </summary>
+    private sealed class RunningClient : IAsyncDisposable
     {
-        await cts.CancelAsync();
-        await run.WaitAsync(s_timeout);
-        await client.DisposeAsync();
+        private readonly CancellationTokenSource _cts = new();
+        private Task _run = Task.CompletedTask;
+        private bool _disposed;
+
+        public RunningClient(Uri uri, SlimFaasClientConfig config, SlimFaasClientOptions options)
+        {
+            Client = new SlimFaasClient(uri, config, options);
+        }
+
+        public SlimFaasClient Client { get; }
+
+        public void Start() => _run = Client.RunForeverAsync(_cts.Token);
+
+        public async ValueTask DisposeAsync()
+        {
+            if (_disposed) return;
+            _disposed = true;
+            try
+            {
+                await _cts.CancelAsync();
+                await _run.WaitAsync(s_timeout);
+            }
+            finally
+            {
+                await Client.DisposeAsync();
+                _cts.Dispose();
+            }
+        }
     }
 
     [Fact]
@@ -233,10 +262,10 @@ public sealed class SlimFaasClientWebSocketTests
             PathsStartWithVisibility = [new PathVisibilityConfig { Path = "/admin", Visibility = FunctionVisibility.Private }],
             DefaultTrust = FunctionTrust.Untrusted,
         };
-        var client = new SlimFaasClient(server.Uri, config, FastOptions());
-        using var cts = new CancellationTokenSource();
+        await using var running = new RunningClient(server.Uri, config, FastOptions());
+        var client = running.Client;
 
-        var run = client.RunForeverAsync(cts.Token);
+        running.Start();
         var connection = await server.NextConnectionAsync();
         await WaitUntilAsync(() => client.IsConnected);
 
@@ -249,7 +278,7 @@ public sealed class SlimFaasClientWebSocketTests
         payload.Configuration.DefaultTrust.Should().Be("Untrusted");
         client.ConnectionId.Should().Be("conn-1");
 
-        await StopAsync(client, cts, run);
+        await running.DisposeAsync();
         client.IsConnected.Should().BeFalse();
     }
 
@@ -270,15 +299,15 @@ public sealed class SlimFaasClientWebSocketTests
     public async Task AsyncRequest_InvokesTheHandlerAndSendsTheCallback()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
         SlimFaasAsyncRequest? received = null;
         client.OnAsyncRequest = req =>
         {
             received = req;
             return Task.FromResult(204);
         };
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.AsyncRequest, new
@@ -307,17 +336,15 @@ public sealed class SlimFaasClientWebSocketTests
         Encoding.UTF8.GetString(received.Body!).Should().Be("payload");
         received.IsLastTry.Should().BeTrue();
         received.TryNumber.Should().Be(2);
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
     public async Task AsyncRequest_Returns500WhenThereIsNoHandlerOrTheHandlerThrows()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
         // without handlers an event is dropped and a request is answered with 500
@@ -332,23 +359,21 @@ public sealed class SlimFaasClientWebSocketTests
         var second = await connection.NextEnvelopeAsync();
         second.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!.StatusCode.Should().Be(500);
         second.CorrelationId.Should().Be("throws");
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
     public async Task AsyncRequest_Accepted_DefersTheCallbackToSendCallbackAsync()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
         var handled = new TaskCompletionSource();
         client.OnAsyncRequest = _ =>
         {
             handled.TrySetResult();
             return Task.FromResult(202);
         };
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.AsyncRequest, new { elementId = "long" }));
@@ -358,8 +383,6 @@ public sealed class SlimFaasClientWebSocketTests
         var callback = await connection.NextEnvelopeAsync();
         callback.Type.Should().Be(SlimFaasMessageType.AsyncCallback);
         callback.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!.StatusCode.Should().Be(201);
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
@@ -395,18 +418,23 @@ public sealed class SlimFaasClientWebSocketTests
     public async Task PublishEvent_InvokesTheHandlerAndSurvivesHandlerErrors()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
         var events = Channel.CreateUnbounded<SlimFaasPublishEvent>();
         client.OnPublishEvent = evt =>
         {
             events.Writer.TryWrite(evt);
             return evt.EventName == "bad" ? throw new InvalidOperationException("bad event") : Task.CompletedTask;
         };
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
+        // Handlers run on separate tasks, so their order is not guaranteed: wait for the
+        // first handler (which throws) to be observed before sending the second event.
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.PublishEvent, new { eventName = "bad" }));
+        var first = await events.Reader.ReadAsync(new CancellationTokenSource(s_timeout).Token);
+        first.EventName.Should().Be("bad");
+
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.PublishEvent, new
         {
             eventName = "order-created",
@@ -416,24 +444,20 @@ public sealed class SlimFaasClientWebSocketTests
             headers = new Dictionary<string, string[]> { ["h"] = ["v"] },
             body = Convert.ToBase64String("order"u8.ToArray()),
         }));
-
-        var first = await events.Reader.ReadAsync(new CancellationTokenSource(s_timeout).Token);
         var second = await events.Reader.ReadAsync(new CancellationTokenSource(s_timeout).Token);
-        first.EventName.Should().Be("bad");
         second.EventName.Should().Be("order-created");
         second.Path.Should().Be("/orders");
         second.Query.Should().Be("?a=1");
         second.Headers["h"].Should().Equal("v");
         Encoding.UTF8.GetString(second.Body!).Should().Be("order");
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
     public async Task SyncRequest_StreamsTheBodyInAndTheResponseOut()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
         string? receivedBody = null;
         SlimFaasSyncRequest? receivedRequest = null;
         client.OnSyncRequest = async req =>
@@ -452,8 +476,7 @@ public sealed class SlimFaasClientWebSocketTests
 #pragma warning restore CA1835
             await req.Response.CompleteAsync();
         };
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
         var correlationId = Guid.NewGuid().ToString();
@@ -492,17 +515,15 @@ public sealed class SlimFaasClientWebSocketTests
         receivedRequest.Path.Should().Be("/sync");
         receivedRequest.Query.Should().Be("?q=1");
         receivedRequest.Headers["x"].Should().Equal("y");
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
     public async Task SyncRequest_Returns500WhenThereIsNoHandler()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
         var correlationId = Guid.NewGuid().ToString();
@@ -513,15 +534,14 @@ public sealed class SlimFaasClientWebSocketTests
         responseStart.Type.Should().Be(SlimFaasMessageType.SyncResponseStart);
         JsonSerializer.Deserialize(responseStart.Payload, SlimFaasClientJsonContext.Default.SyncResponseStartDto)!.StatusCode.Should().Be(500);
         (await connection.NextFrameAsync()).Type.Should().Be(SlimFaasMessageType.SyncResponseEnd);
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
     public async Task SyncRequest_CancelledByTheServer_FailsTheHandlerWith500()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
         Exception? handlerError = null;
         client.OnSyncRequest = async req =>
         {
@@ -536,8 +556,7 @@ public sealed class SlimFaasClientWebSocketTests
                 throw;
             }
         };
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
         var correlationId = Guid.NewGuid().ToString();
@@ -553,23 +572,21 @@ public sealed class SlimFaasClientWebSocketTests
 
         await client.SendSyncCancelAsync(correlationId);
         (await connection.NextFrameAsync()).Type.Should().Be(SlimFaasMessageType.SyncCancel);
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
     public async Task ReceiveLoop_IgnoresMalformedAndUnexpectedMessages()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
         var events = Channel.CreateUnbounded<SlimFaasPublishEvent>();
         client.OnPublishEvent = evt =>
         {
             events.Writer.TryWrite(evt);
             return Task.CompletedTask;
         };
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
         await connection.SendTextAsync("{not json");
@@ -590,33 +607,29 @@ public sealed class SlimFaasClientWebSocketTests
         var evt = await events.Reader.ReadAsync(new CancellationTokenSource(s_timeout).Token);
         evt.EventName.Should().Be("still-alive");
         client.IsConnected.Should().BeTrue();
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
     public async Task PingLoop_SendsPingsAtTheConfiguredInterval()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions(pingInterval: 0.02));
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions(pingInterval: 0.02));
+        var client = running.Client;
+        running.Start();
         var connection = await server.NextConnectionAsync();
 
         var ping = await connection.NextEnvelopeAsync();
         ping.Type.Should().Be(SlimFaasMessageType.Ping);
         ping.CorrelationId.Should().NotBeNullOrEmpty();
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
     public async Task RunForeverAsync_ReconnectsAfterTheServerClosesOrDropsTheConnection()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();
-        var client = new SlimFaasClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
-        using var cts = new CancellationTokenSource();
-        var run = client.RunForeverAsync(cts.Token);
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
+        running.Start();
 
         var first = await server.NextConnectionAsync();
         await WaitUntilAsync(() => client.ConnectionId == "conn-1");
@@ -629,8 +642,6 @@ public sealed class SlimFaasClientWebSocketTests
         var third = await server.NextConnectionAsync();
         await WaitUntilAsync(() => client.ConnectionId == "conn-3");
         third.Register.Type.Should().Be(SlimFaasMessageType.Register);
-
-        await StopAsync(client, cts, run);
     }
 
     [Fact]
