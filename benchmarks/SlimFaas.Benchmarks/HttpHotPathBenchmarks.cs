@@ -44,9 +44,13 @@ public class HttpHotPathBenchmarks
     public bool PortCheck_WithArrays() =>
         HostPort.IsSamePort([5000, 8080], _slimFaasPorts.ToArray());
 
+#if !BASELINE_API
+    // The allocation-free overload is the one the middleware uses since PR #313; it does
+    // not exist in older checkouts (which only had the array-based production path above).
     [Benchmark]
     public bool PortCheck_AllocationFree() =>
         HostPort.IsSamePort(5000, 8080, _slimFaasPorts);
+#endif
 
     [Benchmark]
     public FunctionVisibility ResolveVisibility_PathRules() =>

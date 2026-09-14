@@ -45,11 +45,18 @@ public static class BenchData
             new("slimfaas-2", true, true, "10.42.100.3", "slimfaas", [5000])
         };
 
+#if BASELINE_API
+        return new DeploymentsInformations(
+            functions,
+            new SlimFaasDeploymentInformation(slimFaasPods.Count, slimFaasPods),
+            new List<PodInformation>());
+#else
         return new DeploymentsInformations(
             functions,
             new SlimFaasDeploymentInformation(slimFaasPods.Count, slimFaasPods),
             new List<PodInformation>(),
             new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase));
+#endif
     }
 
     public static IList<Job> BuildJobs(int count)
@@ -214,7 +221,11 @@ public sealed class StubJobConfiguration : IJobConfiguration
 {
     public SlimFaasJobConfiguration Configuration { get; set; } = new(new Dictionary<string, SlimfaasJob>());
 
+#if BASELINE_API
+    public Task SyncJobsConfigurationAsync() => Task.CompletedTask;
+#else
     public Task<bool> SyncJobsConfigurationAsync() => Task.FromResult(true);
+#endif
 }
 
 /// <summary>
