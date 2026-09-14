@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
-    <PackageReference Include="MailKit" Version="4.17.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <PackageReference Include="MailKit" />
   </ItemGroup>
 
 </Project>
