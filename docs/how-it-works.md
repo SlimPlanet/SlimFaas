@@ -185,9 +185,11 @@ SlimData command protocol, snapshot payload format and AppendEntries commit-inde
 guard are preserved.
 
 The upgrade is under validation: live member re-addition and pre-6.7 WAL metadata
-pages on hosts with system pages larger than 4 KiB currently block rollout. See
-the [validation record](raft-stability-validation.md) before upgrading existing
-state. The Smartguide incident remains open until staging confirms recovery.
+pages on hosts with system pages larger than 4 KiB, and new required Raft HTTP
+headers block rollout of the published dependency. Corrections are proposed in
+[DotNext #300](https://github.com/dotnet/dotNext/pull/300). See the
+[validation record](https://github.com/SlimPlanet/SlimFaas/blob/main/docs/raft-stability-validation.md)
+before upgrading existing state. The Smartguide incident remains open until staging confirms recovery.
 
 ### SlimData recovery
 

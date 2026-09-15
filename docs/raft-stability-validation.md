@@ -1,7 +1,10 @@
 # SlimData Raft stabilization validation
 
 Tracking: [SlimFaas #402](https://github.com/SlimPlanet/SlimFaas/issues/402).
-Status: **draft, blocked by dependency validation; no rollout or merge**.
+SlimFaas PR: [#403](https://github.com/SlimPlanet/SlimFaas/pull/403).
+Upstream issue and fixes: [DotNext #299](https://github.com/dotnet/dotNext/issues/299),
+[DotNext #300](https://github.com/dotnet/dotNext/pull/300).
+Status: **draft, awaiting a published corrected dependency and validation gates; no rollout or merge**.
 
 ## Scope and incident evidence
 
@@ -65,7 +68,34 @@ See the pinned [WAL constructor](https://github.com/dotnet/dotNext/blob/50fe09e1
 The compact [6.6.0 fixture](../tests/SlimData.Tests/Snapshots/README.md) preserves
 the reproduction. Its restoration test passes on 6.6.0 and fails on 6.7.2 on this
 16 KiB-page host. No state migration, deletion or restart workaround is applied
-automatically. Mixed-version operation remains **unvalidated** beyond this failure.
+automatically. The original published 6.7.2 package cannot complete this upgrade on the affected host.
+
+### Legacy Raft HTTP headers
+
+After the two preceding fixes, native mixed-version validation exposed a third
+blocker: new followers reject 6.6.0 requests without `X-Raft-State-Version`.
+New leaders also reject old AppendEntries responses without `X-Raft-Last-Index`.
+These are dependency HTTP protocol changes; SlimData's application commands did
+not change.
+
+The upstream PR treats an absent state version as zero and an absent last-index
+hint as the request's preceding index, preserving one-entry backtracking on
+rejection. Malformed explicit headers remain rejected. Nine HTTP parser cases
+include three failures before this fix and all pass afterward.
+
+### Upstream correction and package provenance
+
+DotNext PR #300 targets `develop` and includes the live rejoin fix, validation
+and preservation of existing WAL metadata page sizes, and legacy HTTP defaults.
+New WALs retain DotNext's current default page size. Invalid or inconsistent
+existing sizes fail before WAL files are opened or resized; no state migration
+or deletion is performed.
+
+The complete upstream suite passes locally: **2,443 tests, 4 existing skips,
+0 failures**. Private packages `6.7.2-slimdata.402.2` were built from commit
+`750c57f` in an isolated downstream worktree. They are used only for experiments,
+not published or referenced by the SlimFaas PR. The PR still references official
+6.7.2 and must wait for an upstream release containing the corrections.
 
 ## Checks completed locally
 
@@ -82,7 +112,8 @@ Baseline: `origin/main` at `fe3b08e7`, DotNext 6.6.0.
 | Documentation site | Pass: 21 pages, 1,383 local links/assets, 349 search entries |
 | Native local demo | Manifest valid; `/status-functions` succeeds; `/function/fibonacci1/hello/local` returns `Hello local!` |
 | Three native 6.7.2 nodes, restarts and quorum faults | Pass, data checked on every node after each phase |
-| Rolling upgrade from 6.6.0 | Blocked at first follower by WAL metadata page-size failure |
+| Published 6.7.2 rolling upgrade from 6.6.0 | Blocked at first follower by WAL metadata page-size failure |
+| Locally patched dependency, complete .NET suite | 1,545 tests pass, including all 217 SlimData tests |
 
 The native 6.7.2-only experiment writes 180 initial sets and one marker per phase.
 It verifies all values after restarting each follower, restarting the leader,
@@ -127,9 +158,12 @@ System.Runtime.Caching and System.Security.Cryptography.ProtectedData from 10.0.
 to 10.0.12. Each declares MIT, an approved license under the
 [CNCF policy](https://github.com/cncf/foundation/blob/main/policies-guidance/allowed-third-party-license-policy.md).
 Package metadata alone does not prove distribution-wide compliance: the PR's
-FOSSA License Compliance result and CI remain required. No package hold or
+FOSSA License Compliance passed on SlimFaas commit `0e9b2b9b`; it and CI must
+pass again on the final dependency update. No package hold or
 license exception is introduced, and no .NET lockfiles are used in this repository.
 
-Resolve both dependency blockers, rerun the complete validation including a
-successful mixed-version deployment, and obtain green CI/FOSSA before marking the
-PR ready. Keep #402 open until staging confirms the incident is resolved.
+Obtain a published upstream release containing all three corrections, update the
+SlimFaas dependency, rerun validation, and obtain green CI/FOSSA before marking the
+SlimFaas PR ready. The upstream CLA bot also requires the contributor to review and
+accept the agreement personally; that action is still pending. A maintainer must
+apply the upstream `ai_assisted` label because the contributor account cannot do so. Keep #402 open until staging confirms the incident is resolved.

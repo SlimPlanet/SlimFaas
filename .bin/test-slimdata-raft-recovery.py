@@ -57,9 +57,9 @@ class Cluster:
             "HOSTNAME": f"slimfaas-{node}",
             "SlimFaas__Orchestrator": "Local",
             "SlimFaas__Namespace": "raft-recovery-test",
-            "SlimFaas__BaseSlimDataUrl": "http://{pod_ip}:{pod_port_0}",
-            "SlimFaas__BaseFunctionUrl": "http://{pod_ip}:{pod_port}",
-            "SlimFaas__BaseFunctionPodUrl": "http://{pod_ip}:{pod_port}",
+            "SlimFaas__BaseSlimDataUrl": "http://{pod_ip}:{pod_port_0}",  # NOSONAR: this local orchestrator binds peers to loopback only.
+            "SlimFaas__BaseFunctionUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR: this local orchestrator binds peers to loopback only.
+            "SlimFaas__BaseFunctionPodUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR: this local orchestrator binds peers to loopback only.
             "SlimFaas__EnableFront": "false",
             "SlimFaas__WebSocketPort": "0",
             "SlimFaas__Local__NodeCount": "3",
@@ -90,8 +90,8 @@ class Cluster:
                 process.wait(timeout=5)
 
     def close(self):
-        for node in list(self.processes):
-            self.stop(node)
+        while self.processes:
+            self.stop(next(iter(self.processes)))
         for log in self.logs:
             log.close()
 
@@ -104,7 +104,7 @@ class Cluster:
 
     def leader(self):
         text = request(RAFT_BASE, "/SlimData/leader", timeout=5).decode()
-        match = re.search(r"http://127\.0\.0\.1:(\d+)", text)
+        match = re.search(r"http://127\.0\.0\.1:(\d+)", text)  # NOSONAR: validates a loopback-only test URL.
         assert match, text
         node = int(match[1]) - RAFT_BASE
         assert node in self.processes, text
@@ -198,8 +198,8 @@ def main():
             cluster.verify(f"upgrade-{node}")
         cluster.pause_followers(1)
         cluster.pause_followers(2)
-        for node in list(cluster.processes):
-            cluster.stop(node)
+        while cluster.processes:
+            cluster.stop(next(iter(cluster.processes)))
         for node in range(3):
             cluster.start(node, candidate)
         cluster.ready()
