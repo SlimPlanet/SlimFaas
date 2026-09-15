@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using SlimFaas.Local;
 
@@ -114,12 +115,167 @@ public sealed class ManagedLocalProcessTests
             Path.Combine(directory.Path, "tree.log"));
         int childPid = await WaitForChildPidAsync(childPidPath);
         Assert.True(IsRunning(childPid));
+        if (OperatingSystem.IsWindows())
+        {
+            DateTime startedAt;
+            using (Process root = Process.GetProcessById(process.Id))
+                startedAt = root.StartTime;
+            List<ProcessTreeEntry> descendants = WindowsProcessTree.GetDescendants(process.Id, startedAt);
+            Assert.Contains(descendants, descendant => descendant.ProcessId == childPid);
+            Assert.DoesNotContain(descendants, descendant => descendant.ProcessId == Environment.ProcessId);
+        }
 
         await process.StopAsync(null, TimeSpan.FromSeconds(5));
 
         await WaitForAsync(() => !IsRunning(childPid), ShutdownDeadline);
         Assert.True(process.HasExited);
     }
+
+    [Fact]
+    public async Task WaitForTreeExitAsync_WaitsForAnAlreadyTerminatingProcess()
+    {
+        var failure = new AggregateException(new Win32Exception(AccessDenied));
+        int polls = 0;
+
+        await ManagedLocalProcess.WaitForTreeExitAsync(
+            failure,
+            processId: 42,
+            hasExited: () => ++polls >= 3,
+            liveDescendants: () => [],
+            TimeSpan.FromSeconds(5),
+            CancellationToken.None);
+
+        Assert.Equal(3, polls);
+    }
+
+    [Fact]
+    public async Task WaitForTreeExitAsync_WaitsForDescendantsAfterTheParentExited()
+    {
+        var failure = new AggregateException(new Win32Exception(AccessDenied));
+        int polls = 0;
+
+        await ManagedLocalProcess.WaitForTreeExitAsync(
+            failure,
+            processId: 42,
+            hasExited: () => true,
+            liveDescendants: () => ++polls >= 3 ? [] : new[] { new ProcessTreeEntry(43, 42) },
+            TimeSpan.FromSeconds(5),
+            CancellationToken.None);
+
+        Assert.Equal(3, polls);
+    }
+
+    [Fact]
+    public async Task WaitForTreeExitAsync_PreservesTheFailureWhenADescendantOutlivesTheParent()
+    {
+        var failure = new AggregateException(new Win32Exception(AccessDenied));
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            ManagedLocalProcess.WaitForTreeExitAsync(
+                failure,
+                processId: 42,
+                hasExited: () => true,
+                liveDescendants: () => [new ProcessTreeEntry(43, 42), new ProcessTreeEntry(44, 43)],
+                TimeSpan.FromMilliseconds(200),
+                CancellationToken.None));
+
+        Assert.Same(failure, exception.InnerException);
+        Assert.Contains("42", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("43, 44", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task WaitForTreeExitAsync_PreservesTheFailureWhenTheParentDoesNotExit()
+    {
+        var failure = new Win32Exception(AccessDenied);
+        var descendantsQueried = false;
+
+        InvalidOperationException exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            ManagedLocalProcess.WaitForTreeExitAsync(
+                failure,
+                processId: 42,
+                hasExited: () => false,
+                liveDescendants: () =>
+                {
+                    descendantsQueried = true;
+                    return [];
+                },
+                TimeSpan.FromMilliseconds(200),
+                CancellationToken.None));
+
+        Assert.Same(failure, exception.InnerException);
+        Assert.False(descendantsQueried);
+    }
+
+    [Fact]
+    public async Task WaitForTreeExitAsync_PropagatesCancellation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var failure = new Win32Exception(AccessDenied);
+
+        Task waiting = ManagedLocalProcess.WaitForTreeExitAsync(
+            failure,
+            processId: 42,
+            hasExited: () => false,
+            liveDescendants: () => [],
+            TimeSpan.FromSeconds(30),
+            cancellation.Token);
+        await cancellation.CancelAsync();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => waiting);
+    }
+
+    [Fact]
+    public void SelectDescendants_ReturnsTheSubtreeThatStartedAfterItsParents()
+    {
+        DateTime rootStartedAt = new(2026, 9, 15, 10, 0, 0, DateTimeKind.Utc);
+        var startTimes = new Dictionary<int, DateTime?>
+        {
+            [2] = rootStartedAt.AddSeconds(1),
+            [3] = rootStartedAt.AddSeconds(2),
+            // Started before the root: its recorded parent identifier was reused by the root.
+            [4] = rootStartedAt.AddSeconds(-1),
+            [5] = rootStartedAt.AddSeconds(3),
+            // Unreadable start time: cannot be established as a descendant.
+            [6] = null,
+            [7] = rootStartedAt.AddSeconds(1)
+        };
+        ProcessTreeEntry[] processes =
+        [
+            new(1, 0),
+            new(2, 1),
+            new(3, 2),
+            new(4, 1),
+            new(5, 4),
+            new(6, 1),
+            new(7, 99)
+        ];
+
+        List<ProcessTreeEntry> descendants = ProcessTree.SelectDescendants(
+            1,
+            rootStartedAt,
+            processes,
+            processId => startTimes[processId]);
+
+        Assert.Equal([new ProcessTreeEntry(2, 1), new ProcessTreeEntry(3, 2)], descendants);
+    }
+
+    [Fact]
+    public void SelectDescendants_TerminatesOnParentIdentifierCycles()
+    {
+        DateTime rootStartedAt = new(2026, 9, 15, 10, 0, 0, DateTimeKind.Utc);
+        ProcessTreeEntry[] processes = [new(1, 2), new(2, 1), new(3, 2)];
+
+        List<ProcessTreeEntry> descendants = ProcessTree.SelectDescendants(
+            1,
+            rootStartedAt,
+            processes,
+            _ => rootStartedAt.AddSeconds(1));
+
+        Assert.Equal([new ProcessTreeEntry(2, 1), new ProcessTreeEntry(3, 2)], descendants);
+    }
+
+    private const int AccessDenied = 5;
 
     private static async Task<int> WaitForChildPidAsync(string path)
     {
