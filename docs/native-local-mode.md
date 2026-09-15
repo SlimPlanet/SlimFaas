@@ -508,7 +508,10 @@ descendant process trees. The supervisor only returns once every managed
 process has exited, so its data and log files are released by then. On
 Windows, `Ctrl+C` and `Ctrl+Break` also reach the managed processes directly;
 a process that is already stopping on its own is waited for rather than
-terminated again. Forced termination such as `kill -9`, `SIGKILL`, or
+terminated again, and the stop is only reported as successful once that process
+and every descendant still alive have exited within the stop budget. A
+descendant that Windows refused to terminate and that keeps running fails the
+stop instead of being left behind. Forced termination such as `kill -9`, `SIGKILL`, or
 `taskkill /F` does not let SlimFaas execute this cleanup and can leave child
 processes running.
 
