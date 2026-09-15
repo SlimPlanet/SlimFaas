@@ -135,7 +135,10 @@ Every phase validates every expected value on all three nodes. After six seconds
 without quorum, the pending write completes **1.938 seconds** after followers
 resume; all 186 values remain correct after the full cluster restart. This
 validates the tested forward rolling upgrade, not rollback to 6.6.0 or arbitrary
-application state-version changes.
+application state-version changes. After incorporating central package management
+and its Logging.Abstractions minimum, a second full native rolling-upgrade run
+also passes (186 values per node; quorum recovery in 3.063 seconds). Both SlimFaas
+and standalone SlimData AOT publications pass with those central package settings.
 
 Both baseline and candidate AOT publications report MemoryPack.Core IL2104 and
 IL3053, plus System.Configuration.ConfigurationManager IL2104. These are the
