@@ -93,14 +93,20 @@ or deletion is performed.
 
 The complete upstream suite passes locally: **2,443 tests, 4 existing skips,
 0 failures**. Private packages `6.7.2-slimdata.402.2` were built from commit
-`750c57f` in an isolated downstream worktree. They are used only for experiments,
+`750c57f` in an isolated downstream worktree, based on upstream `develop` at
+`f10ace6` as required by its contribution policy. They also include the existing
+`develop` changes since the published 6.7.2 release; comparative measurements do
+not isolate the cost of these three fixes. They are used only for experiments,
 not published or referenced by the SlimFaas PR. The PR still references official
 6.7.2 and must wait for an upstream release containing the corrections.
 
 ## Checks completed locally
 
 Host: macOS ARM64, .NET SDK 10.0.300; documentation built with Node 24.18.0.
-Baseline: `origin/main` at `fe3b08e7`, DotNext 6.6.0.
+Baseline: `origin/main` at `fe3b08e7`, DotNext 6.6.0. The branch subsequently
+incorporates `b7cdd8b1` (central NuGet package management); the DotNext version now
+lives in `Directory.Packages.props`. Native evidence below retains its original
+commit and executable provenance.
 
 | Check | Result |
 |---|---|
@@ -113,7 +119,8 @@ Baseline: `origin/main` at `fe3b08e7`, DotNext 6.6.0.
 | Native local demo | Manifest valid; `/status-functions` succeeds; `/function/fibonacci1/hello/local` returns `Hello local!` |
 | Three native 6.7.2 nodes, restarts and quorum faults | Pass, data checked on every node after each phase |
 | Published 6.7.2 rolling upgrade from 6.6.0 | Blocked at first follower by WAL metadata page-size failure |
-| Locally patched dependency, complete .NET suite | 1,545 tests pass, including all 217 SlimData tests |
+| Locally patched dependency, complete .NET suite | 1,545 tests pass, including all 217 SlimData tests; repeated after centralization with the embedded UI builds enabled |
+| Locally patched native rolling upgrade from 6.6.0 | Pass: 180 initial and 186 final values checked on each of 3 nodes |
 
 The native 6.7.2-only experiment writes 180 initial sets and one marker per phase.
 It verifies all values after restarting each follower, restarting the leader,
@@ -122,10 +129,67 @@ With both followers paused, the minority does not acknowledge the pending write.
 After six seconds of quorum loss, it completes 1.644 seconds after the followers
 resume, within a 30-second bound. All 186 final sets match on all three nodes.
 
+The same native scenario passes with the private corrected packages, starting
+from genuine 6.6.0 snapshots and WALs and replacing followers before the leader.
+Every phase validates every expected value on all three nodes. After six seconds
+without quorum, the pending write completes **1.938 seconds** after followers
+resume; all 186 values remain correct after the full cluster restart. This
+validates the tested forward rolling upgrade, not rollback to 6.6.0 or arbitrary
+application state-version changes.
+
 Both baseline and candidate AOT publications report MemoryPack.Core IL2104 and
 IL3053, plus System.Configuration.ConfigurationManager IL2104. These are the
 existing third-party summary warning exceptions in `Directory.Build.targets`;
 no new suppression is introduced.
+
+## Comparative performance
+
+The baseline executable is SlimFaas `fe3b08e7` with DotNext 6.6.0. Each native
+three-node run starts with fresh state and checks every expected set, hashset and
+counter on each node afterward. These are workstation screening measurements,
+not a production capacity estimate. The benchmark intentionally uses its existing
+`WarmupRounds=10000` and disabled low-load fast path; the recovery experiment uses
+the runtime defaults instead.
+
+An initial short run overlapped a test using the same Raft ports and is excluded.
+The first separate official 6.7.2 matrix (5-second warm-up, 20-second measurement,
+one repetition) completed all eight runs with zero errors, but failed the
+set/concurrency-12 throughput threshold:
+
+| Scenario / concurrency | 6.6.0 ops/s | Official 6.7.2 ops/s | Throughput change | p99 change | Verdict |
+|---|---:|---:|---:|---:|---|
+| Mixed / 12 | 214.31 | 200.47 | -6.5% | -0.4% | Pass |
+| Mixed / 48 | 2488.55 | 2557.36 | +2.8% | -12.0% | Pass |
+| Set / 12 | 127.34 | 81.08 | -36.3% | +2.8% | Fail |
+| Set / 48 | 391.78 | 510.79 | +30.4% | -1.8% | Pass |
+
+The final corrected-package matrix uses two repetitions, 30-second measurements
+and a 5-second warm-up, alternating execution order. **All 16 runs completed: 389,372 measured operations, zero errors, and successful
+state validation on every node. The overall benchmark verdict remains FAIL.** No additional build or test launched by this work
+runs alongside this final matrix. The host is shared, and the candidate includes
+existing upstream development-branch changes in addition to the proposed fixes.
+
+| Scenario / concurrency | 6.6.0 median ops/s | Corrected median ops/s | Throughput change | p99 change | RSS change | Verdict |
+|---|---:|---:|---:|---:|---:|---|
+| Mixed / 12 | 201.56 | 199.92 | -0.8% | +3.0% | +21.2% | Fail: RSS |
+| Mixed / 48 | 2568.70 | 2493.50 | -2.9% | +6.7% | -0.1% | Pass |
+| Set / 12 | 87.37 | 111.89 | +28.1% | +12.7% | +17.4% | Fail: RSS |
+| Set / 48 | 347.62 | 474.24 | +36.4% | +0.2% | -4.2% | Pass |
+
+The earlier set/concurrency-12 throughput loss does not repeat in this matrix,
+but median maximum resident memory exceeds the unchanged +15% acceptance limit
+in two cases. Memory varies substantially between repetitions (for example,
+baseline mixed/12 reaches 268.3 and 409.8 MiB). These measurements do not establish
+a memory leak or isolate a cause. Memory acceptance must be resolved before
+adoption; the threshold is not relaxed to make the run pass.
+
+The retained GC metrics help narrow the follow-up: mixed/12 node 2 has about
+303 MiB committed to the managed heap in both candidate runs and in the second
+baseline run, versus 161 MiB in the first baseline run. That baseline run also
+records an extra generation-0 collection. Across the three nodes, total allocated
+bytes are similar between variants. This suggests GC timing contributes to the
+short-run RSS variability; a longer steady-state comparison is still needed to
+clear the memory gate.
 
 ## Reproduction commands
 
@@ -159,11 +223,19 @@ to 10.0.12. Each declares MIT, an approved license under the
 [CNCF policy](https://github.com/cncf/foundation/blob/main/policies-guidance/allowed-third-party-license-policy.md).
 Package metadata alone does not prove distribution-wide compliance: the PR's
 FOSSA License Compliance passed on SlimFaas commit `0e9b2b9b`; it and CI must
-pass again on the final dependency update. No package hold or
+pass again on the final dependency update. Central package management also
+requires `Microsoft.Extensions.Logging.Abstractions` 10.0.12 (MIT), matching
+DotNext's minimum; leaving the central 10.0.11 pin produces NU1109 even where
+framework pruning ultimately removes it from runtime assets. No package hold or
 license exception is introduced, and no .NET lockfiles are used in this repository.
 
 Obtain a published upstream release containing all three corrections, update the
 SlimFaas dependency, rerun validation, and obtain green CI/FOSSA before marking the
-SlimFaas PR ready. The upstream CLA bot also requires the contributor to review and
+SlimFaas PR ready. Resolve the two benchmark memory failures as well. The
+upstream full suite also passes locally **with coverage**, but CI build 131614
+timed out in the macOS coverage step; Linux and Windows passed. New WAL tests
+now have a 60-second deadline and macOS CI reports detailed test progress. The
+rerun must pass; an earlier timeout on the unmodified `develop` branch does not
+prove this failure has the same cause. The upstream CLA bot also requires the contributor to review and
 accept the agreement personally; that action is still pending. A maintainer must
 apply the upstream `ai_assisted` label because the contributor account cannot do so. Keep #402 open until staging confirms the incident is resolved.
