@@ -610,6 +610,8 @@ builder.Services.ConfigureHttpJsonOptions(opt =>
 });
 
 WebApplication app = builder.Build();
+// DotNext requires snapshot restoration before any service constructs the Raft WAL.
+await app.RestoreStateAsync<SlimPersistentState>();
 app.UseCors(builder =>
 {
     string slimFaasCorsAllowOrigin = slimFaasOptions.CorsAllowOrigin;

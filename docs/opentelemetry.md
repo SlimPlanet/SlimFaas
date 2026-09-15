@@ -150,3 +150,50 @@ See [configuration and failure behavior](autoscaling.md#external-metrics-and-opt
 Open **Live Stream → Scaling** to inspect real trigger values, source health, policy/stabilization constraints and replica application outcomes. The view reads structured decisions from the leader; it does not scrape Prometheus supervision metrics to reconstruct decisions. Existing metric names and labels are preserved.
 
 Playground previews emit no production scaling telemetry and do not extend real decision histories. Their results and capture time are returned directly to the browser. The bounded live journal is for recent troubleshooting rather than persistent audit storage; use your existing metrics/logs pipeline for longer retention. See [Scaling diagnostics and playground](user-interface.md#scaling-diagnostics-and-playground).
+
+
+## SlimData Raft progress
+
+SlimFaas exposes `slimdata_raft_progress_stalled` on each node's `/metrics` endpoint,
+independently of OTLP configuration. It is 1 if the local WAL contains unapplied
+entries and the applied index has stayed unchanged for at least 30 seconds.
+The existing five-second sampler uses a monotonic clock; detection can therefore
+arrive one sampling interval after the threshold. It is 0 during inactivity
+without pending entries, during shorter delays, and when the applied index is
+unavailable. Progress, drained backlog, or a rewound log resets the observation.
+
+A warning records the transition into a stall, including leader endpoint, term,
+last/committed/applied indexes, queued batches and snapshot/restore activity. An
+information log records when the indication clears. Enable `Information` for
+`SlimFaas.Workers.SlimDataDiagnosticsWorker` to retain that second transition.
+The gauge has no additional labels and does not trigger an automatic restart or
+change `/ready`. Pending entries can be uncommitted during quorum loss, so this
+signal alone does not establish data corruption or a root cause.
+
+When pods remain alive but writes stop, collect the following **from every node**
+before restarting anything:
+
+1. Image version/digest, pod name, restart count and the incident time window.
+2. The first exceptions preceding the stall, plus Raft election, snapshot, restore
+   and progress-transition logs. Retain previous-container logs if available.
+3. Leader endpoint and all Raft indexes, consensus/lease state, apply lag, snapshot
+   state and batch queue depth. Take several samples to establish whether they move.
+4. Pod events and CPU, memory, disk capacity/latency and network observations.
+
+For a native local cluster, capture node metrics and leader responses with:
+
+```bash
+mkdir -p raft-diagnostics
+for port in 30021 30022 30023; do
+  curl --fail --max-time 5 "http://127.0.0.1:$port/metrics" \
+    > "raft-diagnostics/metrics-$port.txt"
+done
+for port in 3262 3263 3264; do
+  curl --fail --location --max-time 5 "http://127.0.0.1:$port/SlimData/leader" \
+    > "raft-diagnostics/leader-$port.txt"
+done
+```
+
+In Kubernetes, use your existing authenticated log/metrics collection or port
+forwards for each pod. Do not rely solely on a load-balanced endpoint: one healthy
+node can hide a peer's stalled applied index. See [SlimData recovery](how-it-works.md#slimdata-recovery).

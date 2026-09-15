@@ -132,11 +132,12 @@ public class RaftClusterTests
     private protected static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(20);
     private protected static readonly TimeSpan BusyMembershipCatchUpTimeout = TimeSpan.FromSeconds(60);
 
-    private static IHost CreateHost<TStartup>(int port, IDictionary<string, string> configuration,
+    private static async Task<IHost> CreateHostAsync<TStartup>(int port, IDictionary<string, string> configuration,
         IClusterMemberLifetime? configurator = null,
         Func<TimeSpan, IRaftClusterMember, IFailureDetector>? failureDetectorFactory = null)
-        where TStartup : class =>
-        new HostBuilder()
+        where TStartup : class
+    {
+        var host = new HostBuilder()
             .ConfigureWebHost(webHost => webHost.UseKestrel(options => options.ListenLocalhost(port))
                 .ConfigureServices(services =>
                 {
@@ -162,6 +163,9 @@ public class RaftClusterTests
             .ConfigureLogging(builder => builder.AddDebugLogger(port.ToString()).SetMinimumLevel(LogLevel.Debug))
             .JoinCluster()
             .Build();
+        await host.Services.GetRequiredService<SlimPersistentState>().RestoreAsync(CancellationToken.None);
+        return host;
+    }
 
     private static IRaftHttpCluster GetLocalClusterView(IHost host)
         => host.Services.GetRequiredService<IRaftHttpCluster>();
@@ -219,14 +223,14 @@ public class RaftClusterTests
         };
 
         LeaderTracker listener = new();
-        using IHost host1 = CreateHost<Startup>(3262, config1, listener);
+        using IHost host1 = await CreateHostAsync<Startup>(3262, config1, listener);
         await host1.StartAsync();
         Assert.True(GetLocalClusterView(host1).Readiness.IsCompletedSuccessfully);
 
-        using IHost host2 = CreateHost<Startup>(3263, config2);
+        using IHost host2 = await CreateHostAsync<Startup>(3263, config2);
         await host2.StartAsync();
 
-        using IHost host3 = CreateHost<Startup>(3264, config3);
+        using IHost host3 = await CreateHostAsync<Startup>(3264, config3);
         await host3.StartAsync();
 
         while (GetLocalClusterView(host1).Leader == null)

@@ -7,7 +7,7 @@ public static class Starter
 {
     private static IServiceProvider ServiceProvider { get; set; } = null!;
 
-    private static Task UseAspNetCoreHost(string publicEndPoint, 
+    private static async Task UseAspNetCoreHost(string publicEndPoint,
         string? persistentStorage = null)
     {
         var uri = new Uri(publicEndPoint);
@@ -27,7 +27,7 @@ public static class Starter
         if (!string.IsNullOrEmpty(persistentStorage))
             configuration[SlimPersistentState.LogLocation] = persistentStorage;
 
-        var host = new HostBuilder().ConfigureWebHost(webHost =>
+        using var host = new HostBuilder().ConfigureWebHost(webHost =>
             {
                 webHost.UseKestrel(options =>
                     {
@@ -41,7 +41,9 @@ public static class Starter
             .JoinCluster()
             .Build();
 
-        return host.RunAsync();
+        // Hosted services may resolve the WAL before Startup.Configure runs.
+        await host.Services.GetRequiredService<SlimPersistentState>().RestoreAsync(CancellationToken.None);
+        await host.RunAsync();
     }
 
     private static void ConfigureLogging(ILoggingBuilder builder)
