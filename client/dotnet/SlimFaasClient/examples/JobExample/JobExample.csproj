@@ -7,7 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SlimFaasClient\SlimFaasClient.csproj" />
-    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
   </ItemGroup>
 
 </Project>
