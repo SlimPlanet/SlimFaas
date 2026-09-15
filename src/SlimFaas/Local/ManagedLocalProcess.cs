@@ -215,8 +215,12 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
         if (_process.HasExited)
             return;
 
+        DateTime startedAt = default;
         try
         {
+            // Needed to identify the descendants when the termination fails below.
+            if (OperatingSystem.IsWindows())
+                startedAt = _process.StartTime;
             _process.Kill(entireProcessTree: true);
         }
         catch (InvalidOperationException)
@@ -224,31 +228,63 @@ public sealed class ManagedLocalProcess : IAsyncDisposable
             // The process exited between the checks.
             return;
         }
-        catch (Exception exception) when (IsAlreadyTerminating(exception))
+        catch (Exception exception) when (OperatingSystem.IsWindows() && IsTerminationFailure(exception))
         {
-            // Windows refuses to terminate a process that is already terminating,
-            // for example a child that received the same Ctrl+Break or Ctrl+C as
-            // the supervisor. It still holds its files until it is gone, so wait
-            // for it within the same budget instead of abandoning it.
-            using var terminating = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            terminating.CancelAfter(timeout);
-            try
-            {
-                await _process.WaitForExitAsync(terminating.Token);
-                return;
-            }
-            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-            {
-                throw new InvalidOperationException(
-                    $"Process {_process.Id} could not be terminated and did not exit within {timeout}.",
-                    exception);
-            }
+            // Windows refuses to terminate a process that is already terminating, for
+            // example a child that received the same Ctrl+Break or Ctrl+C as the
+            // supervisor, and reports the same access-denied error for a descendant it
+            // could not terminate. Kill has already terminated what it could and does
+            // not say which process failed, so wait for the process and for every
+            // descendant still alive within the stop budget. A process that is still
+            // running when the budget is spent was not terminating on its own, so the
+            // failure is preserved rather than reported as a clean stop.
+            int processId = _process.Id;
+            await WaitForTreeExitAsync(
+                exception,
+                processId,
+                () => _process.HasExited,
+                () => WindowsProcessTree.GetDescendants(processId, startedAt),
+                timeout,
+                cancellationToken);
+            return;
         }
 
         await _process.WaitForExitAsync(cancellationToken);
     }
 
-    private static bool IsAlreadyTerminating(Exception exception) =>
+    private static readonly TimeSpan TreeExitPollInterval = TimeSpan.FromMilliseconds(50);
+
+    internal static async Task WaitForTreeExitAsync(
+        Exception terminationFailure,
+        int processId,
+        Func<bool> hasExited,
+        Func<IReadOnlyCollection<ProcessTreeEntry>> liveDescendants,
+        TimeSpan timeout,
+        CancellationToken cancellationToken)
+    {
+        long startedAt = Stopwatch.GetTimestamp();
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            IReadOnlyCollection<ProcessTreeEntry>? remaining = hasExited() ? liveDescendants() : null;
+            if (remaining is { Count: 0 })
+                return;
+
+            if (Stopwatch.GetElapsedTime(startedAt) >= timeout)
+            {
+                string reason = remaining is null
+                    ? $"Process {processId} could not be terminated and did not exit within {timeout}."
+                    : $"Process {processId} exited but its descendant process(es) " +
+                      $"{string.Join(", ", remaining.Select(descendant => descendant.ProcessId))} " +
+                      $"could not be terminated and did not exit within {timeout}.";
+                throw new InvalidOperationException(reason, terminationFailure);
+            }
+
+            await Task.Delay(TreeExitPollInterval, cancellationToken);
+        }
+    }
+
+    private static bool IsTerminationFailure(Exception exception) =>
         exception is Win32Exception ||
         (exception is AggregateException aggregate &&
          aggregate.InnerExceptions.Count > 0 &&
