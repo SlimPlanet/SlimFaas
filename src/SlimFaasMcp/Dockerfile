@@ -1,5 +1,5 @@
 # Node.js LTS (24.x) sur Alpine, utilisé uniquement pour fournir node/npm/corepack/pnpm au build
-FROM --platform=$BUILDPLATFORM node:24-alpine3.22 AS node
+FROM --platform=$BUILDPLATFORM node:26-alpine3.22 AS node
 ARG PNPM_VERSION=10.14.0
 RUN corepack enable \
  && corepack prepare "pnpm@${PNPM_VERSION}" --activate
