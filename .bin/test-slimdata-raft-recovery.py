@@ -57,9 +57,9 @@ class Cluster:
             "HOSTNAME": f"slimfaas-{node}",
             "SlimFaas__Orchestrator": "Local",
             "SlimFaas__Namespace": "raft-recovery-test",
-            "SlimFaas__BaseSlimDataUrl": "http://{pod_ip}:{pod_port_0}",  # NOSONAR: this local orchestrator binds peers to loopback only.
-            "SlimFaas__BaseFunctionUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR: this local orchestrator binds peers to loopback only.
-            "SlimFaas__BaseFunctionPodUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR: this local orchestrator binds peers to loopback only.
+            "SlimFaas__BaseSlimDataUrl": "http://{pod_ip}:{pod_port_0}",  # NOSONAR: synthetic local-test traffic uses loopback peers only.
+            "SlimFaas__BaseFunctionUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR: synthetic local-test traffic uses loopback peers only.
+            "SlimFaas__BaseFunctionPodUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR: synthetic local-test traffic uses loopback peers only.
             "SlimFaas__EnableFront": "false",
             "SlimFaas__WebSocketPort": "0",
             "SlimFaas__Local__NodeCount": "3",

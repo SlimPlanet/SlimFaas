@@ -6,9 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Confluent.Kafka" Version="2.15.0" />
-    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
-    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
+    <PackageReference Include="Confluent.Kafka" />
+    <PackageReference Include="Swashbuckle.AspNetCore" />
+    <PackageReference Include="prometheus-net.AspNetCore" />
   </ItemGroup>
 
 </Project>
