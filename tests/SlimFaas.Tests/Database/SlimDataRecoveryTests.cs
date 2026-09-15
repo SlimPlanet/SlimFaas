@@ -42,7 +42,7 @@ public sealed class SlimDataRecoveryTests
                 return new(HttpStatusCode.OK) { Content = stalled };
             return Reply(batch, acceptedJobId);
         });
-        await using var fixture = new Fixture(handler, TimeSpan.FromSeconds(1), mode);
+        await using var fixture = await Fixture.CreateAsync(handler, TimeSpan.FromSeconds(1), mode);
         var queue = new JobQueue(fixture.Service);
         var acceptedId = await queue.EnqueueAsync("recovery", [42]).WaitAsync(TestDeadline);
         var dequeue = queue.DequeueAsync("recovery");
@@ -80,7 +80,7 @@ public sealed class SlimDataRecoveryTests
             Interlocked.Increment(ref attempts);
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = stalled });
         });
-        await using var fixture = new Fixture(handler, Timeout.InfiniteTimeSpan);
+        await using var fixture = await Fixture.CreateAsync(handler, Timeout.InfiniteTimeSpan);
         var queue = new JobQueue(fixture.Service);
         var first = queue.EnqueueAsync("recovery", [1]);
         await stalled.Started.Task.WaitAsync(TestDeadline);
@@ -102,7 +102,7 @@ public sealed class SlimDataRecoveryTests
     public async Task Read_retries_after_local_apply_timeout_and_recovers(string readKind)
     {
         using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
-        await using var fixture = new Fixture(handler);
+        await using var fixture = await Fixture.CreateAsync(handler);
         using var cleanup = new CancellationTokenSource();
         var attempts = 0;
         fixture.Log.WaitForApply = token =>
@@ -126,7 +126,7 @@ public sealed class SlimDataRecoveryTests
     public async Task Persistent_local_apply_timeout_is_reported_as_unavailable()
     {
         using var handler = new Handler((_, _) => throw new InvalidOperationException("Read must not mutate"));
-        await using var fixture = new Fixture(handler);
+        await using var fixture = await Fixture.CreateAsync(handler);
         using var cleanup = new CancellationTokenSource();
         fixture.Log.WaitForApply = token => StallApplyAsync(token, cleanup.Token);
 
@@ -180,7 +180,7 @@ public sealed class SlimDataRecoveryTests
 
     private sealed class Fixture : IAsyncDisposable
     {
-        private readonly string _directory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        private readonly string _directory;
         private readonly SlimPersistentState _state;
         private readonly ServiceProvider _services;
         private readonly HttpClient _client;
@@ -189,10 +189,21 @@ public sealed class SlimDataRecoveryTests
         public int LeaderPort { get; set; } = 3262;
         public SlimDataService Service { get; }
 
-        public Fixture(HttpMessageHandler handler, TimeSpan? timeout = null, SlimDataBatchMode mode = SlimDataBatchMode.Global)
+        public static async Task<Fixture> CreateAsync(HttpMessageHandler handler, TimeSpan? timeout = null,
+            SlimDataBatchMode mode = SlimDataBatchMode.Global)
         {
-            Directory.CreateDirectory(_directory);
-            _state = new SlimPersistentState(_directory);
+            var directory = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+            Directory.CreateDirectory(directory);
+            var state = new SlimPersistentState(directory);
+            await state.RestoreAsync(CancellationToken.None);
+            return new Fixture(handler, timeout, mode, directory, state);
+        }
+
+        private Fixture(HttpMessageHandler handler, TimeSpan? timeout, SlimDataBatchMode mode,
+            string directory, SlimPersistentState state)
+        {
+            _directory = directory;
+            _state = state;
             Log = new ControlledLog(new WriteAheadLog.Options { Location = Path.Combine(_directory, "wal") }, _state);
             _services = new ServiceCollection().AddSingleton(_state).BuildServiceProvider();
             var member = new Mock<IRaftClusterMember>();

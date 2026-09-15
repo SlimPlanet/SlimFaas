@@ -37,6 +37,7 @@ public sealed class SlimDataDiagnosticsWorker(
     private long _previousSampleTimestamp;
     private long _recoveryStartedTimestamp;
     private int _recoveryClearSamples;
+    private readonly SlimDataProgressTracker _progressTracker = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -145,6 +146,26 @@ public sealed class SlimDataDiagnosticsWorker(
         var localApplyLag = SlimDataRecoveryMetricCalculator.CalculateLocalApplyLag(lastLogIndex, appliedLogIndex);
         gauges.SetGaugeValue("slimdata_raft_local_apply_lag", localApplyLag,
             "Number of local Raft WAL entries not yet applied; this is not leader/follower replication lag");
+
+        var progressChanged = _progressTracker.Observe(lastLogIndex, hasAppliedLogIndex ? appliedLogIndex : null);
+        gauges.SetGaugeValue("slimdata_raft_progress_stalled", _progressTracker.IsStalled ? 1 : 0,
+            "Whether local WAL entries remain unapplied with no applied-index progress for at least 30 seconds");
+        if (progressChanged)
+        {
+            var batch = commandBatchCoordinator.GetStatistics();
+            if (_progressTracker.IsStalled)
+            {
+                logger.LogRaftProgressStalled(cluster.Leader?.EndPoint, cluster.AuditTrail.Term,
+                    lastLogIndex, cluster.AuditTrail.LastCommittedEntryIndex, appliedLogIndex,
+                    batch.QueueRequests, persistentState.IsSnapshotting, persistentState.IsRestoring);
+            }
+            else
+            {
+                logger.LogRaftProgressStallCleared(cluster.Leader?.EndPoint, cluster.AuditTrail.Term,
+                    lastLogIndex, cluster.AuditTrail.LastCommittedEntryIndex,
+                    hasAppliedLogIndex ? appliedLogIndex : null);
+            }
+        }
 
         var now = Stopwatch.GetTimestamp();
         var logRewound = _previousSampleTimestamp != 0 && lastLogIndex < _previousLastLogIndex;

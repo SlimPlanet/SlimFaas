@@ -680,79 +680,80 @@ static async Task<int> ValidateSlimDataStateAsync(
 {
     var failures = new List<string>();
     await WaitForQueueDrainAsync(client, nodeCount, firstPort, failures, cancellationToken);
-    var validationIndex = 0;
-
-    foreach (var (id, shouldExist) in expected.Sets.OrderBy(static item => item.Key))
+    // Check every expected value on every node; rotating nodes can miss a
+    // follower that acknowledges readiness but has diverged application state.
+    for (var node = 0; node < nodeCount; node++)
     {
-        var node = validationIndex++ % nodeCount;
-        using var response = await client.GetAsync(
-            new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
-            cancellationToken);
-        if (!shouldExist)
+        foreach (var (id, shouldExist) in expected.Sets.OrderBy(static item => item.Key))
         {
-            if (response.StatusCode != HttpStatusCode.NotFound)
-                failures.Add($"Set {id} should be absent but returned HTTP {(int)response.StatusCode}.");
-            continue;
+            using var response = await client.GetAsync(
+                new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
+                cancellationToken);
+            if (!shouldExist)
+            {
+                if (response.StatusCode != HttpStatusCode.NotFound)
+                    failures.Add($"Node {node}: Set {id} should be absent but returned HTTP {(int)response.StatusCode}.");
+                continue;
+            }
+
+            if (!response.IsSuccessStatusCode)
+            {
+                failures.Add($"Node {node}: Set {id} should exist but returned HTTP {(int)response.StatusCode}.");
+                continue;
+            }
+            var actual = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            if (!actual.AsSpan().SequenceEqual(payload))
+                failures.Add($"Node {node}: Set {id} payload differs from the last successful write.");
         }
 
-        if (!response.IsSuccessStatusCode)
+        foreach (var (id, shouldExist) in expected.Hashsets.OrderBy(static item => item.Key))
         {
-            failures.Add($"Set {id} should exist but returned HTTP {(int)response.StatusCode}.");
-            continue;
-        }
-        var actual = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        if (!actual.AsSpan().SequenceEqual(payload))
-            failures.Add($"Set {id} payload differs from the last successful write.");
-    }
+            using var response = await client.GetAsync(
+                new Uri($"http://127.0.0.1:{firstPort + node}/data/hashsets/{id}"),
+                cancellationToken);
+            if (!shouldExist)
+            {
+                if (response.StatusCode != HttpStatusCode.NotFound)
+                    failures.Add($"Node {node}: Hashset {id} should be absent but returned HTTP {(int)response.StatusCode}.");
+                continue;
+            }
 
-    foreach (var (id, shouldExist) in expected.Hashsets.OrderBy(static item => item.Key))
-    {
-        var node = validationIndex++ % nodeCount;
-        using var response = await client.GetAsync(
-            new Uri($"http://127.0.0.1:{firstPort + node}/data/hashsets/{id}"),
-            cancellationToken);
-        if (!shouldExist)
-        {
-            if (response.StatusCode != HttpStatusCode.NotFound)
-                failures.Add($"Hashset {id} should be absent but returned HTTP {(int)response.StatusCode}.");
-            continue;
+            if (!response.IsSuccessStatusCode)
+            {
+                failures.Add($"Node {node}: Hashset {id} should exist but returned HTTP {(int)response.StatusCode}.");
+                continue;
+            }
+            var actual = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            if (!actual.AsSpan().SequenceEqual(payload))
+                failures.Add($"Node {node}: Hashset {id} payload differs from the last successful write.");
         }
 
-        if (!response.IsSuccessStatusCode)
+        foreach (var (id, expectedValue) in expected.Counters.OrderBy(static item => item.Key))
         {
-            failures.Add($"Hashset {id} should exist but returned HTTP {(int)response.StatusCode}.");
-            continue;
-        }
-        var actual = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        if (!actual.AsSpan().SequenceEqual(payload))
-            failures.Add($"Hashset {id} payload differs from the last successful write.");
-    }
-
-    foreach (var (id, expectedValue) in expected.Counters.OrderBy(static item => item.Key))
-    {
-        var node = validationIndex++ % nodeCount;
-        using var response = await client.GetAsync(
-            new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
-            cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            failures.Add($"Counter {id} returned HTTP {(int)response.StatusCode}.");
-            continue;
-        }
-        var text = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var actual) ||
-            actual != expectedValue)
-        {
-            failures.Add($"Counter {id} is '{text}'; expected {expectedValue}.");
+            using var response = await client.GetAsync(
+                new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
+                cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                failures.Add($"Node {node}: Counter {id} returned HTTP {(int)response.StatusCode}.");
+                continue;
+            }
+            var text = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var actual) ||
+                actual != expectedValue)
+            {
+                failures.Add($"Node {node}: Counter {id} is '{text}'; expected {expectedValue}.");
+            }
         }
     }
 
     Console.WriteLine(
-        "validation sets={0} hashsets={1} counters={2} failures={3}",
+        "validation sets={0} hashsets={1} counters={2} failures={3} nodes={4}",
         expected.Sets.Count,
         expected.Hashsets.Count,
         expected.Counters.Count,
-        failures.Count);
+        failures.Count,
+        nodeCount);
     foreach (var failure in failures.Take(20))
         await Console.Error.WriteLineAsync($"validation failed: {failure}");
     return failures.Count;

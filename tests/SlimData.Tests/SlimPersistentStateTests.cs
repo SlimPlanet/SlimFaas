@@ -37,6 +37,35 @@ public sealed class SlimPersistentStateTests
     }
 
     [Fact]
+    public async Task Restores_snapshot_and_compacted_wal_written_by_DotNext_6_6_0()
+    {
+        var root = GetTemporaryDirectory();
+        try
+        {
+            System.IO.Compression.ZipFile.ExtractToDirectory(
+                Path.Combine(AppContext.BaseDirectory, "Snapshots", "dotnext-6.6.0-wal.zip"), root);
+            await using var state = new SlimPersistentState(root);
+            await state.RestoreAsync(CancellationToken.None);
+            Assert.Equal(151L, ((DotNext.Net.Cluster.Consensus.Raft.StateMachine.ISnapshotManager)state).Snapshot!.Index);
+            // The fixture was produced on macOS ARM with 16 KiB data chunks.
+            await using var wal = new WriteAheadLog(new WriteAheadLog.Options
+            {
+                Location = Path.Combine(root, "wal"),
+                ChunkSize = 16384
+            }, state);
+            await wal.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            for (var i = 0; i < 180; i++)
+            {
+                Assert.Equal($"value-for-existing-{i}", Encoding.UTF8.GetString(state.SlimDataState.KeyValues[$"data:set:existing-{i}"].Span));
+            }
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task WriteAheadLog_restores_key_values_hashsets_and_queues_from_snapshot()
     {
         var root = GetTemporaryDirectory();
@@ -45,7 +74,7 @@ public sealed class SlimPersistentStateTests
         try
         {
             await using (var state = CreateState(root, snapshotIntervalEntries: 100))
-            await using (var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state))
+            await using (var wal = await CreateRestoredWalAsync(state, walPath))
             {
                 await AppendCommitWaitAsync(wal, new AddKeyValueCommand
                 {
@@ -151,7 +180,7 @@ public sealed class SlimPersistentStateTests
         try
         {
             await using (var state = CreateState(root, snapshotIntervalEntries: 4))
-            await using (var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state))
+            await using (var wal = await CreateRestoredWalAsync(state, walPath))
             {
                 await AppendCommitWaitAsync(wal, new ListLeftPushBatchCommand
                 {
@@ -672,7 +701,7 @@ public sealed class SlimPersistentStateTests
         try
         {
             await using var state = new SlimPersistentState(root);
-            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            await using var wal = await CreateRestoredWalAsync(state, walPath);
 
             await AppendCommitWaitAsync(wal, new AddKeyValueCommand
             {
@@ -717,7 +746,7 @@ public sealed class SlimPersistentStateTests
         try
         {
             await using var state = new SlimPersistentState(root);
-            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            await using var wal = await CreateRestoredWalAsync(state, walPath);
             var result = new KeyValueCommandResult();
             var context = new KeyValueCommandBatchContext([result]);
             var command = new AddKeyValueCommand
@@ -770,7 +799,7 @@ public sealed class SlimPersistentStateTests
         try
         {
             await using var state = new SlimPersistentState(root);
-            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            await using var wal = await CreateRestoredWalAsync(state, walPath);
 
             var keyValuePayload = PrefixWithZeros(new AddKeyValueCommand
             {
@@ -832,7 +861,7 @@ public sealed class SlimPersistentStateTests
         try
         {
             await using var state = new SlimPersistentState(root);
-            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            await using var wal = await CreateRestoredWalAsync(state, walPath);
             var pageSize = Environment.SystemPageSize;
             var firstPayload = new AddKeyValueCommand
             {
@@ -878,7 +907,7 @@ public sealed class SlimPersistentStateTests
         try
         {
             await using var state = new SlimPersistentState(root);
-            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            await using var wal = await CreateRestoredWalAsync(state, walPath);
             var now = DateTime.UtcNow.Ticks;
 
             await AppendSerializedCommitWaitAsync(wal, new AddHashSetCommand
@@ -984,7 +1013,7 @@ public sealed class SlimPersistentStateTests
             var payload = await SlimDataCommandCodecTests.SerializeLegacyListLeftPushAsync(legacyCommand);
 
             await using var state = new SlimPersistentState(root);
-            await using var wal = new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
+            await using var wal = await CreateRestoredWalAsync(state, walPath);
             var index = await wal.AppendAsync(
                 new InvalidApplicationLogEntry(ListLeftPushBatchCommand.Id, payload),
                 CancellationToken.None);
@@ -1167,6 +1196,12 @@ public sealed class SlimPersistentStateTests
 
         Assert.NotNull(method);
         await (ValueTask)method.Invoke(state, [snapshot, token])!;
+    }
+
+    private static async Task<WriteAheadLog> CreateRestoredWalAsync(SlimPersistentState state, string walPath)
+    {
+        await state.RestoreAsync(CancellationToken.None);
+        return new WriteAheadLog(new WriteAheadLog.Options { Location = walPath }, state);
     }
 
     private static SlimPersistentState CreateState(
