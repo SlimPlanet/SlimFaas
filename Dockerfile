@@ -7,7 +7,7 @@ RUN adduser -u 1000 --disabled-password --gecos "" appuser && chown -R appuser /
 USER appuser
 
 # ---- Node stage: build the Vite/React dashboard ----
-FROM --platform=$TARGETPLATFORM node:24-alpine AS clientapp
+FROM --platform=$BUILDPLATFORM node:24-alpine AS clientapp
 WORKDIR /clientapp
 COPY src/SlimFaas/ClientApp/package.json src/SlimFaas/ClientApp/package-lock.json* ./
 RUN npm install
