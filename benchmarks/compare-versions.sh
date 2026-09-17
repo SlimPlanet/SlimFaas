@@ -14,7 +14,7 @@
 #          benchmarks/compare-microbenchmarks.py.
 #   e2e    The native-local three-node cluster of each commit is started with THIS
 #          checkout's manifest (benchmarks/slimfaas.local.benchmark.yaml), benchmark target
-#          and load driver (src/SlimFaasBenchmark); only the SlimFaas binary changes. The
+#          and load driver (benchmarks/SlimFaasBenchmark); only the SlimFaas binary changes. The
 #          two results.json are compared by `SlimFaasBenchmark compare`.
 #
 # The candidate defaults to the working tree of this checkout (so an uncommitted change can
@@ -122,7 +122,7 @@ if [[ "$run_e2e" == true ]]; then
   build_slimfaas "$baseline_dir"
   [[ "$candidate_dir" == "$baseline_dir" ]] || build_slimfaas "$candidate_dir"
   log "Building the benchmark target/driver of this checkout"
-  dotnet build "$repo_root/src/SlimFaasBenchmark/SlimFaasBenchmark.csproj" -c Release --nologo -v q >"$output/build-driver.log" 2>&1 ||
+  dotnet build "$repo_root/benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj" -c Release --nologo -v q >"$output/build-driver.log" 2>&1 ||
     { cat "$output/build-driver.log" >&2; exit 1; }
 fi
 
@@ -180,7 +180,7 @@ fi
 
 # ---------------------------------------------------------------------- e2e
 manifest="$repo_root/benchmarks/slimfaas.local.benchmark.yaml"
-driver_dll="$repo_root/src/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll"
+driver_dll="$repo_root/benchmarks/SlimFaasBenchmark/bin/Release/net10.0/SlimFaasBenchmark.dll"
 local_pid=""
 sampler_pid=""
 
