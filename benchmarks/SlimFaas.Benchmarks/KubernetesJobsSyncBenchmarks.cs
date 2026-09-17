@@ -23,9 +23,11 @@ namespace SlimFaas.Benchmarks;
 /// and is what dominates the cost against a real API server.
 /// (KubernetesService is materialized without its constructor, like the unit tests do,
 /// so no kubeconfig is needed.)
+/// The class owns the service, the client and the handler it creates in <see cref="Setup"/>;
+/// <see cref="Cleanup"/>, run by BenchmarkDotNet once per parameter set, releases them.
 /// </summary>
 [MemoryDiagnoser]
-public class KubernetesJobsSyncBenchmarks
+public class KubernetesJobsSyncBenchmarks : IDisposable
 {
     private const string JobNameLabel = "slimfaas-job-name";
 
@@ -61,7 +63,29 @@ public class KubernetesJobsSyncBenchmarks
     }
 
     [GlobalCleanup]
-    public void Cleanup() => _client.Dispose();
+    public void Cleanup() => Dispose();
+
+    public void Dispose()
+    {
+        Dispose(disposing: true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!disposing)
+            return;
+        // KubernetesService is disposable since PR #394 only (it then disposes the client it
+        // was given; disposing that client again below is harmless). The pattern match keeps
+        // the benchmark compiling against every baseline the harness supports.
+        if (_service is IDisposable service)
+            service.Dispose();
+        _client?.Dispose();
+        _handler?.Dispose();
+        _service = null!;
+        _client = null!;
+        _handler = null!;
+    }
 
     [Benchmark]
     public Task<IList<Job>> ListJobs() => _service.ListJobsAsync("bench");
@@ -148,7 +172,7 @@ public class KubernetesJobsSyncBenchmarks
                 if (_podResponses.TryGetValue(selector, out byte[]? cached))
                     return cached;
 
-                int equals = selector.IndexOf('=');
+                int equals = selector.IndexOf('=', StringComparison.Ordinal);
                 IEnumerable<V1Pod> selected = equals < 0
                     ? _pods
                     : _pods.Where(p => p.Metadata.Labels[JobNameLabel] == selector[(equals + 1)..]);

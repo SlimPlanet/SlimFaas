@@ -45,9 +45,10 @@ Performance-related commits between v0.74.0 and v0.84.6 (`git log 043a686..f1d97
 `benchmarks/compare-versions.sh` measures two git refs with two tiers:
 
 - **Micro tier** — the BenchmarkDotNet suite of the current checkout
-  (`benchmarks/SlimFaas.Benchmarks`) is compiled twice, against a git worktree of the
-  baseline and against the candidate (`-p:SlimFaasSourceRoot=<worktree>/`). The same
-  benchmark code therefore measures both commits. Checkouts older than PR #313 are compiled
+  (`benchmarks/SlimFaas.Benchmarks`) is compiled in place twice, against a git worktree of
+  the baseline and against the candidate (`-p:SlimFaasSourceRoot=<checkout>/`, one
+  `--artifacts-path` per side). The same benchmark code, with the analyzer configuration of
+  the repository, therefore measures both commits. Checkouts older than PR #313 are compiled
   with `-p:BaselineApi=true`, which removes the one benchmark whose subject did not exist
   yet (`SlimDataStateSnapshot.PayloadBytes`) and adapts three signatures that changed since
   (`DeploymentsInformations`, `JobService`, `IJobConfiguration`); the harness also adds an
@@ -72,7 +73,16 @@ benchmarks/compare-versions.sh --baseline v0.79.2 --skip-micro --profile async-q
 ```
 
 Every run writes a `manifest.txt` (commits, dirty flags, SDK, host, matrix) next to its
-results under `artifacts/perf-compare/`.
+results under `artifacts/perf-compare/`, and a `session.env` that pins the resolved
+commits, the identity of the working tree and the measurement options: re-running with the
+same `--output` resumes that session (finished end-to-end results are reused) and any
+different input is refused rather than measured under the old labels.
+
+Historical commits are checked out in git worktrees **outside the repository**
+(`<repo>/../.slimfaas-perf-worktrees/<session>/`, `--worktrees <dir>` or
+`$SLIMFAAS_PERF_WORKTREES` to relocate) so the current `Directory.Build.props`,
+`Directory.Build.targets` and `Directory.Packages.props` never apply to them; a checkout
+that predates those files receives empty ones, and builds with its own package versions.
 
 ### Baselines
 
@@ -318,7 +328,10 @@ benchmarks/compare-versions.sh --baseline v0.79.2 --skip-micro --profile standar
 benchmarks/compare-versions.sh --baseline v0.79.2 --skip-micro --profile async-queue --output artifacts/perf-compare/e2e-async
 ```
 
-Any pair of refs works (`--candidate <ref>` defaults to the working tree, so an
-uncommitted optimization can be measured against `HEAD` or against a release). The
-`--profile quick` end-to-end matrix takes a few minutes and is meant as a smoke test; keep
-the standard matrix and compare medians for a publishable before/after.
+Any pair of refs works. `--candidate` defaults to `worktree`, the working tree of the
+current checkout, so an uncommitted optimization can be measured against `HEAD` (checked
+out separately at its committed state) or against a release; `--candidate HEAD` measures
+the committed tree instead. The `--profile quick` end-to-end matrix takes a few minutes
+and is meant as a smoke test; keep the standard matrix and compare medians for a
+publishable before/after. `MICRO_FILTER` (a BenchmarkDotNet glob, default `*`) and
+`MICRO_ARGS` shorten the micro tier for a smoke run.

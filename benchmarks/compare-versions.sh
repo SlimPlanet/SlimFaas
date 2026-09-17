@@ -2,14 +2,14 @@
 # Objective before/after benchmark of two SlimFaas commits, measured in the same session
 # on the same machine with the same benchmark code and the same load driver.
 #
-#   benchmarks/compare-versions.sh --baseline <git-ref> [--candidate <git-ref>|HEAD]
+#   benchmarks/compare-versions.sh --baseline <git-ref> [--candidate <git-ref>|worktree]
 #       [--profile quick|standard|async-queue] [--skip-micro] [--skip-e2e]
-#       [--micro-baseline-api auto|true|false] [--output <dir>]
+#       [--micro-baseline-api auto|true|false] [--output <dir>] [--worktrees <dir>]
 #
 # Two tiers, both documented in docs/performance-benchmarks-cross-version.md:
 #
 #   micro  BenchmarkDotNet suite of THIS checkout (benchmarks/SlimFaas.Benchmarks), compiled
-#          twice: once against the baseline worktree, once against the candidate. The very
+#          twice: once against the baseline checkout, once against the candidate. The very
 #          same benchmark code measures both commits; results are merged by
 #          benchmarks/compare-microbenchmarks.py.
 #   e2e    The native-local three-node cluster of each commit is started with THIS
@@ -17,26 +17,46 @@
 #          and load driver (benchmarks/SlimFaasBenchmark); only the SlimFaas binary changes. The
 #          two results.json are compared by `SlimFaasBenchmark compare`.
 #
-# The candidate defaults to the working tree of this checkout (so an uncommitted change can
-# be measured); any other ref is checked out in a git worktree under <output>/worktrees.
-# Baseline worktrees older than PR #313 get an InternalsVisibleTo entry for the benchmark
+# The candidate defaults to `worktree`: the working tree of this checkout, so that an
+# uncommitted change can be measured. Every other ref, HEAD included, is resolved to a
+# commit and checked out in its own git worktree OUTSIDE this repository
+# (<worktrees>/<session>/<label>, default <repo>/../.slimfaas-perf-worktrees, or
+# $SLIMFAAS_PERF_WORKTREES), so the build configuration of the current checkout
+# (Directory.Build.props/targets, Directory.Packages.props) never applies to a historical
+# commit; a checkout that has none of these files gets empty ones for the same reason.
+# Baseline checkouts older than PR #313 get an InternalsVisibleTo entry for the benchmark
 # assembly (no behavior change) and are compiled with -p:BaselineApi=true.
 #
-# Requirements: the repository .NET SDK, bash, curl, python3, git worktree support, and the
-# ports of the native-local benchmark (31020-31023, 3162-3164, 31080, 32000-32015) free.
+# The output directory records its session (refs, resolved commits, working-tree identity,
+# measurement options) in session.env: re-running with the same --output resumes the
+# session (existing e2e results are reused) and refuses different inputs.
+#
+# Requirements: the repository .NET SDK, bash, curl, python3 (or python), git worktree
+# support, and the ports of the native-local benchmark (31020-31023, 3162-3164, 31080,
+# 32000-32015) free.
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 baseline_ref=""
-candidate_ref="HEAD"
+candidate_ref="worktree"
 profile="standard"
 run_micro=true
 run_e2e=true
 micro_baseline_api="auto"
 output=""
+worktrees=""
 micro_args="${MICRO_ARGS:---iterationCount 10 --warmupCount 3}"
+micro_filter="${MICRO_FILTER:-*}"
+# python3 first, then python; each candidate is probed because Windows ships a stub
+# named python3 that only prints an installation hint.
+python="${PYTHON:-}"
+for candidate in python3 python; do
+  [[ -n "$python" ]] && break
+  "$candidate" -c "import sys" >/dev/null 2>&1 && python="$candidate"
+done
+[[ -n "$python" ]] || { echo "python3 (or python) is required" >&2; exit 2; }
 
-usage() { sed -n '2,25p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,36p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -47,6 +67,7 @@ while [[ $# -gt 0 ]]; do
     --skip-e2e) run_e2e=false; shift ;;
     --micro-baseline-api) micro_baseline_api="$2"; shift 2 ;;
     --output) output="$2"; shift 2 ;;
+    --worktrees) worktrees="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -56,7 +77,7 @@ done
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 output="${output:-$repo_root/artifacts/perf-compare/$timestamp}"
 mkdir -p "$output"
-output="$(cd "$output" && pwd)"   # absolute: worktree paths are injected into MSBuild properties
+output="$(cd "$output" && pwd)"   # absolute: checkout paths are injected into MSBuild properties
 log() { printf '[%s] %s\n' "$(date -u +%H:%M:%S)" "$*"; }
 
 case "$profile" in
@@ -79,48 +100,146 @@ async_paced_interval_ms="${BENCHMARK_ASYNC_PACED_INTERVAL_MS:-100}"
 async_burst_messages="${BENCHMARK_ASYNC_BURST_MESSAGES:-1000}"
 async_burst_concurrency="${BENCHMARK_ASYNC_BURST_CONCURRENCY:-64}"
 
+# ----------------------------------------------------------------- session
+# A session is identified by its output directory. Its inputs are resolved once, written
+# to session.env and compared on every later run of the same directory, so a resumed
+# session cannot silently measure or label a different commit, working tree or matrix.
+session_file="$output/session.env"
+session_id="$(basename "$output")-$(printf '%s' "$output" | git hash-object --stdin | cut -c1-8)"
+
+recorded() { grep -m1 "^$1=" "$session_file" 2>/dev/null | sed 's/^[^=]*=//' || true; }
+
+if [[ -s "$session_file" && -z "$worktrees" ]]; then
+  worktree_root="$(recorded worktree_root)"   # the session's own directory, verified below
+else
+  worktree_base="${worktrees:-${SLIMFAAS_PERF_WORKTREES:-$(dirname "$repo_root")/.slimfaas-perf-worktrees}}"
+  mkdir -p "$worktree_base"
+  worktree_root="$(cd "$worktree_base" && pwd)/$session_id"
+fi
+
+resolve_commit() {
+  git -C "$repo_root" rev-parse --verify --quiet "$1^{commit}" ||
+    { echo "cannot resolve '$1' to a commit in $repo_root" >&2; exit 2; }
+}
+
+# Identity of the working tree relative to HEAD: empty when clean, otherwise a hash of the
+# uncommitted changes (tracked and untracked) of the measured sources.
+working_tree_id() {
+  local status
+  status="$(git -C "$repo_root" status --porcelain --untracked-files=all -- src benchmarks 2>/dev/null || true)"
+  [[ -n "$status" ]] || return 0
+  { printf '%s\n' "$status"; git -C "$repo_root" diff HEAD -- src benchmarks; } | git hash-object --stdin | cut -c1-12
+}
+
+baseline_commit="$(resolve_commit "$baseline_ref")"
+if [[ "$candidate_ref" == "worktree" ]]; then
+  candidate_commit="$(resolve_commit HEAD)"
+  candidate_dirty="$(working_tree_id)"
+else
+  candidate_commit="$(resolve_commit "$candidate_ref")"
+  candidate_dirty=""
+fi
+
+session_lines=(
+  "session_id=$session_id"
+  "baseline_ref=$baseline_ref"
+  "baseline_commit=$baseline_commit"
+  "candidate_ref=$candidate_ref"
+  "candidate_commit=$candidate_commit"
+  "candidate_working_tree=${candidate_dirty:-clean}"
+  "harness_tree=$(git -C "$repo_root" rev-parse "HEAD:benchmarks")"
+  "profile=$profile"
+  "micro_args=$micro_args"
+  "micro_filter=$micro_filter"
+  "micro_baseline_api=$micro_baseline_api"
+  "e2e_matrix=duration=$duration warmup=$warmup repetitions=$repetitions payload_bytes=$payload_bytes concurrency=$concurrency scale=$scale_messages/$scale_concurrency/$scale_timeout async=$async_drain_timeout/$async_paced_messages/$async_paced_interval_ms/$async_burst_messages/$async_burst_concurrency"
+  "worktree_root=$worktree_root"
+)
+
+if [[ -s "$session_file" ]]; then
+  mismatch=0
+  for line in "${session_lines[@]}"; do
+    key="${line%%=*}"; requested="${line#*=}"; previous="$(recorded "$key")"
+    if [[ "$previous" != "$requested" ]]; then
+      (( mismatch == 1 )) || echo "cannot resume the session in $output: its inputs differ from this run" >&2
+      mismatch=1
+      printf '  %-22s recorded: %s\n  %-22s this run: %s\n' "$key" "$previous" "" "$requested" >&2
+    fi
+  done
+  if (( mismatch == 1 )); then
+    echo "use another --output for a new session, or delete $session_file and the results in $output to start over" >&2
+    exit 2
+  fi
+  log "Resuming session $session_id in $output"
+else
+  printf '%s\n' "${session_lines[@]}" >"$session_file"
+  log "Session $session_id in $output"
+fi
+
 # ---------------------------------------------------------------- checkouts
-# prepare_tree <label> <ref> -> prints the directory holding the sources of <ref>
+# An empty Directory.Build.props/targets and Directory.Packages.props stop MSBuild and NuGet
+# from walking up to a parent directory, so a checkout that predates those files is
+# built with its own settings and package versions (and never with this repository's
+# central package management).
+isolate_build_configuration() {
+  local dir="$1" file
+  for file in Directory.Build.props Directory.Build.targets Directory.Packages.props; do
+    [[ -e "$dir/$file" ]] && continue
+    printf '<Project>\n  <!-- Added by benchmarks/compare-versions.sh: isolates this checkout from the build configuration of any parent directory. -->\n</Project>\n' >"$dir/$file"
+  done
+}
+
+# prepare_tree <label> <ref> <commit> -> prints the directory holding the sources
 prepare_tree() {
-  local label="$1" ref="$2" dir
-  if [[ "$ref" == "HEAD" || "$ref" == "worktree" ]]; then
+  local label="$1" ref="$2" commit="$3" dir actual
+  if [[ "$ref" == "worktree" ]]; then
     echo "$repo_root"
     return
   fi
-  dir="$output/worktrees/$label"
-  if [[ ! -d "$dir" ]]; then
-    git -C "$repo_root" worktree add --detach "$dir" "$(git -C "$repo_root" rev-parse --verify "$ref^{commit}")" >/dev/null
+  dir="$worktree_root/$label"
+  if [[ -d "$dir" ]]; then
+    actual="$(git -C "$dir" rev-parse HEAD 2>/dev/null || true)"
+    [[ "$actual" == "$commit" ]] ||
+      { echo "$dir holds ${actual:-no checkout}, expected $commit ($label $ref): remove it or use --worktrees" >&2; exit 2; }
+  else
+    mkdir -p "$worktree_root"
+    git -C "$repo_root" worktree prune
+    git -C "$repo_root" worktree add --detach "$dir" "$commit" >/dev/null
   fi
+  isolate_build_configuration "$dir"
   echo "$dir"
 }
 
 describe_tree() {
-  local dir="$1"
+  local dir="$1" dirty=false
+  [[ "$dir" != "$repo_root" || -z "$candidate_dirty" ]] || dirty="true ($candidate_dirty)"
   printf 'commit=%s date=%s dirty=%s' \
-    "$(git -C "$dir" rev-parse HEAD)" \
+    "$(git -C "$dir" rev-parse --short=12 HEAD)" \
     "$(git -C "$dir" show -s --format=%cs HEAD)" \
-    "$(git -C "$dir" status --porcelain -- src 2>/dev/null | grep -q . && echo true || echo false)"
+    "$dirty"
 }
 
 log "Preparing checkouts"
-baseline_dir="$(prepare_tree baseline "$baseline_ref")"
-candidate_dir="$(prepare_tree candidate "$candidate_ref")"
+baseline_dir="$(prepare_tree baseline "$baseline_ref" "$baseline_commit")"
+candidate_dir="$(prepare_tree candidate "$candidate_ref" "$candidate_commit")"
 baseline_desc="$(describe_tree "$baseline_dir")"
 candidate_desc="$(describe_tree "$candidate_dir")"
-log "baseline  $baseline_ref  ($baseline_desc)"
-log "candidate $candidate_ref  ($candidate_desc)"
+log "baseline  $baseline_ref  ($baseline_desc) in $baseline_dir"
+log "candidate $candidate_ref  ($candidate_desc) in $candidate_dir"
+[[ "$baseline_commit" != "$candidate_commit" || -n "$candidate_dirty" ]] ||
+  log "WARNING: baseline and candidate are the same commit and the working tree is clean; both sides will measure identical sources"
 
 # ------------------------------------------------------------------- builds
 build_slimfaas() {
-  local dir="$1"
-  log "Building SlimFaas (Release, no dashboard) in $dir"
-  dotnet build "$dir/src/SlimFaas/SlimFaas.csproj" -c Release -p:SkipClientAppBuild=true --nologo -v q >"$output/build-$(basename "$dir").log" 2>&1 ||
-    { cat "$output/build-$(basename "$dir").log" >&2; exit 1; }
+  local label="$1" dir="$2"
+  log "Building SlimFaas (Release, no dashboard) of $label in $dir"
+  dotnet build "$dir/src/SlimFaas/SlimFaas.csproj" -c Release -p:SkipClientAppBuild=true --nologo -v q >"$output/build-$label.log" 2>&1 ||
+    { cat "$output/build-$label.log" >&2; exit 1; }
 }
 
 if [[ "$run_e2e" == true ]]; then
-  build_slimfaas "$baseline_dir"
-  [[ "$candidate_dir" == "$baseline_dir" ]] || build_slimfaas "$candidate_dir"
+  build_slimfaas baseline "$baseline_dir"
+  [[ "$candidate_dir" == "$baseline_dir" ]] || build_slimfaas candidate "$candidate_dir"
   log "Building the benchmark target/driver of this checkout"
   dotnet build "$repo_root/benchmarks/SlimFaasBenchmark/SlimFaasBenchmark.csproj" -c Release --nologo -v q >"$output/build-driver.log" 2>&1 ||
     { cat "$output/build-driver.log" >&2; exit 1; }
@@ -141,28 +260,49 @@ ensure_internals_visible() {
   for csproj in "$dir/src/SlimFaas/SlimFaas.csproj" "$dir/src/SlimData/SlimData.csproj"; do
     grep -q 'InternalsVisibleTo Include="SlimFaas.Benchmarks"' "$csproj" && continue
     [[ "$dir" != "$repo_root" ]] || { echo "this checkout lacks InternalsVisibleTo SlimFaas.Benchmarks" >&2; exit 1; }
-    sed -i 's#</Project>#  <ItemGroup>\n    <InternalsVisibleTo Include="SlimFaas.Benchmarks" />\n  </ItemGroup>\n</Project>#' "$csproj"
-    log "Added InternalsVisibleTo(SlimFaas.Benchmarks) to $csproj (baseline worktree only)"
+    # Python rather than sed -i: the in-place flag differs between GNU and BSD sed.
+    "$python" - "$csproj" <<'PY'
+import sys
+path = sys.argv[1]
+text = open(path, encoding="utf-8", newline="").read()
+newline = "\r\n" if "\r\n" in text else "\n"
+item_group = newline.join([
+    "  <ItemGroup>",
+    '    <InternalsVisibleTo Include="SlimFaas.Benchmarks" />',
+    "  </ItemGroup>",
+    "</Project>",
+])
+index = text.rfind("</Project>")
+if index < 0:
+    sys.exit(f"{path}: no </Project> element")
+open(path, "w", encoding="utf-8", newline="").write(text[:index] + item_group + text[index + len("</Project>"):])
+PY
+    log "Added InternalsVisibleTo(SlimFaas.Benchmarks) to $csproj (historical checkout only)"
   done
 }
 
 run_micro() {
   local label="$1" dir="$2" api=false
-  local project="$output/micro/$label/project"
+  # Built in place (its analyzer configuration, .editorconfig included, applies unchanged)
+  # with the outputs of this label under its own artifacts path, so the two builds against
+  # different SlimFaas sources never share obj/bin.
+  local artifacts="$output/micro/$label/build"
+  local dll="$artifacts/bin/SlimFaas.Benchmarks/release/SlimFaas.Benchmarks.dll"
+  mkdir -p "$output/micro/$label"
   ensure_internals_visible "$dir"
   if needs_baseline_api "$dir"; then api=true; fi
-  rm -rf "$project"; mkdir -p "$project"
-  cp -r "$repo_root/benchmarks/SlimFaas.Benchmarks/"*.cs "$repo_root/benchmarks/SlimFaas.Benchmarks/"*.csproj "$repo_root/benchmarks/SlimFaas.Benchmarks/Support" "$project/"
   log "Building the micro-benchmarks against $label (BaselineApi=$api)"
-  dotnet build "$project/SlimFaas.Benchmarks.csproj" -c Release --nologo -v q \
-    -p:SlimFaasSourceRoot="$dir/" -p:BaselineApi=$api >"$output/micro/$label/build.log" 2>&1 ||
+  dotnet build "$repo_root/benchmarks/SlimFaas.Benchmarks/SlimFaas.Benchmarks.csproj" -c Release --nologo -v q \
+    --artifacts-path "$artifacts" -p:SlimFaasSourceRoot="$dir/" -p:BaselineApi=$api -p:SkipClientAppBuild=true \
+    >"$output/micro/$label/build.log" 2>&1 ||
     { cat "$output/micro/$label/build.log" >&2; exit 1; }
-  log "Running the micro-benchmarks against $label ($micro_args)"
+  [[ -f "$dll" ]] || { echo "benchmark assembly not found at $dll" >&2; exit 1; }
+  log "Running the micro-benchmarks against $label (filter '$micro_filter', $micro_args)"
   # Tiered compilation off: every benchmark then measures fully optimized code whatever
   # its duration (see the theme 6 note in docs/performance-benchmarks.md).
   # shellcheck disable=SC2086
-  DOTNET_TieredCompilation=0 dotnet "$project/bin/Release/net10.0/SlimFaas.Benchmarks.dll" \
-    --filter '*' $micro_args --artifacts "$output/micro/$label" >"$output/micro/$label/run.log" 2>&1 ||
+  DOTNET_TieredCompilation=0 dotnet "$dll" \
+    --filter "$micro_filter" $micro_args --artifacts "$output/micro/$label" >"$output/micro/$label/run.log" 2>&1 ||
     { tail -50 "$output/micro/$label/run.log" >&2; exit 1; }
   grep -h '^// KubernetesJobsSyncBenchmarks' "$output/micro/$label/run.log" | sort -u >"$output/micro/$label/api-requests.txt" || true
 }
@@ -171,7 +311,7 @@ if [[ "$run_micro" == true ]]; then
   run_micro baseline "$baseline_dir"
   run_micro candidate "$candidate_dir"
   # The merge script confines its paths to the current directory: run it from $output.
-  (cd "$output" && python3 "$repo_root/benchmarks/compare-microbenchmarks.py" \
+  (cd "$output" && "$python" "$repo_root/benchmarks/compare-microbenchmarks.py" \
     --baseline micro/baseline --candidate micro/candidate \
     --baseline-label "$baseline_ref" --candidate-label "$candidate_ref" \
     --output micro/comparison.md >/dev/null)
@@ -214,7 +354,7 @@ sample_resources() {
 summarize_resources() {
   local run_root="$1"
   [[ -s "$run_root/resources.csv" ]] || return 0
-  python3 - "$run_root/resources.csv" >"$run_root/resources-summary.md" <<'PY' || true
+  "$python" - "$run_root/resources.csv" >"$run_root/resources-summary.md" <<'PY' || true
 import csv, sys
 from collections import defaultdict
 rows = list(csv.DictReader(open(sys.argv[1])))
@@ -267,7 +407,8 @@ run_e2e() {
   local dll="$dir/src/SlimFaas/bin/Release/net10.0/SlimFaas.dll"
   mkdir -p "$run_root"
   if [[ -s "$run_root/results.json" ]]; then
-    log "Reusing the existing $label results in $run_root (delete results.json to re-run)"
+    # Safe: the session check above guarantees the same commit, working tree and matrix.
+    log "Reusing the $label results of this session in $run_root (delete results.json to re-run)"
     return
   fi
   dotnet "$dll" local validate -f "$manifest" >"$run_root/validate.log" 2>&1 ||
@@ -324,14 +465,16 @@ fi
 
 # ----------------------------------------------------------------- manifest
 {
+  echo "session=$session_id"
   echo "started_at=$timestamp"
   echo "baseline_ref=$baseline_ref"
   echo "baseline=$baseline_desc"
   echo "candidate_ref=$candidate_ref"
   echo "candidate=$candidate_desc"
-  echo "driver_checkout=$(git -C "$repo_root" rev-parse HEAD)"
+  echo "worktrees=$worktree_root"
+  echo "harness_checkout=$(git -C "$repo_root" rev-parse HEAD)"
   echo "profile=$profile"
-  echo "micro=$run_micro micro_args=$micro_args"
+  echo "micro=$run_micro micro_filter=$micro_filter micro_args=$micro_args"
   echo "e2e=$run_e2e duration=$duration warmup=$warmup repetitions=$repetitions payload_bytes=$payload_bytes concurrency=$concurrency"
   echo "dotnet_sdk=$(dotnet --version)"
   echo "host=$(uname -s)-$(uname -m) cpus=$(nproc 2>/dev/null || echo '?')"
