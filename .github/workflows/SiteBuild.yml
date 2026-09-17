@@ -16,11 +16,16 @@ on:
         type: string
         default: "src/SlimFaasSite"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ inputs.node_version }}

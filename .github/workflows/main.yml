@@ -12,7 +12,7 @@ env:
   NODE_VERSION: "24"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   sonarcloud:
@@ -28,6 +28,7 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Cache SonarCloud packages
@@ -100,6 +101,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - uses: actions/setup-dotnet@v4
@@ -395,6 +397,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -465,6 +469,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -570,10 +576,13 @@ jobs:
     needs: [tags, build_slimfaas_mcp_aot, build_slimfaas_aot]
     if: needs.tags.outputs.tag == 'release'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - uses: actions/download-artifact@v4
@@ -612,6 +621,8 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -650,9 +661,13 @@ jobs:
   deploy_website:
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
