@@ -173,10 +173,12 @@ The `X-Forwarded-For` header is **ignored by default**: a caller cannot become i
 ```yaml
 env:
   - name: SlimFaas__TrustedProxies__0
-    value: "10.244.0.0/16"   # the ingress controller pods
+    value: "10.0.0.5"          # a reverse proxy with a fixed address
   - name: SlimFaas__TrustedProxies__1
-    value: "10.0.0.5"
+    value: "10.250.1.0/28"     # a subnet reserved for the ingress controller only
 ```
+
+> **Warning.** `TrustedProxies` controls **authorization**, not just request attribution: every address in the list may declare any client address and therefore reach Private functions and peer endpoints on behalf of a Trusted pod. Declare only addresses owned exclusively by the proxy: its fixed IP, or a subnet that contains nothing but proxy instances. Never declare the whole pod CIDR (for example `10.244.0.0/16` on a common cluster network) or any subnet in which ordinary workloads can be scheduled; doing so reopens the header spoofing this check prevents.
 
 Source addresses remain a weak identity: sidecars share the pod address, and a call that reaches a function pod without going through SlimFaas is not checked by SlimFaas. Use a NetworkPolicy to restrict the function ports to SlimFaas when that matters.
 

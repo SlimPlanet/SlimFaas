@@ -23,9 +23,10 @@ public class SlimFaasOptions
 
     /// <summary>
     /// Reverse proxies allowed to set <c>X-Forwarded-For</c> (IP addresses or CIDR
-    /// networks, e.g. <c>10.0.0.5</c> or <c>10.244.0.0/16</c>). One hop is honoured.
-    /// Empty (default): the header is ignored and callers are classified by their
-    /// connection address.
+    /// networks owned exclusively by the proxy, e.g. <c>10.0.0.5</c>). One hop is
+    /// honoured. Empty (default): the header is ignored and callers are classified by
+    /// their connection address. This controls authorization: never list the pod CIDR
+    /// or any subnet where ordinary workloads run.
     /// </summary>
     public string[] TrustedProxies { get; set; } = [];
 
