@@ -58,8 +58,7 @@ internal sealed class PrometheusScalerProvider(
         }
         catch (Exception exception) when (exception is FormatException or InvalidOperationException or ArgumentException)
         {
-            logger?.LogWarning(exception, "Cannot evaluate scaling metric {Metric} for function {Function}",
-                context.Trigger.MetricName, context.Function);
+            logger?.LogCannotEvaluateScalingMetricForFunction(exception, context.Trigger.MetricName, context.Function);
             return new(ScalerState.InvalidMetric);
         }
     }

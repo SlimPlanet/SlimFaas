@@ -52,7 +52,7 @@ public class ReplicasSynchronizationWorker(
             catch (Exception e)
             {
                 _cadence.MarkSyncFailed();
-                logger.LogError(e, "Global Error in ScaleReplicasWorker");
+                logger.LogGlobalErrorInReplicasSynchronizationWorker(e);
             }
         }
     }

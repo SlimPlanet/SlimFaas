@@ -327,7 +327,7 @@ namespace SlimFaas
 
         private static string SelectBestTarget(
             string deployment,
-            IList<string> readyTargets,
+            List<string> readyTargets,
             int maxPerPod,
             IReadOnlyDictionary<string, int> activeByTarget)
         {
@@ -371,7 +371,7 @@ namespace SlimFaas
             return "";
         }
 
-        private static int AdvanceRoundRobin(string deployment, IList<string> readyTargets)
+        private static int AdvanceRoundRobin(string deployment, List<string> readyTargets)
         {
             while (true)
             {

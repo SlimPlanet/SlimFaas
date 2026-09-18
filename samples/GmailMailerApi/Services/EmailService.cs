@@ -1,4 +1,4 @@
-﻿using GmailMailerApi.Models;
+using GmailMailerApi.Models;
 using MailKit.Net.Smtp;
 using MailKit.Security;
 using MimeKit;
@@ -22,7 +22,7 @@ public sealed class EmailService(SmtpOptions options, ILogger<EmailService> logg
         if (string.IsNullOrWhiteSpace(req.Text) && string.IsNullOrWhiteSpace(req.Html))
             throw new ArgumentException("Provide at least 'Text' or 'Html' body.");
 
-        var message = new MimeMessage();
+        using var message = new MimeMessage();
 
         // From
         var fromName = string.IsNullOrWhiteSpace(_opt.SenderDisplayName) ? _opt.Username : _opt.SenderDisplayName;
@@ -53,10 +53,11 @@ public sealed class EmailService(SmtpOptions options, ILogger<EmailService> logg
                 using var ms = new MemoryStream();
                 await file.CopyToAsync(ms, ct);
                 ms.Position = 0;
-                bodyBuilder.Attachments.Add(
+                await bodyBuilder.Attachments.AddAsync(
                     file.FileName,
-                    ms.ToArray(),
-                    ContentType.Parse(file.ContentType ?? "application/octet-stream"));
+                    ms,
+                    ContentType.Parse(file.ContentType ?? "application/octet-stream"),
+                    ct);
             }
         }
 
@@ -71,7 +72,7 @@ public sealed class EmailService(SmtpOptions options, ILogger<EmailService> logg
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Failed sending email via SMTP: {Message}", ex.Message);
+            _log.LogFailedSendingEmailViaSMTP(ex, ex.Message);
             throw;
         }
         finally

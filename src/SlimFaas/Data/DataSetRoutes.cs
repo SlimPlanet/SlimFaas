@@ -67,7 +67,7 @@ public static class DataSetRoutes
             if (total > MaxBodyBytes)
                 return (null, PayloadTooLarge());
 
-            ms.Write(buffer, 0, read);
+            await ms.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
         }
 
         return (ms.ToArray(), null);

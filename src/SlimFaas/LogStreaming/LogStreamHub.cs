@@ -55,7 +55,7 @@ public sealed class LogStreamHub(IInstanceLogProvider provider) : IDisposable
         lock (_gate) foreach (var session in _sessions.Values) session.Stop.Cancel();
     }
 
-    internal sealed class Session
+    internal sealed class Session : IDisposable
     {
         private readonly object _gate = new();
         private readonly Queue<(LogLine Line, int Bytes)> _lines = new();
@@ -64,6 +64,8 @@ public sealed class LogStreamHub(IInstanceLogProvider provider) : IDisposable
         private long _dropped;
         private string _status = "Connecting";
         internal readonly CancellationTokenSource Stop = new();
+
+        public void Dispose() => Stop.Dispose();
         internal Task Reader = Task.CompletedTask;
         internal int Clients;
         internal readonly string Id = Guid.NewGuid().ToString("N");

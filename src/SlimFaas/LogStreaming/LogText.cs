@@ -24,7 +24,7 @@ public static partial class LogText
         }
         value = value[..chars];
         long? timestamp = null;
-        var space = value.IndexOf(' ');
+        var space = value.IndexOf(' ', StringComparison.Ordinal);
         if (space is > 15 and < 40 && DateTimeOffset.TryParse(value.AsSpan(0, space),
                 CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var date))
         { timestamp = date.ToUnixTimeMilliseconds(); value = value[(space + 1)..]; }

@@ -26,14 +26,12 @@ namespace SlimFaas.Kubernetes;
 /// <c>Models</c> sub-folder.
 /// </summary>
 [ExcludeFromCodeCoverage]
-public partial class KubernetesService : IKubernetesService
+public partial class KubernetesService : IKubernetesService, IDisposable
 {
     // ── Annotation keys ───────────────────────────────────────────────────────
-    private const string ReplicasMin = "SlimFaas/ReplicasMin";
     private const string Schedule = "SlimFaas/Schedule";
     private const string Configuration = "SlimFaas/Configuration";
     private const string Function = "SlimFaas/Function";
-    private const string ReplicasAtStart = "SlimFaas/ReplicasAtStart";
     private const string DependsOn = JobAnnotationNames.DependsOn;
     private const string SubscribeEvents = "SlimFaas/SubscribeEvents";
     private const string DefaultVisibility = JobAnnotationNames.DefaultVisibility;
@@ -44,13 +42,7 @@ public partial class KubernetesService : IKubernetesService
     private const string NumberParallelJob = JobAnnotationNames.NumberParallelJob;
     private const string JobSchedules = JobAnnotationNames.Schedules;
 
-    private const string ReplicasStartAsSoonAsOneFunctionRetrieveARequest =
-        "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
 
-    private const string TimeoutSecondBeforeSetReplicasMin = "SlimFaas/TimeoutSecondBeforeSetReplicasMin";
-    private const string NumberParallelRequest = "SlimFaas/NumberParallelRequest";
-    private const string NumberParallelRequestPerPod = "SlimFaas/NumberParallelRequestPerPod";
-    private const string DefaultTrust = "SlimFaas/DefaultTrust";
 
     // ── Well-known resource / label names ─────────────────────────────────────
     private const string SlimfaasDeploymentName = "slimfaas";
@@ -66,6 +58,20 @@ public partial class KubernetesService : IKubernetesService
 
     // ── Shared state ──────────────────────────────────────────────────────────
     private readonly k8s.Kubernetes _client;
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _client.Dispose();
+        }
+    }
     internal k8s.Kubernetes LogClient => _client;
     private readonly ILogger<KubernetesService> _logger;
     private bool _serviceListForbidden;
@@ -74,14 +80,31 @@ public partial class KubernetesService : IKubernetesService
     // same connection pool) — see Watch/KubernetesWatcherWorker.
     internal k8s.Kubernetes Client => _client;
 
-    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
+    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig, bool skipTlsVerify = false)
     {
         _logger = logger;
+        // In-cluster: the CA projected into the pod is loaded and verified.
+        // Kubeconfig: the file's own CA (or insecure-skip-tls-verify) applies.
         KubernetesClientConfiguration k8SConfig = !useKubeConfig
             ? KubernetesClientConfiguration.InClusterConfig()
             : KubernetesClientConfiguration.BuildConfigFromConfigFile();
-        k8SConfig.SkipTlsVerify = true;
+        ApplyTlsVerification(k8SConfig, skipTlsVerify, logger);
         _client = new k8s.Kubernetes(k8SConfig);
+    }
+
+    /// <summary>
+    /// Disables API-server certificate verification only when explicitly requested
+    /// (<c>SlimFaas:KubernetesSkipTlsVerify</c>), and says so loudly at startup.
+    /// </summary>
+    internal static void ApplyTlsVerification(KubernetesClientConfiguration config, bool skipTlsVerify, ILogger logger)
+    {
+        if (!skipTlsVerify)
+        {
+            return;
+        }
+
+        config.SkipTlsVerify = true;
+        logger.LogKubernetesApiServerTlsVerificationDisabled();
     }
 
     /// <summary>
@@ -105,17 +128,13 @@ public partial class KubernetesService : IKubernetesService
         {
             _serviceListForbidden = true;
 
-            _logger.LogWarning(ex,
-                "Insufficient RBAC permissions to list Services in namespace {Namespace}. ServiceName will be null in PodInformation.",
-                kubeNamespace);
+            _logger.LogInsufficientRBACPermissionsToListServices(ex, kubeNamespace);
 
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex,
-                "Error while listing Services in namespace {Namespace}. ServiceName will be null in PodInformation.",
-                kubeNamespace);
+            _logger.LogErrorWhileListingServicesInNamespace(ex, kubeNamespace);
 
             return null;
         }

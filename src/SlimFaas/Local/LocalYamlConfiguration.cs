@@ -74,7 +74,7 @@ internal static partial class LocalYamlConfiguration
         return root;
     }
 
-    private static IReadOnlyDictionary<string, string> LoadEnvironmentFiles(
+    private static Dictionary<string, string> LoadEnvironmentFiles(
         IReadOnlyList<string> environmentFilePaths)
     {
         var values = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -104,7 +104,7 @@ internal static partial class LocalYamlConfiguration
                 if (trimmed.StartsWith("export ", StringComparison.Ordinal))
                     trimmed = trimmed["export ".Length..].TrimStart();
 
-                int separator = trimmed.IndexOf('=');
+                int separator = trimmed.IndexOf('=', StringComparison.Ordinal);
                 if (separator <= 0)
                     throw InvalidEnvironmentLine(path, index);
 
@@ -365,7 +365,7 @@ internal static partial class LocalYamlConfiguration
         }
     }
 
-    private static IReadOnlyList<string> Append(IReadOnlyList<string> path, string value)
+    private static string[] Append(IReadOnlyList<string> path, string value)
     {
         var result = new string[path.Count + 1];
         for (var index = 0; index < path.Count; index++)

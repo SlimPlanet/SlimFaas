@@ -1,4 +1,4 @@
-﻿using MemoryPack;
+using MemoryPack;
 using Microsoft.Extensions.Options;
 using SlimData;
 using SlimFaas.Database;
@@ -77,7 +77,7 @@ public class SlimJobsWorker(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Global error in slimFaas jobs worker");
+            logger.LogGlobalErrorInSlimFaasJobsWorker(e);
         }
     }
 
@@ -95,7 +95,7 @@ public class SlimJobsWorker(
                 jobsDictionary.Add(data.Key.ToLowerInvariant(), new List<Job>());
             }
 
-            foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey)))
+            foreach (Job job in jobs.Where(j => j.Name.Contains(KubernetesService.SlimfaasJobKey, StringComparison.Ordinal)))
             {
                 var jobNameSplits = job.Name.Split(KubernetesService.SlimfaasJobKey);
                 string jobConfigurationName = jobNameSplits[0];
@@ -107,9 +107,9 @@ public class SlimJobsWorker(
                     historyHttpService.SetTickLastCall(dependOn, DateTime.UtcNow.Ticks);
                 }
 
-                if (jobsDictionary.ContainsKey(jobConfigurationName))
+                if (jobsDictionary.TryGetValue(jobConfigurationName, out var jobsForConfiguration))
                 {
-                    jobsDictionary[jobConfigurationName].Add(job);
+                    jobsForConfiguration.Add(job);
                 }
             }
 
@@ -163,7 +163,7 @@ public class SlimJobsWorker(
                     catch (Exception e)
                     {
                         listCallBack.Items.Add(new QueueItemStatus(element.Id, 500));
-                        logger.LogError(e, "Error in SlimJobsWorker");
+                        logger.LogErrorInSlimJobsWorker(e);
                     }
                 }
 
@@ -175,7 +175,7 @@ public class SlimJobsWorker(
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Job worker error");
+            logger.LogJobWorkerError(e);
         }
     }
 

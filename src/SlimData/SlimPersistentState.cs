@@ -245,13 +245,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         if (recovered)
         {
             applicationEntry = recoveredEntry;
-            _logger?.LogDebug(
-                "Recovered zero-prefixed SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, OriginalLength={OriginalLength}, DiscardedPrefixBytes={DiscardedPrefixBytes}",
-                entry.Index,
-                entry.Term,
-                entry.CommandId,
-                entry.Length,
-                discardedPrefixBytes);
+            _logger?.LogRecoveredZeroPrefixedSlimDataRaftLog(entry.Index, entry.Term, entry.CommandId, entry.Length, discardedPrefixBytes);
         }
         else if (entry.Length is > SlimDataCommandCodec.MaxCommandBytes)
         {
@@ -326,17 +320,7 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         Exception? exception = null)
     {
         var payloadDiagnostics = GetPayloadDiagnostics(entry);
-        _logger?.LogWarning(
-            exception,
-            "Skipping incompatible SlimData Raft log entry. Index={Index}, Term={Term}, CommandId={CommandId}, Length={Length}, Violation={Violation}, LeadingZeroBytes={LeadingZeroBytes}, CurrentEnvelopeOffset={CurrentEnvelopeOffset}, Reason={Reason}",
-            entry.Index,
-            entry.Term,
-            entry.CommandId,
-            entry.Length,
-            violation,
-            payloadDiagnostics.LeadingZeroBytes,
-            payloadDiagnostics.CurrentEnvelopeOffset,
-            reason);
+        _logger?.LogSkippingIncompatibleSlimDataRaftLogEntry(exception, entry.Index, entry.Term, entry.CommandId, entry.Length, violation, payloadDiagnostics.LeadingZeroBytes, payloadDiagnostics.CurrentEnvelopeOffset, reason);
 
         RecordSkippedEntry(entry, violation);
         MarkSkippedContext(entry.Context);
@@ -479,13 +463,10 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         long payloadBytes = snapshot.PayloadBytes;
         if (informationEnabled)
         {
-            _logger?.LogInformation(
-                "Persisting SlimData snapshot. KeyValues={KeyValues}, Hashsets={Hashsets}, Queues={Queues}, PayloadBytes={PayloadBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
-                snapshot.KeyValues.Count,
-                snapshot.Hashsets.Count,
-                snapshot.Queues.Count,
-                payloadBytes,
-                GC.GetTotalMemory(forceFullCollection: false));
+            if (_logger?.IsEnabled(LogLevel.Information) == true)
+            {
+                _logger?.LogPersistingSlimDataSnapshotKeyValuesHashsetsQueues(snapshot.KeyValues.Count, snapshot.Hashsets.Count, snapshot.Queues.Count, payloadBytes, GC.GetTotalMemory(forceFullCollection: false));
+            }
         }
 
         try
@@ -500,11 +481,10 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
             Volatile.Write(ref _isSnapshotting, 0);
             if (informationEnabled)
             {
-                _logger?.LogInformation(
-                    "SlimData snapshot persisted. DurationMilliseconds={DurationMilliseconds}, PayloadBytes={PayloadBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
-                    elapsed,
-                    payloadBytes,
-                    GC.GetTotalMemory(forceFullCollection: false));
+                if (_logger?.IsEnabled(LogLevel.Information) == true)
+                {
+                    _logger?.LogSlimDataSnapshotPersistedDurationMillisecondsPayloadBytesManagedMemoryBytes(elapsed, payloadBytes, GC.GetTotalMemory(forceFullCollection: false));
+                }
             }
         }
     }
@@ -516,11 +496,10 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
         ResetSnapshotWindow(SlimDataSnapshotTrigger.None);
         Volatile.Write(ref _incompatibleCompactionRequested, 0);
         _state.Reset();
-        _logger?.LogInformation(
-            "Restoring SlimData snapshot. File={SnapshotFile}, FileBytes={FileBytes}, ManagedMemoryBytes={ManagedMemoryBytes}",
-            snapshotFile.FullName,
-            snapshotFile.Length,
-            GC.GetTotalMemory(forceFullCollection: false));
+        if (_logger?.IsEnabled(LogLevel.Information) == true)
+        {
+            _logger?.LogRestoringSlimDataSnapshotFileFileBytesManagedMemoryBytes(snapshotFile.FullName, snapshotFile.Length, GC.GetTotalMemory(forceFullCollection: false));
+        }
 
         try
         {
@@ -542,10 +521,10 @@ public sealed class SlimPersistentState : SimpleStateMachine, ISupplier<SlimData
             var elapsed = (long)Stopwatch.GetElapsedTime(startedAt).TotalMilliseconds;
             Volatile.Write(ref _lastSnapshotDurationMilliseconds, elapsed);
             Volatile.Write(ref _isRestoring, 0);
-            _logger?.LogInformation(
-                "SlimData snapshot restore completed. DurationMilliseconds={DurationMilliseconds}, ManagedMemoryBytes={ManagedMemoryBytes}",
-                elapsed,
-                GC.GetTotalMemory(forceFullCollection: false));
+            if (_logger?.IsEnabled(LogLevel.Information) == true)
+            {
+                _logger?.LogSlimDataSnapshotRestoreCompletedDurationMillisecondsManagedMemoryBytes(elapsed, GC.GetTotalMemory(forceFullCollection: false));
+            }
         }
     }
 

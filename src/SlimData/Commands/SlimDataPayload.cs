@@ -3,7 +3,7 @@
 namespace SlimData.Commands;
 
 
-public struct SlimDataPayload
+public record struct SlimDataPayload
 {
     public ImmutableDictionary<string, ReadOnlyMemory<byte>> KeyValues { get; set; }
     

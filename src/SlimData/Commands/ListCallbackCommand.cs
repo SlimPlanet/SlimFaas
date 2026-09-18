@@ -7,7 +7,7 @@ namespace SlimData.Commands;
 
 public record CallbackElement(string Identifier, int HttpCode);
 
-public struct ListCallbackCommand() : ICommand<ListCallbackCommand>
+public record struct ListCallbackCommand() : ICommand<ListCallbackCommand>
 {
     public const int Id = 15;
     static int ICommand<ListCallbackCommand>.Id => Id;
@@ -68,7 +68,7 @@ public struct ListCallbackCommand() : ICommand<ListCallbackCommand>
         }
     }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
     public static async ValueTask<ListCallbackCommand> ReadFromAsync<TReader>(TReader reader, CancellationToken token)
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader

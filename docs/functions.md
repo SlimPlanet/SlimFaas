@@ -164,6 +164,24 @@ metadata:
         SlimFaas/DefaultTrusted: "Trusted" # Trusted or Untrusted
 ```
 
+### How callers are classified
+
+A call is **internal** when the source address of its TCP connection is the address of a Trusted function pod or of a job pod. The comparison is exact (`10.0.0.1` never matches `10.0.0.10` or `110.0.0.1`), and IPv4-mapped IPv6 addresses compare equal to their IPv4 form.
+
+The `X-Forwarded-For` header is **ignored by default**: a caller cannot become internal by forging it. If a reverse proxy sits between the callers and SlimFaas and must pass the original client address, declare it in `SlimFaas:TrustedProxies` (IP addresses or CIDR networks). SlimFaas then honours **one hop** of `X-Forwarded-For`, and only for connections coming from those proxies:
+
+```yaml
+env:
+  - name: SlimFaas__TrustedProxies__0
+    value: "10.0.0.5"          # a reverse proxy with a fixed address
+  - name: SlimFaas__TrustedProxies__1
+    value: "10.250.1.0/28"     # a subnet reserved for the ingress controller only
+```
+
+> **Warning.** `TrustedProxies` controls **authorization**, not just request attribution: every address in the list may declare any client address and therefore reach Private functions and peer endpoints on behalf of a Trusted pod. Declare only addresses owned exclusively by the proxy: its fixed IP, or a subnet that contains nothing but proxy instances. Never declare the whole pod CIDR (for example `10.244.0.0/16` on a common cluster network) or any subnet in which ordinary workloads can be scheduled; doing so reopens the header spoofing this check prevents.
+
+Source addresses remain a weak identity: sidecars share the pod address, and a call that reaches a function pod without going through SlimFaas is not checked by SlimFaas. Use a NetworkPolicy to restrict the function ports to SlimFaas when that matters.
+
 ## 6. Function Configuration
 
 You can configure the synchronous HTTP timeout and the retry policies used by asynchronous and publish calls with `SlimFaas/Configuration`:

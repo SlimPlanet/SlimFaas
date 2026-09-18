@@ -24,4 +24,4 @@ namespace SlimFaasMcp;
 [JsonSerializable(typeof(List<McpPrompt.McpToolOverride>))]
 [JsonSerializable(typeof(OAuthProtectedResourceMetadata))]
 [JsonSerializable(typeof(ProxyCallResult))]
-internal partial class AppJsonContext : JsonSerializerContext { }
+internal sealed partial class AppJsonContext : JsonSerializerContext { }

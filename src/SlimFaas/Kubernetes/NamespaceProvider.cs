@@ -18,14 +18,11 @@ public class NamespaceProvider : INamespaceProvider
 
         if (_namespace != configuredNamespace)
         {
-            logger.LogInformation(
-                "Namespace resolved from Kubernetes service account: {ResolvedNamespace} (configured: {ConfiguredNamespace})",
-                _namespace,
-                configuredNamespace);
+            logger.LogNamespaceResolvedFromKubernetesServiceAccount(_namespace, configuredNamespace);
         }
         else
         {
-            logger.LogInformation("Using configured namespace: {Namespace}", _namespace);
+            logger.LogUsingConfiguredNamespace(_namespace);
         }
     }
 

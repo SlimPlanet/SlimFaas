@@ -1,4 +1,4 @@
-﻿using DotNext.Net.Cluster.Consensus.Raft;
+using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Kubernetes;
@@ -74,7 +74,7 @@ public class MetricsWorker(
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Global Error in MetricsWorker");
+                logger.LogGlobalErrorInMetricsWorker(e);
             }
         }
     }

@@ -16,7 +16,7 @@ public sealed class LocalLogTests
             bool appended = false;
             await using var file = new FollowingLogFile(path, async _ =>
             {
-                if (!appended) { appended = true; await File.AppendAllTextAsync(path, "last output\n"); }
+                if (!appended) { appended = true; await File.AppendAllTextAsync(path, "last output\n", CancellationToken.None); }
                 return false;
             });
             var lines = new List<LogReadItem>();

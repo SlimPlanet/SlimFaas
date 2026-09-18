@@ -442,7 +442,7 @@ app.MapGet("/{oauth?}/.well-known/oauth-protected-resource",
             var meta = System.Text.Json.JsonSerializer.Deserialize(
                            json,
                            AppJsonContext.Default.OAuthProtectedResourceMetadata)
-                       ?? throw new Exception("JSON vide");
+                       ?? throw new InvalidOperationException("JSON vide");
 
             return Results.Json(meta, AppJsonContext.Default.OAuthProtectedResourceMetadata);
         }
@@ -464,7 +464,7 @@ IDictionary<string, string> AuthHeader(HttpRequest httpRequest1)
     var authHeader = httpRequest1.Headers["Authorization"].FirstOrDefault();
     var dpopHeader = httpRequest1.Headers["Dpop"].FirstOrDefault();
 
-    IDictionary<string, string> dictionary = new Dictionary<string, string>();
+    Dictionary<string, string> dictionary = new();
 
     if (!string.IsNullOrWhiteSpace(authHeader))
         dictionary["Authorization"] = authHeader;

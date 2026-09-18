@@ -27,14 +27,12 @@ internal sealed class LinuxFileCacheControl(
             var result = LinuxFileCacheNative.PosixFadvise(fileDescriptor, 0, 0, PosixFadvDontNeed);
             if (result != 0)
             {
-                logger.LogDebug(
-                    "Unable to advise Linux to release file cache. Result={Result}",
-                    result);
+                logger.LogUnableToAdviseLinuxToRelease(result);
             }
         }
         catch (Exception ex)
         {
-            logger.LogDebug(ex, "Unable to advise Linux to release file cache.");
+            logger.LogUnableToAdviseLinuxToRelease2(ex);
         }
         finally
         {

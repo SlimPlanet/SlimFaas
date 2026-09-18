@@ -3,6 +3,7 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 
+using System.Globalization;
 namespace SlimFaas.Kubernetes;
 
 public partial class KubernetesService
@@ -128,8 +129,8 @@ public partial class KubernetesService
                             {
                                 { SlimfaasJobName, jobFullName },
                                 { SlimfaasJobElementId, elementId },
-                                { SlimfaasInQueueTimestamp, inQueueTimestamp.ToString() },
-                                { SlimfaasJobStartTimestamp, DateTime.UtcNow.Ticks.ToString() }
+                                { SlimfaasInQueueTimestamp, inQueueTimestamp.ToString(CultureInfo.InvariantCulture) },
+                                { SlimfaasJobStartTimestamp, DateTime.UtcNow.Ticks.ToString(CultureInfo.InvariantCulture) }
                             }
                         },
                     Spec = new V1PodSpec
@@ -157,10 +158,10 @@ public partial class KubernetesService
 
         V1Job? jobResponse = await client.CreateNamespacedJobAsync(job, kubeNamespace);
 
-        _logger.LogInformation("Job created with name: {JobName}", jobResponse.Metadata.Name);
+        _logger.LogJobCreatedWithName(jobResponse.Metadata.Name);
     }
 
-    public async Task<IList<Job>> ListJobsAsync(string kubeNamespace)
+    public async Task<IList<Job>> ListJobsAsync(string ns)
     {
         List<Job> jobStatus = new();
         k8s.Kubernetes client = _client;
@@ -168,9 +169,9 @@ public partial class KubernetesService
         // Un seul LIST des pods portant le label slimfaas-job-name (sélecteur « le label
         // existe »), en parallèle du LIST des jobs, au lieu d'un LIST de pods par job
         // (pattern N+1). Les pods sont ensuite regroupés par valeur du label.
-        Task<V1JobList> jobListTask = client.ListNamespacedJobAsync(kubeNamespace);
+        Task<V1JobList> jobListTask = client.ListNamespacedJobAsync(ns);
         Task<V1PodList> jobPodListTask = client.ListNamespacedPodAsync(
-            kubeNamespace,
+            ns,
             labelSelector: SlimfaasJobName);
         await Task.WhenAll(jobListTask, jobPodListTask);
         V1JobList? jobList = await jobListTask;

@@ -24,8 +24,6 @@
     into EditorConfigFiles statically by Microsoft.Managed.Core.targets, which is imported before this file.
   -->
   <ItemGroup>
-    <!-- Temporary: rules still being remediated (see the file header and issue #358). -->
-    <EditorConfigFiles Include="$(MSBuildThisFileDirectory)eng\remediation.globalconfig" />
     <!-- Test projects get a relaxed profile (naming, culture, disposables, ...). -->
     <EditorConfigFiles Include="$(MSBuildThisFileDirectory)eng\tests.globalconfig" Condition="'$(IsTestProject)' == 'true'" />
   </ItemGroup>
