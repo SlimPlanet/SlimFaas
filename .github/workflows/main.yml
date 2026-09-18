@@ -111,7 +111,7 @@ jobs:
           dotnet test --collect "Code Coverage;Format=cobertura" --verbosity normal
 
       - name: ReportGenerator
-        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.5.11
         with:
           reports: './**/TestResults/**/*.cobertura.xml'
           targetdir: 'coveragereport'
@@ -176,14 +176,14 @@ jobs:
       - name: Bump version and push tag
         id: tag_release
         if: steps.which_tag.outputs.tag == 'release'
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GIT_TOKEN  }}
 
       - name: Bump version and push tag
         id: tag_version
         if: steps.which_tag.outputs.tag != 'release'
-        uses: mathieudutour/github-tag-action@v6.0
+        uses: mathieudutour/github-tag-action@v6.2
         with:
           github_token: ${{ secrets.GIT_TOKEN  }}
           dry_run: true
