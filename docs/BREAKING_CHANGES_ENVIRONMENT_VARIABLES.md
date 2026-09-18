@@ -248,6 +248,8 @@ data:
 | Property | Type | Default | Description |
 |-----------|------|--------|-------------|
 | `AllowUnsecureSsl` | `bool` | `false` | Allow unsecure SSL connections |
+| `KubernetesSkipTlsVerify` | `bool` | `false` | Skip TLS verification of the Kubernetes API server certificate (unsafe; logs a warning at startup) |
+| `TrustedProxies` | `string[]` | `[]` | Reverse proxies (IPs or proxy-only CIDR networks, never the pod CIDR) allowed to set `X-Forwarded-For`; empty means the header is ignored |
 | `JobsConfiguration` | `string?` | `null` | Jobs configuration in JSON format |
 | `CorsAllowOrigin` | `string` | `"*"` | Allowed CORS origins |
 | `BaseSlimDataUrl` | `string` | `"http://{pod_name}.{service_name}.{namespace}.svc:3262"` | Base URL for SlimData |
