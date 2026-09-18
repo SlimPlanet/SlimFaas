@@ -5,7 +5,7 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct ListRightPopCommand : ICommand<ListRightPopCommand>
+public record struct ListRightPopCommand : ICommand<ListRightPopCommand>
 {
     public const int Id = 19;
     static int ICommand<ListRightPopCommand>.Id => Id;
@@ -62,7 +62,7 @@ public struct ListRightPopCommand : ICommand<ListRightPopCommand>
         }
     }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
     public static async ValueTask<ListRightPopCommand> ReadFromAsync<TReader>(TReader reader, CancellationToken token)
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader

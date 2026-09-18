@@ -48,7 +48,7 @@ public static class MetricsExtensions
 
         raw = raw.Trim();
 
-        return raw.StartsWith("/", StringComparison.Ordinal)
+        return raw.StartsWith('/')
             ? raw
             : "/" + raw;
     }
@@ -88,7 +88,7 @@ public static class MetricsExtensions
         return new List<string> { $"{scheme}://{pod.Ip}:{port}{path}" };
     }
 
-    private static IList<string> GetMetricsTargetsForPods(IEnumerable<PodInformation> pods)
+    private static List<string> GetMetricsTargetsForPods(IEnumerable<PodInformation> pods)
         => pods
             .SelectMany(p => p.GetMetricsTargets())
             .Where(u => !string.IsNullOrWhiteSpace(u))

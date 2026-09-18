@@ -3,7 +3,7 @@ using DotNext.Net.Cluster.Consensus.Raft.Http;
 
 namespace SlimData;
 
-public class Starter
+public static class Starter
 {
     private static IServiceProvider ServiceProvider { get; set; } = null!;
 

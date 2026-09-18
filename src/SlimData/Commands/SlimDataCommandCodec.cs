@@ -29,6 +29,7 @@ internal enum SlimDataCommandViolation
     UnknownCommand
 }
 
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1032:Implement standard exception constructors", Justification = "Always raised with the violation it describes.")]
 internal sealed class SlimDataCommandFormatException(
     SlimDataCommandViolation violation,
     string message,

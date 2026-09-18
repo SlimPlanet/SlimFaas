@@ -10,6 +10,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
 using SlimFaas.Options;
+using SlimFaas.Security;
 using SlimFaas;
 
 namespace SlimFaas.Endpoints;
@@ -201,7 +202,7 @@ public static class FunctionEndpointsHelpers
             return string.Empty;
         }
 
-        int closingBracket = candidate.IndexOf(']');
+        int closingBracket = candidate.IndexOf(']', StringComparison.Ordinal);
         if (candidate[0] == '['
             && closingBracket > 0)
         {
@@ -240,7 +241,7 @@ public static class FunctionEndpointsHelpers
             {
                 return pathStartWith.Visibility;
             }
-            logger.LogWarning("PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:", pathStartWith);
+            logger.LogPathStartWithVisibilityShouldBePrefixedByPublic(pathStartWith);
         }
         return function.Visibility;
     }
@@ -254,64 +255,43 @@ public static class FunctionEndpointsHelpers
         return functionPath;
     }
 
+    /// <summary>
+    /// Peer and namespace-internal checks use the address of the TCP connection only.
+    /// <c>X-Forwarded-For</c> is never read here; it is honoured, one hop deep, by the
+    /// forwarded-headers middleware for the proxies declared in <c>SlimFaas:TrustedProxies</c>.
+    /// </summary>
     public static bool MessageComeFromNamespaceInternal(
         ILogger logger,
         HttpContext context,
         IReplicasService replicasService,
         IJobService jobService)
     {
-        List<string> podIps = replicasService.Deployments.Functions
+        IPAddress? remote = context.Connection.RemoteIpAddress;
+        string remoteIp = remote?.ToString() ?? "";
+
+        IEnumerable<string?> podIps = replicasService.Deployments.Functions
             .Where(f => f.Trust == FunctionTrust.Trusted)
             .SelectMany(p => p.Pods)
             .Select(p => p.Ip)
-            .ToList();
-
-        podIps.AddRange(replicasService.Deployments.SlimFaas.Pods.Select(p => p.Ip));
-
-        podIps.AddRange(jobService.Jobs.SelectMany(job => job.Ips));
-
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
-        var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-
-        logger.LogDebug("ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
+            .Concat(replicasService.Deployments.SlimFaas.Pods.Select(p => p.Ip))
+            .Concat(jobService.Jobs.SelectMany(job => job.Ips));
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            foreach (var podIp in podIps)
+            logger.LogRemoteIp(remoteIp);
+            foreach (string? podIp in podIps)
             {
-                logger.LogDebug("PodIp: {PodIp}", podIp);
+                logger.LogPodIp(podIp ?? "");
             }
         }
 
-        if (IsInternalIp(forwardedFor, podIps) || IsInternalIp(remoteIp, podIps))
+        if (RemoteAddress.IsAnyOf(remote, podIps))
         {
-            logger.LogDebug("Request come from internal namespace ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
+            logger.LogRequestComeFromInternalNamespace(remoteIp);
             return true;
         }
 
-        logger.LogDebug("Request come from external namespace ForwardedFor: {ForwardedFor}, RemoteIp: {RemoteIp}", forwardedFor, remoteIp);
-        return false;
-    }
-
-    private static bool IsInternalIp(string? ipAddress, IList<string> podIps)
-    {
-        if (string.IsNullOrEmpty(ipAddress))
-        {
-            return false;
-        }
-
-        foreach (string podIp in podIps)
-        {
-            if (string.IsNullOrEmpty(podIp))
-            {
-                continue;
-            }
-            if (ipAddress.Contains(podIp))
-            {
-                return true;
-            }
-        }
-
+        logger.LogRequestComeFromExternalNamespace(remoteIp);
         return false;
     }
 
@@ -377,15 +357,13 @@ public static class FunctionEndpointsHelpers
             else
             {
                 shouldOffload = true;
+#pragma warning disable CA2000 // returned to the caller, which disposes the offloaded content
                 offloadContent = new PrefixedReadStream(bodyProbe, contextRequest.Body);
+#pragma warning restore CA2000
             }
         }
 
-        logger.LogDebug(
-            "Request body offload check. ShouldOffload={ShouldOffload} ContentLength={ContentLength} Threshold={Threshold}",
-            shouldOffload,
-            contextRequest.ContentLength,
-            bodyOffloadThresholdBytes);
+        logger.LogRequestBodyOffloadCheckShouldOffloadContentLength(shouldOffload, contextRequest.ContentLength, bodyOffloadThresholdBytes);
         if (shouldOffload)
         {
             offloadedFileId = DataFileKeys.CreateInternalOffloadId();
@@ -417,10 +395,7 @@ public static class FunctionEndpointsHelpers
 
             var metaKey = DataFileKeys.MetaKey(offloadedFileId);
             if(logger.IsEnabled(LogLevel.Debug)) {
-                logger.LogDebug(
-                    "Offloading request metadata. MetaKey={MetaKey} Tags={Tags}",
-                    metaKey,
-                    string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
+                logger.LogOffloadingRequestMetadataMetaKeyTags(metaKey, string.Join(", ", tags.Select(tag => $"{tag.Key}={tag.Value}")));
             }
             var metaBytes = MemoryPackSerializer.Serialize(meta);
             await db!.SetQueueMetadataAsync(metaKey, metaBytes);

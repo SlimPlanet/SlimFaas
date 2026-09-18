@@ -12,7 +12,7 @@ This document provides essential guidelines for AI agents (like GitHub Copilot) 
 - `samples/`: demo and non-regression workloads used by the docs, the Docker Compose tours, the local demos and the CI images — `Fibonacci`, `FibonacciBatch`, `FibonacciKafkaListener`, `FibonacciKafkaProducer`, `FibonacciReact`, `CalculatorApi`, `GmailMailerApi`, `ConsoleApp1`.
 - `benchmarks/`: `SlimFaasBenchmark` (the HTTP load and comparison runner used by `.bin/slimfaas-local-*.sh` and the perf-regression tests) and `SlimFaas.Benchmarks` (BenchmarkDotNet micro-benchmarks).
 - `tests/`, `tools/`, `client/`, `docs/`, `demo/`: test projects, developer tools, client SDKs, documentation and Compose demos.
-- Every .NET Docker image is built with the repository root as build context (`docker build -f <path>/Dockerfile .`), so `Directory.Build.props`, `.editorconfig` and `eng/` apply inside the image build exactly as on a developer machine.
+- Every .NET Docker image is built with the repository root as build context (`docker build -f <path>/Dockerfile .`), so `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig` and `eng/` apply inside the image build exactly as on a developer machine.
 
 ## 📦 Core Technologies
 
@@ -63,18 +63,21 @@ The native .NET services below have `<PublishAot>true</PublishAot>` in their `.c
 - `TreatWarningsAsErrors=true` and `CodeAnalysisTreatWarningsAsErrors=true`: any compiler, NuGet restore, analyzer or trim/AOT warning fails the build.
 - `AnalysisLevel=latest-all` and `EnforceCodeStyleInBuild=true`: every .NET code-quality rule of the current SDK plus the `.editorconfig` code-style rules run at build time.
 - `Directory.Build.targets` turns on `IsAotCompatible` and the trim/AOT/single-file analyzers for every project that publishes with `PublishAot` or `PublishTrimmed`, so IL2xxx/IL3xxx diagnostics show up at `dotnet build`, not only at publish.
+- `Directory.Packages.props` holds every NuGet version (Central Package Management, `ManagePackageVersionsCentrally=true`). A csproj declares `<PackageReference Include="X" />` with no `Version` attribute; restore fails on a version left in a csproj (NU1008) or on a package with no central entry (NU1010). `CentralPackageTransitivePinningEnabled=true` lets a vulnerable transitive package be pinned from the central file without adding a direct reference.
+- `NuGetAuditMode=all` with `NuGetAuditLevel=low`: restore audits direct and transitive packages against the NuGet vulnerability database and any hit (NU1901-NU1904) is an error. Fix it by bumping the package in `Directory.Packages.props`, or by adding a `PackageVersion` entry for the transitive package that pins a patched version.
 
-Three files decide which rules apply:
+Two files decide which rules apply:
 
 - `.editorconfig` (root): the repository-wide policy. Every rule set to `none` there is a deliberate decision with a one-line reason. Add a rule there only with a justification.
 - `eng/tests.globalconfig`: extra rules switched off for test projects only (`IsTestProject=true`).
-- `eng/remediation.globalconfig`: **temporary**. Rules that still have occurrences in the code base while [issue #358](https://github.com/SlimPlanet/SlimFaas/issues/358) is being worked through. Never add a rule to this file; a remediation PR fixes the occurrences of a rule and deletes its line.
 
 Rules for new or modified code:
 
-- New code must be clean under every rule, including those still listed in `eng/remediation.globalconfig`.
+- New code must be clean under every rule.
 - Do not use a project-wide `<NoWarn>`. A justified exception is scoped: `#pragma warning disable XXXX // reason` around the smallest block, `[SuppressMessage("...", "XXXX", Justification = "...")]` on the member, or a `.editorconfig` section for a folder.
-- Per-project csproj files keep only what is specific to them (target framework, output type, packages, AOT switches). `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors` and the analyzer settings are inherited and must not be redeclared.
+- Per-project csproj files keep only what is specific to them (target framework, output type, package references, AOT switches). `Nullable`, `ImplicitUsings`, `LangVersion`, `TreatWarningsAsErrors` and the analyzer settings are inherited and must not be redeclared.
+- Adding a NuGet package means one `<PackageVersion Include="X" Version="..." />` line in the matching group of `Directory.Packages.props` plus `<PackageReference Include="X" />` in the csproj. Never write a `Version` attribute on a `PackageReference`, and never use `VersionOverride`; every project shares one version of a package. Dependabot updates `Directory.Packages.props` only.
+- Logging goes through `[LoggerMessage]` source-generated methods (CA1848). Each `Foo.cs` that logs has a `Foo.Log.cs` companion declaring `internal static partial class FooLog` with one extension method per message; add new messages there instead of calling `LogInformation("...", args)` directly, and wrap calls whose arguments are expensive to compute in `if (logger.IsEnabled(LogLevel.X))` (CA1873).
 
 ### Web UI styling: BEM is required
 

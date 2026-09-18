@@ -1,4 +1,4 @@
-﻿﻿using System.Net;
+﻿using System.Net;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
@@ -39,7 +39,7 @@ public class SlimFaasPorts : ISlimFaasPorts
         var ports = currentPod?.Ports;
         if (currentPod is null || ports is null)
         {
-            logger.LogWarning("SlimFaas no ports found");
+            logger.LogSlimFaasNoPortsFound();
             return [];
         }
 
@@ -53,7 +53,7 @@ public class SlimFaasPorts : ISlimFaasPorts
         var result = ports.Where(port => port != slimDataUri.Port).Distinct().ToArray();
         foreach (int port in result)
         {
-            logger.LogInformation("SlimFaasPorts: {Port}", port);
+            logger.LogSlimFaasPorts(port);
         }
 
         return result;

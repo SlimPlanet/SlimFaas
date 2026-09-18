@@ -115,9 +115,7 @@ public static class DataFileRoutes
             if (contentLength is null || contentLength < 0)
             {
                 context.RequestServices.GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("Upload")
-                    .LogWarning("Missing/invalid Content-Length for /data/files. Using default={DefaultBytes} bytes for limiter. Id={Id}",
-                        unknownLengthReservation, elementId);
+                    .CreateLogger("Upload").LogMissingInvalidContentLengthForData(unknownLengthReservation, elementId);
             }
 
             Stream contentStream = context.Request.Body;
@@ -207,8 +205,7 @@ public static class DataFileRoutes
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                loggerFactory.CreateLogger("DataFiles")
-                    .LogWarning(ex, "Unable to delete local file after metadata deletion. Id={Id}", elementId);
+                loggerFactory.CreateLogger("DataFiles").LogUnableToDeleteLocalFileAfter(ex, elementId);
             }
             return Results.NoContent();
         }

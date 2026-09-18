@@ -1,4 +1,4 @@
-﻿using SlimFaas.Kubernetes;
+using SlimFaas.Kubernetes;
 using NodaTime;
 using NodaTime.TimeZones;
 using Microsoft.Extensions.Options;
@@ -102,8 +102,7 @@ public class ReplicasService(
             var context = CaptureContext(currentDeployments, deploymentInformation, nowUtc,
                 ticksLastCall, maximumTicks, dependencyDemand, _isTurnOnByDefault);
             if (logger.IsEnabled(LogLevel.Debug))
-                logger.LogDebug("Time left without request for scale down {Deployment} is {TimeLeft}",
-                    deploymentInformation.Deployment, TimeSpan.FromTicks(context.EffectiveActivityTicks)
+                logger.LogTimeLeftWithoutRequestForScale(deploymentInformation.Deployment, TimeSpan.FromTicks(context.EffectiveActivityTicks)
                         + TimeSpan.FromSeconds(context.TimeoutSeconds) - TimeSpan.FromTicks(nowUtc.Ticks));
             int currentScale = deploymentInformation.Replicas;
             evaluations.TryGetValue(deploymentInformation.Deployment, out var evaluation);
@@ -115,8 +114,7 @@ public class ReplicasService(
             if (decision.Reasons.Any(r => r.Code == "InfrastructureBlocked"))
             {
                 var failure = HasInfrastructurePodFailure(deploymentInformation);
-                logger.LogWarning("Skip scale-up for {Deployment} because a pod is blocked by Infrastructure Error: {PodFailureReason}: {PodFailureMessage}",
-                    deploymentInformation.Deployment, failure?.Reason, failure?.Message);
+                logger.LogSkipScaleUpForBecausePod(deploymentInformation.Deployment, failure?.Reason, failure?.Message);
             }
             int desiredReplicas = decision.Target;
             diagnostics?.Record(decision, deploymentInformation.Scale, diagnosticSession);
@@ -126,8 +124,7 @@ public class ReplicasService(
                 continue;
             }
 
-            logger.LogInformation("Scale {Deployment} from {CurrentScale} to {DesiredReplicas}",
-                deploymentInformation.Deployment, currentScale, desiredReplicas);
+            logger.LogScaleFromTo(deploymentInformation.Deployment, currentScale, desiredReplicas);
 
             // An increase the metric policies did not produce (wake-up to ReplicasAtStart on
             // HTTP, schedule or dependency activity, external wake-up beyond the metric

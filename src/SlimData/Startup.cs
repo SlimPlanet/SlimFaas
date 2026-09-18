@@ -14,7 +14,7 @@ namespace SlimData;
 
 public class Startup(IConfiguration configuration)
 {
-    private static readonly IList<string> ClusterMembers = new List<string>(2);
+    private static readonly List<string> ClusterMembers = new(2);
     private static Uri? LocalEndpoint;
     internal const string MembershipAnnounceResource = "/SlimData/members/announce";
     internal const string ProtocolResource = "/SlimData/protocol";

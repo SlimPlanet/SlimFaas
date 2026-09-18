@@ -248,7 +248,7 @@ public sealed class LocalProcessManager : IAsyncDisposable
             ScheduleRetry(runtime);
     }
 
-    private void ScheduleRetry(ProcessRuntime runtime)
+    private static void ScheduleRetry(ProcessRuntime runtime)
     {
         int failures = ++runtime.ConsecutiveFailures;
         runtime.NextStart = DateTimeOffset.UtcNow + RetryDelay(failures);

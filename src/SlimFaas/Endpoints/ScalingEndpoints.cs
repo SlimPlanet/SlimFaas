@@ -103,7 +103,7 @@ public static class ScalingEndpoints
             while ((count = await context.Request.Body.ReadAsync(chunk, context.RequestAborted)) > 0)
             {
                 if (body.Length + count > 64 * 1024) { await Error(context, 413, "Simulation requests are limited to 64 KiB."); return; }
-                body.Write(chunk, 0, count);
+                await body.WriteAsync(chunk.AsMemory(0, count), context.RequestAborted);
             }
             var request = JsonSerializer.Deserialize(body.GetBuffer().AsSpan(0, (int)body.Length), ScalingJsonContext.Default.ScalingSimulationRequest);
             if (request is null || !ValidFunction(request.Function)) { await Error(context, 400, "A configured function is required."); return; }

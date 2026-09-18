@@ -63,8 +63,10 @@ public static class OpenTelemetryExtensions
                 }
             })
             .AddHttpClientInstrumentation()
+#pragma warning disable CA2000 // the tracer provider owns and disposes its processors
             .AddProcessor(new OpenTelemetryGlobalRouteRewriteProcessor())
             .SetResourceBuilder(resourceBuilder);
+#pragma warning restore CA2000
 
         if (!string.IsNullOrWhiteSpace(config.ServiceName))
         {

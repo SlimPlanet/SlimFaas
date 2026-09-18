@@ -12,6 +12,8 @@ namespace SlimFaasClient.Tests;
 
 internal static class TestHelpers
 {
+    private static readonly JsonSerializerOptions s_camelCaseOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
     public static SlimFaasClientConfig MakeConfig(
         string functionName = "test-job",
         List<SubscribeEventConfig>? subscribeEvents = null)
@@ -32,7 +34,7 @@ internal static class TestHelpers
             CorrelationId = correlationId,
             Payload = payload != null
                 ? JsonSerializer.SerializeToElement(payload,
-                    new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })
+                    s_camelCaseOptions)
                 : null,
         };
         return JsonSerializer.Serialize(env, SlimFaasClientJsonContext.Default.SlimFaasEnvelope);

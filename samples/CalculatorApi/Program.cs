@@ -33,7 +33,7 @@ builder.Services.AddSwaggerGen(options =>
     }
 
     // Optional: nicer schema ids for records
-    options.CustomSchemaIds(t => t.FullName!.Replace("+", "."));
+    options.CustomSchemaIds(t => t.FullName!.Replace("+", ".", StringComparison.Ordinal));
 });
 
 var app = builder.Build();

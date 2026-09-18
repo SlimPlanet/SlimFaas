@@ -6,6 +6,6 @@ public class CorsSettings
     public string[]? Methods { get; set; }      // ex: ["*"] ou ["GET","POST","OPTIONS"]
     public string[]? Headers { get; set; }      // ex: ["*"] ou ["Authorization","Content-Type"]
     public string[]? Expose  { get; set; }      // ex: ["WWW-Authenticate"]
-    public bool Credentials { get; set; } = false;
+    public bool Credentials { get; set; }
     public int? MaxAgeMinutes { get; set; } = 60;
 }

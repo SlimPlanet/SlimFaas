@@ -305,7 +305,7 @@ When a WebSocket disconnects:
 - pending sync streams are cancelled.
 - if it was the last connection for the function, the virtual function disappears from SlimFaas status.
 
-Both official clients reconnect automatically.
+Both official clients reconnect automatically. The .NET client reconnects immediately after a clean close and waits `ReconnectDelay` after an error; its `RunForeverAsync` loop returns as soon as the caller's `CancellationToken` is cancelled, including during that delay.
 
 ---
 
