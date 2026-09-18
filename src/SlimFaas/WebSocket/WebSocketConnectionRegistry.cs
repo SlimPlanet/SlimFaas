@@ -29,7 +29,7 @@ public class PendingSyncStream
 /// Représente une connexion WebSocket d'un client (job ou fonction virtuelle).
 /// Conceptuellement équivalent à un "pod" avec une IP.
 /// </summary>
-public class WebSocketClientConnection
+public sealed class WebSocketClientConnection : IDisposable
 {
     public string ConnectionId { get; } = Guid.NewGuid().ToString("N");
     public string FunctionName { get; set; } = string.Empty;
@@ -49,6 +49,12 @@ public class WebSocketClientConnection
     public bool IsAlive => Socket.State == WebSocketState.Open;
 
     private readonly SemaphoreSlim _sendLock = new(1, 1);
+
+    public void Dispose()
+    {
+        _sendLock.Dispose();
+        GC.SuppressFinalize(this);
+    }
 
     public async Task SendAsync(WebSocketEnvelope envelope, CancellationToken ct)
     {
@@ -100,7 +106,7 @@ public class WebSocketConnectionRegistry
     private readonly ConcurrentDictionary<string, WebSocketFunctionConfiguration> _registeredConfigurations = new();
 
     private readonly ILogger<WebSocketConnectionRegistry> _logger;
-    private int _connectionCounter = 0;
+    private int _connectionCounter;
 
     public WebSocketConnectionRegistry(ILogger<WebSocketConnectionRegistry> logger)
     {
@@ -147,9 +153,7 @@ public class WebSocketConnectionRegistry
         bag.Add(connection);
         Interlocked.Increment(ref _connectionCounter);
 
-        _logger.LogInformation(
-            "WebSocket client registered: connectionId={ConnectionId}, functionName={FunctionName}",
-            connection.ConnectionId, name);
+        _logger.LogWebSocketClientRegisteredConnectionIdFunctionName(connection.ConnectionId, name);
 
         return (true, null);
     }
@@ -176,9 +180,7 @@ public class WebSocketConnectionRegistry
 
         Interlocked.Decrement(ref _connectionCounter);
 
-        _logger.LogInformation(
-            "WebSocket client unregistered: connectionId={ConnectionId}, functionName={FunctionName}",
-            connection.ConnectionId, connection.FunctionName);
+        _logger.LogWebSocketClientUnregisteredConnectionIdFunctionName(connection.ConnectionId, connection.FunctionName);
     }
 
     /// <summary>

@@ -38,7 +38,7 @@ client.OnSyncRequest = async req =>
 {
     var body = Encoding.UTF8.GetBytes("""{"status":"ok"}""");
     await req.Response.StartAsync(200, new() { ["Content-Type"] = ["application/json"] });
-    await req.Response.WriteAsync(body, 0, body.Length);
+    await req.Response.WriteAsync(body);
     await req.Response.CompleteAsync();
 };
 

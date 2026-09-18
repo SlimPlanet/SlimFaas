@@ -13,7 +13,7 @@ public sealed class SlimDataQueueCommandTests
 {
     private const string Key = "queue";
     private static readonly long Now = new DateTime(2026, 9, 10, 12, 0, 0, DateTimeKind.Utc).Ticks;
-    private static readonly long Second = TimeSpan.TicksPerSecond;
+    private const long Second = TimeSpan.TicksPerSecond;
 
     // ---------------------------------------------------------------- ListRightPop
 

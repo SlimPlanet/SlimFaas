@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SlimFaas.Database;
 using SlimFaas.Jobs;
@@ -11,7 +11,7 @@ public interface IStatusStreamSnapshotCache
     Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct);
 }
 
-public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
+public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDisposable
 {
     private static readonly CountType[] QueueCountTypes =
     [
@@ -34,6 +34,13 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private readonly SemaphoreSlim _queuesLock = new(1, 1);
     private readonly SemaphoreSlim _jobsLock = new(1, 1);
+
+    public void Dispose()
+    {
+        _stateLock.Dispose();
+        _queuesLock.Dispose();
+        _jobsLock.Dispose();
+    }
 
     private string? _cachedStateFrameWithoutRecentActivity;
     private DateTimeOffset _stateExpiresAt;
@@ -168,7 +175,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
-                    _logger.LogWarning(ex, "Unable to read queue length for function {FunctionName}.", fn.Name);
+                    _logger.LogUnableToReadQueueLengthFor(ex, fn.Name);
                     queues.Add(new QueueInfo(fn.Name, 0));
                 }
             }
@@ -218,7 +225,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogWarning(ex, "Unable to build jobs snapshot for status stream.");
+                _logger.LogUnableToBuildJobsSnapshotFor(ex);
                 _cachedJobs = Array.Empty<JobConfigurationStatus>();
             }
 

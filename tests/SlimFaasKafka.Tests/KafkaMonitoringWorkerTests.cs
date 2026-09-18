@@ -199,4 +199,92 @@ public class KafkaMonitoringWorkerTests
             c => c.WakeAsync("func1", It.IsAny<CancellationToken>()),
             Times.Once);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_WithoutBindings_LogsStartSkipAndStop()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<KafkaMonitoringWorker>>();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+
+        var kafkaOptionsMonitor = new Mock<IOptionsMonitor<KafkaOptions>>();
+        kafkaOptionsMonitor.Setup(x => x.CurrentValue).Returns(CreateKafkaOptions());
+
+        var bindingsOptionsMonitor = new Mock<IOptionsMonitor<BindingsOptions>>();
+        bindingsOptionsMonitor.Setup(x => x.CurrentValue).Returns(new BindingsOptions());
+
+        var worker = new KafkaMonitoringWorker(
+            loggerMock.Object,
+            kafkaOptionsMonitor.Object,
+            bindingsOptionsMonitor.Object,
+            new Mock<ISlimFaasClient>().Object,
+            new Mock<IKafkaLagProvider>().Object);
+
+        // Act
+        await worker.StartAsync(CancellationToken.None);
+        await Task.Delay(200);
+        await worker.StopAsync(CancellationToken.None);
+
+        // Assert
+        VerifyLogged(loggerMock, LogLevel.Information, "KafkaMonitoringWorker started");
+        VerifyLogged(loggerMock, LogLevel.Debug, "No bindings configured");
+        VerifyLogged(loggerMock, LogLevel.Information, "KafkaMonitoringWorker stopped");
+    }
+
+    [Fact]
+    public async Task CheckBindingsAsync_LogsAndContinues_WhenTheLagProviderThrows()
+    {
+        // Arrange
+        var loggerMock = new Mock<ILogger<KafkaMonitoringWorker>>();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
+
+        var binding = new TopicBinding
+        {
+            Topic = "fibo-public",
+            ConsumerGroupId = "group1",
+            FunctionName = "func1",
+            MinPendingMessages = 10,
+            CooldownSeconds = 30,
+            ActivityKeepAliveSeconds = 0,
+            MinConsumedDeltaForActivity = 1
+        };
+        var kafkaOptions = CreateKafkaOptions();
+        var bindingsOptions = CreateBindingsOptions(binding);
+
+        var kafkaOptionsMonitor = new Mock<IOptionsMonitor<KafkaOptions>>();
+        kafkaOptionsMonitor.Setup(x => x.CurrentValue).Returns(kafkaOptions);
+        var bindingsOptionsMonitor = new Mock<IOptionsMonitor<BindingsOptions>>();
+        bindingsOptionsMonitor.Setup(x => x.CurrentValue).Returns(bindingsOptions);
+        var slimFaasClientMock = new Mock<ISlimFaasClient>();
+        var lagProviderMock = new Mock<IKafkaLagProvider>();
+        lagProviderMock
+            .Setup(p => p.GetLagAsync(It.IsAny<TopicBinding>(), It.IsAny<KafkaOptions>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("broker unavailable"));
+
+        var worker = new KafkaMonitoringWorker(
+            loggerMock.Object,
+            kafkaOptionsMonitor.Object,
+            bindingsOptionsMonitor.Object,
+            slimFaasClientMock.Object,
+            lagProviderMock.Object);
+
+        // Act
+        await InvokeCheckBindingsAsync(worker, kafkaOptions, bindingsOptions);
+
+        // Assert
+        VerifyLogged(loggerMock, LogLevel.Error, "Unexpected error while checking binding");
+        slimFaasClientMock.Verify(c => c.WakeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static void VerifyLogged(Mock<ILogger<KafkaMonitoringWorker>> loggerMock, LogLevel level, string fragment)
+    {
+        loggerMock.Verify(
+            l => l.Log(
+                level,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains(fragment, StringComparison.Ordinal)),
+                It.IsAny<Exception?>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.AtLeastOnce);
+    }
 }

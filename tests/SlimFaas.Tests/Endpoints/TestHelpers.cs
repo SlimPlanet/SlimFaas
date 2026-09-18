@@ -1,4 +1,5 @@
 using System.Net;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using SlimData;
 using SlimFaas.Database;
@@ -6,6 +7,28 @@ using SlimFaas.Kubernetes;
 using SlimFaas.WebSocket;
 
 namespace SlimFaas.Tests.Endpoints;
+
+/// <summary>
+/// The test server has no TCP connection, so <c>RemoteIpAddress</c> is null. Tests that
+/// need a caller address send <see cref="HeaderName"/> and register this middleware
+/// first in the pipeline; it sets the connection address exactly like Kestrel would.
+/// </summary>
+internal static class TestRemoteIp
+{
+    public const string HeaderName = "X-Test-Remote-Ip";
+
+    public static void Use(IApplicationBuilder app)
+        => app.Use((context, next) =>
+        {
+            string? remoteIp = context.Request.Headers[HeaderName].FirstOrDefault();
+            if (!string.IsNullOrEmpty(remoteIp))
+            {
+                context.Connection.RemoteIpAddress = IPAddress.Parse(remoteIp);
+            }
+
+            return next(context);
+        });
+}
 
 internal class MemoryReplicasService : IReplicasService
 {
@@ -130,12 +153,12 @@ internal class WebSocketSendClientMock : IWebSocketSendClient
         Task.FromResult(200);
 
     public Task PublishEventAsync(string functionName, CustomRequest customRequest,
-        string eventName, CancellationToken ct = default, string? activitySourcePod = null, string? activityCorrelationId = null) =>
+        string eventName, string? activitySourcePod = null, string? activityCorrelationId = null, CancellationToken ct = default) =>
         Task.CompletedTask;
 
     public Task<(int StatusCode, Dictionary<string, string[]> Headers, System.Threading.Channels.ChannelReader<byte[]> BodyChunks, Func<Task> WaitForEnd)>
         SendSyncRequestStreamAsync(string functionName, string method, string path, string query,
-            Dictionary<string, string[]> headers, Stream? requestBodyStream, CancellationToken ct = default, string? activitySourcePod = null, string? activityCorrelationId = null)
+            Dictionary<string, string[]> headers, Stream? requestBodyStream, string? activitySourcePod = null, string? activityCorrelationId = null, CancellationToken ct = default)
     {
         var channel = System.Threading.Channels.Channel.CreateUnbounded<byte[]>();
         channel.Writer.TryComplete();

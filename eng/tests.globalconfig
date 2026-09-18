@@ -26,3 +26,14 @@ dotnet_diagnostic.CA1822.severity = none
 # Micro-optimisations are irrelevant in tests.
 dotnet_diagnostic.CA1859.severity = none
 dotnet_diagnostic.CA1852.severity = none
+# Blocking calls inside async test methods have no throughput impact.
+dotnet_diagnostic.CA1849.severity = none
+# Fixtures own disposables for the duration of a test; the runner tears them down.
+dotnet_diagnostic.CA1001.severity = none
+# xUnit classes are shaped by the runner (static-only helper classes, fixtures).
+dotnet_diagnostic.CA1052.severity = none
+# Tests read streams to assert exceptions and side effects, not byte counts.
+dotnet_diagnostic.CA2022.severity = none
+# Tests log through mocks and test loggers; LoggerMessage delegates and argument guards bring nothing there.
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none

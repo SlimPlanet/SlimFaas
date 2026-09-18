@@ -1,5 +1,6 @@
 ﻿using System.Text.Json.Nodes;
 
+using System.Globalization;
 namespace SlimFaasMcp.Models;
 
 public class McpTool
@@ -22,12 +23,12 @@ public class McpTool
     private static bool IsBinaryArraySchema(object? schemaObj)
     {
         if (schemaObj is not Dictionary<string, object> dict) return false;
-        if (!dict.TryGetValue("type", out var t0) || !string.Equals(Convert.ToString(t0), "array", StringComparison.OrdinalIgnoreCase))
+        if (!dict.TryGetValue("type", out var t0) || !string.Equals(Convert.ToString(t0, CultureInfo.InvariantCulture), "array", StringComparison.OrdinalIgnoreCase))
             return false;
 
         if (!dict.TryGetValue("items", out var items) || items is not Dictionary<string, object> idict) return false;
-        var itemType  = idict.TryGetValue("type", out var it) ? Convert.ToString(it) : null;
-        var itemFmt   = idict.TryGetValue("format", out var f) ? Convert.ToString(f) : null;
+        var itemType  = idict.TryGetValue("type", out var it) ? Convert.ToString(it, CultureInfo.InvariantCulture) : null;
+        var itemFmt   = idict.TryGetValue("format", out var f) ? Convert.ToString(f, CultureInfo.InvariantCulture) : null;
 
         return string.Equals(itemType, "string", StringComparison.OrdinalIgnoreCase)
                && string.Equals(itemFmt,  "binary", StringComparison.OrdinalIgnoreCase);

@@ -59,7 +59,7 @@ public sealed class DiskFileRepository : IFileRepository
                 {
                     while (true)
                     {
-                        var read = await content.ReadAsync(buffer, 0, buffer.Length, ct).ConfigureAwait(false);
+                        var read = await content.ReadAsync(buffer, ct).ConfigureAwait(false);
                         if (read <= 0) break;
 
                         hash.AppendData(buffer, 0, read);
@@ -80,7 +80,7 @@ public sealed class DiskFileRepository : IFileRepository
 
             var shaHex = ToLowerHex(hash.GetHashAndReset());
             var meta = new FileMetadata(contentType, shaHex, total, expireAtUtcTicks, tags);
-            await WriteMetadataAsync(metaPath, meta, ct, _logger).ConfigureAwait(false);
+            await WriteMetadataAsync(metaPath, meta, _logger, ct).ConfigureAwait(false);
 
             return new FilePutResult(shaHex, contentType, total);
         }
@@ -106,7 +106,7 @@ public sealed class DiskFileRepository : IFileRepository
             try { id = Base64UrlCodec.Decode(safe); }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to decode Base64 filename, skipping. path={Path}", metaPath);
+                _logger.LogFailedToDecodeBase64FilenameSkipping(ex, metaPath);
                 continue;
             }
 
@@ -117,7 +117,7 @@ public sealed class DiskFileRepository : IFileRepository
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to read metadata file, skipping. path={Path}", metaPath);
+                _logger.LogFailedToReadMetadataFileSkipping(ex, metaPath);
                 continue;
             }
 
@@ -146,8 +146,10 @@ public sealed class DiskFileRepository : IFileRepository
     public Task<Stream> OpenReadAsync(string id, CancellationToken ct)
     {
         var (filePath, _) = GetPaths(id);
+#pragma warning disable CA2000 // ownership is transferred to the returned FileCacheDroppingReadStream
         var fs = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read,
             bufferSize: 128 * 1024, options: FileOptions.Asynchronous);
+#pragma warning restore CA2000
 
         return Task.FromResult<Stream>(new FileCacheDroppingReadStream(fs, _cacheControl));
     }
@@ -189,7 +191,7 @@ public sealed class DiskFileRepository : IFileRepository
     private static void TryDelete(string path, ILogger<DiskFileRepository> logger)
     {
         try { if (File.Exists(path)) File.Delete(path); }
-        catch (Exception ex) { logger.LogWarning(ex, "Failed to delete temporary file. path={Path}", path); }
+        catch (Exception ex) { logger.LogFailedToDeleteTemporaryFilePath(ex, path); }
     }
 
     private static async Task<FileMetadata?> ReadMetadataAsync(string metaPath, CancellationToken ct)
@@ -200,7 +202,7 @@ public sealed class DiskFileRepository : IFileRepository
         return MemoryPackSerializer.Deserialize<FileMetadata>(bytes);
     }
 
-    private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, CancellationToken ct, ILogger<DiskFileRepository> logger)
+    private static async Task WriteMetadataAsync(string metaPath, FileMetadata meta, ILogger<DiskFileRepository> logger, CancellationToken ct)
     {
         var tmp = metaPath + ".tmp." + Guid.NewGuid().ToString("N");
         try
@@ -264,7 +266,7 @@ public sealed class DiskFileRepository : IFileRepository
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete orphan .tmp file. path={Path}", tmp);
+                    _logger.LogFailedToDeleteOrphanTmpFile(ex, tmp);
                 }
             }
 

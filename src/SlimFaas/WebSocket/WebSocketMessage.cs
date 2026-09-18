@@ -8,6 +8,7 @@ namespace SlimFaas.WebSocket;
 /// Valeurs 0-6 : messages JSON textuels (enveloppe).
 /// Valeurs 0x10-0x40 : frames binaires pour le streaming synchrone.
 /// </summary>
+[System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1027:Mark enums with FlagsAttribute", Justification = "Message type discriminator, not a set of flags.")]
 public enum WebSocketMessageType
 {
     /// <summary>Enregistrement du client auprès de SlimFaas.</summary>

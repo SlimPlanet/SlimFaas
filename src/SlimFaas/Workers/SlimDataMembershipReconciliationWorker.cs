@@ -28,7 +28,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        logger.LogInformation("SlimDataMembershipReconciliationWorker: Start");
+        logger.LogSlimDataMembershipReconciliationWorkerStart();
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -42,7 +42,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error in SlimDataMembershipReconciliationWorker");
+                logger.LogErrorInSlimDataMembershipReconciliationWorker(ex);
             }
         }
     }
@@ -65,14 +65,10 @@ public sealed class SlimDataMembershipReconciliationWorker(
             .FirstOrDefault();
         if (memberToAdd is not null)
         {
-            logger.LogInformation(
-                "Adding missing SlimData Raft member. Endpoint={Endpoint}",
-                memberToAdd);
+            logger.LogAddingMissingSlimDataRaftMemberEndpoint(memberToAdd);
             if (!await membershipCoordinator.AddMemberAsync(memberToAdd, token).ConfigureAwait(false))
             {
-                logger.LogWarning(
-                    "SlimData Raft member was not added and will be retried. Endpoint={Endpoint}",
-                    memberToAdd);
+                logger.LogSlimDataRaftMemberWasNotAdded(memberToAdd);
             }
 
             return;
@@ -80,9 +76,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
 
         if (!desired.ContainsKey(localKey))
         {
-            logger.LogWarning(
-                "Skipping SlimData membership removals because the local endpoint is absent from the orchestrator snapshot. LocalEndpoint={LocalEndpoint}",
-                cluster.LocalMemberAddress);
+            logger.LogSkippingSlimDataMembershipRemovalsBecauseThe(cluster.LocalMemberAddress);
             return;
         }
 
@@ -103,10 +97,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
 
         try
         {
-            logger.LogInformation(
-                "Removing stale SlimData Raft member. Endpoint={Endpoint}, MissingCycles={MissingCycles}",
-                memberToRemove.Value,
-                _missingCycles[memberToRemove.Key]);
+            logger.LogRemovingStaleSlimDataRaftMemberEndpoint(memberToRemove.Value, _missingCycles[memberToRemove.Key]);
             if (await membershipCoordinator.RemoveMemberAsync(memberToRemove.Value, token).ConfigureAwait(false))
             {
                 _missingCycles.Remove(memberToRemove.Key);
@@ -114,9 +105,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
             else
             {
                 RestoreMissingCycles(previousMissingCycles);
-                logger.LogWarning(
-                    "SlimData Raft member was not removed and will be retried. Endpoint={Endpoint}",
-                    memberToRemove.Value);
+                logger.LogSlimDataRaftMemberWasNotRemoved(memberToRemove.Value);
             }
         }
         catch
@@ -154,7 +143,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
             }
             catch (UriFormatException ex)
             {
-                logger.LogWarning(ex, "Ignoring invalid SlimData endpoint for pod {PodName}", pod.Name);
+                logger.LogIgnoringInvalidSlimDataEndpointForPod(ex, pod.Name);
             }
         }
 
@@ -168,7 +157,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
         {
             if (member.EndPoint is not UriEndPoint endpoint)
             {
-                logger.LogWarning("Ignoring SlimData Raft member without an HTTP endpoint. Endpoint={Endpoint}", member.EndPoint);
+                logger.LogIgnoringSlimDataRaftMemberWithoutAn(member.EndPoint);
                 continue;
             }
 
@@ -179,8 +168,8 @@ public sealed class SlimDataMembershipReconciliationWorker(
     }
 
     private void ResetObservedMembers(
-        IReadOnlyDictionary<MembershipEndpointKey, Uri> desired,
-        IReadOnlyDictionary<MembershipEndpointKey, Uri> current)
+        Dictionary<MembershipEndpointKey, Uri> desired,
+        Dictionary<MembershipEndpointKey, Uri> current)
     {
         foreach (var endpoint in _missingCycles.Keys.ToArray())
         {

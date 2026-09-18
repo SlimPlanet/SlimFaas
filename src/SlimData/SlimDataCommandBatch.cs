@@ -6,6 +6,8 @@ namespace SlimData;
 
 public enum SlimDataBatchOperationKind : byte
 {
+    /// <summary>Default value; never a valid operation on the wire.</summary>
+    None = 0,
     KeyValue = 1,
     DeleteKeyValue = 2,
     AddHashSet = 3,

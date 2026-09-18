@@ -5,7 +5,7 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
+public record struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
 {
     public const int Id = 3;
     static int ICommand<DeleteKeyValueCommand>.Id => Id;
@@ -26,7 +26,7 @@ public struct DeleteKeyValueCommand : ICommand<DeleteKeyValueCommand>
         await SlimDataCommandCodec.WriteStringAsync(output, Key, nameof(Key), token).ConfigureAwait(false);
     }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
     public static async ValueTask<DeleteKeyValueCommand> ReadFromAsync<TReader>(TReader reader, CancellationToken token)
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader

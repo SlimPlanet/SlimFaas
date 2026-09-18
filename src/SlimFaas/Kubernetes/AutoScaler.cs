@@ -40,7 +40,7 @@ public sealed class AutoScaler
             catch (OperationCanceledException) { result = new(ScalerState.Timeout); }
             catch (Exception exception)
             {
-                _logger?.LogWarning(exception, "Scaling provider failed for {Function}", function);
+                _logger?.LogScalingProviderFailedFor(exception, function);
                 result = new(ScalerState.Unavailable);
             }
             results.Add(new(trigger, result, index));
@@ -69,7 +69,7 @@ public sealed class AutoScaler
 
     public int ComputeDesiredReplicas(DeploymentInformation deployment, long nowUnixSeconds)
     {
-        if (deployment is null) throw new ArgumentNullException(nameof(deployment));
+        ArgumentNullException.ThrowIfNull(deployment);
 
         var evaluation = EvaluateAsync(deployment, nowUnixSeconds).AsTask().GetAwaiter().GetResult();
         return ComputeDesiredReplicas(deployment, nowUnixSeconds, evaluation);

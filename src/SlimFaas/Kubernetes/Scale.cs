@@ -70,10 +70,10 @@ public record ScaleConfig
     public const int MaximumScrapeIntervalMilliseconds = 300_000;
 
     // Si l'annotation n'est pas définie -> reste null (comportement demandé)
-    public int? ReplicaMax { get; init; } = null;
+    public int? ReplicaMax { get; init; }
 
     // Optional per-function metrics scrape interval. Null keeps the global value.
-    public int? ScrapeIntervalMilliseconds { get; init; } = null;
+    public int? ScrapeIntervalMilliseconds { get; init; }
 
     // Opt-in: existing configurations never wake from metrics alone.
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]

@@ -51,9 +51,7 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
         var backupIntervalSeconds = slimDataOptions.Value.BackupIntervalSeconds;
         if (backupIntervalSeconds <= 0)
         {
-            _logger.LogWarning(
-                "ScheduleJobBackupWorker: invalid SlimData:BackupIntervalSeconds={BackupIntervalSeconds}, using 1 second instead.",
-                backupIntervalSeconds);
+            _logger.LogScheduleJobBackupWorkerInvalidSlimDataBackupIntervalSecondsUsing1(backupIntervalSeconds);
             backupIntervalSeconds = 1;
         }
         _backupInterval = TimeSpan.FromSeconds(backupIntervalSeconds);
@@ -69,13 +67,11 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
     {
         if (!IsEnabled)
         {
-            _logger.LogInformation("ScheduleJobBackupWorker: disabled (SlimData:BackupDirectory is not set)");
+            _logger.LogScheduleJobBackupWorkerDisabledSlimDataBackupDirectoryIsNot();
             return;
         }
 
-        _logger.LogInformation(
-            "ScheduleJobBackupWorker: starting — backupDir={BackupDir}, interval={Interval}s, coldStart={ColdStart}",
-            _backupDirectory, _backupInterval.TotalSeconds, _coldStart);
+        _logger.LogScheduleJobBackupWorkerStartingBackupDirIntervalColdStart(_backupDirectory, _backupInterval.TotalSeconds, _coldStart);
 
         await _slimDataStatus.WaitForReadyAsync();
 
@@ -87,8 +83,7 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
         await TryBackupAsync(stoppingToken);
 
         // --- Phase 3: Periodic backup loop ---
-        _logger.LogInformation("ScheduleJobBackupWorker: entering periodic backup loop (interval={Interval}s)",
-            _backupInterval.TotalSeconds);
+        _logger.LogScheduleJobBackupWorkerEnteringPeriodicBackupLoopInterval(_backupInterval.TotalSeconds);
 
         while (!stoppingToken.IsCancellationRequested)
         {
@@ -103,12 +98,12 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "ScheduleJobBackupWorker: unexpected error in backup loop");
+                _logger.LogScheduleJobBackupWorkerUnexpectedErrorInBackupLoop(ex);
                 await Task.Delay(5000, stoppingToken);
             }
         }
 
-        _logger.LogInformation("ScheduleJobBackupWorker: stopped");
+        _logger.LogScheduleJobBackupWorkerStopped();
     }
 
     // ─── Restore ──────────────────────────────────────────────────────────────
@@ -121,13 +116,13 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
 
             if (!_masterService.IsMaster)
             {
-                _logger.LogInformation("ScheduleJobBackupWorker: not master — skipping restore");
+                _logger.LogScheduleJobBackupWorkerNotMasterSkippingRestore();
                 return;
             }
 
             if (!File.Exists(BackupFilePath))
             {
-                _logger.LogInformation("ScheduleJobBackupWorker: no backup file found at {Path} — skipping restore", BackupFilePath);
+                _logger.LogScheduleJobBackupWorkerNoBackupFileFoundAt(BackupFilePath);
                 return;
             }
 
@@ -138,27 +133,21 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             {
                 if (kv.Key.StartsWith(ScheduleJobPrefix, StringComparison.Ordinal) && kv.Value.Count > 0)
                 {
-                    _logger.LogInformation("ScheduleJobBackupWorker: DB already has ScheduleJob data — skipping restore");
+                    _logger.LogScheduleJobBackupWorkerDBAlreadyHasScheduleJobData();
                     return;
                 }
             }
 
-            _logger.LogInformation("ScheduleJobBackupWorker: restoring from {Path}", BackupFilePath);
+            _logger.LogScheduleJobBackupWorkerRestoringFrom(BackupFilePath);
             var json = await File.ReadAllTextAsync(BackupFilePath, ct);
             var jsonLength = json.Length;
-            string jsonHash;
-            using (var sha256 = SHA256.Create())
-            {
-                var jsonBytes = Encoding.UTF8.GetBytes(json);
-                var hashBytes = sha256.ComputeHash(jsonBytes);
-                jsonHash = Convert.ToHexString(hashBytes);
-            }
-            _logger.LogDebug("ScheduleJobBackupWorker: restore JSON metadata: length={Length}, sha256={Hash}", jsonLength, jsonHash);
+            string jsonHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
+            _logger.LogScheduleJobBackupWorkerRestoreJSONMetadataLengthSha256(jsonLength, jsonHash);
 
             var backupData = JsonSerializer.Deserialize(json, ScheduleJobBackupDataJsonContext.Default.ScheduleJobBackupData);
             if (backupData?.Hashsets == null || backupData.Hashsets.Count == 0)
             {
-                _logger.LogInformation("ScheduleJobBackupWorker: backup file is empty — nothing to restore");
+                _logger.LogScheduleJobBackupWorkerBackupFileIsEmptyNothing();
                 return;
             }
 
@@ -177,12 +166,12 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
                 }
             }
 
-            _logger.LogInformation("ScheduleJobBackupWorker: restored {Count} schedule entries", restoredKeys);
+            _logger.LogScheduleJobBackupWorkerRestoredScheduleEntries(restoredKeys);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ScheduleJobBackupWorker: error during restore");
+            _logger.LogScheduleJobBackupWorkerErrorDuringRestore(ex);
         }
     }
 
@@ -202,7 +191,7 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             var newHash = ComputeStateHash(payload);
             if (newHash == _lastBackupHash)
             {
-                _logger.LogDebug("ScheduleJobBackupWorker: no change detected (hash={Hash}) — skipping write", newHash);
+                _logger.LogScheduleJobBackupWorkerNoChangeDetectedHashSkipping(newHash);
                 return;
             }
 
@@ -229,24 +218,19 @@ public sealed class ScheduleJobBackupWorker : BackgroundService
             if (!Directory.Exists(_backupDirectory!))
                 Directory.CreateDirectory(_backupDirectory!);
 
-            _logger.LogDebug(
-                "ScheduleJobBackupWorker: backup prepared — hash={Hash}, hashsetCount={Count}, jsonLength={Length}",
-                newHash,
-                backupData.Hashsets.Count,
-                json.Length);
+            _logger.LogScheduleJobBackupWorkerBackupPreparedHashHashsetCountJsonLength(newHash, backupData.Hashsets.Count, json.Length);
 
             var tempPath = BackupFilePath + ".tmp";
             await File.WriteAllTextAsync(tempPath, json, ct);
             File.Move(tempPath, BackupFilePath, overwrite: true);
 
             _lastBackupHash = newHash;
-            _logger.LogInformation("ScheduleJobBackupWorker: backup written — {Count} hashset(s) to {Path}",
-                backupData.Hashsets.Count, BackupFilePath);
+            _logger.LogScheduleJobBackupWorkerBackupWrittenHashsetTo(backupData.Hashsets.Count, BackupFilePath);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "ScheduleJobBackupWorker: error during backup");
+            _logger.LogScheduleJobBackupWorkerErrorDuringBackup(ex);
         }
     }
 

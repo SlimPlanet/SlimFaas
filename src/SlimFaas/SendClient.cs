@@ -6,6 +6,7 @@ using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 
+using System.Globalization;
 namespace SlimFaas;
 
 public interface ISendClient
@@ -40,7 +41,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             string customRequestFunctionName = customRequest.FunctionName;
             string customRequestPath = customRequest.Path;
             string customRequestQuery = customRequest.Query;
-            logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}", customRequestFunctionName, customRequestPath ,customRequestQuery);
+            logger.LogStartSendingSyncRequestTo(customRequestFunctionName, customRequestPath, customRequestQuery);
 
             using var localCancellationToken = new CancellationTokenSource(
                 TimeSpan.FromSeconds(slimFaasDefaultConfiguration.HttpTimeout));
@@ -51,7 +52,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             return await Retry.DoRequestAsync(async () =>
                     {
                         string targetUrl = await ComputeTargetUrlAsync(functionUrl, customRequestFunctionName, customRequestPath, customRequestQuery, _namespaceSlimFaas, proxy, reservedPodIp);
-                        logger.LogDebug("Sending async request to {TargetUrl}", targetUrl);
+                        logger.LogSendingAsyncRequestTo(targetUrl);
                         if (bodyOverrideStream?.CanSeek == true)
                             bodyOverrideStream.Position = 0;
 
@@ -66,7 +67,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         }
         catch (Exception e)
         {
-            logger.LogError(e, "Error in SendHttpRequestAsync to {FunctionName} to {FunctionPath} ", customRequest.FunctionName, customRequest.Path);
+            logger.LogErrorInSendHttpRequestAsyncToTo(e, customRequest.FunctionName, customRequest.Path);
             throw;
         }
         finally
@@ -97,8 +98,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
         try
         {
-            logger.LogDebug("Start sending sync request to {FunctionName}{FunctionPath}{FunctionQuery}",
-                functionName, functionPath, functionQuery);
+            logger.LogStartSendingSyncRequestTo2(functionName, functionPath, functionQuery);
 
             using var localCancellationToken = new CancellationTokenSource(
                 TimeSpan.FromSeconds(slimFaasSyncConfiguration.HttpTimeout));
@@ -111,7 +111,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
             string functionUrl = baseUrl ?? _baseFunctionUrl;
             string targetUrl;
-            if (functionUrl.Contains("{pod_ip}") && proxy != null)
+            if (functionUrl.Contains("{pod_ip}", StringComparison.Ordinal) && proxy != null)
             {
                 const int maxAttempts = 10;
                 IList<int>? ports = null;
@@ -155,7 +155,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                       ports is null ||
                       ports.Count == 0)))
                 {
-                    throw new Exception("Not port or IP available");
+                    throw new InvalidOperationException("Not port or IP available");
                 }
 
                 targetUrl = string.IsNullOrWhiteSpace(endpointUrl)
@@ -180,7 +180,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
             requestOutId = activityTracker.Record(NetworkActivityTracker.EventTypes.RequestOut, source, functionName,
                 sourcePod: activitySourcePod, targetPod: reservedSyncIp, correlationId: activityCorrelationId);
 
-            logger.LogDebug("Sending sync request to {TargetUrl}", targetUrl);
+            logger.LogSendingSyncRequestTo(targetUrl);
 
             using var targetRequestMessage = CreateTargetMessage(httpContext, new Uri(targetUrl));
 
@@ -204,7 +204,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                 proxy?.ReleaseSyncIP(reservedSyncIp);
             }
 
-            logger.LogError(e, "Error in SendHttpRequestSync to {FunctionName} to {FunctionPath} ", functionName, functionPath);
+            logger.LogErrorInSendHttpRequestSyncToTo(e, functionName, functionPath);
             throw;
         }
         finally
@@ -216,7 +216,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     }
 
 
-    private void CopyFromOriginalRequestContentAndHeaders(CustomRequest context, HttpRequestMessage requestMessage, Stream? bodyOverrideStream = null)
+    private static void CopyFromOriginalRequestContentAndHeaders(CustomRequest context, HttpRequestMessage requestMessage, Stream? bodyOverrideStream = null)
     {
         string requestMethod = context.Method;
 
@@ -244,7 +244,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         }
     }
 
-    private HttpRequestMessage CreateTargetMessage(CustomRequest context, Uri targetUri, Stream? bodyOverrideStream = null)
+    private static HttpRequestMessage CreateTargetMessage(CustomRequest context, Uri targetUri, Stream? bodyOverrideStream = null)
     {
         HttpRequestMessage requestMessage = new();
         CopyFromOriginalRequestContentAndHeaders(context, requestMessage, bodyOverrideStream);
@@ -349,7 +349,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         string customRequestPath,
         string customRequestQuery, string namespaceSlimFaas, IProxy? proxy = null, string? reservedPodIp = null)
     {
-        if (functionUrl.Contains("{pod_ip}") && proxy != null)
+        if (functionUrl.Contains("{pod_ip}", StringComparison.Ordinal) && proxy != null)
         {
            var target = reservedPodIp;
            var ports = proxy.GetPorts(target);
@@ -373,7 +373,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                (string.IsNullOrWhiteSpace(endpointUrl) &&
                 (ports == null || string.IsNullOrEmpty(ip) || ports.Count == 0)))
            {
-               throw new Exception("Not port or IP available");
+               throw new InvalidOperationException("Not port or IP available");
            }
 
            return string.IsNullOrWhiteSpace(endpointUrl)
@@ -381,7 +381,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
                : CombinePaths(endpointUrl, customRequestPath + customRequestQuery);
         }
 
-        return CombinePaths(functionUrl.Replace("{function_name}", customRequestFunctionName).Replace("{namespace}", namespaceSlimFaas), customRequestPath +
+        return CombinePaths(functionUrl.Replace("{function_name}", customRequestFunctionName, StringComparison.Ordinal).Replace("{namespace}", namespaceSlimFaas, StringComparison.Ordinal), customRequestPath +
                customRequestQuery);
     }
 
@@ -407,14 +407,14 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
 
     private static string BuildPodTargetUrl(string functionUrl, string pathAndQuery, string ip, IList<int> ports)
     {
-        string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip), pathAndQuery);
+        string url = CombinePaths(functionUrl.Replace("{pod_ip}", ip, StringComparison.Ordinal), pathAndQuery);
         if (ports is { Count: > 0 })
         {
-            url = url.Replace("{pod_port}", ports[0].ToString());
+            url = url.Replace("{pod_port}", ports[0].ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
             foreach (int port in ports)
             {
                 var index = ports.IndexOf(port);
-                url = url.Replace($"{{pod_port_{index}}}", port.ToString());
+                url = url.Replace($"{{pod_port_{index}}}", port.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal);
             }
         }
 
@@ -483,7 +483,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
     }
 
 
-    private HttpRequestMessage CreateTargetMessage(HttpContext context, Uri targetUri)
+    private static HttpRequestMessage CreateTargetMessage(HttpContext context, Uri targetUri)
     {
         HttpRequestMessage requestMessage = new();
         CopyFromOriginalRequestContentAndHeaders(context, requestMessage);
@@ -537,7 +537,7 @@ public class SendClient(HttpClient httpClient, ILogger<SendClient> logger, IOpti
         return requestMessage;
     }
 
-    private void CopyFromOriginalRequestContentAndHeaders(HttpContext context, HttpRequestMessage requestMessage)
+    private static void CopyFromOriginalRequestContentAndHeaders(HttpContext context, HttpRequestMessage requestMessage)
     {
         string requestMethod = context.Request.Method;
 

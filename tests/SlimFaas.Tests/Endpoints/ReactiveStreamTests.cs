@@ -33,7 +33,7 @@ public sealed class ReactiveStreamTests
             services.AddSingleton(jobs.Object); services.AddSingleton<NetworkActivityTracker>(); services.AddSingleton<IStatusStreamSnapshotCache, Snapshot>();
             services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
             configure?.Invoke(services);
-        }).Configure(app => { app.UseRouting(); app.UseEndpoints(e => { e.MapStatusStreamEndpoints(); e.MapEventEndpoints(); }); })).StartAsync();
+        }).Configure(app => { TestRemoteIp.Use(app); app.UseRouting(); app.UseEndpoints(e => { e.MapStatusStreamEndpoints(); e.MapEventEndpoints(); }); })).StartAsync();
 
     [Fact]
     public async Task State_only_stream_reserves_quota_without_starting_peer_activity()
@@ -57,7 +57,7 @@ public sealed class ReactiveStreamTests
         long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         tracker.IngestRemote([new("historical", "request_in", "external", "slimfaas", null, now - 100000, tracker.NodeId)]);
         tracker.Record("request_in", "external", "slimfaas");
-        client.DefaultRequestHeaders.Add("X-Forwarded-For", "10.0.0.10");
+        client.DefaultRequestHeaders.Add(TestRemoteIp.HeaderName, "10.0.0.10");
         using var response = await client.GetAsync("http://localhost:5000/internal/activity-events?windowMs=1000");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var events = JsonSerializer.Deserialize(await response.Content.ReadAsStringAsync(), StatusStreamSerializerContext.Default.ListNetworkActivityEvent)!;
@@ -66,7 +66,8 @@ public sealed class ReactiveStreamTests
         Assert.True(long.Parse(response.Headers.GetValues("X-Activity-Watermark").Single()) >= now);
         using var empty = await client.GetAsync("http://localhost:5000/internal/activity-events?since=9223372036854775807");
         Assert.Equal("[]", await empty.Content.ReadAsStringAsync()); Assert.True(empty.Headers.Contains("X-Activity-Watermark"));
-        client.DefaultRequestHeaders.Remove("X-Forwarded-For");
+        client.DefaultRequestHeaders.Remove(TestRemoteIp.HeaderName);
+        client.DefaultRequestHeaders.Add("X-Forwarded-For", "10.0.0.10");
         using var denied = await client.GetAsync("http://localhost:5000/internal/activity-events?windowMs=1000");
         Assert.Equal(HttpStatusCode.Forbidden, denied.StatusCode);
     }
@@ -82,7 +83,7 @@ public sealed class ReactiveStreamTests
             .Callback<HttpContext, string>((context, _) => Assert.Equal(job, context.Request.Headers[LocalWorkloadGateway.JobHeaderName]))
             .Returns([new DeploymentInformation("ws-function", "websocket-virtual", [], new SlimFaasConfiguration(), Replicas: 1)]);
         var websocket = new Mock<IWebSocketSendClient>();
-        websocket.Setup(w => w.PublishEventAsync("ws-function", It.IsAny<CustomRequest>(), "test-event", It.IsAny<CancellationToken>(), It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>())).Returns(Task.CompletedTask);
+        websocket.Setup(w => w.PublishEventAsync("ws-function", It.IsAny<CustomRequest>(), "test-event", It.IsAny<string?>(), activityCorrelationId: It.IsAny<string?>(), ct: It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         using var host = await Host(services => {
             services.AddSingleton(policy.Object); services.AddSingleton(websocket.Object);
             services.AddSingleton(Mock.Of<ISendClient>()); services.AddSingleton<HistoryHttpMemoryService>(); services.AddSingleton(Mock.Of<INamespaceProvider>());
@@ -95,6 +96,6 @@ public sealed class ReactiveStreamTests
         var activity = host.Services.GetRequiredService<NetworkActivityTracker>().GetRecent();
         Assert.All(activity, e => Assert.Equal(validSignature ? "daily-report" : "external", e.Source));
         if (validSignature) Assert.All(activity, e => Assert.Equal(job, e.SourcePod));
-        websocket.Verify(w => w.PublishEventAsync("ws-function", It.Is<CustomRequest>(r => r.Headers.All(h => h.Key != LocalWorkloadGateway.JobHeaderName && h.Key != LocalWorkloadGateway.SignatureHeaderName)), "test-event", It.IsAny<CancellationToken>(), It.Is<string?>(s => validSignature ? s == job : s != job), activityCorrelationId: It.IsAny<string?>()), Times.Once);
+        websocket.Verify(w => w.PublishEventAsync("ws-function", It.Is<CustomRequest>(r => r.Headers.All(h => h.Key != LocalWorkloadGateway.JobHeaderName && h.Key != LocalWorkloadGateway.SignatureHeaderName)), "test-event", It.Is<string?>(s => validSignature ? s == job : s != job), activityCorrelationId: It.IsAny<string?>(), ct: It.IsAny<CancellationToken>()), Times.Once);
     }
 }

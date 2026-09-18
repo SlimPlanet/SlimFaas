@@ -105,7 +105,7 @@ public sealed class ProcessKubernetesService : IKubernetesService, IInstanceLogP
     public async Task DeleteJobAsync(string kubeNamespace, string jobName)
     {
         using HttpResponseMessage response = await _client.DeleteAsync(
-            $"v1/jobs/{Uri.EscapeDataString(jobName)}?namespace={Uri.EscapeDataString(kubeNamespace)}");
+            new Uri($"v1/jobs/{Uri.EscapeDataString(jobName)}?namespace={Uri.EscapeDataString(kubeNamespace)}", UriKind.Relative));
         if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             return;
         await EnsureSuccessAsync(response);
@@ -123,7 +123,7 @@ public sealed class ProcessKubernetesService : IKubernetesService, IInstanceLogP
         var key = LogSourceIds.Parse(source);
         if (!(await GetSourcesAsync(key.Target, ct)).Sources.Any(s => s.Id == source))
             throw new FileNotFoundException("Source removed");
-        using var response = await _client.GetAsync($"v1/logs?source={Uri.EscapeDataString(source)}", HttpCompletionOption.ResponseHeadersRead, ct);
+        using var response = await _client.GetAsync(new Uri($"v1/logs?source={Uri.EscapeDataString(source)}", UriKind.Relative), HttpCompletionOption.ResponseHeadersRead, ct);
         response.EnsureSuccessStatusCode();
         await using var stream = await response.Content.ReadAsStreamAsync(ct);
         using var reader = new StreamReader(stream);

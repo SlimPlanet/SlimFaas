@@ -4,6 +4,7 @@ using k8s;
 using k8s.Autorest;
 using k8s.Models;
 
+using System.Globalization;
 namespace SlimFaas.Kubernetes;
 
 public partial class KubernetesService
@@ -49,7 +50,7 @@ public partial class KubernetesService
             // INCHANGÉE (résilience des appels de démarrage). Les consommateurs
             // event-driven (ReplicasSynchronizationWorker) détectent ce fallback par
             // identité de référence pour ne pas valider une synchronisation périmée.
-            _logger.LogError(e, "Error while listing kubernetes functions");
+            _logger.LogErrorWhileListingKubernetesFunctions(e);
             return previousDeployments;
         }
     }
@@ -107,21 +108,21 @@ public partial class KubernetesService
             try
             {
                 IDictionary<string, string>? annotations = deploymentListItem.Spec.Template?.Metadata?.Annotations;
-                if (annotations == null || !annotations.ContainsKey(Function) ||
-                    annotations[Function].ToLower() != "true")
+                if (annotations == null || !annotations.TryGetValue(Function, out string? functionAnnotation) ||
+                    !string.Equals(functionAnnotation, "true", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
 
                 string? name = deploymentListItem.Metadata.Name;
-                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
+                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name, StringComparison.Ordinal)).ToList();
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
                 StringBuilder resourceVersionBuilder = new($"{deploymentListItem.Metadata.ResourceVersion}-{endpointReady}");
                 foreach (PodInformation pod in pods)
                 {
-                    resourceVersionBuilder.Append($"-{pod.ResourceVersion}");
+                    resourceVersionBuilder.Append(CultureInfo.InvariantCulture, $"-{pod.ResourceVersion}");
                 }
 
                 var resourceVersion = resourceVersionBuilder.ToString();
@@ -165,7 +166,7 @@ public partial class KubernetesService
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while adding deployment {Deployment}", deploymentListItem.Metadata.Name);
+                logger.LogErrorWhileAddingDeployment(e, deploymentListItem.Metadata.Name);
             }
         }
     }
@@ -209,11 +210,7 @@ public partial class KubernetesService
                     }
                     else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                     {
-                        logger.LogWarning(
-                            "Unknown prefix '{Prefix}' for path '{Path}'. The default (Public) visibility will be used.",
-                            prefix,
-                            path
-                        );
+                        logger.LogUnknownPrefixForPathTheDefault(prefix, path);
                     }
                 }
                 else
@@ -270,11 +267,7 @@ public partial class KubernetesService
                     }
                     else if (!prefix.Equals("Public", StringComparison.OrdinalIgnoreCase))
                     {
-                        logger.LogWarning(
-                            "Unknown prefix '{Prefix}' for event '{EventName}'. The default (Public) visibility will be used.",
-                            prefix,
-                            eventName
-                        );
+                        logger.LogUnknownPrefixForEventTheDefault(prefix, eventName);
                     }
                 }
                 else
@@ -307,7 +300,7 @@ public partial class KubernetesService
         }
         catch (Exception e)
         {
-            logger.LogError(e, "name: {Name}\\n annotations[Schedule]: {Annotation}", name, annotations[Schedule]);
+            logger.LogNameAnnotationsSchedule(e, name, annotations[Schedule]);
         }
 
         return new ScheduleConfig();
@@ -332,8 +325,7 @@ public partial class KubernetesService
         }
         catch (Exception e)
         {
-            logger.LogError(e, "name: {Name}\\n annotations[Configuration]: {Configuration}", name,
-                annotations[Configuration]);
+            logger.LogNameAnnotationsConfiguration(e, name, annotations[Configuration]);
         }
 
         return new SlimFaasConfiguration();
@@ -349,14 +341,14 @@ public partial class KubernetesService
             try
             {
                 IDictionary<string, string>? annotations = deploymentListItem.Spec.Template?.Metadata?.Annotations;
-                if (annotations == null || !annotations.ContainsKey(Function) ||
-                    annotations[Function].ToLower() != "true")
+                if (annotations == null || !annotations.TryGetValue(Function, out string? functionAnnotation) ||
+                    !string.Equals(functionAnnotation, "true", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }
 
                 string? name = deploymentListItem.Metadata.Name;
-                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name)).ToList();
+                List<PodInformation> pods = podList.Where(p => p.DeploymentName.StartsWith(name, StringComparison.Ordinal)).ToList();
                 DeploymentInformation? previousDeployment =
                     previousDeploymentInformationList.FirstOrDefault(d => d.Deployment == name);
                 bool endpointReady = GetEndpointReady(logger, kubeNamespace, client, previousDeployment, name, pods);
@@ -400,12 +392,12 @@ public partial class KubernetesService
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while adding statefulset {Deployment}", deploymentListItem.Metadata.Name);
+                logger.LogErrorWhileAddingStatefulset(e, deploymentListItem.Metadata.Name);
             }
         }
     }
 
-    private static IEnumerable<PodInformation> MapPodInformations(
+    private static List<PodInformation> MapPodInformations(
         V1PodList v1PodList,
         V1ServiceList? serviceList,
         ILogger<KubernetesService> logger)
@@ -526,11 +518,7 @@ public partial class KubernetesService
             }
             catch (Exception ex)
             {
-                logger.LogError(
-                    ex,
-                    "Error while mapping pod informations for pod {PodName}: {Error}",
-                    item.Metadata?.Name ?? "<unknown>",
-                    ex.Message);
+                logger.LogErrorWhileMappingPodInformationsFor(ex, item.Metadata?.Name ?? "<unknown>", ex.Message);
             }
         }
 

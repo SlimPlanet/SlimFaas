@@ -10,6 +10,7 @@ using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Workers;
 
+using System.Globalization;
 namespace SlimFaas;
 
 internal sealed record TrackedHttpRequest(
@@ -169,7 +170,7 @@ public class SlimQueuesWorker(
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Global Error in SlimFaas Worker");
+            logger.LogGlobalErrorInSlimFaasWorker(exception);
         }
     }
 
@@ -192,7 +193,7 @@ public class SlimQueuesWorker(
             alreadyUsedIps);
         if (reservedIps.Count == 0)
         {
-            logger.LogDebug("All pods saturated for {FunctionDeployment}, skipping dequeue", functionName);
+            logger.LogAllPodsSaturatedForSkippingDequeue(functionName);
             return;
         }
 
@@ -217,11 +218,7 @@ public class SlimQueuesWorker(
                 continue;
             QueueData message = prepared.Message;
             CustomRequest customRequest = prepared.Request;
-            logger.LogDebug(
-                "{CustomRequestMethod}: {CustomRequestPath}{CustomRequestQuery} Sending",
-                customRequest.Method,
-                customRequest.Path,
-                customRequest.Query);
+            logger.LogSending(customRequest.Method, customRequest.Path, customRequest.Query);
             Stream? offloadedStream = prepared.OffloadedStream;
 
             historyHttpService.SetTickLastCall(functionName, DateTime.UtcNow.Ticks);
@@ -235,11 +232,13 @@ public class SlimQueuesWorker(
             customRequest.Headers.Add(new CustomHeader(
                 SlimfaasLastTry,
                 [message.IsLastTry.ToString().ToLowerInvariant()]));
-            customRequest.Headers.Add(new CustomHeader(SlimfaasTryNumber, [message.TryNumber.ToString()]));
+            customRequest.Headers.Add(new CustomHeader(SlimfaasTryNumber, [message.TryNumber.ToString(CultureInfo.InvariantCulture)]));
             string reservedIp = !string.IsNullOrWhiteSpace(message.ReservedIp)
                 ? message.ReservedIp
                 : index < reservedIps.Count ? reservedIps[index] : string.Empty;
+#pragma warning disable CA2000 // owned by the in-flight request bookkeeping, disposed on completion
             var requestCancellation = new CancellationTokenSource();
+#pragma warning restore CA2000
             string activityId = activityTracker.Record(
                 NetworkActivityTracker.EventTypes.Dequeue, NetworkActivityTracker.Actors.SlimFaas,
                 functionName, functionName, targetPod: reservedIp);
@@ -299,11 +298,7 @@ public class SlimQueuesWorker(
             }
             catch (Exception exception)
             {
-                logger.LogWarning(
-                    exception,
-                    "Unable to deserialize async request. FunctionName={FunctionName} QueueElementId={QueueElementId}",
-                    functionName,
-                    message.Id);
+                logger.LogUnableToDeserializeAsyncRequestFunctionName(exception, functionName, message.Id);
                 await slimFaasQueue.ListCallbackAsync(
                     functionName,
                     new ListQueueItemStatus
@@ -387,10 +382,7 @@ public class SlimQueuesWorker(
             }
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug(
-                    "Loaded offloaded metadata. MetaKey={MetaKey} Tags={Tags}",
-                    metadataKey,
-                    FormatTags(metadata.Tags));
+                logger.LogLoadedOffloadedMetadataMetaKeyTags(metadataKey, FormatTags(metadata.Tags));
             }
 
             FilePullResult pulled = await fileSync.PullFileIfMissingAsync(
@@ -407,11 +399,7 @@ public class SlimQueuesWorker(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(
-                exception,
-                "Unable to load offloaded body for id={FileId}. QueueElementId={QueueElementId}; reporting HTTP 500 to the queue",
-                request.OffloadedFileId,
-                queueElementId);
+            logger.LogUnableToLoadOffloadedBodyFor(exception, request.OffloadedFileId, queueElementId);
             await slimFaasQueue.ListCallbackAsync(
                 functionName,
                 new ListQueueItemStatus
@@ -473,20 +461,11 @@ public class SlimQueuesWorker(
             historyHttpService.SetTickLastCall(request.FunctionName, DateTime.UtcNow.Ticks);
             if (completed.Error is not null)
             {
-                logger.LogWarning(
-                    completed.Error,
-                    "Async request failed for {FunctionName}/{ElementId}",
-                    request.FunctionName,
-                    request.Id);
+                logger.LogAsyncRequestFailedFor(completed.Error, request.FunctionName, request.Id);
             }
             else
             {
-                logger.LogDebug(
-                    "{CustomRequestMethod}: /async-function{CustomRequestPath}{CustomRequestQuery} {StatusCode}",
-                    request.CustomRequest.Method,
-                    request.CustomRequest.Path,
-                    request.CustomRequest.Query,
-                    completed.StatusCode);
+                logger.LogAsyncFunction(request.CustomRequest.Method, request.CustomRequest.Path, request.CustomRequest.Query, completed.StatusCode);
             }
 
             if (completed.StatusCode == StatusCodes.Status202Accepted && completed.Error is null)
@@ -559,10 +538,7 @@ public class SlimQueuesWorker(
         }
         catch (Exception exception)
         {
-            logger.LogWarning(
-                exception,
-                "Unable to clean terminal async offload. FileId={FileId}",
-                fileId);
+            logger.LogUnableToCleanTerminalAsyncOffload(exception, fileId);
         }
     }
 
@@ -613,11 +589,7 @@ public class SlimQueuesWorker(
         string fileId,
         string reason)
     {
-        logger.LogWarning(
-            "Unable to load offloaded body for id={FileId}: {Reason}. QueueElementId={QueueElementId}; reporting HTTP 500 to the queue",
-            fileId,
-            reason,
-            queueElementId);
+        logger.LogUnableToLoadOffloadedBodyFor2(fileId, reason, queueElementId);
         await slimFaasQueue.ListCallbackAsync(
             functionName,
             new ListQueueItemStatus
@@ -626,7 +598,7 @@ public class SlimQueuesWorker(
             }).ConfigureAwait(false);
     }
 
-    private static object? FormatTags(IDictionary<string, string>? tags) =>
+    private static string? FormatTags(IDictionary<string, string>? tags) =>
         tags is null || tags.Count == 0
             ? null
             : string.Join(", ", tags.Select(pair => $"{pair.Key}={pair.Value}"));

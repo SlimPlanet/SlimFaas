@@ -6,13 +6,13 @@ using DotNext.Text;
 
 namespace SlimData.Commands;
 
-public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
+public record struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
 {
     private const byte SerializationVersion = 3;
     public const int Id = 2;
     static int ICommand<AddKeyValueCommand>.Id => Id;
 
-    public struct BatchItem
+    public record struct BatchItem
     {
         public KeyValueOperation Operation { get; set; }
         public string Key { get; set; }
@@ -160,7 +160,7 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         offset += sizeof(long);
     }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
     public static async ValueTask<AddKeyValueCommand> ReadFromAsync<TReader>(TReader reader, CancellationToken token)
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
@@ -188,7 +188,7 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         }
     }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
     private static async ValueTask<AddKeyValueCommand> ReadVersion3Async<TReader>(TReader reader, CancellationToken token)
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
@@ -233,7 +233,7 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         return command;
     }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
     private static async ValueTask<BatchItem> ReadItemAsync<TReader>(TReader reader, CancellationToken token)
 #pragma warning restore CA2252
         where TReader : notnull, IAsyncBinaryReader
@@ -242,7 +242,7 @@ public struct AddKeyValueCommand : ICommand<AddKeyValueCommand>
         return await ReadItemAfterOperationAsync(reader, operation, token).ConfigureAwait(false);
     }
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
     private static async ValueTask<BatchItem> ReadItemAfterOperationAsync<TReader>(
         TReader reader,
         KeyValueOperation operation,

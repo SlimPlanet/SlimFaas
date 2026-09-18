@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 
+using System.Globalization;
 namespace SlimFaas.RateLimiting;
 
 public class CpuRateLimitingMiddleware
@@ -46,7 +47,7 @@ public class CpuRateLimitingMiddleware
 
             if (_options.RetryAfterSeconds.HasValue)
             {
-                context.Response.Headers.RetryAfter = _options.RetryAfterSeconds.Value.ToString();
+                context.Response.Headers.RetryAfter = _options.RetryAfterSeconds.Value.ToString(CultureInfo.InvariantCulture);
             }
 
             await context.Response.WriteAsync("Service temporarily overloaded. Please retry later.");

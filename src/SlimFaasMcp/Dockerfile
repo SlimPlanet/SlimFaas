@@ -23,8 +23,8 @@ COPY --from=node /usr/local/ /usr/local/
 WORKDIR /src
 
 FROM --platform=$BUILDPLATFORM build AS publish
-# Build context: the repository root, so the shared build settings (Directory.Build.*, .editorconfig, eng/) apply.
-COPY Directory.Build.props Directory.Build.targets global.json .editorconfig ./
+# Build context: the repository root, so the shared build settings (Directory.Build.*, Directory.Packages.props, .editorconfig, eng/) apply.
+COPY Directory.Build.props Directory.Build.targets Directory.Packages.props global.json .editorconfig ./
 COPY eng/ eng/
 COPY src/SlimFaasMcp/ src/SlimFaasMcp/
 ARG RUNTIME_ID=x64

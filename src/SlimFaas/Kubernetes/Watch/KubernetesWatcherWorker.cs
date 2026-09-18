@@ -49,8 +49,7 @@ public class KubernetesWatcherWorker(
     {
         if (kubernetesService is not KubernetesService concreteService)
         {
-            logger.LogInformation(
-                "KubernetesWatcherWorker disabled: the orchestrator is not the Kubernetes implementation");
+            logger.LogKubernetesWatcherWorkerDisabledTheOrchestratorIsNot();
             return;
         }
 
@@ -88,9 +87,7 @@ public class KubernetesWatcherWorker(
 
         if (logger.IsEnabled(LogLevel.Information))
         {
-            logger.LogInformation(
-                "KubernetesWatcherWorker starting: watching pods/deployments/statefulsets/jobs/cronjobs in namespace {Namespace}",
-                ns);
+            logger.LogKubernetesWatcherWorkerStartingWatchingPodsDeploymentsStatefulsets(ns);
         }
 
         Task[] loops = targets
@@ -175,7 +172,7 @@ public class KubernetesWatcherWorker(
         WatchLoopState state,
         CancellationToken stoppingToken)
     {
-        char querySeparator = target.PathTemplate.Contains('?') ? '&' : '?';
+        char querySeparator = target.PathTemplate.Contains('?', StringComparison.Ordinal) ? '&' : '?';
         string url = string.Concat(
             client.BaseUri,
             target.PathTemplate,
@@ -202,9 +199,7 @@ public class KubernetesWatcherWorker(
             // cadence legacy pendant le trou et le pulse de rattrapage n'est émis
             // qu'une fois le flux rétabli — un LIST déclenché avant la reconnexion
             // ne peut pas voir ce qui se passe pendant le trou (ex. une suppression).
-            logger.LogWarning(
-                "Watch stream {Target} received HTTP 410 Gone: resetting resourceVersion and signaling a resync",
-                target.Name);
+            logger.LogWatchStreamReceivedHTTP410Gone(target.Name);
             state.LastResourceVersion = null;
             MarkStreamDown(target, channels, state, exception: null, statusCode: 410);
             await BackoffAsync(options, state, stoppingToken).ConfigureAwait(false);
@@ -390,10 +385,7 @@ public class KubernetesWatcherWorker(
                     {
                         state.LastResourceVersion = null;
                     }
-                    logger.LogWarning(
-                        "Watch stream {Target} received an ERROR event (code {Code}): reconnecting",
-                        target.Name,
-                        eventInfo.ErrorCode);
+                    logger.LogWatchStreamReceivedAnERROREvent(target.Name, eventInfo.ErrorCode);
                     // Chemin panne/récupération : signal indisponible pendant le trou
                     // (cadence legacy) et pulse de rattrapage une fois le flux rétabli
                     // — pulser avant la reconnexion ne peut pas couvrir ce qui se
@@ -403,7 +395,7 @@ public class KubernetesWatcherWorker(
                 default:
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        logger.LogDebug("Watch stream {Target}: ignoring unknown line", target.Name);
+                        logger.LogWatchStreamIgnoringUnknownLine(target.Name);
                     }
 
                     break;
@@ -447,22 +439,14 @@ public class KubernetesWatcherWorker(
             // Déjà signalé : ne pas saturer les logs à chaque tentative de reconnexion.
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug(exception,
-                    "Watch stream {Target} still unavailable (HTTP {StatusCode}): retrying after backoff",
-                    target.Name,
-                    statusCode);
+                logger.LogWatchStreamStillUnavailableHTTPRetrying(exception, target.Name, statusCode);
             }
 
             return;
         }
 
         state.WarnedDown = true;
-        logger.LogWarning(exception,
-            "Watch stream {Target} unavailable (HTTP {StatusCode}): falling back to the legacy polling cadence until the stream is restored. " +
-            "Check that the service account grants the \"watch\" verb on {Target}",
-            target.Name,
-            statusCode,
-            target.Name);
+        logger.LogWatchStreamUnavailableFallingBackToPolling(exception, target.Name, statusCode);
     }
 
     private void MarkStreamUp(WatchTarget target, DebounceChannel[] channels, WatchLoopState state, bool logRecovery)
@@ -480,7 +464,7 @@ public class KubernetesWatcherWorker(
         {
             if (logRecovery && logger.IsEnabled(LogLevel.Information))
             {
-                logger.LogInformation("Watch stream {Target} restored: event-driven synchronization resumed", target.Name);
+                logger.LogWatchStreamRestoredEventDrivenSynchronization(target.Name);
             }
 
             state.WarnedDown = false;

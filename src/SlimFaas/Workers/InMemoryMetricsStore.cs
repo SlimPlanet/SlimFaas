@@ -427,8 +427,7 @@ public sealed class InMemoryMetricsStore : IMetricsStore
             get
             {
                 ArgumentOutOfRangeException.ThrowIfNegative(index);
-                if (index >= Count)
-                    throw new ArgumentOutOfRangeException(nameof(index));
+                ArgumentOutOfRangeException.ThrowIfGreaterThanOrEqual(index, Count);
                 return _items[PhysicalIndex(index)];
             }
         }

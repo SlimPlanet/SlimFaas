@@ -57,7 +57,7 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
 
     public async Task<TRes> EnqueueAsync(TReq request, CancellationToken ct = default)
     {
-        if (_disposed) throw new ObjectDisposedException(nameof(RateAdaptiveBatcher<TReq, TRes>));
+        ObjectDisposedException.ThrowIf(_disposed, this);
 
         if (_maxQueueLength > 0 && _queue.Count >= _maxQueueLength)
             throw new InvalidOperationException("Batcher queue is full");
@@ -250,7 +250,7 @@ public sealed class RateAdaptiveBatcher<TReq, TRes> : IAsyncDisposable
         if (_disposed) return;
         _disposed = true;
 
-        _disposeCts.Cancel();
+        await _disposeCts.CancelAsync().ConfigureAwait(false);
         try { if (_loopTask is not null) await _loopTask.ConfigureAwait(false); } catch { /* ignore */ }
 
         _signal.Dispose();

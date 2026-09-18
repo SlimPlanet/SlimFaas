@@ -43,7 +43,7 @@ public sealed class ClusterFileAnnounceWorker : BackgroundService
                 var res = await _sync.PullFileIfMissingAsync(a.Id, a.Sha256Hex, a.PreferredNode, stoppingToken).ConfigureAwait(false);
                 if (res.Stream is null)
                 {
-                    _logger.LogWarning("Auto-pull failed. Id={Id} Sha={Sha}", a.Id, a.Sha256Hex);
+                    _logger.LogAutoPullFailedIdSha(a.Id, a.Sha256Hex);
                     continue;
                 }
                 // IMPORTANT: on n'a pas besoin du stream ici => on le ferme pour éviter les fuites
@@ -54,7 +54,7 @@ public sealed class ClusterFileAnnounceWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to auto-pull announced file. Id={Id}", a.Id);
+                _logger.LogFailedToAutoPullAnnouncedFile(ex, a.Id);
             }
         }
     }
