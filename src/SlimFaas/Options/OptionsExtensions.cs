@@ -1,3 +1,4 @@
+using SlimFaas.Security;
 
 namespace SlimFaas.Options;
 
@@ -19,6 +20,8 @@ public static class OptionsExtensions
                 "SlimFaas:MetricsScraping values are invalid.")
             .Validate(ValidateKubernetesWatchOptions,
                 "SlimFaas:KubernetesWatch values are invalid.")
+            .Validate(ValidateTrustedProxies,
+                "SlimFaas:TrustedProxies entries must be IP addresses or CIDR networks.")
             .ValidateOnStart();
 
         services.AddOptions<SlimDataOptions>()
@@ -76,6 +79,9 @@ public static class OptionsExtensions
                && watch.ReconnectInitialDelayMilliseconds > 0
                && watch.ReconnectMaxDelayMilliseconds >= watch.ReconnectInitialDelayMilliseconds;
     }
+
+    private static bool ValidateTrustedProxies(SlimFaasOptions options)
+        => TrustedProxies.TryParse(options.TrustedProxies, out _, out _, out _);
 
     private static bool ValidateSlimDataOptions(SlimDataOptions options)
         => options.WarmupRounds > 0
