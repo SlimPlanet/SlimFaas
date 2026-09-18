@@ -1,9 +1,10 @@
 # ---- build ----
-FROM node:24-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 ENV NODE_ENV=development
 
-RUN corepack enable && corepack prepare pnpm@10.14.0 --activate
+# Node 26 no longer bundles Corepack; keep the existing pnpm version.
+RUN npm install --global pnpm@10.14.0
 COPY package.json pnpm-lock.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile
 COPY . .
