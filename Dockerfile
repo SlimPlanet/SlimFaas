@@ -1,4 +1,4 @@
-﻿FROM --platform=$TARGETPLATFORM alpine:3.23 AS base
+FROM --platform=$TARGETPLATFORM alpine:3.24 AS base
 RUN apk update && apk upgrade
 RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
