@@ -34,4 +34,6 @@ RUN dotnet publish "./src/SlimFaasMcp/SlimFaasMcp.csproj" -c Release -a "$RUNTIM
 FROM --platform=$BUILDPLATFORM base AS final
 WORKDIR /app
 COPY --chown=appuser --from=publish /app/publish .
+# The frontend is generated after MSBuild collects static assets on a clean build.
+COPY --chown=appuser --from=publish /src/src/SlimFaasMcp/ClientApp/dist ./wwwroot
 ENTRYPOINT ["./SlimFaasMcp"]
