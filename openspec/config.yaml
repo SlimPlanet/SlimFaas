@@ -1,0 +1,56 @@
+schema: spec-driven
+githubCopilot:
+  cloudAgent: false
+
+# Project context shown to AI agents when creating OpenSpec artifacts.
+# AGENTS.md is the source of truth for build, test and documentation rules;
+# this block only summarises what a proposal author needs up front.
+context: |
+  SlimFaas is a CNCF-sandbox serverless runtime for Kubernetes and Docker Compose
+  (scale-to-zero, sync/async/publish HTTP calls, jobs, events, MCP gateway).
+  Products live in src/: SlimFaas (the proxy/orchestrator), SlimData (embedded
+  Raft key-value/queue store), SlimFaasMcp (MCP gateway with a React ClientApp),
+  SlimFaasKafka, the SlimFaasPlanetSaver npm package and the SlimFaasSite docs site.
+  Tests live in tests/, samples in samples/, benchmarks in benchmarks/, client SDKs
+  in client/, docs in docs/.
+
+  Tech stack: .NET 10 (C#), native AOT with full trimming for SlimFaas, SlimData
+  and SlimFaasMcp; warnings are errors and every .NET analyzer is enabled;
+  NuGet Central Package Management (Directory.Packages.props); MemoryPack for
+  SlimData payloads; source-generated System.Text.Json contexts (no runtime
+  reflection); KubernetesClient.Aot; prometheus-net; React + BEM CSS for web UIs.
+
+  Conventions:
+  - Read AGENTS.md before proposing or applying any change.
+  - Any change to user-facing behaviour, configuration or architecture MUST
+    update docs/ (see the documentation checklist in AGENTS.md) and keep
+    docs/how-it-works.md architecture diagrams (Mermaid) current.
+  - Only AOT-compatible dependencies; new JSON payloads go into existing
+    JsonSerializerContext partials; SlimData commands stay MemoryPackable.
+  - Environment variables are the configuration surface; renames are breaking
+    changes and must be listed in docs/BREAKING_CHANGES_ENVIRONMENT_VARIABLES.md.
+  - Follow-up phases of one issue are extra commits on the same branch/PR.
+  - Commit messages use the conventional-commit form `type(scope): summary (#issue)`.
+  - Build with `dotnet build`, test with `dotnet test`; tests must not rely on
+    wall-clock delays (use mock signals/time providers).
+
+rules:
+  proposal:
+    - Always include a "Non-goals" section.
+    - Name the environment variables, HTTP routes and Kubernetes objects the change touches.
+    - State the AOT/trimming impact of any new dependency or serialization path.
+  design:
+    - Include a Mermaid diagram when the change alters request flow, Raft/SlimData state, or Kubernetes interactions.
+    - Call out which docs/ pages must change.
+  tasks:
+    - Every task that changes behaviour pairs with a test task in tests/.
+    - The last task of every change is "Update documentation and architecture diagrams".
+
+operations:
+  apply:
+    guidance:
+      - Run `dotnet build` (warnings are errors) and the affected `dotnet test` projects before marking a task complete.
+      - Keep the change on the current branch; do not stack branches for later phases.
+  archive:
+    guidance:
+      - Confirm docs/ and openspec/specs reflect the shipped behaviour before archiving.
