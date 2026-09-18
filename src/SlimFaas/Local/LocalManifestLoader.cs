@@ -283,7 +283,7 @@ public static partial class LocalManifestLoader
                 function.Health.StartupTimeoutSeconds, errors);
             if (function.Shutdown is not null)
             {
-                if (!function.Shutdown.Path.StartsWith("/", StringComparison.Ordinal))
+                if (!function.Shutdown.Path.StartsWith('/'))
                     errors.Add($"functions.{name}.shutdown.path must start with '/'.");
                 if (function.Shutdown.TimeoutSeconds < 1)
                     errors.Add($"functions.{name}.shutdown.timeoutSeconds must be positive.");
@@ -572,9 +572,9 @@ public static partial class LocalManifestLoader
             ? value[authorityStart..]
             : value[authorityStart..authorityEnd];
 
-        if (authority.StartsWith("[", StringComparison.Ordinal))
+        if (authority.StartsWith('['))
         {
-            int closingBracket = authority.IndexOf(']');
+            int closingBracket = authority.IndexOf(']', StringComparison.Ordinal);
             return closingBracket >= 0 &&
                    closingBracket + 1 < authority.Length &&
                    authority[closingBracket + 1] == ':' &&
@@ -602,9 +602,9 @@ public static partial class LocalManifestLoader
         int period,
         int timeout,
         int startupTimeout,
-        ICollection<string> errors)
+        List<string> errors)
     {
-        if (string.IsNullOrEmpty(path) || !path.StartsWith("/", StringComparison.Ordinal))
+        if (string.IsNullOrEmpty(path) || !path.StartsWith('/'))
             errors.Add($"{prefix}.path must start with '/'.");
         if (period < 1)
             errors.Add($"{prefix}.periodSeconds must be positive.");
@@ -617,8 +617,8 @@ public static partial class LocalManifestLoader
     private static void ValidateLocalProcessDependencies(
         string source,
         IEnumerable<string> dependencies,
-        IReadOnlyDictionary<string, LocalProcessManifest> processes,
-        ICollection<string> errors)
+        Dictionary<string, LocalProcessManifest> processes,
+        List<string> errors)
     {
         foreach (string dependency in dependencies)
         {
@@ -639,13 +639,13 @@ public static partial class LocalManifestLoader
         }
     }
 
-    private static void ValidatePort(string name, int port, ICollection<string> errors)
+    private static void ValidatePort(string name, int port, List<string> errors)
     {
         if (port is < IPEndPoint.MinPort or > IPEndPoint.MaxPort)
             errors.Add($"{name} must be between 1 and 65535.");
     }
 
-    private static void ValidatePortRange(string name, int firstPort, int count, ICollection<string> errors)
+    private static void ValidatePortRange(string name, int firstPort, int count, List<string> errors)
     {
         ValidatePort(name, firstPort, errors);
         if (firstPort > IPEndPoint.MaxPort - count + 1)
@@ -667,6 +667,10 @@ public static partial class LocalManifestLoader
 
 public sealed class LocalManifestException : Exception
 {
+    public LocalManifestException()
+    {
+    }
+
     public LocalManifestException(string message) : base(message)
     {
     }

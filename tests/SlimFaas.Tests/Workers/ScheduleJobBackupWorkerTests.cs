@@ -13,7 +13,7 @@ using SlimFaas.Workers;
 
 namespace SlimFaas.Tests.Workers;
 
-public class ScheduleJobBackupWorkerTests : IDisposable
+public sealed class ScheduleJobBackupWorkerTests : IDisposable
 {
     private readonly string _tempDir;
     private readonly Mock<ISlimDataStatus> _slimDataStatus = new();
@@ -181,7 +181,7 @@ public class ScheduleJobBackupWorkerTests : IDisposable
 
 // ──────── Tests unitaires purs : hash + sérialisation ────────
 
-public class ScheduleJobBackupFileTests : IDisposable
+public sealed class ScheduleJobBackupFileTests : IDisposable
 {
     private readonly string _tempDir;
 

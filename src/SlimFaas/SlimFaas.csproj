@@ -35,19 +35,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="KubernetesClient.Aot" Version="19.0.2" />
-    <PackageReference Include="MemoryPack" Version="1.21.4" />
-    <PackageReference Include="NodaTime" Version="3.3.3" />
-    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.18.0" />
-    <PackageReference Include="prometheus-net" Version="8.2.1" />
-    <PackageReference Include="prometheus-net.AspNetCore" Version="8.2.1" />
-    <PackageReference Include="OpenTelemetry" Version="1.18.0" />
-    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
-    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
-    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
-    <PackageReference Include="YamlDotNet" Version="18.1.0" />
-    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="18.1.0"
+    <PackageReference Include="KubernetesClient.Aot" />
+    <PackageReference Include="MemoryPack" />
+    <PackageReference Include="NodaTime" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" />
+    <PackageReference Include="prometheus-net" />
+    <PackageReference Include="prometheus-net.AspNetCore" />
+    <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="YamlDotNet" />
+    <PackageReference Include="Vecc.YamlDotNet.Analyzers.StaticGenerator"
                       PrivateAssets="all"
                       IncludeAssets="runtime; build; native; contentfiles; analyzers; buildtransitive" />
   </ItemGroup>

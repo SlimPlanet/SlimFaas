@@ -148,7 +148,7 @@ public static class StatusStreamEndpoints
         }
         catch (OperationCanceledException ex)
         {
-            logger.LogDebug(ex, "Status stream client disconnected.");
+            logger.LogStatusStreamClientDisconnected(ex);
         }
         finally
         {

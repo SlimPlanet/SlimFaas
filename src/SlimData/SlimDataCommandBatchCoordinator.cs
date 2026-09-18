@@ -126,7 +126,7 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogCritical(ex, "The centralized SlimData command batch coordinator stopped unexpectedly");
+            _logger.LogTheCentralizedSlimDataCommandBatchCoordinator(ex);
             FailPending(ex);
         }
         finally
@@ -207,7 +207,7 @@ public sealed class SlimDataCommandBatchCoordinator : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         _channel.Writer.TryComplete();
-        _shutdown.Cancel();
+        await _shutdown.CancelAsync().ConfigureAwait(false);
         try
         {
             await _worker.ConfigureAwait(false);

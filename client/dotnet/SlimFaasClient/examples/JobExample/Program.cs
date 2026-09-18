@@ -90,7 +90,7 @@ try
 }
 catch (SlimFaasRegistrationException ex)
 {
-    Console.Error.WriteLine($"Registration failed: {ex.Message}");
+    await Console.Error.WriteLineAsync($"Registration failed: {ex.Message}");
     Environment.Exit(1);
 }
 

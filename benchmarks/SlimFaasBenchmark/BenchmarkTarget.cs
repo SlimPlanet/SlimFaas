@@ -58,7 +58,7 @@ internal static class BenchmarkTarget
             {
                 long receivedTicks = DateTime.UtcNow.Ticks;
                 Interlocked.Increment(ref requestCount);
-                if (context.Request.Path.StartsWithSegments("/work"))
+                if (context.Request.Path.StartsWithSegments("/work", StringComparison.Ordinal))
                     Volatile.Write(ref lastScaleWorkTicks, receivedTicks);
                 await context.Request.Body.CopyToAsync(Stream.Null, context.RequestAborted);
 

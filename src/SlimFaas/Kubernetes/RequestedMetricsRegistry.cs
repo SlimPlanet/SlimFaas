@@ -99,7 +99,7 @@ public interface IRequestedMetricsRegistry
                 return false;
 
             // metricKey peut être "metric_name{label="x"}"
-            var braceIndex = metricKey.IndexOf('{');
+            var braceIndex = metricKey.IndexOf('{', StringComparison.Ordinal);
             var name = braceIndex < 0 ? metricKey : metricKey[..braceIndex];
 
             return _metrics.ContainsKey(name);

@@ -133,7 +133,7 @@ public class ToolProxyServiceMoreTests
 
         Assert.Equal("{ \"id\": 1 }", result.Text);
         Assert.Equal(HttpMethod.Post, _handler.LastRequest?.Method);
-        var body = await _handler.LastRequest!.Content!.ReadAsStringAsync();
+        var body = _handler.LastBody;
         Assert.Equal("{\"name\":\"Milo\"}", body);
     }
 
@@ -153,10 +153,14 @@ public class ToolProxyServiceMoreTests
         public HttpRequestMessage? LastRequest { get; private set; }
         public HttpResponseMessage Response { get; set; } = new(HttpStatusCode.OK);
 
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        /// <summary>Body captured at send time: the proxy disposes the request once it has been sent.</summary>
+        public string? LastBody { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             LastRequest = request;
-            return Task.FromResult(Response);
+            LastBody = request.Content is null ? null : await request.Content.ReadAsStringAsync(cancellationToken);
+            return Response;
         }
     }
 }

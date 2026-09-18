@@ -25,15 +25,11 @@ public class CpuMonitoringWorker : BackgroundService
     {
         if (!_options.Enabled)
         {
-            _logger.LogInformation("CPU monitoring is disabled");
+            _logger.LogCPUMonitoringIsDisabled();
             return;
         }
 
-        _logger.LogInformation(
-            "CPU monitoring started. Interval: {IntervalMs}ms, High: {High}%, Low: {Low}%",
-            _options.SampleIntervalMs,
-            _options.CpuHighThreshold,
-            _options.CpuLowThreshold);
+        _logger.LogCPUMonitoringStartedIntervalMsHigh(_options.SampleIntervalMs, _options.CpuHighThreshold, _options.CpuLowThreshold);
 
         using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(_options.SampleIntervalMs));
 
@@ -52,7 +48,7 @@ public class CpuMonitoringWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error monitoring CPU usage");
+                _logger.LogErrorMonitoringCPUUsage(ex);
             }
             finally
             {
@@ -76,21 +72,17 @@ public class CpuMonitoringWorker : BackgroundService
         {
             if (isLimiting)
             {
-                _logger.LogWarning(
-                    "CPU rate limiting activated. CPU: {CpuPercent:F2}%, Threshold: {Threshold}%",
-                    cpuPercent, _options.CpuHighThreshold);
+                _logger.LogCPURateLimitingActivatedCPUThreshold(cpuPercent, _options.CpuHighThreshold);
             }
             else
             {
-                _logger.LogInformation(
-                    "CPU rate limiting deactivated. CPU: {CpuPercent:F2}%, Threshold: {Threshold}%",
-                    cpuPercent, _options.CpuLowThreshold);
+                _logger.LogCPURateLimitingDeactivatedCPUThreshold(cpuPercent, _options.CpuLowThreshold);
             }
         }
 
         if (_logger.IsEnabled(LogLevel.Warning) && cpuPercent >= _options.CpuHighThreshold)
         {
-            _logger.LogWarning("High CPU usage detected: {CpuPercent:F2}%", cpuPercent);
+            _logger.LogHighCPUUsageDetected(cpuPercent);
         }
     }
 }

@@ -1,0 +1,96 @@
+<Project>
+
+  <!--
+    Central Package Management (CPM): every NuGet version used in the repository lives here.
+    A csproj declares <PackageReference Include="..." /> without a Version attribute; the SDK
+    resolves the version from this file and fails restore on drift (NU1008: a Version attribute
+    in a csproj, NU1010: a reference without a central PackageVersion, NU1015: this file missing
+    from a Docker build context).
+    Adding a package means adding exactly one PackageVersion line below.
+  -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Transitive packages can be pinned from this file without adding a direct reference. -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <!-- Test stack -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageVersion Include="Microsoft.CodeCoverage" Version="18.9.0" />
+    <PackageVersion Include="coverlet.collector" Version="10.0.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
+    <PackageVersion Include="FluentAssertions" Version="8.10.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.AspNetCore.TestHost" Version="10.0.11" />
+  </ItemGroup>
+
+  <!-- ASP.NET Core / Microsoft.Extensions -->
+  <ItemGroup>
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
+  </ItemGroup>
+
+  <!-- OpenTelemetry -->
+  <ItemGroup>
+    <PackageVersion Include="OpenTelemetry" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Console" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Prometheus.AspNetCore" Version="1.18.0-beta.1" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.18.0" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />
+  </ItemGroup>
+
+  <!-- Prometheus -->
+  <ItemGroup>
+    <PackageVersion Include="prometheus-net" Version="8.2.1" />
+    <PackageVersion Include="prometheus-net.AspNetCore" Version="8.2.1" />
+  </ItemGroup>
+
+  <!-- Kafka -->
+  <ItemGroup>
+    <PackageVersion Include="Confluent.Kafka" Version="2.15.0" />
+  </ItemGroup>
+
+  <!-- Swagger / OpenAPI -->
+  <ItemGroup>
+    <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.2.3" />
+  </ItemGroup>
+
+  <!-- Serialization -->
+  <ItemGroup>
+    <PackageVersion Include="MemoryPack" Version="1.21.4" />
+    <PackageVersion Include="YamlDotNet" Version="18.1.0" />
+    <PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="18.1.0" />
+    <PackageVersion Include="Yaml2JsonNode" Version="3.0.1" />
+    <PackageVersion Include="NodaTime" Version="3.3.3" />
+  </ItemGroup>
+
+  <!-- Kubernetes -->
+  <ItemGroup>
+    <PackageVersion Include="KubernetesClient.Aot" Version="19.0.2" />
+  </ItemGroup>
+
+  <!-- Raft / DotNext -->
+  <ItemGroup>
+    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.6.0" />
+  </ItemGroup>
+
+  <!-- Samples -->
+  <ItemGroup>
+    <PackageVersion Include="MailKit" Version="4.17.0" />
+  </ItemGroup>
+
+  <!-- Tooling -->
+  <ItemGroup>
+    <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
+  </ItemGroup>
+
+</Project>

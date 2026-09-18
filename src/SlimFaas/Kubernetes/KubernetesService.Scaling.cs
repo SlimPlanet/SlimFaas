@@ -25,7 +25,7 @@ public partial class KubernetesService
         }
         catch (Exception e)
         {
-            logger.LogError(e, "name: {Name}\n annotations[Scale]: {Annotation}", name, annotations.TryGetValue(Scale, out var a) ? a : "<missing>");
+            logger.LogNameAnnotationsScale(e, name, annotations.TryGetValue(Scale, out var a) ? a : "<missing>");
         }
 
         return null;
@@ -96,7 +96,7 @@ public partial class KubernetesService
         }
         catch (HttpOperationException e)
         {
-            _logger.LogError(e, "Error while scaling kubernetes deployment {RequestDeployment}", request.Deployment);
+            _logger.LogErrorWhileScalingKubernetesDeployment(e, request.Deployment);
             return request;
         }
 

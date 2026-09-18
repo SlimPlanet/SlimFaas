@@ -1,4 +1,4 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Data;
 using System.Diagnostics;
@@ -15,7 +15,7 @@ using SlimFaas.Options;
 
 namespace SlimFaas.Database;
 
-#pragma warning disable CA2252
+#pragma warning disable CA2252 // DotNext preview APIs (IAsyncBinaryReader, static abstract members)
 public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 {
     private const string UnifiedBatchKind = "commands";
@@ -87,9 +87,11 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             var producerId = partitionCount == 1
                 ? baseProducerId
                 : $"{baseProducerId}:partition:{index}";
+#pragma warning disable CA2000 // owned by the BatchPartition, disposed with the service
             var batcher = new MultiRateAdaptiveBatcher(
                 idleStop: TimeSpan.FromSeconds(15),
                 maxWaitPerTick: TimeSpan.FromSeconds(5));
+#pragma warning restore CA2000
             var partition = new BatchPartition(kind, producerId, batcher);
             _batchPartitions[index] = partition;
             batcher.RegisterKind<SlimDataBatchOperation, SlimDataBatchOperationResult>(
@@ -218,14 +220,14 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public async Task<KeyValueCommandResult> SetAsync(
         string key,
         byte[]? value = null,
-        long? timeToLiveMs = null,
+        long? timeToLiveMilliseconds = null,
         KeyValueOperation operation = KeyValueOperation.Set,
         long integerDelta = 0,
         decimal floatDelta = 0)
     {
         var mutation = NewOperation(SlimDataBatchOperationKind.KeyValue, key);
         mutation.Value = value ?? [];
-        mutation.ExpireAtUtcTicks = ToExpireAtUtcTicks(timeToLiveMs);
+        mutation.ExpireAtUtcTicks = ToExpireAtUtcTicks(timeToLiveMilliseconds);
         mutation.KeyValueOperation = operation;
         mutation.IntegerDelta = integerDelta;
         mutation.FloatDelta = floatDelta;
@@ -247,11 +249,11 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
     public async Task HashSetAsync(
         string key,
         IDictionary<string, byte[]> values,
-        long? timeToLiveMs = null)
+        long? timeToLiveMilliseconds = null)
     {
         var mutation = NewOperation(SlimDataBatchOperationKind.AddHashSet, key);
         mutation.HashValues = new Dictionary<string, byte[]>(values);
-        mutation.ExpireAtUtcTicks = ToExpireAtUtcTicks(timeToLiveMs);
+        mutation.ExpireAtUtcTicks = ToExpireAtUtcTicks(timeToLiveMilliseconds);
         _ = await EnqueueMutationAsync(mutation).ConfigureAwait(false);
     }
 
@@ -411,12 +413,7 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
             catch (Exception ex) when (IsRetryableBatchFailure(ex, cancellationToken))
             {
                 attempt++;
-                _logger.LogWarning(
-                    ex,
-                    "Retrying the same ordered SlimData batch. Producer={ProducerId}, Sequence={Sequence}, Attempt={Attempt}",
-                    partition.ProducerId,
-                    sequence,
-                    attempt);
+                _logger.LogRetryingTheSameOrderedSlimDataBatch(ex, partition.ProducerId, sequence, attempt);
                 await Task.Delay(RetryDelay, cancellationToken).ConfigureAwait(false);
             }
         }

@@ -15,12 +15,12 @@ public static class LocalCommand
             LoadedLocalManifest loaded = LocalManifestLoader.Load(command.Files, command.EnvironmentFiles);
             if (loaded.Manifest.Cluster.Nodes == 2)
             {
-                Console.Error.WriteLine(
+                await Console.Error.WriteLineAsync(
                     "warning: a two-node Raft cluster cannot tolerate the loss of either node.");
             }
             if (loaded.Manifest.Jobs.Values.Any(job => job.Resources is not null))
             {
-                Console.Error.WriteLine(
+                await Console.Error.WriteLineAsync(
                     "warning: Job CPU and memory resources are accepted for API compatibility " +
                     "but are not enforced in process mode.");
             }
@@ -69,12 +69,12 @@ public static class LocalCommand
         }
         catch (LocalManifestException exception)
         {
-            Console.Error.WriteLine($"slimfaas local: {exception.Message}");
+            await Console.Error.WriteLineAsync($"slimfaas local: {exception.Message}");
             return 2;
         }
         catch (Exception exception)
         {
-            Console.Error.WriteLine($"slimfaas local: {exception}");
+            await Console.Error.WriteLineAsync($"slimfaas local: {exception}");
             return 1;
         }
     }

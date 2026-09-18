@@ -48,7 +48,7 @@ public static class WebSocketEndpoints
         }
 
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
-        var connection = new WebSocketClientConnection { Socket = socket };
+        using var connection = new WebSocketClientConnection { Socket = socket };
 
         try
         {
@@ -56,7 +56,7 @@ public static class WebSocketEndpoints
         }
         finally
         {
-            if (connection.FunctionName != string.Empty)
+            if (!string.IsNullOrEmpty(connection.FunctionName))
             {
                 registry.Unregister(connection);
             }
@@ -70,7 +70,7 @@ public static class WebSocketEndpoints
             // Annuler tous les sync streams en cours
             foreach (var (_, stream) in connection.PendingSyncStreams)
             {
-                stream.Cts.Cancel();
+                await stream.Cts.CancelAsync();
                 stream.ResponseChunks.Writer.TryComplete(new OperationCanceledException("WebSocket disconnected"));
                 stream.ResponseStartTcs.TrySetCanceled();
                 stream.ResponseEndTcs.TrySetCanceled();
@@ -102,7 +102,7 @@ public static class WebSocketEndpoints
                     await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", ct);
                     return;
                 }
-                ms.Write(buffer, 0, result.Count);
+                await ms.WriteAsync(buffer.AsMemory(0, result.Count), ct);
             }
             while (!result.EndOfMessage);
 
@@ -123,7 +123,7 @@ public static class WebSocketEndpoints
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Failed to deserialize WebSocket message");
+                logger.LogFailedToDeserializeWebSocketMessage(ex);
                 continue;
             }
 
@@ -143,7 +143,7 @@ public static class WebSocketEndpoints
     {
         if (data.Length < BinaryFrame.HeaderSize)
         {
-            logger.LogWarning("Received binary frame too short ({Length} bytes)", data.Length);
+            logger.LogReceivedBinaryFrameTooShortBytes(data.Length);
             return;
         }
 
@@ -152,7 +152,7 @@ public static class WebSocketEndpoints
 
         if (!connection.PendingSyncStreams.TryGetValue(correlationId, out var pendingStream))
         {
-            logger.LogWarning("Received binary frame for unknown correlationId={CorrelationId} type={Type}", correlationId, type);
+            logger.LogReceivedBinaryFrameForUnknownCorrelationId(correlationId, type);
             return;
         }
 
@@ -165,13 +165,12 @@ public static class WebSocketEndpoints
                     if (responseStart != null)
                     {
                         pendingStream.ResponseStartTcs.TrySetResult(responseStart);
-                        logger.LogDebug("SyncResponseStart received: correlationId={CorrelationId} status={StatusCode}",
-                            correlationId, responseStart.StatusCode);
+                        logger.LogSyncResponseStartReceivedCorrelationIdStatus(correlationId, responseStart.StatusCode);
                     }
                 }
                 catch (Exception ex)
                 {
-                    logger.LogWarning(ex, "Failed to deserialize SyncResponseStart payload");
+                    logger.LogFailedToDeserializeSyncResponseStartPayload(ex);
                     pendingStream.ResponseStartTcs.TrySetException(ex);
                 }
                 break;
@@ -183,7 +182,7 @@ public static class WebSocketEndpoints
             case WebSocketMessageType.SyncResponseEnd:
                 pendingStream.ResponseChunks.Writer.TryComplete();
                 pendingStream.ResponseEndTcs.TrySetResult();
-                logger.LogDebug("SyncResponseEnd received: correlationId={CorrelationId}", correlationId);
+                logger.LogSyncResponseEndReceivedCorrelationId(correlationId);
                 break;
 
             case WebSocketMessageType.SyncCancel:
@@ -192,11 +191,11 @@ public static class WebSocketEndpoints
                 pendingStream.ResponseStartTcs.TrySetCanceled();
                 pendingStream.ResponseEndTcs.TrySetCanceled();
                 connection.PendingSyncStreams.TryRemove(correlationId, out _);
-                logger.LogDebug("SyncCancel received: correlationId={CorrelationId}", correlationId);
+                logger.LogSyncCancelReceivedCorrelationId(correlationId);
                 break;
 
             default:
-                logger.LogDebug("Unexpected binary frame type: {Type}", type);
+                logger.LogUnexpectedBinaryFrameType(type);
                 break;
         }
     }
@@ -229,7 +228,7 @@ public static class WebSocketEndpoints
                 break;
 
             default:
-                logger.LogDebug("Unhandled WebSocket message type: {Type}", envelope.Type);
+                logger.LogUnhandledWebSocketMessageType(envelope.Type);
                 break;
         }
     }
@@ -252,7 +251,7 @@ public static class WebSocketEndpoints
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to deserialize Register payload");
+            logger.LogFailedToDeserializeRegisterPayload(ex);
         }
 
         if (payload == null || string.IsNullOrWhiteSpace(payload.FunctionName))
@@ -289,8 +288,7 @@ public static class WebSocketEndpoints
 
         if (!success)
         {
-            logger.LogWarning("WebSocket registration refused for '{FunctionName}': {Error}",
-                payload.FunctionName, error);
+            logger.LogWebSocketRegistrationRefusedFor(payload.FunctionName, error);
         }
     }
 
@@ -309,25 +307,24 @@ public static class WebSocketEndpoints
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Failed to deserialize AsyncCallback payload");
+            logger.LogFailedToDeserializeAsyncCallbackPayload(ex);
             return;
         }
 
         if (payload == null || string.IsNullOrWhiteSpace(payload.ElementId))
         {
-            logger.LogWarning("AsyncCallback received with missing elementId");
+            logger.LogAsyncCallbackReceivedWithMissingElementId();
             return;
         }
 
         if (connection.PendingCallbacks.TryRemove(payload.ElementId, out var tcs))
         {
             tcs.TrySetResult(payload.StatusCode);
-            logger.LogDebug("AsyncCallback resolved: elementId={ElementId} status={Status}",
-                payload.ElementId, payload.StatusCode);
+            logger.LogAsyncCallbackResolvedElementIdStatus(payload.ElementId, payload.StatusCode);
         }
         else
         {
-            logger.LogWarning("AsyncCallback for unknown elementId={ElementId}", payload.ElementId);
+            logger.LogAsyncCallbackForUnknownElementId(payload.ElementId);
         }
     }
 }

@@ -10,7 +10,7 @@ public static class Cron
         if (string.IsNullOrWhiteSpace(cronDefinition))
             return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must not be empty"));
 
-        var parts = cronDefinition.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var parts = cronDefinition.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 5)
             return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
 
@@ -60,7 +60,7 @@ public static class Cron
         if (string.IsNullOrWhiteSpace(cronDefinition))
             return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must not be empty"));
 
-        var parts = cronDefinition.Trim().Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        var parts = cronDefinition.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 5)
             return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
 
@@ -124,7 +124,7 @@ public static class Cron
 
         foreach (var part in field.Split(','))
         {
-            if (part.Contains("/"))
+            if (part.Contains('/', StringComparison.Ordinal))
             {
                 var split = part.Split('/');
                 var range = split[0];
@@ -134,7 +134,7 @@ public static class Cron
                 // Treat "0" as "*" for step expressions (e.g., "0/15" = "*/15")
                 if (range != "*" && range != "0")
                 {
-                    if (range.Contains("-"))
+                    if (range.Contains('-', StringComparison.Ordinal))
                     {
                         var bounds = range.Split('-');
                         rangeStart = int.Parse(bounds[0], CultureInfo.InvariantCulture);
@@ -148,7 +148,7 @@ public static class Cron
                 for (int i = rangeStart; i <= rangeEnd; i += step)
                     values.Add(i);
             }
-            else if (part.Contains("-"))
+            else if (part.Contains('-', StringComparison.Ordinal))
             {
                 var bounds = part.Split('-');
                 int start = int.Parse(bounds[0], CultureInfo.InvariantCulture);

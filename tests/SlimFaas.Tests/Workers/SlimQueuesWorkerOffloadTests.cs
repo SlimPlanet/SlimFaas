@@ -594,6 +594,7 @@ public class SlimQueuesWorkerOffloadTests
         masterService.Setup(s => s.IsMaster).Returns(true);
 
         Mock<ILogger<SlimQueuesWorker>> loggerMock = new();
+        loggerMock.Setup(l => l.IsEnabled(It.IsAny<LogLevel>())).Returns(true);
 
         var workersOptions = Microsoft.Extensions.Options.Options.Create(new WorkersOptions
         {

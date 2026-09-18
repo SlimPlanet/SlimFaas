@@ -30,7 +30,7 @@ try
 }
 catch (Exception exception)
 {
-    Console.Error.WriteLine(exception);
+    await Console.Error.WriteLineAsync(exception.ToString());
     return 1;
 }
 
@@ -89,7 +89,7 @@ static async Task<int> RunHttpCardinalityAsync(Arguments arguments)
     for (var index = 0; index < hosts; index++)
     {
         using var response = await client.GetAsync(
-            $"http://pod-{index}.ephemeral.test/health",
+            new Uri($"http://pod-{index}.ephemeral.test/health"),
             HttpCompletionOption.ResponseHeadersRead);
         response.EnsureSuccessStatusCode();
     }
@@ -214,7 +214,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
 
     var payload = CreatePayload(payloadBytes);
     var filePayload = CreatePayload(fileBytes);
-    var handler = new SocketsHttpHandler
+    using var handler = new SocketsHttpHandler
     {
         AutomaticDecompression = DecompressionMethods.None,
         MaxConnectionsPerServer = Math.Max(32, concurrency * 2),
@@ -222,7 +222,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         PooledConnectionIdleTimeout = TimeSpan.FromSeconds(30),
         UseProxy = false
     };
-    using var client = new HttpClient(handler)
+    using var client = new HttpClient(handler, disposeHandler: false)
     {
         Timeout = TimeSpan.FromSeconds(30)
     };
@@ -686,7 +686,7 @@ static async Task<int> ValidateSlimDataStateAsync(
     {
         var node = validationIndex++ % nodeCount;
         using var response = await client.GetAsync(
-            $"http://127.0.0.1:{firstPort + node}/data/sets/{id}",
+            new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
             cancellationToken);
         if (!shouldExist)
         {
@@ -709,7 +709,7 @@ static async Task<int> ValidateSlimDataStateAsync(
     {
         var node = validationIndex++ % nodeCount;
         using var response = await client.GetAsync(
-            $"http://127.0.0.1:{firstPort + node}/data/hashsets/{id}",
+            new Uri($"http://127.0.0.1:{firstPort + node}/data/hashsets/{id}"),
             cancellationToken);
         if (!shouldExist)
         {
@@ -732,7 +732,7 @@ static async Task<int> ValidateSlimDataStateAsync(
     {
         var node = validationIndex++ % nodeCount;
         using var response = await client.GetAsync(
-            $"http://127.0.0.1:{firstPort + node}/data/sets/{id}",
+            new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
             cancellationToken);
         if (!response.IsSuccessStatusCode)
         {
@@ -754,7 +754,7 @@ static async Task<int> ValidateSlimDataStateAsync(
         expected.Counters.Count,
         failures.Count);
     foreach (var failure in failures.Take(20))
-        Console.Error.WriteLine($"validation failed: {failure}");
+        await Console.Error.WriteLineAsync($"validation failed: {failure}");
     return failures.Count;
 }
 
@@ -772,7 +772,7 @@ static async Task WaitForQueueDrainAsync(
         for (var node = 0; node < nodeCount; node++)
         {
             var metrics = await client.GetStringAsync(
-                $"http://127.0.0.1:{firstPort + node}/metrics",
+                new Uri($"http://127.0.0.1:{firstPort + node}/metrics"),
                 cancellationToken);
             var value = ReadMetric(metrics, metricName);
             allDrained &= value == 0d;
@@ -857,8 +857,8 @@ static int RunComparison(Arguments arguments)
     var builder = new StringBuilder();
     builder.AppendLine("# SlimData batch-mode benchmark");
     builder.AppendLine();
-    builder.AppendLine($"Generated: {DateTimeOffset.UtcNow:O}");
-    builder.AppendLine($"Baseline: `{baselineVariant}`");
+    builder.AppendLine(CultureInfo.InvariantCulture, $"Generated: {DateTimeOffset.UtcNow:O}");
+    builder.AppendLine(CultureInfo.InvariantCulture, $"Baseline: `{baselineVariant}`");
     builder.AppendLine();
     builder.AppendLine("## Individual runs");
     builder.AppendLine();
@@ -973,7 +973,7 @@ static int RunComparison(Arguments arguments)
     }
 
     builder.AppendLine();
-    builder.AppendLine($"Overall adoption result: **{(adoptionPass ? "PASS" : "FAIL")}**.");
+    builder.AppendLine(CultureInfo.InvariantCulture, $"Overall adoption result: **{(adoptionPass ? "PASS" : "FAIL")}**.");
     builder.AppendLine();
     builder.AppendLine("Low-load runs require at least 90% of the target rate, p95 < 50 ms and p99 < 75 ms. Unpaced runs require throughput >= 90% of baseline, p99 <= 120% and RSS <= 115%. The overall adoption result passes when at least one candidate is adoptable. A partitioned candidate is recommended only when its median high-load throughput gain is at least 10%.");
     builder.AppendLine();
@@ -1285,7 +1285,7 @@ static double SumWalFiles(string path)
     double result = 0d;
     foreach (var line in File.ReadLines(path))
     {
-        var separator = line.IndexOf(' ');
+        var separator = line.IndexOf(' ', StringComparison.Ordinal);
         if (separator > 0 &&
             double.TryParse(
                 line.AsSpan(0, separator),

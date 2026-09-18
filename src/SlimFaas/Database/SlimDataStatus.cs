@@ -1,4 +1,4 @@
-﻿using DotNext.Net.Cluster.Consensus.Raft;
+using DotNext.Net.Cluster.Consensus.Raft;
 using Microsoft.Extensions.Logging;
 using SlimData;
 
@@ -29,9 +29,7 @@ public class SlimDataStatus(
                persistentState.IsRestoring ||
                !protocolCompatibility.IsCompatible)
         {
-            logger.LogWarning(
-                "Raft cluster is not ready, waiting for leader, consensus, local state and protocol compatibility. ProtocolReason={ProtocolReason}",
-                protocolCompatibility.Reason);
+            logger.LogRaftClusterIsNotReadyWaiting(protocolCompatibility.Reason);
             await Task.Delay(500).ConfigureAwait(false);
         }
     }

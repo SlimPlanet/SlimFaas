@@ -30,27 +30,21 @@ public sealed class SlimFaasClient : ISlimFaasClient
 
         try
         {
-            _logger.LogInformation("Sending wake up request to SlimFaas for function {Function}", functionName);
+            _logger.LogSendingWakeUpRequestToSlimFaas(functionName);
             using var response = await _httpClient.PostAsync(requestUri, content: null, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation(
-                    "Wake up for {Function} succeeded with status code {StatusCode}",
-                    functionName,
-                    response.StatusCode);
+                _logger.LogWakeUpForSucceededWithStatus(functionName, response.StatusCode);
             }
             else
             {
-                _logger.LogWarning(
-                    "Wake up for {Function} failed with status code {StatusCode}",
-                    functionName,
-                    response.StatusCode);
+                _logger.LogWakeUpForFailedWithStatus(functionName, response.StatusCode);
             }
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
-            _logger.LogError(ex, "Error while calling SlimFaas wake up for function {Function}", functionName);
+            _logger.LogErrorWhileCallingSlimFaasWakeUp(ex, functionName);
         }
     }
 }

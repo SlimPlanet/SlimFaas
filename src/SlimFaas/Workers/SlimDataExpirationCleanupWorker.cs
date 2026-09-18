@@ -29,7 +29,7 @@ public sealed class SlimDataExpirationCleanupWorker : BackgroundService
         {
             try
             {
-                _logger.LogDebug("SlimData TTL cleanup cycle started.");
+                _logger.LogSlimDataTTLCleanupCycleStarted();
                 await _cleaner.CleanupOnceAsync(stoppingToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
@@ -38,7 +38,7 @@ public sealed class SlimDataExpirationCleanupWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "SlimData TTL cleanup cycle failed.");
+                _logger.LogSlimDataTTLCleanupCycleFailed(ex);
             }
 
             try
