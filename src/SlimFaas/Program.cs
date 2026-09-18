@@ -6,6 +6,7 @@ using System.Text.Json;
 using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.Http;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http;
@@ -183,7 +184,8 @@ switch (envOrConfig)
         serviceCollectionStarter.AddSingleton<IKubernetesService, KubernetesService>(sp =>
         {
             bool useKubeConfig = bool.Parse(configurationRoot["UseKubeConfig"] ?? "false");
-            return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig);
+            return new KubernetesService(sp.GetRequiredService<ILogger<KubernetesService>>(), useKubeConfig,
+                slimFaasOptions.KubernetesSkipTlsVerify);
         });
         isKubernetesOrchestrator = true;
         break;
@@ -610,6 +612,19 @@ builder.Services.ConfigureHttpJsonOptions(opt =>
 });
 
 WebApplication app = builder.Build();
+
+// X-Forwarded-For is ignored unless the operator declares the proxies allowed to set it.
+// Must run first so that every later caller classification sees the real client address.
+ForwardedHeadersOptions? forwardedHeadersOptions = TrustedProxies.CreateForwardedHeadersOptions(slimFaasOptions.TrustedProxies);
+if (forwardedHeadersOptions is not null)
+{
+    if (startupLogger.IsEnabled(LogLevel.Information))
+    {
+        startupLogger.LogTrustedProxiesConfigured(string.Join(", ", slimFaasOptions.TrustedProxies));
+    }
+    app.UseForwardedHeaders(forwardedHeadersOptions);
+}
+
 app.UseCors(builder =>
 {
     string slimFaasCorsAllowOrigin = slimFaasOptions.CorsAllowOrigin;

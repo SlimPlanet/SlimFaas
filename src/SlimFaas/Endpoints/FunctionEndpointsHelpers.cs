@@ -10,6 +10,7 @@ using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.Local;
 using SlimFaas.Options;
+using SlimFaas.Security;
 using SlimFaas;
 
 namespace SlimFaas.Endpoints;
@@ -254,64 +255,43 @@ public static class FunctionEndpointsHelpers
         return functionPath;
     }
 
+    /// <summary>
+    /// Peer and namespace-internal checks use the address of the TCP connection only.
+    /// <c>X-Forwarded-For</c> is never read here; it is honoured, one hop deep, by the
+    /// forwarded-headers middleware for the proxies declared in <c>SlimFaas:TrustedProxies</c>.
+    /// </summary>
     public static bool MessageComeFromNamespaceInternal(
         ILogger logger,
         HttpContext context,
         IReplicasService replicasService,
         IJobService jobService)
     {
-        List<string> podIps = replicasService.Deployments.Functions
+        IPAddress? remote = context.Connection.RemoteIpAddress;
+        string remoteIp = remote?.ToString() ?? "";
+
+        IEnumerable<string?> podIps = replicasService.Deployments.Functions
             .Where(f => f.Trust == FunctionTrust.Trusted)
             .SelectMany(p => p.Pods)
             .Select(p => p.Ip)
-            .ToList();
-
-        podIps.AddRange(replicasService.Deployments.SlimFaas.Pods.Select(p => p.Ip));
-
-        podIps.AddRange(jobService.Jobs.SelectMany(job => job.Ips));
-
-        var forwardedFor = context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "";
-        var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "";
-
-        logger.LogForwardedForRemoteIp(forwardedFor, remoteIp);
+            .Concat(replicasService.Deployments.SlimFaas.Pods.Select(p => p.Ip))
+            .Concat(jobService.Jobs.SelectMany(job => job.Ips));
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            foreach (var podIp in podIps)
+            logger.LogRemoteIp(remoteIp);
+            foreach (string? podIp in podIps)
             {
-                logger.LogPodIp(podIp);
+                logger.LogPodIp(podIp ?? "");
             }
         }
 
-        if (IsInternalIp(forwardedFor, podIps) || IsInternalIp(remoteIp, podIps))
+        if (RemoteAddress.IsAnyOf(remote, podIps))
         {
-            logger.LogRequestComeFromInternalNamespaceForwardedFor(forwardedFor, remoteIp);
+            logger.LogRequestComeFromInternalNamespace(remoteIp);
             return true;
         }
 
-        logger.LogRequestComeFromExternalNamespaceForwardedFor(forwardedFor, remoteIp);
-        return false;
-    }
-
-    private static bool IsInternalIp(string? ipAddress, IList<string> podIps)
-    {
-        if (string.IsNullOrEmpty(ipAddress))
-        {
-            return false;
-        }
-
-        foreach (string podIp in podIps)
-        {
-            if (string.IsNullOrEmpty(podIp))
-            {
-                continue;
-            }
-            if (ipAddress.Contains(podIp, StringComparison.Ordinal))
-            {
-                return true;
-            }
-        }
-
+        logger.LogRequestComeFromExternalNamespace(remoteIp);
         return false;
     }
 

@@ -142,7 +142,7 @@ A job configuration describes the executable/image, arguments, environment, reso
 
 Inactivity can reduce replicas to the configured minimum, including zero. New calls and wake-up requests refresh activity. Dependency checks coordinate dependent workloads. PromQL triggers handle scale-out from running replicas, with limits, stabilization windows and policies. Read [Autoscaling](autoscaling.md) before tuning these independently of request timeouts.
 
-Function visibility, path overrides and event subscription visibility are separate decisions. Trusted workload addresses and forwarded addresses participate in caller classification. Set up your ingress accordingly. Native local mode's shared loopback network cannot demonstrate pod isolation. Data sets/files have their own visibility setting; the [API Reference](api-reference.md) documents the current hashset behavior separately.
+Function visibility, path overrides and event subscription visibility are separate decisions. `DefaultFunctionAccessPolicy` classifies a caller by the address of its TCP connection, compared exactly with the Trusted function pod and job pod addresses; the peer endpoints apply the same rule with the SlimFaas member addresses. `X-Forwarded-For` is ignored unless `SlimFaas:TrustedProxies` lists the proxies allowed to set it, in which case the forwarded-headers middleware rewrites the connection address (one hop) before any classification runs. See [Functions](functions.md#how-callers-are-classified). Native local mode's shared loopback network cannot demonstrate pod isolation. Data sets/files have their own visibility setting; the [API Reference](api-reference.md) documents the current hashset behavior separately.
 
 ### Queue metrics and function isolation
 
