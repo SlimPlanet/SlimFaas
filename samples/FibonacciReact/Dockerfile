@@ -10,7 +10,7 @@ COPY . .
 RUN pnpm run build   # produit /app/dist avec index.html + assets
 
 # ---- runtime ----
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 # SPA fallback vers index.html
 COPY <<'NGINX' /etc/nginx/conf.d/default.conf
 server {
