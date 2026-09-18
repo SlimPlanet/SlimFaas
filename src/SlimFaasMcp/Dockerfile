@@ -1,8 +1,5 @@
-# Node.js LTS (24.x) sur Alpine, utilisé uniquement pour fournir node/npm/corepack/pnpm au build
-FROM --platform=$BUILDPLATFORM node:24-alpine3.22 AS node
-ARG PNPM_VERSION=10.14.0
-RUN corepack enable \
- && corepack prepare "pnpm@${PNPM_VERSION}" --activate
+# Node.js provides node/npm for the ClientApp build.
+FROM --platform=$BUILDPLATFORM node:26-alpine3.22 AS node
 
 FROM --platform=$BUILDPLATFORM alpine:3.22 AS base
 RUN apk update && apk upgrade
@@ -18,7 +15,7 @@ EXPOSE 443
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.22 AS build
 RUN apk update && apk upgrade
 RUN apk add --no-cache clang build-base zlib-dev
-# Injecte Node.js + npm + corepack + pnpm depuis l'image officielle node
+# Copy Node.js and npm from the official image.
 COPY --from=node /usr/local/ /usr/local/
 WORKDIR /src
 
@@ -29,7 +26,7 @@ COPY eng/ eng/
 COPY src/SlimFaasMcp/ src/SlimFaasMcp/
 ARG RUNTIME_ID=x64
 
-# Le csproj déclenche npm ci / npm run build pendant le publish ; Node+pnpm sont disponibles.
+# The project runs npm ci and npm run build during publish.
 RUN dotnet publish "./src/SlimFaasMcp/SlimFaasMcp.csproj" -c Release -a "$RUNTIME_ID" -o /app/publish \
     -p:DebugType=none \
     -p:DebugSymbols=false
@@ -37,4 +34,6 @@ RUN dotnet publish "./src/SlimFaasMcp/SlimFaasMcp.csproj" -c Release -a "$RUNTIM
 FROM --platform=$BUILDPLATFORM base AS final
 WORKDIR /app
 COPY --chown=appuser --from=publish /app/publish .
+# The frontend is generated after MSBuild collects static assets on a clean build.
+COPY --chown=appuser --from=publish /src/src/SlimFaasMcp/ClientApp/dist ./wwwroot
 ENTRYPOINT ["./SlimFaasMcp"]
