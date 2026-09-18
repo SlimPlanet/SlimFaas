@@ -4,7 +4,7 @@ ARG PNPM_VERSION=10.14.0
 RUN corepack enable \
  && corepack prepare "pnpm@${PNPM_VERSION}" --activate
 
-FROM --platform=$BUILDPLATFORM alpine:3.22 AS base
+FROM --platform=$BUILDPLATFORM alpine:3.24 AS base
 RUN apk update && apk upgrade
 RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
