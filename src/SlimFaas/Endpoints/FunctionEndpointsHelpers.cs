@@ -256,9 +256,12 @@ public static class FunctionEndpointsHelpers
     }
 
     /// <summary>
-    /// Peer and namespace-internal checks use the address of the TCP connection only.
-    /// <c>X-Forwarded-For</c> is never read here; it is honoured, one hop deep, by the
-    /// forwarded-headers middleware for the proxies declared in <c>SlimFaas:TrustedProxies</c>.
+    /// Peer and namespace-internal checks accept a valid caller signature (Hybrid and
+    /// Strict modes, see <see cref="CallerClassification"/>) or, under the address rule,
+    /// the address of the TCP connection only. SlimFaas member pods stay identified by
+    /// address in every mode (peer traffic). <c>X-Forwarded-For</c> is never read here;
+    /// it is honoured, one hop deep, by the forwarded-headers middleware for the proxies
+    /// declared in <c>SlimFaas:TrustedProxies</c>.
     /// </summary>
     public static bool MessageComeFromNamespaceInternal(
         ILogger logger,
@@ -269,11 +272,12 @@ public static class FunctionEndpointsHelpers
         IPAddress? remote = context.Connection.RemoteIpAddress;
         string remoteIp = remote?.ToString() ?? "";
 
+        IEnumerable<string?> peerIps = replicasService.Deployments.SlimFaas.Pods.Select(p => p.Ip);
         IEnumerable<string?> podIps = replicasService.Deployments.Functions
             .Where(f => f.Trust == FunctionTrust.Trusted)
             .SelectMany(p => p.Pods)
             .Select(p => p.Ip)
-            .Concat(replicasService.Deployments.SlimFaas.Pods.Select(p => p.Ip))
+            .Concat(peerIps)
             .Concat(jobService.Jobs.SelectMany(job => job.Ips));
 
         if (logger.IsEnabled(LogLevel.Debug))
@@ -285,7 +289,13 @@ public static class FunctionEndpointsHelpers
             }
         }
 
-        if (RemoteAddress.IsAnyOf(remote, podIps))
+        bool isInternal = CallerClassification.IsInternal(
+            context,
+            () => RemoteAddress.IsAnyOf(remote, podIps),
+            () => RemoteAddress.IsAnyOf(remote, peerIps),
+            logger);
+
+        if (isInternal)
         {
             logger.LogRequestComeFromInternalNamespace(remoteIp);
             return true;
