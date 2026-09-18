@@ -147,7 +147,7 @@ public class CallerClassificationTests
     [Fact]
     public void SlimFaasOptions_DefaultsToLegacy()
     {
-        IConfigurationRoot configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
+        IConfigurationRoot configuration = new ConfigurationBuilder().AddInMemoryCollection([]).Build();
         ServiceCollection services = new();
         services.AddSingleton<IConfiguration>(configuration);
         services.AddSlimFaasOptions(configuration);
@@ -185,7 +185,7 @@ public class CallerClassificationTests
     private static DefaultFunctionAccessPolicy Policy(ILogger<DefaultFunctionAccessPolicy>? logger = null)
     {
         Mock<IWebSocketFunctionRepository> webSockets = new();
-        webSockets.Setup(w => w.GetVirtualDeployments()).Returns(new List<DeploymentInformation>());
+        webSockets.Setup(w => w.GetVirtualDeployments()).Returns([]);
         return new DefaultFunctionAccessPolicy(Replicas(), Jobs(), webSockets.Object,
             logger ?? NullLogger<DefaultFunctionAccessPolicy>.Instance);
     }
@@ -199,23 +199,22 @@ public class CallerClassificationTests
 
     private static DeploymentsInformations Deployments()
         => new(
-            new List<DeploymentInformation>
-            {
+            [
                 new("trusted-api", "default",
                     [new PodInformation("trusted-api-0", true, true, TrustedPodIp, "trusted-api")],
                     new SlimFaasConfiguration(), 1),
                 new("private-api", "default",
                     [new PodInformation("private-api-0", true, true, "10.0.0.3", "private-api")],
                     new SlimFaasConfiguration(), 1, Visibility: FunctionVisibility.Private)
-            },
+            ],
             new SlimFaasDeploymentInformation(1,
                 [new PodInformation("slimfaas-0", true, true, SlimFaasPodIp, "slimfaas")]),
-            new List<PodInformation>());
+            []);
 
     private static IJobService Jobs()
     {
         Mock<IJobService> jobs = new();
-        jobs.SetupGet(j => j.Jobs).Returns(new List<KubernetesJob>());
+        jobs.SetupGet(j => j.Jobs).Returns([]);
         return jobs.Object;
     }
 }

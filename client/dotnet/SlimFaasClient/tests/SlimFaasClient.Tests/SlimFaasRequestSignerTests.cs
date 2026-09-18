@@ -23,7 +23,7 @@ public class SlimFaasRequestSignerTests
     [Fact]
     public void CreateHeaders_MatchesTheSharedPostVector()
     {
-        var headers = SlimFaasRequestSigner.CreateHeaders(
+        IReadOnlyDictionary<string, string> headers = SlimFaasRequestSigner.CreateHeaders(
             Credentials(), "post", "/function/fibonacci/compute",
             [new("b", "2"), new("a", "1"), new("a", "[0]")],
             SlimFaasRequestSigner.Sha256Hex("{\"n\":10}"u8), s_timestamp, Nonce);
@@ -45,7 +45,7 @@ public class SlimFaasRequestSignerTests
 
         await SlimFaasRequestSigner.SignAsync(request, Credentials());
         // Timestamp and nonce are generated: recompute with the fixed ones to compare the signature.
-        var expected = SlimFaasRequestSigner.CreateHeaders(Credentials(), "POST", "/function/fibonacci/compute",
+        IReadOnlyDictionary<string, string> expected = SlimFaasRequestSigner.CreateHeaders(Credentials(), "POST", "/function/fibonacci/compute",
             SlimFaasRequestSigner.ParseQuery("?b=2&a=1&a=%5B0%5D"), BodySha256, s_timestamp, Nonce);
 
         request.Headers.GetValues(SlimFaasRequestSigner.ContentSha256Header).Single().Should().Be(BodySha256);
@@ -59,7 +59,7 @@ public class SlimFaasRequestSignerTests
     [Fact]
     public void CreateHeaders_MatchesTheSharedGetVector()
     {
-        var headers = SlimFaasRequestSigner.CreateHeaders(
+        IReadOnlyDictionary<string, string> headers = SlimFaasRequestSigner.CreateHeaders(
             Credentials(), "GET", "/function/fibonacci/health", null,
             SlimFaasRequestSigner.Sha256Hex([]), s_timestamp, Nonce);
 
