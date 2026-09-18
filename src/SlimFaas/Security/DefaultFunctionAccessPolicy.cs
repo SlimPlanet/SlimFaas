@@ -15,10 +15,12 @@ public sealed class DefaultFunctionAccessPolicy(
     private static readonly object s_internalCacheKey = new(); // cache par requête (HttpContext.Items)
 
     /// <summary>
-    /// A request is internal when the address of its connection is the address of a
-    /// Trusted function pod or of a job pod. The <c>X-Forwarded-For</c> header is never
-    /// read here: it is only honoured, one hop deep, by the forwarded-headers middleware
-    /// for the proxies declared in <c>SlimFaas:TrustedProxies</c>.
+    /// A request is internal when it carries a valid caller signature (Hybrid and Strict
+    /// modes, see <see cref="CallerClassification"/>) or, under the address rule, when the
+    /// address of its connection is the address of a Trusted function pod or of a job pod.
+    /// The <c>X-Forwarded-For</c> header is never read here: it is only honoured, one hop
+    /// deep, by the forwarded-headers middleware for the proxies declared in
+    /// <c>SlimFaas:TrustedProxies</c>.
     /// </summary>
     public bool IsInternalRequest(HttpContext context)
     {
@@ -27,8 +29,12 @@ public sealed class DefaultFunctionAccessPolicy(
 
         IPAddress? remote = context.Connection.RemoteIpAddress;
 
-        bool isInternal = RemoteAddress.IsAnyOf(remote, TrustedFunctionPodIps())
-                          || RemoteAddress.IsAnyOf(remote, jobService.Jobs.SelectMany(j => j.Ips));
+        bool isInternal = CallerClassification.IsInternal(
+            context,
+            () => RemoteAddress.IsAnyOf(remote, TrustedFunctionPodIps())
+                  || RemoteAddress.IsAnyOf(remote, jobService.Jobs.SelectMany(j => j.Ips)),
+            isPeerAddress: null,
+            logger);
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
