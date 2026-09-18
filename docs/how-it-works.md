@@ -34,6 +34,8 @@ Native local mode is for development. It shares the host network and does not en
 
 The Docker build stages use Node.js 26 to compile the embedded frontends. The React demo installs the pinned `pnpm@10.14.0` explicitly because Node.js 26 no longer bundles Corepack. SlimFaasMcp uses `npm ci` and copies the generated `ClientApp/dist` directory into the final image's `wwwroot`, so a clean container build includes its web interface. Node.js and the package managers are build-time tools; the runtime images serve the compiled static files.
 
+The React demo serves its static files as the unprivileged `nginx` user on port `8000`, with its PID file at `/tmp/nginx.pid` and writable cache files under `/var/cache/nginx`. Installing the pinned pnpm CLI disables lifecycle scripts with `--ignore-scripts`.
+
 ### Components and responsibilities
 
 Each SlimFaas node serves requests and observes the cluster. `ReplicasSynchronizationWorker` refreshes workload topology. The leader's scaling and dispatch decisions use readiness, dependencies, activity history, concurrency limits and queue state.
