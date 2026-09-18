@@ -3,8 +3,8 @@ namespace SlimFaas.Security
 {
     internal static partial class DefaultFunctionAccessPolicyLog
     {
-        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Debug, Message = "IsInternalRequest={IsInternal} Remote={RemoteIp} XFF={Xff}")]
-        internal static partial void LogIsInternalRequestRemoteXFF(this global::Microsoft.Extensions.Logging.ILogger logger, bool isInternal, string? remoteIp, string xff);
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Debug, Message = "IsInternalRequest={IsInternal} Remote={RemoteIp}")]
+        internal static partial void LogIsInternalRequestRemote(this global::Microsoft.Extensions.Logging.ILogger logger, bool isInternal, string? remoteIp);
 
     }
 }
