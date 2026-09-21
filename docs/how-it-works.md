@@ -171,6 +171,23 @@ flowchart LR
 
 Small sets, counters and queue mutations are applied through SlimData's replicated log. Counter operations execute atomically as commands. The HTTP hashset facade stores one raw value field.
 
+Each node batches outgoing SlimData mutations in a local command consumer (one
+per configured partition). Dequeueing an asynchronous request is itself a durable
+mutation: a stalled local consumer can therefore stop dispatch even when functions
+are Ready and Raft continues committing writes from other nodes. Check local batch
+queue growth and dispatch-cycle progress together with Raft health.
+
+The consumer stops after 15 seconds of inactivity and starts again when a command
+arrives. Admission, retirement and disposal are synchronized so that a command
+arriving during retirement remains owned by exactly one consumer. An unexpected
+consumer exception is logged and explicitly fails its unfinished operations;
+the next enqueue can start a new consumer. The batcher does not automatically
+replay failed operations, because an interrupted write may already have committed.
+This recovery does not change Raft messages, persisted data or function retry
+configuration. Upgrading to a release containing this fix prevents the negative
+idle-timeout failure; on older versions, restarting the affected SlimFaas pod is
+a temporary workaround, not a repair of the underlying race.
+
 File content is disk-backed; metadata is cluster-consistent. A receiving node announces availability and another node can pull content when serving a download. File bytes are not copied through Raft as ordinary large values. TTL and deletion govern temporary artifact availability. See [Data Sets](data-sets.md) and [Data Files](data-files.md).
 
 ### Consensus and persistence
