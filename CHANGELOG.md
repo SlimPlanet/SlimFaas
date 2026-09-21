@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.84.10
+
+- [8c47c685](https://github.com/SlimPlanet/SlimFaas/commit/8c47c6856e9f89518c48e5f29761b2b3031d3ee0) - fix(SlimData): recover command batching after idle worker failures (#425) (release), 2026-09-21 by *Guillaume Chervet*
+- [c4f5bf62](https://github.com/SlimPlanet/SlimFaas/commit/c4f5bf625db36ef740a6efaf5545dbd6e3645574) - fix(security): classify callers by connection address only and verify the API-server certificate by default (#406, #407) (#415), 2026-09-18 by *Guillaume Delahaye*
+- [b7cdd8b1](https://github.com/SlimPlanet/SlimFaas/commit/b7cdd8b1ee50f73aa754140a59f23ca5218e0a67) - build: NuGet Central Package Management (#395) (#400), 2026-09-15 by *Guillaume Delahaye*
+- [fe3b08e7](https://github.com/SlimPlanet/SlimFaas/commit/fe3b08e779e3633a24e5f6ad6c7217a6e311341c) - test(SlimFaas): drive the SlimJobsWorker tests by mock signals instead of wall-clock delays (#397), 2026-09-14 by *Guillaume Delahaye*
+
+
+## 0.84.9
+
+
+
 ## v0.84.9
 
 - [3da11da0](https://github.com/SlimPlanet/SlimFaas/commit/3da11da0f2958720ee493ca3b84e9e6aa6dfe2d0) - build: analyzer remediation phases 2-4 (#358) (#394) (release), 2026-09-14 by *Guillaume Delahaye*
@@ -267,13 +279,5 @@
 ## v0.77.1
 
 - [661414a9](https://github.com/SlimPlanet/SlimFaas/commit/661414a9073c2a15e6d83a2f5b26ab676c958a13) - feature(slimfaas):  enhance local mode (#305) (release), 2026-07-29 by *Guillaume Chervet*
-
-
-## 0.76.1
-
-
-
-## 0.77.0
-
 
 
