@@ -17,8 +17,7 @@ public sealed class MultiRateAdaptiveBatcherRecoveryTests
         var calls = 0;
         batcher.RegisterKind<int, int>("commands", (requests, _) =>
         {
-            if (Interlocked.Increment(ref calls) == 1)
-                time.Arm();
+            Interlocked.Increment(ref calls);
             return Task.FromResult<IReadOnlyList<int>>(requests.ToArray());
         }, timingProvider: () => Immediate);
 
@@ -96,7 +95,7 @@ public sealed class MultiRateAdaptiveBatcherRecoveryTests
         {
             handled.AddRange(requests);
             handlerEntered.TrySetResult();
-            await releaseHandler.Task;
+            await releaseHandler.Task.WaitAsync(Deadline, CancellationToken.None);
             return requests.ToArray();
         }, maxBatchSize: 1, maxQueueLength: 2, maxQueueBytes: 2,
             sizeEstimatorBytes: _ => 1,
@@ -166,7 +165,7 @@ public sealed class MultiRateAdaptiveBatcherRecoveryTests
         batcher.RegisterKind<int, int>("commands", async (requests, _) =>
         {
             handlerEntered.TrySetResult();
-            await releaseHandler.Task;
+            await releaseHandler.Task.WaitAsync(Deadline, CancellationToken.None);
             return requests.ToArray();
         }, timingProvider: () => Immediate);
 
@@ -226,7 +225,6 @@ public sealed class MultiRateAdaptiveBatcherRecoveryTests
         private int _armed;
         private int _reads;
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
-        public void Arm() => Volatile.Write(ref _armed, 1);
 
         public override long GetTimestamp()
         {
@@ -235,16 +233,20 @@ public sealed class MultiRateAdaptiveBatcherRecoveryTests
             int read = Interlocked.Increment(ref _reads);
             return read switch
             {
-                1 => 0, // idle interval starts
-                2 => TimeSpan.FromMilliseconds(14_999).Ticks,
-                _ => TimeSpan.FromMilliseconds(15_010L * (read - 2)).Ticks
+                1 => TimeSpan.FromMilliseconds(14_999).Ticks,
+                _ => TimeSpan.FromMilliseconds(15_010L * (read - 1)).Ticks
             };
         }
 
-        // The fixed worker waits once for the last millisecond, then reads the
-        // expired deadline. The old worker throws before it can create this timer.
-        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
-            new Timer(callback, state, TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            // Wait until the initial enqueue pulse has been observed. Otherwise a
+            // late pulse could bypass WaitAsync's timeout validation in the old code.
+            // After this first idle timer, the old loop crosses the deadline between
+            // its condition and timeout reads; the fixed loop safely waits once more.
+            Volatile.Write(ref _armed, 1);
+            return new Timer(callback, state, TimeSpan.Zero, Timeout.InfiniteTimeSpan);
+        }
     }
 
     private sealed class FailingTimestampTimeProvider : TimeProvider
