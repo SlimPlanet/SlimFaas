@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.11
+
+- [b490a555](https://github.com/SlimPlanet/SlimFaas/commit/b490a555110df4f77f9825cd096b1fd440ca1fb1) - fix: remove false path visibility warnings (#428) (release), 2026-09-22 by *Guillaume Chervet*
+
+
+## 0.84.10
+
+
+
 ## v0.84.10
 
 - [8c47c685](https://github.com/SlimPlanet/SlimFaas/commit/8c47c6856e9f89518c48e5f29761b2b3031d3ee0) - fix(SlimData): recover command batching after idle worker failures (#425) (release), 2026-09-21 by *Guillaume Chervet*
@@ -270,14 +279,5 @@
 ## v0.78.0
 
 - [53b82316](https://github.com/SlimPlanet/SlimFaas/commit/53b82316abdb890ec06da11eea787ad6a12b9a67) - feat(slimfaas): local add dependson processes (release), 2026-07-30 by *Guillaume Chervet*
-
-
-## 0.77.1
-
-
-
-## v0.77.1
-
-- [661414a9](https://github.com/SlimPlanet/SlimFaas/commit/661414a9073c2a15e6d83a2f5b26ab676c958a13) - feature(slimfaas):  enhance local mode (#305) (release), 2026-07-29 by *Guillaume Chervet*
 
 
