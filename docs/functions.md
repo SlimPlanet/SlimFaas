@@ -156,6 +156,10 @@ metadata:
 ```
 This helps you control which services can call certain endpoints.
 
+`SlimFaas/PathsStartWithVisibility` rules are evaluated in their declared order. The first matching path prefix determines visibility; matching ignores case and an optional leading `/`. Rules that do not match are skipped silently. If no rule matches, `SlimFaas/DefaultVisibility` applies (Public when omitted).
+
+The `Public:` and `Private:` prefixes are parsed when the configuration is loaded. In status responses, each rule therefore has separate `Path` and `Visibility` fields; the prefix is not part of `Path`. Event subscription visibility is configured separately through [`SlimFaas/SubscribeEvents`](events.md#1-subscribe-to-events).
+
 An **Untrusted** function will be considered as outside the namespace and will not be able to access Private actions.  By default, a function is **Trusted**.
 
 ```yaml

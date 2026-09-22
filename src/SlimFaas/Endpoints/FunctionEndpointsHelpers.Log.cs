@@ -3,9 +3,6 @@ namespace SlimFaas.Endpoints
 {
     internal static partial class FunctionEndpointsHelpersLogMessages
     {
-        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning, Message = "PathStartWithVisibility {PathStartWith} should be prefixed by Public: or Private:")]
-        internal static partial void LogPathStartWithVisibilityShouldBePrefixedByPublic(this global::Microsoft.Extensions.Logging.ILogger logger, global::SlimFaas.Kubernetes.PathVisibility pathStartWith);
-
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Debug, Message = "RemoteIp: {RemoteIp}")]
         internal static partial void LogRemoteIp(this global::Microsoft.Extensions.Logging.ILogger logger, string remoteIp);
 
