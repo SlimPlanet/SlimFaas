@@ -4,6 +4,20 @@ SlimFaas sits between callers and their applications. It routes HTTP requests, w
 
 Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard. This page explains what happens behind each step; the [API Reference](api-reference.md) lists the actual routes.
 
+## Container build dependencies
+
+Dockerfiles pin the .NET 10 SDK to `10.0.401` and .NET runtime images to `10.0.12`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.2` for standalone Alpine images). Frontend build stages use Node.js `24.21.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.5` on Alpine 3.24.
+
+The SlimFaas and MCP dashboards install dependencies with `npm ci`; the React demo uses pnpm with a frozen lockfile. Updating a dependency therefore requires its corresponding lockfile to be committed. Generated frontend assets and local test/demo artifacts are excluded from the Docker context. The MCP final image explicitly copies the freshly built dashboard into `wwwroot`, including on the first publish from a clean checkout. All .NET container builds use the repository root as their build context so central package versions, analyzers and AOT checks apply consistently:
+
+```bash
+docker build -f Dockerfile -t slimfaas:local .
+docker build -f src/SlimFaasMcp/Dockerfile -t slimfaas-mcp:local .
+docker build -f samples/FibonacciReact/Dockerfile -t fibonacci-react:local samples/FibonacciReact
+```
+
+See the [dependency update guidelines](../CONTRIBUTING.md#dependency-updates) for compatibility constraints, license checks and validation commands.
+
 ## The system at a glance
 
 ```mermaid
