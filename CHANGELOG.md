@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.12
+
+- [f5be9eb7](https://github.com/SlimPlanet/SlimFaas/commit/f5be9eb730528df1daa02b8fd7c1621d22db0aaa) - fix(SlimData): upgrade Raft and diagnose leaderless clusters (#403) (release), 2026-09-23 by *Guillaume Chervet*
+
+
+## 0.84.11
+
+
+
 ## v0.84.11
 
 - [b490a555](https://github.com/SlimPlanet/SlimFaas/commit/b490a555110df4f77f9825cd096b1fd440ca1fb1) - fix: remove false path visibility warnings (#428) (release), 2026-09-22 by *Guillaume Chervet*
@@ -270,14 +279,5 @@
 ## v0.79.0
 
 - [2216e9f6](https://github.com/SlimPlanet/SlimFaas/commit/2216e9f64d0a972f7b5694ca5366d7f8b8ebd0c4) - feat(slimfaas): UI stream job activity (release), 2026-07-30 by *Guillaume Chervet*
-
-
-## 0.78.0
-
-
-
-## v0.78.0
-
-- [53b82316](https://github.com/SlimPlanet/SlimFaas/commit/53b82316abdb890ec06da11eea787ad6a12b9a67) - feat(slimfaas): local add dependson processes (release), 2026-07-30 by *Guillaume Chervet*
 
 
