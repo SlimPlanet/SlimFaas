@@ -15,6 +15,10 @@ before that node had been opened by the candidate. The baseline executable's
 SHA-256 is `11396a2fa8c7d33bbce37183a3d35c71a7721f0783aa89ad7e59c70c24016e6b`.
 Extraction always targets a temporary directory; tests never mutate this archive.
 
-The same restoration test passes with 6.6.0. With 6.7.2 it exposes the metadata
-page-size compatibility failure on systems whose page size exceeds 4 KiB.
-Keep the explicit 16 KiB data chunk size when loading this fixture on other hosts.
+The restoration test passes with 6.6.0 and the current 6.8.1 candidate, including
+on a 16 KiB-page ARM64 host. The intervening 6.7.2 release failed on systems with
+pages larger than 4 KiB; 6.8.1 carries the upstream compatibility fix. Keep this
+test enabled on every architecture so that a future regression cannot be hidden
+by a platform skip. Keep the explicit 16 KiB data chunk size when loading this
+fixture on other hosts, and await application of the committed suffix before
+checking keys beyond the snapshot.

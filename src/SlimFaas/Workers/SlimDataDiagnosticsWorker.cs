@@ -19,6 +19,8 @@ public sealed class SlimDataDiagnosticsWorker(
 {
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
     private const int RecoveryClearSamplesRequired = 2;
+    private static readonly string ProgressStallDescription =
+        $"Whether local WAL entries remain unapplied with no applied-index progress for at least {SlimDataProgressTracker.StallThresholdSeconds} seconds";
     private static readonly (SlimDataSnapshotTrigger Trigger, IReadOnlyDictionary<string, string> Labels)[]
         SnapshotTriggerMetrics =
         [
@@ -129,15 +131,19 @@ public sealed class SlimDataDiagnosticsWorker(
         gauges.SetGaugeValue("slimdata_raft_last_skipped_length_bytes", safety.LastSkippedLength,
             "Declared length of the latest skipped command, or -1 when unavailable");
 
-        gauges.SetGaugeValue("slimdata_raft_last_log_index", cluster.AuditTrail.LastEntryIndex,
+        long lastLogIndex = cluster.AuditTrail.LastEntryIndex;
+        long committedLogIndex = cluster.AuditTrail.LastCommittedEntryIndex;
+        long term = cluster.AuditTrail.Term;
+        DotNext.Net.Cluster.IClusterMember? leader = cluster.Leader;
+        SlimDataCommandBatchCoordinatorStatistics commandBatch = commandBatchCoordinator.GetStatistics();
+        gauges.SetGaugeValue("slimdata_raft_last_log_index", lastLogIndex,
             "Last Raft WAL entry index");
-        gauges.SetGaugeValue("slimdata_raft_committed_log_index", cluster.AuditTrail.LastCommittedEntryIndex,
+        gauges.SetGaugeValue("slimdata_raft_committed_log_index", committedLogIndex,
             "Last committed Raft WAL entry index");
         gauges.SetGaugeValue(
             "slimdata_raft_commit_index_clamped_total",
             appendEntriesCommitIndexGuard.ClampedRequests,
             "Number of incoming Raft AppendEntries requests whose commit index was bounded to the last transmitted entry");
-        var lastLogIndex = cluster.AuditTrail.LastEntryIndex;
         var hasAppliedLogIndex = cluster.AuditTrail is WriteAheadLog;
         var appliedLogIndex = hasAppliedLogIndex
             ? ((WriteAheadLog)cluster.AuditTrail).LastAppliedIndex
@@ -148,28 +154,28 @@ public sealed class SlimDataDiagnosticsWorker(
         gauges.SetGaugeValue("slimdata_raft_local_apply_lag", localApplyLag,
             "Number of local Raft WAL entries not yet applied; this is not leader/follower replication lag");
 
-        bool progressChanged = _progressTracker.Observe(lastLogIndex, hasAppliedLogIndex ? appliedLogIndex : null);
+        long now = Stopwatch.GetTimestamp();
+        bool logRewound = _previousSampleTimestamp != 0 && lastLogIndex < _previousLastLogIndex;
+        bool progressChanged = _progressTracker.Observe(lastLogIndex,
+            hasAppliedLogIndex ? appliedLogIndex : null, _previousAppliedLogIndex, logRewound, now);
         gauges.SetGaugeValue("slimdata_raft_progress_stalled", _progressTracker.IsStalled ? 1 : 0,
-            "Whether local WAL entries remain unapplied with no applied-index progress for at least 30 seconds");
+            ProgressStallDescription);
         if (progressChanged)
         {
-            SlimDataCommandBatchCoordinatorStatistics batch = commandBatchCoordinator.GetStatistics();
             if (_progressTracker.IsStalled)
             {
-                logger.LogRaftProgressStalled(cluster.Leader?.EndPoint, cluster.AuditTrail.Term,
-                    lastLogIndex, cluster.AuditTrail.LastCommittedEntryIndex, appliedLogIndex,
-                    batch.QueueRequests, persistentState.IsSnapshotting, persistentState.IsRestoring);
+                logger.LogRaftProgressStalled(SlimDataProgressTracker.StallThresholdSeconds, leader?.EndPoint, term,
+                    lastLogIndex, committedLogIndex, appliedLogIndex,
+                    commandBatch.QueueRequests, persistentState.IsSnapshotting, persistentState.IsRestoring);
             }
             else
             {
-                logger.LogRaftProgressStallCleared(cluster.Leader?.EndPoint, cluster.AuditTrail.Term,
-                    lastLogIndex, cluster.AuditTrail.LastCommittedEntryIndex,
+                logger.LogRaftProgressStallCleared(leader?.EndPoint, term,
+                    lastLogIndex, committedLogIndex,
                     hasAppliedLogIndex ? appliedLogIndex : null);
             }
         }
 
-        var now = Stopwatch.GetTimestamp();
-        var logRewound = _previousSampleTimestamp != 0 && lastLogIndex < _previousLastLogIndex;
         if (_previousSampleTimestamp != 0 && !logRewound)
         {
             var elapsedSeconds = (now - _previousSampleTimestamp) / (double)Stopwatch.Frequency;
@@ -202,9 +208,9 @@ public sealed class SlimDataDiagnosticsWorker(
                 "Whether local Raft catch-up is currently slower than WAL generation");
         }
 
-        _previousLastLogIndex = logRewound ? -1 : lastLogIndex;
-        _previousAppliedLogIndex = logRewound ? -1 : appliedLogIndex;
-        _previousSampleTimestamp = logRewound ? 0 : now;
+        _previousLastLogIndex = lastLogIndex;
+        _previousAppliedLogIndex = appliedLogIndex;
+        _previousSampleTimestamp = now;
 
         var isLeader = !cluster.LeadershipToken.IsCancellationRequested;
         var recoveryMode = SlimDataRecoveryMetricCalculator.GetMode(
@@ -234,7 +240,6 @@ public sealed class SlimDataDiagnosticsWorker(
             "Duration of the current SlimData Raft recovery");
 
         var hasConsensus = !cluster.ConsensusToken.IsCancellationRequested;
-        DotNext.Net.Cluster.IClusterMember? leader = cluster.Leader;
         SlimDataAvailabilityTracker.AvailabilityChange availabilityChange =
             _availabilityTracker.Observe(leader is not null, hasConsensus);
         gauges.SetGaugeValue("slimdata_raft_has_leader", leader is not null ? 1 : 0,
@@ -245,13 +250,13 @@ public sealed class SlimDataDiagnosticsWorker(
         if (availabilityChange == SlimDataAvailabilityTracker.AvailabilityChange.Unavailable)
         {
             logger.LogRaftConsensusUnavailable(leader?.EndPoint, hasConsensus,
-                _availabilityTracker.UnavailableSeconds, cluster.AuditTrail.Term, lastLogIndex,
-                cluster.AuditTrail.LastCommittedEntryIndex, hasAppliedLogIndex ? appliedLogIndex : null);
+                _availabilityTracker.UnavailableSeconds, term, lastLogIndex,
+                committedLogIndex, hasAppliedLogIndex ? appliedLogIndex : null);
         }
         else if (availabilityChange == SlimDataAvailabilityTracker.AvailabilityChange.Recovered)
         {
-            logger.LogRaftConsensusRecovered(leader?.EndPoint, cluster.AuditTrail.Term, lastLogIndex,
-                cluster.AuditTrail.LastCommittedEntryIndex, hasAppliedLogIndex ? appliedLogIndex : null);
+            logger.LogRaftConsensusRecovered(leader?.EndPoint, term, lastLogIndex,
+                committedLogIndex, hasAppliedLogIndex ? appliedLogIndex : null);
         }
 
         var hasLease = cluster.TryGetLeaseToken(out var leaseToken) && !leaseToken.IsCancellationRequested;
@@ -322,7 +327,6 @@ public sealed class SlimDataDiagnosticsWorker(
 
         }
 
-        var commandBatch = commandBatchCoordinator.GetStatistics();
         gauges.SetGaugeValue("slimdata_command_batch_queue_requests", commandBatch.QueueRequests,
             "Number of producer batches waiting in the centralized leader queue");
         gauges.SetGaugeValue("slimdata_command_batch_queue_bytes", commandBatch.QueueBytes,

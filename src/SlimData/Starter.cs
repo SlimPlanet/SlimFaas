@@ -27,7 +27,7 @@ public static class Starter
         if (!string.IsNullOrEmpty(persistentStorage))
             configuration[SlimPersistentState.LogLocation] = persistentStorage;
 
-        using var host = new HostBuilder().ConfigureWebHost(webHost =>
+        var host = new HostBuilder().ConfigureWebHost(webHost =>
             {
                 webHost.UseKestrel(options =>
                     {
@@ -41,8 +41,20 @@ public static class Starter
             .JoinCluster()
             .Build();
 
-        // Hosted services may resolve the WAL before Startup.Configure runs.
-        await host.Services.GetRequiredService<SlimPersistentState>().RestoreAsync(CancellationToken.None);
+        try
+        {
+            // DotNext reads the restored snapshot synchronously when constructing the WAL.
+            await host.Services.GetRequiredService<SlimPersistentState>().RestoreAsync(CancellationToken.None);
+        }
+        catch
+        {
+            // RunAsync owns disposal once entered; restoration failures occur before that.
+            if (host is IAsyncDisposable asyncHost)
+                await asyncHost.DisposeAsync();
+            else
+                host.Dispose();
+            throw;
+        }
         await host.RunAsync();
     }
 

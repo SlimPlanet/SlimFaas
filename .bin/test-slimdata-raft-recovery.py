@@ -44,6 +44,15 @@ def eventually(description, predicate, timeout=DEADLINE):
     raise AssertionError(f"Timed out after {timeout}s: {description}")
 
 
+def assert_write_not_acknowledged(pending):
+    if pending.done():
+        try:
+            pending.result()
+        except Exception as error:
+            raise AssertionError("Write failed before quorum recovery; no acknowledgement was received") from error
+        raise AssertionError("A minority acknowledged a write")
+
+
 class Cluster:
     def __init__(self, output):
         self.output = output
@@ -120,13 +129,20 @@ class Cluster:
 
     def verify(self, phase):
         started = time.monotonic()
+        deadline = started + DEADLINE
         missing_reads = 0
+
+        def remaining():
+            seconds = deadline - time.monotonic()
+            assert seconds > 0, f"{phase}: verification exceeded its {DEADLINE}s phase deadline"
+            return seconds
+
         for node in self.processes:
             for key, value in self.expected.items():
                 def converged(n=node, k=key, expected=value):
                     nonlocal missing_reads
                     try:
-                        actual = request(HTTP_BASE + n, f"/data/sets/{k}", timeout=5)
+                        actual = request(HTTP_BASE + n, f"/data/sets/{k}", timeout=min(5, remaining()))
                     except HTTPError as error:
                         if error.code == 404:
                             missing_reads += 1
@@ -138,9 +154,9 @@ class Cluster:
                 # Historical versions expose local, eventually consistent reads.
                 # Bound catch-up while still failing wrong values and HTTP errors;
                 # mutations are never retried. Record any initially missing values.
-                eventually(f"{phase}: node {node}, key {key} applied", converged)
+                eventually(f"{phase}: node {node}, key {key} applied", converged, timeout=remaining())
             (self.output / f"{phase}-node-{node}.prom").write_bytes(
-                request(HTTP_BASE + node, "/metrics"))
+                request(HTTP_BASE + node, "/metrics", timeout=min(5, remaining())))
         result = {"phase": phase, "keys_per_node": len(self.expected), "nodes": 3,
                   "verification_seconds": round(time.monotonic() - started, 3),
                   "initially_missing_reads": missing_reads}
@@ -209,7 +225,7 @@ class Cluster:
                     else:
                         # Controlled fault duration, not a readiness assumption.
                         time.sleep(6)
-                        assert not pending.done(), "A minority acknowledged a write"
+                        assert_write_not_acknowledged(pending)
                 finally:
                     resumed = time.monotonic()
                     for node in followers:

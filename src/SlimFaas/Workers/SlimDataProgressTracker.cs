@@ -1,36 +1,32 @@
+using System.Diagnostics;
+
 namespace SlimFaas.Workers;
 
 /// <summary>Tracks a stationary applied index only while the local WAL has pending entries.</summary>
-internal sealed class SlimDataProgressTracker(TimeProvider? timeProvider = null)
+internal sealed class SlimDataProgressTracker
 {
-    private static readonly TimeSpan StallThreshold = TimeSpan.FromSeconds(30);
-    private readonly TimeProvider _timeProvider = timeProvider ?? TimeProvider.System;
+    internal const int StallThresholdSeconds = 30;
     private long? _pendingSince;
-    private long _previousLastIndex;
-    private long? _previousAppliedIndex;
 
     internal bool IsStalled { get; private set; }
 
     /// <returns>Whether the stall indication changed on this observation.</returns>
-    internal bool Observe(long lastIndex, long? appliedIndex)
+    internal bool Observe(long lastIndex, long? appliedIndex, long previousAppliedIndex, bool logRewound, long now)
     {
-        var wasStalled = IsStalled;
-        var now = _timeProvider.GetTimestamp();
-        if (appliedIndex is null or < 0 || lastIndex <= appliedIndex)
+        bool wasStalled = IsStalled;
+        if (appliedIndex is null || lastIndex <= appliedIndex)
         {
             _pendingSince = null;
             IsStalled = false;
         }
         else
         {
-            if (_pendingSince is null || appliedIndex != _previousAppliedIndex || lastIndex < _previousLastIndex)
+            if (_pendingSince is null || appliedIndex != previousAppliedIndex || logRewound)
                 _pendingSince = now;
 
-            IsStalled = _timeProvider.GetElapsedTime(_pendingSince.Value, now) >= StallThreshold;
+            IsStalled = Stopwatch.GetElapsedTime(_pendingSince.Value, now).TotalSeconds >= StallThresholdSeconds;
         }
 
-        _previousLastIndex = lastIndex;
-        _previousAppliedIndex = appliedIndex;
         return wasStalled != IsStalled;
     }
 }

@@ -19,6 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using SlimFaas.Database;
 using SlimFaas;
 using SlimData.Commands;
+using Xunit.Abstractions;
 
 namespace SlimData.Tests;
 
@@ -127,7 +128,7 @@ internal sealed class LeaderTracker : LeaderChangedEvent, IClusterMemberLifetime
         => cluster.LeaderChanged -= OnLeaderChanged;
 }
 
-public class RaftClusterTests
+public class RaftClusterTests(ITestOutputHelper output)
 {
     private protected static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(20);
     private protected static readonly TimeSpan BusyMembershipCatchUpTimeout = TimeSpan.FromSeconds(60);
@@ -184,8 +185,11 @@ public class RaftClusterTests
     }
 
     [Fact(Timeout = 120000)]
-    public static async Task MessageExchange()
+    public async Task MessageExchange()
     {
+        var elapsed = Stopwatch.StartNew();
+        void Phase(string name) => output.WriteLine($"{elapsed.Elapsed.TotalSeconds:F1}s: {name}");
+        Phase("bootstrap");
         Dictionary<string, string> config1 = new()
         {
             { "partitioning", "false" },
@@ -233,9 +237,10 @@ public class RaftClusterTests
         using IHost host3 = await CreateHostAsync<Startup>(3264, config3);
         await host3.StartAsync();
 
-        while (GetLocalClusterView(host1).Leader == null)
+        using (var electionTimeout = new CancellationTokenSource(DefaultTimeout))
         {
-            await Task.Delay(200);
+            while (GetLocalClusterView(host1).Leader is null)
+                await Task.Delay(50, electionTimeout.Token);
         }
 
         using (var protocolTimeout = new CancellationTokenSource(DefaultTimeout))
@@ -245,12 +250,14 @@ public class RaftClusterTests
                 await Task.Delay(50, protocolTimeout.Token);
         }
 
+        Phase("join second member");
         var membershipCoordinator = host1.Services.GetRequiredService<ClusterMembershipCoordinator>();
         Assert.True(await membershipCoordinator.AddMemberAsync(
             GetLocalClusterView(host2).LocalMemberAddress,
             CancellationToken.None));
         await GetLocalClusterView(host2).Readiness.WaitAsync(DefaultTimeout);
 
+        Phase("populate before third member");
         IDatabaseService databaseServiceMaster = host1.Services.GetRequiredService<IDatabaseService>();
         // DotNext starts a new member at the leader's last index and backs up one index per warmup round.
         // Keep the lag well above its default of 10 to cover fresh followers joining an active cluster.
@@ -270,6 +277,7 @@ public class RaftClusterTests
                 GetLocalClusterView(host3).LocalMemberAddress,
                 CancellationToken.None);
 
+        Phase("join third member with concurrent writes");
         var addThirdMemberTask = AddThirdMemberAsync();
         var concurrentWritesDuringMemberAdd = Enumerable.Range(0, 5)
             .Select(i => databaseServiceMaster.SetAsync(
@@ -289,6 +297,7 @@ public class RaftClusterTests
             host3.Services.GetRequiredService<IDatabaseService>()
         ];
 
+        Phase("read-after-write on each member");
         const int readAfterWriteIterations = 16;
         for (var i = 0; i < readAfterWriteIterations; i++)
         {
@@ -305,6 +314,7 @@ public class RaftClusterTests
         }
 
         IDatabaseService databaseServiceSlave = host3.Services.GetRequiredService<IDatabaseService>();
+        Phase("remove and re-add live third member");
         var thirdMemberEndpoint = GetLocalClusterView(host3).LocalMemberAddress;
         Assert.True(await membershipCoordinator.RemoveMemberAsync(
             thirdMemberEndpoint,
@@ -330,6 +340,7 @@ public class RaftClusterTests
             "written-with-two-members",
             CancellationToken.None);
 
+        Phase("incompatible entry handling");
         using (var incompatibleEntryTimeout = new CancellationTokenSource(DefaultTimeout))
         {
             await GetLocalClusterView(host1).ReplicateAsync(
@@ -354,6 +365,7 @@ public class RaftClusterTests
         for (var i = 0; i < concurrentWritesDuringMemberAdd.Length; i++)
             Assert.Equal(i.ToString(), Encoding.UTF8.GetString(await databaseServiceMaster.GetAsync($"member-add-kv-{i}") ?? []));
 
+        Phase("data and queue operations");
         await databaseServiceSlave.SetAsync("key1", MemoryPackSerializer.Serialize("value1") );
         Assert.Equal("value1", MemoryPackSerializer.Deserialize<string>(await databaseServiceMaster.GetAsync("key1")));
         await GetLocalClusterView(host1).ForceReplicationAsync();
@@ -545,6 +557,7 @@ public class RaftClusterTests
             state.GetSkippedCommandMetrics(),
             metric => metric.CommandId == ListLeftPushBatchCommand.Id));
 
+        Phase("leader failover and deduplication");
         var failoverRequest = new SlimDataCommandBatchRequest
         {
             ProducerId = "raft-failover-producer",
@@ -615,9 +628,11 @@ public class RaftClusterTests
             }
         }
 
-        await host1.StopAsync();
-        await host2.StopAsync();
-        await host3.StopAsync();
+        Phase("shutdown surviving members");
+        // The previous leader was already stopped for the failover assertion.
+        // Stop survivors together so neither waits for an already-stopped peer.
+        await Task.WhenAll(survivingHosts.Select(static host => host.StopAsync()));
+        Phase("complete");
     }
 
     private static async Task<IList<QueueData>> WaitForQueueCountAsync(

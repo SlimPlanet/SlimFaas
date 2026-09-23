@@ -9,11 +9,11 @@ public sealed class SlimDataAvailabilityTrackerTests
     {
         var clock = new ManualClock();
         var availability = new SlimDataAvailabilityTracker(clock);
-        var progress = new SlimDataProgressTracker(clock);
+        var progress = new SlimDataProgressTracker();
         Assert.Equal(SlimDataAvailabilityTracker.AvailabilityChange.None, availability.Observe(true, true));
         Assert.Equal(SlimDataAvailabilityTracker.AvailabilityChange.Unavailable, availability.Observe(false, false));
         clock.Advance(30);
-        progress.Observe(100, 100);
+        progress.Observe(100, 100, 100, false, 30 * System.Diagnostics.Stopwatch.Frequency);
         availability.Observe(false, false);
         Assert.False(progress.IsStalled);
         Assert.Equal(30, availability.UnavailableSeconds);

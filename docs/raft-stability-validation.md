@@ -52,7 +52,7 @@ Host: macOS ARM64, .NET SDK 10.0.300, Node 24.
 | Native local demo | Manifest valid; `/status-functions` succeeds and `/function/fibonacci1/hello/local` returns `Hello local!` |
 | Comparative throughput, p99 and memory | FAIL: set/12 peak RSS +42.8%; set/48 throughput -30.2%; all 16 runs have zero request errors and pass state validation |
 | Disposable Kubernetes Service/DNS validation | Blocked: local rootless provider lacks systemd Delegate=yes |
-| CI and FOSSA | Unit tests and FOSSA passed on the first implementation commit; final-head checks remain required |
+| CI and FOSSA | Previous head: Linux unit tests, AOT builds, license check and Sonar quality gate pass; the Windows test job timed out in MessageExchange. Review fixes require fresh checks |
 
 In the native experiments, a pending write resumes 1.635 seconds after quorum
 returns for the 6.6.0 baseline and 4.046 seconds for the 6.4.1 baseline, within
@@ -67,14 +67,17 @@ selects the same pods. Probe and Service behavior still requires validation in a
 disposable Kubernetes cluster before operational adoption. No host configuration
 was changed to work around the local container-provider limitation.
 
-## Performance acceptance remains open
+## Previous performance screening (not conclusive)
 
 The comparison uses native main (`cc532ffe`, DotNext 6.6.0) and the 6.8.1
 candidate, two repetitions per scenario, 5-second warm-up and 30-second measured
-load, alternating execution order. No other local build, test or demo ran during
-this matrix. These are workstation screening results, not production sizing.
-All 16 runs complete: **452,275 measured operations, zero errors, and successful
-set/hashset/counter checks on every node**.
+load, alternating execution order. Other host workloads were subsequently
+reported during this matrix, so these results cannot isolate a candidate
+regression. The old harness also counted the state-verification tail as load in
+memory reports and CPU deltas. These are workstation screening results, not
+production sizing. All 16 runs complete: **452,275 measured operations and zero
+errors**. The mixed scenarios checked sets/hashsets/counters on every node;
+set-only runs did not yet include a final all-node state check.
 
 | Scenario / concurrency | Baseline ops/s | Candidate ops/s | Throughput change | p99 change | Peak RSS change | Result |
 |---|---:|---:|---:|---:|---:|---|
@@ -84,10 +87,42 @@ set/hashset/counter checks on every node**.
 | Set / 48 | 403.19 | 281.52 | -30.2% | +0.6% | +4.9% | Fail: throughput |
 
 The unchanged gates require throughput >=90% of baseline, p99 <=120%, and peak
-RSS <=115%. The overall verdict is **DO NOT ADOPT**. The measurements do not
-establish a memory leak or isolate a dependency defect; further controlled
-profiling is required before adopting this candidate. The thresholds are not
+RSS <=115%. The historical script verdict was **DO NOT ADOPT**, but these
+measurements are not conclusive evidence of a regression or a memory leak.
+A fresh controlled comparison is required before adopting this candidate. The thresholds are not
 relaxed and no durability setting is disabled to obtain a passing result.
+
+## Review follow-up
+
+The review against the earlier 6.7.2 candidate is addressed as follows:
+
+- Keep 6.8.1 and the live member re-addition assertions. Legacy WAL tests remain
+  enabled on all page sizes; the fixture now awaits its committed suffix.
+- Exercise the 6.8.1 dependency-injection guard that rejects WAL resolution before
+  restoration. Standalone startup disposes the host once, including restore failure.
+- Bound each native-harness verification phase to 60 seconds, cap individual
+  reads at five seconds, and distinguish a rejected write from an unsafe minority
+  acknowledgement. Deterministic Python tests cover these failure paths in CI.
+- Share the worker's monotonic sample, previous applied index and rewind decision
+  with the progress detector. Sample batch statistics and Raft indexes once and
+  use `CommittedLogIndex`/`AppliedLogIndex` consistently. Both transition signatures
+  allow an unknown applied index when observation is lost.
+- Keep the fixed diagnostic threshold in one code constant. No new tuning option
+  or broader dependency upgrade is introduced. The minimum logging-abstractions
+  pin follows the repository-wide central-version policy and also affects the
+  published client; a client-specific override would violate that policy.
+- Give private DotNext reflection bindings explicit failure messages, so a changed
+  upstream API can be distinguished from a failed Raft behaviour assertion.
+- Sort expected values once and validate members concurrently, including set-only
+  scenarios. A separate validation phase excludes that work from measured RSS
+  and captures CPU counters before verification. CLI regression tests check that
+  a synthetic validation-memory spike does not change the reported load peak.
+- Add elapsed phase diagnostics to the Windows-sensitive cluster test, bound its
+  initial election, and stop only surviving hosts concurrently after failover.
+  The 120-second test timeout and all membership assertions remain unchanged.
+
+The updated .NET suite passes 1,621 tests. New native, CLI and performance results
+will be recorded after the controlled rerun. The PR remains a draft.
 
 ## Reproduction
 

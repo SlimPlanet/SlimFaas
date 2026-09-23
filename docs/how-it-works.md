@@ -250,6 +250,9 @@ Both the SlimFaas host and standalone SlimData restore the latest snapshot befor
 resolving Raft services or starting hosted services. DotNext 6.8.1 requires this
 ordering before constructing the write-ahead log when a snapshot exists. Empty
 databases follow the same startup sequence. Restoration failures stop startup; WAL application must not race snapshot loading.
+DotNext 6.8.1 also rejects WAL construction if restoration was omitted, including
+through the dependency-injection registrations. A regression test exercises this
+guard with a compacted legacy WAL; new hosts must preserve the startup sequence.
 
 DotNext supports two WAL memory-management strategies. SlimFaas selects the strategy with `SlimData:WalMemoryManagement`:
 

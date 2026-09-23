@@ -106,6 +106,14 @@ jobs:
         with:
           global-json-file: global.json
 
+      - name: Test native Raft recovery harness
+        run: python .bin/test-raft-recovery-harness.py
+
+      - name: Test memory report measurement boundaries
+        run: |
+          dotnet build tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj -c Release
+          python .bin/test-memory-lab-report.py
+
       - name: Run unit tests
         run: |
           dotnet test --collect "Code Coverage;Format=cobertura" --verbosity normal

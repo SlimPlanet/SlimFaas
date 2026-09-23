@@ -54,6 +54,8 @@ public sealed class SlimPersistentStateTests
                 ChunkSize = 16384
             }, state);
             await wal.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            using var replayTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await wal.WaitForApplyAsync(wal.LastCommittedEntryIndex, replayTimeout.Token);
             for (var i = 0; i < 180; i++)
             {
                 Assert.Equal($"value-for-existing-{i}", Encoding.UTF8.GetString(state.SlimDataState.KeyValues[$"data:set:existing-{i}"].Span));

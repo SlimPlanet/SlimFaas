@@ -154,6 +154,11 @@ Playground previews emit no production scaling telemetry and do not extend real 
 
 ## SlimData Raft progress
 
+Raft transition messages use the structured fields `LastLogIndex`,
+`CommittedLogIndex` and `AppliedLogIndex`, consistent with membership diagnostics.
+Each diagnostics pass reuses one sample of these indexes and batch statistics
+for its gauges and log messages.
+
 SlimFaas exposes `slimdata_raft_progress_stalled` on each node's `/metrics` endpoint,
 independently of OTLP configuration. It is 1 if the local WAL contains unapplied
 entries and the applied index has stayed unchanged for at least 30 seconds.
