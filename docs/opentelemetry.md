@@ -170,6 +170,35 @@ The gauge has no additional labels and does not trigger an automatic restart or
 change `/ready`. Pending entries can be uncommitted during quorum loss, so this
 signal alone does not establish data corruption or a root cause.
 
+An idle journal does not establish cluster availability. The following gauges
+have no additional labels and are sampled every five seconds:
+
+| Metric | Meaning |
+|---|---|
+| `slimdata_raft_has_leader` | 1 when this node knows a leader, otherwise 0. |
+| `slimdata_raft_consensus_unavailable_duration_seconds` | Monotonic duration since this node first observed a missing leader or unavailable consensus; resets when both recover. |
+
+Unlike the local progress gauge, these signals detect consensus loss even when
+last, committed and applied indexes are equal. A newly elected leader without
+consensus does not reset the duration. Process restart resets the observation;
+it does not prove recovery. Example PromQL alert condition:
+
+```promql
+slimdata_raft_consensus_unavailable_duration_seconds >= 30
+```
+
+Availability changes produce structured logs with leader, term and all three
+indexes; persistent unavailability produces a reminder every 60 seconds.
+Recovery is logged at `Information` in `SlimFaas.Workers.SlimDataDiagnosticsWorker`.
+The readiness wait loop keeps its 500 ms polling interval but limits identical
+warnings to once per 60 seconds across concurrent waiters. Changed protocol
+reasons and new outages are reported immediately.
+
+Use `/ready` for readiness and `/health` for liveness. A 200 response from
+`/health` does not imply a working Raft cluster. Keep discovery available to
+unready peers without sending application traffic to them; see
+[Kubernetes probes and discovery](get-started-kubernetes.md#readiness-and-raft-discovery).
+
 When pods remain alive but writes stop, collect the following **from every node**
 before restarting anything:
 

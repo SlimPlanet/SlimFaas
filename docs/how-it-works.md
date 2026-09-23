@@ -194,23 +194,22 @@ File content is disk-backed; metadata is cluster-consistent. A receiving node an
 
 SlimData uses Raft through DotNext. Nodes retain applied state in memory and persist commands in a write-ahead log. A healthy quorum is needed for replicated writes; local snapshots of status and metadata do not by themselves establish that every peer is caught up.
 
-SlimData uses DotNext 6.7.2. This includes upstream fixes for a full replication
+SlimData uses DotNext 6.8.1. This includes upstream fixes for a full replication
 queue silently losing a member response and for rejecting an election candidate
 whose log is shorter but whose last term is newer. These are stabilization fixes;
-a causal link to the Smartguide 0.84.8/0.84.9 stall remains unconfirmed. The
+they do not establish the cause of a particular operational incident. The
 SlimData command protocol, snapshot payload format and AppendEntries commit-index
 guard are preserved.
 
-The upgrade is under validation: live member re-addition and pre-6.7 WAL metadata
-pages on hosts with system pages larger than 4 KiB, and new required Raft HTTP
-headers block rollout of the published dependency. Corrections are proposed in
-[DotNext #300](https://github.com/dotnet/dotNext/pull/300). See the
+The upgrade must preserve live member re-addition, legacy WAL metadata pages
+on hosts with system pages larger than 4 KiB, and compatibility with legacy
+Raft HTTP headers. See the
 [validation record](https://github.com/SlimPlanet/SlimFaas/blob/main/docs/raft-stability-validation.md)
-before upgrading existing state. The Smartguide incident remains open until staging confirms recovery.
+before upgrading existing state. Do not infer safe rollback from a forward-upgrade test.
 
 ### SlimData recovery
 
-DotNext 6.7.2 chooses the synchronization path internally. SlimFaas supplies
+DotNext 6.8.1 chooses the synchronization path internally. SlimFaas supplies
 `warmupRounds` (100 by default): a restarted member first attempts WAL
 backtracking and can fall back to DotNext snapshot recovery when the gap is
 larger than the configured search window. There is no public API in this
@@ -235,10 +234,20 @@ progress or when the backlog disappears. Idle nodes without a backlog remain at
 0. This informational signal does not change readiness, membership or restart
 behavior. See [Raft incident collection](opentelemetry.md#slimdata-raft-progress).
 
+A cluster can also lose its leader while every local entry is already applied.
+`slimdata_raft_has_leader` and
+`slimdata_raft_consensus_unavailable_duration_seconds` cover this independent
+failure mode. The duration accumulates while the leader is absent or consensus
+is unavailable and resets only when both return. The five-second sampler logs
+availability transitions and a reminder every 60 seconds. Identical readiness
+warnings are shared across waiters and limited to once per 60 seconds; a new
+reason or a new outage is reported immediately. None of these diagnostics
+restarts a node or changes its persisted state.
+
 ### SlimData WAL and snapshots
 
 Both the SlimFaas host and standalone SlimData restore the latest snapshot before
-resolving Raft services or starting hosted services. DotNext 6.7.2 requires this
+resolving Raft services or starting hosted services. DotNext 6.8.1 requires this
 ordering before constructing the write-ahead log when a snapshot exists. Empty
 databases follow the same startup sequence. Restoration failures stop startup; WAL application must not race snapshot loading.
 

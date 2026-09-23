@@ -17,5 +17,16 @@ namespace SlimFaas.Workers
         internal static partial void LogRaftProgressStallCleared(this global::Microsoft.Extensions.Logging.ILogger logger,
             global::System.Net.EndPoint? leader, long term, long lastLogIndex, long committedIndex, long? appliedIndex);
 
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Warning,
+            Message = "SlimData Raft consensus unavailable. Leader={Leader}, HasConsensus={HasConsensus}, UnavailableSeconds={UnavailableSeconds}, Term={Term}, LastLogIndex={LastLogIndex}, CommittedIndex={CommittedIndex}, AppliedIndex={AppliedIndex}")]
+        internal static partial void LogRaftConsensusUnavailable(this global::Microsoft.Extensions.Logging.ILogger logger,
+            global::System.Net.EndPoint? leader, bool hasConsensus, double unavailableSeconds,
+            long term, long lastLogIndex, long committedIndex, long? appliedIndex);
+
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Information,
+            Message = "SlimData Raft consensus recovered. Leader={Leader}, Term={Term}, LastLogIndex={LastLogIndex}, CommittedIndex={CommittedIndex}, AppliedIndex={AppliedIndex}")]
+        internal static partial void LogRaftConsensusRecovered(this global::Microsoft.Extensions.Logging.ILogger logger,
+            global::System.Net.EndPoint? leader, long term, long lastLogIndex, long committedIndex, long? appliedIndex);
+
     }
 }

@@ -60,7 +60,7 @@ kubectl -n slimfaas-demo get pods,pvc
 > propagate instead of a few hundred milliseconds. Lower that value if Service
 > objects change frequently in your cluster.
 
-The first manifest creates the namespace, ServiceAccount and RBAC. The SlimFaas manifest creates its configuration, StatefulSet and Service. Functions carry annotations for visibility, inactivity, concurrency, dependencies and scaling. `fibonacci2` depends on `fibonacci1` and MySQL; MySQL is included to demonstrate orchestration dependencies. The sample API itself does not query it.
+The first manifest creates the namespace, ServiceAccount and RBAC. The SlimFaas manifest creates its configuration, StatefulSet, discovery Service and application Service. Functions carry annotations for visibility, inactivity, concurrency, dependencies and scaling. `fibonacci2` depends on `fibonacci1` and MySQL; MySQL is included to demonstrate orchestration dependencies. The sample API itself does not query it.
 
 The `fibonacci` job is configured by SlimFaas. The additional `fibonacci5` CronJob is suspended in Kubernetes and discovered by SlimFaas through its annotations. Functions can scale to zero before you finish these steps, so their absence from the pod list alone is not a startup failure.
 
@@ -71,7 +71,7 @@ Keep `podManagementPolicy: OrderedReady`: one healthy Raft member starts before 
 Start the port-forward in a terminal and leave it running:
 
 ```bash
-kubectl -n slimfaas-demo port-forward service/slimfaas 30021:5000
+kubectl -n slimfaas-demo port-forward service/slimfaas-http 30021:5000
 ```
 
 Open **http://127.0.0.1:30021/**. In a second terminal:
@@ -84,6 +84,39 @@ curl -fsS "$BASE_URL/function/fibonacci1/hello/kubernetes"
 ```
 
 Expect `200 READY`, a function list and a greeting. Keep the network map visible during the next steps. Port-forward selects a pod; restart it if that pod is replaced. It is a convenient local access method, not a production ingress.
+
+## Readiness and Raft discovery
+
+Use `/ready` on port 5000 for the readiness probe and `/health` for the liveness
+probe, as in the demo. `/ready` returns 503 while the node lacks a leader,
+consensus, protocol compatibility or completed snapshot restoration. `/health`
+can still return 200: the process must remain alive to participate in recovery.
+
+The two Services have different purposes:
+
+| Service | Configuration | Use |
+|---|---|---|
+| `slimfaas` | Headless, `publishNotReadyAddresses: true` | Stable per-pod DNS for Raft, including unready members. |
+| `slimfaas-http` | ClusterIP, `publishNotReadyAddresses: false` | Application HTTP/WebSocket traffic; Ingress and Route backends. |
+
+Keep the StatefulSet's `serviceName` and the Raft URL template tied to the
+discovery Service. The demo pins `SlimFaas__BaseSlimDataUrl` explicitly so adding
+an application Service cannot change member identities. Do not point application
+traffic at the discovery Service: publishing unready addresses deliberately
+bypasses readiness filtering there. Port-forward is also a direct diagnostic
+connection and does not demonstrate normal Service routing.
+
+When adapting an existing deployment, preserve its Raft DNS names and PVCs.
+Prepare discovery independently of readiness before switching the readiness
+probe. Changing an existing Service's `clusterIP` to `None` requires a planned
+Service replacement; it is not an in-place patch. For a full restart of an
+existing multi-member cluster, `OrderedReady` can wait for quorum before creating
+the other members. Plan quorum restoration explicitly; the demo's initial
+one-member bootstrap does not validate that recovery procedure.
+
+Validate in a disposable cluster that Raft DNS resolves for unready pods while
+the application Service excludes them, then confirm recovery and application
+traffic after quorum returns. See [Raft diagnostics](opentelemetry.md#slimdata-raft-progress).
 
 ## Discover the features
 

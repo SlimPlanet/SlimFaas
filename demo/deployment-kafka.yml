@@ -147,7 +147,7 @@ spec:
             - name: Kafka__KafkaTimeoutSeconds
               value: "5"
             - name: SlimFaas__BaseUrl
-              value: "http://slimfaas.slimfaas-demo.svc.cluster.local:5000"
+              value: "http://slimfaas-http.slimfaas-demo.svc.cluster.local:5000"
             - name: SlimFaasKafka__Bindings__0__Topic
               value: "fibo-public"
             - name: SlimFaasKafka__Bindings__0__ConsumerGroupId
@@ -272,4 +272,3 @@ spec:
             requests:
               memory: "64Mi"
               cpu: "10m"
-

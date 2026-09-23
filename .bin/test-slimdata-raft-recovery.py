@@ -16,7 +16,7 @@ import signal
 import socket
 import subprocess
 import time
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 
@@ -129,6 +129,54 @@ class Cluster:
         self.results.append(result)
         print(json.dumps(result), flush=True)
 
+    def idle_quorum_loss(self):
+        """An empty apply backlog must not hide a prolonged consensus outage."""
+        leader = self.leader()
+        followers = [node for node in self.processes if node != leader]
+        log_path = max(self.output.glob(f"node-{leader}-*.log"), key=lambda p: p.stat().st_mtime)
+        notification = "SlimData Raft consensus unavailable."
+        notifications_before = log_path.read_text().count(notification)
+
+        def metrics():
+            lines = request(HTTP_BASE + leader, "/metrics", timeout=2).decode().splitlines()
+            return {parts[0]: float(parts[1]) for line in lines
+                    if not line.startswith("#") and len(parts := line.split()) == 2
+                    and parts[0].startswith("slimdata_raft_")}
+
+        try:
+            for node in followers:
+                self.processes[node].send_signal(signal.SIGSTOP)
+
+            def unavailable():
+                observation = metrics()
+                return (observation.get("slimdata_raft_has_leader") == 0 and
+                        observation.get("slimdata_raft_consensus_unavailable_duration_seconds", 0) >= 65)
+
+            # Wait on the diagnostic state, including its 60-second reminder,
+            # while intentionally holding the fault. No application writes occur.
+            eventually("idle quorum loss and reminder", unavailable, timeout=90)
+            assert request(HTTP_BASE + leader, "/health", timeout=2) == b"OK"
+            try:
+                request(HTTP_BASE + leader, "/ready", timeout=2)
+            except HTTPError as error:
+                assert error.code == 503, error.code
+            else:
+                raise AssertionError("A node without quorum reported ready")
+            observation = metrics()
+            assert observation["slimdata_raft_last_log_index"] == observation["slimdata_raft_applied_log_index"], observation
+            assert observation["slimdata_raft_progress_stalled"] == 0, observation
+            (self.output / "idle-quorum-loss.prom").write_bytes(request(HTTP_BASE + leader, "/metrics"))
+            assert log_path.read_text().count(notification) - notifications_before >= 2, "Missing transition/reminder"
+        finally:
+            for node in followers:
+                if self.processes[node].poll() is None:
+                    self.processes[node].send_signal(signal.SIGCONT)
+        self.ready()
+        eventually("consensus outage duration resets", lambda: metrics().get(
+            "slimdata_raft_consensus_unavailable_duration_seconds") == 0)
+        self.write(leader, "after-idle-quorum-loss")
+        self.verify("idle-quorum-recovered")
+
     def pause_followers(self, count):
         leader = self.leader()
         followers = [node for node in self.processes if node != leader][:count]
@@ -198,6 +246,7 @@ def main():
             cluster.verify(f"upgrade-{node}")
         cluster.pause_followers(1)
         cluster.pause_followers(2)
+        cluster.idle_quorum_loss()
         while cluster.processes:
             cluster.stop(next(iter(cluster.processes)))
         for node in range(3):

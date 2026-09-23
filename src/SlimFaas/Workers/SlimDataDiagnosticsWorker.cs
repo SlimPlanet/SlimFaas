@@ -38,6 +38,7 @@ public sealed class SlimDataDiagnosticsWorker(
     private long _recoveryStartedTimestamp;
     private int _recoveryClearSamples;
     private readonly SlimDataProgressTracker _progressTracker = new();
+    private readonly SlimDataAvailabilityTracker _availabilityTracker = new();
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -233,6 +234,25 @@ public sealed class SlimDataDiagnosticsWorker(
             "Duration of the current SlimData Raft recovery");
 
         var hasConsensus = !cluster.ConsensusToken.IsCancellationRequested;
+        var leader = cluster.Leader;
+        var availabilityChange = _availabilityTracker.Observe(leader is not null, hasConsensus);
+        gauges.SetGaugeValue("slimdata_raft_has_leader", leader is not null ? 1 : 0,
+            "Whether this node currently knows a Raft leader");
+        gauges.SetGaugeValue("slimdata_raft_consensus_unavailable_duration_seconds",
+            _availabilityTracker.UnavailableSeconds,
+            "Seconds without a known Raft leader or consensus, measured locally with a monotonic clock");
+        if (availabilityChange == SlimDataAvailabilityTracker.AvailabilityChange.Unavailable)
+        {
+            logger.LogRaftConsensusUnavailable(leader?.EndPoint, hasConsensus,
+                _availabilityTracker.UnavailableSeconds, cluster.AuditTrail.Term, lastLogIndex,
+                cluster.AuditTrail.LastCommittedEntryIndex, hasAppliedLogIndex ? appliedLogIndex : null);
+        }
+        else if (availabilityChange == SlimDataAvailabilityTracker.AvailabilityChange.Recovered)
+        {
+            logger.LogRaftConsensusRecovered(leader?.EndPoint, cluster.AuditTrail.Term, lastLogIndex,
+                cluster.AuditTrail.LastCommittedEntryIndex, hasAppliedLogIndex ? appliedLogIndex : null);
+        }
+
         var hasLease = cluster.TryGetLeaseToken(out var leaseToken) && !leaseToken.IsCancellationRequested;
         gauges.SetGaugeValue("slimdata_raft_has_consensus", hasConsensus ? 1 : 0,
             "Whether this node currently sees Raft consensus");

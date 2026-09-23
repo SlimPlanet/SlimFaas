@@ -20,6 +20,8 @@ public class SlimDataStatus(
     ISlimDataProtocolCompatibility protocolCompatibility,
     ILogger<SlimDataStatus> logger) : ISlimDataStatus
 {
+    private readonly SlimDataReadinessLogLimiter _logLimiter = new();
+
     public async Task WaitForReadyAsync()
     {
         await cluster.Readiness.ConfigureAwait(false);
@@ -29,8 +31,12 @@ public class SlimDataStatus(
                persistentState.IsRestoring ||
                !protocolCompatibility.IsCompatible)
         {
-            logger.LogRaftClusterIsNotReadyWaiting(protocolCompatibility.Reason);
+            var reason = protocolCompatibility.Reason;
+            if (_logLimiter.ShouldLog(reason))
+                logger.LogRaftClusterIsNotReadyWaiting(reason);
             await Task.Delay(500).ConfigureAwait(false);
         }
+
+        _logLimiter.Reset();
     }
 }
