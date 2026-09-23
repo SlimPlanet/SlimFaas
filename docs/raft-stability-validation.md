@@ -43,16 +43,16 @@ Host: macOS ARM64, .NET SDK 10.0.300, Node 24.
 | Check | Result |
 |---|---|
 | Dependency regressions, live member re-addition, legacy 6.6.0 compacted WAL | 8 passed on official 6.8.1 |
-| Progress, availability and readiness-warning tracking | 18 passed |
+| Progress, availability and readiness-warning tracking | 17 passed after removing the unreachable negative-index case |
 | Readiness: leader, consensus, warmup and protocol | 6 passed |
 | Full .NET suite | 1,621 passed on the final source; the preceding 1,616-test run also built both embedded UIs |
 | Documentation site | 21 pages, 1,393 local links/assets, 351 search entries |
 | Native AOT publication | SlimFaas and standalone SlimData pass; existing MemoryPack IL2104/IL3053 and ConfigurationManager IL2104 warnings remain unchanged |
 | Native rolling upgrade from 6.4.1 and 6.6.0 | Initial runs passed. Review rerun: 6.6.0 passes; 6.4.1 passes mixed-version upgrade and short outages, then two native processes crash during prolonged outage recovery; see below |
 | Native local demo | Manifest valid; `/status-functions` succeeds and `/function/fibonacci1/hello/local` returns `Hello local!` |
-| Comparative throughput, p99 and memory | FAIL: set/12 peak RSS +42.8%; set/48 throughput -30.2%; all 16 runs have zero request errors and pass state validation |
+| Comparative throughput, p99 and memory | Controlled rerun: 24 successful runs and all-node validations; set/12 throughput -18.9% and set/48 -16.7% fail unchanged gates; all memory/p99 gates pass |
 | Disposable Kubernetes Service/DNS validation | Blocked: local rootless provider lacks systemd Delegate=yes |
-| CI and FOSSA | Previous head: Linux unit tests, AOT builds, license check and Sonar quality gate pass; the Windows test job timed out in MessageExchange. Review fixes require fresh checks |
+| CI and FOSSA | Linux unit tests, Windows SonarCloud/test job and FOSSA pass on review code c5eaea6b; final documentation-head checks remain required |
 
 In the native experiments, a pending write resumes 1.635 seconds after quorum
 returns for the 6.6.0 baseline and 4.046 seconds for the 6.4.1 baseline, within
@@ -92,6 +92,51 @@ measurements are not conclusive evidence of a regression or a memory leak.
 A fresh controlled comparison is required before adopting this candidate. The thresholds are not
 relaxed and no durability setting is disabled to obtain a passing result.
 
+## Controlled performance rerun
+
+The review rerun compares the same native main baseline (`cc532ffe`, DotNext
+6.6.0) with runtime source `4a326c7a` (6.8.1). Later review changes affect only
+cluster tests and this record. Both variants use the same corrected harness:
+three repetitions, 5-second warm-up, 30-second measured load, 5-second cooldown,
+and alternating execution order. No other build, test or demo was run locally
+during the matrix. These remain workstation measurements, not an isolated-host
+or production benchmark.
+
+All **24 runs pass, with 665,645 completed operations, zero request errors and
+successful final state checks on all three members in every run**. Verification
+now covers set-only scenarios too and is excluded from load RSS/CPU accounting.
+
+| Scenario / concurrency | Baseline ops/s | Candidate ops/s | Throughput change | p99 change | Peak RSS change | Result |
+|---|---:|---:|---:|---:|---:|---|
+| Mixed / 12 | 200.37 | 199.62 | -0.4% | -0.8% | +1.1% | Pass |
+| Mixed / 48 | 3045.19 | 3064.80 | +0.6% | +11.4% | -0.8% | Pass |
+| Set / 12 | 91.46 | 74.21 | -18.9% | +6.7% | -10.8% | Fail: throughput |
+| Set / 48 | 330.66 | 275.30 | -16.7% | +4.2% | +2.9% | Fail: throughput |
+
+The previous +42.8% memory result is not reproduced. All current memory and p99
+gates pass, but both set-only throughput medians remain below 90% of baseline.
+Individual set-only runs vary substantially: at concurrency 48, the baseline
+ranges from 272.36 to 513.25 ops/s and the candidate from 272.53 to 478.41 ops/s.
+This is not sufficient to attribute the throughput difference to DotNext alone;
+the acceptance result nevertheless remains **FAIL / DO NOT ADOPT**, without
+changing thresholds or selecting favourable repetitions.
+
+Across 38 host observations, CPU idle ranges from 14.61% to 74.13% (median 53.55%).
+The system records no additional swap-outs during the observations; swap-ins do
+occur. This context is retained rather than claiming complete host isolation.
+
+Reproduce after publishing both variants with identical AOT options:
+
+```bash
+BEFORE_REF=cc532ffe \
+BEFORE_PUBLISH_DIR=/path/to/native-baseline \
+AFTER_PUBLISH_DIR=/path/to/native-candidate \
+BENCHMARK_SKIP_AFTER_PUBLISH=1 \
+BENCHMARK_RUN_ROOT=/path/to/fresh-comparison \
+WARMUP_SECONDS=5 DURATION_SECONDS=30 REPETITIONS=3 COOLDOWN_SECONDS=5 \
+  .bin/slimdata-benchmark.sh
+```
+
 ## Review follow-up
 
 The review against the earlier 6.7.2 candidate is addressed as follows:
@@ -126,7 +171,8 @@ checks, both native AOT builds, the native local demo and the documentation buil
 pass. Linux CI and FOSSA pass. The Windows rerun now identifies a stale-leader
 `ForceReplicationAsync` call after a successful deduplication replay; membership
 removal/re-addition completes successfully. That redundant call is removed while
-retaining bounded application checks on every survivor. Fresh CI remains required.
+retaining bounded application checks on every survivor. Linux and Windows CI
+both pass on that follow-up (`c5eaea6b`).
 
 The native review rerun from 6.6.0 passes all phases. The 6.4.1 rerun verifies all
 185 expected values after upgrade and both short quorum interruptions, but two
@@ -136,9 +182,15 @@ idle outage. Recovery fails, so this run is **not accepted**, despite the earlie
 passing run. State and logs are retained; no retries conceal the failure. A similar
 macOS accept-path failure is tracked in [dotnet/runtime #121848](https://github.com/dotnet/runtime/issues/121848);
 matching exception signatures are a lead, not proof of the cause of this run.
+A small socket control, run after the benchmark without SlimFaas or DotNext,
+also observes missing peer-address metadata when accepting a reset connection on
+an IPv6 listener, while the IPv4 listener returns that metadata. This supports
+investigating the host/runtime path; a passing fault-recovery qualification is
+still required.
 
-Performance results will be recorded after the controlled rerun. The PR remains
-a draft while native fault recovery, Kubernetes validation or another gate is open.
+All 14 inline review findings have been addressed with fixes or explicit scope
+rationale. The PR remains a draft while throughput, native fault recovery,
+Kubernetes validation or another acceptance gate is open.
 
 ## Reproduction
 
