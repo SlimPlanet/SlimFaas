@@ -31,7 +31,8 @@
   <!-- ASP.NET Core / Microsoft.Extensions -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.11" />
+    <!-- DotNext 6.8.1 requires at least 10.0.12; CPM must not pin its transitive dependency lower. -->
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.11" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.11" />
   </ItemGroup>
@@ -79,7 +80,7 @@
 
   <!-- Raft / DotNext -->
   <ItemGroup>
-    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.6.0" />
+    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.8.1" />
   </ItemGroup>
 
   <!-- Samples -->
