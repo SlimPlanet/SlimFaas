@@ -234,7 +234,7 @@ public sealed class SlimDataDiagnosticsWorker(
             "Duration of the current SlimData Raft recovery");
 
         var hasConsensus = !cluster.ConsensusToken.IsCancellationRequested;
-        IRaftClusterMember? leader = cluster.Leader;
+        DotNext.Net.Cluster.IClusterMember? leader = cluster.Leader;
         SlimDataAvailabilityTracker.AvailabilityChange availabilityChange =
             _availabilityTracker.Observe(leader is not null, hasConsensus);
         gauges.SetGaugeValue("slimdata_raft_has_leader", leader is not null ? 1 : 0,

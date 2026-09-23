@@ -45,14 +45,14 @@ Host: macOS ARM64, .NET SDK 10.0.300, Node 24.
 | Dependency regressions, live member re-addition, legacy 6.6.0 compacted WAL | 8 passed on official 6.8.1 |
 | Progress, availability and readiness-warning tracking | 18 passed |
 | Readiness: leader, consensus, warmup and protocol | 6 passed |
-| Full .NET suite, including embedded UI builds | 1,616 passed before adding five additional readiness cases; those five also pass |
+| Full .NET suite | 1,621 passed on the final source; the preceding 1,616-test run also built both embedded UIs |
 | Documentation site | 21 pages, 1,393 local links/assets, 351 search entries |
 | Native AOT publication | SlimFaas and standalone SlimData pass; existing MemoryPack IL2104/IL3053 and ConfigurationManager IL2104 warnings remain unchanged |
 | Native rolling upgrade from 6.4.1 and 6.6.0 | Both pass; 187 final values verified on each of three nodes after full restart |
 | Native local demo | Manifest valid; `/status-functions` succeeds and `/function/fibonacci1/hello/local` returns `Hello local!` |
-| Comparative throughput, p99 and memory | Pending final record |
+| Comparative throughput, p99 and memory | FAIL: set/12 peak RSS +42.8%; set/48 throughput -30.2%; all 16 runs have zero request errors and pass state validation |
 | Disposable Kubernetes Service/DNS validation | Blocked: local rootless provider lacks systemd Delegate=yes |
-| CI and FOSSA | Unit tests and FOSSA pass on the implementation commit; final checks remain required |
+| CI and FOSSA | Unit tests and FOSSA passed on the first implementation commit; final-head checks remain required |
 
 In the native experiments, a pending write resumes 1.635 seconds after quorum
 returns for the 6.6.0 baseline and 4.046 seconds for the 6.4.1 baseline, within
@@ -66,6 +66,28 @@ It pins Raft DNS explicitly, preserving membership identities when another Servi
 selects the same pods. Probe and Service behavior still requires validation in a
 disposable Kubernetes cluster before operational adoption. No host configuration
 was changed to work around the local container-provider limitation.
+
+## Performance acceptance remains open
+
+The comparison uses native main (`cc532ffe`, DotNext 6.6.0) and the 6.8.1
+candidate, two repetitions per scenario, 5-second warm-up and 30-second measured
+load, alternating execution order. No other local build, test or demo ran during
+this matrix. These are workstation screening results, not production sizing.
+All 16 runs complete: **452,275 measured operations, zero errors, and successful
+set/hashset/counter checks on every node**.
+
+| Scenario / concurrency | Baseline ops/s | Candidate ops/s | Throughput change | p99 change | Peak RSS change | Result |
+|---|---:|---:|---:|---:|---:|---|
+| Mixed / 12 | 197.69 | 198.81 | +0.6% | -0.5% | -15.6% | Pass |
+| Mixed / 48 | 3131.23 | 3124.70 | -0.2% | +2.4% | -0.6% | Pass |
+| Set / 12 | 70.84 | 123.91 | +74.9% | -3.9% | +42.8% | Fail: RSS |
+| Set / 48 | 403.19 | 281.52 | -30.2% | +0.6% | +4.9% | Fail: throughput |
+
+The unchanged gates require throughput >=90% of baseline, p99 <=120%, and peak
+RSS <=115%. The overall verdict is **DO NOT ADOPT**. The measurements do not
+establish a memory leak or isolate a dependency defect; further controlled
+profiling is required before adopting this candidate. The thresholds are not
+relaxed and no durability setting is disabled to obtain a passing result.
 
 ## Reproduction
 
@@ -107,7 +129,7 @@ The changed DotNext packages and Microsoft runtime dependencies declare MIT.
 `Microsoft.Extensions.Logging.Abstractions` remains centrally pinned at 10.0.12
 to meet the new dependency minimum. Restore audits direct and transitive packages;
 the final PR must also pass FOSSA's distribution-level license check. No license
-exception or new warning suppression is introduced.
+exception or compiler-warning suppression is introduced.
 
 Earlier experiments with 6.7.2 and private patched packages are historical, not
 acceptance evidence for 6.8.1. In particular, prior memory-gate failures must not
