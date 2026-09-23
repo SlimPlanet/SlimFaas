@@ -10,7 +10,7 @@ public sealed class SlimDataReadinessLogLimiterTests
         var clock = new ManualClock();
         var limiter = new SlimDataReadinessLogLimiter(clock);
         Assert.True(limiter.ShouldLog("No leader"));
-        for (var i = 0; i < 120; i++)
+        for (int i = 0; i < 120; i++)
             Assert.False(limiter.ShouldLog("No leader"));
         clock.Advance(59);
         Assert.False(limiter.ShouldLog("No leader"));
@@ -33,7 +33,7 @@ public sealed class SlimDataReadinessLogLimiterTests
     public void Concurrent_waiters_do_not_multiply_warnings()
     {
         var limiter = new SlimDataReadinessLogLimiter(new ManualClock());
-        var warnings = 0;
+        int warnings = 0;
         Parallel.For(0, 100, _ =>
         {
             if (limiter.ShouldLog("No leader"))

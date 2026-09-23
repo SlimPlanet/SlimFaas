@@ -15,14 +15,14 @@ internal sealed class SlimDataAvailabilityTracker(TimeProvider? timeProvider = n
     {
         if (hasLeader && hasConsensus)
         {
-            var recovered = _unavailableSince.HasValue;
+            bool recovered = _unavailableSince.HasValue;
             _unavailableSince = null;
             UnavailableSeconds = 0;
             return recovered ? AvailabilityChange.Recovered : AvailabilityChange.None;
         }
 
-        var now = _clock.GetTimestamp();
-        var changed = _unavailableSince is null || _previous != (hasLeader, hasConsensus);
+        long now = _clock.GetTimestamp();
+        bool changed = _unavailableSince is null || _previous != (hasLeader, hasConsensus);
         _unavailableSince ??= now;
         UnavailableSeconds = _clock.GetElapsedTime(_unavailableSince.Value, now).TotalSeconds;
         _previous = (hasLeader, hasConsensus);

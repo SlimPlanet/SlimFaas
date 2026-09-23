@@ -13,7 +13,7 @@ internal sealed class SlimDataReadinessLogLimiter(TimeProvider? timeProvider = n
     {
         lock (_gate)
         {
-            var now = _clock.GetTimestamp();
+            long now = _clock.GetTimestamp();
             if (string.Equals(_reason, reason, StringComparison.Ordinal) &&
                 _clock.GetElapsedTime(_lastWarning, now) < ReminderInterval)
                 return false;

@@ -31,7 +31,7 @@ public class SlimDataStatus(
                persistentState.IsRestoring ||
                !protocolCompatibility.IsCompatible)
         {
-            var reason = protocolCompatibility.Reason;
+            string reason = protocolCompatibility.Reason;
             if (_logLimiter.ShouldLog(reason))
                 logger.LogRaftClusterIsNotReadyWaiting(reason);
             await Task.Delay(500).ConfigureAwait(false);

@@ -109,8 +109,9 @@ spec:
             timeoutSeconds: 8
           env:
             # Keep Raft identities tied to the governing discovery service.
+            # S5332: this demo URL matches the existing in-cluster HTTP Raft listener.
             - name: SlimFaas__BaseSlimDataUrl
-              value: "http://{pod_name}.slimfaas.{namespace}.svc:3262"
+              value: "http://{pod_name}.slimfaas.{namespace}.svc:3262" # NOSONAR
             - name: SlimData__Directory
               value: "/database"
             - name: SlimData__BackupDirectory

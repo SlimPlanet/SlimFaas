@@ -57,9 +57,10 @@ class Cluster:
             "HOSTNAME": f"slimfaas-{node}",
             "SlimFaas__Orchestrator": "Local",
             "SlimFaas__Namespace": "raft-recovery-test",
-            "SlimFaas__BaseSlimDataUrl": "http://{pod_ip}:{pod_port_0}",  # NOSONAR: synthetic local-test traffic uses loopback peers only.
-            "SlimFaas__BaseFunctionUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR: synthetic local-test traffic uses loopback peers only.
-            "SlimFaas__BaseFunctionPodUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR: synthetic local-test traffic uses loopback peers only.
+            # S5332: these synthetic local-test URLs use loopback peers only.
+            "SlimFaas__BaseSlimDataUrl": "http://{pod_ip}:{pod_port_0}",  # NOSONAR
+            "SlimFaas__BaseFunctionUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR
+            "SlimFaas__BaseFunctionPodUrl": "http://{pod_ip}:{pod_port}",  # NOSONAR
             "SlimFaas__EnableFront": "false",
             "SlimFaas__WebSocketPort": "0",
             "SlimFaas__Local__NodeCount": "3",
@@ -104,7 +105,8 @@ class Cluster:
 
     def leader(self):
         text = request(RAFT_BASE, "/SlimData/leader", timeout=5).decode()
-        match = re.search(r"http://127\.0\.0\.1:(\d+)", text)  # NOSONAR: validates a loopback-only test URL.
+        # S5332: validate a loopback-only test URL, not an external HTTP service.
+        match = re.search(r"http://127\.0\.0\.1:(\d+)", text)  # NOSONAR
         assert match, text
         node = int(match[1]) - RAFT_BASE
         assert node in self.processes, text
@@ -118,14 +120,30 @@ class Cluster:
 
     def verify(self, phase):
         started = time.monotonic()
+        missing_reads = 0
         for node in self.processes:
             for key, value in self.expected.items():
-                actual = request(HTTP_BASE + node, f"/data/sets/{key}")
-                assert actual == value, f"{phase}: node {node}, key {key} differs"
+                def converged(n=node, k=key, expected=value):
+                    nonlocal missing_reads
+                    try:
+                        actual = request(HTTP_BASE + n, f"/data/sets/{k}", timeout=5)
+                    except HTTPError as error:
+                        if error.code == 404:
+                            missing_reads += 1
+                            return False
+                        raise AssertionError(f"{phase}: node {n}, key {k}: HTTP {error.code}") from error
+                    assert actual == expected, f"{phase}: node {n}, key {k} differs"
+                    return True
+
+                # Historical versions expose local, eventually consistent reads.
+                # Bound catch-up while still failing wrong values and HTTP errors;
+                # mutations are never retried. Record any initially missing values.
+                eventually(f"{phase}: node {node}, key {key} applied", converged)
             (self.output / f"{phase}-node-{node}.prom").write_bytes(
                 request(HTTP_BASE + node, "/metrics"))
         result = {"phase": phase, "keys_per_node": len(self.expected), "nodes": 3,
-                  "verification_seconds": round(time.monotonic() - started, 3)}
+                  "verification_seconds": round(time.monotonic() - started, 3),
+                  "initially_missing_reads": missing_reads}
         self.results.append(result)
         print(json.dumps(result), flush=True)
 

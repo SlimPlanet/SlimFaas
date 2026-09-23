@@ -148,12 +148,12 @@ public sealed class SlimDataDiagnosticsWorker(
         gauges.SetGaugeValue("slimdata_raft_local_apply_lag", localApplyLag,
             "Number of local Raft WAL entries not yet applied; this is not leader/follower replication lag");
 
-        var progressChanged = _progressTracker.Observe(lastLogIndex, hasAppliedLogIndex ? appliedLogIndex : null);
+        bool progressChanged = _progressTracker.Observe(lastLogIndex, hasAppliedLogIndex ? appliedLogIndex : null);
         gauges.SetGaugeValue("slimdata_raft_progress_stalled", _progressTracker.IsStalled ? 1 : 0,
             "Whether local WAL entries remain unapplied with no applied-index progress for at least 30 seconds");
         if (progressChanged)
         {
-            var batch = commandBatchCoordinator.GetStatistics();
+            SlimDataCommandBatchCoordinatorStatistics batch = commandBatchCoordinator.GetStatistics();
             if (_progressTracker.IsStalled)
             {
                 logger.LogRaftProgressStalled(cluster.Leader?.EndPoint, cluster.AuditTrail.Term,
@@ -234,8 +234,9 @@ public sealed class SlimDataDiagnosticsWorker(
             "Duration of the current SlimData Raft recovery");
 
         var hasConsensus = !cluster.ConsensusToken.IsCancellationRequested;
-        var leader = cluster.Leader;
-        var availabilityChange = _availabilityTracker.Observe(leader is not null, hasConsensus);
+        IRaftClusterMember? leader = cluster.Leader;
+        SlimDataAvailabilityTracker.AvailabilityChange availabilityChange =
+            _availabilityTracker.Observe(leader is not null, hasConsensus);
         gauges.SetGaugeValue("slimdata_raft_has_leader", leader is not null ? 1 : 0,
             "Whether this node currently knows a Raft leader");
         gauges.SetGaugeValue("slimdata_raft_consensus_unavailable_duration_seconds",

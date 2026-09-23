@@ -47,12 +47,18 @@ Host: macOS ARM64, .NET SDK 10.0.300, Node 24.
 | Readiness: leader, consensus, warmup and protocol | 6 passed |
 | Full .NET suite, including embedded UI builds | 1,616 passed before adding five additional readiness cases; those five also pass |
 | Documentation site | 21 pages, 1,393 local links/assets, 351 search entries |
-| Native AOT publication | Pending final record |
-| Native rolling upgrade from 6.4.1 and 6.6.0 | Pending final record |
-| Native local demo | Pending final record |
+| Native AOT publication | SlimFaas and standalone SlimData pass; existing MemoryPack IL2104/IL3053 and ConfigurationManager IL2104 warnings remain unchanged |
+| Native rolling upgrade from 6.4.1 and 6.6.0 | Both pass; 187 final values verified on each of three nodes after full restart |
+| Native local demo | Manifest valid; `/status-functions` succeeds and `/function/fibonacci1/hello/local` returns `Hello local!` |
 | Comparative throughput, p99 and memory | Pending final record |
 | Disposable Kubernetes Service/DNS validation | Blocked: local rootless provider lacks systemd Delegate=yes |
-| CI and FOSSA | Pending final commit |
+| CI and FOSSA | Unit tests and FOSSA pass on the implementation commit; final checks remain required |
+
+In the native experiments, a pending write resumes 1.635 seconds after quorum
+returns for the 6.6.0 baseline and 4.046 seconds for the 6.4.1 baseline, within
+the unchanged 30-second bound. The prolonged idle outage produces a leader
+gauge of zero and more than 65 seconds of unavailability with equal last,
+committed and applied indexes; the local progress-stall gauge remains zero.
 
 The Kubernetes example separates the governing discovery Service (headless,
 publishes unready peers) from the application Service (filters unready peers).
@@ -78,6 +84,14 @@ python3 .bin/test-slimdata-raft-recovery.py \
   --candidate artifacts/raft-candidate/SlimFaas \
   --output artifacts/raft-upgrade-unique-run
 ```
+
+The first 6.4.1 experiment stopped on an immediate follower read returning 404,
+before any upgrade. The historical version exposes eventual local reads. The
+harness now bounds catch-up for missing values, records these observations and
+still fails wrong values or other HTTP errors; writes are never retried. The
+completed 6.4.1 run records two initially missing read observations in the
+baseline and two while an old member remains. All later phases record zero.
+The 6.6.0 experiment passes with immediate reads as well.
 
 The native harness writes 180 values, crosses snapshot boundaries, checks every
 value on every node, replaces followers before the leader, pauses one and two

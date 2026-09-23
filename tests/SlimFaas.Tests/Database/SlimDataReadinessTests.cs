@@ -16,7 +16,7 @@ public sealed class SlimDataReadinessTests
     public async Task Readiness_requires_a_leader_consensus_and_completed_warmup(
         bool hasLeader, bool hasConsensus, bool warmupCompleted, bool expected)
     {
-        var root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
         Directory.CreateDirectory(root);
         try
         {
