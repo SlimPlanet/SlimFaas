@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.13
+
+- [ea888cfa](https://github.com/SlimPlanet/SlimFaas/commit/ea888cfa07052f9db8fc736f3992e7001de4e998) - chore(deps): refresh Docker images and .NET/JavaScript packages (#432) (release), 2026-09-23 by *Guillaume Chervet*
+
+
+## 0.84.12
+
+
+
 ## v0.84.12
 
 - [f5be9eb7](https://github.com/SlimPlanet/SlimFaas/commit/f5be9eb730528df1daa02b8fd7c1621d22db0aaa) - fix(SlimData): upgrade Raft and diagnose leaderless clusters (#403) (release), 2026-09-23 by *Guillaume Chervet*
@@ -270,14 +279,5 @@
 ## v0.79.1
 
 - [70f8f469](https://github.com/SlimPlanet/SlimFaas/commit/70f8f469b7aea1365fe9a47ef23feb26e4f02249) - fix(slimfaas): local scale down (release), 2026-07-30 by *Guillaume Chervet*
-
-
-## 0.79.0
-
-
-
-## v0.79.0
-
-- [2216e9f6](https://github.com/SlimPlanet/SlimFaas/commit/2216e9f64d0a972f7b5694ca5366d7f8b8ebd0c4) - feat(slimfaas): UI stream job activity (release), 2026-07-30 by *Guillaume Chervet*
 
 
