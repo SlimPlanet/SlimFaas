@@ -613,8 +613,9 @@ public class RaftClusterTests(ITestOutputHelper output)
             CancellationToken.None));
         Assert.True(replay.Duplicate);
         Assert.Equal(1L, Assert.Single(replay.Results).KeyValueResult?.IntegerValue);
-        await GetLocalClusterView(newLeaderHost).ForceReplicationAsync();
 
+        // Leadership can change again after the replay response. Verify application
+        // on every survivor below instead of forcing replication through a stale leader.
         foreach (var survivingHost in survivingHosts)
         {
             var survivorState = survivingHost.Services.GetRequiredService<SlimPersistentState>();

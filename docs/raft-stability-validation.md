@@ -48,7 +48,7 @@ Host: macOS ARM64, .NET SDK 10.0.300, Node 24.
 | Full .NET suite | 1,621 passed on the final source; the preceding 1,616-test run also built both embedded UIs |
 | Documentation site | 21 pages, 1,393 local links/assets, 351 search entries |
 | Native AOT publication | SlimFaas and standalone SlimData pass; existing MemoryPack IL2104/IL3053 and ConfigurationManager IL2104 warnings remain unchanged |
-| Native rolling upgrade from 6.4.1 and 6.6.0 | Both pass; 187 final values verified on each of three nodes after full restart |
+| Native rolling upgrade from 6.4.1 and 6.6.0 | Initial runs passed. Review rerun: 6.6.0 passes; 6.4.1 passes mixed-version upgrade and short outages, then two native processes crash during prolonged outage recovery; see below |
 | Native local demo | Manifest valid; `/status-functions` succeeds and `/function/fibonacci1/hello/local` returns `Hello local!` |
 | Comparative throughput, p99 and memory | FAIL: set/12 peak RSS +42.8%; set/48 throughput -30.2%; all 16 runs have zero request errors and pass state validation |
 | Disposable Kubernetes Service/DNS validation | Blocked: local rootless provider lacks systemd Delegate=yes |
@@ -121,8 +121,24 @@ The review against the earlier 6.7.2 candidate is addressed as follows:
   initial election, and stop only surviving hosts concurrently after failover.
   The 120-second test timeout and all membership assertions remain unchanged.
 
-The updated .NET suite passes 1,621 tests. New native, CLI and performance results
-will be recorded after the controlled rerun. The PR remains a draft.
+The updated .NET suite passes 1,621 tests locally; six Python/CLI regression
+checks, both native AOT builds, the native local demo and the documentation build
+pass. Linux CI and FOSSA pass. The Windows rerun now identifies a stale-leader
+`ForceReplicationAsync` call after a successful deduplication replay; membership
+removal/re-addition completes successfully. That redundant call is removed while
+retaining bounded application checks on every survivor. Fresh CI remains required.
+
+The native review rerun from 6.6.0 passes all phases. The 6.4.1 rerun verifies all
+185 expected values after upgrade and both short quorum interruptions, but two
+candidate processes exit with `ArgumentException` in `IPEndPoint.Create` /
+`SocketAsyncEventArgs.FinishOperationSyncSuccess` when recovering from the prolonged
+idle outage. Recovery fails, so this run is **not accepted**, despite the earlier
+passing run. State and logs are retained; no retries conceal the failure. A similar
+macOS accept-path failure is tracked in [dotnet/runtime #121848](https://github.com/dotnet/runtime/issues/121848);
+matching exception signatures are a lead, not proof of the cause of this run.
+
+Performance results will be recorded after the controlled rerun. The PR remains
+a draft while native fault recovery, Kubernetes validation or another gate is open.
 
 ## Reproduction
 
