@@ -142,7 +142,7 @@ A job configuration describes the executable/image, arguments, environment, reso
 
 Inactivity can reduce replicas to the configured minimum, including zero. New calls and wake-up requests refresh activity. Dependency checks coordinate dependent workloads. PromQL triggers handle scale-out from running replicas, with limits, stabilization windows and policies. Read [Autoscaling](autoscaling.md) before tuning these independently of request timeouts.
 
-Function visibility, path overrides and event subscription visibility are separate decisions. Trusted workload addresses and forwarded addresses participate in caller classification. Set up your ingress accordingly. Native local mode's shared loopback network cannot demonstrate pod isolation. Data sets/files have their own visibility setting; the [API Reference](api-reference.md) documents the current hashset behavior separately.
+Function visibility, path overrides and event subscription visibility are separate decisions. `DefaultFunctionAccessPolicy` classifies a caller by the address of its TCP connection, compared exactly with the Trusted function pod and job pod addresses; the peer endpoints apply the same rule with the SlimFaas member addresses. `X-Forwarded-For` is ignored unless `SlimFaas:TrustedProxies` lists the proxies allowed to set it, in which case the forwarded-headers middleware rewrites the connection address (one hop) before any classification runs. See [Functions](functions.md#how-callers-are-classified). Native local mode's shared loopback network cannot demonstrate pod isolation. Data sets/files have their own visibility setting; the [API Reference](api-reference.md) documents the current hashset behavior separately.
 
 ### Queue metrics and function isolation
 
@@ -170,6 +170,23 @@ flowchart LR
 ```
 
 Small sets, counters and queue mutations are applied through SlimData's replicated log. Counter operations execute atomically as commands. The HTTP hashset facade stores one raw value field.
+
+Each node batches outgoing SlimData mutations in a local command consumer (one
+per configured partition). Dequeueing an asynchronous request is itself a durable
+mutation: a stalled local consumer can therefore stop dispatch even when functions
+are Ready and Raft continues committing writes from other nodes. Check local batch
+queue growth and dispatch-cycle progress together with Raft health.
+
+The consumer stops after 15 seconds of inactivity and starts again when a command
+arrives. Admission, retirement and disposal are synchronized so that a command
+arriving during retirement remains owned by exactly one consumer. An unexpected
+consumer exception is logged and explicitly fails its unfinished operations;
+the next enqueue can start a new consumer. The batcher does not automatically
+replay failed operations, because an interrupted write may already have committed.
+This recovery does not change Raft messages, persisted data or function retry
+configuration. Upgrading to a release containing this fix prevents the negative
+idle-timeout failure; on older versions, restarting the affected SlimFaas pod is
+a temporary workaround, not a repair of the underlying race.
 
 File content is disk-backed; metadata is cluster-consistent. A receiving node announces availability and another node can pull content when serving a download. File bytes are not copied through Raft as ordinary large values. TTL and deletion govern temporary artifact availability. See [Data Sets](data-sets.md) and [Data Files](data-files.md).
 
