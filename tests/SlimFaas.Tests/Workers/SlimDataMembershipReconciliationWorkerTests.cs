@@ -21,7 +21,8 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
     {
         var context = new TestContext(
             [LocalEndpoint],
-            [Pod("slimfaas-0", "10.0.0.1"), Pod("slimfaas-1", "10.0.0.2")]);
+            [Pod("slimfaas-0", "10.0.0.1"), Pod("slimfaas-1", "10.0.0.2") with { Ready = false }],
+            requestedReplicas: 3);
         context.Coordinator
             .Setup(x => x.AddMemberAsync(RemoteEndpoint, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -34,6 +35,122 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
         context.Coordinator.Verify(
             x => x.RemoveMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Theory]
+    [InlineData("absent")]
+    [InlineData("not-started")]
+    [InlineData("no-ip")]
+    [InlineData("duplicate-endpoint")]
+    [InlineData("invalid-endpoint")]
+    public async Task Replacing_a_pod_does_not_remove_it_from_the_requested_three_member_cluster(string state)
+    {
+        var pods = new List<PodInformation>
+        {
+            Pod("slimfaas-0", "10.0.0.1"), Pod("slimfaas-1", "10.0.0.2")
+        };
+        PodInformation replacement = Pod("slimfaas-2", "10.0.0.3");
+        switch (state)
+        {
+            case "not-started": pods.Add(replacement with { Started = false }); break;
+            case "no-ip": pods.Add(replacement with { Ip = "" }); break;
+            case "duplicate-endpoint": pods.Add(replacement with { Ip = "10.0.0.2" }); break;
+            case "invalid-endpoint": pods.Add(replacement with { EndpointUrl = "http://[invalid" }); break;
+        }
+
+        var context = new TestContext([LocalEndpoint, RemoteEndpoint, NewEndpoint], pods, requestedReplicas: 3);
+        context.Coordinator.Setup(x => x.RemoveMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        for (int cycle = 0; cycle < 6; cycle++)
+            await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+
+        pods.RemoveAll(p => p.Name == replacement.Name);
+        pods.Add(replacement);
+        await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+
+        context.Coordinator.Verify(
+            x => x.RemoveMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()), Times.Never);
+        context.Coordinator.Verify(
+            x => x.AddMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(1)]
+    public async Task Nonpositive_or_excess_topology_never_removes_members(int requestedReplicas)
+    {
+        var context = new TestContext(
+            [LocalEndpoint, RemoteEndpoint, NewEndpoint],
+            [Pod("slimfaas-0", "10.0.0.1"), Pod("slimfaas-1", "10.0.0.2")],
+            requestedReplicas: requestedReplicas);
+        context.Coordinator.Setup(x => x.RemoveMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        for (int cycle = 0; cycle < 6; cycle++)
+            await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+
+        context.Coordinator.Verify(
+            x => x.RemoveMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("incomplete")]
+    [InlineData("local-absent")]
+    [InlineData("leadership-lost")]
+    [InlineData("addition")]
+    public async Task Interrupted_observation_requires_three_new_complete_cycles_before_scale_down(string interruption)
+    {
+        var pods = new List<PodInformation>
+        {
+            Pod("slimfaas-0", "10.0.0.1"), Pod("slimfaas-1", "10.0.0.2")
+        };
+        var fourthEndpoint = new Uri("http://10.0.0.4:3262/");
+        var context = new TestContext([LocalEndpoint, RemoteEndpoint, NewEndpoint, fourthEndpoint], pods, requestedReplicas: 2);
+        context.Coordinator.Setup(x => x.RemoveMemberAsync(NewEndpoint, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        context.Coordinator.Setup(x => x.AddMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+        await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+
+        switch (interruption)
+        {
+            case "incomplete": context.RequestedReplicas = 3; break;
+            case "local-absent": pods[0] = Pod("slimfaas-3", "10.0.0.4"); break;
+            case "leadership-lost": context.Leadership = false; break;
+            case "addition":
+                context.RequestedReplicas = 3;
+                pods.Add(Pod("slimfaas-4", "10.0.0.5"));
+                break;
+        }
+
+        await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+        context.RequestedReplicas = 2;
+        context.Leadership = true;
+        pods[0] = Pod("slimfaas-0", "10.0.0.1");
+        pods.RemoveAll(p => p.Name == "slimfaas-4");
+
+        await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+        await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+        context.Coordinator.Verify(
+            x => x.RemoveMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()), Times.Never);
+
+        await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+        context.Coordinator.Verify(
+            x => x.RemoveMemberAsync(NewEndpoint, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Reconciliation_reads_one_topology_snapshot_per_cycle()
+    {
+        TestContext context = CreateStaleRemoteContext();
+
+        await context.Worker.ReconcileOnceAsync(CancellationToken.None);
+
+        context.Replicas.VerifyGet(x => x.Deployments, Times.Once);
     }
 
     [Fact]
@@ -60,7 +177,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
     [Fact]
     public async Task Stale_member_is_removed_only_after_three_consecutive_missing_cycles()
     {
-        var context = CreateStaleRemoteContext();
+        TestContext context = CreateStaleRemoteContext();
         context.Coordinator
             .Setup(x => x.RemoveMemberAsync(RemoteEndpoint, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -114,7 +231,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
             [LocalEndpoint, RemoteEndpoint],
             [Pod("slimfaas-1", "10.0.0.2")]);
 
-        for (var cycle = 0; cycle < 5; cycle++)
+        for (int cycle = 0; cycle < 5; cycle++)
             await context.Worker.ReconcileOnceAsync(CancellationToken.None);
 
         context.Coordinator.Verify(
@@ -131,9 +248,9 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
         bool consensus,
         bool lease)
     {
-        var context = CreateStaleRemoteContext(leadership, consensus, lease);
+        TestContext context = CreateStaleRemoteContext(leadership, consensus, lease);
 
-        for (var cycle = 0; cycle < 5; cycle++)
+        for (int cycle = 0; cycle < 5; cycle++)
             await context.Worker.ReconcileOnceAsync(CancellationToken.None);
 
         context.Coordinator.Verify(
@@ -147,7 +264,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
     [Fact]
     public async Task Failed_removal_does_not_advance_missing_cycles_permanently()
     {
-        var context = CreateStaleRemoteContext();
+        TestContext context = CreateStaleRemoteContext();
         context.Coordinator
             .SetupSequence(x => x.RemoveMemberAsync(RemoteEndpoint, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false)
@@ -184,22 +301,25 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
             IList<PodInformation> desiredPods,
             bool leadership = true,
             bool consensus = true,
-            bool lease = true)
+            bool lease = true,
+            int? requestedReplicas = null)
         {
-            var replicas = new Mock<IReplicasService>(MockBehavior.Strict);
-            replicas.SetupGet(x => x.Deployments).Returns(() => new DeploymentsInformations(
+            RequestedReplicas = requestedReplicas ?? desiredPods.Count;
+            Leadership = leadership;
+            Replicas = new Mock<IReplicasService>(MockBehavior.Strict);
+            Replicas.SetupGet(x => x.Deployments).Returns(() => new DeploymentsInformations(
                 [],
-                new SlimFaasDeploymentInformation(desiredPods.Count, desiredPods),
+                new SlimFaasDeploymentInformation(RequestedReplicas, desiredPods),
                 []));
 
-            var raftMembers = currentMembers.Select(CreateMember).ToArray();
+            IRaftClusterMember[] raftMembers = currentMembers.Select(CreateMember).ToArray();
             var cluster = new Mock<IRaftHttpCluster>(MockBehavior.Strict);
             cluster.SetupGet(x => x.LocalMemberAddress).Returns(LocalEndpoint);
-            cluster.SetupGet(x => x.LeadershipToken).Returns(
-                leadership ? CancellationToken.None : new CancellationToken(canceled: true));
+            cluster.SetupGet(x => x.LeadershipToken).Returns(() =>
+                Leadership ? CancellationToken.None : new CancellationToken(canceled: true));
             cluster.SetupGet(x => x.ConsensusToken).Returns(
                 consensus ? CancellationToken.None : new CancellationToken(canceled: true));
-            var leaseToken = lease ? CancellationToken.None : new CancellationToken(canceled: true);
+            CancellationToken leaseToken = lease ? CancellationToken.None : new CancellationToken(canceled: true);
             cluster.Setup(x => x.TryGetLeaseToken(out leaseToken)).Returns(lease);
             cluster.As<IRaftCluster>()
                 .SetupGet(x => x.Members)
@@ -210,7 +330,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
             namespaceProvider.SetupGet(x => x.CurrentNamespace).Returns("test");
 
             Worker = new SlimDataMembershipReconciliationWorker(
-                replicas.Object,
+                Replicas.Object,
                 cluster.Object,
                 Coordinator.Object,
                 NullLogger<SlimDataMembershipReconciliationWorker>.Instance,
@@ -224,6 +344,12 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
         }
 
         internal Mock<IClusterMembershipCoordinator> Coordinator { get; }
+
+        internal Mock<IReplicasService> Replicas { get; }
+
+        internal int RequestedReplicas { get; set; }
+
+        internal bool Leadership { get; set; }
 
         internal SlimDataMembershipReconciliationWorker Worker { get; }
 

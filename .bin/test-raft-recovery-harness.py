@@ -6,7 +6,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 from urllib.error import HTTPError
 
 
@@ -17,6 +17,58 @@ SPEC.loader.exec_module(HARNESS)
 
 
 class RecoveryHarnessTests(unittest.TestCase):
+    def test_idle_outage_waits_for_diagnostic_recovery_and_both_log_records(self):
+        with tempfile.TemporaryDirectory() as output:
+            cluster = HARNESS.Cluster(Path(output))
+            log_path = Path(output) / "node-0-0.log"
+            log_path.write_text("")
+            notification = "SlimData Raft consensus unavailable.\n"
+            state = {"paused": False, "healthy_reads": 0, "outage_reads": 0}
+
+            def signal(value):
+                if value == HARNESS.signal.SIGSTOP:
+                    self.assertGreaterEqual(state["healthy_reads"], 2,
+                                            "Must observe diagnostics recovered before pausing")
+                    state["paused"] = True
+                elif value == HARNESS.signal.SIGCONT:
+                    self.assertGreaterEqual(state["outage_reads"], 2,
+                                            "Must wait for the reminder to reach the log")
+                    state["paused"] = False
+
+            cluster.processes = {0: Mock(), 1: Mock(), 2: Mock()}
+            for process in cluster.processes.values():
+                process.poll.return_value = None
+                process.send_signal.side_effect = signal
+
+            def request(_port, path, **_kwargs):
+                if path == "/health":
+                    return b"OK"
+                if path == "/ready":
+                    raise HTTPError("loopback", 503, "Unavailable", None, None)
+                self.assertEqual("/metrics", path)
+                if state["paused"]:
+                    state["outage_reads"] += 1
+                    # Metric export can precede the corresponding log write.
+                    log_path.write_text(notification * min(state["outage_reads"], 2))
+                    available = 0
+                else:
+                    state["healthy_reads"] += 1
+                    available = int(state["healthy_reads"] >= 2)
+                return (f"slimdata_raft_has_leader {available}\n"
+                        f"slimdata_raft_has_consensus {available}\n"
+                        f"slimdata_raft_consensus_unavailable_duration_seconds {0 if available else 70}\n"
+                        "slimdata_raft_last_log_index 10\n"
+                        "slimdata_raft_applied_log_index 10\n"
+                        "slimdata_raft_progress_stalled 0\n").encode()
+
+            with patch.object(cluster, "leader", return_value=0), \
+                    patch.object(cluster, "ready"), \
+                    patch.object(cluster, "write"), \
+                    patch.object(cluster, "verify"), \
+                    patch.object(HARNESS, "request", side_effect=request), \
+                    patch.object(HARNESS.time, "sleep"):
+                cluster.idle_quorum_loss()
+
     def test_verification_shares_one_deadline_across_all_keys_and_nodes(self):
         now = 0.0
         timeouts = []

@@ -52,6 +52,22 @@ Each SlimFaas node serves requests and observes the cluster. `ReplicasSynchroniz
 
 SlimData holds replicated queue state, configuration and small values. `ClusterMembershipAnnounceWorker` announces a member to a leader; `SlimDataMembershipReconciliationWorker` reconciles membership with the orchestrator topology. Node readiness includes Raft recovery and protocol compatibility.
 
+Membership reconciliation uses one topology snapshot per cycle. A removal requires
+a positive requested replica count, exactly that many distinct eligible endpoints,
+and the local endpoint in the snapshot. Eligible pods have started and have an IP;
+they do not need to be ready. A replacement pod that is absent, pending or waiting
+for an IP therefore does not cause the remaining members to shrink the Raft quorum.
+Eligible new members can still be added while the topology is incomplete.
+
+A real scale-down retains the existing `SlimData:Membership:RemovalMissingCycles`
+confirmation threshold (three by default). Removal observations reset when the
+topology is incomplete, the local endpoint is missing, an addition is attempted,
+or leadership, consensus or the leader lease is unavailable. A complete topology
+must then be observed for the full threshold again. Debug logs report the requested
+replica count and eligible endpoint count when removals are deferred. This guard
+does not automatically repair an already divergent membership configuration or
+restart a stalled process; see [data-preserving Raft recovery](get-started-kubernetes.md#recovering-a-leaderless-cluster).
+
 ### Event-driven Kubernetes synchronization (watch-as-signal)
 
 On Kubernetes, the synchronization workers are driven by **watch streams** instead of fixed-cadence polling: watch events on pods, deployments, statefulsets, jobs and cronjobs only signal *that* something changed, and the existing LIST-based synchronization then runs unchanged — the synchronized state is identical to polling, just triggered by events, with a periodic resync as a safety net (see the configuration reference in [Get started on Kubernetes](get-started-kubernetes.md)).
