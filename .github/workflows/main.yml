@@ -80,13 +80,27 @@ jobs:
       - name: Test peer polling benchmark with coverage
         run: python .bin/test-status-stream-benchmark.py --coverage status-stream-coverage.xml
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # The Python client tests run here so that their coverage reaches SonarCloud
+      # (sonar.python.coverage.reportPaths below); the tests are included in the
+      # measured sources because SonarCloud classifies them as main code.
+      - name: Python client tests with coverage
+        working-directory: ./client/python/slimfaas-client
+        run: |
+          python -m pip install --quiet -e ".[dev]" coverage
+          python -m coverage run --source=src,tests -m pytest -q
+          python -m coverage xml -o python-client-coverage.xml
+
       - name: Build and analyze
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths=status-stream-coverage.xml /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths=status-stream-coverage.xml /d:sonar.python.coverage.reportPaths=client/python/slimfaas-client/python-client-coverage.xml /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
           dotnet tool install --global dotnet-coverage
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"

@@ -156,7 +156,35 @@ A job configuration describes the executable/image, arguments, environment, reso
 
 Inactivity can reduce replicas to the configured minimum, including zero. New calls and wake-up requests refresh activity. Dependency checks coordinate dependent workloads. PromQL triggers handle scale-out from running replicas, with limits, stabilization windows and policies. Read [Autoscaling](autoscaling.md) before tuning these independently of request timeouts.
 
-Function visibility, path overrides and event subscription visibility are separate decisions. `DefaultFunctionAccessPolicy` classifies a caller by the address of its TCP connection, compared exactly with the Trusted function pod and job pod addresses; the peer endpoints apply the same rule with the SlimFaas member addresses. `X-Forwarded-For` is ignored unless `SlimFaas:TrustedProxies` lists the proxies allowed to set it, in which case the forwarded-headers middleware rewrites the connection address (one hop) before any classification runs. See [Functions](functions.md#how-callers-are-classified). Native local mode's shared loopback network cannot demonstrate pod isolation. Data sets/files have their own visibility setting; the [API Reference](api-reference.md) documents the current hashset behavior separately.
+Function visibility, path overrides and event subscription visibility are separate decisions. `DefaultFunctionAccessPolicy` classifies a caller by the address of its TCP connection, compared exactly with the Trusted function pod and job pod addresses; the peer endpoints apply the same rule with the SlimFaas member addresses. `X-Forwarded-For` is ignored unless `SlimFaas:TrustedProxies` lists the proxies allowed to set it, in which case the forwarded-headers middleware rewrites the connection address (one hop) before any classification runs. See [Functions](functions.md#how-callers-are-classified). Native local mode's shared loopback network cannot demonstrate pod isolation.
+
+With `SlimFaas:CallerAuthentication:Mode` set to `Hybrid` or `Strict`, `CallerAuthenticationMiddleware` runs right after the forwarded-headers middleware: it verifies the HMAC-SHA256 headers of signed requests against the key files of `SecretsDirectory` (timestamp window, per-caller nonce cache, body hash) and records the proven `CallerIdentity` on the request; an invalid signature is answered `401` before any endpoint runs. `CallerClassification` then combines that result with the address rule for both `DefaultFunctionAccessPolicy` and the peer check: a verified caller is internal from any address, `Strict` ignores the address rule (except for SlimFaas member pods on peer endpoints), and `Hybrid` keeps the address rule but logs each unsigned internal caller (rate-limited). In `Legacy` mode (default) the middleware is not in the pipeline and the headers are ignored. See [Caller authentication](functions.md#caller-authentication-signed-requests-opt-in).
+
+```mermaid
+sequenceDiagram
+    participant C as Caller pod
+    participant M as CallerAuthenticationMiddleware
+    participant K as Key files (Secret volume)
+    participant P as Access policy
+    participant F as Private function
+
+    C->>M: request + X-SlimFaas-Caller/Timestamp/Nonce/Content-Sha256/Signature
+    M->>K: keys of caller-id (current, .next)
+    K-->>M: key bytes (re-read when the file changes)
+    M->>M: timestamp within ClockSkewSeconds, body hash, HMAC (fixed-time compare), nonce unseen
+    alt signature invalid
+        M-->>C: 401
+    else signature valid or request unsigned
+        M->>P: request (+ CallerIdentity when signed)
+        P->>P: Legacy: address rule / Hybrid: identity or address (+warning) / Strict: identity only
+        alt internal
+            P->>F: proxied call
+            F-->>C: response
+        else external
+            P-->>C: 404 (Private function)
+        end
+    end
+``` Data sets/files have their own visibility setting; the [API Reference](api-reference.md) documents the current hashset behavior separately.
 
 ### Queue metrics and function isolation
 

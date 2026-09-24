@@ -330,3 +330,42 @@ dotnet add package SlimFaasClient
 ```bash
 uv add slimfaas-client
 ```
+
+## 11. Signing HTTP Calls to Private Functions
+
+Both libraries also ship a request signer for the opt-in caller authentication of [Private functions](functions.md#caller-authentication-signed-requests-opt-in). It is independent from the WebSocket client: use it with the HTTP client of your choice when a job or a service calls SlimFaas over HTTP. When SlimFaas runs in `Legacy` mode (the default) the headers are ignored, so a signed caller keeps working before and after the switch to `Hybrid` or `Strict`.
+
+### .NET
+
+```csharp
+using SlimFaasClient;
+
+// The key file is the caller's entry of the Secret mounted in SlimFaas.
+var credentials = SlimFaasCallerCredentials.FromFile("billing-api", "/var/run/slimfaas/caller-key");
+
+using var http = new HttpClient(new SlimFaasSigningHandler(credentials) { InnerHandler = new HttpClientHandler() })
+{
+    BaseAddress = new Uri("http://slimfaas:5000")
+};
+
+// Every request goes out with the five X-SlimFaas-* headers.
+var response = await http.PostAsJsonAsync("/function/billing/invoice", invoice);
+```
+
+`SlimFaasSigningHandler(credentials, signBody: false)` declares `UNSIGNED-PAYLOAD` instead of buffering the body, for streamed or very large uploads. `SlimFaasRequestSigner.SignAsync(request, credentials)` signs a single `HttpRequestMessage`, and `SlimFaasRequestSigner.CreateHeaders(...)` returns the headers for any other HTTP stack. A nonce is consumed by the first verification, so a retry needs a fresh signature: put retry handlers (Polly, `Microsoft.Extensions.Http.Resilience`) *outside* the signing handler so that every attempt is signed again.
+
+### Python
+
+```python
+import httpx
+from slimfaas_client import CallerCredentials, sign_request
+
+credentials = CallerCredentials.from_file("billing-api", "/var/run/slimfaas/caller-key")
+
+url = "http://slimfaas:5000/function/billing/invoice"
+body = b'{"amount": 42}'
+headers = sign_request(credentials, "POST", url, body)
+response = httpx.post(url, content=body, headers={**headers, "Content-Type": "application/json"})
+```
+
+`sign_request(..., sign_body=False)` declares `UNSIGNED-PAYLOAD` for streamed or very large bodies. `url` may be an absolute URL or a path with its query string; the signature covers the method, the path, the query, the body hash, a timestamp and a fresh nonce.

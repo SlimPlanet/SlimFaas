@@ -184,7 +184,78 @@ env:
 
 > **Warning.** `TrustedProxies` controls **authorization**, not just request attribution: every address in the list may declare any client address and therefore reach Private functions and peer endpoints on behalf of a Trusted pod. Declare only addresses owned exclusively by the proxy: its fixed IP, or a subnet that contains nothing but proxy instances. Never declare the whole pod CIDR (for example `10.244.0.0/16` on a common cluster network) or any subnet in which ordinary workloads can be scheduled; doing so reopens the header spoofing this check prevents.
 
-Source addresses remain a weak identity: sidecars share the pod address, and a call that reaches a function pod without going through SlimFaas is not checked by SlimFaas. Use a NetworkPolicy to restrict the function ports to SlimFaas when that matters.
+Source addresses remain a weak identity: sidecars share the pod address, and a call that reaches a function pod without going through SlimFaas is not checked by SlimFaas. Use a NetworkPolicy to restrict the function ports to SlimFaas when that matters. To make callers prove who they are, enable the signed requests described below.
+
+### Caller authentication: signed requests (opt-in)
+
+A caller can prove its identity by signing each request with a shared secret (HMAC-SHA256). SlimFaas then classifies the request as internal because of the signature, whatever its source address. The feature is **off by default** (`Legacy` mode) and needs no RBAC, no extra dependency and no change to the function pods.
+
+**1. Distribute the keys.** Create one key per caller (at least 16 bytes; 32 random bytes are a good choice) and mount it both in SlimFaas and in the caller:
+
+```bash
+kubectl create secret generic slimfaas-callers \
+  --from-literal=billing-api="$(openssl rand -hex 32)" \
+  --from-literal=report-job="$(openssl rand -hex 32)"
+```
+
+```yaml
+# SlimFaas StatefulSet: one file per caller under the secrets directory
+env:
+  - name: SlimFaas__CallerAuthentication__Mode
+    value: "Hybrid"                      # Legacy (default) | Hybrid | Strict
+  - name: SlimFaas__CallerAuthentication__SecretsDirectory
+    value: "/var/run/slimfaas/callers"
+volumeMounts:
+  - name: callers
+    mountPath: /var/run/slimfaas/callers
+    readOnly: true
+volumes:
+  - name: callers
+    secret:
+      secretName: slimfaas-callers
+```
+
+The caller pod mounts only its own key, for example `billing-api` under `/var/run/slimfaas/caller-key`, and signs with the caller id `billing-api`. A caller id is 1 to 63 characters among `a-z`, `0-9` and `-`. Key files are re-read when they change, so updating the Secret needs no restart. To rotate a key, add `<caller-id>.next` with the new key (both are accepted), move the callers to it, then rename it to `<caller-id>`.
+
+**2. Sign the requests.** Five headers carry the signature:
+
+| Header | Value |
+|--------|-------|
+| `X-SlimFaas-Caller` | the caller id |
+| `X-SlimFaas-Timestamp` | Unix seconds at signing time |
+| `X-SlimFaas-Nonce` | a unique value per request (`a-z`, `A-Z`, `0-9`, `-`, `_`, `.`, `=`, up to 128 characters) |
+| `X-SlimFaas-Content-Sha256` | lower-case hex SHA-256 of the body (`e3b0c442…b855` for no body), or `UNSIGNED-PAYLOAD` |
+| `X-SlimFaas-Signature` | base64 of HMAC-SHA256(key, canonical string) |
+
+The canonical string joins the following lines with `\n`: `SLIMFAAS-HMAC-SHA256`, the upper-case HTTP method, the decoded path, the canonical query string (each `key=value` percent-encoded per RFC 3986, sorted, joined with `&`), the caller id, the timestamp, the nonce and the `X-SlimFaas-Content-Sha256` value. The official [.NET and Python clients](clients.md#11-signing-http-calls-to-private-functions) implement it.
+
+**3. Choose the mode.**
+
+| `SlimFaas:CallerAuthentication:Mode` | Signed request | Unsigned request from a Trusted pod or job address | Unsigned request from elsewhere |
+|---|---|---|---|
+| `Legacy` (default) | headers ignored, address rule applies | internal | external |
+| `Hybrid` | internal | internal, with a rate-limited `Warning` naming the address and the path | external |
+| `Strict` | internal | external | external |
+
+`Hybrid` is the migration mode: the warnings inventory the callers that still need to sign. `Strict` ignores the address rule entirely; only SlimFaas member pods keep being recognised by address for peer traffic (node-to-node authentication is a separate item, issue #409).
+
+**Verification.** SlimFaas answers `401` to a signed request whose caller id is unknown, whose signature or body hash does not match, whose timestamp is more than `ClockSkewSeconds` (300 s) away from its clock, or whose nonce was already used by that caller within twice that window. Nonces are only recorded after the signature verified, per caller, up to `NonceCacheMaxEntriesPerCaller` (100 000); when a caller's cache is full, its requests are refused until entries expire. An unsigned request to a Private function is still answered `404`, as before.
+
+**Bodies.** To verify a body hash, SlimFaas buffers the body up to `MaxSignedBodyBytes` (4 MiB) and rejects larger hashed bodies. Streaming or larger uploads declare `X-SlimFaas-Content-Sha256: UNSIGNED-PAYLOAD`: the caller is still authenticated, but the body is not covered by the signature.
+
+**Identity for later.** The verified caller id is kept on the request (`HttpContext.GetCallerIdentity()`) for per-function allow-lists (issue #411).
+
+| Option (`SlimFaas:CallerAuthentication:*`) | Default | Meaning |
+|---|---|---|
+| `Mode` | `Legacy` | `Legacy`, `Hybrid` or `Strict` |
+| `SecretsDirectory` | | directory of the key files; required outside `Legacy` |
+| `ClockSkewSeconds` | `300` | accepted distance between the signed timestamp and the SlimFaas clock |
+| `MaxSignedBodyBytes` | `4194304` | largest body buffered to verify its hash |
+| `NonceCacheMaxEntriesPerCaller` | `100000` | replay-protection memory per caller |
+| `KeyRefreshSeconds` | `10` | how often a key file is checked for changes |
+| `WarningIntervalSeconds` | `60` | minimum interval between two identical warnings |
+
+**Known limitations.** A key stolen from a compromised pod remains valid until rotated. Sidecars share the pod's mounted Secret, so they share its identity. Calls that bypass SlimFaas and reach a function pod directly are not controlled by SlimFaas (issue #414).
 
 ## 6. Function Configuration
 
