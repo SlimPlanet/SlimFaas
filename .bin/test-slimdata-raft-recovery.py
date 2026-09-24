@@ -169,13 +169,23 @@ class Cluster:
         followers = [node for node in self.processes if node != leader]
         log_path = max(self.output.glob(f"node-{leader}-*.log"), key=lambda p: p.stat().st_mtime)
         notification = "SlimData Raft consensus unavailable."
-        notifications_before = log_path.read_text().count(notification)
 
         def metrics():
             lines = request(HTTP_BASE + leader, "/metrics", timeout=2).decode().splitlines()
             return {parts[0]: float(parts[1]) for line in lines
                     if not line.startswith("#") and len(parts := line.split()) == 2
                     and parts[0].startswith("slimdata_raft_")}
+
+        def recovered():
+            observation = metrics()
+            return (observation.get("slimdata_raft_has_leader") == 1 and
+                    observation.get("slimdata_raft_has_consensus") == 1 and
+                    observation.get("slimdata_raft_consensus_unavailable_duration_seconds") == 0)
+
+        # Readiness can recover before the five-second diagnostic sampler observes
+        # it. Start a new outage only after the previous outage has been reset.
+        eventually("diagnostics recovered before idle quorum loss", recovered)
+        notifications_before = log_path.read_text().count(notification)
 
         try:
             for node in followers:
@@ -184,7 +194,8 @@ class Cluster:
             def unavailable():
                 observation = metrics()
                 return (observation.get("slimdata_raft_has_leader") == 0 and
-                        observation.get("slimdata_raft_consensus_unavailable_duration_seconds", 0) >= 65)
+                        observation.get("slimdata_raft_consensus_unavailable_duration_seconds", 0) >= 65 and
+                        log_path.read_text().count(notification) - notifications_before >= 2)
 
             # Wait on the diagnostic state, including its 60-second reminder,
             # while intentionally holding the fault. No application writes occur.
@@ -193,6 +204,7 @@ class Cluster:
             try:
                 request(HTTP_BASE + leader, "/ready", timeout=2)
             except HTTPError as error:
+                error.close()
                 assert error.code == 503, error.code
             else:
                 raise AssertionError("A node without quorum reported ready")
@@ -206,8 +218,7 @@ class Cluster:
                 if self.processes[node].poll() is None:
                     self.processes[node].send_signal(signal.SIGCONT)
         self.ready()
-        eventually("consensus outage duration resets", lambda: metrics().get(
-            "slimdata_raft_consensus_unavailable_duration_seconds") == 0)
+        eventually("consensus outage duration resets", recovered)
         self.write(leader, "after-idle-quorum-loss")
         self.verify("idle-quorum-recovered")
 

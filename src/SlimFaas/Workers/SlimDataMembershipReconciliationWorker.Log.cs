@@ -6,6 +6,9 @@ namespace SlimFaas
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Information, Message = "SlimDataMembershipReconciliationWorker: Start")]
         internal static partial void LogSlimDataMembershipReconciliationWorkerStart(this global::Microsoft.Extensions.Logging.ILogger logger);
 
+        [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Debug, Message = "Deferring SlimData membership removals because the orchestrator topology is incomplete. RequestedReplicas={RequestedReplicas}, EligibleEndpoints={EligibleEndpoints}")]
+        internal static partial void LogDeferringSlimDataMembershipRemovals(this global::Microsoft.Extensions.Logging.ILogger logger, int requestedReplicas, int eligibleEndpoints);
+
         [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Error, Message = "Error in SlimDataMembershipReconciliationWorker")]
         internal static partial void LogErrorInSlimDataMembershipReconciliationWorker(this global::Microsoft.Extensions.Logging.ILogger logger, global::System.Exception exception);
 

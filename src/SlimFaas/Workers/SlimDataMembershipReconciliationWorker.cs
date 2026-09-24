@@ -50,11 +50,24 @@ public sealed class SlimDataMembershipReconciliationWorker(
     internal async Task ReconcileOnceAsync(CancellationToken token)
     {
         if (!HasActiveLeadership())
+        {
+            _missingCycles.Clear();
             return;
+        }
 
-        var desired = GetDesiredMembers();
+        var topology = replicasService.Deployments.SlimFaas;
+        var desired = GetDesiredMembers(topology.Pods);
         var current = GetCurrentMembers();
         var localKey = MembershipEndpointKey.From(cluster.LocalMemberAddress);
+        var completeTopology = topology.Replicas > 0 && desired.Count == topology.Replicas;
+
+        // A pod can disappear or lose its IP/Started status while the StatefulSet
+        // still requires it. Such an observation must not change the Raft quorum.
+        if (!completeTopology)
+        {
+            _missingCycles.Clear();
+            logger.LogDeferringSlimDataMembershipRemovals(topology.Replicas, desired.Count);
+        }
 
         ResetObservedMembers(desired, current);
 
@@ -65,6 +78,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
             .FirstOrDefault();
         if (memberToAdd is not null)
         {
+            _missingCycles.Clear();
             logger.LogAddingMissingSlimDataRaftMemberEndpoint(memberToAdd);
             if (!await membershipCoordinator.AddMemberAsync(memberToAdd, token).ConfigureAwait(false))
             {
@@ -76,9 +90,13 @@ public sealed class SlimDataMembershipReconciliationWorker(
 
         if (!desired.ContainsKey(localKey))
         {
+            _missingCycles.Clear();
             logger.LogSkippingSlimDataMembershipRemovalsBecauseThe(cluster.LocalMemberAddress);
             return;
         }
+
+        if (!completeTopology)
+            return;
 
         var staleMembers = current
             .Where(pair => pair.Key != localKey && !desired.ContainsKey(pair.Key))
@@ -130,10 +148,10 @@ public sealed class SlimDataMembershipReconciliationWorker(
         }
     }
 
-    private Dictionary<MembershipEndpointKey, Uri> GetDesiredMembers()
+    private Dictionary<MembershipEndpointKey, Uri> GetDesiredMembers(IEnumerable<PodInformation> pods)
     {
         var result = new Dictionary<MembershipEndpointKey, Uri>();
-        foreach (var pod in replicasService.Deployments.SlimFaas.Pods
+        foreach (var pod in pods
                      .Where(static pod => pod.Started is true && !string.IsNullOrWhiteSpace(pod.Ip)))
         {
             try

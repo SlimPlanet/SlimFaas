@@ -118,6 +118,79 @@ Validate in a disposable cluster that Raft DNS resolves for unready pods while
 the application Service excludes them, then confirm recovery and application
 traffic after quorum returns. See [Raft diagnostics](opentelemetry.md#slimdata-raft-progress).
 
+### Pod replacement and membership
+
+Keep the requested StatefulSet replica count unchanged during a pod replacement.
+SlimFaas defers Raft member removal until its snapshot contains exactly the
+requested positive number of distinct, started endpoints with an IP, including
+the local endpoint. Missing pods and pods waiting for startup or networking do
+not count as a scale-down. Readiness is not required for membership additions.
+An intentional scale-down still removes stale members after the configured
+number of consecutive complete observations; see [membership reconciliation](how-it-works.md#components-and-responsibilities).
+
+### Recovering a leaderless cluster
+
+This is an operator-controlled procedure, not an automatic repair. A membership
+guard prevents premature exclusions during future replacements; it does not prove
+why an existing cluster stopped making progress. A timeout in a replication stack
+alone is not evidence of disk corruption or a command-protocol mismatch.
+
+1. Pause further rollout actions and preserve the PVCs, Raft identities, image
+   version and configuration. Capture private logs and per-node metrics before
+   restarting anything; obtain recoverable volume snapshots through your storage
+   platform. Keep these artifacts private: logs, metrics and configuration can
+   contain application data and internal addresses. Do not attach them to a public
+   issue. Never delete the WAL, edit membership files, or force a cold bootstrap
+   to recover an existing cluster.
+2. Check requested replicas, started pods, discovery and per-node `/health` and
+   `/ready`. Reachability of `/health` only establishes HTTP liveness. Check
+   `slimdata_raft_has_leader`, `slimdata_raft_has_consensus`, membership counts,
+   committed/applied indexes and their progression. Compare the persisted member
+   identities using read-only diagnostics; equal counts alone do not establish
+   that nodes share the same configuration. If no recoverable voting majority can
+   be established, stop and investigate rather than guessing a new membership.
+3. When a voting majority with matching configuration is identified and one of
+   those members has stopped making progress, restart only that stalled member,
+   retaining its PVCs and DNS identity. Keep the other voters running. Do not
+   restart all pods or scale to zero as a shortcut. The following command is an
+   example for a disposable demo after selecting the member, not a prescribed
+   ordinal for an existing deployment:
+
+   ```bash
+   namespace=slimfaas-demo
+   restart_pod=slimfaas-2
+   kubectl -n "$namespace" delete pod "$restart_pod" --wait=true
+   ```
+
+4. Allow the replacement to start, then observe election and replication for up
+   to two minutes. Verify a common leader and consensus on the voting majority,
+   successful `/ready` responses, and committed/applied progress. Stop if these
+   checks fail; do not enter a restart loop. Once quorum is stable, let an excluded
+   member rejoin through normal reconciliation. If it also needs a restart, perform
+   that separately and repeat the checks. Confirm all expected members and verify
+   application data before resuming normal rollout actions. Passing `/health` or
+   an unchanged applied index on an idle cluster is not sufficient validation.
+
+Use direct per-pod diagnostics so a Service cannot hide an unhealthy member. For
+example, in separate terminals:
+
+```bash
+kubectl -n slimfaas-demo port-forward pod/slimfaas-0 30021:5000
+```
+
+```bash
+curl --fail http://127.0.0.1:30021/health
+curl --fail http://127.0.0.1:30021/ready
+curl --fail --silent http://127.0.0.1:30021/metrics |
+  grep -E '^slimdata_raft_(has_leader|has_consensus|member_count|last_log_index|committed_log_index|applied_log_index) '
+```
+
+Repeat for each pod, restarting port-forward after a pod replacement. Prepare the
+discovery Service and application Service separation described above before
+changing an existing readiness probe to `/ready`. Preserve existing Raft DNS
+names; a Service replacement or a full restart under `OrderedReady` requires its
+own maintenance procedure. Validate those changes in a disposable cluster first.
+
 ## Discover the features
 
 Follow the [Guided Tour](guided-tour.md) and select **Kubernetes** in Bruno. The default HTTP base URL is the port-forward above. The source IP seen by SlimFaas depends on the access method; the tour explains how that can affect the private-function example.
