@@ -122,7 +122,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
             case "local-absent": pods[0] = Pod("slimfaas-3", "10.0.0.4"); break;
             case "leadership-lost": context.Leadership = false; break;
             case "addition":
-                context.RequestedReplicas = 4;
+                context.RequestedReplicas = 3;
                 pods.Add(Pod("slimfaas-4", "10.0.0.5"));
                 break;
         }
