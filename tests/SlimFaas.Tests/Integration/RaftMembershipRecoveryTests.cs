@@ -33,9 +33,9 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
     public async Task Persistent_cluster_recovers_after_pod_replacement_and_offline_member_removal(bool removeWhileOffline)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(90));
-        var token = deadline.Token;
-        var directory = Path.Combine(Path.GetTempPath(), $"slimfaas-membership-{Guid.NewGuid():N}");
-        var ports = ReservePorts();
+        CancellationToken token = deadline.Token;
+        string directory = Path.Combine(Path.GetTempPath(), $"slimfaas-membership-{Guid.NewGuid():N}");
+        int[] ports = ReservePorts();
         var hosts = new IHost?[3];
         var pods = ports.Select((port, index) => new PodInformation(
             $"slimfaas-{index}", true, false, "127.0.0.1", "slimfaas", [port])).ToList();
@@ -48,12 +48,12 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
         try
         {
             Phase("bootstrap three persistent members");
-            for (var index = 0; index < hosts.Length; index++)
+            for (int index = 0; index < hosts.Length; index++)
             {
                 hosts[index] = await StartAsync(index, coldStart: index == 0);
                 if (index > 0)
                 {
-                    var leader = await LeaderAsync();
+                    IHost leader = await LeaderAsync();
                     Assert.True(await Coordinator(leader).AddMemberAsync(Cluster(hosts[index]!).LocalMemberAddress, token));
                 }
             }
@@ -62,21 +62,21 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             await WriteAsync("before-replacement");
             await VerifyAsync("before-replacement");
 
-            var originalLeader = await LeaderAsync();
-            var replacementIndex = Array.FindIndex(hosts, host => !ReferenceEquals(host, originalLeader));
-            var replacementPod = pods[replacementIndex];
+            IHost originalLeader = await LeaderAsync();
+            int replacementIndex = Array.FindIndex(hosts, host => !ReferenceEquals(host, originalLeader));
+            PodInformation replacementPod = pods[replacementIndex];
             await StopAsync(replacementIndex);
             pods.Remove(replacementPod);
             if (removeWhileOffline)
                 topology = topology with { Replicas = 2 };
 
             Phase(removeWhileOffline ? "scale down while member is offline" : "reconcile repeated missing-pod observations");
-            var leaderHost = await LeaderAsync();
-            using (var worker = Worker(leaderHost))
+            IHost leaderHost = await LeaderAsync();
+            using (SlimDataMembershipReconciliationWorker worker = Worker(leaderHost))
             {
                 // Six explicit observations exceed the configured three-cycle removal threshold
                 // without relying on scheduler delays to reproduce the orchestration race.
-                for (var cycle = 0; cycle < 6; cycle++)
+                for (int cycle = 0; cycle < 6; cycle++)
                     await worker.ReconcileOnceAsync(token);
             }
 
@@ -89,21 +89,21 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             hosts[replacementIndex] = await StartAsync(replacementIndex, coldStart: false);
             pods.Add(replacementPod);
             leaderHost = await LeaderAsync();
-            using (var worker = Worker(leaderHost))
+            using (SlimDataMembershipReconciliationWorker worker = Worker(leaderHost))
                 await worker.ReconcileOnceAsync(token);
             await AllMembersAsync(3);
             await VerifyAsync("before-replacement", "during-replacement");
 
             Phase("replace the leader and re-elect with membership preserved");
-            var previousLeader = await LeaderAsync();
-            var leaderIndex = Array.IndexOf(hosts, previousLeader);
-            var leaderPod = pods.Single(p => p.Name == $"slimfaas-{leaderIndex}");
+            IHost previousLeader = await LeaderAsync();
+            int leaderIndex = Array.IndexOf(hosts, previousLeader);
+            PodInformation leaderPod = pods.Single(p => p.Name == $"slimfaas-{leaderIndex}");
             await StopAsync(leaderIndex);
             pods.Remove(leaderPod);
             leaderHost = await LeaderAsync();
-            using (var worker = Worker(leaderHost))
+            using (SlimDataMembershipReconciliationWorker worker = Worker(leaderHost))
             {
-                for (var cycle = 0; cycle < 6; cycle++)
+                for (int cycle = 0; cycle < 6; cycle++)
                     await worker.ReconcileOnceAsync(token);
             }
             await AllMembersAsync(3);
@@ -135,7 +135,7 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
                 [SlimPersistentState.LogLocation] = Path.Combine(directory, $"node-{index}"),
                 [SlimPersistentState.UsePersistentConfigurationStorage] = "true"
             };
-            var host = new HostBuilder()
+            IHost host = new HostBuilder()
                 .ConfigureAppConfiguration(builder => builder.AddInMemoryCollection(configuration))
                 .ConfigureLogging(builder => builder.ClearProviders())
                 .ConfigureWebHost(builder => builder
@@ -172,13 +172,13 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             await UntilAsync(() => (leader = hosts.OfType<IHost>().FirstOrDefault(host =>
                 !Cluster(host).LeadershipToken.IsCancellationRequested &&
                 !Cluster(host).ConsensusToken.IsCancellationRequested &&
-                Cluster(host).TryGetLeaseToken(out var lease) && !lease.IsCancellationRequested)) is not null);
+                Cluster(host).TryGetLeaseToken(out CancellationToken lease) && !lease.IsCancellationRequested)) is not null);
             return leader!;
         }
 
         Task AllMembersAsync(int count)
         {
-            var expected = count == 3
+            HashSet<Uri> expected = count == 3
                 ? ports.Select(port => new Uri($"http://127.0.0.1:{port}/")).ToHashSet()
                 : hosts.OfType<IHost>().Select(host => Cluster(host).LocalMemberAddress).ToHashSet();
             return UntilAsync(() => hosts.OfType<IHost>().All(host =>
@@ -198,9 +198,9 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
 
         async Task WriteAsync(string key)
         {
-            var leader = await LeaderAsync();
+            IHost leader = await LeaderAsync();
             using var write = CancellationTokenSource.CreateLinkedTokenSource(token);
-            var response = await SlimData.Endpoints.AddKeyValueBatchCommand(
+            KeyValueBatchResponse response = await SlimData.Endpoints.AddKeyValueBatchCommand(
                 new KeyValueBatchRequest([new KeyValueBatchItem(KeyValueOperation.Set, key,
                     Encoding.UTF8.GetBytes($"value-{key}"), null, 0, 0, DateTime.UtcNow.Ticks)]),
                 Cluster(leader), write);
@@ -209,7 +209,7 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
 
         Task VerifyAsync(params string[] keys) => UntilAsync(() => hosts.OfType<IHost>().All(host =>
             keys.All(key => host.Services.GetRequiredService<SlimPersistentState>().SlimDataState.KeyValues
-                .TryGetValue(key, out var value) && Encoding.UTF8.GetString(value.Span) == $"value-{key}")));
+                .TryGetValue(key, out ReadOnlyMemory<byte> value) && Encoding.UTF8.GetString(value.Span) == $"value-{key}")));
 
         SlimDataMembershipReconciliationWorker Worker(IHost host)
         {
@@ -229,16 +229,16 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
 
     private static int[] ReservePorts()
     {
-        var listeners = Enumerable.Range(0, 3).Select(_ => new TcpListener(IPAddress.Loopback, 0)).ToArray();
+        TcpListener[] listeners = Enumerable.Range(0, 3).Select(_ => new TcpListener(IPAddress.Loopback, 0)).ToArray();
         try
         {
-            foreach (var listener in listeners)
+            foreach (TcpListener listener in listeners)
                 listener.Start();
             return listeners.Select(listener => ((IPEndPoint)listener.LocalEndpoint).Port).ToArray();
         }
         finally
         {
-            foreach (var listener in listeners)
+            foreach (TcpListener listener in listeners)
                 listener.Stop();
         }
     }

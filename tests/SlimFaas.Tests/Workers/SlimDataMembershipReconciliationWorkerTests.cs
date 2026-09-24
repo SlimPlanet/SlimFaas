@@ -49,7 +49,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
         {
             Pod("slimfaas-0", "10.0.0.1"), Pod("slimfaas-1", "10.0.0.2")
         };
-        var replacement = Pod("slimfaas-2", "10.0.0.3");
+        PodInformation replacement = Pod("slimfaas-2", "10.0.0.3");
         switch (state)
         {
             case "not-started": pods.Add(replacement with { Started = false }); break;
@@ -62,7 +62,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
         context.Coordinator.Setup(x => x.RemoveMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        for (var cycle = 0; cycle < 6; cycle++)
+        for (int cycle = 0; cycle < 6; cycle++)
             await context.Worker.ReconcileOnceAsync(CancellationToken.None);
 
         pods.RemoveAll(p => p.Name == replacement.Name);
@@ -88,7 +88,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
         context.Coordinator.Setup(x => x.RemoveMemberAsync(It.IsAny<Uri>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
-        for (var cycle = 0; cycle < 6; cycle++)
+        for (int cycle = 0; cycle < 6; cycle++)
             await context.Worker.ReconcileOnceAsync(CancellationToken.None);
 
         context.Coordinator.Verify(
@@ -146,7 +146,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
     [Fact]
     public async Task Reconciliation_reads_one_topology_snapshot_per_cycle()
     {
-        var context = CreateStaleRemoteContext();
+        TestContext context = CreateStaleRemoteContext();
 
         await context.Worker.ReconcileOnceAsync(CancellationToken.None);
 
@@ -177,7 +177,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
     [Fact]
     public async Task Stale_member_is_removed_only_after_three_consecutive_missing_cycles()
     {
-        var context = CreateStaleRemoteContext();
+        TestContext context = CreateStaleRemoteContext();
         context.Coordinator
             .Setup(x => x.RemoveMemberAsync(RemoteEndpoint, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
@@ -231,7 +231,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
             [LocalEndpoint, RemoteEndpoint],
             [Pod("slimfaas-1", "10.0.0.2")]);
 
-        for (var cycle = 0; cycle < 5; cycle++)
+        for (int cycle = 0; cycle < 5; cycle++)
             await context.Worker.ReconcileOnceAsync(CancellationToken.None);
 
         context.Coordinator.Verify(
@@ -248,9 +248,9 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
         bool consensus,
         bool lease)
     {
-        var context = CreateStaleRemoteContext(leadership, consensus, lease);
+        TestContext context = CreateStaleRemoteContext(leadership, consensus, lease);
 
-        for (var cycle = 0; cycle < 5; cycle++)
+        for (int cycle = 0; cycle < 5; cycle++)
             await context.Worker.ReconcileOnceAsync(CancellationToken.None);
 
         context.Coordinator.Verify(
@@ -264,7 +264,7 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
     [Fact]
     public async Task Failed_removal_does_not_advance_missing_cycles_permanently()
     {
-        var context = CreateStaleRemoteContext();
+        TestContext context = CreateStaleRemoteContext();
         context.Coordinator
             .SetupSequence(x => x.RemoveMemberAsync(RemoteEndpoint, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false)
@@ -312,14 +312,14 @@ public sealed class SlimDataMembershipReconciliationWorkerTests
                 new SlimFaasDeploymentInformation(RequestedReplicas, desiredPods),
                 []));
 
-            var raftMembers = currentMembers.Select(CreateMember).ToArray();
+            IRaftClusterMember[] raftMembers = currentMembers.Select(CreateMember).ToArray();
             var cluster = new Mock<IRaftHttpCluster>(MockBehavior.Strict);
             cluster.SetupGet(x => x.LocalMemberAddress).Returns(LocalEndpoint);
             cluster.SetupGet(x => x.LeadershipToken).Returns(() =>
                 Leadership ? CancellationToken.None : new CancellationToken(canceled: true));
             cluster.SetupGet(x => x.ConsensusToken).Returns(
                 consensus ? CancellationToken.None : new CancellationToken(canceled: true));
-            var leaseToken = lease ? CancellationToken.None : new CancellationToken(canceled: true);
+            CancellationToken leaseToken = lease ? CancellationToken.None : new CancellationToken(canceled: true);
             cluster.Setup(x => x.TryGetLeaseToken(out leaseToken)).Returns(lease);
             cluster.As<IRaftCluster>()
                 .SetupGet(x => x.Members)
