@@ -112,6 +112,9 @@ services:
     labels:
       app: "slimfaas"
       com.docker.compose.service: "slimfaas"
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "30021"
+      prometheus.io/path: /metrics
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:30021/health"]  # ou 8080 selon l’option
       interval: 10s
@@ -126,7 +129,7 @@ services:
       context: .
       dockerfile: samples/Fibonacci/Dockerfile
     ports:
-      - "5000:5000"
+      - "${FIBONACCI_HOST_PORT:-5000}:5000"
     environment:
       - ASPNETCORE_URLS=http://+:5000
     labels:
@@ -142,7 +145,7 @@ services:
       SlimFaas/DefaultTrust: "Trusted"
       SlimFaas/SubscribeEvents : "fibo-public"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
+      test: ["CMD", "bash", "/app/healthcheck.sh"]
       interval: 10s
       timeout: 3s
       retries: 10

@@ -109,6 +109,12 @@ jobs:
       - name: Test native Raft recovery harness
         run: python .bin/test-raft-recovery-harness.py
 
+      - name: Test Podman Compose helper
+        run: python .bin/test-podman-compose-helper.py
+
+      - name: Test Fibonacci container health probe
+        run: python .bin/test-fibonacci-healthcheck.py
+
       - name: Test memory report measurement boundaries
         run: |
           dotnet build tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj -c Release

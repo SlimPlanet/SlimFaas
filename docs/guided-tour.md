@@ -40,7 +40,11 @@ For a repeatable terminal check after exploring the steps:
 BASE_URL="$BASE_URL" bash demo/smoke-tour.sh
 ```
 
-The script checks readiness, executes the core operations and cleans up only the IDs it creates. Run it again to verify that the demonstration is repeatable. It reports skipped environment-dependent checks explicitly.
+The script checks readiness, executes the core operations, waits for its Fibonacci
+job to succeed, and cleans up only the IDs it creates. The smoke job requests
+60 seconds of retention so its completion remains observable. Run the script
+again to verify that the demonstration is repeatable. It reports skipped
+environment-dependent checks explicitly.
 
 ## 1. Read the cluster state
 
