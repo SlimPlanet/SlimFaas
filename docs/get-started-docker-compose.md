@@ -37,6 +37,10 @@ docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml logs
 
 The explicit service list leaves Kafka, its connector and Jaeger for their own guides. The overlay enables the data APIs for the tour and configures the `fibonacci` job to use the image built above. Its `fibonacci1` dependency also provides a network for the job.
 
+The overlay replaces the complete jobs configuration, including the required
+default resource requests and limits (`400m` CPU and `400Mi` memory for this demo).
+Keep those defaults when adapting the job configuration.
+
 The Fibonacci image declares its internal HTTP port with `EXPOSE 5000`, allowing
 SlimFaas to discover the port for every function and managed replica. This does
 not publish a host port. Its bundled health probe checks HTTP 200 from `/health`

@@ -38,6 +38,10 @@ services:
               "Visibility": "Public",
               "DependsOn": ["fibonacci1"],
               "NumberParallelJob": 2,
+              "Resources": {
+                "Requests": { "cpu": "400m", "memory": "400Mi" },
+                "Limits": { "cpu": "400m", "memory": "400Mi" }
+              },
               "BackoffLimit": 1,
               "TtlSecondsAfterFinished": 60,
               "RestartPolicy": "Never"
