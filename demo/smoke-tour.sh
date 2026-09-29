@@ -96,9 +96,21 @@ request 204 POST /wake-function/fibonacci4
 request 200 GET /function/fibonacci3/hello/subscriber
 request 204 POST /publish-event/fibo-public/fibonacci -H 'Content-Type: application/json' --data '{"input":10}'
 request 404 POST /publish-event/unknown-tour-event/fibonacci -H 'Content-Type: application/json' --data '{"input":10}'
-request 202 POST /job/fibonacci -H 'Content-Type: application/json' --data '{"Args":["10"]}'
+request 202 POST /job/fibonacci -H 'Content-Type: application/json' --data '{"Args":["10"],"TtlSecondsAfterFinished":60}'
 job_id=$(jq -er .Id "$TOUR_TMP/body")
 request 200 GET /job/fibonacci
+deadline=$((SECONDS + 180))
+until jq -e --arg id "$job_id" 'any(.[]; .Id == $id and .Status == "Succeeded")' "$TOUR_TMP/body" >/dev/null; do
+  if jq -e --arg id "$job_id" 'any(.[]; .Id == $id and .Status == "Failed")' "$TOUR_TMP/body" >/dev/null; then
+    echo 'FAIL Fibonacci job execution' >&2
+    cat "$TOUR_TMP/body" >&2
+    exit 1
+  fi
+  [[ $SECONDS -lt $deadline ]] || { echo 'Job completion deadline exceeded' >&2; cat "$TOUR_TMP/body" >&2; exit 1; }
+  sleep 0.5
+  request 200 GET /job/fibonacci
+done
+echo 'PASS Fibonacci job succeeded'
 request 200 GET /jobs/status
 request 200 GET /status-jobs
 request 201 POST /job-schedules/fibonacci -H 'Content-Type: application/json' --data '{"Schedule":"0 0 1 1 *","Args":["10"]}'
