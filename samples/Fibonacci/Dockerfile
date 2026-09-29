@@ -9,11 +9,8 @@ COPY samples/Fibonacci/ samples/Fibonacci/
 RUN dotnet publish samples/Fibonacci/Fibonacci.csproj -c Release -o /app/publish --no-restore
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.12 AS final
-# Compose probes /health with curl; the ASP.NET runtime image does not include it.
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /app/publish .
+COPY samples/Fibonacci/healthcheck.sh ./healthcheck.sh
 
 ENTRYPOINT ["dotnet", "Fibonacci.dll"]

@@ -71,7 +71,7 @@ cURL commands use Bash; Bruno provides the same requests on Windows.
 |---|---|
 | Cannot connect to Docker | Start Docker/Podman and inspect `docker context show` and the socket path. |
 | Function calls time out | Read SlimFaas logs, inspect container health and confirm all tutorial services were built. |
-| Function stays unhealthy with a missing health-check executable | Rebuild the Fibonacci image and recreate services with the current Compose files, which use the bundled `curl` for `/health`. |
+| Function stays unhealthy with a missing health-check executable | Rebuild the Fibonacci image and recreate services with the current Compose files. The bundled Bash probe checks for HTTP 200 from `/health` without installing extra packages. |
 | Callback never completes | Confirm `SlimFaas__BaseUrl` is `http://slimfaas:30021` inside the function container. |
 | Job cannot start | Build `slimfaas-tour-batch:local` on the same engine SlimFaas uses. |
 | Data API returns 404 | Start with both Compose files; the overlay enables public data access for this demo. |

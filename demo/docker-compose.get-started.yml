@@ -10,7 +10,7 @@ x-tour-function: &tour-function
   networks:
     - slimfaas-net
   healthcheck:
-    test: ["CMD", "curl", "--fail", "--silent", "--show-error", "http://localhost:5000/health"]
+    test: ["CMD", "bash", "/app/healthcheck.sh"]
     interval: 2s
     timeout: 3s
     retries: 30
