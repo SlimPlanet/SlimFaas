@@ -46,6 +46,11 @@ SlimFaas to discover the port for every function and managed replica. This does
 not publish a host port. Its bundled health probe checks HTTP 200 from `/health`
 using Bash already present in the runtime image.
 
+Prometheus labels configure scraping for both functions and SlimFaas itself.
+The runtime is scraped on its internal port `30021`, where the queue metrics
+used by the tour's autoscaling rule are exposed. Keep these labels when adapting
+the demo so the metrics store and PromQL diagnostics can receive samples.
+
 Leave the services running; **Ctrl+C** exits the log viewer. SlimFaas can replace the original function containers with managed replicas as it scales, so use the dashboard for the complete function inventory.
 
 ## Open the dashboard

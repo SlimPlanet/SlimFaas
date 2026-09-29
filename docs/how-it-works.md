@@ -42,6 +42,12 @@ flowchart LR
 | Docker | Containers discovered through labels and managed using the Docker API | One SlimFaas node |
 | Native local | Commands, health checks and jobs managed by a loopback supervisor | Three real SlimFaas/Raft processes behind one entrypoint |
 
+In Docker mode, container labels are also carried into the pod metadata used by
+metrics discovery. Set `prometheus.io/scrape: "true"`, `prometheus.io/port` and
+`prometheus.io/path` on each metrics target, including the SlimFaas container when
+using its queue metrics. Scraping remains opt-in; missing or disabled scrape
+labels do not create a target.
+
 Native local mode is for development. It shares the host network and does not enforce container CPU, memory or security isolation. Its process orchestrator is distinct from the simulated `Local` orchestrator used by test and memory tools. See [Native Local Mode](native-local-mode.md).
 
 ### Components and responsibilities
