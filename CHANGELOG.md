@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.84.15
+
+- [28da9d23](https://github.com/SlimPlanet/SlimFaas/commit/28da9d23883e9b9d27450d267db1402d4665655c) - fix(SlimData): classify transient Raft endpoint failures as unavailable (#440) (release), 2026-09-29 by *Guillaume Chervet*
+
+
+## 0.84.14
+
+
+
 ## v0.84.14
 
 - [b3638d13](https://github.com/SlimPlanet/SlimFaas/commit/b3638d13d6fb25ac8b58a2b23d436a230a807c3e) - fix(SlimData): preserve Raft members during pod replacement (#434) (release), 2026-09-24 by *Guillaume Chervet*
@@ -268,16 +277,5 @@
 - [56e8f9a3](https://github.com/SlimPlanet/SlimFaas/commit/56e8f9a309178447723fcc3574e88347c3de1ebc) - refactor(slimfaas): remove trimming warning (#307) (release), 2026-08-01 by *Guillaume Chervet*
 - [ec92b95f](https://github.com/SlimPlanet/SlimFaas/commit/ec92b95fe362903392304f95c82d5f501818dafa) - fix(slimfaas): local mode win (#308), 2026-08-01 by *Guillaume Chervet*
 - [8fc80e1e](https://github.com/SlimPlanet/SlimFaas/commit/8fc80e1e25d04d8ac6f9e7d92de6dcdade5a7c3b) - doc: Generate `sitemap.xml` dynamically during SlimFaasSite export (#306), 2026-08-01 by *Copilot*
-
-
-## 0.79.2
-
-
-
-## v0.79.2
-
-- [769ffebc](https://github.com/SlimPlanet/SlimFaas/commit/769ffebcf276d0b149e9381675a4a931341b3798) - refactor: clean code (release), 2026-07-31 by *Guillaume Chervet*
-- [e209ac86](https://github.com/SlimPlanet/SlimFaas/commit/e209ac86fad58f167446a17a27266fcac81e0f45) - refactor(slimfaas): clean logger warning, 2026-07-31 by *Guillaume Chervet*
-- [015280f3](https://github.com/SlimPlanet/SlimFaas/commit/015280f3706b1b279403a03f6703cc4c67e30fdc) - doc: update AGENTS.md, 2026-07-31 by *Guillaume Chervet*
 
 
