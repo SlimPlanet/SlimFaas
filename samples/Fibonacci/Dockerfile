@@ -12,5 +12,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0.12 AS final
 WORKDIR /app
 COPY --from=build /app/publish .
 COPY samples/Fibonacci/healthcheck.sh ./healthcheck.sh
+EXPOSE 5000
 
 ENTRYPOINT ["dotnet", "Fibonacci.dll"]
