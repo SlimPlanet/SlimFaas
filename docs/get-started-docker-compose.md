@@ -13,7 +13,17 @@ git clone https://github.com/SlimPlanet/SlimFaas.git
 cd SlimFaas
 ```
 
-Keep port `30021` free. Stop a native-local demo first because its node ports overlap. SlimFaas manages containers through the mounted Docker socket; this demo is intended for a local development engine.
+Keep ports `30021` and `5000` free. The latter is the optional direct host access
+to `fibonacci1`; SlimFaas always uses the container's internal port `5000`.
+If host port `5000` is already occupied, choose another before running Compose:
+
+```bash
+export FIBONACCI_HOST_PORT=5001
+```
+
+In PowerShell, use `$env:FIBONACCI_HOST_PORT = '5001'`. Stop a native-local demo
+first because its node ports overlap. SlimFaas manages containers through the
+mounted Docker socket; this demo is intended for a local development engine.
 
 ## Build and start
 
@@ -75,6 +85,7 @@ cURL commands use Bash; Bruno provides the same requests on Windows.
 | Symptom | What to check |
 |---|---|
 | Cannot connect to Docker | Start Docker/Podman and inspect `docker context show` and the socket path. |
+| Port `5000` is occupied or Podman reports `proxy already running` | Select a free `FIBONACCI_HOST_PORT` and recreate `fibonacci1`; keep the internal port at `5000`. |
 | Function calls time out | Read SlimFaas logs, inspect container health and confirm all tutorial services were built. |
 | Function stays unhealthy with a missing health-check executable | Rebuild the Fibonacci image and recreate services with the current Compose files. The bundled Bash probe checks for HTTP 200 from `/health` without installing extra packages. |
 | Callback never completes | Confirm `SlimFaas__BaseUrl` is `http://slimfaas:30021` inside the function container. |

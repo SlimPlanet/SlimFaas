@@ -126,7 +126,7 @@ services:
       context: .
       dockerfile: samples/Fibonacci/Dockerfile
     ports:
-      - "5000:5000"
+      - "${FIBONACCI_HOST_PORT:-5000}:5000"
     environment:
       - ASPNETCORE_URLS=http://+:5000
     labels:
