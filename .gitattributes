@@ -1,0 +1,2 @@
+# Keep the in-image probe executable after a Windows checkout.
+samples/Fibonacci/healthcheck.sh text eol=lf
