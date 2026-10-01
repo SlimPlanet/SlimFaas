@@ -29,6 +29,9 @@ start the demo directly from its root:
 git clone https://github.com/SlimPlanet/SlimFaas.git
 cd SlimFaas
 
+dotnet build samples/Fibonacci
+dotnet build samples/FibonacciBatch
+
 dotnet run --project src/SlimFaas -- \
   local validate -f ../../slimfaas.local.yaml
 
@@ -40,6 +43,8 @@ In Windows PowerShell, keep each command on one line because `\` is not a
 PowerShell line-continuation character:
 
 ```powershell
+dotnet build samples/Fibonacci
+dotnet build samples/FibonacciBatch
 dotnet run --project src/SlimFaas -- local validate -f ../../slimfaas.local.yaml
 dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
 ```
@@ -47,6 +52,13 @@ dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
 The first `dotnet run` restores and builds SlimFaas and its web interface. The
 `../../slimfaas.local.yaml` path is relative to the `src/SlimFaas` working
 directory configured by the repository launch profile.
+
+The sample functions and jobs run the Debug DLLs prepared by the two sample
+builds. Replicas share those read-only files instead of compiling during scale-out.
+Stop the demo and rebuild the sample projects after editing them; use
+`slimfaas.local.dev.yaml` when you want the `fibonacci1` development process
+to run with `dotnet watch`. That overlay uses separate build artifacts so the
+watcher can rebuild without replacing the DLLs used by the other demo replicas.
 
 Keep `local up` running and, from another terminal in the cloned repository,
 test the dashboard and a demo function:

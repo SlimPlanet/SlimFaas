@@ -98,6 +98,8 @@ From the repository root, install the dashboard dependencies, build its assets a
 npm ci --ignore-scripts --prefix src/SlimFaas/ClientApp
 npm run build --prefix src/SlimFaas/ClientApp
 dotnet build src/SlimFaas -p:SkipClientAppBuild=true
+dotnet build samples/Fibonacci
+dotnet build samples/FibonacciBatch
 ```
 
 The npm build writes the dashboard to `src/SlimFaas/wwwroot`. `SkipClientAppBuild=true` avoids rebuilding those assets during the .NET build. No global SlimFaas installation is needed: the following commands run the runtime from this checkout.
@@ -109,7 +111,7 @@ dotnet run --project src/SlimFaas --no-build -- local validate -f ../../slimfaas
 dotnet run --project src/SlimFaas --no-build -- local up -f ../../slimfaas.local.yaml
 ```
 
-These single-line commands also work in PowerShell. Run them from the repository root; the manifest path is relative to the `src/SlimFaas` working directory used by `dotnet run`. Leave `local up` running. The source manifest starts three nodes and builds sample functions and jobs with dotnet when they launch, so the first request can take longer. It also enables the sample job schedules configured in `slimfaas.local.yaml`.
+These single-line commands also work in PowerShell. Run them from the repository root; the manifest path is relative to the `src/SlimFaas` working directory used by `dotnet run`. Leave `local up` running. The source manifest starts three nodes and runs the Debug sample DLLs built above. All replicas reuse those binaries, so scaling does not launch concurrent SDK builds. Stop the demo and rebuild the sample projects after changing their code. The source manifest also enables the sample job schedules configured in `slimfaas.local.yaml`.
 
 Open the dashboard and run the checks below. To test a different branch or new edits, stop the demo with **Ctrl+C**, switch branches if needed, rerun the npm/.NET build commands, and start it again. `--no-build` uses the last build, so restart after rebuilding to see your changes. For overlays and IDE debugging, see the [Local Mode reference](native-local-mode.md).
 
