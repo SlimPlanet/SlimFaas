@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.84.16
+
+- [bfbd344a](https://github.com/SlimPlanet/SlimFaas/commit/bfbd344a9cc0abd5e1911563f998e488274c6698) - fix: make the Windows guided tour repeatable (#444) (release), 2026-10-01 by *Guillaume Chervet*
+- [36e33aa4](https://github.com/SlimPlanet/SlimFaas/commit/36e33aa4e37781e74adf23e6f82a0353b54d560b) - fix(doc): Podman Compose onboarding and validate the Get Started tours (#442), 2026-09-29 by *Guillaume Chervet*
+
+
+## 0.84.15
+
+
+
 ## v0.84.15
 
 - [28da9d23](https://github.com/SlimPlanet/SlimFaas/commit/28da9d23883e9b9d27450d267db1402d4665655c) - fix(SlimData): classify transient Raft endpoint failures as unavailable (#440) (release), 2026-09-29 by *Guillaume Chervet*
@@ -266,16 +276,5 @@
 ## v0.79.4
 
 - [bbe315ad](https://github.com/SlimPlanet/SlimFaas/commit/bbe315ad2270a3c03426490a1e756bfeed9adaa6) - fix: enhance scale (#309) (release), 2026-08-02 by *Guillaume Chervet*
-
-
-## 0.79.3
-
-
-
-## v0.79.3
-
-- [56e8f9a3](https://github.com/SlimPlanet/SlimFaas/commit/56e8f9a309178447723fcc3574e88347c3de1ebc) - refactor(slimfaas): remove trimming warning (#307) (release), 2026-08-01 by *Guillaume Chervet*
-- [ec92b95f](https://github.com/SlimPlanet/SlimFaas/commit/ec92b95fe362903392304f95c82d5f501818dafa) - fix(slimfaas): local mode win (#308), 2026-08-01 by *Guillaume Chervet*
-- [8fc80e1e](https://github.com/SlimPlanet/SlimFaas/commit/8fc80e1e25d04d8ac6f9e7d92de6dcdade5a7c3b) - doc: Generate `sitemap.xml` dynamically during SlimFaasSite export (#306), 2026-08-01 by *Copilot*
 
 
