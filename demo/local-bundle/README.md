@@ -47,8 +47,8 @@ BASE_URL=http://127.0.0.1:30020 bash demo/async-scale-tour.sh
 
 It waits for an idle baseline, checks every submission, then verifies scale-out,
 queue drain and scale-down. Do not run another producer at the same time.
-The tutorial uses one async request per replica and a function-wide limit of two;
-replicas beyond two illustrate scaling policies without increasing async throughput.
+The tutorial uses one async request per replica and a function-wide limit of ten;
+additional ready replicas can increase async processing capacity up to that limit.
 Bruno provides the equivalent **Manual / Autoscaling** folder. Cancelling
 submission leaves already accepted work queued; let it finish before stopping.
 

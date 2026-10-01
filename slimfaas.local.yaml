@@ -28,7 +28,7 @@ functions:
     annotations:
       SlimFaas/Function: "true"
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
-      SlimFaas/NumberParallelRequest: "2"
+      SlimFaas/NumberParallelRequest: "10"
       SlimFaas/NumberParallelRequestPerPod: "1"
       SlimFaas/ReplicasAtStart: "1"
       SlimFaas/ReplicasMin: "0"

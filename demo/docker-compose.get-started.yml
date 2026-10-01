@@ -57,7 +57,6 @@ services:
       app: fibonacci1
       SlimFaas/SubscribeEvents: ""
       SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
-      SlimFaas/NumberParallelRequest: "2"
       SlimFaas/NumberParallelRequestPerPod: "1"
       SlimFaas/Scale: '{"ReplicaMax":4,"Triggers":[{"MetricType":"Value","MetricName":"queue","Query":"max_over_time(slimfaas_function_queue_ready_items{function=\"fibonacci1\"}[30s])","Threshold":10}]}'
   fibonacci2:

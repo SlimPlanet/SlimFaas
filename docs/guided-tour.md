@@ -159,9 +159,9 @@ The existing `SlimFaas/Scale` trigger evaluates:
 max_over_time(slimfaas_function_queue_ready_items{function="fibonacci1"}[30s])
 ```
 
-Its `MetricType` is `Value`, its threshold is `10`, and the sample allows one in-flight async request per pod, with a function-wide concurrency limit of `2`. These are **configuration values**, not settings applied by the commands below.
+Its `MetricType` is `Value`, its threshold is `10`, and the sample allows one in-flight async request per pod, with a function-wide concurrency limit of `10`. These are **configuration values**, not settings applied by the commands below.
 
-The tutorial deliberately caps async dispatch at two simultaneous requests so the backlog remains visible on a developer PC. A second ready replica can increase processing capacity, but replicas beyond two cannot increase async throughput under this cap. The replica ceiling remains unchanged so you can observe the autoscaler's recommendations and policies. For a throughput experiment, raise `SlimFaas/NumberParallelRequest` to match the desired capacity while keeping the per-pod limit appropriate for your application.
+Additional ready replicas can increase async processing capacity up to ten simultaneous requests across the function. Keep the per-pod limit appropriate for your application when changing `SlimFaas/NumberParallelRequest` for throughput experiments.
 
 | Tutorial environment | Replica ceiling | Scale-up behavior | Scale-down stabilization |
 |---|---|---|---|
