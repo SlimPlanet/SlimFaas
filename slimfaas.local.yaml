@@ -21,9 +21,15 @@ state:
   directory: .slimfaas/slimfaas-demo
 
 functions:
-  # Build the samples once before local up; replicas reuse the same read-only binaries.
   fibonacci1:
-    command: ["dotnet", "bin/Debug/net10.0/Fibonacci.dll"]
+    command:
+      - dotnet
+      - run
+      - --project
+      - Fibonacci.csproj
+      - --no-launch-profile
+      - --artifacts-path
+      - ../../.slimfaas/build/fibonacci1-{replica}
     workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
@@ -73,7 +79,14 @@ functions:
       startupTimeoutSeconds: 120
 
   fibonacci2:
-    command: ["dotnet", "bin/Debug/net10.0/Fibonacci.dll"]
+    command:
+      - dotnet
+      - run
+      - --project
+      - Fibonacci.csproj
+      - --no-launch-profile
+      - --artifacts-path
+      - ../../.slimfaas/build/fibonacci2-{replica}
     workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
@@ -98,7 +111,14 @@ functions:
       startupTimeoutSeconds: 120
 
   fibonacci3:
-    command: ["dotnet", "bin/Debug/net10.0/Fibonacci.dll"]
+    command:
+      - dotnet
+      - run
+      - --project
+      - Fibonacci.csproj
+      - --no-launch-profile
+      - --artifacts-path
+      - ../../.slimfaas/build/fibonacci3-{replica}
     workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
@@ -122,7 +142,14 @@ functions:
       startupTimeoutSeconds: 120
 
   fibonacci4:
-    command: ["dotnet", "bin/Debug/net10.0/Fibonacci.dll"]
+    command:
+      - dotnet
+      - run
+      - --project
+      - Fibonacci.csproj
+      - --no-launch-profile
+      - --artifacts-path
+      - ../../.slimfaas/build/fibonacci4-{replica}
     workingDirectory: samples/Fibonacci
     annotations:
       SlimFaas/Function: "true"
@@ -146,7 +173,7 @@ functions:
 
 jobs:
   fibonacci:
-    command: ["dotnet", "bin/Debug/net10.0/FibonacciBatch.dll"]
+    command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
     workingDirectory: samples/FibonacciBatch
     annotations:
       SlimFaas/Job: "true"
@@ -164,7 +191,7 @@ jobs:
     restartPolicy: Never
 
   fibonacci5:
-    command: ["dotnet", "bin/Debug/net10.0/FibonacciBatch.dll"]
+    command: ["dotnet", "run", "--project", "FibonacciBatch.csproj", "--"]
     workingDirectory: samples/FibonacciBatch
     annotations:
       SlimFaas/Job: "true"

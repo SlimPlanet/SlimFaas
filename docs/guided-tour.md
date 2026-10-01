@@ -245,8 +245,6 @@ bru run Manual/Autoscaling -r --env Local --bail
 
 **If scale-out does not appear:** check that the queue trigger is configured, its threshold is positive, `ReplicaMax > 1`, and metrics are being collected. An extremely short burst may finish before a metric sample; the supplied script uses 800 requests for this reason. If requested replicas increase but ready replicas do not, inspect process logs or pod/container startup failures and available resources. The test deliberately fails when it cannot observe scale-out, queue drain or scale-down before its deadlines.
 
-For the source demo, build both sample projects as described in [Get Started in Local](get-started-local.md#run-from-a-git-clone) before starting. Its replicas reuse those Debug DLLs. Overriding their commands with `dotnet run` can start concurrent SDK builds during scale-out and exhaust a developer PC's resources; the precompiled bundle avoids this build work entirely.
-
 ## 5. Publish an event
 
 **Bruno:** `Tour / 04 Events`.

@@ -14,8 +14,6 @@ functions:
       - --project
       - Fibonacci.csproj
       - --no-launch-profile
-      - --artifacts-path
-      - ../../.slimfaas/build/fibonacci1-dev-{replica}
     annotations:
       SlimFaas/ReplicasAtStart: "1"
       SlimFaas/Scale: '{"ReplicaMax": 3, "Triggers": [], "Behavior": {}}'
