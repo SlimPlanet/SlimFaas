@@ -5,7 +5,12 @@ BASE_URL="${BASE_URL:-http://127.0.0.1:30020}"
 BASE_URL="${BASE_URL%/}"
 REQUESTS="${REQUESTS:-800}"
 CONCURRENCY="${CONCURRENCY:-16}"
-for tool in curl jq; do command -v "$tool" >/dev/null; done
+for tool in curl jq; do
+  command -v "$tool" >/dev/null 2>&1 || {
+    printf 'Missing required tool: %s. Install it and add it to PATH (Git Bash on Windows).\n' "$tool" >&2
+    exit 1
+  }
+done
 [[ $REQUESTS =~ ^[0-9]+$ && $CONCURRENCY =~ ^[0-9]+$ ]] || { echo 'REQUESTS and CONCURRENCY must be integers.' >&2; exit 1; }
 REQUESTS=$((10#$REQUESTS))
 CONCURRENCY=$((10#$CONCURRENCY))
@@ -23,14 +28,21 @@ trap cleanup EXIT
 trap 'echo "Stopped submitting. Already accepted requests remain queued; let them drain in the UI." >&2; exit 130' INT TERM
 
 read_state() {
-  local status=0
-  curl -s --max-time 2 -N "$BASE_URL/status-functions-stream" > "$SCALE_TMP/stream" || status=$?
-  [[ $status == 0 || $status == 28 ]] || return "$status"
-  awk '/^data: / {sub(/^data: /, ""); print; exit}' "$SCALE_TMP/stream" > "$SCALE_TMP/state"
-  jq -e '.Functions and .Queues' "$SCALE_TMP/state" >/dev/null
-  requested=$(jq -er '.Functions[] | select(.Name == "fibonacci1") | .NumberRequested' "$SCALE_TMP/state")
-  ready=$(jq -er '.Functions[] | select(.Name == "fibonacci1") | .NumberReady' "$SCALE_TMP/state")
-  queued=$(jq -er '.Queues[] | select(.Name == "fibonacci1") | .Length' "$SCALE_TMP/state")
+  local status deadline=$((SECONDS + 15))
+  while (( SECONDS < deadline )); do
+    status=0
+    curl -s --max-time 2 -N "$BASE_URL/status-functions-stream?activity=false" > "$SCALE_TMP/stream" || status=$?
+    if [[ $status == 0 || $status == 28 ]]; then
+      awk '/^event: / {event=$2; sub(/\r$/, "", event)} event == "state" && /^data: / {sub(/^data: /, ""); print; exit}' "$SCALE_TMP/stream" > "$SCALE_TMP/state"
+      if jq -e '.Functions and .Queues' "$SCALE_TMP/state" >/dev/null 2>&1 &&
+        requested=$(jq -er '.Functions[] | select(.Name == "fibonacci1") | .NumberRequested' "$SCALE_TMP/state") &&
+        ready=$(jq -er '.Functions[] | select(.Name == "fibonacci1") | .NumberReady' "$SCALE_TMP/state") &&
+        queued=$(jq -er '.Queues[] | select(.Name == "fibonacci1") | .Length' "$SCALE_TMP/state"); then return 0; fi
+    fi
+    sleep 0.2
+  done
+  echo 'No complete fibonacci1 SSE state snapshot received within 15 seconds. Check readiness and server load.' >&2
+  return 1
 }
 
 echo 'Use a dedicated tutorial demo with no other producers. Open its dashboard now.'

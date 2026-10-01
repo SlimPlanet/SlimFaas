@@ -3,8 +3,12 @@
 set -euo pipefail
 BASE_URL="${BASE_URL:-http://127.0.0.1:30020}"
 BASE_URL="${BASE_URL%/}"
-command -v jq >/dev/null
-command -v curl >/dev/null
+for tool in curl jq; do
+  command -v "$tool" >/dev/null 2>&1 || {
+    printf 'Missing required tool: %s. Install it and add it to PATH (Git Bash on Windows).\n' "$tool" >&2
+    exit 1
+  }
+done
 TOUR_TMP=$(mktemp -d)
 TOUR_ID="tour-$(date +%s)-$$"
 TOUR_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -47,11 +51,18 @@ wait_ready() {
   done
 }
 read_state() {
-  local result=0
-  curl -s --max-time 2 -N "$BASE_URL/status-functions-stream" > "$TOUR_TMP/stream" || result=$?
-  [[ $result == 0 || $result == 28 ]] || return "$result"
-  awk '/^data: / {sub(/^data: /, ""); print; exit}' "$TOUR_TMP/stream" > "$TOUR_TMP/state"
-  jq -e '.Functions and .Queues' "$TOUR_TMP/state" >/dev/null
+  local result deadline=$((SECONDS + 15))
+  while (( SECONDS < deadline )); do
+    result=0
+    curl -s --max-time 2 -N "$BASE_URL/status-functions-stream?activity=false" > "$TOUR_TMP/stream" || result=$?
+    if [[ $result == 0 || $result == 28 ]]; then
+      awk '/^event: / {event=$2; sub(/\r$/, "", event)} event == "state" && /^data: / {sub(/^data: /, ""); print; exit}' "$TOUR_TMP/stream" > "$TOUR_TMP/state"
+      if jq -e '.Functions and .Queues' "$TOUR_TMP/state" >/dev/null 2>&1; then return 0; fi
+    fi
+    sleep 0.2
+  done
+  echo 'No complete SSE state snapshot received within 15 seconds. Check readiness and server load.' >&2
+  return 1
 }
 wait_queue_empty() {
   local deadline=$((SECONDS + 180))

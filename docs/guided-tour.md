@@ -8,6 +8,8 @@ In **Live Stream → Traffic**, blue circles represent requests, purple diamonds
 
 Complete one of the [three installation guides](get-started.md) first. This tour uses the supplied Fibonacci demos, including the tutorial overlay for Compose. Run commands in Bash from the cloned repository root, or from the extracted precompiled local demo directory. Both contain the same `demo/` paths. Install `curl` and `jq`; Bruno is an alternative to the terminal examples.
 
+On Windows, use **Git Bash** for the commands and scripts below; WSL is not required. Git Bash includes cURL, but `jq` is a separate prerequisite. Run `command -v curl jq` and `jq --version` before starting. If either tool is missing, install it and add its directory to this terminal's `PATH`. PowerShell can start the local bundle with `start.ps1`; its syntax is different from these Bash examples.
+
 ```bash
 # Native local mode:
 export BASE_URL=http://127.0.0.1:30020
@@ -18,7 +20,7 @@ export BASE_URL=http://127.0.0.1:30020
 export TOUR_ID="tour-$(date +%s)-$$"
 ```
 
-Open `$BASE_URL/` in your browser. The default dashboard includes **Infrastructure Overview**, **Overview → Jobs**, and the live network map. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
+Open `$BASE_URL/` in your browser. **Overview** contains the Functions and Jobs tables; **Live Stream → Traffic** opens the live network map. Animations are live: open the page before running the requests. Replica state may take a few updates to appear.
 
 ### Use Bruno
 
@@ -72,7 +74,7 @@ curl -i -X POST "$BASE_URL/wake-functions"
 
 Both return `204 No Content` for this configured demo. A wake-up requests activity; it does not wait for a ready application response. A nonexistent function returns `404` for the individual wake route.
 
-**In the UI:** click **Wake Up** on a down function or **Wake Up All Functions**. Watch requested replicas rise, followed by ready replicas. Stop invoking `fibonacci1`; its inactivity timeout is 10 seconds, followed by the worker's reconciliation time. Dependencies or running work can keep it awake. Observing the dashboard itself is not a function invocation.
+**In the UI:** click **Wake up** on a down function or **Wake all functions**. Watch requested replicas rise, followed by ready replicas. Stop invoking `fibonacci1`; its inactivity timeout is 10 seconds, followed by the worker's reconciliation time. Dependencies or running work can keep it awake. Observing the dashboard itself is not a function invocation.
 
 ## 3. Call functions synchronously
 
@@ -149,7 +151,7 @@ Expect `500` from the demo handler. Async errors and an empty `{}` callback payl
 
 **Objective:** start with **N = 1 ready replica**, enqueue enough work to exceed its processing capacity, observe **M > N ready replicas**, and watch the queue drain before capacity shrinks again. This demonstrates metric-driven scale-out after wake-up.
 
-**Prerequisites:** use the supplied `fibonacci1` demo and stop other producers. Finish the callback exercise first. Keep **Infrastructure Overview** and the network map open. The longer workload is optional and lives in **Bruno: `Manual / Autoscaling`**; it is excluded from the ordinary `Tour` run.
+**Prerequisites:** use the supplied `fibonacci1` demo and stop other producers. Finish the callback exercise first. Keep **Overview** and the network map open. The longer workload is optional and lives in **Bruno: `Manual / Autoscaling`**; it is excluded from the ordinary `Tour` run.
 
 The existing `SlimFaas/Scale` trigger evaluates:
 
@@ -157,7 +159,9 @@ The existing `SlimFaas/Scale` trigger evaluates:
 max_over_time(slimfaas_function_queue_ready_items{function="fibonacci1"}[30s])
 ```
 
-Its `MetricType` is `Value`, its threshold is `10`, and the sample allows one in-flight async request per pod, with a function-wide concurrency limit of `10`. These are **configuration values**, not settings applied by the commands below.
+Its `MetricType` is `Value`, its threshold is `10`, and the sample allows one in-flight async request per pod, with a function-wide concurrency limit of `2`. These are **configuration values**, not settings applied by the commands below.
+
+The tutorial deliberately caps async dispatch at two simultaneous requests so the backlog remains visible on a developer PC. A second ready replica can increase processing capacity, but replicas beyond two cannot increase async throughput under this cap. The replica ceiling remains unchanged so you can observe the autoscaler's recommendations and policies. For a throughput experiment, raise `SlimFaas/NumberParallelRequest` to match the desired capacity while keeping the per-pod limit appropriate for your application.
 
 | Tutorial environment | Replica ceiling | Scale-up behavior | Scale-down stabilization |
 |---|---|---|---|
@@ -191,6 +195,8 @@ BASE_URL="$BASE_URL" REQUESTS=800 CONCURRENCY=16 bash demo/async-scale-tour.sh
 The script waits for readiness and an empty queue with exactly one ready/requested replica, then submits **800** requests to `/async-function/fibonacci1/compute` using **16** producers. The demo handler waits about **100 ms**; the input is intentionally small and does not create expensive Fibonacci computations. Every submission must return `202`; failed submissions are reported and are never retried automatically.
 
 The script samples the same SSE state used by the dashboard and prints `Submitted`, `Requested`, `Ready` and `Queue`. It requires both requested and ready replica counts to rise above one, waits for the queue to drain, and then waits for capacity to return to one or zero. Allow a few minutes in Local/Kubernetes; Compose's default scale-down stabilization can add approximately five minutes. The script reads that configured window when choosing its waiting deadline.
+
+Under load, a two-second SSE connection can close before its first complete state arrives. Both tour scripts request status-only snapshots with `?activity=false`, select the `state` event, retry these read-only observations for up to 15 seconds and report a missing snapshot explicitly. The browser's Traffic stream remains available independently. Accepted async submissions are never replayed by this observation retry.
 
 **In the UI:** follow these changes in order:
 
@@ -354,7 +360,7 @@ curl -fsS "$BASE_URL/data/files" | jq .
 
 Files return a **plain text ID**, not a JSON string. Downloads preserve the stored media type and filename. Metadata is replicated through SlimData; file contents are stored on disk and pulled from peers when needed.
 
-**In the UI:** there is no data browser. Use the read, list and download responses to verify contents; use node status and metrics to investigate cluster behavior.
+**In the UI:** **Live Stream → Data** lists Sets and Files metadata, including keys, TTL and file sizes. Use the read, list and download responses to verify stored contents; use node status and metrics to investigate cluster behavior.
 
 Cleanup:
 
@@ -406,4 +412,4 @@ In **Live Stream → Traffic**, select `fibonacci1` and choose **Show replicas**
 
 The green **Leader** badge identifies the Raft leader; another node receives it after a leader change is observed. Select a replica, retained job execution or SlimFaas node to see its details and live logs together. Filter text with **Find in logs** to highlight matching text in yellow, or pause scrolling to inspect output. Log access is enabled explicitly in the demo configurations. Native nodes default to `cluster.nodeLogLevel: Error`, so an empty node log is expected when no errors occur; use `Information` in an overlay for a more verbose exercise.
 
-`fibonacci2` can wake even when you call only `fibonacci1`: the default native manifest schedules **`fibonacci5` every two minutes** (`*/2 * * * *`), and this job depends on **both `fibonacci1` and `fibonacci2`**. Pending/running jobs keep their dependencies awake. The React demo also wakes `fibonacci2` when its optional `?planetsaver=true` mode is enabled; **Wake Up All Functions** wakes it too. The dependency from `fibonacci2` to `fibonacci1` does not imply the reverse direction. These scheduled and dependency scenarios remain enabled for the tutorial.
+`fibonacci2` can wake even when you call only `fibonacci1`: the default native source manifest schedules **`fibonacci5` every two minutes** (`*/2 * * * *`), and this job depends on **both `fibonacci1` and `fibonacci2`**. Pending/running jobs keep their dependencies awake. The React demo also wakes `fibonacci2` when its optional `?planetsaver=true` mode is enabled; **Wake all functions** wakes it too. The dependency from `fibonacci2` to `fibonacci1` does not imply the reverse direction. The precompiled bundle disables automatic sample schedules; the tour creates its own dynamic schedule.
