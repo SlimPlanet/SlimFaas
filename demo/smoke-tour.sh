@@ -72,6 +72,17 @@ wait_queue_empty() {
     [[ $SECONDS -lt $deadline ]] || { echo 'Async completion deadline exceeded' >&2; exit 1; }
   done
 }
+wait_queue_nonempty() {
+  local deadline=$((SECONDS + 15))
+  while true; do
+    read_state
+    if jq -e 'any(.Queues[]; .Name == "fibonacci1" and .Length > 0)' "$TOUR_TMP/state" >/dev/null; then return 0; fi
+    [[ $SECONDS -lt $deadline ]] || {
+      echo 'Deferred callback was not observed in the fibonacci1 queue within 15 seconds. Check status propagation and callback logs.' >&2
+      return 1
+    }
+  done
+}
 wait_ready
 request 200 GET /health
 request 200 GET /ready
@@ -98,8 +109,7 @@ wait_queue_empty
 request 202 POST /async-function/fibonacci1/fibonacci -H 'Content-Type: application/json' --data '{"input":10}'
 wait_queue_empty
 request 202 POST /async-function/fibonacci1/computeWithCallback -H 'Content-Type: application/json' --data '{"input":10}'
-read_state
-jq -e '.Queues[] | select(.Name == "fibonacci1") | .Length > 0' "$TOUR_TMP/state" >/dev/null
+wait_queue_nonempty
 wait_queue_empty
 echo 'PASS Deferred callback released the queue'
 request 204 POST /wake-function/fibonacci3

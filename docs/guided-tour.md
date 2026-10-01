@@ -48,6 +48,11 @@ job to succeed, and cleans up only the IDs it creates. The smoke job requests
 again to verify that the demonstration is repeatable. It reports skipped
 environment-dependent checks explicitly.
 
+The callback check waits for pending work to become visible in the queue, then
+waits for completion. An initial SSE snapshot can still show the empty queue
+from before submission, especially across Kubernetes nodes. These bounded
+read-only checks never resubmit the callback request.
+
 ## 1. Read the cluster state
 
 **Bruno:** `Tour / 01 Status`.

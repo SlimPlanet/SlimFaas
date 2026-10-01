@@ -70,12 +70,12 @@ class TourScriptTests(unittest.TestCase):
                     self.assertEqual(result.stdout, "")
                     self.assertIn("Missing required tool: " + missing, result.stderr)
 
-    def state_probe(self, script, mocks):
+    def state_probe(self, script, mocks, function="read_state"):
         content = (self.repository / "demo" / script).read_text(encoding="utf-8")
-        start = content.index("read_state() {")
+        start = content.index(function + "() {")
         end = content.index("\n}\n", start) + 3
         with tempfile.TemporaryDirectory(prefix="Tour state with spaces ") as temporary:
-            probe = 'BASE_URL=http://localhost; TOUR_TMP="$1"; SCALE_TMP="$1";\n' + mocks + content[start:end] + "\nread_state\n"
+            probe = 'BASE_URL=http://localhost; TOUR_TMP="$1"; SCALE_TMP="$1";\n' + mocks + content[start:end] + "\n" + function + "\n"
             return subprocess.run([self.bash, "--noprofile", "--norc", "-e", "-c", probe, "test",
                                    Path(temporary).as_posix()], capture_output=True, text=True, check=False)
 
@@ -110,6 +110,25 @@ sleep() { SECONDS=$((SECONDS + 15)); }
                 result = self.state_probe(script, mocks)
                 self.assertEqual(result.returncode, 1, result.stderr)
                 self.assertIn("SSE state snapshot received within 15 seconds", result.stderr)
+
+    def test_callback_waits_past_initial_empty_queue_snapshots(self):
+        mocks = '''observations=0
+read_state() { observations=$((observations + 1)); echo "snapshot-$observations"; }
+jq() { [[ $observations == 3 ]]; }
+curl() { echo 'Unexpected request replay' >&2; exit 99; }
+'''
+        result = self.state_probe("smoke-tour.sh", mocks, "wait_queue_nonempty")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), ["snapshot-1", "snapshot-2", "snapshot-3"])
+
+    def test_callback_missing_from_queue_fails_with_a_deadline(self):
+        mocks = '''read_state() { SECONDS=$((SECONDS + 15)); }
+jq() { return 1; }
+curl() { echo 'Unexpected request replay' >&2; exit 99; }
+'''
+        result = self.state_probe("smoke-tour.sh", mocks, "wait_queue_nonempty")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("Deferred callback was not observed in the fibonacci1 queue within 15 seconds", result.stderr)
 
 
 class ReadinessTests(unittest.TestCase):
