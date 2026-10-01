@@ -46,7 +46,7 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: src/SlimFaas/ClientApp/package-lock.json
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.0.x'
       - name: Install browser test dependencies
