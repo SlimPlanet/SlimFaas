@@ -55,7 +55,9 @@ submission leaves already accepted work queued; let it finish before stopping.
 The source manifest is paired with `slimfaas.local.prebuilt.yaml`, which selects
 the packaged executables and disables automatic sample schedules. The tour
 creates its own schedules. Pass further `-f` overlays to the launcher to customize
-the demo. Manifest paths are resolved relative to the base manifest.
+the demo. Manifest paths are resolved relative to the base manifest. If an overlay
+changes the entrypoint port or state location, use the dashboard URL and state
+directory printed by SlimFaas at startup.
 
 Linux bundles target glibc, not Alpine/musl. See the local installation guide
 for platform prerequisites and troubleshooting:
