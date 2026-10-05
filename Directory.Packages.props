@@ -69,7 +69,7 @@
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
     <PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="18.1.0" />
     <PackageVersion Include="Yaml2JsonNode" Version="3.0.1" />
-    <PackageVersion Include="NodaTime" Version="3.3.4" />
+    <PackageVersion Include="NodaTime" Version="3.3.5" />
   </ItemGroup>
 
   <!-- Kubernetes -->
@@ -84,7 +84,7 @@
 
   <!-- Samples -->
   <ItemGroup>
-    <PackageVersion Include="MailKit" Version="4.18.0" />
+    <PackageVersion Include="MailKit" Version="4.18.1" />
   </ItemGroup>
 
   <!-- Tooling -->
