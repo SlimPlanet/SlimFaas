@@ -3,8 +3,12 @@
 set -euo pipefail
 BASE_URL="${BASE_URL:-http://127.0.0.1:30020}"
 BASE_URL="${BASE_URL%/}"
-command -v jq >/dev/null
-command -v curl >/dev/null
+for tool in curl jq; do
+  command -v "$tool" >/dev/null 2>&1 || {
+    printf 'Missing required tool: %s. Install it and add it to PATH (Git Bash on Windows).\n' "$tool" >&2
+    exit 1
+  }
+done
 TOUR_TMP=$(mktemp -d)
 TOUR_ID="tour-$(date +%s)-$$"
 TOUR_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -47,11 +51,18 @@ wait_ready() {
   done
 }
 read_state() {
-  local result=0
-  curl -s --max-time 2 -N "$BASE_URL/status-functions-stream" > "$TOUR_TMP/stream" || result=$?
-  [[ $result == 0 || $result == 28 ]] || return "$result"
-  awk '/^data: / {sub(/^data: /, ""); print; exit}' "$TOUR_TMP/stream" > "$TOUR_TMP/state"
-  jq -e '.Functions and .Queues' "$TOUR_TMP/state" >/dev/null
+  local result deadline=$((SECONDS + 15))
+  while (( SECONDS < deadline )); do
+    result=0
+    curl -s --max-time 2 -N "$BASE_URL/status-functions-stream?activity=false" > "$TOUR_TMP/stream" || result=$?
+    if [[ $result == 0 || $result == 28 ]]; then
+      awk '/^event: / {event=$2; sub(/\r$/, "", event)} event == "state" && /^data: / {sub(/^data: /, ""); print; exit}' "$TOUR_TMP/stream" > "$TOUR_TMP/state"
+      if jq -e '.Functions and .Queues' "$TOUR_TMP/state" >/dev/null 2>&1; then return 0; fi
+    fi
+    sleep 0.2
+  done
+  echo 'No complete SSE state snapshot received within 15 seconds. Check readiness and server load.' >&2
+  return 1
 }
 wait_queue_empty() {
   local deadline=$((SECONDS + 180))
@@ -59,6 +70,17 @@ wait_queue_empty() {
     read_state
     if jq -e '[.Queues[] | select(.Name == "fibonacci1")] | length > 0 and all(.Length == 0)' "$TOUR_TMP/state" >/dev/null; then break; fi
     [[ $SECONDS -lt $deadline ]] || { echo 'Async completion deadline exceeded' >&2; exit 1; }
+  done
+}
+wait_queue_nonempty() {
+  local deadline=$((SECONDS + 15))
+  while true; do
+    read_state
+    if jq -e 'any(.Queues[]; .Name == "fibonacci1" and .Length > 0)' "$TOUR_TMP/state" >/dev/null; then return 0; fi
+    [[ $SECONDS -lt $deadline ]] || {
+      echo 'Deferred callback was not observed in the fibonacci1 queue within 15 seconds. Check status propagation and callback logs.' >&2
+      return 1
+    }
   done
 }
 wait_ready
@@ -87,8 +109,7 @@ wait_queue_empty
 request 202 POST /async-function/fibonacci1/fibonacci -H 'Content-Type: application/json' --data '{"input":10}'
 wait_queue_empty
 request 202 POST /async-function/fibonacci1/computeWithCallback -H 'Content-Type: application/json' --data '{"input":10}'
-read_state
-jq -e '.Queues[] | select(.Name == "fibonacci1") | .Length > 0' "$TOUR_TMP/state" >/dev/null
+wait_queue_nonempty
 wait_queue_empty
 echo 'PASS Deferred callback released the queue'
 request 204 POST /wake-function/fibonacci3
@@ -96,9 +117,21 @@ request 204 POST /wake-function/fibonacci4
 request 200 GET /function/fibonacci3/hello/subscriber
 request 204 POST /publish-event/fibo-public/fibonacci -H 'Content-Type: application/json' --data '{"input":10}'
 request 404 POST /publish-event/unknown-tour-event/fibonacci -H 'Content-Type: application/json' --data '{"input":10}'
-request 202 POST /job/fibonacci -H 'Content-Type: application/json' --data '{"Args":["10"]}'
+request 202 POST /job/fibonacci -H 'Content-Type: application/json' --data '{"Args":["10"],"TtlSecondsAfterFinished":60}'
 job_id=$(jq -er .Id "$TOUR_TMP/body")
 request 200 GET /job/fibonacci
+deadline=$((SECONDS + 180))
+until jq -e --arg id "$job_id" 'any(.[]; .Id == $id and .Status == "Succeeded")' "$TOUR_TMP/body" >/dev/null; do
+  if jq -e --arg id "$job_id" 'any(.[]; .Id == $id and .Status == "Failed")' "$TOUR_TMP/body" >/dev/null; then
+    echo 'FAIL Fibonacci job execution' >&2
+    cat "$TOUR_TMP/body" >&2
+    exit 1
+  fi
+  [[ $SECONDS -lt $deadline ]] || { echo 'Job completion deadline exceeded' >&2; cat "$TOUR_TMP/body" >&2; exit 1; }
+  sleep 0.5
+  request 200 GET /job/fibonacci
+done
+echo 'PASS Fibonacci job succeeded'
 request 200 GET /jobs/status
 request 200 GET /status-jobs
 request 201 POST /job-schedules/fibonacci -H 'Content-Type: application/json' --data '{"Schedule":"0 0 1 1 *","Args":["10"]}'

@@ -90,7 +90,8 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
 #pragma warning disable CA2000 // owned by the BatchPartition, disposed with the service
             var batcher = new MultiRateAdaptiveBatcher(
                 idleStop: TimeSpan.FromSeconds(15),
-                maxWaitPerTick: TimeSpan.FromSeconds(5));
+                maxWaitPerTick: TimeSpan.FromSeconds(5),
+                logger: _logger);
 #pragma warning restore CA2000
             var partition = new BatchPartition(kind, producerId, batcher);
             _batchPartitions[index] = partition;

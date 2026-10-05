@@ -48,13 +48,31 @@ def cleanup_finished_job(request, job_id):
         error.close()
 
 
-def main():
+def validate_bundle_scripts(archive):
+    """Check the shipped bytes, including ZIPs produced from Windows checkouts."""
+    for name in ("start.sh", "demo/smoke-tour.sh", "demo/async-scale-tour.sh"):
+        if b"\r" in archive.read(name):
+            raise ValueError(f"Bundled shell script must use LF line endings: {name}")
+
+
+def parse_arguments(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("archive", type=Path)
-    args = parser.parse_args()
+    parser.add_argument("--manifest-overlay", type=Path, action="append", default=[],
+                        help="Additional manifest overlay; repeat to isolate ports, state and callbacks")
+    parser.add_argument("--base-url", default="http://127.0.0.1:30020",
+                        help="HTTP entrypoint matching the supplied overlays")
+    return parser.parse_args(argv)
+
+
+def main():
+    args = parse_arguments()
+    overlay_arguments = [argument for path in args.manifest_overlay
+                         for argument in ("-f", str(path.resolve()))]
     with tempfile.TemporaryDirectory(prefix="SlimFaas bundle with spaces ") as temporary:
         root = Path(temporary)
         with zipfile.ZipFile(args.archive) as archive:
+            validate_bundle_scripts(archive)
             archive.extractall(root)
         suffix = ".exe" if os.name == "nt" else ""
         for executable in ("runtime/SlimFaas", "functions/fibonacci/Fibonacci", "jobs/fibonacci-batch/FibonacciBatch"):
@@ -66,7 +84,7 @@ def main():
                        if not key.startswith(("DOTNET", "NODE")) and key != "PATH"}
         environment.update(PATH="", SLIMFAAS_DEMO_ROOT=root.as_posix(), SLIMFAAS_DEMO_EXE_SUFFIX=suffix)
         command = [str(root / ("runtime/SlimFaas" + suffix)), "local"]
-        manifests = ["-f", str(root / "slimfaas.local.yaml"), "-f", str(root / "slimfaas.local.prebuilt.yaml")]
+        manifests = ["-f", str(root / "slimfaas.local.yaml"), "-f", str(root / "slimfaas.local.prebuilt.yaml")] + overlay_arguments
         subprocess.run(command + ["validate"] + manifests, env=environment, cwd=root, check=True)
         # Exercise the shipped launchers as well as the direct empty-PATH run.
         if os.name == "nt":
@@ -76,7 +94,7 @@ def main():
             launcher = [powershell, "-NoProfile", "-File", str(root / "start.ps1"), "-Validate"]
         else:
             launcher = ["/bin/sh", str(root / "start.sh"), "--validate"]
-        subprocess.run(launcher, cwd=root.parent, check=True)
+        subprocess.run(launcher + overlay_arguments, cwd=root.parent, check=True)
         options = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
         log_path = root / "smoke.log"
         with log_path.open("w", encoding="utf-8") as log:
@@ -85,7 +103,7 @@ def main():
             try:
                 def request(route, method="GET", data=None, timeout=60):
                     payload = None if data is None else json.dumps(data).encode()
-                    req = urllib.request.Request("http://127.0.0.1:30020" + route, data=payload, method=method,
+                    req = urllib.request.Request(args.base_url.rstrip("/") + route, data=payload, method=method,
                                                  headers={"Content-Type": "application/json"})
                     with urllib.request.urlopen(req, timeout=timeout) as response:
                         return response.status, response.read()

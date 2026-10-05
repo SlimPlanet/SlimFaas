@@ -50,21 +50,35 @@ public sealed class SlimDataMembershipReconciliationWorker(
     internal async Task ReconcileOnceAsync(CancellationToken token)
     {
         if (!HasActiveLeadership())
+        {
+            _missingCycles.Clear();
             return;
+        }
 
-        var desired = GetDesiredMembers();
-        var current = GetCurrentMembers();
+        SlimFaasDeploymentInformation topology = replicasService.Deployments.SlimFaas;
+        Dictionary<MembershipEndpointKey, Uri> desired = GetDesiredMembers(topology.Pods);
+        Dictionary<MembershipEndpointKey, Uri> current = GetCurrentMembers();
         var localKey = MembershipEndpointKey.From(cluster.LocalMemberAddress);
+        bool completeTopology = topology.Replicas > 0 && desired.Count == topology.Replicas;
+
+        // A pod can disappear or lose its IP/Started status while the StatefulSet
+        // still requires it. Such an observation must not change the Raft quorum.
+        if (!completeTopology)
+        {
+            _missingCycles.Clear();
+            logger.LogDeferringSlimDataMembershipRemovals(topology.Replicas, desired.Count);
+        }
 
         ResetObservedMembers(desired, current);
 
-        var memberToAdd = desired
+        Uri? memberToAdd = desired
             .Where(pair => !current.ContainsKey(pair.Key))
             .OrderBy(static pair => pair.Value.AbsoluteUri, StringComparer.Ordinal)
             .Select(static pair => pair.Value)
             .FirstOrDefault();
         if (memberToAdd is not null)
         {
+            _missingCycles.Clear();
             logger.LogAddingMissingSlimDataRaftMemberEndpoint(memberToAdd);
             if (!await membershipCoordinator.AddMemberAsync(memberToAdd, token).ConfigureAwait(false))
             {
@@ -76,21 +90,25 @@ public sealed class SlimDataMembershipReconciliationWorker(
 
         if (!desired.ContainsKey(localKey))
         {
+            _missingCycles.Clear();
             logger.LogSkippingSlimDataMembershipRemovalsBecauseThe(cluster.LocalMemberAddress);
             return;
         }
 
-        var staleMembers = current
+        if (!completeTopology)
+            return;
+
+        KeyValuePair<MembershipEndpointKey, Uri>[] staleMembers = current
             .Where(pair => pair.Key != localKey && !desired.ContainsKey(pair.Key))
             .OrderBy(static pair => pair.Value.AbsoluteUri, StringComparer.Ordinal)
             .ToArray();
-        var previousMissingCycles = staleMembers.ToDictionary(
+        Dictionary<MembershipEndpointKey, int> previousMissingCycles = staleMembers.ToDictionary(
             static pair => pair.Key,
             pair => _missingCycles.GetValueOrDefault(pair.Key));
-        foreach (var stale in staleMembers)
+        foreach (KeyValuePair<MembershipEndpointKey, Uri> stale in staleMembers)
             _missingCycles[stale.Key] = _missingCycles.GetValueOrDefault(stale.Key) + 1;
 
-        var memberToRemove = staleMembers.FirstOrDefault(pair =>
+        KeyValuePair<MembershipEndpointKey, Uri> memberToRemove = staleMembers.FirstOrDefault(pair =>
             _missingCycles.GetValueOrDefault(pair.Key) >= _removalMissingCycles);
         if (memberToRemove.Value is null)
             return;
@@ -121,7 +139,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
         {
             return !cluster.LeadershipToken.IsCancellationRequested &&
                    !cluster.ConsensusToken.IsCancellationRequested &&
-                   cluster.TryGetLeaseToken(out var leaseToken) &&
+                   cluster.TryGetLeaseToken(out CancellationToken leaseToken) &&
                    !leaseToken.IsCancellationRequested;
         }
         catch (Exception)
@@ -130,10 +148,10 @@ public sealed class SlimDataMembershipReconciliationWorker(
         }
     }
 
-    private Dictionary<MembershipEndpointKey, Uri> GetDesiredMembers()
+    private Dictionary<MembershipEndpointKey, Uri> GetDesiredMembers(IEnumerable<PodInformation> pods)
     {
         var result = new Dictionary<MembershipEndpointKey, Uri>();
-        foreach (var pod in replicasService.Deployments.SlimFaas.Pods
+        foreach (PodInformation pod in pods
                      .Where(static pod => pod.Started is true && !string.IsNullOrWhiteSpace(pod.Ip)))
         {
             try
@@ -153,7 +171,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
     private Dictionary<MembershipEndpointKey, Uri> GetCurrentMembers()
     {
         var result = new Dictionary<MembershipEndpointKey, Uri>();
-        foreach (var member in ((IRaftCluster)cluster).Members)
+        foreach (IRaftClusterMember member in ((IRaftCluster)cluster).Members)
         {
             if (member.EndPoint is not UriEndPoint endpoint)
             {
@@ -171,7 +189,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
         Dictionary<MembershipEndpointKey, Uri> desired,
         Dictionary<MembershipEndpointKey, Uri> current)
     {
-        foreach (var endpoint in _missingCycles.Keys.ToArray())
+        foreach (MembershipEndpointKey endpoint in _missingCycles.Keys.ToArray())
         {
             if (desired.ContainsKey(endpoint) || !current.ContainsKey(endpoint))
                 _missingCycles.Remove(endpoint);
@@ -181,7 +199,7 @@ public sealed class SlimDataMembershipReconciliationWorker(
     private void RestoreMissingCycles(
         IReadOnlyDictionary<MembershipEndpointKey, int> previousMissingCycles)
     {
-        foreach (var (endpoint, count) in previousMissingCycles)
+        foreach ((MembershipEndpointKey endpoint, int count) in previousMissingCycles)
         {
             if (count == 0)
                 _missingCycles.Remove(endpoint);
