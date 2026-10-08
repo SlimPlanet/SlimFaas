@@ -22,6 +22,10 @@ public static class OptionsExtensions
                 "SlimFaas:KubernetesWatch values are invalid.")
             .Validate(ValidateTrustedProxies,
                 "SlimFaas:TrustedProxies entries must be IP addresses or CIDR networks.")
+            .Validate(ValidateCallerAuthentication,
+                "SlimFaas:CallerAuthentication values are invalid: Mode must be Legacy, Hybrid or Strict; " +
+                "SecretsDirectory is required outside Legacy; ClockSkewSeconds, MaxSignedBodyBytes, " +
+                "NonceCacheMaxEntriesPerCaller, KeyRefreshSeconds and WarningIntervalSeconds must be positive.")
             .ValidateOnStart();
 
         services.AddOptions<SlimDataOptions>()
@@ -82,6 +86,18 @@ public static class OptionsExtensions
 
     private static bool ValidateTrustedProxies(SlimFaasOptions options)
         => TrustedProxies.TryParse(options.TrustedProxies, out _, out _, out _);
+
+    private static bool ValidateCallerAuthentication(SlimFaasOptions options)
+    {
+        CallerAuthenticationOptions auth = options.CallerAuthentication;
+        return Enum.IsDefined(auth.Mode)
+               && (auth.Mode == CallerAuthenticationMode.Legacy || !string.IsNullOrWhiteSpace(auth.SecretsDirectory))
+               && auth.ClockSkewSeconds > 0
+               && auth.MaxSignedBodyBytes > 0L
+               && auth.NonceCacheMaxEntriesPerCaller > 0
+               && auth.KeyRefreshSeconds > 0
+               && auth.WarningIntervalSeconds > 0;
+    }
 
     private static bool ValidateSlimDataOptions(SlimDataOptions options)
         => options.WarmupRounds > 0

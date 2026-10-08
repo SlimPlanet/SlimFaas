@@ -312,6 +312,7 @@ serviceCollectionSlimFaas.AddSingleton<IJobConfiguration>(sp =>
     serviceProviderStarter.GetService<IJobConfiguration>()!);
 serviceCollectionSlimFaas.AddSingleton<IScheduleJobService, ScheduleJobService>();
 serviceCollectionSlimFaas.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
+serviceCollectionSlimFaas.AddCallerAuthentication(slimFaasOptions.CallerAuthentication);
 serviceCollectionSlimFaas.AddMemoryCache();
 serviceCollectionSlimFaas.AddSingleton<FunctionStatusCache>();
 serviceCollectionSlimFaas.AddSingleton<IStatusStreamSnapshotCache, StatusStreamSnapshotCache>();
@@ -625,6 +626,24 @@ if (forwardedHeadersOptions is not null)
         startupLogger.LogTrustedProxiesConfigured(string.Join(", ", slimFaasOptions.TrustedProxies));
     }
     app.UseForwardedHeaders(forwardedHeadersOptions);
+}
+
+// Signed-request verification (opt-in). Runs right after the forwarded headers so the
+// remote address seen by the Hybrid fallback and by the logs is the real client address.
+CallerAuthenticationOptions callerAuthentication = slimFaasOptions.CallerAuthentication;
+if (callerAuthentication.Mode != CallerAuthenticationMode.Legacy)
+{
+    if (startupLogger.IsEnabled(LogLevel.Information))
+    {
+        startupLogger.LogCallerAuthenticationConfigured(callerAuthentication.Mode.ToString(), callerAuthentication.SecretsDirectory);
+    }
+
+    if (!Directory.Exists(callerAuthentication.SecretsDirectory))
+    {
+        startupLogger.LogCallerSecretsDirectoryMissing(callerAuthentication.Mode.ToString(), callerAuthentication.SecretsDirectory);
+    }
+
+    app.UseCallerAuthentication();
 }
 
 app.UseCors(builder =>

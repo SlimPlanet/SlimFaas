@@ -1,4 +1,5 @@
 using SlimFaas.RateLimiting;
+using SlimFaas.Security;
 
 namespace SlimFaas.Options;
 
@@ -29,6 +30,12 @@ public class SlimFaasOptions
     /// or any subnet where ordinary workloads run.
     /// </summary>
     public string[] TrustedProxies { get; set; } = [];
+
+    /// <summary>
+    /// Opt-in caller authentication for Private functions (HMAC-SHA256 signed requests).
+    /// Default mode <c>Legacy</c> keeps the address-based classification unchanged.
+    /// </summary>
+    public CallerAuthenticationOptions CallerAuthentication { get; set; } = new();
 
     /// <summary>
     /// Jobs configuration in JSON format

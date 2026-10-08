@@ -44,6 +44,7 @@ Quick start::
 """
 
 from slimfaas_client._client import SlimFaasClient
+from slimfaas_client._signing import CallerCredentials, sign_request
 from slimfaas_client._models import (
     AsyncRequest,
     AsyncCallback,
@@ -75,5 +76,7 @@ __all__ = [
     "SyncRequest",
     "SyncResponse",
     "SyncResponseWriter",
+    "CallerCredentials",
+    "sign_request",
 ]
 
