@@ -41,6 +41,74 @@ public class DockerServiceTests
 
     // === Tests ===
 
+    [Theory]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    [InlineData(null, false)]
+    public async Task ListFunctionsAsync_PreservesMetricsLabelsForFunctionsAndSlimFaas(
+        string? scrape, bool expectedTargets)
+    {
+        Dictionary<string, string> functionLabels = new()
+        {
+            ["SlimFaas/Function"] = "true",
+            ["SlimFaas/Namespace"] = "default",
+            ["app"] = "fibonacci",
+            ["prometheus.io/port"] = "5000",
+            ["prometheus.io/path"] = "/custom-metrics",
+            ["prometheus.io/scheme"] = "https"
+        };
+        Dictionary<string, string> selfLabels = new()
+        {
+            ["com.docker.compose.service"] = "slimfaas",
+            ["prometheus.io/port"] = "30021",
+            ["prometheus.io/path"] = "/metrics"
+        };
+        if (scrape is not null)
+        {
+            functionLabels["prometheus.io/scrape"] = scrape;
+            selfLabels["prometheus.io/scrape"] = scrape;
+        }
+
+        static InspectContainerResponse Inspect(string id, string ip, Dictionary<string, string> labels) =>
+            new(id, "/" + id, "image", DateTimeOffset.UtcNow,
+                new Inspect_Config("image", Array.Empty<string>(), Array.Empty<string>(), labels,
+                    new Dictionary<string, object> { ["5000/tcp"] = new() }),
+                new Inspect_State(true, 0, null, new Inspect_Health("healthy"), DateTimeOffset.UtcNow, null),
+                new Inspect_NetworkSettings(null,
+                    new Dictionary<string, Inspect_EndpointSettings> { ["demo"] = new(ip) },
+                    new Dictionary<string, List<Inspect_PortBinding>?>()));
+
+        FakeDockerHandler handler = new();
+        handler.WhenGET("/version").RespondJson(new DockerVersionResponse("1.43", "25.0.0"));
+        handler.WhenGET($"/containers/{Dns.GetHostName()}/json")
+            .RespondJson(Inspect("slimfaas", "10.0.0.10", selfLabels));
+        handler.WhenGET("/containers/function/json")
+            .RespondJson(Inspect("function", "10.0.0.20", functionLabels));
+        // The first two lists are startup template cleanup, before discovery.
+        handler.WhenGETStartsWith("/containers/json").RespondJsonOnce(Array.Empty<ContainerSummary>());
+        handler.WhenGETStartsWith("/containers/json").RespondJsonOnce(Array.Empty<ContainerSummary>());
+        handler.WhenGETStartsWith("/containers/json").RespondJson(new List<ContainerSummary>
+        {
+            new("function", new List<string> { "/function" }, "image", "running", "Up", functionLabels)
+        });
+        DockerService service = MakeService(handler);
+        DeploymentsInformations previous = new(new List<DeploymentInformation>(),
+            new SlimFaasDeploymentInformation(0, new List<PodInformation>()), new List<PodInformation>());
+
+        DeploymentsInformations deployments = await service.ListFunctionsAsync("default", previous);
+        IDictionary<string, IList<string>> targets = deployments.GetMetricsTargets();
+
+        if (expectedTargets)
+        {
+            Assert.Equal("https://10.0.0.20:5000/custom-metrics", Assert.Single(targets["fibonacci"]));
+            Assert.Equal("http://10.0.0.10:30021/metrics", Assert.Single(targets["slimfaas"]));
+        }
+        else
+        {
+            Assert.Empty(targets);
+        }
+    }
+
     [Fact]
     public async Task ListJobsAsync_FiltersByNamespace_MapsStatuses_AndPurgesFinishedPastTTL()
     {

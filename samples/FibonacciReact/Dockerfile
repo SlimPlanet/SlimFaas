@@ -1,5 +1,5 @@
 # ---- build ----
-FROM node:24-alpine AS build
+FROM node:24.21.0-alpine3.24 AS build
 WORKDIR /app
 ENV NODE_ENV=development
 
@@ -10,7 +10,7 @@ COPY . .
 RUN pnpm run build   # produit /app/dist avec index.html + assets
 
 # ---- runtime ----
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.30.5-alpine3.24 AS runtime
 # SPA fallback vers index.html
 COPY <<'NGINX' /etc/nginx/conf.d/default.conf
 server {

@@ -31,7 +31,6 @@ public class Startup(IConfiguration configuration)
         const string ListLengthResource = "/SlimData/ListLength";
         const string CommandBatchResource = "/SlimData/CommandBatch";
         const string HealthResource = "/health";
-        app.RestoreStateAsync<SlimPersistentState>().AsTask().GetAwaiter().GetResult();
        
         app.UseMiddleware<RaftAppendEntriesCommitIndexGuard>();
         app.UseConsensusProtocolHandler()

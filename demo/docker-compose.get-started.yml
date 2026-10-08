@@ -10,7 +10,7 @@ x-tour-function: &tour-function
   networks:
     - slimfaas-net
   healthcheck:
-    test: ["CMD", "wget", "--spider", "-q", "http://localhost:5000/health"]
+    test: ["CMD", "bash", "/app/healthcheck.sh"]
     interval: 2s
     timeout: 3s
     retries: 30
@@ -38,6 +38,10 @@ services:
               "Visibility": "Public",
               "DependsOn": ["fibonacci1"],
               "NumberParallelJob": 2,
+              "Resources": {
+                "Requests": { "cpu": "400m", "memory": "400Mi" },
+                "Limits": { "cpu": "400m", "memory": "400Mi" }
+              },
               "BackoffLimit": 1,
               "TtlSecondsAfterFinished": 60,
               "RestartPolicy": "Never"

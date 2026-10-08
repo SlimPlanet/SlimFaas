@@ -15,6 +15,22 @@ public class SlimFaasOptions
     public bool AllowUnsecureSsl { get; set; }
 
     /// <summary>
+    /// Skip TLS verification of the Kubernetes API server certificate. Unsafe: the
+    /// service-account token can be intercepted on the path to the API server.
+    /// Logged as a warning at startup when enabled.
+    /// </summary>
+    public bool KubernetesSkipTlsVerify { get; set; }
+
+    /// <summary>
+    /// Reverse proxies allowed to set <c>X-Forwarded-For</c> (IP addresses or CIDR
+    /// networks owned exclusively by the proxy, e.g. <c>10.0.0.5</c>). One hop is
+    /// honoured. Empty (default): the header is ignored and callers are classified by
+    /// their connection address. This controls authorization: never list the pod CIDR
+    /// or any subnet where ordinary workloads run.
+    /// </summary>
+    public string[] TrustedProxies { get; set; } = [];
+
+    /// <summary>
     /// Jobs configuration in JSON format
     /// </summary>
     public string? JobsConfiguration { get; set; }

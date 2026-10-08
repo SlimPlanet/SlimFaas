@@ -2,7 +2,6 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
-using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -42,14 +41,14 @@ internal sealed class ServerConnection
     public async Task<SlimFaasEnvelope> NextEnvelopeAsync()
     {
         var (type, data) = await NextAsync();
-        type.Should().Be(WebSocketMessageType.Text);
+        Assert.Equal(WebSocketMessageType.Text, type);
         return JsonSerializer.Deserialize(data, SlimFaasClientJsonContext.Default.SlimFaasEnvelope)!;
     }
 
     public async Task<(SlimFaasMessageType Type, string CorrelationId, byte Flags, byte[] Payload)> NextFrameAsync()
     {
         var (type, data) = await NextAsync();
-        type.Should().Be(WebSocketMessageType.Binary);
+        Assert.Equal(WebSocketMessageType.Binary, type);
         var (frameType, correlationId, flags, length) = BinaryFrame.DecodeHeader(data);
         return (frameType, correlationId, flags, data.AsSpan(BinaryFrame.HeaderSize, length).ToArray());
     }
@@ -269,17 +268,17 @@ public sealed class SlimFaasClientWebSocketTests
         var connection = await server.NextConnectionAsync();
         await WaitUntilAsync(() => client.IsConnected);
 
-        connection.Register.Type.Should().Be(SlimFaasMessageType.Register);
+        Assert.Equal(SlimFaasMessageType.Register, connection.Register.Type);
         var payload = connection.Register.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.RegisterPayloadDto)!;
-        payload.FunctionName.Should().Be("ws-job");
-        payload.Configuration.DependsOn.Should().Equal("other");
-        payload.Configuration.SubscribeEvents.Single().Visibility.Should().Be("Private");
-        payload.Configuration.PathsStartWithVisibility.Single().Path.Should().Be("/admin");
-        payload.Configuration.DefaultTrust.Should().Be("Untrusted");
-        client.ConnectionId.Should().Be("conn-1");
+        Assert.Equal("ws-job", payload.FunctionName);
+        Assert.Equal(["other"], payload.Configuration.DependsOn);
+        Assert.Equal("Private", payload.Configuration.SubscribeEvents.Single().Visibility);
+        Assert.Equal("/admin", payload.Configuration.PathsStartWithVisibility.Single().Path);
+        Assert.Equal("Untrusted", payload.Configuration.DefaultTrust);
+        Assert.Equal("conn-1", client.ConnectionId);
 
         await running.DisposeAsync();
-        client.IsConnected.Should().BeFalse();
+        Assert.False(client.IsConnected);
     }
 
     [Fact]
@@ -292,7 +291,8 @@ public sealed class SlimFaasClientWebSocketTests
 
         var act = () => client.RunForeverAsync(CancellationToken.None).WaitAsync(s_timeout);
 
-        await act.Should().ThrowAsync<SlimFaasRegistrationException>().WithMessage("name already taken");
+        var exception = await Assert.ThrowsAnyAsync<SlimFaasRegistrationException>(act);
+        Assert.Equal("name already taken", exception.Message);
     }
 
     [Fact]
@@ -323,19 +323,19 @@ public sealed class SlimFaasClientWebSocketTests
         }));
 
         var callback = await connection.NextEnvelopeAsync();
-        callback.Type.Should().Be(SlimFaasMessageType.AsyncCallback);
-        callback.CorrelationId.Should().Be("el-1");
+        Assert.Equal(SlimFaasMessageType.AsyncCallback, callback.Type);
+        Assert.Equal("el-1", callback.CorrelationId);
         var dto = callback.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!;
-        dto.ElementId.Should().Be("el-1");
-        dto.StatusCode.Should().Be(204);
-        received.Should().NotBeNull();
-        received!.Method.Should().Be("PUT");
-        received.Path.Should().Be("/compute");
-        received.Query.Should().Be("?n=3");
-        received.Headers["x-test"].Should().Equal("1");
-        Encoding.UTF8.GetString(received.Body!).Should().Be("payload");
-        received.IsLastTry.Should().BeTrue();
-        received.TryNumber.Should().Be(2);
+        Assert.Equal("el-1", dto.ElementId);
+        Assert.Equal(204, dto.StatusCode);
+        Assert.NotNull(received);
+        Assert.Equal("PUT", received!.Method);
+        Assert.Equal("/compute", received.Path);
+        Assert.Equal("?n=3", received.Query);
+        Assert.Equal(["1"], received.Headers["x-test"]);
+        Assert.Equal("payload", Encoding.UTF8.GetString(received.Body!));
+        Assert.True(received.IsLastTry);
+        Assert.Equal(2, received.TryNumber);
     }
 
     [Fact]
@@ -351,14 +351,14 @@ public sealed class SlimFaasClientWebSocketTests
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.PublishEvent, new { eventName = "dropped" }));
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.AsyncRequest, new { elementId = "no-handler" }));
         var first = await connection.NextEnvelopeAsync();
-        first.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!.StatusCode.Should().Be(500);
-        first.CorrelationId.Should().Be("no-handler");
+        Assert.Equal(500, first.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!.StatusCode);
+        Assert.Equal("no-handler", first.CorrelationId);
 
         client.OnAsyncRequest = _ => throw new InvalidOperationException("boom");
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.AsyncRequest, new { elementId = "throws" }));
         var second = await connection.NextEnvelopeAsync();
-        second.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!.StatusCode.Should().Be(500);
-        second.CorrelationId.Should().Be("throws");
+        Assert.Equal(500, second.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!.StatusCode);
+        Assert.Equal("throws", second.CorrelationId);
     }
 
     [Fact]
@@ -381,8 +381,8 @@ public sealed class SlimFaasClientWebSocketTests
         await client.SendCallbackAsync("long", 201);
 
         var callback = await connection.NextEnvelopeAsync();
-        callback.Type.Should().Be(SlimFaasMessageType.AsyncCallback);
-        callback.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!.StatusCode.Should().Be(201);
+        Assert.Equal(SlimFaasMessageType.AsyncCallback, callback.Type);
+        Assert.Equal(201, callback.Payload!.Value.Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto)!.StatusCode);
     }
 
     [Fact]
@@ -390,9 +390,9 @@ public sealed class SlimFaasClientWebSocketTests
     {
         var inner = new InvalidOperationException("inner");
 
-        new SlimFaasRegistrationException().Message.Should().NotBeNull();
-        new SlimFaasRegistrationException("refused").Message.Should().Be("refused");
-        new SlimFaasRegistrationException("refused", inner).InnerException.Should().BeSameAs(inner);
+        Assert.NotNull(new SlimFaasRegistrationException().Message);
+        Assert.Equal("refused", new SlimFaasRegistrationException("refused").Message);
+        Assert.Same(inner, new SlimFaasRegistrationException("refused", inner).InnerException);
     }
 
     [Fact]
@@ -405,13 +405,13 @@ public sealed class SlimFaasClientWebSocketTests
         var chunk = () => client.SendSyncResponseChunkAsync("c", new byte[1]);
         var end = () => client.SendSyncResponseEndAsync("c");
 
-        await callback.Should().ThrowAsync<InvalidOperationException>();
-        await start.Should().ThrowAsync<InvalidOperationException>();
-        await chunk.Should().ThrowAsync<InvalidOperationException>();
-        await end.Should().ThrowAsync<InvalidOperationException>();
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(callback);
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(start);
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(chunk);
+        await Assert.ThrowsAnyAsync<InvalidOperationException>(end);
         await client.SendSyncCancelAsync("c");
-        client.IsConnected.Should().BeFalse();
-        client.ConnectionId.Should().BeNull();
+        Assert.False(client.IsConnected);
+        Assert.Null(client.ConnectionId);
     }
 
     [Fact]
@@ -433,7 +433,7 @@ public sealed class SlimFaasClientWebSocketTests
         // first handler (which throws) to be observed before sending the second event.
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.PublishEvent, new { eventName = "bad" }));
         var first = await events.Reader.ReadAsync(new CancellationTokenSource(s_timeout).Token);
-        first.EventName.Should().Be("bad");
+        Assert.Equal("bad", first.EventName);
 
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.PublishEvent, new
         {
@@ -445,11 +445,11 @@ public sealed class SlimFaasClientWebSocketTests
             body = Convert.ToBase64String("order"u8.ToArray()),
         }));
         var second = await events.Reader.ReadAsync(new CancellationTokenSource(s_timeout).Token);
-        second.EventName.Should().Be("order-created");
-        second.Path.Should().Be("/orders");
-        second.Query.Should().Be("?a=1");
-        second.Headers["h"].Should().Equal("v");
-        Encoding.UTF8.GetString(second.Body!).Should().Be("order");
+        Assert.Equal("order-created", second.EventName);
+        Assert.Equal("/orders", second.Path);
+        Assert.Equal("?a=1", second.Query);
+        Assert.Equal(["v"], second.Headers["h"]);
+        Assert.Equal("order", Encoding.UTF8.GetString(second.Body!));
     }
 
     [Fact]
@@ -494,27 +494,27 @@ public sealed class SlimFaasClientWebSocketTests
         await connection.SendBinaryAsync(BinaryFrame.Encode(SlimFaasMessageType.SyncRequestEnd, correlationId, BinaryFrame.FlagEndOfStream));
 
         var responseStart = await connection.NextFrameAsync();
-        responseStart.Type.Should().Be(SlimFaasMessageType.SyncResponseStart);
-        responseStart.CorrelationId.Should().Be(correlationId);
+        Assert.Equal(SlimFaasMessageType.SyncResponseStart, responseStart.Type);
+        Assert.Equal(correlationId, responseStart.CorrelationId);
         var startDto = JsonSerializer.Deserialize(responseStart.Payload, SlimFaasClientJsonContext.Default.SyncResponseStartDto)!;
-        startDto.StatusCode.Should().Be(201);
-        startDto.Headers["Content-Type"].Should().Equal("text/plain");
+        Assert.Equal(201, startDto.StatusCode);
+        Assert.Equal(["text/plain"], startDto.Headers["Content-Type"]);
 
         var chunk1 = await connection.NextFrameAsync();
-        chunk1.Type.Should().Be(SlimFaasMessageType.SyncResponseChunk);
-        Encoding.UTF8.GetString(chunk1.Payload).Should().Be("hello ");
+        Assert.Equal(SlimFaasMessageType.SyncResponseChunk, chunk1.Type);
+        Assert.Equal("hello ", Encoding.UTF8.GetString(chunk1.Payload));
         var chunk2 = await connection.NextFrameAsync();
-        Encoding.UTF8.GetString(chunk2.Payload).Should().Be("world");
+        Assert.Equal("world", Encoding.UTF8.GetString(chunk2.Payload));
 
         var responseEnd = await connection.NextFrameAsync();
-        responseEnd.Type.Should().Be(SlimFaasMessageType.SyncResponseEnd);
-        responseEnd.Flags.Should().Be(BinaryFrame.FlagEndOfStream);
+        Assert.Equal(SlimFaasMessageType.SyncResponseEnd, responseEnd.Type);
+        Assert.Equal(BinaryFrame.FlagEndOfStream, responseEnd.Flags);
 
-        receivedBody.Should().Be("abcd");
-        receivedRequest!.Method.Should().Be("POST");
-        receivedRequest.Path.Should().Be("/sync");
-        receivedRequest.Query.Should().Be("?q=1");
-        receivedRequest.Headers["x"].Should().Equal("y");
+        Assert.Equal("abcd", receivedBody);
+        Assert.Equal("POST", receivedRequest!.Method);
+        Assert.Equal("/sync", receivedRequest.Path);
+        Assert.Equal("?q=1", receivedRequest.Query);
+        Assert.Equal(["y"], receivedRequest.Headers["x"]);
     }
 
     [Fact]
@@ -531,9 +531,9 @@ public sealed class SlimFaasClientWebSocketTests
             JsonSerializer.SerializeToUtf8Bytes(new SyncRequestStartDto(), SlimFaasClientJsonContext.Default.SyncRequestStartDto)));
 
         var responseStart = await connection.NextFrameAsync();
-        responseStart.Type.Should().Be(SlimFaasMessageType.SyncResponseStart);
-        JsonSerializer.Deserialize(responseStart.Payload, SlimFaasClientJsonContext.Default.SyncResponseStartDto)!.StatusCode.Should().Be(500);
-        (await connection.NextFrameAsync()).Type.Should().Be(SlimFaasMessageType.SyncResponseEnd);
+        Assert.Equal(SlimFaasMessageType.SyncResponseStart, responseStart.Type);
+        Assert.Equal(500, JsonSerializer.Deserialize(responseStart.Payload, SlimFaasClientJsonContext.Default.SyncResponseStartDto)!.StatusCode);
+        Assert.Equal(SlimFaasMessageType.SyncResponseEnd, (await connection.NextFrameAsync()).Type);
     }
 
     [Fact]
@@ -565,13 +565,13 @@ public sealed class SlimFaasClientWebSocketTests
         await connection.SendBinaryAsync(BinaryFrame.Encode(SlimFaasMessageType.SyncCancel, correlationId));
 
         var responseStart = await connection.NextFrameAsync();
-        responseStart.Type.Should().Be(SlimFaasMessageType.SyncResponseStart);
-        JsonSerializer.Deserialize(responseStart.Payload, SlimFaasClientJsonContext.Default.SyncResponseStartDto)!.StatusCode.Should().Be(500);
-        (await connection.NextFrameAsync()).Type.Should().Be(SlimFaasMessageType.SyncResponseEnd);
-        handlerError.Should().BeOfType<OperationCanceledException>();
+        Assert.Equal(SlimFaasMessageType.SyncResponseStart, responseStart.Type);
+        Assert.Equal(500, JsonSerializer.Deserialize(responseStart.Payload, SlimFaasClientJsonContext.Default.SyncResponseStartDto)!.StatusCode);
+        Assert.Equal(SlimFaasMessageType.SyncResponseEnd, (await connection.NextFrameAsync()).Type);
+        Assert.IsType<OperationCanceledException>(handlerError);
 
         await client.SendSyncCancelAsync(correlationId);
-        (await connection.NextFrameAsync()).Type.Should().Be(SlimFaasMessageType.SyncCancel);
+        Assert.Equal(SlimFaasMessageType.SyncCancel, (await connection.NextFrameAsync()).Type);
     }
 
     [Fact]
@@ -605,8 +605,8 @@ public sealed class SlimFaasClientWebSocketTests
         // the connection is still alive and processing
         await connection.SendTextAsync(TestHelpers.MakeEnvelope(SlimFaasMessageType.PublishEvent, new { eventName = "still-alive" }));
         var evt = await events.Reader.ReadAsync(new CancellationTokenSource(s_timeout).Token);
-        evt.EventName.Should().Be("still-alive");
-        client.IsConnected.Should().BeTrue();
+        Assert.Equal("still-alive", evt.EventName);
+        Assert.True(client.IsConnected);
     }
 
     [Fact]
@@ -619,8 +619,8 @@ public sealed class SlimFaasClientWebSocketTests
         var connection = await server.NextConnectionAsync();
 
         var ping = await connection.NextEnvelopeAsync();
-        ping.Type.Should().Be(SlimFaasMessageType.Ping);
-        ping.CorrelationId.Should().NotBeNullOrEmpty();
+        Assert.Equal(SlimFaasMessageType.Ping, ping.Type);
+        Assert.False(string.IsNullOrEmpty(ping.CorrelationId));
     }
 
     [Fact]
@@ -641,7 +641,7 @@ public sealed class SlimFaasClientWebSocketTests
 
         var third = await server.NextConnectionAsync();
         await WaitUntilAsync(() => client.ConnectionId == "conn-3");
-        third.Register.Type.Should().Be(SlimFaasMessageType.Register);
+        Assert.Equal(SlimFaasMessageType.Register, third.Register.Type);
     }
 
     [Fact]
@@ -653,6 +653,6 @@ public sealed class SlimFaasClientWebSocketTests
         var run = client.RunForeverAsync(cts.Token);
 
         await run.WaitAsync(s_timeout);
-        client.IsConnected.Should().BeFalse();
+        Assert.False(client.IsConnected);
     }
 }

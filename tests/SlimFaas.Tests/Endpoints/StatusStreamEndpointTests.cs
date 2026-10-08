@@ -191,6 +191,7 @@ public class StatusStreamEndpointTests
                     })
                     .Configure(app =>
                     {
+                        TestRemoteIp.Use(app);
                         app.UseRouting();
                         app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
                     });
@@ -198,7 +199,7 @@ public class StatusStreamEndpointTests
             .StartAsync();
 
         var client = host.GetTestClient();
-        client.DefaultRequestHeaders.Add("X-Forwarded-For", InternalAccessReplicasService.InternalPodIp);
+        client.DefaultRequestHeaders.Add(TestRemoteIp.HeaderName, InternalAccessReplicasService.InternalPodIp);
         var response = await client.GetAsync("http://localhost:5000/internal/activity-events?since=0");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -247,6 +248,7 @@ public class StatusStreamEndpointTests
                     })
                     .Configure(app =>
                     {
+                        TestRemoteIp.Use(app);
                         app.UseRouting();
                         app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
                     });
@@ -254,7 +256,7 @@ public class StatusStreamEndpointTests
             .StartAsync();
 
         var client = host.GetTestClient();
-        client.DefaultRequestHeaders.Add("X-Forwarded-For", InternalAccessReplicasService.InternalPodIp);
+        client.DefaultRequestHeaders.Add(TestRemoteIp.HeaderName, InternalAccessReplicasService.InternalPodIp);
         var response = await client.GetAsync($"http://localhost:5000/internal/activity-events?since={afterFirstEvent}");
 
         var json = await response.Content.ReadAsStringAsync();

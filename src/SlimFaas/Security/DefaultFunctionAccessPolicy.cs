@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Primitives;
+using System.Net;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 using SlimFaas.WebSocket;
@@ -14,52 +14,36 @@ public sealed class DefaultFunctionAccessPolicy(
 {
     private static readonly object s_internalCacheKey = new(); // cache par requête (HttpContext.Items)
 
-
+    /// <summary>
+    /// A request is internal when the address of its connection is the address of a
+    /// Trusted function pod or of a job pod. The <c>X-Forwarded-For</c> header is never
+    /// read here: it is only honoured, one hop deep, by the forwarded-headers middleware
+    /// for the proxies declared in <c>SlimFaas:TrustedProxies</c>.
+    /// </summary>
     public bool IsInternalRequest(HttpContext context)
     {
         if (context.Items.TryGetValue(s_internalCacheKey, out var cached) && cached is bool b)
             return b;
 
-        var trustedIps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        IPAddress? remote = context.Connection.RemoteIpAddress;
 
-        // Pods des fonctions "Trusted"
-        foreach (var ip in replicasService.Deployments.Functions
-                     .Where(f => f.Trust == FunctionTrust.Trusted)
-                     .SelectMany(f => f.Pods)
-                     .Select(p => p.Ip)
-                     .Where(ip => !string.IsNullOrWhiteSpace(ip)))
-        {
-            trustedIps.Add(ip!);
-        }
-
-        // IPs des jobs
-        foreach (var ip in jobService.Jobs.SelectMany(j => j.Ips).Where(ip => !string.IsNullOrWhiteSpace(ip)))
-        {
-            trustedIps.Add(ip!);
-        }
-
-        // IP candidates
-        var candidates = new List<string>(capacity: 8);
-
-        var remoteIp = context.Connection.RemoteIpAddress?.ToString();
-        if (!string.IsNullOrWhiteSpace(remoteIp)) candidates.Add(NormalizeIp(remoteIp!));
-
-        if (context.Request.Headers.TryGetValue("X-Forwarded-For", out StringValues xff))
-        {
-            foreach (var token in SplitForwardedFor(xff))
-                candidates.Add(NormalizeIp(token));
-        }
-
-        var isInternal = candidates.Any(c => MatchesTrusted(c, trustedIps));
+        bool isInternal = RemoteAddress.IsAnyOf(remote, TrustedFunctionPodIps())
+                          || RemoteAddress.IsAnyOf(remote, jobService.Jobs.SelectMany(j => j.Ips));
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogIsInternalRequestRemoteXFF(isInternal, remoteIp, context.Request.Headers["X-Forwarded-For"].FirstOrDefault() ?? "");
+            logger.LogIsInternalRequestRemote(isInternal, remote?.ToString());
         }
 
         context.Items[s_internalCacheKey] = isInternal;
         return isInternal;
     }
+
+    private IEnumerable<string?> TrustedFunctionPodIps()
+        => replicasService.Deployments.Functions
+            .Where(f => f.Trust == FunctionTrust.Trusted)
+            .SelectMany(f => f.Pods)
+            .Select(p => p.Ip);
 
     public FunctionVisibility ResolveVisibility(DeploymentInformation function, string path)
     {
@@ -127,48 +111,5 @@ public sealed class DefaultFunctionAccessPolicy(
         }
 
         return result;
-    }
-
-    private static IEnumerable<string> SplitForwardedFor(StringValues xff)
-    {
-        // "client, proxy1, proxy2"
-        foreach (var raw in xff)
-        {
-            if (string.IsNullOrWhiteSpace(raw)) continue;
-
-            foreach (var part in raw.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                yield return part;
-        }
-    }
-
-    private static string NormalizeIp(string ip)
-    {
-        // gère ::ffff:10.0.0.1
-        if (ip.StartsWith("::ffff:", StringComparison.OrdinalIgnoreCase))
-            return ip["::ffff:".Length..];
-
-        // enlève un port éventuel "10.0.0.1:1234" (IPv4)
-        var idx = ip.LastIndexOf(':');
-        if (idx > 0 && ip.Count(c => c == ':') == 1)
-            return ip[..idx];
-
-        return ip;
-    }
-
-    private static bool MatchesTrusted(string candidate, HashSet<string> trustedIps)
-    {
-        if (string.IsNullOrWhiteSpace(candidate)) return false;
-
-        if (trustedIps.Contains(candidate))
-            return true;
-
-        // fallback “compat” avec ton ancien Contains
-        foreach (var ip in trustedIps)
-        {
-            if (candidate.Contains(ip, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
     }
 }

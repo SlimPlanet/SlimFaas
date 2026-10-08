@@ -80,14 +80,31 @@ public partial class KubernetesService : IKubernetesService, IDisposable
     // same connection pool) — see Watch/KubernetesWatcherWorker.
     internal k8s.Kubernetes Client => _client;
 
-    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig)
+    public KubernetesService(ILogger<KubernetesService> logger, bool useKubeConfig, bool skipTlsVerify = false)
     {
         _logger = logger;
+        // In-cluster: the CA projected into the pod is loaded and verified.
+        // Kubeconfig: the file's own CA (or insecure-skip-tls-verify) applies.
         KubernetesClientConfiguration k8SConfig = !useKubeConfig
             ? KubernetesClientConfiguration.InClusterConfig()
             : KubernetesClientConfiguration.BuildConfigFromConfigFile();
-        k8SConfig.SkipTlsVerify = true;
+        ApplyTlsVerification(k8SConfig, skipTlsVerify, logger);
         _client = new k8s.Kubernetes(k8SConfig);
+    }
+
+    /// <summary>
+    /// Disables API-server certificate verification only when explicitly requested
+    /// (<c>SlimFaas:KubernetesSkipTlsVerify</c>), and says so loudly at startup.
+    /// </summary>
+    internal static void ApplyTlsVerification(KubernetesClientConfiguration config, bool skipTlsVerify, ILogger logger)
+    {
+        if (!skipTlsVerify)
+        {
+            return;
+        }
+
+        config.SkipTlsVerify = true;
+        logger.LogKubernetesApiServerTlsVerificationDisabled();
     }
 
     /// <summary>

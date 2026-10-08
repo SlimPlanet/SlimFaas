@@ -29,7 +29,10 @@ Stop the demo before moving its directory or removing it.
 Follow https://slimfaas.dev/guided-tour from this directory. Open
 `demo/bruno-slimfaas-demo` in Bruno Desktop and select **Local**. Bruno Desktop
 requires no Node installation; running its optional CLI requires Node.
-For the Bash smoke script, install cURL and jq, then run:
+For the Bash smoke script, install cURL and jq.
+
+On Windows, use Git Bash and check `command -v curl jq` first. Git Bash includes
+cURL; install jq separately and add its directory to `PATH`. WSL is not required.
 
 ```bash
 BASE_URL=http://127.0.0.1:30020 bash demo/smoke-tour.sh
@@ -44,13 +47,17 @@ BASE_URL=http://127.0.0.1:30020 bash demo/async-scale-tour.sh
 
 It waits for an idle baseline, checks every submission, then verifies scale-out,
 queue drain and scale-down. Do not run another producer at the same time.
+The tutorial uses one async request per replica and a function-wide limit of ten;
+additional ready replicas can increase async processing capacity up to that limit.
 Bruno provides the equivalent **Manual / Autoscaling** folder. Cancelling
 submission leaves already accepted work queued; let it finish before stopping.
 
 The source manifest is paired with `slimfaas.local.prebuilt.yaml`, which selects
 the packaged executables and disables automatic sample schedules. The tour
 creates its own schedules. Pass further `-f` overlays to the launcher to customize
-the demo. Manifest paths are resolved relative to the base manifest.
+the demo. Manifest paths are resolved relative to the base manifest. If an overlay
+changes the entrypoint port or state location, use the dashboard URL and state
+directory printed by SlimFaas at startup.
 
 Linux bundles target glibc, not Alpine/musl. See the local installation guide
 for platform prerequisites and troubleshooting:

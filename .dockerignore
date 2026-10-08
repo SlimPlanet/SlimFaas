@@ -19,6 +19,16 @@
 **/node_modules
 **/npm-debug.log
 **/obj
+**/TestResults
+**/storybook-static
+**/.next
+**/.venv
+**/dist
+**/wwwroot
+**/out
+**/coverage
+.slimfaas
+artifacts
 **/secrets.dev.yaml
 **/values.dev.yaml
 LICENSE

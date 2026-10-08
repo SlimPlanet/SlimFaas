@@ -1,7 +1,6 @@
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
-using FluentAssertions;
 using Xunit;
 
 namespace SlimFaasClient.Tests;
@@ -74,10 +73,10 @@ public class SlimFaasModelsTests
             },
         };
 
-        dto.FunctionName.Should().Be("my-job");
-        dto.Configuration.DefaultVisibility.Should().Be("Private");
-        dto.Configuration.NumberParallelRequest.Should().Be(3);
-        dto.Configuration.DefaultTrust.Should().Be("Untrusted");
+        Assert.Equal("my-job", dto.FunctionName);
+        Assert.Equal("Private", dto.Configuration.DefaultVisibility);
+        Assert.Equal(3, dto.Configuration.NumberParallelRequest);
+        Assert.Equal("Untrusted", dto.Configuration.DefaultTrust);
     }
 }
 
@@ -106,11 +105,11 @@ public class MappingTests
         // Via réflexion (méthode privée) – on valide la logique de mapping
         var req = MapRequest(dto);
 
-        req.ElementId.Should().Be("e1");
-        req.Body.Should().Equal(body);
-        req.IsLastTry.Should().BeTrue();
-        req.TryNumber.Should().Be(2);
-        req.Headers.Should().ContainKey("content-type");
+        Assert.Equal("e1", req.ElementId);
+        Assert.Equal(body, req.Body);
+        Assert.True(req.IsLastTry);
+        Assert.Equal(2, req.TryNumber);
+        Assert.Contains("content-type", req.Headers);
     }
 
     [Fact]
@@ -125,7 +124,7 @@ public class MappingTests
         };
 
         var req = MapRequest(dto);
-        req.Body.Should().BeNull();
+        Assert.Null(req.Body);
     }
 
     [Fact]
@@ -140,8 +139,8 @@ public class MappingTests
         };
 
         var evt = MapEvent(dto);
-        evt.EventName.Should().Be("order-created");
-        evt.Body.Should().BeNull();
+        Assert.Equal("order-created", evt.EventName);
+        Assert.Null(evt.Body);
     }
 
     // Wrappers pour accéder aux méthodes statiques privées via délégués publics
@@ -188,14 +187,14 @@ public class SerializationTests
         var json = JsonSerializer.Serialize(envelope, SlimFaasClientJsonContext.Default.SlimFaasEnvelope);
         var deserialized = JsonSerializer.Deserialize(json, SlimFaasClientJsonContext.Default.SlimFaasEnvelope);
 
-        deserialized.Should().NotBeNull();
-        deserialized!.Type.Should().Be(SlimFaasMessageType.AsyncCallback);
-        deserialized.CorrelationId.Should().Be("c1");
+        Assert.NotNull(deserialized);
+        Assert.Equal(SlimFaasMessageType.AsyncCallback, deserialized!.Type);
+        Assert.Equal("c1", deserialized.CorrelationId);
 
         var callbackRound = deserialized.Payload!.Value
             .Deserialize(SlimFaasClientJsonContext.Default.AsyncCallbackDto);
-        callbackRound!.ElementId.Should().Be("e1");
-        callbackRound.StatusCode.Should().Be(200);
+        Assert.Equal("e1", callbackRound!.ElementId);
+        Assert.Equal(200, callbackRound.StatusCode);
     }
 
     [Fact]
@@ -218,10 +217,10 @@ public class SerializationTests
         var json = JsonSerializer.Serialize(dto, SlimFaasClientJsonContext.Default.RegisterPayloadDto);
         var round = JsonSerializer.Deserialize(json, SlimFaasClientJsonContext.Default.RegisterPayloadDto);
 
-        round!.FunctionName.Should().Be("test-fn");
-        round.Configuration.SubscribeEvents.Select(e => e.Name).Should().BeEquivalentTo(["ev1", "ev2"]);
-        round.Configuration.DefaultVisibility.Should().Be("Private");
-        round.Configuration.NumberParallelRequest.Should().Be(5);
+        Assert.Equal("test-fn", round!.FunctionName);
+        Assert.Equal(["ev1", "ev2"], round.Configuration.SubscribeEvents.Select(e => e.Name).Order(StringComparer.Ordinal));
+        Assert.Equal("Private", round.Configuration.DefaultVisibility);
+        Assert.Equal(5, round.Configuration.NumberParallelRequest);
     }
 }
 
@@ -236,14 +235,14 @@ public class SlimFaasClientConfigTests
     {
         var config = new SlimFaasClientConfig { FunctionName = "my-fn" };
 
-        config.DefaultVisibility.Should().Be(FunctionVisibility.Public);
-        config.DefaultTrust.Should().Be(FunctionTrust.Trusted);
-        config.NumberParallelRequest.Should().Be(10);
-        config.NumberParallelRequestPerPod.Should().Be(10);
-        config.ReplicasStartAsSoonAsOneFunctionRetrieveARequest.Should().BeFalse();
-        config.DependsOn.Should().BeEmpty();
-        config.SubscribeEvents.Should().BeEmpty();
-        config.PathsStartWithVisibility.Should().BeEmpty();
+        Assert.Equal(FunctionVisibility.Public, config.DefaultVisibility);
+        Assert.Equal(FunctionTrust.Trusted, config.DefaultTrust);
+        Assert.Equal(10, config.NumberParallelRequest);
+        Assert.Equal(10, config.NumberParallelRequestPerPod);
+        Assert.False(config.ReplicasStartAsSoonAsOneFunctionRetrieveARequest);
+        Assert.Empty(config.DependsOn);
+        Assert.Empty(config.SubscribeEvents);
+        Assert.Empty(config.PathsStartWithVisibility);
     }
 
     [Fact]
@@ -251,9 +250,9 @@ public class SlimFaasClientConfigTests
     {
         var options = new SlimFaasClientOptions();
 
-        options.ReconnectDelay.Should().Be(5.0);
-        options.PingInterval.Should().Be(30.0);
-        options.ReceiveBufferSize.Should().Be(64 * 1024);
+        Assert.Equal(5.0, options.ReconnectDelay);
+        Assert.Equal(30.0, options.PingInterval);
+        Assert.Equal(64 * 1024, options.ReceiveBufferSize);
     }
 }
 

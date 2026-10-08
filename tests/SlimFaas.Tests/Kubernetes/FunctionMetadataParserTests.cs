@@ -5,6 +5,29 @@ namespace SlimFaas.Tests.Kubernetes;
 public sealed class FunctionMetadataParserTests
 {
     [Fact]
+    public void Parse_SeparatesVisibilityPrefixesFromPathsAndEventNames()
+    {
+        var metadata = FunctionMetadataParser.Parse(new Dictionary<string, string>
+        {
+            [FunctionAnnotationNames.DefaultVisibility] = "Private",
+            [FunctionAnnotationNames.PathsStartWithVisibility] =
+                "Public:/v1/configuration/dataset_versions/dynamic,Private:/v1/speech_to_text/callback",
+            [FunctionAnnotationNames.SubscribeEvents] = "Private:speech_to_text_result,Public:internal_events"
+        }, "function");
+
+        Assert.Equal(
+        [
+            new PathVisibility("/v1/configuration/dataset_versions/dynamic", FunctionVisibility.Public),
+            new PathVisibility("/v1/speech_to_text/callback", FunctionVisibility.Private)
+        ], metadata.PathsStartWithVisibility);
+        Assert.Equal(
+        [
+            new SubscribeEvent("speech_to_text_result", FunctionVisibility.Private),
+            new SubscribeEvent("internal_events", FunctionVisibility.Public)
+        ], metadata.SubscribeEvents);
+    }
+
+    [Fact]
     public void Parse_MapsTheKubernetesAnnotationContract()
     {
         var annotations = new Dictionary<string, string>

@@ -107,6 +107,7 @@ public class StatusStreamPrivacyTests
                 services.AddSingleton<IStatusStreamSnapshotCache>(s => s.GetRequiredService<GatedSnapshotCache>());
             }).Configure(app =>
             {
+                TestRemoteIp.Use(app);
                 app.UseRouting();
                 app.UseEndpoints(endpoints => endpoints.MapStatusStreamEndpoints());
             })).StartAsync();
@@ -170,7 +171,7 @@ public class StatusStreamPrivacyTests
         Assert.Equal(ipv4, deployments.Functions[0].Pods[0].Ip);
         Assert.Equal(ipv4, host.Services.GetRequiredService<FunctionStatusCache>().GetAllDetailed(replicas.Object)[0].Pods[0].Identity);
         Assert.Equal(ipv4, tracker.GetRecent()[0].SourcePod);
-        client.DefaultRequestHeaders.Add("X-Forwarded-For", "10.0.0.10");
+        client.DefaultRequestHeaders.Add(TestRemoteIp.HeaderName, "10.0.0.10");
         var internalJson = await client.GetStringAsync("http://localhost:5000/internal/activity-events", cts.Token);
         Assert.Contains(ipv4, internalJson);
         Assert.Contains(ipv6, internalJson);

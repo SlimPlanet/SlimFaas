@@ -4,6 +4,9 @@ internal static partial class ProgramLog
     [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Information, Message = "SlimData command protocol {Protocol}, assembly {AssemblyVersion}")]
     internal static partial void LogSlimDataCommandProtocolAssembly(this global::Microsoft.Extensions.Logging.ILogger logger, string protocol, string assemblyVersion);
 
+    [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Information, Message = "X-Forwarded-For honoured (one hop) for trusted proxies: {TrustedProxies}")]
+    internal static partial void LogTrustedProxiesConfigured(this global::Microsoft.Extensions.Logging.ILogger logger, string trustedProxies);
+
     [global::Microsoft.Extensions.Logging.LoggerMessage(Level = global::Microsoft.Extensions.Logging.LogLevel.Information, Message = "Using orchestrator: {Orchestrator}")]
     internal static partial void LogUsingOrchestrator(this global::Microsoft.Extensions.Logging.ILogger logger, string orchestrator);
 
