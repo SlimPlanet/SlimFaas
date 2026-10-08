@@ -4,6 +4,9 @@ This document tracks the methodology and results of the micro-benchmarks used to
 validate the performance commits of the `claude/performance-improvements-9h83ah` branch
 (PR #313) and of its follow-ups (theme 6, branch `claude/slimdata-queue`).
 
+For an objective, same-machine comparison of two commits (for example the July → September
+2026 review), see [performance-benchmarks-cross-version.md](performance-benchmarks-cross-version.md).
+
 ## Infrastructure
 
 - Project: `benchmarks/SlimFaas.Benchmarks` ([BenchmarkDotNet](https://benchmarkdotnet.org/)).
