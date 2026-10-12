@@ -200,6 +200,8 @@ Check out:
 - [Unified SlimData mutation batching](docs/slimdata-unified-batching.md)
 - [SlimData batch modes](docs/slimdata-batch-modes.md)
 - [Environment-variable breaking changes](docs/BREAKING_CHANGES_ENVIRONMENT_VARIABLES.md)
+- [Dependency management policy](docs/dependency-management.md)
+- [Security policy](SECURITY.md)
 
 We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **keep your serverless workloads slim**.
 
@@ -218,6 +220,14 @@ We hope SlimFaas helps you **simplify autoscaling**, **reduce costs**, and **kee
   SlimFaas follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
 
 Enjoy SlimFaas!
+
+## Software Bill of Materials (SBOM)
+
+The [release process](docs/releasing.md) coordinates a common version across native archives, local demo bundles, Docker images, npm, NuGet and Python. Maintainers approve a stable release by merging the automatically prepared release PR; alpha/beta publication is explicit.
+
+After activation of the new pipeline, releases include per-artifact and per-image-platform SPDX and CycloneDX SBOMs, resolved dependency evidence (including native AOT and embedded web interfaces), SHA-256 checksums, Sigstore signatures and build provenance. The [release guide](docs/releasing.md#verification-for-consumers) describes verification and recovery. Historical releases are unchanged.
+
+The [dependency management policy](docs/dependency-management.md) describes dependency selection and updates; the [security policy](SECURITY.md) explains vulnerability reporting.
 
 ---
 

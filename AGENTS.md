@@ -370,6 +370,17 @@ technical references on GitHub.
   - Explain tool generation
   - Provide integration examples
 
+- **`dependency-management.md`** – Dependency policy (linked from `security-insights.yml`)
+  - Update when an ecosystem, lockfile, update cadence or pinning rule changes
+  - Keep the licence rules aligned with the "Dependency License Compliance" section above
+
+#### 3. **Security files** (Root)
+
+- **`SECURITY.md`** – Supported versions, reporting channel and response targets
+- **`security-insights.yml`** – OpenSSF Security Insights manifest read by CLOMonitor
+  - Update `last-updated` and the relevant section when maintainers, security tools, release distribution points or policy URLs change
+  - Validate before committing: `cue vet -d '#SecurityInsights' schema.cue security-insights.yml` (schema from https://github.com/ossf/security-insights-spec)
+
 ### Documentation Format & Style
 
 - **Markdown (.md)** – Use standard GitHub-flavored Markdown
@@ -424,33 +435,13 @@ Before committing code changes:
 
 All workflows live in `.github/workflows/`:
 
-1. **main.yml** – Primary CI/CD:
-   - SonarCloud code quality analysis
-   - Unit tests with code coverage
-   - Automated versioning and tagging
-   - Docker image builds and pushes
-   - Native AOT release artifacts for SlimFaas and SlimFaasMcp
-   - SlimFaasPlanetSaver npm publish and documentation site deployment on `main`
+1. **main.yml** – PR/main verification, complete release candidate builds, Release Please and site deployment. Stable publication starts only after the release PR is merged and all required checks pass.
+2. **ci.yml**, **dashboard.yml**, **SiteBuild.yml** – Reusable release-script, .NET, Python, frontend, native browser and documentation checks. Python failures are blocking. Forks use the same credential-free checks.
+3. **release-build.yml**, **Docker.yml** – Build native archives/local bundles, installable packages and multi-platform OCI archives without registry credentials. Capture resolved dependency graphs and generate per-artifact/platform SPDX and CycloneDX SBOMs.
+4. **release.yml** – Sign, attest, stage, publish, verify and finalize candidates. Manual modes: `validate`, `alpha`, `beta`, `resume`. Publication jobs never rebuild. Registry credentials are environment-scoped; npm, PyPI and NuGet use OIDC.
+5. **scorecard.yml** – OpenSSF Scorecard and SARIF upload.
 
-2. **SiteBuild.yml** – Reusable documentation site build:
-   - Builds Markdown documentation to static site
-   - Used by external-contributor checks; deployment happens in `main.yml`
-
-3. **Docker.yml** – Container builds:
-   - Creates multi-platform Docker images
-   - Publishes to Docker Hub
-
-4. **main-external-contrib.yml** – External contributor CI:
-   - Defines unit tests, SlimFaasPlanetSaver coverage, Docker builds without push, and site build checks
-
-5. **publish-dotnet-nuget.yml** – .NET client package:
-   - Builds, tests, packs, and publishes `client/dotnet/SlimFaasClient`
-
-6. **publish-python-pypi.yml** – Python client package:
-   - Uses `uv`, builds, tests, and publishes `client/python/slimfaas-client`
-
-7. **scorecard.yml** – Supply-chain security:
-   - Runs OpenSSF Scorecard analysis and uploads SARIF results
+Release changes must pass `python3 .bin/test-release.py` and actionlint, in addition to relevant build/install checks. Read [docs/releasing.md](docs/releasing.md) before changing versioning, publication, identity checks or recovery. All external actions are pinned to commit SHAs; release tools and binary checksums are in `.bin/release-tools.json`.
 
 ### Running Locally Before Commit
 

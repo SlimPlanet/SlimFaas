@@ -1,0 +1,24 @@
+{
+  "native": [
+    {"product":"SlimFaas", "os":"ubuntu-24.04", "rid":"linux-x64"},
+    {"product":"SlimFaas", "os":"ubuntu-24.04-arm", "rid":"linux-arm64"},
+    {"product":"SlimFaas", "os":"windows-2025", "rid":"win-x64"},
+    {"product":"SlimFaas", "os":"macos-15-intel", "rid":"osx-x64"},
+    {"product":"SlimFaas", "os":"macos-14", "rid":"osx-arm64"},
+    {"product":"SlimFaasMcp", "os":"ubuntu-24.04", "rid":"linux-x64"},
+    {"product":"SlimFaasMcp", "os":"windows-2025", "rid":"win-x64"},
+    {"product":"SlimFaasMcp", "os":"macos-15-intel", "rid":"osx-x64"},
+    {"product":"SlimFaasMcp", "os":"macos-14", "rid":"osx-arm64"}
+  ],
+  "images": [
+    {"name":"slimfaas", "file":"Dockerfile", "context":".", "platforms":"linux/amd64,linux/arm64"},
+    {"name":"slimfaas-dotnet", "file":"Dockerfile.dotnet", "context":".", "platforms":"linux/amd64,linux/arm64"},
+    {"name":"slimfaas-kafka", "file":"src/SlimFaasKafka/Dockerfile", "context":".", "platforms":"linux/amd64,linux/arm64"},
+    {"name":"slimfaas-mcp", "file":"src/SlimFaasMcp/Dockerfile", "context":".", "platforms":"linux/amd64,linux/arm64"},
+    {"name":"fibonacci-api", "file":"samples/Fibonacci/Dockerfile", "context":".", "platforms":"linux/amd64,linux/arm64"},
+    {"name":"fibonacci-batch", "file":"samples/FibonacciBatch/Dockerfile", "context":".", "platforms":"linux/amd64,linux/arm64"},
+    {"name":"fibonacci-kafka-producer", "file":"samples/FibonacciKafkaProducer/Dockerfile", "context":".", "platforms":"linux/amd64,linux/arm64"},
+    {"name":"fibonacci-kafka-listener", "file":"samples/FibonacciKafkaListener/Dockerfile", "context":".", "platforms":"linux/amd64,linux/arm64"},
+    {"name":"fibonacci-webapp", "file":"samples/FibonacciReact/Dockerfile", "context":"samples/FibonacciReact", "platforms":"linux/amd64,linux/arm64"}
+  ]
+}

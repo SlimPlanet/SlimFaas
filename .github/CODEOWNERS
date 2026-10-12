@@ -1,0 +1,12 @@
+# Release policy, credentials, and executable build definitions require maintainer review.
+/.github/ @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+/.bin/ @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+/release-please-config.json @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+/.release-please-manifest.json @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+/version.txt @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+**/Dockerfile* @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+/Directory.* @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+/eng/ @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+
+/global.json @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke
+/docs/releasing.md @guillaume-chervet @g7ed6e @lilian-delouvy @antoineblancke

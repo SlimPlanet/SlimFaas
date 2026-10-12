@@ -7,7 +7,7 @@
 
     <!-- NuGet package metadata -->
     <PackageId>SlimFaasClient</PackageId>
-    <Version>0.1.0</Version>
+    <Version>0.84.16</Version>
     <Authors>SlimFaas Contributors</Authors>
     <Company>SlimPlanet</Company>
     <Product>SlimFaasClient</Product>

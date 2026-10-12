@@ -1,0 +1,57 @@
+name: Required verification
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  release_tests:
+    name: Release logic and workflow validation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14.8'
+      - run: python3 .bin/install-release-tools.py actionlint
+      - run: actionlint -color
+      - run: python3 .bin/test-release.py
+      - run: python3 .bin/release.py check-title
+  unit_tests:
+    name: Unit Tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.21.0'
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: '10.14.0'
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - run: dotnet test --collect "Code Coverage;Format=cobertura"
+      - working-directory: src/SlimFaasPlanetSaver
+        run: pnpm install --frozen-lockfile && pnpm run coverage
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14.8'
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          version: '0.9.0'
+      - working-directory: client/python/slimfaas-client
+        env:
+          PYTHONPATH: src
+        run: |
+          uv sync --frozen --extra dev --no-build --no-install-project
+          uv run --no-sync --no-build pytest
+      - run: |
+          python .bin/test-local-bundle-helpers.py
+          python .bin/test-install-local-demo.py
+  dashboard:
+    uses: ./.github/workflows/dashboard.yml

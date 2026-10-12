@@ -6,7 +6,7 @@ on:
       node_version:
         required: false
         type: string
-        default: "24"
+        default: "24.21.0"
       pnpm_version:
         required: false
         type: string
@@ -16,15 +16,20 @@ on:
         type: string
         default: "src/SlimFaasSite"
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ inputs.node_version }}
-      - uses: pnpm/action-setup@v2
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: ${{ inputs.pnpm_version }}
           run_install: false

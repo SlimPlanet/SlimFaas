@@ -4,11 +4,20 @@ WORKDIR /repo
 COPY Directory.Build.props Directory.Build.targets Directory.Packages.props global.json .editorconfig ./
 COPY eng/ eng/
 COPY samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj samples/FibonacciKafkaProducer/
-RUN dotnet restore samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj
+ARG RELEASE_VERSION=0.0.0-dev.0
+ARG SOURCE_REVISION_ID
+RUN dotnet restore samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj \
+    -p:RestorePackagesWithLockFile=true
 COPY samples/FibonacciKafkaProducer/ samples/FibonacciKafkaProducer/
-RUN dotnet publish samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj -c Release -o /app/publish --no-restore \
+    -p:Version="$RELEASE_VERSION" \
+    -p:SourceRevisionId="$SOURCE_REVISION_ID" \
+    -p:RestorePackagesWithLockFile=true
+
+RUN mkdir -p /app/dependencies && find . -name packages.lock.json -exec cp --parents {} /app/dependencies/ \;
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.12 AS final
+COPY --from=build /app/dependencies /usr/share/slimfaas/dependencies
 WORKDIR /app
 COPY --from=build /app/publish ./
 
