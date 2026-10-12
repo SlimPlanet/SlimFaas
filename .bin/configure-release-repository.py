@@ -6,6 +6,20 @@ import json
 from release_lib import REPOSITORY, gh, run
 
 
+def environment_settings(existing):
+    settings = {"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}}
+    if "can_admins_bypass" in existing:
+        settings["can_admins_bypass"] = existing["can_admins_bypass"]
+    for rule in existing.get("protection_rules", []):
+        if rule["type"] == "wait_timer":
+            settings["wait_timer"] = rule["wait_timer"]
+        elif rule["type"] == "required_reviewers":
+            settings["prevent_self_review"] = rule.get("prevent_self_review", False)
+            settings["reviewers"] = [{"type": item["type"], "id": item["reviewer"]["id"]}
+                                     for item in rule["reviewers"]]
+    return settings
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--pr", type=int, required=True, help="Reviewed migration PR number")
@@ -57,9 +71,10 @@ def main():
     gh(base, "PATCH", {"allow_squash_merge": True, "allow_merge_commit": False,
         "allow_rebase_merge": False, "squash_merge_commit_title": "PR_TITLE",
         "squash_merge_commit_message": "COMMIT_MESSAGES"})
+    environments = {item["name"]: item for item in gh(f"{base}/environments?per_page=100")["environments"]}
     for environment in ("release-bot", "release", "npm", "nuget", "pypi", "docker"):
         endpoint = f"{base}/environments/{environment}"
-        gh(endpoint, "PUT", {"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}})
+        gh(endpoint, "PUT", environment_settings(environments.get(environment, {})))
         policies = gh(endpoint + "/deployment-branch-policies")["branch_policies"]
         # Preserve existing reviewers and fail on broader policies instead of
         # silently deleting an administrator's settings.

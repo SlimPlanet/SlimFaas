@@ -9,7 +9,8 @@ permissions:
   contents: read
 concurrency:
   group: ${{ github.event_name == 'push' && 'slimfaas-release' || format('ci-{0}', github.event.pull_request.number) }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  queue: max
+  cancel-in-progress: false
 env:
   PNPM_VERSION: '10.14.0'
   NODE_VERSION: '24.21.0'

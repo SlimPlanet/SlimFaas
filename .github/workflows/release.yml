@@ -27,6 +27,7 @@ permissions:
 concurrency:
   # The stable caller holds the shared lock through its top-level PyPI/finalize jobs.
   group: ${{ inputs.use_existing_build == true && format('release-staging-{0}', github.run_id) || 'slimfaas-release' }}
+  queue: max
   cancel-in-progress: false
 jobs:
   prepare:

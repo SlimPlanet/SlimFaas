@@ -167,6 +167,21 @@ class Inventory(unittest.TestCase):
 
 
 class CollisionAndResume(unittest.TestCase):
+    def test_activation_preserves_existing_environment_approvals(self):
+        spec = importlib.util.spec_from_file_location("activation", Path(__file__).with_name("configure-release-repository.py"))
+        activation = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(activation)
+        existing = {"can_admins_bypass": False, "protection_rules": [
+            {"type": "wait_timer", "wait_timer": 5},
+            {"type": "required_reviewers", "prevent_self_review": True,
+             "reviewers": [{"type": "Team", "reviewer": {"id": 42, "name": "Maintainers"}}]}]}
+        settings = activation.environment_settings(existing)
+        self.assertEqual(settings["reviewers"], [{"type": "Team", "id": 42}])
+        self.assertEqual(settings["wait_timer"], 5)
+        self.assertTrue(settings["prevent_self_review"])
+        self.assertFalse(settings["can_admins_bypass"])
+        self.assertNotIn("reviewers", activation.environment_settings({}))
+
     def test_platform_images_are_combined_without_changing_their_blobs(self):
         spec = importlib.util.spec_from_file_location("merge_images", Path(__file__).with_name("merge-release-images.py"))
         merger = importlib.util.module_from_spec(spec)

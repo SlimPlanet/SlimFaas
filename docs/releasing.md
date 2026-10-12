@@ -26,6 +26,12 @@ The words `release`, `alpha` or `beta` in a commit do not publish anything.
 `Release-As:` overrides are rejected. Maintainers review the proposed changelog
 and common version in the release PR; merging it is the usual human approval.
 Do not create a second release while an earlier release is incomplete.
+Main and manual release runs share a serial queue, retaining up to 100 pending
+runs instead of replacing a pending release when another run arrives. Recover
+failed releases before merging another release PR.
+GitHub validates this `concurrency.queue` setting; the actionlint configuration
+narrowly ignores its [known unsupported-key diagnostic](https://github.com/rhysd/actionlint/issues/657)
+until upstream actionlint supports it.
 
 To request a preview, run **Actions → Release → Run workflow**, select `main`
 and `alpha` or `beta`. The version is the next calculated stable version followed
