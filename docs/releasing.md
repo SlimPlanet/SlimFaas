@@ -29,6 +29,9 @@ Do not create a second release while an earlier release is incomplete.
 Main and manual release runs share a serial queue, retaining up to 100 pending
 runs instead of replacing a pending release when another run arrives. Recover
 failed releases before merging another release PR.
+Only the main run whose source SHA matches the stable tag publishes its draft.
+It can pick up a draft created by an earlier queued run, so a moving main branch
+does not make the release depend on Release Please's `release_created` output.
 GitHub validates this `concurrency.queue` setting; the actionlint configuration
 narrowly ignores its [known unsupported-key diagnostic](https://github.com/rhysd/actionlint/issues/657)
 until upstream actionlint supports it.

@@ -76,18 +76,35 @@ def check_tag(version, source_sha):
         raise ValueError("Release tag does not point to the build source")
 
 
-def check_remote_tag(version, source_sha):
+def remote_tag_commit(version):
     target = gh(f"repos/{REPOSITORY}/git/ref/tags/{version}")["object"]
     # Support historical annotated tags as well as lightweight release tags.
     for _ in range(10):
         if target["type"] == "commit":
-            if target["sha"] != source_sha:
-                raise ValueError("Remote release tag does not match the signed source")
-            return
+            return target["sha"]
         if target["type"] != "tag":
             break
         target = gh(f"repos/{REPOSITORY}/git/tags/{target['sha']}")["object"]
     raise ValueError("Release tag does not resolve to a commit")
+
+
+def check_remote_tag(version, source_sha):
+    if remote_tag_commit(version) != source_sha:
+        raise ValueError("Remote release tag does not match the signed source")
+
+
+def stable_candidate(source_sha):
+    """Only the tag's own main run may publish, including an already-created draft."""
+    if not SHA.fullmatch(source_sha):
+        raise ValueError("A full source SHA is required")
+    version = check_metadata()
+    releases = gh(f"repos/{REPOSITORY}/releases?per_page=100")
+    draft = next((item for item in releases if item["tag_name"] == version and item["draft"]), None)
+    # Release Please reads the live main branch. An earlier queued main run can
+    # therefore create the draft for a later release-PR merge. That later run
+    # must pick up the draft even when release_created is false on its own call.
+    selected = draft is not None and remote_tag_commit(version) == source_sha
+    emit(created=selected, tag=version if selected else "")
 
 
 def check_ci(source_sha):
@@ -287,7 +304,7 @@ def resume_run(manifest):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("prepare", "inventory", "verify", "save-draft", "check-ci", "registry-status", "publish-images", "finalize", "resume-run", "check-title"))
+    parser.add_argument("command", choices=("prepare", "inventory", "verify", "save-draft", "check-ci", "registry-status", "publish-images", "finalize", "resume-run", "check-title", "stable-candidate"))
     parser.add_argument("--mode", choices=("stable", "validate", "alpha", "beta", "resume"), default="validate")
     parser.add_argument("--tag", default="")
     parser.add_argument("--version", default=os.environ.get("RELEASE_VERSION"))
@@ -297,6 +314,8 @@ def main():
     args = parser.parse_args()
     if args.command == "prepare":
         prepare(args.mode, args.tag)
+    elif args.command == "stable-candidate":
+        stable_candidate(os.environ["GITHUB_SHA"])
     elif args.command == "check-title":
         check_metadata()
         event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())

@@ -167,6 +167,19 @@ class Inventory(unittest.TestCase):
 
 
 class CollisionAndResume(unittest.TestCase):
+    def test_only_the_source_run_selects_an_existing_stable_draft(self):
+        version = "0.85.0"
+        for state, tag_sha, expected in ((True, SOURCE, True), (True, "b" * 40, False),
+                                         (False, SOURCE, False), (None, SOURCE, False)):
+            releases = [] if state is None else [{"tag_name": version, "draft": state}]
+            with self.subTest(draft=state, tag_sha=tag_sha), \
+                    patch.object(release, "check_metadata", return_value=version), \
+                    patch.object(release, "gh", return_value=releases), \
+                    patch.object(release, "remote_tag_commit", return_value=tag_sha), \
+                    patch.object(release, "emit") as emit:
+                release.stable_candidate(SOURCE)
+                emit.assert_called_once_with(created=expected, tag=version if expected else "")
+
     def test_activation_preserves_existing_environment_approvals(self):
         spec = importlib.util.spec_from_file_location("activation", Path(__file__).with_name("configure-release-repository.py"))
         activation = importlib.util.module_from_spec(spec)
