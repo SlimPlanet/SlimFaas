@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Install the exact release packages in clean consumers before signing them."""
 import argparse
+import json
 import os
 from pathlib import Path
 import tempfile
@@ -20,6 +21,9 @@ def test_packages(directory, version):
             directory / f"slimfaas-planet-saver-{version}.tgz", cwd=js)
         run("node", "--input-type=module", "-e",
             f"import Client from '{NPM_PACKAGE}'; if(typeof Client !== 'function') throw new Error('Missing export');", cwd=js)
+        installed = json.loads((js / "node_modules" / NPM_PACKAGE / "package.json").read_text())
+        if installed["version"] != version:
+            raise ValueError("Installed npm package has the wrong version")
         py = python_version(version)
         for suffix in ("-py3-none-any.whl", ".tar.gz"):
             environment = root / ("wheel" if suffix.endswith("whl") else "sdist")
