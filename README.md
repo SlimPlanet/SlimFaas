@@ -223,18 +223,11 @@ Enjoy SlimFaas!
 
 ## Software Bill of Materials (SBOM)
 
-SlimFaas publishes a Software Bill of Materials so that adopters can audit what ships in each release.
+The [release process](docs/releasing.md) coordinates a common version across native archives, local demo bundles, Docker images, npm, NuGet and Python. Maintainers approve a stable release by merging the automatically prepared release PR; alpha/beta publication is explicit.
 
-- **Release archives**: starting with the next release, every [GitHub release](https://github.com/SlimPlanet/SlimFaas/releases) will carry `SlimFaas-<version>-sbom.spdx.json` and `SlimFaasMcp-<version>-sbom.spdx.json` (SPDX) together with CycloneDX variants, signed with Sigstore. Progress is tracked in [#367](https://github.com/SlimPlanet/SlimFaas/issues/367).
-- **Container images**: the same work attaches BuildKit SBOM and provenance attestations to the `axaguildev/*` images; read them with `docker buildx imagetools inspect axaguildev/slimfaas:<version> --format '{{ json .SBOM }}'`.
-- **Generate one yourself** from a checkout:
+After activation of the new pipeline, releases include per-artifact and per-image-platform SPDX and CycloneDX SBOMs, resolved dependency evidence (including native AOT and embedded web interfaces), SHA-256 checksums, Sigstore signatures and build provenance. The [release guide](docs/releasing.md#verification-for-consumers) describes verification and recovery. Historical releases are unchanged.
 
-```bash
-dotnet tool install --global CycloneDX
-dotnet CycloneDX src/SlimFaas/SlimFaas.csproj --output sbom --json
-```
-
-The dependency selection, update and pinning rules are described in the [dependency management policy](docs/dependency-management.md); the [security policy](SECURITY.md) explains how to report a vulnerability.
+The [dependency management policy](docs/dependency-management.md) describes dependency selection and updates; the [security policy](SECURITY.md) explains vulnerability reporting.
 
 ---
 

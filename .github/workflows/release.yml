@@ -1,0 +1,292 @@
+name: Release
+on:
+  workflow_call:
+    inputs:
+      mode:
+        type: string
+        required: true
+      tag:
+        type: string
+        required: true
+      use_existing_build:
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Validate without publishing, publish a preview, or resume the original failed jobs
+        type: choice
+        default: validate
+        options: [validate, alpha, beta, resume]
+      tag:
+        description: Existing release tag (resume only)
+        type: string
+        default: ''
+permissions:
+  contents: read
+concurrency:
+  group: slimfaas-release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.context.outputs.version }}
+      source_sha: ${{ steps.context.outputs.source_sha }}
+      channel: ${{ steps.context.outputs.channel }}
+      resume: ${{ steps.context.outputs.resume }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - id: context
+        env:
+          GH_TOKEN: ${{ github.token }}
+          MODE: ${{ inputs.mode }}
+          TAG: ${{ inputs.tag }}
+          RELEASES_ENABLED: ${{ vars.RELEASES_ENABLED }}
+        run: python3 .bin/release.py prepare --mode "$MODE" --tag "$TAG"
+  tests:
+    needs: prepare
+    if: inputs.use_existing_build != true && needs.prepare.outputs.resume != 'true'
+    uses: ./.github/workflows/ci.yml
+  build:
+    needs: [prepare, tests]
+    if: inputs.use_existing_build != true && needs.prepare.outputs.resume != 'true'
+    uses: ./.github/workflows/release-build.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      source_sha: ${{ needs.prepare.outputs.source_sha }}
+  sign:
+    needs: [prepare, tests, build]
+    if: >-
+      always() && needs.prepare.result == 'success' && needs.prepare.outputs.resume != 'true' &&
+      ((inputs.use_existing_build == true && needs.tests.result == 'skipped' && needs.build.result == 'skipped') ||
+      (needs.tests.result == 'success' && needs.build.result == 'success'))
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.source_sha }}
+      RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unsigned-candidate
+          path: artifacts/release
+      - run: python3 .bin/install-release-tools.py cosign
+      - run: python3 .bin/release.py inventory
+      - name: Sign the complete checksum index
+        run: cosign sign-blob --yes --bundle artifacts/release/SHA256SUMS.sigstore.json artifacts/release/SHA256SUMS
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        id: provenance
+        with:
+          subject-path: artifacts/release/*
+      - name: Retain offline provenance bundle
+        env:
+          BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+        run: cp "$BUNDLE" artifacts/release/provenance.sigstore.jsonl
+      - run: python3 .bin/release.py verify
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-candidate
+          path: artifacts/release/*
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30
+  stage:
+    needs: [prepare, sign]
+    if: needs.prepare.outputs.channel != 'validate'
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.source_sha }}
+      RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: signed-candidate
+          path: artifacts/release
+      - run: python3 .bin/install-release-tools.py cosign regctl
+      - run: python3 .bin/release.py check-ci
+      - run: python3 .bin/release.py verify
+      - run: python3 .bin/release.py registry-status
+      - run: python3 .bin/release.py save-draft
+  npm:
+    needs: [prepare, stage]
+    runs-on: ubuntu-24.04
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.21.0'
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.21.0
+      - id: existing
+        run: python3 .bin/release.py registry-status
+      - name: Publish original npm tarball with a temporary dist-tag
+        if: steps.existing.outputs.npm_exists != 'true'
+        run: npm publish "artifacts/release/slimfaas-planet-saver-$RELEASE_VERSION.tgz" --access public --tag "release-$RELEASE_VERSION"
+  nuget:
+    needs: [prepare, stage]
+    runs-on: ubuntu-24.04
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+      - id: existing
+        run: python3 .bin/release.py registry-status
+      - uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        id: login
+        with:
+          user: ${{ vars.NUGET_USER }}
+      - name: Publish original NuGet package
+        if: steps.existing.outputs.nuget_exists != 'true'
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "artifacts/release/SlimFaasClient.$RELEASE_VERSION.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --no-symbols
+  pypi:
+    needs: [prepare, stage]
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - id: existing
+        run: python3 .bin/release.py registry-status
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        if: steps.existing.outputs.pypi_pending == 'true'
+        with:
+          packages-dir: artifacts/pypi-pending
+          attestations: true
+  images:
+    needs: [prepare, stage]
+    runs-on: ubuntu-24.04
+    environment: docker
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - run: python3 .bin/release.py publish-images
+  finalize:
+    needs: [prepare, npm, nuget, pypi, images]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.21.0'
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.21.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - run: python3 .bin/release.py finalize
+  resume:
+    needs: prepare
+    if: needs.prepare.outputs.resume == 'true'
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: read
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+      RELEASE_SHA: ${{ needs.prepare.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - run: python3 .bin/release.py resume-run

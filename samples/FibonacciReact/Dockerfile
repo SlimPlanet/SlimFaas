@@ -25,6 +25,7 @@ server {
 }
 NGINX
 
+COPY --from=build /app/pnpm-lock.yaml /usr/share/slimfaas/dependencies/pnpm-lock.yaml
 COPY --from=build /app/dist/ /usr/share/nginx/html/
 EXPOSE 8000
 CMD ["nginx","-g","daemon off;"]

@@ -6,12 +6,12 @@ This page describes how SlimFaas selects, updates, pins and retires third-party 
 
 | Ecosystem | Where it is declared | Lockfile |
 | --- | --- | --- |
-| .NET / NuGet | every `*.csproj` under `src/`, `tests/`, `samples/`, `benchmarks/`, `tools/`, `client/dotnet/`; versions are declared once in `Directory.Packages.props` (Central Package Management) | `Directory.Packages.props` pins every direct and transitive NuGet version; the SDK is pinned by `global.json` |
+| .NET / NuGet | every `*.csproj` under `src/`, `tests/`, `samples/`, `benchmarks/`, `tools/`, `client/dotnet/`; versions are declared once in `Directory.Packages.props` (Central Package Management) | `Directory.Packages.props` pins declared package versions; release builds capture the resolved transitive graph in generated `packages.lock.json` evidence |
 | npm / pnpm | `src/SlimFaasPlanetSaver`, `src/SlimFaasSite`, `samples/FibonacciReact` | `pnpm-lock.yaml` |
 | npm | `src/SlimFaas/ClientApp` (embedded dashboard) | `package-lock.json` |
 | Python | `client/python/slimfaas-client` | `uv.lock` |
 | Container base images | every `Dockerfile` | image tags, updated by Dependabot |
-| GitHub Actions | `.github/workflows/*.yml` | action versions, updated by Dependabot |
+| GitHub Actions | `.github/workflows/*.yml` | full commit SHAs, updated by Dependabot |
 
 ## Selecting a dependency
 
@@ -33,7 +33,7 @@ This page describes how SlimFaas selects, updates, pins and retires third-party 
 - `global.json` pins the .NET SDK used by CI and contributors.
 - NuGet versions are pinned centrally in `Directory.Packages.props`; restore fails on drift (a `Version` attribute in a csproj, or a reference with no central `PackageVersion`), and transitive pinning is enabled so a vulnerable transitive package can be held from the same file.
 - When a newer version of a dependency is rejected (licence, AOT regression, security), pin the last accepted version with an explicit direct constraint and a comment explaining why, so a future lockfile refresh cannot silently reintroduce it. Record the hold and its reason in the pull request summary.
-- GitHub Actions are referenced by major version tag today; pinning them to commit SHAs is planned as part of the [supply-chain hardening work](https://github.com/SlimPlanet/SlimFaas/issues/367).
+- External GitHub Actions are pinned by full commit SHA and updated by Dependabot. Release tools are pinned by version and platform SHA-256 in `.bin/release-tools.json`; maintainers review upstream releases and update this file with the published checksums.
 
 ## Vulnerabilities in dependencies
 
@@ -44,7 +44,7 @@ This page describes how SlimFaas selects, updates, pins and retires third-party 
 
 ## Software Bill of Materials
 
-SBOMs for the runtime and its container images are generated from the lockfiles and project files. See the [SBOM section of the README](../README.md#software-bill-of-materials-sbom) for how to obtain or generate one.
+Release SBOMs scan distributed files together with their resolved NuGet graphs and JavaScript/Python lockfiles. Native AOT binaries alone are insufficient. Build-only components from frontend lockfiles remain identified as build inputs in the accompanying dependency evidence. See the [SBOM section of the README](../README.md#software-bill-of-materials-sbom) for how to obtain or generate one.
 
 ## Removing a dependency
 

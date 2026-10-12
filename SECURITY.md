@@ -2,14 +2,14 @@
 
 ## Supported versions
 
-SlimFaas is released continuously from `main` (see [GOVERNANCE.md](GOVERNANCE.md#3-automated-semantic-versioning)). Security fixes are published as a new patch release on the latest release line; older versions are not patched.
+SlimFaas stable releases are approved by merging a reviewed release PR on `main` (see [GOVERNANCE.md](GOVERNANCE.md#3-automated-semantic-versioning)). Security fixes are published as a new patch release on the latest release line; older versions are not patched.
 
 | Version | Supported |
 | --- | --- |
 | Latest release (see [Releases](https://github.com/SlimPlanet/SlimFaas/releases)) | ✅ |
 | Any earlier release | ❌ — upgrade to the latest release |
 
-Container images are published on Docker Hub (`axaguildev/slimfaas`, `axaguildev/slimfaas-mcp`, `axaguildev/slimfaas-kafka`, `axaguildev/slimfaas-dotnet`). Only the tag matching the latest release, and `latest`, receive fixes.
+Container images are published on Docker Hub (`axaguildev/slimfaas`, `axaguildev/slimfaas-mcp`, `axaguildev/slimfaas-kafka`, `axaguildev/slimfaas-dotnet`). Security fixes receive a new immutable version tag; `latest` advances after the full release succeeds. Existing version tags and assets are never replaced. See the [release guide](docs/releasing.md) for signatures, provenance, SBOM verification and recovery.
 
 ## Scope
 

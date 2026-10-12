@@ -1,7 +1,7 @@
 header:
   schema-version: 2.2.0
-  last-updated: '2026-09-12'
-  last-reviewed: '2026-09-12'
+  last-updated: '2026-10-12'
+  last-reviewed: '2026-10-12'
   url: https://raw.githubusercontent.com/SlimPlanet/SlimFaas/main/security-insights.yml
   comment: |
     OpenSSF Security Insights manifest for SlimFaas (https://github.com/ossf/security-insights-spec).
@@ -40,7 +40,7 @@ project:
     quickstart-guide: https://github.com/SlimPlanet/SlimFaas/blob/main/docs/get-started.md
     detailed-guide: https://slimfaas.dev
     code-of-conduct: https://github.com/cncf/foundation/blob/main/code-of-conduct.md
-    release-process: https://github.com/SlimPlanet/SlimFaas/blob/main/GOVERNANCE.md#3-automated-semantic-versioning
+    release-process: https://github.com/SlimPlanet/SlimFaas/blob/main/docs/releasing.md
     support-policy: https://github.com/SlimPlanet/SlimFaas/blob/main/SECURITY.md#supported-versions
   repositories:
     - name: SlimFaas
@@ -114,7 +114,7 @@ repository:
     automated-pipeline: true
     distribution-points:
       - uri: https://github.com/SlimPlanet/SlimFaas/releases
-        comment: GitHub releases with native AOT archives for SlimFaas and SlimFaasMcp and standalone local demo bundles (sha256 checksums attached).
+        comment: Coordinated releases with native archives, local bundles, packages, OCI images, per-platform SBOMs, checksums, Sigstore signatures and provenance after release-pipeline activation.
       - uri: pkg:docker/axaguildev/slimfaas
         comment: SlimFaas container image on Docker Hub (also axaguildev/slimfaas-dotnet, axaguildev/slimfaas-mcp, axaguildev/slimfaas-kafka).
       - uri: pkg:npm/%40axa-fr/slimfaas-planet-saver
@@ -130,7 +130,7 @@ repository:
           Continuous self-assessment through OpenSSF Scorecard (weekly and on every push to main) and
           CLOMonitor (daily). No third-party security audit has been performed yet.
         evidence: https://clomonitor.io/projects/cncf/slimfaas
-        date: '2026-09-12'
+        date: '2026-10-12'
     champions:
       - name: Guillaume Chervet
         email: guillaume.chervet@axa.fr
