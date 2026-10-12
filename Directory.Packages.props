@@ -55,7 +55,7 @@
 
   <!-- Kafka -->
   <ItemGroup>
-    <PackageVersion Include="Confluent.Kafka" Version="2.15.1" />
+    <PackageVersion Include="Confluent.Kafka" Version="2.16.0" />
   </ItemGroup>
 
   <!-- Swagger / OpenAPI -->
@@ -69,7 +69,7 @@
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
     <PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="18.1.0" />
     <PackageVersion Include="Yaml2JsonNode" Version="3.0.1" />
-    <PackageVersion Include="NodaTime" Version="3.3.4" />
+    <PackageVersion Include="NodaTime" Version="3.3.5" />
   </ItemGroup>
 
   <!-- Kubernetes -->
@@ -79,12 +79,12 @@
 
   <!-- Raft / DotNext -->
   <ItemGroup>
-    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.8.1" />
+    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.9.0" />
   </ItemGroup>
 
   <!-- Samples -->
   <ItemGroup>
-    <PackageVersion Include="MailKit" Version="4.18.0" />
+    <PackageVersion Include="MailKit" Version="4.18.1" />
   </ItemGroup>
 
   <!-- Tooling -->
