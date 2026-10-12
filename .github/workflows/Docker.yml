@@ -24,16 +24,23 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+            platform: linux/amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            platform: linux/arm64
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
-      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
-        with:
-          image: tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0 # deploy/v10.2.3-68
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
         with:
           version: v0.38.0
@@ -43,9 +50,9 @@ jobs:
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.file }}
-          platforms: ${{ inputs.platforms }}
+          platforms: ${{ matrix.platform }}
           push: false
-          outputs: type=oci,dest=artifacts/release/${{ inputs.name }}.oci.tar
+          outputs: type=oci,dest=artifacts/release/${{ inputs.name }}-${{ matrix.arch }}.oci.tar
           tags: axaguildev/${{ inputs.name }}:${{ inputs.version }}
           build-args: |
             RELEASE_VERSION=${{ inputs.version }}
@@ -57,6 +64,32 @@ jobs:
             org.opencontainers.image.licenses=Apache-2.0
           provenance: mode=max
           sbom: generator=docker.io/docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9 # v1.12.0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: platform-${{ inputs.name }}-${{ matrix.arch }}
+          path: artifacts/release/*.oci.tar
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
+  combine:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: platform-${{ inputs.name }}-*
+          merge-multiple: true
+          path: artifacts/platforms
+      - name: Combine the native platform builds without rebuilding
+        env:
+          IMAGE_NAME: ${{ inputs.name }}
+        run: |
+          python3 .bin/merge-release-images.py --output "artifacts/release/$IMAGE_NAME.oci.tar" \
+            "artifacts/platforms/$IMAGE_NAME-amd64.oci.tar" "artifacts/platforms/$IMAGE_NAME-arm64.oci.tar"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: unsigned-image-${{ inputs.name }}

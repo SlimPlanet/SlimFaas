@@ -190,11 +190,14 @@ public class RaftClusterTests(ITestOutputHelper output)
         var elapsed = Stopwatch.StartNew();
         void Phase(string name) => output.WriteLine($"{elapsed.Elapsed.TotalSeconds:F1}s: {name}");
         Phase("bootstrap");
+        // This scenario exercises membership and replication with a stable bootstrap leader.
+        // Coverage instrumentation on hosted runners can pause heartbeats beyond 600 ms;
+        // allow that scheduling overhead without changing the bounded readiness checks.
         Dictionary<string, string> config1 = new()
         {
             { "partitioning", "false" },
-            { "lowerElectionTimeout", "600" },
-            { "upperElectionTimeout", "900" },
+            { "lowerElectionTimeout", "3000" },
+            { "upperElectionTimeout", "5000" },
             { "publicEndPoint", "http://localhost:3262/" },
             { "coldStart", "true" },
             { "warmupRounds", "512" },
@@ -205,8 +208,8 @@ public class RaftClusterTests(ITestOutputHelper output)
         Dictionary<string, string> config2 = new()
         {
             { "partitioning", "false" },
-            { "lowerElectionTimeout", "600" },
-            { "upperElectionTimeout", "900" },
+            { "lowerElectionTimeout", "3000" },
+            { "upperElectionTimeout", "5000" },
             { "publicEndPoint", "http://localhost:3263/" },
             { "coldStart", "false" },
             { "warmupRounds", "512" },
@@ -217,8 +220,8 @@ public class RaftClusterTests(ITestOutputHelper output)
         Dictionary<string, string> config3 = new()
         {
             { "partitioning", "false" },
-            { "lowerElectionTimeout", "600" },
-            { "upperElectionTimeout", "900" },
+            { "lowerElectionTimeout", "3000" },
+            { "upperElectionTimeout", "5000" },
             { "publicEndPoint", "http://localhost:3264/" },
             { "coldStart", "false" },
             { "warmupRounds", "512" },

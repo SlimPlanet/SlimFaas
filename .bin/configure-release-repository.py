@@ -40,7 +40,7 @@ def main():
     }
     print(json.dumps({"repository": REPOSITORY, "migration_pr": args.pr,
         "migration_merged": bool(pull["merged_at"]), "main_protection": protection,
-        "environments_main_only": ["release", "npm", "nuget", "pypi", "docker"],
+        "environments_main_only": ["release-bot", "release", "npm", "nuget", "pypi", "docker"],
         "immutable_releases": True, "publication_enabled_by_this_script": False}, indent=2))
     if not args.apply:
         return
@@ -57,7 +57,7 @@ def main():
     gh(base, "PATCH", {"allow_squash_merge": True, "allow_merge_commit": False,
         "allow_rebase_merge": False, "squash_merge_commit_title": "PR_TITLE",
         "squash_merge_commit_message": "COMMIT_MESSAGES"})
-    for environment in ("release", "npm", "nuget", "pypi", "docker"):
+    for environment in ("release-bot", "release", "npm", "nuget", "pypi", "docker"):
         endpoint = f"{base}/environments/{environment}"
         gh(endpoint, "PUT", {"deployment_branch_policy": {"protected_branches": False, "custom_branch_policies": True}})
         policies = gh(endpoint + "/deployment-branch-policies")["branch_policies"]

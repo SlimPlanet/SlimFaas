@@ -47,7 +47,8 @@ SHA; an arbitrary tag, branch or SHA cannot be passed as a publication source.
 1. `ci.yml` runs release failure tests, actionlint, .NET and Python tests, dashboard
    tests, native browser tests, Planet Saver coverage and the documentation build.
 2. `release-build.yml` builds the native RID matrix, smoke-tests the standalone
-   bundles, builds all existing multi-platform images as OCI archives, and builds
+   bundles, builds each image platform on a matching native runner and combines the unchanged
+   blobs into multi-platform OCI archives, and builds
    and installs npm, NuGet and Python packages in clean consumers. PRs, including
    forks, use these same build jobs without publishing credentials.
 3. Syft scans each distribution together with its resolved dependency evidence.
@@ -93,10 +94,10 @@ does not establish registry trust.
 2. Create a dedicated GitHub App, installed only on `SlimPlanet/SlimFaas`, with
    repository **Contents**, **Pull requests**, and **Issues** read/write and Metadata
    read. Store its ID as `RELEASE_APP_ID` and its private key as
-   `RELEASE_APP_PRIVATE_KEY`. Set `signoff` in `release-please-config.json` to the
+   `RELEASE_APP_PRIVATE_KEY` in the main-only `release-bot` environment. Set `signoff` in `release-please-config.json` to the
    bot's verified name/email identity and confirm the bot's first PR passes DCO.
    The App must not bypass branch protection. A maintainer merges its release PR.
-3. Create the environments `release`, `npm`, `nuget`, `pypi`, and `docker`. Restrict
+3. Create the environments `release-bot`, `release`, `npm`, `nuget`, `pypi`, and `docker`. Restrict
    deployment branches to `main`; do not add another mandatory approval, because
    the release PR already requires human review. Move Docker credentials into the
    `docker` and `release` environments (`DOCKER_USERNAME`, `DOCKER_PASSWORD`) and
@@ -157,7 +158,7 @@ Use GitHub CLI and the pinned Cosign version from `.bin/release-tools.json`:
 VERSION=0.85.0-alpha.42
 SOURCE_SHA=replace_with_the_reviewed_40_character_commit_sha
 gh release download "$VERSION" --repo SlimPlanet/SlimFaas --dir artifacts/release
-python3 .bin/install-release-tools.py cosign regctl
+python3 .bin/install-release-tools.py gh cosign regctl
 export PATH="$PWD/artifacts/release-tools:$PATH"
 python3 .bin/release.py verify --version "$VERSION" --sha "$SOURCE_SHA"
 

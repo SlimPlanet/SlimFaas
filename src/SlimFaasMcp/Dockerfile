@@ -31,7 +31,10 @@ COPY src/SlimFaasMcp/ src/SlimFaasMcp/
 # Le csproj déclenche npm ci / npm run build pendant le publish ; Node+pnpm sont disponibles.
 ARG RELEASE_VERSION=0.0.0-dev.0
 ARG SOURCE_REVISION_ID
-RUN dotnet publish "./src/SlimFaasMcp/SlimFaasMcp.csproj" -c Release -o /app/publish -p:Version="$RELEASE_VERSION" -p:SourceRevisionId="$SOURCE_REVISION_ID" -p:RestorePackagesWithLockFile=true \
+RUN dotnet publish "./src/SlimFaasMcp/SlimFaasMcp.csproj" -c Release -o /app/publish \
+    -p:Version="$RELEASE_VERSION" \
+    -p:SourceRevisionId="$SOURCE_REVISION_ID" \
+    -p:RestorePackagesWithLockFile=true \
     -p:DebugType=none \
     -p:DebugSymbols=false
 

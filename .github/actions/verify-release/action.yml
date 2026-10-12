@@ -12,7 +12,7 @@ runs:
   steps:
     - name: Install pinned verification tools
       shell: bash
-      run: python3 .bin/install-release-tools.py cosign regctl
+      run: python3 .bin/install-release-tools.py gh cosign regctl
     - name: Download original release assets
       shell: bash
       env:

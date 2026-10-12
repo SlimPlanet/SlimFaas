@@ -45,7 +45,11 @@ jobs:
         with:
           version: '0.9.0'
       - working-directory: client/python/slimfaas-client
-        run: uv sync --frozen --extra dev && uv run --frozen pytest
+        env:
+          PYTHONPATH: src
+        run: |
+          uv sync --frozen --extra dev --no-build --no-install-project
+          uv run --no-sync --no-build pytest
       - run: |
           python .bin/test-local-bundle-helpers.py
           python .bin/test-install-local-demo.py

@@ -15,8 +15,8 @@
       "extra-files": [
         { "type": "json", "path": "src/SlimFaasPlanetSaver/package.json", "jsonpath": "$.version" },
         { "type": "xml", "path": "client/dotnet/SlimFaasClient/src/SlimFaasClient/SlimFaasClient.csproj", "xpath": "//Project/PropertyGroup/Version" },
-        "client/python/slimfaas-client/pyproject.toml",
-        "client/python/slimfaas-client/uv.lock"
+        { "type": "generic", "path": "client/python/slimfaas-client/pyproject.toml" },
+        { "type": "generic", "path": "client/python/slimfaas-client/uv.lock" }
       ]
     }
   }

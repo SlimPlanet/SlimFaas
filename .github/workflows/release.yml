@@ -41,6 +41,7 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - run: python3 .bin/install-release-tools.py gh
       - id: context
         env:
           GH_TOKEN: ${{ github.token }}
@@ -84,7 +85,7 @@ jobs:
         with:
           name: unsigned-candidate
           path: artifacts/release
-      - run: python3 .bin/install-release-tools.py cosign
+      - run: python3 .bin/install-release-tools.py gh cosign
       - run: python3 .bin/release.py inventory
       - name: Sign the complete checksum index
         run: cosign sign-blob --yes --bundle artifacts/release/SHA256SUMS.sigstore.json artifacts/release/SHA256SUMS
@@ -127,7 +128,7 @@ jobs:
         with:
           name: signed-candidate
           path: artifacts/release
-      - run: python3 .bin/install-release-tools.py cosign regctl
+      - run: python3 .bin/install-release-tools.py gh cosign regctl
       - run: python3 .bin/release.py check-ci
       - run: python3 .bin/release.py verify
       - run: python3 .bin/release.py registry-status
@@ -155,7 +156,7 @@ jobs:
         with:
           node-version: '24.21.0'
           registry-url: https://registry.npmjs.org
-      - run: npm install --global npm@11.21.0
+      - run: npm install --global --ignore-scripts npm@11.21.0
       - id: existing
         run: python3 .bin/release.py registry-status
       - name: Publish original npm tarball with a temporary dist-tag
@@ -271,7 +272,7 @@ jobs:
         with:
           node-version: '24.21.0'
           registry-url: https://registry.npmjs.org
-      - run: npm install --global npm@11.21.0
+      - run: npm install --global --ignore-scripts npm@11.21.0
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}

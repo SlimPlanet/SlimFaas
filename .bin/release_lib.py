@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import tarfile
+import tempfile
 import tomllib
 import urllib.error
 import urllib.request
@@ -102,13 +103,32 @@ def next_version(current, commits):
 
 
 def sha256(path):
-    with Path(path).open("rb") as stream:
+    with checked_artifact_path(path).open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
 def write_json(path, data):
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    Path(path).write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    path = checked_artifact_path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def checked_artifact_path(value, allow_temporary=True):
+    """Confine artifact operations; CLI arguments may only select artifacts/ paths."""
+    path = Path(value)
+    if path.is_symlink():
+        raise ValueError("Release artifact paths cannot be symlinks")
+    resolved = path.resolve()
+    roots = [(ROOT / "artifacts").resolve()]
+    if allow_temporary:
+        roots.append(Path(tempfile.gettempdir()).resolve())
+    if not any(resolved.is_relative_to(root) for root in roots):
+        raise ValueError("Release artifact path is outside the allowed directories")
+    return resolved
+
+
+def release_directory(value):
+    return checked_artifact_path(value, allow_temporary=False)
 
 
 def emit(**outputs):
@@ -178,7 +198,7 @@ def check_published_file(local, remote, nuget=False):
 
 
 def oci_identity(path):
-    with tarfile.open(path) as archive:
+    with tarfile.open(checked_artifact_path(path)) as archive:
         index = json.load(archive.extractfile("index.json"))
         descriptors = index["manifests"]
         if len(descriptors) != 1:
@@ -209,7 +229,7 @@ def oci_identity(path):
 
 
 def make_inventory(directory, version, source_sha, channel):
-    directory = Path(directory)
+    directory = checked_artifact_path(directory)
     version_parts(version)
     if not SHA.fullmatch(source_sha):
         raise ValueError("Release source must be a full commit SHA")
@@ -246,7 +266,7 @@ def make_inventory(directory, version, source_sha, channel):
 
 
 def verify_inventory(directory, version, source_sha, allow_validate=False):
-    directory = Path(directory)
+    directory = checked_artifact_path(directory)
     manifest = json.loads((directory / "release.json").read_text())
     if manifest.get("schema") != 1 or manifest.get("repository") != REPOSITORY:
         raise ValueError("Unexpected release manifest")

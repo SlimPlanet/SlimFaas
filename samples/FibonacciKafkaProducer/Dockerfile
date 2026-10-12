@@ -6,9 +6,13 @@ COPY eng/ eng/
 COPY samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj samples/FibonacciKafkaProducer/
 ARG RELEASE_VERSION=0.0.0-dev.0
 ARG SOURCE_REVISION_ID
-RUN dotnet restore samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj -p:RestorePackagesWithLockFile=true
+RUN dotnet restore samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj \
+    -p:RestorePackagesWithLockFile=true
 COPY samples/FibonacciKafkaProducer/ samples/FibonacciKafkaProducer/
-RUN dotnet publish samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj -c Release -o /app/publish --no-restore -p:Version="$RELEASE_VERSION" -p:SourceRevisionId="$SOURCE_REVISION_ID" -p:RestorePackagesWithLockFile=true
+RUN dotnet publish samples/FibonacciKafkaProducer/FibonacciKafkaProducer.csproj -c Release -o /app/publish --no-restore \
+    -p:Version="$RELEASE_VERSION" \
+    -p:SourceRevisionId="$SOURCE_REVISION_ID" \
+    -p:RestorePackagesWithLockFile=true
 
 RUN mkdir -p /app/dependencies && find . -name packages.lock.json -exec cp --parents {} /app/dependencies/ \;
 

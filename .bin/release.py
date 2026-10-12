@@ -13,7 +13,7 @@ import urllib.parse
 
 from release_lib import (NPM_PACKAGE, REPOSITORY, ROOT, SHA, TITLE, check_metadata, check_published_file, download,
                          emit, gh, make_inventory, next_version, python_version, run, sha256,
-                         verify_inventory, version_parts)
+                         release_directory, verify_inventory, version_parts)
 
 
 def release_metadata(version):
@@ -278,7 +278,7 @@ def main():
     parser.add_argument("--version", default=os.environ.get("RELEASE_VERSION"))
     parser.add_argument("--sha", default=os.environ.get("RELEASE_SHA"))
     parser.add_argument("--channel", default=os.environ.get("RELEASE_CHANNEL"))
-    parser.add_argument("--directory", type=Path, default=ROOT / "artifacts/release")
+    parser.add_argument("--directory", type=release_directory, default=ROOT / "artifacts/release")
     args = parser.parse_args()
     if args.command == "prepare":
         prepare(args.mode, args.tag)

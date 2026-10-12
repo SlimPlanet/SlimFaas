@@ -33,7 +33,7 @@ def zip_bytes(entries):
     return output.getvalue()
 
 
-def image_fixture(path, source=SOURCE):
+def image_fixture(path, source=SOURCE, architectures=("amd64", "arm64", "unknown")):
     blobs = {}
 
     def descriptor(value):
@@ -43,7 +43,7 @@ def image_fixture(path, source=SOURCE):
         return {"digest": "sha256:" + digest, "size": len(data)}
 
     children = []
-    for arch in ("amd64", "arm64", "unknown"):
+    for arch in architectures:
         config = descriptor({"os": "unknown" if arch == "unknown" else "linux", "architecture": arch,
                              "config": {"Labels": {"org.opencontainers.image.revision": source,
                                                    "org.opencontainers.image.version": VERSION}}})
@@ -81,6 +81,13 @@ class Versions(unittest.TestCase):
             with self.subTest(version=version), self.assertRaises(ValueError):
                 lib.version_parts(version)
 
+    def test_cli_output_directory_cannot_escape_artifacts(self):
+        for path in (lib.ROOT, lib.ROOT / "artifacts/../.github", Path(tempfile.gettempdir())):
+            with self.subTest(path=path), self.assertRaisesRegex(ValueError, "outside"):
+                lib.release_directory(path)
+        self.assertEqual(lib.release_directory(lib.ROOT / "artifacts/release"),
+                         (lib.ROOT / "artifacts/release").resolve())
+
 
 class Inventory(unittest.TestCase):
     def setUp(self):
@@ -116,6 +123,12 @@ class Inventory(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Checksum index"):
             lib.verify_inventory(self.directory, VERSION, SOURCE)
 
+    def test_duplicated_manifest_entry_is_fatal(self):
+        self.manifest["files"].append(self.manifest["files"][0])
+        lib.write_json(self.directory / "release.json", self.manifest)
+        with self.assertRaisesRegex(ValueError, "duplicated"):
+            lib.verify_inventory(self.directory, VERSION, SOURCE)
+
     def test_unlisted_files_and_absent_sbom_are_fatal(self):
         extra = self.directory / "unexpected.exe"
         extra.touch()
@@ -149,6 +162,41 @@ class Inventory(unittest.TestCase):
 
 
 class CollisionAndResume(unittest.TestCase):
+    def test_platform_images_are_combined_without_changing_their_blobs(self):
+        spec = importlib.util.spec_from_file_location("merge_images", Path(__file__).with_name("merge-release-images.py"))
+        merger = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(merger)
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            inputs = [directory / "amd64.tar", directory / "arm64.tar"]
+            for path, arch in zip(inputs, ("amd64", "arm64")):
+                image_fixture(path, architectures=(arch, "unknown"))
+            output = directory / "combined.tar"
+            merger.merge_archives(inputs, output)
+            _, platforms = lib.oci_identity(output)
+            self.assertEqual([entry["platform"] for entry in platforms], ["linux/amd64", "linux/arm64"])
+            with tarfile.open(output) as combined:
+                for path in inputs:
+                    with tarfile.open(path) as original:
+                        for member in original:
+                            if member.name.startswith("blobs/"):
+                                self.assertEqual(original.extractfile(member).read(), combined.extractfile(member.name).read())
+            with self.assertRaisesRegex(ValueError, "exactly amd64 and arm64"):
+                merger.merge_archives([inputs[0], inputs[0]], output)
+
+    def test_corrupt_tool_download_does_not_replace_installed_tool(self):
+        spec = importlib.util.spec_from_file_location("installer", Path(__file__).with_name("install-release-tools.py"))
+        installer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installer)
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            tool = directory / "cosign"
+            tool.write_bytes(b"previous verified tool")
+            with patch("urllib.request.urlopen", return_value=io.BytesIO(b"corrupt download")):
+                with self.assertRaisesRegex(ValueError, "Checksum mismatch"):
+                    installer.install(["cosign"], directory)
+            self.assertEqual(tool.read_bytes(), b"previous verified tool")
+
     def test_package_collision_and_nuget_repository_signature(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "client.nupkg"

@@ -30,7 +30,10 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
         echo "Unsupported architecture: $TARGETARCH" && exit 1; \
     fi && \
     echo "Building .NET trimmed image for architecture: $TARGETARCH, RID: $RUNTIME_ID" && \
-    dotnet publish "./src/SlimFaas/SlimFaas.csproj" -c Release -r "$RUNTIME_ID" -o /app/publish -p:Version="$RELEASE_VERSION" -p:SourceRevisionId="$SOURCE_REVISION_ID" -p:RestorePackagesWithLockFile=true \
+    dotnet publish "./src/SlimFaas/SlimFaas.csproj" -c Release -r "$RUNTIME_ID" -o /app/publish \
+    -p:Version="$RELEASE_VERSION" \
+    -p:SourceRevisionId="$SOURCE_REVISION_ID" \
+    -p:RestorePackagesWithLockFile=true \
      -p:DebugType=none \
      -p:DebugSymbols=false \
      -p:PublishAot=false \
@@ -41,7 +44,8 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
      -p:SkipClientAppBuild=true
 
 RUN mkdir -p /app/dependencies && find . -name packages.lock.json -exec cp --parents {} /app/dependencies/ \;
-RUN mkdir -p /app/dependencies/frontend && cp src/SlimFaas/ClientApp/package-lock.json /app/dependencies/frontend/package-lock.json
+RUN mkdir -p /app/dependencies/frontend \
+    && cp src/SlimFaas/ClientApp/package-lock.json /app/dependencies/frontend/package-lock.json
 
 FROM base AS final
 COPY --from=publish /app/dependencies /usr/share/slimfaas/dependencies

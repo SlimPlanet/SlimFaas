@@ -6,9 +6,13 @@ COPY eng/ eng/
 COPY src/SlimFaasKafka/SlimFaasKafka.csproj src/SlimFaasKafka/
 ARG RELEASE_VERSION=0.0.0-dev.0
 ARG SOURCE_REVISION_ID
-RUN dotnet restore src/SlimFaasKafka/SlimFaasKafka.csproj -p:RestorePackagesWithLockFile=true
+RUN dotnet restore src/SlimFaasKafka/SlimFaasKafka.csproj \
+    -p:RestorePackagesWithLockFile=true
 COPY src/SlimFaasKafka/ src/SlimFaasKafka/
-RUN dotnet publish src/SlimFaasKafka/SlimFaasKafka.csproj -c Release -o /app/publish --no-restore -p:Version="$RELEASE_VERSION" -p:SourceRevisionId="$SOURCE_REVISION_ID" -p:RestorePackagesWithLockFile=true
+RUN dotnet publish src/SlimFaasKafka/SlimFaasKafka.csproj -c Release -o /app/publish --no-restore \
+    -p:Version="$RELEASE_VERSION" \
+    -p:SourceRevisionId="$SOURCE_REVISION_ID" \
+    -p:RestorePackagesWithLockFile=true
 
 # Runtime stage
 RUN mkdir -p /app/dependencies && find . -name packages.lock.json -exec cp --parents {} /app/dependencies/ \;

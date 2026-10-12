@@ -10,7 +10,7 @@ import tarfile
 import tempfile
 import zipfile
 
-from release_lib import ROOT, SHA, emit, products, python_version, run, safe_extract_zip, version_parts, write_json
+from release_lib import ROOT, SHA, emit, products, python_version, release_directory, run, safe_extract_zip, version_parts
 
 NATIVE_EVIDENCE = {
     "SlimFaas": ["src/SlimFaas/packages.lock.json", "src/SlimData/packages.lock.json", "src/SlimFaas/ClientApp/package-lock.json"],
@@ -71,7 +71,7 @@ def stamp(version):
     package = ROOT / "src/SlimFaasPlanetSaver/package.json"
     data = json.loads(package.read_text())
     data["version"] = version
-    write_json(package, data)
+    package.write_text(json.dumps(data, indent=2) + "\n")
     for filename in ("pyproject.toml", "uv.lock"):
         path = ROOT / "client/python/slimfaas-client" / filename
         lines = path.read_text().splitlines()
@@ -131,15 +131,22 @@ def sbom(directory, version):
                     "--source-name", name, "--source-version", version,
                     "-o", f"spdx-json={artifact}.sbom.spdx.json", "-o", f"cyclonedx-json={artifact}.sbom.cdx.json")
     # Fail closed when a source graph was silently dropped by a scanner change.
+    for path in directory.glob("*.sbom.spdx.json"):
+        document = json.loads(path.read_text())
+        if not document.get("spdxVersion", "").startswith("SPDX-2.") or not document.get("packages"):
+            raise ValueError(f"Empty or invalid SPDX SBOM: {path.name}")
     for path in directory.glob("*.sbom.cdx.json"):
         document = json.loads(path.read_text())
         if document.get("bomFormat") != "CycloneDX" or not document.get("components"):
             raise ValueError(f"Empty or invalid SBOM: {path.name}")
         components = document["components"]
-        if path.name.startswith(("SlimFaas-", "SlimFaasMcp-", "SlimFaasClient.")):
+        dotnet_images = tuple(item["name"] + ".oci.tar." for item in products()["images"]
+                              if item["name"] != "fibonacci-webapp")
+        if path.name.startswith(("SlimFaas-", "SlimFaasMcp-", "SlimFaasClient.") + dotnet_images):
             if not any(x.get("purl", "").startswith("pkg:nuget/") for x in components):
                 raise ValueError(f"NuGet restore graph absent from {path.name}")
-        if path.name.startswith(("SlimFaas-", "SlimFaasMcp-")):
+        if path.name.startswith(("SlimFaas-", "SlimFaasMcp-", "slimfaas.oci.tar.", "slimfaas-dotnet.oci.tar.",
+                                 "slimfaas-mcp.oci.tar.", "fibonacci-webapp.oci.tar.")):
             if not any(x.get("purl", "").startswith("pkg:npm/") for x in components):
                 raise ValueError(f"Embedded frontend absent from {path.name}")
 
@@ -151,7 +158,7 @@ def main():
     parser.add_argument("--rid")
     parser.add_argument("--version")
     parser.add_argument("--sha")
-    parser.add_argument("--directory", type=Path, default=ROOT / "artifacts/release")
+    parser.add_argument("--directory", type=release_directory, default=ROOT / "artifacts/release")
     args = parser.parse_args()
     if args.command == "matrices":
         emit(native=json.dumps({"include": products()["native"]}), images=json.dumps({"include": products()["images"]}))

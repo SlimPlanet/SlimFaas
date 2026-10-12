@@ -131,6 +131,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.RELEASES_ENABLED == 'true'
     needs: required
     runs-on: ubuntu-24.04
+    environment: release-bot
     outputs:
       created: ${{ steps.release.outputs.release_created }}
       tag: ${{ steps.release.outputs.tag_name }}
@@ -213,7 +214,7 @@ jobs:
         with:
           node-version: '24.21.0'
           registry-url: https://registry.npmjs.org
-      - run: npm install --global npm@11.21.0
+      - run: npm install --global --ignore-scripts npm@11.21.0
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
