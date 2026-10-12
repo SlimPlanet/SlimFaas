@@ -25,7 +25,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: slimfaas-release
+  # The stable caller holds the shared lock through its top-level PyPI/finalize jobs.
+  group: ${{ inputs.use_existing_build == true && format('release-staging-{0}', github.run_id) || 'slimfaas-release' }}
   cancel-in-progress: false
 jobs:
   prepare:
@@ -52,7 +53,7 @@ jobs:
     if: inputs.use_existing_build != true && needs.prepare.outputs.resume != 'true'
     uses: ./.github/workflows/ci.yml
   build:
-    needs: [prepare, tests]
+    needs: prepare
     if: inputs.use_existing_build != true && needs.prepare.outputs.resume != 'true'
     uses: ./.github/workflows/release-build.yml
     with:
@@ -69,6 +70,7 @@ jobs:
       contents: read
       id-token: write
       attestations: write
+      artifact-metadata: write
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
@@ -86,7 +88,7 @@ jobs:
       - run: python3 .bin/release.py inventory
       - name: Sign the complete checksum index
         run: cosign sign-blob --yes --bundle artifacts/release/SHA256SUMS.sigstore.json artifacts/release/SHA256SUMS
-      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         id: provenance
         with:
           subject-path: artifacts/release/*
@@ -190,7 +192,10 @@ jobs:
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: dotnet nuget push "artifacts/release/SlimFaasClient.$RELEASE_VERSION.nupkg" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --no-symbols
+  # PyPI trusted publishing must run in a top-level workflow. For stable
+  # releases, main.yml publishes PyPI and finalizes after this call succeeds.
   pypi:
+    if: inputs.use_existing_build != true
     needs: [prepare, stage]
     runs-on: ubuntu-24.04
     environment: pypi
@@ -241,6 +246,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
       - run: python3 .bin/release.py publish-images
   finalize:
+    if: inputs.use_existing_build != true
     needs: [prepare, npm, nuget, pypi, images]
     runs-on: ubuntu-24.04
     environment: release

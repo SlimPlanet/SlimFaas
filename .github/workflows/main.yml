@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.sha }}
+  group: ${{ github.event_name == 'push' && 'slimfaas-release' || format('ci-{0}', github.event.pull_request.number) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 env:
   PNPM_VERSION: '10.14.0'
@@ -107,7 +107,7 @@ jobs:
       - id: version
         run: echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
   candidate:
-    needs: [checks, version]
+    needs: version
     uses: ./.github/workflows/release-build.yml
     with:
       version: ${{ needs.version.outputs.version }}
@@ -154,12 +154,69 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+      artifact-metadata: write
       actions: write
     uses: ./.github/workflows/release.yml
     with:
       mode: stable
       tag: ${{ needs.release_bot.outputs.tag }}
       use_existing_build: true
+  # Keep PyPI OIDC at the top level: PyPI does not support reusable callers.
+  publish_pypi:
+    needs: [release_bot, publish]
+    runs-on: ubuntu-24.04
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.release_bot.outputs.tag }}
+      RELEASE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - id: existing
+        run: python3 .bin/release.py registry-status
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        if: steps.existing.outputs.pypi_pending == 'true'
+        with:
+          packages-dir: artifacts/pypi-pending
+          attestations: true
+  finalize:
+    needs: [release_bot, publish, publish_pypi]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.release_bot.outputs.tag }}
+      RELEASE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.21.0'
+          registry-url: https://registry.npmjs.org
+      - run: npm install --global npm@11.21.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - run: python3 .bin/release.py finalize
   deploy_website:
     needs: required
     runs-on: ubuntu-latest

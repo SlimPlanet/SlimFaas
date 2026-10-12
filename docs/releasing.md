@@ -111,8 +111,10 @@ does not establish registry trust.
    | PyPI | `slimfaas-client` | caller workflows `main.yml` and `release.yml`, environment `pypi` |
    | NuGet | `SlimFaasClient` | caller workflows `main.yml` and `release.yml`, environment `nuget` |
 
-   Register both caller paths because stable releases call the reusable release
-   workflow from `main.yml`, while previews are dispatched directly. Restrict trust
+   Register both workflow paths. Stable PyPI publication and finalization run
+   directly in `main.yml`; previews run directly in `release.yml`, because PyPI
+   does not support trusted publication inside a reusable workflow. Other stable
+   publication jobs are called from `main.yml`. Restrict trust
    to `main` where the registry exposes that setting. For npm, explicitly permit
    direct publishing for the `npm` identities and dist-tag operations for the
    `release` identities (npm CLI 11.21.0 is pinned). Set `NUGET_USER` to the NuGet
