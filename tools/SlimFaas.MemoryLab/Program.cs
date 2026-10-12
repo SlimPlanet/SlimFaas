@@ -211,6 +211,7 @@ static async Task<int> RunLoadAsync(Arguments arguments)
     string? csvPath = arguments.GetOptional("csv");
     string? jsonPath = arguments.GetOptional("json");
     bool validate = arguments.GetBool("validate", defaultValue: false);
+    string? phaseFile = arguments.GetOptional("phase-file");
 
     var payload = CreatePayload(payloadBytes);
     var filePayload = CreatePayload(fileBytes);
@@ -259,6 +260,17 @@ static async Task<int> RunLoadAsync(Arguments arguments)
     await progressTask;
 
     stopwatch.Stop();
+    if (!string.IsNullOrWhiteSpace(phaseFile))
+    {
+        // End measured RSS/CPU before report serialization and state verification.
+        await File.WriteAllTextAsync(phaseFile, "validation");
+        string metricsDirectory = Path.GetDirectoryName(Path.GetFullPath(phaseFile))!;
+        for (int node = 0; node < nodeCount; node++)
+        {
+            string metrics = await client.GetStringAsync(new Uri($"http://127.0.0.1:{firstPort + node}/metrics"));
+            await File.WriteAllTextAsync(Path.Combine(metricsDirectory, $"metrics-load-end-slimfaas-{node}.prom"), metrics);
+        }
+    }
     var report = statistics.CreateReport(
         scenario,
         durationSeconds,
@@ -276,15 +288,16 @@ static async Task<int> RunLoadAsync(Arguments arguments)
         WriteJson(jsonPath, report, statistics.Samples);
 
     var validationFailures = 0;
-    if (validate && scenario == "slimdata-mixed")
+    if (validate && scenario is "slimdata-mixed" or "slimdata-set")
     {
+        using var validationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         validationFailures = await ValidateSlimDataStateAsync(
             client,
             expectedState,
             nodeCount,
             firstPort,
             payload,
-            CancellationToken.None);
+            validationTimeout.Token);
     }
 
     return statistics.Failed == 0 && validationFailures == 0 ? 0 : 1;
@@ -680,79 +693,66 @@ static async Task<int> ValidateSlimDataStateAsync(
 {
     var failures = new List<string>();
     await WaitForQueueDrainAsync(client, nodeCount, firstPort, failures, cancellationToken);
-    var validationIndex = 0;
+    KeyValuePair<string, bool>[] sets = expected.Sets.OrderBy(static item => item.Key).ToArray();
+    KeyValuePair<string, bool>[] hashsets = expected.Hashsets.OrderBy(static item => item.Key).ToArray();
+    KeyValuePair<string, long>[] counters = expected.Counters.OrderBy(static item => item.Key).ToArray();
+    // Every value is checked on every member, with at most one request per member.
+    List<string>[] nodeFailures = await Task.WhenAll(Enumerable.Range(0, nodeCount).Select(ValidateNodeAsync));
+    failures.AddRange(nodeFailures.SelectMany(static items => items));
 
-    foreach (var (id, shouldExist) in expected.Sets.OrderBy(static item => item.Key))
+    async Task<List<string>> ValidateNodeAsync(int node)
     {
-        var node = validationIndex++ % nodeCount;
-        using var response = await client.GetAsync(
-            new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
-            cancellationToken);
-        if (!shouldExist)
+        var errors = new List<string>();
+        await CheckExistenceAsync(node, "Set", "sets", sets, errors);
+        await CheckExistenceAsync(node, "Hashset", "hashsets", hashsets, errors);
+        foreach ((string id, long expectedValue) in counters)
         {
-            if (response.StatusCode != HttpStatusCode.NotFound)
-                failures.Add($"Set {id} should be absent but returned HTTP {(int)response.StatusCode}.");
-            continue;
+            using HttpResponseMessage response = await client.GetAsync(
+                new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"), cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                errors.Add($"Node {node}: Counter {id} returned HTTP {(int)response.StatusCode}.");
+                continue;
+            }
+            string text = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out long actual) ||
+                actual != expectedValue)
+                errors.Add($"Node {node}: Counter {id} is '{text}'; expected {expectedValue}.");
         }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            failures.Add($"Set {id} should exist but returned HTTP {(int)response.StatusCode}.");
-            continue;
-        }
-        var actual = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        if (!actual.AsSpan().SequenceEqual(payload))
-            failures.Add($"Set {id} payload differs from the last successful write.");
+        return errors;
     }
 
-    foreach (var (id, shouldExist) in expected.Hashsets.OrderBy(static item => item.Key))
+    async Task CheckExistenceAsync(int node, string kind, string route,
+        KeyValuePair<string, bool>[] items, List<string> errors)
     {
-        var node = validationIndex++ % nodeCount;
-        using var response = await client.GetAsync(
-            new Uri($"http://127.0.0.1:{firstPort + node}/data/hashsets/{id}"),
-            cancellationToken);
-        if (!shouldExist)
+        foreach ((string id, bool shouldExist) in items)
         {
-            if (response.StatusCode != HttpStatusCode.NotFound)
-                failures.Add($"Hashset {id} should be absent but returned HTTP {(int)response.StatusCode}.");
-            continue;
-        }
-
-        if (!response.IsSuccessStatusCode)
-        {
-            failures.Add($"Hashset {id} should exist but returned HTTP {(int)response.StatusCode}.");
-            continue;
-        }
-        var actual = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-        if (!actual.AsSpan().SequenceEqual(payload))
-            failures.Add($"Hashset {id} payload differs from the last successful write.");
-    }
-
-    foreach (var (id, expectedValue) in expected.Counters.OrderBy(static item => item.Key))
-    {
-        var node = validationIndex++ % nodeCount;
-        using var response = await client.GetAsync(
-            new Uri($"http://127.0.0.1:{firstPort + node}/data/sets/{id}"),
-            cancellationToken);
-        if (!response.IsSuccessStatusCode)
-        {
-            failures.Add($"Counter {id} returned HTTP {(int)response.StatusCode}.");
-            continue;
-        }
-        var text = await response.Content.ReadAsStringAsync(cancellationToken);
-        if (!long.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var actual) ||
-            actual != expectedValue)
-        {
-            failures.Add($"Counter {id} is '{text}'; expected {expectedValue}.");
+            using HttpResponseMessage response = await client.GetAsync(
+                new Uri($"http://127.0.0.1:{firstPort + node}/data/{route}/{id}"), cancellationToken);
+            if (!shouldExist)
+            {
+                if (response.StatusCode != HttpStatusCode.NotFound)
+                    errors.Add($"Node {node}: {kind} {id} should be absent but returned HTTP {(int)response.StatusCode}.");
+                continue;
+            }
+            if (!response.IsSuccessStatusCode)
+            {
+                errors.Add($"Node {node}: {kind} {id} should exist but returned HTTP {(int)response.StatusCode}.");
+                continue;
+            }
+            byte[] actual = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            if (!actual.AsSpan().SequenceEqual(payload))
+                errors.Add($"Node {node}: {kind} {id} payload differs from the last successful write.");
         }
     }
 
     Console.WriteLine(
-        "validation sets={0} hashsets={1} counters={2} failures={3}",
+        "validation sets={0} hashsets={1} counters={2} failures={3} nodes={4}",
         expected.Sets.Count,
         expected.Hashsets.Count,
         expected.Counters.Count,
-        failures.Count);
+        failures.Count,
+        nodeCount);
     foreach (var failure in failures.Take(20))
         await Console.Error.WriteLineAsync($"validation failed: {failure}");
     return failures.Count;
@@ -1232,8 +1232,9 @@ static double SumMetricDelta(string runDirectory, string metricName)
         var before = ReadMetricFile(
             Path.Combine(runDirectory, $"metrics-before-slimfaas-{node}.prom"),
             metricName);
+        string loadEndPath = Path.Combine(runDirectory, $"metrics-load-end-slimfaas-{node}.prom");
         var after = ReadMetricFile(
-            Path.Combine(runDirectory, $"metrics-after-slimfaas-{node}.prom"),
+            File.Exists(loadEndPath) ? loadEndPath : Path.Combine(runDirectory, $"metrics-after-slimfaas-{node}.prom"),
             metricName);
         if (!double.IsNaN(before) && !double.IsNaN(after))
             result += Math.Max(0d, after - before);
@@ -1249,8 +1250,9 @@ static double MedianMetricDelta(string runDirectory, string metricName)
         var before = ReadMetricFile(
             Path.Combine(runDirectory, $"metrics-before-slimfaas-{node}.prom"),
             metricName);
+        string loadEndPath = Path.Combine(runDirectory, $"metrics-load-end-slimfaas-{node}.prom");
         var after = ReadMetricFile(
-            Path.Combine(runDirectory, $"metrics-after-slimfaas-{node}.prom"),
+            File.Exists(loadEndPath) ? loadEndPath : Path.Combine(runDirectory, $"metrics-after-slimfaas-{node}.prom"),
             metricName);
         if (!double.IsNaN(before) && !double.IsNaN(after))
             deltas.Add(Math.Max(0d, after - before));
@@ -1378,7 +1380,7 @@ static void PrintUsage()
         """
         SlimFaas.MemoryLab:
           function [--port 5050]
-          load [--scenario mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [--duration 60]
+          load [--scenario mixed|sync|async|set|files|slimdata-set|slimdata-mixed] [--duration 60] [--phase-file PATH]
                [--concurrency 12] [--payload-bytes 4096] [--file-bytes 262144]
                [--first-port 30021] [--nodes 3] [--keys-per-worker 16]
                [--target-rps 0]
@@ -1755,16 +1757,20 @@ readonly record struct MemorySample(
             int.Parse(columns[2], CultureInfo.InvariantCulture),
             long.Parse(columns[3], CultureInfo.InvariantCulture),
             long.Parse(columns[4], CultureInfo.InvariantCulture),
-            columns.Length == 6 && string.Equals(columns[5], "cooldown", StringComparison.Ordinal)
-                ? SamplePhase.Cooldown
-                : SamplePhase.Load);
+            columns.Length == 5 ? SamplePhase.Load : columns[5] switch
+            {
+                "load" => SamplePhase.Load,
+                "cooldown" => SamplePhase.Cooldown,
+                _ => SamplePhase.Validation
+            });
     }
 }
 
 enum SamplePhase
 {
     Load,
-    Cooldown
+    Cooldown,
+    Validation
 }
 
 sealed class ImmediateHttpMessageHandler : HttpMessageHandler

@@ -4,6 +4,20 @@ SlimFaas sits between callers and their applications. It routes HTTP requests, w
 
 Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard. This page explains what happens behind each step; the [API Reference](api-reference.md) lists the actual routes.
 
+## Container build dependencies
+
+Dockerfiles pin the .NET 10 SDK to `10.0.401` and .NET runtime images to `10.0.12`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.2` for standalone Alpine images). Frontend build stages use Node.js `24.21.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.5` on Alpine 3.24.
+
+The SlimFaas and MCP dashboards install dependencies with `npm ci`; the React demo uses pnpm with a frozen lockfile. Updating a dependency therefore requires its corresponding lockfile to be committed. Generated frontend assets and local test/demo artifacts are excluded from the Docker context. The MCP final image explicitly copies the freshly built dashboard into `wwwroot`, including on the first publish from a clean checkout. All .NET container builds use the repository root as their build context so central package versions, analyzers and AOT checks apply consistently:
+
+```bash
+docker build -f Dockerfile -t slimfaas:local .
+docker build -f src/SlimFaasMcp/Dockerfile -t slimfaas-mcp:local .
+docker build -f samples/FibonacciReact/Dockerfile -t fibonacci-react:local samples/FibonacciReact
+```
+
+See the [dependency update guidelines](../CONTRIBUTING.md#dependency-updates) for compatibility constraints, license checks and validation commands.
+
 ## The system at a glance
 
 ```mermaid
@@ -28,6 +42,12 @@ flowchart LR
 | Docker | Containers discovered through labels and managed using the Docker API | One SlimFaas node |
 | Native local | Commands, health checks and jobs managed by a loopback supervisor | Three real SlimFaas/Raft processes behind one entrypoint |
 
+In Docker mode, container labels are also carried into the pod metadata used by
+metrics discovery. Set `prometheus.io/scrape: "true"`, `prometheus.io/port` and
+`prometheus.io/path` on each metrics target, including the SlimFaas container when
+using its queue metrics. Scraping remains opt-in; missing or disabled scrape
+labels do not create a target.
+
 Native local mode is for development. It shares the host network and does not enforce container CPU, memory or security isolation. Its process orchestrator is distinct from the simulated `Local` orchestrator used by test and memory tools. See [Native Local Mode](native-local-mode.md).
 
 ### Components and responsibilities
@@ -37,6 +57,22 @@ Each SlimFaas node serves requests and observes the cluster. `ReplicasSynchroniz
 `SlimWorker` dispatches queued HTTP work. WebSocket workers deliver requests to registered clients. Job workers create executions through the orchestrator, while schedule workers enqueue due jobs. `HistorySynchronizationWorker` shares recent activity history used by scaling.
 
 SlimData holds replicated queue state, configuration and small values. `ClusterMembershipAnnounceWorker` announces a member to a leader; `SlimDataMembershipReconciliationWorker` reconciles membership with the orchestrator topology. Node readiness includes Raft recovery and protocol compatibility.
+
+Membership reconciliation uses one topology snapshot per cycle. A removal requires
+a positive requested replica count, exactly that many distinct eligible endpoints,
+and the local endpoint in the snapshot. Eligible pods have started and have an IP;
+they do not need to be ready. A replacement pod that is absent, pending or waiting
+for an IP therefore does not cause the remaining members to shrink the Raft quorum.
+Eligible new members can still be added while the topology is incomplete.
+
+A real scale-down retains the existing `SlimData:Membership:RemovalMissingCycles`
+confirmation threshold (three by default). Removal observations reset when the
+topology is incomplete, the local endpoint is missing, an addition is attempted,
+or leadership, consensus or the leader lease is unavailable. A complete topology
+must then be observed for the full threshold again. Debug logs report the requested
+replica count and eligible endpoint count when removals are deferred. This guard
+does not automatically repair an already divergent membership configuration or
+restart a stalled process; see [data-preserving Raft recovery](get-started-kubernetes.md#recovering-a-leaderless-cluster).
 
 ### Event-driven Kubernetes synchronization (watch-as-signal)
 
@@ -171,15 +207,45 @@ flowchart LR
 
 Small sets, counters and queue mutations are applied through SlimData's replicated log. Counter operations execute atomically as commands. The HTTP hashset facade stores one raw value field.
 
+Each node batches outgoing SlimData mutations in a local command consumer (one
+per configured partition). Dequeueing an asynchronous request is itself a durable
+mutation: a stalled local consumer can therefore stop dispatch even when functions
+are Ready and Raft continues committing writes from other nodes. Check local batch
+queue growth and dispatch-cycle progress together with Raft health.
+
+The consumer stops after 15 seconds of inactivity and starts again when a command
+arrives. Admission, retirement and disposal are synchronized so that a command
+arriving during retirement remains owned by exactly one consumer. An unexpected
+consumer exception is logged and explicitly fails its unfinished operations;
+the next enqueue can start a new consumer. The batcher does not automatically
+replay failed operations, because an interrupted write may already have committed.
+This recovery does not change Raft messages, persisted data or function retry
+configuration. Upgrading to a release containing this fix prevents the negative
+idle-timeout failure; on older versions, restarting the affected SlimFaas pod is
+a temporary workaround, not a repair of the underlying race.
+
 File content is disk-backed; metadata is cluster-consistent. A receiving node announces availability and another node can pull content when serving a download. File bytes are not copied through Raft as ordinary large values. TTL and deletion govern temporary artifact availability. See [Data Sets](data-sets.md) and [Data Files](data-files.md).
 
 ### Consensus and persistence
 
 SlimData uses Raft through DotNext. Nodes retain applied state in memory and persist commands in a write-ahead log. A healthy quorum is needed for replicated writes; local snapshots of status and metadata do not by themselves establish that every peer is caught up.
 
+SlimData uses DotNext 6.8.1. This includes upstream fixes for a full replication
+queue silently losing a member response and for rejecting an election candidate
+whose log is shorter but whose last term is newer. These are stabilization fixes;
+they do not establish the cause of a particular operational incident. The
+SlimData command protocol, snapshot payload format and AppendEntries commit-index
+guard are preserved.
+
+The upgrade must preserve live member re-addition, legacy WAL metadata pages
+on hosts with system pages larger than 4 KiB, and compatibility with legacy
+Raft HTTP headers. See the
+[validation record](https://github.com/SlimPlanet/SlimFaas/blob/main/docs/raft-stability-validation.md)
+before upgrading existing state. Do not infer safe rollback from a forward-upgrade test.
+
 ### SlimData recovery
 
-DotNext 6.4.1 chooses the synchronization path internally. SlimFaas supplies
+DotNext 6.8.1 chooses the synchronization path internally. SlimFaas supplies
 `warmupRounds` (100 by default): a restarted member first attempts WAL
 backtracking and can fall back to DotNext snapshot recovery when the gap is
 larger than the configured search window. There is no public API in this
@@ -197,7 +263,32 @@ audit-trail implementation does not expose an applied index, lag and recovery
 metrics remain zero because that state cannot be measured safely.
 
 
+`slimdata_raft_progress_stalled` becomes 1 when the local WAL has entries pending
+application and the applied index has not changed for 30 seconds. It is sampled
+every five seconds using monotonic time, logs only transitions, and clears on
+progress or when the backlog disappears. Idle nodes without a backlog remain at
+0. This informational signal does not change readiness, membership or restart
+behavior. See [Raft incident collection](opentelemetry.md#slimdata-raft-progress).
+
+A cluster can also lose its leader while every local entry is already applied.
+`slimdata_raft_has_leader` and
+`slimdata_raft_consensus_unavailable_duration_seconds` cover this independent
+failure mode. The duration accumulates while the leader is absent or consensus
+is unavailable and resets only when both return. The five-second sampler logs
+availability transitions and a reminder every 60 seconds. Identical readiness
+warnings are shared across waiters and limited to once per 60 seconds; a new
+reason or a new outage is reported immediately. None of these diagnostics
+restarts a node or changes its persisted state.
+
 ### SlimData WAL and snapshots
+
+Both the SlimFaas host and standalone SlimData restore the latest snapshot before
+resolving Raft services or starting hosted services. DotNext 6.8.1 requires this
+ordering before constructing the write-ahead log when a snapshot exists. Empty
+databases follow the same startup sequence. Restoration failures stop startup; WAL application must not race snapshot loading.
+DotNext 6.8.1 also rejects WAL construction if restoration was omitted, including
+through the dependency-injection registrations. A regression test exercises this
+guard with a compacted legacy WAL; new hosts must preserve the startup sequence.
 
 DotNext supports two WAL memory-management strategies. SlimFaas selects the strategy with `SlimData:WalMemoryManagement`:
 

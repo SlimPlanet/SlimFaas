@@ -70,7 +70,9 @@ curl -i -X POST http://127.0.0.1:30020/async-function/fibonacci1/fibonacci \
 ```
 
 Sustained queued work can scale the function up to its configured maximum of
-10 replicas. Three settings explain the subsequent descent:
+10 replicas. The tutorial allows up to ten concurrent async requests across the
+function, with one request per replica, so additional ready replicas can increase
+processing capacity. Three settings explain the subsequent descent:
 
 - The trigger uses `max_over_time(...[30s])`: a queue peak can remain visible
   for 30 seconds after work drains.

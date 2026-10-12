@@ -1,4 +1,4 @@
-FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/runtime-deps:10.0-alpine3.23 AS base
+FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/runtime-deps:10.0.12-alpine3.24 AS base
 RUN apk update && apk upgrade
 RUN apk add --no-cache icu-libs
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
@@ -7,14 +7,14 @@ RUN adduser -u 1000 --disabled-password --gecos "" appuser && chown -R appuser /
 USER appuser
 
 # ---- Node stage: build the Vite/React dashboard ----
-FROM --platform=$BUILDPLATFORM node:24-alpine AS clientapp
+FROM --platform=$BUILDPLATFORM node:24.21.0-alpine3.24 AS clientapp
 WORKDIR /clientapp
-COPY src/SlimFaas/ClientApp/package.json src/SlimFaas/ClientApp/package-lock.json* ./
-RUN npm install
+COPY src/SlimFaas/ClientApp/package.json src/SlimFaas/ClientApp/package-lock.json ./
+RUN npm ci
 COPY src/SlimFaas/ClientApp/ ./
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine3.23 AS publish
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401-alpine3.24 AS publish
 RUN apk update && apk upgrade
 WORKDIR /src
 COPY . .

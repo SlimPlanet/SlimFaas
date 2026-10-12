@@ -11,14 +11,13 @@ fi
 PODMAN_LOG_LEVEL="${PODMAN_LOG_LEVEL:-$([[ "$VERBOSE" == "1" ]] && echo debug || echo info)}"
 echo ">> Using PODMAN_LOG_LEVEL=$PODMAN_LOG_LEVEL"
 
-# 1) In the Podman VM, the Docker-compatible socket is /run/docker.sock
-DOCKER_SOCKET_PATH="/run/docker.sock"
+# In the Podman VM, the Docker-compatible socket is /run/docker.sock.
+# Use the active Podman connection; it need not be podman-machine-default.
+DOCKER_SOCKET_PATH="${DOCKER_SOCKET_PATH:-/run/docker.sock}"
 echo ">> Using DOCKER_SOCKET_PATH=$DOCKER_SOCKET_PATH"
 
-# (Optional) Safety: make sure the socket is readable/writable
-podman machine ssh -- "sudo chmod 666 /run/user/*/podman/podman.sock /run/docker.sock 2>/dev/null || true"
-
-# 2) Run podman compose with the right environment variables
+# podman compose configures the provider's host connection itself. DOCKER_HOST
+# here is interpolated into the SlimFaas container, where the socket is mounted.
 export DOCKER_SOCKET_PATH
 export DOCKER_HOST="unix:///var/run/docker.sock"
 export PODMAN_LOG_LEVEL

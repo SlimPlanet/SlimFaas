@@ -1,12 +1,42 @@
 using System.Text;
+using DotNext.Net.Cluster.Consensus.Raft;
 using DotNext.Net.Cluster.Consensus.Raft.StateMachine;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using SlimData.Options;
 
 namespace SlimData.Tests;
 
 public sealed class StartupConfigurationTests
 {
+    [Fact]
+    public async Task Resolving_the_wal_before_snapshot_restore_fails_instead_of_replaying_partial_state()
+    {
+        string root = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
+        try
+        {
+            System.IO.Compression.ZipFile.ExtractToDirectory(
+                Path.Combine(AppContext.BaseDirectory, "Snapshots", "dotnext-6.6.0-wal.zip"), root);
+            IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(
+                new Dictionary<string, string?> { [SlimPersistentState.LogLocation] = root }).Build();
+            var services = new ServiceCollection();
+            services.AddSingleton(configuration).AddLogging();
+            new Startup(configuration).ConfigureServices(services);
+            await using ServiceProvider provider = services.BuildServiceProvider();
+
+            // DotNext 6.8.1 guards this contract for every DI consumer, including new hosts.
+            InvalidOperationException error = Assert.Throws<InvalidOperationException>(
+                () => provider.GetRequiredService<IPersistentState>());
+            Assert.Contains("restor", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Empty(provider.GetRequiredService<SlimPersistentState>().SlimDataState.KeyValues);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public void Membership_defaults_allow_slow_recovery()
     {

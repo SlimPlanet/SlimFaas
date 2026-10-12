@@ -266,6 +266,16 @@ Writes are grouped into bounded adaptive batches before being replicated as Raft
 - **429 Too Many Requests** when the in-memory adaptive batch queue is full.
 - **503 Service Unavailable** when no Raft quorum or valid leader lease is available within the bounded replication or read-barrier timeout.
 
+The internal `/SlimData/CommandBatch` endpoint also returns **503** if leadership
+is lost or a server operation is canceled while the caller remains connected.
+Expected `NotLeaderException` and `QuorumUnreachableException` failures are logged
+as temporary unavailability instead of unexpected server errors. **499** is
+reserved for cancellation of the incoming HTTP request. If response headers were
+already sent, the connection is aborted so a partial response cannot appear
+successful. An unavailable or interrupted response does not establish whether a
+write committed; the existing ordered producer-batch retry retains its sequence
+and deduplication identity.
+
 `SET` keeps its existing retry behavior. Numeric mutations are not retried automatically because they are not idempotent.
 
 SlimData uses DotNext's `SharedMemory` WAL strategy by default. It keeps WAL chunks in memory-mapped files so the operating system can reclaim their pages under memory pressure. Deployments that explicitly favor maximum write throughput over memory usage can select `PrivateMemory` instead:

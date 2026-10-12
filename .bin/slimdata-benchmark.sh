@@ -8,6 +8,7 @@ repetitions="${REPETITIONS:-3}"
 cooldown_seconds="${COOLDOWN_SECONDS:-5}"
 timestamp="$(date -u +%Y%m%dT%H%M%SZ)"
 run_root="${BENCHMARK_RUN_ROOT:-$repo_root/artifacts/slimdata-benchmark/ab-$timestamp}"
+reference_commit="${BEFORE_REF:-4d836f83c4e3c7df865cb2869c10a85108a6ed43}"
 before_publish="${BEFORE_PUBLISH_DIR:-$repo_root/artifacts/slimdata-benchmark/before/publish}"
 after_publish="${AFTER_PUBLISH_DIR:-$repo_root/artifacts/slimdata-benchmark/after/publish}"
 lab_project="$repo_root/tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj"
@@ -27,7 +28,7 @@ esac
 
 if [[ ! -x "$before_publish/SlimFaas" ]]; then
   echo "Reference Native AOT binary is missing: $before_publish/SlimFaas" >&2
-  echo "Publish commit 4d836f83c4e3c7df865cb2869c10a85108a6ed43 before running the matrix." >&2
+  echo "Publish commit $reference_commit before running the matrix." >&2
   exit 1
 fi
 
@@ -57,7 +58,7 @@ else
 fi
 
 {
-  echo "reference_commit=4d836f83c4e3c7df865cb2869c10a85108a6ed43"
+  echo "reference_commit=$reference_commit"
   echo "after_commit=$(git -C "$repo_root" rev-parse HEAD)"
   echo "before_binary_sha256=$(shasum -a 256 "$before_publish/SlimFaas" | awk '{print $1}')"
   echo "after_binary_sha256=$(shasum -a 256 "$after_publish/SlimFaas" | awk '{print $1}')"

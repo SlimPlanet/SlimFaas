@@ -1,5 +1,72 @@
 # Changelog
 
+## v0.84.16
+
+- [bfbd344a](https://github.com/SlimPlanet/SlimFaas/commit/bfbd344a9cc0abd5e1911563f998e488274c6698) - fix: make the Windows guided tour repeatable (#444) (release), 2026-10-01 by *Guillaume Chervet*
+- [36e33aa4](https://github.com/SlimPlanet/SlimFaas/commit/36e33aa4e37781e74adf23e6f82a0353b54d560b) - fix(doc): Podman Compose onboarding and validate the Get Started tours (#442), 2026-09-29 by *Guillaume Chervet*
+
+
+## 0.84.15
+
+
+
+## v0.84.15
+
+- [28da9d23](https://github.com/SlimPlanet/SlimFaas/commit/28da9d23883e9b9d27450d267db1402d4665655c) - fix(SlimData): classify transient Raft endpoint failures as unavailable (#440) (release), 2026-09-29 by *Guillaume Chervet*
+
+
+## 0.84.14
+
+
+
+## v0.84.14
+
+- [b3638d13](https://github.com/SlimPlanet/SlimFaas/commit/b3638d13d6fb25ac8b58a2b23d436a230a807c3e) - fix(SlimData): preserve Raft members during pod replacement (#434) (release), 2026-09-24 by *Guillaume Chervet*
+
+
+## 0.84.13
+
+
+
+## v0.84.13
+
+- [ea888cfa](https://github.com/SlimPlanet/SlimFaas/commit/ea888cfa07052f9db8fc736f3992e7001de4e998) - chore(deps): refresh Docker images and .NET/JavaScript packages (#432) (release), 2026-09-23 by *Guillaume Chervet*
+
+
+## 0.84.12
+
+
+
+## v0.84.12
+
+- [f5be9eb7](https://github.com/SlimPlanet/SlimFaas/commit/f5be9eb730528df1daa02b8fd7c1621d22db0aaa) - fix(SlimData): upgrade Raft and diagnose leaderless clusters (#403) (release), 2026-09-23 by *Guillaume Chervet*
+
+
+## 0.84.11
+
+
+
+## v0.84.11
+
+- [b490a555](https://github.com/SlimPlanet/SlimFaas/commit/b490a555110df4f77f9825cd096b1fd440ca1fb1) - fix: remove false path visibility warnings (#428) (release), 2026-09-22 by *Guillaume Chervet*
+
+
+## 0.84.10
+
+
+
+## v0.84.10
+
+- [8c47c685](https://github.com/SlimPlanet/SlimFaas/commit/8c47c6856e9f89518c48e5f29761b2b3031d3ee0) - fix(SlimData): recover command batching after idle worker failures (#425) (release), 2026-09-21 by *Guillaume Chervet*
+- [c4f5bf62](https://github.com/SlimPlanet/SlimFaas/commit/c4f5bf625db36ef740a6efaf5545dbd6e3645574) - fix(security): classify callers by connection address only and verify the API-server certificate by default (#406, #407) (#415), 2026-09-18 by *Guillaume Delahaye*
+- [b7cdd8b1](https://github.com/SlimPlanet/SlimFaas/commit/b7cdd8b1ee50f73aa754140a59f23ca5218e0a67) - build: NuGet Central Package Management (#395) (#400), 2026-09-15 by *Guillaume Delahaye*
+- [fe3b08e7](https://github.com/SlimPlanet/SlimFaas/commit/fe3b08e779e3633a24e5f6ad6c7217a6e311341c) - test(SlimFaas): drive the SlimJobsWorker tests by mock signals instead of wall-clock delays (#397), 2026-09-14 by *Guillaume Delahaye*
+
+
+## 0.84.9
+
+
+
 ## v0.84.9
 
 - [3da11da0](https://github.com/SlimPlanet/SlimFaas/commit/3da11da0f2958720ee493ca3b84e9e6aa6dfe2d0) - build: analyzer remediation phases 2-4 (#358) (#394) (release), 2026-09-14 by *Guillaume Delahaye*
@@ -209,71 +276,5 @@
 ## v0.79.4
 
 - [bbe315ad](https://github.com/SlimPlanet/SlimFaas/commit/bbe315ad2270a3c03426490a1e756bfeed9adaa6) - fix: enhance scale (#309) (release), 2026-08-02 by *Guillaume Chervet*
-
-
-## 0.79.3
-
-
-
-## v0.79.3
-
-- [56e8f9a3](https://github.com/SlimPlanet/SlimFaas/commit/56e8f9a309178447723fcc3574e88347c3de1ebc) - refactor(slimfaas): remove trimming warning (#307) (release), 2026-08-01 by *Guillaume Chervet*
-- [ec92b95f](https://github.com/SlimPlanet/SlimFaas/commit/ec92b95fe362903392304f95c82d5f501818dafa) - fix(slimfaas): local mode win (#308), 2026-08-01 by *Guillaume Chervet*
-- [8fc80e1e](https://github.com/SlimPlanet/SlimFaas/commit/8fc80e1e25d04d8ac6f9e7d92de6dcdade5a7c3b) - doc: Generate `sitemap.xml` dynamically during SlimFaasSite export (#306), 2026-08-01 by *Copilot*
-
-
-## 0.79.2
-
-
-
-## v0.79.2
-
-- [769ffebc](https://github.com/SlimPlanet/SlimFaas/commit/769ffebcf276d0b149e9381675a4a931341b3798) - refactor: clean code (release), 2026-07-31 by *Guillaume Chervet*
-- [e209ac86](https://github.com/SlimPlanet/SlimFaas/commit/e209ac86fad58f167446a17a27266fcac81e0f45) - refactor(slimfaas): clean logger warning, 2026-07-31 by *Guillaume Chervet*
-- [015280f3](https://github.com/SlimPlanet/SlimFaas/commit/015280f3706b1b279403a03f6703cc4c67e30fdc) - doc: update AGENTS.md, 2026-07-31 by *Guillaume Chervet*
-
-
-## 0.79.1
-
-
-
-## v0.79.1
-
-- [70f8f469](https://github.com/SlimPlanet/SlimFaas/commit/70f8f469b7aea1365fe9a47ef23feb26e4f02249) - fix(slimfaas): local scale down (release), 2026-07-30 by *Guillaume Chervet*
-
-
-## 0.79.0
-
-
-
-## v0.79.0
-
-- [2216e9f6](https://github.com/SlimPlanet/SlimFaas/commit/2216e9f64d0a972f7b5694ca5366d7f8b8ebd0c4) - feat(slimfaas): UI stream job activity (release), 2026-07-30 by *Guillaume Chervet*
-
-
-## 0.78.0
-
-
-
-## v0.78.0
-
-- [53b82316](https://github.com/SlimPlanet/SlimFaas/commit/53b82316abdb890ec06da11eea787ad6a12b9a67) - feat(slimfaas): local add dependson processes (release), 2026-07-30 by *Guillaume Chervet*
-
-
-## 0.77.1
-
-
-
-## v0.77.1
-
-- [661414a9](https://github.com/SlimPlanet/SlimFaas/commit/661414a9073c2a15e6d83a2f5b26ab676c958a13) - feature(slimfaas):  enhance local mode (#305) (release), 2026-07-29 by *Guillaume Chervet*
-
-
-## 0.76.1
-
-
-
-## 0.77.0
-
 
 

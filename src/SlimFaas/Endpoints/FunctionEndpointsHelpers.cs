@@ -241,7 +241,6 @@ public static class FunctionEndpointsHelpers
             {
                 return pathStartWith.Visibility;
             }
-            logger.LogPathStartWithVisibilityShouldBePrefixedByPublic(pathStartWith);
         }
         return function.Visibility;
     }
