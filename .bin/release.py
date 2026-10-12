@@ -76,6 +76,20 @@ def check_tag(version, source_sha):
         raise ValueError("Release tag does not point to the build source")
 
 
+def check_remote_tag(version, source_sha):
+    target = gh(f"repos/{REPOSITORY}/git/ref/tags/{version}")["object"]
+    # Support historical annotated tags as well as lightweight release tags.
+    for _ in range(10):
+        if target["type"] == "commit":
+            if target["sha"] != source_sha:
+                raise ValueError("Remote release tag does not match the signed source")
+            return
+        if target["type"] != "tag":
+            break
+        target = gh(f"repos/{REPOSITORY}/git/tags/{target['sha']}")["object"]
+    raise ValueError("Release tag does not resolve to a commit")
+
+
 def check_ci(source_sha):
     """Require CI on the source and external checks on the reviewed PR head."""
     source_on_main(source_sha)
@@ -230,6 +244,7 @@ def finalize(directory, manifest):
         if image_digest(f"{image['name']}:{manifest['version']}") != image["digest"]:
             raise ValueError("Published image does not match the release manifest")
         verify_image_signature(image)
+    check_remote_tag(manifest["version"], manifest["source_sha"])
     channel = manifest["channel"]
     destination = "latest" if channel == "stable" else channel
     if channel == "stable":

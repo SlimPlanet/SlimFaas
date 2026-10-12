@@ -15,6 +15,18 @@ import zipfile
 from release_lib import ROOT, release_directory
 
 
+def download_url(value):
+    url = urllib.parse.urlparse(value)
+    parts = url.path.split("/")[1:]
+    if (url.scheme != "https" or url.netloc != "github.com" or url.query or url.fragment
+            or len(parts) != 6 or parts[2:4] != ["releases", "download"]
+            or any(not part or part in (".", "..") or "%" in part or "\\" in part for part in parts)):
+        raise ValueError("Release tools must be downloaded from an HTTPS GitHub release")
+    # Encode each path component independently so neither traversal nor URL
+    # delimiters from the reviewed lock file can change the download endpoint.
+    return "https://github.com/" + "/".join(urllib.parse.quote(part, safe="") for part in parts)
+
+
 def install(names, destination):
     lock = json.loads(Path(__file__).with_name("release-tools.json").read_text())
     machine = {"x86_64": "amd64", "aarch64": "arm64", "arm64": "arm64"}[platform.machine()]
@@ -22,10 +34,7 @@ def install(names, destination):
     destination.mkdir(parents=True, exist_ok=True)
     for name in names:
         entry = lock[name]["assets"][system]
-        url = urllib.parse.urlparse(entry["url"])
-        if url.scheme != "https" or url.netloc != "github.com" or "/releases/download/" not in url.path:
-            raise ValueError("Release tools must be downloaded from an HTTPS GitHub release")
-        with urllib.request.urlopen(entry["url"], timeout=120) as response:
+        with urllib.request.urlopen(download_url(entry["url"]), timeout=120) as response:
             data = response.read()
         if hashlib.sha256(data).hexdigest() != entry["sha256"]:
             raise ValueError(f"Checksum mismatch for {name}")

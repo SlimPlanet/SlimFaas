@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -21,7 +22,13 @@ def publish(project, rid, destination, aot=False, folder="src", version=None):
         if not (dashboard / "node_modules").is_dir():
             subprocess.run([npm, "ci"], cwd=dashboard, check=True)
         subprocess.run([npm, "run", "build"], cwd=dashboard, check=True)
-    version_args = [f"-p:Version={version}", "-p:RestorePackagesWithLockFile=true", f"-p:SourceRevisionId={subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=REPOSITORY, text=True).strip()}"] if version else []
+    version_args = []
+    # Local tutorial labels such as "local-check" remain valid bundle names;
+    # production builders validate SemVer before invoking this helper.
+    if version and re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", version, re.ASCII):
+        revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPOSITORY, text=True).strip()
+        version_args = [f"-p:Version={version}", "-p:RestorePackagesWithLockFile=true",
+                        f"-p:SourceRevisionId={revision}"]
     subprocess.run([
         "dotnet", "publish", str(REPOSITORY / folder / project / f"{project}.csproj"),
         "-c", "Release", "-r", rid, "-o", str(destination),

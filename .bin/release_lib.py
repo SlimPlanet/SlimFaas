@@ -221,7 +221,12 @@ def oci_identity(path):
             if "config" not in child:
                 raise ValueError("Unexpected nested OCI index")
             config = read(child["config"])
-            if config.get("os") == "unknown":  # BuildKit attestations
+            # BuildKit OCI 1.1 attestations use an empty config rather than an
+            # image config containing os/architecture. Retain and verify their
+            # blobs, but do not count them as runnable platforms.
+            attestation = (child.get("artifactType") == "application/vnd.docker.attestation.manifest.v1+json"
+                           or descriptor.get("annotations", {}).get("vnd.docker.reference.type") == "attestation-manifest")
+            if attestation or config.get("os") == "unknown":
                 continue
             platforms.append({"platform": f"{config['os']}/{config['architecture']}",
                               "labels": config.get("config", {}).get("Labels", {})})

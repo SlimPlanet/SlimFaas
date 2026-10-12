@@ -33,7 +33,7 @@ def zip_bytes(entries):
     return output.getvalue()
 
 
-def image_fixture(path, source=SOURCE, architectures=("amd64", "arm64", "unknown")):
+def image_fixture(path, source=SOURCE, architectures=("amd64", "arm64", "unknown"), empty_attestations=False):
     blobs = {}
 
     def descriptor(value):
@@ -44,10 +44,15 @@ def image_fixture(path, source=SOURCE, architectures=("amd64", "arm64", "unknown
 
     children = []
     for arch in architectures:
-        config = descriptor({"os": "unknown" if arch == "unknown" else "linux", "architecture": arch,
+        config_value = {"os": "unknown" if arch == "unknown" else "linux", "architecture": arch,
                              "config": {"Labels": {"org.opencontainers.image.revision": source,
-                                                   "org.opencontainers.image.version": VERSION}}})
-        children.append(descriptor({"schemaVersion": 2, "config": config, "layers": []}))
+                                                   "org.opencontainers.image.version": VERSION}}}
+        empty = arch == "unknown" and empty_attestations
+        config = descriptor({} if empty else config_value)
+        child = {"schemaVersion": 2, "config": config, "layers": []}
+        if empty:
+            child["artifactType"] = "application/vnd.docker.attestation.manifest.v1+json"
+        children.append(descriptor(child))
     root = descriptor({"schemaVersion": 2, "manifests": children})
     blobs["index.json"] = json.dumps({"schemaVersion": 2, "manifests": [root]}).encode()
     with tarfile.open(path, "w") as archive:
@@ -170,7 +175,7 @@ class CollisionAndResume(unittest.TestCase):
             directory = Path(temporary)
             inputs = [directory / "amd64.tar", directory / "arm64.tar"]
             for path, arch in zip(inputs, ("amd64", "arm64")):
-                image_fixture(path, architectures=(arch, "unknown"))
+                image_fixture(path, architectures=(arch, "unknown"), empty_attestations=True)
             output = directory / "combined.tar"
             merger.merge_archives(inputs, output)
             _, platforms = lib.oci_identity(output)
@@ -196,6 +201,18 @@ class CollisionAndResume(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "Checksum mismatch"):
                     installer.install(["cosign"], directory)
             self.assertEqual(tool.read_bytes(), b"previous verified tool")
+
+    def test_tool_download_rejects_traversal_and_unexpected_endpoints(self):
+        spec = importlib.util.spec_from_file_location("installer", Path(__file__).with_name("install-release-tools.py"))
+        installer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installer)
+        valid = "https://github.com/cli/cli/releases/download/v2.102.0/gh.tar.gz"
+        self.assertEqual(installer.download_url(valid), valid)
+        for value in (valid.replace("https:", "http:"), valid + "?redirect=evil", valid + "#fragment",
+                      valid.replace("github.com", "github.com.evil"), valid.replace("v2.102.0", ".."),
+                      valid.replace("v2.102.0", "%2e%2e"), valid.replace("v2.102.0", "../..")):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                installer.download_url(value)
 
     def test_package_collision_and_nuget_repository_signature(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -252,6 +269,16 @@ class CollisionAndResume(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "source"):
                 release.check_tag("0.84.16", SOURCE)
             self.assertIn("refs/tags/0.84.16^{commit}", command.call_args.args)
+
+    def test_remote_tag_must_still_match_before_finalization(self):
+        with patch.object(release, "gh", return_value={"object": {"type": "commit", "sha": "b" * 40}}):
+            with self.assertRaisesRegex(ValueError, "signed source"):
+                release.check_remote_tag("0.84.16", SOURCE)
+        with patch.object(release, "gh", side_effect=[
+            {"object": {"type": "tag", "sha": "b" * 40}},
+            {"object": {"type": "commit", "sha": SOURCE}},
+        ]):
+            release.check_remote_tag("0.84.16", SOURCE)
 
 
 if __name__ == "__main__":
