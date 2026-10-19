@@ -14,7 +14,7 @@ RUN npm ci
 COPY src/SlimFaas/ClientApp/ ./
 RUN npm run build
 
-FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401-alpine3.24 AS build
+FROM --platform=$TARGETPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.402-alpine3.24 AS build
 RUN apk update && apk upgrade
 # Install compilation tools for native AOT
 RUN apk add --no-cache build-base zlib-dev musl-dev
