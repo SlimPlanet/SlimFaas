@@ -74,7 +74,7 @@
 
   <!-- Kubernetes -->
   <ItemGroup>
-    <PackageVersion Include="KubernetesClient.Aot" Version="19.0.2" />
+    <PackageVersion Include="KubernetesClient.Aot" Version="21.0.8" />
   </ItemGroup>
 
   <!-- Raft / DotNext -->
