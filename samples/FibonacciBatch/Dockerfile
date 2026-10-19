@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.402 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /repo
 # Le contexte de build est la racine du dépôt pour inclure samples/FibonacciBatch et client/dotnet/SlimFaasClient
