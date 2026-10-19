@@ -1,5 +1,5 @@
 # Build context: the repository root, so the shared build settings (Directory.Build.*, Directory.Packages.props, .editorconfig, eng/) apply.
-FROM mcr.microsoft.com/dotnet/sdk:10.0.401 AS build
+FROM mcr.microsoft.com/dotnet/sdk:10.0.402 AS build
 WORKDIR /repo
 COPY Directory.Build.props Directory.Build.targets Directory.Packages.props global.json .editorconfig ./
 COPY eng/ eng/
