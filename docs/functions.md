@@ -209,6 +209,8 @@ You can configure the synchronous HTTP timeout and the retry policies used by as
 ```
 
 Synchronous calls make exactly one HTTP request and never retry. `DefaultSync` therefore supports only `HttpTimeout`.
+Connections from SlimFaas to function pods are recycled after five minutes when the current request finishes.
+This connection lifetime is independent of `HttpTimeout` and does not retry failed requests.
 
 `TimeoutRetries` defines the delays in seconds between attempts for asynchronous and publish calls. `HttpStatusRetries` lists the HTTP statuses that trigger those retries.
 
