@@ -16,7 +16,8 @@ public record ScheduledJobInfo(
     string Image,
     long? NextExecutionTimestamp,
     CreateJobResources? Resources,
-    List<string>? DependsOn);
+    List<string>? DependsOn,
+    string? TimeZone);
 
 public record JobConfigurationStatus(
     string Name,

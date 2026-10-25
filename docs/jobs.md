@@ -281,6 +281,7 @@ You can also define **cron schedules** for jobs under the `"Schedules"` key. Eac
 | **DependsOn**  | Optional list of dependencies that must be ready before the scheduled job runs. Override default dependencies defined in the job configuration.                                            |
 | **Resources**   | Optional overrides for resource requests/limits, merging with the job configuration defaults.                                                                                              |
 | **Environments** | Optional environment variables to inject into the job container, merging with the job configuration defaults.                                                                              |
+| **TimeZone**     | Optional IANA time zone ID (e.g. `Europe/Paris`) in which the cron expression is evaluated. Defaults to `UTC`. See [Schedule time zones](#52-schedule-time-zones).                         |
 | **BackoffLimit** | Optional override for the number of retries allowed if the job fails. Defaults to the job configuration value.                                                                             |
 | **TtlSecondsAfterFinished** | Optional override for how long to keep job resources after completion. Defaults to the job configuration value.                                                                            |
 | **RestartPolicy** | Optional override for the restart policy of the job pods. Defaults to the job configuration value.                                                                                         |
@@ -404,6 +405,7 @@ Each entry is merged with the CronJob's own configuration, so fields you omit ar
 | **Resources**               | No           | CPU/memory requests and limits override.                                                         | Inherited from `containers[0].resources`    |
 | **Environments**            | No           | Environment variables to inject.                                                                 | Inherited from `containers[0].env`          |
 | **DependsOn**               | No           | Deployments/StatefulSets that must be ready before this schedule fires.                          | Inherited from `SlimFaas/DependsOn` annotation |
+| **TimeZone**                | No           | IANA time zone ID in which `Schedule` is evaluated. See [Schedule time zones](#52-schedule-time-zones). | `UTC`                                       |
 
 > **Tip:** Schedules declared via the `SlimFaas/Schedules` annotation are merged at synchronisation time with any schedules defined in `SlimFaas__JobsConfiguration`. This lets you keep recurring schedules close to the workload definition (in the CronJob manifest) while still being able to add dynamic schedules at runtime via the `/job-schedules` API.
 
@@ -535,7 +537,8 @@ Request body for **`POST`**
   "Environments": [],
   "BackoffLimit": 1,
   "TtlSecondsAfterFinished": 100,
-  "RestartPolicy": "Never"
+  "RestartPolicy": "Never",
+  "TimeZone": "Europe/Paris"           // optional — IANA time zone ID, defaults to UTC
 }
 ```
 
@@ -631,6 +634,36 @@ volumes:
   slimfaas_data:
   slimfaas_backup:
 ```
+
+### 5.2 Schedule time zones
+
+By default, the five cron fields are evaluated in **UTC**, whatever the time zone of the SlimFaas pod or Kubernetes node. Add an optional `TimeZone` to evaluate a schedule in another time zone. It is accepted by `POST /job-schedules/<jobName>`, by the `Schedules` entries of `SlimFaas__JobsConfiguration` and by the `SlimFaas/Schedules` annotation:
+
+```bash
+curl -fsS -X POST "$BASE_URL/job-schedules/fibonacci" \
+  -H 'Content-Type: application/json' \
+  --data '{"Schedule":"0 8 * * 1-5","Args":["10"],"TimeZone":"Europe/Paris"}'
+```
+
+This job runs at 08:00 in Paris on weekdays: 07:00 UTC in winter and 06:00 UTC in summer.
+
+* `TimeZone` is an [IANA time zone ID](https://nodatime.org/TimeZones) such as `Europe/Paris`, `America/New_York`, `Asia/Tokyo` or `UTC`. IDs are case-sensitive. Fixed offsets such as `+01:00` are not accepted because they ignore daylight-saving time.
+* The time zone database is embedded in SlimFaas (NodaTime TZDB), so the result does not depend on the `tzdata` installed in the container or on the node.
+* The time zone is stored with the schedule and returned by `GET /job-schedules/<jobName>`. Schedules created without `TimeZone` keep running in UTC.
+* An unknown time zone is rejected with `400 Bad Request`:
+
+  ```json
+  {"error":"invalid_timezone","message":"The timezone 'Invalid/Timezone' is not a valid IANA timezone."}
+  ```
+
+  Native local manifest validation reports the same error for the `SlimFaas/Schedules` annotation. In Kubernetes, a schedule from `SlimFaas__JobsConfiguration` or the `SlimFaas/Schedules` annotation with an unknown time zone never runs, like a schedule with an invalid cron expression.
+
+**Daylight-saving time.** SlimFaas checks the local wall-clock time of every minute in the schedule time zone:
+
+* A local time skipped when clocks move forward does not run that day. In Paris, `30 2 * * *` does not run on the last Sunday of March because local time jumps from 02:00 to 03:00.
+* A local time repeated when clocks move back runs at each occurrence. In Paris, `30 2 * * *` runs twice on the last Sunday of October, at 00:30 and 01:30 UTC.
+
+Schedule fixed-time jobs outside the transition hour (usually between 01:00 and 03:00 local time) when they must run exactly once a day.
 
 ---
 
