@@ -6,7 +6,7 @@ COPY . .
 RUN dotnet restore "samples/FibonacciBatch/FibonacciBatch.csproj"
 RUN dotnet publish "samples/FibonacciBatch/FibonacciBatch.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0.12 AS final
+FROM mcr.microsoft.com/dotnet/runtime:10.0.14 AS final
 WORKDIR /app
 
 ARG APP_USER=app
