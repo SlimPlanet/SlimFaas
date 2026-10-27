@@ -1,4 +1,3 @@
-using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -73,7 +72,7 @@ public static class JobStatusEndpoints
                     var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix, s.TimeZone);
                     if (nextResult.IsSuccess) next = nextResult.Data;
 
-                    var id = IdGenerator.GetId32Hex(MemoryPackSerializer.Serialize(s));
+                    var id = ScheduleJobSerialization.GetId(s);
                     scheduledInfos.Add(new ScheduledJobInfo(
                         id, s.Schedule, s.Image, next, s.Resources, s.DependsOn, s.TimeZone));
                 }

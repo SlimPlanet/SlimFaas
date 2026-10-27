@@ -171,6 +171,36 @@ public class ScheduleJobServiceTests
         Assert.Equal("Europe/Paris", stored?.TimeZone);
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task Create_Without_TimeZone_Should_Preserve_Legacy_Bytes(string? timeZone)
+    {
+        var job = new ScheduleCreateJob(
+            "0 8 * * *", ["first", "second"], "allowed:latest", 3, 120, "OnFailure",
+            new CreateJobResources(new() { ["cpu"] = "100m" }, new() { ["memory"] = "128Mi" }),
+            [new EnvVarInput("EXAMPLE", "value")], ["dependency"], timeZone);
+        byte[]? persisted = null;
+        _dbMock.Setup(d => d.HashSetAsync(
+                "ScheduleJob:test-func", It.IsAny<IDictionary<string, byte[]>>(), It.IsAny<long?>()))
+            .Callback<string, IDictionary<string, byte[]>, long?>((_, values, _) =>
+                persisted = Assert.Single(values).Value);
+
+        var result = await _sut.CreateScheduleJobAsync("test-func", job, isMessageComeFromNamespaceInternal: true);
+
+        Assert.True(result.IsSuccess);
+        Assert.NotNull(persisted);
+        var legacy = new LegacyScheduleCreateJob(job.Schedule, job.Args, job.Image,
+            job.BackoffLimit, job.TtlSecondsAfterFinished, job.RestartPolicy,
+            job.Resources, job.Environments, job.DependsOn);
+        Assert.Equal(MemoryPackSerializer.Serialize(legacy), persisted);
+        var oldReaderResult = MemoryPackSerializer.Deserialize<LegacyScheduleCreateJob>(persisted);
+        Assert.NotNull(oldReaderResult);
+        Assert.Equal(job.Schedule, oldReaderResult.Schedule);
+        Assert.Equal(job.Args, oldReaderResult.Args);
+        Assert.Null(MemoryPackSerializer.Deserialize<ScheduleCreateJob>(persisted)?.TimeZone);
+    }
+
     // ---------------- ListScheduleJobAsync ----------------
 
     [Fact(DisplayName = "List – renvoie une liste vide si aucune entrée")]

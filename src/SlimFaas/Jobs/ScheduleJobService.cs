@@ -80,7 +80,7 @@ public class ScheduleJobService(
         }
 
         var idSchedule = Guid.NewGuid().ToString();
-        byte[] memory = MemoryPackSerializer.Serialize(createJob);
+        byte[] memory = ScheduleJobSerialization.Serialize(createJob);
         var dictionary = new Dictionary<string, byte[]>();
         dictionary.Add(idSchedule, memory);
         await databaseService.HashSetAsync($"{ScheduleJob}{name}", dictionary);

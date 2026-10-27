@@ -58,7 +58,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
             {
                 foreach (ScheduleCreateJob scheduleCreateJob in configurationSchedule.Value)
                 {
-                    var id = IdGenerator.GetId32Hex(MemoryPackSerializer.Serialize(scheduleCreateJob));
+                    var id = ScheduleJobSerialization.GetId(scheduleCreateJob);
                     await EnqueueJobIfNeeded(configurationSchedule.Key, id, scheduleCreateJob);
                 }
             }

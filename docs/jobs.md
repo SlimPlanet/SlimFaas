@@ -649,7 +649,7 @@ This job runs at 08:00 in Paris on weekdays: 07:00 UTC in winter and 06:00 UTC i
 
 * `TimeZone` is an [IANA time zone ID](https://nodatime.org/TimeZones) such as `Europe/Paris`, `America/New_York`, `Asia/Tokyo` or `UTC`. IDs are case-sensitive. Fixed offsets such as `+01:00` are not accepted because they ignore daylight-saving time.
 * The time zone database is embedded in SlimFaas (NodaTime TZDB), so the result does not depend on the `tzdata` installed in the container or on the node.
-* The time zone is stored with the schedule and returned by `GET /job-schedules/<jobName>`. Schedules created without `TimeZone` keep running in UTC.
+* The time zone is stored with the schedule and returned by `GET /job-schedules/<jobName>`. An omitted, `null` or empty `TimeZone` means UTC. Dynamically stored schedules normalize an empty value to an omitted value.
 * An unknown time zone is rejected with `400 Bad Request`:
 
   ```json
@@ -664,6 +664,12 @@ This job runs at 08:00 in Paris on weekdays: 07:00 UTC in winter and 06:00 UTC i
 * A local time repeated when clocks move back runs at each occurrence. In Paris, `30 2 * * *` runs twice on the last Sunday of October, at 00:30 and 01:30 UTC.
 
 Schedule fixed-time jobs outside the transition hour (usually between 01:00 and 03:00 local time) when they must run exactly once a day.
+
+#### Rolling upgrades and rollback
+
+Schedules without a time zone retain their existing storage format and static schedule identifiers, preserving execution tracking during an upgrade. Finish upgrading **all SlimFaas nodes** before creating or configuring a non-empty `TimeZone`, including an explicit `"UTC"`. Older nodes cannot read dynamic schedules stored with a time zone and do not apply the field to static schedules.
+
+Before downgrading, use the upgraded runtime to delete dynamic schedules with a non-empty `TimeZone` and remove entries with a time zone from `SlimFaas__JobsConfiguration` and `SlimFaas/Schedules` annotations. If needed, replace them with schedules that omit `TimeZone` and express the desired times in UTC; these replacements do not adjust automatically for daylight-saving time. Backups containing schedules with a time zone also require an upgraded runtime to restore.
 
 ---
 

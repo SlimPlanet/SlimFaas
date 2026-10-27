@@ -267,6 +267,44 @@ public class SlimScheduleJobsWorkerTests
         Assert.True(stored == before || stored == after, $"Stored {stored}, expected {before} or {after}");
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task DoOneCycle_ConfigSchedule_Should_Reuse_Legacy_Watermark_Without_Replaying(string? timeZone)
+    {
+        // Keep the daily occurrence away from the test's execution time, including midnight.
+        int hour = DateTimeOffset.UtcNow.AddHours(-2).Hour;
+        string cron = FormattableString.Invariant($"0 {hour} * * *");
+        var schedule = new ScheduleCreateJob(cron, ["arg"], TimeZone: timeZone);
+        var legacy = new LegacyScheduleCreateJob(cron, ["arg"]);
+        string executionKey = $"ScheduleJob:func:{IdGenerator.GetId32Hex(Serialize(legacy))}";
+        var watermarks = new Dictionary<string, byte[]> { [executionKey] = Serialize(0L) };
+        _master.SetupGet(m => m.IsMaster).Returns(true);
+        _config.SetupGet(c => c.Configuration).Returns(_faasConfig with
+        {
+            Schedules = new Dictionary<string, IList<ScheduleCreateJob>> { ["func"] = [schedule] }
+        });
+        _db.Setup(d => d.HashGetAllAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, byte[]>());
+        _db.Setup(d => d.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync((string key) => watermarks.GetValueOrDefault(key));
+        _db.Setup(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()))
+            .Callback<string, byte[]?, long?, KeyValueOperation, long, decimal>((key, value, _, _, _, _) =>
+                watermarks[key] = value!);
+        _jobSvc.Setup(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true))
+            .ReturnsAsync(new ResultWithError<EnqueueJobResult>(new EnqueueJobResult("job-id")));
+
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+
+        _jobSvc.Verify(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true), Times.Once);
+        _db.Verify(d => d.GetAsync(executionKey), Times.Exactly(2));
+        _db.Verify(d => d.SetAsync(executionKey, It.IsAny<byte[]>(), It.IsAny<long?>()), Times.Once);
+        Assert.Single(watermarks);
+        long persisted = MemoryPackSerializer.Deserialize<long>(watermarks[executionKey]);
+        Assert.True(persisted > 0);
+    }
+
     private static long LatestEightOClockInParis()
     {
         var paris = DateTimeZoneProviders.Tzdb["Europe/Paris"];

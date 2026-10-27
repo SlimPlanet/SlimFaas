@@ -1,11 +1,13 @@
 using System.Net;
 using System.Text.Json;
+using MemoryPack;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Moq;
+using NodaTime;
 using SlimFaas.Database;
 using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
@@ -17,6 +19,56 @@ namespace SlimFaas.Tests.Endpoints;
 
 public class JobStatusEndpointTests
 {
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(null, true)]
+    [InlineData("Europe/Paris", false)]
+    [InlineData("Europe/Paris", true)]
+    public async Task ScheduleStatus_PreservesIdentityAndReportsNextLocalOccurrence(string? timeZone, bool dynamicSchedule)
+    {
+        var schedule = new ScheduleCreateJob("0 8 * * *", ["run"], TimeZone: timeZone);
+        var configuration = new Mock<IJobConfiguration>();
+        configuration.SetupGet(c => c.Configuration).Returns(new SlimFaasJobConfiguration(
+            new Dictionary<string, SlimfaasJob> { ["test-job"] = new("image", []) },
+            dynamicSchedule ? null : new Dictionary<string, IList<ScheduleCreateJob>>
+            {
+                ["test-job"] = [schedule]
+            }));
+        var jobs = new Mock<IJobService>();
+        jobs.SetupGet(j => j.Jobs).Returns([]);
+        var schedules = new Mock<IScheduleJobService>();
+        schedules.Setup(s => s.ListScheduleJobAsync("test-job")).ReturnsAsync(dynamicSchedule
+            ? [new ListScheduleJob("stored-id", schedule.Schedule, schedule.Args, TimeZone: timeZone)]
+            : []);
+
+        long expectedBefore = NextEightOClock(timeZone);
+        var statuses = await JobStatusEndpoints.BuildJobStatusesAsync(configuration.Object, jobs.Object, schedules.Object);
+        long expectedAfter = NextEightOClock(timeZone);
+        string json = JsonSerializer.Serialize(statuses, ListJobConfigurationStatusSerializerContext.Default.ListJobConfigurationStatus);
+        var restored = JsonSerializer.Deserialize(json, ListJobConfigurationStatusSerializerContext.Default.ListJobConfigurationStatus);
+
+        var actual = Assert.Single(Assert.Single(restored!).Schedules);
+        Assert.Equal(timeZone, actual.TimeZone);
+        Assert.True(actual.NextExecutionTimestamp == expectedBefore || actual.NextExecutionTimestamp == expectedAfter);
+        if (dynamicSchedule)
+        {
+            Assert.Equal("stored-id", actual.Id);
+        }
+        else if (timeZone is null)
+        {
+            var legacy = new SlimFaas.Tests.Jobs.LegacyScheduleCreateJob(schedule.Schedule, schedule.Args);
+            Assert.Equal(IdGenerator.GetId32Hex(MemoryPackSerializer.Serialize(legacy)), actual.Id);
+        }
+    }
+
+    private static long NextEightOClock(string? timeZone)
+    {
+        var zone = DateTimeZoneProviders.Tzdb[timeZone ?? "UTC"];
+        var now = SystemClock.Instance.GetCurrentInstant().InZone(zone);
+        var date = now.Hour < 8 ? now.Date : now.Date.PlusDays(1);
+        return date.At(new LocalTime(8, 0)).InZoneStrictly(zone).ToInstant().ToUnixTimeSeconds();
+    }
+
     [Fact]
     public async Task SharedNamePrefixesDoNotDuplicateExecutionsAcrossConfigurations()
     {
