@@ -1,4 +1,4 @@
-﻿name: SlimFaas main external contrib CI
+name: SlimFaas main external contrib CI
 on:
   pull_request_target:
     types: [opened, synchronize, reopened]
@@ -26,7 +26,7 @@ jobs:
         run: |
           dotnet test --collect "Code Coverage;Format=cobertura" --verbosity normal
       - name: ReportGenerator
-        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
+        uses: danielpalme/ReportGenerator-GitHub-Action@5.5.11
         with:
           reports: './**/TestResults/**/*.cobertura.xml'
           targetdir: 'coveragereport'
