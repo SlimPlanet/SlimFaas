@@ -195,6 +195,7 @@ Check out:
 
 ### Technical references
 
+- [SlimFaasMcp request bodies and caller migration](src/SlimFaasMcp/README.md)
 - [Local three-node orchestrator](docs/local-orchestrator.md)
 - [Memory profiling](docs/memory-profiling.md)
 - [Unified SlimData mutation batching](docs/slimdata-unified-batching.md)
