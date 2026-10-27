@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,2482,(o,t,_)=>{let e="/local-mode";(window.__NEXT_P=window.__NEXT_P||[]).push([e,()=>o.r(88776)]),t.hot&&t.hot.dispose(function(){window.__NEXT_P.push([e])})},88776,o=>{"use strict";let t=o.i(57825).f;o.s(["__N_SSG",0,!0,"default",0,t])}]);

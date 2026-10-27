@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,81371,(e,o,t)=>{let i="/api-reference";(window.__NEXT_P=window.__NEXT_P||[]).push([i,()=>e.r(69471)]),o.hot&&o.hot.dispose(function(){window.__NEXT_P.push([i])})},69471,e=>{"use strict";let o=e.i(57825).f;e.s(["__N_SSG",0,!0,"default",0,o])}]);

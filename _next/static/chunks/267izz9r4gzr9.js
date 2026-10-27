@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,73333,(t,o,s)=>{let _="/data-sets";(window.__NEXT_P=window.__NEXT_P||[]).push([_,()=>t.r(83813)]),o.hot&&o.hot.dispose(function(){window.__NEXT_P.push([_])})},83813,t=>{"use strict";let o=t.i(57825).f;t.s(["__N_SSG",0,!0,"default",0,o])}]);

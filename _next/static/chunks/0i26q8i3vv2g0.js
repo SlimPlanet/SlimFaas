@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,82059,(t,o,e)=>{let _="/planet-saver";(window.__NEXT_P=window.__NEXT_P||[]).push([_,()=>t.r(64325)]),o.hot&&o.hot.dispose(function(){window.__NEXT_P.push([_])})},64325,t=>{"use strict";let o=t.i(57825).f;t.s(["__N_SSG",0,!0,"default",0,o])}]);

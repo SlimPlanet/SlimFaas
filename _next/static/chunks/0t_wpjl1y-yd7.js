@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,6499,(t,e,o)=>{let s="/get-started/kubernetes";(window.__NEXT_P=window.__NEXT_P||[]).push([s,()=>t.r(71685)]),e.hot&&e.hot.dispose(function(){window.__NEXT_P.push([s])})},71685,t=>{"use strict";let e=t.i(57825).f;t.s(["__N_SSG",0,!0,"default",0,e])}]);

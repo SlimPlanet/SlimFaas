@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,34469,(o,t,i)=>{let _="/how-it-works";(window.__NEXT_P=window.__NEXT_P||[]).push([_,()=>o.r(2232)]),t.hot&&t.hot.dispose(function(){window.__NEXT_P.push([_])})},2232,o=>{"use strict";let t=o.i(57825).f;o.s(["__N_SSG",0,!0,"default",0,t])}]);
