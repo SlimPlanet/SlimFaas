@@ -118,7 +118,7 @@ jobs:
 
       - name: Build image (no push)
         if: inputs.push != true
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.image_context }}
           file: ${{ inputs.image_file }}
@@ -134,7 +134,7 @@ jobs:
 
       - name: Build and push Docker image (main -> latest + version)
         if: github.ref == 'refs/heads/main' && inputs.push == true
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.image_context }}
           file: ${{ inputs.image_file }}
@@ -150,7 +150,7 @@ jobs:
 
       - name: Build and push Docker image (branches ≠ main -> version)
         if: github.ref != 'refs/heads/main' && inputs.push == true
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.image_context }}
           file: ${{ inputs.image_file }}
