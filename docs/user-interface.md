@@ -16,6 +16,23 @@ The UI is served by the SlimFaas application itself and uses the same backend en
 
 Start with [Get Started](get-started.md), then keep this UI open while following the [Guided Tour](guided-tour.md). Each exercise names the request to send from cURL or Bruno and the resulting state or traffic to observe. The UI provides visibility, wake actions and a metadata-only data inventory. Use cURL or Bruno to invoke APIs or inspect stored contents.
 
+## SlimFaasMcp chat connections
+
+The separate SlimFaasMcp application includes a chat page. Configure each server name
+with its Streamable HTTP endpoint, for example:
+
+```json
+{
+  "calculator": "http://localhost:5000/mcp"
+}
+```
+
+The chat uses LangChain MCP adapters 2 with the legacy MCP protocol mode, preserving
+Streamable HTTP connections without automatic fallback to the older SSE transport.
+Tools remain prefixed by their server name (`calculator_add`) and return standard
+LangChain content blocks. Failed tool discovery stops initialization and displays
+the connection error; verify that the configured URL is the server's MCP endpoint.
+
 ## 1. What the Page Shows
 
 The dashboard follows the same visual language as slimfaas.dev: primary blue, light surfaces and compact component-owned controls.

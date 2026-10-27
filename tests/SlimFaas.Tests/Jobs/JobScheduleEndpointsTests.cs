@@ -1,5 +1,6 @@
 ﻿using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.TestHost;
@@ -129,6 +130,34 @@ public class JobScheduleEndpointsTests
                 It.IsAny<ScheduleCreateJob>(),
                 It.IsAny<bool>()),
             Times.Once);
+    }
+
+    [Fact(DisplayName = "POST /job-schedules/{name} – fuseau horaire invalide ⇒ 400 + erreur JSON")]
+    public async Task CreateSchedule_Returns_400_With_Error_When_TimeZone_Invalid()
+    {
+        (IHost host, _, _) =
+            await BuildHostAsync(svc =>
+            {
+                svc.Setup(s => s.CreateScheduleJobAsync(
+                        "daisy",
+                        It.IsAny<ScheduleCreateJob>(),
+                        It.IsAny<bool>()))
+                   .ReturnsAsync(new ResultWithError<CreateScheduleJobResult>(null,
+                       new ErrorResult(Cron.InvalidTimeZone,
+                           "The timezone 'Invalid/Timezone' is not a valid IANA timezone.")));
+            });
+
+        var body = new ScheduleCreateJob("0 8 * * *", new() { "arg1" }, TimeZone: "Invalid/Timezone");
+        HttpResponseMessage resp = await host.GetTestClient()
+            .PostAsync("http://localhost:5000/job-schedules/daisy",
+                       JsonContent.Create(body));
+
+        Assert.Equal(HttpStatusCode.BadRequest, resp.StatusCode);
+        Assert.Equal("application/json", resp.Content.Headers.ContentType?.MediaType);
+        using JsonDocument error = JsonDocument.Parse(await resp.Content.ReadAsStringAsync());
+        Assert.Equal("invalid_timezone", error.RootElement.GetProperty("error").GetString());
+        Assert.Equal("The timezone 'Invalid/Timezone' is not a valid IANA timezone.",
+            error.RootElement.GetProperty("message").GetString());
     }
 
     #endregion

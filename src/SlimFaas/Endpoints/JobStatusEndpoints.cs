@@ -1,4 +1,3 @@
-using MemoryPack;
 using Microsoft.AspNetCore.Mvc;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
@@ -70,12 +69,12 @@ public static class JobStatusEndpoints
                 foreach (var s in k8sSchedules)
                 {
                     long? next = null;
-                    var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix);
+                    var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix, s.TimeZone);
                     if (nextResult.IsSuccess) next = nextResult.Data;
 
-                    var id = IdGenerator.GetId32Hex(MemoryPackSerializer.Serialize(s));
+                    var id = ScheduleCreateJobSerializer.GetId(s);
                     scheduledInfos.Add(new ScheduledJobInfo(
-                        id, s.Schedule, s.Image, next, s.Resources, s.DependsOn));
+                        id, s.Schedule, s.Image, next, s.Resources, s.DependsOn, s.TimeZone));
                 }
             }
 
@@ -85,11 +84,11 @@ public static class JobStatusEndpoints
                 foreach (var s in apiSchedules)
                 {
                     long? next = null;
-                    var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix);
+                    var nextResult = Cron.GetNextJobExecutionTimestamp(s.Schedule, nowUnix, s.TimeZone);
                     if (nextResult.IsSuccess) next = nextResult.Data;
 
                     scheduledInfos.Add(new ScheduledJobInfo(
-                        s.Id, s.Schedule, s.Image, next, s.Resources, s.DependsOn));
+                        s.Id, s.Schedule, s.Image, next, s.Resources, s.DependsOn, s.TimeZone));
                 }
             }
 

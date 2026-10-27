@@ -79,8 +79,8 @@ public class SlimFaasClientTests
                 LogLevel.Information,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains("wake up", StringComparison.OrdinalIgnoreCase) ||
-                    v.ToString()!.Contains("Wake up", StringComparison.OrdinalIgnoreCase)),
+                    v != null &&
+                    (v.ToString() ?? string.Empty).Contains("wake up", StringComparison.OrdinalIgnoreCase)),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);
@@ -111,8 +111,9 @@ public class SlimFaasClientTests
                 LogLevel.Warning,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains("Wake up for") &&
-                    v.ToString()!.Contains("failed", StringComparison.OrdinalIgnoreCase)),
+                    v != null &&
+                    (v.ToString() ?? string.Empty).Contains("Wake up for") &&
+                    (v.ToString() ?? string.Empty).Contains("failed", StringComparison.OrdinalIgnoreCase)),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);
@@ -160,7 +161,8 @@ public class SlimFaasClientTests
                 LogLevel.Error,
                 It.IsAny<EventId>(),
                 It.Is<It.IsAnyType>((v, _) =>
-                    v.ToString()!.Contains("Error while calling SlimFaas wake up")),
+                    v != null &&
+                    (v.ToString() ?? string.Empty).Contains("Error while calling SlimFaas wake up")),
                 It.IsAny<Exception?>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.AtLeastOnce);

@@ -1,114 +1,127 @@
 ﻿using System.Globalization;
+using NodaTime;
 
 
 namespace SlimFaas.Jobs;
 
 public static class Cron
 {
-    public static ResultWithError<long> GetNextJobExecutionTimestamp(string cronDefinition, long currentTimestamp)
+    public const string InvalidTimeZone = "invalid_timezone";
+
+    private const int SearchWindowInMinutes = 366 * 24 * 60;
+
+    public static ResultWithError<long> GetNextJobExecutionTimestamp(string cronDefinition, long currentTimestamp,
+        string? timeZone = null)
     {
-        if (string.IsNullOrWhiteSpace(cronDefinition))
-            return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must not be empty"));
+        var parsed = Parse(cronDefinition, timeZone);
+        if (parsed.Data == null)
+            return new ResultWithError<long>(0, parsed.Error);
 
-        var parts = cronDefinition.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length != 5)
-            return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
+        var start = currentTimestamp - currentTimestamp % 60 + 60; // start from next minute
 
-        var minuteSet      = ParseCronField(parts[0], 0, 59);
-        var hourSet        = ParseCronField(parts[1], 0, 23);
-        var dayOfMonthSet  = ParseCronField(parts[2], 1, 31);
-        var monthSet       = ParseCronField(parts[3], 1, 12);
-        var dayOfWeekSet   = ParseCronField(parts[4], 0, 6);
-
-        var now = DateTimeOffset.FromUnixTimeSeconds(currentTimestamp).UtcDateTime;
-        now = now.AddSeconds(-now.Second).AddMinutes(1); // start from next minute
-
-        for (int i = 0; i < 366 * 24 * 60; i++)
+        for (int i = 0; i < SearchWindowInMinutes; i++)
         {
-            var candidate = now.AddMinutes(i);
-
-            if (!monthSet.Contains(candidate.Month)) continue;
-
-            bool domMatch = dayOfMonthSet.Contains(candidate.Day);
-            bool dowMatch = dayOfWeekSet.Contains((int)candidate.DayOfWeek);
-            bool domStar = parts[2] == "*";
-            bool dowStar = parts[4] == "*";
-            bool dayMatch;
-            if (!domStar && !dowStar)
-                dayMatch = domMatch || dowMatch;
-            else if (!domStar)
-                dayMatch = domMatch;
-            else if (!dowStar)
-                dayMatch = dowMatch;
-            else
-                dayMatch = true;
-
-            if (!dayMatch) continue;
-            if (!hourSet.Contains(candidate.Hour)) continue;
-            if (!minuteSet.Contains(candidate.Minute)) continue;
-
-            return new ResultWithError<long>(new DateTimeOffset(candidate, TimeSpan.Zero).ToUnixTimeSeconds());
+            var candidate = start + i * 60L;
+            if (parsed.Data.Matches(candidate))
+                return new ResultWithError<long>(candidate);
         }
 
         return new ResultWithError<long>(0,
             new ErrorResult("cron_definition", "No next cron occurrence found in the next year."));
     }
 
-    public static ResultWithError<long> GetLatestJobExecutionTimestamp(string cronDefinition, long currentTimestamp)
+    public static ResultWithError<long> GetLatestJobExecutionTimestamp(string cronDefinition, long currentTimestamp,
+        string? timeZone = null)
     {
+        var parsed = Parse(cronDefinition, timeZone);
+        if (parsed.Data == null)
+            return new ResultWithError<long>(0, parsed.Error);
 
-        if (string.IsNullOrWhiteSpace(cronDefinition))
-            return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must not be empty"));
+        var start = currentTimestamp - currentTimestamp % 60; // arrondi à la minute
 
-        var parts = cronDefinition.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length != 5)
-            return new ResultWithError<long>(0, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
-
-        var minuteSet      = ParseCronField(parts[0], 0, 59);
-        var hourSet        = ParseCronField(parts[1], 0, 23);
-        var dayOfMonthSet  = ParseCronField(parts[2], 1, 31);
-        var monthSet       = ParseCronField(parts[3], 1, 12);
-        var dayOfWeekSet   = ParseCronField(parts[4], 0, 6); // 0 = Sunday
-
-        var now = DateTimeOffset.FromUnixTimeSeconds(currentTimestamp).UtcDateTime;
-        now = now.AddSeconds(-now.Second); // arrondi à la minute
-
-        for (int i = 0; i < 366 * 24 * 60; i++) // Limite : 1 an en arrière max
+        for (int i = 0; i < SearchWindowInMinutes; i++) // Limite : 1 an en arrière max
         {
             // On descend minute par minute
-            var candidate = now.AddMinutes(-i);
-
-            if (!monthSet.Contains(candidate.Month))
-                continue;
-
-            bool domMatch = dayOfMonthSet.Contains(candidate.Day);
-            bool dowMatch = dayOfWeekSet.Contains((int)candidate.DayOfWeek);
-            bool domStar = parts[2] == "*";
-            bool dowStar = parts[4] == "*";
-            bool dayMatch;
-            if (!domStar && !dowStar)
-                dayMatch = domMatch || dowMatch;
-            else if (!domStar)
-                dayMatch = domMatch;
-            else if (!dowStar)
-                dayMatch = dowMatch;
-            else
-                dayMatch = true;
-
-            if (!dayMatch)
-                continue;
-
-            if (!hourSet.Contains(candidate.Hour))
-                continue;
-
-            if (!minuteSet.Contains(candidate.Minute))
-                continue;
-
-            return new ResultWithError<long>(new DateTimeOffset(candidate, TimeSpan.Zero).ToUnixTimeSeconds());
+            var candidate = start - i * 60L;
+            if (parsed.Data.Matches(candidate))
+                return new ResultWithError<long>(candidate);
         }
 
         return new ResultWithError<long>(0,
             new ErrorResult("cron_definition", "No previous cron occurrence found in the past year."));
+    }
+
+    // A missing time zone keeps the historical behaviour: schedules are evaluated in UTC.
+    private static ResultWithError<DateTimeZone> GetTimeZone(string? timeZone)
+    {
+        if (string.IsNullOrEmpty(timeZone))
+            return new ResultWithError<DateTimeZone>(DateTimeZone.Utc);
+
+        var zone = DateTimeZoneProviders.Tzdb.GetZoneOrNull(timeZone);
+        return zone == null
+            ? new ResultWithError<DateTimeZone>(null,
+                new ErrorResult(InvalidTimeZone, $"The timezone '{timeZone}' is not a valid IANA timezone."))
+            : new ResultWithError<DateTimeZone>(zone);
+    }
+
+    private static ResultWithError<CronExpression> Parse(string cronDefinition, string? timeZone)
+    {
+        if (string.IsNullOrWhiteSpace(cronDefinition))
+            return new ResultWithError<CronExpression>(null, new ErrorResult("cron_definition", "Cron definition must not be empty"));
+
+        var parts = cronDefinition.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length != 5)
+            return new ResultWithError<CronExpression>(null, new ErrorResult("cron_definition", "Cron definition must have exactly 5 fields"));
+
+        var zone = GetTimeZone(timeZone);
+        if (zone.Data == null)
+            return new ResultWithError<CronExpression>(null, zone.Error);
+
+        return new ResultWithError<CronExpression>(new CronExpression(
+            ParseCronField(parts[0], 0, 59),
+            ParseCronField(parts[1], 0, 23),
+            ParseCronField(parts[2], 1, 31),
+            ParseCronField(parts[3], 1, 12),
+            ParseCronField(parts[4], 0, 6), // 0 = Sunday
+            parts[2] == "*",
+            parts[4] == "*",
+            zone.Data));
+    }
+
+    private sealed record CronExpression(
+        HashSet<int> Minutes,
+        HashSet<int> Hours,
+        HashSet<int> DaysOfMonth,
+        HashSet<int> Months,
+        HashSet<int> DaysOfWeek,
+        bool DayOfMonthStar,
+        bool DayOfWeekStar,
+        DateTimeZone TimeZone)
+    {
+        // Fields are matched against the wall-clock time of the instant in the schedule time zone.
+        // A local time skipped by a daylight-saving transition never occurs, so it never matches;
+        // a local time repeated by a transition occurs twice, so both instants match.
+        public bool Matches(long timestamp)
+        {
+            var candidate = Instant.FromUnixTimeSeconds(timestamp).InZone(TimeZone).LocalDateTime;
+
+            if (!Months.Contains(candidate.Month))
+                return false;
+
+            bool domMatch = DaysOfMonth.Contains(candidate.Day);
+            bool dowMatch = DaysOfWeek.Contains((int)candidate.DayOfWeek % 7); // IsoDayOfWeek.Sunday = 7
+            bool dayMatch;
+            if (!DayOfMonthStar && !DayOfWeekStar)
+                dayMatch = domMatch || dowMatch;
+            else if (!DayOfMonthStar)
+                dayMatch = domMatch;
+            else if (!DayOfWeekStar)
+                dayMatch = dowMatch;
+            else
+                dayMatch = true;
+
+            return dayMatch && Hours.Contains(candidate.Hour) && Minutes.Contains(candidate.Minute);
+        }
     }
 
     // Parse un champ cron (ex: "5", "1-5", "*/15", "1,2,3")
