@@ -81,7 +81,7 @@ The bundle contains `runtime/`, `functions/fibonacci/`, `jobs/fibonacci-batch/`,
 
 ## Run from a Git clone
 
-Use this path to try a branch before it has a release, or to develop the dashboard and runtime together. Install **Git**, the **.NET 10 SDK** (`10.0.103` or a newer .NET 10 SDK, as selected by `global.json`), and **Node.js 24 or later with npm**. Keep ports `30020–30023`, `3262–3264` and `5000–5999` available.
+Use this path to try a branch before it has a release, or to develop the dashboard and runtime together. Install **Git**, the **.NET 10 SDK** (`10.0.401` or a newer .NET 10 SDK, as selected by `global.json`), and **Node.js 24 or later with npm**. Keep ports `30020–30023`, `3262–3264` and `5000–5999` available.
 
 On Windows, run `dotnet --version` and `node --version` in the Git Bash terminal used for the build. Older Node versions cannot run all dashboard and documentation checks. Install `jq` separately for the terminal tour; using the precompiled bundle does not require Node or the .NET SDK.
 
