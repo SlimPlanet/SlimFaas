@@ -267,6 +267,43 @@ public class SlimScheduleJobsWorkerTests
         Assert.True(stored == before || stored == after, $"Stored {stored}, expected {before} or {after}");
     }
 
+    [Fact(DisplayName = "Config schedule – sans fuseau horaire, réutilise le suivi d'exécution d'avant le fuseau horaire")]
+    public async Task DoOneCycle_ConfigSchedule_Without_TimeZone_Should_Reuse_Existing_Execution_Tracking()
+    {
+        // Arrange ----------------------------------------------------------------
+        _master.SetupGet(m => m.IsMaster).Returns(true);
+
+        var jobsDict = new Dictionary<string, SlimfaasJob>
+        {
+            ["func"] = new SlimfaasJob(
+                Image: "allowed:latest",
+                ImagesWhitelist: new() { "allowed:latest" },
+                Visibility: nameof(FunctionVisibility.Public))
+        };
+        var schedulesDict = new Dictionary<string, IList<ScheduleCreateJob>>
+        {
+            ["func"] = new List<ScheduleCreateJob> { new("*/5 * * * *", new List<string> { "arg" }) }
+        };
+        _config.SetupGet(c => c.Configuration).Returns(new SlimFaasJobConfiguration(jobsDict, schedulesDict));
+
+        // Identifiant calculé avant l'ajout du fuseau horaire, avec une exécution déjà suivie
+        var legacyId = IdGenerator.GetId32Hex(Serialize(new UtcScheduleCreateJob("*/5 * * * *", new List<string> { "arg" })));
+        _db.Setup(d => d.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync((byte[]?)null);
+        _db.Setup(d => d.GetAsync($"ScheduleJob:func:{legacyId}"))
+            .ReturnsAsync(Serialize(long.MaxValue));
+        _db.Setup(d => d.HashGetAllAsync(It.IsAny<string>()))
+            .ReturnsAsync(new Dictionary<string, byte[]>());
+
+        // Act -----------------------------------------------------------------
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+
+        // Assert --------------------------------------------------------------
+        _db.Verify(d => d.GetAsync($"ScheduleJob:func:{legacyId}"), Times.Once);
+        _db.Verify(d => d.SetAsync(It.IsAny<string>(), It.IsAny<byte[]>(), It.IsAny<long?>()), Times.Never);
+        _jobSvc.Verify(s => s.EnqueueJobAsync(It.IsAny<string>(), It.IsAny<CreateJob>(), true), Times.Never);
+    }
+
     private static long LatestEightOClockInParis()
     {
         var paris = DateTimeZoneProviders.Tzdb["Europe/Paris"];

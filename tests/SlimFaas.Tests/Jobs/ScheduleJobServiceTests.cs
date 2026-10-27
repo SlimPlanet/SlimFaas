@@ -171,6 +171,31 @@ public class ScheduleJobServiceTests
         Assert.Equal("Europe/Paris", stored?.TimeZone);
     }
 
+    [Fact(DisplayName = "Create – conserve le format MemoryPack d'avant le fuseau horaire quand il est absent")]
+    public async Task Create_Should_Persist_Legacy_Format_Without_TimeZone()
+    {
+        // Arrange
+        var job = new ScheduleCreateJob(
+            Schedule: "0 8 * * 1-5",
+            Args: new() { "arg" });
+
+        IDictionary<string, byte[]>? persisted = null;
+        _dbMock.Setup(d => d.HashSetAsync(
+                "ScheduleJob:test-func",
+                It.IsAny<IDictionary<string, byte[]>>(),
+                It.IsAny<long?>()))
+            .Callback<string, IDictionary<string, byte[]>, long?>((_, dict, __) => persisted = dict);
+
+        // Act
+        var result = await _sut.CreateScheduleJobAsync("test-func", job, isMessageComeFromNamespaceInternal: true);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            MemoryPackSerializer.Serialize(new UtcScheduleCreateJob("0 8 * * 1-5", new() { "arg" })),
+            Assert.Single(persisted!).Value);
+    }
+
     // ---------------- ListScheduleJobAsync ----------------
 
     [Fact(DisplayName = "List – renvoie une liste vide si aucune entrée")]
@@ -233,7 +258,7 @@ public class ScheduleJobServiceTests
     public async Task List_Should_Read_Schedules_Stored_Without_TimeZone()
     {
         // Arrange : format MemoryPack de ScheduleCreateJob sans le membre TimeZone
-        var bytes = MemoryPackSerializer.Serialize(new LegacyScheduleCreateJob("0 0 * * *", new() { "a" }));
+        var bytes = MemoryPackSerializer.Serialize(new UtcScheduleCreateJob("0 0 * * *", new() { "a" }));
 
         _dbMock.Setup(d => d.HashGetAllAsync("ScheduleJob:test-func"))
                .ReturnsAsync(new Dictionary<string, byte[]> { { "schedule-id", bytes } });
@@ -297,15 +322,3 @@ public class ScheduleJobServiceTests
         _dbMock.Verify(d => d.HashSetDeleteAsync("ScheduleJob:test-func", id), Times.Once);
     }
 }
-
-[MemoryPackable]
-public partial record LegacyScheduleCreateJob(
-    string Schedule,
-    List<string> Args,
-    string Image = "",
-    int BackoffLimit = 1,
-    int TtlSecondsAfterFinished = 60,
-    string RestartPolicy = "Never",
-    CreateJobResources? Resources = null,
-    IList<EnvVarInput>? Environments = null,
-    List<string>? DependsOn = null);

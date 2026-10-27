@@ -650,6 +650,7 @@ This job runs at 08:00 in Paris on weekdays: 07:00 UTC in winter and 06:00 UTC i
 * `TimeZone` is an [IANA time zone ID](https://nodatime.org/TimeZones) such as `Europe/Paris`, `America/New_York`, `Asia/Tokyo` or `UTC`. IDs are case-sensitive. Fixed offsets such as `+01:00` are not accepted because they ignore daylight-saving time.
 * The time zone database is embedded in SlimFaas (NodaTime TZDB), so the result does not depend on the `tzdata` installed in the container or on the node.
 * The time zone is stored with the schedule and returned by `GET /job-schedules/<jobName>`. Schedules created without `TimeZone` keep running in UTC.
+* Schedules without `TimeZone` are stored exactly as in earlier versions, so upgrading keeps their identifiers and execution tracking. Set a `TimeZone` only once every SlimFaas node runs a version that supports it, and remove every `TimeZone` (dynamic schedules, `SlimFaas__JobsConfiguration` and `SlimFaas/Schedules` annotations) before downgrading: earlier versions fail to read dynamic schedules that have one and evaluate the other schedules in UTC.
 * An unknown time zone is rejected with `400 Bad Request`:
 
   ```json
