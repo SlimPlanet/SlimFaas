@@ -106,7 +106,7 @@ Every dependency or lockfile change must comply with the [CNCF third-party licen
 
 ### Prerequisites
 
-- **.NET SDK**: Version `10.0.103` or later (see `global.json`)
+- **.NET SDK**: Version `10.0.401` or later (see `global.json`)
 - **Node.js**: Version `24` or later (for UI/dashboard builds)
 - **pnpm**: Version `10.14.0` is used by CI for `src/SlimFaasSite` and `src/SlimFaasPlanetSaver`
 - **Python/UV**: Python `>=3.10` with `uv` for `client/python/slimfaas-client`

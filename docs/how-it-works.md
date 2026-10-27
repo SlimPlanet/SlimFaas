@@ -18,6 +18,22 @@ docker build -f samples/FibonacciReact/Dockerfile -t fibonacci-react:local sampl
 
 See the [dependency update guidelines](../CONTRIBUTING.md#dependency-updates) for compatibility constraints, license checks and validation commands.
 
+## Native build toolchain
+
+Source builds require .NET SDK `10.0.401` or a newer .NET 10 SDK, as selected
+by `global.json`. This minimum includes the Native AOT compiler fix shipped in
+.NET `10.0.12` for Apple's linker assertion, `too many large addends`, which can
+affect SlimFaas's generated Kubernetes client code on macOS. Upgrade the SDK
+before publishing a native macOS build; no custom linker setting is required.
+The fix is documented in the [upstream .NET runtime backport](https://github.com/dotnet/runtime/pull/132171).
+
+```bash
+dotnet --version
+dotnet publish src/SlimFaas/SlimFaas.csproj -c Release -r osx-arm64
+```
+
+Use `osx-x64` when targeting an Intel Mac.
+
 ## The system at a glance
 
 ```mermaid
@@ -230,7 +246,7 @@ File content is disk-backed; metadata is cluster-consistent. A receiving node an
 
 SlimData uses Raft through DotNext. Nodes retain applied state in memory and persist commands in a write-ahead log. A healthy quorum is needed for replicated writes; local snapshots of status and metadata do not by themselves establish that every peer is caught up.
 
-SlimData uses DotNext 6.8.1. This includes upstream fixes for a full replication
+SlimData uses DotNext 6.11.0. This retains upstream fixes for a full replication
 queue silently losing a member response and for rejecting an election candidate
 whose log is shorter but whose last term is newer. These are stabilization fixes;
 they do not establish the cause of a particular operational incident. The
@@ -245,7 +261,7 @@ before upgrading existing state. Do not infer safe rollback from a forward-upgra
 
 ### SlimData recovery
 
-DotNext 6.8.1 chooses the synchronization path internally. SlimFaas supplies
+DotNext 6.11.0 chooses the synchronization path internally. SlimFaas supplies
 `warmupRounds` (100 by default): a restarted member first attempts WAL
 backtracking and can fall back to DotNext snapshot recovery when the gap is
 larger than the configured search window. There is no public API in this
@@ -283,12 +299,18 @@ restarts a node or changes its persisted state.
 ### SlimData WAL and snapshots
 
 Both the SlimFaas host and standalone SlimData restore the latest snapshot before
-resolving Raft services or starting hosted services. DotNext 6.8.1 requires this
+resolving Raft services or starting hosted services. DotNext 6.11.0 requires this
 ordering before constructing the write-ahead log when a snapshot exists. Empty
 databases follow the same startup sequence. Restoration failures stop startup; WAL application must not race snapshot loading.
-DotNext 6.8.1 also rejects WAL construction if restoration was omitted, including
+DotNext 6.11.0 also rejects WAL construction if restoration was omitted, including
 through the dependency-injection registrations. A regression test exercises this
 guard with a compacted legacy WAL; new hosts must preserve the startup sequence.
+
+DotNext 6.11.0 writes a checkpoint on every WAL commit to preserve consistency.
+Its former `FlushInterval` and `FlushOnCommit` settings are deprecated and have no
+effect; SlimFaas does not set either option. This upstream durability change
+applies to both memory-management strategies and can affect write throughput.
+See the [upstream release notes](https://github.com/dotnet/dotNext/blob/aa75879e98c389dbe3b3da831dc497b8e0c65cab/CHANGELOG.md#10-26-2026).
 
 DotNext supports two WAL memory-management strategies. SlimFaas selects the strategy with `SlimData:WalMemoryManagement`:
 

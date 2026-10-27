@@ -35,6 +35,25 @@ jobs:
           npm run build-storybook
         env:
           STORYBOOK_DISABLE_TELEMETRY: '1'
+  mcp-dashboard:
+    name: MCP dashboard build and tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: src/SlimFaasMcp/ClientApp/package-lock.json
+      - name: Install MCP dashboard dependencies
+        working-directory: src/SlimFaasMcp/ClientApp
+        run: npm ci --ignore-scripts
+      - name: Test MCP chat adapter compatibility
+        working-directory: src/SlimFaasMcp/ClientApp
+        run: npm test
+      - name: Build MCP dashboard
+        working-directory: src/SlimFaasMcp/ClientApp
+        run: npm run build
   traffic-e2e:
     name: Native traffic animations (Playwright)
     runs-on: ubuntu-latest
