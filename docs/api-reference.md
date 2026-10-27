@@ -69,7 +69,7 @@ See [jobs in the tour](guided-tour.md#6-run-jobs-and-manage-schedules).
 | GET | `/job/{functionName}` | `200`, execution list for the configuration. |
 | DELETE | `/job/{functionName}/{elementId}` | `200` when deleted, `404` if absent, `400` for invalid/disallowed input. |
 | PUT, PATCH | `/job/{functionName}` | Explicitly rejected: `405`. |
-| POST | `/job-schedules/{functionName}` | JSON, e.g. `{"Schedule":"*/1 * * * *","Args":["10"]}`. `201 {"Id":"..."}`; invalid/disallowed input `400`. |
+| POST | `/job-schedules/{functionName}` | JSON, e.g. `{"Schedule":"*/1 * * * *","Args":["10"]}`; optional IANA `TimeZone` (default `UTC`). `201 {"Id":"..."}`; invalid/disallowed input `400`, with `{"error":"invalid_timezone",...}` for an unknown time zone. |
 | GET | `/job-schedules/{functionName}` | `200`, dynamically stored schedules. |
 | DELETE | `/job-schedules/{functionName}/{elementId}` | `204` when deleted, `404` if absent, `400` for invalid/disallowed input. |
 | PUT, PATCH | `/job-schedules/{functionName}` | Explicitly rejected: `405`. |

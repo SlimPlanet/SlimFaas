@@ -58,7 +58,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
             {
                 foreach (ScheduleCreateJob scheduleCreateJob in configurationSchedule.Value)
                 {
-                    var id = IdGenerator.GetId32Hex(MemoryPackSerializer.Serialize(scheduleCreateJob));
+                    var id = ScheduleCreateJobSerializer.GetId(scheduleCreateJob);
                     await EnqueueJobIfNeeded(configurationSchedule.Key, id, scheduleCreateJob);
                 }
             }
@@ -83,7 +83,7 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         var lastestExecutionTimeStampFromDatabase = MemoryPackSerializer.Deserialize<long>(lastestExecutionTimeStampFromDatabaseBytes);
         logger.LogLastExecutionTimestampForScheduleJob(id, configurationName, lastestExecutionTimeStampFromDatabase);
         var cronSchedule = scheduleConfiguration.Schedule;
-        var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp).Data;
+        var latestExecutionTimeStamp = Cron.GetLatestJobExecutionTimestamp(cronSchedule, timeStamp, scheduleConfiguration.TimeZone).Data;
 
         bool runJob = latestExecutionTimeStamp > lastestExecutionTimeStampFromDatabase;
         logger.LogShouldRunJobForScheduleIn(id, configurationName, runJob, latestExecutionTimeStamp, lastestExecutionTimeStampFromDatabase);

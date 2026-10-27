@@ -58,6 +58,25 @@ public class ScheduleJobServiceTests
         _dbMock.Verify(d => d.HashSetAsync(It.IsAny<string>(), It.IsAny<IDictionary<string, byte[]>>()), Times.Never);
     }
 
+    [Fact(DisplayName = "Create – retourne invalid_timezone quand le fuseau horaire est inconnu")]
+    public async Task Create_Should_Return_Error_When_TimeZone_Invalid()
+    {
+        // Arrange
+        var job = new ScheduleCreateJob(
+            Schedule: "0 8 * * *",
+            Args: new() { "arg" },
+            TimeZone: "Invalid/Timezone");
+
+        // Act
+        var result = await _sut.CreateScheduleJobAsync("test-func", job, isMessageComeFromNamespaceInternal: true);
+
+        // Assert
+        Assert.Null(result.Data);
+        Assert.Equal(Cron.InvalidTimeZone, result.Error?.Key);
+        Assert.Equal("The timezone 'Invalid/Timezone' is not a valid IANA timezone.", result.Error?.Description);
+        _dbMock.VerifyNoOtherCalls();
+    }
+
     [Fact(DisplayName = "Create – refuse si fonction privée et appel externe")]
     public async Task Create_Should_Return_Error_When_Private_And_External_Call()
     {
@@ -127,6 +146,56 @@ public class ScheduleJobServiceTests
         Assert.Contains(result.Data!.Id, persisted!.Keys);
     }
 
+    [Fact(DisplayName = "Create – persiste le fuseau horaire avec la planification")]
+    public async Task Create_Should_Persist_TimeZone()
+    {
+        // Arrange
+        var job = new ScheduleCreateJob(
+            Schedule: "0 8 * * 1-5",
+            Args: new() { "arg" },
+            TimeZone: "Europe/Paris");
+
+        IDictionary<string, byte[]>? persisted = null;
+        _dbMock.Setup(d => d.HashSetAsync(
+                "ScheduleJob:test-func",
+                It.IsAny<IDictionary<string, byte[]>>(),
+                It.IsAny<long?>()))
+            .Callback<string, IDictionary<string, byte[]>, long?>((_, dict, __) => persisted = dict);
+
+        // Act
+        var result = await _sut.CreateScheduleJobAsync("test-func", job, isMessageComeFromNamespaceInternal: true);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        var stored = MemoryPackSerializer.Deserialize<ScheduleCreateJob>(Assert.Single(persisted!).Value);
+        Assert.Equal("Europe/Paris", stored?.TimeZone);
+    }
+
+    [Fact(DisplayName = "Create – conserve le format MemoryPack d'avant le fuseau horaire quand il est absent")]
+    public async Task Create_Should_Persist_Legacy_Format_Without_TimeZone()
+    {
+        // Arrange
+        var job = new ScheduleCreateJob(
+            Schedule: "0 8 * * 1-5",
+            Args: new() { "arg" });
+
+        IDictionary<string, byte[]>? persisted = null;
+        _dbMock.Setup(d => d.HashSetAsync(
+                "ScheduleJob:test-func",
+                It.IsAny<IDictionary<string, byte[]>>(),
+                It.IsAny<long?>()))
+            .Callback<string, IDictionary<string, byte[]>, long?>((_, dict, __) => persisted = dict);
+
+        // Act
+        var result = await _sut.CreateScheduleJobAsync("test-func", job, isMessageComeFromNamespaceInternal: true);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(
+            MemoryPackSerializer.Serialize(new UtcScheduleCreateJob("0 8 * * 1-5", new() { "arg" })),
+            Assert.Single(persisted!).Value);
+    }
+
     // ---------------- ListScheduleJobAsync ----------------
 
     [Fact(DisplayName = "List – renvoie une liste vide si aucune entrée")]
@@ -163,6 +232,45 @@ public class ScheduleJobServiceTests
         var job = Assert.Single(list);
         Assert.Equal("schedule-id", job.Id);
         Assert.Equal("0 0 * * *", job.Schedule);
+        Assert.Null(job.TimeZone);
+    }
+
+    [Fact(DisplayName = "List – renvoie le fuseau horaire de la planification")]
+    public async Task List_Should_Return_TimeZone()
+    {
+        // Arrange
+        var bytes = MemoryPackSerializer.Serialize(new ScheduleCreateJob(
+            Schedule: "0 8 * * *",
+            Args: new() { "a" },
+            TimeZone: "Europe/Paris"));
+
+        _dbMock.Setup(d => d.HashGetAllAsync("ScheduleJob:test-func"))
+               .ReturnsAsync(new Dictionary<string, byte[]> { { "schedule-id", bytes } });
+
+        // Act
+        var list = await _sut.ListScheduleJobAsync("test-func");
+
+        // Assert
+        Assert.Equal("Europe/Paris", Assert.Single(list).TimeZone);
+    }
+
+    [Fact(DisplayName = "List – relit les planifications enregistrées avant l'ajout du fuseau horaire")]
+    public async Task List_Should_Read_Schedules_Stored_Without_TimeZone()
+    {
+        // Arrange : format MemoryPack de ScheduleCreateJob sans le membre TimeZone
+        var bytes = MemoryPackSerializer.Serialize(new UtcScheduleCreateJob("0 0 * * *", new() { "a" }));
+
+        _dbMock.Setup(d => d.HashGetAllAsync("ScheduleJob:test-func"))
+               .ReturnsAsync(new Dictionary<string, byte[]> { { "schedule-id", bytes } });
+
+        // Act
+        var list = await _sut.ListScheduleJobAsync("test-func");
+
+        // Assert
+        var job = Assert.Single(list);
+        Assert.Equal("0 0 * * *", job.Schedule);
+        Assert.Equal(new List<string> { "a" }, job.Args);
+        Assert.Null(job.TimeZone);
     }
 
     // ---------------- DeleteScheduleJobAsync ----------------
