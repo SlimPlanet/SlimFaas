@@ -77,12 +77,22 @@ public static class Cron
         if (zone.Data == null)
             return new ResultWithError<CronExpression>(null, zone.Error);
 
+        var minutes = ParseCronField(parts[0], 0, 59);
+        var hours = ParseCronField(parts[1], 0, 23);
+        var daysOfMonth = ParseCronField(parts[2], 1, 31);
+        var months = ParseCronField(parts[3], 1, 12);
+        var daysOfWeek = ParseCronField(parts[4], 0, 6, isDayOfWeek: true); // 0 = Sunday
+        if (minutes == null || hours == null || daysOfMonth == null || months == null || daysOfWeek == null)
+            return new ResultWithError<CronExpression>(null, new ErrorResult("cron_definition",
+                "Cron fields must be values, ranges, lists or positive steps within minute 0-59, hour 0-23, " +
+                "day of month 1-31, month 1-12 and day of week 0-7"));
+
         return new ResultWithError<CronExpression>(new CronExpression(
-            ParseCronField(parts[0], 0, 59),
-            ParseCronField(parts[1], 0, 23),
-            ParseCronField(parts[2], 1, 31),
-            ParseCronField(parts[3], 1, 12),
-            ParseCronField(parts[4], 0, 6), // 0 = Sunday
+            minutes,
+            hours,
+            daysOfMonth,
+            months,
+            daysOfWeek,
             parts[2] == "*",
             parts[4] == "*",
             zone.Data));
@@ -124,56 +134,55 @@ public static class Cron
         }
     }
 
-    // Parse un champ cron (ex: "5", "1-5", "*/15", "1,2,3")
-    private static HashSet<int> ParseCronField(string field, int min, int max)
+    // Parses a cron field (e.g. "5", "1-5", "*/15", "5/15", "1,2,3").
+    // "N/step" runs from N to the end of the field range, as in Kubernetes CronJob schedules.
+    // Returns null when the field is malformed or a value is outside [min, max].
+    // In the day-of-week field, an explicit 7 is also accepted as Sunday.
+    private static HashSet<int>? ParseCronField(string field, int min, int max, bool isDayOfWeek = false)
     {
+        var explicitMax = isDayOfWeek ? 7 : max;
         var values = new HashSet<int>();
-        if (field == "*")
-        {
-            for (int i = min; i <= max; i++)
-                values.Add(i);
-            return values;
-        }
-
         foreach (var part in field.Split(','))
         {
-            if (part.Contains('/', StringComparison.Ordinal))
-            {
-                var split = part.Split('/');
-                var range = split[0];
-                var step = int.Parse(split[1], CultureInfo.InvariantCulture);
+            var stepSeparator = part.IndexOf('/', StringComparison.Ordinal);
+            var range = stepSeparator < 0 ? part : part[..stepSeparator];
+            var step = 1;
+            if (stepSeparator >= 0 && (!TryParseValue(part[(stepSeparator + 1)..], out step) || step == 0))
+                return null;
 
-                int rangeStart = min, rangeEnd = max;
-                // Treat "0" as "*" for step expressions (e.g., "0/15" = "*/15")
-                if (range != "*" && range != "0")
-                {
-                    if (range.Contains('-', StringComparison.Ordinal))
-                    {
-                        var bounds = range.Split('-');
-                        rangeStart = int.Parse(bounds[0], CultureInfo.InvariantCulture);
-                        rangeEnd = int.Parse(bounds[1], CultureInfo.InvariantCulture);
-                    }
-                    else
-                    {
-                        rangeStart = rangeEnd = int.Parse(range, CultureInfo.InvariantCulture);
-                    }
-                }
-                for (int i = rangeStart; i <= rangeEnd; i += step)
-                    values.Add(i);
-            }
-            else if (part.Contains('-', StringComparison.Ordinal))
+            int rangeStart, rangeEnd;
+            // Treat "0" as "*" for step expressions (e.g., "0/15" = "*/15"), even in fields starting at 1
+            if (range == "*" || (stepSeparator >= 0 && range == "0"))
             {
-                var bounds = part.Split('-');
-                int start = int.Parse(bounds[0], CultureInfo.InvariantCulture);
-                int end = int.Parse(bounds[1], CultureInfo.InvariantCulture);
-                for (int i = start; i <= end; i++)
-                    values.Add(i);
+                rangeStart = min;
+                rangeEnd = max;
             }
             else
             {
-                values.Add(int.Parse(part, CultureInfo.InvariantCulture));
+                var rangeSeparator = range.IndexOf('-', StringComparison.Ordinal);
+                if (rangeSeparator < 0)
+                {
+                    if (!TryParseValue(range, out rangeStart))
+                        return null;
+                    rangeEnd = stepSeparator < 0 ? rangeStart : max;
+                }
+                else if (!TryParseValue(range[..rangeSeparator], out rangeStart) ||
+                         !TryParseValue(range[(rangeSeparator + 1)..], out rangeEnd))
+                {
+                    return null;
+                }
             }
+
+            if (rangeStart < min || rangeEnd > explicitMax || rangeStart > rangeEnd)
+                return null;
+
+            // A long counter cannot overflow, whatever the step.
+            for (long i = rangeStart; i <= rangeEnd; i += step)
+                values.Add(isDayOfWeek && i == 7 ? 0 : (int)i);
         }
         return values;
     }
+
+    private static bool TryParseValue(string value, out int result) =>
+        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out result);
 }
