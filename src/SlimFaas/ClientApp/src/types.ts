@@ -108,6 +108,9 @@ export interface FunctionStatusDetailed {
 // ---- Network Activity / Stream ----
 
 export interface NetworkActivityEvent {
+  DeadLetterId?: string | null;
+  ElementId?: string | null;
+  OriginalElementId?: string | null;
   ReceivedAt?: number; // Browser-only monotonic receipt time; never read from server JSON.
   Id: string;
   Type: string; // "request_in", "enqueue", "dequeue", "request_out", "response", "event_publish", "request_waiting", "request_started", "request_end"
@@ -133,6 +136,9 @@ export interface SlimFaasNodeInfo {
 }
 
 export interface StatusStreamPayload {
+  DeadLetters?: import('./lib/deadLetters').DeadLetterSummary[];
+  DeadLettersFrontEnabled?: boolean;
+  DeadLettersAccessible?: boolean;
   Functions: FunctionStatusDetailed[];
   Queues: QueueInfo[];
   Jobs: JobConfigurationStatus[];

@@ -113,7 +113,8 @@ public sealed class SlimDataProtocolTests
     [InlineData(HttpStatusCode.NotFound, "", null, false)]
     [InlineData(HttpStatusCode.OK, "SLDC/0", "SLDC/0", false)]
     [InlineData(HttpStatusCode.OK, "SLDC/2", null, false)]
-    [InlineData(HttpStatusCode.OK, "SLDC/2", "SLDC/2", true)]
+    [InlineData(HttpStatusCode.OK, "SLDC/2", "SLDC/2", false)]
+    [InlineData(HttpStatusCode.OK, SlimDataCommandProtocol.Current, SlimDataCommandProtocol.Current, true)]
     public async Task Protocol_probe_requires_a_successful_endpoint_body_and_header(
         HttpStatusCode status,
         string body,

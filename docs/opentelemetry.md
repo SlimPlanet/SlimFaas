@@ -2,6 +2,12 @@
 
 SlimFaas provides built-in support for OpenTelemetry, enabling comprehensive observability of your serverless functions through distributed tracing, metrics, and logs.
 
+DLQ counts and durable transition totals are available separately at
+`GET /data/dead-letters/-/metrics`, protected by DLQ visibility. They are not
+exported through the general `/metrics` endpoint. See
+[DLQ observability](dead-letter-queues.md#observability-and-upgrades) for scrape,
+replication, and node-local persistence-failure counter semantics.
+
 ---
 
 ## 🚀 Features

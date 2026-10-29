@@ -103,6 +103,22 @@ public sealed class FunctionMetadataParserTests
     }
 
     [Fact]
+    public void Parse_AppliesDefaultsToPartialDeadLetterConfiguration()
+    {
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(
+            new Dictionary<string, string>
+            {
+                [FunctionAnnotationNames.Configuration] =
+                    """{"DefaultAsync":{"HttpTimeout":30,"TimeoutRetries":[],"DeadLetterQueue":{"Enabled":true}}}"""
+            }, "function");
+
+        var policy = metadata.Configuration.DefaultAsync.DeadLetterQueue;
+        Assert.True(policy.Enabled);
+        Assert.Equal(604800, policy.MaxAgeSeconds);
+        Assert.Equal(10000, policy.MaxLength);
+    }
+
+    [Fact]
     public void Parse_ReplacesNullConfigurationSectionsWithDefaults()
     {
         FunctionMetadata metadata = FunctionMetadataParser.Parse(

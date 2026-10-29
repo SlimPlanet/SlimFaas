@@ -11,9 +11,10 @@ interface Props {
   onClear: () => void;
   fallbackFocus?: () => HTMLElement | null;
   logs?: ReactNode;
+  deadLetters?: ReactNode;
 }
 
-export default function TrafficDetails({ node, title, isolate, onIsolate, onClose, onClear, fallbackFocus, logs }: Props) {
+export default function TrafficDetails({ node, title, isolate, onIsolate, onClose, onClear, fallbackFocus, logs, deadLetters }: Props) {
   return <DetailPanel title={title} eyebrow={node ? node.parent ? node.kind === 'job' ? 'Job execution' : node.kind === 'slimfaas' ? 'SlimFaas node' : 'Function replica' : node.kind : 'Instance unavailable'}
     onClose={onClose} fallbackFocus={fallbackFocus} fill>
     <div className="traffic-details__controls">
@@ -22,6 +23,7 @@ export default function TrafficDetails({ node, title, isolate, onIsolate, onClos
     </div>
     <section className="traffic-details__content" aria-label="Details">
       <h3 className="traffic-details__heading">Details</h3>
+      {deadLetters}
       {node ? <>
         <p className="traffic-details__status">{node.status}{node.role ? ` · Raft role: ${node.role}` : ''}</p>
         <p className="traffic-details__description">{node.detail}</p>

@@ -124,6 +124,18 @@ public class WebSocketConnectionRegistry
         IReplicasService replicasService)
     {
         string name = connection.FunctionName;
+        try
+        {
+            connection.Configuration.ParsedConfiguration = SlimFaas.Kubernetes.FunctionMetadataParser.Parse(
+                new Dictionary<string, string>
+                {
+                    [SlimFaas.Kubernetes.FunctionAnnotationNames.Configuration] = connection.Configuration.Configuration
+                }, name).Configuration;
+        }
+        catch (Exception exception) when (exception is FormatException or System.Text.Json.JsonException)
+        {
+            return (false, $"Invalid function configuration: {exception.Message}");
+        }
 
         // Vérification : ce nom est-il déjà une fonction Kubernetes ?
         bool existsAsK8sFunction = replicasService.Deployments.Functions
@@ -269,4 +281,3 @@ public class WebSocketConnectionRegistry
                    .All(pair => pair.First.Path == pair.Second.Path && pair.First.Visibility == pair.Second.Visibility);
     }
 }
-

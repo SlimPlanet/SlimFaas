@@ -54,6 +54,38 @@ Two benchmark styles are used:
 
 ## Results
 
+### DLQ metadata and retained body sizes
+
+Windows x64, .NET SDK 10.0.401, ShortRun in-process. Each operation scans
+1,000 retained entries; the payload dictionary shares an immutable body buffer.
+This isolates metadata processing from body size, not end-to-end throughput.
+
+| Method | Bytes per body | Mean | Allocated |
+|---|---:|---:|---:|
+| PayloadOwnerReferences | 0 | 295.4 us | 234.63 KB |
+| PayloadOwnerReferences | 1,048,576 | 248.3 us | 234.63 KB |
+| RetentionSweep | 0 | 536.2 us | 278.80 KB |
+| RetentionSweep | 1,048,576 | 554.4 us | 278.81 KB |
+
+Maintenance allocations do not scale with retained body bytes. These short
+timings have wide confidence intervals and are not latency guarantees.
+Run `--filter '*DeadLetterMetadata*'` to reproduce.
+
+The queue benchmark uses the real `Queue:` namespace and compares opt-in
+capture against an unmanaged queue, including timed-out/finished elements:
+
+| Queue depth | Capture enabled | Dequeue mean | Allocated |
+|---:|:---:|---:|---:|
+| 50 | No | 21.57 us | 3.16 KB |
+| 50 | Yes | 343.43 us | 40.65 KB |
+| 500 | No | 169.27 us | 9.46 KB |
+| 500 | Yes | 876.82 us | 315.13 KB |
+
+Managed queues pay for staged immutable transitions and terminal capture.
+The disabled default avoids that path. These figures are an in-run comparison,
+not a cross-commit disabled-path regression claim.
+Run `--filter '*SlimDataQueueBenchmarks.ListRightPop*'` to reproduce.
+
 _Machine: Linux x64 container, .NET SDK 10.0.1xx. Tables are copied from the
 BenchmarkDotNet output of each step._
 

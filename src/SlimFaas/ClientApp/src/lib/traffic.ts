@@ -6,6 +6,7 @@ export const SPEEDS = { Fast: 450, Normal: 800, Slow: 1400 } as const;
 export type Speed = keyof typeof SPEEDS;
 export type MessageKind = 'request' | 'publication' | 'queue' | 'reply';
 export function messageKind(event: NetworkActivityEvent): MessageKind {
+  if (event.Type === 'dead_lettered' || event.Type === 'dead_letter_requeued') return 'queue';
   if (event.Type === 'event_publish') return 'publication';
   if (event.Type === 'enqueue' || event.Type === 'dequeue' || (event.Type === 'request_out' && event.QueueName)) return 'queue';
   if (event.Type === 'response' || event.Type === 'request_end') return 'reply';
@@ -67,6 +68,7 @@ export class TrafficPlayback {
 
   /** The same presentation rules apply to moving markers and their static links. */
   visualKind(event: NetworkActivityEvent): MessageKind | null {
+    if (['dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted'].includes(event.Type)) return null;
     if (event.Type === 'request_waiting' || event.Type === 'request_started') return null;
     // The HTTP response is transport metadata. The queue worker records the
     // logical completion separately, including a deferred 202 callback.

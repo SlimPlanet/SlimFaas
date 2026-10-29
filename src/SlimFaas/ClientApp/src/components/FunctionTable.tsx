@@ -4,8 +4,9 @@ import { paginate } from '../lib/live.ts';
 import Pagination from './Pagination';
 import WorkloadDetails from './WorkloadDetails';
 import Icon from './Icon';
-interface Props { functions: FunctionStatusDetailed[]; onWakeUp: (name: string) => void; coolingDown?: Set<string> }
-export default function FunctionTable({ functions, onWakeUp, coolingDown = new Set() }: Props) {
+import type { DeadLetterSummary } from '../lib/deadLetters';
+interface Props { functions: FunctionStatusDetailed[]; onWakeUp: (name: string) => void; coolingDown?: Set<string>; deadLetters?: DeadLetterSummary[] }
+export default function FunctionTable({ functions, onWakeUp, coolingDown = new Set(), deadLetters = [] }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -19,6 +20,6 @@ export default function FunctionTable({ functions, onWakeUp, coolingDown = new S
     </tr>)}</tbody></table></div>
     {matches.length === 0 && <p className="empty-state">No matching functions.</p>}
     <Pagination page={paged.page} pages={paged.pages} total={matches.length} onPage={setPage} />
-    {detail && <WorkloadDetails workload={detail} onClose={() => setSelected(null)} />}
+    {detail && <WorkloadDetails workload={detail} onClose={() => setSelected(null)} deadLetters={deadLetters.find(item => item.Function === detail.Name)} />}
   </section>;
 }

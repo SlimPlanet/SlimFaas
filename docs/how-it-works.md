@@ -4,6 +4,22 @@ SlimFaas sits between callers and their applications. It routes HTTP requests, w
 
 Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard. This page explains what happens behind each step; the [API Reference](api-reference.md) lists the actual routes.
 
+## Durable terminal failures
+
+Opt-in [Dead Letter Queues](dead-letter-queues.md) share SlimData's ordered Raft
+mutation pipeline. Terminal callbacks, dequeue-time exhaustion, and maintenance
+timeouts atomically replace an executable request with retained metadata/payload
+references. Replay atomically creates a fresh active element and a 24-hour
+receipt. Metadata is stored separately from serialized request bytes so
+retention, owner checks, and SSE summaries do not copy retained bodies.
+The existing artifact cleaner protects retained/replayed owners until their
+last reference is released. DLQ state stays outside executable queue counts.
+
+Committed transition counters and a bounded recent-transition window are
+replicated with snapshots. Browser snapshots are projected per caller; private
+DLQ state never enters the shared public SSE frame cache. DLQ metric scraping
+uses the same dedicated access policy rather than the public metric registry.
+
 ## Container build dependencies
 
 Dockerfiles pin the .NET 10 SDK to `10.0.401` and .NET runtime images to `10.0.12`. Alpine-based builds and runtimes share Alpine 3.24 (`3.24.2` for standalone Alpine images). Frontend build stages use Node.js `24.21.0` LTS on Alpine 3.24, and the FibonacciReact demo serves its generated assets with stable nginx `1.30.5` on Alpine 3.24.

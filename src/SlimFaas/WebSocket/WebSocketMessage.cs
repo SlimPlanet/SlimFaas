@@ -120,6 +120,9 @@ public class PathVisibilityConfig
 /// </summary>
 public class WebSocketFunctionConfiguration
 {
+    [JsonIgnore]
+    public SlimFaas.Kubernetes.SlimFaasConfiguration ParsedConfiguration { get; set; } = new();
+
     [JsonPropertyName("dependsOn")]
     public List<string> DependsOn { get; set; } = [];
 
@@ -338,4 +341,3 @@ public class SyncResponseStartPayload
     [JsonPropertyName("headers")]
     public Dictionary<string, string[]> Headers { get; set; } = [];
 }
-

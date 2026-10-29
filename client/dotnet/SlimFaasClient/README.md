@@ -69,6 +69,24 @@ await client.RunForeverAsync(cts.Token);
 
 ## Full configuration
 
+For durable async failures, use the existing configuration JSON (no new wire
+field or SDK upgrade is required):
+
+```csharp
+var config = new SlimFaasClientConfig
+{
+    FunctionName = "billing",
+    Configuration = """{"DefaultAsync":{"HttpTimeout":120,"DeadLetterQueue":{"Enabled":true,"MaxAgeSeconds":604800,"MaxLength":10000}}}"""
+};
+```
+
+The runtime validates this JSON. Async handler return codes, explicit callbacks,
+and timeouts determine retries/capture. Replay gets a new element ID and current
+retry settings; make handlers idempotent. Return 202 only for deferred work that
+will send the existing completion callback. Management APIs are private by
+default; function visibility never grants DLQ access. See the
+[DLQ guide](../../../docs/dead-letter-queues.md).
+
 | Property | Kubernetes annotation | Description |
 |---|---|---|
 | `FunctionName` | Deployment name | Unique name — must **not** match an existing K8s Deployment |

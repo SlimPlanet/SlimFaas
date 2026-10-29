@@ -20,6 +20,13 @@ For a ready-to-run demonstration without installing .NET or Node.js, use [Get St
 The repository contains a complete [`slimfaas.local.yaml`](../slimfaas.local.yaml)
 demo.
 
+For an opt-in terminal-failure inspection/replay exercise, add
+[`slimfaas.local.dlq.yaml`](../slimfaas.local.dlq.yaml) as a second `-f` overlay.
+It preserves the standard demo when omitted. UI and management visibility are
+separate runtime options; follow the
+[DLQ exercise](dead-letter-queues.md#native-local-exercise) rather than exposing
+private payloads implicitly.
+
 ### Run the demo from a Git clone
 
 With the .NET 10 SDK (`10.0.401` or later), Node.js 24 or later, and npm installed, clone the repository and

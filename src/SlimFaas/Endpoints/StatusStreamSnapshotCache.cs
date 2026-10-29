@@ -9,6 +9,8 @@ namespace SlimFaas.Endpoints;
 public interface IStatusStreamSnapshotCache
 {
     Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct);
+    Task<string> GetStateFrameAsync(bool includeRecentActivity, bool includeDeadLetters, CancellationToken ct) =>
+        GetStateFrameAsync(includeRecentActivity, ct);
 }
 
 public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDisposable
@@ -31,6 +33,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
     private readonly IJobQueue? _jobQueue;
     private readonly ILogger<StatusStreamSnapshotCache> _logger;
     private readonly StatusLeader? _leader;
+    private readonly SlimFaas.DeadLetters.IDeadLetterService? _deadLetters;
 
     private readonly SemaphoreSlim _stateLock = new(1, 1);
     private readonly SemaphoreSlim _queuesLock = new(1, 1);
@@ -64,7 +67,8 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         IJobService? jobService = null,
         IScheduleJobService? scheduleJobService = null,
         StatusLeader? leader = null,
-        IJobQueue? jobQueue = null)
+        IJobQueue? jobQueue = null,
+        SlimFaas.DeadLetters.IDeadLetterService? deadLetters = null)
     {
         _replicasService = replicasService;
         _functionStatusCache = functionStatusCache;
@@ -77,6 +81,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         _scheduleJobService = scheduleJobService;
         _leader = leader;
         _jobQueue = jobQueue;
+        _deadLetters = deadLetters;
     }
 
     public async Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct)
@@ -113,7 +118,10 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         }
     }
 
-    private async Task<string> BuildStateFrameAsync(bool includeRecentActivity, CancellationToken ct)
+    public Task<string> GetStateFrameAsync(bool includeRecentActivity, bool includeDeadLetters, CancellationToken ct) =>
+        includeDeadLetters ? BuildStateFrameAsync(includeRecentActivity, ct, true) : GetStateFrameAsync(includeRecentActivity, ct);
+
+    private async Task<string> BuildStateFrameAsync(bool includeRecentActivity, CancellationToken ct, bool includeDeadLetters = false)
     {
         var functions = _functionStatusCache.GetAllDetailed(_replicasService);
         var queues = await GetQueuesAsync(functions, ct).ConfigureAwait(false);
@@ -132,14 +140,18 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
             Queues: queues,
             Jobs: jobs,
             RecentActivity: includeRecentActivity
-                ? _activityTracker.GetRecent().Select(StatusStreamPrivacy.ForBrowser).ToArray()
+                ? _activityTracker.GetRecent().Where(item => includeDeadLetters || !item.Type.StartsWith("dead_letter", StringComparison.Ordinal))
+                    .Select(StatusStreamPrivacy.ForBrowser).ToArray()
                 : Array.Empty<NetworkActivityEvent>(),
             SlimFaasReplicas: slimFaasInfo.Replicas,
             SlimFaasNodes: slimFaasNodes,
             FrontEnabled: _slimFaasOptions.Value.EnableFront,
             FrontMessage: _slimFaasOptions.Value.EnableFront ? null : "SlimFaas front is disabled by configuration (SlimFaas:EnableFront=false).",
             LiveActivitySamplingRatio: _slimFaasOptions.Value.StatusStream.LiveEventSamplingRatio,
-            MaxLiveEventsPerSecond: _slimFaasOptions.Value.StatusStream.MaxLiveEventsPerSecond);
+            MaxLiveEventsPerSecond: _slimFaasOptions.Value.StatusStream.MaxLiveEventsPerSecond,
+            DeadLetters: includeDeadLetters && _deadLetters is not null ? (await _deadLetters.ReadAsync(ct).ConfigureAwait(false)).Summaries.Take(500).ToArray() : null,
+            DeadLettersFrontEnabled: _deadLetters?.FrontEnabled == true,
+            DeadLettersAccessible: includeDeadLetters);
 
         string json = JsonSerializer.Serialize(payload, StatusStreamSerializerContext.Default.StatusStreamPayload);
         return $"event: state\ndata: {json}\n\n";
