@@ -28,6 +28,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
     private readonly IJobConfiguration? _jobConfiguration;
     private readonly IJobService? _jobService;
     private readonly IScheduleJobService? _scheduleJobService;
+    private readonly IJobQueue? _jobQueue;
     private readonly ILogger<StatusStreamSnapshotCache> _logger;
     private readonly StatusLeader? _leader;
 
@@ -62,7 +63,8 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         IJobConfiguration? jobConfiguration = null,
         IJobService? jobService = null,
         IScheduleJobService? scheduleJobService = null,
-        StatusLeader? leader = null)
+        StatusLeader? leader = null,
+        IJobQueue? jobQueue = null)
     {
         _replicasService = replicasService;
         _functionStatusCache = functionStatusCache;
@@ -74,6 +76,7 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
         _jobService = jobService;
         _scheduleJobService = scheduleJobService;
         _leader = leader;
+        _jobQueue = jobQueue;
     }
 
     public async Task<string> GetStateFrameAsync(bool includeRecentActivity, CancellationToken ct)
@@ -221,7 +224,8 @@ public sealed class StatusStreamSnapshotCache : IStatusStreamSnapshotCache, IDis
                 _cachedJobs = await JobStatusEndpoints.BuildJobStatusesAsync(
                     _jobConfiguration,
                     _jobService,
-                    _scheduleJobService).ConfigureAwait(false);
+                    _scheduleJobService,
+                    _jobQueue).ConfigureAwait(false);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {

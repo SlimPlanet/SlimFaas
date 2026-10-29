@@ -179,4 +179,5 @@ export interface JobConfigurationStatus {
   DependsOn: string[] | null;
   Schedules: ScheduledJobInfo[];
   RunningJobs: RunningJobStatus[];
+  QueueLength: number; // Queued executions not yet created.
 }

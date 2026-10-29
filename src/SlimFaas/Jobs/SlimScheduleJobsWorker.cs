@@ -1,5 +1,6 @@
 using MemoryPack;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Kubernetes;
 
 namespace SlimFaas.Jobs;
@@ -10,7 +11,8 @@ public class SlimScheduleJobsWorker( IJobService jobService,
         ISlimDataStatus slimDataStatus,
         IDatabaseService databaseService,
         IMasterService masterService,
-        int delay = 1000 * 60)
+        int delay = 1000 * 60,
+        NetworkActivityTracker? activityTracker = null)
     : BackgroundService
 {
 
@@ -104,6 +106,13 @@ public class SlimScheduleJobsWorker( IJobService jobService,
 
         if (result.IsSuccess)
         {
+            string queuedConfigurationName = JobConfiguration.ResolveName(
+                jobConfiguration.Configuration.Configurations, configurationName);
+            activityTracker?.Record(
+                NetworkActivityTracker.EventTypes.Enqueue,
+                NetworkActivityTracker.Actors.SlimFaas,
+                queuedConfigurationName,
+                JobQueue.ActivityQueueName(queuedConfigurationName));
             await databaseService.SetAsync(executionKey, MemoryPackSerializer.Serialize(latestExecutionTimeStamp), OneYearInMilliseconds);
             logger.LogEnqueuedJobForScheduleInConfiguration(id, configurationName);
         }
