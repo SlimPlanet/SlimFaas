@@ -144,8 +144,9 @@ the IP addresses of running jobs. The message then starts from the exact job ins
 Each job configuration also has its own queue on the map, named `job:<name>` so that it
 stays apart from the queue of a function with the same name. `POST /job/<name>` is displayed
 as `Caller -> SlimFaas -> job:<name>`, and a scheduled execution enters the queue from
-SlimFaas. When SlimFaas creates the execution, the message leaves the queue for the job
-group. Like a function queue, a job queue shows its current length and remains visible
+SlimFaas. When SlimFaas creates the execution, the message leaves the queue for that
+execution, or for the job group until the status snapshot lists it, never for a function
+with the same name. Like a function queue, a job queue shows its current length and remains visible
 when empty once it has carried activity. A rejected request (private configuration or image
 not allowed) is answered to its caller without entering the queue.
 

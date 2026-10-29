@@ -16,24 +16,26 @@ const CELL = 34;
 const GAP = 90;
 export const nodeId = (kind: string, name: string) => `${kind}:${name}`;
 
+/** A job queue keeps the name SlimFaas records in activity, apart from function queues. */
+export const jobQueueName = (job: string) => `job:${job}`;
+export function jobQueues(jobs: JobConfigurationStatus[]): QueueInfo[] {
+  return jobs.map(job => ({ Name: jobQueueName(job.Name), Length: job.QueueLength }));
+}
+/** Job queue traffic targets the job, never a function that has the same name. */
+export const isJobQueueEvent = (event: NetworkActivityEvent) => event.QueueName === jobQueueName(event.Target);
+
 export interface ObservedFunction { name: string; replicas: string[] }
 /** Event-only actors keep an honest unknown inventory state until a snapshot supplies it. */
 export function observedFunctions(functions: FunctionStatusDetailed[], events: NetworkActivityEvent[]): ObservedFunction[] {
   const known = new Set(functions.map(fn => fn.Name));
   const observed = new Map<string, Set<string>>();
   for (const event of events) {
-    if (!event.Target || known.has(event.Target) || ['slimfaas', 'external'].includes(event.Target)) continue;
+    if (!event.Target || known.has(event.Target) || isJobQueueEvent(event) || ['slimfaas', 'external'].includes(event.Target)) continue;
     const replicas = observed.get(event.Target) ?? new Set<string>();
     if (event.TargetPod) replicas.add(event.TargetPod);
     observed.set(event.Target, replicas);
   }
   return [...observed].sort(([a], [b]) => a.localeCompare(b)).map(([name, replicas]) => ({ name, replicas: [...replicas].sort() }));
-}
-
-/** A job queue keeps the name SlimFaas records in activity, apart from function queues. */
-export const jobQueueName = (job: string) => `job:${job}`;
-export function jobQueues(jobs: JobConfigurationStatus[]): QueueInfo[] {
-  return jobs.map(job => ({ Name: jobQueueName(job.Name), Length: job.QueueLength }));
 }
 
 export function observedQueues(queues: QueueInfo[], events: NetworkActivityEvent[]): string[] {
@@ -131,10 +133,19 @@ export function resolveSource(topology: Topology, actor: string, pod: string | n
   return topology.actors.get(actor) ?? 'external:external';
 }
 
+/** A job queue delivers to the execution once the snapshot lists it, otherwise to its job group. */
+function jobTarget(topology: Topology, event: NetworkActivityEvent): string | undefined {
+  const run = event.TargetPod ? nodeId('run', event.TargetPod) : null;
+  if (run && topology.byId.has(run)) return run;
+  const job = nodeId('job', event.Target);
+  return topology.byId.has(job) ? job : undefined;
+}
+
 export function eventPath(topology: Topology, event: NetworkActivityEvent): string[] {
   const slim = topology.byId.has(nodeId('node', event.NodeId)) ? nodeId('node', event.NodeId) : 'slimfaas:slimfaas';
   const source = event.Source === 'slimfaas' && !event.SourcePod ? slim : resolveSource(topology, event.Source, event.SourcePod);
-  const target = event.Target === 'slimfaas' ? slim : (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target) || slim;
+  const target = event.Target === 'slimfaas' ? slim : isJobQueueEvent(event) ? jobTarget(topology, event) ?? slim
+    : (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target) || slim;
   const queue = nodeId('queue', event.QueueName ?? event.Target);
   let path: string[];
   if (event.Type === 'request_in') path = [source, slim];

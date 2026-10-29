@@ -149,20 +149,32 @@ test('peer WebSocket queue dispatches retain their queue even without a local qu
   assert.deepEqual(observedQueues([{ Name: 'remote-ws', Length: 0 }], [e]), []);
 });
 
-test('job queues stay apart from a function queue with the same name and carry enqueue and dequeue trips', () => {
+test('job queues stay apart from a same-named function and deliver dequeued executions to the job', () => {
   const jobs = [{ ...fixture.jobs[0], QueueLength: 3 }, { ...fixture.jobs[0], Name: 'fibonacci1', RunningJobs: [], QueueLength: 0 }];
   const queues = [...fixture.queues, ...jobQueues(jobs)];
-  const topology = buildTopology(fixture.functions, jobs, queues, fixture.slimFaasNodes);
+  const job = { Target: 'daily-report', QueueName: jobQueueName('daily-report'), SourcePod: null, TargetPod: null };
+  const scheduled = event('scheduled', { ...job, Type: 'enqueue', Source: 'slimfaas', NodeId: 'slimfaas-1' });
+  const dequeue = event('started', { ...job, Type: 'dequeue', Source: 'slimfaas', TargetPod: 'daily-report-slimfaas-job-new' });
+  const listed = event('listed', { ...job, Type: 'dequeue', Source: 'slimfaas', TargetPod: 'daily-report-slimfaas-job-00000' });
+  const sameName = { Target: 'fibonacci1', QueueName: jobQueueName('fibonacci1'), Source: 'slimfaas', SourcePod: null };
+  const collision = event('collision', { ...sameName, Type: 'dequeue', TargetPod: 'fibonacci1-slimfaas-job-new' });
+  const collisionPod = event('collision-pod', { ...sameName, Type: 'dequeue', TargetPod: fixture.functions[0].Pods[0].Identity });
+  const activity = [scheduled, dequeue, listed, collision, collisionPod];
+  // Job queue traffic never makes a job, or the execution it creates, look like a function.
+  const observed = observedFunctions(fixture.functions, activity);
+  assert.deepEqual(observed, []);
+  assert.deepEqual(observedQueues(queues, activity), []);
+  const topology = buildTopology(fixture.functions, jobs, queues, fixture.slimFaasNodes, observed);
   assert.equal(jobQueueName('daily-report'), 'job:daily-report');
   assert.equal(topology.byId.get('queue:fibonacci1').status, '12 queued');
   assert.equal(topology.byId.get('queue:job:daily-report').status, '3 queued');
   assert.equal(topology.byId.get('queue:job:fibonacci1').status, '0 queued');
-  const job = { Target: 'daily-report', QueueName: jobQueueName('daily-report'), SourcePod: null, TargetPod: null };
-  const scheduled = event('scheduled', { ...job, Type: 'enqueue', Source: 'slimfaas', NodeId: 'slimfaas-1' });
-  const dequeue = event('started', { ...job, Type: 'dequeue', Source: 'slimfaas', TargetPod: 'daily-report-slimfaas-job-new' });
-  assert.deepEqual(observedQueues(queues, [scheduled, dequeue]), []);
+  assert.equal(topology.byId.has('function:daily-report'), false);
   assert.deepEqual(displayPath(topology, scheduled, null), ['node:slimfaas-1', 'queue:job:daily-report']);
   assert.deepEqual(displayPath(topology, dequeue, null), ['queue:job:daily-report', 'job:daily-report']);
+  assert.deepEqual(displayPath(topology, listed, null), ['queue:job:daily-report', 'run:daily-report-slimfaas-job-00000']);
+  assert.deepEqual(displayPath(topology, collision, null), ['queue:job:fibonacci1', 'job:fibonacci1']);
+  assert.deepEqual(displayPath(topology, collisionPod, null), ['queue:job:fibonacci1', 'job:fibonacci1']);
   const player = new TrafficPlayback();
   update(player, [scheduled, dequeue], { topology });
   assert.deepEqual([...player.markers.values()].map(marker => [marker.kind, marker.path]), [
