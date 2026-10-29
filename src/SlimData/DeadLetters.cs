@@ -133,6 +133,19 @@ public static class DeadLetterKeys
 
 internal static class DeadLetterStateMachine
 {
+    static DeadLetterStateMachine()
+    {
+        // Avoid reflection-based formatter discovery being trimmed by Native AOT.
+        MemoryPackFormatterProvider.Register<DeadLetterPolicy>();
+        MemoryPackFormatterProvider.Register<DeadLetterEntry>();
+        MemoryPackFormatterProvider.Register<DeadLetterActive>();
+        MemoryPackFormatterProvider.Register<DeadLetterReceipt>();
+        MemoryPackFormatterProvider.Register<DeadLetterStatistics>();
+        MemoryPackFormatterProvider.Register<DeadLetterTransition>();
+        MemoryPackFormatterProvider.Register<DeadLetterMutation>();
+        MemoryPackFormatterProvider.Register<DeadLetterMutationResult>();
+    }
+
     private static T? Read<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(SlimDataState state, string key) where T : class =>
         state.KeyValues.TryGetValue(key, out var bytes) ? MemoryPackSerializer.Deserialize<T>(bytes.Span) : null;
 
@@ -141,7 +154,6 @@ internal static class DeadLetterStateMachine
     private static ImmutableArray<QueueElement> Queue(SlimDataState state, string key) =>
         state.Queues.TryGetValue(key, out var queue) ? queue : [];
 
-    // Concrete serialization call sites root MemoryPack's formatter methods for Native AOT.
     private static void Put(SlimDataState state, string key, string field, byte[] value) =>
         state.Hashsets = state.Hashsets.SetItem(key, Get(state, key).SetItem(field, value));
 
