@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.85.1
+
+- [0816350f](https://github.com/SlimPlanet/SlimFaas/commit/0816350f2966cc1d9f5dc417c6c2972e3213ff67) - fix(slimfaas-mcp): keep single-property JSON request bodies as objects (#171) (#470) (release), 2026-10-29 by *NopeCharon*
+
+
+## 0.85.0
+
+
+
 ## v0.85.0
 
 - [3af14d57](https://github.com/SlimPlanet/SlimFaas/commit/3af14d57e1b496717eff82d59af2e39a8a6baab8) - fix(Jobs): validate cron fields and run N/step to the end of the field (#480) (#481) (release), 2026-10-29 by *NopeCharon*
@@ -267,16 +276,5 @@
 ## v0.81.0
 
 - [8dc88d7a](https://github.com/SlimPlanet/SlimFaas/commit/8dc88d7a651df1c796d54e523bf47c5b7bce168c) - feat: optimize async (release) (#311), 2026-08-07 by *Guillaume Chervet*
-
-
-## 0.80.0
-
-
-
-## v0.80.0
-
-- [780153dc](https://github.com/SlimPlanet/SlimFaas/commit/780153dc307eee841e3960a73d59dc065fd104e7) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
-- [309a2119](https://github.com/SlimPlanet/SlimFaas/commit/309a21194601a8334c1ab314552d3bb257477e48) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
-- [b9f9a9f3](https://github.com/SlimPlanet/SlimFaas/commit/b9f9a9f3e354dc5872b97d124f9b31a3be8b4e15) - feat: optimise sync request (#310), 2026-08-04 by *Guillaume Chervet*
 
 
