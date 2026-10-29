@@ -127,6 +127,8 @@ public sealed class DeadLetterTests
         var first = DeadLetterStateMachine.Apply(Replay("new"), state);
         var repeated = DeadLetterStateMachine.Apply(Replay("duplicate"), state);
         Assert.Equal(202, first.Status); Assert.Equal("new", repeated.Receipt!.ElementId);
+        Assert.Equal(MemoryPackSerializer.Serialize(first.Receipt),
+            state.Hashsets[DeadLetterKeys.Receipts("billing")][entry.Id].ToArray());
         var active = Assert.Single(state.Queues["Queue:billing"]);
         Assert.Equal("new", active.Id); Assert.Empty(active.RetryQueueElements);
         Assert.Equal([1, 2], active.TimeoutRetriesSeconds.ToArray()); Assert.Empty(Entries(state));

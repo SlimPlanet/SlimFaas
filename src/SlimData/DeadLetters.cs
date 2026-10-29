@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Diagnostics.CodeAnalysis;
 using MemoryPack;
@@ -133,19 +134,6 @@ public static class DeadLetterKeys
 
 internal static class DeadLetterStateMachine
 {
-    static DeadLetterStateMachine()
-    {
-        // Avoid reflection-based formatter discovery being trimmed by Native AOT.
-        MemoryPackFormatterProvider.Register<DeadLetterPolicy>();
-        MemoryPackFormatterProvider.Register<DeadLetterEntry>();
-        MemoryPackFormatterProvider.Register<DeadLetterActive>();
-        MemoryPackFormatterProvider.Register<DeadLetterReceipt>();
-        MemoryPackFormatterProvider.Register<DeadLetterStatistics>();
-        MemoryPackFormatterProvider.Register<DeadLetterTransition>();
-        MemoryPackFormatterProvider.Register<DeadLetterMutation>();
-        MemoryPackFormatterProvider.Register<DeadLetterMutationResult>();
-    }
-
     private static T? Read<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.All)] T>(SlimDataState state, string key) where T : class =>
         state.KeyValues.TryGetValue(key, out var bytes) ? MemoryPackSerializer.Deserialize<T>(bytes.Span) : null;
 
@@ -156,6 +144,17 @@ internal static class DeadLetterStateMachine
 
     private static void Put(SlimDataState state, string key, string field, byte[] value) =>
         state.Hashsets = state.Hashsets.SetItem(key, Get(state, key).SetItem(field, value));
+
+    private static byte[] SerializeReceipt(DeadLetterReceipt receipt)
+    {
+        var buffer = new ArrayBufferWriter<byte>();
+        using var optionalState = MemoryPackWriterOptionalStatePool.Rent(null);
+        var writer = new MemoryPackWriter<ArrayBufferWriter<byte>>(ref buffer, optionalState);
+        // Call the generated serializer directly, without a generic virtual formatter call in Native AOT.
+        writer.WritePackable(receipt);
+        writer.Flush();
+        return buffer.WrittenSpan.ToArray();
+    }
 
     private static void Remove(SlimDataState state, string key, string field) =>
         state.Hashsets = state.Hashsets.SetItem(key, Get(state, key).Remove(field));
@@ -304,7 +303,7 @@ internal static class DeadLetterStateMachine
                     DeadLetterId = entry.Id, OriginalElementId = entry.OriginalElementId,
                     Function = function, ElementId = replay.Id, ExpiresAtTicks = now + TimeSpan.TicksPerDay
                 };
-                Put(state, DeadLetterKeys.Receipts(function), entry.Id, MemoryPackSerializer.Serialize(newReceipt));
+                Put(state, DeadLetterKeys.Receipts(function), entry.Id, SerializeReceipt(newReceipt));
                 RemoveEntry(state, entry);
                 Transition(state, entry, "dead_letter_requeued", replay.Id);
                 return new() { Status = 202, Receipt = newReceipt };

@@ -134,8 +134,8 @@ A blocked replay leaves the retained entry intact.
 ## Replay and recovery guarantees
 
 Capture, deletion, retention, and replay are committed through SlimData/Raft.
-DLQ state explicitly registers its generated MemoryPack formatters, including
-replay receipts, rather than relying on reflection discovery in Native AOT builds.
+Replay receipts use the generated MemoryPack serializer directly, retaining the
+same stored bytes without generic virtual formatter dispatch in Native AOT builds.
 Capture preserves the accepted request, retry history, failure time, and
 inline or internally offloaded payload references in the same state transition
 that removes it from the executable queue. Persistence failures are reported
