@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using SlimFaasMcp.Models;
 using SlimFaasMcp.Services;
 using Xunit;
 
@@ -108,5 +109,41 @@ paths:
         // Vérifie que le cache marche aussi pour YAML
         _ = await svc.GetSwaggerAsync("https://api.example.com/openapi.yaml");
         Assert.Equal(1, stub.CallCount);
+    }
+
+    // Issue #171 : un corps JSON dont l'objet n'a qu'une propriété ne doit pas être aplati,
+    // car le corps est transmis tel quel à l'API.
+    [Theory]
+    [InlineData("""{ "$ref": "#/components/schemas/it" }""")]
+    [InlineData("""{ "type": "object", "title": "it", "required": ["question"], "properties": { "question": { "type": "string", "title": "Question", "description": "The user's question" } } }""")]
+    public void ParseEndpoints_Keeps_Single_Property_Json_Body_Object(string bodySchema)
+    {
+        var (svc, _) = Create();
+        using var doc = JsonDocument.Parse($$"""
+            {
+              "openapi": "3.0.0",
+              "paths": { "/ask": { "post": {
+                "summary": "Ask a question",
+                "requestBody": { "content": { "application/json": { "schema": {{bodySchema}} } } }
+              } } },
+              "components": { "schemas": { "it": {
+                "type": "object",
+                "title": "it",
+                "required": ["question"],
+                "properties": { "question": { "type": "string", "title": "Question", "description": "The user's question" } }
+              } } }
+            }
+            """);
+
+        var ep = svc.ParseEndpoints(doc).Single();
+        var inputSchema = McpTool.GenerateInputSchema(ep.Parameters!);
+
+        Assert.Equal("body", Assert.Single(inputSchema["required"]!.AsArray())!.GetValue<string>());
+        var body = inputSchema["properties"]!["body"]!;
+        Assert.Equal("object", body["type"]!.GetValue<string>());
+        Assert.Equal("question", Assert.Single(body["required"]!.AsArray())!.GetValue<string>());
+        var question = body["properties"]!["question"]!;
+        Assert.Equal("string", question["type"]!.GetValue<string>());
+        Assert.Equal("The user's question", question["description"]!.GetValue<string>());
     }
 }
