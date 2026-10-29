@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.86.0
+
+- [112482a7](https://github.com/SlimPlanet/SlimFaas/commit/112482a7e420d104baccfb9360330204e6b8bad5) - feat(dashboard): show job queues and their message exchanges (#468) (#483) (release), 2026-10-30 by *NopeCharon*
+
+
+## 0.85.1
+
+
+
 ## v0.85.1
 
 - [0816350f](https://github.com/SlimPlanet/SlimFaas/commit/0816350f2966cc1d9f5dc417c6c2972e3213ff67) - fix(slimfaas-mcp): keep single-property JSON request bodies as objects (#171) (#470) (release), 2026-10-29 by *NopeCharon*
@@ -266,15 +275,5 @@
 ## v0.81.1
 
 - [5d766c95](https://github.com/SlimPlanet/SlimFaas/commit/5d766c95aafaab9da2c280cea34585f687f65a09) - perf: hot-path reads with zero allocation (~89×), queue counts ~25×, schedule evaluation ~52× faster (release) (#313), 2026-08-14 by *Guillaume Delahaye*
-
-
-## 0.81.0
-
-- [3cb41f11](https://github.com/SlimPlanet/SlimFaas/commit/3cb41f1177b5217e132b12b286d74820f0fe6e40) - fix: Stabilize Raft cluster catch-up timeout in SlimData test (#312), 2026-08-07 by *Copilot*
-
-
-## v0.81.0
-
-- [8dc88d7a](https://github.com/SlimPlanet/SlimFaas/commit/8dc88d7a651df1c796d54e523bf47c5b7bce168c) - feat: optimize async (release) (#311), 2026-08-07 by *Guillaume Chervet*
 
 
