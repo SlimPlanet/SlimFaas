@@ -156,15 +156,17 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
                     if (content.TryGetProperty("application/json", out var appJson) &&
                         appJson.TryGetProperty("schema", out var schema))
                     {
-                        var unwrapped = UnwrapSinglePropObjectIfAny(expander, schema);
+                        // The JSON body is forwarded as-is, so its schema must keep every property,
+                        // even when the object has only one.
+                        var expanded = ExpandToElement(expander, schema);
                         parameters.Add(new Parameter
                         {
                             Name        = "body",
                             In          = "body",
                             Required    = true,
                             Description = "Request body",
-                            SchemaType  = unwrapped.TryGetProperty("type", out var t) ? t.GetString() : "object",
-                            Schema      =  ExpandAndSanitize(expander, unwrapped)
+                            SchemaType  = expanded.TryGetProperty("type", out var t) ? t.GetString() : "object",
+                            Schema      =  ExpandAndSanitize(expander, expanded)
                         });
                         contentType = "application/json";
                     }
@@ -339,21 +341,22 @@ public class SwaggerService(IHttpClientFactory httpClientFactory, IMemoryCache m
         return sanitized;
     }
 
+    // Convertit un JsonNode en JsonElement SANS serializer (pas de reflection)
+    private static JsonElement ToElem(JsonNode n)
+    {
+        using var doc = JsonDocument.Parse(n.ToJsonString());
+        return doc.RootElement.Clone();
+    }
+
+    // Expand -> object graph -> JsonElement
+    private static JsonElement ExpandToElement(OpenApiSchemaExpander expander, JsonElement schemaEl)
+        => ToElem(SchemaHelpers.ToJsonNode(expander.ExpandSchema(schemaEl), maxDepth: 64) ?? new JsonObject());
+
     private static JsonElement UnwrapSinglePropObjectIfAny(OpenApiSchemaExpander expander, JsonElement schemaEl)
     {
-        // 1) Expand -> object graph
-        var expanded = expander.ExpandSchema(schemaEl);
+        var rootElem = ExpandToElement(expander, schemaEl);
 
-        // 2) Convertit en JsonNode puis en JsonElement SANS serializer
-        static JsonElement ToElem(JsonNode n)
-        {
-            using var doc = JsonDocument.Parse(n.ToJsonString()); // pas de reflection
-            return doc.RootElement.Clone();
-        }
-
-        var rootElem = ToElem(SchemaHelpers.ToJsonNode(expanded, maxDepth: 64) ?? new JsonObject());
-
-        // 3) Détection wrapper { type: "object", properties: { only: {...} }, required?: ["only"] }
+        // Détection wrapper { type: "object", properties: { only: {...} }, required?: ["only"] }
         if (rootElem.ValueKind == JsonValueKind.Object
             && rootElem.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String
             && string.Equals(t.GetString(), "object", StringComparison.OrdinalIgnoreCase)
