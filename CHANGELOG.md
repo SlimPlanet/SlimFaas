@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.85.0
+
+- [3af14d57](https://github.com/SlimPlanet/SlimFaas/commit/3af14d57e1b496717eff82d59af2e39a8a6baab8) - fix(Jobs): validate cron fields and run N/step to the end of the field (#480) (#481) (release), 2026-10-29 by *NopeCharon*
+- [289555bc](https://github.com/SlimPlanet/SlimFaas/commit/289555bc59ac4d276536d48241e0664b006b3070) - chore(deps): update .NET and JavaScript dependencies (#479), 2026-10-27 by *Guillaume Chervet*
+- [30783a49](https://github.com/SlimPlanet/SlimFaas/commit/30783a49ad785955d7fbe9387df8cc26527fee48) - feat(Jobs): evaluate cron schedules in an optional IANA time zone (#426) (#469)(release), 2026-10-27 by *NopeCharon*
+
+
+## 0.84.16
+
+
+
 ## v0.84.16
 
 - [bfbd344a](https://github.com/SlimPlanet/SlimFaas/commit/bfbd344a9cc0abd5e1911563f998e488274c6698) - fix: make the Windows guided tour repeatable (#444) (release), 2026-10-01 by *Guillaume Chervet*
@@ -267,14 +278,5 @@
 - [780153dc](https://github.com/SlimPlanet/SlimFaas/commit/780153dc307eee841e3960a73d59dc065fd104e7) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
 - [309a2119](https://github.com/SlimPlanet/SlimFaas/commit/309a21194601a8334c1ab314552d3bb257477e48) - fix: SyncFunction configurations (release), 2026-08-04 by *Guillaume Chervet*
 - [b9f9a9f3](https://github.com/SlimPlanet/SlimFaas/commit/b9f9a9f3e354dc5872b97d124f9b31a3be8b4e15) - feat: optimise sync request (#310), 2026-08-04 by *Guillaume Chervet*
-
-
-## 0.79.4
-
-
-
-## v0.79.4
-
-- [bbe315ad](https://github.com/SlimPlanet/SlimFaas/commit/bbe315ad2270a3c03426490a1e756bfeed9adaa6) - fix: enhance scale (#309) (release), 2026-08-02 by *Guillaume Chervet*
 
 
