@@ -34,6 +34,34 @@ public class JobStatusEndpointTests
         foreach (var item in result) Assert.Equal(item.Name, Assert.Single(item.RunningJobs).ElementId);
     }
 
+    [Fact]
+    public async Task QueueLengthCountsTheMessagesWaitingInEachJobQueue()
+    {
+        var configuration = new Mock<IJobConfiguration>();
+        configuration.SetupGet(c => c.Configuration).Returns(new SlimFaasJobConfiguration(
+            new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["batch"] = new("image", []),
+                [JobConfiguration.Default] = new("image", [])
+            }));
+        var jobs = new Mock<IJobService>();
+        jobs.SetupGet(j => j.Jobs).Returns(new List<SlimFaas.Kubernetes.Job>());
+        var queue = new Mock<IJobQueue>(MockBehavior.Strict);
+        IList<CountType>? countTypes = null;
+        queue.Setup(q => q.CountAsync("batch", It.IsAny<IList<CountType>>(), int.MaxValue))
+            .Callback<string, IList<CountType>, int>((_, types, _) => countTypes = types)
+            .ReturnsAsync(3);
+        // SlimJobsWorker dequeues each configuration under its lower-case name.
+        queue.Setup(q => q.CountAsync("default", It.IsAny<IList<CountType>>(), int.MaxValue))
+            .ReturnsAsync(0);
+
+        var result = await JobStatusEndpoints.BuildJobStatusesAsync(configuration.Object, jobs.Object, null, queue.Object);
+
+        Assert.Equal(3, result.Single(c => c.Name == "batch").QueueLength);
+        Assert.Equal(0, result.Single(c => c.Name == JobConfiguration.Default).QueueLength);
+        Assert.Equal(new[] { CountType.Available, CountType.Running, CountType.WaitingForRetry }, countTypes);
+    }
+
     [Fact(DisplayName = "GET /jobs/status returns 200 with job configurations")]
     public async Task GetJobStatus_Returns200_WithConfigurations()
     {
@@ -42,6 +70,9 @@ public class JobStatusEndpointTests
         var jobServiceMock = new Mock<IJobService>();
         var scheduleJobServiceMock = new Mock<IScheduleJobService>();
         var databaseServiceMock = new Mock<IDatabaseService>();
+        var jobQueueMock = new Mock<IJobQueue>();
+        jobQueueMock.Setup(q => q.CountAsync("test-job", It.IsAny<IList<CountType>>(), It.IsAny<int>()))
+            .ReturnsAsync(2);
 
         var publicJob = new SlimfaasJob(
             Image: "my-image:latest",
@@ -100,6 +131,7 @@ public class JobStatusEndpointTests
                         services.AddSingleton<IJobService>(jobServiceMock.Object);
                         services.AddSingleton<IScheduleJobService>(scheduleJobServiceMock.Object);
                         services.AddSingleton<IDatabaseService>(databaseServiceMock.Object);
+                        services.AddSingleton<IJobQueue>(jobQueueMock.Object);
                         services.AddSingleton<IFunctionAccessPolicy, DefaultFunctionAccessPolicy>();
                         services.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepositoryMock>();
                         services.AddMemoryCache();
@@ -142,7 +174,8 @@ public class JobStatusEndpointTests
         Assert.NotNull(jobStatus.Schedules[0].NextExecutionTimestamp);
         Assert.True(jobStatus.Schedules[0].NextExecutionTimestamp > 0);
 
-        // Should have one running job
+        // Should have one running job and two queued executions
+        Assert.Equal(2, jobStatus.QueueLength);
         Assert.Single(jobStatus.RunningJobs);
         Assert.Equal("Running", jobStatus.RunningJobs[0].Status);
 

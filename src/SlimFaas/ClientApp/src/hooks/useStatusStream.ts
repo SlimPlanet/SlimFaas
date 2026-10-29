@@ -1,6 +1,7 @@
 import { appendActivity } from '../lib/live.ts';
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
+import { jobQueues } from '../lib/topology.ts';
 
 const COOLDOWN_MS = 3000;
 const ACTIVITY_FLUSH_MS = 100;
@@ -135,6 +136,7 @@ function normalizeJobs(raw: unknown): JobConfigurationStatus[] {
       InQueueTimestamp: asNumber(pick(rj, 'InQueueTimestamp', 'inQueueTimestamp')),
       StartTimestamp: asNumber(pick(rj, 'StartTimestamp', 'startTimestamp')),
     })),
+    QueueLength: asNumber(pick(entry, 'QueueLength', 'queueLength')),
   }));
 }
 
@@ -199,7 +201,7 @@ export function useStatusStream(includeActivity = true) {
   const [error, setError] = useState<string | null>(null);
   const [coolingDown, setCoolingDown] = useState<Set<string>>(new Set());
   const [wakeAllCooling, setWakeAllCooling] = useState(false);
-  const [functionsWithQueueActivity, setFunctionsWithQueueActivity] = useState<Set<string>>(new Set());
+  const [queuesWithActivity, setQueuesWithActivity] = useState<Set<string>>(new Set());
   const [slimFaasReplicas, setSlimFaasReplicas] = useState(1);
   const [slimFaasNodes, setSlimFaasNodes] = useState<SlimFaasNodeInfo[]>([]);
   const [frontEnabled, setFrontEnabled] = useState(true);
@@ -225,20 +227,20 @@ export function useStatusStream(includeActivity = true) {
       return appendActivity(prev, batch);
     });
 
-    const queueTargets = new Set<string>();
+    const usedQueues = new Set<string>();
     for (const evt of batch) {
       if (evt.Type === 'enqueue' || evt.Type === 'dequeue') {
-        queueTargets.add(evt.Target);
+        usedQueues.add(evt.QueueName ?? evt.Target);
       }
     }
 
-    if (queueTargets.size > 0) {
-      setFunctionsWithQueueActivity(prev => {
+    if (usedQueues.size > 0) {
+      setQueuesWithActivity(prev => {
         let changed = false;
         const next = new Set(prev);
-        queueTargets.forEach(target => {
-          if (!next.has(target)) {
-            next.add(target);
+        usedQueues.forEach(name => {
+          if (!next.has(name)) {
+            next.add(name);
             changed = true;
           }
         });
@@ -298,16 +300,17 @@ export function useStatusStream(includeActivity = true) {
         setLoading(false);
 
         // Detect queue usage from current queue lengths only (live view).
-        const queueFns = new Set<string>();
-        for (const q of (payload.Queues ?? [])) {
+        const queues = [...(payload.Queues ?? []), ...jobQueues(payload.Jobs)];
+        const usedQueues = new Set<string>();
+        for (const q of queues) {
           if (q.Length > 0) {
-            queueFns.add(q.Name);
+            usedQueues.add(q.Name);
           }
         }
-        const knownFunctions = new Set(payload.Functions.map(fn => fn.Name));
-        setFunctionsWithQueueActivity(prev => {
-          const next = new Set([...prev].filter(name => knownFunctions.has(name)));
-          queueFns.forEach(name => next.add(name));
+        const knownQueues = new Set([...payload.Functions.map(fn => fn.Name), ...queues.map(q => q.Name)]);
+        setQueuesWithActivity(prev => {
+          const next = new Set([...prev].filter(name => knownQueues.has(name)));
+          usedQueues.forEach(name => next.add(name));
           return next.size === prev.size && [...next].every(name => prev.has(name)) ? prev : next;
         });
       } catch (err) {
@@ -402,7 +405,7 @@ export function useStatusStream(includeActivity = true) {
     wakeUpAll,
     coolingDown,
     wakeAllCooling,
-    functionsWithQueueActivity,
+    queuesWithActivity,
     slimFaasReplicas,
     slimFaasNodes,
     frontEnabled,
