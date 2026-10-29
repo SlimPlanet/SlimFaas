@@ -30,6 +30,12 @@ export function observedFunctions(functions: FunctionStatusDetailed[], events: N
   return [...observed].sort(([a], [b]) => a.localeCompare(b)).map(([name, replicas]) => ({ name, replicas: [...replicas].sort() }));
 }
 
+/** A job queue keeps the name SlimFaas records in activity, apart from function queues. */
+export const jobQueueName = (job: string) => `job:${job}`;
+export function jobQueues(jobs: JobConfigurationStatus[]): QueueInfo[] {
+  return jobs.map(job => ({ Name: jobQueueName(job.Name), Length: job.QueueLength }));
+}
+
 export function observedQueues(queues: QueueInfo[], events: NetworkActivityEvent[]): string[] {
   const known = new Set(queues.map(queue => queue.Name));
   return [...new Set(events.flatMap(event => event.QueueName && !known.has(event.QueueName) ? [event.QueueName] : []))].sort();

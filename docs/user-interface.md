@@ -141,6 +141,14 @@ the IP addresses of running jobs. The message then starts from the exact job ins
 - publications fan out from SlimFaas to each ready subscribed replica, retaining the job caller
 - asynchronous calls are displayed as `Job -> SlimFaas -> Queue -> Function`
 
+Each job configuration also has its own queue on the map, named `job:<name>` so that it
+stays apart from the queue of a function with the same name. `POST /job/<name>` is displayed
+as `Caller -> SlimFaas -> job:<name>`, and a scheduled execution enters the queue from
+SlimFaas. When SlimFaas creates the execution, the message leaves the queue for the job
+group. Like a function queue, a job queue shows its current length and remains visible
+when empty once it has carried activity. A rejected request (private configuration or image
+not allowed) is answered to its caller without entering the queue.
+
 If the running instance disappears from the current status snapshot while the event is
 being displayed, the map falls back to the job configuration group. Calls that
 cannot be matched to a running job remain attached to the external caller node.
@@ -238,6 +246,7 @@ It shows:
 
 - number of job configurations
 - number of currently running jobs
+- number of queued executions
 - number of configured schedules
 - image, visibility, dependencies, resources, schedules, and running job details when available
 
@@ -248,6 +257,10 @@ Pending and finished executions remain visible in the details table; `Succeeded`
 and `Failed` entries are retained until their configured TTL expires. Retaining
 finished entries does not occupy parallel job slots or keep their dependencies
 awake. See [job concurrency and retention](jobs.md#7-concurrency-and-scaling).
+
+The **Queued** count is the `QueueLength` of the job status: executions accepted
+but not created yet, because they wait for a parallel job slot, their dependencies
+or a retry after a failed creation.
 
 ---
 

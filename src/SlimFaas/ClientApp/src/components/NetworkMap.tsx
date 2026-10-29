@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FunctionStatusDetailed, JobConfigurationStatus, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types.ts';
-import { buildTopology, eventPath, filterNodes, observedFunctions, observedQueues, type ObservedFunction } from '../lib/topology.ts';
+import { buildTopology, eventPath, filterNodes, jobQueues, observedFunctions, observedQueues, type ObservedFunction } from '../lib/topology.ts';
 import { paginate } from '../lib/live.ts';
 import { matchesTraffic, SPEEDS, type Speed } from '../lib/traffic.ts';
 import TrafficCanvas from './TrafficCanvas';
@@ -10,7 +10,7 @@ import TrafficDetails from './TrafficDetails';
 
 interface Props {
   functions: FunctionStatusDetailed[]; jobs: JobConfigurationStatus[]; queues: QueueInfo[];
-  activity: NetworkActivityEvent[]; functionsWithQueueActivity: Set<string>;
+  activity: NetworkActivityEvent[]; queuesWithActivity: Set<string>;
   slimFaasReplicas: number; slimFaasNodes: SlimFaasNodeInfo[];
   activitySession?: number; samplingRatio?: number; maxLiveEventsPerSecond?: number;
 }
@@ -44,13 +44,14 @@ export default function NetworkMap(props: Props) {
   // Most receipts concern existing inventory: preserve the expensive topology in that case.
   if (JSON.stringify(nextObserved) !== JSON.stringify(observedRef.current)) observedRef.current = nextObserved;
   const observedActors = observedRef.current;
+  const queues = useMemo(() => [...input.queues, ...jobQueues(input.jobs)], [input.queues, input.jobs]);
   const observedQueuesRef = useRef<string[]>([]);
-  const nextObservedQueues = observedQueues(input.queues, input.activity);
+  const nextObservedQueues = observedQueues(queues, input.activity);
   if (JSON.stringify(nextObservedQueues) !== JSON.stringify(observedQueuesRef.current)) observedQueuesRef.current = nextObservedQueues;
   const unknownQueues = observedQueuesRef.current;
   const topology = useMemo(() => buildTopology(input.functions, input.jobs,
-    input.queues.filter(q => q.Length > 0 || input.functionsWithQueueActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues),
-  [input.functions, input.jobs, input.queues, input.functionsWithQueueActivity, input.slimFaasNodes, observedActors, unknownQueues]);
+    queues.filter(q => q.Length > 0 || input.queuesWithActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues),
+  [input.functions, input.jobs, queues, input.queuesWithActivity, input.slimFaasNodes, observedActors, unknownQueues]);
   const node = selected ? topology.byId.get(selected) : null;
   const nodes = useMemo(() => filterNodes(topology, search), [topology, search]);
   const nodePage = paginate(nodes, page);

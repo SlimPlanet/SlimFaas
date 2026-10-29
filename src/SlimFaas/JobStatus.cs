@@ -28,7 +28,8 @@ public record JobConfigurationStatus(
     CreateJobResources? Resources,
     List<string>? DependsOn,
     IList<ScheduledJobInfo> Schedules,
-    IList<RunningJobStatus> RunningJobs);
+    IList<RunningJobStatus> RunningJobs,
+    long QueueLength);
 
 [JsonSourceGenerationOptions(WriteIndented = false)]
 [JsonSerializable(typeof(List<JobConfigurationStatus>))]

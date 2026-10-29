@@ -25,7 +25,7 @@ flowchart TD
     Failed --> Retention
 ```
 
-In the dashboard, **Jobs Overview** shows configurations and running work. List executions with `GET /job/name` and create/delete your own schedules in the [job exercise](guided-tour.md#6-run-jobs-and-manage-schedules). CPU/memory resource limits depend on the orchestrator; native local processes do not enforce container limits.
+In the dashboard, **Jobs Overview** shows configurations, queued and running work, and the live traffic map shows executions entering and leaving each job queue. List executions with `GET /job/name` and create/delete your own schedules in the [job exercise](guided-tour.md#6-run-jobs-and-manage-schedules). CPU/memory resource limits depend on the orchestrator; native local processes do not enforce container limits.
 
 ### Recovery after a temporary SlimData interruption
 

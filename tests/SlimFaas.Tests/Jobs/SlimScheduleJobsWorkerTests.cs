@@ -5,6 +5,7 @@ using Moq;
 using NodaTime;
 using SlimData.Commands;
 using SlimFaas.Database;
+using SlimFaas.Endpoints;
 using SlimFaas.Jobs;
 using SlimFaas.Kubernetes;
 
@@ -19,6 +20,7 @@ public class SlimScheduleJobsWorkerTests
     private readonly Mock<ISlimDataStatus>          _status   = new();
     private readonly Mock<IDatabaseService>         _db       = new();
     private readonly Mock<IMasterService>           _master   = new();
+    private readonly NetworkActivityTracker         _activity = new();
 
     private readonly SlimScheduleJobsWorker         _sut;          // System-Under-Test
     private readonly SlimFaasJobConfiguration       _faasConfig;   // Configuration réelle
@@ -44,7 +46,7 @@ public class SlimScheduleJobsWorkerTests
         // delay=0 pour des tests instantanés
         _sut = new SlimScheduleJobsWorker(
             _jobSvc.Object, _config.Object, _logger.Object, _status.Object,
-            _db.Object, _master.Object, delay: 0);
+            _db.Object, _master.Object, delay: 0, activityTracker: _activity);
     }
 
     // -------------   helpers refléxion   -------------
@@ -119,6 +121,34 @@ public class SlimScheduleJobsWorkerTests
         // Assert
         _jobSvc.Verify(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true), Times.Once);
         _db.Verify(d => d.SetAsync("ScheduleJob:func:sid", It.IsAny<byte[]>(), It.IsAny<long?>()), Times.AtLeastOnce);
+        NetworkActivityEvent enqueue = Assert.Single(_activity.GetRecent());
+        Assert.Equal(NetworkActivityTracker.EventTypes.Enqueue, enqueue.Type);
+        Assert.Equal(NetworkActivityTracker.Actors.SlimFaas, enqueue.Source);
+        Assert.Equal("func", enqueue.Target);
+        Assert.Equal("job:func", enqueue.QueueName);
+        Assert.Null(enqueue.SourcePod);
+        Assert.Null(enqueue.CorrelationId);
+    }
+
+    [Fact(DisplayName = "Job en retard refusé : rien n'entre dans la file")]
+    public async Task DoOneCycle_LateJob_Rejected_Should_Not_Record_Enqueue()
+    {
+        // Arrange
+        _master.SetupGet(m => m.IsMaster).Returns(true);
+
+        var scheduleJob = new ScheduleCreateJob("* * * * *", new() { "arg" }, "forbidden:latest");
+        var dict = new Dictionary<string, byte[]> { { "sid", Serialize(scheduleJob) } };
+        _db.Setup(d => d.HashGetAllAsync("ScheduleJob:func")).ReturnsAsync(dict);
+        _db.Setup(d => d.GetAsync("ScheduleJob:func:sid")).ReturnsAsync(Serialize(0L));
+        _jobSvc.Setup(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true))
+               .ReturnsAsync(new ResultWithError<EnqueueJobResult>(null, new ErrorResult("image_not_allowed")));
+
+        // Act
+        await InvokeDoOneCycleAsync(_sut, CancellationToken.None);
+
+        // Assert
+        _jobSvc.Verify(s => s.EnqueueJobAsync("func", It.IsAny<CreateJob>(), true), Times.Once);
+        Assert.Empty(_activity.GetRecent());
     }
 
      // -------------------------------------------------------------------------

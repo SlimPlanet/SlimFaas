@@ -212,4 +212,20 @@ public class JobConfigurationTests
         Assert.Equal("100m", defaultJob.Resources.Requests["cpu"]);
         Assert.Equal("100Mi", defaultJob.Resources.Requests["memory"]);
     }
+
+    [Theory]
+    [InlineData("daily-report", "daily-report")]
+    [InlineData("DAILY-REPORT", "daily-report")]
+    [InlineData("default", JobConfiguration.Default)]
+    [InlineData("unknown", JobConfiguration.Default)]
+    public void ResolveName_DoitRetournerLeNomConfigureOuDefault(string name, string expected)
+    {
+        var configurations = new Dictionary<string, SlimfaasJob>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["daily-report"] = new("image", []),
+            [JobConfiguration.Default] = new("image", [])
+        };
+
+        Assert.Equal(expected, JobConfiguration.ResolveName(configurations, name));
+    }
 }

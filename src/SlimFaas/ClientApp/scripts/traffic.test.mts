@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { TrafficPlayback, SPEEDS, matchesTraffic, displayPath, markerProgress } from '../src/lib/traffic.ts';
 import { functionState } from '../src/lib/live.ts';
-import { buildTopology, observedFunctions, observedQueues } from '../src/lib/topology.ts';
+import { buildTopology, jobQueueName, jobQueues, observedFunctions, observedQueues } from '../src/lib/topology.ts';
 import { makeFixtures, fixtureEvents } from '../src/lib/fixtures.ts';
 import { normalizeSlimFaasNodes } from '../src/hooks/useStatusStream.ts';
 
@@ -147,6 +147,28 @@ test('peer WebSocket queue dispatches retain their queue even without a local qu
   assert.equal(topology.byId.get('queue:remote-ws').status, 'Queue length unknown');
   assert.deepEqual(displayPath(topology, e, null), ['queue:remote-ws', 'observed:remote-ws/connection']);
   assert.deepEqual(observedQueues([{ Name: 'remote-ws', Length: 0 }], [e]), []);
+});
+
+test('job queues stay apart from a function queue with the same name and carry enqueue and dequeue trips', () => {
+  const jobs = [{ ...fixture.jobs[0], QueueLength: 3 }, { ...fixture.jobs[0], Name: 'fibonacci1', RunningJobs: [], QueueLength: 0 }];
+  const queues = [...fixture.queues, ...jobQueues(jobs)];
+  const topology = buildTopology(fixture.functions, jobs, queues, fixture.slimFaasNodes);
+  assert.equal(jobQueueName('daily-report'), 'job:daily-report');
+  assert.equal(topology.byId.get('queue:fibonacci1').status, '12 queued');
+  assert.equal(topology.byId.get('queue:job:daily-report').status, '3 queued');
+  assert.equal(topology.byId.get('queue:job:fibonacci1').status, '0 queued');
+  const job = { Target: 'daily-report', QueueName: jobQueueName('daily-report'), SourcePod: null, TargetPod: null };
+  const scheduled = event('scheduled', { ...job, Type: 'enqueue', Source: 'slimfaas', NodeId: 'slimfaas-1' });
+  const dequeue = event('started', { ...job, Type: 'dequeue', Source: 'slimfaas', TargetPod: 'daily-report-slimfaas-job-new' });
+  assert.deepEqual(observedQueues(queues, [scheduled, dequeue]), []);
+  assert.deepEqual(displayPath(topology, scheduled, null), ['node:slimfaas-1', 'queue:job:daily-report']);
+  assert.deepEqual(displayPath(topology, dequeue, null), ['queue:job:daily-report', 'job:daily-report']);
+  const player = new TrafficPlayback();
+  update(player, [scheduled, dequeue], { topology });
+  assert.deepEqual([...player.markers.values()].map(marker => [marker.kind, marker.path]), [
+    ['queue', ['node:slimfaas-1', 'queue:job:daily-report']],
+    ['queue', ['queue:job:daily-report', 'job:daily-report']],
+  ]);
 });
 
 test('async dequeue and dispatch represent one delivery in either order, across batches and after completion', () => {

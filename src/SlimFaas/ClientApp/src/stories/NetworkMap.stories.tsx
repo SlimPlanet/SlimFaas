@@ -88,6 +88,7 @@ const JOBS: JobConfigurationStatus[] = [
       { Name: 'daily-report-slimfaas-job-a1', Status: 'Running', ElementId: 'job-1', InQueueTimestamp: now - 30_000, StartTimestamp: now - 20_000 },
       { Name: 'daily-report-slimfaas-job-b2', Status: 'Pending', ElementId: 'job-2', InQueueTimestamp: now - 18_000, StartTimestamp: now - 5_000 },
     ],
+    QueueLength: 2,
   },
   {
     Name: 'image-cleanup',
@@ -99,6 +100,7 @@ const JOBS: JobConfigurationStatus[] = [
     DependsOn: [],
     Schedules: [],
     RunningJobs: [],
+    QueueLength: 0,
   },
 ];
 
@@ -109,6 +111,8 @@ const ACTIVITY: NetworkActivityEvent[] = [
   { Id: 'evt-4', Type: 'request_in', Source: 'external', Target: 'slimfaas', QueueName: null, TimestampMs: now - 2000, NodeId: 'slimfaas-1', SourcePod: fixtureIdentity(3), TargetPod: null },
   { Id: 'evt-5', Type: 'request_out', Source: 'slimfaas', Target: 'fibonacci2', QueueName: null, TimestampMs: now - 1500, NodeId: 'slimfaas-0', SourcePod: null, TargetPod: fixtureIdentity(3) },
   { Id: 'evt-6', Type: 'event_publish', Source: 'slimfaas', Target: 'ws-handler', QueueName: null, TimestampMs: now - 500, NodeId: 'slimfaas-1', SourcePod: null, TargetPod: 'aaa' },
+  { Id: 'evt-7', Type: 'enqueue', Source: 'slimfaas', Target: 'daily-report', QueueName: 'job:daily-report', TimestampMs: now - 400, NodeId: 'slimfaas-0', SourcePod: null, TargetPod: null },
+  { Id: 'evt-8', Type: 'dequeue', Source: 'slimfaas', Target: 'daily-report', QueueName: 'job:daily-report', TimestampMs: now - 300, NodeId: 'slimfaas-1', SourcePod: null, TargetPod: 'daily-report-slimfaas-job-b2' },
 ];
 
 const JOB_TO_FUNCTION_ACTIVITY: NetworkActivityEvent[] = [
@@ -216,7 +220,7 @@ export const Default: Story = {
     jobs: JOBS,
     queues: QUEUES,
     activity: ACTIVITY,
-    functionsWithQueueActivity: FUNCTIONS_WITH_QUEUE_ACTIVITY,
+    queuesWithActivity: FUNCTIONS_WITH_QUEUE_ACTIVITY,
     slimFaasReplicas: 3,
     slimFaasNodes: [
       { Name: 'slimfaas-0', Status: 'Running' },
@@ -233,7 +237,7 @@ export const NoActivity: Story = {
     jobs: JOBS,
     queues: QUEUES,
     activity: [],
-    functionsWithQueueActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)),
+    queuesWithActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)),
     slimFaasReplicas: 3,
     slimFaasNodes: [
       { Name: 'slimfaas-0', Status: 'Running' },
@@ -250,7 +254,7 @@ export const JobToFunction: Story = {
     jobs: JOBS,
     queues: QUEUES,
     activity: JOB_TO_FUNCTION_ACTIVITY,
-    functionsWithQueueActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)),
+    queuesWithActivity: new Set(QUEUES.filter(q => q.Length > 0).map(q => q.Name)),
     slimFaasReplicas: 2,
     slimFaasNodes: [
       { Name: 'slimfaas-0', Status: 'Running' },
@@ -266,7 +270,7 @@ export const NativeLocalExternalCaller: Story = {
     jobs: [],
     queues: [],
     activity: NATIVE_LOCAL_EXTERNAL_ACTIVITY,
-    functionsWithQueueActivity: new Set<string>(),
+    queuesWithActivity: new Set<string>(),
     slimFaasReplicas: 1,
     slimFaasNodes: [{ Name: 'slimfaas-0', Status: 'Running' }],
   },
@@ -279,7 +283,7 @@ export const Empty: Story = {
     jobs: [],
     queues: [],
     activity: [],
-    functionsWithQueueActivity: new Set<string>(),
+    queuesWithActivity: new Set<string>(),
     slimFaasReplicas: 1,
     slimFaasNodes: [{ Name: 'slimfaas-0', Status: 'Running' }],
   },
@@ -373,7 +377,7 @@ export const LiveAnimation: Story = {
         jobs={JOBS}
         queues={dynamicQueues}
         activity={act}
-        functionsWithQueueActivity={liveQueueFns}
+        queuesWithActivity={liveQueueFns}
         slimFaasReplicas={3}
         slimFaasNodes={[
           { Name: 'slimfaas-0', Status: 'Running' },

@@ -6,6 +6,13 @@ namespace SlimFaas.Endpoints;
 
 public static class JobStatusEndpoints
 {
+    private static readonly CountType[] s_queueCountTypes =
+    [
+        CountType.Available,
+        CountType.Running,
+        CountType.WaitingForRetry
+    ];
+
     public static void MapJobStatusEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/jobs/status", GetAllJobStatuses)
@@ -23,10 +30,11 @@ public static class JobStatusEndpoints
     private static async Task<IResult> GetAllJobStatuses(
         [FromServices] IJobConfiguration jobConfiguration,
         [FromServices] IJobService jobService,
-        [FromServices] IScheduleJobService? scheduleJobService)
+        [FromServices] IScheduleJobService? scheduleJobService,
+        [FromServices] IJobQueue? jobQueue)
     {
 
-        var result = await BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService);
+        var result = await BuildJobStatusesAsync(jobConfiguration, jobService, scheduleJobService, jobQueue);
 
         return Results.Json(result,
             ListJobConfigurationStatusSerializerContext.Default.ListJobConfigurationStatus);
@@ -35,7 +43,8 @@ public static class JobStatusEndpoints
     public static async Task<List<JobConfigurationStatus>> BuildJobStatusesAsync(
         IJobConfiguration jobConfiguration,
         IJobService jobService,
-        IScheduleJobService? scheduleJobService)
+        IScheduleJobService? scheduleJobService,
+        IJobQueue? jobQueue = null)
     {
         var configurations = jobConfiguration.Configuration.Configurations;
         var schedules = jobConfiguration.Configuration.Schedules;
@@ -92,6 +101,12 @@ public static class JobStatusEndpoints
                 }
             }
 
+            // Same messages as a function queue length: waiting, being dispatched or
+            // waiting for a retry. SlimJobsWorker reads the queue under the lower-case name.
+            long queueLength = jobQueue is null
+                ? 0
+                : await jobQueue.CountAsync(name.ToLowerInvariant(), s_queueCountTypes);
+
             result.Add(new JobConfigurationStatus(
                 Name: name,
                 Visibility: conf.Visibility,
@@ -101,7 +116,8 @@ public static class JobStatusEndpoints
                 Resources: conf.Resources,
                 DependsOn: conf.DependsOn,
                 Schedules: scheduledInfos,
-                RunningJobs: running));
+                RunningJobs: running,
+                QueueLength: queueLength));
         }
 
         return result;
