@@ -296,6 +296,12 @@ The five fields are `minute` (`0-59`), `hour` (`0-23`), `day of month` (`1-31`),
 
 Names (`MON`, `JAN`), `?`, `L`, `W`, `#` and macros such as `@daily` are not supported. A malformed expression, a value outside its field, a reversed range or a step of `0` is rejected: `POST /job-schedules/<jobName>` returns `400 Bad Request` and `slimfaas local validate` reports the schedule as invalid.
 
+> **Upgrading:** earlier versions parsed some expressions differently. Audit existing schedules (dynamic schedules, `SlimFaas__JobsConfiguration` and `SlimFaas/Schedules` annotations) before upgrading:
+>
+> * An expression that earlier versions accepted but that is now invalid, such as the out-of-range hour in `0 0-24 * * *`, raises no error once it is already configured or stored: the schedule silently stops running and `GET /status-jobs` shows its `NextExecutionTimestamp` as `null`.
+> * `N/step` with `N` other than `0` now runs from `N` to the end of the field: `5/15 * * * *` runs four times per hour (minutes 5, 20, 35 and 50) instead of once at minute 5.
+> * `7` in the day-of-week field now means Sunday, so `1-7` includes Sunday.
+
 ### Default configuration values
 
 If you trigger a job whose name does not exist in `SlimFaas__JobsConfiguration`, SlimFaas falls back to a built‑in entry called `Default`. It ships with conservative resource requests/limits (`cpu: 100m`, `memory: 100Mi`), no dependencies, and the same visibility/retry defaults. You can customise these defaults by adding or overriding the `"Default"` key in your configuration map.
