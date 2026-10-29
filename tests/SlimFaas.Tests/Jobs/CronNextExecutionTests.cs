@@ -103,6 +103,28 @@ public class CronNextExecutionTests
         Assert.Equal(expected, result.Data);
     }
 
+    [Fact(DisplayName = "GetNextJobExecutionTimestamp – step from a value 5/15")]
+    public void StepFromValue()
+    {
+        // 2026-01-15 12:06:00 UTC, cron "5/15 * * * *" (5, 20, 35, 50) -> next is 12:20
+        long ts = new DateTimeOffset(2026, 1, 15, 12, 6, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+
+        var result = Cron.GetNextJobExecutionTimestamp("5/15 * * * *", ts);
+
+        Assert.True(result.IsSuccess);
+        long expected = new DateTimeOffset(2026, 1, 15, 12, 20, 0, TimeSpan.Zero).ToUnixTimeSeconds();
+        Assert.Equal(expected, result.Data);
+    }
+
+    [Fact(DisplayName = "GetNextJobExecutionTimestamp – zero step returns error")]
+    public void ZeroStep_ReturnsError()
+    {
+        var result = Cron.GetNextJobExecutionTimestamp("*/0 * * * *", 1000);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal("cron_definition", result.Error?.Key);
+    }
+
     [Fact(DisplayName = "GetNextJobExecutionTimestamp – next slots for */2")]
     public void NextSlots_EveryTwoMinutes()
     {

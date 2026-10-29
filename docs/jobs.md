@@ -276,7 +276,7 @@ You can also define **cron schedules** for jobs under the `"Schedules"` key. Eac
 ```
 | **Field**     | **Description**                                                                                                                                                                            |
 | -------------- |--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Schedule**   | A standard 5‑field cron expression (`m h dom mon dow`). See the [Kubernetes CronJob documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/) for full details. |
+| **Schedule**   | A standard 5‑field cron expression (`m h dom mon dow`). See [Cron expression syntax](#cron-expression-syntax) and the [Kubernetes CronJob documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/). |
 | **Args**       | Arguments to pass to the job when it runs. Override default args defined in the job configuration.                                                                                         |
 | **DependsOn**  | Optional list of dependencies that must be ready before the scheduled job runs. Override default dependencies defined in the job configuration.                                            |
 | **Resources**   | Optional overrides for resource requests/limits, merging with the job configuration defaults.                                                                                              |
@@ -285,6 +285,22 @@ You can also define **cron schedules** for jobs under the `"Schedules"` key. Eac
 | **BackoffLimit** | Optional override for the number of retries allowed if the job fails. Defaults to the job configuration value.                                                                             |
 | **TtlSecondsAfterFinished** | Optional override for how long to keep job resources after completion. Defaults to the job configuration value.                                                                            |
 | **RestartPolicy** | Optional override for the restart policy of the job pods. Defaults to the job configuration value.                                                                                         |
+
+#### Cron expression syntax
+
+The five fields are `minute` (`0-59`), `hour` (`0-23`), `day of month` (`1-31`), `month` (`1-12`) and `day of week` (`0-6`, Sunday = `0`; `7` is also accepted for Sunday). Each field is `*` or a comma-separated list of:
+
+* a value: `5`;
+* a range: `9-17`;
+* a step over the whole field, a range or from a value to the end of the field: `*/15` (0, 15, 30, 45), `10-40/20` (10, 30) and `5/15` (5, 20, 35, 50). `0/n` is the same as `*/n` in every field.
+
+Names (`MON`, `JAN`), `?`, `L`, `W`, `#` and macros such as `@daily` are not supported. A malformed expression, a value outside its field, a reversed range or a step of `0` is rejected: `POST /job-schedules/<jobName>` returns `400 Bad Request` and `slimfaas local validate` reports the schedule as invalid.
+
+> **Upgrading:** earlier versions parsed some expressions differently. Audit existing schedules (dynamic schedules, `SlimFaas__JobsConfiguration` and `SlimFaas/Schedules` annotations) before upgrading:
+>
+> * An expression that earlier versions accepted but that is now invalid, such as the out-of-range hour in `0 0-24 * * *`, raises no error once it is already configured or stored: the schedule silently stops running and `GET /status-jobs` shows its `NextExecutionTimestamp` as `null`.
+> * `N/step` with `N` other than `0` now runs from `N` to the end of the field: `5/15 * * * *` runs four times per hour (minutes 5, 20, 35 and 50) instead of once at minute 5.
+> * `7` in the day-of-week field now means Sunday, so `1-7` includes Sunday.
 
 ### Default configuration values
 
