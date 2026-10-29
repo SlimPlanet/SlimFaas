@@ -141,8 +141,9 @@ internal static class DeadLetterStateMachine
     private static ImmutableArray<QueueElement> Queue(SlimDataState state, string key) =>
         state.Queues.TryGetValue(key, out var queue) ? queue : [];
 
-    private static void Put<T>(SlimDataState state, string key, string field, T value) =>
-        state.Hashsets = state.Hashsets.SetItem(key, Get(state, key).SetItem(field, MemoryPackSerializer.Serialize(value)));
+    // Concrete serialization call sites root MemoryPack's formatter methods for Native AOT.
+    private static void Put(SlimDataState state, string key, string field, byte[] value) =>
+        state.Hashsets = state.Hashsets.SetItem(key, Get(state, key).SetItem(field, value));
 
     private static void Remove(SlimDataState state, string key, string field) =>
         state.Hashsets = state.Hashsets.SetItem(key, Get(state, key).Remove(field));
@@ -235,13 +236,13 @@ internal static class DeadLetterStateMachine
                 {
                     var active = Active(state, function, mutation.ElementId);
                     active.AwaitingCallback = true;
-                    Put(state, DeadLetterKeys.Active(function), mutation.ElementId, active);
+                    Put(state, DeadLetterKeys.Active(function), mutation.ElementId, MemoryPackSerializer.Serialize(active));
                 }
                 break;
             case DeadLetterAction.Complete:
                 var metadata = Active(state, function, mutation.ElementId);
                 metadata.Source = mutation.Source;
-                Put(state, DeadLetterKeys.Active(function), mutation.ElementId, metadata);
+                Put(state, DeadLetterKeys.Active(function), mutation.ElementId, MemoryPackSerializer.Serialize(metadata));
                 SlimDataInterpreter.DoListCallbackAsync(new ListCallbackCommand
                 {
                     Key = queueKey, NowTicks = now,
@@ -281,17 +282,17 @@ internal static class DeadLetterStateMachine
                     mutation.Retries.ToImmutableArray(), [], mutation.HttpStatusRetries.ToImmutableHashSet());
                 var queue = Queue(state, queueKey);
                 state.Queues = state.Queues.SetItem(queueKey, queue.IsDefault ? [replay] : queue.Add(replay));
-                Put(state, DeadLetterKeys.Active(function), replay.Id, new DeadLetterActive
+                Put(state, DeadLetterKeys.Active(function), replay.Id, MemoryPackSerializer.Serialize(new DeadLetterActive
                 {
                     ReplayOfDeadLetterId = entry.Id,
                     RootElementId = entry.RootElementId ?? entry.OriginalElementId
-                });
+                }));
                 var newReceipt = new DeadLetterReceipt
                 {
                     DeadLetterId = entry.Id, OriginalElementId = entry.OriginalElementId,
                     Function = function, ElementId = replay.Id, ExpiresAtTicks = now + TimeSpan.TicksPerDay
                 };
-                Put(state, DeadLetterKeys.Receipts(function), entry.Id, newReceipt);
+                Put(state, DeadLetterKeys.Receipts(function), entry.Id, MemoryPackSerializer.Serialize(newReceipt));
                 RemoveEntry(state, entry);
                 Transition(state, entry, "dead_letter_requeued", replay.Id);
                 return new() { Status = 202, Receipt = newReceipt };
@@ -333,7 +334,7 @@ internal static class DeadLetterStateMachine
                 {
                     var active = Active(state, function, element.Id);
                     active.AwaitingCallback = true;
-                    Put(state, DeadLetterKeys.Active(function), element.Id, active);
+                    Put(state, DeadLetterKeys.Active(function), element.Id, MemoryPackSerializer.Serialize(active));
                     continue;
                 }
                 last.EndTimeStamp = now;
@@ -368,7 +369,7 @@ internal static class DeadLetterStateMachine
                 timedOutAttempt.EndTimeStamp = timedOutAttempt.StartTimeStamp + element.HttpTimeoutTicks;
                 timedOutAttempt.HttpCode = 504;
                 active.Source = active.AwaitingCallback ? "CallbackTimeout" : "DeliveryTimeout";
-                Put(state, DeadLetterKeys.Active(function), element.Id, active);
+                Put(state, DeadLetterKeys.Active(function), element.Id, MemoryPackSerializer.Serialize(active));
             }
             bool success = !element.RetryQueueElements.IsDefaultOrEmpty &&
                 element.RetryQueueElements[^1].EndTimeStamp > 0 &&
@@ -403,7 +404,7 @@ internal static class DeadLetterStateMachine
                         ReplayOfDeadLetterId = active.ReplayOfDeadLetterId,
                         RootElementId = active.RootElementId
                     };
-                    Put(state, DeadLetterKeys.Messages(function), id, entry);
+                    Put(state, DeadLetterKeys.Messages(function), id, MemoryPackSerializer.Serialize(entry));
                     state.Hashsets = state.Hashsets.SetItem(DeadLetterKeys.Payloads(function),
                         Get(state, DeadLetterKeys.Payloads(function)).SetItem(id, element.Value));
                     Transition(state, entry, "dead_lettered");
@@ -426,7 +427,7 @@ internal static class DeadLetterStateMachine
         var active = Active(state, function, id);
         active.AwaitingCallback = false;
         active.Source = "Http";
-        Put(state, DeadLetterKeys.Active(function), id, active);
+        Put(state, DeadLetterKeys.Active(function), id, MemoryPackSerializer.Serialize(active));
     }
 
     private static void Prune(SlimDataState state, string function, long now)
