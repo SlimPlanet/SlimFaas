@@ -97,6 +97,26 @@ at 64 KiB, marks truncation, and displays HTML/JSON as inert text. Download
 streams the original bytes with the original content type as an attachment.
 Neither opening the page nor inspecting a body wakes a function.
 
+### Illustrated example
+
+These captures use a real three-node native-local cluster with synthetic
+`billing` requests returning HTTP 400 and an empty `notifications` DLQ.
+After fixing the application, the **Requeue** action creates a new execution
+and the Traffic journal records `dead letter requeued`. The HTML example has
+a 2.1 MiB offloaded body; its 64 KiB preview remains inert.
+
+![Function catalog with three retained billing failures and an empty notifications queue](images/dashboard/dlq-catalog.png)
+
+| View | Example |
+|---|---|
+| [Filtered message list](images/dashboard/dlq-messages.png) | Failure reason, HTTP status, attempts, retention and request sizes |
+| [Message detail and JSON preview](images/dashboard/dlq-message-detail.png) | Original request, replay/delete actions and explicit body download |
+| [Bounded HTML preview](images/dashboard/dlq-bounded-preview.png) | Inert text, truncation notice and full-body download |
+| [Overview function details](images/dashboard/dlq-function-details.png) | Retained count and direct DLQ link |
+| [Traffic DLQ actor details](images/dashboard/dlq-traffic-details.png) | Separate DLQ actor, retained count and management link |
+| [Replay event journal](images/dashboard/dlq-replay-journal.png) | Function/event filters and the DLQ-to-function replay transition |
+| [Mobile catalog](images/dashboard/dlq-mobile-catalog.png) | Responsive navigation and horizontally scrollable inventory |
+
 ## Management API
 
 | Method | Route | Result |
