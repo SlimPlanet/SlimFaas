@@ -96,8 +96,10 @@ change: it commits an increment, discards the acknowledgement, stops the
 leader, waits for election, replays the same producer batch, and verifies a
 cached duplicate response and a final value of exactly one on both survivors.
 
-Protocol `SLDC/2` introduces the composite command. Nodes using `SLDC/1` and
-`SLDC/2` refuse mutation traffic while mixed, preventing an older node from
+Protocol `SLDC/2` introduced the composite command. `SLDC/3` adds atomic durable
+DLQ mutations and appended batch results, retaining readability of earlier
+snapshots, WAL commands, and stored producer responses. Nodes using `SLDC/1`,
+`SLDC/2`, and `SLDC/3` refuse mutation traffic while mixed, preventing an older node from
 silently skipping the new RAFT command during a rolling deployment.
 
 ## Benefits and costs
@@ -122,7 +124,7 @@ Its costs are:
 - the last response retained per producer adds bounded replicated state;
 - an unresolved producer batch intentionally blocks later batches from that
   producer to preserve order;
-- `SLDC/2` requires all RAFT members to run a compatible binary before writes
+- `SLDC/3` requires all RAFT members to run a compatible binary before writes
   resume.
 
 If measurements show throughput below 90% of the reference or p99 regression

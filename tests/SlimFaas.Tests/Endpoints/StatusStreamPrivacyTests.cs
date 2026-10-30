@@ -115,6 +115,7 @@ public class StatusStreamPrivacyTests
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var tracker = host.Services.GetRequiredService<NetworkActivityTracker>();
         tracker.Record("request_in", "external", "fibonacci", sourcePod: ipv4, targetPod: ipv6);
+        tracker.Record("dead_lettered", "fibonacci", "dlq:fibonacci", "fibonacci", deadLetterId: "private-message");
         var gate = host.Services.GetRequiredService<GatedSnapshotCache>();
         using var client = host.GetTestClient();
         var pending = client.SendAsync(new HttpRequestMessage(HttpMethod.Get, "http://localhost:5000/status-functions-stream"),
@@ -122,6 +123,7 @@ public class StatusStreamPrivacyTests
         await gate.Ready.Task.WaitAsync(cts.Token);
         // Queue a deterministic burst before the initial frame is released.
         tracker.Record("request_out", "daily-report", "fibonacci", sourcePod: job, targetPod: ipv4);
+        tracker.Record("dead_letter_requeued", "dlq:fibonacci", "fibonacci", "fibonacci", deadLetterId: "private-message");
         tracker.IngestRemote([Event(ipv6, "::ffff:" + ipv4) with { Id = "remote-event", NodeId = "slimfaas-1" }]);
         gate.Release.SetResult();
 
@@ -141,6 +143,8 @@ public class StatusStreamPrivacyTests
         Assert.Contains(frames, f => f.Type == activityType);
         foreach (var frame in frames)
         {
+            Assert.DoesNotContain("private-message", frame.Json);
+            Assert.DoesNotContain("dead_letter", frame.Json);
             Assert.DoesNotContain("\"Ip\":", frame.Json);
             Assert.DoesNotContain(ipv4, frame.Json);
             Assert.DoesNotContain(ipv6, frame.Json);

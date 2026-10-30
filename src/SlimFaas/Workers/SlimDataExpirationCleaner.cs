@@ -53,6 +53,7 @@ public sealed class SlimDataExpirationCleaner
 
         // Build set of active QueueElementIds for orphan detection (once per run)
         var activeQueueIds = BuildActiveQueueIds(queues);
+        activeQueueIds.UnionWith(DeadLetterKeys.GetPayloadOwnerIds(payload));
         var observedOrphanArtifacts = new HashSet<string>(StringComparer.Ordinal);
 
         // 1) KeyValues TTL: keys ending with the TTL postfix

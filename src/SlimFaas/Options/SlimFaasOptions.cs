@@ -96,6 +96,7 @@ public class SlimFaasOptions
     /// Enables the SlimFaas dashboard/network front features.
     /// </summary>
     public bool EnableFront { get; set; } = true;
+    public DeadLetterQueueOptions DeadLetterQueue { get; set; } = new();
 
     /// <summary>Allow dashboard visitors to view data keys, expiry and file sizes, without granting value access.</summary>
     public bool ExposeDataMetadata { get; set; }
@@ -117,6 +118,13 @@ public class SlimFaasOptions
     /// Watch-driven Kubernetes synchronization (Kubernetes orchestrator only).
     /// </summary>
     public KubernetesWatchOptions KubernetesWatch { get; set; } = new();
+}
+
+public sealed class DeadLetterQueueOptions
+{
+    public SlimFaas.Kubernetes.FunctionVisibility DefaultVisibility { get; set; } =
+        SlimFaas.Kubernetes.FunctionVisibility.Private;
+    public bool EnableFront { get; set; }
 }
 
 public sealed class LocalOrchestratorOptions

@@ -104,6 +104,17 @@ class TestPublishEvent:
 
 
 class TestSlimFaasClientConfig:
+    def test_dead_letter_configuration_uses_existing_registration_contract(self):
+        configuration = json.dumps({
+            "DefaultAsync": {
+                "HttpTimeout": 120,
+                "DeadLetterQueue": {"Enabled": True, "MaxAgeSeconds": 604800, "MaxLength": 10000},
+            },
+        })
+        payload = make_config(configuration=configuration).to_register_payload()
+        assert payload["configuration"]["configuration"] == configuration
+        assert json.loads(payload["configuration"]["configuration"])["DefaultAsync"]["DeadLetterQueue"]["Enabled"]
+
     def test_to_register_payload(self):
         config = make_config(
             function_name="my-job",
@@ -293,4 +304,3 @@ class TestSlimFaasClientDispatch:
 
         # Aucun callback automatique
         assert len(ws.sent) == 0
-

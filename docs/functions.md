@@ -84,6 +84,7 @@ before it enqueues the message that refers to that body.
 
 - **Limiting parallel requests** via annotations (e.g., `SlimFaas/NumberParallelRequest`).
 - **Retry pattern** on timeouts or specific HTTP status codes.
+- **[Dead Letter Queues](dead-letter-queues.md)**, disabled by default, retain terminal HTTP and WebSocket failures for inspection and manual replay. Final nonretryable errors are failures, not successes; 202 still waits for completion.
 
 Queue mutations wake the HTTP and WebSocket dispatch workers immediately after
 their durable commit. `Workers:QueuesDelayMilliseconds` is therefore a maximum

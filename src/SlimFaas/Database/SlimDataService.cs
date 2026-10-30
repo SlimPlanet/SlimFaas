@@ -332,6 +332,14 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         _ = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
     }
 
+    public async Task<DeadLetterMutationResult> ExecuteDeadLetterAsync(DeadLetterMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.DeadLetter, "Queue:" + mutation.Function);
+        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.DeadLetterResult ?? throw new DataException("Missing durable DLQ result.");
+    }
+
     private async Task<SlimDataBatchOperationResult> EnqueueMutationAsync(
         SlimDataBatchOperation operation,
         bool latencySensitive = false)

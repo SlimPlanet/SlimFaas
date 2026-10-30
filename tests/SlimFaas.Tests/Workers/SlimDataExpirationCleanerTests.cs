@@ -13,6 +13,39 @@ using Xunit;
 
 public sealed class SlimDataExpirationCleanerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Cleanup_preserves_retained_and_replayed_offloads_until_the_last_owner_is_released(bool replayed)
+    {
+        var state = new Mock<ISupplier<SlimDataPayload>>();
+        var db = new Mock<IDatabaseService>();
+        var files = new Mock<IFileRepository>();
+        string hashKey = replayed ? DeadLetterKeys.Active("billing") : DeadLetterKeys.Messages("billing");
+        byte[] value = replayed
+            ? MemoryPackSerializer.Serialize(new DeadLetterActive { RootElementId = "original" })
+            : MemoryPackSerializer.Serialize(new DeadLetterEntry { OriginalElementId = "original", Function = "billing", Id = "dlq-original" });
+        var payload = new SlimDataPayload
+        {
+            KeyValues = ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add(DataFileKeys.MetaKey("offload"), SerializeOffloadMeta("original")),
+            Hashsets = ImmutableDictionary<string, ImmutableDictionary<string, ReadOnlyMemory<byte>>>.Empty
+                .Add(hashKey, ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty.Add("message", value)),
+            Queues = ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty
+        };
+        state.Setup(value => value.Invoke()).Returns(() => payload);
+        files.Setup(value => value.EnumerateAllMetadataAsync(It.IsAny<CancellationToken>())).Returns(Meta(
+            [new("offload", new FileMetadata("application/octet-stream", "sha", 100, null,
+                new Dictionary<string, string> { ["QueueElementId"] = "original" }))]));
+        files.Setup(value => value.CleanupOrphanTempFilesAsync(It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        var cleaner = new SlimDataExpirationCleaner(state.Object, db.Object, files.Object, new Mock<ILogger<SlimDataExpirationCleaner>>().Object);
+        for (int i = 0; i < 4; i++) await cleaner.CleanupOnceAsync(CancellationToken.None);
+        db.Verify(value => value.DeleteAsync(It.IsAny<string>()), Times.Never);
+        files.Verify(value => value.DeleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        payload.Hashsets = payload.Hashsets.Clear();
+        for (int i = 0; i < 4; i++) await cleaner.CleanupOnceAsync(CancellationToken.None);
+        files.Verify(value => value.DeleteAsync("offload", It.IsAny<CancellationToken>()), Times.AtLeastOnce);
+    }
+
     private static async IAsyncEnumerable<FileMetadataEntry> EmptyMeta(
         [EnumeratorCancellation] CancellationToken ct = default)
     {

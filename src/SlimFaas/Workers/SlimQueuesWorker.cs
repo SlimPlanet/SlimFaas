@@ -48,7 +48,8 @@ public class SlimQueuesWorker(
     IDatabaseService db,
     IOptions<WorkersOptions> workersOptions,
     NetworkActivityTracker activityTracker,
-    SlimDataQueueSignal? queueSignal = null)
+    SlimDataQueueSignal? queueSignal = null,
+    SlimFaas.DeadLetters.DeadLetterService? deadLetters = null)
     : BackgroundService
 {
     public const string SlimfaasElementId = "SlimFaas-Element-Id";
@@ -146,7 +147,8 @@ public class SlimQueuesWorker(
                 int maximumParallelism = Math.Min(
                     function.NumberParallelRequest,
                     readyPods * function.NumberParallelRequestPerPod);
-                int availableSlots = Math.Max(0, maximumParallelism - active.Count);
+                int inFlight = deadLetters?.IsManaged(functionName) == true ? Math.Max(active.Count, queueState.Running) : active.Count;
+                int availableSlots = Math.Max(0, maximumParallelism - inFlight);
                 UpdateLastCallIfWorkRemains(
                     function.Replicas,
                     lastCallCounters,
@@ -228,6 +230,10 @@ public class SlimQueuesWorker(
                 TimeoutRetries = [],
                 HttpStatusRetries = []
             };
+            customRequest.Headers.RemoveAll(header =>
+                string.Equals(header.Key, SlimfaasElementId, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(header.Key, SlimfaasTryNumber, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(header.Key, SlimfaasLastTry, StringComparison.OrdinalIgnoreCase));
             customRequest.Headers.Add(new CustomHeader(SlimfaasElementId, [message.Id]));
             customRequest.Headers.Add(new CustomHeader(
                 SlimfaasLastTry,
@@ -450,9 +456,32 @@ public class SlimQueuesWorker(
         var callbacks = new Dictionary<string, List<QueueItemStatus>>(StringComparer.Ordinal);
         var completedActivities = new Dictionary<string, List<TrackedHttpRequest>>(StringComparer.Ordinal);
         var terminalOffloads = new List<string>();
-        while (_completedRequests.TryDequeue(out CompletedHttpRequest completed))
+        while (_completedRequests.TryPeek(out CompletedHttpRequest completed))
         {
             TrackedHttpRequest request = completed.Request;
+            if (request.Generation == generation && deadLetters?.IsManaged(request.FunctionName) == true)
+            {
+                var function = replicasService.Deployments.Functions.FirstOrDefault(item => item.Deployment == request.FunctionName);
+                if (function is not null)
+                    await deadLetters.ConfigureAsync(function).ConfigureAwait(false);
+                bool awaiting = completed.StatusCode == 202 && completed.Error is null;
+                await deadLetters.MutateAsync(new()
+                {
+                    Action = awaiting ? DeadLetterAction.AwaitingCallback : DeadLetterAction.Complete,
+                    Function = request.FunctionName, ElementId = request.Id, HttpStatus = completed.StatusCode,
+                    Source = completed.Error is OperationCanceledException ? "DeliveryTimeout"
+                        : completed.Error is not null ? "Transport" : "Http"
+                }).ConfigureAwait(false);
+                _completedRequests.TryDequeue(out _);
+                if (processingRequests.TryGetValue(request.FunctionName, out var managedActive))
+                    managedActive.Remove(request.Id);
+                if (awaiting)
+                    GetOrAdd(awaiting202Requests, request.FunctionName).Add(new(request.Id, request.TargetIp, request.ActivityId));
+                else
+                    RecordCompletion(request.FunctionName, request.TargetIp, request.ActivityId);
+                continue;
+            }
+            _completedRequests.TryDequeue(out _);
             if (processingRequests.TryGetValue(request.FunctionName, out var active))
                 active.Remove(request.Id);
             if (request.Generation != generation)

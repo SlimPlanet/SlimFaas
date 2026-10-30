@@ -158,9 +158,23 @@ public static class SlimDataInterpreter
 
     internal static ValueTask DoListRightPopAsync(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
     {
+        if (!DeadLetterStateMachine.IsManaged(slimDataState, listRightPopCommand.Key))
+        {
+            DoListRightPopCore(listRightPopCommand, slimDataState);
+            return default;
+        }
+        var staged = DeadLetterStateMachine.StageQueue(slimDataState, listRightPopCommand.Key);
+        DoListRightPopCore(listRightPopCommand, staged);
+        slimDataState.Replace(staged.Capture());
+        return default;
+    }
+
+    private static void DoListRightPopCore(ListRightPopCommand listRightPopCommand, SlimDataState slimDataState)
+    {
+        DeadLetterStateMachine.SweepQueue(slimDataState, listRightPopCommand.Key, listRightPopCommand.NowTicks);
         var queues = slimDataState.Queues;
         if (!queues.TryGetValue(listRightPopCommand.Key, out var queue))
-            return default;
+            return;
 
         var nowTicks = listRightPopCommand.NowTicks;
         var idTransaction = listRightPopCommand.IdTransaction;
@@ -224,6 +238,7 @@ public static class SlimDataInterpreter
             for (var i = 0; i < candidateCount; i++)
             {
                 var element = candidates![i];
+                DeadLetterStateMachine.MarkDispatch(slimDataState, listRightPopCommand.Key, element.Id);
                 var attempt = new QueueHttpTryElement(
                     nowTicks,
                     idTransaction,
@@ -236,7 +251,6 @@ public static class SlimDataInterpreter
         }
 
         slimDataState.Queues = queues.SetItem(listRightPopCommand.Key, queue);
-        return default;
     }
 
     internal static ValueTask DoListLeftPushBatchAsync(ListLeftPushBatchCommand cmd, SlimDataState state)
@@ -288,6 +302,8 @@ public static class SlimDataInterpreter
 
     internal static ValueTask DoListCallbackAsync(ListCallbackCommand cmd, SlimDataState state)
     {
+        if (DeadLetterStateMachine.ApplyCallbacks(state, cmd.Key, cmd.CallbackElements, cmd.NowTicks))
+            return default;
         var queues = state.Queues;
         if (!queues.TryGetValue(cmd.Key, out var queue))
             return default;
@@ -304,6 +320,13 @@ public static class SlimDataInterpreter
 
         foreach (var item in batch.Items)
         {
+            state.Queues = queues;
+            if (item.CallbackElements is { Count: > 0 } &&
+                DeadLetterStateMachine.ApplyCallbacks(state, item.Key, item.CallbackElements, item.NowTicks))
+            {
+                queues = state.Queues;
+                continue;
+            }
             if (!queues.TryGetValue(item.Key, out var queue) || item.CallbackElements is null || item.CallbackElements.Count == 0)
                 continue;
 
@@ -860,6 +883,10 @@ public static class SlimDataInterpreter
 
         switch (operation.Kind)
         {
+            case SlimDataBatchOperationKind.DeadLetter:
+                result.DeadLetterResult = DeadLetterStateMachine.Apply(
+                    MemoryPackSerializer.Deserialize<DeadLetterMutation>(operation.Value)!, state);
+                break;
             case SlimDataBatchOperationKind.KeyValue:
             {
                 var keyValueResult = new KeyValueCommandResult();

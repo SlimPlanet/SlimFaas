@@ -14,7 +14,8 @@ public enum SlimDataBatchOperationKind : byte
     DeleteHashSet = 4,
     ListLeftPush = 5,
     ListRightPop = 6,
-    ListCallback = 7
+    ListCallback = 7,
+    DeadLetter = 8
 }
 
 [MemoryPackable]
@@ -51,6 +52,7 @@ public partial class SlimDataBatchOperationResult
     public string? ElementId { get; set; }
     public KeyValueCommandResult? KeyValueResult { get; set; }
     public QueueData[]? QueueItems { get; set; }
+    public DeadLetterMutationResult? DeadLetterResult { get; set; }
 }
 
 [MemoryPackable]
@@ -184,6 +186,30 @@ internal static class SlimDataCommandBatchValidator
                 break;
 
             case SlimDataBatchOperationKind.DeleteKeyValue:
+                break;
+            case SlimDataBatchOperationKind.DeadLetter:
+                var mutation = MemoryPackSerializer.Deserialize<DeadLetterMutation>(operation.Value)
+                    ?? throw new InvalidDataException("Missing DLQ mutation.");
+                if (!Enum.IsDefined(mutation.Action) || string.IsNullOrWhiteSpace(mutation.Function) ||
+                    mutation.NowTicks <= 0 || mutation.NowTicks > DateTime.MaxValue.Ticks ||
+                    operation.Key != "Queue:" + mutation.Function)
+                    throw new InvalidDataException("Invalid DLQ mutation.");
+                ValidateIdentifier(mutation.Function, nameof(mutation.Function));
+                if (mutation.Action is DeadLetterAction.Complete or DeadLetterAction.AwaitingCallback)
+                    ValidateIdentifier(mutation.ElementId, nameof(mutation.ElementId));
+                if (mutation.Action is DeadLetterAction.Delete or DeadLetterAction.Requeue)
+                    ValidateIdentifier(mutation.MessageId, nameof(mutation.MessageId));
+                if (mutation.Action == DeadLetterAction.Requeue)
+                {
+                    ValidateIdentifier(mutation.NewElementId, nameof(mutation.NewElementId));
+                    if (mutation.RetryTimeoutSeconds <= 0 || mutation.Retries is null || mutation.HttpStatusRetries is null ||
+                        mutation.Retries.Length > SlimDataCommandCodec.MaxCollectionCount ||
+                        mutation.HttpStatusRetries.Length > SlimDataCommandCodec.MaxCollectionCount)
+                        throw new InvalidDataException("Invalid replay retry configuration.");
+                }
+                if (mutation.Action == DeadLetterAction.Policy &&
+                    (mutation.Policy is null || mutation.Policy.MaxAgeSeconds <= 0 || mutation.Policy.MaxLength <= 0))
+                    throw new InvalidDataException("Invalid DLQ retention policy.");
                 break;
 
             default:

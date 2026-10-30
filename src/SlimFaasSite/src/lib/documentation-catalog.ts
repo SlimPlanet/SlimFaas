@@ -61,6 +61,13 @@ export const DOCUMENTATION_CATALOG = {
         title: 'SlimFaas Functions',
         description: 'Call SlimFaas functions synchronously and asynchronously.',
     },
+    'dead-letter-queues': {
+        sourcePath: 'docs/dead-letter-queues.md',
+        route: '/dead-letter-queues',
+        label: 'Dead Letter Queues',
+        title: 'SlimFaas Dead Letter Queues',
+        description: 'Retain, inspect, and safely replay terminal asynchronous failures.',
+    },
     'user-interface': {
         sourcePath: 'docs/user-interface.md',
         route: '/user-interface',
@@ -162,7 +169,7 @@ export function getPublicRouteForSource(sourcePath: string): string | undefined 
 
 export const DOCUMENTATION_GROUPS: { label: string; ids: DocumentationId[] }[] = [
     { label: 'Start here', ids: ['get-started', 'get-started-kubernetes', 'get-started-local', 'get-started-docker-compose', 'guided-tour'] },
-    { label: 'Features', ids: ['functions', 'events', 'jobs', 'data-sets', 'data-files', 'clients', 'planet-saver', 'kafka'] },
+    { label: 'Features', ids: ['functions', 'dead-letter-queues', 'events', 'jobs', 'data-sets', 'data-files', 'clients', 'planet-saver', 'kafka'] },
     { label: 'Operate', ids: ['user-interface', 'autoscaling', 'opentelemetry', 'benchmarking'] },
     { label: 'Reference', ids: ['api-reference', 'how-it-works', 'local-mode'] },
 ];

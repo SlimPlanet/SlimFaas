@@ -69,6 +69,8 @@ public static class StatusStreamEndpoints
     {
         var logger = loggerFactory.CreateLogger("StatusStreamEndpoints");
         var ct = context.RequestAborted;
+        var deadLetters = context.RequestServices.GetService<SlimFaas.DeadLetters.IDeadLetterService>();
+        bool includeDeadLetters = deadLetters?.FrontEnabled == true && deadLetters.CanAccess(context);
         bool includeActivity = !string.Equals(context.Request.Query["activity"], "false", StringComparison.OrdinalIgnoreCase);
         Channel<NetworkActivityEvent> channel;
         ChannelReader<NetworkActivityEvent> reader;
@@ -95,7 +97,7 @@ public static class StatusStreamEndpoints
         try
         {
             // Send initial full state
-            await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: includeActivity, ct), ct);
+            await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeActivity, includeDeadLetters, ct), ct);
             await context.Response.Body.FlushAsync(ct);
 
             // Then send periodic full state + activity events.
@@ -117,7 +119,7 @@ public static class StatusStreamEndpoints
                         break;
                     }
 
-                    await WritePendingActivityAsync(context, reader, activityBatchSize, ct);
+                    await WritePendingActivityAsync(context, reader, activityBatchSize, ct, includeDeadLetters);
 
                     if (stateTickTask.IsCompleted)
                     {
@@ -126,7 +128,7 @@ public static class StatusStreamEndpoints
                             break;
                         }
 
-                        await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: false, ct), ct);
+                        await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(false, includeDeadLetters, ct), ct);
                         stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
                     }
 
@@ -141,7 +143,7 @@ public static class StatusStreamEndpoints
                 }
 
                 // Send full state periodically
-                await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(includeRecentActivity: false, ct), ct);
+                await context.Response.WriteAsync(await snapshotCache.GetStateFrameAsync(false, includeDeadLetters, ct), ct);
                 await context.Response.Body.FlushAsync(ct);
                 stateTickTask = timer.WaitForNextTickAsync(ct).AsTask();
             }
@@ -161,18 +163,29 @@ public static class StatusStreamEndpoints
         HttpContext context,
         ChannelReader<NetworkActivityEvent> reader,
         int activityBatchSize,
-        CancellationToken ct)
+        CancellationToken ct,
+        bool includeDeadLetters = false)
     {
         int maxEventsPerWake = activityBatchSize * 10;
         int writtenEvents = 0;
 
         while (writtenEvents < maxEventsPerWake && reader.TryRead(out var firstEvent))
         {
+            if (!includeDeadLetters && firstEvent.Type.StartsWith("dead_letter", StringComparison.Ordinal))
+            {
+                writtenEvents++;
+                continue;
+            }
             var batch = new List<NetworkActivityEvent>(activityBatchSize) { StatusStreamPrivacy.ForBrowser(firstEvent) };
             while (batch.Count < activityBatchSize
                    && writtenEvents + batch.Count < maxEventsPerWake
                    && reader.TryRead(out var nextEvent))
             {
+                if (!includeDeadLetters && nextEvent.Type.StartsWith("dead_letter", StringComparison.Ordinal))
+                {
+                    writtenEvents++;
+                    continue;
+                }
                 batch.Add(StatusStreamPrivacy.ForBrowser(nextEvent));
             }
 

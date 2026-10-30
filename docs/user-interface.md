@@ -41,6 +41,7 @@ The dashboard follows the same visual language as slimfaas.dev: primary blue, li
 - **Live Stream → Traffic** opens the zoomable live canvas and its searchable actor list or event journal.
 - **Live Stream → Data** lists set keys and file metadata, with expiry and file sizes.
 - **Live Stream → Scaling** explains each function’s scaling decisions and offers a read-only playground.
+- **Dead Letter Queues** provides catalog, filters, failure details, explicit 64 KiB inert body previews/downloads, and confirmed replay/deletion. Traffic shows separate DLQ actors and committed transition links. Both surfaces require `SlimFaas:EnableFront=true`, `SlimFaas:DeadLetterQueue:EnableFront=true` (default false), and dedicated DLQ authorization. See [DLQ configuration and visibility](dead-letter-queues.md#visibility-and-dashboard-defaults).
 
 The views have stable links: `/#/overview`, `/#/live/traffic`, `/#/live/data` and `/#/live/scaling`. Select a function or job name in Overview to open its configuration and paginated instance details. Tables show 100 items per page; completed jobs stay available until their configured retention expires. Executions are attached by the complete configuration name, so configurations such as `fibonacci` and `fibonacci5` never share the same execution row.
 

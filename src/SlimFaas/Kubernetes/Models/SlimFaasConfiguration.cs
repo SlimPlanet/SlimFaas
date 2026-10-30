@@ -19,7 +19,13 @@ public record SlimFaasDefaultConfiguration
     public int HttpTimeout { get; init; } = 120;
     public List<int> TimeoutRetries { get; init; } = [2, 4, 8];
     public List<int> HttpStatusRetries { get; init; } = [500, 502, 503];
+    public DeadLetterQueueConfiguration DeadLetterQueue { get; init; } = new();
 }
+
+public sealed record DeadLetterQueueConfiguration(
+    bool Enabled = false,
+    int MaxAgeSeconds = 604800,
+    int MaxLength = 10000);
 
 [JsonSerializable(typeof(SlimFaasConfiguration))]
 [JsonSourceGenerationOptions(WriteIndented = false, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
