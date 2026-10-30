@@ -5,6 +5,32 @@ Streams are bounded, ordered event logs replicated by SlimData/Raft. Unlike
 async queue, each subscribed **function** consumes independently. Replicas of one
 function share its consumption state; one replica receives each attempt.
 
+## Dashboard gallery
+
+The dashboard's **Streams** page includes a retained Stream catalog, per-Stream
+history, independent function progress and message details. Body previews are
+bounded and render untrusted payloads as inert text.
+
+![Streams catalog showing visibility, retained messages, subscribers and retention](images/dashboard/streams-catalog.png)
+
+![Stream history and independent consumption progress for each subscribed function](images/dashboard/streams-history.png)
+
+![Detailed Stream progress for one function](images/dashboard/streams-function-progress.png)
+
+![Message detail with the bounded, inert body preview](images/dashboard/streams-message-preview.png)
+
+The catalog also adapts to narrow screens:
+
+![Responsive Streams catalog at a mobile viewport](images/dashboard/streams-mobile.png)
+
+Live Traffic represents a Stream as a distinct actor. Its details link to
+retained history and list subscriber progress; the event journal includes
+Stream lifecycle and delivery events.
+
+![Live Traffic with the selected Stream actor and its subscribers](images/dashboard/traffic-stream-actor.png)
+
+![Live Traffic event journal showing Stream appends](images/dashboard/traffic-stream-journal.png)
+
 ## Configure a function
 
 ```yaml
