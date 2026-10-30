@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -26,6 +27,12 @@ public interface IToolProxyService
 
 public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory httpClientFactory, ILogger<ToolProxyService> logger) : IToolProxyService
 {
+    // OpenAPI ignores header parameters with these names: the request already sets them.
+    private static readonly HashSet<string> s_ignoredHeaderParameters =
+        new(StringComparer.OrdinalIgnoreCase) { "Accept", "Content-Type", "Authorization" };
+
+    private static readonly SearchValues<char> s_invalidHeaderValueChars = SearchValues.Create("\r\n\0");
+
     private readonly HttpClient _httpClient = httpClientFactory.CreateClient("InsecureHttpClient");
     private void LogOutgoingRequest(
         HttpMethod method,
@@ -188,6 +195,35 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             fullUrl += "?" + string.Join('&', queryParams);
         }
 
+        // Headers: the headers forwarded by SlimFaasMcp (additionalHeaders) take precedence.
+        List<KeyValuePair<string, string>> headerArguments = [];
+        foreach (Parameter parameter in parameters.Where(p => p is { In: "header", Name: not null }))
+        {
+            if (!inputDict.TryGetValue(parameter.Name!, out JsonElement value) ||
+                value.ValueKind == JsonValueKind.Null ||
+                s_ignoredHeaderParameters.Contains(parameter.Name!) ||
+                (additionalHeaders?.Keys.Any(k => string.Equals(k, parameter.Name, StringComparison.OrdinalIgnoreCase)) ?? false))
+            {
+                continue;
+            }
+
+            string headerValue = value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
+            if (headerValue.AsSpan().ContainsAny(s_invalidHeaderValueChars))
+            {
+                return new ProxyCallResult
+                {
+                    IsBinary = false,
+                    Text = JsonSerializer.Serialize(
+                        new JsonObject { ["error"] = $"Header parameter {parameter.Name} cannot contain CR, LF or NUL characters" },
+                        AppJsonContext.Default.JsonNode),
+                    MimeType = "application/json",
+                    StatusCode = 400
+                };
+            }
+
+            headerArguments.Add(new KeyValuePair<string, string>(parameter.Name!, headerValue));
+        }
+
         // Décision de type de corps
         string? declaredContentType = endpoint.ContentType;
         bool hasFormParams = parameters.Any(p =>
@@ -220,6 +256,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                     reqGet.Headers.Add(header.Key, header.Value);
                 }
             }
+            AddHeaderArguments(reqGet, headerArguments);
             LogOutgoingRequest(HttpMethod.Get, fullUrl, additionalHeaders, null);
             resp = await _httpClient.SendAsync(reqGet);
             return await ToProxyCallResult(resp);
@@ -387,6 +424,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
                     reqMsg.Headers.Add(header.Key, header.Value);
                 }
             }
+            AddHeaderArguments(reqMsg, headerArguments);
 
             resp = await _httpClient.SendAsync(reqMsg);
             return await ToProxyCallResult(resp);
@@ -406,6 +444,18 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         }
 
         return baseUrl.TrimEnd('/') + "/" + endpointUrl.TrimStart('/');
+    }
+
+    private static void AddHeaderArguments(HttpRequestMessage request, List<KeyValuePair<string, string>> headerArguments)
+    {
+        foreach ((string name, string value) in headerArguments)
+        {
+            // Content headers such as Content-Language belong to the body, when there is one.
+            if (!request.Headers.TryAddWithoutValidation(name, value))
+            {
+                request.Content?.Headers.TryAddWithoutValidation(name, value);
+            }
+        }
     }
 
     // Fallback si Endpoint.ContentType est vide
