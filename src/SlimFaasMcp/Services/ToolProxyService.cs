@@ -164,8 +164,28 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         string? callUrl = endpoint.Url;
         foreach (Parameter parameter in parameters.Where(p => p.In == "path"))
         {
-            callUrl = callUrl?.Replace($"{{{parameter.Name}}}",
-                parameter.Name != null && inputDict.TryGetValue(parameter.Name, out JsonElement v) ? v.ToString() : "", StringComparison.Ordinal);
+            string pathValue = parameter.Name != null &&
+                               inputDict.TryGetValue(parameter.Name, out JsonElement v) &&
+                               v.ValueKind != JsonValueKind.Null
+                ? ToParameterValue(v)
+                : "";
+
+            // Uri resolves "." and ".." segments, even percent-encoded, so they would leave the operation's path.
+            if (pathValue is "." or "..")
+            {
+                return new ProxyCallResult
+                {
+                    IsBinary = false,
+                    Text = JsonSerializer.Serialize(
+                        new JsonObject { ["error"] = $"Path parameter {parameter.Name} cannot be a dot segment (. or ..)" },
+                        AppJsonContext.Default.JsonNode),
+                    MimeType = "application/json",
+                    StatusCode = 400
+                };
+            }
+
+            // Each value fills a single path segment: '/', '?', '#' and spaces are percent-encoded.
+            callUrl = callUrl?.Replace($"{{{parameter.Name}}}", Uri.EscapeDataString(pathValue), StringComparison.Ordinal);
         }
 
         if (callUrl != null && !callUrl.StartsWith('/'))
@@ -181,7 +201,7 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             .Select(p =>
             {
                 JsonElement value = inputDict[p.Name!];
-                return $"{p.Name}={Uri.EscapeDataString(value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText())}";
+                return $"{p.Name}={Uri.EscapeDataString(ToParameterValue(value))}";
             });
         if (queryParams.Any())
         {
@@ -392,6 +412,10 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
             return await ToProxyCallResult(resp);
         }
     }
+
+    // Strings are sent without their JSON quotes; numbers and booleans as written in JSON ("42", "true").
+    private static string ToParameterValue(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String ? value.GetString()! : value.GetRawText();
 
     private static string CombineBaseUrl(string? baseUrl, string endpointUrl)
     {
