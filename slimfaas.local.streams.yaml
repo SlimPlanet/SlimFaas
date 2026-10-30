@@ -1,0 +1,12 @@
+schemaVersion: 1
+functions:
+  fibonacci1:
+    annotations:
+      SlimFaas/SubscribeStream: "Public:orders"
+      SlimFaas/StreamMaxAge: "24h"
+      SlimFaas/StreamMaxLength: "100000"
+  fibonacci2:
+    annotations:
+      SlimFaas/SubscribeStream: "Public:orders"
+      SlimFaas/StreamMaxAge: "24h"
+      SlimFaas/StreamMaxLength: "100000"

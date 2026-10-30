@@ -16,6 +16,7 @@ from websockets.asyncio.client import ClientConnection
 from slimfaas_client._models import (
     AsyncCallback,
     AsyncRequest,
+    StreamMessage,
     BinaryFrame,
     MessageType,
     PublishEvent,
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 # Type des callbacks
 AsyncRequestHandler = Callable[[AsyncRequest], Awaitable[int]]
+StreamMessageHandler = Callable[[StreamMessage], Awaitable[int]]
 PublishEventHandler = Callable[[PublishEvent], Awaitable[None]]
 SyncRequestHandler = Callable[[SyncRequest], Awaitable[None]]
 
@@ -89,6 +91,7 @@ class SlimFaasClient:
         self._ping_interval = ping_interval
 
         self._async_request_handler: Optional[AsyncRequestHandler] = None
+        self._stream_message_handler: Optional[StreamMessageHandler] = None
         self._publish_event_handler: Optional[PublishEventHandler] = None
         self._sync_request_handler: Optional[SyncRequestHandler] = None
 
@@ -130,6 +133,10 @@ class SlimFaasClient:
     def on_publish_event(self, handler: PublishEventHandler) -> None:
         """Register the callback invoked for each publish/subscribe event."""
         self._publish_event_handler = handler
+
+    def on_stream_message(self, handler: StreamMessageHandler) -> None:
+        """Return a final status, or 202 then complete through send_callback."""
+        self._stream_message_handler = handler
 
     def on_sync_request(self, handler: SyncRequestHandler) -> None:
         """
@@ -261,6 +268,8 @@ class SlimFaasClient:
                 if not resp_payload.get("success"):
                     error = resp_payload.get("error", "Unknown registration error")
                     raise SlimFaasRegistrationError(error)
+                if self._config.subscribe_streams and "streams-v1" not in resp_payload.get("capabilities", []):
+                    raise SlimFaasRegistrationError("This server does not support durable Streams.")
                 self._connection_id = resp_payload.get("connectionId")
                 logger.info(
                     "Registered successfully. connectionId=%s",
@@ -283,6 +292,10 @@ class SlimFaasClient:
         if msg_type == MessageType.ASYNC_REQUEST:
             if payload is None:
                 logger.warning("AsyncRequest without payload")
+                return
+            if payload.get("streamName") is not None:
+                message = StreamMessage.from_payload(payload)
+                asyncio.create_task(self._dispatch_stream_message(ws, message))
                 return
             req = AsyncRequest.from_payload(payload)
             asyncio.create_task(self._dispatch_async_request(ws, req))
@@ -322,6 +335,17 @@ class SlimFaasClient:
         # 202 = the client will manage the callback itself
         if status_code != 202:
             await self._send_callback(ws, req.element_id, status_code)
+
+    async def _dispatch_stream_message(self, ws: ClientConnection, message: StreamMessage) -> None:
+        status = 500
+        if self._stream_message_handler is None:
+            logger.error("StreamMessage %s has no handler; returning 500", message.element_id)
+        else:
+            try:
+                status = await self._stream_message_handler(message)
+            except Exception:
+                logger.exception("StreamMessage handler failed for %s", message.element_id)
+        await self._send_callback(ws, message.element_id, status)
 
     async def _dispatch_publish_event(self, evt: PublishEvent) -> None:
         if self._publish_event_handler is None:
@@ -477,4 +501,3 @@ class SlimFaasClient:
     def is_connected(self) -> bool:
         """True if the WebSocket is currently connected and registered."""
         return self._ws is not None and self._connection_id is not None
-

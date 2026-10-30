@@ -12,6 +12,8 @@ import pytest
 
 from slimfaas_client._models import (
     AsyncRequest,
+    StreamMessage,
+    SubscribeStreamConfig,
     FunctionVisibility,
     FunctionTrust,
     MessageType,
@@ -49,6 +51,42 @@ def make_envelope(msg_type: int, payload: dict | None, correlation_id: str = "co
 # ---------------------------------------------------------------------------
 
 class TestAsyncRequest:
+    def test_stream_registration_contract(self):
+        config = make_config(subscribe_streams=[SubscribeStreamConfig("orders", FunctionVisibility.PUBLIC)])
+        payload = config.to_register_payload()["configuration"]
+        assert payload["subscribeStreams"] == [{"name": "orders", "visibility": "Public"}]
+        assert payload["streamMaxAgeSeconds"] == 86400
+        assert payload["streamMaxLength"] == 100000
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("status", [200, 202, 503])
+    async def test_stream_handler_identity_and_status(self, status):
+        client = SlimFaasClient("ws://fake", make_config())
+        received = []
+
+        async def handler(message):
+            received.append(message)
+            return status
+
+        client.on_stream_message(handler)
+        ws = MockWebSocket([])
+        message = StreamMessage.from_payload({
+            "elementId": "stream_a", "streamName": "orders", "messageId": "generation_1",
+            "method": "POST", "path": "/work", "body": "ZGF0YQ==", "tryNumber": 2,
+        })
+        await client._dispatch_stream_message(ws, message)
+        assert received == [message]
+        assert message.body == b"data"
+        assert message.try_number == 2
+        assert json.loads(ws.sent[0])["payload"]["statusCode"] == status
+
+    @pytest.mark.asyncio
+    async def test_stream_subscription_rejects_an_older_server(self):
+        client = SlimFaasClient("ws://fake", make_config(subscribe_streams=[SubscribeStreamConfig("orders")]))
+        ws = MockWebSocket([make_envelope(MessageType.REGISTER_RESPONSE, {"success": True, "connectionId": "old"})])
+        with pytest.raises(SlimFaasRegistrationError, match="does not support"):
+            await client._register(ws)
+
     def test_from_payload_basic(self):
         payload = {
             "elementId": "elem-1",

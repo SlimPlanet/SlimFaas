@@ -45,6 +45,7 @@ export default function TrafficCanvas(props: Props) {
     const colors = {
       job: css.getPropertyValue('--job').trim(), function: css.getPropertyValue('--color-primary').trim(),
       slimfaas: css.getPropertyValue('--color-primary').trim(), queue: css.getPropertyValue('--warning').trim(),
+      stream: css.getPropertyValue('--job').trim(),
       external: css.getPropertyValue('--muted').trim(), ink: css.getPropertyValue('--ink').trim(),
       success: css.getPropertyValue('--success').trim(), danger: css.getPropertyValue('--danger').trim(), soft: css.getPropertyValue('--soft').trim(),
       line: css.getPropertyValue('--line').trim(), background: css.getPropertyValue('--surface').trim(),
@@ -187,7 +188,7 @@ export default function TrafficCanvas(props: Props) {
         context.lineWidth = (selected === group.id ? 2 : 1) / k;
         context.beginPath(); context.roundRect(boxX, boxY, boxWidth, boxHeight, Math.min(16 / k, 24)); context.fill(); context.stroke();
         if (boxWidth * k > 80 && boxHeight * k > 45) {
-          const symbol = group.kind === 'function' ? 'power' : group.kind === 'queue' || group.kind === 'external' ? group.kind : null;
+          const symbol = group.kind === 'function' ? 'power' : group.kind === 'queue' || group.kind === 'external' || group.kind === 'stream' ? group.kind : null;
           context.strokeStyle = group.state ? stateColor(group.state) : colors[group.kind];
           if (symbol) drawSymbol(context, symbol, boxX + 10 / k, boxY + 6 / k, 18 / k);
           context.fillStyle = colors[group.kind]; context.font = `600 ${11 / k}px system-ui`;

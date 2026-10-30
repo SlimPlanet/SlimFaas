@@ -6,6 +6,12 @@
 
 # SlimFaasClient
 
+Durable Streams use `SubscribeStreams` (`SubscribeStreamConfig`) and
+`OnStreamMessage` (`SlimFaasStreamMessage`). The message includes `StreamName`,
+`MessageId`, the delivery `ElementId` and original request. Return final status
+or `202` followed by `SendCallbackAsync`. Registration requires server capability
+`streams-v1`; reconnect preserves progress. See [Streams examples](../../../docs/streams.md#websocket-functions).
+
 C# library to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
 

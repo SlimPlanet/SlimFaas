@@ -23,7 +23,11 @@ public record NetworkActivityEvent(
     string? CorrelationId = null,
     string? DeadLetterId = null,
     string? ElementId = null,
-    string? OriginalElementId = null);
+    string? OriginalElementId = null,
+    string? StreamName = null,
+    string? StreamFunction = null,
+    string? StreamMessageId = null,
+    string? StreamVisibility = null);
 
 /// <summary>
 /// Represents the full stream payload sent via SSE.
@@ -43,7 +47,11 @@ public record StatusStreamPayload(
     int MaxLiveEventsPerSecond = 0,
     IReadOnlyList<SlimFaas.DeadLetters.DeadLetterSummary>? DeadLetters = null,
     bool DeadLettersFrontEnabled = false,
-    bool DeadLettersAccessible = false);
+    bool DeadLettersAccessible = false,
+    IReadOnlyList<SlimFaas.Streams.StreamSummary>? Streams = null,
+    IReadOnlyList<SlimFaas.Streams.StreamFunctionSummary>? StreamSubscriptions = null,
+    bool StreamsAvailable = false,
+    bool StreamsTruncated = false);
 
 public record QueueInfo(string Name, long Length);
 
@@ -143,7 +151,8 @@ public sealed class NetworkActivityTracker
 
     /// <summary>Record a local activity event and broadcast to all SSE subscribers.</summary>
     public string Record(string type, string source, string target, string? queueName = null, string? sourcePod = null, string? targetPod = null, string? correlationId = null,
-        string? deadLetterId = null, string? elementId = null, string? originalElementId = null)
+        string? deadLetterId = null, string? elementId = null, string? originalElementId = null,
+        string? streamName = null, string? streamFunction = null, string? streamMessageId = null, string? streamVisibility = null)
     {
         if (!_enabled) return string.Empty;
 
@@ -160,7 +169,11 @@ public sealed class NetworkActivityTracker
             CorrelationId: correlationId,
             DeadLetterId: deadLetterId,
             ElementId: elementId,
-            OriginalElementId: originalElementId);
+            OriginalElementId: originalElementId,
+            StreamName: streamName,
+            StreamFunction: streamFunction,
+            StreamMessageId: streamMessageId,
+            StreamVisibility: streamVisibility);
 
         Enqueue(evt);
         return evt.Id;

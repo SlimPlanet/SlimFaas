@@ -1,0 +1,11 @@
+services:
+  fibonacci1:
+    labels:
+      SlimFaas/SubscribeStream: "Public:orders"
+      SlimFaas/StreamMaxAge: "24h"
+      SlimFaas/StreamMaxLength: "100000"
+  fibonacci2:
+    labels:
+      SlimFaas/SubscribeStream: "Public:orders"
+      SlimFaas/StreamMaxAge: "24h"
+      SlimFaas/StreamMaxLength: "100000"

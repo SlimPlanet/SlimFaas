@@ -1,5 +1,9 @@
 # SlimFaas API Reference
 
+See [Durable Streams](streams.md#observe-without-consuming) for the `/data/streams`
+catalog, passive history/body/subscription routes, explicit reservation/ACK,
+deletion guards and `/publish-stream/{stream}/{path}` append alias.
+
 This inventory describes the routes registered by the SlimFaas runtime in this checkout. Use the [Guided Tour](guided-tour.md) for executable cURL examples and the [Bruno collection](https://slimfaas.dev/downloads/slimfaas-demo.zip) for ordered requests with assertions.
 
 ## Addresses and response conventions

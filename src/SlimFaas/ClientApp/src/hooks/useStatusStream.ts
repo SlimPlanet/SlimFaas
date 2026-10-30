@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import type { FunctionStatusDetailed, QueueInfo, NetworkActivityEvent, StatusStreamPayload, SlimFaasNodeInfo, JobConfigurationStatus } from '../types';
 import { jobQueues } from '../lib/topology.ts';
 import { isDeadLetterSummary, type DeadLetterSummary } from '../lib/deadLetters.ts';
+import { isStreamSummary, isStreamFunction, type StreamSummary, type StreamFunction } from '../lib/streams.ts';
 
 const COOLDOWN_MS = 3000;
 const ACTIVITY_FLUSH_MS = 100;
@@ -163,6 +164,9 @@ function normalizeActivity(raw: unknown): NetworkActivityEvent[] {
     DeadLetterId: asString(pick(entry, 'DeadLetterId', 'deadLetterId'), '') || null,
     ElementId: asString(pick(entry, 'ElementId', 'elementId'), '') || null,
     OriginalElementId: asString(pick(entry, 'OriginalElementId', 'originalElementId'), '') || null,
+    StreamName: asString(pick(entry, 'StreamName', 'streamName'), '') || null,
+    StreamFunction: asString(pick(entry, 'StreamFunction', 'streamFunction'), '') || null,
+    StreamMessageId: asString(pick(entry, 'StreamMessageId', 'streamMessageId'), '') || null,
   }));
 }
 
@@ -192,6 +196,10 @@ function normalizePayload(raw: unknown): StatusStreamPayload {
     DeadLetters: asArray(pick(raw, 'DeadLetters', 'deadLetters')).filter(isDeadLetterSummary),
     DeadLettersFrontEnabled: pick(raw, 'DeadLettersFrontEnabled', 'deadLettersFrontEnabled') === true,
     DeadLettersAccessible: pick(raw, 'DeadLettersAccessible', 'deadLettersAccessible') === true,
+    Streams: asArray(pick(raw, 'Streams', 'streams')).filter(isStreamSummary),
+    StreamSubscriptions: asArray(pick(raw, 'StreamSubscriptions', 'streamSubscriptions')).filter(isStreamFunction),
+    StreamsAvailable: pick(raw, 'StreamsAvailable', 'streamsAvailable') === true,
+    StreamsTruncated: pick(raw, 'StreamsTruncated', 'streamsTruncated') === true,
   };
 }
 
@@ -216,6 +224,10 @@ export function useStatusStream(includeActivity = true) {
   const [deadLetters, setDeadLetters] = useState<DeadLetterSummary[]>([]);
   const [deadLettersFrontEnabled, setDeadLettersFrontEnabled] = useState(false);
   const [deadLettersAccessible, setDeadLettersAccessible] = useState(false);
+  const [streams, setStreams] = useState<StreamSummary[]>([]);
+  const [streamSubscriptions, setStreamSubscriptions] = useState<StreamFunction[]>([]);
+  const [streamsAvailable, setStreamsAvailable] = useState(false);
+  const [streamsTruncated, setStreamsTruncated] = useState(false);
 
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectFailures = useRef(0);
@@ -308,6 +320,10 @@ export function useStatusStream(includeActivity = true) {
         setDeadLetters(payload.DeadLetters ?? []);
         setDeadLettersFrontEnabled(payload.DeadLettersFrontEnabled === true);
         setDeadLettersAccessible(payload.DeadLettersAccessible === true);
+        setStreams(payload.Streams ?? []);
+        setStreamSubscriptions(payload.StreamSubscriptions ?? []);
+        setStreamsAvailable(payload.StreamsAvailable === true);
+        setStreamsTruncated(payload.StreamsTruncated === true);
         setError(null);
         reconnectFailures.current = 0;
         setLoading(false);
@@ -423,8 +439,8 @@ export function useStatusStream(includeActivity = true) {
     slimFaasNodes,
     frontEnabled,
     deadLetters, deadLettersFrontEnabled, deadLettersAccessible,
+    streams, streamSubscriptions, streamsAvailable, streamsTruncated,
     frontMessage, actionError, samplingRatio, maxLiveEventsPerSecond,
   };
 }
-
 

@@ -89,6 +89,13 @@ public class SubscribeEventConfig
     public FunctionVisibility? Visibility { get; set; }
 }
 
+/// <summary>A durable Stream subscription; visibility inherits the function default.</summary>
+public sealed class SubscribeStreamConfig
+{
+    public string Name { get; set; } = string.Empty;
+    public FunctionVisibility? Visibility { get; set; }
+}
+
 /// <summary>
 /// Décrit une règle de visibilité par préfixe de chemin.
 /// Exemple : <c>new PathVisibilityConfig { Path = "/admin", Visibility = FunctionVisibility.Private }</c>
@@ -138,6 +145,9 @@ public class SlimFaasClientConfig
     /// Si <see cref="SubscribeEventConfig.Visibility"/> est null, <see cref="DefaultVisibility"/> est utilisé.
     /// </summary>
     public List<SubscribeEventConfig> SubscribeEvents { get; set; } = [];
+    public List<SubscribeStreamConfig> SubscribeStreams { get; set; } = [];
+    public int StreamMaxAgeSeconds { get; set; } = 86400;
+    public int StreamMaxLength { get; set; } = 100000;
 
     /// <summary>SlimFaas/DefaultVisibility</summary>
     public FunctionVisibility DefaultVisibility { get; set; } = FunctionVisibility.Public;
@@ -182,6 +192,13 @@ public class SlimFaasAsyncRequest
     public int TryNumber { get; set; } = 1;
 }
 
+/// <summary>A retained Stream message reserved for this function and attempt.</summary>
+public sealed class SlimFaasStreamMessage : SlimFaasAsyncRequest
+{
+    public string StreamName { get; set; } = string.Empty;
+    public string MessageId { get; set; } = string.Empty;
+}
+
 /// <summary>Évènement publish/subscribe reçu depuis SlimFaas.</summary>
 public class SlimFaasPublishEvent
 {
@@ -209,6 +226,12 @@ internal class RegisterPayloadDto
 
 internal class RegisterConfigDto
 {
+    [JsonPropertyName("subscribeStreams")]
+    public List<SubscribeEventConfigDto> SubscribeStreams { get; set; } = [];
+    [JsonPropertyName("streamMaxAgeSeconds")]
+    public int StreamMaxAgeSeconds { get; set; } = 86400;
+    [JsonPropertyName("streamMaxLength")]
+    public int StreamMaxLength { get; set; } = 100000;
     [JsonPropertyName("dependsOn")]
     public List<string> DependsOn { get; set; } = [];
 
@@ -257,6 +280,8 @@ internal class PathVisibilityConfigDto
 
 internal class RegisterResponseDto
 {
+    [JsonPropertyName("capabilities")]
+    public string[] Capabilities { get; set; } = [];
     [JsonPropertyName("success")]
     public bool Success { get; set; }
 
@@ -269,6 +294,10 @@ internal class RegisterResponseDto
 
 internal class AsyncRequestDto
 {
+    [JsonPropertyName("streamName")]
+    public string? StreamName { get; set; }
+    [JsonPropertyName("messageId")]
+    public string? MessageId { get; set; }
     [JsonPropertyName("elementId")]
     public string ElementId { get; set; } = string.Empty;
 
@@ -616,4 +645,3 @@ internal class SyncResponseStartDto
     WriteIndented = false,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 internal partial class SlimFaasClientJsonContext : JsonSerializerContext;
-

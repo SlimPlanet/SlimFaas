@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 
 namespace SlimFaas.Kubernetes;
 
@@ -14,6 +15,9 @@ public static class FunctionAnnotationNames
         "SlimFaas/ReplicasStartAsSoonAsOneFunctionRetrieveARequest";
     public const string DependsOn = "SlimFaas/DependsOn";
     public const string SubscribeEvents = "SlimFaas/SubscribeEvents";
+    public const string SubscribeStream = "SlimFaas/SubscribeStream";
+    public const string StreamMaxAge = "SlimFaas/StreamMaxAge";
+    public const string StreamMaxLength = "SlimFaas/StreamMaxLength";
     public const string DefaultVisibility = "SlimFaas/DefaultVisibility";
     public const string PathsStartWithVisibility = "SlimFaas/PathsStartWithVisibility";
     public const string DefaultTrust = "SlimFaas/DefaultTrust";
@@ -36,7 +40,12 @@ public sealed record FunctionMetadata(
     IList<PathVisibility> PathsStartWithVisibility,
     FunctionTrust Trust,
     ScaleConfig? Scale,
-    int NumberParallelRequestPerPod);
+    int NumberParallelRequestPerPod,
+    IList<SubscribeStream>? SubscribeStreams = null,
+    int StreamMaxAgeSeconds = 86400,
+    int StreamMaxLength = 100000);
+
+public sealed record SubscribeStream(string Name, FunctionVisibility Visibility);
 
 public static class FunctionMetadataParser
 {
@@ -77,7 +86,49 @@ public static class FunctionMetadataParser
                 static (value, itemVisibility) => new PathVisibility(value, itemVisibility)),
             ParseEnum(annotations, FunctionAnnotationNames.DefaultTrust, FunctionTrust.Trusted),
             ParseScale(annotations),
-            ParseInt(annotations, FunctionAnnotationNames.NumberParallelRequestPerPod, 10, minimum: 1));
+            ParseInt(annotations, FunctionAnnotationNames.NumberParallelRequestPerPod, 10, minimum: 1),
+            ParseStreams(annotations, visibility),
+            ParseStreamMaxAge(annotations),
+            ParseInt(annotations, FunctionAnnotationNames.StreamMaxLength, 100000, minimum: 1));
+    }
+
+    private static List<SubscribeStream> ParseStreams(
+        IReadOnlyDictionary<string, string> annotations, FunctionVisibility defaultVisibility)
+    {
+        var result = new List<SubscribeStream>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (string token in ParseCsv(annotations, FunctionAnnotationNames.SubscribeStream))
+        {
+            string name = token;
+            var visibility = defaultVisibility;
+            int separator = token.IndexOf(':', StringComparison.Ordinal);
+            if (separator >= 0)
+            {
+                if (!Enum.TryParse(token[..separator], true, out visibility) || !Enum.IsDefined(visibility))
+                    throw new FormatException("SlimFaas/SubscribeStream has an invalid visibility.");
+                name = token[(separator + 1)..].Trim();
+            }
+            if (!IdValidator.IsSafeId(name) || !names.Add(name))
+                throw new FormatException("SlimFaas/SubscribeStream requires unique, safe Stream names.");
+            result.Add(new(name, visibility));
+        }
+        return result;
+    }
+
+    private static int ParseStreamMaxAge(IReadOnlyDictionary<string, string> annotations)
+    {
+        if (!annotations.TryGetValue(FunctionAnnotationNames.StreamMaxAge, out string? raw))
+            return 86400;
+        raw = raw.Trim();
+        if (raw.Length == 0)
+            throw new FormatException("SlimFaas/StreamMaxAge must be a positive duration.");
+        int multiplier = raw[^1] switch { 's' => 1, 'm' => 60, 'h' => 3600, 'd' => 86400, _ => 1 };
+        string number = char.IsAsciiLetter(raw[^1]) ? raw[..^1] : raw;
+        if (!long.TryParse(number, NumberStyles.None, CultureInfo.InvariantCulture, out long value) ||
+            value <= 0 || value > int.MaxValue / multiplier ||
+            (char.IsAsciiLetter(raw[^1]) && raw[^1] is not ('s' or 'm' or 'h' or 'd')))
+            throw new FormatException("SlimFaas/StreamMaxAge must be positive seconds or a duration such as 24h.");
+        return (int)value * multiplier;
     }
 
     private static SlimFaasConfiguration ParseConfiguration(IReadOnlyDictionary<string, string> annotations)

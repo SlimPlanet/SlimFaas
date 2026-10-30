@@ -179,6 +179,12 @@ public static class SlimDataInterpreter
         var nowTicks = listRightPopCommand.NowTicks;
         var idTransaction = listRightPopCommand.IdTransaction;
         var maximum = listRightPopCommand.Count;
+        string? streamFunction = listRightPopCommand.Key.StartsWith("Queue:", StringComparison.Ordinal)
+            ? listRightPopCommand.Key["Queue:".Length..] : null;
+        var streamCapacity = streamFunction is null ? null :
+            DurableStreamStore.QueueCapacity(slimDataState.CapturePayload(), streamFunction, nowTicks);
+        if (streamCapacity is { } capacity)
+            maximum = Math.Min(maximum, capacity.Available);
 
         // Single pass over the queue: expire the tries that timed out, drop the finished
         // elements, detect an already applied transaction and pick the elements to
@@ -235,16 +241,33 @@ public static class SlimDataInterpreter
         if (!transactionAlreadyApplied)
         {
             var reservedIps = listRightPopCommand.ReservedIps;
+            int replicaIndex = 0;
             for (var i = 0; i < candidateCount; i++)
             {
                 var element = candidates![i];
+                string reservedIp = reservedIps is { Count: > 0 } && i < reservedIps.Count ? reservedIps[i] : string.Empty;
+                if (streamCapacity is { } shared && reservedIps is { Count: > 0 })
+                {
+                    bool available = false;
+                    while (replicaIndex < reservedIps.Count)
+                    {
+                        reservedIp = reservedIps[replicaIndex++];
+                        if (reservedIp.Length > 0 &&
+                            DurableStreamStore.Running(slimDataState.CapturePayload(), streamFunction!, reservedIp) +
+                            queue.Count(item => item.GetState(nowTicks) == QueueElementState.Running &&
+                                item.RetryQueueElements[^1].ReservedIp == reservedIp) >= shared.PerReplica)
+                            continue;
+                        available = true;
+                        break;
+                    }
+                    if (!available)
+                        break;
+                }
                 DeadLetterStateMachine.MarkDispatch(slimDataState, listRightPopCommand.Key, element.Id);
                 var attempt = new QueueHttpTryElement(
                     nowTicks,
                     idTransaction,
-                    reservedIp: reservedIps is { Count: > 0 } && i < reservedIps.Count
-                        ? reservedIps[i]
-                        : string.Empty);
+                    reservedIp: reservedIp);
                 var tries = element.RetryQueueElements;
                 element.RetryQueueElements = tries.IsDefault ? [attempt] : tries.Add(attempt);
             }
@@ -883,6 +906,10 @@ public static class SlimDataInterpreter
 
         switch (operation.Kind)
         {
+            case SlimDataBatchOperationKind.Stream:
+                result.StreamResult = DurableStreamStore.Apply(
+                    MemoryPackSerializer.Deserialize<DurableStreamMutation>(operation.Value)!, state);
+                break;
             case SlimDataBatchOperationKind.DeadLetter:
                 result.DeadLetterResult = DeadLetterStateMachine.Apply(
                     MemoryPackSerializer.Deserialize<DeadLetterMutation>(operation.Value)!, state);

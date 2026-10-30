@@ -2,6 +2,7 @@ using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Workers;
+using SlimFaas.Streams;
 
 namespace SlimFaas.Scaling;
 
@@ -92,9 +93,13 @@ public sealed class ScalingSimulationService(IReplicasService replicas, AutoScal
         var deployments = environment.Deployments with { Functions = environment.Deployments.Functions
             .Select(f => f.Deployment == function.Deployment ? function : f).ToList() };
         var context = ReplicasService.CaptureContext(deployments, function, environment.NowUtc, environment.HttpTicks,
-            environment.HttpTicks.Values.DefaultIfEmpty(0).Max(), ReplicasService.GetExternalDependencyDemand(deployments, evaluations),
-            environment.TurnOnByDefault);
+            environment.HttpTicks.Values.DefaultIfEmpty(0).Max(), ReplicasService.GetExternalDependencyDemand(deployments, evaluations, environment.StreamDemand),
+            environment.TurnOnByDefault) with { StreamDemand = environment.StreamDemand?.GetValueOrDefault(function.Deployment) ?? 0 };
         evaluations.TryGetValue(function.Deployment, out var evaluation);
+        var combined = StreamScaling.Include(function, evaluation, environment.StreamDemand);
+        function = combined.Function;
+        context = context with { Function = function };
+        evaluation = combined.Evaluation;
         var calculation = ScalingDecisionCalculator.NeedsMetrics(context, evaluation)
             ? MetricsScalingCalculator.Calculate(function.Scale, function.Replicas, function.ReplicasMin,
                 function.Scale?.ReplicaMax, context.NowSeconds, evaluation!, history) : null;

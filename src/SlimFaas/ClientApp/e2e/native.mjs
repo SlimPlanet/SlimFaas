@@ -45,6 +45,7 @@ export async function startNative(output, scenario = 'cold') {
       'SlimFaas/Function': 'true', 'SlimFaas/ReplicasMin': String(replicas),
       'SlimFaas/ReplicasAtStart': String(replicas || 1), 'SlimFaas/TimeoutSecondBeforeSetReplicasMin': '120',
       ...(subscription ? { 'SlimFaas/SubscribeEvents': 'Public:fibo-public' } : {}),
+      ...(scenario === 'streams' ? { 'SlimFaas/SubscribeStream': 'Public:orders' } : {}),
       ...(scenario === 'dlq' ? { 'SlimFaas/Configuration': JSON.stringify({ DefaultAsync: {
         HttpTimeout: 30, TimeoutRetries: [], DeadLetterQueue: { Enabled: true },
       } }) } : {}),

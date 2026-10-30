@@ -100,7 +100,10 @@ public class WebSocketFunctionRepository : IWebSocketFunctionRepository
                 ResourceVersion: "ws",
                 EndpointReady: true,
                 Trust: trust,
-                NumberParallelRequestPerPod: config.NumberParallelRequestPerPod
+                NumberParallelRequestPerPod: config.NumberParallelRequestPerPod,
+                SubscribeStreams: config.ParsedStreams,
+                StreamMaxAgeSeconds: config.StreamMaxAgeSeconds,
+                StreamMaxLength: config.StreamMaxLength
             );
 
             result.Add(info);

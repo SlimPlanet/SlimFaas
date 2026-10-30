@@ -4,6 +4,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using SlimFaas.Kubernetes;
+using System.Globalization;
+using SlimFaas.Streams;
 
 namespace SlimFaas.WebSocket;
 
@@ -38,12 +40,15 @@ public sealed class WebSocketClientConnection : IDisposable
 
     /// <summary>Tâche en attente de callback (elementId -> TaskCompletionSource&lt;int&gt;).</summary>
     public ConcurrentDictionary<string, TaskCompletionSource<int>> PendingCallbacks { get; } = new();
+    public ConcurrentDictionary<string, byte> StreamRequests { get; } = new();
+    internal IStreamService? Streams { get; set; }
+    internal HttpContext? RequestContext { get; set; }
 
     /// <summary>Streams synchrones en cours (correlationId -> PendingSyncStream).</summary>
     public ConcurrentDictionary<string, PendingSyncStream> PendingSyncStreams { get; } = new();
 
     /// <summary>Nombre de requêtes en cours de traitement par ce client.</summary>
-    public int ActiveRequests => PendingCallbacks.Count + PendingSyncStreams.Count;
+    public int ActiveRequests => PendingCallbacks.Count + PendingSyncStreams.Count + StreamRequests.Count;
 
     public DateTime ConnectedAt { get; } = DateTime.UtcNow;
     public bool IsAlive => Socket.State == WebSocketState.Open;
@@ -126,11 +131,18 @@ public class WebSocketConnectionRegistry
         string name = connection.FunctionName;
         try
         {
-            connection.Configuration.ParsedConfiguration = SlimFaas.Kubernetes.FunctionMetadataParser.Parse(
+            var metadata = SlimFaas.Kubernetes.FunctionMetadataParser.Parse(
                 new Dictionary<string, string>
                 {
-                    [SlimFaas.Kubernetes.FunctionAnnotationNames.Configuration] = connection.Configuration.Configuration
-                }, name).Configuration;
+                    [FunctionAnnotationNames.Configuration] = connection.Configuration.Configuration,
+                    [FunctionAnnotationNames.DefaultVisibility] = connection.Configuration.DefaultVisibility,
+                    [FunctionAnnotationNames.SubscribeStream] = string.Join(',', connection.Configuration.SubscribeStreams.Select(item =>
+                        (item.Visibility ?? connection.Configuration.DefaultVisibility) + ":" + item.Name)),
+                    [FunctionAnnotationNames.StreamMaxAge] = connection.Configuration.StreamMaxAgeSeconds.ToString(CultureInfo.InvariantCulture),
+                    [FunctionAnnotationNames.StreamMaxLength] = connection.Configuration.StreamMaxLength.ToString(CultureInfo.InvariantCulture)
+                }, name);
+            connection.Configuration.ParsedConfiguration = metadata.Configuration;
+            connection.Configuration.ParsedStreams = metadata.SubscribeStreams ?? [];
         }
         catch (Exception exception) when (exception is FormatException or System.Text.Json.JsonException)
         {
@@ -272,6 +284,11 @@ public class WebSocketConnectionRegistry
                && a.NumberParallelRequestPerPod == b.NumberParallelRequestPerPod
                && a.ReplicasStartAsSoonAsOneFunctionRetrieveARequest == b.ReplicasStartAsSoonAsOneFunctionRetrieveARequest
                && a.Configuration == b.Configuration
+               && a.StreamMaxAgeSeconds == b.StreamMaxAgeSeconds
+               && a.StreamMaxLength == b.StreamMaxLength
+               && a.SubscribeStreams.Count == b.SubscribeStreams.Count
+               && a.SubscribeStreams.OrderBy(x => x.Name).Zip(b.SubscribeStreams.OrderBy(x => x.Name))
+                   .All(pair => pair.First.Name == pair.Second.Name && pair.First.Visibility == pair.Second.Visibility)
                && a.SubscribeEvents.Count == b.SubscribeEvents.Count
                && a.SubscribeEvents.OrderBy(x => x.Name).Zip(b.SubscribeEvents.OrderBy(x => x.Name))
                    .All(pair => pair.First.Name == pair.Second.Name && pair.First.Visibility == pair.Second.Visibility)

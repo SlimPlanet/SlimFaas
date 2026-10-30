@@ -562,7 +562,10 @@ public async Task<ReplicaRequest?> ScaleAsync(ReplicaRequest request)
             metadata.Trust,
             metadata.Scale,
             metadata.NumberParallelRequestPerPod,
-            Resources: resources
+            Resources: resources,
+            SubscribeStreams: metadata.SubscribeStreams,
+            StreamMaxAgeSeconds: metadata.StreamMaxAgeSeconds,
+            StreamMaxLength: metadata.StreamMaxLength
         );
 
         deployments.Add(di);

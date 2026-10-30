@@ -204,18 +204,20 @@ public sealed class DeadLetterTests
         Assert.Equal("restarted", DeadLetterStateMachine.Apply(mutation, restarted).Receipt!.ElementId);
     }
 
-    [Fact]
-    public void Previous_batch_result_format_remains_readable_for_stored_producer_receipts()
+    [Theory]
+    [InlineData(7)]
+    [InlineData(8)]
+    public void Previous_batch_result_format_remains_readable_for_stored_producer_receipts(int members)
     {
         var current = MemoryPackSerializer.Serialize(new SlimDataBatchOperationResult
         {
             Kind = SlimDataBatchOperationKind.ListLeftPush, RequestId = "old", Applied = true, ElementId = "original"
         });
-        Assert.Equal(8, current[0]);
+        Assert.Equal(9, current[0]);
         Assert.Equal(255, current[^1]);
-        var previous = current[..^1];
-        previous[0] = 7;
+        var previous = current[..^(9 - members)];
+        previous[0] = (byte)members;
         var restored = MemoryPackSerializer.Deserialize<SlimDataBatchOperationResult>(previous)!;
-        Assert.Equal("original", restored.ElementId); Assert.Null(restored.DeadLetterResult);
+        Assert.Equal("original", restored.ElementId); Assert.Null(restored.DeadLetterResult); Assert.Null(restored.StreamResult);
     }
 }
