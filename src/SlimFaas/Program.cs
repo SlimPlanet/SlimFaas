@@ -28,6 +28,7 @@ using SlimFaas.Logs;
 using SlimFaas.Middleware;
 using SlimFaas.Options;
 using SlimFaas.Security;
+using SlimFaas.Streams;
 using SlimFaas.WebSocket;
 using SlimFaas.Workers;
 
@@ -103,6 +104,7 @@ serviceCollectionStarter.AddOptions<SlimFaasOptions>()
     .ValidateOnStart();
 serviceCollectionStarter.AddSingleton<INamespaceProvider, NamespaceProvider>();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();
+serviceCollectionStarter.AddSingleton<StreamDemandStore>();
 serviceCollectionStarter.AddSingleton<HistoryHttpMemoryService, HistoryHttpMemoryService>();
 serviceCollectionStarter.AddSingleton<ISlimFaasPorts, SlimFaasPorts>();
 serviceCollectionStarter.AddSingleton<FunctionStatusCache>();
@@ -280,6 +282,9 @@ serviceCollectionSlimFaas.AddHostedService<MetricsScrapingWorker>();
 serviceCollectionSlimFaas.AddHttpClient();
 serviceCollectionSlimFaas.AddSingleton<ISlimFaasQueue, SlimFaasQueue>();
 serviceCollectionSlimFaas.AddSingleton<DeadLetterService>();
+serviceCollectionSlimFaas.AddSingleton<IStreamService, StreamService>();
+serviceCollectionSlimFaas.AddSingleton(sp => serviceProviderStarter.GetRequiredService<StreamDemandStore>());
+serviceCollectionSlimFaas.AddHostedService<StreamDispatcher>();
 serviceCollectionSlimFaas.AddSingleton<IDeadLetterService>(sp => sp.GetRequiredService<DeadLetterService>());
 serviceCollectionSlimFaas.AddHostedService(sp => sp.GetRequiredService<DeadLetterService>());
 serviceCollectionSlimFaas.AddSingleton<DynamicGaugeService>();
@@ -671,6 +676,7 @@ app.MapDataHashsetRoutes();
 app.MapDataSetRoutes();
 app.MapDataFileRoutes();
 app.MapDeadLetterEndpoints();
+app.MapStreamEndpoints();
 app.MapDebugRoutes();
 app.MapScalingEndpoints();
 

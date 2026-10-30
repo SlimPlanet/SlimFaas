@@ -122,6 +122,9 @@ export interface NetworkActivityEvent {
   SourcePod: string | null;  // pod name, opaque address token or full SlimFaas job run name
   TargetPod: string | null;  // pod name or opaque address token of the downstream replica
   CorrelationId?: string | null; // Preceding activity id; completions reference their corresponding start.
+  StreamName?: string | null;
+  StreamFunction?: string | null;
+  StreamMessageId?: string | null;
 }
 
 export interface QueueInfo {
@@ -136,6 +139,10 @@ export interface SlimFaasNodeInfo {
 }
 
 export interface StatusStreamPayload {
+  Streams?: import('./lib/streams').StreamSummary[];
+  StreamSubscriptions?: import('./lib/streams').StreamFunction[];
+  StreamsAvailable?: boolean;
+  StreamsTruncated?: boolean;
   DeadLetters?: import('./lib/deadLetters').DeadLetterSummary[];
   DeadLettersFrontEnabled?: boolean;
   DeadLettersAccessible?: boolean;

@@ -8,7 +8,7 @@ namespace SlimData.Commands;
 
 public static class SlimDataCommandProtocol
 {
-    public const string Current = "SLDC/3";
+    public const string Current = "SLDC/4";
     public const string HeaderName = "X-SlimData-Command-Protocol";
     public const string AssemblyVersionHeaderName = "X-SlimData-Assembly-Version";
 

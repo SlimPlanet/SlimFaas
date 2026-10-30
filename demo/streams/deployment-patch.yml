@@ -1,0 +1,7 @@
+spec:
+  template:
+    metadata:
+      annotations:
+        SlimFaas/SubscribeStream: "Public:orders"
+        SlimFaas/StreamMaxAge: "24h"
+        SlimFaas/StreamMaxLength: "100000"

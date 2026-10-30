@@ -1,5 +1,13 @@
 # SlimFaas User Interface
 
+The [Streams page](streams.md) (`#/streams`) offers retained history and
+independent function progress, with explicit bounded body previews. Traffic
+shows distinct Stream actors, selected replica deliveries and ACKs without
+animating message deletion. One shared, caller-filtered SSE connection supplies
+Stream snapshots; observation-only routes use `activity=false`. See the
+[Streams dashboard gallery](streams.md#dashboard-gallery) for screenshots of
+the catalog, history, function progress, message preview and Traffic views.
+
 SlimFaas includes a web user interface that gives operators a live view of functions, jobs, queues, and network activity.
 
 The user interface is available at the SlimFaas root address, for example:

@@ -176,6 +176,25 @@ public static class AsyncFunctionEndpoints
         [FromServices] IJobService jobService,
         [FromServices] ISlimFaasQueue slimFaasQueue)
     {
+        if (elementId.StartsWith("stream_", StringComparison.Ordinal))
+        {
+            var streams = context.RequestServices.GetRequiredService<SlimFaas.Streams.IStreamService>();
+            var payload = await streams.ReadAsync(context.RequestAborted);
+            var attempt = DurableStreamStore.Attempt(payload, elementId);
+            var definition = attempt is null ? null : DurableStreamStore.Definition(payload, attempt.Stream);
+            if (attempt is null || definition is null || attempt.Function != functionName ||
+                !streams.CanAccess(context, definition) || !streams.CanObserveFunction(context, functionName))
+                return Results.NotFound();
+            if (!string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(status, "error", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest("Status must be success or error.");
+            var result = await streams.MutateAsync(new()
+            {
+                Action = DurableStreamAction.Complete, Stream = attempt.Stream, Function = functionName, ElementId = elementId,
+                StatusCode = string.Equals(status, "success", StringComparison.OrdinalIgnoreCase) ? 200 : 500
+            }, context.RequestAborted);
+            return Results.StatusCode(result.Status);
+        }
         DeploymentInformation? function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
         function ??= context.RequestServices.GetService<IWebSocketFunctionRepository>()?.GetVirtualDeployments()
             .FirstOrDefault(item => item.Deployment == functionName);

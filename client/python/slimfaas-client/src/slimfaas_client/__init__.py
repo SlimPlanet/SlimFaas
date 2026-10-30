@@ -46,6 +46,8 @@ Quick start::
 from slimfaas_client._client import SlimFaasClient
 from slimfaas_client._models import (
     AsyncRequest,
+    StreamMessage,
+    SubscribeStreamConfig,
     AsyncCallback,
     BinaryFrame,
     FunctionVisibility,
@@ -68,6 +70,8 @@ __all__ = [
     "SubscribeEventConfig",
     "PathVisibilityConfig",
     "AsyncRequest",
+    "StreamMessage",
+    "SubscribeStreamConfig",
     "AsyncCallback",
     "BinaryFrame",
     "PublishEvent",
@@ -76,4 +80,3 @@ __all__ = [
     "SyncResponse",
     "SyncResponseWriter",
 ]
-

@@ -8,9 +8,11 @@ import Pagination from './Pagination';
 import InstanceLogs from './InstanceLogs';
 import TrafficDetails from './TrafficDetails';
 import { deadLetterLink, type DeadLetterSummary } from '../lib/deadLetters';
+import { streamLink, type StreamSummary, type StreamFunction } from '../lib/streams';
 
 interface Props {
   deadLetters?: DeadLetterSummary[];
+  streams?: StreamSummary[]; streamSubscriptions?: StreamFunction[]; streamsTruncated?: boolean;
   functions: FunctionStatusDetailed[]; jobs: JobConfigurationStatus[]; queues: QueueInfo[];
   activity: NetworkActivityEvent[]; queuesWithActivity: Set<string>;
   slimFaasReplicas: number; slimFaasNodes: SlimFaasNodeInfo[];
@@ -53,8 +55,8 @@ export default function NetworkMap(props: Props) {
   if (JSON.stringify(nextObservedQueues) !== JSON.stringify(observedQueuesRef.current)) observedQueuesRef.current = nextObservedQueues;
   const unknownQueues = observedQueuesRef.current;
   const topology = useMemo(() => buildTopology(input.functions, input.jobs,
-    queues.filter(q => q.Length > 0 || input.queuesWithActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters),
-  [input.functions, input.jobs, queues, input.queuesWithActivity, input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters]);
+    queues.filter(q => q.Length > 0 || input.queuesWithActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams),
+  [input.functions, input.jobs, queues, input.queuesWithActivity, input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams]);
   const node = selected ? topology.byId.get(selected) : null;
   const nodes = useMemo(() => filterNodes(topology, search), [topology, search]);
   const nodePage = paginate(nodes, page);
@@ -86,7 +88,7 @@ export default function NetworkMap(props: Props) {
       <label className="field">Event type
         <select className="field__input" value={eventType} onChange={e => { setEventType(e.target.value); setJournalPage(0); }}>
           <option value="all">All events</option>
-          {['request_in', 'enqueue', 'dequeue', 'request_out', 'response', 'event_publish', 'request_waiting', 'request_started', 'request_end', 'dead_lettered', 'dead_letter_requeued', 'dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted'].map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
+          {['request_in', 'enqueue', 'dequeue', 'request_out', 'response', 'event_publish', 'request_waiting', 'request_started', 'request_end', 'dead_lettered', 'dead_letter_requeued', 'dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted', 'stream_append', 'stream_delivery', 'stream_ack', 'stream_waiting', 'stream_retry', 'stream_failed', 'stream_deleted', 'stream_retention'].map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
         </select>
       </label>
       <label className="field">Function
@@ -118,7 +120,11 @@ export default function NetworkMap(props: Props) {
       isolate={isolate}
       onIsolate={value => { setIsolate(value); setJournalPage(0); }} onClose={() => setDetailsOpen(false)} onClear={clearSelection}
       fallbackFocus={() => section.current?.querySelector('canvas') ?? null}
-      deadLetters={selectedDeadLetters ? <p className="traffic__note">DLQ: {selectedDeadLetters.Count} retained. <a href={deadLetterLink(selectedDeadLetters.Function)}>Open dead letters</a> · snapshot {selectedDeadLetters.CapturedAt} · revision {selectedDeadLetters.Revision}</p> : undefined}
+      deadLetters={<>{selectedDeadLetters && <p className="traffic__note">DLQ: {selectedDeadLetters.Count} retained. <a href={deadLetterLink(selectedDeadLetters.Function)}>Open dead letters</a> · snapshot {selectedDeadLetters.CapturedAt} · revision {selectedDeadLetters.Revision}</p>}
+        {(input.streamSubscriptions ?? []).filter(item => item.Stream === (node?.kind === 'stream' ? node.label : '') || item.Function === node?.label).map(item =>
+          <p key={`${item.Stream}/${item.Function}`} className="traffic__note"><a href={streamLink(item.Stream, 'functions', item.Function)}>{item.Stream} / {item.Function}</a> · lag {item.Lag} · pending {item.PendingCount} · callbacks {item.WaitingForCallbackCount} · retries {item.RetryScheduledCount} · failed {item.FailedCount} · gaps {item.RetentionGapCount}</p>)}
+        {node?.kind === 'stream' && <a href={streamLink(node.label)}>Browse retained history</a>}
+        {input.streamsTruncated && <p className="traffic__note">Stream snapshot is bounded. Use the Streams page for complete paginated inventory.</p>}</>}
       logs={logTarget ? <InstanceLogs key={selected} target={logTarget} fill /> : undefined} />}
     <div className="section-heading"><h2 className="section-heading__title">{showJournal ? 'Event journal' : 'Actors'}</h2><button className="button button--quiet" type="button" onClick={() => setShowJournal(!showJournal)}>{showJournal ? 'Show actors' : `Event journal (${activity.length.toLocaleString()})`}</button></div>
     {showJournal ? <>

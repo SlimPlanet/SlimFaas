@@ -1,0 +1,18 @@
+meta {
+  name: Durable Streams catalog
+  type: http
+  seq: 18
+}
+
+get {
+  url: {{baseUrl}}/data/streams?limit=100
+  body: none
+  auth: none
+}
+
+docs {
+  Enable the optional Stream demo overlay first.
+  This observational GET neither reserves work nor acknowledges messages.
+  Publish through POST /publish-stream/orders/compute with a JSON body,
+  then inspect /data/streams/orders/functions for independent progress.
+}

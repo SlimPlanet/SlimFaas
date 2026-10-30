@@ -4,6 +4,8 @@ using System.Text.Json;
 using Microsoft.Extensions.Options;
 using SlimFaas.Kubernetes;
 using SlimFaas.Options;
+using SlimData;
+using SlimFaas.Streams;
 
 namespace SlimFaas.WebSocket;
 
@@ -49,6 +51,8 @@ public static class WebSocketEndpoints
 
         using var socket = await context.WebSockets.AcceptWebSocketAsync();
         using var connection = new WebSocketClientConnection { Socket = socket };
+        connection.Streams = context.RequestServices.GetService<IStreamService>();
+        connection.RequestContext = context;
 
         try
         {
@@ -215,7 +219,7 @@ public static class WebSocketEndpoints
                 break;
 
             case WebSocketMessageType.AsyncCallback:
-                HandleAsyncCallback(envelope, connection, logger);
+                await HandleAsyncCallback(envelope, connection, logger);
                 break;
 
             case WebSocketMessageType.Ping:
@@ -271,6 +275,24 @@ public static class WebSocketEndpoints
         connection.Configuration = payload.Configuration ?? new WebSocketFunctionConfiguration();
 
         var (success, error) = registry.TryRegister(connection, replicasService);
+        if (success && connection.Streams is { } streams && streams.Function(payload.FunctionName) is { } function)
+        {
+            error = await StreamConfiguration.ApplyAsync(streams, function, connection.RequestContext, ct,
+                StreamConfiguration.Fingerprint(connection.Configuration));
+            if (error is not null)
+            {
+                registry.Unregister(connection);
+                connection.FunctionName = "";
+                success = false;
+            }
+        }
+        else if (success && connection.Configuration.SubscribeStreams.Count > 0)
+        {
+            registry.Unregister(connection);
+            connection.FunctionName = "";
+            success = false;
+            error = "Durable Stream delivery is unavailable.";
+        }
 
         await connection.SendAsync(new WebSocketEnvelope
         {
@@ -292,7 +314,7 @@ public static class WebSocketEndpoints
         }
     }
 
-    private static void HandleAsyncCallback(
+    private static async Task HandleAsyncCallback(
         WebSocketEnvelope envelope,
         WebSocketClientConnection connection,
         ILogger logger)
@@ -317,6 +339,30 @@ public static class WebSocketEndpoints
             return;
         }
 
+        if (payload.ElementId.StartsWith("stream_", StringComparison.Ordinal))
+        {
+            if (connection.Streams is not { } streams || connection.RequestContext is not { } context)
+            {
+                logger.LogAsyncCallbackForUnknownElementId(payload.ElementId);
+                return;
+            }
+            var state = await streams.ReadAsync(context.RequestAborted);
+            var attempt = DurableStreamStore.Attempt(state, payload.ElementId);
+            var definition = attempt is null ? null : DurableStreamStore.Definition(state, attempt.Stream);
+            if (attempt is null || definition is null || attempt.Function != connection.FunctionName || !streams.CanAccess(context, definition))
+            {
+                logger.LogAsyncCallbackForUnknownElementId(payload.ElementId);
+                return;
+            }
+            await streams.MutateAsync(new()
+            {
+                Action = DurableStreamAction.Complete, Stream = attempt.Stream, Function = attempt.Function,
+                ElementId = payload.ElementId, StatusCode = payload.StatusCode
+            }, context.RequestAborted);
+            if (payload.StatusCode != 202)
+                connection.StreamRequests.TryRemove(payload.ElementId, out _);
+            return;
+        }
         if (connection.PendingCallbacks.TryRemove(payload.ElementId, out var tcs))
         {
             tcs.TrySetResult(payload.StatusCode);
@@ -328,4 +374,3 @@ public static class WebSocketEndpoints
         }
     }
 }
-

@@ -1,0 +1,14 @@
+.streams {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  &__breadcrumbs, &__pagination, &__actions { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+  &__table { overflow-x: auto; }
+  &__table table { width: 100%; border-collapse: collapse; }
+  &__table th, &__table td { padding: .75rem; text-align: left; border-bottom: 1px solid var(--line); }
+  &__table caption { text-align: left; font-weight: 600; padding-block: .75rem; }
+  &__summary dd { overflow-wrap: anywhere; margin-bottom: .75rem; }
+  &__preview { max-height: 28rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 1rem; background: var(--soft); }
+}

@@ -1,5 +1,15 @@
 # How SlimFaas Works
 
+[Durable Streams](streams.md) persist definitions, subscriptions, message bodies,
+attempt leases, ACKs and retention gaps through the unified SlimData Raft batch
+path. HTTP dispatch is leader-owned; WebSocket-owning nodes reserve through the
+same shared state. SLDC/4 fences the additive batch result contract; stored
+producer receipts from earlier formats remain readable. Stream payloads use
+generated MemoryPack writers directly to avoid Native AOT generic virtual
+formatter dispatch, without changing the wire format. API payloads use
+source-generated JSON. Upgrade all Raft nodes together: mixed SLDC/3 and SLDC/4
+clusters are deliberately not ready.
+
 SlimFaas sits between callers and their applications. It routes HTTP requests, wakes idle workloads, queues asynchronous work, dispatches jobs and coordinates state through SlimData.
 
 Start with the [Guided Tour](guided-tour.md) to see these flows in the dashboard. This page explains what happens behind each step; the [API Reference](api-reference.md) lists the actual routes.

@@ -122,7 +122,10 @@ public sealed class LocalFunctionManager : IAsyncDisposable
                     EndpointReady: pods.Any(pod => pod.Ready == true),
                     Trust: function.Metadata.Trust,
                     Scale: function.DebugUri is null ? function.Metadata.Scale : null,
-                    NumberParallelRequestPerPod: function.Metadata.NumberParallelRequestPerPod));
+                    NumberParallelRequestPerPod: function.Metadata.NumberParallelRequestPerPod,
+                    SubscribeStreams: function.Metadata.SubscribeStreams,
+                    StreamMaxAgeSeconds: function.Metadata.StreamMaxAgeSeconds,
+                    StreamMaxLength: function.Metadata.StreamMaxLength));
             }
         }
 

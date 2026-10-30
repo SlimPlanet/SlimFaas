@@ -186,6 +186,7 @@ Check out:
     - [User Interface](docs/user-interface.md) – Monitor functions, queues, jobs, and real-time messages.
     - [Clients](docs/clients.md) – Integrate SlimFaas with .NET and Python applications.
     - [Events](docs/events.md) – Use internal publish/subscribe events.
+    - [Streams](docs/streams.md) - Durable events, retained history, and independent HTTP/WebSocket function consumption.
     - [Jobs](docs/jobs.md) – Define, schedule, and run one-off jobs.
     - [OpenTelemetry](docs/opentelemetry.md) – Enable distributed tracing, metrics, and logs.
     - [Benchmarks](docs/benchmarking.md) – Measure sync overhead, async delivery latency, and native-local scaling speed.

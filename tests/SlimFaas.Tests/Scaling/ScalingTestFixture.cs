@@ -5,6 +5,7 @@ using SlimFaas.Kubernetes;
 using SlimFaas.Options;
 using SlimFaas.Scaling;
 using SlimFaas.Workers;
+using SlimFaas.Streams;
 
 namespace SlimFaas.Tests.Scaling;
 
@@ -29,6 +30,7 @@ internal sealed class ScalingTestFixture
     public ScalingDiagnosticsStore Diagnostics { get; }
     public ReplicasService Replicas { get; }
     public ScalingSimulationService Simulation { get; }
+    public StreamDemandStore StreamDemand { get; } = new();
     public ScaleConfig Config { get; set; } = new()
     {
         ReplicaMax = 20, ScaleFromZero = true, Sources = [new("jobs", "http://exporter/metrics")],
@@ -42,7 +44,7 @@ internal sealed class ScalingTestFixture
         Scaler = new(new PrometheusScalerProvider(new(Metrics, TimeSpan.FromSeconds(6)), Sources), History);
         Diagnostics = new(Options, Time); Diagnostics.SetLeadership(true);
         Replicas = new(Kubernetes.Object, Http, Scaler, NullLogger<ReplicasService>.Instance, Registry, Options,
-            () => Time.Now.UtcDateTime, diagnostics ? Diagnostics : null, Sources);
+            () => Time.Now.UtcDateTime, diagnostics ? Diagnostics : null, Sources, StreamDemand);
         Kubernetes.Setup(k => k.ScaleAsync(It.IsAny<ReplicaRequest>())).ReturnsAsync((ReplicaRequest r) => r);
         Simulation = new(Replicas, Scaler, Metrics, Sources, Options, Time);
     }

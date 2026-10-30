@@ -1,9 +1,10 @@
 import { functionState } from './live.ts';
 import type { FunctionStatusDetailed, JobConfigurationStatus, NetworkActivityEvent, QueueInfo, SlimFaasNodeInfo } from '../types.ts';
 import type { DeadLetterSummary } from './deadLetters.ts';
+import type { StreamSummary } from './streams.ts';
 
 export interface MapNode {
-  id: string; label: string; kind: 'function' | 'job' | 'slimfaas' | 'queue' | 'external';
+  id: string; label: string; kind: 'function' | 'job' | 'slimfaas' | 'queue' | 'external' | 'stream';
   role?: SlimFaasNodeInfo['Role'];
   state?: ReturnType<typeof functionState>; parent: string | null; x: number; y: number; status: string; detail: string;
 }
@@ -31,7 +32,7 @@ export function observedFunctions(functions: FunctionStatusDetailed[], events: N
   const known = new Set(functions.map(fn => fn.Name));
   const observed = new Map<string, Set<string>>();
   for (const event of events) {
-    if (!event.Target || event.Target.startsWith('dlq:') || known.has(event.Target) || isJobQueueEvent(event) || ['slimfaas', 'external'].includes(event.Target)) continue;
+    if (!event.Target || event.Target.startsWith('dlq:') || event.Target.startsWith('stream:') || known.has(event.Target) || isJobQueueEvent(event) || ['slimfaas', 'external'].includes(event.Target)) continue;
     const replicas = observed.get(event.Target) ?? new Set<string>();
     if (event.TargetPod) replicas.add(event.TargetPod);
     observed.set(event.Target, replicas);
@@ -44,7 +45,7 @@ export function observedQueues(queues: QueueInfo[], events: NetworkActivityEvent
   return [...new Set(events.flatMap(event => event.QueueName && !known.has(event.QueueName) ? [event.QueueName] : []))].sort();
 }
 
-export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[], observed: ObservedFunction[] = [], unknownQueues: string[] = [], deadLetters: DeadLetterSummary[] = []): Topology {
+export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConfigurationStatus[], queues: QueueInfo[], slimNodes: SlimFaasNodeInfo[], observed: ObservedFunction[] = [], unknownQueues: string[] = [], deadLetters: DeadLetterSummary[] = [], streams: StreamSummary[] = []): Topology {
   const groups: MapGroup[] = [];
   const actors = new Map<string, string>(), pods = new Map<string, string>(), sourcePods = new Map<string, string>();
   const create = (kind: MapNode['kind'], label: string, status: string, children: Omit<MapNode, 'x' | 'y' | 'parent' | 'kind'>[], detail = '') => {
@@ -94,6 +95,11 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
     const group = create('queue', name, `DLQ · ${dlq.Count} retained`, [], `Dead Letter Queue · ${dlq.FunctionExists ? 'Function present' : 'Function removed'}`);
     actors.set(name, group.id);
   }
+  for (const stream of streams) {
+    const group = create('stream', stream.Name, `${stream.RetainedMessageCount} retained · ${stream.VisibleFunctionCount} visible functions`, [],
+      `Stream · ${stream.Visibility} · ${stream.MaxAgeSeconds}s / ${stream.MaxLength} messages · revision ${stream.Revision}`);
+    actors.set(`stream:${stream.Name}`, group.id);
+  }
 
   // Reserve readable hub space even when neighboring workloads have thousands of instances.
   const hubWidth = Math.max(260, Math.min(1200, Math.max(...groups.map(g => g.width)) / 3));
@@ -103,7 +109,7 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
   const regions: { groups: MapGroup[]; height: number }[] = [];
   // Each kind has its own packed region. Group rectangles reserve all instance space.
   let regionX = 0, height = 0;
-  for (const kind of ['job', 'external', 'slimfaas', 'queue', 'function']) {
+  for (const kind of ['job', 'external', 'slimfaas', 'queue', 'stream', 'function']) {
     const region = groups.filter(g => g.kind === kind);
     if (!region.length) continue;
     const cols = Math.ceil(Math.sqrt(region.length));
@@ -154,7 +160,13 @@ export function eventPath(topology: Topology, event: NetworkActivityEvent): stri
     : (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target) || slim;
   const queue = nodeId('queue', event.QueueName ?? event.Target);
   let path: string[];
-  if (event.Type === 'dead_lettered') path = [queue, nodeId('queue', `dlq:${event.QueueName}`)];
+  if (event.StreamName) {
+    const stream = nodeId('stream', event.StreamName);
+    path = event.Type === 'stream_append' ? [source, slim, stream] :
+      event.Type === 'stream_delivery' ? [stream, target] :
+      event.Type === 'stream_ack' ? [source, stream] : [];
+  }
+  else if (event.Type === 'dead_lettered') path = [queue, nodeId('queue', `dlq:${event.QueueName}`)];
   else if (event.Type === 'dead_letter_requeued') path = [nodeId('queue', `dlq:${event.QueueName}`), queue];
   else if (['dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted'].includes(event.Type)) path = [];
   else if (event.Type === 'request_in') path = [source, slim];

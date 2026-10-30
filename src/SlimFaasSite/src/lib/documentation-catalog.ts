@@ -89,6 +89,10 @@ export const DOCUMENTATION_CATALOG = {
         title: 'SlimFaas Events',
         description: 'Broadcast events to ready HTTP replicas and connected WebSocket clients.',
     },
+    streams: {
+        sourcePath: 'docs/streams.md', route: '/streams', label: 'Streams',
+        title: 'SlimFaas Durable Streams', description: 'Retained events and independent HTTP or WebSocket function consumption.',
+    },
     jobs: {
         sourcePath: 'docs/jobs.md',
         route: '/jobs',

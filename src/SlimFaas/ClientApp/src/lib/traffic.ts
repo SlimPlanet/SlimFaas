@@ -68,6 +68,8 @@ export class TrafficPlayback {
 
   /** The same presentation rules apply to moving markers and their static links. */
   visualKind(event: NetworkActivityEvent): MessageKind | null {
+    if (event.StreamName) return event.Type === 'stream_append' ? 'publication' :
+      event.Type === 'stream_delivery' ? 'queue' : event.Type === 'stream_ack' ? 'reply' : null;
     if (['dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted'].includes(event.Type)) return null;
     if (event.Type === 'request_waiting' || event.Type === 'request_started') return null;
     // The HTTP response is transport metadata. The queue worker records the
