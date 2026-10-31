@@ -162,30 +162,48 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
 
         // Path
         string? callUrl = endpoint.Url;
-        foreach (Parameter parameter in parameters.Where(p => p.In == "path"))
+        if (callUrl != null)
         {
-            string pathValue = parameter.Name != null &&
-                               inputDict.TryGetValue(parameter.Name, out JsonElement v) &&
-                               v.ValueKind != JsonValueKind.Null
-                ? ToParameterValue(v)
-                : "";
+            // Each value stays inside its segment: '/', '?', '#' and spaces are percent-encoded.
+            List<(string Placeholder, string Value)> pathValues = parameters
+                .Where(p => p.In == "path")
+                .Select(p => (
+                    $"{{{p.Name}}}",
+                    Uri.EscapeDataString(p.Name != null &&
+                                         inputDict.TryGetValue(p.Name, out JsonElement v) &&
+                                         v.ValueKind != JsonValueKind.Null
+                        ? ToParameterValue(v)
+                        : "")))
+                .ToList();
 
-            // Uri resolves "." and ".." segments, even percent-encoded, so they would leave the operation's path.
-            if (pathValue is "." or "..")
+            string[] segments = callUrl.Split('/');
+            for (int i = 0; i < segments.Length; i++)
             {
-                return new ProxyCallResult
+                string segment = segments[i];
+                string rendered = segment;
+                foreach ((string placeholder, string value) in pathValues)
                 {
-                    IsBinary = false,
-                    Text = JsonSerializer.Serialize(
-                        new JsonObject { ["error"] = $"Path parameter {parameter.Name} cannot be a dot segment (. or ..)" },
-                        AppJsonContext.Default.JsonNode),
-                    MimeType = "application/json",
-                    StatusCode = 400
-                };
+                    rendered = rendered.Replace(placeholder, value, StringComparison.Ordinal);
+                }
+
+                // Uri resolves "." and ".." segments, even percent-encoded, so they would leave the operation's path.
+                if (rendered != segment && rendered is "." or "..")
+                {
+                    return new ProxyCallResult
+                    {
+                        IsBinary = false,
+                        Text = JsonSerializer.Serialize(
+                            new JsonObject { ["error"] = $"Path segment {segment} cannot render as a dot segment (. or ..)" },
+                            AppJsonContext.Default.JsonNode),
+                        MimeType = "application/json",
+                        StatusCode = 400
+                    };
+                }
+
+                segments[i] = rendered;
             }
 
-            // Each value fills a single path segment: '/', '?', '#' and spaces are percent-encoded.
-            callUrl = callUrl?.Replace($"{{{parameter.Name}}}", Uri.EscapeDataString(pathValue), StringComparison.Ordinal);
+            callUrl = string.Join('/', segments);
         }
 
         if (callUrl != null && !callUrl.StartsWith('/'))

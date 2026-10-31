@@ -159,7 +159,64 @@ public class ToolProxyServiceMoreTests
 
         Assert.Equal(400, result.StatusCode);
         using var error = JsonDocument.Parse(result.Text!);
-        Assert.Equal("Path parameter id cannot be a dot segment (. or ..)", error.RootElement.GetProperty("error").GetString());
+        Assert.Equal("Path segment {id} cannot render as a dot segment (. or ..)", error.RootElement.GetProperty("error").GetString());
+        Assert.Null(_handler.LastRequest);
+    }
+
+    [Theory]
+    [InlineData(".")]
+    [InlineData("..")]
+    public async Task ExecuteToolAsync_AllowsDotValueInsideLargerPathSegment(string id)
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPetToys",
+                Url = "/pets/prefix-{id}/toys",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "id", In = "path", Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>($"{{\"id\":\"{id}\"}}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPetToys", input, "https://api.example");
+
+        Assert.Equal(200, result.StatusCode);
+        Assert.Equal($"https://api.example/pets/prefix-{id}/toys", _handler.LastRequest?.RequestUri!.AbsoluteUri);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_RejectsPathSegmentRenderedAsDotSegment()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPetToys",
+                Url = "/pets/{first}{second}/toys",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "first", In = "path", Required = true },
+                    new() { Name = "second", In = "path", Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"first\":\".\",\"second\":\".\"}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPetToys", input, "https://api.example");
+
+        Assert.Equal(400, result.StatusCode);
+        using var error = JsonDocument.Parse(result.Text!);
+        Assert.Equal("Path segment {first}{second} cannot render as a dot segment (. or ..)", error.RootElement.GetProperty("error").GetString());
         Assert.Null(_handler.LastRequest);
     }
 
