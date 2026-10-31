@@ -21,6 +21,8 @@
 12. [Observability & debugging](#observability--debugging)
 13. [FAQ](#faq)
 14. [External metrics and opt-in wake-up](#external-metrics-and-opt-in-wake-up)
+15. [Explain and preview a decision](#explain-and-preview-a-decision)
+16. [Using SlimFaas with a Kubernetes HorizontalPodAutoscaler](#using-slimfaas-with-a-kubernetes-horizontalpodautoscaler)
 
 ---
 
@@ -1345,6 +1347,11 @@ spec:
     - Use `MetricName` for clear semantic names.
     - Keep the PromQL queries in team documentation or dashboards.
 
+7. **Align replica bounds with any HorizontalPodAutoscaler**
+    - Keep `ReplicasAtStart` lower than or equal to the HPA `minReplicas`, and set `ReplicasMin` to `0` or to `minReplicas`.
+    - Do not add `SlimFaas/Scale` triggers to a Deployment targeted by an HPA.
+    - See [Using SlimFaas with a Kubernetes HorizontalPodAutoscaler](#using-slimfaas-with-a-kubernetes-horizontalpodautoscaler).
+
 ---
 
 ## Observability & debugging
@@ -1582,3 +1589,105 @@ with `slimfaas.local.external-metrics.yaml`, or its Kubernetes manifests.
 ## Explain and preview a decision
 
 The dashboard’s **Live Stream → Scaling** view exposes the actual decision stages, trigger/source health, recent changes and application outcome. Its playground evaluates alternative thresholds, queries and policies against an isolated copy of the current context, including stabilization history. It does not affect collection, histories or capacity. See [Scaling diagnostics and playground](user-interface.md#scaling-diagnostics-and-playground) for examples and limits, and the [simulation API](api-reference.md#scaling-simulation-request).
+
+## Using SlimFaas with a Kubernetes HorizontalPodAutoscaler
+
+SlimFaas can share a function with a Kubernetes `HorizontalPodAutoscaler` (HPA): SlimFaas
+puts the function to sleep and wakes it up (`N → 0` and `0 → N`), and the HPA adjusts the
+running replicas, for example from CPU usage (`N → M`).
+
+Both write the same field, the `replicas` of the Deployment or StatefulSet `scale`
+subresource, and neither knows about the other. Their bounds must therefore agree,
+otherwise one of them undoes the other's changes at every cycle.
+
+### How the two controllers interact
+
+For a function without `SlimFaas/Scale` triggers:
+
+- **While the function is active**, SlimFaas keeps the replica count chosen by the HPA,
+  except when it drops below `ReplicasMin`: SlimFaas then scales it back to `ReplicasAtStart`.
+- **After `TimeoutSecondBeforeSetReplicasMin` seconds of inactivity**, SlimFaas sets the
+  replicas to `ReplicasMin`, whatever the HPA chose. Inactivity is measured from the
+  requests that go through SlimFaas, the schedule and the activity of the functions that
+  depend on it, not from CPU usage.
+- **At zero replicas**, the HPA stops scaling its target as long as its `minReplicas` is
+  greater than `0`. This is standard Kubernetes behavior, so SlimFaas scale-to-zero keeps working.
+- **On wake-up**, SlimFaas scales the function to `ReplicasAtStart`. The HPA resumes and
+  brings the count within `[minReplicas, maxReplicas]`.
+
+### Configuration rules
+
+- **Keep `ReplicasAtStart` lower than or equal to the HPA `minReplicas`.** After a
+  wake-up, the HPA raises a lower count to `minReplicas` and scales it from there. A larger
+  `ReplicasAtStart` is reduced to the HPA recommendation once the HPA scale-down
+  stabilization window (5 minutes by default) has elapsed.
+- **Set `ReplicasMin` to `0` or to the HPA `minReplicas`.**
+    - With `0`, SlimFaas scales the idle function to zero and the HPA pauses.
+    - A positive value lower than `minReplicas` makes SlimFaas scale an idle function down
+      to `ReplicasMin` at every cycle while the HPA scales it back up to `minReplicas`.
+    - A value greater than `minReplicas` lets the HPA scale an active function below
+      `ReplicasMin`, which SlimFaas treats as a wake-up to `ReplicasAtStart`.
+- **Do not configure `SlimFaas/Scale` triggers on a function targeted by an HPA.** Both are
+  `N → M` autoscalers and would compete for the replica count. Use either the HPA or the
+  [SlimFaas Prometheus AutoScaler](#configuring-n--m-scale-prometheus-autoscaler) for a given function.
+- **Route the function's traffic through SlimFaas**, or declare a `SlimFaas/Schedule`. Traffic
+  that reaches the pods directly does not count as activity: SlimFaas scales the function
+  down to `ReplicasMin` after the timeout even if the HPA has scaled it up under this load.
+
+### HPA example
+
+The function wakes up with 2 replicas, the HPA scales it between 2 and 8 replicas while it
+is active, and SlimFaas scales it to zero after 5 minutes without requests:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: receiver
+spec:
+  selector:
+    matchLabels:
+      app: receiver
+  template:
+    metadata:
+      labels:
+        app: receiver
+      annotations:
+        SlimFaas/Function: "true"
+        SlimFaas/NumberParallelRequest: "2"
+        SlimFaas/ReplicasMin: "0"                         # 0 or the HPA minReplicas
+        SlimFaas/ReplicasAtStart: "2"                     # <= the HPA minReplicas
+        SlimFaas/TimeoutSecondBeforeSetReplicasMin: "300"
+    spec:
+      containers:
+        - name: receiver
+          image: my-registry/receiver:latest
+          resources:
+            requests:
+              cpu: 100m                                   # required by the CPU utilization target
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: receiver
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: receiver
+  minReplicas: 2                                          # >= SlimFaas/ReplicasAtStart
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 65
+```
+
+The Deployment leaves `spec.replicas` out, as Kubernetes recommends for any HPA target:
+re-applying the manifest then keeps the replica count chosen by SlimFaas or the HPA.
+While the function is asleep, `kubectl describe hpa receiver` reports the `ScalingActive`
+condition as `False` with the reason `ScalingDisabled`. The HPA resumes as soon as SlimFaas
+wakes the function up.
