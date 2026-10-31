@@ -230,6 +230,196 @@ public class ToolProxyServiceMoreTests
         Assert.Contains("Tool not found", res.Text);
     }
 
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("DELETE")]
+    public async Task ExecuteToolAsync_SendsHeaderParameters(string verb)
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "pet",
+                Url = "/pets/{id}",
+                Verb = verb,
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "id",            In = "path",   Required = true },
+                    new() { Name = "X-Tenant-Id",   In = "header", Required = true },
+                    new() { Name = "X-Max-Results", In = "header", Required = false },
+                    new() { Name = "X-Trace",       In = "header", Required = false }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>(
+            "{\"id\":42,\"X-Tenant-Id\":\"acme\",\"X-Max-Results\":10,\"X-Trace\":null}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "pet", input, "https://api.example");
+
+        var headers = _handler.LastRequest!.Headers;
+        Assert.Equal("https://api.example/pets/42", _handler.LastRequest.RequestUri!.ToString());
+        Assert.Equal(["acme"], headers.GetValues("X-Tenant-Id"));
+        Assert.Equal(["10"], headers.GetValues("X-Max-Results"));
+        Assert.False(headers.Contains("X-Trace"));
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_Post_SendsContentHeaderParameterWithBody()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "createPet",
+                Url = "/pets",
+                Verb = "POST",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "Content-Language", In = "header", Required = false },
+                    new() { Name = "body",             In = "body",   Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"Content-Language\":\"fr\",\"body\":{\"name\":\"Milo\"}}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "createPet", input, "https://api.example");
+
+        Assert.Equal(["fr"], _handler.LastRequest!.Content!.Headers.ContentLanguage);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_ForwardedHeadersTakePrecedenceOverHeaderParameters()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "Authorization", In = "header", Required = false },
+                    new() { Name = "dpop",          In = "header", Required = false }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>(
+            "{\"Authorization\":\"Bearer from-tool\",\"dpop\":\"from-tool\"}");
+        var forwarded = new Dictionary<string, string> { ["Dpop"] = "forwarded" };
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example", forwarded);
+
+        var headers = _handler.LastRequest!.Headers;
+        Assert.Null(headers.Authorization);
+        Assert.Equal(["forwarded"], headers.GetValues("Dpop"));
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_RejectsHeaderParameterWithLineBreak()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "X-Tenant-Id", In = "header", Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"X-Tenant-Id\":\"acme\\r\\nX-Admin: true\"}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal(400, result.StatusCode);
+        using var error = JsonDocument.Parse(result.Text!);
+        Assert.Equal("Header parameter X-Tenant-Id cannot contain CR, LF or NUL characters",
+            error.RootElement.GetProperty("error").GetString());
+        Assert.Null(_handler.LastRequest);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_SerializesHeaderParametersWithSimpleStyle()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "X-Ids",      In = "header", SchemaType = "array" },
+                    new() { Name = "X-Filter",   In = "header", SchemaType = "object" },
+                    new() { Name = "X-Exploded", In = "header", SchemaType = "object", Explode = true },
+                    new() { Name = "X-Json",     In = "header", SchemaType = "object", IsJsonContent = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("""
+            {
+              "X-Ids": [1, 2],
+              "X-Filter": { "role": "admin", "id": 5 },
+              "X-Exploded": { "role": "admin", "id": 5 },
+              "X-Json": { "role": "admin", "tags": ["a", "b"] }
+            }
+            """);
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        var headers = _handler.LastRequest!.Headers;
+        Assert.Equal(["1,2"], headers.GetValues("X-Ids"));
+        Assert.Equal(["role,admin,id,5"], headers.GetValues("X-Filter"));
+        Assert.Equal(["role=admin,id=5"], headers.GetValues("X-Exploded"));
+        Assert.Equal(["{\"role\":\"admin\",\"tags\":[\"a\",\"b\"]}"], headers.GetValues("X-Json"));
+    }
+
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("DELETE")]
+    public async Task ExecuteToolAsync_RejectsContentHeaderParameterWithoutBody(string verb)
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = verb,
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "Content-Language", In = "header", Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"Content-Language\":\"fr\"}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal(400, result.StatusCode);
+        using var error = JsonDocument.Parse(result.Text!);
+        Assert.Equal("Header parameter Content-Language cannot be sent with this request",
+            error.RootElement.GetProperty("error").GetString());
+        Assert.Null(_handler.LastRequest);
+    }
+
     private class TestHandler : HttpMessageHandler
     {
         public HttpRequestMessage? LastRequest { get; private set; }
