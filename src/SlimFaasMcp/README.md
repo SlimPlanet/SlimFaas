@@ -49,6 +49,8 @@ The upstream API receives this JSON body, without the MCP `body` wrapper:
 {"question":"What is SlimFaas?"}
 ```
 
+Path and query parameters are separate tool arguments next to `body`. For `PUT /pets/{id}`, the arguments `{"id":42,"body":{"name":"Milo"}}` call `PUT /pets/42` with the body `{"name":"Milo"}`. A Swagger 2.0 `in: body` parameter keeps its own name as the argument, such as `pet`, and its value is sent as the body in the same way.
+
 ## Upgrading existing callers
 
 Earlier versions advertised the sole property's schema as the `body` argument for JSON objects with one property. After upgrading, refresh the discovered tool schemas with `tools/list` and update affected callers from `{"body":"What is SlimFaas?"}` to `{"body":{"question":"What is SlimFaas?"}}`. Update custom `mcp_prompt` schema overrides that describe these object bodies as scalars.

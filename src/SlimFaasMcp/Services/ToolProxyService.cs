@@ -355,11 +355,19 @@ public class ToolProxyService(ISwaggerService swaggerService, IHttpClientFactory
         {
             // JSON
             StringContent? body = null;
-            if (parameters.Any(p => p.In == "body"))
+            Parameter? bodyParameter = parameters.FirstOrDefault(p => p.In == "body");
+            if (bodyParameter is not null)
             {
-                string payload = inputDict.Count == 1 && inputDict.TryGetValue("body", out JsonElement bodyElement)
+                // The body argument is forwarded as-is. Without it, the arguments that are not bound
+                // to the path, query or headers are sent as the body object.
+                string payload = bodyParameter.Name is not null &&
+                                 inputDict.TryGetValue(bodyParameter.Name, out JsonElement bodyElement)
                     ? bodyElement.GetRawText()
-                    : JsonSerializer.Serialize(inputDict, AppJsonContext.Default.DictionaryStringJsonElement);
+                    : JsonSerializer.Serialize(
+                        inputDict
+                            .Where(kv => !parameters.Any(p => p.In != "body" && p.Name == kv.Key))
+                            .ToDictionary(kv => kv.Key, kv => kv.Value, StringComparer.Ordinal),
+                        AppJsonContext.Default.DictionaryStringJsonElement);
 
                 body = new StringContent(payload, Encoding.UTF8, "application/json");
                 LogOutgoingRequest(httpMethod, fullUrl, additionalHeaders, payload);

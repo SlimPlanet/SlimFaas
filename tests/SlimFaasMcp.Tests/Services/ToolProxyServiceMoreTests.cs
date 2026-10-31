@@ -138,6 +138,88 @@ public class ToolProxyServiceMoreTests
     }
 
     [Fact]
+    public async Task ExecuteToolAsync_Put_WithPathQueryAndBody_SendsOnlyBody()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "updatePet",
+                Url = "/pets/{id}",
+                Verb = "PUT",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "id",     In = "path",  Required = true },
+                    new() { Name = "notify", In = "query", Required = false },
+                    new() { Name = "body",   In = "body",  Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>(
+            "{\"id\":42,\"notify\":true,\"body\":{\"name\":\"Milo\"}}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "updatePet", input, "https://api.example");
+
+        Assert.Equal(HttpMethod.Put, _handler.LastRequest?.Method);
+        Assert.Equal("https://api.example/pets/42?notify=true", _handler.LastRequest?.RequestUri!.ToString());
+        Assert.Equal("{\"name\":\"Milo\"}", _handler.LastBody);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_Post_WithNamedSwagger2BodyParameter_SendsItsValue()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "addPet",
+                Url = "/pets",
+                Verb = "POST",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "pet", In = "body", Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"pet\":{\"name\":\"Milo\"}}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "addPet", input, "https://api.example");
+
+        Assert.Equal("{\"name\":\"Milo\"}", _handler.LastBody);
+    }
+
+    [Fact]
+    public async Task ExecuteToolAsync_Post_WithoutBodyArgument_SendsArgumentsNotBoundElsewhere()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "createPetInStore",
+                Url = "/stores/{storeId}/pets",
+                Verb = "POST",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "storeId", In = "path", Required = true },
+                    new() { Name = "body",    In = "body", Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"storeId\":\"s1\",\"name\":\"Milo\"}");
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "createPetInStore", input, "https://api.example");
+
+        Assert.Equal("https://api.example/stores/s1/pets", _handler.LastRequest?.RequestUri!.ToString());
+        Assert.Equal("{\"name\":\"Milo\"}", _handler.LastBody);
+    }
+
+    [Fact]
     public async Task ExecuteToolAsync_ToolNotFound_ReturnsError()
     {
         SetupSwaggerAndEndpoints([]);
