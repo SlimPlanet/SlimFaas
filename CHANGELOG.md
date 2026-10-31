@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.86.1
+
+- [325c4bbe](https://github.com/SlimPlanet/SlimFaas/commit/325c4bbe00db187b3068a3524ccc6813a6b60f42) - fix(slimfaas-mcp): send only the body argument as the JSON request body (#485) (#486) (release), 2026-10-31 by *Asish*
+- [89efdaca](https://github.com/SlimPlanet/SlimFaas/commit/89efdaca5e84934b874507d116d4fbefc05660d5) - docs(autoscaling): explain how to combine SlimFaas with a HorizontalPodAutoscaler (#186) (#482), 2026-10-31 by *Asish*
+
+
+## 0.86.0
+
+
+
 ## v0.86.0
 
 - [112482a7](https://github.com/SlimPlanet/SlimFaas/commit/112482a7e420d104baccfb9360330204e6b8bad5) - feat(dashboard): show job queues and their message exchanges (#468) (#483) (release), 2026-10-30 by *NopeCharon*
@@ -266,14 +276,5 @@
 - [78c7387d](https://github.com/SlimPlanet/SlimFaas/commit/78c7387d3a16e83dc49fd24baa4e27ff9dcbe802) - fix(slimplanet): Content-Length was set to 0 (#327) (release), 2026-08-28 by *antoinelrnld*
 - [35a66252](https://github.com/SlimPlanet/SlimFaas/commit/35a662523fe83be3f184b00d81b14a59e69fe0e7) - feat: Improve SlimData/RAFT recovery under load (#317)(release), 2026-08-21 by *Copilot*
 - [e357700e](https://github.com/SlimPlanet/SlimFaas/commit/e357700ec4e1202f27d0cce5a6a696078d377a7a) - doc: Elevate CNCF presence in README header and de-duplicate community content (#315), 2026-08-14 by *Copilot*
-
-
-## 0.81.1
-
-
-
-## v0.81.1
-
-- [5d766c95](https://github.com/SlimPlanet/SlimFaas/commit/5d766c95aafaab9da2c280cea34585f687f65a09) - perf: hot-path reads with zero allocation (~89×), queue counts ~25×, schedule evaluation ~52× faster (release) (#313), 2026-08-14 by *Guillaume Delahaye*
 
 
