@@ -350,6 +350,76 @@ public class ToolProxyServiceMoreTests
         Assert.Null(_handler.LastRequest);
     }
 
+    [Fact]
+    public async Task ExecuteToolAsync_SerializesHeaderParametersWithSimpleStyle()
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = "GET",
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "X-Ids",      In = "header", SchemaType = "array" },
+                    new() { Name = "X-Filter",   In = "header", SchemaType = "object" },
+                    new() { Name = "X-Exploded", In = "header", SchemaType = "object", Explode = true },
+                    new() { Name = "X-Json",     In = "header", SchemaType = "object", IsJsonContent = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("""
+            {
+              "X-Ids": [1, 2],
+              "X-Filter": { "role": "admin", "id": 5 },
+              "X-Exploded": { "role": "admin", "id": 5 },
+              "X-Json": { "role": "admin", "tags": ["a", "b"] }
+            }
+            """);
+
+        await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        var headers = _handler.LastRequest!.Headers;
+        Assert.Equal(["1,2"], headers.GetValues("X-Ids"));
+        Assert.Equal(["role,admin,id,5"], headers.GetValues("X-Filter"));
+        Assert.Equal(["role=admin,id=5"], headers.GetValues("X-Exploded"));
+        Assert.Equal(["{\"role\":\"admin\",\"tags\":[\"a\",\"b\"]}"], headers.GetValues("X-Json"));
+    }
+
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("DELETE")]
+    public async Task ExecuteToolAsync_RejectsContentHeaderParameterWithoutBody(string verb)
+    {
+        var endpoints = new List<Endpoint>
+        {
+            new()
+            {
+                Name = "getPets",
+                Url = "/pets",
+                Verb = verb,
+                Parameters = new List<Parameter>
+                {
+                    new() { Name = "Content-Language", In = "header", Required = true }
+                }
+            }
+        };
+        SetupSwaggerAndEndpoints(endpoints);
+
+        var input = JsonSerializer.Deserialize<JsonElement>("{\"Content-Language\":\"fr\"}");
+
+        var result = await _sut.ExecuteToolAsync("https://swagger.example", "getPets", input, "https://api.example");
+
+        Assert.Equal(400, result.StatusCode);
+        using var error = JsonDocument.Parse(result.Text!);
+        Assert.Equal("Header parameter Content-Language cannot be sent with this request",
+            error.RootElement.GetProperty("error").GetString());
+        Assert.Null(_handler.LastRequest);
+    }
+
     private class TestHandler : HttpMessageHandler
     {
         public HttpRequestMessage? LastRequest { get; private set; }

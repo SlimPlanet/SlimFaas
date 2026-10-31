@@ -59,8 +59,9 @@ Scalar JSON request bodies and multipart form field mapping retain their existin
 
 ## Header parameters
 
-An OpenAPI `in: header` parameter is a tool argument named like the header, and its value is sent as that request header. For `GET /pets` with an `X-Tenant-Id` header parameter, the arguments `{"X-Tenant-Id":"acme"}` send `X-Tenant-Id: acme`. Strings are sent as-is, and other values as JSON, such as `10` or `true`. A `null` argument sends no header.
+An OpenAPI `in: header` parameter is a tool argument named like the header, and its value is sent as that request header. For `GET /pets` with an `X-Tenant-Id` header parameter, the arguments `{"X-Tenant-Id":"acme"}` send `X-Tenant-Id: acme`. Values follow the OpenAPI `simple` style for headers: strings are sent as-is, numbers and booleans as written (`10`, `true`), arrays as comma-separated values (`[1,2]` sends `1,2`), and objects as key and value pairs (`{"role":"admin","id":5}` sends `role,admin,id,5`, or `role=admin,id=5` when the parameter sets `explode: true`). A parameter described with `content: application/json` instead of `schema` is sent as compact JSON. A `null` argument sends no header.
 
 - As the OpenAPI specification requires, header parameters named `Accept`, `Content-Type` or `Authorization` are ignored.
 - A header that SlimFaasMcp already forwards, such as `Authorization`, `Dpop` or a header mapped from `_meta` with `McpMetaHeaderMapping`, takes precedence over a tool argument with the same name.
 - A value containing CR, LF or NUL characters is rejected with an error result, and the API is not called.
+- A content header such as `Content-Language` needs a request body. On a request without one, such as a `GET`, the argument is rejected with an error result, and the API is not called.
