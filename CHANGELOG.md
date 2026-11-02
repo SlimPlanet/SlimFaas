@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.86.4
+
+- [7f81422b](https://github.com/SlimPlanet/SlimFaas/commit/7f81422b5572d6bfc42313a29677a09ca8851486) - fix(Jobs): queue Default jobs under the name the jobs worker reads (#494) (#495) (release), 2026-11-02 by *Asish*
+
+
+## v0.86.3
+
+- [e9e42e1c](https://github.com/SlimPlanet/SlimFaas/commit/e9e42e1cb44a3a5df58fbab4f1c44f489844517d) - fix(slimfaas-mcp): send header parameters as request headers (#489) (#490) (release), 2026-11-02 by *Asish*
+
+
+## 0.86.2
+
+
+
 ## v0.86.2
 
 - [1cff8913](https://github.com/SlimPlanet/SlimFaas/commit/1cff8913a6934a5c157abfc6d6d580cc5f4b4413) - fix(slimfaas-mcp): encode path parameters as single URL segments (#487) (#488) (release), 2026-11-02 by *Asish*
@@ -260,19 +274,5 @@
 
 ## 0.82.2
 
-
-
-## v0.82.2
-
-- [19a3e5b7](https://github.com/SlimPlanet/SlimFaas/commit/19a3e5b7b539416fa11ed7991aa966772deef96c) - fix: planet-saver clean npm packages (release), 2026-09-01 by *Guillaume Chervet*
-
-
-## 0.82.1
-
-
-
-## v0.82.1
-
-- [381f9b0c](https://github.com/SlimPlanet/SlimFaas/commit/381f9b0c6a65035d9a507df4a2a17ecb77e53573) - fix: npm pubish token via oidc (release), 2026-09-01 by *Guillaume Chervet*
 
 
