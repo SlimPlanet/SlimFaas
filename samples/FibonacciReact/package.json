@@ -11,7 +11,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@axa-fr/slimfaas-planet-saver": "^0.84.16",
+    "@axa-fr/slimfaas-planet-saver": "^0.86.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "serve": "14.2.6"
