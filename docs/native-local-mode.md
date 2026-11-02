@@ -20,12 +20,16 @@ For a ready-to-run demonstration without installing .NET or Node.js, use [Get St
 The repository contains a complete [`slimfaas.local.yaml`](../slimfaas.local.yaml)
 demo.
 
-For an opt-in terminal-failure inspection/replay exercise, add
-[`slimfaas.local.dlq.yaml`](../slimfaas.local.dlq.yaml) as a second `-f` overlay.
-It preserves the standard demo when omitted. UI and management visibility are
-separate runtime options; follow the
-[DLQ exercise](dead-letter-queues.md#native-local-exercise) rather than exposing
-private payloads implicitly.
+The base demo includes DLQ capture for `fibonacci1` and two `orders` Stream
+subscriptions. Follow the [DLQ exercise](dead-letter-queues.md#native-local-exercise)
+or the complete [Guided Tour](guided-tour.md).
+
+Native local mode enables the DLQ dashboard and Public DLQ management by default,
+like its existing Public Data APIs. It is a trusted development environment, not
+an access-isolation boundary: retained bodies, replay and deletion are accessible
+to local clients. Explicit `SlimFaas__DeadLetterQueue__EnableFront` and
+`SlimFaas__DeadLetterQueue__DefaultVisibility` environment values override these
+local defaults. Production runtime visibility defaults remain unchanged.
 
 ### Run the demo from a Git clone
 

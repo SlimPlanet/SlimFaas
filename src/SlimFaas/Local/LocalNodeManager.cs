@@ -170,6 +170,10 @@ public sealed class LocalNodeManager : IAsyncDisposable
             ["SlimData__Directory"] = _state.DataDirectory,
             ["SlimData__AllowColdStart"] = "true",
             ["Data__DefaultVisibility"] = "Public",
+            ["SlimFaas__DeadLetterQueue__EnableFront"] =
+                Environment.GetEnvironmentVariable("SlimFaas__DeadLetterQueue__EnableFront") ?? "true",
+            ["SlimFaas__DeadLetterQueue__DefaultVisibility"] =
+                Environment.GetEnvironmentVariable("SlimFaas__DeadLetterQueue__DefaultVisibility") ?? "Public",
             ["OpenTelemetry__Enable"] = "false",
             ["OpenTelemetry__EnableConsoleExporter"] = "false",
             ["Logging__LogLevel__Default"] = logLevel,

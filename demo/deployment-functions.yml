@@ -14,6 +14,11 @@ spec:
         app: fibonacci1
       annotations:
         SlimFaas/Function: "true"
+        SlimFaas/Configuration: >
+          {"DefaultAsync":{"HttpTimeout":30,"TimeoutRetries":[1],"HttpStatusRetries":[500,502,503,504],"DeadLetterQueue":{"Enabled":true,"MaxAgeSeconds":604800,"MaxLength":10000}}}
+        SlimFaas/SubscribeStream: "Public:orders"
+        SlimFaas/StreamMaxAge: "24h"
+        SlimFaas/StreamMaxLength: "100000"
 
         # 0 -> N / N -> 0 (HTTP + schedule)
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "10"
@@ -107,6 +112,9 @@ spec:
         app: fibonacci2
       annotations:
         SlimFaas/Function: "true"
+        SlimFaas/SubscribeStream: "Public:orders"
+        SlimFaas/StreamMaxAge: "24h"
+        SlimFaas/StreamMaxLength: "100000"
         SlimFaas/TimeoutSecondBeforeSetReplicasMin: "8"
         SlimFaas/NumberParallelRequest: "2"
         SlimFaas/ReplicasAtStart: "1"

@@ -1,7 +1,7 @@
 @baseUrl = http://127.0.0.1:30020
 @tourId = tour-example
 
-### Enable the optional durable tour configuration first. This accepted work fails with 422.
+### Start the standard demo first. This accepted work fails with 422.
 POST {{baseUrl}}/async-function/fibonacci1/tour/dlq/{{tourId}}
 Content-Type: application/json
 

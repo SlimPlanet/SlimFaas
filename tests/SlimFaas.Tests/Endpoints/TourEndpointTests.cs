@@ -23,7 +23,7 @@ public sealed class TourEndpointTests
         }
     }
 
-    private static Task<IHost> Start(DependencyHandler handler, bool enabled = true) =>
+    private static Task<IHost> Start(DependencyHandler handler) =>
         new HostBuilder().ConfigureWebHost(builder => builder.UseTestServer().ConfigureServices(services =>
         {
             services.AddRouting();
@@ -31,17 +31,20 @@ public sealed class TourEndpointTests
         }).Configure(app =>
         {
             app.UseRouting();
-            app.UseEndpoints(endpoints => endpoints.MapTourEndpoints("http://slimfaas", enabled));
+            app.UseEndpoints(endpoints => endpoints.MapTourEndpoints("http://slimfaas"));
         })).StartAsync();
 
     [Fact]
-    public async Task Disabled_fixture_is_absent()
+    public async Task Demo_fixture_is_available_without_an_enable_flag()
     {
-        using var handler = new DependencyHandler(HttpStatusCode.OK);
-        using var host = await Start(handler, false);
-        using var response = await host.GetTestClient().PostAsync("/tour/dlq/tour-1", new StringContent("{}"));
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Empty(handler.Requests);
+        using var handler = new DependencyHandler(HttpStatusCode.NotFound);
+        using var host = await Start(handler);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/tour/dlq/tour-1")
+            { Content = new StringContent("""{"orderId":"sample"}""", Encoding.UTF8, "application/json") };
+        request.Headers.Add("SlimFaas-Element-Id", "original");
+        using var response = await host.GetTestClient().SendAsync(request);
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, response.StatusCode);
+        Assert.Single(handler.Requests);
     }
 
     [Theory]

@@ -233,19 +233,18 @@ See [unified batching](slimdata-unified-batching.md).
 
 ## Native local exercise
 
-The overlay is opt-in. For a repeatable demonstration without editing application
-code, follow the [Guided Tour's repair exercise](guided-tour.md#9-repair-and-replay-a-dead-letter-optional).
-It uses an explicitly enabled sample handler and a shared, run-scoped dependency
+For a repeatable demonstration without editing application code, follow the
+[Guided Tour's repair exercise](guided-tour.md#9-repair-and-replay-a-dead-letter).
+The standard demo includes its sample handler and a shared, run-scoped dependency
 flag with a ten-minute TTL; the replay completion marker proves the fresh
-execution actually succeeded. The tour-specific handler remains disabled without
-the optional overlay.
+execution actually succeeded. No additional feature configuration is needed.
+Public DLQ management in the demo permits inspection, replay and deletion;
+keep it isolated from untrusted users.
 
 For a manual application-fix experiment instead:
 
 ```bash
-export SlimFaas__DeadLetterQueue__DefaultVisibility=Public # trusted local demo only
-export SlimFaas__DeadLetterQueue__EnableFront=true
-dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml -f ../../slimfaas.local.dlq.yaml
+dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
 ```
 
 In another terminal:

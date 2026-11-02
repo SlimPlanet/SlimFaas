@@ -9,13 +9,8 @@ using Microsoft.Extensions.Logging;
 
 internal static class TourEndpoints
 {
-    internal static void MapTourEndpoints(this IEndpointRouteBuilder endpoints, string slimFaasBaseUrl, bool enabled)
+    internal static void MapTourEndpoints(this IEndpointRouteBuilder endpoints, string slimFaasBaseUrl)
     {
-        if (!enabled)
-        {
-            return;
-        }
-
         endpoints.MapPost("/tour/dlq/{tourId}", async Task<IResult> (
             string tourId, JsonElement body, HttpContext context, IHttpClientFactory factory,
             ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
@@ -51,6 +46,6 @@ internal static class TourEndpoints
             completion.EnsureSuccessStatusCode();
             logger.LogTourCompleted(tourId, elementId);
             return TypedResults.Text(elementId);
-        }).WithSummary("Opt-in guided-tour DLQ repair fixture");
+        }).WithSummary("Guided-tour DLQ repair fixture");
     }
 }

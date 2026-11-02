@@ -31,7 +31,7 @@ class BundleConfigurationTests(unittest.TestCase):
         self.assertEqual(args.base_url, "http://127.0.0.1:31020/")
 
     def test_checks_every_shipped_shell_script_for_crlf(self):
-        scripts = ("start.sh", "demo/smoke-tour.sh", "demo/async-scale-tour.sh", "demo/durable-tour.sh")
+        scripts = ("start.sh", "demo/smoke-tour.sh", "demo/async-scale-tour.sh")
         for invalid in (None,) + scripts:
             with self.subTest(invalid=invalid), io.BytesIO() as stream:
                 with zipfile.ZipFile(stream, "w") as archive:
@@ -58,7 +58,7 @@ class TourScriptTests(unittest.TestCase):
         self.repository = Path(__file__).resolve().parent.parent
 
     def test_missing_tools_fail_before_any_http_request(self):
-        for script in ("smoke-tour.sh", "async-scale-tour.sh", "durable-tour.sh"):
+        for script in ("smoke-tour.sh", "async-scale-tour.sh"):
             for missing in ("curl", "jq"):
                 with self.subTest(script=script, missing=missing):
                     fake_curl = "curl() { echo 'HTTP must not run'; exit 99; }; " if missing == "jq" else ""
@@ -87,7 +87,7 @@ calls=0
 sleep() { :; }
 trap '[[ $calls == 2 && $DLQ_ID == own ]] || exit 98' EXIT
 '''
-        result = self.state_probe("durable-tour.sh", mocks, "find_failure")
+        result = self.state_probe("smoke-tour.sh", mocks, "find_failure")
         self.assertEqual(result.returncode, 0, result.stderr)
         mocks = '''SEQUENCE=7
 MESSAGE_ID=message_7
@@ -102,7 +102,7 @@ request() {
 sleep() { :; }
 trap '[[ $calls == 3 ]] || exit 98' EXIT
 '''
-        result = self.state_probe("durable-tour.sh", mocks, "wait_acknowledgements")
+        result = self.state_probe("smoke-tour.sh", mocks, "wait_acknowledgements")
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_durable_marker_does_not_accept_a_previous_execution(self):
@@ -117,7 +117,7 @@ request() {
 sleep() { :; }
 trap '[[ $calls == 2 ]] || exit 98' EXIT
 '''
-        result = self.state_probe("durable-tour.sh", mocks, "wait_marker")
+        result = self.state_probe("smoke-tour.sh", mocks, "wait_marker")
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def state_probe(self, script, mocks, function="read_state"):

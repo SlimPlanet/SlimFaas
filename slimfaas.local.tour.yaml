@@ -1,5 +1,0 @@
-# Use after the DLQ and Streams overlays. Runtime access flags are set separately.
-functions:
-  fibonacci1:
-    environment:
-      Tour__Enabled: "true"

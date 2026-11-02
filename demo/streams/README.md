@@ -1,17 +1,14 @@
-# Stream demo overlays
+# Stream demo
 
-These are opt-in additions to the standard demo, not standalone deployments.
+The standard native, Compose and Kubernetes demos already subscribe `fibonacci1`
+and `fibonacci2` to `orders`. No feature overlays or activation flags are needed.
 
 ```bash
 # Native: run from the repository root.
-dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml -f ../../slimfaas.local.streams.yaml
+dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
 
 # Compose: retain the standard repository-root build context.
-docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml -f demo/streams/docker-compose.streams.yml up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
-
-# Kubernetes: after installing the standard demo in slimfaas-demo.
-kubectl -n slimfaas-demo patch deployment fibonacci1 --type merge --patch-file demo/streams/deployment-patch.yml
-kubectl -n slimfaas-demo patch deployment fibonacci2 --type merge --patch-file demo/streams/deployment-patch.yml
+docker compose up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
 ```
 
 Wait for `/data/streams/orders/functions` to show both subscriptions before
@@ -22,4 +19,7 @@ independent function progress. Change the HTTP client's base URL for Compose
 or Kubernetes. These examples intentionally use a Public Stream.
 
 For the complete, repeatable DLQ repair and two-consumer Stream exercise, use
-the optional setup and steps in the [Guided Tour](../../docs/guided-tour.md#9-repair-and-replay-a-dead-letter-optional).
+the [Guided Tour](../../docs/guided-tour.md#9-repair-and-replay-a-dead-letter).
+For installation and job-image requirements, follow the
+[Compose guide](../../docs/get-started-docker-compose.md) or
+[Kubernetes guide](../../docs/get-started-kubernetes.md).

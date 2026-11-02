@@ -401,93 +401,26 @@ curl -N --max-time 5 "$BASE_URL/status-functions-stream"
 
 Expect `text/event-stream` with `state` events and live `activity` or `activity_batch` events while requests run. The deliberate five-second cutoff makes cURL exit with code `28`; this is expected for this command, not a failed server response. The browser reconnects automatically.
 
-## 9. Repair and replay a dead letter (optional)
+## 9. Repair and replay a dead letter
 
-This exercise adds a deliberately unavailable dependency to an **opt-in sample
-handler**, not to the existing Fibonacci endpoints. A terminal `422` is retained
+This exercise uses a deliberately unavailable dependency in a **sample handler**,
+without changing the existing Fibonacci endpoints. A terminal `422` is retained
 in the Dead Letter Queue (DLQ). You repair shared state and replay the **same
 immutable request**, then verify that its fresh execution actually completed.
 
 > **Trusted demo only:** Public DLQ access exposes retained request bodies and
 > permits replay and deletion. Use an isolated local demo or disposable cluster,
-> never production. Capture and the sample handler remain disabled in the
-> ordinary launch. Use runtime **and sample images/bundles containing these
-> features**, built from the same checkout; older releases or an unrelated
-> `latest` image may not contain the handler.
+> never production. The base demo configurations enable DLQ capture for
+> `fibonacci1`, Public management access and both `orders` subscriptions.
+> Production DLQ visibility defaults are unchanged. Use runtime **and sample
+> images/bundles containing these features**, built from the same checkout;
+> older releases or an unrelated `latest` image may not contain the handler.
 
-### Enable the optional exercises
-
-Stop the existing demo before restarting it with the extra configuration.
-The same configuration also enables the two Stream consumers used in step 10.
-
-**Native local, from a Git clone** (repository root):
-
-```bash
-export SlimFaas__DeadLetterQueue__EnableFront=true
-export SlimFaas__DeadLetterQueue__DefaultVisibility=Public
-dotnet run --project src/SlimFaas --no-build -- local up \
-  -f ../../slimfaas.local.yaml -f ../../slimfaas.local.dlq.yaml \
-  -f ../../slimfaas.local.streams.yaml -f ../../slimfaas.local.tour.yaml
-```
-
-**Precompiled local bundle:** use those same two environment variables, then
-launch the overlays shipped in a feature-capable bundle:
-
-```bash
-./start.sh -f slimfaas.local.dlq.yaml -f slimfaas.local.streams.yaml -f slimfaas.local.tour.yaml
-```
-
-In PowerShell, set `$env:SlimFaas__DeadLetterQueue__EnableFront = 'true'` and
-`$env:SlimFaas__DeadLetterQueue__DefaultVisibility = 'Public'`, then use
-`.\start.ps1 -f slimfaas.local.dlq.yaml -f slimfaas.local.streams.yaml -f slimfaas.local.tour.yaml`.
-No SDK is needed for the precompiled bundle.
-
-**Docker Compose:** retain the get-started overlay, which provides `fibonacci2`
-and the rest of the tour. Build from the feature-capable checkout:
-
-```bash
-docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml \
-  -f demo/streams/docker-compose.streams.yml -f demo/durable-tour/docker-compose.yml \
-  up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
-```
-
-Keep the [Compose guide's job-image build](get-started-docker-compose.md#build-and-start)
-if also running the core tour. Stop this stack with the same four `-f` files and
-`down`; do not prune unrelated containers or volumes.
-
-**Kubernetes:** first install the ordinary demo in a **disposable cluster** using
-the [Kubernetes guide](get-started-kubernetes.md). Select that context explicitly.
-Build and push compatible images from this checkout to a registry your cluster
-can pull, or load them into your local cluster using its image-loading tool.
-Replace the example registry below with your own:
-
-```bash
-export TOUR_CONTEXT=kind-slimfaas-tour
-export TOUR_RUNTIME_IMAGE=registry.example.com/your-project/slimfaas:durable-tour
-export TOUR_FUNCTION_IMAGE=registry.example.com/your-project/fibonacci:durable-tour
-docker build -f src/SlimFaas/Dockerfile -t "$TOUR_RUNTIME_IMAGE" .
-docker build -f samples/Fibonacci/Dockerfile -t "$TOUR_FUNCTION_IMAGE" .
-docker push "$TOUR_RUNTIME_IMAGE"
-docker push "$TOUR_FUNCTION_IMAGE"
-kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo set image statefulset/slimfaas slimfaas="$TOUR_RUNTIME_IMAGE"
-for function in fibonacci1 fibonacci2; do
-  kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo set image deployment/"$function" "$function=$TOUR_FUNCTION_IMAGE"
-  kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo patch deployment "$function" --type merge \
-    --patch-file demo/streams/deployment-patch.yml
-done
-kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo patch deployment fibonacci1 --type strategic \
-  --patch-file demo/durable-tour/deployment-patch.yml
-kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo set env statefulset/slimfaas \
-  SlimFaas__DeadLetterQueue__EnableFront=true SlimFaas__DeadLetterQueue__DefaultVisibility=Public
-kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo rollout status statefulset/slimfaas --timeout=300s
-kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo port-forward service/slimfaas-http 30021:5000
-```
-
-Do not roll these protocol-changing feature images into a cluster with old
-SlimFaas members or existing application state. For a fresh feature demonstration,
-choose the compatible runtime image before the first StatefulSet startup.
-If functions have already scaled to zero, readiness and the first call will
-wake them; an empty pod list alone is not a failure.
+Start the ordinary [local](get-started-local.md),
+[Compose](get-started-docker-compose.md) or
+[Kubernetes](get-started-kubernetes.md) demo. No additional feature manifests,
+environment switches or sample-handler activation are required. The Fibonacci
+application is a demonstration workload and always includes the repair handler.
 
 ### Run the repeatable demonstration
 
@@ -496,33 +429,26 @@ Keep **Live Stream → Traffic** open before running the demo. In a second termi
 ```bash
 export BASE_URL=http://127.0.0.1:30020
 # Compose / Kubernetes port-forward: export BASE_URL=http://127.0.0.1:30021
-bash demo/durable-tour.sh
+bash demo/smoke-tour.sh
 ```
 
-Or include it after the entire core smoke tour:
-
-```bash
-DURABLE_TOUR=1 BASE_URL="$BASE_URL" bash demo/smoke-tour.sh
-```
-
-Without that flag the core script explicitly reports these optional exercises
-as skipped. The standalone script always requires them: a missing handler, wrong
-image, inaccessible DLQ, or missing consumer is a failure, not a successful skip.
+The existing smoke tour includes DLQ repair and Stream fan-out automatically.
+A missing handler, wrong image, inaccessible DLQ or missing consumer is a failure,
+not a successful skip.
 Run it again to verify repeatability; each invocation gets a fresh `TOUR_ID`.
 Only bounded **reads** are retried, never submissions, repairs, requeues or appends.
 
-**Bruno:** set `durableTour=true` in the selected environment, then run
-**Tour / 09 Durable messaging** in order, or run its requests individually to
+**Bruno:** run **Tour** in order; **09 Durable messaging** is included by default.
+Run just that folder, or run its requests individually to
 pause and inspect the UI between operations:
 
 ```bash
 cd demo/bruno-slimfaas-demo
-bru run "Tour/09 Durable messaging" -r --env Local --env-var durableTour=true --bail
+bru run "Tour/09 Durable messaging" -r --env Local --bail
 cd ../..
 ```
 
-Use `Compose` or `Kubernetes` for those deployments. The folder explicitly skips
-when the variable is not `true`, so the ordinary tour works without overlays.
+Use `Compose` or `Kubernetes` for those deployments.
 Do not run dependent requests in parallel.
 
 ### Follow the DLQ lifecycle
@@ -552,9 +478,9 @@ expire after **ten minutes**. On a failed run, inspect its captured IDs and logs
 before cleanup; never purge an entire function's DLQ to reset a tutorial.
 See [DLQ semantics and access controls](dead-letter-queues.md).
 
-## 10. Follow durable Stream fan-out (optional)
+## 10. Follow durable Stream fan-out
 
-The same optional setup subscribes **fibonacci1** and **fibonacci2** to the Public
+The base demo subscribes **fibonacci1** and **fibonacci2** to the Public
 `orders` Stream with identical retention. The script's second half and Bruno
 requests 08–09 demonstrate the following:
 

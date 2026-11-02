@@ -6,12 +6,12 @@ Open this directory as a collection, select Local, Kubernetes or Compose, then r
 bru run Tour -r --env Local
 ```
 
-The optional **Tour / 09 Durable messaging** folder explicitly skips by default.
-After enabling the DLQ/Streams demo overlays described in the Guided Tour, set
-the selected environment's `durableTour` variable to `true`, or use:
+**Tour / 09 Durable messaging** runs by default with the rest of the tour.
+The standard demo already includes DLQ capture and both Stream subscribers.
+To run only that folder:
 
 ```bash
-bru run "Tour/09 Durable messaging" -r --env Local --env-var durableTour=true --bail
+bru run "Tour/09 Durable messaging" -r --env Local --bail
 ```
 
 Use Compose or Kubernetes instead of Local for those deployments. Run in sequence,
@@ -20,8 +20,9 @@ only its own retained 422 across metadata pages, repairs its shared dependency,
 requeues once and verifies the new execution ID. Both HTTP consumers must ACK the
 returned Stream message ID. Cleanup removes only two run-scoped keys; `orders`
 history stays until retention. If a run fails, stop and inspect before rerunning
-individual mutations. Old images or missing optional configuration are errors
-when `durableTour=true`, not skipped exercises.
+individual mutations. Old images or missing demo configuration are errors,
+not skipped exercises. Public DLQ management exposes retained bodies, replay
+and deletion; use an isolated trusted demo.
 
 The Tour folder uses runtime variables, captures IDs from responses and deletes only the resources it creates. Read assertions poll transient follower visibility for at most ten seconds, leaving the original response visible. Writes are never retried automatically. Run the whole folder again for a fresh run. A failed run may leave resources until their TTL; inspect captured IDs before manual cleanup. No environment secrets are required. The fixture is `fixtures/hello.txt`, relative to the collection root.
 

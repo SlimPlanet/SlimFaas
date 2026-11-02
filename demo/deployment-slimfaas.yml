@@ -121,6 +121,10 @@ spec:
               value: "true"
             - name: SlimFaas__ExposeDataMetadata
               value: "false"
+            - name: SlimFaas__DeadLetterQueue__EnableFront
+              value: "true"
+            - name: SlimFaas__DeadLetterQueue__DefaultVisibility
+              value: Public
             - name: Data__DefaultVisibility
               value: "Public"
               # log level debug for testing

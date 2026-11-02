@@ -50,7 +50,7 @@ def cleanup_finished_job(request, job_id):
 
 def validate_bundle_scripts(archive):
     """Check the shipped bytes, including ZIPs produced from Windows checkouts."""
-    for name in ("start.sh", "demo/smoke-tour.sh", "demo/async-scale-tour.sh", "demo/durable-tour.sh"):
+    for name in ("start.sh", "demo/smoke-tour.sh", "demo/async-scale-tour.sh"):
         if b"\r" in archive.read(name):
             raise ValueError(f"Bundled shell script must use LF line endings: {name}")
 

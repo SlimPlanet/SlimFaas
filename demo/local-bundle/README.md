@@ -38,23 +38,12 @@ cURL; install jq separately and add its directory to `PATH`. WSL is not required
 BASE_URL=http://127.0.0.1:30020 bash demo/smoke-tour.sh
 ```
 
-For the optional DLQ repair and durable Streams tour, stop the demo first, then
-restart with the shipped overlays (only in this isolated trusted demo):
-
-```bash
-export SlimFaas__DeadLetterQueue__EnableFront=true
-export SlimFaas__DeadLetterQueue__DefaultVisibility=Public
-./start.sh -f slimfaas.local.dlq.yaml -f slimfaas.local.streams.yaml -f slimfaas.local.tour.yaml
-```
-
-In PowerShell, set the same two `$env:` variables, then run
-`.\start.ps1 -f slimfaas.local.dlq.yaml -f slimfaas.local.streams.yaml -f slimfaas.local.tour.yaml`.
-From another Bash terminal, run `bash demo/durable-tour.sh`, or set
-`DURABLE_TOUR=1` when running the core smoke script. Bruno's optional
-**Tour / 09 Durable messaging** needs `durableTour=true` in the selected environment.
-Public DLQ access permits body inspection and replay/deletion; never expose this
-configuration to untrusted users. The sample handler is disabled without the tour
-overlay. Each run's repair/completion keys expire after ten minutes; successful
+The standard launch includes DLQ repair and two `orders` Stream subscribers.
+The smoke script above and Bruno's **Tour / 09 Durable messaging** run these
+exercises by default, without additional manifests or environment switches.
+Public Data and DLQ access permits body inspection and replay/deletion; never
+expose this trusted development configuration to untrusted users.
+Each run's repair/completion keys expire after ten minutes; successful
 cleanup leaves the shared `orders` history and subscriptions intact.
 
 To observe scaling from one to several ready replicas with 800 async requests,

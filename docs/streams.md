@@ -5,10 +5,10 @@ Streams are bounded, ordered event logs replicated by SlimData/Raft. Unlike
 async queue, each subscribed **function** consumes independently. Replicas of one
 function share its consumption state; one replica receives each attempt.
 
-Try the [Guided Tour's two-consumer demonstration](guided-tour.md#10-follow-durable-stream-fan-out-optional)
+Try the [Guided Tour's two-consumer demonstration](guided-tour.md#10-follow-durable-stream-fan-out)
 in native local mode, a precompiled bundle, Compose or Kubernetes. It waits for
 both subscriptions, checks both independent ACK positions and reads the exact
-retained publication afterwards. The same optional tour also demonstrates DLQ repair.
+retained publication afterwards. The standard tour also demonstrates DLQ repair.
 
 ## Dashboard gallery
 
@@ -208,11 +208,12 @@ subscriptions, with an explicit truncation flag; use paginated APIs for more.
 ## Native demo
 
 ```bash
-dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml -f ../../slimfaas.local.streams.yaml
+dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml
 curl -X POST http://127.0.0.1:30020/publish-stream/orders/compute \
   -H 'Content-Type: application/json' --data '{"iterations":1}'
 curl http://127.0.0.1:30020/data/streams/orders/functions
 ```
 
-The overlay subscribes two functions independently without changing the base
-demo. Kubernetes and Compose equivalents are in `demo/streams/`.
+The base demo subscribes two functions independently. The base Kubernetes and
+Compose demo configurations include the same subscriptions; see
+[Stream examples](../demo/streams/README.md).

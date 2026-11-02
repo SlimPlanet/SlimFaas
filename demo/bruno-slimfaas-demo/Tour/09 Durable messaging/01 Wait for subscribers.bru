@@ -27,7 +27,7 @@ tests {
         throw error;
       });
     }
-    expect(active(response), "Enable the optional overlays and use images containing this branch").to.equal(true);
+    expect(active(response), "Both orders subscribers must be active; use current demo images").to.equal(true);
     const access = await bru.sendRequest({ method: "GET", url: bru.getEnvVar("baseUrl") + "/data/dead-letters" });
     expect(access.status).to.equal(200);
   });

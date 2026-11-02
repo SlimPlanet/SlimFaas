@@ -16,10 +16,12 @@ cd SlimFaas
 
 All commands below run from the repository root. Check the selected context before applying the demo.
 
-For the optional [DLQ repair and durable Streams tour](guided-tour.md#9-repair-and-replay-a-dead-letter-optional),
-use a disposable cluster or isolated trusted namespace, compatible runtime/sample
-images, and the explicit feature patches shown there. The standard installation
-does not enable the sample repair handler or public DLQ management.
+The base manifests include [DLQ repair and durable Streams](guided-tour.md#9-repair-and-replay-a-dead-letter):
+`fibonacci1` captures terminal failures, both first functions subscribe to `orders`,
+and DLQ management is Public. Use a disposable cluster or isolated trusted namespace,
+with compatible runtime/sample images from the same checkout. No extra patches or
+activation flags are needed. Public access permits retained-body inspection, replay
+and deletion; do not expose this demo to untrusted users.
 
 ## Deploy the demo
 

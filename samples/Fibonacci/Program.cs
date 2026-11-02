@@ -47,7 +47,7 @@ serviceCollection.Configure<JsonOptions>(options =>
 });
 
 WebApplication app = builder.Build();
-app.MapTourEndpoints(slimFaasBaseUrl, builder.Configuration.GetValue<bool>("Tour:Enabled"));
+app.MapTourEndpoints(slimFaasBaseUrl);
 app.UseCors(builder => builder
     .AllowAnyOrigin()
     .AllowAnyMethod()
