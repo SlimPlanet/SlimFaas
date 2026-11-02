@@ -270,6 +270,12 @@ Binary frame format:
 
 The `correlationId` links all frames for the same synchronous request/response stream.
 
+When a sync handler throws or raises, both official clients report the failure for it:
+
+- if the handler has not started the response, the client sends a `500` and ends the stream;
+- if the status and headers are already sent, the status can no longer change, so the client sends `SyncCancel`. SlimFaas then aborts the HTTP response, and the caller sees a truncated response instead of waiting for an end of stream that never comes;
+- if the response is already complete, nothing more is sent.
+
 ---
 
 ## 8. Publish/Subscribe Events

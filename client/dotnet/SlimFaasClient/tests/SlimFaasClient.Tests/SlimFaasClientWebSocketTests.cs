@@ -537,6 +537,66 @@ public sealed class SlimFaasClientWebSocketTests
     }
 
     [Fact]
+    public async Task SyncRequest_HandlerFailureAfterTheResponseStarted_CancelsTheStream()
+    {
+        await using var server = await FakeSlimFaasServer.StartAsync();
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
+        client.OnSyncRequest = async req =>
+        {
+            await req.Response.StartAsync(200, new Dictionary<string, string[]> { ["Content-Type"] = ["text/csv"] });
+            await req.Response.WriteAsync("id,total\n1,"u8.ToArray());
+            throw new InvalidOperationException("boom");
+        };
+        running.Start();
+        var connection = await server.NextConnectionAsync();
+
+        var correlationId = Guid.NewGuid().ToString();
+        await connection.SendBinaryAsync(BinaryFrame.Encode(SlimFaasMessageType.SyncRequestStart, correlationId,
+            JsonSerializer.SerializeToUtf8Bytes(new SyncRequestStartDto(), SlimFaasClientJsonContext.Default.SyncRequestStartDto)));
+        await connection.SendBinaryAsync(BinaryFrame.Encode(SlimFaasMessageType.SyncRequestEnd, correlationId, BinaryFrame.FlagEndOfStream));
+
+        var responseStart = await connection.NextFrameAsync();
+        Assert.Equal(SlimFaasMessageType.SyncResponseStart, responseStart.Type);
+        Assert.Equal(200, JsonSerializer.Deserialize(responseStart.Payload, SlimFaasClientJsonContext.Default.SyncResponseStartDto)!.StatusCode);
+        Assert.Equal(SlimFaasMessageType.SyncResponseChunk, (await connection.NextFrameAsync()).Type);
+
+        var cancel = await connection.NextFrameAsync();
+        Assert.Equal(SlimFaasMessageType.SyncCancel, cancel.Type);
+        Assert.Equal(correlationId, cancel.CorrelationId);
+    }
+
+    [Fact]
+    public async Task SyncRequest_HandlerFailureAfterTheResponseCompleted_SendsNothingMore()
+    {
+        await using var server = await FakeSlimFaasServer.StartAsync();
+        await using var running = new RunningClient(server.Uri, TestHelpers.MakeConfig(), FastOptions());
+        var client = running.Client;
+        client.OnSyncRequest = async req =>
+        {
+            await req.Response.CompleteAsync();
+            throw new InvalidOperationException("boom");
+        };
+        running.Start();
+        var connection = await server.NextConnectionAsync();
+
+        var correlationId = Guid.NewGuid().ToString();
+        await connection.SendBinaryAsync(BinaryFrame.Encode(SlimFaasMessageType.SyncRequestStart, correlationId,
+            JsonSerializer.SerializeToUtf8Bytes(new SyncRequestStartDto(), SlimFaasClientJsonContext.Default.SyncRequestStartDto)));
+
+        Assert.Equal(SlimFaasMessageType.SyncResponseStart, (await connection.NextFrameAsync()).Type);
+        Assert.Equal(SlimFaasMessageType.SyncResponseEnd, (await connection.NextFrameAsync()).Type);
+
+        // The next frame is the reply to a later request, not a cancel of the completed one.
+        var nextCorrelationId = Guid.NewGuid().ToString();
+        await connection.SendBinaryAsync(BinaryFrame.Encode(SlimFaasMessageType.SyncRequestStart, nextCorrelationId,
+            JsonSerializer.SerializeToUtf8Bytes(new SyncRequestStartDto(), SlimFaasClientJsonContext.Default.SyncRequestStartDto)));
+        var next = await connection.NextFrameAsync();
+        Assert.Equal(SlimFaasMessageType.SyncResponseStart, next.Type);
+        Assert.Equal(nextCorrelationId, next.CorrelationId);
+    }
+
+    [Fact]
     public async Task SyncRequest_CancelledByTheServer_FailsTheHandlerWith500()
     {
         await using var server = await FakeSlimFaasServer.StartAsync();

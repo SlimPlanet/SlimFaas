@@ -434,11 +434,30 @@ class SlimFaasClient:
             await req.response.complete()
         except Exception as exc:
             logger.error("SyncRequest handler raised: %s", exc, exc_info=True)
-            try:
-                await req.response.start(500)
-                await req.response.complete()
-            except Exception:
-                pass
+            await self._fail_sync_response(req)
+
+    async def _fail_sync_response(self, req: SyncRequest) -> None:
+        """
+        Report a failed sync handler to SlimFaas.
+
+        A response that has not started yet becomes a 500. Once the status and
+        headers have been sent, the status can no longer change, so the stream is
+        cancelled: SlimFaas then aborts the HTTP response instead of waiting for
+        an end of stream that never comes.
+        """
+        response = req.response
+        try:
+            if not response._started:
+                await response.start(500)
+                await response.complete()
+            elif not response._completed:
+                await self.send_sync_cancel(req.correlation_id)
+        except Exception as exc:
+            logger.warning(
+                "Failed to report the SyncRequest handler failure for %s: %s",
+                req.correlation_id,
+                exc,
+            )
 
     async def send_sync_response_start(self, correlation_id: str, response: SyncResponse) -> None:
         """Send the beginning of the sync response (status + headers)."""

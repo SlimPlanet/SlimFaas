@@ -12,12 +12,14 @@ import pytest
 
 from slimfaas_client._models import (
     AsyncRequest,
+    BinaryFrame,
     FunctionVisibility,
     FunctionTrust,
     MessageType,
     PublishEvent,
     SlimFaasClientConfig,
     SubscribeEventConfig,
+    SyncRequest,
     PathVisibilityConfig,
 )
 from slimfaas_client._client import SlimFaasClient, SlimFaasRegistrationError
@@ -294,3 +296,74 @@ class TestSlimFaasClientDispatch:
         # Aucun callback automatique
         assert len(ws.sent) == 0
 
+
+
+# ---------------------------------------------------------------------------
+# Tests du streaming synchrone (frames binaires)
+# ---------------------------------------------------------------------------
+
+class TestSyncRequestDispatch:
+    """Réponse envoyée à SlimFaas quand le handler synchrone échoue."""
+
+    CORRELATION_ID = "0f8fad5b-d9cb-469f-a165-70867728950e"
+
+    async def _run_sync_request(self, handler) -> list[tuple[int, str, bytes]]:
+        client = SlimFaasClient("ws://fake", make_config())
+        client.on_sync_request(handler)
+        ws = MockWebSocket([])
+        client._ws = ws  # type: ignore[assignment]
+
+        start = json.dumps({"method": "GET", "path": "/report", "query": "", "headers": {}}).encode("utf-8")
+        client._handle_binary_frame(ws, BinaryFrame.encode(MessageType.SYNC_REQUEST_START, self.CORRELATION_ID, start))  # type: ignore[arg-type]
+        client._handle_binary_frame(ws, BinaryFrame.encode(MessageType.SYNC_REQUEST_END, self.CORRELATION_ID))  # type: ignore[arg-type]
+        for _ in range(10):
+            await asyncio.sleep(0)
+
+        frames = []
+        for data in ws.sent:
+            msg_type, correlation_id, _, length = BinaryFrame.decode_header(data)
+            frames.append((msg_type, correlation_id, data[BinaryFrame.HEADER_SIZE:BinaryFrame.HEADER_SIZE + length]))
+        return frames
+
+    @pytest.mark.asyncio
+    async def test_handler_failure_before_start_sends_500(self):
+        async def handler(req: SyncRequest) -> None:
+            raise ValueError("boom")
+
+        frames = await self._run_sync_request(handler)
+
+        assert [f[0] for f in frames] == [MessageType.SYNC_RESPONSE_START, MessageType.SYNC_RESPONSE_END]
+        assert json.loads(frames[0][2])["statusCode"] == 500
+        assert all(f[1] == self.CORRELATION_ID for f in frames)
+
+    @pytest.mark.asyncio
+    async def test_handler_failure_after_start_cancels_the_stream(self):
+        async def handler(req: SyncRequest) -> None:
+            await req.response.start(200, {"Content-Type": ["text/csv"]})
+            await req.response.write(b"id,total\n1,")
+            raise ValueError("boom")
+
+        frames = await self._run_sync_request(handler)
+
+        assert [f[0] for f in frames] == [
+            MessageType.SYNC_RESPONSE_START,
+            MessageType.SYNC_RESPONSE_CHUNK,
+            MessageType.SYNC_CANCEL,
+        ]
+        assert json.loads(frames[0][2])["statusCode"] == 200
+        assert all(f[1] == self.CORRELATION_ID for f in frames)
+
+    @pytest.mark.asyncio
+    async def test_handler_failure_after_complete_sends_nothing_more(self):
+        async def handler(req: SyncRequest) -> None:
+            await req.response.write(b"done")
+            await req.response.complete()
+            raise ValueError("boom")
+
+        frames = await self._run_sync_request(handler)
+
+        assert [f[0] for f in frames] == [
+            MessageType.SYNC_RESPONSE_START,
+            MessageType.SYNC_RESPONSE_CHUNK,
+            MessageType.SYNC_RESPONSE_END,
+        ]

@@ -504,6 +504,12 @@ public sealed class SyncResponseWriter : Stream
         _sendEnd = sendEnd;
     }
 
+    /// <summary>True once the status code and headers have been sent.</summary>
+    internal bool HasStarted => _started;
+
+    /// <summary>True once the end of the response has been sent.</summary>
+    internal bool IsCompleted => _completed;
+
     /// <summary>
     /// Envoie le début de la réponse (status code + headers).
     /// Doit être appelé une seule fois, avant tout <see cref="WriteAsync(byte[], int, int, CancellationToken)"/>.
