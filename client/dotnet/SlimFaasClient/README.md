@@ -150,6 +150,29 @@ client.OnAsyncRequest = async req =>
 };
 ```
 
+## Signing HTTP calls to Private functions
+
+Independently from the WebSocket client, the package signs HTTP requests for the opt-in
+caller authentication of Private SlimFaas functions (`SlimFaas:CallerAuthentication:Mode`
+set to `Hybrid` or `Strict`, see the [SlimFaas functions documentation](https://slimfaas.dev/functions)).
+The key file is the caller's entry of the Secret mounted in SlimFaas; the caller id names it.
+
+```csharp
+var credentials = SlimFaasCallerCredentials.FromFile("billing-api", "/var/run/slimfaas/caller-key");
+
+using var http = new HttpClient(new SlimFaasSigningHandler(credentials) { InnerHandler = new HttpClientHandler() })
+{
+    BaseAddress = new Uri("http://slimfaas:5000")
+};
+
+var response = await http.PostAsJsonAsync("/function/billing/invoice", invoice);
+```
+
+- `SlimFaasSigningHandler(credentials, signBody: false)` sends `UNSIGNED-PAYLOAD` instead of buffering the body (streamed or very large uploads).
+- `SlimFaasRequestSigner.SignAsync(request, credentials)` signs one `HttpRequestMessage`.
+- `SlimFaasRequestSigner.CreateHeaders(credentials, method, path, query, contentSha256)` returns the five `X-SlimFaas-*` headers for any other HTTP stack.
+- In `Legacy` mode (the SlimFaas default) the headers are ignored, so signing can be rolled out before the server switches modes.
+
 ## Important rules
 
 1. `FunctionName` must **not** match an existing Kubernetes Deployment name.

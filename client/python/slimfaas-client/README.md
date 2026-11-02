@@ -180,6 +180,29 @@ client = SlimFaasClient(
 )
 ```
 
+## Signing HTTP calls to Private functions
+
+Independently from the WebSocket client, the package signs HTTP requests for the opt-in
+caller authentication of Private SlimFaas functions (`SlimFaas:CallerAuthentication:Mode`
+set to `Hybrid` or `Strict`, see the [SlimFaas functions documentation](https://slimfaas.dev/functions)).
+The key file is the caller's entry of the Secret mounted in SlimFaas; the caller id names it.
+
+```python
+import httpx
+from slimfaas_client import CallerCredentials, sign_request
+
+credentials = CallerCredentials.from_file("billing-api", "/var/run/slimfaas/caller-key")
+
+url = "http://slimfaas:5000/function/billing/invoice"
+body = b'{"amount": 42}'
+headers = sign_request(credentials, "POST", url, body)
+response = httpx.post(url, content=body, headers={**headers, "Content-Type": "application/json"})
+```
+
+- `sign_request(..., sign_body=False)` sends `UNSIGNED-PAYLOAD` instead of hashing the body (streamed or very large uploads).
+- `url` may be an absolute URL or a path with its query string; the signature covers the method, the path, the query, the body hash, a timestamp and a fresh nonce.
+- In `Legacy` mode (the SlimFaas default) the headers are ignored, so signing can be rolled out before the server switches modes.
+
 ## Important rules
 
 1. **`function_name` must not match an existing Kubernetes Deployment name.**

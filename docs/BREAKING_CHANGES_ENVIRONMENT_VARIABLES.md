@@ -250,6 +250,13 @@ data:
 | `AllowUnsecureSsl` | `bool` | `false` | Allow unsecure SSL connections |
 | `KubernetesSkipTlsVerify` | `bool` | `false` | Skip TLS verification of the Kubernetes API server certificate (unsafe; logs a warning at startup) |
 | `TrustedProxies` | `string[]` | `[]` | Reverse proxies (IPs or proxy-only CIDR networks, never the pod CIDR) allowed to set `X-Forwarded-For`; empty means the header is ignored |
+| `CallerAuthentication:Mode` | `string` | `Legacy` | `Legacy` (address rule only, signed headers ignored), `Hybrid` (signature or address, unsigned internal callers logged) or `Strict` (signature only) |
+| `CallerAuthentication:SecretsDirectory` | `string` | | Directory with one key file per caller (`<caller-id>`, `<caller-id>.next`); required outside `Legacy` |
+| `CallerAuthentication:ClockSkewSeconds` | `int` | `300` | Accepted distance between the signed timestamp and the SlimFaas clock |
+| `CallerAuthentication:MaxSignedBodyBytes` | `long` | `4194304` | Largest body buffered to verify its hash; larger bodies must be sent as `UNSIGNED-PAYLOAD` |
+| `CallerAuthentication:NonceCacheMaxEntriesPerCaller` | `int` | `100000` | Replay-protection memory per caller |
+| `CallerAuthentication:KeyRefreshSeconds` | `int` | `10` | How often a key file is checked for changes |
+| `CallerAuthentication:WarningIntervalSeconds` | `int` | `60` | Minimum interval between two identical caller-authentication warnings |
 | `JobsConfiguration` | `string?` | `null` | Jobs configuration in JSON format |
 | `CorsAllowOrigin` | `string` | `"*"` | Allowed CORS origins |
 | `BaseSlimDataUrl` | `string` | `"http://{pod_name}.{service_name}.{namespace}.svc:3262"` | Base URL for SlimData |
