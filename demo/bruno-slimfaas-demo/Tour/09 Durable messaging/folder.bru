@@ -1,0 +1,11 @@
+meta {
+  name: 09 Durable messaging (opt-in)
+  seq: 9
+}
+
+script:pre-request {
+  if (bru.getEnvVar("durableTour") !== "true") {
+    console.log("SKIP DLQ/Streams. Enable the optional demo overlays, then set durableTour=true.");
+    bru.runner.skipRequest();
+  }
+}

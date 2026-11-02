@@ -1,0 +1,12 @@
+# Strategic merge patch for fibonacci1 only, after the Stream patches.
+spec:
+  template:
+    metadata:
+      annotations:
+        SlimFaas/Configuration: '{"DefaultAsync":{"HttpTimeout":30,"TimeoutRetries":[1],"HttpStatusRetries":[500,502,503,504],"DeadLetterQueue":{"Enabled":true,"MaxAgeSeconds":604800,"MaxLength":10000}}}'
+    spec:
+      containers:
+        - name: fibonacci1
+          env:
+            - name: Tour__Enabled
+              value: "true"

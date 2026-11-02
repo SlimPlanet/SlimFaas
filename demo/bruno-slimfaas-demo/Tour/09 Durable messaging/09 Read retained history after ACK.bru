@@ -1,0 +1,33 @@
+meta {
+  name: ACK preserves retained history
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/data/streams/orders/messages/{{durableStreamId}}/body
+  body: none
+  auth: none
+}
+
+tests {
+  test("Read this exact retained publication after both ACKs", async function () {
+    let response = { status: res.getStatus(), data: res.getBody() };
+    const deadline = Date.now() + 10000;
+    while (response.status === 404 && Date.now() < deadline) {
+      await bru.sleep(200);
+      response = await bru.sendRequest({ method: "GET", url: req.getUrl() }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+    }
+    expect(response.status).to.equal(200);
+    expect(response.data.orderId).to.equal(bru.getVar("durableId"));
+    expect(response.data.amount).to.equal(42);
+  });
+}
+
+docs {
+  This is a passive history read, not a reservation or ACK. Keep orders and both subscriptions intact.
+  In Live Stream / Traffic observe SlimFaas -> orders -> fibonacci1 and fibonacci2, then ACKs.
+}

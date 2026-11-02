@@ -1,0 +1,39 @@
+meta {
+  name: Find this run's retained 422
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/data/dead-letters/fibonacci1/messages?httpStatus=422&limit=500
+  body: none
+  auth: none
+}
+
+tests {
+  test("Find exact path across bounded metadata pages", async function () {
+    const path = "tour/dlq/" + bru.getVar("durableId");
+    const deadline = Date.now() + 180000;
+    let response = { status: res.getStatus(), data: res.getBody() };
+    let found;
+    do {
+      let pages = 0;
+      while (true) {
+        expect(response.status).to.equal(200);
+        const matches = response.data.Items.filter(item => item.Request.Path.replace(/^\//, "") === path);
+        expect(matches.length).to.be.at.most(1);
+        if (matches.length) { found = matches[0]; break; }
+        if (!response.data.NextCursor) break;
+        expect(++pages, "DLQ metadata page limit").to.be.lessThan(20);
+        response = await bru.sendRequest({ method: "GET", url: req.getUrl() + "&after=" + encodeURIComponent(response.data.NextCursor) });
+      }
+      if (found) break;
+      await bru.sleep(500);
+      response = await bru.sendRequest({ method: "GET", url: req.getUrl() });
+    } while (Date.now() < deadline);
+    expect(found, "Tour__Enabled and DLQ capture must be active").to.exist;
+    expect(found.LastHttpStatus).to.equal(422);
+    expect(found.FailureReason).to.equal("NonRetryableResponse");
+    bru.setVar("durableDlqId", found.Id);
+  });
+}

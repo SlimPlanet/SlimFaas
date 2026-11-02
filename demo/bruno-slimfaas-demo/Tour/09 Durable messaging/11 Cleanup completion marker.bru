@@ -1,0 +1,17 @@
+meta {
+  name: Delete only this run's completion marker
+  type: http
+  seq: 11
+}
+
+delete {
+  url: {{baseUrl}}/data/sets/{{durableId}}-dlq-completed
+  body: none
+  auth: none
+}
+
+tests {
+  test("Scoped marker removed, Stream history retained", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}

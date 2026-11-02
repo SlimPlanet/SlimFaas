@@ -202,4 +202,9 @@ hash_id=''
 request 204 DELETE "/data/files/$file_id"
 request 404 GET "/data/files/$file_id"
 file_id=''
+if [[ "${DURABLE_TOUR:-0}" == 1 ]]; then
+  BASE_URL="$BASE_URL" bash "$TOUR_ROOT/durable-tour.sh"
+else
+  echo 'SKIP DLQ/Streams: enable optional tour overlays and set DURABLE_TOUR=1, or run demo/durable-tour.sh separately.'
+fi
 echo 'PASS Core SlimFaas tour. Manual scenarios: WebSocket sessions, internal interfaces and access isolation.'

@@ -1,0 +1,40 @@
+meta {
+  name: Verify the replay's exact execution completed
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/data/sets/{{durableId}}-dlq-completed
+  body: none
+  auth: none
+}
+
+tests {
+  test("Marker matches the replay receipt", async function () {
+    let response = { status: res.getStatus(), data: res.getBody() };
+    const deadline = Date.now() + 180000;
+    while (response.data !== bru.getVar("durableReplayId") && Date.now() < deadline) {
+      expect([200, 404]).to.include(response.status);
+      await bru.sleep(500);
+      response = await bru.sendRequest({ method: "GET", url: req.getUrl() }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+    }
+    expect(response.status).to.equal(200);
+    expect(response.data).to.equal(bru.getVar("durableReplayId"));
+    const url = bru.getEnvVar("baseUrl") + "/data/dead-letters/fibonacci1/messages/" + bru.getVar("durableDlqId");
+    const removedDeadline = Date.now() + 10000;
+    do {
+      response = await bru.sendRequest({ method: "GET", url }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+      expect([200, 404]).to.include(response.status);
+      if (response.status === 404) break;
+      await bru.sleep(200);
+    } while (Date.now() < removedDeadline);
+    expect(response.status).to.equal(404);
+  });
+}

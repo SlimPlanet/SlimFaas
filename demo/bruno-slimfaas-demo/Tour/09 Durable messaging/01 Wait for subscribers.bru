@@ -1,0 +1,34 @@
+meta {
+  name: Wait for two active subscribers
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/data/streams/orders/functions
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  bru.setVar("durableId", "tour-durable-" + Date.now() + "-" + Math.floor(Math.random() * 1000000));
+}
+
+tests {
+  test("Both subscriptions exist before any publication", async function () {
+    let response = { status: res.getStatus(), data: res.getBody() };
+    const deadline = Date.now() + 180000;
+    const active = r => r.status === 200 && ["fibonacci1", "fibonacci2"].every(name =>
+      r.data.Items.some(item => item.Function === name && item.Active));
+    while (!active(response) && [200, 404].includes(response.status) && Date.now() < deadline) {
+      await bru.sleep(500);
+      response = await bru.sendRequest({ method: "GET", url: req.getUrl() }).catch(error => {
+        if (error.status === 404 || error.response?.status === 404) return { status: 404, data: null };
+        throw error;
+      });
+    }
+    expect(active(response), "Enable the optional overlays and use images containing this branch").to.equal(true);
+    const access = await bru.sendRequest({ method: "GET", url: bru.getEnvVar("baseUrl") + "/data/dead-letters" });
+    expect(access.status).to.equal(200);
+  });
+}
