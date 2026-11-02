@@ -16,6 +16,11 @@ cd SlimFaas
 
 All commands below run from the repository root. Check the selected context before applying the demo.
 
+For the optional [DLQ repair and durable Streams tour](guided-tour.md#9-repair-and-replay-a-dead-letter-optional),
+use a disposable cluster or isolated trusted namespace, compatible runtime/sample
+images, and the explicit feature patches shown there. The standard installation
+does not enable the sample repair handler or public DLQ management.
+
 ## Deploy the demo
 
 ```bash

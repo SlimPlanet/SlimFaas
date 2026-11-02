@@ -68,6 +68,11 @@ Expect `200 READY`, the function list and a greeting. Retry readiness while the 
 
 Continue to the [Guided Tour](guided-tour.md). Select **Compose** in Bruno.
 
+For its optional [DLQ repair and durable Streams exercises](guided-tour.md#9-repair-and-replay-a-dead-letter-optional),
+restart with both additional feature overlays and rebuild the runtime/sample
+images from the same feature-capable checkout. The tour provides the complete
+four-file Compose command. Public DLQ management is enabled only in that isolated demo.
+
 ## Docker socket and Podman
 
 By default the example mounts `/var/run/docker.sock`. For a different socket, set `DOCKER_SOCKET_PATH` to the host socket path before starting Compose; SlimFaas connects to its mounted path through `DOCKER_HOST` inside the container.

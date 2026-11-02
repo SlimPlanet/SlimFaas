@@ -233,7 +233,14 @@ See [unified batching](slimdata-unified-batching.md).
 
 ## Native local exercise
 
-The overlay is opt-in; it does not alter the standard guided tour:
+The overlay is opt-in. For a repeatable demonstration without editing application
+code, follow the [Guided Tour's repair exercise](guided-tour.md#9-repair-and-replay-a-dead-letter-optional).
+It uses an explicitly enabled sample handler and a shared, run-scoped dependency
+flag with a ten-minute TTL; the replay completion marker proves the fresh
+execution actually succeeded. The tour-specific handler remains disabled without
+the optional overlay.
+
+For a manual application-fix experiment instead:
 
 ```bash
 export SlimFaas__DeadLetterQueue__DefaultVisibility=Public # trusted local demo only

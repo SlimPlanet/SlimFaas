@@ -39,7 +39,7 @@ export const DOCUMENTATION_CATALOG = {
     'guided-tour': {
         sourcePath: 'docs/guided-tour.md', route: '/guided-tour',
         label: 'Guided Tour', title: 'Discover SlimFaas Step by Step',
-        description: 'Follow requests from cURL or Bruno through the live SlimFaas dashboard.',
+        description: 'Follow requests, DLQ repair and durable Stream fan-out from cURL or Bruno through the live dashboard.',
     },
     'api-reference': {
         sourcePath: 'docs/api-reference.md', route: '/api-reference',
@@ -173,7 +173,7 @@ export function getPublicRouteForSource(sourcePath: string): string | undefined 
 
 export const DOCUMENTATION_GROUPS: { label: string; ids: DocumentationId[] }[] = [
     { label: 'Start here', ids: ['get-started', 'get-started-kubernetes', 'get-started-local', 'get-started-docker-compose', 'guided-tour'] },
-    { label: 'Features', ids: ['functions', 'dead-letter-queues', 'events', 'jobs', 'data-sets', 'data-files', 'clients', 'planet-saver', 'kafka'] },
+    { label: 'Features', ids: ['functions', 'dead-letter-queues', 'events', 'streams', 'jobs', 'data-sets', 'data-files', 'clients', 'planet-saver', 'kafka'] },
     { label: 'Operate', ids: ['user-interface', 'autoscaling', 'opentelemetry', 'benchmarking'] },
     { label: 'Reference', ids: ['api-reference', 'how-it-works', 'local-mode'] },
 ];

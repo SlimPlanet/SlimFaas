@@ -6,6 +6,23 @@ Open this directory as a collection, select Local, Kubernetes or Compose, then r
 bru run Tour -r --env Local
 ```
 
+The optional **Tour / 09 Durable messaging** folder explicitly skips by default.
+After enabling the DLQ/Streams demo overlays described in the Guided Tour, set
+the selected environment's `durableTour` variable to `true`, or use:
+
+```bash
+bru run "Tour/09 Durable messaging" -r --env Local --env-var durableTour=true --bail
+```
+
+Use Compose or Kubernetes instead of Local for those deployments. Run in sequence,
+not parallel, with scripts enabled. Each run creates a fresh `durableId`, locates
+only its own retained 422 across metadata pages, repairs its shared dependency,
+requeues once and verifies the new execution ID. Both HTTP consumers must ACK the
+returned Stream message ID. Cleanup removes only two run-scoped keys; `orders`
+history stays until retention. If a run fails, stop and inspect before rerunning
+individual mutations. Old images or missing optional configuration are errors
+when `durableTour=true`, not skipped exercises.
+
 The Tour folder uses runtime variables, captures IDs from responses and deletes only the resources it creates. Read assertions poll transient follower visibility for at most ten seconds, leaving the original response visible. Writes are never retried automatically. Run the whole folder again for a fresh run. A failed run may leave resources until their TTL; inspect captured IDs before manual cleanup. No environment secrets are required. The fixture is `fixtures/hello.txt`, relative to the collection root.
 
 **Manual** requests must be run individually: SSE stays open until cancelled; callbacks require a real outstanding element ID; error requests can leave retries in queues. Native local callers can be classified as trusted because they share loopback addresses. The WebSocket HTTP request only demonstrates the upgrade requirement; use the official clients to establish a full session. For Kubernetes, port-forward port 5003 separately when using WebSocket clients; the core Compose tour does not publish it.

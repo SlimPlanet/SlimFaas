@@ -7,7 +7,7 @@ These are opt-in additions to the standard demo, not standalone deployments.
 dotnet run --project src/SlimFaas -- local up -f ../../slimfaas.local.yaml -f ../../slimfaas.local.streams.yaml
 
 # Compose: retain the standard repository-root build context.
-docker compose -f docker-compose.yml -f demo/streams/docker-compose.streams.yml up -d
+docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml -f demo/streams/docker-compose.streams.yml up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
 
 # Kubernetes: after installing the standard demo in slimfaas-demo.
 kubectl -n slimfaas-demo patch deployment fibonacci1 --type merge --patch-file demo/streams/deployment-patch.yml
@@ -20,3 +20,6 @@ publishing, because new subscriptions start at the tail. Then use
 Open `#/streams/orders` and `#/live/traffic` to compare retained messages and
 independent function progress. Change the HTTP client's base URL for Compose
 or Kubernetes. These examples intentionally use a Public Stream.
+
+For the complete, repeatable DLQ repair and two-consumer Stream exercise, use
+the optional setup and steps in the [Guided Tour](../../docs/guided-tour.md#9-repair-and-replay-a-dead-letter-optional).

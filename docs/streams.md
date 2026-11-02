@@ -5,6 +5,11 @@ Streams are bounded, ordered event logs replicated by SlimData/Raft. Unlike
 async queue, each subscribed **function** consumes independently. Replicas of one
 function share its consumption state; one replica receives each attempt.
 
+Try the [Guided Tour's two-consumer demonstration](guided-tour.md#10-follow-durable-stream-fan-out-optional)
+in native local mode, a precompiled bundle, Compose or Kubernetes. It waits for
+both subscriptions, checks both independent ACK positions and reads the exact
+retained publication afterwards. The same optional tour also demonstrates DLQ repair.
+
 ## Dashboard gallery
 
 The dashboard's **Streams** page includes a retained Stream catalog, per-Stream

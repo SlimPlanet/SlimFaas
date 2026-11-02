@@ -401,6 +401,201 @@ curl -N --max-time 5 "$BASE_URL/status-functions-stream"
 
 Expect `text/event-stream` with `state` events and live `activity` or `activity_batch` events while requests run. The deliberate five-second cutoff makes cURL exit with code `28`; this is expected for this command, not a failed server response. The browser reconnects automatically.
 
+## 9. Repair and replay a dead letter (optional)
+
+This exercise adds a deliberately unavailable dependency to an **opt-in sample
+handler**, not to the existing Fibonacci endpoints. A terminal `422` is retained
+in the Dead Letter Queue (DLQ). You repair shared state and replay the **same
+immutable request**, then verify that its fresh execution actually completed.
+
+> **Trusted demo only:** Public DLQ access exposes retained request bodies and
+> permits replay and deletion. Use an isolated local demo or disposable cluster,
+> never production. Capture and the sample handler remain disabled in the
+> ordinary launch. Use runtime **and sample images/bundles containing these
+> features**, built from the same checkout; older releases or an unrelated
+> `latest` image may not contain the handler.
+
+### Enable the optional exercises
+
+Stop the existing demo before restarting it with the extra configuration.
+The same configuration also enables the two Stream consumers used in step 10.
+
+**Native local, from a Git clone** (repository root):
+
+```bash
+export SlimFaas__DeadLetterQueue__EnableFront=true
+export SlimFaas__DeadLetterQueue__DefaultVisibility=Public
+dotnet run --project src/SlimFaas --no-build -- local up \
+  -f ../../slimfaas.local.yaml -f ../../slimfaas.local.dlq.yaml \
+  -f ../../slimfaas.local.streams.yaml -f ../../slimfaas.local.tour.yaml
+```
+
+**Precompiled local bundle:** use those same two environment variables, then
+launch the overlays shipped in a feature-capable bundle:
+
+```bash
+./start.sh -f slimfaas.local.dlq.yaml -f slimfaas.local.streams.yaml -f slimfaas.local.tour.yaml
+```
+
+In PowerShell, set `$env:SlimFaas__DeadLetterQueue__EnableFront = 'true'` and
+`$env:SlimFaas__DeadLetterQueue__DefaultVisibility = 'Public'`, then use
+`.\start.ps1 -f slimfaas.local.dlq.yaml -f slimfaas.local.streams.yaml -f slimfaas.local.tour.yaml`.
+No SDK is needed for the precompiled bundle.
+
+**Docker Compose:** retain the get-started overlay, which provides `fibonacci2`
+and the rest of the tour. Build from the feature-capable checkout:
+
+```bash
+docker compose -f docker-compose.yml -f demo/docker-compose.get-started.yml \
+  -f demo/streams/docker-compose.streams.yml -f demo/durable-tour/docker-compose.yml \
+  up -d --build slimfaas fibonacci1 fibonacci2 fibonacci3 fibonacci4
+```
+
+Keep the [Compose guide's job-image build](get-started-docker-compose.md#build-and-start)
+if also running the core tour. Stop this stack with the same four `-f` files and
+`down`; do not prune unrelated containers or volumes.
+
+**Kubernetes:** first install the ordinary demo in a **disposable cluster** using
+the [Kubernetes guide](get-started-kubernetes.md). Select that context explicitly.
+Build and push compatible images from this checkout to a registry your cluster
+can pull, or load them into your local cluster using its image-loading tool.
+Replace the example registry below with your own:
+
+```bash
+export TOUR_CONTEXT=kind-slimfaas-tour
+export TOUR_RUNTIME_IMAGE=registry.example.com/your-project/slimfaas:durable-tour
+export TOUR_FUNCTION_IMAGE=registry.example.com/your-project/fibonacci:durable-tour
+docker build -f src/SlimFaas/Dockerfile -t "$TOUR_RUNTIME_IMAGE" .
+docker build -f samples/Fibonacci/Dockerfile -t "$TOUR_FUNCTION_IMAGE" .
+docker push "$TOUR_RUNTIME_IMAGE"
+docker push "$TOUR_FUNCTION_IMAGE"
+kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo set image statefulset/slimfaas slimfaas="$TOUR_RUNTIME_IMAGE"
+for function in fibonacci1 fibonacci2; do
+  kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo set image deployment/"$function" "$function=$TOUR_FUNCTION_IMAGE"
+  kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo patch deployment "$function" --type merge \
+    --patch-file demo/streams/deployment-patch.yml
+done
+kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo patch deployment fibonacci1 --type strategic \
+  --patch-file demo/durable-tour/deployment-patch.yml
+kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo set env statefulset/slimfaas \
+  SlimFaas__DeadLetterQueue__EnableFront=true SlimFaas__DeadLetterQueue__DefaultVisibility=Public
+kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo rollout status statefulset/slimfaas --timeout=300s
+kubectl --context "$TOUR_CONTEXT" -n slimfaas-demo port-forward service/slimfaas-http 30021:5000
+```
+
+Do not roll these protocol-changing feature images into a cluster with old
+SlimFaas members or existing application state. For a fresh feature demonstration,
+choose the compatible runtime image before the first StatefulSet startup.
+If functions have already scaled to zero, readiness and the first call will
+wake them; an empty pod list alone is not a failure.
+
+### Run the repeatable demonstration
+
+Keep **Live Stream → Traffic** open before running the demo. In a second terminal:
+
+```bash
+export BASE_URL=http://127.0.0.1:30020
+# Compose / Kubernetes port-forward: export BASE_URL=http://127.0.0.1:30021
+bash demo/durable-tour.sh
+```
+
+Or include it after the entire core smoke tour:
+
+```bash
+DURABLE_TOUR=1 BASE_URL="$BASE_URL" bash demo/smoke-tour.sh
+```
+
+Without that flag the core script explicitly reports these optional exercises
+as skipped. The standalone script always requires them: a missing handler, wrong
+image, inaccessible DLQ, or missing consumer is a failure, not a successful skip.
+Run it again to verify repeatability; each invocation gets a fresh `TOUR_ID`.
+Only bounded **reads** are retried, never submissions, repairs, requeues or appends.
+
+**Bruno:** set `durableTour=true` in the selected environment, then run
+**Tour / 09 Durable messaging** in order, or run its requests individually to
+pause and inspect the UI between operations:
+
+```bash
+cd demo/bruno-slimfaas-demo
+bru run "Tour/09 Durable messaging" -r --env Local --env-var durableTour=true --bail
+cd ../..
+```
+
+Use `Compose` or `Kubernetes` for those deployments. The folder explicitly skips
+when the variable is not `true`, so the ordinary tour works without overlays.
+Do not run dependent requests in parallel.
+
+### Follow the DLQ lifecycle
+
+1. **Submit** one JSON order to
+   `POST /async-function/fibonacci1/tour/dlq/{TOUR_ID}`. The gateway returns
+   `202 Accepted`; that is not application success. With no
+   `{TOUR_ID}-dlq-ready` Data Set, the sample returns **422** without retrying it.
+2. **Inspect** **Dead Letters → fibonacci1**. Find the entry whose request path
+   ends with your run ID, not the first global entry. Open its metadata and body:
+   expect `NonRetryableResponse`, status `422`, and the original JSON `orderId`.
+   The automation follows bounded metadata pages to identify only that entry.
+3. **Repair** the dependency by writing plain text `ready` to
+   `POST /data/sets/{TOUR_ID}-dlq-ready?ttl=600000`. This flag is shared through
+   SlimData across replicas, not a process-local fail-once counter.
+4. **Replay once** with `POST /data/dead-letters/fibonacci1/messages/{Id}/requeue`,
+   or the selected entry's replay action. Its `202` receipt contains a fresh
+   `ElementId`. Replaying before repairing would create another failure.
+5. **Verify success**, not merely an empty DLQ: read
+   `GET /data/sets/{TOUR_ID}-dlq-completed` and require that its text equals the
+   replay receipt's **new** `ElementId`. The handler writes this marker before
+   returning success. The original retained failure must disappear.
+
+The script and Bruno assert the original body, new execution ID and successful
+marker. They remove only this run's ready/completion keys, both of which also
+expire after **ten minutes**. On a failed run, inspect its captured IDs and logs
+before cleanup; never purge an entire function's DLQ to reset a tutorial.
+See [DLQ semantics and access controls](dead-letter-queues.md).
+
+## 10. Follow durable Stream fan-out (optional)
+
+The same optional setup subscribes **fibonacci1** and **fibonacci2** to the Public
+`orders` Stream with identical retention. The script's second half and Bruno
+requests 08–09 demonstrate the following:
+
+1. **Wait for both active subscriptions** in
+   `GET /data/streams/orders/functions` before publishing. A new subscription
+   starts at the committed tail, so creating it afterwards cannot prove fan-out.
+2. **Publish once** to `POST /publish-stream/orders/compute` with a small JSON
+   order containing this run's ID. A `201` response and `MessageId` prove durable
+   append, **not consumer success**.
+3. **Observe both consumers independently**. For the returned message's sequence
+   (the numeric suffix after `_`), require **each** function's
+   `AcknowledgedThrough` to reach it. Inspect the two rows separately: a healthy
+   first consumer must not hide a second consumer's lag or failure.
+4. **Inspect retained history after ACK** at
+   `GET /data/streams/orders/messages/{MessageId}/body`. It must still contain
+   the original order. History/metadata reads are passive: they do not reserve
+   messages, ACK work or move consumption cursors.
+
+**In the UI:** open **Streams → orders** to compare independent progress and
+retained history. Select the message and preview its body. In the live Traffic
+map, watch **SlimFaas → orders → fibonacci1 / fibonacci2**, followed by ACK traffic.
+Select the Stream actor, isolate it if desired, slow animations and inspect the
+event journal **after deliveries and ACKs arrive**, not immediately after append.
+These are live best-effort visual events, not a durable audit log or measured
+latency; use per-function progress/API state as the completion evidence.
+
+![Durable Stream history and independent consumer progress](images/dashboard/streams-history.png)
+
+The existing [Stream dashboard gallery](streams.md#dashboard-gallery) shows the related
+screens. Cleanup deliberately preserves the shared `orders` Stream, its
+subscriptions, and other runs' messages. ACK does **not** delete retained history;
+the demo's 24-hour/100,000-message retention policy eventually removes it.
+The [Streams reference](streams.md) explains retention gaps, retries and callbacks.
+WebSocket consumers are outside this introductory exercise.
+
+After stopping the optional demo, restart without its overlays to remove the
+sample repair handler. In the native launcher terminal, also unset
+`SlimFaas__DeadLetterQueue__EnableFront` and
+`SlimFaas__DeadLetterQueue__DefaultVisibility` before returning to the ordinary
+launch. Removing configuration does not purge retained records.
+
 ## Continue with your application
 
 Use the [API Reference](api-reference.md) to look up all routes, [How It Works](how-it-works.md) to understand their execution, and [UI reference](user-interface.md) for dashboard settings. Add [WebSocket clients](clients.md), [Kafka](kafka.md) or [Planet Saver](planet-saver.md) as needed. Stop the environment using the cleanup section of your installation guide.
