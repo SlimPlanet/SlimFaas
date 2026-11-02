@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.86.2
+
+- [1cff8913](https://github.com/SlimPlanet/SlimFaas/commit/1cff8913a6934a5c157abfc6d6d580cc5f4b4413) - fix(slimfaas-mcp): encode path parameters as single URL segments (#487) (#488) (release), 2026-11-02 by *Asish*
+
+
+## 0.86.1
+
+
+
 ## v0.86.1
 
 - [325c4bbe](https://github.com/SlimPlanet/SlimFaas/commit/325c4bbe00db187b3068a3524ccc6813a6b60f42) - fix(slimfaas-mcp): send only the body argument as the JSON request body (#485) (#486) (release), 2026-10-31 by *Asish*
@@ -265,16 +274,5 @@
 ## v0.82.1
 
 - [381f9b0c](https://github.com/SlimPlanet/SlimFaas/commit/381f9b0c6a65035d9a507df4a2a17ecb77e53573) - fix: npm pubish token via oidc (release), 2026-09-01 by *Guillaume Chervet*
-
-
-## 0.82.0
-
-
-
-## v0.82.0
-
-- [78c7387d](https://github.com/SlimPlanet/SlimFaas/commit/78c7387d3a16e83dc49fd24baa4e27ff9dcbe802) - fix(slimplanet): Content-Length was set to 0 (#327) (release), 2026-08-28 by *antoinelrnld*
-- [35a66252](https://github.com/SlimPlanet/SlimFaas/commit/35a662523fe83be3f184b00d81b14a59e69fe0e7) - feat: Improve SlimData/RAFT recovery under load (#317)(release), 2026-08-21 by *Copilot*
-- [e357700e](https://github.com/SlimPlanet/SlimFaas/commit/e357700ec4e1202f27d0cce5a6a696078d377a7a) - doc: Elevate CNCF presence in README header and de-duplicate community content (#315), 2026-08-14 by *Copilot*
 
 
