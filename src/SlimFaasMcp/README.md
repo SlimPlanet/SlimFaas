@@ -51,6 +51,14 @@ The upstream API receives this JSON body, without the MCP `body` wrapper:
 
 Path and query parameters are separate tool arguments next to `body`. For `PUT /pets/{id}`, the arguments `{"id":42,"body":{"name":"Milo"}}` call `PUT /pets/42` with the body `{"name":"Milo"}`. A Swagger 2.0 `in: body` parameter keeps its own name as the argument, such as `pet`, and its value is sent as the body in the same way.
 
+## Path and query parameters
+
+Path and query argument values are percent-encoded. A path value always stays inside its segment of the operation's URL: for `GET /pets/{id}/toys`, `{"id":"a b/c?d"}` calls `GET /pets/a%20b%2Fc%3Fd/toys`, and `{"id":"../admin"}` calls `GET /pets/..%2Fadmin/toys`.
+
+Strings are sent without their JSON quotes. Numbers and booleans are sent as written in JSON, so `{"id":true}` calls `GET /pets/true/toys`; earlier versions sent `True` and `False` in paths. A `null` path value leaves its placeholder empty.
+
+When a path segment renders as exactly `.` or `..`, SlimFaasMcp does not call the API and returns a `400` tool result such as `{"error":"Path segment {id} cannot render as a dot segment (. or ..)"}`. URL handling would otherwise resolve such a segment and leave the operation's path. A dot inside a larger segment is sent unchanged: for `/pets/prefix-{id}/toys`, `{"id":".."}` calls `/pets/prefix-../toys`.
+
 ## Upgrading existing callers
 
 Earlier versions advertised the sole property's schema as the `body` argument for JSON objects with one property. After upgrading, refresh the discovered tool schemas with `tools/list` and update affected callers from `{"body":"What is SlimFaas?"}` to `{"body":{"question":"What is SlimFaas?"}}`. Update custom `mcp_prompt` schema overrides that describe these object bodies as scalars.
