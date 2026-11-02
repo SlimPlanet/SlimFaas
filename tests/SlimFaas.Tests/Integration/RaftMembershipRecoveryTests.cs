@@ -125,10 +125,12 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
             var configuration = new Dictionary<string, string?>
             {
                 ["partitioning"] = "false",
-                ["lowerElectionTimeout"] = "600",
-                ["upperElectionTimeout"] = "1200",
-                ["requestTimeout"] = "00:00:02",
-                ["rpcTimeout"] = "00:00:01",
+                // Coverage instrumentation on Windows slows persistent log writes;
+                // allow those writes to complete without triggering unrelated elections.
+                ["lowerElectionTimeout"] = "3000",
+                ["upperElectionTimeout"] = "5000",
+                ["requestTimeout"] = "00:00:10",
+                ["rpcTimeout"] = "00:00:05",
                 ["warmupRounds"] = "512",
                 ["publicEndPoint"] = $"http://127.0.0.1:{ports[index]}/",
                 ["coldStart"] = coldStart.ToString(),
@@ -162,8 +164,14 @@ public sealed class RaftMembershipRecoveryTests(ITestOutputHelper output)
                 return;
             hosts[index] = null;
             using var shutdown = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            await host.StopAsync(shutdown.Token).WaitAsync(shutdown.Token);
-            host.Dispose();
+            try
+            {
+                await host.StopAsync(shutdown.Token).WaitAsync(shutdown.Token);
+            }
+            finally
+            {
+                host.Dispose();
+            }
         }
 
         async Task<IHost> LeaderAsync()

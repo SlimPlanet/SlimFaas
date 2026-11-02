@@ -1,37 +1,40 @@
 name: SlimFaas main CI
-
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-    types: [opened, synchronize, reopened]
-
-env:
-  PNPM_VERSION: 10.14.0
-  NODE_VERSION: "24"
-
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
 permissions:
-  contents: write
-
+  contents: read
+concurrency:
+  group: ${{ github.event_name == 'push' && 'slimfaas-release' || format('ci-{0}', github.event.pull_request.number) }}
+  queue: max
+  cancel-in-progress: false
+env:
+  PNPM_VERSION: '10.14.0'
+  NODE_VERSION: '24.21.0'
 jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
   sonarcloud:
     name: SonarCloud
     runs-on: windows-latest
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
+    if: (github.event_name == 'push' || github.event.pull_request.head.repo.fork == false) && github.actor != 'dependabot[bot]'
     steps:
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           java-version: 17
           distribution: 'zulu'
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Cache SonarCloud packages
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~\sonar\cache
           key: ${{ runner.os }}-sonar
@@ -39,13 +42,13 @@ jobs:
 
       - name: Cache SonarCloud scanner
         id: cache-sonar-scanner
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .\.sonar\scanner
-          key: ${{ runner.os }}-sonar-scanner
-          restore-keys: ${{ runner.os }}-sonar-scanner
+          key: ${{ runner.os }}-sonar-scanner-11.3.0
+          restore-keys: ${{ runner.os }}-sonar-scanner-11.3.0
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
 
@@ -54,14 +57,14 @@ jobs:
         shell: powershell
         run: |
           New-Item -Path .\.sonar\scanner -ItemType Directory
-          dotnet tool update dotnet-sonarscanner --tool-path .\.sonar\scanner
+          dotnet tool update dotnet-sonarscanner --version 11.3.0 --tool-path .\.sonar\scanner
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -86,595 +89,166 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         shell: powershell
         run: |
-          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths=status-stream-coverage.xml /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
-          dotnet tool install --global dotnet-coverage
+          .\.sonar\scanner\dotnet-sonarscanner begin /k:"SlimPlanet_SlimFaas" /o:"slimplanet" /d:sonar.token="$env:SONAR_TOKEN" /d:sonar.host.url="https://sonarcloud.io" /d:sonar.qualitygate.wait=true /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverageReportPaths=status-stream-coverage.xml /d:sonar.coverage.exclusions="samples/**/*,benchmarks/**/*,demo/**/*,src/SlimFaasPlanetSaver/coverage/**/*,src/SlimFaasSite/**/*,.bin/**/*" /d:sonar.javascript.lcov.reportPaths="src/SlimFaasPlanetSaver/coverage/lcov.info" /d:sonar.javascript.file.suffixes="js,jsx"
+          dotnet tool install --global dotnet-coverage --version 18.12.0
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           dotnet-coverage collect "dotnet test" -f xml -o "coverage.xml"
           $testExitCode = $LASTEXITCODE
           .\.sonar\scanner\dotnet-sonarscanner end /d:sonar.token="$env:SONAR_TOKEN"
           if ($testExitCode -ne 0) { exit $testExitCode }
 
-  unit_tests:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-
-      - name: Test native Raft recovery harness
-        run: python .bin/test-raft-recovery-harness.py
-
-      - name: Test Podman Compose helper
-        run: python .bin/test-podman-compose-helper.py
-
-      - name: Test Fibonacci container health probe
-        run: python .bin/test-fibonacci-healthcheck.py
-
-      - name: Test memory report measurement boundaries
-        run: |
-          dotnet build tools/SlimFaas.MemoryLab/SlimFaas.MemoryLab.csproj -c Release
-          python .bin/test-memory-lab-report.py
-
-      - name: Run unit tests
-        run: |
-          dotnet test --collect "Code Coverage;Format=cobertura" --verbosity normal
-
-      - name: ReportGenerator
-        uses: danielpalme/ReportGenerator-GitHub-Action@5.4.4
-        with:
-          reports: './**/TestResults/**/*.cobertura.xml'
-          targetdir: 'coveragereport'
-          reporttypes: 'MarkdownSummaryGithub'
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          check-latest: true
-
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
-        with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
-
-      - name: pnpm ci
-        run: pnpm i --frozen-lockfile
-        working-directory: ./src/SlimFaasPlanetSaver
-
-      - name: pnpm run coverage
-        run: pnpm run coverage
-        working-directory: ./src/SlimFaasPlanetSaver
-
-      - name: Publish coverage in build summary
-        run: cat coveragereport/SummaryGithub.md >> $GITHUB_STEP_SUMMARY
-        shell: bash
-
-  tags:
-    needs: [unit_tests]
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
+  version:
+    runs-on: ubuntu-24.04
     outputs:
-      new_version: ${{ steps.tag.outputs.new_version }}
-      tag: ${{ steps.tag.outputs.tag }}
-      npm_tag: ${{ steps.tag.outputs.npm_tag }}
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-
-      - name: Determine Alpha, Beta or Release
-        id: which_tag
-        run: |
-          if [[ ${{ github.ref }} == refs/pull* ]]; then
-            last_commit_message=$(curl -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.number }}/commits" | jq -r '.[-1].commit.message')
-          else
-            last_commit_message=$(git log --format=%B -n 1)
-          fi
-          echo "last commit message is: $last_commit_message"
-          echo "tag=default" >> $GITHUB_OUTPUT
-          if [[ $last_commit_message == *alpha* ]]; then
-            echo "tag=alpha" >> $GITHUB_OUTPUT
-          fi
-          if [[ $last_commit_message == *beta* ]]; then
-            echo "tag=beta" >> $GITHUB_OUTPUT
-          fi
-          if [[ $last_commit_message == *release* && ${{ github.ref }} == 'refs/heads/main' ]]; then
-            echo "tag=release" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Bump version and push tag
-        id: tag_release
-        if: steps.which_tag.outputs.tag == 'release'
-        uses: mathieudutour/github-tag-action@v6.0
-        with:
-          github_token: ${{ secrets.GIT_TOKEN  }}
-
-      - name: Bump version and push tag
-        id: tag_version
-        if: steps.which_tag.outputs.tag != 'release'
-        uses: mathieudutour/github-tag-action@v6.0
-        with:
-          github_token: ${{ secrets.GIT_TOKEN  }}
-          dry_run: true
-
-      - name: Compute new version number to publish
-        id: tag
-        run: |
-          if [[ '${{ steps.which_tag.outputs.tag }}' == 'release' ]]; then
-            version=${{ steps.tag_release.outputs.new_version }}
-          else
-            version=${{ steps.tag_version.outputs.new_version }}
-          fi
-
-          if [[ '${{ steps.which_tag.outputs.tag }}' = 'release' ]]; then
-            echo "new_version=$version" >> $GITHUB_OUTPUT
-          fi
-          if [[ '${{ steps.which_tag.outputs.tag }}' = 'alpha' ]]; then
-            echo "new_version=$version-alpha.${{ github.run_number }}" >> $GITHUB_OUTPUT
-          fi
-          if [[ '${{ steps.which_tag.outputs.tag }}' = 'beta' ]]; then
-            echo "new_version=$version-beta.${{ github.run_number }}" >> $GITHUB_OUTPUT
-          fi
-          if [[ '${{ steps.which_tag.outputs.tag }}' = 'default' ]]; then
-            if [ '${{ github.ref }}' = 'refs/heads/main' ]; then
-              echo "new_version=$version-dev.${{ github.run_number }}" >> $GITHUB_OUTPUT
-            else
-              echo "new_version=$version-pr.${{ github.event.number }}${{ github.run_number }}" >> $GITHUB_OUTPUT
-            fi
-          fi
-          tag=${{ steps.which_tag.outputs.tag }}
-          echo "tag=$tag" >> $GITHUB_OUTPUT
-          if [[ "$tag" = 'release' ]]; then
-            echo "npm_tag=latest" >> $GITHUB_OUTPUT
-          elif [[ "$tag" = 'default' ]]; then
-            echo "npm_tag=dev" >> $GITHUB_OUTPUT
-          else
-            echo "npm_tag=$tag" >> $GITHUB_OUTPUT
-          fi
-
-  build_slimfaas:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
+          persist-credentials: false
+      - id: version
+        run: echo "version=$(cat version.txt)" >> "$GITHUB_OUTPUT"
+  candidate:
+    needs: version
+    uses: ./.github/workflows/release-build.yml
     with:
-      image_name: "axaguildev/slimfaas"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "."
-      image_file: "./Dockerfile"
-      platforms: "linux/amd64,linux/arm64"
-      readme_url: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/README.md
-      image_description: "SlimFaas: fast FaaS + jobs/cron, scalable amd simple."
-      license: "Apache-2.0"
-      keywords: "slimfaas,faas,proxy,serverless,queue,publish/subscribe,jobs,cron,kubernetes"
-      logo_url: https://raw.githubusercontent.com/${{ github.repository }}/main/docs/SlimFaas.png
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_slimfaas_dotnet:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
-    with:
-      image_name: "axaguildev/slimfaas-dotnet"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "."
-      image_file: "./Dockerfile.dotnet"
-      platforms: "linux/amd64,linux/arm64"
-      readme_url: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/README.md
-      image_description: "SlimFaas: fast FaaS + jobs/cron, scalable amd simple."
-      license: "Apache-2.0"
-      keywords: "slimfaas,faas,proxy,serverless,queue,publish/subscribe,jobs,cron,kubernetes"
-      logo_url: https://raw.githubusercontent.com/${{ github.repository }}/main/docs/SlimFaas.png
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_slimfaas_kafka:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
-    with:
-      image_name: "axaguildev/slimfaas-kafka"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "."
-      image_file: "./src/SlimFaasKafka/Dockerfile"
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_fibonacci_kafka_producer:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
-    with:
-      image_name: "axaguildev/fibonacci-kafka-producer"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "."
-      image_file: "./samples/FibonacciKafkaProducer/Dockerfile"
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_fibonacci_kafka_listener:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
-    with:
-      image_name: "axaguildev/fibonacci-kafka-listener"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "."
-      image_file: "./samples/FibonacciKafkaListener/Dockerfile"
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_fibonacci_api:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
-    with:
-      image_name: "axaguildev/fibonacci-api"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "."
-      image_file: "./samples/Fibonacci/Dockerfile"
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_fibonacci_mcp:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
-    with:
-      image_name: "axaguildev/slimfaas-mcp"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "."
-      image_file: "./src/SlimFaasMcp/Dockerfile"
-      platforms: "linux/amd64,linux/arm64"
-      readme_url: https://raw.githubusercontent.com/${{ github.repository }}/${{ github.sha }}/README.md
-      image_description: "SlimFaas MCP: proxy OpenAPI -> MCP (tools) with OAuth, upload, etc."
-      license: "Apache-2.0"
-      keywords: "mcp,slimfaas,openapi,proxy,oauth,oidc,tools"
-      logo_url: https://raw.githubusercontent.com/${{ github.repository }}/main/docs/SlimFaas.png
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_fibonacci_batch:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
-    with:
-      image_name: "axaguildev/fibonacci-batch"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "."
-      image_file: "./samples/FibonacciBatch/Dockerfile"
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_fibonacci_webapp:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    uses: ./.github/workflows/Docker.yml
-    with:
-      image_name: "axaguildev/fibonacci-webapp"
-      image_version: "${{ needs.tags.outputs.new_version }}"
-      image_build_args: ""
-      image_context: "./samples/FibonacciReact"
-      image_file: "./samples/FibonacciReact/Dockerfile"
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-
-  build_slimfaas_mcp_aot:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            rid: linux-x64
-            zip: SlimFaasMcp-linux-x64.zip
-          - os: windows-latest
-            rid: win-x64
-            zip: SlimFaasMcp-win-x64.zip
-          - os: macos-latest
-            rid: osx-x64
-            zip: SlimFaasMcp-osx-x64.zip
-          - os: macos-14
-            rid: osx-arm64
-            zip: SlimFaasMcp-osx-arm64.zip
-    runs-on: ${{ matrix.os }}
-
+      version: ${{ needs.version.outputs.version }}
+      source_sha: ${{ github.sha }}
+  required:
+    name: CI / required
+    if: always()
+    needs: [checks, sonarcloud, candidate]
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          check-latest: true
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
-        with:
-          global-json-file: global.json
-
-      - name: Publish SlimFaasMcp (${{ matrix.rid }})
+      - env:
+          CHECKS: ${{ needs.checks.result }}
+          CANDIDATE: ${{ needs.candidate.result }}
+          SONAR: ${{ needs.sonarcloud.result }}
+          SONAR_OPTIONAL: ${{ github.event.pull_request.head.repo.fork == true || github.actor == 'dependabot[bot]' }}
         run: |
-          dotnet publish ./src/SlimFaasMcp/SlimFaasMcp.csproj \
-            -c Release -r ${{ matrix.rid }} \
-            -o ./publish \
-            -p:PublishAot=true \
-            -p:PublishTrimmed=true \
-            -p:SelfContained=true \
-            -p:InvariantGlobalization=true \
-            -p:DebugType=none \
-            -p:DebugSymbols=false
-        shell: bash
-
-      - name: Zip artifact (Linux & macOS)
-        if: runner.os != 'Windows'
-        run: |
-          cd publish
-          zip -r ../${{ matrix.zip }} .
-        shell: bash
-
-      - name: Zip artifact (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Compress-Archive -Path publish\* -DestinationPath ${{ matrix.zip }}
-        shell: powershell
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.zip }}
-          path: ${{ matrix.zip }}
-          if-no-files-found: error
-
-  build_slimfaas_aot:
-    needs: tags
-    if: github.event.pull_request.head.repo.fork == false && github.actor != 'dependabot[bot]'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-24.04
-            rid: linux-x64
-            zip: SlimFaas-linux-x64.zip
-          - os: ubuntu-24.04-arm
-            rid: linux-arm64
-            zip: SlimFaas-linux-arm64.zip
-          - os: windows-latest
-            rid: win-x64
-            zip: SlimFaas-win-x64.zip
-          - os: macos-15-intel
-            rid: osx-x64
-            zip: SlimFaas-osx-x64.zip
-          - os: macos-14
-            rid: osx-arm64
-            zip: SlimFaas-osx-arm64.zip
-    runs-on: ${{ matrix.os }}
-
+          test "$CHECKS" = success
+          test "$CANDIDATE" = success
+          test "$SONAR" = success || { test "$SONAR_OPTIONAL" = true && test "$SONAR" = skipped; }
+  release_bot:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.RELEASES_ENABLED == 'true'
+    needs: required
+    runs-on: ubuntu-24.04
+    environment: release-bot
+    outputs:
+      created: ${{ steps.candidate.outputs.created }}
+      tag: ${{ steps.candidate.outputs.tag }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          check-latest: true
-
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+          persist-credentials: false
+      - run: python3 .bin/install-release-tools.py gh
+      - uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        id: app
         with:
-          global-json-file: global.json
-
-      - uses: actions/setup-python@v5
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-issues: write
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
         with:
-          python-version: '3.12'
-
-      - name: Test bundle smoke helpers
-        run: python .bin/test-local-bundle-helpers.py
-
-      # Build wwwroot before MSBuild evaluates static asset globs on a fresh checkout.
-      - name: Build embedded dashboard
-        working-directory: src/SlimFaas/ClientApp
-        run: |
-          npm ci
-          npm run build
-
-      - name: Publish SlimFaas (${{ matrix.rid }})
-        run: |
-          dotnet publish ./src/SlimFaas/SlimFaas.csproj \
-            -c Release -r ${{ matrix.rid }} \
-            -o ./publish \
-            -p:PublishAot=true \
-            -p:PublishTrimmed=true \
-            -p:SelfContained=true \
-            -p:DebugType=none \
-            -p:DebugSymbols=false \
-            -p:SkipClientAppBuild=true
-        shell: bash
-
-      - name: Validate native local CLI
-        run: |
-          ./publish/SlimFaas local validate \
-            -f ./slimfaas.local.yaml \
-            -f ./slimfaas.local.dev.yaml \
-            --env-file ./.env.local.example
-        if: runner.os != 'Windows'
-        shell: bash
-
-      - name: Validate native local CLI (Windows)
-        run: |
-          .\publish\SlimFaas.exe local validate `
-            -f .\slimfaas.local.yaml `
-            -f .\slimfaas.local.dev.yaml `
-            --env-file .\.env.local.example
-        if: runner.os == 'Windows'
-        shell: powershell
-
-      - name: Build standalone local demo bundle
-        shell: bash
-        run: |
-          python .bin/package-local-demo.py --rid "${{ matrix.rid }}" \
-            --version "${{ needs.tags.outputs.new_version }}" --slimfaas-publish ./publish \
-            --output ./artifacts/local-demo
-
-      - name: Test local bundle without SDKs on PATH
-        shell: bash
-        run: python .bin/test-local-bundle.py "artifacts/local-demo/SlimFaas-Local-${{ matrix.rid }}.zip"
-
-      - name: Test local installer
-        if: runner.os != 'Windows'
-        shell: bash
-        run: python .bin/test-install-local-demo.py
-
-      - name: Upload local demo bundle and checksum
-        uses: actions/upload-artifact@v4
-        with:
-          name: SlimFaas-Local-${{ matrix.rid }}.zip
-          path: |
-            artifacts/local-demo/SlimFaas-Local-${{ matrix.rid }}.zip
-            artifacts/local-demo/SlimFaas-Local-${{ matrix.rid }}.zip.sha256
-          if-no-files-found: error
-
-      - name: Zip artifact (Linux & macOS)
-        if: runner.os != 'Windows'
-        run: |
-          cd publish
-          zip -r ../${{ matrix.zip }} .
-        shell: bash
-
-      - name: Zip artifact (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          Compress-Archive -Path publish\* -DestinationPath ${{ matrix.zip }}
-        shell: powershell
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.zip }}
-          path: ${{ matrix.zip }}
-          if-no-files-found: error
-
-  publish_native_release:
-    needs: [tags, build_slimfaas_mcp_aot, build_slimfaas_aot]
-    if: needs.tags.outputs.tag == 'release'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: SlimFaas*.zip
-          merge-multiple: true
-
-      - name: Create GitHub Release & upload assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.tags.outputs.new_version }}
-          name: "SlimFaas ${{ needs.tags.outputs.new_version }}"
-          body: |
-            Native AOT builds for SlimFaas and SlimFaasMcp, plus standalone SlimFaas local demos:
-
-            * Linux x64 and ARM64 (SlimFaas)
-            * Windows x64
-            * macOS x64 and ARM64
-
-          draft: false
-          prerelease: false
-          files: |
-            SlimFaas-*.zip
-            SlimFaas-Local-*.zip.sha256
-            SlimFaasMcp-*.zip
+          token: ${{ steps.app.outputs.token }}
+      - id: candidate
+        name: Select only the draft built by this source run
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build_slimfaas_planet_saver:
-    needs: tags
-    if: github.ref == 'refs/heads/main' && github.actor != 'dependabot[bot]'
-    runs-on: ubuntu-latest
-    environment: npm
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+        run: python3 .bin/release.py stable-candidate
+  publish:
+    needs: release_bot
+    if: needs.release_bot.outputs.created == 'true'
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+      checks: read
+      pull-requests: read
+      actions: write
+    uses: ./.github/workflows/release.yml
+    with:
+      mode: stable
+      tag: ${{ needs.release_bot.outputs.tag }}
+      use_existing_build: true
+  # Keep PyPI OIDC at the top level: PyPI does not support reusable callers.
+  publish_pypi:
+    needs: [release_bot, publish]
+    runs-on: ubuntu-24.04
+    environment: pypi
     permissions:
       contents: read
       id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.release_bot.outputs.tag }}
+      RELEASE_SHA: ${{ github.sha }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          check-latest: true
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - id: existing
+        run: python3 .bin/release.py registry-status
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        if: steps.existing.outputs.pypi_pending == 'true'
+        with:
+          packages-dir: artifacts/pypi-pending
+          attestations: true
+  finalize:
+    needs: [release_bot, publish, publish_pypi]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ needs.release_bot.outputs.tag }}
+      RELEASE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/verify-release
+        with:
+          version: ${{ env.RELEASE_VERSION }}
+          source_sha: ${{ env.RELEASE_SHA }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24.21.0'
           registry-url: https://registry.npmjs.org
-
-      - uses: pnpm/action-setup@v4
-        name: Install pnpm
+      - run: npm install --global --ignore-scripts npm@11.21.0
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
-          version: ${{ env.PNPM_VERSION }}
-          run_install: false
-
-      - name: pnpm ci
-        run: pnpm i --frozen-lockfile
-        working-directory: ./src/SlimFaasPlanetSaver
-
-      - name: Install an OIDC-compatible npm CLI
-        run: npm install --global npm@11
-
-      - name: Git Configuration
-        id: gitconfig
-        run: |
-          git config --global user.email "github-action@bot.com"
-          git config --global user.name "GitHub"
-
-      - name: pnpm version ${{ needs.tags.outputs.new_version }}
-        run: |
-          pnpm version ${{ needs.tags.outputs.new_version }}
-        working-directory: ./src/SlimFaasPlanetSaver
-
-      - name: Publish package to npm
-        run: npm publish --access public --tag "${{ needs.tags.outputs.npm_tag }}"
-        working-directory: ./src/SlimFaasPlanetSaver
-
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - run: python3 .bin/release.py finalize
   deploy_website:
+    needs: required
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           check-latest: true
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         name: Install pnpm
         with:
           version: ${{ env.PNPM_VERSION }}
@@ -693,28 +267,8 @@ jobs:
         working-directory: ./src/SlimFaasSite
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./src/SlimFaasSite/out
           cname: slimfaas.dev
-
-  change_log:
-    runs-on: ubuntu-latest
-    if: needs.tags.outputs.tag == 'release'
-    needs: [ tags ]
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GIT_TOKEN }}
-          fetch-depth: 0
-      - name: Commit and push
-        run: |
-          git config --global user.name "GitHub"
-          git config --global user.email "github-action@bot.com"
-          chmod +x ./.bin/generate-changelog.sh
-          ./.bin/generate-changelog.sh
-          git add .
-          git commit -s -m "[skip ci] Generate changelog to version ${{ needs.tags.outputs.new_version }}"
-          git tag ${{ needs.tags.outputs.new_version }}
-          git push --set-upstream origin "HEAD:main" --follow-tags -f

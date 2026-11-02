@@ -129,7 +129,7 @@ wheels = [
 
 [[package]]
 name = "slimfaas-client"
-version = "0.1.0"
+version = "0.84.16" # x-release-please-version
 source = { editable = "." }
 dependencies = [
     { name = "websockets", version = "16.1.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },

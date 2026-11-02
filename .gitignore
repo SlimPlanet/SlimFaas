@@ -484,3 +484,5 @@ wwwroot/
 slimfaas.local.debug.yaml
 slimfaas.local.secrets.yaml
 .slimfaas
+# Release builds capture platform-specific restore graphs as dependency evidence.
+**/packages.lock.json

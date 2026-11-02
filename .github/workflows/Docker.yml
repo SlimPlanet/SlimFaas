@@ -1,165 +1,99 @@
-name: Reusable Docker Build
-
+name: Build OCI archive
 on:
   workflow_call:
     inputs:
-      image_name:
+      name:
         required: true
         type: string
-      image_version:
+      file:
         required: true
         type: string
-      image_build_args:
-        required: true
-        type: string
-      image_context:
-        required: true
-        type: string
-      image_file:
+      context:
         required: true
         type: string
       platforms:
-        required: false
-        type: string
-        default: linux/amd64
-      push:
-        required: false
-        type: boolean
-        default: true
-      # --- Tous optionnels ---
-      readme_url:
-        description: "URL brute (raw) du README.md"
-        required: false
-        type: string
-        default: ""
-      image_description:
-        description: "Courte description de l'image (opencontainers)"
-        required: false
-        type: string
-        default: ""
-      license:
-        description: "Licence du projet"
-        required: false
-        type: string
-        default: ""
-      keywords:
-        description: "Mots-clés séparés par des virgules"
-        required: false
-        type: string
-        default: ""
-      logo_url:
-        description: "URL du logo (PNG ou SVG)"
-        required: false
-        type: string
-        default: ""
-    secrets:
-      DOCKER_USERNAME:
         required: true
-      DOCKER_PASSWORD:
+        type: string
+      version:
         required: true
-
+        type: string
+      source_sha:
+        required: true
+        type: string
+permissions:
+  contents: read
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            arch: amd64
+            platform: linux/amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            platform: linux/arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v3
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Cache Docker layers
-        uses: actions/cache@v3
+          version: v0.38.0
+          driver-opts: image=moby/buildkit:v0.34.0
+      - run: mkdir -p artifacts/release
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ inputs.image_name }}
-
-      - name: Compose optional labels
-        run: |
-          {
-            echo 'EXTRA_LABELS<<EOF'
-            if [ -n "${{ inputs.readme_url }}" ]; then
-              echo "io.artifacthub.package.readme-url=${{ inputs.readme_url }}"
-            fi
-            if [ -n "${{ inputs.license }}" ]; then
-              echo "io.artifacthub.package.license=${{ inputs.license }}"
-            fi
-            if [ -n "${{ inputs.keywords }}" ]; then
-              echo "io.artifacthub.package.keywords=${{ inputs.keywords }}"
-            fi
-            if [ -n "${{ inputs.logo_url }}" ]; then
-              echo "io.artifacthub.package.logo-url=${{ inputs.logo_url }}"
-            fi
-            if [ -n "${{ inputs.image_description }}" ]; then
-              echo "org.opencontainers.image.description=${{ inputs.image_description }}"
-            fi
-            echo 'EOF'
-          } >> "$GITHUB_ENV"
-
-      - name: Build image (no push)
-        if: inputs.push != true
-        uses: docker/build-push-action@v5
-        with:
-          context: ${{ inputs.image_context }}
-          file: ${{ inputs.image_file }}
-          build-args: ${{ inputs.image_build_args }}
+          context: ${{ inputs.context }}
+          file: ${{ inputs.file }}
+          platforms: ${{ matrix.platform }}
           push: false
-          platforms: ${{ inputs.platforms }}
+          outputs: type=oci,dest=artifacts/release/${{ inputs.name }}-${{ matrix.arch }}.oci.tar
+          tags: axaguildev/${{ inputs.name }}:${{ inputs.version }}
+          build-args: |
+            RELEASE_VERSION=${{ inputs.version }}
+            SOURCE_REVISION_ID=${{ inputs.source_sha }}
           labels: |
-            ${{ steps.meta.outputs.labels }}
-            ${{ env.EXTRA_LABELS }}
-          tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: Build and push Docker image (main -> latest + version)
-        if: github.ref == 'refs/heads/main' && inputs.push == true
-        uses: docker/build-push-action@v5
+            org.opencontainers.image.source=https://github.com/SlimPlanet/SlimFaas
+            org.opencontainers.image.revision=${{ inputs.source_sha }}
+            org.opencontainers.image.version=${{ inputs.version }}
+            org.opencontainers.image.licenses=Apache-2.0
+          provenance: mode=max
+          sbom: generator=docker.io/docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9 # v1.12.0
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          context: ${{ inputs.image_context }}
-          file: ${{ inputs.image_file }}
-          build-args: ${{ inputs.image_build_args }}
-          push: true
-          tags: ${{ inputs.image_name }}:${{ inputs.image_version }},${{ inputs.image_name }}:latest
-          platforms: ${{ inputs.platforms }}
-          labels: |
-            ${{ steps.meta.outputs.labels }}
-            ${{ env.EXTRA_LABELS }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
-
-      - name: Build and push Docker image (branches ≠ main -> version)
-        if: github.ref != 'refs/heads/main' && inputs.push == true
-        uses: docker/build-push-action@v5
+          name: platform-${{ inputs.name }}-${{ matrix.arch }}
+          path: artifacts/release/*.oci.tar
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7
+  combine:
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          context: ${{ inputs.image_context }}
-          file: ${{ inputs.image_file }}
-          build-args: ${{ inputs.image_build_args }}
-          push: true
-          tags: ${{ inputs.image_name }}:${{ inputs.image_version }}
-          platforms: ${{ inputs.platforms }}
-          labels: |
-            ${{ steps.meta.outputs.labels }}
-            ${{ env.EXTRA_LABELS }}
-          cache-from: type=local,src=/tmp/.buildx-cache
-          cache-to: type=local,dest=/tmp/.buildx-cache
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: platform-${{ inputs.name }}-*
+          merge-multiple: true
+          path: artifacts/platforms
+      - name: Combine the native platform builds without rebuilding
+        env:
+          IMAGE_NAME: ${{ inputs.name }}
+        run: |
+          python3 .bin/merge-release-images.py --output "artifacts/release/$IMAGE_NAME.oci.tar" \
+            "artifacts/platforms/$IMAGE_NAME-amd64.oci.tar" "artifacts/platforms/$IMAGE_NAME-arm64.oci.tar"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-image-${{ inputs.name }}
+          path: artifacts/release/*.oci.tar
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 7

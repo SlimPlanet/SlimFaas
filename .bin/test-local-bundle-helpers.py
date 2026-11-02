@@ -19,6 +19,22 @@ spec.loader.exec_module(bundle)
 
 
 class BundleConfigurationTests(unittest.TestCase):
+    def test_bundle_labels_remain_local_but_release_versions_reach_msbuild(self):
+        spec = importlib.util.spec_from_file_location("packager", Path(__file__).with_name("package-local-demo.py"))
+        packager = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(packager)
+        for version in ("local-check", "0.85.0-alpha.42"):
+            with self.subTest(version=version), patch.object(packager.subprocess, "run") as run, \
+                    patch.object(packager.subprocess, "check_output", return_value="a" * 40) as revision:
+                packager.publish("Fibonacci", "osx-arm64", Path("output"), version=version)
+                command = run.call_args.args[0]
+                if version == "local-check":
+                    revision.assert_not_called()
+                    self.assertFalse(any(arg.startswith("-p:Version=") for arg in command))
+                else:
+                    self.assertIn("-p:Version=" + version, command)
+                    self.assertIn("-p:SourceRevisionId=" + "a" * 40, command)
+
     def test_default_entrypoint_and_manifests_remain_compatible(self):
         args = bundle.parse_arguments(["demo.zip"])
         self.assertEqual(args.base_url, "http://127.0.0.1:30020")

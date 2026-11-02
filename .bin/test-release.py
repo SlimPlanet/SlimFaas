@@ -1,0 +1,313 @@
+#!/usr/bin/env python3
+"""Release failure injection tests. No credentials, network, or registries required."""
+import hashlib
+import importlib.util
+import io
+import json
+import os
+from pathlib import Path
+import subprocess
+import tarfile
+import tempfile
+import unittest
+from unittest.mock import patch
+import urllib.error
+import zipfile
+
+import release_lib as lib
+
+spec = importlib.util.spec_from_file_location("release", Path(__file__).with_name("release.py"))
+release = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(release)
+SOURCE = "a" * 40
+VERSION = "0.85.0-alpha.42"
+PRODUCTS = {"native": [{"product": "SlimFaas", "rid": "linux-x64"}],
+            "images": [{"name": "slimfaas", "platforms": "linux/amd64,linux/arm64"}]}
+
+
+def zip_bytes(entries):
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w") as archive:
+        for name, value in entries.items():
+            archive.writestr(name, value)
+    return output.getvalue()
+
+
+def image_fixture(path, source=SOURCE, architectures=("amd64", "arm64", "unknown"), empty_attestations=False):
+    blobs = {}
+
+    def descriptor(value):
+        data = json.dumps(value).encode()
+        digest = hashlib.sha256(data).hexdigest()
+        blobs["blobs/sha256/" + digest] = data
+        return {"digest": "sha256:" + digest, "size": len(data)}
+
+    children = []
+    for arch in architectures:
+        config_value = {"os": "unknown" if arch == "unknown" else "linux", "architecture": arch,
+                             "config": {"Labels": {"org.opencontainers.image.revision": source,
+                                                   "org.opencontainers.image.version": VERSION}}}
+        empty = arch == "unknown" and empty_attestations
+        config = descriptor({} if empty else config_value)
+        child = {"schemaVersion": 2, "config": config, "layers": []}
+        if empty:
+            child["artifactType"] = "application/vnd.docker.attestation.manifest.v1+json"
+        children.append(descriptor(child))
+    root = descriptor({"schemaVersion": 2, "manifests": children})
+    blobs["index.json"] = json.dumps({"schemaVersion": 2, "manifests": [root]}).encode()
+    with tarfile.open(path, "w") as archive:
+        for name, data in blobs.items():
+            item = tarfile.TarInfo(name)
+            item.size = len(data)
+            archive.addfile(item, io.BytesIO(data))
+
+
+class Versions(unittest.TestCase):
+    def test_conventional_commits_and_breaking_changes(self):
+        for commits, expected in [(["fix: correct routing"], "0.84.17"),
+                                  (["feat(api): stream"], "0.85.0"),
+                                  (["fix!: remove old API"], "1.0.0"),
+                                  (["feat: new API\n\nBREAKING CHANGE: removed v1"], "1.0.0")]:
+            with self.subTest(commits=commits):
+                self.assertEqual(lib.next_version("0.84.16", commits), expected)
+
+    def test_free_text_cannot_select_a_channel_or_bump(self):
+        self.assertEqual(lib.next_version("0.84.16", ["docs: explain release alpha beta"]), "0.84.17")
+        with self.assertRaisesRegex(ValueError, "Release-As"):
+            lib.next_version("0.84.16", ["docs: notes\nRelease-As: 10.0.0"])
+
+    def test_pep440(self):
+        for version, expected in [(VERSION, "0.85.0a42"), ("1.0.0-beta.7", "1.0.0b7"),
+                                  ("1.0.0-dev.1", "1.0.0.dev1"), ("1.0.0", "1.0.0")]:
+            self.assertEqual(lib.python_version(version), expected)
+
+    def test_reject_aliases_and_shell_paths(self):
+        for version in ["v0.84.16", "../0.84.16", "0.84.016", "1.0.0-alpha", "1.0.0+sha", "1.0.0\n"]:
+            with self.subTest(version=version), self.assertRaises(ValueError):
+                lib.version_parts(version)
+
+    def test_cli_output_directory_cannot_escape_artifacts(self):
+        for path in (lib.ROOT, lib.ROOT / "artifacts/../.github", Path(tempfile.gettempdir())):
+            with self.subTest(path=path), self.assertRaisesRegex(ValueError, "outside"):
+                lib.release_directory(path)
+        self.assertEqual(lib.release_directory(lib.ROOT / "artifacts/release"),
+                         (lib.ROOT / "artifacts/release").resolve())
+
+
+class Inventory(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temporary.cleanup)
+        self.directory = Path(self.temporary.name)
+        self.catalog = patch.object(lib, "products", return_value=PRODUCTS)
+        self.catalog.start()
+        self.addCleanup(self.catalog.stop)
+        for name in lib.payload_names(VERSION):
+            (self.directory / name).write_bytes(b"built and tested artifact")
+            for sbom in lib.sbom_names(name):
+                (self.directory / sbom).write_text('{"test": true}')
+        image_fixture(self.directory / "slimfaas.oci.tar")
+        self.manifest = lib.make_inventory(self.directory, VERSION, SOURCE, "alpha")
+
+    def test_complete_candidate(self):
+        self.assertEqual(lib.verify_inventory(self.directory, VERSION, SOURCE), self.manifest)
+
+    def test_missing_or_corrupt_artifact_is_fatal(self):
+        path = self.directory / "SlimFaas-linux-x64.zip"
+        path.write_bytes(b"tampered")
+        with self.assertRaisesRegex(ValueError, "checksum"):
+            lib.verify_inventory(self.directory, VERSION, SOURCE)
+        path.unlink()
+        with self.assertRaisesRegex(ValueError, "checksum"):
+            lib.verify_inventory(self.directory, VERSION, SOURCE)
+
+    def test_corrupt_index_and_wrong_source_are_fatal(self):
+        with self.assertRaisesRegex(ValueError, "source SHA"):
+            lib.verify_inventory(self.directory, VERSION, "b" * 40)
+        (self.directory / "SHA256SUMS").write_text("")
+        with self.assertRaisesRegex(ValueError, "Checksum index"):
+            lib.verify_inventory(self.directory, VERSION, SOURCE)
+
+    def test_duplicated_manifest_entry_is_fatal(self):
+        self.manifest["files"].append(self.manifest["files"][0])
+        lib.write_json(self.directory / "release.json", self.manifest)
+        with self.assertRaisesRegex(ValueError, "duplicated"):
+            lib.verify_inventory(self.directory, VERSION, SOURCE)
+
+    def test_unlisted_files_and_absent_sbom_are_fatal(self):
+        extra = self.directory / "unexpected.exe"
+        extra.touch()
+        with self.assertRaisesRegex(ValueError, "Unlisted"):
+            lib.verify_inventory(self.directory, VERSION, SOURCE)
+        extra.unlink()
+        next(self.directory.glob("*.sbom.spdx.json")).unlink()
+        with self.assertRaisesRegex(ValueError, "Missing SBOM"):
+            lib.make_inventory(self.directory, VERSION, SOURCE, "alpha")
+
+    def test_wrong_image_source_is_fatal(self):
+        image_fixture(self.directory / "slimfaas.oci.tar", source="b" * 40)
+        with self.assertRaisesRegex(ValueError, "OCI source/version"):
+            lib.make_inventory(self.directory, VERSION, SOURCE, "alpha")
+
+    def test_identity_failure_prevents_any_publication(self):
+        failure = subprocess.CalledProcessError(1, "cosign")
+        with patch.object(release, "run", side_effect=failure) as command:
+            with self.assertRaises(subprocess.CalledProcessError):
+                release.verify(self.directory, VERSION, SOURCE)
+            self.assertEqual(command.call_count, 1)
+            self.assertIn("--certificate-oidc-issuer", command.call_args.args)
+
+    def test_provenance_requires_exact_source_and_workflow(self):
+        with patch.object(release, "run") as command:
+            release.verify(self.directory, VERSION, SOURCE)
+        invocation = command.call_args.args
+        self.assertIn(SOURCE, invocation)
+        self.assertIn("--signer-workflow", invocation)
+        self.assertIn("--deny-self-hosted-runners", invocation)
+
+
+class CollisionAndResume(unittest.TestCase):
+    def test_only_the_source_run_selects_an_existing_stable_draft(self):
+        version = "0.85.0"
+        for state, tag_sha, expected in ((True, SOURCE, True), (True, "b" * 40, False),
+                                         (False, SOURCE, False), (None, SOURCE, False)):
+            releases = [] if state is None else [{"tag_name": version, "draft": state}]
+            with self.subTest(draft=state, tag_sha=tag_sha), \
+                    patch.object(release, "check_metadata", return_value=version), \
+                    patch.object(release, "gh", return_value=releases), \
+                    patch.object(release, "remote_tag_commit", return_value=tag_sha), \
+                    patch.object(release, "emit") as emit:
+                release.stable_candidate(SOURCE)
+                emit.assert_called_once_with(created=expected, tag=version if expected else "")
+
+    def test_activation_preserves_existing_environment_approvals(self):
+        spec = importlib.util.spec_from_file_location("activation", Path(__file__).with_name("configure-release-repository.py"))
+        activation = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(activation)
+        existing = {"can_admins_bypass": False, "protection_rules": [
+            {"type": "wait_timer", "wait_timer": 5},
+            {"type": "required_reviewers", "prevent_self_review": True,
+             "reviewers": [{"type": "Team", "reviewer": {"id": 42, "name": "Maintainers"}}]}]}
+        settings = activation.environment_settings(existing)
+        self.assertEqual(settings["reviewers"], [{"type": "Team", "id": 42}])
+        self.assertEqual(settings["wait_timer"], 5)
+        self.assertTrue(settings["prevent_self_review"])
+        self.assertFalse(settings["can_admins_bypass"])
+        self.assertNotIn("reviewers", activation.environment_settings({}))
+
+    def test_platform_images_are_combined_without_changing_their_blobs(self):
+        spec = importlib.util.spec_from_file_location("merge_images", Path(__file__).with_name("merge-release-images.py"))
+        merger = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(merger)
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            inputs = [directory / "amd64.tar", directory / "arm64.tar"]
+            for path, arch in zip(inputs, ("amd64", "arm64")):
+                image_fixture(path, architectures=(arch, "unknown"), empty_attestations=True)
+            output = directory / "combined.tar"
+            merger.merge_archives(inputs, output)
+            _, platforms = lib.oci_identity(output)
+            self.assertEqual([entry["platform"] for entry in platforms], ["linux/amd64", "linux/arm64"])
+            with tarfile.open(output) as combined:
+                for path in inputs:
+                    with tarfile.open(path) as original:
+                        for member in original:
+                            if member.name.startswith("blobs/"):
+                                self.assertEqual(original.extractfile(member).read(), combined.extractfile(member.name).read())
+            with self.assertRaisesRegex(ValueError, "exactly amd64 and arm64"):
+                merger.merge_archives([inputs[0], inputs[0]], output)
+
+    def test_corrupt_tool_download_does_not_replace_installed_tool(self):
+        spec = importlib.util.spec_from_file_location("installer", Path(__file__).with_name("install-release-tools.py"))
+        installer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installer)
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary)
+            tool = directory / "cosign"
+            tool.write_bytes(b"previous verified tool")
+            with patch("urllib.request.urlopen", return_value=io.BytesIO(b"corrupt download")):
+                with self.assertRaisesRegex(ValueError, "Checksum mismatch"):
+                    installer.install(["cosign"], directory)
+            self.assertEqual(tool.read_bytes(), b"previous verified tool")
+
+    def test_tool_download_rejects_traversal_and_unexpected_endpoints(self):
+        spec = importlib.util.spec_from_file_location("installer", Path(__file__).with_name("install-release-tools.py"))
+        installer = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(installer)
+        valid = "https://github.com/cli/cli/releases/download/v2.102.0/gh.tar.gz"
+        self.assertEqual(installer.download_url(valid), valid)
+        for value in (valid.replace("https:", "http:"), valid + "?redirect=evil", valid + "#fragment",
+                      valid.replace("github.com", "github.com.evil"), valid.replace("v2.102.0", ".."),
+                      valid.replace("v2.102.0", "%2e%2e"), valid.replace("v2.102.0", "../..")):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                installer.download_url(value)
+
+    def test_package_collision_and_nuget_repository_signature(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "client.nupkg"
+            original = {"lib/client.dll": b"the binary", "client.nuspec": b"version metadata"}
+            path.write_bytes(zip_bytes(original))
+            self.assertFalse(lib.check_published_file(path, None))
+            self.assertTrue(lib.check_published_file(path, zip_bytes(dict(original, **{".signature.p7s": b"registry signature"})), nuget=True))
+            with self.assertRaisesRegex(ValueError, "collision"):
+                lib.check_published_file(path, zip_bytes({"lib/client.dll": b"different"}), nuget=True)
+            with self.assertRaisesRegex(ValueError, "collision"):
+                lib.check_published_file(path, b"different")
+
+    def test_only_404_means_absent(self):
+        for code in (401, 403, 429, 500, 503):
+            with patch("urllib.request.urlopen", side_effect=urllib.error.HTTPError("url", code, "failure", {}, None)):
+                with self.assertRaises(urllib.error.HTTPError):
+                    lib.download("https://example.test/package")
+        with patch("urllib.request.urlopen", side_effect=urllib.error.HTTPError("url", 404, "missing", {}, None)):
+            self.assertIsNone(lib.download("https://example.test/package"))
+
+    def test_zip_path_traversal(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            for name in ("../escape", "/escape", "C:\\escape", "a\\..\\escape"):
+                with self.subTest(name=name), self.assertRaises(ValueError):
+                    lib.safe_extract_zip(io.BytesIO(zip_bytes({name: b"unsafe"})), temporary)
+
+    def test_resume_only_failed_jobs_of_original_run(self):
+        original = {"head_sha": SOURCE, "head_repository": {"full_name": lib.REPOSITORY},
+                    "path": ".github/workflows/main.yml", "status": "completed", "conclusion": "failure"}
+        with patch.object(release, "gh", return_value=original), patch.object(release, "run") as command:
+            release.resume_run({"run_id": "123", "source_sha": SOURCE})
+            self.assertEqual(command.call_count, 1)
+            self.assertTrue(command.call_args.args[-1].endswith("/123/rerun-failed-jobs"))
+            original["head_sha"] = "b" * 40
+            with self.assertRaisesRegex(ValueError, "source"):
+                release.resume_run({"run_id": "123", "source_sha": SOURCE})
+            self.assertEqual(command.call_count, 1)
+
+    def test_preview_cannot_run_from_fork_or_branch(self):
+        for repository, ref in [("someone/SlimFaas", "refs/heads/main"), (lib.REPOSITORY, "refs/heads/topic")]:
+            with patch.dict(os.environ, GITHUB_SHA=SOURCE, GITHUB_REPOSITORY=repository, GITHUB_REF=ref, RELEASES_ENABLED="true"):
+                with self.assertRaisesRegex(ValueError, "main workflow"):
+                    release.prepare("alpha", "")
+
+    def test_failed_registry_verification_never_promotes_channels(self):
+        with patch.object(release, "registry_files", side_effect=ValueError("collision")), patch.object(release, "run") as command:
+            with self.assertRaisesRegex(ValueError, "collision"):
+                release.finalize(Path("unused"), {})
+            command.assert_not_called()
+
+    def test_historical_v_tag_cannot_replace_canonical_tag(self):
+        with patch.object(release, "run", return_value="b" * 40) as command:
+            with self.assertRaisesRegex(ValueError, "source"):
+                release.check_tag("0.84.16", SOURCE)
+            self.assertIn("refs/tags/0.84.16^{commit}", command.call_args.args)
+
+    def test_remote_tag_must_still_match_before_finalization(self):
+        with patch.object(release, "gh", return_value={"object": {"type": "commit", "sha": "b" * 40}}):
+            with self.assertRaisesRegex(ValueError, "signed source"):
+                release.check_remote_tag("0.84.16", SOURCE)
+        with patch.object(release, "gh", side_effect=[
+            {"object": {"type": "tag", "sha": "b" * 40}},
+            {"object": {"type": "commit", "sha": SOURCE}},
+        ]):
+            release.check_remote_tag("0.84.16", SOURCE)
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

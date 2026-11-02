@@ -1,0 +1,10 @@
+# GitHub supports concurrency.queue, but actionlint v1.7.12 does not yet parse
+# this key: https://github.com/rhysd/actionlint/issues/657. Values are deliberately
+# literal `max` with cancel-in-progress=false; GitHub also validates this syntax.
+paths:
+  .github/workflows/main.yml:
+    ignore:
+      - '^unexpected key "queue" for "concurrency" section\.'
+  .github/workflows/release.yml:
+    ignore:
+      - '^unexpected key "queue" for "concurrency" section\.'

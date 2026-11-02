@@ -4,12 +4,21 @@ WORKDIR /repo
 COPY Directory.Build.props Directory.Build.targets Directory.Packages.props global.json .editorconfig ./
 COPY eng/ eng/
 COPY src/SlimFaasKafka/SlimFaasKafka.csproj src/SlimFaasKafka/
-RUN dotnet restore src/SlimFaasKafka/SlimFaasKafka.csproj
+ARG RELEASE_VERSION=0.0.0-dev.0
+ARG SOURCE_REVISION_ID
+RUN dotnet restore src/SlimFaasKafka/SlimFaasKafka.csproj \
+    -p:RestorePackagesWithLockFile=true
 COPY src/SlimFaasKafka/ src/SlimFaasKafka/
-RUN dotnet publish src/SlimFaasKafka/SlimFaasKafka.csproj -c Release -o /app/publish --no-restore
+RUN dotnet publish src/SlimFaasKafka/SlimFaasKafka.csproj -c Release -o /app/publish --no-restore \
+    -p:Version="$RELEASE_VERSION" \
+    -p:SourceRevisionId="$SOURCE_REVISION_ID" \
+    -p:RestorePackagesWithLockFile=true
 
 # Runtime stage
+RUN mkdir -p /app/dependencies && find . -name packages.lock.json -exec cp --parents {} /app/dependencies/ \;
+
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.12 AS final
+COPY --from=build /app/dependencies /usr/share/slimfaas/dependencies
 WORKDIR /app
 
 COPY --from=build /app/publish ./

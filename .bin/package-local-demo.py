@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -13,7 +14,7 @@ REPOSITORY = Path(__file__).resolve().parent.parent
 RIDS = ("linux-x64", "linux-arm64", "osx-x64", "osx-arm64", "win-x64")
 
 
-def publish(project, rid, destination, aot=False, folder="src"):
+def publish(project, rid, destination, aot=False, folder="src", version=None):
     if aot:
         # Build before MSBuild evaluates wwwroot globs on a fresh checkout.
         dashboard = REPOSITORY / "src/SlimFaas/ClientApp"
@@ -21,13 +22,20 @@ def publish(project, rid, destination, aot=False, folder="src"):
         if not (dashboard / "node_modules").is_dir():
             subprocess.run([npm, "ci"], cwd=dashboard, check=True)
         subprocess.run([npm, "run", "build"], cwd=dashboard, check=True)
+    version_args = []
+    # Local tutorial labels such as "local-check" remain valid bundle names;
+    # production builders validate SemVer before invoking this helper.
+    if version and re.fullmatch(r"\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?", version, re.ASCII):
+        revision = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=REPOSITORY, text=True).strip()
+        version_args = [f"-p:Version={version}", "-p:RestorePackagesWithLockFile=true",
+                        f"-p:SourceRevisionId={revision}"]
     subprocess.run([
         "dotnet", "publish", str(REPOSITORY / folder / project / f"{project}.csproj"),
         "-c", "Release", "-r", rid, "-o", str(destination),
         "--self-contained", "true", "-p:UseAppHost=true",
         f"-p:PublishAot={str(aot).lower()}", f"-p:PublishTrimmed={str(aot).lower()}",
         "-p:DebugType=none", "-p:DebugSymbols=false", "-p:SkipClientAppBuild=true",
-    ], cwd=REPOSITORY, check=True)
+    ] + version_args, cwd=REPOSITORY, check=True)
 
 
 def main():
@@ -46,9 +54,9 @@ def main():
         if args.slimfaas_publish:
             shutil.copytree(args.slimfaas_publish.resolve(), bundle / "runtime")
         else:
-            publish("SlimFaas", args.rid, bundle / "runtime", aot=True)
-        publish("Fibonacci", args.rid, bundle / "functions/fibonacci", folder="samples")
-        publish("FibonacciBatch", args.rid, bundle / "jobs/fibonacci-batch", folder="samples")
+            publish("SlimFaas", args.rid, bundle / "runtime", aot=True, version=args.version)
+        publish("Fibonacci", args.rid, bundle / "functions/fibonacci", folder="samples", version=args.version)
+        publish("FibonacciBatch", args.rid, bundle / "jobs/fibonacci-batch", folder="samples", version=args.version)
         suffix = ".exe" if args.rid == "win-x64" else ""
         for executable in ("runtime/SlimFaas", "functions/fibonacci/Fibonacci", "jobs/fibonacci-batch/FibonacciBatch"):
             path = bundle / (executable + suffix)
