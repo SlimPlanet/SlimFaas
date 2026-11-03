@@ -49,7 +49,7 @@ The dashboard follows the same visual language as slimfaas.dev: primary blue, li
 - **Live Stream → Traffic** opens the zoomable live canvas and its searchable actor list or event journal.
 - **Live Stream → Data** lists set keys and file metadata, with expiry and file sizes.
 - **Live Stream → Scaling** explains each function’s scaling decisions and offers a read-only playground.
-- **Dead Letter Queues** provides catalog, filters, failure details, explicit 64 KiB inert body previews/downloads, and confirmed replay/deletion. Traffic shows separate DLQ actors and committed transition links. Both surfaces require `SlimFaas:EnableFront=true`, `SlimFaas:DeadLetterQueue:EnableFront=true` (default false), and dedicated DLQ authorization. See [DLQ configuration and visibility](dead-letter-queues.md#visibility-and-dashboard-defaults).
+- **Dead Letter Queues** provides catalog, filters, failure details, explicit 64 KiB inert body previews/downloads, and confirmed replay/deletion. Traffic combines each function's asynchronous queue and DLQ in one box with separate counters. Both surfaces require `SlimFaas:EnableFront=true`, `SlimFaas:DeadLetterQueue:EnableFront=true` (default false), and dedicated DLQ authorization. See [DLQ configuration and visibility](dead-letter-queues.md#visibility-and-dashboard-defaults).
 - **Streams** provides retained history, subscriber progress and bounded body previews. It requires global front enablement, `SlimFaas:Streams:EnableFront=true` (default false) and dedicated management access. `SlimFaas:Streams:DefaultVisibility` defaults to Private independently of each Stream's visibility. Disabled or restricted callers see no Stream navigation/live actors/events; direct routes explain the reason. See [Stream configuration](streams.md#visibility-and-dashboard-defaults).
 
 The views have stable links: `/#/overview`, `/#/live/traffic`, `/#/live/data` and `/#/live/scaling`. Select a function or job name in Overview to open its configuration and paginated instance details. Tables show 100 items per page; completed jobs stay available until their configured retention expires. Executions are attached by the complete configuration name, so configurations such as `fibonacci` and `fibonacci5` never share the same execution row.
@@ -112,7 +112,7 @@ When `SlimFaas:EnableFront` is enabled, Traffic draws a canvas map of external c
 Only **job queues** appear left of SlimFaas: **job ← job:queue ← SlimFaas**.
 Known empty job queues remain visible with a zero count, and queued executions
 animate from SlimFaas into the queue and then to the actual job execution.
-Function queues, DLQs and Streams remain on the right. This is a layout change,
+Function queues (including their associated DLQ) and Streams remain on the right. This is a layout change,
 not a change to queue dispatch or dependency behavior. Try the
 [persistent WebSocket job exercise](guided-tour.md#11-run-an-independent-websocket-job).
 
@@ -123,6 +123,17 @@ The journal retains at most 5,000 received events. **Pause** freezes the current
 **Animation speed** offers **Fast (450 ms)**, **Normal (800 ms)** and **Slow (1,400 ms)** for each hop between two actors and remembers the choice in this browser. Fast is the default. This duration is a visual convention, not measured function latency. New arrivals use the browser's monotonic receipt clock, so an older server timestamp does not hide a live event. Returning from Pause, reconnecting or restoring a background tab does not replay stale animations.
 
 Requests use blue circles, publications purple diamonds, queue messages amber squares and replies grey outlined circles. Queue groups show a FIFO symbol, directional arrows and their exact current length; an observed queue remains visible when empty. External callers use a person and incoming-arrow symbol, covering people and external systems.
+
+An asynchronous function queue and its authorized DLQ share **one box**, with
+independent **Async** (queued) and **DLQ** (retained) counters, including zero.
+An unavailable queue length stays unknown; it is not inferred from the DLQ count.
+The box survives function removal while retained failures remain. Its details
+link to DLQ management, and selecting it includes capture/replay events in the
+journal. These transitions update counters inside the box rather than inventing
+a network hop between two queues. Job queues remain separate, even when a job
+and function have the same name. DLQ counters require DLQ dashboard access.
+
+![One asynchronous queue box with separate Async and DLQ counters](images/dashboard/traffic-async-dlq.png)
 
 ### Ordered request and publication paths
 
@@ -204,6 +215,13 @@ GET /internal/activity-events?since=<unix-ms>
 This endpoint is intended for peer SlimFaas nodes inside the namespace.
 
 ### Queue deliveries and the leader
+
+Stream deliveries to WebSocket functions animate **Stream -> selected connection**,
+followed by **connection -> Stream** for the matching ACK. A fresh registration
+can deliver before its Stream appears in the next SSE inventory snapshot.
+The live receipt waits up to five seconds for that metadata instead of being
+silently consumed; expired animation waits appear in the omitted count.
+This changes playback only, not delivery, retention, or ACK behavior.
 
 A queued delivery produces correlated `dequeue` and `request_out` records. Both remain in the journal, but the canvas represents the attempt once, starting at **Queue → destination replica**. A retry has a new attempt identity and remains visible. This applies to HTTP and WebSocket deliveries without changing the WebSocket client protocol. A queue observed through peer activity also remains visible when its inventory is absent locally; its label is **Queue length unknown** until a snapshot supplies the count.
 

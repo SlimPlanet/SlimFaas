@@ -67,8 +67,12 @@ export default function NetworkMap(props: Props) {
   const nextObservedQueues = observedQueues(queues, input.activity);
   if (JSON.stringify(nextObservedQueues) !== JSON.stringify(observedQueuesRef.current)) observedQueuesRef.current = nextObservedQueues;
   const unknownQueues = observedQueuesRef.current;
-  const topology = useMemo(() => buildTopology(input.functions, input.jobs,
-    queues.filter(q => isJobQueueName(q.Name) || q.Length > 0 || input.queuesWithActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams),
+  const topology = useMemo(() => {
+    const withDeadLetters = new Set(input.deadLetters?.map(summary => summary.Function));
+    return buildTopology(input.functions, input.jobs,
+      queues.filter(q => isJobQueueName(q.Name) || q.Length > 0 || input.queuesWithActivity.has(q.Name) || withDeadLetters.has(q.Name)),
+      input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams);
+  },
   [input.functions, input.jobs, queues, input.queuesWithActivity, input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams]);
   const node = selected ? topology.byId.get(selected) : null;
   const nodes = useMemo(() => filterNodes(topology, search), [topology, search]);

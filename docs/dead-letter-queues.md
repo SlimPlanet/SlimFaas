@@ -89,8 +89,12 @@ Dashboard links:
 - `/#/dead-letters`: searchable function catalog.
 - `/#/dead-letters/billing`: filtered, paginated retained messages.
 - `/#/dead-letters/billing/messages/{messageId}`: details and replay lineage.
-- Live Stream > Traffic: distinct active queue and DLQ actors, retained counts,
-  function/event filters, and links from function details and journal entries.
+- Live Stream > Traffic: one box per function combines its asynchronous queue
+  and DLQ, with separate queued/retained counters (including zero), function/event
+  filters, and links from queue/function details and journal entries. Retained
+  failures remain visible after function removal; job queues stay separate.
+
+![Combined asynchronous queue and DLQ counters in live traffic](images/dashboard/traffic-async-dlq.png)
 
 Bodies load only after **Preview body** or **Download body**. Preview is capped
 at 64 KiB, marks truncation, and displays HTML/JSON as inert text. Download

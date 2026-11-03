@@ -7,6 +7,7 @@ export interface MapNode {
   id: string; label: string; kind: 'function' | 'job' | 'slimfaas' | 'queue' | 'external' | 'stream';
   role?: SlimFaasNodeInfo['Role'];
   state?: ReturnType<typeof functionState>; parent: string | null; x: number; y: number; status: string; detail: string;
+  queueLength?: number; deadLetterCount?: number;
 }
 export interface MapGroup extends MapNode { width: number; height: number; children: MapNode[] }
 export interface Topology {
@@ -89,12 +90,18 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
     }), 'Seen in activity; absent from this node’s current inventory');
     actors.set(fn.name, group.id);
   }
-  for (const q of [...queues].sort((a, b) => a.Name.localeCompare(b.Name))) create('queue', q.Name, `${q.Length} queued`, []);
-  for (const name of unknownQueues) create('queue', name, 'Queue length unknown', [], 'Seen in traffic; absent from this node’s inventory');
-  for (const dlq of deadLetters) {
-    const name = `dlq:${dlq.Function}`;
-    const group = create('queue', name, `DLQ · ${dlq.Count} retained`, [], `Dead Letter Queue · ${dlq.FunctionExists ? 'Function present' : 'Function removed'}`);
-    actors.set(name, group.id);
+  const queueLengths = new Map<string, number | undefined>(queues.map(queue => [queue.Name, queue.Length]));
+  for (const name of unknownQueues) if (!queueLengths.has(name)) queueLengths.set(name, undefined);
+  const summaries = new Map(deadLetters.map(summary => [summary.Function, summary]));
+  for (const name of summaries.keys()) if (!queueLengths.has(name)) queueLengths.set(name, undefined);
+  for (const [name, length] of [...queueLengths].sort(([a], [b]) => a.localeCompare(b))) {
+    const dlq = summaries.get(name);
+    const status = length === undefined ? 'Queue length unknown' : `${length} queued`;
+    const group = create('queue', name, status + (dlq ? ` · DLQ ${dlq.Count} retained` : ''), [],
+      dlq ? `Async queue · Dead Letter Queue · ${dlq.FunctionExists ? 'Function present' : 'Function removed'}` :
+        length === undefined ? 'Seen in traffic; absent from this node’s inventory' : '');
+    group.queueLength = length; group.deadLetterCount = dlq?.Count;
+    if (dlq) actors.set(`dlq:${name}`, group.id);
   }
   for (const stream of streams) {
     const group = create('stream', stream.Name, `${stream.RetainedMessageCount} retained · ${stream.VisibleFunctionCount} visible functions`, [],
@@ -165,12 +172,13 @@ export function eventPath(topology: Topology, event: NetworkActivityEvent): stri
   let path: string[];
   if (event.StreamName) {
     const stream = nodeId('stream', event.StreamName);
+    if (!topology.byId.has(stream)) return [];
+    const destination = (event.TargetPod && topology.pods.get(`${event.Target}/${event.TargetPod}`)) || topology.actors.get(event.Target);
     path = event.Type === 'stream_append' ? [source, slim, stream] :
-      event.Type === 'stream_delivery' ? [stream, target] :
+      event.Type === 'stream_delivery' ? destination ? [stream, destination] : [] :
       event.Type === 'stream_ack' ? [source, stream] : [];
   }
-  else if (event.Type === 'dead_lettered') path = [queue, nodeId('queue', `dlq:${event.QueueName}`)];
-  else if (event.Type === 'dead_letter_requeued') path = [nodeId('queue', `dlq:${event.QueueName}`), queue];
+  else if (event.Type === 'dead_lettered' || event.Type === 'dead_letter_requeued') path = [queue];
   else if (['dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted'].includes(event.Type)) path = [];
   else if (event.Type === 'request_in') path = [source, slim];
   else if (event.Type === 'enqueue') path = [source, slim, queue];
@@ -187,7 +195,12 @@ export function eventPath(topology: Topology, event: NetworkActivityEvent): stri
 export function selectedEvent(topology: Topology, event: NetworkActivityEvent, selected: string | null): boolean {
   if (!selected) return true;
   if (event.Type.startsWith('dead_letter') &&
-    (selected === nodeId('queue', `dlq:${event.QueueName}`) || selected === nodeId('function', event.QueueName ?? ''))) return true;
+    (selected === nodeId('queue', event.QueueName ?? '') || selected === nodeId('function', event.QueueName ?? ''))) return true;
+  if (event.StreamName) {
+    const fn = event.StreamFunction ?? (event.Type === 'stream_delivery' ? event.Target : event.Type === 'stream_ack' ? event.Source : null);
+    if (selected === nodeId('stream', event.StreamName) || fn && selected === nodeId('function', fn) ||
+      event.Type === 'stream_delivery' && !!event.TargetPod && selected === topology.pods.get(`${event.Target}/${event.TargetPod}`)) return true;
+  }
   const caller = resolveSource(topology, event.Source, event.SourcePod);
   if (caller === selected || topology.byId.get(caller)?.parent === selected) return true;
   if (['request_waiting', 'request_started'].includes(event.Type) && topology.actors.get(event.Target) === selected) return true;

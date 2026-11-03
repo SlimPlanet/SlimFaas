@@ -200,6 +200,11 @@ export class TrafficPlayback {
           }
         }
         const path = displayPath(topology, event, selected);
+        // A newly registered WebSocket subscriber can deliver before the next Stream inventory snapshot.
+        if (event.StreamName && path.length < 2) {
+          if (now - receipt.received >= MISSING_PARENT_MS) { this.omitted++; finish(); }
+          continue;
+        }
         // An inventory snapshot can lag the dispatch. Keep its actual destination
         // rather than drawing to a sleeping function group or an invented replica.
         if (event.TargetPod && event.CorrelationId && ['request_out', 'event_publish'].includes(event.Type)
@@ -221,7 +226,7 @@ export class TrafficPlayback {
         } else { this.omitted++; finish(); }
         if (dispatch) this.dispatches.get(dispatch)!.end = receipt.end;
         if (parent) this.markers.delete(`waiting:${parent.event.Id}`);
-        if (['request_out', 'dequeue', 'event_publish'].includes(event.Type)) {
+        if (['request_out', 'dequeue', 'event_publish', 'stream_delivery'].includes(event.Type)) {
           this.arrivals.set(path[path.length - 1], receipt.end! + 1000);
           if (this.arrivals.size > ANIMATION_LIMIT) this.arrivals.delete(this.arrivals.keys().next().value!);
         }

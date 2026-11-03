@@ -201,7 +201,13 @@ export default function TrafficCanvas(props: Props) {
           if (boxHeight * k > 65) {
             context.font = `${11 / k}px system-ui`;
             const footerY = boxY + boxHeight - 12 / k;
-            if (group.state) {
+            if (group.deadLetterCount !== undefined) {
+              context.fillStyle = colors.queue;
+              context.fillText(`Async · ${group.queueLength === undefined ? 'unknown' : `${group.queueLength} queued`}`,
+                boxX + 12 / k, footerY - 18 / k, boxWidth - 24 / k);
+              context.fillStyle = colors.danger;
+              context.fillText(`DLQ · ${group.deadLetterCount} retained`, boxX + 12 / k, footerY, boxWidth - 24 / k);
+            } else if (group.state) {
               const badgeWidth = context.measureText(group.state).width + 14 / k;
               context.strokeStyle = stateColor(group.state); context.lineWidth = 1 / k;
               context.fillStyle = colors.background;

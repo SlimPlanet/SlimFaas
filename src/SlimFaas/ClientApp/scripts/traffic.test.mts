@@ -70,6 +70,51 @@ test('Stream delivery does not require an invented HTTP parent and pause cannot 
   update(paused, [delivery], { topology, now: 200 });
   assert.equal(count(paused), 0);
 });
+test('fresh WebSocket Stream deliveries survive a delayed inventory snapshot, then ACK the actual connection', () => {
+  const fn = { ...fixture.functions[0], Name: 'fresh-ws', PodType: 'WebSocket', NumberReady: 1, NumberRequested: 1,
+    Pods: [{ Name: 'ws-connection', Identity: 'connection', Status: 'Running', Ready: true }] };
+  const initial = buildTopology([fn], [], [], fixture.slimFaasNodes);
+  const ready = buildTopology([fn], [], [], fixture.slimFaasNodes, [], [], [], [{
+    Name: 'fresh-stream', Visibility: 'Public', RetainedMessageCount: 1, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'generation', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  const delivery = event('fresh-delivery', { Type: 'stream_delivery', Source: 'stream:fresh-stream', Target: fn.Name,
+    SourcePod: null, TargetPod: 'connection', QueueName: null, StreamName: 'fresh-stream', StreamFunction: fn.Name,
+    ElementId: 'fresh-attempt', CorrelationId: 'fresh-attempt' });
+  const ack = event('fresh-ack', { ...delivery, Id: 'fresh-ack', Type: 'stream_ack', Source: fn.Name,
+    Target: 'stream:fresh-stream', SourcePod: 'connection', TargetPod: null });
+  for (const events of [[delivery, ack], [ack, delivery]]) for (const selected of [null, 'function:fresh-ws', 'stream:fresh-stream']) {
+    const player = new TrafficPlayback();
+    const options = { selected, isolate: !!selected };
+    update(player, events, { ...options, topology: initial });
+    assert.equal(count(player), 0);
+    // The metadata arrives after a Fast animation's lifetime, but this live receipt is still pending.
+    update(player, events, { ...options, topology: ready, now: 1000 });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, ['stream:fresh-stream', 'pod:fresh-ws/ws-connection']);
+    update(player, events, { ...options, topology: ready, now: 1000 + SPEEDS.Fast });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, ['pod:fresh-ws/ws-connection', 'stream:fresh-stream']);
+  }
+});
+test('missing Stream inventory waits are bounded and cannot replay expired receipts', () => {
+  const delivery = event('unknown-stream', { Type: 'stream_delivery', Source: 'stream:missing', Target: fixture.functions[0].Name,
+    SourcePod: null, TargetPod: null, QueueName: null, StreamName: 'missing', CorrelationId: 'attempt' });
+  const player = new TrafficPlayback();
+  update(player, [delivery]);
+  assert.equal(count(player), 0);
+  update(player, [delivery], { now: 5101 });
+  assert.equal(count(player), 0);
+  assert.equal(player.omitted, 1);
+  const ready = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes, [], [], [], [{
+    Name: 'missing', Visibility: 'Public', RetainedMessageCount: 1, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'generation', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  update(player, [delivery], { topology: ready, now: 6000 });
+  assert.equal(count(player), 0);
+});
 test('the first isolated receipt is animated even when its server clock is old or ahead', () => {
   const player = new TrafficPlayback();
   update(player, []);
