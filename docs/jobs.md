@@ -27,6 +27,15 @@ flowchart TD
 
 In the dashboard, **Jobs Overview** shows configurations, queued and running work, and the live traffic map shows executions entering and leaving each job queue. List executions with `GET /job/name` and create/delete your own schedules in the [job exercise](guided-tour.md#6-run-jobs-and-manage-schedules). CPU/memory resource limits depend on the orchestrator; native local processes do not enforce container limits.
 
+The map places only job queues left of SlimFaas: **job ← job:queue ← SlimFaas**,
+including known empty queues. The existing demo's independent `fibonacci-ws`
+configuration runs a persistent WebSocket worker with no dependencies. Each
+[WebSocket job tour](guided-tour.md#11-run-an-independent-websocket-job) creates
+a fresh execution/identity/Stream and verifies sync, async and Stream processing.
+The two-job limit includes these running workers; they require explicit deletion
+before further runs. `TtlSecondsAfterFinished` applies only after a job finishes,
+not as a running-worker lifetime.
+
 ### Recovery after a temporary SlimData interruption
 
 An HTTP `202 Accepted` response means the job has been queued; execution still waits

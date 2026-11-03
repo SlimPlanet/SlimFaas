@@ -8,6 +8,21 @@ SlimFaas clients let a process register itself as a **virtual function** through
 
 This is useful for jobs, agents, desktop services, local workers, or any process that must receive SlimFaas requests without being deployed as a Kubernetes `Deployment`.
 
+Try the [independent persistent WebSocket job in the Guided Tour](guided-tour.md#11-run-an-independent-websocket-job).
+It reuses `FibonacciBatch --ws-mode` from the base demos, exercising sync replies,
+async processing proofs and exact Stream ACK/history checks through the official
+.NET client. `--subscribe-stream Public:name` is repeatable; the equivalent
+`SLIMFAAS_SUBSCRIBE_STREAMS` environment value accepts comma-separated
+subscriptions. The demonstration's proof writes use `SlimFaas__BaseUrl`;
+`SLIMFAAS_WS_URL` supplies one outbound connection address; comma-separated
+`SLIMFAAS_WS_URLS` opens identically configured clients to every node of the
+multi-node demo. Sync/async routing is node-local, so every node must have a
+connection. `--registration-key <function-name>-ready` writes a bounded-TTL
+readiness proof only after all configured clients successfully register.
+It is optional; ordinary WebSocket mode does not require a Data Set proof.
+No client API or
+wire-protocol changes are required.
+
 Client libraries:
 
 - [.NET SlimFaasClient README](../client/dotnet/SlimFaasClient/README.md)

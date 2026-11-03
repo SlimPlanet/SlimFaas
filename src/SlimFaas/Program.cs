@@ -101,6 +101,8 @@ serviceCollectionStarter.AddOptions<SlimFaasOptions>()
     .Bind(configurationRoot.GetSection(SlimFaasOptions.SectionName))
     .Validate(options => options.DeadLetterQueue is not null &&
         Enum.IsDefined(options.DeadLetterQueue.DefaultVisibility), "Invalid DeadLetterQueue visibility.")
+    .Validate(options => options.Streams is not null &&
+        Enum.IsDefined(options.Streams.DefaultVisibility), "Invalid Streams visibility.")
     .ValidateOnStart();
 serviceCollectionStarter.AddSingleton<INamespaceProvider, NamespaceProvider>();
 serviceCollectionStarter.AddSingleton<IReplicasService, ReplicasService>();

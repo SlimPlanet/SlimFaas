@@ -51,27 +51,31 @@ static void RunFibonacciMode(string[] args)
 static async Task RunWebSocketModeAsync(string[] remainingArgs)
 {
     // ── Parsing des arguments ──────────────────────────────────────────────
-    string wsUrl = Environment.GetEnvironmentVariable("SLIMFAAS_WS_URL")
+    string wsUrl = Environment.GetEnvironmentVariable("SLIMFAAS_WS_URLS")
+                   ?? Environment.GetEnvironmentVariable("SLIMFAAS_WS_URL")
                    ?? "ws://slimfaas:5003/ws";
+    string? registrationKey = null;
     string functionName = Environment.GetEnvironmentVariable("SLIMFAAS_FUNCTION_NAME")
                           ?? "fibonacci-batch";
     var subscribeEvents = new List<SubscribeEventConfig>();
+    var subscribeStreams = new List<SubscribeStreamConfig>();
 
     string? envEvents = Environment.GetEnvironmentVariable("SLIMFAAS_SUBSCRIBE_EVENTS");
     if (!string.IsNullOrWhiteSpace(envEvents))
     {
         foreach (var token in envEvents.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
-            var parts = token.Split(':', 2, StringSplitOptions.TrimEntries);
-            if (parts.Length == 2 &&
-                Enum.TryParse<FunctionVisibility>(parts[0], ignoreCase: true, out var vis))
-            {
-                subscribeEvents.Add(new SubscribeEventConfig { Name = parts[1], Visibility = vis });
-            }
-            else
-            {
-                subscribeEvents.Add(new SubscribeEventConfig { Name = token });
-            }
+            var (name, visibility) = ParseSubscription(token);
+            subscribeEvents.Add(new SubscribeEventConfig { Name = name, Visibility = visibility });
+        }
+    }
+    string? envStreams = Environment.GetEnvironmentVariable("SLIMFAAS_SUBSCRIBE_STREAMS");
+    if (!string.IsNullOrWhiteSpace(envStreams))
+    {
+        foreach (var token in envStreams.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var (name, visibility) = ParseSubscription(token);
+            subscribeStreams.Add(new SubscribeStreamConfig { Name = name, Visibility = visibility });
         }
     }
 
@@ -85,21 +89,22 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
             case "--function-name" when idx + 1 < remainingArgs.Length:
                 functionName = remainingArgs[++idx];
                 break;
-            case "--subscribe" when idx + 1 < remainingArgs.Length:
-            {
-                var token = remainingArgs[++idx];
-                var parts = token.Split(':', 2, StringSplitOptions.TrimEntries);
-                if (parts.Length == 2 &&
-                    Enum.TryParse<FunctionVisibility>(parts[0], ignoreCase: true, out var vis))
-                {
-                    subscribeEvents.Add(new SubscribeEventConfig { Name = parts[1], Visibility = vis });
-                }
-                else
-                {
-                    subscribeEvents.Add(new SubscribeEventConfig { Name = token });
-                }
+            case "--registration-key" when idx + 1 < remainingArgs.Length:
+                registrationKey = remainingArgs[++idx];
                 break;
-            }
+            case "--subscribe" when idx + 1 < remainingArgs.Length:
+                {
+                    var token = remainingArgs[++idx];
+                    var (name, visibility) = ParseSubscription(token);
+                    subscribeEvents.Add(new SubscribeEventConfig { Name = name, Visibility = visibility });
+                    break;
+                }
+            case "--subscribe-stream" when idx + 1 < remainingArgs.Length:
+                {
+                    var (name, visibility) = ParseSubscription(remainingArgs[++idx]);
+                    subscribeStreams.Add(new SubscribeStreamConfig { Name = name, Visibility = visibility });
+                    break;
+                }
         }
     }
 
@@ -109,6 +114,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
     Console.WriteLine($"  SlimFaas URL    : {wsUrl}");
     Console.WriteLine($"  Fonction        : {functionName}");
     Console.WriteLine($"  SubscribeEvents : [{string.Join(", ", subscribeEvents.Select(e => e.Visibility != null ? $"{e.Visibility}:{e.Name}" : e.Name))}]");
+    Console.WriteLine($"  SubscribeStreams: [{string.Join(", ", subscribeStreams.Select(item => item.Name))}]");
     Console.WriteLine();
 
     // ── Configuration du client SlimFaas ─────────────────────────────────
@@ -116,6 +122,7 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
     {
         FunctionName = functionName,
         SubscribeEvents = subscribeEvents,
+        SubscribeStreams = subscribeStreams,
         DefaultVisibility = FunctionVisibility.Public,
         NumberParallelRequest = 5,
         NumberParallelRequestPerPod = 5,
@@ -129,171 +136,212 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
         cts.Cancel();
     };
 
-    await using var client = new SlimFaasClient.SlimFaasClient(new Uri(wsUrl), config);
-
-    // ── Callback : requête asynchrone ─────────────────────────────────────
-    client.OnAsyncRequest = async req =>
+    if (registrationKey is not null && registrationKey != functionName + "-ready")
+        throw new ArgumentException("--registration-key must equal <function-name>-ready.", nameof(remainingArgs));
+    var clients = WebSocketTour.ParseUrls(wsUrl).Select(uri => new SlimFaasClient.SlimFaasClient(uri, config)).ToArray();
+    using var http = new HttpClient
     {
-        Console.WriteLine($"[WS] ── Requête asynchrone reçue ──────────────────────");
-        Console.WriteLine($"[WS]   ElementId : {req.ElementId}");
-        Console.WriteLine($"[WS]   Méthode   : {req.Method}");
-        Console.WriteLine($"[WS]   Chemin    : {req.Path}");
-        if (!string.IsNullOrEmpty(req.Query))
-            Console.WriteLine($"[WS]   Query     : {req.Query}");
-        if (req.Body is { Length: > 0 })
-        {
-            var body = Encoding.UTF8.GetString(req.Body);
-            Console.WriteLine($"[WS]   Corps     : {body}");
-
-            // Si le corps contient un nombre, on calcule Fibonacci
-            if (int.TryParse(body.Trim(), out int n))
-            {
-                var result = Fibonacci.Run(n);
-                Console.WriteLine($"[WS]   Fibonacci({n}) = {result}");
-            }
-        }
-        Console.WriteLine($"[WS]   Essai     : {req.TryNumber} (dernier: {req.IsLastTry})");
-        Console.WriteLine();
-        await Task.CompletedTask;
-        return 200;
+        BaseAddress = new Uri((Environment.GetEnvironmentVariable("SlimFaas__BaseUrl") ?? "http://slimfaas:5000").TrimEnd('/') + "/"),
+        Timeout = TimeSpan.FromSeconds(30)
     };
+    var tour = new WebSocketTour(http, functionName, Fibonacci.Run);
 
-    // ── Callback : évènement publish/subscribe ────────────────────────────
-    client.OnPublishEvent = async evt =>
+    foreach (var client in clients)
     {
-        Console.WriteLine($"[WS] ── Évènement publish/subscribe reçu ──────────────");
-        Console.WriteLine($"[WS]   Événement : {evt.EventName}");
-        Console.WriteLine($"[WS]   Méthode   : {evt.Method}");
-        Console.WriteLine($"[WS]   Chemin    : {evt.Path}");
-        if (!string.IsNullOrEmpty(evt.Query))
-            Console.WriteLine($"[WS]   Query     : {evt.Query}");
-        if (evt.Body is { Length: > 0 })
+        // ── Callback : requête asynchrone ─────────────────────────────────────
+        client.OnAsyncRequest = async req =>
         {
-            var body = Encoding.UTF8.GetString(evt.Body);
-            Console.WriteLine($"[WS]   Corps     : {body}");
-        }
-        Console.WriteLine();
-        await Task.CompletedTask;
-    };
-
-    // ── Callback : requête synchrone streamée ────────────────────────────
-    client.OnSyncRequest = async req =>
-    {
-        Console.WriteLine($"[WS] ── Requête synchrone streamée reçue ──────────────");
-        Console.WriteLine($"[WS]   CorrelationId : {req.CorrelationId}");
-        Console.WriteLine($"[WS]   Méthode       : {req.Method}");
-        Console.WriteLine($"[WS]   Chemin        : {req.Path}");
-        if (!string.IsNullOrEmpty(req.Query))
-            Console.WriteLine($"[WS]   Query         : {req.Query}");
-
-        // ── Affichage des headers ────────────────────────────────────────
-        if (req.Headers.Count > 0)
-        {
-            Console.WriteLine($"[WS]   Headers ({req.Headers.Count}) :");
-            foreach (var (key, values) in req.Headers)
-                Console.WriteLine($"[WS]     {key}: {string.Join(", ", values)}");
-        }
-
-        // ── Lecture complète du body depuis le stream ────────────────────
-        using var bodyStream = new MemoryStream();
-        await req.Body.CopyToAsync(bodyStream);
-        if (bodyStream.Length > 0)
-            Console.WriteLine($"[WS]   Body reçu — {bodyStream.Length} octet(s)");
-
-        // ── Parse et affichage JSON du body ──────────────────────────────
-        string responseJson;
-        int httpStatus = 200;
-
-        bodyStream.Position = 0;
-        var rawBody = Encoding.UTF8.GetString(bodyStream.ToArray());
-
-        if (!string.IsNullOrWhiteSpace(rawBody))
-        {
-            Console.WriteLine($"[WS]   Corps brut     : {rawBody}");
-            try
+            Console.WriteLine($"[WS] ── Requête asynchrone reçue ──────────────────────");
+            Console.WriteLine($"[WS]   ElementId : {req.ElementId}");
+            Console.WriteLine($"[WS]   Méthode   : {req.Method}");
+            Console.WriteLine($"[WS]   Chemin    : {req.Path}");
+            if (!string.IsNullOrEmpty(req.Query))
+                Console.WriteLine($"[WS]   Query     : {req.Query}");
+            if (req.Body is { Length: > 0 })
             {
-                var parsed = JsonNode.Parse(rawBody);
-                var prettyBody = parsed?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? rawBody;
-                Console.WriteLine($"[WS]   Corps (JSON)  :\n{prettyBody}");
+                var body = Encoding.UTF8.GetString(req.Body);
+                Console.WriteLine($"[WS]   Corps     : {body}");
 
-                // Calcul Fibonacci si le JSON contient un champ "n" ou si c'est un entier direct
-                int? fibInput = null;
-                if (parsed is JsonValue val && val.TryGetValue(out int directInt))
-                    fibInput = directInt;
-                else if (parsed is JsonObject obj)
+                // Si le corps contient un nombre, on calcule Fibonacci
+                if (int.TryParse(body.Trim(), out int n))
                 {
-                    foreach (var candidate in new[] { "n", "value", "input", "number" })
+                    var result = Fibonacci.Run(n);
+                    Console.WriteLine($"[WS]   Fibonacci({n}) = {result}");
+                }
+            }
+            Console.WriteLine($"[WS]   Essai     : {req.TryNumber} (dernier: {req.IsLastTry})");
+            Console.WriteLine();
+            if (tour.Matches(req.Path, "async"))
+            {
+                var receipt = tour.Compute(req.Body, "async", req.ElementId);
+                if (receipt is null) return 422;
+                await tour.WriteAsync(receipt, cts.Token);
+            }
+            await Task.CompletedTask;
+            return 200;
+        };
+
+        client.OnStreamMessage = async message =>
+        {
+            Console.WriteLine($"[WS] Stream delivery: {message.StreamName}/{message.MessageId}, attempt {message.TryNumber}");
+            if (tour.Matches(message.Path, "stream"))
+            {
+                var receipt = tour.Compute(message.Body, "stream", message.ElementId, message.StreamName, message.MessageId);
+                if (receipt is null) return 422;
+                await tour.WriteAsync(receipt, cts.Token);
+            }
+            return 200;
+        };
+
+        // ── Callback : évènement publish/subscribe ────────────────────────────
+        client.OnPublishEvent = async evt =>
+        {
+            Console.WriteLine($"[WS] ── Évènement publish/subscribe reçu ──────────────");
+            Console.WriteLine($"[WS]   Événement : {evt.EventName}");
+            Console.WriteLine($"[WS]   Méthode   : {evt.Method}");
+            Console.WriteLine($"[WS]   Chemin    : {evt.Path}");
+            if (!string.IsNullOrEmpty(evt.Query))
+                Console.WriteLine($"[WS]   Query     : {evt.Query}");
+            if (evt.Body is { Length: > 0 })
+            {
+                var body = Encoding.UTF8.GetString(evt.Body);
+                Console.WriteLine($"[WS]   Corps     : {body}");
+            }
+            Console.WriteLine();
+            await Task.CompletedTask;
+        };
+
+        // ── Callback : requête synchrone streamée ────────────────────────────
+        client.OnSyncRequest = async req =>
+        {
+            Console.WriteLine($"[WS] ── Requête synchrone streamée reçue ──────────────");
+            Console.WriteLine($"[WS]   CorrelationId : {req.CorrelationId}");
+            Console.WriteLine($"[WS]   Méthode       : {req.Method}");
+            Console.WriteLine($"[WS]   Chemin        : {req.Path}");
+            if (!string.IsNullOrEmpty(req.Query))
+                Console.WriteLine($"[WS]   Query         : {req.Query}");
+
+            // ── Affichage des headers ────────────────────────────────────────
+            if (req.Headers.Count > 0)
+            {
+                Console.WriteLine($"[WS]   Headers ({req.Headers.Count}) :");
+                foreach (var (key, values) in req.Headers)
+                    Console.WriteLine($"[WS]     {key}: {string.Join(", ", values)}");
+            }
+
+            // ── Lecture complète du body depuis le stream ────────────────────
+            using var bodyStream = new MemoryStream();
+            await req.Body.CopyToAsync(bodyStream);
+            if (bodyStream.Length > 0)
+                Console.WriteLine($"[WS]   Body reçu — {bodyStream.Length} octet(s)");
+            if (tour.Matches(req.Path, "sync"))
+            {
+                var receipt = tour.Compute(bodyStream.ToArray(), "sync", req.CorrelationId);
+                await req.Response.StartAsync(receipt is null ? 422 : 200,
+                    new Dictionary<string, string[]> { ["Content-Type"] = ["application/json"] });
+                if (receipt is not null) await req.Response.WriteAsync(WebSocketTour.Serialize(receipt));
+                await req.Response.CompleteAsync();
+                return;
+            }
+
+            // ── Parse et affichage JSON du body ──────────────────────────────
+            string responseJson;
+            int httpStatus = 200;
+
+            bodyStream.Position = 0;
+            var rawBody = Encoding.UTF8.GetString(bodyStream.ToArray());
+
+            if (!string.IsNullOrWhiteSpace(rawBody))
+            {
+                Console.WriteLine($"[WS]   Corps brut     : {rawBody}");
+                try
+                {
+                    var parsed = JsonNode.Parse(rawBody);
+                    var prettyBody = parsed?.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) ?? rawBody;
+                    Console.WriteLine($"[WS]   Corps (JSON)  :\n{prettyBody}");
+
+                    // Calcul Fibonacci si le JSON contient un champ "n" ou si c'est un entier direct
+                    int? fibInput = null;
+                    if (parsed is JsonValue val && val.TryGetValue(out int directInt))
+                        fibInput = directInt;
+                    else if (parsed is JsonObject obj)
                     {
-                        if (obj.TryGetPropertyValue(candidate, out var node) && node is JsonValue jv && jv.TryGetValue(out int v))
+                        foreach (var candidate in new[] { "n", "value", "input", "number" })
                         {
-                            fibInput = v;
-                            break;
+                            if (obj.TryGetPropertyValue(candidate, out var node) && node is JsonValue jv && jv.TryGetValue(out int v))
+                            {
+                                fibInput = v;
+                                break;
+                            }
                         }
                     }
-                }
 
-                // Construction de la réponse JSON
-                var resultObj = new JsonObject { ["request"] = JsonNode.Parse(rawBody) };
-                if (fibInput.HasValue && fibInput.Value >= 0 && fibInput.Value <= 40)
+                    // Construction de la réponse JSON
+                    var resultObj = new JsonObject { ["request"] = JsonNode.Parse(rawBody) };
+                    if (fibInput.HasValue && fibInput.Value >= 0 && fibInput.Value <= 40)
+                    {
+                        var fibResult = Fibonacci.Run(fibInput.Value);
+                        resultObj["fibonacci"] = JsonValue.Create(fibResult);
+                        resultObj["input"] = JsonValue.Create(fibInput.Value);
+                        Console.WriteLine($"[WS]   Fibonacci({fibInput.Value}) = {fibResult}");
+                    }
+                    resultObj["correlationId"] = req.CorrelationId;
+                    resultObj["status"] = "processed";
+
+                    responseJson = resultObj.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+                }
+                catch (JsonException)
                 {
-                    var fibResult = Fibonacci.Run(fibInput.Value);
-                    resultObj["fibonacci"] = JsonValue.Create(fibResult);
-                    resultObj["input"] = JsonValue.Create(fibInput.Value);
-                    Console.WriteLine($"[WS]   Fibonacci({fibInput.Value}) = {fibResult}");
+                    // Corps non-JSON : on le renvoie tel quel enveloppé
+                    Console.WriteLine($"[WS]   (Corps non-JSON — renvoi brut)");
+                    var fallback = new JsonObject
+                    {
+                        ["correlationId"] = req.CorrelationId,
+                        ["rawBody"] = rawBody,
+                        ["status"] = "processed",
+                    };
+                    responseJson = fallback.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
                 }
-                resultObj["correlationId"] = req.CorrelationId;
-                resultObj["status"] = "processed";
-
-                responseJson = resultObj.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
             }
-            catch (JsonException)
+            else
             {
-                // Corps non-JSON : on le renvoie tel quel enveloppé
-                Console.WriteLine($"[WS]   (Corps non-JSON — renvoi brut)");
-                var fallback = new JsonObject
+                Console.WriteLine($"[WS]   (Corps vide)");
+                var empty = new JsonObject
                 {
                     ["correlationId"] = req.CorrelationId,
-                    ["rawBody"] = rawBody,
                     ["status"] = "processed",
                 };
-                responseJson = fallback.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+                responseJson = empty.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
             }
-        }
-        else
-        {
-            Console.WriteLine($"[WS]   (Corps vide)");
-            var empty = new JsonObject
+
+            Console.WriteLine($"[WS]   Réponse JSON  :\n{responseJson}");
+            Console.WriteLine();
+
+            // ── Envoi de la réponse streamée vers SlimFaas ───────────────────
+            var responseBytes = Encoding.UTF8.GetBytes(responseJson);
+
+            await req.Response.StartAsync(httpStatus, new Dictionary<string, string[]>
             {
-                ["correlationId"] = req.CorrelationId,
-                ["status"] = "processed",
-            };
-            responseJson = empty.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
-        }
+                ["Content-Type"] = ["application/json; charset=utf-8"],
+                ["Content-Length"] = [$"{responseBytes.Length}"],
+                ["X-Processed-By"] = ["fibonacci-batch"],
+            });
 
-        Console.WriteLine($"[WS]   Réponse JSON  :\n{responseJson}");
-        Console.WriteLine();
+            // Envoi en un seul chunk (ou découper si voulu)
+            await req.Response.WriteAsync(responseBytes);
+            await req.Response.CompleteAsync();
+        };
 
-        // ── Envoi de la réponse streamée vers SlimFaas ───────────────────
-        var responseBytes = Encoding.UTF8.GetBytes(responseJson);
-
-        await req.Response.StartAsync(httpStatus, new Dictionary<string, string[]>
-        {
-            ["Content-Type"] = ["application/json; charset=utf-8"],
-            ["Content-Length"] = [$"{responseBytes.Length}"],
-            ["X-Processed-By"] = ["fibonacci-batch"],
-        });
-
-        // Envoi en un seul chunk (ou découper si voulu)
-        await req.Response.WriteAsync(responseBytes);
-        await req.Response.CompleteAsync();
-    };
+    }
 
     Console.WriteLine("[WS] Connexion à SlimFaas… (Ctrl+C pour quitter)");
     Console.WriteLine();
 
     try
     {
-        await client.RunForeverAsync(cts.Token);
+        var tasks = clients.Select(RunClientAsync).ToList();
+        if (registrationKey is not null) tasks.Add(ReportRegistrationAsync());
+        await Task.WhenAll(tasks);
     }
     catch (SlimFaasRegistrationException ex)
     {
@@ -304,11 +352,36 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
     {
         Console.WriteLine("[WS] Client arrêté proprement.");
     }
+    finally
+    {
+        await cts.CancelAsync();
+        foreach (var client in clients) await client.DisposeAsync();
+    }
+
+    async Task RunClientAsync(SlimFaasClient.SlimFaasClient client)
+    {
+        try { await client.RunForeverAsync(cts.Token); }
+        catch (SlimFaasRegistrationException) { await cts.CancelAsync(); throw; }
+    }
+
+    async Task ReportRegistrationAsync()
+    {
+        try { await tour.ReportRegistrationAsync(clients, cts.Token); }
+        catch (HttpRequestException) { await cts.CancelAsync(); throw; }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Algorithme Fibonacci
 // ─────────────────────────────────────────────────────────────────────────────
+
+static (string Name, FunctionVisibility? Visibility) ParseSubscription(string token)
+{
+    var parts = token.Split(':', 2, StringSplitOptions.TrimEntries);
+    return parts.Length == 2 && Enum.TryParse<FunctionVisibility>(parts[0], ignoreCase: true, out var visibility)
+        ? (parts[1], visibility)
+        : (token, null);
+}
 
 internal static class Fibonacci
 {

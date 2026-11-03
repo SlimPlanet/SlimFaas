@@ -9,6 +9,46 @@ Try the [Guided Tour's two-consumer demonstration](guided-tour.md#10-follow-dura
 in native local mode, a precompiled bundle, Compose or Kubernetes. It waits for
 both subscriptions, checks both independent ACK positions and reads the exact
 retained publication afterwards. The standard tour also demonstrates DLQ repair.
+It also includes an [independent persistent WebSocket job](guided-tour.md#11-run-an-independent-websocket-job)
+that processes synchronous, asynchronous and Stream messages.
+
+## Visibility and dashboard defaults
+
+Streams follow the same independent dashboard/management configuration as DLQs:
+
+```json
+{
+  "SlimFaas": {
+    "EnableFront": true,
+    "Streams": {
+      "DefaultVisibility": "Private",
+      "EnableFront": false
+    }
+  }
+}
+```
+
+`SlimFaas:Streams:DefaultVisibility` controls management and observation access,
+including catalog, history/bodies, subscriptions, reservations, ACKs and deletion.
+The production default is **Private**: only trusted internal callers can manage
+Streams, even if the Stream itself is Public. Public management still respects
+individual Private Stream/function visibility. This setting does not change
+Data's default visibility for publisher-created Streams.
+
+`SlimFaas:Streams:EnableFront` also requires global `SlimFaas:EnableFront`. When
+off, Stream navigation, actors, subscriber details and Stream activity are hidden;
+a direct `#/streams` URL explains that the UI is disabled. An enabled UI with
+insufficient permission instead shows a restricted-caller notice. SSE exposes
+`StreamsFrontEnabled` and `StreamsAccessible`, retaining `StreamsAvailable`.
+Disabled/restricted observation does not read Stream state.
+
+Neither setting disables HTTP/WebSocket delivery or publishing through
+`/publish-stream/...` and `POST /data/streams/{stream}`. Those retain their entity
+access rules. Authorized REST management also remains usable with the UI off.
+The existing native, Compose and Kubernetes demos explicitly use Public management
+and enable the Stream UI. In native local mode, explicit
+`SlimFaas__Streams__DefaultVisibility` / `SlimFaas__Streams__EnableFront`
+environment values override these development defaults.
 
 ## Dashboard gallery
 
@@ -35,6 +75,17 @@ Stream lifecycle and delivery events.
 ![Live Traffic with the selected Stream actor and its subscribers](images/dashboard/traffic-stream-actor.png)
 
 ![Live Traffic event journal showing Stream appends](images/dashboard/traffic-stream-journal.png)
+
+The [independent WebSocket job exercise](guided-tour.md#11-run-an-independent-websocket-job)
+also demonstrates Stream delivery through the official SDK while the worker
+remains running. Its dedicated history shows retained messages and that virtual
+function's acknowledged progress. Accepted ACK/callback-wait events remain
+accurate when the receiving node's local replicated snapshot is briefly behind;
+they do not display a successful completion as a Stream failure. The live map
+pairs delivery and ACK by the Stream attempt identity, rather than treating it
+as a missing HTTP event; isolated Stream actors show both moving legs.
+
+![Dedicated Stream and acknowledged independent WebSocket consumer](images/dashboard/streams-websocket-job.png)
 
 ## Configure a function
 

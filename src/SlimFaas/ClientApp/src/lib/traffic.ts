@@ -54,6 +54,17 @@ export class TrafficPlayback {
     });
   }
 
+  private correlatedParent(event: NetworkActivityEvent): Receipt | undefined {
+    if (!event.StreamName) return this.records.get(event.CorrelationId ?? '');
+    if (event.Type !== 'stream_ack') return undefined;
+    // Stream correlation identifies the delivery attempt, not an HTTP activity event.
+    for (const id of this.children.get(event.CorrelationId ?? '') ?? []) {
+      const receipt = this.records.get(id);
+      if (receipt?.event.Type === 'stream_delivery' && receipt.event.StreamName === event.StreamName) return receipt;
+    }
+    return undefined;
+  }
+
   private publication(receipt: Receipt): boolean {
     let current: Receipt | undefined = receipt;
     // The longest supported chain is ingress/publication/delivery/send/end.
@@ -149,11 +160,11 @@ export class TrafficPlayback {
       for (const id of this.pending) {
         const receipt = this.records.get(id)!;
         const event = receipt.event;
-        const parent = this.records.get(event.CorrelationId ?? '');
+        const parent = this.correlatedParent(event);
         const queued = !!dispatchIdentity(event);
         const finish = (end = now) => { receipt.end = end; this.pending.delete(id); changed = true; };
         if (now - receipt.received >= INCOMPLETE_MS) { finish(); this.omitted++; continue; }
-        if (event.CorrelationId && !queued) {
+        if (event.CorrelationId && !queued && (!event.StreamName || event.Type === 'stream_ack')) {
           if (!parent) {
             if (now - receipt.received >= MISSING_PARENT_MS) finish();
             continue;

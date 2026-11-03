@@ -4,12 +4,23 @@ import { TrafficPlayback, SPEEDS, matchesTraffic, displayPath, markerProgress } 
 import { functionState } from '../src/lib/live.ts';
 import { buildTopology, jobQueueName, jobQueues, observedFunctions, observedQueues } from '../src/lib/topology.ts';
 import { makeFixtures, fixtureEvents } from '../src/lib/fixtures.ts';
-import { normalizeSlimFaasNodes } from '../src/hooks/useStatusStream.ts';
+import { normalizePayload, normalizeSlimFaasNodes } from '../src/hooks/useStatusStream.ts';
 
 const fixture = makeFixtures();
 const model = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes);
 const event = (id, overrides = {}) => ({ ...fixtureEvents(3, 1)[0], Id: id, ReceivedAt: 100, ...overrides });
 const count = playback => [...playback.markers.values()].reduce((sum, marker) => sum + marker.count, 0);
+test('Stream UI availability distinguishes disabled and restricted states and preserves old snapshots', () => {
+  const legacy = normalizePayload({ StreamsAvailable: true });
+  assert.equal(legacy.StreamsFrontEnabled, true);
+  assert.equal(legacy.StreamsAccessible, true);
+  const disabled = normalizePayload({ StreamsAvailable: true, StreamsFrontEnabled: false, StreamsAccessible: true });
+  assert.equal(disabled.StreamsFrontEnabled, false);
+  assert.equal(disabled.StreamsAccessible, true);
+  const restricted = normalizePayload({ streamsFrontEnabled: true, streamsAccessible: false });
+  assert.equal(restricted.StreamsFrontEnabled, true);
+  assert.equal(restricted.StreamsAccessible, false);
+});
 test('SSE normalization preserves changing leader roles and handles old or unknown snapshots', () => {
   for (const Role of ['Leader', 'Follower', 'Unknown', undefined, 'invalid']) {
     const nodes = normalizeSlimFaasNodes([{ Name: 'node', Status: 'Running', Role }]);
@@ -20,6 +31,45 @@ test('SSE normalization preserves changing leader roles and handles old or unkno
 function update(playback, events, { now = 100, paused = false, session = 1, speed = 'Fast', type = 'all', selected = null, isolate = false, topology = model } = {}) {
   playback.update(events, session, paused, now, topology, speed, type, selected, isolate);
 }
+test('Stream attempt correlation draws delivery and then ACK, including reverse batches and isolated actors', () => {
+  const fn = fixture.functions[0].Name;
+  const topology = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes, [], [], [], [{
+    Name: 'orders', Visibility: 'Public', RetainedMessageCount: 1, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'generation', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  const delivery = event('stream-delivery', { Type: 'stream_delivery', Source: 'stream:orders', Target: fn,
+    SourcePod: null, TargetPod: null, QueueName: null, StreamName: 'orders', ElementId: 'stream-attempt', CorrelationId: 'stream-attempt' });
+  const ack = event('stream-ack', { Type: 'stream_ack', Source: fn, Target: 'stream:orders',
+    SourcePod: null, TargetPod: null, QueueName: null, StreamName: 'orders', ElementId: 'stream-attempt', CorrelationId: 'stream-attempt' });
+  for (const events of [[delivery, ack], [ack, delivery]]) {
+    const player = new TrafficPlayback();
+    update(player, events, { topology, selected: 'stream:orders', isolate: true });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, ['stream:orders', `function:${fn}`]);
+    assert.equal([...player.markers.values()][0].kind, 'queue');
+    update(player, events, { topology, now: 550, selected: 'stream:orders', isolate: true });
+    assert.equal(count(player), 1);
+    assert.deepEqual([...player.markers.values()][0].path, [`function:${fn}`, 'stream:orders']);
+    assert.equal([...player.markers.values()][0].kind, 'reply');
+  }
+});
+test('Stream delivery does not require an invented HTTP parent and pause cannot replay it', () => {
+  const topology = buildTopology(fixture.functions, fixture.jobs, fixture.queues, fixture.slimFaasNodes, [], [], [], [{
+    Name: 'orders', Visibility: 'Public', RetainedMessageCount: 1, VisibleFunctionCount: 1,
+    MaxAgeSeconds: 86400, MaxLength: 100000, Revision: 1, Generation: 'generation', CapturedAt: '',
+    OldestAppendedAt: null, NewestAppendedAt: null, EarliestMessageId: null, LatestMessageId: null,
+  }]);
+  const delivery = event('stream-delivery', { Type: 'stream_delivery', Source: 'stream:orders', Target: fixture.functions[0].Name,
+    SourcePod: null, TargetPod: null, QueueName: null, StreamName: 'orders', CorrelationId: 'attempt-not-an-event' });
+  const player = new TrafficPlayback();
+  update(player, [delivery], { topology });
+  assert.equal(count(player), 1);
+  const paused = new TrafficPlayback();
+  update(paused, [delivery], { topology, paused: true });
+  update(paused, [delivery], { topology, now: 200 });
+  assert.equal(count(paused), 0);
+});
 test('the first isolated receipt is animated even when its server clock is old or ahead', () => {
   const player = new TrafficPlayback();
   update(player, []);
@@ -169,6 +219,13 @@ test('job queues stay apart from a same-named function and deliver dequeued exec
   assert.equal(topology.byId.get('queue:fibonacci1').status, '12 queued');
   assert.equal(topology.byId.get('queue:job:daily-report').status, '3 queued');
   assert.equal(topology.byId.get('queue:job:fibonacci1').status, '0 queued');
+  const hub = topology.byId.get('slimfaas:slimfaas');
+  for (const name of ['daily-report', 'fibonacci1']) {
+    const actor = topology.byId.get(`job:${name}`), queue = topology.byId.get(`queue:job:${name}`);
+    assert.ok(actor.x + actor.width < queue.x);
+    assert.ok(queue.x + queue.width < hub.x);
+  }
+  assert.ok(topology.byId.get('queue:fibonacci1').x > hub.x + hub.width);
   assert.equal(topology.byId.has('function:daily-report'), false);
   assert.deepEqual(displayPath(topology, scheduled, null), ['node:slimfaas-1', 'queue:job:daily-report']);
   assert.deepEqual(displayPath(topology, dequeue, null), ['queue:job:daily-report', 'job:daily-report']);
@@ -181,6 +238,32 @@ test('job queues stay apart from a same-named function and deliver dequeued exec
     ['queue', ['node:slimfaas-1', 'queue:job:daily-report']],
     ['queue', ['queue:job:daily-report', 'job:daily-report']],
   ]);
+});
+
+test('event-only job queues are left of the hub while ordinary and dead-letter queues stay right', () => {
+  const topology = buildTopology(fixture.functions, [], fixture.queues, fixture.slimFaasNodes, [], ['job:unlisted', 'dlq:unlisted']);
+  const hub = topology.byId.get('slimfaas:slimfaas');
+  assert.ok(topology.byId.get('queue:job:unlisted').x + topology.byId.get('queue:job:unlisted').width < hub.x);
+  assert.ok(topology.byId.get('queue:dlq:unlisted').x > hub.x + hub.width);
+});
+
+test('many empty job queues reserve non-overlapping space strictly between jobs and the hub', () => {
+  const jobs = Array.from({ length: 50 }, (_, index) => ({ ...fixture.jobs[0], Name: `worker-${index}`, RunningJobs: [] }));
+  const queues = jobs.map(job => ({ Name: `job:${job.Name}`, Length: 0 }));
+  const topology = buildTopology(fixture.functions, jobs, [...fixture.queues, ...queues], fixture.slimFaasNodes);
+  const hub = topology.byId.get('slimfaas:slimfaas');
+  for (const job of jobs) {
+    const actor = topology.byId.get(`job:${job.Name}`), queue = topology.byId.get(`queue:job:${job.Name}`);
+    assert.ok(actor.x + actor.width < queue.x);
+    assert.ok(queue.x + queue.width < hub.x);
+    assert.equal(queue.status, '0 queued');
+  }
+  const groups = topology.nodes.filter(node => !node.parent);
+  for (let index = 0; index < groups.length; index++) for (const other of groups.slice(index + 1)) {
+    const node = groups[index];
+    assert.ok(node.x + node.width <= other.x || other.x + other.width <= node.x ||
+      node.y + node.height <= other.y || other.y + other.height <= node.y);
+  }
 });
 
 test('async dequeue and dispatch represent one delivery in either order, across batches and after completion', () => {

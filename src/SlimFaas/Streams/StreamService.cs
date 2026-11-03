@@ -13,6 +13,8 @@ namespace SlimFaas.Streams;
 
 public interface IStreamService
 {
+    bool FrontEnabled { get; }
+    bool CanManage(HttpContext context);
     Task<SlimDataPayload> ReadAsync(CancellationToken cancellationToken);
     Task<DurableStreamMutationResult> MutateAsync(DurableStreamMutation mutation, CancellationToken cancellationToken);
     bool CanAccess(HttpContext context, DurableStreamDefinition definition);
@@ -25,8 +27,17 @@ public interface IStreamService
 
 public sealed class StreamService(IDatabaseService database, ISupplier<SlimDataPayload> state,
     IReplicasService replicas, IWebSocketFunctionRepository virtualFunctions, IFunctionAccessPolicy access,
-    NetworkActivityTracker activity, ILogger<StreamService> logger) : IStreamService
+    NetworkActivityTracker activity, ILogger<StreamService> logger,
+    IOptions<SlimFaasOptions> options) : IStreamService
 {
+    public bool FrontEnabled => options.Value.EnableFront && options.Value.Streams.EnableFront;
+    public bool CanManage(HttpContext context)
+    {
+        bool allowed = options.Value.Streams.DefaultVisibility == FunctionVisibility.Public || access.IsInternalRequest(context);
+        if (!allowed) logger.LogStreamManagementDenied();
+        return allowed;
+    }
+
     public DeploymentInformation? Function(string name) =>
         replicas.Deployments.Functions.Concat(virtualFunctions.GetVirtualDeployments())
             .FirstOrDefault(function => function.Deployment == name);
@@ -54,6 +65,7 @@ public sealed class StreamService(IDatabaseService database, ISupplier<SlimDataP
     {
         if (activity.StreamName is null)
             return true;
+        if (!FrontEnabled || !CanManage(context)) return false;
         var definition = DurableStreamStore.Definition(state.Invoke(), activity.StreamName);
         return (definition is not null ? CanAccess(context, definition) :
                 activity.StreamVisibility == "Public" || access.IsInternalRequest(context)) &&
@@ -89,6 +101,9 @@ public sealed class StreamService(IDatabaseService database, ISupplier<SlimDataP
                 DurableStreamAction.Append => "stream_append",
                 DurableStreamAction.Reserve => "stream_delivery",
                 DurableStreamAction.Delete => "stream_deleted",
+                // An accepted completion is authoritative even before this follower's snapshot catches up.
+                _ when mutation.Action == DurableStreamAction.AwaitCallback || mutation.StatusCode == 202 => "stream_waiting",
+                _ when mutation.StatusCode is >= 200 and < 300 => "stream_ack",
                 _ => attempt?.State switch
                 {
                     "Acknowledged" => "stream_ack", "WaitingForCallback" => "stream_waiting",

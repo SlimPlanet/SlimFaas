@@ -15,9 +15,11 @@ public static class StreamEndpoints
     private const int MaximumBodyBytes = 14 * 1024 * 1024;
     public static void MapStreamEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        var group = endpoints.MapGroup("/data/streams").AddEndpointFilter<HostPortEndpointFilter>();
+        var group = endpoints.MapGroup("/data/streams").AddEndpointFilter<HostPortEndpointFilter>()
+            .AddEndpointFilter<StreamManagementEndpointFilter>();
         group.MapGet("", Catalog);
-        group.MapPost("/{stream}", AppendRoot).DisableAntiforgery();
+        endpoints.MapPost("/data/streams/{stream}", AppendRoot)
+            .AddEndpointFilter<HostPortEndpointFilter>().DisableAntiforgery();
         group.MapGet("/{stream}", Messages);
         group.MapDelete("/{stream}", Delete);
         group.MapGet("/{stream}/metadata", Metadata);

@@ -174,6 +174,10 @@ public sealed class LocalNodeManager : IAsyncDisposable
                 Environment.GetEnvironmentVariable("SlimFaas__DeadLetterQueue__EnableFront") ?? "true",
             ["SlimFaas__DeadLetterQueue__DefaultVisibility"] =
                 Environment.GetEnvironmentVariable("SlimFaas__DeadLetterQueue__DefaultVisibility") ?? "Public",
+            ["SlimFaas__Streams__EnableFront"] =
+                Environment.GetEnvironmentVariable("SlimFaas__Streams__EnableFront") ?? "true",
+            ["SlimFaas__Streams__DefaultVisibility"] =
+                Environment.GetEnvironmentVariable("SlimFaas__Streams__DefaultVisibility") ?? "Public",
             ["OpenTelemetry__Enable"] = "false",
             ["OpenTelemetry__EnableConsoleExporter"] = "false",
             ["Logging__LogLevel__Default"] = logLevel,

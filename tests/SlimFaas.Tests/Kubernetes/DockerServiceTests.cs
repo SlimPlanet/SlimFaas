@@ -271,6 +271,13 @@ public class DockerServiceTests
 
         // ctor
         handler.WhenGET("/version").RespondJson(new DockerVersionResponse("1.43", "25.0.0"));
+        handler.WhenGET($"/containers/{Dns.GetHostName()}/json").RespondJson(new InspectContainerResponse(
+            "self", "/slimfaas", "slimfaas", DateTimeOffset.UtcNow,
+            new Inspect_Config("slimfaas", Array.Empty<string>(), Array.Empty<string>(),
+                new Dictionary<string, string>(), new Dictionary<string, object>()),
+            new Inspect_State(true, 0, null, null, DateTimeOffset.UtcNow, null),
+            new Inspect_NetworkSettings(null,
+                new Dictionary<string, Inspect_EndpointSettings> { ["demo-network"] = new("10.0.0.10") }, null)));
         handler.WhenGETStartsWith("/containers/").RespondStatus(HttpStatusCode.NotFound);
 
 
@@ -349,6 +356,9 @@ public class DockerServiceTests
         Assert.Contains(lastCreateBody.Labels, kv => kv.Key == "slimfaas-job-name" && kv.Value == jobFullName);
         Assert.Contains(lastCreateBody.Labels, kv => kv.Key == "slimfaas-job-element-id" && kv.Value == elementId);
         Assert.Contains(lastCreateBody.Labels, kv => kv.Key == "SlimFaas/Namespace" && kv.Value == ns);
+        Assert.True(createJob.DependsOn is null or { Count: 0 });
+        Assert.NotNull(lastCreateBody.NetworkingConfig);
+        Assert.Contains(jobFullName, lastCreateBody.NetworkingConfig.EndpointsConfig!["demo-network"].Aliases!);
     }
 
 

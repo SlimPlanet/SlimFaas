@@ -18,7 +18,11 @@ All commands below run from the repository root. Check the selected context befo
 
 The base manifests include [DLQ repair and durable Streams](guided-tour.md#9-repair-and-replay-a-dead-letter):
 `fibonacci1` captures terminal failures, both first functions subscribe to `orders`,
-and DLQ management is Public. Use a disposable cluster or isolated trusted namespace,
+and DLQ/Stream management is Public. The base job configuration also includes the
+[independent persistent WebSocket worker](guided-tour.md#11-run-an-independent-websocket-job),
+using the in-cluster HTTP/WebSocket service addresses with no DependsOn.
+Every tour creates a new worker; explicitly delete a previous job before a third run.
+Use a disposable cluster or isolated trusted namespace,
 with compatible runtime/sample images from the same checkout. No extra patches or
 activation flags are needed. Public access permits retained-body inspection, replay
 and deletion; do not expose this demo to untrusted users.

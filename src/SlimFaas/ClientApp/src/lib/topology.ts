@@ -20,6 +20,7 @@ export const nodeId = (kind: string, name: string) => `${kind}:${name}`;
 
 /** A job queue keeps the name SlimFaas records in activity, apart from function queues. */
 export const jobQueueName = (job: string) => `job:${job}`;
+export const isJobQueueName = (name: string) => name.startsWith('job:');
 export function jobQueues(jobs: JobConfigurationStatus[]): QueueInfo[] {
   return jobs.map(job => ({ Name: jobQueueName(job.Name), Length: job.QueueLength }));
 }
@@ -109,8 +110,10 @@ export function buildTopology(functions: FunctionStatusDetailed[], jobs: JobConf
   const regions: { groups: MapGroup[]; height: number }[] = [];
   // Each kind has its own packed region. Group rectangles reserve all instance space.
   let regionX = 0, height = 0;
-  for (const kind of ['job', 'external', 'slimfaas', 'queue', 'stream', 'function']) {
-    const region = groups.filter(g => g.kind === kind);
+  for (const kind of ['job', 'external', 'job-queue', 'slimfaas', 'queue', 'stream', 'function']) {
+    const region = groups.filter(g => kind === 'job-queue'
+      ? g.kind === 'queue' && isJobQueueName(g.label)
+      : g.kind === kind && !(kind === 'queue' && isJobQueueName(g.label)));
     if (!region.length) continue;
     const cols = Math.ceil(Math.sqrt(region.length));
     const cellW = Math.max(...region.map(g => g.width)) + GAP;

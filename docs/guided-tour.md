@@ -432,10 +432,13 @@ export BASE_URL=http://127.0.0.1:30020
 bash demo/smoke-tour.sh
 ```
 
-The existing smoke tour includes DLQ repair and Stream fan-out automatically.
+The existing smoke tour includes DLQ repair, Stream fan-out and an independent
+persistent WebSocket job automatically.
 A missing handler, wrong image, inaccessible DLQ or missing consumer is a failure,
 not a successful skip.
-Run it again to verify repeatability; each invocation gets a fresh `TOUR_ID`.
+Run it again to verify repeatability; each invocation gets a fresh `TOUR_ID`
+and a new WebSocket worker. Two workers can remain running; explicitly delete
+one before a third run, as described in section 11.
 Only bounded **reads** are retried, never submissions, repairs, requeues or appends.
 
 **Bruno:** run **Tour** in order; **09 Durable messaging** is included by default.
@@ -514,13 +517,134 @@ screens. Cleanup deliberately preserves the shared `orders` Stream, its
 subscriptions, and other runs' messages. ACK does **not** delete retained history;
 the demo's 24-hour/100,000-message retention policy eventually removes it.
 The [Streams reference](streams.md) explains retention gaps, retries and callbacks.
-WebSocket consumers are outside this introductory exercise.
+## 11. Run an independent WebSocket job
 
-After stopping the optional demo, restart without its overlays to remove the
-sample repair handler. In the native launcher terminal, also unset
-`SlimFaas__DeadLetterQueue__EnableFront` and
-`SlimFaas__DeadLetterQueue__DefaultVisibility` before returning to the ordinary
-launch. Removing configuration does not purge retained records.
+The base native, bundled, Compose and Kubernetes demos include **fibonacci-ws**,
+using the existing FibonacciBatch executable's `--ws-mode`. It has **no DependsOn**:
+it connects outbound to SlimFaas instead of exposing an HTTP server or waiting
+for a Fibonacci HTTP function. Callers use the normal function/async/Stream APIs.
+
+In the three-node native/Kubernetes demos, this **one job** opens a client
+connection to **each SlimFaas node**, all with identical configuration.
+Sync/async WebSocket registrations are node-local and async dispatch is
+leader-driven; connecting only to a load-balanced node would leave other nodes
+unable to route this function. `SLIMFAAS_WS_URLS` supplies the actual node URLs.
+The single-node Compose demo retains `SLIMFAAS_WS_URL`. No runtime routing or
+protocol behavior is changed. The registration proof is written only after
+every configured client has successfully registered.
+
+The normal shell tour and Bruno **Tour / 10 WebSocket job** create a **new
+persistent job for every invocation**, with a unique virtual function name and
+dedicated Public Stream. They never reuse an older worker or automatically stop
+it after the assertions:
+
+```bash
+cd demo/bruno-slimfaas-demo
+bru run "Tour/10 WebSocket job" -r --env Local --bail
+cd ../..
+```
+
+Use `Compose` or `Kubernetes` for those deployments. The job uses internal
+service addresses; no additional host WebSocket port-forward is needed.
+Run only one producer/tour at a time.
+
+### Follow the worker in the UI
+
+Keep **Overview** and **Live Stream → Traffic** open:
+
+1. Check **fibonacci-ws** capacity with `GET /status-jobs`. The base limit is
+   **two running jobs**. Automation refuses a full configuration before
+   submitting. A concurrent creator can still consume the last slot; bounded
+   registration observation reports the accepted job ID instead of resubmitting.
+2. Create the job once. A manual equivalent is:
+
+   ```bash
+   WS_FUNCTION="ws-tour-$(date +%s)-$$"
+   WS_STREAM="$WS_FUNCTION-events"
+   JOB_ID=$(curl -fsS -X POST "$BASE_URL/job/fibonacci-ws" \
+     -H 'Content-Type: application/json' \
+     --data "{\"Args\":[\"--ws-mode\",\"--function-name\",\"$WS_FUNCTION\",\"--subscribe-stream\",\"Public:$WS_STREAM\",\"--registration-key\",\"$WS_FUNCTION-ready\"],\"DependsOn\":[],\"BackoffLimit\":0}" | jq -er '.Id')
+   printf 'Retained job=%s function=%s stream=%s\n' "$JOB_ID" "$WS_FUNCTION" "$WS_STREAM"
+   ```
+
+   Wait for `GET /data/sets/$WS_FUNCTION-ready` to identify this function and
+   all registered connection IDs, for the exact new function to show a ready WebSocket replica, and for its
+   Stream subscription to be Active **before publishing**. The left-side
+   **fibonacci-ws ← job:fibonacci-ws ← SlimFaas** path shows job admission and
+   dequeue; its empty queue stays visible after startup. The virtual function
+   appears on the function side of the map.
+3. **Synchronous:** call the worker through SlimFaas:
+
+   ```bash
+   curl -i -X POST "$BASE_URL/function/$WS_FUNCTION/tour/ws/$WS_FUNCTION/sync" \
+     -H 'Content-Type: application/json' \
+     --data "{\"input\":10,\"nonce\":\"$WS_FUNCTION-sync\"}"
+   ```
+
+   Expect `200`, the exact worker name/nonce, result **55** and a correlation
+   identity. Request and response traverse the existing WebSocket connection.
+4. **Asynchronous:** submit once:
+
+   ```bash
+   curl -i -X POST "$BASE_URL/async-function/$WS_FUNCTION/tour/ws/$WS_FUNCTION/async" \
+     -H 'Content-Type: application/json' \
+     --data "{\"input\":10,\"nonce\":\"$WS_FUNCTION-async\"}"
+   curl -i "$BASE_URL/data/sets/$WS_FUNCTION-async"
+   ```
+
+   `202` is acceptance only. The proof must contain the exact
+   `Slimfaas-Element-Id` response header, worker name, nonce and result **55**.
+   The worker commits this shared proof before returning success; the terminal
+   tour also waits for the function queue to drain after the real SDK callback.
+5. **Stream:** publish only after the subscription is Active:
+
+   ```bash
+   curl -i -X POST "$BASE_URL/publish-stream/$WS_STREAM/tour/ws/$WS_FUNCTION/stream" \
+     -H 'Content-Type: application/json' \
+     --data "{\"input\":10,\"nonce\":\"$WS_FUNCTION-stream\"}"
+   curl -i "$BASE_URL/data/sets/$WS_FUNCTION-stream"
+   ```
+
+   Require a matching worker proof with the returned `MessageId`, Stream name,
+   nonce, computation and actual delivery ID. Then require this function's
+   `AcknowledgedThrough` to reach that message sequence. Open **Streams → your
+   Stream** and preview the retained body after ACK. Watch **SlimFaas → Stream →
+   virtual function**, followed by ACK traffic; live markers are best-effort
+   observations, not the completion assertion.
+
+The following captures come from the actual three-node native demo: one job
+registers three distinct SDK connections, receives sync/async calls and consumes
+its dedicated Stream. The browser verifies moving job admission/dequeue markers,
+Stream delivery and ACK markers separately from the processing assertions.
+
+![Persistent WebSocket worker and left-side job queues in the live map](images/dashboard/traffic-websocket-job.png)
+
+![Dedicated Stream history and acknowledged WebSocket consumer](images/dashboard/streams-websocket-job.png)
+
+### Persistence, repeatability and manual cleanup
+
+After successful assertions, automation deletes **only the three proof keys**
+(`-ready`, `-async`, `-stream`),
+which also expire after ten minutes. The job remains **Running**, its WebSocket
+function stays connected, and its Stream/history remain available. A second run
+creates a distinct worker and Stream; a third fails capacity until a previous
+job is explicitly deleted. IDs are printed even if a later check fails; inspect
+job logs and retained state before further mutations.
+
+When finished, use the IDs printed by that run:
+
+```bash
+curl -i -X DELETE "$BASE_URL/job/fibonacci-ws/$JOB_ID"
+# Wait for this worker's WebSocket connection to disappear, then remove its history.
+curl -i -X DELETE "$BASE_URL/data/streams/$WS_STREAM"
+```
+
+Never delete another run's job or the shared `orders` Stream. Finished-job TTL
+does not terminate a running worker. Stopping the native launcher shuts down its
+managed processes; restarting preserves durable state. The base demo continues
+to include the repair handler and Public DLQ/Stream dashboards without overlays.
+Use the Private/off production defaults in deployments outside this trusted demo;
+changing visibility does not purge retained records.
 
 ## Continue with your application
 

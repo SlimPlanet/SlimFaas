@@ -1,7 +1,7 @@
 # SlimFaas local demo
 
 This bundle includes SlimFaas with its dashboard, four Fibonacci HTTP functions,
-two job configurations and the Bruno collection. No .NET SDK, .NET installation,
+three job configurations and the Bruno collection. No .NET SDK, .NET installation,
 Node.js, Docker or Kubernetes is needed. The sample applications include their
 own .NET runtime; normal operating-system libraries are still required.
 
@@ -38,10 +38,19 @@ cURL; install jq separately and add its directory to `PATH`. WSL is not required
 BASE_URL=http://127.0.0.1:30020 bash demo/smoke-tour.sh
 ```
 
-The standard launch includes DLQ repair and two `orders` Stream subscribers.
+The standard launch includes DLQ repair, two `orders` Stream subscribers and the
+independent `fibonacci-ws` job configuration.
 The smoke script above and Bruno's **Tour / 09 Durable messaging** run these
 exercises by default, without additional manifests or environment switches.
-Public Data and DLQ access permits body inspection and replay/deletion; never
+Bruno's **Tour / 10 WebSocket job** and the smoke script also create a NEW
+persistent WebSocket job per invocation, verifying sync, async and Streams.
+Two workers may stay connected; manually delete a previous job before a third
+run. Automation prints its job/function/Stream IDs and cleanup commands, removes
+only three proof keys, and leaves the worker/history running for UI inspection.
+The one worker connects to each of the three nodes; registration readiness is
+verified before any test publication. If customizing node ports/count, update
+the job's `SLIMFAAS_WS_URLS` addresses too.
+Public Data, Stream and DLQ access permits body inspection and replay/deletion; never
 expose this trusted development configuration to untrusted users.
 Each run's repair/completion keys expire after ten minutes; successful
 cleanup leaves the shared `orders` history and subscriptions intact.

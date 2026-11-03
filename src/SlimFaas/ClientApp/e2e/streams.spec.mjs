@@ -1,6 +1,72 @@
 import { test, expect } from '@playwright/test';
 import { randomUUID } from 'node:crypto';
 import { startNative } from './native.mjs';
+import { fileURLToPath } from 'node:url';
+import { resolve } from 'node:path';
+
+for (const mode of ['disabled', 'restricted']) {
+  test(`Streams ${mode} UI hides navigation and stale live observations without requesting management APIs`, async ({ page }) => {
+    let apiRequests = 0;
+    const summary = { Name: 'protected-orders', Visibility: 'Public', RetainedMessageCount: 2, VisibleFunctionCount: 1,
+      OldestAppendedAt: null, NewestAppendedAt: null, MaxAgeSeconds: 86400, MaxLength: 100000,
+      EarliestMessageId: null, LatestMessageId: null, Generation: 'a', CapturedAt: '', Revision: 5 };
+    const frame = { Functions: [], Jobs: [], Queues: [], SlimFaasNodes: [], FrontEnabled: true,
+      Streams: [summary], StreamSubscriptions: [], StreamsAvailable: false,
+      StreamsFrontEnabled: mode !== 'disabled', StreamsAccessible: mode !== 'restricted',
+      RecentActivity: [{ Id: 'private-event', Type: 'stream_ack', Source: 'slimfaas', Target: 'stream:protected-orders',
+        QueueName: null, TimestampMs: Date.now(), NodeId: 'node', StreamName: 'protected-orders' }] };
+    const root = fileURLToPath(new URL('../../wwwroot/', import.meta.url));
+    await page.route('http://slimfaas.test/**', async route => {
+      const path = new URL(route.request().url()).pathname;
+      if (path === '/status-functions-stream') return route.fulfill({ contentType: 'text/event-stream',
+        body: 'event: state\ndata: ' + JSON.stringify(frame) + '\n\n' });
+      if (path.startsWith('/data/streams')) { apiRequests++; return route.fulfill({ status: 404 }); }
+      if (path === '/' || /^\/assets\/[^/]+$/.test(path)) return route.fulfill({
+        path: resolve(root, path === '/' ? 'index.html' : path.slice(1)),
+        contentType: path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'text/javascript' : 'text/html',
+      });
+      return route.fulfill({ status: 404 });
+    });
+    await page.goto('http://slimfaas.test/#/streams');
+    await expect(page.getByText(mode === 'disabled' ? 'Streams UI is disabled.' : 'Stream management is restricted for this caller.', { exact: false })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Streams', exact: true })).toHaveCount(0);
+    expect(apiRequests).toBe(0);
+    await page.goto('http://slimfaas.test/#/live/traffic');
+    await expect(page.getByRole('button', { name: 'Event journal (0)', exact: true })).toBeVisible();
+    await expect(page.getByRole('option', { name: 'stream ack', exact: true })).toHaveCount(0);
+    await expect(page.getByText('protected-orders', { exact: false })).toHaveCount(0);
+    expect(apiRequests).toBe(0);
+  });
+}
+
+test('mobile navigation remains visible and keyboard-accessible with DLQ and Streams enabled', async ({ page }) => {
+  const root = fileURLToPath(new URL('../../wwwroot/', import.meta.url));
+  const frame = { Functions: [], Jobs: [], Queues: [], SlimFaasNodes: [], RecentActivity: [], FrontEnabled: true,
+    DeadLetters: [], DeadLettersFrontEnabled: true, DeadLettersAccessible: true,
+    Streams: [], StreamSubscriptions: [], StreamsAvailable: true, StreamsFrontEnabled: true, StreamsAccessible: true };
+  await page.route('http://slimfaas.test/**', async route => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === '/status-functions-stream') return route.fulfill({ contentType: 'text/event-stream',
+      body: 'event: state\ndata: ' + JSON.stringify(frame) + '\n\n' });
+    if (path === '/' || /^\/assets\/[^/]+$/.test(path)) return route.fulfill({
+      path: resolve(root, path === '/' ? 'index.html' : path.slice(1)),
+      contentType: path.endsWith('.css') ? 'text/css' : path.endsWith('.js') ? 'text/javascript' : 'text/html',
+    });
+    return route.fulfill({ status: 404 });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('http://slimfaas.test/#/live/traffic');
+  await expect(page.getByRole('link', { name: 'Dead Letter Queues', exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Streams', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const links = page.locator('.navbar__navigation .navbar__link');
+  await links.first().focus();
+  for (let index = 0; index < await links.count(); index++) {
+    await expect(links.nth(index)).toBeFocused();
+    await expect(links.nth(index)).toBeVisible();
+    await page.keyboard.press('Tab');
+  }
+});
 
 async function openStreamSocket(url, name, configuration, sockets) {
   const socket = new WebSocket(url.replace(/^http/, 'ws') + '/ws'); sockets.push(socket);

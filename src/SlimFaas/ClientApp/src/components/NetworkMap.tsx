@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FunctionStatusDetailed, JobConfigurationStatus, QueueInfo, NetworkActivityEvent, SlimFaasNodeInfo } from '../types.ts';
-import { buildTopology, eventPath, filterNodes, jobQueues, observedFunctions, observedQueues, type ObservedFunction } from '../lib/topology.ts';
+import { buildTopology, eventPath, filterNodes, isJobQueueName, jobQueues, observedFunctions, observedQueues, type ObservedFunction } from '../lib/topology.ts';
 import { paginate } from '../lib/live.ts';
 import { matchesTraffic, SPEEDS, type Speed } from '../lib/traffic.ts';
 import TrafficCanvas from './TrafficCanvas';
@@ -12,7 +12,7 @@ import { streamLink, type StreamSummary, type StreamFunction } from '../lib/stre
 
 interface Props {
   deadLetters?: DeadLetterSummary[];
-  streams?: StreamSummary[]; streamSubscriptions?: StreamFunction[]; streamsTruncated?: boolean;
+  streams?: StreamSummary[]; streamSubscriptions?: StreamFunction[]; streamsTruncated?: boolean; streamsAvailable?: boolean;
   functions: FunctionStatusDetailed[]; jobs: JobConfigurationStatus[]; queues: QueueInfo[];
   activity: NetworkActivityEvent[]; queuesWithActivity: Set<string>;
   slimFaasReplicas: number; slimFaasNodes: SlimFaasNodeInfo[];
@@ -21,7 +21,13 @@ interface Props {
 
 export default function NetworkMap(props: Props) {
   const [frozen, setFrozen] = useState<Props | null>(null);
-  const input = frozen ?? props;
+  const input = useMemo(() => {
+    const snapshot = frozen ?? props;
+    return props.streamsAvailable !== false ? snapshot : {
+      ...snapshot, streams: [], streamSubscriptions: [], streamsTruncated: false,
+      activity: snapshot.activity.filter(event => !event.StreamName),
+    };
+  }, [frozen, props]);
   const [now, setNow] = useState(performance.now());
   useEffect(() => {
     if (frozen) return;
@@ -34,6 +40,13 @@ export default function NetworkMap(props: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const section = useRef<HTMLElement>(null);
   const [eventType, setEventType] = useState('all');
+  useEffect(() => {
+    if (props.streamsAvailable !== false) return;
+    setEventType(value => value.startsWith('stream_') ? 'all' : value);
+    if (selected?.startsWith('stream:')) {
+      setSelected(null); setSelectedLabel(''); setDetailsOpen(false);
+    }
+  }, [props.streamsAvailable, selected]);
   const [functionFilter, setFunctionFilter] = useState('');
   const [isolate, setIsolate] = useState(false);
   const [speed, setSpeed] = useState<Speed>(() => {
@@ -55,7 +68,7 @@ export default function NetworkMap(props: Props) {
   if (JSON.stringify(nextObservedQueues) !== JSON.stringify(observedQueuesRef.current)) observedQueuesRef.current = nextObservedQueues;
   const unknownQueues = observedQueuesRef.current;
   const topology = useMemo(() => buildTopology(input.functions, input.jobs,
-    queues.filter(q => q.Length > 0 || input.queuesWithActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams),
+    queues.filter(q => isJobQueueName(q.Name) || q.Length > 0 || input.queuesWithActivity.has(q.Name)), input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams),
   [input.functions, input.jobs, queues, input.queuesWithActivity, input.slimFaasNodes, observedActors, unknownQueues, input.deadLetters, input.streams]);
   const node = selected ? topology.byId.get(selected) : null;
   const nodes = useMemo(() => filterNodes(topology, search), [topology, search]);
@@ -88,7 +101,8 @@ export default function NetworkMap(props: Props) {
       <label className="field">Event type
         <select className="field__input" value={eventType} onChange={e => { setEventType(e.target.value); setJournalPage(0); }}>
           <option value="all">All events</option>
-          {['request_in', 'enqueue', 'dequeue', 'request_out', 'response', 'event_publish', 'request_waiting', 'request_started', 'request_end', 'dead_lettered', 'dead_letter_requeued', 'dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted', 'stream_append', 'stream_delivery', 'stream_ack', 'stream_waiting', 'stream_retry', 'stream_failed', 'stream_deleted', 'stream_retention'].map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
+          {['request_in', 'enqueue', 'dequeue', 'request_out', 'response', 'event_publish', 'request_waiting', 'request_started', 'request_end', 'dead_lettered', 'dead_letter_requeued', 'dead_letter_deleted', 'dead_letter_expired', 'dead_letter_evicted',
+            ...(props.streamsAvailable !== false ? ['stream_append', 'stream_delivery', 'stream_ack', 'stream_waiting', 'stream_retry', 'stream_failed', 'stream_deleted', 'stream_retention'] : [])].map(type => <option key={type} value={type}>{type.replace(/_/g, ' ')}</option>)}
         </select>
       </label>
       <label className="field">Function

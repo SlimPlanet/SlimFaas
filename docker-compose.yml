@@ -95,11 +95,27 @@ services:
       Data__DefaultVisibility: Public
       SlimFaas__DeadLetterQueue__EnableFront: "true"
       SlimFaas__DeadLetterQueue__DefaultVisibility: Public
+      SlimFaas__Streams__EnableFront: "true"
+      SlimFaas__Streams__DefaultVisibility: Public
       SlimData__Directory: "/database"
       SlimData__BackupDirectory: "/backup"
       SlimFaas__JobsConfiguration: |
         {
           "Configurations": {
+            "fibonacci-ws": {
+              "Image": "slimfaas-tour-batch:local",
+              "ImagesWhitelist": [],
+              "DependsOn": [],
+              "Environments": [
+                { "Name": "SLIMFAAS_WS_URL", "Value": "ws://slimfaas:5003/ws" },
+                { "Name": "SlimFaas__BaseUrl", "Value": "http://slimfaas:30021" }
+              ],
+              "BackoffLimit": 0,
+              "Visibility": "Public",
+              "NumberParallelJob": 2,
+              "TtlSecondsAfterFinished": 60,
+              "RestartPolicy": "Never"
+            },
             "fibonacci": {
               "Image": "slimfaas-tour-batch:local",
               "ImagesWhitelist": [],

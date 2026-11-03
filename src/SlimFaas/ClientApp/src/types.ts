@@ -142,6 +142,8 @@ export interface StatusStreamPayload {
   Streams?: import('./lib/streams').StreamSummary[];
   StreamSubscriptions?: import('./lib/streams').StreamFunction[];
   StreamsAvailable?: boolean;
+  StreamsFrontEnabled?: boolean;
+  StreamsAccessible?: boolean;
   StreamsTruncated?: boolean;
   DeadLetters?: import('./lib/deadLetters').DeadLetterSummary[];
   DeadLettersFrontEnabled?: boolean;

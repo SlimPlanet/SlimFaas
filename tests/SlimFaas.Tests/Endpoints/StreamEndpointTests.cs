@@ -31,22 +31,26 @@ public sealed class StreamEndpointTests
             ImmutableDictionary<string, ReadOnlyMemory<byte>>.Empty,
             ImmutableDictionary<string, ImmutableArray<QueueElement>>.Empty);
         internal IStreamService Service { get; }
+        internal SlimDataPayload? ObservationOverride { get; set; }
         internal NetworkActivityTracker Activity { get; } = new();
-        internal Fixture(bool trusted)
+        internal int BarrierReads { get; private set; }
+        internal Fixture(bool trusted, FunctionVisibility management = FunctionVisibility.Public, bool front = true)
         {
             var database = new Mock<IDatabaseService>();
-            database.Setup(item => item.GetAsync(It.IsAny<string>())).ReturnsAsync((byte[]?)null);
+            database.Setup(item => item.GetAsync(It.IsAny<string>())).Callback(() => BarrierReads++).ReturnsAsync((byte[]?)null);
             database.Setup(item => item.ExecuteStreamAsync(It.IsAny<DurableStreamMutation>()))
                 .ReturnsAsync((DurableStreamMutation mutation) => DurableStreamStore.Apply(mutation, State));
             var supplier = new Mock<ISupplier<SlimDataPayload>>();
-            supplier.Setup(item => item.Invoke()).Returns(() => new SlimDataPayload
+            supplier.Setup(item => item.Invoke()).Returns(() => ObservationOverride ?? new SlimDataPayload
                 { KeyValues = State.KeyValues, Hashsets = State.Hashsets, Queues = State.Queues });
             var access = new Mock<IFunctionAccessPolicy>();
             access.Setup(item => item.IsInternalRequest(It.IsAny<HttpContext>())).Returns(trusted);
             var functions = new Mock<IWebSocketFunctionRepository>();
             functions.Setup(item => item.GetVirtualDeployments()).Returns([]);
             Service = new StreamService(database.Object, supplier.Object, new MemoryReplicasService(), functions.Object,
-                access.Object, Activity, NullLogger<StreamService>.Instance);
+                access.Object, Activity, NullLogger<StreamService>.Instance,
+                Microsoft.Extensions.Options.Options.Create(new SlimFaasOptions
+                    { Streams = new StreamsOptions { DefaultVisibility = management, EnableFront = front } }));
         }
         internal Task<DurableStreamMutationResult> Configure(string name, string visibility = "Public", int length = 100000) =>
             Service.MutateAsync(new() { Action = DurableStreamAction.Configure, Stream = name, Visibility = visibility, MaxLength = length }, CancellationToken.None);
@@ -57,6 +61,86 @@ public sealed class StreamEndpointTests
                 services.Configure<DataOptions>(options => options.DefaultVisibility = FunctionVisibility.Public);
                 services.AddSingleton<ISlimFaasPorts, SlimFaasPortsMock>();
             }).Configure(app => { app.UseRouting(); app.UseEndpoints(endpoints => endpoints.MapStreamEndpoints()); })).StartAsync();
+    }
+
+    [Theory]
+    [InlineData("GET", "")]
+    [InlineData("GET", "/orders/metadata")]
+    [InlineData("GET", "/orders/messages")]
+    [InlineData("GET", "/orders/messages/message/body")]
+    [InlineData("GET", "/orders/functions")]
+    [InlineData("POST", "/orders/functions/worker")]
+    [InlineData("POST", "/orders/functions/worker/read")]
+    [InlineData("POST", "/orders/functions/worker/ack/message")]
+    [InlineData("DELETE", "/orders")]
+    [InlineData("DELETE", "/orders/functions/worker")]
+    public async Task Private_management_hides_public_streams_without_reading_state(string method, string path)
+    {
+        var fixture = new Fixture(false, FunctionVisibility.Private);
+        await fixture.Configure("orders");
+        using var host = await fixture.Start();
+        using var request = new HttpRequestMessage(new HttpMethod(method), "http://localhost:5000/data/streams" + path);
+        using var response = await host.GetTestClient().SendAsync(request);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(0, fixture.BarrierReads);
+    }
+
+    [Theory]
+    [InlineData("/publish-stream/orders/compute")]
+    [InlineData("/data/streams/orders")]
+    public async Task Private_management_and_disabled_ui_do_not_disable_public_publication(string route)
+    {
+        var fixture = new Fixture(false, FunctionVisibility.Private, front: false);
+        await fixture.Configure("orders");
+        using var host = await fixture.Start();
+        using var response = await host.GetTestClient().PostAsync("http://localhost:5000" + route,
+            new StringContent("""{"input":10}""", Encoding.UTF8, "application/json"));
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(false, FunctionVisibility.Public)]
+    [InlineData(true, FunctionVisibility.Private)]
+    public async Task Authorized_management_works_with_ui_disabled(bool trusted, FunctionVisibility management)
+    {
+        var fixture = new Fixture(trusted, management, front: false);
+        await fixture.Configure("orders", trusted ? "Private" : "Public");
+        using var host = await fixture.Start();
+        using var response = await host.GetTestClient().GetAsync("http://localhost:5000/data/streams/orders/metadata");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(fixture.Service.FrontEnabled);
+    }
+
+    [Theory]
+    [InlineData(false, FunctionVisibility.Public)]
+    [InlineData(true, FunctionVisibility.Private)]
+    public async Task Unavailable_ui_projects_no_stream_activity_or_observation_reads(bool front, FunctionVisibility management)
+    {
+        var fixture = new Fixture(false, management, front);
+        await fixture.Configure("orders");
+        using var host = await fixture.Start();
+        var context = new DefaultHttpContext { RequestServices = host.Services };
+        var events = new NetworkActivityEvent[]
+        {
+            new("stream-event", "stream_ack", "worker", "stream:orders", null, 1, "node", StreamName: "orders"),
+            new("ordinary", "request_in", "external", "slimfaas", null, 1, "node")
+        };
+        var original = new StatusStreamPayload([], [], [], events);
+        string frame = "event: state\ndata: " +
+            JsonSerializer.Serialize(original, StatusStreamSerializerContext.Default.StatusStreamPayload) + "\n\n";
+        string projected = await StreamObservation.ProjectAsync(context, frame, CancellationToken.None);
+        Assert.DoesNotContain("orders", projected, StringComparison.Ordinal);
+        Assert.DoesNotContain("stream-event", projected, StringComparison.Ordinal);
+        Assert.Contains("ordinary", projected, StringComparison.Ordinal);
+        Assert.Equal(0, fixture.BarrierReads);
+    }
+
+    [Fact]
+    public void Streams_default_to_private_management_and_disabled_ui()
+    {
+        var options = new SlimFaasOptions();
+        Assert.Equal(FunctionVisibility.Private, options.Streams.DefaultVisibility);
+        Assert.False(options.Streams.EnableFront);
     }
 
     [Theory]
@@ -139,6 +223,48 @@ public sealed class StreamEndpointTests
         }
         Assert.Single(fixture.Activity.GetRecent(), item => item.Type == "stream_waiting");
         Assert.Single(fixture.Activity.GetRecent(), item => item.Type == "stream_ack");
+    }
+
+    [Theory]
+    [InlineData(DurableStreamAction.Complete, 200, "stream_ack", "Acknowledged")]
+    [InlineData(DurableStreamAction.Complete, 204, "stream_ack", "Acknowledged")]
+    [InlineData(DurableStreamAction.Complete, 202, "stream_waiting", "WaitingForCallback")]
+    [InlineData(DurableStreamAction.AwaitCallback, 0, "stream_waiting", "WaitingForCallback")]
+    public async Task Accepted_completion_activity_does_not_depend_on_a_followers_lagging_snapshot(
+        DurableStreamAction action, int status, string eventType, string committedState)
+    {
+        var fixture = new Fixture(true);
+        await fixture.Configure("orders");
+        await fixture.Service.MutateAsync(new() { Action = DurableStreamAction.Subscribe, Stream = "orders", Function = "billing" }, CancellationToken.None);
+        await fixture.Service.MutateAsync(new() { Action = DurableStreamAction.Append, Stream = "orders", Value = [1] }, CancellationToken.None);
+        var reservation = await fixture.Service.MutateAsync(new()
+        {
+            Action = DurableStreamAction.Reserve, Stream = "orders", Function = "billing",
+            Owner = "node1", Replica = "replica1"
+        }, CancellationToken.None);
+        var observation = new SlimDataPayload
+        {
+            KeyValues = fixture.State.KeyValues, Hashsets = fixture.State.Hashsets, Queues = fixture.State.Queues
+        };
+        fixture.ObservationOverride = observation;
+        var delivery = Assert.IsType<DurableStreamDelivery>(reservation.Delivery);
+        var result = await fixture.Service.MutateAsync(new()
+        {
+            Action = action, Stream = "orders", Function = "billing",
+            ElementId = delivery.ElementId, StatusCode = status
+        }, CancellationToken.None);
+        Assert.Equal(200, result.Status);
+        Assert.Equal("Running", DurableStreamStore.Attempt(observation, delivery.ElementId)!.State);
+        var committed = new SlimDataPayload
+        {
+            KeyValues = fixture.State.KeyValues, Hashsets = fixture.State.Hashsets, Queues = fixture.State.Queues
+        };
+        Assert.Equal(committedState, DurableStreamStore.Attempt(committed, delivery.ElementId)!.State);
+        var observed = Assert.Single(fixture.Activity.GetRecent(), item => item.Type == eventType);
+        Assert.Equal("billing", observed.StreamFunction);
+        Assert.Equal(delivery.MessageId, observed.StreamMessageId);
+        Assert.DoesNotContain(fixture.Activity.GetRecent(), item => item.Type == "stream_failed");
+        Assert.Equal(0, fixture.BarrierReads);
     }
 
     [Fact]

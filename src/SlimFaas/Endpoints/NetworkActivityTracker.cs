@@ -51,7 +51,9 @@ public record StatusStreamPayload(
     IReadOnlyList<SlimFaas.Streams.StreamSummary>? Streams = null,
     IReadOnlyList<SlimFaas.Streams.StreamFunctionSummary>? StreamSubscriptions = null,
     bool StreamsAvailable = false,
-    bool StreamsTruncated = false);
+    bool StreamsTruncated = false,
+    bool StreamsFrontEnabled = false,
+    bool StreamsAccessible = false);
 
 public record QueueInfo(string Name, long Length);
 

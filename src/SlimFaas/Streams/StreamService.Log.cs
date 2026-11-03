@@ -4,6 +4,8 @@ namespace SlimFaas.Streams;
 
 internal static partial class StreamServiceLog
 {
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Denied Stream management access (DefaultVisibility=Private)")]
+    internal static partial void LogStreamManagementDenied(this ILogger logger);
     [LoggerMessage(Level = LogLevel.Error, Message = "Stream {Stream} persistence failed for {Action}")]
     internal static partial void LogStreamPersistenceFailure(this ILogger logger, Exception exception, string stream, DurableStreamAction action);
     [LoggerMessage(Level = LogLevel.Warning, Message = "Stream {Stream} rejected {Action}: HTTP {Status}: {Error}")]
