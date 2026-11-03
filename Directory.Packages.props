@@ -30,7 +30,7 @@
   <!-- ASP.NET Core / Microsoft.Extensions -->
   <ItemGroup>
     <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.14" />
-    <!-- DotNext 6.11.0 requires at least 10.0.13; CPM must not pin its transitive dependency lower. -->
+    <!-- DotNext 6.11 requires at least 10.0.13; CPM must not pin its transitive dependency lower. -->
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.14" />
@@ -69,7 +69,7 @@
     <PackageVersion Include="YamlDotNet" Version="18.1.0" />
     <PackageVersion Include="Vecc.YamlDotNet.Analyzers.StaticGenerator" Version="18.1.0" />
     <PackageVersion Include="Yaml2JsonNode" Version="3.0.2" />
-    <PackageVersion Include="NodaTime" Version="3.3.6" />
+    <PackageVersion Include="NodaTime" Version="3.3.7" />
   </ItemGroup>
 
   <!-- Kubernetes -->
@@ -79,7 +79,7 @@
 
   <!-- Raft / DotNext -->
   <ItemGroup>
-    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.11.0" />
+    <PackageVersion Include="DotNext.AspNetCore.Cluster" Version="6.11.1" />
   </ItemGroup>
 
   <!-- Samples -->
