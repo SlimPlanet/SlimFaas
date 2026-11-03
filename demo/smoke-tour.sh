@@ -34,7 +34,7 @@ cleanup() {
     done
   fi
   if [[ -n "$ws_job_id" ]]; then
-    for key in "$ws_function-ready" "$ws_function-async" "$ws_function-stream"; do
+    for key in "$ws_function-ready" "$ws_function-async" "$ws_function-stream" "$ws_function-event"; do
       status=$(curl -sS --max-time 10 -o "$TOUR_TMP/cleanup" -w '%{http_code}' -X DELETE "$BASE_URL/data/sets/$key") || status=000
       if [[ "$status" != 204 && "$status" != 404 ]]; then
         echo "FAIL cleanup $key ($status); its TTL is ten minutes." >&2
@@ -329,14 +329,14 @@ fi
 request 404 GET "/status-function/$ws_function"
 request 404 GET "/data/streams/$ws_stream/metadata"
 ws_args=$(jq -nc --arg fn "$ws_function" --arg stream "$ws_stream" \
-  '{Args:["--ws-mode","--function-name",$fn,"--subscribe-stream",("Public:"+$stream),"--registration-key",($fn+"-ready")],DependsOn:[],BackoffLimit:0}')
+  '{Args:["--ws-mode","--function-name",$fn,"--subscribe-stream",("Public:"+$stream),"--subscribe",("Public:"+$stream),"--registration-key",($fn+"-ready")],DependsOn:[],BackoffLimit:0}')
 request 202 POST /job/fibonacci-ws -H 'Content-Type: application/json' --data "$ws_args"
 ws_job_id=$(jq -er '.Id' "$TOUR_TMP/body")
 deadline=$((SECONDS + 180))
 while true; do
   request 200,404 GET "/data/sets/$ws_function-ready"
   if jq -e --arg fn "$ws_function" '.function == $fn and .connections > 0 and (.connectionIds | length) == .connections' "$TOUR_TMP/body" >/dev/null 2>&1; then break; fi
-  [[ $SECONDS -lt $deadline ]] || { echo "Job $ws_job_id did not register on every configured WebSocket node; inspect job logs and /status-jobs." >&2; exit 1; }
+  [[ $SECONDS -lt $deadline ]] || { echo "Job $ws_job_id did not register its WebSocket connection; inspect job logs and /status-jobs." >&2; exit 1; }
   sleep 0.5
 done
 deadline=$((SECONDS + 180))
@@ -396,7 +396,16 @@ while true; do
 done
 request 200 GET "/data/streams/$ws_stream/messages/$WS_MESSAGE_ID/body"
 jq -e --arg fn "$ws_function" '.nonce == ($fn+"-stream") and .input == 10' "$TOUR_TMP/body" >/dev/null
+request 204 POST "/publish-event/$ws_stream/tour/ws/$ws_function/event" -H 'Content-Type: application/json' \
+  --data "{\"input\":10,\"nonce\":\"$ws_function-event\"}"
+deadline=$((SECONDS + 30))
+while true; do
+  request 200,404 GET "/data/sets/$ws_function-event"
+  if jq -e --arg fn "$ws_function" '.function == $fn and .mode == "event" and .nonce == ($fn+"-event") and .input == 10 and .result == 55' "$TOUR_TMP/body" >/dev/null 2>&1; then break; fi
+  [[ $SECONDS -lt $deadline ]] || { echo "No matching best-effort event processing proof from $ws_job_id" >&2; exit 1; }
+  sleep 0.2
+done
 request 200 GET /status-jobs
 jq -e --arg id "$ws_job_id" 'any(.[] | select(.Name == "fibonacci-ws") | .RunningJobs[]; .ElementId == $id and .Status == "Running")' "$TOUR_TMP/body" >/dev/null
-echo "PASS New independent persistent WebSocket job processed sync, async and Stream $WS_MESSAGE_ID; ACK preserved its body."
+echo "PASS New independent persistent WebSocket job processed sync, async, events and Stream $WS_MESSAGE_ID; ACK preserved its body."
 echo 'PASS SlimFaas tour including DLQ repair, durable Streams and a WebSocket job. Manual scenarios: internal interfaces and access isolation.'

@@ -906,6 +906,10 @@ public static class SlimDataInterpreter
 
         switch (operation.Kind)
         {
+            case SlimDataBatchOperationKind.WebSocketDirectory:
+                result.WebSocketDirectoryResult = WebSocketDirectoryStore.Apply(
+                    MemoryPackSerializer.Deserialize<WebSocketDirectoryMutation>(operation.Value)!, state);
+                break;
             case SlimDataBatchOperationKind.Stream:
                 result.StreamResult = DurableStreamStore.Apply(
                     MemoryPackSerializer.Deserialize<DurableStreamMutation>(operation.Value)!, state);

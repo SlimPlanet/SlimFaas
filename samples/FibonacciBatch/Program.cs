@@ -196,6 +196,13 @@ static async Task RunWebSocketModeAsync(string[] remainingArgs)
         // ── Callback : évènement publish/subscribe ────────────────────────────
         client.OnPublishEvent = async evt =>
         {
+            if (tour.Matches(evt.Path, "event"))
+            {
+                var receipt = tour.Compute(evt.Body, "event", evt.EventName);
+                if (receipt is null) throw new InvalidDataException("Invalid WebSocket event tour payload.");
+                await tour.WriteAsync(receipt, cts.Token);
+                return;
+            }
             Console.WriteLine($"[WS] ── Évènement publish/subscribe reçu ──────────────");
             Console.WriteLine($"[WS]   Événement : {evt.EventName}");
             Console.WriteLine($"[WS]   Méthode   : {evt.Method}");

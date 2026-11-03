@@ -56,8 +56,9 @@ public sealed class StreamDispatcher(IStreamService service, ISupplier<SlimDataP
                     foreach (string name in registry.GetRegisteredFunctionNames())
                         foreach (var connection in registry.GetConnections(name))
                             foreach (string element in connection.StreamRequests.Keys)
-                                if (DurableStreamStore.Attempt(state.Invoke(), element)?.State is not ("Running" or "WaitingForCallback"))
-                                    connection.StreamRequests.TryRemove(element, out _);
+                                if (DurableStreamStore.Attempt(state.Invoke(), element)?.State is not ("Running" or "WaitingForCallback") &&
+                                    connection.StreamRequests.TryRemove(element, out var reserved) && reserved == 1)
+                                    connection.ReleaseRequest();
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { break; }
                 catch (Exception exception) { logger.LogStreamDispatcherFailed(exception); }
@@ -106,10 +107,23 @@ public sealed class StreamDispatcher(IStreamService service, ISupplier<SlimDataP
                 .Any(delivery => delivery.State == "RetryScheduled" && delivery.RetryAtTicks <= DateTime.UtcNow.Ticks))
             return;
         var retry = function.Configuration.DefaultAsync;
-        var candidates = function.Pods.Where(pod => pod.Ready == true && !string.IsNullOrEmpty(pod.Ip))
+        var localConnections = function.PodType == PodType.WebSocket
+            ? registry.GetConnections(function.Deployment).Select(connection => connection.ConnectionId).ToHashSet(StringComparer.Ordinal)
+            : null;
+        var candidates = function.Pods.Where(pod => pod.Ready == true && !string.IsNullOrEmpty(pod.Ip) &&
+                (localConnections is null || localConnections.Contains(pod.Ip)))
             .OrderBy(pod => DurableStreamStore.Running(state.Invoke(), function.Deployment, Proxy.RoutingTarget(pod))).ToArray();
         foreach (var pod in candidates)
         {
+            var connection = function.PodType == PodType.WebSocket
+                ? registry.GetConnections(function.Deployment).FirstOrDefault(item => item.ConnectionId == pod.Ip)
+                : null;
+            if (function.PodType == PodType.WebSocket &&
+                (connection is null || !connection.TryReserveRequest(function.NumberParallelRequestPerPod)))
+                continue;
+            bool transferred = false;
+            try
+            {
             var result = await service.MutateAsync(new()
             {
                 Action = DurableStreamAction.Reserve, Stream = definition.Name, Function = function.Deployment,
@@ -132,21 +146,24 @@ public sealed class StreamDispatcher(IStreamService service, ISupplier<SlimDataP
             request.Headers.Add(new("SlimFaas-Stream-Name", [definition.Name]));
             request.Headers.Add(new("SlimFaas-Stream-Message-Id", [delivery.MessageId]));
             if (function.PodType == PodType.WebSocket)
-                await SendWebSocketAsync(delivery, request, cancellationToken).ConfigureAwait(false);
+            {
+                connection!.StreamRequests[delivery.ElementId] = 1;
+                transferred = true;
+                await SendWebSocketAsync(delivery, request, connection, cancellationToken).ConfigureAwait(false);
+            }
             else
                 _requests.Add(delivery.ElementId, SendHttpAsync(delivery, request, pod, retry, cancellationToken));
+            }
+            finally
+            {
+                if (connection is not null && !transferred) connection.ReleaseRequest();
+            }
         }
     }
 
-    private async Task SendWebSocketAsync(DurableStreamDelivery delivery, CustomRequest request, CancellationToken cancellationToken)
+    private async Task SendWebSocketAsync(DurableStreamDelivery delivery, CustomRequest request,
+        WebSocketClientConnection connection, CancellationToken cancellationToken)
     {
-        var connection = registry.GetConnections(delivery.Function).FirstOrDefault(item => item.ConnectionId == delivery.Replica);
-        if (connection is null)
-        {
-            await CompleteAsync(delivery, 503, cancellationToken).ConfigureAwait(false);
-            return;
-        }
-        connection.StreamRequests[delivery.ElementId] = 0;
         try
         {
             await connection.SendAsync(new()
@@ -165,7 +182,8 @@ public sealed class StreamDispatcher(IStreamService service, ISupplier<SlimDataP
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             logger.LogStreamDispatcherFailed(exception);
-            connection.StreamRequests.TryRemove(delivery.ElementId, out _);
+            if (connection.StreamRequests.TryRemove(delivery.ElementId, out var reserved) && reserved == 1)
+                connection.ReleaseRequest();
             await CompleteAsync(delivery, 503, cancellationToken).ConfigureAwait(false);
         }
     }

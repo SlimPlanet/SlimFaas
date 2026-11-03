@@ -522,16 +522,15 @@ The [Streams reference](streams.md) explains retention gaps, retries and callbac
 The base native, bundled, Compose and Kubernetes demos include **fibonacci-ws**,
 using the existing FibonacciBatch executable's `--ws-mode`. It has **no DependsOn**:
 it connects outbound to SlimFaas instead of exposing an HTTP server or waiting
-for a Fibonacci HTTP function. Callers use the normal function/async/Stream APIs.
+for a Fibonacci HTTP function. Callers use the normal function/async/Stream/event APIs.
 
-In the three-node native/Kubernetes demos, this **one job** opens a client
-connection to **each SlimFaas node**, all with identical configuration.
-Sync/async WebSocket registrations are node-local and async dispatch is
-leader-driven; connecting only to a load-balanced node would leave other nodes
-unable to route this function. `SLIMFAAS_WS_URLS` supplies the actual node URLs.
-The single-node Compose demo retains `SLIMFAAS_WS_URL`. No runtime routing or
-protocol behavior is changed. The registration proof is written only after
-every configured client has successfully registered.
+This **one job** opens **one WebSocket connection**. The native demo targets
+node `30022`; Kubernetes targets `slimfaas-1`, and Compose uses its single node.
+Requests may arrive at any node: a Raft-backed directory discovers the owner,
+and sync/async/event delivery relays directly to it. Streams remain consumed by
+the owning node. `SLIMFAAS_WS_URL` supplies the address; multiple URLs remain
+optional, not a correctness workaround. Registration proof is written after
+the configured client has successfully registered.
 
 The normal shell tour and Bruno **Tour / 10 WebSocket job** create a **new
 persistent job for every invocation**, with a unique virtual function name and
@@ -563,7 +562,7 @@ Keep **Overview** and **Live Stream → Traffic** open:
    WS_STREAM="$WS_FUNCTION-events"
    JOB_ID=$(curl -fsS -X POST "$BASE_URL/job/fibonacci-ws" \
      -H 'Content-Type: application/json' \
-     --data "{\"Args\":[\"--ws-mode\",\"--function-name\",\"$WS_FUNCTION\",\"--subscribe-stream\",\"Public:$WS_STREAM\",\"--registration-key\",\"$WS_FUNCTION-ready\"],\"DependsOn\":[],\"BackoffLimit\":0}" | jq -er '.Id')
+     --data "{\"Args\":[\"--ws-mode\",\"--function-name\",\"$WS_FUNCTION\",\"--subscribe-stream\",\"Public:$WS_STREAM\",\"--subscribe\",\"Public:$WS_STREAM\",\"--registration-key\",\"$WS_FUNCTION-ready\"],\"DependsOn\":[],\"BackoffLimit\":0}" | jq -er '.Id')
    printf 'Retained job=%s function=%s stream=%s\n' "$JOB_ID" "$WS_FUNCTION" "$WS_STREAM"
    ```
 
@@ -612,10 +611,25 @@ Keep **Overview** and **Live Stream → Traffic** open:
    virtual function**, followed by ACK traffic; live markers are best-effort
    observations, not the completion assertion.
 
-The following captures come from the actual three-node native demo: one job
-registers three distinct SDK connections, receives sync/async calls and consumes
-its dedicated Stream. The browser verifies moving job admission/dequeue markers,
-Stream delivery and ACK markers separately from the processing assertions.
+6. **Event:** publish once and inspect the worker's computation proof:
+
+   ```bash
+   curl -i -X POST "$BASE_URL/publish-event/$WS_STREAM/tour/ws/$WS_FUNCTION/event" \
+     -H 'Content-Type: application/json' \
+     --data "{\"input\":10,\"nonce\":\"$WS_FUNCTION-event\"}"
+   curl -i "$BASE_URL/data/sets/$WS_FUNCTION-event"
+   ```
+
+   Require the exact function/nonce and result **55**. Event `204` is acceptance
+   only: unlike Streams, events are best effort and have no durable retries.
+
+In the native demo, repeat calls through `http://127.0.0.1:30021`,
+`http://127.0.0.1:30022` and `http://127.0.0.1:30023` to verify that ingress does
+not need its own WebSocket connection. See [routing and failure semantics](clients.md#multi-node-routing-and-failure-semantics).
+
+The following captures show the three-node native demo, including worker
+registration, sync/async calls and its dedicated Stream. Moving job admission/dequeue,
+Stream delivery and ACK markers are verified separately from the processing assertions.
 
 ![Persistent WebSocket worker and left-side job queues in the live map](images/dashboard/traffic-websocket-job.png)
 
@@ -623,8 +637,8 @@ Stream delivery and ACK markers separately from the processing assertions.
 
 ### Persistence, repeatability and manual cleanup
 
-After successful assertions, automation deletes **only the three proof keys**
-(`-ready`, `-async`, `-stream`),
+After successful assertions, automation deletes **only the four proof keys**
+(`-ready`, `-async`, `-stream`, `-event`),
 which also expire after ten minutes. The job remains **Running**, its WebSocket
 function stays connected, and its Stream/history remain available. A second run
 creates a distinct worker and Stream; a third fails capacity until a previous

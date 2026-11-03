@@ -43,13 +43,13 @@ independent `fibonacci-ws` job configuration.
 The smoke script above and Bruno's **Tour / 09 Durable messaging** run these
 exercises by default, without additional manifests or environment switches.
 Bruno's **Tour / 10 WebSocket job** and the smoke script also create a NEW
-persistent WebSocket job per invocation, verifying sync, async and Streams.
+persistent WebSocket job per invocation, verifying sync, async, events and Streams.
 Two workers may stay connected; manually delete a previous job before a third
 run. Automation prints its job/function/Stream IDs and cleanup commands, removes
-only three proof keys, and leaves the worker/history running for UI inspection.
-The one worker connects to each of the three nodes; registration readiness is
-verified before any test publication. If customizing node ports/count, update
-the job's `SLIMFAAS_WS_URLS` addresses too.
+only four proof keys, and leaves the worker/history running for UI inspection.
+The worker connects to only one node; other nodes route calls to that owner.
+Registration readiness is verified before publication. If customizing node
+ports/count, update the job's `SLIMFAAS_WS_URL` address too.
 Public Data, Stream and DLQ access permits body inspection and replay/deletion; never
 expose this trusted development configuration to untrusted users.
 Each run's repair/completion keys expire after ten minutes; successful

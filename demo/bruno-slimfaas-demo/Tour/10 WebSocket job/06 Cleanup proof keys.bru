@@ -1,7 +1,7 @@
 meta {
   name: Delete only proof keys and keep the worker and Stream
   type: http
-  seq: 6
+  seq: 7
 }
 
 delete {
@@ -23,11 +23,16 @@ tests {
       throw error;
     });
     expect([204, 404]).to.include(registration.status);
+    const event = await bru.sendRequest({ method: "DELETE", url: bru.getEnvVar("baseUrl") + "/data/sets/" + bru.getVar("wsFunction") + "-event" }).catch(error => {
+      if (error.status === 404 || error.response?.status === 404) return { status: 404 };
+      throw error;
+    });
+    expect([204, 404]).to.include(event.status);
     console.log("Keep job " + bru.getVar("wsJobId") + " connected; manually DELETE /job/fibonacci-ws/" + bru.getVar("wsJobId") + " when finished, then DELETE /data/streams/" + bru.getVar("wsStream"));
   });
 }
 
 docs {
-  Registration, async and Stream proof keys also expire after ten minutes. Job and Stream/history are intentionally retained.
+  Registration, async, event and Stream proof keys also expire after ten minutes. Job and Stream/history are intentionally retained.
   A second run creates another distinct worker; a third run fails the two-job capacity check until explicit manual cleanup.
 }

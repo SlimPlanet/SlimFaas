@@ -26,7 +26,6 @@ internal readonly record struct CompletedWebSocketRequest(
 /// </summary>
 public class WebSocketQueuesWorker(
     ISlimFaasQueue slimFaasQueue,
-    WebSocketConnectionRegistry registry,
     IWebSocketSendClient webSocketSendClient,
     IWebSocketFunctionRepository functionRepository,
     HistoryHttpMemoryService historyHttpService,
@@ -111,7 +110,7 @@ public class WebSocketQueuesWorker(
         string functionName = deployment.Deployment;
         Dictionary<string, TrackedWebSocketRequest> active = GetOrAdd(processingRequests, functionName);
         lastCallCounters.TryAdd(functionName, 0);
-        int connectionCount = registry.GetConnections(functionName).Count;
+        int connectionCount = deployment.Pods.Count(pod => pod.Ready == true);
         if (connectionCount == 0)
             return;
 
@@ -123,9 +122,9 @@ public class WebSocketQueuesWorker(
                 .ConfigureAwait(false);
         }
 
-        int maximumParallelism = Math.Min(
+        int maximumParallelism = (int)Math.Min(
             deployment.NumberParallelRequest,
-            connectionCount * deployment.NumberParallelRequestPerPod);
+            (long)connectionCount * deployment.NumberParallelRequestPerPod);
         int inFlight = deadLetters?.IsManaged(functionName) == true ? Math.Max(active.Count, queueState.Running) : active.Count;
         int availableSlots = Math.Max(0, maximumParallelism - inFlight);
         UpdateLastCallIfWorkRemains(

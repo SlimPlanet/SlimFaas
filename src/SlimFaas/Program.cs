@@ -358,8 +358,21 @@ if (slimFaasOptions.EnableFront)
 
 // --- WebSocket virtual clients ---
 serviceCollectionSlimFaas.AddSingleton<WebSocketConnectionRegistry>();
+serviceCollectionSlimFaas.AddSingleton<WebSocketClusterDirectory>();
+serviceCollectionSlimFaas.AddSingleton<IWebSocketClusterDirectory>(sp => sp.GetRequiredService<WebSocketClusterDirectory>());
+serviceCollectionSlimFaas.AddHostedService(sp => sp.GetRequiredService<WebSocketClusterDirectory>());
 serviceCollectionSlimFaas.AddSingleton<IWebSocketFunctionRepository, WebSocketFunctionRepository>();
-serviceCollectionSlimFaas.AddSingleton<IWebSocketSendClient, WebSocketSendClient>();
+serviceCollectionSlimFaas.AddSingleton<WebSocketSendClient>();
+serviceCollectionSlimFaas.AddSingleton<IWebSocketSendClient, ClusterWebSocketSendClient>();
+serviceCollectionSlimFaas.AddSingleton<WebSocketPeerAuthorization>();
+serviceCollectionSlimFaas.AddHttpClient(ClusterWebSocketSendClient.HttpClientName)
+    .ConfigureHttpClient(client => client.Timeout = Timeout.InfiniteTimeSpan)
+    .ConfigurePrimaryHttpMessageHandler(() =>
+    {
+        var handler = InternalHttpClientHandler.Create(slimFaasOptions.AllowUnsecureSsl);
+        handler.AllowAutoRedirect = false;
+        return handler;
+    });
 serviceCollectionSlimFaas.AddHostedService<WebSocketQueuesWorker>();
 
 builder.Services
@@ -673,6 +686,7 @@ app.UseStaticFiles();
 
 // --- WebSocket endpoint (port dédié uniquement) ---
 app.MapWebSocketEndpoints();
+app.MapWebSocketPeerEndpoints();
 
 app.MapDataHashsetRoutes();
 app.MapDataSetRoutes();

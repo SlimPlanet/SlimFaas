@@ -181,6 +181,13 @@ not allowed) is answered to its caller without entering the queue.
 
 ![Independent WebSocket job, left-side job queues and Stream traffic](images/dashboard/traffic-websocket-job.png)
 
+WebSocket inventory is cluster-wide even when each worker connects to only one
+node. The Native AOT capture below opens Traffic on `slimfaas-0` while the worker
+connects only to `slimfaas-1`. The journal preserves the ingress node for enqueue
+and the owning node for delivery, event fan-out and Stream ACKs.
+
+![Cross-node WebSocket traffic with ingress and owner identities in the journal](images/dashboard/traffic-websocket-cross-node.png)
+
 On small screens, navigation wraps so that enabling both DLQ and Streams does not
 push either link off-screen; all sections remain reachable by keyboard.
 

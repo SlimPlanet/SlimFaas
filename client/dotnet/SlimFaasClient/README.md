@@ -15,6 +15,11 @@ or `202` followed by `SendCallbackAsync`. Registration requires server capabilit
 C# library to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
 
+One outbound connection to any SlimFaas node is sufficient: sync, async and event
+ingress on other nodes relays to its owner; Streams consume on the connected node.
+Configuration must match across clients sharing a name. SDK wire messages are
+unchanged. See [multi-node routing and failures](../../../docs/clients.md#multi-node-routing-and-failure-semantics).
+
 [![NuGet](https://img.shields.io/nuget/v/SlimFaasClient.svg)](https://www.nuget.org/packages/SlimFaasClient)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/SlimFaasClient.svg)](https://www.nuget.org/packages/SlimFaasClient)
 [![GitHub](https://img.shields.io/badge/GitHub-SlimFaas-181717?logo=github)](https://github.com/SlimPlanet/SlimFaas)

@@ -10,18 +10,36 @@ This is useful for jobs, agents, desktop services, local workers, or any process
 
 Try the [independent persistent WebSocket job in the Guided Tour](guided-tour.md#11-run-an-independent-websocket-job).
 It reuses `FibonacciBatch --ws-mode` from the base demos, exercising sync replies,
-async processing proofs and exact Stream ACK/history checks through the official
+async/event processing proofs and exact Stream ACK/history checks through the official
 .NET client. `--subscribe-stream Public:name` is repeatable; the equivalent
 `SLIMFAAS_SUBSCRIBE_STREAMS` environment value accepts comma-separated
 subscriptions. The demonstration's proof writes use `SlimFaas__BaseUrl`;
 `SLIMFAAS_WS_URL` supplies one outbound connection address; comma-separated
-`SLIMFAAS_WS_URLS` opens identically configured clients to every node of the
-multi-node demo. Sync/async routing is node-local, so every node must have a
-connection. `--registration-key <function-name>-ready` writes a bounded-TTL
+`SLIMFAAS_WS_URLS` optionally opens several identically configured clients.
+One connection to any node is sufficient for sync, async, Streams and events;
+the base demos deliberately use one owner. `--registration-key <function-name>-ready` writes a bounded-TTL
 readiness proof only after all configured clients successfully register.
 It is optional; ordinary WebSocket mode does not require a Data Set proof.
 No client API or
 wire-protocol changes are required.
+
+### Multi-node routing and failure semantics
+
+SlimData/Raft stores registration metadata, compatible configuration and a
+30-second owner lease, renewed every five seconds. Sockets and pending responses
+remain on their owner. Any ingress discovers the virtual function and relays
+sync/async requests or event fan-out directly to that owner over an authenticated
+internal transport. This works independently of dashboard/SSE settings.
+Streams retain owner-local consumption with shared Raft reservations.
+
+The owner enforces per-client capacity. Sync bodies remain streamed with bounded
+buffers; cancellation propagates to the owner. An unavailable owner returns an
+explicit failure, not a blind synchronous replay. Async delivery retains the
+normal retry/DLQ behavior. An ambiguous attempt's element ID stays fenced on its
+connection until a late callback or disconnect; retries may use another replica.
+Events remain best effort: `204` is acceptance, not delivery confirmation, and
+partial fan-out is not automatically resent. Disconnect removes the route;
+crashes expire the lease, and reconnect creates a new connection identity.
 
 Client libraries:
 

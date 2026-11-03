@@ -92,6 +92,15 @@ public static class AsyncFunctionEndpoints
 
         if (function == null)
         {
+            if (context.RequestServices.GetService<IWebSocketClusterDirectory>() is { } directory)
+            {
+                await directory.RefreshAsync(context.RequestAborted);
+                function = webSocketFunctionRepository.GetVirtualDeployments()
+                    .FirstOrDefault(deployment => deployment.Deployment.Equals(functionName, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+        if (function == null)
+        {
             return Results.NotFound();
         }
 
@@ -99,6 +108,7 @@ public static class AsyncFunctionEndpoints
         {
             return Results.NotFound();
         }
+        if (function.Namespace == "websocket-virtual") functionName = function.Deployment;
 
         var defaultAsync = function.Configuration.DefaultAsync;
         var deadLetters = context.RequestServices.GetService<SlimFaas.DeadLetters.DeadLetterService>();
@@ -198,6 +208,12 @@ public static class AsyncFunctionEndpoints
         DeploymentInformation? function = FunctionEndpointsHelpers.SearchFunction(replicasService, functionName);
         function ??= context.RequestServices.GetService<IWebSocketFunctionRepository>()?.GetVirtualDeployments()
             .FirstOrDefault(item => item.Deployment == functionName);
+        if (function is null && context.RequestServices.GetService<IWebSocketClusterDirectory>() is { } directory)
+        {
+            await directory.RefreshAsync(context.RequestAborted);
+            function = context.RequestServices.GetRequiredService<IWebSocketFunctionRepository>().GetVirtualDeployments()
+                .FirstOrDefault(item => item.Deployment == functionName);
+        }
         if (function == null)
         {
             return Results.NotFound();

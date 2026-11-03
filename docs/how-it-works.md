@@ -3,12 +3,24 @@
 [Durable Streams](streams.md) persist definitions, subscriptions, message bodies,
 attempt leases, ACKs and retention gaps through the unified SlimData Raft batch
 path. HTTP dispatch is leader-owned; WebSocket-owning nodes reserve through the
-same shared state. SLDC/4 fences the additive batch result contract; stored
+same shared state. SLDC/5 fences the additive WebSocket directory batch contract; stored
 producer receipts from earlier formats remain readable. Stream payloads use
 generated MemoryPack writers directly to avoid Native AOT generic virtual
 formatter dispatch, without changing the wire format. API payloads use
-source-generated JSON. Upgrade all Raft nodes together: mixed SLDC/3 and SLDC/4
+source-generated JSON. Upgrade all Raft nodes together: mixed SLDC/4 and SLDC/5
 clusters are deliberately not ready.
+
+WebSocket registrations use a Raft-backed connection directory with node leases
+and incarnation fencing. Configuration reservations are cluster-wide; only
+activated, live-owner registrations appear as virtual replicas. Sync and async
+ingress relay directly to the owning node, while event fan-out groups targets by
+owner and preserves best effort. Stream reservations remain owner-local.
+Internal proofs bind sender membership, owner incarnation, operation and payload;
+credentials stay in private state, outside Data APIs and workload environments.
+The synchronous relay uses a dedicated duplex HTTP transport: response-duration
+metric wrappers cannot wrap upgraded WebSocket streams. Async and event relays
+keep the standard instrumented HTTP client.
+See [client routing and failure semantics](clients.md#multi-node-routing-and-failure-semantics).
 
 SlimFaas sits between callers and their applications. It routes HTTP requests, wakes idle workloads, queues asynchronous work, dispatches jobs and coordinates state through SlimData.
 

@@ -10,7 +10,9 @@ in native local mode, a precompiled bundle, Compose or Kubernetes. It waits for
 both subscriptions, checks both independent ACK positions and reads the exact
 retained publication afterwards. The standard tour also demonstrates DLQ repair.
 It also includes an [independent persistent WebSocket job](guided-tour.md#11-run-an-independent-websocket-job)
-that processes synchronous, asynchronous and Stream messages.
+that processes synchronous, asynchronous, event and Stream messages through one
+outbound connection. Publication can arrive on any node; WebSocket consumption
+remains owner-local with shared Raft reservations.
 
 ## Visibility and dashboard defaults
 

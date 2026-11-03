@@ -19,7 +19,7 @@ data:
           "ImagesWhitelist": [],
           "DependsOn": [],
           "Environments": [
-            { "Name": "SLIMFAAS_WS_URLS", "Value": "ws://slimfaas-0.slimfaas.slimfaas-demo.svc.cluster.local:5003/ws,ws://slimfaas-1.slimfaas.slimfaas-demo.svc.cluster.local:5003/ws,ws://slimfaas-2.slimfaas.slimfaas-demo.svc.cluster.local:5003/ws" },
+            { "Name": "SLIMFAAS_WS_URL", "Value": "ws://slimfaas-1.slimfaas.slimfaas-demo.svc.cluster.local:5003/ws" },
             { "Name": "SlimFaas__BaseUrl", "Value": "http://slimfaas-http.slimfaas-demo.svc.cluster.local:5000" }
           ],
           "BackoffLimit": 0,

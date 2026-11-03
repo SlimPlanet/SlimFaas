@@ -30,7 +30,7 @@ script:pre-request {
 }
 
 body:json {
-  {"Args":["--ws-mode","--function-name","{{wsFunction}}","--subscribe-stream","Public:{{wsStream}}","--registration-key","{{wsFunction}}-ready"],"DependsOn":[],"BackoffLimit":0}
+  {"Args":["--ws-mode","--function-name","{{wsFunction}}","--subscribe-stream","Public:{{wsStream}}","--subscribe","Public:{{wsStream}}","--registration-key","{{wsFunction}}-ready"],"DependsOn":[],"BackoffLimit":0}
 }
 
 script:post-response {

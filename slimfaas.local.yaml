@@ -189,7 +189,7 @@ jobs:
       SlimFaas/DefaultVisibility: "Public"
       SlimFaas/NumberParallelJob: "2"
     environment:
-      SLIMFAAS_WS_URLS: "ws://127.0.0.1:30021/ws,ws://127.0.0.1:30022/ws,ws://127.0.0.1:30023/ws"
+      SLIMFAAS_WS_URL: "ws://127.0.0.1:30022/ws"
       SlimFaas__BaseUrl: "http://127.0.0.1:30020"
     ttlSecondsAfterFinished: 60
     backoffLimit: 0

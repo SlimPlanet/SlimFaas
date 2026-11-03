@@ -93,6 +93,7 @@ test('registered public route patterns have an API entry and a Bruno example', a
             const source = await readFile(file, 'utf8');
             const prefix = source.match(/MapGroup\("([^"]*)"\)/)?.[1] ?? '';
             for (const match of source.matchAll(/\b(app|group)\.Map(?:Get|Post|Delete|Put|Patch|Methods)?\(\s*"([^"]*)"/g)) {
+                if (match[2].startsWith('/internal/')) continue;
                 routes.add((match[1] === 'group' ? prefix : '') + match[2]);
             }
         }
