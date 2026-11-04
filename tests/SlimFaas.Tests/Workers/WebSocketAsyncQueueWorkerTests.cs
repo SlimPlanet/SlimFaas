@@ -97,7 +97,6 @@ public sealed class WebSocketAsyncQueueWorkerTests
         master.SetupGet(service => service.IsMaster).Returns(true);
         var worker = new WebSocketQueuesWorker(
             queue.Object,
-            registry,
             sendClient.Object,
             repository.Object,
             new HistoryHttpMemoryService(),

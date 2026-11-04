@@ -1,5 +1,12 @@
 # SlimFaas API Reference
 
+See [Durable Streams](streams.md#observe-without-consuming) for the `/data/streams`
+catalog, passive history/body/subscription routes, explicit reservation/ACK,
+deletion guards and `/publish-stream/{stream}/{path}` append alias.
+All publication forms return `202 {"Stream":"...","MessageId":"..."}` with
+`Location` after durable commit, without waiting for recipients or ACKs.
+This replaces the previous `201` publication status, with unchanged receipt fields.
+
 This inventory describes the routes registered by the SlimFaas runtime in this checkout. Use the [Guided Tour](guided-tour.md) for executable cURL examples and the [Bruno collection](https://slimfaas.dev/downloads/slimfaas-demo.zip) for ordered requests with assertions.
 
 ## Addresses and response conventions
@@ -46,7 +53,16 @@ See [synchronous calls](guided-tour.md#3-call-functions-synchronously) and [asyn
 
 The wildcard represents the application's path; it is not a literal part of the URL. The registered HTTP methods do not guarantee that the downstream application supports them. For example, the demo exposes GET `/hello/{name}` and POST `/fibonacci`; calling an unsupported application method can return `405`.
 
-An async worker sends `SlimFaas-Element-Id` to the function. If the function returns `202`, it must later call the completion route with that ID. `success` (case-insensitive) maps to successful completion; other nonempty status strings map to failure. Use the documented `success` or `error` values. The callback does not publish a queryable result resource. See [Functions](functions.md) for headers, retry configuration and idempotency.
+An async worker sends `SlimFaas-Element-Id` to the function. If the function returns `202`, it must later call the completion route with that ID. `success` (case-insensitive) maps to successful completion and `error` to failure; other values return `400`. The callback does not publish a queryable result resource. See [Functions](functions.md) for headers, retry configuration and idempotency.
+
+## Dead Letter Queues
+
+The [DLQ API inventory](async-functions.md#management-api) documents catalog,
+summary, filtered cursor pages, message details/body, replay, deletion, and
+access-controlled metrics under `/data/dead-letters`. Capture is opt-in per
+function. Management is independently Private by default; enabling a public
+function or the Data dashboard does not expose it. Replay returns 202 only after
+durable insertion and retains an idempotency receipt for 24 hours.
 
 ## Events
 

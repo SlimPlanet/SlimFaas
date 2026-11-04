@@ -1,0 +1,28 @@
+meta {
+  name: Observe two independent consumer acknowledgements
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/data/streams/orders/functions
+  body: none
+  auth: none
+}
+
+tests {
+  test("Both functions independently acknowledge the accepted publication", async function () {
+    const id = bru.getVar("durableStreamId");
+    expect(id).to.be.a("string").and.not.empty;
+    const sequence = Number(id.split("_").pop()), deadline = Date.now() + 180000;
+    const complete = r => r.status === 200 && ["fibonacci1", "fibonacci2"].every(name =>
+      r.data.Items.some(item => item.Function === name && item.Active && item.AcknowledgedThrough >= sequence));
+    let response = { status: res.getStatus(), data: res.getBody() };
+    while (!complete(response) && Date.now() < deadline) {
+      expect(response.status).to.equal(200);
+      await bru.sleep(500);
+      response = await bru.sendRequest({ method: "GET", url: req.getUrl() });
+    }
+    expect(complete(response), "A 202 receipt alone is not processing success").to.equal(true);
+  });
+}

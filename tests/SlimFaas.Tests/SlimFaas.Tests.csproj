@@ -24,6 +24,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\..\samples\Fibonacci\TourEndpoints.cs" Link="Samples\TourEndpoints.cs" />
+    <Compile Include="..\..\samples\Fibonacci\TourEndpoints.Log.cs" Link="Samples\TourEndpoints.Log.cs" />
     <ProjectReference Include="..\..\src\SlimFaas\SlimFaas.csproj" />
     <ProjectReference Include="..\..\benchmarks\SlimFaasBenchmark\SlimFaasBenchmark.csproj" />
   </ItemGroup>

@@ -40,6 +40,18 @@ public sealed class LocalNodeManagerTests
 
             Assert.Equal(3, pods.Count);
             Assert.Equal("slimfaas-0", environment["HOSTNAME"]);
+            Assert.Equal(
+                Environment.GetEnvironmentVariable("SlimFaas__Streams__EnableFront") ?? "true",
+                environment["SlimFaas__Streams__EnableFront"]);
+            Assert.Equal(
+                Environment.GetEnvironmentVariable("SlimFaas__Streams__DefaultVisibility") ?? "Public",
+                environment["SlimFaas__Streams__DefaultVisibility"]);
+            Assert.Equal(
+                Environment.GetEnvironmentVariable("SlimFaas__DeadLetterQueue__EnableFront") ?? "true",
+                environment["SlimFaas__DeadLetterQueue__EnableFront"]);
+            Assert.Equal(
+                Environment.GetEnvironmentVariable("SlimFaas__DeadLetterQueue__DefaultVisibility") ?? "Public",
+                environment["SlimFaas__DeadLetterQueue__DefaultVisibility"]);
             Assert.Equal("false", environment["OpenTelemetry__Enable"]);
             Assert.Equal("false", environment["OpenTelemetry__EnableConsoleExporter"]);
             Assert.All(

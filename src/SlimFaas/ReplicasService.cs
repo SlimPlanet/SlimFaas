@@ -4,6 +4,7 @@ using NodaTime.TimeZones;
 using Microsoft.Extensions.Options;
 using SlimFaas.Options;
 using SlimFaas.Scaling;
+using SlimFaas.Streams;
 
 namespace SlimFaas;
 
@@ -23,7 +24,8 @@ public class ReplicasService(
     IOptions<SlimFaasOptions> slimFaasOptions,
     Func<DateTime>? nowProvider = null,
     ScalingDiagnosticsStore? diagnostics = null,
-    ExternalMetricsSourceStore? externalSources = null)
+    ExternalMetricsSourceStore? externalSources = null,
+    StreamDemandStore? streamDemand = null)
     : IReplicasService
 {
     private readonly bool _isTurnOnByDefault = slimFaasOptions.Value.PodScaledUpByDefaultWhenInfrastructureHasNeverCalled;
@@ -92,7 +94,8 @@ public class ReplicasService(
                 evaluations[function.Deployment] = await autoScaler.EvaluateAsync(function, nowUnixSeconds,
                     externalOnly: function.Replicas == 0);
         }
-        var dependencyDemand = GetExternalDependencyDemand(currentDeployments, evaluations);
+        var streamWork = streamDemand?.Capture();
+        var dependencyDemand = GetExternalDependencyDemand(currentDeployments, evaluations, streamWork);
         diagnostics?.Retain(currentDeployments.Functions.Select(f => f.Deployment).ToHashSet(StringComparer.Ordinal));
 
         List<Task<ReplicaRequest?>> tasks = new();
@@ -100,15 +103,19 @@ public class ReplicasService(
         foreach (DeploymentInformation deploymentInformation in currentDeployments.Functions)
         {
             var context = CaptureContext(currentDeployments, deploymentInformation, nowUtc,
-                ticksLastCall, maximumTicks, dependencyDemand, _isTurnOnByDefault);
+                ticksLastCall, maximumTicks, dependencyDemand, _isTurnOnByDefault) with
+                { StreamDemand = streamWork?.GetValueOrDefault(deploymentInformation.Deployment) ?? 0 };
             if (logger.IsEnabled(LogLevel.Debug))
                 logger.LogTimeLeftWithoutRequestForScale(deploymentInformation.Deployment, TimeSpan.FromTicks(context.EffectiveActivityTicks)
                         + TimeSpan.FromSeconds(context.TimeoutSeconds) - TimeSpan.FromTicks(nowUtc.Ticks));
             int currentScale = deploymentInformation.Replicas;
             evaluations.TryGetValue(deploymentInformation.Deployment, out var evaluation);
+            var combined = StreamScaling.Include(deploymentInformation, evaluation, streamWork);
+            context = context with { Function = combined.Function };
+            evaluation = combined.Evaluation;
             MetricsScalingDecision? metrics = null;
             if (ScalingDecisionCalculator.NeedsMetrics(context, evaluation))
-                metrics = autoScaler.ComputeDecision(deploymentInformation, nowUnixSeconds, evaluation!, recordDecision: false);
+                metrics = autoScaler.ComputeDecision(combined.Function, nowUnixSeconds, evaluation!, recordDecision: false);
             var decision = ScalingDecisionCalculator.Calculate(context, evaluation, metrics,
                 SourceDiagnostics(deploymentInformation, nowUnixSeconds));
             if (decision.Reasons.Any(r => r.Code == "InfrastructureBlocked"))
@@ -188,7 +195,7 @@ public class ReplicasService(
         var deployments = Deployments;
         var ticks = deployments.Functions.ToDictionary(f => f.Deployment,
             f => historyHttpService.GetTicksLastCall(f.Deployment), StringComparer.Ordinal);
-        return new(deployments, ticks, _isTurnOnByDefault, nowUtc);
+        return new(deployments, ticks, _isTurnOnByDefault, nowUtc, streamDemand?.Capture());
     }
 
     internal IReadOnlyList<ScalingSourceDiagnostic> SourceDiagnostics(DeploymentInformation function, long now)
@@ -220,12 +227,13 @@ public class ReplicasService(
     }
 
     internal static HashSet<string> GetExternalDependencyDemand(DeploymentsInformations deployments,
-        IReadOnlyDictionary<string, ScalerEvaluation> evaluations)
+        IReadOnlyDictionary<string, ScalerEvaluation> evaluations, IReadOnlyDictionary<string, long>? streamDemand = null)
     {
         var functions = deployments.Functions.ToDictionary(f => f.Deployment, StringComparer.Ordinal);
         var demanded = new HashSet<string>(StringComparer.Ordinal);
         var visited = new HashSet<string>(StringComparer.Ordinal);
-        var pending = new Stack<string>(evaluations.Where(e => e.Value.HasActiveExternalSignal).Select(e => e.Key));
+        var pending = new Stack<string>(evaluations.Where(e => e.Value.HasActiveExternalSignal).Select(e => e.Key)
+            .Concat(streamDemand?.Where(item => item.Value > 0).Select(item => item.Key) ?? []));
         while (pending.TryPop(out var name))
         {
             if (!visited.Add(name) || !functions.TryGetValue(name, out var function)) continue;

@@ -397,7 +397,7 @@ namespace SlimFaas
             }
         }
 
-        private static string RoutingTarget(PodInformation pod)
+        internal static string RoutingTarget(PodInformation pod)
             => string.IsNullOrWhiteSpace(pod.RoutingKey) ? pod.Ip : pod.RoutingKey;
 
         private static PodInformation? FindReadyPod(

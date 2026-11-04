@@ -45,6 +45,7 @@ export default function TrafficCanvas(props: Props) {
     const colors = {
       job: css.getPropertyValue('--job').trim(), function: css.getPropertyValue('--color-primary').trim(),
       slimfaas: css.getPropertyValue('--color-primary').trim(), queue: css.getPropertyValue('--warning').trim(),
+      stream: css.getPropertyValue('--job').trim(),
       external: css.getPropertyValue('--muted').trim(), ink: css.getPropertyValue('--ink').trim(),
       success: css.getPropertyValue('--success').trim(), danger: css.getPropertyValue('--danger').trim(), soft: css.getPropertyValue('--soft').trim(),
       line: css.getPropertyValue('--line').trim(), background: css.getPropertyValue('--surface').trim(),
@@ -187,7 +188,7 @@ export default function TrafficCanvas(props: Props) {
         context.lineWidth = (selected === group.id ? 2 : 1) / k;
         context.beginPath(); context.roundRect(boxX, boxY, boxWidth, boxHeight, Math.min(16 / k, 24)); context.fill(); context.stroke();
         if (boxWidth * k > 80 && boxHeight * k > 45) {
-          const symbol = group.kind === 'function' ? 'power' : group.kind === 'queue' || group.kind === 'external' ? group.kind : null;
+          const symbol = group.kind === 'function' ? 'power' : group.kind === 'queue' || group.kind === 'external' || group.kind === 'stream' ? group.kind : null;
           context.strokeStyle = group.state ? stateColor(group.state) : colors[group.kind];
           if (symbol) drawSymbol(context, symbol, boxX + 10 / k, boxY + 6 / k, 18 / k);
           context.fillStyle = colors[group.kind]; context.font = `600 ${11 / k}px system-ui`;
@@ -200,7 +201,13 @@ export default function TrafficCanvas(props: Props) {
           if (boxHeight * k > 65) {
             context.font = `${11 / k}px system-ui`;
             const footerY = boxY + boxHeight - 12 / k;
-            if (group.state) {
+            if (group.deadLetterCount !== undefined) {
+              context.fillStyle = colors.queue;
+              context.fillText(`Async · ${group.queueLength === undefined ? 'unknown' : `${group.queueLength} queued`}`,
+                boxX + 12 / k, footerY - 18 / k, boxWidth - 24 / k);
+              context.fillStyle = colors.danger;
+              context.fillText(`DLQ · ${group.deadLetterCount} retained`, boxX + 12 / k, footerY, boxWidth - 24 / k);
+            } else if (group.state) {
               const badgeWidth = context.measureText(group.state).width + 14 / k;
               context.strokeStyle = stateColor(group.state); context.lineWidth = 1 / k;
               context.fillStyle = colors.background;

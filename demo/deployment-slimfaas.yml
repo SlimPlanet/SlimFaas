@@ -14,6 +14,20 @@ data:
   SlimFaas__JobsConfiguration: |
     {
       "Configurations": {
+        "fibonacci-ws": {
+          "Image": "axaguildev/fibonacci-batch:latest",
+          "ImagesWhitelist": [],
+          "DependsOn": [],
+          "Environments": [
+            { "Name": "SLIMFAAS_WS_URL", "Value": "ws://slimfaas-1.slimfaas.slimfaas-demo.svc.cluster.local:5003/ws" },
+            { "Name": "SlimFaas__BaseUrl", "Value": "http://slimfaas-http.slimfaas-demo.svc.cluster.local:5000" }
+          ],
+          "BackoffLimit": 0,
+          "Visibility": "Public",
+          "NumberParallelJob": 2,
+          "TtlSecondsAfterFinished": 60,
+          "RestartPolicy": "Never"
+        },
         "fibonacci": {
           "Image": "axaguildev/fibonacci-batch:latest",
           "ImagesWhitelist": [],
@@ -121,6 +135,14 @@ spec:
               value: "true"
             - name: SlimFaas__ExposeDataMetadata
               value: "false"
+            - name: SlimFaas__DeadLetterQueue__EnableFront
+              value: "true"
+            - name: SlimFaas__DeadLetterQueue__DefaultVisibility
+              value: Public
+            - name: SlimFaas__Streams__EnableFront
+              value: "true"
+            - name: SlimFaas__Streams__DefaultVisibility
+              value: Public
             - name: Data__DefaultVisibility
               value: "Public"
               # log level debug for testing

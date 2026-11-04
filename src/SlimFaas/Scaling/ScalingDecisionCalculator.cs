@@ -10,7 +10,7 @@ internal static class ScalingDecisionCalculator
 
     internal static bool NeedsMetrics(ScalingFunctionContext context, ScalerEvaluation? evaluation) =>
         evaluation is not null && (context.Function.Replicas > 0 ||
-            (ExternalWake(context, evaluation) && context.DependenciesReady));
+            ((ExternalWake(context, evaluation) || context.StreamDemand > 0) && context.DependenciesReady));
 
     internal static ScalingDecision Calculate(ScalingFunctionContext context, ScalerEvaluation? evaluation,
         MetricsScalingDecision? metrics, IReadOnlyList<ScalingSourceDiagnostic>? sources = null)
@@ -43,6 +43,10 @@ internal static class ScalingDecisionCalculator
             else if (metrics is not null) desired = Math.Max(desired, metrics.Target);
             reasons.Add(new("ExternalWake", "A valid external signal requests wake-up."));
         }
+        if (context.StreamDemand > 0)
+            reasons.Add(new("StreamDemand", "Retained eligible work and active attempts request capacity; terminal failures are excluded."));
+        if (context.StreamDemand > 0 && function.Scale?.ReplicaMax is { } streamMaximum)
+            desired = Math.Min(desired, streamMaximum);
         if (current == 0 && function.Scale?.ScaleFromZero == true && function.Scale.ReplicaMax is { } maximum)
             desired = Math.Min(desired, maximum);
         if (current == 0 && function.Scale?.Triggers.Any(t => t.Source is not null) == true && !function.Scale.ScaleFromZero)

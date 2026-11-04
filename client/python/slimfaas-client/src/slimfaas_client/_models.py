@@ -82,6 +82,14 @@ class SubscribeEventConfig:
 
 
 @dataclass
+class SubscribeStreamConfig:
+    """Durable subscription; visibility inherits the function default."""
+
+    name: str
+    visibility: Optional[FunctionVisibility] = None
+
+
+@dataclass
 class PathVisibilityConfig:
     """
     Describes a visibility rule for a path prefix.
@@ -153,11 +161,21 @@ class SlimFaasClientConfig:
     default_trust: FunctionTrust = FunctionTrust.TRUSTED
     """Trust level (SlimFaas/DefaultTrust)."""
 
+    subscribe_streams: list[SubscribeStreamConfig] = field(default_factory=list)
+    stream_max_age_seconds: int = 86400
+    stream_max_length: int = 100000
+
     def to_register_payload(self) -> dict:
         return {
             "functionName": self.function_name,
             "configuration": {
                 "dependsOn": self.depends_on,
+                "subscribeStreams": [
+                    {"name": s.name, **({"visibility": s.visibility.value} if s.visibility is not None else {})}
+                    for s in self.subscribe_streams
+                ],
+                "streamMaxAgeSeconds": self.stream_max_age_seconds,
+                "streamMaxLength": self.stream_max_length,
                 "subscribeEvents": [
                     {"name": e.name, **({"visibility": e.visibility.value} if e.visibility is not None else {})}
                     for e in self.subscribe_events
@@ -222,6 +240,24 @@ class AsyncRequest:
             body=body,
             is_last_try=payload.get("isLastTry", False),
             try_number=payload.get("tryNumber", 1),
+        )
+
+
+@dataclass
+class StreamMessage(AsyncRequest):
+    """A retained message reserved for this function and delivery attempt."""
+
+    stream_name: str
+    message_id: str
+
+    @classmethod
+    def from_payload(cls, payload: dict) -> "StreamMessage":
+        request = AsyncRequest.from_payload(payload)
+        return cls(
+            element_id=request.element_id, method=request.method, path=request.path,
+            query=request.query, headers=request.headers, body=request.body,
+            is_last_try=request.is_last_try, try_number=request.try_number,
+            stream_name=payload["streamName"], message_id=payload["messageId"],
         )
 
 

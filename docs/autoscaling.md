@@ -1,5 +1,10 @@
 # SlimFaas Autoscaling Guide
 
+[Durable Streams](streams.md) provide a native per-function work signal without
+an exporter. Runnable retained lag includes callback waits once and excludes
+terminal failures; it respects dependency readiness, concurrency, scaling
+policies and replica bounds. Passive history/dashboard reads create no demand.
+
 > End-to-end autoscaling for SlimFaas functions:
 > **HTTP activity & schedules + PromQL metrics, with opt-in external-metric wake-up**
 

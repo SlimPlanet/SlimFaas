@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SlimFaasClient\SlimFaasClient.csproj" />
+    <Compile Include="..\..\..\..\..\samples\FibonacciBatch\WebSocketTour.cs" Link="Samples\WebSocketTour.cs" />
   </ItemGroup>
 
 </Project>

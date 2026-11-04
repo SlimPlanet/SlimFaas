@@ -332,6 +332,30 @@ public sealed class SlimDataService : IDatabaseService, IAsyncDisposable
         _ = await EnqueueMutationAsync(mutation, latencySensitive: true).ConfigureAwait(false);
     }
 
+    public async Task<WebSocketDirectoryResult> ExecuteWebSocketDirectoryAsync(WebSocketDirectoryMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.WebSocketDirectory, WebSocketDirectoryStore.Key);
+        operation.Value = WebSocketDirectoryStore.SerializeMutation(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.WebSocketDirectoryResult ?? throw new DataException("Missing WebSocket directory result.");
+    }
+
+    public async Task<DurableStreamMutationResult> ExecuteStreamAsync(DurableStreamMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.Stream, DurableStreamStore.DefinitionPrefix + mutation.Stream);
+        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.StreamResult ?? throw new DataException("Missing durable Stream result.");
+    }
+
+    public async Task<DeadLetterMutationResult> ExecuteDeadLetterAsync(DeadLetterMutation mutation)
+    {
+        var operation = NewOperation(SlimDataBatchOperationKind.DeadLetter, "Queue:" + mutation.Function);
+        operation.Value = MemoryPackSerializer.Serialize(mutation);
+        var response = await EnqueueMutationAsync(operation, latencySensitive: true).ConfigureAwait(false);
+        return response.DeadLetterResult ?? throw new DataException("Missing durable DLQ result.");
+    }
+
     private async Task<SlimDataBatchOperationResult> EnqueueMutationAsync(
         SlimDataBatchOperation operation,
         bool latencySensitive = false)

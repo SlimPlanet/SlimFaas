@@ -5,6 +5,35 @@ namespace SlimFaas.Tests.Kubernetes;
 public sealed class FunctionMetadataParserTests
 {
     [Fact]
+    public void Parse_Stream_subscriptions_inherit_visibility_and_parse_bounded_retention()
+    {
+        var metadata = FunctionMetadataParser.Parse(new Dictionary<string, string>
+        {
+            [FunctionAnnotationNames.DefaultVisibility] = "Private",
+            [FunctionAnnotationNames.SubscribeStream] = "orders,Public:notifications",
+            [FunctionAnnotationNames.StreamMaxAge] = "24h",
+            [FunctionAnnotationNames.StreamMaxLength] = "123"
+        }, "billing");
+        Assert.Equal([new SubscribeStream("orders", FunctionVisibility.Private),
+            new SubscribeStream("notifications", FunctionVisibility.Public)], metadata.SubscribeStreams);
+        Assert.Equal(86400, metadata.StreamMaxAgeSeconds);
+        Assert.Equal(123, metadata.StreamMaxLength);
+    }
+
+    [Theory]
+    [InlineData("Unknown:orders", "24h")]
+    [InlineData("orders,orders", "24h")]
+    [InlineData("orders", "0h")]
+    [InlineData("../orders", "24h")]
+    [InlineData("orders", "999999999999d")]
+    public void Parse_rejects_invalid_Stream_configuration(string subscriptions, string retention) =>
+        Assert.Throws<FormatException>(() => FunctionMetadataParser.Parse(new Dictionary<string, string>
+        {
+            [FunctionAnnotationNames.SubscribeStream] = subscriptions,
+            [FunctionAnnotationNames.StreamMaxAge] = retention
+        }, "billing"));
+
+    [Fact]
     public void Parse_SeparatesVisibilityPrefixesFromPathsAndEventNames()
     {
         var metadata = FunctionMetadataParser.Parse(new Dictionary<string, string>
@@ -100,6 +129,22 @@ public sealed class FunctionMetadataParserTests
         Assert.Equal(15, metadata.Configuration.DefaultPublish.HttpTimeout);
         Assert.Equal([1, 2, 4], metadata.Configuration.DefaultPublish.TimeoutRetries);
         Assert.Equal([500, 502, 503], metadata.Configuration.DefaultPublish.HttpStatusRetries);
+    }
+
+    [Fact]
+    public void Parse_AppliesDefaultsToPartialDeadLetterConfiguration()
+    {
+        FunctionMetadata metadata = FunctionMetadataParser.Parse(
+            new Dictionary<string, string>
+            {
+                [FunctionAnnotationNames.Configuration] =
+                    """{"DefaultAsync":{"HttpTimeout":30,"TimeoutRetries":[],"DeadLetterQueue":{"Enabled":true}}}"""
+            }, "function");
+
+        var policy = metadata.Configuration.DefaultAsync.DeadLetterQueue;
+        Assert.True(policy.Enabled);
+        Assert.Equal(604800, policy.MaxAgeSeconds);
+        Assert.Equal(10000, policy.MaxLength);
     }
 
     [Fact]

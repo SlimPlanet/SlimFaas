@@ -67,6 +67,8 @@ public static class EventEndpoints
         functionPath ??= "";
 
         logger.LogReceivingEvent(eventName);
+        if (context.RequestServices.GetService<IWebSocketClusterDirectory>() is { } directory)
+            await directory.RefreshAsync(context.RequestAborted);
         var functions = accessPolicy.GetAllowedSubscribers(context, eventName);
         var caller = FunctionEndpointsHelpers.ResolveNetworkActivityCaller(context, jobService,
             FunctionEndpointsHelpers.HasLocalWorkloadIdentity(context)

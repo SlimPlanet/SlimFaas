@@ -6,8 +6,23 @@
 
 # slimfaas-client
 
+Durable Streams use `subscribe_streams=[SubscribeStreamConfig("orders")]` and
+`client.on_stream_message(handler)`. A `StreamMessage` includes `stream_name`,
+`message_id`, attempt `element_id` and the original request. Return final status
+or `202`, then complete through `send_callback`. Registration requires
+`streams-v1`; reconnect preserves progress.
+See [Streams examples](../../../docs/streams.md#websocket-functions).
+
 Python client to connect Jobs or virtual functions to **SlimFaas** via WebSocket.
 Lets any process receive async requests and publish/subscribe events without exposing an HTTP port.
+
+The client retains active handler tasks until they finish, including while they
+await application work. Completed tasks are released automatically.
+
+One outbound connection to any SlimFaas node is sufficient: sync, async and event
+ingress on other nodes relays to its owner; Streams consume on the connected node.
+Configuration must match across clients sharing a name. SDK wire messages are
+unchanged. See [multi-node routing and failures](../../../docs/clients.md#multi-node-routing-and-failure-semantics).
 
 [![PyPI](https://img.shields.io/pypi/v/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
 [![PyPI Downloads](https://img.shields.io/pypi/dm/slimfaas-client.svg)](https://pypi.org/project/slimfaas-client)
@@ -35,6 +50,28 @@ uv pip install -e .
 ```
 
 ## Quick start
+
+Opt into durable async failures using the existing configuration string:
+
+```python
+import json
+from slimfaas_client import SlimFaasClientConfig
+
+config = SlimFaasClientConfig(
+    function_name="billing",
+    configuration=json.dumps({"DefaultAsync": {
+        "HttpTimeout": 120,
+        "DeadLetterQueue": {"Enabled": True, "MaxAgeSeconds": 604800, "MaxLength": 10000},
+    }}),
+)
+```
+
+The runtime validates this JSON; all clients sharing the name must match.
+Return the actual final status from the async handler, or 202 followed by an
+explicit completion callback for deferred work. Replay gets a fresh execution
+ID and current retries; handlers must tolerate duplicate delivery. DLQ management
+is private independently of function visibility. See the
+[DLQ guide](../../../docs/dead-letter-queues.md).
 
 ```python
 import asyncio

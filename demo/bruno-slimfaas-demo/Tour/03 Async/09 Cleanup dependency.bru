@@ -1,0 +1,17 @@
+meta {
+  name: Delete only this run's dependency flag
+  type: http
+  seq: 9
+}
+
+delete {
+  url: {{baseUrl}}/data/sets/{{durableId}}-dlq-ready
+  body: none
+  auth: none
+}
+
+tests {
+  test("Scoped dependency removed", function () {
+    expect(res.getStatus()).to.equal(204);
+  });
+}

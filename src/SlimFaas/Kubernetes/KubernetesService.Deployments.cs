@@ -159,7 +159,10 @@ public partial class KubernetesService
                         metadata.Trust,
                         metadata.Scale,
                         metadata.NumberParallelRequestPerPod,
-                        resources
+                        resources,
+                        metadata.SubscribeStreams,
+                        metadata.StreamMaxAgeSeconds,
+                        metadata.StreamMaxLength
                     );
                     deploymentInformationList.Add(deploymentInformation);
                 }
@@ -385,7 +388,10 @@ public partial class KubernetesService
                         metadata.Trust,
                         metadata.Scale,
                         metadata.NumberParallelRequestPerPod,
-                        resources);
+                        resources,
+                        metadata.SubscribeStreams,
+                        metadata.StreamMaxAgeSeconds,
+                        metadata.StreamMaxLength);
 
                     deploymentInformationList.Add(deploymentInformation);
                 }

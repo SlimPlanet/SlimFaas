@@ -52,6 +52,7 @@ It’s designed to be **fast**, **simple**, and **extremely slim** — with a ve
 - **[Scaling diagnostics and playground](docs/user-interface.md#scaling-diagnostics-and-playground)** to explain live decisions and preview changes without modifying production.
 - temporary **Data Files** endpoints to ingest and stage binaries (from tiny to very large) with TTL-friendly storage — perfect for caching & agentic workflows.
 - temporary **Data Sets** endpoints (`/data/sets`) to store small, Redis-like KV payloads (cache, JSON state, flags) with optional TTL — replicated through the cluster via a robust consensus layer.
+- opt-in **[Dead Letter Queues](docs/async-functions.md#dead-letter-queues)** to retain terminal async failures, inspect original payloads, and requeue safely through private-by-default APIs and an optional dashboard page.
 
 
 ---
@@ -185,6 +186,7 @@ Check out:
     - [User Interface](docs/user-interface.md) – Monitor functions, queues, jobs, and real-time messages.
     - [Clients](docs/clients.md) – Integrate SlimFaas with .NET and Python applications.
     - [Events](docs/events.md) – Use internal publish/subscribe events.
+    - [Streams](docs/streams.md) - Durable events, retained history, and independent HTTP/WebSocket function consumption.
     - [Jobs](docs/jobs.md) – Define, schedule, and run one-off jobs.
     - [OpenTelemetry](docs/opentelemetry.md) – Enable distributed tracing, metrics, and logs.
     - [Benchmarks](docs/benchmarking.md) – Measure sync overhead, async delivery latency, and native-local scaling speed.

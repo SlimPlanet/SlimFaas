@@ -1,0 +1,28 @@
+@baseUrl = http://127.0.0.1:30020
+@function = fibonacci1
+@messageId = replace-with-dlq-entry-id
+
+### Requires a trusted caller, or explicit Public DLQ visibility in a local demo.
+GET {{baseUrl}}/data/dead-letters?limit=100
+
+###
+GET {{baseUrl}}/data/dead-letters/{{function}}
+
+###
+GET {{baseUrl}}/data/dead-letters/{{function}}/messages?limit=100&reason=NonRetryableResponse
+
+###
+GET {{baseUrl}}/data/dead-letters/{{function}}/messages/{{messageId}}
+
+###
+GET {{baseUrl}}/data/dead-letters/{{function}}/messages/{{messageId}}/body
+Range: bytes=0-65535
+
+### 202 confirms durable replay, not successful processing.
+POST {{baseUrl}}/data/dead-letters/{{function}}/messages/{{messageId}}/requeue
+
+###
+DELETE {{baseUrl}}/data/dead-letters/{{function}}/messages/{{messageId}}
+
+###
+GET {{baseUrl}}/data/dead-letters/-/metrics

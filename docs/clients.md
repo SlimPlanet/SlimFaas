@@ -1,8 +1,49 @@
 ﻿# SlimFaas Clients
 
+For retained events, use `SubscribeStreams` / `subscribe_streams` and
+`OnStreamMessage` / `on_stream_message`. See [Durable Streams](streams.md) for
+registration, deferred callbacks, visibility, and reconnect semantics.
+
 SlimFaas clients let a process register itself as a **virtual function** through WebSocket instead of exposing an HTTP server.
 
+The Python client keeps strong references to active request, Stream and event
+handler tasks until they finish, then releases them. Awaiting application work
+inside a handler therefore does not leave its task vulnerable to garbage collection.
+
 This is useful for jobs, agents, desktop services, local workers, or any process that must receive SlimFaas requests without being deployed as a Kubernetes `Deployment`.
+
+Try the [independent persistent WebSocket job in the Guided Tour](guided-tour.md#10-run-an-independent-websocket-job).
+It reuses `FibonacciBatch --ws-mode` from the base demos, exercising sync replies,
+async/event processing proofs and exact Stream ACK/history checks through the official
+.NET client. `--subscribe-stream Public:name` is repeatable; the equivalent
+`SLIMFAAS_SUBSCRIBE_STREAMS` environment value accepts comma-separated
+subscriptions. The demonstration's proof writes use `SlimFaas__BaseUrl`;
+`SLIMFAAS_WS_URL` supplies one outbound connection address; comma-separated
+`SLIMFAAS_WS_URLS` optionally opens several identically configured clients.
+One connection to any node is sufficient for sync, async, Streams and events;
+the base demos deliberately use one owner. `--registration-key <function-name>-ready` writes a bounded-TTL
+readiness proof only after all configured clients successfully register.
+It is optional; ordinary WebSocket mode does not require a Data Set proof.
+No client API or
+wire-protocol changes are required.
+
+### Multi-node routing and failure semantics
+
+SlimData/Raft stores registration metadata, compatible configuration and a
+30-second owner lease, renewed every five seconds. Sockets and pending responses
+remain on their owner. Any ingress discovers the virtual function and relays
+sync/async requests or event fan-out directly to that owner over an authenticated
+internal transport. This works independently of dashboard/SSE settings.
+Streams retain owner-local consumption with shared Raft reservations.
+
+The owner enforces per-client capacity. Sync bodies remain streamed with bounded
+buffers; cancellation propagates to the owner. An unavailable owner returns an
+explicit failure, not a blind synchronous replay. Async delivery retains the
+normal retry/DLQ behavior. An ambiguous attempt's element ID stays fenced on its
+connection until a late callback or disconnect; retries may use another replica.
+Events remain best effort: `204` is acceptance, not delivery confirmation, and
+partial fan-out is not automatically resent. Disconnect removes the route;
+crashes expire the lease, and reconnect creates a new connection identity.
 
 Client libraries:
 
@@ -38,6 +79,14 @@ sequenceDiagram
 ```
 
 Multiple connected clients with the same function name must use identical configuration. SlimFaas routes work to connected clients; starting more external worker processes remains your responsibility. See the examples below for event subscriptions and disconnect behavior.
+
+The existing JSON `Configuration` (.NET) / `configuration` (Python) string is
+validated and applied by the runtime. Set
+`{"DefaultAsync":{"DeadLetterQueue":{"Enabled":true}}}` to opt into durable
+terminal-failure capture. Retry settings, deferred callbacks, offloaded bodies,
+and replay use the normal async pipeline, with fresh execution IDs. See
+[Dead Letter Queues](async-functions.md#websocket-clients) for examples and
+the independent private-by-default management policy.
 
 ## 1. Connection Endpoint
 
